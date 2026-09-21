@@ -1,4 +1,4 @@
-import { layoutUiAnchoredRect, layoutUiFlex, type UiRect } from '@orchard/ui';
+import { layoutUiAnchoredRect, layoutUiFlex, type UiRect } from '@orchard/ui/studio';
 
 export interface StudioShellRegionLayout {
   readonly viewport: UiRect;

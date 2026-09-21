@@ -3,10 +3,11 @@ import {
   type ContentRegistry,
 } from '@orchard/sim';
 
-export type HearthFixtureRenderer = 'anvil' | 'chest' | 'workbench';
+export type HearthFixtureRenderer = 'anvil' | 'chest' | 'workbench' | 'barrel';
 
 const FIXTURE_RENDERERS: Readonly<Record<string, HearthFixtureRenderer>> = {
   'container.chest': 'chest',
+  'container.barrel': 'barrel',
   'station.anvil': 'anvil',
   'station.workbench': 'workbench',
 };

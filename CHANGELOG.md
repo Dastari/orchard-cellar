@@ -1,22 +1,85 @@
 # Changelog
 
-## Unreleased — Developer tooling
+## 0.15.0 / Studio 0.8.1 — Branch integration
 
-- Add checksum-pinned MCP Agent Mail Rust installation, a persistent local service,
-  Codex/Claude project configuration, shared startup instructions, verification
-  and a coordination runbook.
+- Integrate the reviewed Studio editor, six connected gameplay slices, Willowharbour,
+  hoe/fish fixes, action baselines, catalogs and operational/design audits.
+- Preserve Agent Mail startup guidance and all feature histories; refresh combined
+  content and action baselines with independent Studio versioning.
+- Consolidate review through one integration PR and retire stale worktrees only
+  after preserving their committed work and non-reproducible local evidence.
 
-## 0.8.5 — Kenmi icons and crafting button
+## 0.8.5 — Unified action baseline tooling
 
-- Frame the crafting wrench button to match Build’s size, icon inset and hover
-  handling. Inventory stays on the original bottom-right gold/purse display.
-- Replace the hammer (including the build button) and all six shovel-tier icons
-  with Kenmi silhouettes; retain distinct wood/stone/metal palettes and update
-  both tool generators to preserve the new artwork.
-- Use clearer native artwork for nine farming/mining skills and distinct packets
-  for apple, cherry, peach and pear seeds. Orchard Seed Saver now has its own icon.
-- Preserve item IDs, gameplay rules and tool animations; add reproducible imports,
-  source-pixel checks and reviewed asset fingerprints.
+- Begin P0 with a generated inventory of every live bootstrap item variant, current action owner, lifecycle triggers and numeric authored values. Add `actions:baseline -- --check|--write` and make drift a normal test failure.
+- Add current-main geometry and bow charge goldens for the future tool/spell migration, plus ownership validation tests.
+- Record the repair cursor/escrow requirements, pending gameplay PRs and remaining P0 audits in [the implementation handoff](docs/action-baseline-notes.md). This slice does not enable the new action system or repair UI.
+
+## Publishing guidance — 2026-09-17
+
+- Documented release-lane selection, encrypted shared-preview credential handoff,
+  refresh validation, content equality and signed-in verification for future agents.
+
+## 0.8.3 — Unreleased
+
+- Draw fishing pools from their authored nature artwork again. A resource whose
+  visual names a decoration family resolved to no atlas entry and rendered the
+  placeholder "?" tile.
+- Rain now waters crops. While a shower runs, every crop tile in an open-air space
+  — the island and every homestead, never a residence or cellar — is topped up on
+  the weather sweep, with growth settled first so no progress is lost. Tilled soil
+  without a crop keeps its own decay timer.
+- Climb a cellar ladder only from the tile at its foot while facing it. The prompt
+  no longer reaches sideways or diagonally past nearby objects, and the reducer
+  enforces the same tile and facing.
+- Count a placed anvil as the crafting station its recipes require. Anvil recipes
+  such as the watch reported "REQUIRES AN ANVIL WITHIN 2 TILES" even while the
+  player stood against one, because a placed anvil reported no station at all.
+
+## Unreleased — Planning
+
+- Specify unified tool/spell actions, modifiable targeting and resource costs, exact
+  G-debug limits, and a dedicated repair UI with atomic output-to-cursor collection.
+  Record phased delivery and anti-duplication gates; no runtime changes.
+
+## Unreleased — Documentation
+
+- Audit current and planned gameplay loops against source, identify weak links and
+  stale design status, and propose an estate → outing → return progression network.
+  See the [gameplay loop dependency audit](docs/gameplay-loop-dependency-audit.md).
+  No gameplay behavior or balance values change.
+
+## Unreleased — Frontend asset delivery audit
+
+- Document measured frontend payloads, live cache/compression behavior, and
+  prioritized asset-loading improvements for catalog growth. Include validation
+  criteria and implementation handoff; no runtime or deployment changes.
+
+## Unreleased — Icon audit
+
+- Audit 336 item definitions and 66 skill nodes against the new Kenmi premium
+  icons. Prioritize the hammer and six shovel tiers, plus 13 other first-pass
+  replacements, a cellar bottle candidate, verified
+  source coordinates, and keep/defer decisions without changing runtime artwork.
+
+## Unreleased — Reference library
+
+- Refresh stale Cute Fantasy catalog paths after the prior library reorganization
+  and classify existing generated tool-progression references as concept-only.
+
+- Index Kenmi’s 6,982 premium icons across nine native category sheets, with
+  complete vendor-number-to-sheet coordinate lookup and source licence provenance.
+  Verify redundant individual/scaled exports against retained native artwork and
+  preserve the original archive in a local backup outside the indexed library.
+
+## 0.8.5 — Hoe and swimming fish fixes
+
+- Route F with a hoe to tilling, crop uprooting, or soil restoration instead of
+  an entity-only swing. Both the swing and direct-use shortcuts yield to the
+  farming action; damaged tools still repair at a faced anvil.
+- Draw fishing pools with the fish sprite’s `sway` animation. The earlier art
+  lookup fix found the correct sheet but requested its nonexistent `base` frame,
+  leaving randomly spawned pools invisible. Depleted pools remain hidden.
 
 ## 0.8.4 — Anvil repair release
 
@@ -160,3 +223,56 @@
   and upgrades. Fix preserving timing when inputs occupy a nonzero slot.
 - Add deterministic probability, daily boundary, authority, input restriction,
   processor and UI regression coverage.
+## 0.9.0 — Willowharbour town and interiors
+
+- Round the western island into coves and headlands with varied beaches and northern stone shelves. Replace grid-based trees with deterministic mixed-age groves and undergrowth.
+- Add native grass transitions to stone and rural dirt paths; furnish the inn garden, market, pond, craft yards, cottage gardens and farm with streetlamps, well, troughs, crops and livestock.
+- Design furnished interiors for all ten buildings, including both cottages, barn and greenhouse; connect every door in both directions and add room-specific floor materials.
+- Add a conflict-checked offline upgrade against a reviewed prior map export. Preserve the main island, Cinderwake and the Studio renderer guard.
+- Measure the expanded content at 546,411 bytes (+1.81%) and set its subscription budget to 534 KiB.
+
+## 0.14.0 — Connected estate progression
+
+- Train Farming with fishing catches (5 XP) and ordinary pool depletion (+10 XP), including Farming XP for tutorial catches. Preserve existing Explorer XP and all purchased skills.
+- Price the East and South residence expansions at 60,000 and 180,000 bronze respectively (240,000 combined), retaining existing rooms and all bottle values, Vintage multipliers and first-bottle quest rewards.
+- Add a source-derived production pacing report and make village-order comparisons read the same housing quotes as the game.
+
+## 0.13.0 — 2026-09-21
+
+- Completing all 12 Delve rooms and claiming the final guardian boon now permanently reveals the Delver Memorial Planter recipe, an optional residence keepsake crafted with stone, fiber and sunflowers.
+- Track full Delve victories independently of temporary boons/currency. Content-disabled rewards are repaired on reconnect; death and abandonment grant no completion reward.
+- Preserve completion receipts across quest resets and restore run-entry vitals as before.
+- Keep the earned planter nonbuyable in authored commerce; reject purchase prices, including zero, in reward validation.
+
+
+## 0.12.0 — 2026-09-21
+
+- Mature apple, pear, peach and cherry trees now offer renewable E/touch fruit picking every game day, with ripening countdowns and existing seed-saver rolls. Picking preserves the tree; axe felling yields forestry materials only.
+- Require a living player, current inventory protocol and unlocked persistent inventory before picking; rejected attempts leave the harvest and its rewards untouched.
+- Persist readiness independently of tree health with an additive defaulted schema migration; inventory overflow uses the existing reserved drops.
+
+
+## 0.11.0 — Village order specialist meals
+
+- Learn Pantry Lunch after delivering two distinct raw products and one preserved product; learn Cellar Supper after two raw, two preserved and one bottle delivery. Repeat orders retain existing bronze payments.
+- Track the next permanent recipe directly in Village Orders and receive a learned-recipe notice. New meals combine preserved produce with fresh crops to restore 36/48 hunger.
+- Persist bounded private progress and grant recipe knowledge atomically with delivery receipts. Existing orders begin the new milestones at zero because historical receipts do not retain product diversity.
+
+## 0.10.0 — Preserved expedition provisions
+
+- Eat any preserved crop to restore 12–23 Hunger during outdoor work and expeditions. Full Hunger leaves the portion untouched; successful consumption records the existing food statistic. Preserving, prices and village orders retain their current behavior.
+## 0.9.0 — Pomace compost
+
+- Handcraft four Pomace and one Fiber into Compost. Select it and use F or the primary pointer action on a growing crop to advance its growth by 25%, once per planting.
+- Record one lifetime `compost_applied` statistic per successful treatment for future quest/milestone connections, with no treatment XP.
+- Settle elapsed growth before treatment, cap progress at maturity, and keep failed, unauthorized or repeated applications free of inventory changes. The new crop marker defaults to false for existing plantings.
+
+## Studio 0.8.0 — Integrated reviewed editor
+
+- Bring the reviewed Studio canvas UI kit and tools into the repository while
+  keeping the game UI and Studio build/service independent.
+- Share current runtime packages and canonical UI symbols; replace the external
+  source overlay with a reproducible single-repository staged build.
+- Retain live-map verification, draft safety, UI-kit checks, and rollback evidence;
+  archive and retire the external source, remove six merged worktrees, and preserve
+  active work plus checked rollback artifacts.

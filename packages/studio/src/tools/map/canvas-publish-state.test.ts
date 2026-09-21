@@ -1,3 +1,4 @@
+import { kitElement, kitElements, pressKit } from '../kit-test-driver.js';
 import {
   createLiveIslandMapDocument,
   mapDocumentV3Hash,
@@ -111,25 +112,25 @@ describe('Map Editor publish state', () => {
     liveView = connectionView(revisionEight);
     let surface = buildMapCanvasTool(context);
     expect(mapDocumentV3Hash(retained.model.document())).toBe(localHash);
-    expect(surface.nodes.find(({ id }) => id === 'map-publish-conflict-ribbon')).toMatchObject({
-      kind: 'ribbon', label: 'MAP CONFLICT · LIVE R8',
+    expect(kitElement(surface, 'map-publish-conflict-ribbon')).toMatchObject({
+      kind: 'text', label: 'MAP CONFLICT · LIVE R8',
     });
-    expect(surface.actions.find(({ id }) => id === 'map-publish')).toMatchObject({
+    expect(kitElement(surface, 'map-publish')).toMatchObject({
       disabled: true,
       label: 'CONFLICT — Live revision 8 changed; reload latest or keep this local draft',
     });
-    expect(surface.actions.find(({ id }) => id === 'map-publish-conflict-export')).toMatchObject({
+    expect(kitElement(surface, 'map-publish-conflict-export')).toMatchObject({
       disabled: false,
-      label: 'Download this conflicting local draft as validated JSON without changing the live map',
+      label: 'Export local draft',
     });
-    surface.actions.find(({ id }) => id === 'map-publish-conflict-export')?.activate();
+    pressKit(surface, 'map-publish-conflict-export');
     expect(context.controller.notifications.items().at(-1)).toMatchObject({
       kind: 'error', title: 'Map export unavailable',
     });
 
-    surface.actions.find(({ id }) => id === 'map-publish-conflict-keep-local')?.activate();
+    pressKit(surface, 'map-publish-conflict-keep-local');
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.some(({ id }) => id === 'map-publish-conflict-panel')).toBe(false);
+    expect(kitElements(surface).some(({ id }) => id === 'map-publish-conflict-panel')).toBe(false);
     expect(mapDocumentV3Hash(retained.model.document())).toBe(localHash);
     expect(retained.model.conflictRevision()).toBe(8);
 
@@ -138,15 +139,15 @@ describe('Map Editor publish state', () => {
     });
     liveView = connectionView(revisionNine);
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-publish-conflict-ribbon')).toMatchObject({
+    expect(kitElement(surface, 'map-publish-conflict-ribbon')).toMatchObject({
       label: 'MAP CONFLICT · LIVE R9',
     });
-    surface.actions.find(({ id }) => id === 'map-publish-conflict-reload')?.activate();
+    pressKit(surface, 'map-publish-conflict-reload');
     surface = buildMapCanvasTool(context);
     expect(retained.model.document().title).toBe('Revision nine');
     expect(retained.model.dirty()).toBe(false);
     expect(retained.model.conflictRevision()).toBeNull();
-    expect(surface.actions.find(({ id }) => id === 'map-publish')).toMatchObject({
+    expect(kitElement(surface, 'map-publish')).toMatchObject({
       disabled: true, label: 'CLEAN — No unpublished map changes',
     });
   });

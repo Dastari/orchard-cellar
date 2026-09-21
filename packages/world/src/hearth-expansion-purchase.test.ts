@@ -20,7 +20,7 @@ function fixture() {
   });
   const registry={...baseRegistry,spaces};
   let home={spaceId:60000,residenceSpaceId:30000,residenceExpansionRank:0};
-  let wallet={balanceBronze:10000n};
+  let wallet={balanceBronze:300000n};
   const player={identity:'owner',spaceId:30000,x:8.5*sim.TILE_SIZE_FIXED,y:11.5*sim.TILE_SIZE_FIXED,actionKind:'none'};
   let occupants=[player];
   let furniture: sim.HearthFurniturePlacement[]=[];
@@ -62,19 +62,19 @@ function fixture() {
 describe('actual residence expansion purchase reducer',()=>{
   it('buys both rooms at the quoted prices without rewriting furniture or occupants',()=>{
     const f=fixture();f.run(0);
-    expect(f.home().residenceExpansionRank).toBe(1);expect(f.wallet().balanceBronze).toBe(6800n);
-    f.run(1);expect(f.home().residenceExpansionRank).toBe(2);expect(f.wallet().balanceBronze).toBe(2600n);
+    expect(f.home().residenceExpansionRank).toBe(1);expect(f.wallet().balanceBronze).toBe(240000n);
+    f.run(1);expect(f.home().residenceExpansionRank).toBe(2);expect(f.wallet().balanceBronze).toBe(60000n);
     expect(f.writes).toEqual(['wallet','home','wallet','home']);
     expect(f.player.spaceId).toBe(30000);
   });
   it('rejects repeat/stale clicks and maximum rank before debit',()=>{
     const f=fixture();f.run(0);
-    expect(()=>f.run(0)).toThrow('stale');expect(f.wallet().balanceBronze).toBe(6800n);
+    expect(()=>f.run(0)).toThrow('stale');expect(f.wallet().balanceBronze).toBe(240000n);
     f.run(1);expect(()=>f.run(2)).toThrow('maximum');expect(f.writes).toHaveLength(4);
   });
   it('rejects insufficient funds and nonowners without writes',()=>{
-    const f=fixture();f.setBalance(3199n);expect(()=>f.run(0)).toThrow('insufficient_funds');
-    f.setBalance(10000n);f.setOwner(false);expect(()=>f.run(0)).toThrow('not_ready');expect(f.writes).toEqual([]);
+    const f=fixture();f.setBalance(59999n);expect(()=>f.run(0)).toThrow('insufficient_funds');
+    f.setBalance(300000n);f.setOwner(false);expect(()=>f.run(0)).toThrow('not_ready');expect(f.writes).toEqual([]);
   });
   it('preserves an offline seated guest and rejects mismatched custody before writes',()=>{
     const f=fixture();
@@ -85,7 +85,7 @@ describe('actual residence expansion purchase reducer',()=>{
     f.setOccupants([f.player,guest]);f.setCustody({...custody,seatedX:guest.x+1});
     expect(()=>f.run(0)).toThrow('invalid_seat_custody');expect(f.writes).toEqual([]);
     f.setCustody(custody);const before=JSON.stringify(guest);f.run(0);
-    expect(JSON.stringify(guest)).toBe(before);expect(f.wallet().balanceBronze).toBe(6800n);
+    expect(JSON.stringify(guest)).toBe(before);expect(f.wallet().balanceBronze).toBe(240000n);
   });
   it('builds the proposed collision without changing persisted rank or dropping fixed obstacles',()=>{
     const f=fixture();f.setSurfaces([8,9,10].map((tileY,index)=>({

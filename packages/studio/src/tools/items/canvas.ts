@@ -1,29 +1,17 @@
+import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
+import { studioSelectionEditor } from '../../shell/selection-editor.js';
+import { studioDefinitionFields } from '../../shell/definition-fields.js';
+import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
 import type { ItemDefinitionId, SupportedContentDefinition } from '@orchard/sim';
 import lifecycleSourceBundle from '@orchard/lifecycle-authoring/source' with { type: 'json' };
-import {
-  CanvasTextEditor,
-  layoutStudioCanvasTable,
-  layoutUiFlex,
-  layoutUiFrameSlots,
-  scrollStudioCanvasTable,
-  studioCanvasFrameContentRect,
-  type FantasyButtonGlyph,
-  type StudioCanvasShellNode,
-  type StudioCanvasTableLayout,
-  type UiFlexItem,
-  type UiRect,
-} from '@orchard/ui';
+import { CanvasTextEditor, ui as kit, type UiElement, type UiTone, type UiTableState } from '@orchard/ui/studio';
 import {
   STUDIO_LIFECYCLE_TRIGGER_ORDER,
   type LifecycleDraftStorage,
   type StudioLifecycleSourceBundle,
 } from '../../lifecycle/model.js';
-import type {
-  StudioCanvasToolAction,
-  StudioCanvasToolContext,
-  StudioCanvasToolSurface,
-  StudioCanvasToolTable,
-} from '../../shell/canvas-tool.js';
+import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
+import { studioLiveContentSnapshot, studioLiveContentStatusSurface } from '../../shell/live-content-readiness.js';
 import {
   itemsAccessForConnection,
   itemsHeadFromConnection,
@@ -47,7 +35,8 @@ interface ItemsCanvasState {
   kind: ItemsToolContentKind;
   selectedId: string | null;
   syncedId: string | null;
-  browserScroll: number;
+  browserTable?: UiTableState;
+  tab: string;
   mutationSequence: number;
   lifecycleItemId: ItemDefinitionId | null;
   lifecycleHandlerId: string | null;
@@ -56,71 +45,11 @@ interface ItemsCanvasState {
   lifecycleSyncing: boolean;
 }
 
-type Node = StudioCanvasShellNode;
-const BUTTON_HEIGHT = 42;
-const LAYOUT_GAP = 6;
-
-type LiveContentReadiness = 'offline' | 'loading' | 'unavailable' | 'ready';
-
-function liveContentReadiness(context: StudioCanvasToolContext): LiveContentReadiness {
-  const live = context.controller.liveAdapter();
-  if (live === null) return 'offline';
-  const view = live.view();
-  if (view.error !== null || (!view.connected && !view.synchronizing)) return 'unavailable';
-  if (view.synchronizing || !view.connected
-    || view.contentHead === undefined || view.contentDefinitions === undefined) return 'loading';
-  return view.contentHead === null || view.contentDefinitions.length === 0 ? 'unavailable' : 'ready';
-}
-
-function contentStatusSurface(
-  context: StudioCanvasToolContext,
-  readiness: Exclude<LiveContentReadiness, 'offline' | 'ready'>,
-): StudioCanvasToolSurface {
-  const prefix = `${context.route.tool.id}-`;
-  const controls = context.controlsBounds ?? context.bounds;
-  const workspace = context.workspaceBounds ?? context.bounds;
-  const controlContent = studioCanvasFrameContentRect(controls, 'parchment_panel');
-  const workspaceContent = studioCanvasFrameContentRect(workspace, 'parchment_panel');
-  return Object.freeze({
-    nodes: Object.freeze([
-      { id: `${prefix}content-status-controls`, kind: 'parchment_panel' as const, bounds: controls },
-      { id: `${prefix}content-status-workspace`, kind: 'parchment_panel' as const, bounds: workspace },
-      { id: `${prefix}content-status-title`, kind: 'heading' as const, bounds: controlContent,
-        label: readiness === 'loading' ? 'LOADING LIVE CONTENT' : 'LIVE CONTENT UNAVAILABLE',
-        tone: readiness === 'loading' ? undefined : 'danger' as const },
-      { id: `${prefix}content-status-detail`, kind: 'field' as const, bounds: workspaceContent,
-        label: readiness === 'loading' ? 'WAITING FOR VERIFIED LIVE CONTENT'
-          : 'NO VERIFIED LIVE CONTENT HEAD IS AVAILABLE' },
-    ]),
-    actions: Object.freeze([]), tables: Object.freeze([]), textEditors: Object.freeze([]),
-  });
-}
-
-function flexItem(width: number, height: number, options: Partial<UiFlexItem> = {}): UiFlexItem {
-  return { minSize: { width, height }, ...options };
-}
-
 function labelFor(definition: SupportedContentDefinition): string {
   return 'displayName' in definition && typeof definition.displayName === 'string'
     ? definition.displayName : definition.id;
 }
 
-function scalarFields(value: unknown, path = '$', result: string[] = []): readonly string[] {
-  if (result.length >= 48) return result;
-  if (value === null || typeof value !== 'object') {
-    result.push(`${path}: ${String(value)}`);
-    return result;
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) result.push(`${path}: []`);
-    value.forEach((entry, index) => scalarFields(entry, `${path}[${index}]`, result));
-    return result;
-  }
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    scalarFields(entry, path === '$' ? key : `${path}.${key}`, result);
-  }
-  return result;
-}
 
 function report(context: StudioCanvasToolContext, title: string, error: unknown): void {
   context.controller.notifications.push('error', title, error instanceof Error ? error.message : String(error));
@@ -146,7 +75,6 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
   const head = view === undefined ? null : itemsHeadFromConnection(view);
-  if (live !== null && head === null) throw new Error('items_live_content_not_ready');
   const history = view === undefined ? [] : itemsHistoryFromConnection(view);
   const model = createItemsTool({
     access,
@@ -185,7 +113,7 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
     kind: 'item',
     selectedId: model.definitions('item')[0]?.id ?? null,
     syncedId: null,
-    browserScroll: 0,
+    tab: 'fields',
     mutationSequence: 0,
     lifecycleItemId: null,
     lifecycleHandlerId: null,
@@ -215,82 +143,19 @@ function syncLifecycleSelection(state: ItemsCanvasState, selected: SupportedCont
   state.lifecycleSyncedHandlerId = handler?.id ?? null;
 }
 
-function addAction(
-  nodes: Node[], actions: StudioCanvasToolAction[], id: string, label: string,
-  bounds: UiRect, activate: () => void,
-  options: {
-    readonly disabled?: boolean;
-    readonly role?: StudioCanvasToolAction['role'];
-    readonly active?: boolean;
-    readonly tone?: Node['tone'];
-    readonly glyph?: FantasyButtonGlyph;
-    readonly visibleLabel?: string;
-    readonly multiline?: boolean;
-    readonly textScale?: Node['textScale'];
-  } = {},
-): void {
-  const disabled = options.disabled === true;
-  nodes.push({
-    id,
-    kind: options.role === 'textbox' ? 'field' : options.role === 'tab' ? 'tab' : 'button',
-    bounds,
-    label: options.visibleLabel ?? label,
-    glyph: options.glyph,
-    multiline: options.multiline,
-    textScale: options.textScale,
-    state: disabled ? 'disabled' : options.active ? 'active' : 'idle',
-    tone: options.tone,
-  });
-  actions.push({ id, label, role: options.role ?? 'button', bounds, disabled, activate });
-}
-
-function fieldNodes(nodes: Node[], id: string, values: readonly string[], bounds: UiRect): void {
-  const count = Math.min(values.length, Math.max(0, Math.floor(bounds.height / BUTTON_HEIGHT)));
-  const rows = layoutUiFlex(
-    bounds,
-    values.slice(0, count).map(() => flexItem(1, 36, { basis: 36, grow: 0, shrink: 0 })),
-    { direction: 'column', gap: 4 },
-  );
-  rows.forEach((row, index) => nodes.push({
-    id: `${id}:${index}`,
-    kind: 'field',
-    bounds: row,
-    clip: bounds,
-    label: values[index]!,
-  }));
-}
-
-function prefixSurface(
-  context: StudioCanvasToolContext,
-  nodes: readonly Node[],
-  actions: readonly StudioCanvasToolAction[],
-  tables: readonly StudioCanvasToolTable[],
-  state: ItemsCanvasState,
-): StudioCanvasToolSurface {
-  const prefix = `${context.route.tool.id}-`;
-  return Object.freeze({
-    nodes: Object.freeze(nodes.map((node) => Object.freeze({ ...node, id: `${prefix}${node.id}` }))),
-    actions: Object.freeze(actions.map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-    tables: Object.freeze(tables.map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-    textEditors: Object.freeze([
-      { id: 'items:query', editor: state.query },
-      { id: 'items:note', editor: state.note },
-      { id: 'items:definition-json', editor: state.definition },
-      { id: 'items:lifecycle-prompt', editor: state.lifecyclePrompt },
-      { id: 'items:lifecycle-source', editor: state.lifecycleSource },
-      { id: 'items:lifecycle-bundle', editor: state.lifecycleBundle },
-    ].map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-  });
-}
-
 export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const live = context.controller.liveAdapter();
+  const content = studioLiveContentSnapshot(live);
+  if (content.mode === 'loading' || content.mode === 'unavailable') {
+    return studioLiveContentStatusSurface(content);
+  }
   const view = live?.view();
-  const readiness = liveContentReadiness(context);
-  if (readiness === 'loading' || readiness === 'unavailable') return contentStatusSurface(context, readiness);
   const access = itemsAccessForConnection(context.route.access, live);
   const identity = view?.identity ?? 'anonymous';
-  const state = context.controller.toolState(`items-canvas:${identity}:${access}`, () => createState(context));
+  const state = context.controller.toolState(
+    `items-canvas:${identity}:${access}:${content.contentKey}`,
+    () => createState(context),
+  );
   const head = view === undefined ? null : itemsHeadFromConnection(view);
   if (head !== null) state.model.receiveHead(head);
   state.model.receiveHistory(view === undefined ? [] : itemsHistoryFromConnection(view));
@@ -308,160 +173,48 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
   }
   syncLifecycleSelection(state, selected);
 
-  const controlsBounds = context.controlsBounds ?? context.bounds;
-  const workspaceBounds = context.workspaceBounds ?? context.bounds;
-  const nodes: Node[] = [
-    { id: 'items:controls-panel', kind: 'parchment_panel', bounds: controlsBounds },
-    { id: 'items:surface', kind: 'parchment_panel', bounds: workspaceBounds },
-  ];
-  const actions: StudioCanvasToolAction[] = [];
-  const tables: StudioCanvasToolTable[] = [];
-  const controlLayout = layoutUiFrameSlots(controlsBounds, 'wood_parchment', [
-    { id: 'kindToolbar', ...flexItem(1, 88, { basis: 88, shrink: 0 }) },
-    { id: 'fields', ...flexItem(1, 88, { basis: 88, shrink: 0 }) },
-    { id: 'commandToolbar', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-    { id: 'spacer', ...flexItem(1, 1, { grow: 1 }) },
-  ], { direction: 'column', gap: LAYOUT_GAP });
-
-  const kindRects = layoutUiFlex(
-    controlLayout.slots.kindToolbar!,
-    ITEMS_TOOL_CONTENT_KINDS.map(() => flexItem(74, BUTTON_HEIGHT, { basis: 74, grow: 1 })),
-    { gap: 4, wrap: true },
-  );
-  ITEMS_TOOL_CONTENT_KINDS.forEach((kind, index) => addAction(
-    nodes, actions, `items:kind:${kind}`, kind.toUpperCase(), kindRects[index]!, () => {
-      state.kind = kind;
-      state.selectedId = state.model.definitions(kind, state.query.snapshot().value)[0]?.id ?? null;
-      state.syncedId = null;
-      state.browserScroll = 0;
-      context.invalidate();
-    }, { role: 'tab', active: state.kind === kind },
-  ));
-
-  const fieldRects = layoutUiFlex(controlLayout.slots.fields!, [
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  addAction(nodes, actions, 'items:query', `SEARCH ${query || '…'}`, fieldRects[0]!, () => state.query.focus(), { role: 'textbox' });
-  addAction(nodes, actions, 'items:note', `NOTE ${state.note.snapshot().value || '…'}`, fieldRects[1]!, () => state.note.focus(), { role: 'textbox' });
-  const commandRects = layoutUiFlex(controlLayout.slots.commandToolbar!, [
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(80, BUTTON_HEIGHT, { basis: 80, shrink: 0 }),
-  ], { gap: 4, wrap: true });
-  addAction(nodes, actions, 'items:rebase', 'Rebase content', commandRects[0]!, () => {
+  const id=(name:string)=>`${context.route.tool.id}-items:${name}`;
+  const text=(name:string,value:string)=>kit.text(value,{id:id(name),layout:{width:'grow'}});
+  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>kit.button({id:id(name),label,disabled,tone,layout:{width:'grow',shrink:0},onPress:()=>{
+    try { onPress(); } catch(error) { report(context,`${label} failed`,error); }
+  }});
+  const selectDefinition=(definitionId:string)=>{
+    const definition=definitions.find(entry=>entry.id===definitionId);if(!definition)return;
+    state.selectedId=definition.id;state.syncedId=null;
+    context.controller.selection.select({kind:'definition',definitionKind:definition.kind,id:definition.id});context.invalidate();
+  };
+  const controls=kit.flex({width:'grow',gap:4},[
+    kit.select({id:id('kind'),label:'Definition kind',value:state.kind,options:ITEMS_TOOL_CONTENT_KINDS.map(kind=>({value:kind,label:kind.replaceAll('_',' ').replace(/^./u, value=>value.toUpperCase())})),onChange:kind=>{
+      state.kind=kind as ItemsToolContentKind;state.selectedId=state.model.definitions(state.kind,state.query.snapshot().value)[0]?.id??null;
+      state.syncedId=null;state.browserTable=undefined;context.invalidate();
+    }}),
+    kit.input({id:id('query'),label:'Search definitions',placeholder:'Search definitions',editor:state.query,onChange:()=>context.invalidate()}),
+    kit.input({id:id('note'),label:'Publish note',placeholder:'Publish note',editor:state.note}),
+    button('rebase','Rebase content',()=>{
     try { state.model.rebase('safe'); context.invalidate(); } catch (error) { report(context, 'Content rebase blocked', error); }
-  }, { disabled: snapshot.conflict === null, glyph: 'return', visibleLabel: '' });
-  addAction(nodes, actions, 'items:clear', 'Clear draft', commandRects[1]!, () => {
+    },snapshot.conflict === null,'primary'),
+    button('clear','Clear draft',()=>{
     try { state.model.clearDraft(); state.syncedId = null; context.invalidate(); } catch (error) { report(context, 'Clear draft failed', error); }
-  }, { disabled: !snapshot.dirty, glyph: 'cross', visibleLabel: '' });
-  addAction(nodes, actions, 'items:publish', 'PUBLISH', commandRects[2]!, () => {
+    },!snapshot.dirty,'danger'),
+    button('publish','Publish',()=>{
     state.mutationSequence += 1;
     void state.model.publish(`items.canvas.${state.mutationSequence}`, state.note.snapshot().value)
       .then(() => context.controller.notifications.push('success', 'Content published', 'Waiting for the verified live head.'))
       .catch((error: unknown) => report(context, 'Content publish failed', error)).finally(context.invalidate);
-  }, { disabled: !snapshot.canPublish, tone: 'success' });
-
-  const workspaceContent = studioCanvasFrameContentRect(workspaceBounds, 'parchment_panel');
-  const workspaceRects = layoutUiFlex(workspaceContent, [
-    flexItem(190, 240, { basis: 250, grow: 1 }),
-    flexItem(280, 240, { basis: 410, grow: 2 }),
-    flexItem(220, 240, { basis: 300, grow: 1 }),
-  ], { gap: LAYOUT_GAP });
-  const [browser, details, output] = workspaceRects as [UiRect, UiRect, UiRect];
-
-  const browserSlots = layoutUiFlex(browser, [
-    flexItem(1, 120, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  const browserTable: StudioCanvasTableLayout = layoutStudioCanvasTable({
-    columns: [
-      { id: 'name', label: `${state.kind.toUpperCase()} (${definitions.length})`, minWidth: 120 },
-      { id: 'id', label: 'ID', minWidth: 70 },
-    ],
-    rows: definitions.map((definition) => ({
-      id: definition.id,
-      cells: [labelFor(definition), definition.id],
-      selected: definition.id === state.selectedId,
-    })),
-    scrollRow: state.browserScroll,
-    rowHeight: BUTTON_HEIGHT,
-    headerHeight: BUTTON_HEIGHT,
-    frameStyle: 'thin',
-    emptyLabel: `No ${state.kind} definitions`,
-  }, browserSlots[0]!);
-  state.browserScroll = browserTable.firstRow;
-  const selectDefinition = (definitionId: string): void => {
-    const definition = definitions.find(({ id }) => id === definitionId);
-    if (definition === undefined) return;
-    state.selectedId = definition.id;
-    state.syncedId = null;
-    context.controller.selection.select({ kind: 'definition', definitionKind: definition.kind, id: definition.id });
-    context.invalidate();
-  };
-  tables.push({
-    id: 'items:browser-table',
-    layout: browserTable,
-    onHit: (hit) => { if (hit.kind !== 'header') selectDefinition(hit.rowId); },
-    onScroll: (_command, nextScrollRow) => { state.browserScroll = nextScrollRow; context.invalidate(); },
+    },!snapshot.canPublish,'success'),
+    text('status',`${access.toUpperCase()} · HEAD ${snapshot.headRevision} · ${snapshot.diffs.length} CHANGES · ${snapshot.validation.errors.length} ERRORS`),
+  ]);
+  const browser=kit.table({id:id('browser-table'),label:`${state.kind.toUpperCase()} (${definitions.length})`,rows:definitions,key:definition=>definition.id,
+    columns:[{id:'name',label:'Name',value:labelFor}],
+    selected:state.selectedId?[state.selectedId]:[],state:state.browserTable,onStateChange:next=>{state.browserTable=next;},onSelect:keys=>{if(keys[0])selectDefinition(keys[0]);},layout:{width:'grow',height:'grow'},
   });
-  browserTable.rows.forEach((row) => {
-    const definition = definitions[row.rowIndex]!;
-    actions.push({
-      id: `items:definition:${definition.id}`,
-      label: labelFor(definition),
-      role: 'option',
-      bounds: row.bounds,
-      activate: () => selectDefinition(definition.id),
-    });
-  });
-  const scrollButtons = layoutUiFlex(browserSlots[1]!, [
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-  ], { gap: 4 });
-  addAction(nodes, actions, 'items:browser-up', 'Previous definitions', scrollButtons[0]!, () => {
-    state.browserScroll = scrollStudioCanvasTable(browserTable, 'page_up'); context.invalidate();
-  }, { disabled: browserTable.firstRow === 0, glyph: 'up', visibleLabel: '' });
-  addAction(nodes, actions, 'items:browser-down', 'Next definitions', scrollButtons[1]!, () => {
-    state.browserScroll = scrollStudioCanvasTable(browserTable, 'page_down'); context.invalidate();
-  }, { disabled: browserTable.firstRow === browserTable.maximumScrollRow, glyph: 'down', visibleLabel: '' });
-
-  nodes.push(
-    { id: 'items:details-panel', kind: 'thin_panel', bounds: details },
-    { id: 'items:lifecycle-panel', kind: 'thin_panel', bounds: output },
-  );
-  const detailsLayout = layoutUiFrameSlots(details, 'thin', [
-    { id: 'ribbon', ...flexItem(1, 30, { basis: 30, shrink: 0 }) },
-    { id: 'title', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-    { id: 'fields', ...flexItem(1, 80, { grow: 1 }) },
-    { id: 'json', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-    { id: 'apply', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-    { id: 'status', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-  ], { direction: 'column', gap: 4 });
-  const detailsContent = detailsLayout.content;
-  nodes.push({ id: 'items:details-ribbon', kind: 'ribbon', bounds: detailsLayout.slots.ribbon!, label: 'DEFINITION' });
-  const detailsSlots = [
-    detailsLayout.slots.title!, detailsLayout.slots.fields!, detailsLayout.slots.json!,
-    detailsLayout.slots.apply!, detailsLayout.slots.status!,
-  ];
-  nodes.push({ id: 'items:details-title', kind: 'heading', bounds: detailsSlots[0]!,
-    label: selected === null ? 'NO SELECTION' : labelFor(selected), clip: detailsContent });
-  if (selected !== null) {
-    fieldNodes(nodes, 'items:field', scalarFields(selected), detailsSlots[1]!);
-    addAction(nodes, actions, 'items:definition-json', `JSON ${state.definition.snapshot().value.slice(0, 38)}`,
-      detailsSlots[2]!, () => state.definition.focus(), { role: 'textbox', disabled: access === 'read_only' });
-    const applyRect = layoutUiFlex(detailsSlots[3]!, [flexItem(116, BUTTON_HEIGHT, { basis: 116, shrink: 0 })], { align: 'stretch' })[0]!;
-    addAction(nodes, actions, 'items:apply-json', 'APPLY JSON', applyRect, () => {
-      try {
-        state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));
-        state.model.persistDraft();
-        context.invalidate();
-      } catch (error) { report(context, 'Definition validation failed', error); }
-    }, { disabled: access === 'read_only', tone: 'success' });
-  }
-  const status = `${access.toUpperCase()} · HEAD ${snapshot.headRevision} · ${snapshot.diffs.length} CHANGES · ${snapshot.validation.errors.length} ERRORS`;
-  nodes.push({ id: 'items:status', kind: 'label', bounds: detailsSlots[4]!, label: status, clip: detailsContent });
-
+  const editor=kit.scrollArea({width:'grow',height:'grow',gap:4},[
+    text('details-title',selected?labelFor(selected):'NO SELECTION'),
+    ...(selected?[
+      kit.textArea({id:id('definition-json'),label:'Definition JSON',editor:state.definition,readOnly:access==='read_only',rows:20,lineCount:true,resizable:true}),
+      button('apply-json','Apply JSON',()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));state.model.persistDraft();context.invalidate();},access==='read_only','success'),
+    ]:[]),
+  ]);
   const lifecycleState = state.lifecycle.snapshot();
   const selectedItemId = selected?.kind === 'item' ? selected.id : null;
   const itemHandlers = selectedItemId === null ? [] : state.lifecycle.handlers(selectedItemId);
@@ -471,84 +224,38 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
   const handlerDiagnostics = lifecycleState.diagnostics.filter(({ path }) => (
     globalHandlerIndex < 0 || path === '' || path.startsWith(`handlers[${globalHandlerIndex}]`)
   ));
-  const lifecycleLayout = layoutUiFrameSlots(output, 'thin', [
-    { id: 'ribbon', ...flexItem(1, 30, { basis: 30, shrink: 0 }) },
-    { id: 'mode', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-    { id: 'prompt', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-    { id: 'triggers', ...flexItem(1, 84, { basis: 84, shrink: 0 }) },
-    { id: 'editor', ...flexItem(1, 60, { grow: 1 }) },
-    { id: 'diagnostics', ...flexItem(1, 42, { basis: 42, shrink: 0 }) },
-    { id: 'commands', ...flexItem(1, 84, { basis: 84, shrink: 0 }) },
-    { id: 'warmStatus', ...flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }) },
-  ], { direction: 'column', gap: 4 });
-  nodes.push({ id: 'items:lifecycle-ribbon', kind: 'ribbon', bounds: lifecycleLayout.slots.ribbon!,
-    label: selectedItemId === null ? 'ITEM LIFECYCLE' : 'ON USE' });
-
-  const modeButtons = layoutUiFlex(lifecycleLayout.slots.mode!, [
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-  ], { gap: 4 });
-  addAction(nodes, actions, 'items:lifecycle-mode-source', 'Edit callback source', modeButtons[0]!, () => {
-    state.lifecycleEditorMode = 'source'; context.invalidate();
-  }, { active: state.lifecycleEditorMode === 'source', glyph: 'wrench', visibleLabel: '' });
-  addAction(nodes, actions, 'items:lifecycle-mode-bundle', 'Edit import/export bundle', modeButtons[1]!, () => {
-    state.lifecycleEditorMode = 'bundle'; context.invalidate();
-  }, { active: state.lifecycleEditorMode === 'bundle', glyph: 'square', visibleLabel: '' });
-  addAction(nodes, actions, 'items:lifecycle-prompt',
-    state.lifecyclePrompt.snapshot().value || 'CALLBACK PROMPT', lifecycleLayout.slots.prompt!,
-    () => state.lifecyclePrompt.focus(), {
-      role: 'textbox', disabled: selectedHandler === null || access === 'read_only',
-    });
-  const triggerLabels = ['2ND', 'EQ', 'WORLD', 'WITH', 'AT', 'AIM', 'PLACE'] as const;
-  const triggerButtons = layoutUiFlex(lifecycleLayout.slots.triggers!,
-    STUDIO_LIFECYCLE_TRIGGER_ORDER.map(() => flexItem(44, BUTTON_HEIGHT, { basis: 44, grow: 1, shrink: 0 })),
-    { gap: 4, wrap: true });
-  STUDIO_LIFECYCLE_TRIGGER_ORDER.forEach((trigger, index) => addAction(
-    nodes, actions, `items:lifecycle-trigger:${trigger}`, `Toggle ${trigger} trigger`, triggerButtons[index]!, () => {
-      if (state.lifecycleHandlerId === null) return;
-      state.lifecycle.toggleTrigger(state.lifecycleHandlerId, trigger);
-      context.invalidate();
-    }, {
-      disabled: selectedHandler === null || access === 'read_only',
-      active: selectedHandler?.triggers.includes(trigger) === true,
-      visibleLabel: triggerLabels[index],
-    },
-  ));
-
-  const activeLifecycleEditor = state.lifecycleEditorMode === 'source' ? state.lifecycleSource : state.lifecycleBundle;
-  const activeLifecycleEditorId = state.lifecycleEditorMode === 'source' ? 'items:lifecycle-source' : 'items:lifecycle-bundle';
-  addAction(nodes, actions, activeLifecycleEditorId,
-    activeLifecycleEditor.snapshot().value || (state.lifecycleEditorMode === 'source'
-      ? 'CREATE OR SELECT AN ON USE CALLBACK' : 'EXPORT A BUNDLE OR PASTE ONE TO IMPORT'),
-    lifecycleLayout.slots.editor!, () => activeLifecycleEditor.focus(), {
-      role: 'textbox', multiline: true, textScale: 1,
-      disabled: access === 'read_only' || (state.lifecycleEditorMode === 'source' && selectedHandler === null),
-    });
-  const diagnosticLines = handlerDiagnostics.length === 0
-    ? [selectedHandler === null ? 'NO CALLBACK SELECTED' : 'AST VALID']
-    : handlerDiagnostics.slice(0, 2).map(({ code, message }) => `${code.toUpperCase()}: ${message}`);
-  fieldNodes(nodes, 'items:lifecycle-diagnostic', diagnosticLines, lifecycleLayout.slots.diagnostics!);
-
-  const lifecycleCommands = layoutUiFlex(lifecycleLayout.slots.commands!, Array.from({
-    length: 5,
-  }, () => flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 })), { gap: 4, wrap: true });
-  addAction(nodes, actions, 'items:lifecycle-create', 'Create onUse callback', lifecycleCommands[0]!, () => {
+  const lifecycleControls:UiElement[]=[
+    text('lifecycle-ribbon',selectedItemId===null?'ITEM LIFECYCLE':'ON USE'),
+    kit.flex({direction:'row',width:'grow',gap:4},[
+      button('lifecycle-mode-source','Source',()=>{state.lifecycleEditorMode='source';context.invalidate();},false,state.lifecycleEditorMode==='source'?'success':'primary'),
+      button('lifecycle-mode-bundle','Bundle',()=>{state.lifecycleEditorMode='bundle';context.invalidate();},false,state.lifecycleEditorMode==='bundle'?'success':'primary'),
+    ]),
+    kit.input({id:id('lifecycle-prompt'),label:'Callback prompt',placeholder:'Callback prompt',editor:state.lifecyclePrompt,disabled:selectedHandler===null||access==='read_only'}),
+    kit.flex({direction:'row',width:'grow',wrap:true,gap:4},STUDIO_LIFECYCLE_TRIGGER_ORDER.map(trigger=>kit.checkbox({id:id(`lifecycle-trigger:${trigger}`),label:trigger,
+      value:selectedHandler?.triggers.includes(trigger)===true,disabled:selectedHandler===null||access==='read_only',onChange:()=>{
+        if(state.lifecycleHandlerId===null)return;state.lifecycle.toggleTrigger(state.lifecycleHandlerId,trigger);context.invalidate();
+      }}))),
+    kit.textArea({id:id(state.lifecycleEditorMode==='source'?'lifecycle-source':'lifecycle-bundle'),label:state.lifecycleEditorMode==='source'?'Callback source':'Import/export bundle',
+      editor:state.lifecycleEditorMode==='source'?state.lifecycleSource:state.lifecycleBundle,rows:16,lineCount:true,resizable:true,
+      readOnly:access==='read_only'||(state.lifecycleEditorMode==='source'&&selectedHandler===null)}),
+    ...((handlerDiagnostics.length?handlerDiagnostics.map(({code,message})=>`${code.toUpperCase()}: ${message}`):[selectedHandler?'AST VALID':'NO CALLBACK SELECTED'])
+      .map((line,index)=>text(`lifecycle-diagnostic:${index}`,line))),
+    button('lifecycle-create','Create onUse callback',()=>{
     if (selectedItemId === null) return;
     const created = state.lifecycle.create(selectedItemId);
     state.lifecycleHandlerId = created.id;
     state.lifecycleSyncedHandlerId = null;
     state.lifecycleEditorMode = 'source';
     context.invalidate();
-  }, { disabled: selectedItemId === null || itemHandlers.length > 0 || access === 'read_only',
-    glyph: 'star', visibleLabel: '' });
-  addAction(nodes, actions, 'items:lifecycle-remove', 'Remove selected onUse callback', lifecycleCommands[1]!, () => {
+    },selectedItemId===null||itemHandlers.length>0||access==='read_only','success'),
+    button('lifecycle-remove','Remove callback',()=>{
     if (state.lifecycleHandlerId === null) return;
     state.lifecycle.remove(state.lifecycleHandlerId);
     state.lifecycleHandlerId = null;
     state.lifecycleSyncedHandlerId = null;
     context.invalidate();
-  }, { disabled: selectedHandler === null || access === 'read_only', glyph: 'cross', visibleLabel: '', tone: 'danger' });
-  addAction(nodes, actions, 'items:lifecycle-import', 'Import lifecycle source bundle', lifecycleCommands[2]!, () => {
+    },selectedHandler===null||access==='read_only','danger'),
+    button('lifecycle-import','Import bundle',()=>{
     const imported = state.lifecycle.import(state.lifecycleBundle.snapshot().value);
     if (!imported.ok) {
       report(context, 'Lifecycle import failed', imported.diagnostics[0]?.message ?? 'Invalid lifecycle bundle.');
@@ -558,9 +265,8 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     state.lifecycleSyncedHandlerId = null;
     context.controller.notifications.push('success', 'Lifecycle bundle imported', 'Saved as a local warm-release draft; game code is unchanged.');
     context.invalidate();
-  }, { disabled: access === 'read_only' || state.lifecycleEditorMode !== 'bundle'
-    || state.lifecycleBundle.snapshot().value.trim().length === 0, glyph: 'down', visibleLabel: '' });
-  addAction(nodes, actions, 'items:lifecycle-export', 'Export deterministic lifecycle source bundle', lifecycleCommands[3]!, () => {
+    },access==='read_only'||state.lifecycleEditorMode!=='bundle'||state.lifecycleBundle.snapshot().value.trim().length===0,'primary'),
+    button('lifecycle-export','Export bundle',()=>{
     const exported = state.lifecycle.export();
     if (!exported.ok) {
       report(context, 'Lifecycle export blocked', exported.diagnostics[0]?.message ?? 'Fix lifecycle diagnostics first.');
@@ -570,8 +276,8 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     state.lifecycleEditorMode = 'bundle';
     context.controller.notifications.push('success', 'Lifecycle bundle prepared', 'Compiler-valid warm-release source; it is not live.');
     context.invalidate();
-  }, { disabled: !lifecycleState.valid, glyph: 'up', visibleLabel: '' });
-  addAction(nodes, actions, 'items:lifecycle-download', 'Download lifecycle source bundle', lifecycleCommands[4]!, () => {
+    },!lifecycleState.valid,'primary'),
+    button('lifecycle-download','Download bundle',()=>{
     const download = state.lifecycle.download();
     if (!download.ok) {
       report(context, 'Lifecycle download blocked', download.diagnostics[0]?.message ?? 'Fix lifecycle diagnostics first.');
@@ -581,18 +287,26 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     if (!requested.ok) report(context, 'Lifecycle download unavailable', requested.message);
     else context.controller.notifications.push('success', 'Lifecycle download requested', `${download.value.filename} · NOT LIVE`);
     context.invalidate();
-  }, { disabled: !lifecycleState.valid, glyph: 'down_1', visibleLabel: '' });
-  nodes.push({
-    id: 'items:lifecycle-status', kind: 'label', bounds: lifecycleLayout.slots.warmStatus!,
-    label: `WARM DRAFT · R${lifecycleState.bundle.revision} · ${lifecycleState.valid ? 'VALID' : `${lifecycleState.diagnostics.length} ERRORS`} · NOT LIVE`,
-    clip: lifecycleLayout.content,
-  });
-
+    },!lifecycleState.valid,'primary'),
+    text('lifecycle-status',`WARM DRAFT · R${lifecycleState.bundle.revision} · ${lifecycleState.valid?'VALID':`${lifecycleState.diagnostics.length} ERRORS`} · NOT LIVE`),
+  ];
   context.controller.validation.setIssues([
     ...snapshot.validation.errors.map((issue, index) => ({ id: `items:error:${index}`, severity: 'error' as const, message: issue.message })),
     ...snapshot.validation.warnings.map((issue, index) => ({ id: `items:warning:${index}`, severity: 'warning' as const, message: issue.message })),
     ...lifecycleState.diagnostics.map((issue, index) => ({ id: `items:lifecycle-error:${index}`,
       severity: 'error' as const, message: issue.message })),
   ]);
-  return prefixSurface(context, nodes, actions, tables, state);
+  const inspector=studioSelectionEditor({id:id('tabs'),label:'Item editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
+    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,readOnly:access==='read_only',apply:()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));state.model.persistDraft();}})},
+    {id:'status',label:'Draft status',content:controls.children[6]!},
+    {id:'editor',label:'JSON',content:kit.text('Edit the selected definition in the workspace.',{wrap:true})},
+
+    {id:'lifecycle',label:'Lifecycle',content:kit.text('Edit and test callbacks in the workspace.',{wrap:true})},
+  ]});
+  const [kindPicker, queryInput, noteInput, rebase, clear, publish] = controls.children;
+  const drawer = studioLibraryDrawer([kindPicker!, queryInput!], browser, [
+    studioActionBar([studioIconAction(rebase!, {lucide:'cloudConnect'}), studioIconAction(clear!, {lucide:'trash'})]),
+    noteInput!, publish!,
+  ]);
+  return {lifecycle:studioDefinitionPreviewLifecycle(context),kit:{controls:drawer,workspace:state.tab === 'editor' ? editor : state.tab === 'lifecycle' ? kit.scrollArea({width:'grow',height:'grow',gap:4,padding:8},lifecycleControls) : studioDefinitionPreview(context,selected),inspector}};
 }

@@ -5,6 +5,8 @@ import {HEARTH_INTERIORS,HEARTH_INTERIOR_ARRIVAL,HEARTH_INTERIOR_EXIT,hearthInte
 import {hearthFurnitureCells,hearthFurniturePresentationAnchor} from './hearth-furniture-placement.js';
 import {positionCollides} from './movement.js';
 import {TILE_SIZE_FIXED} from './state.js';
+import {runtimeSpacePortalPlans} from './content/runtime.js';
+import {parseSpaceContentDefinition} from './content/world-definition.js';
 
 describe('Willowharbour service interiors',()=>{
   it.each(HEARTH_INTERIORS)('$kind keeps entry, exit and service frontage connected with a full player body',interior=>{
@@ -30,7 +32,7 @@ describe('Willowharbour service interiors',()=>{
     expect(dx*dx+dy*dy).toBeLessThanOrEqual(9);
     // Every carved room has a reachable point; disconnected furnished alcoves fail.
     for(const [left,top,right,bottom] of interior.rooms){
-      expect([...seen].some(key=>{const [x,y]=key.split(',').map(Number);return x!>=left&&x!<=right&&y!>=top&&y!<=bottom;})).toBe(true);
+      expect([...seen].some(key=>{const [x,y]=key.split(',').map(Number);return x!>=left&&x!<=right&&y!>=top&&y!<=bottom;}),JSON.stringify([left,top,right,bottom])).toBe(true);
     }
   });
   it.each(HEARTH_INTERIORS)('$kind keeps three-course wall panels off playable floors',interior=>{
@@ -62,15 +64,20 @@ describe('Willowharbour service interiors',()=>{
       }
     }
   });
-  it('provides six distinct service spaces and refuses unknown geometry',()=>{
-    expect(new Set(HEARTH_INTERIORS.map(row=>row.spaceId)).size).toBe(6);
+  it('provides ten distinct town spaces and refuses unknown geometry',()=>{
+    expect(new Set(HEARTH_INTERIORS.map(row=>row.spaceId)).size).toBe(10);
     expect(()=>hearthInteriorCollision(0)).toThrow('Unknown village interior');
   });
   it('preserves stable layout when the authored space and furniture object are renamed',()=>{
     const rows=bootstrapContentRows(),spaceRow=rows.find(row=>row.id==='space:willow_inn')!;
     const objectRow=rows.find(row=>row.id==='object:furniture_rustic_dining_table')!;
-    const space=JSON.parse(String(spaceRow.json)) as {id:string},object=JSON.parse(String(objectRow.json)) as {id:string};
-    space.id='space:lantern_house';object.id='object:long_oak_table';
+    const space=JSON.parse(String(spaceRow.json)) as {id:string;portals:{fromSpace:string;toSpace:string}[]},object=JSON.parse(String(objectRow.json)) as {id:string};
+    space.id='space:lantern_house';
+    for(const portal of space.portals){
+      if(portal.fromSpace==='space:willow_inn')portal.fromSpace=space.id;
+      if(portal.toSpace==='space:willow_inn')portal.toSpace=space.id;
+    }
+    object.id='object:long_oak_table';
     const built=buildContentRegistry(rows.filter(row=>row.id!==spaceRow.id&&row.id!==objectRow.id).concat([
       {id:space.id,kind:'space',slug:'lantern_house',json:space},
       {id:object.id,kind:'object',slug:'long_oak_table',json:object},
@@ -91,5 +98,50 @@ describe('Willowharbour service interiors',()=>{
     expect(runtimeHearthInteriorForSpace({...base,objects:retiredObjects},65520)).toBeNull();
     const ambiguousObjects=new Map(base.objects);ambiguousObjects.set('object:duplicate_table',{...original,id:'object:duplicate_table'});
     expect(runtimeHearthInteriorForSpace({...base,objects:ambiguousObjects},65520)).toBeNull();
+  });
+});
+
+
+describe('complete Willowharbour interior catalogue',()=>{
+  it.each(HEARTH_INTERIORS)('$kind has a bidirectional authored exterior door and safe arrival',interior=>{
+    const registry=bootstrapContentRegistry(),portals=runtimeSpacePortalPlans(registry);
+    const incoming=portals.filter(portal=>portal.toSpaceId===interior.spaceId);
+    const outgoing=portals.filter(portal=>portal.fromSpaceId===interior.spaceId);
+    expect(incoming).toHaveLength(1);expect(outgoing).toHaveLength(1);
+    const entrance=incoming[0]!,exit=outgoing[0]!;
+    expect(entrance.fromSpaceId).toBe(exit.toSpaceId);
+    expect([entrance.toTileX,entrance.toTileY]).toEqual([interior.arrival.tileX,interior.arrival.tileY]);
+    expect([exit.fromTileX,exit.fromTileY]).toEqual([interior.exit.tileX,interior.exit.tileY]);
+    expect([exit.toTileX,exit.toTileY]).toEqual([entrance.fromTileX,entrance.fromTileY+1]);
+    expect(positionCollides({x:(entrance.toTileX+.5)*TILE_SIZE_FIXED,y:(entrance.toTileY+.5)*TILE_SIZE_FIXED},hearthInteriorCollision(interior.spaceId))).toBe(false);
+  });
+  it('gives compact houses domestic rooms and a broad conservatory its own planted floor',()=>{
+    const registry=bootstrapContentRegistry();
+    for(const kind of ['garden-cottage','orchard-cottage']){
+      const interior=HEARTH_INTERIORS.find(room=>room.kind===kind)!;
+      expect(interior.rooms.length).toBeGreaterThanOrEqual(5);
+      for(const role of ['bed','bath','cooking_range','dining_table'])
+        expect(interior.furniture.some(item=>item.kind.endsWith(`_${role}`)),`${kind}: ${role}`).toBe(true);
+      const footprint=hearthInteriorCollision(interior.spaceId).blocked.filter(blocked=>!blocked).length;
+      const inn=hearthInteriorCollision(HEARTH_INTERIORS.find(room=>room.kind==='inn')!.spaceId);
+      expect(footprint).toBeLessThan(inn.blocked.filter(blocked=>!blocked).length);
+    }
+    const conservatory=[...registry.spaces.values()].find(space=>space.hearthInterior?.[0]==='p')!;
+    expect(conservatory.hearthInteriorFloors?.filter(region=>region.style==='soil')).toHaveLength(4);
+  });
+  it('resolves explicit native barrel art when its compact fingerprint collides, but rejects duplicate native art',()=>{
+    const base=bootstrapContentRegistry(),barn=HEARTH_INTERIORS.find(room=>room.kind==='barn')!;
+    expect(barn.furniture.some(item=>item.definitionId==='object:barrel'&&item.objectTag==='container.barrel')).toBe(true);
+    const barrel=base.objects.get('object:barrel')!,objects=new Map(base.objects);
+    objects.set('object:duplicate_barrel',{...barrel,id:'object:duplicate_barrel'});
+    expect(runtimeHearthInteriorForSpace({...base,objects},barn.spaceId)).toBeNull();
+  });
+  it('rejects unknown materials and invalid floor-region bounds',()=>{
+    const rows=bootstrapContentRows(),row=rows.find(entry=>entry.id==='space:willow_garden_cottage')!;
+    const space=JSON.parse(String(row.json));
+    expect(()=>parseSpaceContentDefinition({...space,hearthInteriorFloors:[{bounds:[1,1,2,2],style:'unknown'}]})).toThrow('unknown interior floor style');
+    const changed={...space,hearthInteriorFloors:[{bounds:[1,1,33,2],style:'stone'}]};
+    expect(buildContentRegistry(rows.map(entry=>entry.id===row.id?{...entry,json:changed}:entry)).report.errors)
+      .toContainEqual(expect.objectContaining({path:'hearthInteriorFloors[0]',code:'invalid_world_definition'}));
   });
 });

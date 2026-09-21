@@ -1,42 +1,16 @@
-import {
-  CanvasFocusManager,
-  CanvasTextEditor,
-  UiInputRouter,
-  drawStudioCanvasShell,
-  drawStudioCanvasShellNodes,
-  drawStudioCanvasTable,
-  hitStudioCanvasTable,
-  layoutUiAnchoredRect,
-  layoutUiFlex,
-  layoutUiFrameSlots,
-  loadStudioCanvasShellArt,
-  measurePixelText,
-  studioCanvasFrameContentRect,
-  studioToolIcon,
-  scrollStudioCanvasTable,
-  widget,
-  type FantasyButtonGlyph,
-  type StudioCanvasShellArt,
-  type StudioCanvasShellNode,
-  type StudioCanvasTableScrollCommand,
-  type CanvasFocusRole,
-  type UiPointerEvent,
-  type WidgetNode,
-} from '@orchard/ui';
+import type { UiWorkbenchNavigation } from '@orchard/ui/studio';
+import { bootstrapContentDefinitions, type FrameContentDefinition } from '@orchard/sim';
+import { CUTE_FANTASY_ACTOR_CATALOG } from '@orchard/engine';
+import { ui, uiFixed, UiRoot, UiElement, UiTextBridge, UiLabWorld, CanvasTextEditor, inspectUiElements, UI_ICON_CATALOG,
+  loadUiKitArt, loadStudioSpatialArt, createUiFrameDesignerModel, studioToolIcon,
+  type UiPoint, type UiRect, type UiKitArt, type UiWorkbenchRegion, type StudioSpatialArt } from '@orchard/ui/studio';
 import { StudioShellController } from './controller.js';
-import { layoutStudioShellRegions } from './canvas-shell-layout.js';
+import { studioLiveContentSnapshot } from './live-content-readiness.js';
 import { StudioShortcutMap } from './shortcuts.js';
 import { defaultStudioCanvasToolRegistry, type StudioCanvasToolRegistry } from './canvas-tool-registry.js';
-import type {
-  StudioCanvasToolActionActivation,
-  StudioCanvasToolInput,
-  StudioCanvasToolKeyInput,
-  StudioCanvasToolLifecycle,
-  StudioCanvasToolPointerInput,
-  StudioCanvasToolTable,
-  StudioCanvasToolWheelInput,
-} from './canvas-tool.js';
+import type { StudioCanvasToolSurface, StudioCanvasToolLifecycle, StudioCanvasToolPointerInput, StudioCanvasToolActionActivation } from './canvas-tool.js';
 import { studioSelectionFields } from './canvas-inspector.js';
+import { nextStudioSecondaryRoute } from './canvas-split.js';
 import {
   closeStudioCanvasSplit,
   defaultStudioCanvasLayoutState,
@@ -51,41 +25,9 @@ import {
   studioCanvasWorkspaceLayout,
   type StudioCanvasLayoutStorage,
 } from './canvas-layout-state.js';
-import {
-  layoutStudioCanvasSplit,
-  nextStudioSecondaryRoute,
-  studioCanvasSplitRatioAtPoint,
-} from './canvas-split.js';
-
-interface CanvasAction {
-  readonly id: string;
-  readonly label: string;
-  readonly disabled: boolean;
-  readonly role: CanvasFocusRole;
-  readonly node: StudioCanvasShellNode;
-  readonly activate: (input?: StudioCanvasToolActionActivation) => void;
-  readonly keyDown?: (input: StudioCanvasToolKeyInput) => string | null;
-}
-
-interface CanvasScene {
-  readonly nodes: readonly StudioCanvasShellNode[];
-  readonly actions: readonly CanvasAction[];
-  readonly widgets: WidgetNode;
-  readonly tables: readonly StudioCanvasToolTable[];
-  readonly textEditors: readonly { readonly id: string; readonly editor: CanvasTextEditor }[];
-  readonly input: StudioCanvasToolInput | null;
-  readonly lifecycles: readonly StudioCanvasToolLifecycle[];
-  readonly draws: readonly { readonly bounds: Bounds;
-    readonly draw: (context: CanvasRenderingContext2D, art: StudioCanvasShellArt) => void }[];
-}
-
-type Bounds = StudioCanvasShellNode['bounds'];
-
-const inside = (point: { readonly x: number; readonly y: number }, bounds: Bounds): boolean => point.x >= bounds.x
-  && point.y >= bounds.y && point.x <= bounds.x + bounds.width && point.y <= bounds.y + bounds.height;
-const sameBounds = (left: Bounds, right: Bounds): boolean => left.x === right.x && left.y === right.y
-  && left.width === right.width && left.height === right.height;
 const DRAWER_WIDTHS_KEY = 'orchard-studio:canvas-drawer-widths';
+const sameBounds = (a: UiRect,b: UiRect): boolean => a.x===b.x&&a.y===b.y&&a.width===b.width&&a.height===b.height;
+const physical = (r: UiRect): UiRect => ({x:r.x*2,y:r.y*2,width:r.width*2,height:r.height*2});
 export const STUDIO_CANVAS_MAX_BACKING_PIXELS = 4_194_304;
 
 export function studioCanvasDevicePixelRatio(
@@ -147,836 +89,290 @@ export function reconcileStudioToolLifecycles(
   return mounted;
 }
 
-/** Semantically meaningful interactive-tool canvas. Input is sampled into the
- * controller/focus state, invalidation schedules one full redraw, and no idle
- * animation loop exists. The page contains no secondary UI element. */
+/** Studio owns routes, models and spatial interactions; the kit owns UI paint,
+ * layout, clipping, text editing and control input. */
 export class StudioShellApp {
   readonly #shortcuts = new StudioShortcutMap();
-  readonly #focus = new CanvasFocusManager();
-  #keyboardFocusVisible = false;
-  readonly #paletteEditor = new CanvasTextEditor({ maxLength: 80, onChange: () => this.render() });
-  #art: StudioCanvasShellArt | null = null;
-  #scene: CanvasScene | null = null;
-  #hoveredId: string | null = null;
-  #pressedId: string | null = null;
-  #paletteOpen = false;
-  #pendingFocusId: string | null = null;
+  readonly #root = new UiRoot({ scale: 2, label: 'Orchard Studio', onInvalidate: () => this.schedule() });
+  readonly #abort = new AbortController();
+  #bridge: UiTextBridge | null = null;
+  #observer: ResizeObserver | null = null;
+  #art: StudioSpatialArt | null = null;
+  #kitArt: UiKitArt | null = null;
+  #kitLab: UiLabWorld | null = null;
+  #frame: number | null = null;
+  #disposed = false;
+  #dirtyTools = true;
+  #shellKey = '';
+  #drawCount = 0;
+  #regions: Partial<Record<UiWorkbenchRegion, UiRect>> = {};
+  #controls = ui.flex({ width: 'grow' });
+  #inspector = ui.flex({ width: 'grow' });
+  #workspace = ui.stack({ width: 'grow', height: 'grow' });
+  #secondary = ui.stack({ width: 'grow', height: 'grow' });
+  #surface: StudioCanvasToolSurface | null = null;
+  #secondarySurface: StudioCanvasToolSurface | null = null;
+  #primaryBounds: UiRect | null = null;
+  #secondaryBounds: UiRect | null = null;
+  #mountedToolLifecycles = new Map<string, StudioCanvasToolLifecycle>();
+  readonly #loadingTools = new Set<string>();
+  #drawerWidths = { left: 270, right: 286 };
+  #activeDrawer: 'controls' | 'inspector' | 'none' = 'controls';
+  #toolInspectorPath: string | null = null;
+  #toolControlsPath: string | null = null;
   #layoutState = defaultStudioCanvasLayoutState();
   #layoutRoute = '/build/map';
-  #drawFrame: number | null = null;
-  #drawCount = 0;
-  #resizeFrame: number | null = null;
-  #resizeObserver: ResizeObserver | null = null;
-  #disposed = false;
-  readonly #loadingTools = new Set<string>();
-  #toolRailScroll = 0;
-  #toolRailMaximumScroll = 0;
-  #toolRailViewport: Bounds | null = null;
-  #focusedTableId: string | null = null;
-  #drawerWidths = { left: 270, right: 286 };
-  #drawerDrag: { readonly side: 'left' | 'right'; readonly startX: number; readonly startWidth: number } | null = null;
-  #splitDrag: { readonly bounds: Bounds } | null = null;
-  #splitBounds: Bounds | null = null;
-  #toolPointerOwner: number | null = null;
-  #actionActivation: StudioCanvasToolActionActivation | undefined;
   #spaceHeld = false;
-  #mountedToolLifecycles = new Map<string, StudioCanvasToolLifecycle>();
-
-  constructor(
-    private readonly canvas: HTMLCanvasElement,
-    readonly controller: StudioShellController,
-    private readonly canvasTools: StudioCanvasToolRegistry = defaultStudioCanvasToolRegistry,
-  ) {}
+  #toolPointerOwner: number | null = null;
+  #uiPointerOwner: number | null = null;
+  #pendingFocusId: string | null = null;
+  #pendingFocusSource: 'keyboard' | 'pointer' = 'keyboard';
+  #palette: ReturnType<typeof ui.dialog> | null = null;
+  constructor(private readonly canvas: HTMLCanvasElement, readonly controller: StudioShellController,
+    private readonly canvasTools: StudioCanvasToolRegistry = defaultStudioCanvasToolRegistry) {}
 
   mount(): void {
+    try { const saved = JSON.parse(sessionStorage.getItem(DRAWER_WIDTHS_KEY) ?? 'null') as { left?: unknown; right?: unknown } | null;
+      if (saved && typeof saved.left === 'number' && typeof saved.right === 'number') this.#drawerWidths = { left: this.clampDrawer(saved.left), right: this.clampDrawer(saved.right) };
+    } catch { /* Optional session storage. */ }
     this.controller.navigate(location.pathname === '/' ? '/build/map' : location.pathname);
     this.restoreLayoutSession(this.controller.activeRoute().path);
-    this.canvas.tabIndex = 0;
-    this.canvas.setAttribute('role', 'application');
-    this.canvas.setAttribute('aria-label', 'Orchard Studio canvas workbench');
-    this.canvas.addEventListener('pointerdown', this.onPointerDown);
-    this.canvas.addEventListener('pointermove', this.onPointerMove);
-    this.canvas.addEventListener('pointerup', this.onPointerUp);
-    this.canvas.addEventListener('pointercancel', this.onPointerCancel);
-    this.canvas.addEventListener('dblclick', this.onDoubleClick);
-    this.canvas.addEventListener('keydown', this.onKeyDown);
-    this.canvas.addEventListener('keyup', this.onKeyUp);
-    this.canvas.addEventListener('beforeinput', this.onBeforeInput);
-    this.canvas.addEventListener('compositionstart', this.onCompositionStart);
-    this.canvas.addEventListener('compositionupdate', this.onCompositionUpdate);
-    this.canvas.addEventListener('compositionend', this.onCompositionEnd);
-    this.canvas.addEventListener('paste', this.onPaste);
-    this.canvas.addEventListener('copy', this.onCopy);
-    this.canvas.addEventListener('cut', this.onCut);
-    this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
-    window.addEventListener('popstate', this.onPopState);
-    window.addEventListener('resize', this.onResize);
-    window.addEventListener('blur', this.onBlur);
-    document.addEventListener('visibilitychange', this.onVisibility);
-    this.#resizeObserver = new ResizeObserver(this.onResize);
-    this.#resizeObserver.observe(this.canvas);
-    void loadStudioCanvasShellArt().then((art) => { if (!this.#disposed) { this.#art = art; this.render(); } })
-      .catch((error: unknown) => { this.canvas.dataset['canvasError'] = error instanceof Error ? error.message : String(error); });
+    const { signal } = this.#abort;
+    this.canvas.tabIndex = 0; this.canvas.setAttribute('role','application'); this.canvas.style.touchAction = 'none';
+    for (const type of ['down','move','up','cancel'] as const) this.canvas.addEventListener(`pointer${type}`, event => this.pointer(type, event as PointerEvent), { signal });
+    this.canvas.addEventListener('pointerleave', () => this.#root.input.clearHover(), { signal });
+    this.canvas.addEventListener('contextmenu', event => event.preventDefault(), { signal });
+    this.canvas.addEventListener('keydown', this.keyDown, { signal });
+    this.canvas.addEventListener('keyup', event => { if (event.key === ' ') this.#spaceHeld = false; }, { signal });
+    this.canvas.addEventListener('wheel', this.wheel, { signal, passive: false });
+    this.canvas.addEventListener('orchard:studio-inspect', event => { const read = (event as CustomEvent<unknown>).detail; if (typeof read === 'function') read({ route: this.controller.activeRoute().path, elements: inspectUiElements(this.#root.tree), regions: this.#regions, ...(this.#kitLab ? { lab: this.#kitLab.inspect() } : {}) }); }, { signal });
+    window.addEventListener('popstate', () => { this.controller.navigate(location.pathname); this.restoreLayoutSession(this.controller.activeRoute().path); this.render(); }, { signal });
+    window.addEventListener('resize', () => this.render(), { signal });
+    window.addEventListener('blur', () => { this.#spaceHeld = false; this.#uiPointerOwner = null; this.#toolPointerOwner = null; }, { signal });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.#spaceHeld = false; else this.render(); }, { signal });
+    this.#observer = new ResizeObserver(() => this.render()); this.#observer.observe(this.canvas);
+    void Promise.all([loadUiKitArt(), loadStudioSpatialArt()]).then(([art, spatialArt]) => {
+      if (this.#disposed) return; this.#kitArt = art; this.#root.art = art; this.#art = spatialArt; this.render();
+    }).catch((error: unknown) => { this.canvas.dataset['canvasError'] = String(error); });
     this.render();
   }
-
   dispose(): void {
-    this.#disposed = true;
-    if (this.#drawFrame !== null) cancelAnimationFrame(this.#drawFrame);
-    if (this.#resizeFrame !== null) cancelAnimationFrame(this.#resizeFrame);
-    this.canvas.removeEventListener('pointerdown', this.onPointerDown);
-    this.canvas.removeEventListener('pointermove', this.onPointerMove);
-    this.canvas.removeEventListener('pointerup', this.onPointerUp);
-    this.canvas.removeEventListener('pointercancel', this.onPointerCancel);
-    this.canvas.removeEventListener('dblclick', this.onDoubleClick);
-    this.canvas.removeEventListener('keydown', this.onKeyDown);
-    this.canvas.removeEventListener('keyup', this.onKeyUp);
-    this.canvas.removeEventListener('beforeinput', this.onBeforeInput);
-    this.canvas.removeEventListener('compositionstart', this.onCompositionStart);
-    this.canvas.removeEventListener('compositionupdate', this.onCompositionUpdate);
-    this.canvas.removeEventListener('compositionend', this.onCompositionEnd);
-    this.canvas.removeEventListener('paste', this.onPaste);
-    this.canvas.removeEventListener('copy', this.onCopy);
-    this.canvas.removeEventListener('cut', this.onCut);
-    this.canvas.removeEventListener('wheel', this.onWheel);
-    window.removeEventListener('popstate', this.onPopState);
-    window.removeEventListener('resize', this.onResize);
-    window.removeEventListener('blur', this.onBlur);
-    document.removeEventListener('visibilitychange', this.onVisibility);
-    this.#resizeObserver?.disconnect();
-    this.#resizeObserver = null;
-    this.#toolPointerOwner = null;
-    this.#splitDrag = null;
-    this.#splitBounds = null;
-    this.#spaceHeld = false;
-    this.#mountedToolLifecycles = reconcileStudioToolLifecycles(this.#mountedToolLifecycles, []);
-    this.canvas.style.cursor = '';
+    this.#disposed = true; this.#abort.abort(); this.#observer?.disconnect(); this.#bridge?.dispose(); this.#kitLab?.dispose();
+    if (this.#frame !== null) cancelAnimationFrame(this.#frame);
+    this.#root.dispose(); this.#mountedToolLifecycles = reconcileStudioToolLifecycles(this.#mountedToolLifecycles, []); this.canvas.style.touchAction = '';
   }
-
-  render(): void {
-    if (this.#disposed || document.hidden || this.#drawFrame !== null) return;
-    this.#drawFrame = requestAnimationFrame(() => { this.#drawFrame = null; this.draw(); });
+  render(): void { this.#dirtyTools = true; this.schedule(); }
+  private schedule(): void {
+    if (this.#disposed || document.hidden || this.#frame !== null) return;
+    this.#frame = requestAnimationFrame(() => { this.#frame = null; this.draw(); });
   }
-
   private draw(): void {
-    if (this.#art === null) return;
-    const drawStartedAt = performance.now();
-    const width = Math.max(1, Math.floor(this.canvas.clientWidth));
-    const height = Math.max(1, Math.floor(this.canvas.clientHeight));
-    const dpr = studioCanvasDevicePixelRatio(width, height, devicePixelRatio);
-    if (this.canvas.width !== Math.round(width * dpr) || this.canvas.height !== Math.round(height * dpr)) {
-      this.canvas.width = Math.round(width * dpr); this.canvas.height = Math.round(height * dpr);
+    if (!this.#kitArt || !this.#art) return;
+    const labContent = studioLiveContentSnapshot(this.controller.liveAdapter());
+    if (this.controller.activeRoute().path === '/author/ui-lab'
+      && (labContent.mode === 'offline' || labContent.mode === 'ready')) {
+      this.openLab(labContent.definitions); return;
     }
-    const context = this.canvas.getContext('2d', { alpha: false });
-    if (context === null) throw new Error('studio_shell_canvas_context_unavailable');
-    context.setTransform(dpr, 0, 0, dpr, 0, 0); context.imageSmoothingEnabled = false;
-    const scene = this.buildScene(width, height);
-    this.#mountedToolLifecycles = reconcileStudioToolLifecycles(
-      this.#mountedToolLifecycles,
-      scene.lifecycles,
-    );
-    this.#scene = scene;
-    const overlayNodes = this.#scene.nodes.filter(({ id }) => id.startsWith('palette-') || id === 'active-tooltip');
-    const backgroundNodes = this.#scene.nodes.filter(({ kind }) => kind === 'alpha_grid');
-    const foregroundNodes = this.#scene.nodes.filter((node) => !overlayNodes.includes(node) && !backgroundNodes.includes(node));
-    drawStudioCanvasShell(context, this.#art, { width, height,
-      production: this.controller.session.snapshot().environment === 'production', nodes: backgroundNodes });
-    for (const layer of this.#scene.draws) {
-      context.save();
-      context.beginPath();
-      context.rect(layer.bounds.x, layer.bounds.y, layer.bounds.width, layer.bounds.height);
-      context.clip();
-      layer.draw(context, this.#art);
-      context.restore();
-    }
-    drawStudioCanvasShellNodes(context, this.#art, foregroundNodes);
-    for (const table of this.#scene.tables) drawStudioCanvasTable(context, this.#art, table.layout);
-    drawStudioCanvasShellNodes(context, this.#art, overlayNodes);
-    const splitResize = this.#splitDrag !== null || this.#hoveredId === 'workspace-split-edge';
-    this.canvas.style.cursor = splitResize
-      ? this.#layoutState.direction === 'row' ? 'col-resize' : 'row-resize'
-      : this.#drawerDrag !== null || this.#hoveredId?.startsWith('drawer-edge-') === true
-        ? 'col-resize' : '';
-    this.canvas.dataset['canvasReady'] = 'true';
-    this.canvas.dataset['canvasRoute'] = this.controller.activeRoute().path;
-    this.canvas.dataset['canvasActionCount'] = String(this.#scene.actions.length);
-    this.canvas.dataset['canvasLeftDrawerWidth'] = String(this.#drawerWidths.left);
-    this.canvas.dataset['canvasRightDrawerWidth'] = String(this.#drawerWidths.right);
-    this.canvas.dataset['canvasRailScroll'] = String(this.#toolRailScroll);
-    this.canvas.dataset['canvasPalette'] = this.#paletteOpen ? 'open' : 'closed';
-    this.canvas.dataset['canvasSplit'] = this.#layoutState.splitOpen ? this.#layoutState.direction : 'closed';
-    this.canvas.dataset['canvasSplitRatio'] = this.#layoutState.ratio.toFixed(3);
-    this.canvas.dataset['canvasSecondaryRoute'] = this.#layoutState.splitOpen
-      ? this.#layoutState.secondaryPath ?? '' : '';
-    this.#drawCount += 1;
-    this.canvas.dataset['canvasFrameCount'] = String(this.#drawCount);
-    this.canvas.dataset['canvasLastFrameMs'] = (performance.now() - drawStartedAt).toFixed(2);
-    const focus = this.#focus.snapshot();
-    this.canvas.setAttribute('aria-label', focus.focusedLabel === null ? 'Orchard Studio canvas workbench'
-      : `Orchard Studio. ${focus.focusedRole ?? 'control'}: ${focus.focusedLabel}. Press Enter to activate.`);
+    if (this.#kitLab) { this.#kitLab.dispose(); this.#kitLab = null; this.#shellKey = ''; }
+    this.#bridge ??= new UiTextBridge(this.canvas, () => this.#root.focus.current, event => { this.keyDown(event); return event.defaultPrevented; }, element => {
+      const canvas = this.canvas.getBoundingClientRect(); return { x: canvas.x + element.rect.x * 2, y: canvas.y + element.rect.y * 2, width: element.rect.width * 2, height: element.rect.height * 2 };
+    }, () => this.schedule());
+    const start = performance.now(), width = this.canvas.clientWidth, height = this.canvas.clientHeight;
+    const dpr = studioCanvasDevicePixelRatio(width,height,devicePixelRatio);
+    if (this.canvas.width !== Math.round(width*dpr)) this.canvas.width = Math.round(width*dpr);
+    if (this.canvas.height !== Math.round(height*dpr)) this.canvas.height = Math.round(height*dpr);
+    this.#root.resize(width,height,dpr);
+    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
+    if (key !== this.#shellKey) { this.#shellKey = key; this.buildShell(); this.#dirtyTools = true; }
+    this.#root.arrange();
+    if (this.#dirtyTools && this.#uiPointerOwner === null) { this.#dirtyTools = false; this.buildTools(); this.#root.arrange(); }
+    if (this.#pendingFocusId) { const target = this.#root.entries().find(({ element }) => element.id === this.#pendingFocusId)?.element;
+      if (target) this.#root.focus.set(target,this.#pendingFocusSource); this.#pendingFocusId = null; this.#pendingFocusSource = 'keyboard'; }
+    const context = this.canvas.getContext('2d', { alpha: false }); if (!context) throw new Error('studio_shell_canvas_context_unavailable');
+    this.#root.draw(context); this.#bridge.sync();
+    this.canvas.dataset['canvasReady'] = 'true'; this.canvas.dataset['canvasRoute'] = route.path;
+    this.canvas.dataset['canvasActionCount'] = String(this.#root.entries().filter(({element})=>element.focusable).length);
+    this.canvas.dataset['canvasFrameCount'] = String(++this.#drawCount); this.canvas.dataset['canvasLastFrameMs'] = (performance.now()-start).toFixed(2);
+    this.canvas.dataset['canvasLeftDrawerWidth'] = String(this.#drawerWidths.left); this.canvas.dataset['canvasRightDrawerWidth'] = String(this.#drawerWidths.right);
+    this.canvas.dataset['canvasSplit'] = this.#layoutState.splitOpen ? this.#layoutState.direction : 'closed'; this.canvas.dataset['canvasSplitRatio'] = this.#layoutState.ratio.toFixed(3);
+    this.canvas.dataset['canvasSecondaryRoute'] = this.#layoutState.secondaryPath ?? ''; this.canvas.dataset['canvasPalette'] = this.#palette?.visible ? 'open' : 'closed';
+    this.canvas.setAttribute('aria-label', `Orchard Studio${this.#root.focus.current ? `: ${this.#root.focus.current.label}` : ''}`);
+    if (this.#root.entries().some(({element})=>element.hooks.animated && element.clip.width>0 && element.clip.height>0)) this.schedule();
   }
-
-  private buildScene(width: number, height: number): CanvasScene {
-    const session = this.controller.session.snapshot();
+  private buildShell(): void {
+    for (const child of [...this.#root.tree.children]) child.dispose(); this.#palette = null; this.#regions = {};
+    this.#controls = ui.flex({ width: 'grow', height: 'grow' }); this.#inspector = ui.flex({ width: 'grow',height:'grow' });
+    this.#workspace = ui.stack({ width: 'grow', height: 'grow' }); this.#secondary = ui.stack({ width: 'grow', height: 'grow' });
     const route = this.controller.activeRoute();
-    const layout = layoutStudioShellRegions(width, height, this.#drawerWidths);
-    const nodes: StudioCanvasShellNode[] = [];
-    const actions: CanvasAction[] = [];
-    const tables: StudioCanvasToolTable[] = [];
-    const textEditors: { readonly id: string; readonly editor: CanvasTextEditor }[] = [];
-    const lifecycles: StudioCanvasToolLifecycle[] = [];
-    let input: StudioCanvasToolInput | null = null;
-    const draws: { readonly bounds: Bounds;
-      readonly draw: (context: CanvasRenderingContext2D, art: StudioCanvasShellArt) => void }[] = [];
-    const root = widget('root', 'studio-root').setBounds(layout.viewport);
-    const label = (id: string, text: string, bounds: Bounds, heading = false): void => {
-      nodes.push({ id, kind: heading ? 'heading' : 'label', bounds, label: text });
-    };
-    const action = (id: string, text: string, bounds: Bounds, activate: () => void,
-      options: { readonly active?: boolean; readonly disabled?: boolean; readonly tone?: StudioCanvasShellNode['tone'];
-        readonly tab?: boolean; readonly glyph?: FantasyButtonGlyph;
-        readonly icon?: { readonly frame: number; readonly outline?: number }; readonly clip?: Bounds } = {}): void => {
-      const disabled = options.disabled === true;
-      const iconOnly = options.glyph !== undefined || options.icon !== undefined;
-      const node: StudioCanvasShellNode = { id, kind: options.tab ? 'tab' : 'button', bounds,
-        label: iconOnly ? undefined : text, glyph: options.glyph,
-        icon: options.icon, clip: options.clip,
-        state: disabled ? 'disabled' : this.#pressedId === id ? 'pressed' : options.active ? 'active'
-          : this.#hoveredId === id ? 'hover' : 'idle', tone: options.tone };
-      const value: CanvasAction = { id, label: text, disabled, role: options.tab ? 'tab' : 'button', node, activate };
-      nodes.push(node); actions.push(value);
-      root.add(widget('button', id, { enabled: !disabled, pointerMode: 'capture', props: { label: text },
-        onPointer: (event) => this.activatePointer(value, event) }).setBounds(bounds));
-    };
-    const panel = (id: string, kind: 'wood_panel' | 'parchment_panel', bounds: Bounds): void => { nodes.push({ id, kind, bounds }); };
-    const resizeEdge = (id: 'drawer-edge-left' | 'drawer-edge-right' | 'workspace-split-edge',
-      text: string, bounds: Bounds,
-      activate: () => void): void => {
-      // This semantic node is intentionally invisible: its bounds overlap an
-      // authored drawer border or shared pane edge, consuming no layout space.
-      const node: StudioCanvasShellNode = { id, kind: 'label', bounds };
-      const value: CanvasAction = { id, label: text, disabled: false, role: 'button', node, activate };
-      nodes.push(node); actions.push(value);
-      root.add(widget('button', id, { pointerMode: 'capture', props: { label: text, role: 'button' },
-        onPointer: (event) => this.activatePointer(value, event) }).setBounds(bounds));
-    };
-
-    panel('global-nav', 'wood_panel', layout.globalNav);
-    const railViewport = studioCanvasFrameContentRect(layout.globalNav, 'wood_panel');
-    this.#toolRailViewport = railViewport;
-    const toolRoutes = this.controller.tools.routes(session.role).filter((candidate, index, all) =>
-      all.findIndex(({ tool }) => tool.id === candidate.tool.id) === index);
-    const visibleRailCount = Math.max(1, Math.floor((railViewport.height + 8) / 52));
-    this.#toolRailMaximumScroll = Math.max(0, toolRoutes.length - visibleRailCount);
-    this.#toolRailScroll = Math.min(this.#toolRailScroll, this.#toolRailMaximumScroll);
-    const visibleRoutes = toolRoutes.slice(this.#toolRailScroll, this.#toolRailScroll + visibleRailCount);
-    const railRects = layoutUiFlex(railViewport, visibleRoutes.map((_candidate, index) => ({
-      id: `rail-${index}`, minSize: { width: 40, height: 44 }, main: { mode: 'fixed' as const, size: 44 },
-    })), { direction: 'column', gap: 8, align: 'stretch' });
-    visibleRoutes.forEach((candidate, index) => {
-      const icon = studioToolIcon(candidate.tool.id);
-      action(`rail-${candidate.tool.id}`, icon.label,
-      railRects[index]!, () => this.navigate(candidate.path), {
-        active: candidate.tool.id === route.tool.id, tab: true, icon, clip: railViewport,
+    const observe = (node: UiElement, side: 'primary' | 'secondary') => new UiElement({ kind: 'studio-workspace', style: { width: 'grow', height: 'grow', display: 'stack' }, children: [node], onArrange: element => {
+      const rect = physical(element.rect), previous = side === 'primary' ? this.#primaryBounds : this.#secondaryBounds;
+      if (side === 'primary') this.#primaryBounds = rect; else this.#secondaryBounds = rect;
+      if (!previous || !sameBounds(rect,previous)) this.#dirtyTools = true;
+    } });
+    const primary = observe(this.#workspace,'primary'), secondary = observe(this.#secondary,'secondary');
+    const workspace = this.#layoutState.splitOpen ? ui.splitPane({ id: 'workspace-split', label: 'Workspace split', first: primary,
+      second: ui.flex({ height:'grow', width:'grow', gap:4 }, [ui.flex({direction:'row',gap:4},[
+        ui.button({label:'Next tool',size:'sm',onPress:()=>this.cycleSecondary(route.tool.id)}),
+        ui.button({label:'Rotate',size:'sm',onPress:()=>{this.#layoutState=rotateStudioCanvasSplit(this.#layoutState);this.persistLayoutSession();this.render();}}),
+      ]),secondary]), direction: this.#layoutState.direction, ratio: this.#layoutState.ratio,
+      onResize: ratio => { this.#layoutState=resizeStudioCanvasSplit(this.#layoutState,ratio);this.persistLayoutSession();this.render(); },
+    }) : primary;
+    const named = studioCanvasNamedLayoutName(route.tool.label,route.path);
+    const layoutMenuButton=ui.button({id:'studio-layout-menu',label:'Layout',size:'sm',onPress:()=>layoutMenu.open(layoutMenuButton)});
+    const layoutMenu=ui.menu({id:'studio-layout-actions',anchor:layoutMenuButton,items:[
+      {id:'save',label:'Save layout',onSelect:()=>this.saveNamedLayout(route)},
+      {id:'restore',label:'Restore layout',disabled:!this.controller.layouts.layouts(route.tool.mode).some(layout=>layout.name===named),onSelect:()=>this.restoreNamedLayout(route)},
+      {id:'split',label:'Toggle split',onSelect:()=>this.toggleSplit(route.tool.id)},
+      {id:'controls',label:'Show controls',onSelect:()=>{this.#activeDrawer='controls';this.#shellKey='';this.render();}},
+      {id:'inspect',label:'Show inspector',onSelect:()=>{this.#activeDrawer='inspector';this.#shellKey='';this.render();}},
+    ]});
+    const toolbar = ui.frame({style:'thin',layout:{width:'grow',height:uiFixed(32),shrink:0},children:[
+      ui.flex({direction:'row',width:'grow',height:'grow',gap:8,align:'center'},[
+        ui.select({id:'studio-route',label:'Workspace',size:'sm',value:route.path,
+          options:this.controller.tools.routes(this.controller.session.snapshot().role).map(candidate=>({value:candidate.path,
+            label:candidate.tool.routes.length>1?`${candidate.tool.label} / ${candidate.path.split('/').at(-1)!.replaceAll('-',' ')}`:candidate.tool.label})),
+          layout:{width:'grow'},onChange:path=>this.navigate(path)}),
+        ui.text(this.controller.session.snapshot().phase === 'connected'
+          ? `LIVE MAP R${this.controller.session.snapshot().mapRevision ?? '…'}`
+          : this.controller.session.snapshot().phase === 'connecting' ? 'CONNECTING'
+          : this.controller.session.snapshot().error !== null ? 'CONNECTION FAILED' : 'OFFLINE SANDBOX',
+          { id: 'studio-connection-status' }),
+        ui.button({ id: 'studio-connect', size: 'sm',
+          label: this.controller.session.snapshot().phase === 'connected' ? 'Disconnect' : 'Connect live',
+          disabled: this.controller.session.snapshot().phase === 'connecting',
+          onPress: () => {
+            if (this.controller.session.snapshot().phase === 'connected') this.controller.disconnect();
+            else {
+              this.controller.chooseEnvironment('production');
+              void this.controller.connectExplicit().catch(() => undefined);
+            }
+          },
+        }),
+        ui.flex({},[layoutMenuButton,layoutMenu]),
+      ]),
+    ]});
+    this.#root.mount(ui.flex({width:'grow',height:'grow'},[toolbar,ui.workbench({ navigation: this.routeNavigation(),
+      workspace, activeDrawer:this.#activeDrawer,
+      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),content:this.#controls},
+      inspector:{title:'Selection',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector',width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
+      onRegionArrange:(name,rect)=>{this.#regions[name]=physical(rect);this.#dirtyTools=true;},
+      onRegionVisibility:(name,visible)=>{if(!visible)delete this.#regions[name];this.#dirtyTools=true;},
+      onDrawerResize:(side,width)=>{this.#drawerWidths[side==='controls'?'left':'right']=width.size*2;this.persistDrawers();this.render();},
+    })]));
+  }
+  private buildTools(): void {
+    const route = this.controller.activeRoute(), controls = this.#regions.controls, inspector = this.#regions.inspector, bounds = this.#primaryBounds;
+    if (!bounds) return;
+    const focus = this.#root.focus.current?.id ?? null, focusSource = this.#root.focus.inputSource;
+    const toolControls = this.contentBounds(this.#controls, controls ?? {x:bounds.x,y:bounds.y,width:180,height:bounds.height});
+    const toolInspector = this.contentBounds(this.#inspector, inspector ?? {x:bounds.x+bounds.width-180,y:bounds.y,width:180,height:bounds.height});
+    this.#surface = this.buildTool(route,toolControls,toolInspector,bounds);
+    const controlsPath = this.#surface?.kit?.controls ? route.path : null;
+    if (this.#toolControlsPath !== controlsPath) {
+      this.#toolControlsPath = controlsPath; this.#shellKey = ''; this.schedule();
+    }
+    const inspectorPath = this.#surface?.kit?.inspector ? route.path : null;
+    if (this.#toolInspectorPath !== inspectorPath) {
+      this.#toolInspectorPath = inspectorPath; this.#shellKey = ''; this.schedule();
+    }
+    this.replace(this.#workspace, this.surfaceWorkspace(this.#surface,bounds,toolControls,toolInspector));
+    this.replace(this.#controls, this.#surface?.kit?.controls ? [this.#surface.kit.controls] : [ui.text('Loading controls')]);
+    this.replace(this.#inspector, this.#surface?.kit?.inspector ? [this.#surface.kit.inspector] : studioSelectionFields(this.controller.selection.current()).map(text=>ui.text(text)));
+    this.#secondarySurface=null;
+    if (this.#layoutState.splitOpen && this.#secondaryBounds) {
+      const secondary = this.secondaryRoute(route.tool.id);
+      if (secondary) this.#secondarySurface=this.buildTool(secondary,toolControls,toolInspector,this.#secondaryBounds);
+      this.replace(this.#secondary,this.surfaceWorkspace(this.#secondarySurface,this.#secondaryBounds,toolControls,toolInspector));
+    }
+    this.#mountedToolLifecycles=reconcileStudioToolLifecycles(this.#mountedToolLifecycles,[this.#surface?.lifecycle,this.#secondarySurface?.lifecycle].filter((entry):entry is StudioCanvasToolLifecycle=>entry!==undefined));
+    if (this.#pendingFocusId === null) { this.#pendingFocusId = focus; this.#pendingFocusSource = focusSource; }
+  }
+  private contentBounds(node: UiElement, fallback: UiRect): UiRect {
+    return node.rect.width>0 ? {x:node.rect.x*2,y:node.rect.y*2,width:node.rect.width*2,height:Math.max(80,fallback.y+fallback.height-node.rect.y*2)} : fallback;
+  }
+  private replace(node:UiElement, children: readonly UiElement[]):void { for(const child of [...node.children]) child.dispose();node.replaceChildren(children); }
+  private buildTool(route:ReturnType<StudioShellController['activeRoute']>,controlsBounds:UiRect,inspectorBounds:UiRect,workspaceBounds:UiRect):StudioCanvasToolSurface|null {
+    const builder=this.canvasTools.builder(route.tool.id);
+    if(builder) return builder({route,controller:this.controller,controlsBounds,inspectorBounds,workspaceBounds,bounds:workspaceBounds,invalidate:()=>this.render()});
+    if(!this.#loadingTools.has(route.tool.id)) { this.#loadingTools.add(route.tool.id);void this.canvasTools.load(route.tool.id).then(()=>this.render()).catch((error:unknown)=>{this.canvas.dataset['canvasToolError']=String(error);}).finally(()=>this.#loadingTools.delete(route.tool.id)); }
+    return null;
+  }
+  private surfaceWorkspace(surface:StudioCanvasToolSurface|null,bounds:UiRect,controls:UiRect,inspector:UiRect):UiElement[] {
+    const controlsRegion = this.#regions.controls ?? controls, inspectorRegion = this.#regions.inspector ?? inspector;
+    if (surface?.kit?.workspace) surface.kit.workspace.setStyle({ position: 'absolute', width: undefined, height: undefined, inset: {
+      left: uiFixed(this.#regions.controls ? Math.max(0, (controlsRegion.x + controlsRegion.width - bounds.x) / 2 + 8) : 4),
+      right: uiFixed(this.#regions.inspector ? Math.max(0, (bounds.x + bounds.width - inspectorRegion.x) / 2 + 8) : 4), top: 4, bottom: 4,
+    } });
+    surface?.kit?.overlays?.setStyle({ position: 'absolute', width: undefined, height: undefined, inset: {
+      left: uiFixed(this.#regions.controls ? Math.max(0, (controlsRegion.x + controlsRegion.width - bounds.x) / 2 + 8) : 4),
+      right: uiFixed(this.#regions.inspector ? Math.max(0, (bounds.x + bounds.width - inspectorRegion.x) / 2 + 8) : 4), top: 0, bottom: 0,
+    } });
+    return [ui.frame({style:'grey_plain',layout:{width:'grow',height:'grow'}}),...(surface?.kit?.workspace ? [surface.kit.workspace] : surface ? [
+      ui.viewport({label:'Spatial workspace',coordinateScale:2,background:this.controller.gridVisible()?'checkerboard':'none',render:context=>{if(this.#art)surface.draw?.(context,this.#art);}}),
+    ]:[ui.text('Loading workspace')]),...(surface?.kit?.annotations?[surface.kit.annotations]:[]),...(surface?.kit?.overlays?[surface.kit.overlays]:[])];
+  }
+  private routeNavigation(): readonly UiWorkbenchNavigation[] {
+    return this.controller.tools.routes(this.controller.session.snapshot().role)
+      .filter((candidate,index,all)=>all.findIndex(({tool})=>tool.id===candidate.tool.id)===index).map(candidate=>({ id:candidate.tool.id,label:studioToolIcon(candidate.tool.id).label,
+        icon:{fantasy:UI_ICON_CATALOG.find(icon=>icon.index===studioToolIcon(candidate.tool.id).frame)!.name},selected:candidate.tool.id===this.controller.activeRoute().tool.id,onPress:()=>this.navigate(candidate.path) }));
+  }
+  private navigate(path:string):void { if(!this.controller.navigate(path))return;this.restoreLayoutSession(this.controller.activeRoute().path);history.pushState(null,'',path);this.render(); }
+  private point(event:Pick<MouseEvent,'clientX'|'clientY'>):UiPoint {const r=this.canvas.getBoundingClientRect();return{x:(event.clientX-r.x)*this.canvas.clientWidth/Math.max(1,r.width),y:(event.clientY-r.y)*this.canvas.clientHeight/Math.max(1,r.height)};}
+  private pointer(type:'down'|'move'|'up'|'cancel',event:PointerEvent):void {
+    if(this.#kitLab)return;const point=this.point(event);
+    if(type==='down'){this.canvas.focus();this.canvas.setPointerCapture(event.pointerId);}
+    const input:StudioCanvasToolPointerInput={point,button:event.button,pointerId:event.pointerId,spaceHeld:this.#spaceHeld,...studioCanvasActionActivation(event)};
+    if(this.#toolPointerOwner===event.pointerId){const method=type==='move'?'pointerMove':type==='cancel'?'pointerCancel':'pointerUp';this.#surface?.input?.[method]?.(input);this.render();}
+    else {
+      const handled=this.#root.pointer({type,point:{x:point.x/2,y:point.y/2},pointerId:event.pointerId,button:event.button,...studioCanvasActionActivation(event)});
+      if(handled){event.preventDefault();if(type==='down')this.#uiPointerOwner=event.pointerId;}
+      else {const method=type==='down'?'pointerDown':type==='move'?'pointerMove':type==='cancel'?'pointerCancel':'pointerUp';if(this.#surface?.input?.[method]?.(input)){if(type==='down')this.#toolPointerOwner=event.pointerId;event.preventDefault();this.render();}}
+    }
+    if(type==='up'||type==='cancel'){this.#uiPointerOwner=null;this.#toolPointerOwner=null;if(this.canvas.hasPointerCapture(event.pointerId))this.canvas.releasePointerCapture(event.pointerId);this.schedule();}
+  }
+  private readonly wheel=(event:WheelEvent):void=>{
+    if(this.#kitLab)return;const point=this.point(event);
+    if(this.#root.wheel({point:{x:point.x/2,y:point.y/2},deltaX:event.deltaX/2,deltaY:event.deltaY/2})){event.preventDefault();return;}
+    if(this.#surface?.input?.wheel?.({point,deltaX:event.deltaX,deltaY:event.deltaY,...studioCanvasActionActivation(event)})){event.preventDefault();this.render();}
+  };
+  private readonly keyDown=(event:KeyboardEvent):void=>{
+    if(this.#kitLab)return;const editing=this.#root.focus.current?.props['editor'] instanceof CanvasTextEditor;
+    const shortcut=this.#shortcuts.actionFor(event);
+    if(shortcut==='palette.open'||shortcut==='search.everywhere'){event.preventDefault();this.openPalette();return;}
+    if(shortcut?.startsWith('mode.')){const route=this.controller.tools.routes(this.controller.session.snapshot().role).find(({tool})=>tool.mode===shortcut.slice(5));if(route)this.navigate(route.path);event.preventDefault();return;}
+    if(shouldToggleStudioGrid(event,editing)){this.controller.toggleGrid();this.render();event.preventDefault();return;}
+    if(shouldHoldStudioSpacePan(event,editing,this.#surface?.input?.spaceDragPan===true)&&!this.#root.focus.current){this.#spaceHeld=true;event.preventDefault();return;}
+    if(this.#root.key(event)){event.preventDefault();return;}
+    if(this.#surface?.input?.keyDown?.({key:event.key,repeat:event.repeat,...studioCanvasActionActivation(event)})){event.preventDefault();this.render();}
+  };
+  private openPalette():void {
+    this.#palette?.dispose();const results=ui.flex({gap:4,width:'grow'});
+    const search=(query:string)=>this.replace(results,this.controller.palette.search(query).slice(0,12).map(result=>ui.button({label:result.label,onPress:()=>{const path=this.controller.routeForCommand(result.id);this.#palette?.close();if(path)this.navigate(path);}})));
+    const query=ui.input({label:'Command search',onChange:search});search('');
+    this.#palette=ui.dialog({title:'Command palette',children:[ui.flex({gap:8,width:'grow',height:'grow'},[query,ui.scrollArea({width:'grow',height:'grow'},[results])])]});
+    this.#root.mount(this.#palette);this.#palette.open(this.#root.focus.current??undefined);query.requestFocus();this.schedule();
+  }
+  private openLab(liveDefinitions: ReturnType<typeof studioLiveContentSnapshot>['definitions']):void {
+    this.#bridge?.dispose();this.#bridge=null;
+    if(!this.#kitLab){
+      for (const child of [...this.#root.tree.children]) child.dispose(); this.#root.focus.set(null); this.#root.input.dispose(); this.#surface = null; this.#shellKey = '';
+      this.#mountedToolLifecycles=reconcileStudioToolLifecycles(this.#mountedToolLifecycles,[]);
+      const definitions=liveDefinitions??bootstrapContentDefinitions();
+      this.#kitLab=new UiLabWorld(this.canvas,{art:this.#kitArt!,actors:CUTE_FANTASY_ACTOR_CATALOG,
+        frameDefinitions:definitions.filter((definition):definition is FrameContentDefinition=>definition.kind==='frame'),
+        createFrameDesigner:definition=>{const adapter=this.controller.liveAdapter(),view=adapter?.view();const access=!view?.connected?'anonymous':this.controller.activeRoute().access==='write'?'write':'read_only';
+          const content=studioLiveContentSnapshot(adapter);
+          const all=content.mode==='ready'&&content.definitions!==null?content.definitions:definitions;
+          const current=all.find((entry):entry is FrameContentDefinition=>entry.kind==='frame'&&entry.id===definition.id)??definition;
+          return createUiFrameDesignerModel({definition:current,definitions:all,access,baseRevision:view?.contentHead?.revision??0n,...(access==='write'&&adapter?.publishContentChangeSet?{createPublishAdapter:()=>({publishContentChangeSet:request=>adapter.publishContentChangeSet!(request)})}:{})});},
+        navigation:this.routeNavigation(),
       });
-    });
-
-    resizeEdge('drawer-edge-left', 'Resize tool controls drawer. Arrow keys adjust; Enter resets.', layout.leftResizeHandle,
-      () => this.resetDrawer('left'));
-    resizeEdge('drawer-edge-right', 'Resize selection inspector. Arrow keys adjust; Enter resets.', layout.rightResizeHandle,
-      () => this.resetDrawer('right'));
-
-    panel('tool-drawer', 'parchment_panel', layout.toolDrawer);
-    const drawerSlots = layoutUiFrameSlots(layout.toolDrawer, 'wood_parchment', [
-      { id: 'title', minSize: { width: 1, height: 24 }, main: { mode: 'fixed', size: 24 } },
-      { id: 'controls', minSize: { width: 1, height: 44 }, grow: 1 },
-    ], { direction: 'column', gap: 6 });
-    nodes.push({ id: 'tool-title', kind: 'ribbon', ribbonPlacement: 'top-border', bounds: { ...drawerSlots.slots.title!, y: layout.toolDrawer.y + 14, height: 30 },
-      label: route.tool.label.toUpperCase() });
-
-    panel('inspector', 'parchment_panel', layout.inspectorDrawer);
-    const inspectorContent = studioCanvasFrameContentRect(layout.inspectorDrawer, 'parchment_panel');
-
-    const toolBounds = layout.workingCanvas;
-    const split = this.#layoutState.splitOpen
-      ? layoutStudioCanvasSplit(toolBounds, this.#layoutState.direction, this.#layoutState.ratio)
-      : null;
-    this.#splitBounds = split === null ? null : toolBounds;
-    const primaryBounds = split?.primary ?? toolBounds;
-    if (this.controller.gridVisible()) {
-      nodes.push({ id: 'workspace-background', kind: 'alpha_grid', bounds: primaryBounds, clip: primaryBounds });
     }
-    if (!this.appendToolSurface(route.tool.id, route, drawerSlots.slots.controls!, inspectorContent, primaryBounds,
-      nodes, actions, tables, textEditors, lifecycles, draws, root, (surfaceInput) => { input = surfaceInput ?? null; })) {
-      label('tool-surface-label', 'LOADING WORKSPACE', primaryBounds, true);
-    }
-    if (split !== null) {
-      const secondaryRoute = this.secondaryRoute(route.tool.id);
-      const [secondaryToolbar, secondaryBounds] = layoutUiFlex(split.secondary, [
-        { minSize: { width: 44, height: 44 }, main: { mode: 'fixed', size: 44 } },
-        { minSize: { width: 44, height: 44 }, grow: 1 },
-      ], { direction: 'column', gap: 4, align: 'stretch' });
-      if (this.controller.gridVisible()) {
-        nodes.push({ id: 'workspace-secondary-background', kind: 'alpha_grid', bounds: secondaryBounds!, clip: secondaryBounds! });
-      }
-      const [routeButton, directionButton] = layoutUiFlex(secondaryToolbar!, [
-        { minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-        { minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-      ], { direction: 'row', gap: 4, align: 'stretch' });
-      if (secondaryRoute !== null) {
-        const icon = studioToolIcon(secondaryRoute.tool.id);
-        action('split-secondary-route', `Secondary workspace: ${icon.label}. Activate to cycle.`, routeButton!,
-          () => this.cycleSecondary(route.tool.id), { icon });
-      }
-      action('split-direction', `Split ${this.#layoutState.direction === 'row' ? 'horizontally' : 'vertically'}. Activate to rotate.`, directionButton!, () => {
-        this.#layoutState = rotateStudioCanvasSplit(this.#layoutState);
-        this.persistLayoutSession(); this.render();
-      }, { glyph: 'key_r', active: this.#layoutState.direction === 'column' });
-      if (secondaryRoute !== null && !this.appendToolSurface(secondaryRoute.tool.id, secondaryRoute,
-        drawerSlots.slots.controls!, inspectorContent, secondaryBounds!, nodes, actions, tables, textEditors,
-        lifecycles, draws, root,
-        undefined, true)) {
-        label('secondary-loading', 'LOADING SECONDARY WORKSPACE', secondaryBounds!, true);
-      }
-      resizeEdge('workspace-split-edge',
-        'Resize split panes. Arrow keys adjust; Enter restores an even split.',
-      split.handle, () => {
-        this.#layoutState = resizeStudioCanvasSplit(this.#layoutState, 0.5);
-        this.persistLayoutSession(); this.render();
-      });
-    }
-
-    if (route.tool.id !== 'map') {
-      const inspectorSlots = layoutUiFrameSlots(layout.inspectorDrawer, 'wood_parchment', [
-        { id: 'title', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-        { id: 'kind', minSize: { width: 1, height: 46 }, main: { mode: 'fixed', size: 46 } },
-        { id: 'selection', minSize: { width: 1, height: 40 }, grow: 1 },
-      ], { direction: 'column', gap: 7 });
-      nodes.push({ id: 'inspector-title', kind: 'ribbon', bounds: inspectorSlots.slots.title!, label: 'SELECTION' });
-      const selected = this.controller.selection.current();
-      nodes.push({ id: 'detail-kind', kind: 'field', bounds: inspectorSlots.slots.kind!,
-        label: `KIND  ${selected.kind}`, textScale: layout.compact ? 1 : 2 });
-      const selectionFields = studioSelectionFields(selected);
-      const selectionRects = layoutUiFlex(inspectorSlots.slots.selection!, selectionFields.map(() => ({
-        minSize: { width: 1, height: 42 }, main: { mode: 'fixed' as const, size: 42 },
-      })), { direction: 'column', gap: 6, align: 'stretch' });
-      selectionFields.forEach((field, index) => nodes.push({ id: `detail-selection-${index}`, kind: 'field',
-        bounds: selectionRects[index]!, clip: inspectorSlots.slots.selection!, label: field,
-        textScale: layout.compact ? 1 : 2 }));
-    }
-
-    if (this.#paletteOpen) this.palette(nodes, actions, textEditors, root, layout.viewport, action, panel, label);
-    this.#focus.setTargets(actions.map(({ id, label: actionLabel, role, disabled, activate }) => ({
-      id, label: actionLabel, role, disabled, activate,
-    })));
-    if (this.#pendingFocusId !== null) {
-      this.#focus.focus(this.#pendingFocusId);
-      this.#pendingFocusId = null;
-    }
-    const focusedId = this.#focus.snapshot().focusedId;
-    const focusedNodeIndex = nodes.findIndex(({ id }) => id === focusedId);
-    if (this.#keyboardFocusVisible && focusedNodeIndex >= 0) {
-      nodes[focusedNodeIndex] = { ...nodes[focusedNodeIndex]!, state: 'hover' };
-    }
-    const tooltipAction = actions.find(({ id }) => id === this.#hoveredId && !id.startsWith('drawer-edge-'))
-      ?? (this.#keyboardFocusVisible ? actions.find(({ id }) => id === focusedId) : undefined);
-    if (tooltipAction !== undefined) this.addTooltip(nodes, tooltipAction, layout.viewport);
-    return { nodes, actions, widgets: root, tables, textEditors, input, lifecycles, draws };
+    this.#kitLab.resize();this.#kitLab.invalidate();
   }
-
-  private palette(nodes: StudioCanvasShellNode[], actions: CanvasAction[],
-    textEditors: { readonly id: string; readonly editor: CanvasTextEditor }[], root: WidgetNode,
-    viewport: Bounds, action: (id: string, text: string, bounds: Bounds, activate: () => void,
-      options?: { readonly active?: boolean; readonly disabled?: boolean; readonly tone?: StudioCanvasShellNode['tone'];
-        readonly tab?: boolean; readonly glyph?: FantasyButtonGlyph;
-        readonly icon?: { readonly frame: number; readonly outline?: number }; readonly clip?: Bounds }) => void,
-    panel: (id: string, kind: 'wood_panel' | 'parchment_panel', bounds: Bounds) => void,
-    label: (id: string, text: string, bounds: Bounds, heading?: boolean) => void): void {
-    const frame = layoutUiAnchoredRect(viewport, { width: Math.min(640, viewport.width - 24), height: Math.min(520, viewport.height - 24) }, {
-      targetAnchor: 'center', selfAnchor: 'center', constrainTo: viewport,
-    });
-    panel('palette-frame', 'parchment_panel', frame);
-    const results = this.controller.palette.search(this.#paletteEditor.snapshot().value).slice(0, 8);
-    const slots = layoutUiFrameSlots(frame, 'wood_parchment', [
-      { id: 'title', minSize: { width: 1, height: 34 }, main: { mode: 'fixed', size: 34 } },
-      { id: 'query', minSize: { width: 1, height: 44 }, main: { mode: 'fixed', size: 44 } },
-      { id: 'results', minSize: { width: 1, height: 44 }, grow: 1 },
-    ], { direction: 'column', gap: 8 });
-    label('palette-title', 'COMMAND PALETTE', slots.slots.title!, true);
-    const paletteSnapshot = this.#paletteEditor.snapshot();
-    const paletteDisplay = paletteSnapshot.focused
-      ? `${paletteSnapshot.value.slice(0, paletteSnapshot.focus)}|${paletteSnapshot.value.slice(paletteSnapshot.focus)}`
-      : paletteSnapshot.value;
-    const queryNode: StudioCanvasShellNode = { id: 'palette-query', kind: 'field', bounds: slots.slots.query!,
-      label: `> ${paletteDisplay || 'TYPE TO SEARCH'}` };
-    const queryAction: CanvasAction = { id: 'palette-query', label: 'Command search', role: 'textbox',
-      disabled: false, node: queryNode, activate: () => this.#paletteEditor.focus() };
-    nodes.push(queryNode); actions.push(queryAction);
-    textEditors.push({ id: queryAction.id, editor: this.#paletteEditor });
-    root.add(widget('panel', queryAction.id, { pointerMode: 'capture', props: { label: queryAction.label, role: 'textbox' },
-      onPointer: (event) => this.activatePointer(queryAction, event) }).setBounds(slots.slots.query!));
-    const resultRects = layoutUiFlex(slots.slots.results!, results.map((result) => ({
-      id: result.id, minSize: { width: 1, height: 44 }, main: { mode: 'fixed' as const, size: 44 },
-    })), { direction: 'column', gap: 6, align: 'stretch' });
-    results.forEach((result, index) => action(`palette-${index}`, result.label.toUpperCase(), resultRects[index]!, () => {
-      const nextRoute = this.controller.routeForCommand(result.id); if (nextRoute !== null) this.navigate(nextRoute);
-      this.closePalette(); this.render();
-    }, { clip: slots.slots.results! }));
-  }
-
-  private addTooltip(nodes: StudioCanvasShellNode[], action: CanvasAction, viewport: Bounds): void {
-    const width = Math.min(480, viewport.width - 32, Math.max(64,
-      (this.#art === null ? action.label.length * 6 : measurePixelText(action.label, 1, this.#art.fonts.font)) + 28));
-    const lines: string[] = [];
-    let line = '';
-    for (const word of action.label.split(/\s+/u)) {
-      const next = line.length === 0 ? word : `${line} ${word}`;
-      if (line.length > 0 && this.#art !== null && measurePixelText(next, 1, this.#art.fonts.font) > width - 24) {
-        lines.push(line); line = word;
-      } else line = next;
-    }
-    if (line.length > 0) lines.push(line);
-    const frame = layoutUiAnchoredRect(viewport, { width, height: Math.min(144, Math.max(30, lines.length * 9 + 20)) }, {
-      targetAnchor: 'bottom', selfAnchor: 'bottom',
-      offset: { x: 0, y: -12 }, constrainTo: viewport,
-    });
-    nodes.push({ id: 'active-tooltip', kind: 'tooltip', bounds: frame, label: lines.join('\n'), textScale: 1, multiline: true });
-  }
-
-  private appendToolSurface(
-    toolId: string,
-    route: ReturnType<StudioShellController['activeRoute']>,
-    controlsBounds: Bounds,
-    inspectorBounds: Bounds,
-    bounds: Bounds,
-    nodes: StudioCanvasShellNode[],
-    actions: CanvasAction[],
-    tables: StudioCanvasToolTable[],
-    textEditors: { readonly id: string; readonly editor: CanvasTextEditor }[],
-    lifecycles: StudioCanvasToolLifecycle[],
-    draws: { readonly bounds: Bounds;
-      readonly draw: (context: CanvasRenderingContext2D, art: StudioCanvasShellArt) => void }[],
-    root: WidgetNode,
-    captureInput?: (input: StudioCanvasToolInput | undefined) => void,
-    workspaceOnly = false,
-  ): boolean {
-    const builder = this.canvasTools.builder(toolId);
-    if (builder === null) {
-      if (!this.#loadingTools.has(toolId)) {
-        this.#loadingTools.add(toolId);
-        void this.canvasTools.load(toolId).then(() => {
-          this.#loadingTools.delete(toolId);
-          this.render();
-        }).catch((error: unknown) => {
-          this.#loadingTools.delete(toolId);
-          this.canvas.dataset['canvasToolError'] = error instanceof Error ? error.message : String(error);
-          this.render();
-        });
-      }
-      return false;
-    }
-    const surface = builder({ bounds, controlsBounds, inspectorBounds, workspaceBounds: bounds,
-      route, controller: this.controller, invalidate: () => this.render() });
-    captureInput?.(surface.input);
-    if (surface.lifecycle !== undefined) lifecycles.push(surface.lifecycle);
-    const prefix = `${toolId}-`;
-    for (const node of surface.nodes.slice(0, 200)) {
-      if (!node.id.startsWith(prefix)) throw new Error(`studio_canvas_tool_node_id_invalid:${node.id}`);
-      if ((node.kind === 'wood_panel' || node.kind === 'parchment_panel')
-        && (sameBounds(node.bounds, controlsBounds) || sameBounds(node.bounds, bounds))) continue;
-      const nodeCenter = { x: node.bounds.x + node.bounds.width / 2, y: node.bounds.y + node.bounds.height / 2 };
-      if (workspaceOnly && (inside(nodeCenter, controlsBounds) || inside(nodeCenter, inspectorBounds))) continue;
-      const nestedKind = node.kind === 'wood_panel' || node.kind === 'parchment_panel' ? 'thin_panel' : node.kind;
-      const clip = inside(nodeCenter, controlsBounds) ? controlsBounds
-        : inside(nodeCenter, inspectorBounds) ? inspectorBounds : bounds;
-      nodes.push({ ...node, kind: nestedKind, clip: node.clip ?? clip });
-    }
-    for (const toolAction of surface.actions.slice(0, 200)) {
-      if (!toolAction.id.startsWith(prefix)) throw new Error(`studio_canvas_tool_action_id_invalid:${toolAction.id}`);
-      const actionCenter = { x: toolAction.bounds.x + toolAction.bounds.width / 2,
-        y: toolAction.bounds.y + toolAction.bounds.height / 2 };
-      if (workspaceOnly && (inside(actionCenter, controlsBounds) || inside(actionCenter, inspectorBounds))) continue;
-      const clip = inside(actionCenter, controlsBounds) ? controlsBounds
-        : inside(actionCenter, inspectorBounds) ? inspectorBounds : bounds;
-      const node = nodes.find(({ id }) => id === toolAction.id) ?? {
-        id: toolAction.id, kind: toolAction.role === 'tab' ? 'tab' : toolAction.role === 'textbox' ? 'field' : 'button',
-        bounds: toolAction.bounds, clip, label: toolAction.label,
-        state: toolAction.disabled === true ? 'disabled' : 'idle',
-      } satisfies StudioCanvasShellNode;
-      if (!nodes.some(({ id }) => id === node.id)) nodes.push(node);
-      const action: CanvasAction = { id: toolAction.id, label: toolAction.label, role: toolAction.role,
-        disabled: toolAction.disabled === true, node, activate: toolAction.activate,
-        ...(toolAction.keyDown === undefined ? {} : { keyDown: toolAction.keyDown }) };
-      actions.push(action);
-      root.add(widget(toolAction.role === 'textbox' ? 'panel' : 'button', toolAction.id, {
-        enabled: !action.disabled, pointerMode: 'capture', props: { label: action.label, role: action.role },
-        onPointer: (event) => this.activatePointer(action, event),
-      }).setBounds(toolAction.bounds));
-    }
-    for (const table of surface.tables?.slice(0, 8) ?? []) {
-      if (!table.id.startsWith(prefix)) throw new Error(`studio_canvas_tool_table_id_invalid:${table.id}`);
-      const tableCenter = { x: table.layout.bounds.x + table.layout.bounds.width / 2,
-        y: table.layout.bounds.y + table.layout.bounds.height / 2 };
-      if (workspaceOnly && !inside(tableCenter, bounds)) continue;
-      tables.push(table);
-    }
-    for (const textEditor of surface.textEditors?.slice(0, 24) ?? []) {
-      if (!textEditor.id.startsWith(prefix)) throw new Error(`studio_canvas_tool_text_id_invalid:${textEditor.id}`);
-      if (workspaceOnly && !actions.some(({ id }) => id === textEditor.id)) continue;
-      textEditors.push(textEditor);
-    }
-    if (surface.draw !== undefined) draws.push({ bounds, draw: surface.draw });
-    return true;
-  }
-
-  private openPalette(): void {
-    this.#paletteOpen = true;
-    this.#paletteEditor.setValue('');
-    this.#paletteEditor.focus();
-    this.#pendingFocusId = 'palette-query';
-  }
-
-  private closePalette(): void {
-    this.#paletteOpen = false;
-    this.#paletteEditor.blur();
-    this.#paletteEditor.setValue('');
-    this.#pendingFocusId = null;
-  }
-
-  private syncTextFocus(): void {
-    const focusedId = this.#focus.snapshot().focusedId;
-    for (const textEditor of this.#scene?.textEditors ?? []) {
-      if (textEditor.id === focusedId) textEditor.editor.focus();
-      else textEditor.editor.blur();
-    }
-  }
-
-  private activeTextEditor(): CanvasTextEditor | null {
-    const focusedId = this.#focus.snapshot().focusedId;
-    return this.#scene?.textEditors.find(({ id }) => id === focusedId)?.editor ?? null;
-  }
-
-  private navigate(path: string): void {
-    if (!this.controller.navigate(path)) return;
-    this.restoreLayoutSession(this.controller.activeRoute().path);
-    history.pushState(null, '', path); this.#focus.focusFirst(); this.render();
-  }
-
-  private activatePointer(action: CanvasAction, event: UiPointerEvent): boolean {
-    if (event.kind === 'pointer_down') { this.#pressedId = action.id; this.#focus.focus(action.id); this.syncTextFocus(); this.render(); return true; }
-    if (event.kind === 'pointer_up') {
-      this.#pressedId = null;
-      if (!action.disabled) action.activate(this.#actionActivation);
-      this.render();
-      return true;
-    }
-    return false;
-  }
-
-  private pointer(event: Pick<MouseEvent, 'clientX' | 'clientY'>): { readonly x: number; readonly y: number } {
-    const bounds = this.canvas.getBoundingClientRect();
-    return { x: (event.clientX - bounds.left) * this.canvas.clientWidth / Math.max(1, bounds.width),
-      y: (event.clientY - bounds.top) * this.canvas.clientHeight / Math.max(1, bounds.height) };
-  }
-
-  private toolPointer(event: PointerEvent, point: StudioCanvasToolPointerInput['point']): StudioCanvasToolPointerInput {
-    return { point, button: event.button, pointerId: event.pointerId, spaceHeld: this.#spaceHeld, shiftKey: event.shiftKey,
-      altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey };
-  }
-
-  private toolWheel(event: WheelEvent, point: { readonly x: number; readonly y: number }): StudioCanvasToolWheelInput {
-    return { point, deltaX: event.deltaX, deltaY: event.deltaY, shiftKey: event.shiftKey,
-      altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey };
-  }
-
-  private toolKey(event: KeyboardEvent): StudioCanvasToolKeyInput {
-    return { key: event.key, repeat: event.repeat, shiftKey: event.shiftKey,
-      altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey };
-  }
-
-  private readonly onPointerDown = (event: PointerEvent): void => {
-    this.#keyboardFocusVisible = false;
-    this.#actionActivation = studioCanvasActionActivation(event);
-    this.canvas.focus(); this.canvas.setPointerCapture(event.pointerId);
-    const point = this.pointer(event);
-    const resizeEdge = this.#scene?.actions.find(({ id, node }) => id.startsWith('drawer-edge-') && inside(point, node.bounds));
-    if (resizeEdge !== undefined) {
-      const side = resizeEdge.id === 'drawer-edge-left' ? 'left' : 'right';
-      this.#drawerDrag = { side, startX: point.x, startWidth: this.#drawerWidths[side] };
-      this.#focus.focus(resizeEdge.id); this.render(); return;
-    }
-    const splitEdge = this.#scene?.actions.find(({ id, node }) => id === 'workspace-split-edge'
-      && inside(point, node.bounds));
-    if (splitEdge !== undefined && this.#splitBounds !== null) {
-      this.#splitDrag = { bounds: this.#splitBounds };
-      this.#focus.focus(splitEdge.id); this.render(); return;
-    }
-    const table = this.#scene?.tables.find(({ layout }) => inside(point, layout.viewport));
-    this.#focusedTableId = table?.id ?? null;
-    if (this.#scene === null || table !== undefined) return;
-    if (new UiInputRouter(this.#scene.widgets).routePointer({ kind: 'pointer_down', point, button: event.button })) return;
-    if (this.#scene.input?.pointerDown?.(this.toolPointer(event, point)) === true) {
-      this.#toolPointerOwner = event.pointerId;
-      event.preventDefault(); this.render();
-    }
-  };
-  private readonly onPointerMove = (event: PointerEvent): void => {
-    const point = this.pointer(event);
-    if (this.#drawerDrag !== null) {
-      const delta = point.x - this.#drawerDrag.startX;
-      const width = this.#drawerDrag.startWidth + (this.#drawerDrag.side === 'left' ? delta : -delta);
-      this.#drawerWidths = { ...this.#drawerWidths, [this.#drawerDrag.side]: this.clampDrawer(width) };
-      this.render(); return;
-    }
-    if (this.#splitDrag !== null) {
-      this.#layoutState = resizeStudioCanvasSplit(this.#layoutState,
-        studioCanvasSplitRatioAtPoint(
-          this.#splitDrag.bounds,
-          this.#layoutState.direction,
-          point,
-        ));
-      this.render(); return;
-    }
-    if (this.#toolPointerOwner === event.pointerId) {
-      if (this.#scene?.input?.pointerMove?.(this.toolPointer(event, point)) === true) event.preventDefault();
-      this.render(); return;
-    }
-    const resizeTarget = this.#scene?.actions.find(({ id, node }) => (
-      id.startsWith('drawer-edge-') || id === 'workspace-split-edge'
-    ) && inside(point, node.bounds));
-    const next = resizeTarget?.id
-      ?? this.#scene?.actions.find(({ node }) => inside(point, node.bounds))?.id ?? null;
-    if (next !== this.#hoveredId) { this.#hoveredId = next; this.render(); }
-    if (this.#scene === null || this.#scene.tables.some(({ layout }) => inside(point, layout.viewport))) return;
-    if (new UiInputRouter(this.#scene.widgets).routePointer({ kind: 'pointer_move', point, button: event.button })) return;
-    if (this.#scene.input?.pointerMove?.(this.toolPointer(event, point)) === true) {
-      event.preventDefault(); this.render();
-    }
-  };
-  private readonly onPointerUp = (event: PointerEvent): void => {
-    this.#actionActivation = studioCanvasActionActivation(event);
-    if (this.#splitDrag !== null) {
-      this.#splitDrag = null; this.persistLayoutSession(); this.render();
-      if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
-      return;
-    }
-    if (this.#drawerDrag !== null) {
-      this.#drawerDrag = null; this.persistDrawers(); this.render();
-      if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
-      return;
-    }
-    if (this.#toolPointerOwner === event.pointerId) {
-      this.#toolPointerOwner = null;
-      if (this.#scene?.input?.pointerUp?.(this.toolPointer(event, this.pointer(event))) === true) event.preventDefault();
-      this.render();
-      if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
-      return;
-    }
-    if (this.#scene !== null) {
-      const point = this.pointer(event);
-      const table = this.#scene.tables.find(({ layout }) => inside(point, layout.viewport));
-      const hit = table === undefined ? null : hitStudioCanvasTable(table.layout, point);
-      if (hit !== null) { table?.onHit?.(hit); this.render(); }
-      if (table === undefined
-        && !new UiInputRouter(this.#scene.widgets).routePointer({ kind: 'pointer_up', point, button: event.button })
-        && this.#scene.input?.pointerUp?.(this.toolPointer(event, point)) === true) {
-        event.preventDefault(); this.render();
-      }
-    }
-    if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
-  };
-  private readonly onPointerCancel = (event: PointerEvent): void => {
-    const wasResizing = this.#drawerDrag !== null;
-    const wasSplitResizing = this.#splitDrag !== null;
-    const wasToolOwned = this.#toolPointerOwner === event.pointerId;
-    if (wasToolOwned) this.#toolPointerOwner = null;
-    this.#pressedId = null; this.#drawerDrag = null; this.#splitDrag = null; this.#actionActivation = undefined;
-    if (!wasResizing && !wasSplitResizing && (wasToolOwned || this.#toolPointerOwner === null)
-      && this.#scene?.input?.pointerCancel?.(this.toolPointer(event, this.pointer(event))) === true) {
-      event.preventDefault(); this.render();
-    }
-    if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId); this.render();
-  };
-  private readonly onDoubleClick = (event: MouseEvent): void => {
-    const point = this.pointer(event);
-    const resizeEdge = this.#scene?.actions.find(({ id, node }) => id.startsWith('drawer-edge-') && inside(point, node.bounds));
-    if (resizeEdge !== undefined) this.resetDrawer(resizeEdge.id === 'drawer-edge-left' ? 'left' : 'right');
-    const splitEdge = this.#scene?.actions.find(({ id, node }) => id === 'workspace-split-edge'
-      && inside(point, node.bounds));
-    if (splitEdge !== undefined) {
-      this.#layoutState = resizeStudioCanvasSplit(this.#layoutState, 0.5);
-      this.persistLayoutSession(); this.render();
-    }
-  };
-  private readonly onKeyDown = (event: KeyboardEvent): void => {
-    this.#keyboardFocusVisible = true;
-    const editor = this.activeTextEditor();
-    const focusedComposite = this.#scene?.actions.find(({ id }) => (
-      id === this.#focus.snapshot().focusedId
-    ))?.keyDown !== undefined;
-    if (!focusedComposite
-      && shouldHoldStudioSpacePan(event, editor !== null, this.#scene?.input?.spaceDragPan === true)) {
-      this.#spaceHeld = true;
-      event.preventDefault();
-      return;
-    }
-    if (shouldToggleStudioGrid(event, editor !== null)) {
-      event.preventDefault(); this.controller.toggleGrid(); this.render(); return;
-    }
-    const shortcut = this.#shortcuts.actionFor(event);
-    if (shortcut === 'palette.open' || shortcut === 'search.everywhere') {
-      event.preventDefault(); this.openPalette(); this.render(); return;
-    }
-    if (shortcut?.startsWith('mode.') === true) {
-      event.preventDefault(); const mode = shortcut.slice(5);
-      const route = this.controller.tools.routes(this.controller.session.snapshot().role).find(({ tool }) => tool.mode === mode);
-      if (route !== undefined) this.navigate(route.path); return;
-    }
-    if (this.#paletteOpen && event.key === 'Escape') {
-      event.preventDefault(); this.closePalette(); this.render(); return;
-    }
-    const drawerSide = this.#focus.snapshot().focusedId === 'drawer-edge-left' ? 'left'
-      : this.#focus.snapshot().focusedId === 'drawer-edge-right' ? 'right' : null;
-    if (drawerSide !== null && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-      event.preventDefault();
-      const screenDelta = event.key === 'ArrowLeft' ? -16 : 16;
-      const widthDelta = drawerSide === 'left' ? screenDelta : -screenDelta;
-      this.#drawerWidths = { ...this.#drawerWidths,
-        [drawerSide]: this.clampDrawer(this.#drawerWidths[drawerSide] + widthDelta) };
-      this.persistDrawers(); this.render(); return;
-    }
-    if (this.#focus.snapshot().focusedId === 'workspace-split-edge'
-      && (event.key === 'ArrowLeft' || event.key === 'ArrowRight'
-        || event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter')) {
-      const relevant = this.#layoutState.direction === 'row'
-        ? event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Enter'
-        : event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter';
-      if (relevant) {
-        event.preventDefault();
-        const delta = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -0.05
-          : event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 0.05 : 0;
-        this.#layoutState = resizeStudioCanvasSplit(this.#layoutState,
-          delta === 0 ? 0.5 : this.#layoutState.ratio + delta);
-        this.persistLayoutSession(); this.render(); return;
-      }
-    }
-    if (editor !== null && editor.handleKeyDown(event)) {
-      event.preventDefault(); this.render(); return;
-    }
-    const tableCommand: StudioCanvasTableScrollCommand | null = event.key === 'ArrowUp' ? 'line_up'
-      : event.key === 'ArrowDown' ? 'line_down' : event.key === 'PageUp' ? 'page_up'
-        : event.key === 'PageDown' ? 'page_down' : event.key === 'Home' ? 'home' : event.key === 'End' ? 'end' : null;
-    const table = tableCommand === null ? undefined : this.#scene?.tables.find(({ id }) => id === this.#focusedTableId);
-    if (table !== undefined && tableCommand !== null && table.onScroll !== undefined) {
-      event.preventDefault(); table.onScroll(tableCommand, scrollStudioCanvasTable(table.layout, tableCommand)); this.render(); return;
-    }
-    const focusedAction = this.#scene?.actions.find(({ id }) => id === this.#focus.snapshot().focusedId);
-    const requestedFocus = focusedAction?.keyDown?.(this.toolKey(event)) ?? null;
-    if (requestedFocus !== null) {
-      event.preventDefault();
-      this.#pendingFocusId = requestedFocus;
-      this.render();
-      return;
-    }
-    if (shouldActivateStudioCanvasActionWithModifiers(event)) {
-      const focused = this.#focus.snapshot().focusedId;
-      const action = this.#scene?.actions.find(({ id }) => id === focused);
-      if (action !== undefined && !action.disabled) {
-        event.preventDefault();
-        action.activate(studioCanvasActionActivation(event));
-        this.syncTextFocus();
-        this.render();
-        return;
-      }
-    }
-    if (this.#focus.handleKeyDown(event)) { event.preventDefault(); this.syncTextFocus(); this.render(); return; }
-    if (this.#scene?.input?.keyDown?.(this.toolKey(event)) === true) {
-      event.preventDefault(); this.render();
-    }
-  };
-  private readonly onKeyUp = (event: KeyboardEvent): void => {
-    if (event.key !== ' ') return;
-    const wasHeld = this.#spaceHeld;
-    this.#spaceHeld = false;
-    if (wasHeld) event.preventDefault();
-  };
-  private readonly onBeforeInput = (event: InputEvent): void => {
-    if (this.activeTextEditor()?.handleBeforeInput(event) === true) {
-      event.preventDefault(); this.render();
-    }
-  };
-  private readonly onCompositionStart = (event: CompositionEvent): void => {
-    if (this.activeTextEditor()?.handleCompositionStart(event) === true) { event.preventDefault(); this.render(); }
-  };
-  private readonly onCompositionUpdate = (event: CompositionEvent): void => {
-    if (this.activeTextEditor()?.handleCompositionUpdate(event) === true) { event.preventDefault(); this.render(); }
-  };
-  private readonly onCompositionEnd = (event: CompositionEvent): void => {
-    if (this.activeTextEditor()?.handleCompositionEnd(event) === true) { event.preventDefault(); this.render(); }
-  };
-  private readonly onPaste = (event: ClipboardEvent): void => {
-    const text = event.clipboardData?.getData('text/plain');
-    if (text !== undefined && this.activeTextEditor()?.handlePaste(text) === true) { event.preventDefault(); this.render(); }
-  };
-  private readonly onCopy = (event: ClipboardEvent): void => {
-    const editor = this.activeTextEditor();
-    if (editor === null || event.clipboardData === null) return;
-    const snapshot = editor.snapshot();
-    event.clipboardData.setData('text/plain', snapshot.value.slice(snapshot.caretStart, snapshot.caretEnd));
-    event.preventDefault();
-  };
-  private readonly onCut = (event: ClipboardEvent): void => {
-    const editor = this.activeTextEditor();
-    if (editor === null || event.clipboardData === null) return;
-    const snapshot = editor.snapshot();
-    event.clipboardData.setData('text/plain', snapshot.value.slice(snapshot.caretStart, snapshot.caretEnd));
-    if (editor.handleBeforeInput({ inputType: 'deleteByCut' })) this.render();
-    event.preventDefault();
-  };
-  private readonly onWheel = (event: WheelEvent): void => {
-    const point = this.pointer(event);
-    const table = this.#scene?.tables.find(({ layout }) => inside(point, layout.viewport));
-    if (table?.onScroll !== undefined && table.layout.maximumScrollRow > 0) {
-      event.preventDefault();
-      const command: StudioCanvasTableScrollCommand = event.deltaY < 0 ? 'line_up' : 'line_down';
-      table.onScroll(command, scrollStudioCanvasTable(table.layout, command));
-      this.#focusedTableId = table.id;
-      this.render();
-      return;
-    }
-    const viewport = this.#toolRailViewport;
-    if (viewport !== null && inside(point, viewport)) {
-      event.preventDefault();
-      const next = Math.max(0, Math.min(this.#toolRailMaximumScroll,
-        this.#toolRailScroll + (event.deltaY < 0 ? -1 : 1)));
-      if (next !== this.#toolRailScroll) { this.#toolRailScroll = next; this.render(); }
-      return;
-    }
-    if (this.#scene === null) return;
-    if (this.#scene.input?.wheel?.(this.toolWheel(event, point)) === true) {
-      event.preventDefault(); this.render();
-    }
-  };
-  private readonly onPopState = (): void => {
-    if (this.controller.navigate(location.pathname)) this.restoreLayoutSession(this.controller.activeRoute().path);
-    this.render();
-  };
-  private readonly onResize = (): void => {
-    if (this.#resizeFrame !== null) return;
-    this.#resizeFrame = requestAnimationFrame(() => { this.#resizeFrame = null; this.render(); });
-  };
-  private readonly onBlur = (): void => {
-    this.#spaceHeld = false;
-    if (this.#splitDrag !== null) { this.#splitDrag = null; this.persistLayoutSession(); }
-  };
-  private readonly onVisibility = (): void => {
-    if (document.hidden) this.#spaceHeld = false;
-    else this.render();
-  };
-
   private clampDrawer(value: number): number { return Math.max(180, Math.min(420, Math.round(value))); }
   private persistDrawers(): void {
-    try { sessionStorage.setItem(`${DRAWER_WIDTHS_KEY}:${this.#layoutRoute}`, JSON.stringify(this.#drawerWidths)); } catch { /* non-persistent sandbox */ }
+    try { sessionStorage.setItem(DRAWER_WIDTHS_KEY, JSON.stringify(this.#drawerWidths)); } catch { /* non-persistent sandbox */ }
   }
   private secondaryRoute(primaryToolId: string): ReturnType<StudioShellController['activeRoute']> | null {
     const routes = this.controller.tools.routes(this.controller.session.snapshot().role);
@@ -1002,17 +398,8 @@ export class StudioShellApp {
   }
   private restoreLayoutSession(route: string): void {
     this.#layoutRoute = route;
-    this.#layoutState = { ...restoreStudioCanvasLayoutState(this.layoutStorage(), route), splitOpen: false };
-    this.#drawerWidths = route.startsWith('/build/map') ? { left: 320, right: 420 } : { left: 270, right: 286 };
-    try {
-      const stored = JSON.parse(sessionStorage.getItem(`${DRAWER_WIDTHS_KEY}:${route}`) ?? 'null') as { left?: unknown; right?: unknown } | null;
-      if (stored !== null && typeof stored.left === 'number' && typeof stored.right === 'number'
-        && Number.isFinite(stored.left) && Number.isFinite(stored.right)) {
-        this.#drawerWidths = { left: this.clampDrawer(stored.left), right: this.clampDrawer(stored.right) };
-      }
-    } catch { /* A stale route preference does not prevent opening an editor. */ }
-    this.#splitDrag = null;
-    this.#splitBounds = null;
+    this.#layoutState = restoreStudioCanvasLayoutState(this.layoutStorage(), route);
+    this.#shellKey = '';
   }
   private persistLayoutSession(): void {
     persistStudioCanvasLayoutState(this.layoutStorage(), this.#layoutRoute, this.#layoutState);
@@ -1071,13 +458,13 @@ export class StudioShellApp {
       right: right === undefined ? this.#drawerWidths.right : this.clampDrawer(right),
     };
     this.#layoutState = state;
+    this.#shellKey = "";
     this.persistDrawers(); this.persistLayoutSession();
     this.controller.notifications.push('success', 'Canvas layout restored', name);
     this.render();
   }
   private resetDrawer(side: 'left' | 'right'): void {
-    const defaults = this.#layoutRoute.startsWith('/build/map') ? { left: 320, right: 420 } : { left: 270, right: 286 };
-    this.#drawerWidths = { ...this.#drawerWidths, [side]: defaults[side] };
-    this.persistDrawers(); this.render();
+    this.#drawerWidths = { ...this.#drawerWidths, [side]: side === 'left' ? 270 : 286 };
+    this.#shellKey = ''; this.persistDrawers(); this.render();
   }
 }

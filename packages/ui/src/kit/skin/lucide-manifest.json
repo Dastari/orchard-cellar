@@ -1,0 +1,365 @@
+[
+  {
+    "name": "undo",
+    "file": "undo-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/undo-2"
+  },
+  {
+    "name": "redo",
+    "file": "redo-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/redo-2"
+  },
+  {
+    "name": "save",
+    "file": "save.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/save"
+  },
+  {
+    "name": "load",
+    "file": "folder-open.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/folder-open"
+  },
+  {
+    "name": "export",
+    "file": "file-up.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/file-up"
+  },
+  {
+    "name": "import",
+    "file": "file-down.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/file-down"
+  },
+  {
+    "name": "randomize",
+    "file": "shuffle.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/shuffle"
+  },
+  {
+    "name": "grid",
+    "file": "grid-3x3.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/grid-3x3"
+  },
+  {
+    "name": "height",
+    "file": "layers.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/layers"
+  },
+  {
+    "name": "collision",
+    "file": "shield-x.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/shield-x"
+  },
+  {
+    "name": "autoEdges",
+    "file": "wand-sparkles.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/wand-sparkles"
+  },
+  {
+    "name": "cloudConnect",
+    "file": "cloud.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/cloud"
+  },
+  {
+    "name": "cloudPublish",
+    "file": "cloud-upload.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/cloud-upload"
+  },
+  {
+    "name": "visibility",
+    "file": "eye.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/eye"
+  },
+  {
+    "name": "layers",
+    "file": "layers.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/layers"
+  },
+  {
+    "name": "pointer",
+    "file": "mouse-pointer-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/mouse-pointer-2"
+  },
+  {
+    "name": "sprout",
+    "file": "sprout.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/sprout"
+  },
+  {
+    "name": "brush",
+    "file": "paintbrush.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/paintbrush"
+  },
+  {
+    "name": "landPlot",
+    "file": "land-plot.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/land-plot"
+  },
+  {
+    "name": "pickaxe",
+    "file": "pickaxe.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/pickaxe"
+  },
+  {
+    "name": "cave",
+    "file": "brick-wall.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/brick-wall"
+  },
+  {
+    "name": "waves",
+    "file": "droplets.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/droplets"
+  },
+  {
+    "name": "route",
+    "file": "route.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/route"
+  },
+  {
+    "name": "mountain",
+    "file": "mountain.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/mountain"
+  },
+  {
+    "name": "moveDown",
+    "file": "move-down.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/move-down"
+  },
+  {
+    "name": "level",
+    "file": "between-horizontal-start.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/between-horizontal-start"
+  },
+  {
+    "name": "flatten",
+    "file": "align-horizontal-justify-center.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/align-horizontal-justify-center"
+  },
+  {
+    "name": "stairs",
+    "file": "list-chevrons-up-down.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/list-chevrons-up-down"
+  },
+  {
+    "name": "penTool",
+    "file": "pen-tool.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/pen-tool"
+  },
+  {
+    "name": "eraser",
+    "file": "eraser.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/eraser"
+  },
+  {
+    "name": "replace",
+    "file": "replace.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/replace"
+  },
+  {
+    "name": "map",
+    "file": "map.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/map"
+  },
+  {
+    "name": "box",
+    "file": "box.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/box"
+  },
+  {
+    "name": "palette",
+    "file": "palette.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/palette"
+  },
+  {
+    "name": "gamepad",
+    "file": "gamepad-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/gamepad-2"
+  },
+  {
+    "name": "trees",
+    "file": "trees.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/trees"
+  },
+  {
+    "name": "package",
+    "file": "package.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/package"
+  },
+  {
+    "name": "copy",
+    "file": "copy-plus.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/copy-plus"
+  },
+  {
+    "name": "trash",
+    "file": "trash-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/trash-2"
+  },
+  {
+    "name": "eyeOff",
+    "file": "eye-off.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/eye-off"
+  },
+  {
+    "name": "lock",
+    "file": "lock.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/lock"
+  },
+  {
+    "name": "unlock",
+    "file": "lock-open.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/lock-open"
+  },
+  {
+    "name": "rotate",
+    "file": "rotate-cw.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/rotate-cw"
+  },
+  {
+    "name": "flip",
+    "file": "flip-horizontal-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/flip-horizontal-2"
+  },
+  {
+    "name": "scale",
+    "file": "maximize-2.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/maximize-2"
+  },
+  {
+    "name": "chevronDown",
+    "file": "chevron-down.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/chevron-down",
+    "revision": "94e4cb9d9db5907053ebf3636a97c45529cf776b"
+  },
+  {
+    "name": "chevronRight",
+    "file": "chevron-right.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/chevron-right",
+    "revision": "94e4cb9d9db5907053ebf3636a97c45529cf776b"
+  },
+  {
+    "name": "chevronLeft",
+    "file": "chevron-left.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/chevron-left",
+    "revision": "94e4cb9d9db5907053ebf3636a97c45529cf776b"
+  },
+  {
+    "name": "search",
+    "file": "search.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/search",
+    "revision": "94e4cb9d9db5907053ebf3636a97c45529cf776b"
+  },
+  {
+    "name": "sort",
+    "file": "arrow-up-down.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/arrow-up-down",
+    "revision": "94e4cb9d9db5907053ebf3636a97c45529cf776b"
+  },
+  {
+    "name": "filter",
+    "file": "list-filter.svg",
+    "license": "ISC",
+    "attribution": "Lucide contributors",
+    "source": "https://lucide.dev/icons/list-filter",
+    "revision": "94e4cb9d9db5907053ebf3636a97c45529cf776b"
+  }
+]

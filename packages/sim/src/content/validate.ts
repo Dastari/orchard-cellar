@@ -1,3 +1,4 @@
+import { delveCompletionRewardError } from '../delve-keepsake.js';
 import { equipmentModifierAllowed } from '../equipment-budget.js';
 import {
   type ItemContentDefinition,
@@ -202,7 +203,8 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
       'item' in target ? [target.item] : []
     )));
     case 'crop': return [definition.seedItem, definition.harvestItem];
-    case 'resource': return definition.seedItem === undefined ? [] : [definition.seedItem];
+    case 'resource': return [...(definition.seedItem === undefined ? [] : [definition.seedItem]),
+      ...(definition.fruitHarvest === undefined ? [] : [definition.fruitHarvest.item])];
     case 'npc': return [
       ...(definition.commerce?.villageOrders ?? []).map(({ item }) => item),
       ...(definition.commerce?.recipeExchange === undefined ? [] : [definition.commerce.recipeExchange.payment.item]),
@@ -376,6 +378,16 @@ function validateResourceDefinition(
       || definition.health.followsGrowthStage !== true) invalid('seedItem requires a regrowing fruit tree', 'seedItem');
     if (definition.retired !== true && [...byId.values()].some((other) => other.kind === 'resource' && other.id !== definition.id
       && other.retired !== true && other.seedItem === definition.seedItem)) invalid('seedItem must identify one live resource', 'seedItem');
+  }
+  if (definition.fruitHarvest !== undefined) {
+    const fruit = byId.get(definition.fruitHarvest.item);
+    if (fruit?.kind !== 'item' || !fruit.tags.includes('crop.fruit') || fruit.retired === true) {
+      invalid('fruitHarvest must reference a live fruit item', 'fruitHarvest.item');
+    }
+    if (!definition.tags.includes('resource.fruit_tree') || definition.regrowth?.enabled !== true
+      || definition.health.followsGrowthStage !== true || definition.interaction.mode !== 'harvest') {
+      invalid('fruitHarvest requires a regrowing harvestable fruit tree', 'fruitHarvest');
+    }
   }
   const loot = byId.get(definition.loot);
   if (loot?.kind !== 'loot') errors.push(issue(
@@ -591,6 +603,15 @@ function validateWorldDefinition(
       });
     }
     const interior = definition.hearthInterior;
+    if (definition.hearthInteriorFloors !== undefined) {
+      if (interior === undefined) invalid('interior floor regions require an interior', 'hearthInteriorFloors');
+      definition.hearthInteriorFloors.forEach(({ bounds: [left, top, right, bottom] }, index) => {
+        if (left > right || top > bottom || left < 0 || top < 0
+          || right >= definition.sizeTiles || bottom >= definition.sizeTiles)
+          invalid('interior floor region must be ordered and inside the space', `hearthInteriorFloors[${index}]`);
+      });
+    }
+
     if (definition.generator === 'village_interior' && interior === undefined) {
       invalid('village interior spaces require authored interior metadata', 'hearthInterior');
     } else if (definition.generator !== 'village_interior' && interior !== undefined) {
@@ -621,9 +642,12 @@ function validateWorldDefinition(
           const art = encoded.slice(0, 2), x = number36(encoded[2]!), y = number36(encoded[3]!);
           const suffix = encoded.slice(4), support = suffix.startsWith('-');
           const fixed = suffix.length >= 2 && !support;
-          const matches = [...byId.values()].filter(candidate => candidate.kind === 'object'
+          let matches = [...byId.values()].filter(candidate => candidate.kind === 'object'
             && candidate.retired !== true && candidate.components.sprite !== undefined
             && fingerprint(candidate.components.sprite.asset) === art);
+          const authoredPresentation = suffix.includes('!') ? suffix.slice(suffix.indexOf('!') + 1) : undefined;
+          if (matches.length > 1 && authoredPresentation !== undefined) matches = matches.filter(candidate => candidate.kind === 'object'
+            && candidate.components.sprite?.asset === `prop_cf_${authoredPresentation}`);
           if (matches.length !== 1) invalid('interior furniture art must resolve to exactly one active object', `hearthInterior[2].${index}`);
           if (!inside(x, y)) invalid('interior furniture must be inside the authored space', `hearthInterior[2].${index}`);
           if (support && number36(suffix.slice(1)) > index) {
@@ -1684,6 +1708,10 @@ export function validateContentDefinitions(
     undefined,'delveBoon',
   ));
 
+
+  const keepsakeError = delveCompletionRewardError(definitions);
+  if (keepsakeError !== null) errors.push(issue('error', 'invalid_world_definition', keepsakeError,
+    undefined, 'reward.delve_completion'));
 
   const legacyJobOwners = new Map<string, string>();
   const activeProcessInputs = new Map<string, string>();

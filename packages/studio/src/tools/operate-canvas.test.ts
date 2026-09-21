@@ -1,82 +1,67 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { UiRoot, ui, uiFixed, type CanvasTextEditor } from '@orchard/ui/studio';
+import { kitElements, pressKit, chooseKit } from './kit-test-driver.js';
+import { PlayerManagerModel } from './players/model.js';
 import { StudioShellController } from '../shell/controller.js';
 import type { StudioToolRoute } from '../shell/tool-registry.js';
 import { buildOperateObserveCanvasTool } from './operate-canvas.js';
-
 const IDS = ['players', 'playbooks', 'containers', 'objects', 'npcs', 'world', 'membership', 'observe'] as const;
-
-function route(controller: StudioShellController, id: typeof IDS[number]): StudioToolRoute {
-  const tool = controller.tools.tools().find((candidate) => candidate.id === id);
-  if (tool === undefined) throw new Error(`missing_tool:${id}`);
-  return { path: tool.routes[0]!, tool, access: 'write' };
+function context(controller: StudioShellController, id: typeof IDS[number]) {
+  const tool = controller.tools.tools().find(candidate => candidate.id === id)!;
+  const route: StudioToolRoute = { path: tool.routes[0]!, tool, access: 'write' };
+  const bounds = { x: 390, y: 40, width: 530, height: 620 };
+  return { bounds, controlsBounds: { x: 100, y: 40, width: 270, height: 620 }, workspaceBounds: bounds, route, controller, invalidate: () => undefined };
 }
-
-describe('Operate and Observe canvas tools', () => {
-  it('projects every audited model into bounded retained canvas nodes', () => {
-    const controller = new StudioShellController(async () => { throw new Error('not_connected'); });
-    for (const id of IDS) {
-      const workspaceBounds = { x: 390, y: 40, width: 530, height: 620 };
-      const surface = buildOperateObserveCanvasTool({
-        bounds: workspaceBounds,
-        controlsBounds: { x: 100, y: 40, width: 270, height: 620 },
-        workspaceBounds,
-        route: route(controller, id), controller, invalidate: () => undefined,
-      });
-      expect(surface.nodes.length).toBeGreaterThan(1);
-      expect(surface.nodes.length).toBeLessThanOrEqual(200);
-      expect(surface.actions.length).toBeLessThanOrEqual(200);
-      expect(surface.tables?.length).toBeGreaterThanOrEqual(1);
-      expect(new Set(surface.nodes.map((node) => node.id)).size).toBe(surface.nodes.length);
-      expect(surface.nodes.every((node) => node.id.startsWith(`${id}-`))).toBe(true);
-      expect(surface.nodes.every((node) => node.clip !== undefined)).toBe(true);
-      expect(surface.actions.every(({ bounds }) => bounds.height >= 40)).toBe(true);
-      expect(surface.actions.filter(({ role }) => role === 'button').every(({ bounds }) => bounds.width <= 300)).toBe(true);
-      expect(surface.nodes.some(({ bounds }) => bounds.x < workspaceBounds.x)).toBe(true);
-      expect(surface.nodes.some(({ bounds }) => bounds.x >= workspaceBounds.x)).toBe(true);
-      for (const table of surface.tables ?? []) {
-        expect(table.id.startsWith(`${id}-`)).toBe(true);
-        expect(table.layout.rowHeight).toBeGreaterThanOrEqual(40);
-        expect(table.layout.bounds.x).toBeGreaterThan(workspaceBounds.x);
-        expect(table.layout.bounds.y).toBeGreaterThan(workspaceBounds.y);
-        expect(table.layout.bounds.x + table.layout.bounds.width).toBeLessThan(workspaceBounds.x + workspaceBounds.width);
-        expect(table.layout.bounds.y + table.layout.bounds.height).toBeLessThan(workspaceBounds.y + workspaceBounds.height);
-        expect(table.onHit).toBeTypeOf('function');
-        expect(table.onScroll).toBeTypeOf('function');
-      }
-    }
+describe('Operate and Observe kit tools', () => {
+  it('previews the entered item and quantity, and rejects invalid numeric input before requesting a preview',async()=>{
+    const controller=new StudioShellController(async()=>{throw new Error('offline');});
+    controller.session.connected({identity:'test-owner',role:'owner',contentRevision:null,mapRevision:null});
+    const options=context(controller,'players');let surface=buildOperateObserveCanvasTool(options);
+    const settle=()=>new Promise<void>(resolve=>setTimeout(resolve,0));
+    pressKit(surface,'players-find');await settle();surface=buildOperateObserveCanvasTool(options);
+    pressKit(surface,'players-results-table:rows');await settle();surface=buildOperateObserveCanvasTool(options);
+    chooseKit(surface,'players-tab','inventory');surface=buildOperateObserveCanvasTool(options);
+    const field=(id:string)=>kitElements(surface).find(node=>node.id===id)!.props['editor'] as CanvasTextEditor;
+    field('players-reason').setValue('Investigating a reported missing stack');
+    field('players-action-itemKind').setValue('apple');field('players-action-quantity').setValue('7');
+    const preview=vi.spyOn(PlayerManagerModel.prototype,'preview');
+    try {
+      pressKit(surface,'players-preview-give_items');await settle();
+      expect(preview).toHaveBeenCalledWith({operation:'give_items',stacks:[{itemKind:'apple',quantity:7}]});
+      preview.mockClear();field('players-action-quantity').setValue('not a number');
+      pressKit(surface,'players-preview-give_items');await settle();expect(preview).not.toHaveBeenCalled();
+    }finally{preview.mockRestore();}
   });
-
-  it('retains table scroll commands locally and routes row/cell hits into model selection', async () => {
+  it.each(IDS)('%s composes real kit controls and virtual tables without legacy nodes', id => {
     const controller = new StudioShellController(async () => { throw new Error('not_connected'); });
-    const bounds = { x: 390, y: 40, width: 530, height: 620 };
-    const context = { bounds, controlsBounds: { x: 100, y: 40, width: 270, height: 620 },
-      workspaceBounds: bounds, route: route(controller, 'objects'), controller, invalidate: () => undefined };
-    buildOperateObserveCanvasTool(context);
-    await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
-    const surface = buildOperateObserveCanvasTool(context);
-    const table = surface.tables?.find(({ id }) => id === 'objects-results-table');
-    expect(table?.layout.rows.length).toBeGreaterThan(0);
-    const first = table!.layout.rows[0]!;
-    table!.onHit?.({ kind: 'cell', rowId: first.id, rowIndex: first.rowIndex,
-      columnId: first.cells[0]!.columnId, columnIndex: 0 });
-    expect(controller.selection.current()).toMatchObject({ kind: 'entity', id: first.id });
+    const surface = buildOperateObserveCanvasTool(context(controller,id));
 
-    const scroll = controller.toolState<{ scrollRow: number }>('operate-table:objects-results-table', () => ({ scrollRow: 0 }));
-    for (const [command, next] of [['line_down', 1], ['page_down', 8], ['end', 40],
-      ['line_up', 39], ['page_up', 31], ['home', 0]] as const) {
-      table!.onScroll?.(command, next);
-      expect(scroll.scrollRow).toBe(next);
-    }
+    const root = new UiRoot({ scale:1 }); root.resize(900,620);
+    root.mount(ui.flex({direction:'row',width:'grow',height:'grow',gap:8},[
+      ui.scrollArea({width:uiFixed(250),height:'grow'},[surface.kit!.controls!]),surface.kit!.workspace!,
+    ])); root.arrange();
+    const elements=root.entries().map(({element})=>element);
+    const tables=elements.filter(element=>element.kind==='table');
+    if(id==='containers') expect(elements.some(element=>element.label==='Inspect a container to load its slots')).toBe(true);
+    else expect(tables.length > 0 || elements.some(element => element.id.endsWith(':empty'))).toBe(true);
+    for(const table of tables) expect(table.props['mode']).toBe('virtual');
+    expect(elements.filter(element=>element.focusable).length).toBeGreaterThan(0);
+    expect(elements.length).toBeLessThan(1000);
+    expect(elements.some(element=>element.kind==='text'&&element.label.length>0)).toBe(true);
+    root.dispose();
   });
-
-  it('contains no DOM projection boundary', () => {
-    const source = readFileSync(new URL('./operate-canvas.ts', import.meta.url), 'utf8');
-    expect(source).not.toMatch(/document\.|createElement|HTMLElement|HTMLInputElement|SVGElement|innerHTML/u);
-    expect(source).toContain('layoutUiFlex');
-    expect(source).toContain('layoutStudioCanvasTable');
-    expect(source).not.toMatch(/\.rows\.slice\(0|workspace\.row/u);
-    expect(source).toContain('context.controlsBounds');
-    expect(source).toContain('context.workspaceBounds');
+  it('routes keyboard table selection into the retained object model', async () => {
+    const controller=new StudioShellController(async()=>{throw new Error('not_connected');}), options=context(controller,'objects');
+    buildOperateObserveCanvasTool(options); await new Promise<void>(resolve=>setTimeout(resolve,0));
+    const surface=buildOperateObserveCanvasTool(options), root=new UiRoot({scale:1});root.resize(700,620);root.mount(surface.kit!.workspace!);root.arrange();
+    const list=root.entries().find(({element})=>element.id==='objects-results-table:rows')!.element;
+    const first=root.entries().find(({element})=>element.kind==='list-row')!.element.label;
+    root.focus.set(list);root.key({key:'Enter'});expect(controller.selection.current()).toMatchObject({kind:'entity',id:first});root.dispose();
+  });
+  it('uses kit table and input factories with no DOM or old rendering boundary', () => {
+    const source=readFileSync(new URL('./operate-canvas.ts',import.meta.url),'utf8');
+    expect(source).not.toMatch(/document\.|createElement|HTMLElement|HTMLInputElement|SVGElement|innerHTML|SurfaceComposer|StudioCanvasShellNode|layoutStudioCanvasTable/u);
+    expect(source).toContain('kit.table<OperateRow>');expect(source).toContain('kit.input(');expect(source).toContain('context.controlsBounds');
   });
 });

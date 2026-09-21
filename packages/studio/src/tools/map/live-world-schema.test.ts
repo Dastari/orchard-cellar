@@ -1,4 +1,3 @@
-import { gameplayPainterAuditSource } from '../../../../lifecycle-authoring/src/gameplay-painter-audit.test-support.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -8,7 +7,7 @@ const renderer = readFileSync(new URL('./editor-renderer.ts', import.meta.url), 
 const mapRuntime = `${canvas}\n${controller}\n${renderer}`;
 const shellConnection = readFileSync(new URL('../../shell/studio-connection.ts', import.meta.url), 'utf8');
 const gameConnection = readFileSync(new URL('../../../../client/src/net/overworld-connection.ts', import.meta.url), 'utf8');
-const game = gameplayPainterAuditSource();
+const game = readFileSync(new URL('../../../../client/src/overworld-main.ts', import.meta.url), 'utf8');
 
 describe('Map Editor live player-owned world state', () => {
   it('physically retires the unreachable second connection implementation', () => {
@@ -46,8 +45,9 @@ describe('Map Editor live player-owned world state', () => {
   });
 
   it('keeps the game terrain-plane projection for committed homestead rows', () => {
-    expect(game).toContain('const y = (tileY + 1) * 16;');
-    expect(game).toContain('enqueueWorldDepth(x, y, {');
+    const decorations = readFileSync(new URL('../../../../client/src/gameplay-painter-decorations.ts', import.meta.url), 'utf8');
+    expect(decorations).toContain('const y = (tileY + 1) * 16;');
+    expect(decorations).toContain('enqueueWorldDepth(x, y, {');
   });
 
   it('uses authoritative live resource rows when the world subscription is synchronized', () => {

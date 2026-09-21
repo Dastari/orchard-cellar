@@ -980,6 +980,50 @@
     }
   },
   {
+    "id": "object:delver_memorial_planter",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Delver Memorial Planter",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_delver_memorial_planter"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:delver_memorial_planter",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        7
+      ]
+    }
+  },
+  {
     "id": "object:farmer_jane_memorial",
     "kind": "object",
     "schemaVersion": 1,
@@ -3553,6 +3597,45 @@
     }
   },
   {
+    "id": "object:hearth_streetlamp",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Willowharbour Streetlamp",
+    "components": {
+      "identity": {
+        "tags": [
+          "decoration.village",
+          "emits.light"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_hearth_streetlamp",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "light": {
+        "color": [
+          255,
+          206,
+          131
+        ],
+        "radiusTiles": 5,
+        "profile": "steady",
+        "offsetY": -37
+      }
+    }
+  },
+  {
     "id": "object:lantern",
     "kind": "object",
     "schemaVersion": 1,
@@ -3854,6 +3937,81 @@
         "radiusTiles": 4,
         "profile": "flicker",
         "offsetY": -15
+      }
+    }
+  },
+  {
+    "id": "object:willow_farm_hay_bale",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Farm Hay Bale",
+    "components": {
+      "identity": {
+        "tags": [
+          "decoration.interior"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_farm_hay_bale"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      }
+    }
+  },
+  {
+    "id": "object:willow_farm_hay_stack",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Farm Hay Stack",
+    "components": {
+      "identity": {
+        "tags": [
+          "decoration.interior"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_farm_hay_stack"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      }
+    }
+  },
+  {
+    "id": "object:willow_farm_potted_flowers",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Farm Potted Flowers",
+    "components": {
+      "identity": {
+        "tags": [
+          "decoration.interior"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_farm_potted_flowers"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
       }
     }
   },

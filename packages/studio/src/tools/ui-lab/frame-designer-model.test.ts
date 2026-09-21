@@ -49,14 +49,22 @@ describe('Frame Designer model', () => {
     expect(publishContentChangeSet).toHaveBeenCalledWith(request);
   });
 
-  it('previews at the three logical UI scales without changing authored coordinates', () => {
-    for (const scale of [1, 2, 3]) {
+  it('inspects the actual kit preview at three logical viewport sizes', () => {
+    for (const width of [480, 320, 160]) {
       const state = createFrameDesignerModel({
         definition: furnace, definitions, access: 'anonymous',
-        viewport: { width: 480, height: 270 },
+        viewport: { width, height: 270 },
       }).snapshot();
-      expect(state.layout.storage.frame.x * scale).toBeGreaterThanOrEqual(0);
-      expect((state.layout.storage.frame.x + state.layout.storage.frame.width) * scale).toBeLessThanOrEqual(480 * scale);
+      const frame = state.hitTargets.find(node => node.id === furnace.id)!;
+      expect(frame.kind).toBe('frame');
+      expect(frame.rect).toEqual({ x: 0, y: 0, width, height: 270 });
+      for (const node of state.hitTargets) {
+        if (node.clip.width === 0 || node.clip.height === 0) continue;
+        expect(node.clip.x).toBeGreaterThanOrEqual(0);
+        expect(node.clip.y).toBeGreaterThanOrEqual(0);
+        expect(node.clip.x + node.clip.width).toBeLessThanOrEqual(width);
+        expect(node.clip.y + node.clip.height).toBeLessThanOrEqual(270);
+      }
     }
   });
 });

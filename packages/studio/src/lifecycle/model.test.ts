@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseLifecycleSourceBundle } from '@orchard/lifecycle-authoring';
+import { validateLifecycleSourceBundleAst } from '@orchard/lifecycle-authoring/compiler';
 import {
   acceptLifecycleSourceRevision,
   addLifecycleHandler,
@@ -54,6 +55,11 @@ class MemoryStorage implements LifecycleDraftStorage {
 }
 
 describe('Studio lifecycle authoring model', () => {
+  it('uses the public compiler entry point for the current lifecycle package', () => {
+    const bundle = parseLifecycleSourceBundle(JSON.parse(validSourceJson()));
+    expect(() => validateLifecycleSourceBundleAst(bundle)).not.toThrow();
+  });
+
   it('starts as an editable invalid draft and becomes valid through the real AST gate', () => {
     const empty = createLifecycleAuthoringState('orchard-items');
     expect(empty).toMatchObject({ dirty: true, valid: false });

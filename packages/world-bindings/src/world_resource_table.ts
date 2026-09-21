@@ -35,4 +35,5 @@ export default __t.row({
   miningPartyId: __t.option(__t.u64()).name("mining_party_id"),
   miningClaimUntilTick: __t.u64().name("mining_claim_until_tick"),
   definitionId: __t.string().name("definition_id"),
+  fruitReadyAtTick: __t.u64().name("fruit_ready_at_tick"),
 });

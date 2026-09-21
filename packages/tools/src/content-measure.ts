@@ -5,11 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// 0.8.1 authors geometry/damage for 24 swing tools: measured 536,535 bytes,
-// up 1,421 bytes (0.27%) from 0.8.0. 0.8.3 adds a carry policy to five heavy
-// stations: measured 536,710 bytes, up 175 bytes (0.03%). Keep the budget at
-// the next whole KiB.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 525 * 1024;
+// Combined gameplay and Willowharbour content: 919 definitions, 559,532 runtime
+// bytes. Retain the next-whole-KiB subscription guard for this reviewed merge.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 547 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

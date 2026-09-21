@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Kit runtime acceptance fixture</title>
+<style>body { margin: 0 } canvas { display: block; width: 320px; height: 160px }</style>
+<canvas id="canvas"></canvas>
+<script type="module">
+import { UiRoot } from '../../runtime/root.ts';
+import { UiElement } from '../../runtime/element.ts';
+import { uiFixed } from '../box.ts';
+const canvas = document.querySelector('canvas');
+const root = new UiRoot({ scale: 2, label: 'Runtime fixture' });
+let activations = 0, paints = 0;
+const activate = () => { canvas.dataset.activations = String(++activations); root.invalidate(); };
+root.mount(new UiElement({ style: { width: 'grow', height: 'grow', gap: 8 }, children: ['One', 'Two'].map(label => new UiElement({
+  label, focusable: true, style: { width: uiFixed(40), height: uiFixed(24) },
+  paint(node, { context }) { paints++; canvas.dataset.paints = String(paints); context.fillRect(node.rect.x, node.rect.y, node.rect.width, node.rect.height); },
+  onKey(event) { if (event.key === 'Enter') { activate(); return true; } return false; },
+  onPointer(event) { if (event.type === 'down') { activate(); return true; } return false; },
+})) }));
+root.bindCanvas(canvas);
+window.fixture = { root, dispose: () => root.dispose() };
+</script>

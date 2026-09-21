@@ -25,3 +25,6 @@ export function diminishingPowerReward(total: number, divisor: number, exponent:
 export function soften(cap: number, base: number, sum: number): number {
   return cap - (cap - base) * Math.exp(-sum / (cap - base));
 }
+
+/** Doc 06: permanent room expansions, preserving current bottle income. */
+export const RESIDENCE_EXPANSION_COSTS_BRONZE = [60_000n, 180_000n] as const;

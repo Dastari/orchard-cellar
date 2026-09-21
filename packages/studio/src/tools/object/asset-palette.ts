@@ -2,8 +2,8 @@ import type { MapStampLayer, MapStampVisual } from '@orchard/sim';
 import type {
   BuiltAssetRecord,
   GeneratedAssetCatalog,
-} from '@orchard/ui';
-import type { AtlasFrame } from '@orchard/ui';
+} from '@orchard/ui/studio';
+import type { AtlasFrame } from '@orchard/ui/studio';
 
 export const AUTHORING_ASSET_CATEGORIES = [
   'tiles', 'props', 'buildings', 'trees', 'crops',

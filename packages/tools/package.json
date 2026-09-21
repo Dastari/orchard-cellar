@@ -1,6 +1,6 @@
 {
   "name": "@orchard/tools",
-  "version": "0.8.2",
+  "version": "0.15.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -50,7 +50,9 @@
     "preview": "tsx src/preview.ts",
     "import": "tsx src/import-image.ts",
     "restore-native": "tsx src/restore-native-palettes.ts",
-    "extract:premium-icons": "tsx src/extract-premium-icons.ts"
+    "extract:premium-icons": "tsx src/extract-premium-icons.ts",
+    "ui:assets": "tsx src/copy-ui-public.ts",
+    "actions:baseline": "tsx src/action-baseline.ts"
   },
   "dependencies": {
     "@orchard/engine": "*",

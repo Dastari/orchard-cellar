@@ -166,6 +166,11 @@ describe('Items Studio tool model', () => {
     });
     expect((JSON.parse(request.upserts) as { id: string }[]).map(({ id }) => id))
       .toEqual(['item:a_item', 'item:z_item']);
+    // Common quality is a parser default, not an extra durable payload field.
+    // Publishing it would diverge from the authoritative transport hash.
+    for (const row of JSON.parse(request.upserts) as { json: string }[]) {
+      expect(JSON.parse(row.json)).not.toHaveProperty('quality');
+    }
     await model.publish('items.publish.14', 'add two items');
     expect(publishContentChangeSet).toHaveBeenCalledWith(request);
     expect(restoreContentRevision).not.toHaveBeenCalled();

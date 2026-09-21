@@ -3,6 +3,7 @@ import type { OidcSession } from '@orchard/auth';
 import {
   completeStudioOidcCallback,
   prepareStudioOidcConnection,
+  resumeStudioOidcSession,
   type StudioAuthBrowser,
   type StudioAuthDependencies,
 } from './auth.js';
@@ -75,5 +76,23 @@ describe('Studio exact-origin OIDC lifecycle', () => {
     await expect(prepareStudioOidcConnection('local', authenticatedLocal.auth, authenticatedLocal.deps))
       .resolves.toBe('ready');
     expect(authenticatedLocal.ensureSession).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Studio reload connection restoration', () => {
+  it('resumes an existing Studio session without redirecting', async () => {
+    const value = harness();
+    await expect(resumeStudioOidcSession(value.auth, value.deps)).resolves.toBe(true);
+    expect(value.beginLogin).not.toHaveBeenCalled();
+  });
+  it('keeps a fresh visit offline with an explicit Connect action', async () => {
+    const value = harness({}, { ensureSession: vi.fn(async () => null) });
+    await expect(resumeStudioOidcSession(value.auth, value.deps)).resolves.toBe(false);
+    expect(value.beginLogin).not.toHaveBeenCalled();
+  });
+  it('does not accept a session through a different application origin', async () => {
+    const value = harness({ origin: 'https://orchard.dastari.net' });
+    await expect(resumeStudioOidcSession(value.auth, value.deps)).rejects.toThrow('studio_oidc_exact_origin_required');
+    expect(value.ensureSession).not.toHaveBeenCalled();
   });
 });

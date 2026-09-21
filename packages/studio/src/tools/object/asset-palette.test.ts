@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GeneratedAssetCatalog } from '@orchard/ui';
+import type { GeneratedAssetCatalog } from '@orchard/ui/studio';
 import { buildAssetPalette, filterAssetPalette } from './asset-palette.js';
 
 const frame = { x: 0, y: 0, width: 16, height: 16, durationTicks: 0 };

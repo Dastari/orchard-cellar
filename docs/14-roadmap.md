@@ -7,6 +7,24 @@ hand-off notes. Single-player ships value before any server work: the shared
 deterministic sim ([02-architecture.md](02-architecture.md)) is what makes moving
 authority to the server later a mechanical change, not a rewrite.
 
+## Planned — Unified actions, tool limits and repair UI
+
+See [the executable phase plan](unified-actions-plan.md). Sequence: inventory current
+contracts -> shared action/modifier schema -> authority and resource accounting ->
+facing actions with G parity -> tile/context actions -> aimed delivery and spell
+fixtures -> repair escrow/UI -> retirement and release rehearsal. The first P0
+inventory/golden slice is integrated below; the resolver and repair UI remain
+planned. Preserve the integrated gameplay behavior, including hoe/fish fixes and
+fishing progression. Production deployment remains a separate release.
+
+## Unified actions P0 — `⏳ in progress (codex, 2026-09-21)`
+
+The [design and phase plan (PR 34)](https://github.com/Dastari/orchard-cellar/pull/34)
+now has its first implementation slice: a generated [item action inventory](action-baseline.md),
+a drift check and current tool geometry/charge goldens. The [handoff](action-baseline-notes.md)
+records completed coverage and the remaining lifecycle, parameter and custody-writer audits.
+P0 is not complete; P1 remains gated on the completed phase being integrated.
+
 ## M0 — Skeleton `☑ complete (codex, 2026-08-24)`
 Monorepo (npm workspaces per 02), strict tsconfig, Vitest, ESLint (incl. sim bans on
 `Math.random`/`Date.now`), Vite client shell showing a colored canvas at 480×270

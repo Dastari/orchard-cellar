@@ -472,3 +472,48 @@ fuel, and one bar takes **5 real minutes** with offline catch-up. Sale values ar
 Each bar is exactly twice the ore-chunk value plus one wood fuel's 2-bronze sell
 opportunity cost. The crop barrel is a workbench recipe of **6 planks + 2 iron
 bars**, making crop processing a deliberate post-smelting progression step.
+
+## 17. Preserved expedition provisions (0.10.0)
+
+Preserving now supplies edible plant provisions as well as sale/order goods. One
+portion restores raw crop Hunger +10 points, without a temporary buff. Wheat and
+sunflower have no raw food value and restore 14 points when preserved. Values below
+are literal Hunger points; authored content stores centi-points. Full Hunger rejects
+without item consumption, and successful recovery caps at 100.
+
+| Preserve | Hunger | Preserve | Hunger |
+| --- | ---: | --- | ---: |
+| Beetroot | 17 | Cabbage | 19 |
+| Carrot | 16 | Corn | 18 |
+| Cucumber | 15 | Garlic | 13 |
+| Grape | 15 | Green pepper | 15 |
+| Hot pepper | 13 | Leek | 16 |
+| Onion | 15 | Parsley | 12 |
+| Potato | 17 | Pumpkin | 22 |
+| Red pepper | 15 | Strawberry | 16 |
+| Sunflower | 14 | Tomato | 15 |
+| Turnip | 16 | Watermelon | 23 |
+| Wheat | 14 | Yellow pepper | 15 |
+
+Cooked fish retains 24 Hunger and cooked meat 28–40, preserving their roles. Batch
+yield, cure duration, sale values and village orders are unchanged. Ordinary food is
+still prohibited inside isolated Delve runs. See
+[preserved provisions](preserved-provisions-spec.md) for the implementation contract.
+## Pomace compost balance amendment (0.9.0)
+
+Four Pomace and one Fiber handcraft into one Compost. A growing crop accepts one application per planting, advancing settled growth by **25% of its required growth ticks, rounded down**, capped at maturity. Watering, crop seasons and harvest quantity are unchanged. A successful application records one `compost_applied` statistic and grants no XP; rejected or repeated treatment consumes nothing and records nothing. Compost sells for 4 bronze, below its ingredient value, to preserve growing as its intended use.
+
+## Connected estate progression amendment (0.14.0)
+
+Fishing now awards **5 Farming XP per successful catch**, with **10 additional Farming XP when an ordinary pool is depleted**. Personal tutorial catches award the same 5 Farming XP without the depletion bonus. This matches the existing Farming tree's Angler's Rhythm, Seasoned Angler and Fishing Mapping nodes. Failed or cancelled casts award nothing. Historical Explorer XP and purchased skills remain intact; no XP is migrated or awarded retroactively.
+
+| Permanent room | Previous price (bronze) | Current price (bronze) | Base bottles at 5,000 each |
+|---|---:|---:|---:|
+| East room, rank 1 | 3,200 | 60,000 | 12 |
+| South room, rank 2 | 4,200 | 180,000 | 36 |
+
+The rooms are purchased sequentially and cost **240,000 bronze combined**. The South room's 180,000 is an additional payment, not the total cost of both rooms. Existing rooms, furnishings and occupants are unchanged, with no retroactive charge. Base home and cellar production remain accessible before either expansion, so this adds a peaceful money goal without requiring combat or a housing unlock to earn bottle income.
+
+Bottle prices stay **5,000 / 10,000 / 20,000 / 40,000 bronze** at Vintage ranks 0–3. The first-bottle quest stays **50,000 bronze**. One base bottle plus the quest gives 55,000, below the first room's price. Two bottles plus that quest give 60,000 **before any ingredient, station, upgrade or other spending**. This is a gross income comparison, not a promise that a new player can buy the room immediately after two bottles.
+
+The [source-derived report](connected-estate-economy-report.md) compares production-only lower bounds at each Vintage rank using one or three press/cask pairs. It excludes gathering, station and upgrade investment, manual handling, idle time and all other spending; each row funds one room independently. Fresh-player elapsed pacing has not been measured. Regenerate it with `npx tsx packages/tools/src/report-connected-estate-economy.ts docs/connected-estate-economy-report.md`. The older solo-economy simulation does not establish current multiplayer acquisition times.

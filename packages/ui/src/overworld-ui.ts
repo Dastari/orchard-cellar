@@ -3848,7 +3848,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, 'BEGIN A SOLO DELVE?', rect.x + rect.width / 2, rect.y + (compact ? 32 : 37), {
       align: 'center', color: '#5f3b24', font: 'header',
     });
-    drawLabel(context, this.fonts, 'FIGHT THROUGH 12 ROOMS.',
+    drawLabel(context, this.fonts, '12 ROOMS. HOME RECIPE ON FIRST WIN.',
       rect.x + rect.width / 2, rect.y + (compact ? 52 : 60), { align: 'center', color: '#6b4428' });
     drawLabel(context, this.fonts, 'BOONS AND EMBERS LAST FOR THIS RUN.',
       rect.x + rect.width / 2, rect.y + (compact ? 66 : 75), { align: 'center', color: '#8c5d3a' });

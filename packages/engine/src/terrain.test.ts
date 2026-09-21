@@ -1,5 +1,6 @@
 import {
   SURVIVAL_DIRT_CLIFF_ROLES,
+  SURVIVAL_BIOMES,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   SURVIVAL_WORLD_VERSION,
@@ -25,6 +26,7 @@ import {
   freshwaterFrameIndexAt,
   freshwaterInsetFrameIndicesAt,
   grassSandTransitionFrameIndexAt,
+  pavingGrassTransitionFrameIndexAt,
   plateauBackgroundFrameIndicesAt,
   plateauEdgeFrameIndexAt,
   plateauForegroundFrameIndicesAt,
@@ -398,6 +400,23 @@ describe("shared client terrain array", () => {
     terrain.biomes[2 * terrain.width + 3] = 1;
     terrain.biomes[1 * terrain.width + 2] = 0;
     expect(grassSandTransitionFrameIndexAt(terrain, 2, 2)).toBeNull();
+  });
+
+  it('frames paving edges and diagonal grass notches without fringing bridge water',()=>{
+    const terrain=terrainFixture(3,3,SURVIVAL_BIOMES.indexOf('paving'));
+    expect(pavingGrassTransitionFrameIndexAt(terrain,1,1)).toBeNull();
+    terrain.biomes[0]=SURVIVAL_BIOMES.indexOf('meadow');
+    const insideCorner=pavingGrassTransitionFrameIndexAt(terrain,1,1);
+    expect(insideCorner).not.toBeNull();
+    terrain.biomes[1]=SURVIVAL_BIOMES.indexOf('meadow');
+    expect(pavingGrassTransitionFrameIndexAt(terrain,1,1)).not.toBe(insideCorner);
+    terrain.biomes.fill(SURVIVAL_BIOMES.indexOf('water'));
+    terrain.biomes[4]=SURVIVAL_BIOMES.indexOf('paving');
+    expect(pavingGrassTransitionFrameIndexAt(terrain,1,1)).toBeNull();
+    terrain.biomes.fill(SURVIVAL_BIOMES.indexOf('meadow'));
+    terrain.biomes[4]=SURVIVAL_BIOMES.indexOf('paving');
+    expect(pavingGrassTransitionFrameIndexAt(terrain,1,1)).toBe(0);
+    expect(pavingGrassTransitionFrameIndexAt(terrain,0,0)).toBeNull();
   });
 
   it("uses the desert pack edge and inverse-corner grass transitions", () => {

@@ -77,6 +77,7 @@
   },
   "furnitureTransactions": {
     "itemIds": [
+      "item:delver_memorial_planter",
       "item:furniture_rustic_bed",
       "item:furniture_rustic_bench",
       "item:furniture_rustic_bookshelf",

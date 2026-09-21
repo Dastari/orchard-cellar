@@ -1,0 +1,20 @@
+import {it,expect,vi} from 'vitest';
+import {VillageOrderFlow} from './village-order-flow.js';
+import {drawVillageOrderPanel,villageOrderLayout} from './village-order-panel.js';
+import type {UiSkin} from './skin.js';
+import type {PixelUi} from './pixel-ui.js';
+const drawn=vi.hoisted(()=>[] as {text:string;x:number;y:number}[]);
+vi.mock('./pixel-ui.js',()=>({drawPixelText:(_ctx:unknown,_fonts:unknown,text:string,x:number,y:number)=>drawn.push({text,x,y}),measurePixelText:(text:string)=>text.length*5}));
+vi.mock('./skin.js',()=>({drawUiSkinAsset:()=>{}}));
+vi.mock('./ribbon.js',()=>({Ribbon:class{draw(){}}}));
+it('renders next milestone and distinct product counts above all three orders at minimum viewport',()=>{
+  const flow=new VillageOrderFlow();flow.update('a',1n,[0,1,2].map(i=>({id:String(i),title:'Carrots',npcId:1n,itemKind:'carrot',quantity:20,saleValueBronze:180n,bonusBronze:350n,totalBronze:530n,revision:0n,contentHash:'a',milestoneTitle:'CELLAR SUPPER',milestoneProgress:'Distinct raw 2/2  Preserved 1/2  Bottle 0/1',learnedMeals:['pantry_lunch']})));
+  drawVillageOrderPanel({} as CanvasRenderingContext2D,{} as UiSkin,{} as PixelUi,flow,320,180,x=>x);
+  const l=villageOrderLayout(320,180);
+  expect(drawn.find(row=>row.text==='CELLAR SUPPER')?.y).toBeLessThan(l.rows[0]!.y);
+  expect(drawn.find(row=>row.text.includes('Bottle 0/1'))?.y).toBeLessThan(l.rows[0]!.y);
+  expect(l.rows[2]!.y+l.rows[2]!.height).toBeLessThan(l.noticeY);
+  flow.select('0');drawn.length=0;
+  drawVillageOrderPanel({} as CanvasRenderingContext2D,{} as UiSkin,{} as PixelUi,flow,320,180,x=>x);
+  expect(drawn.find(row=>row.text.startsWith('YOU RECEIVE'))?.y).toBeLessThan(l.noticeY);
+});

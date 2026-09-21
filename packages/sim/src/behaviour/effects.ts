@@ -167,6 +167,7 @@ export type Effect =
   | { readonly carry: { readonly objectId?: string } }
   | { readonly placeCarried: { readonly at?: TilePosition } }
   | { readonly plantSeed: TilePosition }
+  | { readonly compostCrop: TilePosition }
   | {
     readonly farmTool: {
       readonly action: 'use' | 'restore';
@@ -242,6 +243,7 @@ export const EFFECT_OPCODES = [
   { kind: 'carry', engineVersion: 1 },
   { kind: 'placeCarried', engineVersion: 1 },
   { kind: 'plantSeed', engineVersion: 1 },
+  { kind: 'compostCrop', engineVersion: 1 },
   { kind: 'farmTool', engineVersion: 1 },
   { kind: 'worldTool', engineVersion: 1 },
   { kind: 'meleeAttack', engineVersion: 1 },

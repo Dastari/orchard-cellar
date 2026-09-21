@@ -37,7 +37,7 @@ import {
 } from '@orchard/sim';
 import { overworldPoiDecorationDepthY } from '@orchard/engine';
 import type { TerrainArray } from '@orchard/engine/terrain';
-import type { UiPoint, UiRect } from '@orchard/ui';
+import type { UiPoint, UiRect } from '@orchard/ui/studio';
 import type { StudioLiveRows } from '../../shell/outliners.js';
 import {
   EDITOR_ABSOLUTE_MIN_ZOOM,
@@ -931,11 +931,6 @@ export class MapEditorController {
     this.#eyedropperActive = false;
     this.model.clearSelection();
     return true;
-  }
-
-  setActiveElevation(elevation: number): void {
-    if (!Number.isFinite(elevation)) return;
-    this.#activeElevation = Math.max(-TERRAIN_ELEVATION_LIMIT, Math.min(TERRAIN_ELEVATION_LIMIT, Math.round(elevation)));
   }
 
   selectTerrainTool(tool: MapEditorTerrainTool): void {

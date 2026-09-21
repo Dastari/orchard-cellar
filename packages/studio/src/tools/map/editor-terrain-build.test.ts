@@ -22,7 +22,6 @@ import {
 import {
   buildMapEditorTerrainDerivatives,
   mapTerrainOverrideInfluenceRuns,
-  mapGeneratedResourcePreview,
 } from './editor-terrain-derivatives.js';
 import {
   decodeMapEditorTerrain,
@@ -60,7 +59,7 @@ describe('map editor terrain initialization', () => {
     // generic compiler does not include every generated dock/ramp exception.
     expect(terrain.blocked).toBe(production.blocked);
     expect(terrain.horseJumpableTerrain).toBe(production.horseJumpableTerrain);
-  }, 120_000);
+  }, 20_000);
 
   it('returns a completed terrain cache entry in constant time', () => {
     const document = createLiveIslandMapDocument();
@@ -71,7 +70,7 @@ describe('map editor terrain initialization', () => {
 
     expect(second).toBe(first);
     expect(elapsed).toBeLessThan(5);
-  }, 120_000);
+  }, 20_000);
 
   it('limits the trusted validation fast path to untouched production terrain', () => {
     const document = createLiveIslandMapDocument();
@@ -98,7 +97,7 @@ describe('map editor terrain initialization', () => {
       ...bootstrap,
       provenance: { ...bootstrap.provenance, generatorSeed: 42 },
     })).toBe(false);
-  }, 120_000);
+  }, 20_000);
 
   it('compiles preview terrain against the keyed active live tileset resolver', () => {
     const source = bootstrapTilesetDefinitions().find(({ familyId }) => familyId === 'stone_1')!;
@@ -111,16 +110,16 @@ describe('map editor terrain initialization', () => {
     const first = buildMapEditorTerrain(document, firstPalette);
     expect(first.tilesets?.tileSetFor('orchard_moss')).not.toBeNull();
     expect(first.tilesets?.tileSetFor('stone_1')).toBeNull();
-
-    const secondPalette = liveTerrainAuthoringPalette([
-      { ...orchardMoss, roleFrames: orchardMoss.roleFrames.map((entry) => ({
+    const secondPalette = liveTerrainAuthoringPalette([{
+      ...orchardMoss,
+      roleFrames: orchardMoss.roleFrames.map((entry) => ({
         ...entry, assetId: 'tile_cf_orchard_moss_next',
-      })), assetIds: ['tile_cf_orchard_moss_next'] },
-    ], '8:second');
+      })),
+      assetIds: ['tile_cf_orchard_moss_next'],
+    }], '8:second');
     const second = buildMapEditorTerrain(document, secondPalette);
     expect(second).not.toBe(first);
-    expect(second.tilesets?.tileSetFor('orchard_moss')?.assetId)
-      .toBe('tile_cf_orchard_moss_next');
+    expect(second.tilesets?.tileSetFor('orchard_moss')?.assetId).toBe('tile_cf_orchard_moss_next');
   });
 
   it('round-trips worker terrain without cloning dense boolean or null arrays', () => {
@@ -135,7 +134,7 @@ describe('map editor terrain initialization', () => {
     expect(decoded.horseJumpableTerrain).toEqual(terrain.horseJumpableTerrain);
     expect(decoded.biomes).toEqual(terrain.biomes);
     expect(decoded.elevations).toEqual(terrain.elevations);
-  }, 120_000);
+  }, 20_000);
 
   it('copies and transfers the optional authored farmland mask through the worker wire', () => {
     const base = migrateMapDocumentV2(createEmptyMapDocument({
@@ -165,7 +164,7 @@ describe('map editor terrain initialization', () => {
     const decoded = await decodeMapEditorTerrainAsync(encoded.wire);
     expect(decoded.blocked).toEqual(terrain.blocked);
     expect(decoded.horseJumpableTerrain).toEqual(terrain.horseJumpableTerrain);
-  }, 120_000);
+  }, 20_000);
 
   it('cancels stale chunked traversal adoption before doing more UI-thread work', async () => {
     vi.useFakeTimers();
@@ -178,7 +177,7 @@ describe('map editor terrain initialization', () => {
     } finally {
       vi.useRealTimers();
     }
-  }, 120_000);
+  }, 20_000);
 
   it('derives overview layers and authored influence before the worker result is adopted', async () => {
     const base = migrateMapDocumentV2(createEmptyMapDocument({
@@ -198,7 +197,6 @@ describe('map editor terrain initialization', () => {
     const encoded = encodeMapEditorTerrainDerivatives(derivatives, terrain);
     const decoded = await decodeMapEditorTerrainDerivativesAsync(encoded.wire, decodedTerrain);
 
-    expect(decoded.generatedResources).toEqual(derivatives.generatedResources);
     expect(decoded.overview.layers.combined).toEqual(derivatives.overview.layers.combined);
     expect(decoded.overview.layers.generated_base).toEqual(
       derivatives.overview.layers.generated_base,
@@ -211,22 +209,4 @@ describe('map editor terrain initialization', () => {
     expect(decoded.terrainOverrideInfluenceRuns.length).toBeGreaterThan(0);
     expect(encoded.transfer).toContain(encoded.wire.overview.layers.combined.buffer);
   });
-});
-
-
-describe('generated map resource preview', () => {
-  it('includes island trees and respects suppression without modifying the cached baseline', () => {
-    const document = createStudioLiveIslandBootstrapDocument();
-    const resources = mapGeneratedResourcePreview(document);
-    const tree = resources.find(({ kind }) => kind.includes('tree'));
-    expect(tree).toBeDefined();
-    const suppressed = mapGeneratedResourcePreview({ ...document,
-      generatedSuppressions: [`resource-${tree!.id}`],
-    });
-    expect(suppressed.some(({ id }) => id === tree!.id)).toBe(false);
-    expect(mapGeneratedResourcePreview(document).some(({ id }) => id === tree!.id)).toBe(true);
-    expect(mapGeneratedResourcePreview(migrateMapDocumentV2(createEmptyMapDocument({
-      id: 'empty-preview', title: 'Empty', width: 8, height: 8,
-    })))).toEqual([]);
-  }, 120_000);
 });

@@ -20,7 +20,9 @@ describe('homestead build registry', () => {
     expect([...homesteadBuildDefinitions(registry).keys()].sort()).toEqual(outdoors.sort());
     const residenceOnly = [...placeableKinds(registry)].filter(kind =>
       registry.objects.get(`object:${kind}`)?.components.placement?.spaces.every(space => space === 'residence'));
-    expect(residenceOnly).toHaveLength(32);
+    expect(residenceOnly).toHaveLength(33);
+    expect(residenceOnly).toContain('delver_memorial_planter');
+    expect(residenceOnly.filter(kind => kind !== 'delver_memorial_planter')).toHaveLength(32);
     for (const kind of residenceOnly) expect(runtimeHomesteadBuildDefinition(registry, kind)).toBeNull();
   });
 

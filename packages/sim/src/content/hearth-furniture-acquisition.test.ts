@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bootstrapContentRegistry, HEARTH_FURNITURE_SHAPES, runtimeRecipeDefinition, runtimeRecipeMatchesGrid,
   runtimeMatchingRecipeId, runtimeConsumeCraftingRecipe, runtimeRecipeIdsUnlockedByBook,
-  fillCraftingRecipeFromInventory, itemContainerContentResolver, type ContainerSnapshot } from '../index.js';
+  fillCraftingRecipeFromInventory, itemContainerContentResolver, delveCompletionRecipe, type ContainerSnapshot } from '../index.js';
 const registry = bootstrapContentRegistry();
 describe('furniture acquisition', () => {
   it('atomically fills the production grid using split stacks and the live recipe', () => {
@@ -33,9 +33,11 @@ describe('furniture acquisition', () => {
       { ...recipe, kind: 'shapeless', inputs: { wood: 10 } });
     expect(unchanged).toMatchObject({ ok: true, movedQuantity: 0, containers: incompatible });
   });
-  it('connects every reviewed piece to the same finished purchase and learned recipe output without resale arbitrage', () => {
+  it('connects all 32 shop pieces to finished purchases and learned recipes without resale arbitrage', () => {
     const offers = registry.shops.get('shop:willow_furnisher')!.offers.map(offer => offer.item);
-    for (const shape of Object.values(HEARTH_FURNITURE_SHAPES)) {
+    const shopPieces = Object.values(HEARTH_FURNITURE_SHAPES).filter(shape => shape.id !== 'delver_memorial_planter');
+    expect(shopPieces).toHaveLength(32);
+    for (const shape of shopPieces) {
       const id = shape.id, item = registry.items.get(`item:${id}`)!, plan = registry.items.get(`item:${id}_plan`)!;
       const recipe = registry.recipes.get(`recipe:${id}`)!;
       expect(offers).toContain(item.id); expect(offers).toContain(plan.id);
@@ -50,6 +52,22 @@ describe('furniture acquisition', () => {
       expect(item.economy.sell).toBeLessThan(item.economy.buy!);
       expect(recipe.stationRequirement).toEqual({ objectTag: 'station.workbench' });
     }
+  });
+  it('reserves the one earned keepsake for Delve recipe knowledge rather than a shop or plan', () => {
+    const id = 'delver_memorial_planter';
+    expect(Object.keys(HEARTH_FURNITURE_SHAPES)).toHaveLength(33);
+    expect(HEARTH_FURNITURE_SHAPES[id]).toBeDefined();
+    const reward = delveCompletionRecipe(registry)!;
+    expect(reward.id).toBe(`recipe:${id}`);
+    expect(reward.requiresKnowledge).toBe(true);
+    expect(reward.output).toEqual({ item: `item:${id}`, count: 1 });
+    expect(reward.stationRequirement).toEqual({ objectTag: 'station.workbench' });
+    expect(registry.items.get(`item:${id}`)?.economy).toEqual({ buy: null, sell: 0 });
+    expect(registry.items.has(`item:${id}_plan`)).toBe(false);
+    expect(runtimeRecipeIdsUnlockedByBook(registry, `${id}_plan`)).toEqual([]);
+    const allOffers = [...registry.shops.values()].flatMap(shop => shop.offers.map(offer => offer.item));
+    expect(allOffers).not.toContain(`item:${id}`);
+    expect(allOffers).not.toContain(`item:${id}_plan`);
   });
   it('keeps a selected table recipe across batches while rejecting insufficient or unrelated inputs', () => {
     const id = 'furniture_rustic_dining_table';

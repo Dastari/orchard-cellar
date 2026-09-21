@@ -8,7 +8,7 @@ import {
   type StudioTableRow,
   type StudioTableSort,
   type StudioTableView,
-} from '@orchard/ui';
+} from '@orchard/ui/studio';
 import type { StudioCommandDefinition } from './tool-registry.js';
 
 export interface StudioValidationIssue { readonly id: string; readonly severity: 'error' | 'warning' | 'info'; readonly message: string; readonly targetId?: string }

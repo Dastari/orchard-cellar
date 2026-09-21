@@ -475,6 +475,7 @@ export class StudioRowsProjection {
     if (dirty.has('npcs')) {
       const next = Object.freeze(scan('npcs', source.worldNpc).map((row) => ({
         id: row.id, spaceId: row.spaceId, kind: row.kind, definitionId: row.definitionId,
+        displayName: row.displayName,
         x: row.x, y: row.y, homeX: row.homeX, homeY: row.homeY,
         riderIdentity: row.rider?.toHexString(), facing: row.facing, moving: row.moving,
         wanderDirection: row.wanderDirection, health: row.health,

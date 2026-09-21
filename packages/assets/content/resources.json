@@ -1198,6 +1198,11 @@
       "followsGrowthStage": true
     },
     "seedItem": "item:apple_seed",
+    "fruitHarvest": {
+      "item": "item:apple",
+      "quantity": 2,
+      "cooldownTicks": 18000
+    },
     "loot": "loot:resource_tree_apple",
     "regrowth": {
       "enabled": true,
@@ -1454,6 +1459,11 @@
       "followsGrowthStage": true
     },
     "seedItem": "item:cherry_seed",
+    "fruitHarvest": {
+      "item": "item:cherry",
+      "quantity": 2,
+      "cooldownTicks": 18000
+    },
     "loot": "loot:resource_tree_cherry",
     "regrowth": {
       "enabled": true,
@@ -1693,6 +1703,11 @@
       "followsGrowthStage": true
     },
     "seedItem": "item:peach_seed",
+    "fruitHarvest": {
+      "item": "item:peach",
+      "quantity": 2,
+      "cooldownTicks": 18000
+    },
     "loot": "loot:resource_tree_peach",
     "regrowth": {
       "enabled": true,
@@ -1774,6 +1789,11 @@
       "followsGrowthStage": true
     },
     "seedItem": "item:pear_seed",
+    "fruitHarvest": {
+      "item": "item:pear",
+      "quantity": 2,
+      "cooldownTicks": 18000
+    },
     "loot": "loot:resource_tree_pear",
     "regrowth": {
       "enabled": true,
