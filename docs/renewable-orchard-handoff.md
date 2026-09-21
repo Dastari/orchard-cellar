@@ -13,3 +13,19 @@
   then prove one successful payout after recovery.
   Correction verification: 21 relevant tests across 5 files, world typecheck,
   lint and checked world build passed.
+
+## Stacked integration
+
+This branch now includes Orders `31f7b085`, its provisions predecessor and Compost,
+using feature-branch merges only. PR #28 targets `feat/village-order-milestones`.
+The cumulative release is 0.12.0: 907 definitions, hash `dd04e7ff`, 548,194 runtime
+bytes and a 536 KiB next-whole-KiB ceiling. Resource fruit timers, crop compost
+markers and order milestone projections coexist in regenerated bindings.
+Lifecycle revision 18 retains 148 callbacks, 339 live items, 90 inert owners,
+69 graph owners, 32 transaction owners and 53 edible foods. Canonical content,
+loader golden and Studio manifest are synchronized. The retired Studio renderer
+guard remains unchanged and no live deployment occurred.
+
+Cumulative focused validation passed 147 tests across 37 files, covering all four
+connected loops, edible/lifecycle ownership, exact content manifests and default
+quality projection. Checked world build and production client build pass.

@@ -472,3 +472,33 @@ fuel, and one bar takes **5 real minutes** with offline catch-up. Sale values ar
 Each bar is exactly twice the ore-chunk value plus one wood fuel's 2-bronze sell
 opportunity cost. The crop barrel is a workbench recipe of **6 planks + 2 iron
 bars**, making crop processing a deliberate post-smelting progression step.
+
+## 17. Preserved expedition provisions (0.10.0)
+
+Preserving now supplies edible plant provisions as well as sale/order goods. One
+portion restores raw crop Hunger +10 points, without a temporary buff. Wheat and
+sunflower have no raw food value and restore 14 points when preserved. Values below
+are literal Hunger points; authored content stores centi-points. Full Hunger rejects
+without item consumption, and successful recovery caps at 100.
+
+| Preserve | Hunger | Preserve | Hunger |
+| --- | ---: | --- | ---: |
+| Beetroot | 17 | Cabbage | 19 |
+| Carrot | 16 | Corn | 18 |
+| Cucumber | 15 | Garlic | 13 |
+| Grape | 15 | Green pepper | 15 |
+| Hot pepper | 13 | Leek | 16 |
+| Onion | 15 | Parsley | 12 |
+| Potato | 17 | Pumpkin | 22 |
+| Red pepper | 15 | Strawberry | 16 |
+| Sunflower | 14 | Tomato | 15 |
+| Turnip | 16 | Watermelon | 23 |
+| Wheat | 14 | Yellow pepper | 15 |
+
+Cooked fish retains 24 Hunger and cooked meat 28–40, preserving their roles. Batch
+yield, cure duration, sale values and village orders are unchanged. Ordinary food is
+still prohibited inside isolated Delve runs. See
+[preserved provisions](preserved-provisions-spec.md) for the implementation contract.
+## Pomace compost balance amendment (0.9.0)
+
+Four Pomace and one Fiber handcraft into one Compost. A growing crop accepts one application per planting, advancing settled growth by **25% of its required growth ticks, rounded down**, capped at maturity. Watering, crop seasons and harvest quantity are unchanged. A successful application records one `compost_applied` statistic and grants no XP; rejected or repeated treatment consumes nothing and records nothing. Compost sells for 4 bronze, below its ingredient value, to preserve growing as its intended use.

@@ -1187,6 +1187,14 @@ export const PlayerTradeSession = __t.object("PlayerTradeSession", {
 });
 export type PlayerTradeSession = __Infer<typeof PlayerTradeSession>;
 
+export const PlayerVillageOrderProgress = __t.object("PlayerVillageOrderProgress", {
+  identity: __t.identity(),
+  rawKinds: __t.array(__t.string()),
+  preservedKinds: __t.array(__t.string()),
+  bottleDelivered: __t.bool(),
+});
+export type PlayerVillageOrderProgress = __Infer<typeof PlayerVillageOrderProgress>;
+
 export const PlayerVillageOrderReceipt = __t.object("PlayerVillageOrderReceipt", {
   identity: __t.identity(),
   revision: __t.u64(),
@@ -1387,6 +1395,9 @@ export const VillageOrderQuote = __t.object("VillageOrderQuote", {
   totalBronze: __t.u64(),
   revision: __t.u64(),
   contentHash: __t.string(),
+  milestoneTitle: __t.string(),
+  milestoneProgress: __t.string(),
+  learnedMeals: __t.array(__t.string()),
 });
 export type VillageOrderQuote = __Infer<typeof VillageOrderQuote>;
 
@@ -1484,6 +1495,7 @@ export const WorldCrop = __t.object("WorldCrop", {
   growthTicks: __t.u64(),
   growthUpdatedAtTick: __t.u64(),
   spaceId: __t.u16(),
+  composted: __t.bool(),
 });
 export type WorldCrop = __Infer<typeof WorldCrop>;
 

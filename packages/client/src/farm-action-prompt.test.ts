@@ -61,3 +61,11 @@ it('offers tree-seed planting on grass and soil while crop seeds still need till
   expect(farmActionPrompt({ ...seed, soilExists: false })).toBe('TILL SOIL BEFORE PLANTING');
   expect(farmActionPrompt({ ...seed, soilExists: true })).toBe('[F] PLANT SEEDS');
 });
+
+it('explains compost treatment and refuses misleading repeat prompts', () => {
+  const compost = { ...BASE, selectedTool: null, compostSelected: true, cropName: 'Strawberry' };
+  expect(farmActionPrompt(compost)).toBe('[F] COMPOST STRAWBERRY (+25% GROWTH, ONCE PER PLANTING)');
+  expect(farmActionPrompt({ ...compost, cropComposted: true })).toBe('STRAWBERRY ALREADY COMPOSTED');
+  expect(farmActionPrompt({ ...compost, cropMature: true })).toBe('[E] HARVEST STRAWBERRY');
+  expect(farmActionPrompt({ ...compost, cropName: null })).toBe('TARGET A GROWING CROP');
+});

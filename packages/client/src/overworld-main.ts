@@ -4758,7 +4758,8 @@ function renderFrame(alpha = 1): void {
   const farmToolAction = selectedFarmToolAction(placementContentDefinition);
   const fishingToolAction = selectedFishingToolAction(placementContentDefinition);
   const farmTileSelected = farmToolAction !== null
-    || placementItemDefinition?.tags.includes('item.seed') === true;
+    || placementItemDefinition?.tags.includes('item.seed') === true
+    || placementItemDefinition?.tags.includes('item.farming.compost') === true;
   const tileToolSelected = farmTileSelected || fishingToolAction !== null;
   const placeableSelected = carriedChest(snapshot) !== null
     || carriedCarriableCombatTarget(snapshot) !== null
@@ -4922,6 +4923,8 @@ function renderFrame(alpha = 1): void {
     targeted: farmTarget !== null,
     selectedTool: farmToolAction?.mode ?? null,
     seedSelected: liveItemDefinition(snapshot, farmItem)?.tags.includes('item.seed') === true,
+    compostSelected: liveItemDefinition(snapshot, farmItem)?.tags.includes('item.farming.compost') === true,
+    cropComposted: farmCrop?.composted === true,
     treeSeedSelected: fruitTreeForSeed(snapshot.content.registry, farmItem) !== null,
     soilExists: farmSoil !== undefined,
     soilWatered: farmSoil !== undefined && farmSoil.watered
@@ -4937,6 +4940,7 @@ function renderFrame(alpha = 1): void {
   const selectedDefinition = liveItemDefinition(snapshot, selectedItem(snapshot));
   const selectedPlaceAction = selectedItemLifecycleAction(selectedContentDefinition, 'place');
   const selectedPlaceIsFarmAction = selectedDefinition?.tags.includes('item.seed') === true
+      || selectedDefinition?.tags.includes('item.farming.compost') === true
     || selectedFarmToolAction(selectedContentDefinition, selectedPlaceAction) !== null;
   const selectedPlacePrompt = selectedPlaceIsFarmAction ? null
     : selectedItemLifecyclePrompt(selectedContentDefinition, 'place');
@@ -4955,7 +4959,7 @@ function renderFrame(alpha = 1): void {
             : actionPlaceable !== null
               && objectHasAuthoredTag(snapshot.content.registry, actionPlaceable, 'station.anvil')
               ? selectedRepairPrompt ?? `[F] CARRY ${liveItemLabel(snapshot, actionPlaceable.kind)}`
-              : farmToolAction !== null && farmPrompt !== null
+              : (farmToolAction !== null || selectedDefinition?.tags.includes('item.farming.compost') === true) && farmPrompt !== null
                 ? farmPrompt
               : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
   const groundItemUseAction = groundLightItem === null ? null : selectedItemLifecycleAction(
@@ -6543,6 +6547,7 @@ window.addEventListener('keydown', (event) => {
     const selectedDefinition = liveItemDefinition(snapshot, selectedItem(snapshot));
     const selectedPlaceAction = selectedItemLifecycleAction(selectedUseDefinition, 'place');
     const selectedPlaceIsFarmAction = selectedDefinition?.tags.includes('item.seed') === true
+      || selectedDefinition?.tags.includes('item.farming.compost') === true
       || selectedFarmToolAction(selectedUseDefinition, selectedPlaceAction) !== null;
     if (selectedPlaceAction !== null && !selectedPlaceIsFarmAction
       && carriedCombatTarget(snapshot) === null
@@ -6672,6 +6677,12 @@ window.addEventListener('keydown', (event) => {
     const cropTile = targetFarmTile();
     const selectedCropItem = selectedItem(snapshot);
     const cropAtTarget = targetCrop(snapshot);
+    if (liveItemDefinition(snapshot, selectedCropItem)?.tags.includes('item.farming.compost') === true) {
+      if (cropTile === null) setToast('TARGET A GROWING CROP', 'failure', 90);
+      else showResult(network.useSelected('place', { tileX: cropTile.tileX, tileY: cropTile.tileY }), 'CROP COMPOSTED');
+      event.preventDefault();
+      return;
+    }
     if (cropTile !== null && cropAtTarget === null
       && liveItemDefinition(snapshot, selectedCropItem)?.tags.includes('item.seed') === true) {
       showResult(
@@ -7273,6 +7284,13 @@ function performWorldPointerAction(
   }
   const farmTarget = targetFarmTile();
   const pointerCrop = targetCrop(latestSnapshot);
+  if (event.button === 0 && worldPointerAvailable
+    && farmItemDefinition?.tags.includes('item.farming.compost') === true) {
+    if (farmTarget === null) setToast('TARGET A GROWING CROP', 'failure', 90);
+    else showResult(network.useSelected('place', { tileX: farmTarget.tileX, tileY: farmTarget.tileY }), 'CROP COMPOSTED');
+    event.preventDefault();
+    return;
+  }
   const restoringFarmTile = event.button === 2 && farmToolAction !== null
     && farmToolAction.restoreActionId !== null && farmTarget !== null
     && pointerCrop === null

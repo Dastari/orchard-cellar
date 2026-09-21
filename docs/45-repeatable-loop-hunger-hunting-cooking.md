@@ -71,3 +71,13 @@ state from the world clock and stored boundary ticks. They do not write every
 tick. Survival is a private own-row view; cooking input/output lives in the
 region-streamed placeable slots. Wildlife and placeables remain space/chunk
 subscribed, so none of these systems loads the whole world into the client.
+
+## Preserved outdoor provisions (0.10.0)
+
+Every preserved crop can now be eaten from the selected-item secondary action,
+using the same keyboard/touch interaction as existing foods. Preserving converts
+farm produce into 12–23 Hunger portions for gathering and outdoor expeditions, while
+cooked fish and meat remain stronger per portion. Full Hunger rejects without
+consuming the preserve. Existing pantry orders still accept the same goods, so the
+player chooses between eating and delivery. No food is consumed during a Delve.
+The exact portion table is in doc 06 §17.

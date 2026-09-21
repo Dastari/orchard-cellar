@@ -2,6 +2,8 @@ export interface FarmActionPromptState {
   readonly targeted: boolean;
   readonly selectedTool: 'cultivate' | 'water' | null;
   readonly seedSelected: boolean;
+  readonly compostSelected?: boolean;
+  readonly cropComposted?: boolean;
   readonly treeSeedSelected: boolean;
   readonly soilExists: boolean;
   readonly soilWatered: boolean;
@@ -17,6 +19,12 @@ export interface FarmActionPromptState {
 export function farmActionPrompt(state: FarmActionPromptState): string | null {
   if (!state.targeted) return null;
   const cropName = state.cropName?.toUpperCase() ?? null;
+  if (state.compostSelected) {
+    if (cropName === null) return 'TARGET A GROWING CROP';
+    if (state.cropComposted) return `${cropName} ALREADY COMPOSTED`;
+    if (state.cropMature) return `[E] HARVEST ${cropName}`;
+    return `[F] COMPOST ${cropName} (+25% GROWTH, ONCE PER PLANTING)`;
+  }
   if (state.selectedTool === 'water') {
     if (!state.soilExists) return 'TILL SOIL BEFORE WATERING';
     if (state.soilWatered) return `${cropName ?? 'SOIL'} ALREADY WATERED`;

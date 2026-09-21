@@ -259,6 +259,27 @@
     ]
   },
   {
+    "id": "recipe:cellar_supper",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "requiresKnowledge": true,
+    "output": {
+      "item": "item:cellar_supper",
+      "count": 1
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:preserved_potato",
+        "count": 1
+      },
+      {
+        "item": "item:apple",
+        "count": 1
+      }
+    ]
+  },
+  {
     "id": "recipe:chest",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -289,6 +310,26 @@
         "item:plank",
         "item:plank"
       ]
+    ]
+  },
+  {
+    "id": "recipe:compost",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:compost",
+      "count": 1
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:pomace",
+        "count": 4
+      },
+      {
+        "item": "item:fiber",
+        "count": 1
+      }
     ]
   },
   {
@@ -3689,6 +3730,27 @@
       },
       {
         "item": "item:pear",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:pantry_lunch",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "requiresKnowledge": true,
+    "output": {
+      "item": "item:pantry_lunch",
+      "count": 1
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:preserved_carrot",
+        "count": 1
+      },
+      {
+        "item": "item:potato",
         "count": 1
       }
     ]

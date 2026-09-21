@@ -50,6 +50,7 @@ const ALL_EFFECTS = [
   { carry: {} },
   { placeCarried: {} },
   { plantSeed: { spaceId: '0', x: 3, y: 4 } },
+  { compostCrop: { spaceId: '0', x: 3, y: 4 } },
   { farmTool: { action: 'use', at: { spaceId: '0', x: 3, y: 4 } } },
   { worldTool: { action: 'target' } },
   { meleeAttack: { weapon: 'sword' } },

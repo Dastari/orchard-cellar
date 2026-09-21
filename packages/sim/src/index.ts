@@ -162,6 +162,7 @@ export * from './hearth-furnishing-contract.js';
 export * from './hearth-expedition-preparation.js';
 
 export * from './village-orders.js';
+export * from './village-order-milestones.js';
 
 export * from './hearth-seal-exchange.js';
 export * from './hearth-resource-sites.js';
