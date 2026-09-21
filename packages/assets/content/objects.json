@@ -1045,7 +1045,7 @@
           "id": "read",
           "verb": "use",
           "prompt": "READ FARMER JANE'S GRAVE",
-          "feedback": "FARMER JANE \u2014 BELOVED WIFE AND GARDENER",
+          "feedback": "FARMER JANE — BELOVED WIFE AND GARDENER",
           "reachTiles": 2.5,
           "conditions": [],
           "effects": [],
@@ -3624,40 +3624,43 @@
         "blocksMovement": false,
         "occludesLight": false
       },
-      "light": {
-        "color": [
-          255,
-          206,
-          131
-        ],
-        "radiusTiles": 5,
-        "profile": "steady",
-        "offsetY": -37,
-        "when": {
-          "state": "lit",
-          "equals": true
-        },
-        "intensityPerMille": 3500
-      },
       "states": {
         "mode": {
           "type": "enum",
+          "default": "auto",
           "values": [
             "auto",
             "on",
             "off"
-          ],
-          "default": "auto"
+          ]
         },
         "lit": {
           "type": "bool",
           "default": false
         }
       },
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          206,
+          131
+        ],
+        "radiusTiles": 5,
+        "intensityPerMille": 3500,
+        "profile": "steady",
+        "offsetY": -37
+      },
       "interactions": [
         {
           "id": "switch_on_use",
           "verb": "use",
+          "prompt": "LAMP AUTO: SET ON",
+          "feedback": "LAMP MODE: ON",
+          "reachTiles": 2.5,
           "conditions": [
             {
               "state": "mode",
@@ -3671,14 +3674,14 @@
               }
             }
           ],
-          "priority": 70,
-          "prompt": "LAMP AUTO: SET ON",
-          "feedback": "LAMP MODE: ON",
-          "reachTiles": 2.5
+          "priority": 70
         },
         {
           "id": "switch_off_use",
           "verb": "use",
+          "prompt": "LAMP ON: SET OFF",
+          "feedback": "LAMP MODE: OFF",
+          "reachTiles": 2.5,
           "conditions": [
             {
               "state": "mode",
@@ -3692,14 +3695,14 @@
               }
             }
           ],
-          "priority": 71,
-          "prompt": "LAMP ON: SET OFF",
-          "feedback": "LAMP MODE: OFF",
-          "reachTiles": 2.5
+          "priority": 71
         },
         {
           "id": "switch_auto_use",
           "verb": "use",
+          "prompt": "LAMP OFF: SET AUTO",
+          "feedback": "LAMP MODE: AUTO",
+          "reachTiles": 2.5,
           "conditions": [
             {
               "state": "mode",
@@ -3713,10 +3716,7 @@
               }
             }
           ],
-          "priority": 72,
-          "prompt": "LAMP OFF: SET AUTO",
-          "feedback": "LAMP MODE: AUTO",
-          "reachTiles": 2.5
+          "priority": 72
         }
       ]
     }
