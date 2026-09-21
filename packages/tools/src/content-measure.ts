@@ -9,8 +9,9 @@ import {
 // up 1,421 bytes (0.27%) from 0.8.0. 0.8.3 adds a carry policy to five heavy
 // stations: measured 536,710 bytes, up 175 bytes (0.03%). Keep the budget at
 // the next whole KiB.
-// Village-order meals add four definitions: 538,666 bytes; next whole KiB.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 527 * 1024;
+// 0.10.0 adds food metadata and matching eat graphs for22 preserved crops.
+// With Compost and village meals: 548,878 runtime bytes; next whole KiB only.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 537 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

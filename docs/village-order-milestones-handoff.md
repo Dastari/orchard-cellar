@@ -35,3 +35,18 @@ Ordinary food graphs are present alongside compiled callbacks, preserving the
 existing edible-content contract. The generated callback remains the single
 authoritative execution owner; world lifecycle ownership tests verify no duplicate
 execution. Exact edible/catalog counts include both new meals.
+
+## Stacked integration
+
+The branch now merges `feat/preserved-expedition-provisions` (`c11e0792`), including
+Compost, with a regular feature-branch merge. PR #29 targets that predecessor.
+Combined version 0.11.0: 907 definitions, content hash `cf5c605d`, 548,878 runtime
+bytes, 537 KiB measured ceiling. Lifecycle revision 18 contains 148 handlers; item
+ownership is 339 live items, 148 callbacks, 90 inert, 69 graph, 32 transactions, with 53
+edible foods. Generated artifacts, bindings, content canonicalization, exact-count
+fixtures and the Studio manifest are refreshed together. The retired Studio
+renderer guard remains unchanged; no Studio deployment is involved.
+
+Combined focused validation: 125 tests across 31 files pass, including all three
+loop authority paths, full food/callback ownership and the Studio manifest.
+World/client builds, lifecycle integrity and canonical content validation pass.

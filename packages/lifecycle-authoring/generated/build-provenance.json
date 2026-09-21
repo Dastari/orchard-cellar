@@ -1,7 +1,7 @@
 {
   "format": "orchard-lifecycle-build-provenance-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 16,
-  "bundleSha256": "e8f40f988f9832088dd77a52ff27d540b158f75deb14849abaad4673496cff64",
-  "handlerCount": 125
+  "revision": 18,
+  "bundleSha256": "fff623581f6316f60ba3851350f0bb193684a7d889f6aefdc9fe277c2d4bee0a",
+  "handlerCount": 148
 }

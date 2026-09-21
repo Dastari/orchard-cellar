@@ -131,7 +131,7 @@ describe('Phase-0 content registry', () => {
     const { registry } = buildContentRegistry(bootstrapContentRows());
     const edible = [...registry.items.values()].filter(({ food }) => food !== undefined);
 
-    expect(edible).toHaveLength(31);
+    expect(edible).toHaveLength(53);
     expect(edible.every(({ onUse }) => onUse.some(({ id }) => id === 'eat'))).toBe(true);
     expect(edible.every((definition) => definition.onUse.some(({ id, effects }) => id === 'eat'
       && effects.some((effect) => 'restoreHunger' in effect
@@ -158,7 +158,7 @@ describe('Phase-0 content registry', () => {
       && definition.food === undefined
       && definition.id !== 'item:orchard_tea'
     ));
-    expect(deliberatelyInedibleFoodTags).toHaveLength(29);
+    expect(deliberatelyInedibleFoodTags).toHaveLength(7);
     expect(deliberatelyInedibleFoodTags.every(({ onUse }) => onUse.length === 0)).toBe(true);
   });
 

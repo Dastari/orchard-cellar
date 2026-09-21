@@ -645,6 +645,7 @@ export function parseDataGraphEffect(value: unknown, path = '$'): Effect {
       } };
     }
     case 'plantSeed': return { plantSeed: tilePosition(source.plantSeed, `${path}.plantSeed`) };
+    case 'compostCrop': return { compostCrop: tilePosition(source.compostCrop, `${path}.compostCrop`) };
     case 'farmTool': {
       const farmTool = record(source.farmTool, `${path}.farmTool`);
       const action = stringValue(farmTool.action, `${path}.farmTool.action`);

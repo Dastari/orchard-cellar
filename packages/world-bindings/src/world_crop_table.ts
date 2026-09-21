@@ -22,4 +22,5 @@ export default __t.row({
   growthTicks: __t.u64().name("growth_ticks"),
   growthUpdatedAtTick: __t.u64().name("growth_updated_at_tick"),
   spaceId: __t.u16().name("space_id"),
+  composted: __t.bool(),
 });

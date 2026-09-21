@@ -295,3 +295,16 @@ announces newly learned recipes. Pantry Lunch (two raw kinds, one preserved) and
 Cellar Supper (two raw, two preserved, one bottle) use existing gated recipe
 knowledge and generated hunger callbacks. No new currency or public player data
 is introduced. See [spec](village-order-milestones-spec.md).
+
+### Preserved provision interactions
+
+The 22 preserved crop items use authored food metadata and generated item-use
+callbacks through the existing restoreHunger authority capability. They leave the
+reviewed-inert catalogue; no new reducer, schema or subscription is added. Module
+lifecycle artifacts and the matching content definitions must be published together.
+See [preserved provisions](preserved-provisions-spec.md).
+## Compost crop authority (0.9.0)
+
+The authored Compost `place` lifecycle emits `compostCrop` plus one selected-item consumption through the existing transactional `useSelected` path. The world writer validates the whole batch before updating inventory or crops. Its crop plan settles elapsed watered growth and appends one bounded 25% advance; a default-false `world_crop.composted` column prevents reapplication for that planting. The column is appended after existing fields for additive migration. Generated public bindings expose treatment status for the farm prompt. No tick sweep or separate treatment table is needed. See [ADR-002](adr/002-crop-compost.md).
+
+Successful treatment also records exactly one authored `compost_applied` lifetime statistic in the same transaction. The preflight requires this exact unit increment alongside one treatment and one consumed item; rejected actions leave statistics unchanged. This supports future quest and milestone links without granting XP.
