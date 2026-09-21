@@ -1,5 +1,7 @@
 # Willowharbour visual pass handoff
 
+PR: https://github.com/Dastari/orchard-cellar/pull/33 (unmerged; current checks and readiness are recorded on the PR).
+
 Branch: `feat/west-town-visual-pass`, isolated worktree
 `/home/toby/projects/orchard-west-town`, based on upstream `main` at `1d2462cd`.
 
