@@ -6,12 +6,14 @@ shared kit source in `packages/ui/src/kit`. It retains its own `studio-productio
 build, static `packages/studio/dist`, port 5174, auth client and
 `orchard-studio.service`.
 
-Branch: `refactor/integrate-reviewed-studio`.
-PR: https://github.com/Dastari/orchard-cellar/pull/36 (not merged).
-Use an explicit branch ref when pushing; this machine retains a legacy default
-push mapping for `public-main`. The canonical checkout is on this branch so new editor work must start from this
-integrated source until the owner merges the PR. Do not switch the canonical source
-back to an older branch and rebuild Studio: the retired renderer guard will reject it.
+Source integration PR: https://github.com/Dastari/orchard-cellar/pull/36.
+The owner authorized its inclusion in aggregate [PR #38](https://github.com/Dastari/orchard-cellar/pull/38).
+See [the current integration handoff](branch-integration-handoff.md) for the exact
+Git/cleanup status. The aggregate source is Studio 0.8.1; the installed artifact
+remains the separately verified 0.8.0 deployment described below.
+Use explicit branch refs when pushing: this host retains a legacy default push
+mapping for `public-main`. Preserve the reviewed renderer guard and staged-release
+procedure when preparing any future editor deployment.
 
 ## Build and shared resources
 

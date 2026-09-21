@@ -12,9 +12,10 @@ authority to the server later a mechanical change, not a rewrite.
 See [the executable phase plan](unified-actions-plan.md). Sequence: inventory current
 contracts -> shared action/modifier schema -> authority and resource accounting ->
 facing actions with G parity -> tile/context actions -> aimed delivery and spell
-fixtures -> repair escrow/UI -> retirement and release rehearsal. Implementation has
-not started. Preserve open gameplay PR behavior, including hoe/fish fixes and fishing
-progression; do not merge or deploy as part of the planning request.
+fixtures -> repair escrow/UI -> retirement and release rehearsal. The first P0
+inventory/golden slice is integrated below; the resolver and repair UI remain
+planned. Preserve the integrated gameplay behavior, including hoe/fish fixes and
+fishing progression. Production deployment remains a separate release.
 
 ## Unified actions P0 — `⏳ in progress (codex, 2026-09-21)`
 

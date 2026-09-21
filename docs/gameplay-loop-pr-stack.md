@@ -1,6 +1,8 @@
 # Gameplay loop PR stack
 
-The six implementation slices are separate GitHub pull requests, stacked in review order. Feature-branch integration does not merge any PR or change `main`; no production deployment has been performed. The final branch contains the combined candidate, version 0.14.0.
+The six implementation slices were reviewed as separate stacked pull requests.
+Their original combined candidate was 0.14.0; the integration status below is the
+current source of truth. No production deployment is implied by Git integration.
 
 | Order | Pull request | Version | Review base | Gameplay connection |
 |---|---|---|---|---|
@@ -11,9 +13,15 @@ The six implementation slices are separate GitHub pull requests, stacked in revi
 | 5 | [#32 Delve keepsake](https://github.com/Dastari/orchard-cellar/pull/32) | 0.13.0 | `feat/renewable-orchard-harvest` | Completed Delve → permanent home decoration recipe → peaceful materials/building |
 | 6 | [#30 Connected progression](https://github.com/Dastari/orchard-cellar/pull/30) | 0.14.0 | `feat/delve-completion-keepsake` | Fishing → Farming skills; repeated production → meaningful room purchases |
 
-## Future merge procedure (requires explicit approval)
+## Integration status — 2026-09-21
 
-PRs #31, #29, #28, #32 and #30 target their predecessor feature branch so each review shows only its own slice. After a predecessor is explicitly approved and merged into `main`, retarget the next PR to `main` before merging it. Do not merge a downstream PR into its predecessor branch or delete stack base branches early. If squash/rebase merging removes shared ancestry, rebase the remaining stack onto the new `main` and verify every PR diff and required check again. **No PR merges are currently authorized.**
+The owner authorized all branch integration and stale-worktree cleanup. Aggregate
+[PR #38](https://github.com/Dastari/orchard-cellar/pull/38) retains all six exact
+heads and their dependency ancestry, combines the town/hoe/Studio changes, and
+refreshes shared content/version baselines. The candidate is game 0.15.0 and
+Studio 0.8.1. See [the current integration handoff](branch-integration-handoff.md)
+for validation and final state. The slice-specific results below are historical;
+publication still requires the coordinated additive schema/content/map release.
 
 ## Gameplay dependencies
 
