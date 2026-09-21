@@ -1,0 +1,72 @@
+{
+  "name": "prop_delver_memorial_planter",
+  "category": "props",
+  "size": [
+    16,
+    32
+  ],
+  "anchor": [
+    8,
+    31
+  ],
+  "frames": {
+    "base": [
+      [
+        "....00..........",
+        "...011000.......",
+        "..00120120......",
+        ".0110222200.....",
+        ".01220030220....",
+        ".00204503230....",
+        "01220560300.....",
+        "02203003000.....",
+        ".002233011000...",
+        "..023000120120..",
+        "...000110222200.",
+        "....701220030220",
+        "....700204503230",
+        "...701220560300.",
+        "..7802203003230.",
+        ".789a0022330330.",
+        ".7899a02302300..",
+        ".79aa77000330...",
+        ".7777b7a7a00....",
+        "...cbb797a7dc...",
+        "...cbc78797dc...",
+        "...cbc79a97dc...",
+        "...cbbccccddc...",
+        "...cdbbbdddec...",
+        "....cddeeeec....",
+        "....cccccccc....",
+        "...fcbbdddecf...",
+        "..ffcbbddeecff..",
+        "..ffccbddeccff..",
+        "...fffccccfff...",
+        "....ffffffff....",
+        "......ffff......"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#fee761",
+    "2": "#ffc825",
+    "3": "#ffa214",
+    "4": "#b86f50",
+    "5": "#91533b",
+    "6": "#743f39",
+    "7": "#134c4c",
+    "8": "#5ac54f",
+    "9": "#33984b",
+    "a": "#1e6f50",
+    "b": "#ffffff",
+    "c": "#1a1932",
+    "d": "#c7cfdd",
+    "e": "#92a1b9",
+    "f": "#00000064"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/House_Plants.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "House_Plants.png"
+}

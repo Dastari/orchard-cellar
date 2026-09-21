@@ -1,3 +1,5 @@
+import { orchardHarvestPrompt } from './orchard-presentation.js';
+import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
@@ -503,7 +505,7 @@ function setFailureToast(error: unknown, ticks = 120): void {
 }
 
 function rogueRewardClaimedMessage(run: { readonly roomNumber: number }): string {
-  return run.roomNumber >= ROGUE_RUN_ROOM_COUNT - 1 ? 'DELVE CONQUERED' : 'BOON CLAIMED';
+  return run.roomNumber >= ROGUE_RUN_ROOM_COUNT - 1 ? 'DELVE CONQUERED - CHECK YOUR RECIPE GUIDE' : 'BOON CLAIMED';
 }
 let effectPhase = 0;
 let worldZoom = DEFAULT_WORLD_ZOOM;
@@ -1248,6 +1250,7 @@ function personalQuestResource(snapshot: OverworldView): WorldResource | null {
       miningPartyId: undefined,
       miningClaimUntilTick: 0n,
       definitionId: resourceDefinition.id,
+      fruitReadyAtTick: 0n,
     };
   }
   return null;
@@ -1634,6 +1637,7 @@ function buildHomesteadSurroundingResources(
         activationOrdinal: 0, respawnAtTick: 0n,
         miningClaimedBy: undefined, miningPartyId: undefined, miningClaimUntilTick: 0n,
         definitionId: definition.id,
+        fruitReadyAtTick: 0n,
         ambientOnly: true,
       });
     }
@@ -3544,6 +3548,7 @@ type EInteractionTarget =
       readonly presentation: NonNullable<ReturnType<typeof runtimeResourcePickupPresentation>> })
   | (InteractionCandidate & { readonly kind: 'quest_item'; readonly item: QuestWorldItem })
   | (InteractionCandidate & { readonly kind: 'embedded_arrow'; readonly projectile: WorldProjectile })
+  | (InteractionCandidate & { readonly kind: 'orchard'; readonly resource: WorldResource })
   | (InteractionCandidate & { readonly kind: 'crop'; readonly crop: WorldCrop })
   | (InteractionCandidate & { readonly kind: 'rogue_entrance' })
   | (InteractionCandidate & { readonly kind: 'rogue_door'; readonly exit: RogueRoomExit })
@@ -3675,6 +3680,16 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
     kind: 'boat', x: boat.x, y: boat.y,
     stableId: `boat:${boat.id}`, npc: boat,
   });
+  for (const resource of snapshot.resources) {
+    if (resource.spaceId !== activeSpaceDefinition.spaceId || resource.depleted
+      || liveMapSuppressesGeneratedResource(snapshot, resource.id)
+      || runtimeResourceDefinition(snapshot.content.registry, resource)?.fruitHarvest === undefined) continue;
+    const point = tileInteractionPoint(resource.tileX, resource.tileY);
+    const dx = point.x - predicted.position.x;
+    const dy = point.y - predicted.position.y;
+    if (dx * dx + dy * dy > ITEM_PICKUP_REACH_FIXED ** 2) continue;
+    candidates.push({ kind: 'orchard', ...point, stableId: `resource:${resource.id}`, resource });
+  }
   const gatherable = targetGatherableResource(snapshot);
   const gatherablePresentation = gatherable === null ? null
     : runtimeResourcePickupPresentation(snapshot.content.registry, gatherable);
@@ -3774,6 +3789,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     case 'boat': return runtimeNpcMount(snapshot.content.registry, localMount(snapshot))?.adapter === 'boat'
       ? '[E] LEAVE BOAT'
       : '[E] BOARD BOAT';
+    case 'orchard': return orchardHarvestPrompt(snapshot.content.registry, target.resource, snapshot.clock?.authorityTick ?? 0n) ?? 'TREE';
     case 'gatherable': return `[E] PICK UP ${target.presentation.promptLabel.toUpperCase()}`;
     case 'quest_item': return `[E] PICK UP ${liveItemLabel(snapshot, target.item.itemKind)}`;
     case 'embedded_arrow': return '[E] RECOVER ARROW';
@@ -3840,6 +3856,10 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
       showResult(network.interactEntity('npc', target.npc.id, 'use'), dismounting ? 'LEFT BOAT' : 'BOARDED BOAT');
       return;
     }
+    case 'orchard':
+      if (orchardFruitStatus(target.resource, snapshot.clock?.authorityTick ?? 0n) !== 'ok') return;
+      showResult(network.gatherWorldResource(target.resource.id), 'FRUIT PICKED', startPredictedAction('pickup'));
+      return;
     case 'gatherable':
       showResult(
         network.gatherWorldResource(target.resource.id),
@@ -4738,7 +4758,8 @@ function renderFrame(alpha = 1): void {
   const farmToolAction = selectedFarmToolAction(placementContentDefinition);
   const fishingToolAction = selectedFishingToolAction(placementContentDefinition);
   const farmTileSelected = farmToolAction !== null
-    || placementItemDefinition?.tags.includes('item.seed') === true;
+    || placementItemDefinition?.tags.includes('item.seed') === true
+    || placementItemDefinition?.tags.includes('item.farming.compost') === true;
   const tileToolSelected = farmTileSelected || fishingToolAction !== null;
   const placeableSelected = carriedChest(snapshot) !== null
     || carriedCarriableCombatTarget(snapshot) !== null
@@ -4902,6 +4923,8 @@ function renderFrame(alpha = 1): void {
     targeted: farmTarget !== null,
     selectedTool: farmToolAction?.mode ?? null,
     seedSelected: liveItemDefinition(snapshot, farmItem)?.tags.includes('item.seed') === true,
+    compostSelected: liveItemDefinition(snapshot, farmItem)?.tags.includes('item.farming.compost') === true,
+    cropComposted: farmCrop?.composted === true,
     treeSeedSelected: fruitTreeForSeed(snapshot.content.registry, farmItem) !== null,
     soilExists: farmSoil !== undefined,
     soilWatered: farmSoil !== undefined && farmSoil.watered
@@ -4917,6 +4940,7 @@ function renderFrame(alpha = 1): void {
   const selectedDefinition = liveItemDefinition(snapshot, selectedItem(snapshot));
   const selectedPlaceAction = selectedItemLifecycleAction(selectedContentDefinition, 'place');
   const selectedPlaceIsFarmAction = selectedDefinition?.tags.includes('item.seed') === true
+      || selectedDefinition?.tags.includes('item.farming.compost') === true
     || selectedFarmToolAction(selectedContentDefinition, selectedPlaceAction) !== null;
   const selectedPlacePrompt = selectedPlaceIsFarmAction ? null
     : selectedItemLifecyclePrompt(selectedContentDefinition, 'place');
@@ -4935,7 +4959,7 @@ function renderFrame(alpha = 1): void {
             : actionPlaceable !== null
               && objectHasAuthoredTag(snapshot.content.registry, actionPlaceable, 'station.anvil')
               ? selectedRepairPrompt ?? `[F] CARRY ${liveItemLabel(snapshot, actionPlaceable.kind)}`
-              : farmToolAction !== null && farmPrompt !== null
+              : (farmToolAction !== null || selectedDefinition?.tags.includes('item.farming.compost') === true) && farmPrompt !== null
                 ? farmPrompt
               : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
   const groundItemUseAction = groundLightItem === null ? null : selectedItemLifecycleAction(
@@ -6523,6 +6547,7 @@ window.addEventListener('keydown', (event) => {
     const selectedDefinition = liveItemDefinition(snapshot, selectedItem(snapshot));
     const selectedPlaceAction = selectedItemLifecycleAction(selectedUseDefinition, 'place');
     const selectedPlaceIsFarmAction = selectedDefinition?.tags.includes('item.seed') === true
+      || selectedDefinition?.tags.includes('item.farming.compost') === true
       || selectedFarmToolAction(selectedUseDefinition, selectedPlaceAction) !== null;
     if (selectedPlaceAction !== null && !selectedPlaceIsFarmAction
       && carriedCombatTarget(snapshot) === null
@@ -6652,6 +6677,12 @@ window.addEventListener('keydown', (event) => {
     const cropTile = targetFarmTile();
     const selectedCropItem = selectedItem(snapshot);
     const cropAtTarget = targetCrop(snapshot);
+    if (liveItemDefinition(snapshot, selectedCropItem)?.tags.includes('item.farming.compost') === true) {
+      if (cropTile === null) setToast('TARGET A GROWING CROP', 'failure', 90);
+      else showResult(network.useSelected('place', { tileX: cropTile.tileX, tileY: cropTile.tileY }), 'CROP COMPOSTED');
+      event.preventDefault();
+      return;
+    }
     if (cropTile !== null && cropAtTarget === null
       && liveItemDefinition(snapshot, selectedCropItem)?.tags.includes('item.seed') === true) {
       showResult(
@@ -7253,6 +7284,13 @@ function performWorldPointerAction(
   }
   const farmTarget = targetFarmTile();
   const pointerCrop = targetCrop(latestSnapshot);
+  if (event.button === 0 && worldPointerAvailable
+    && farmItemDefinition?.tags.includes('item.farming.compost') === true) {
+    if (farmTarget === null) setToast('TARGET A GROWING CROP', 'failure', 90);
+    else showResult(network.useSelected('place', { tileX: farmTarget.tileX, tileY: farmTarget.tileY }), 'CROP COMPOSTED');
+    event.preventDefault();
+    return;
+  }
   const restoringFarmTile = event.button === 2 && farmToolAction !== null
     && farmToolAction.restoreActionId !== null && farmTarget !== null
     && pointerCrop === null

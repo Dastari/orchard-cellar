@@ -34,8 +34,8 @@ describe('single authored item callback ownership', () => {
 
   it('uses bounded hunger and repair capabilities with generic authored statistics', () => {
     const authored = source.handlers.map(({ source: handlerSource }) => handlerSource).join('\n');
-    expect(authored.match(/context\.player\.restoreHunger\(restored\)/gu)).toHaveLength(29);
-    expect(authored.match(/kind: 'food_eaten'/gu)).toHaveLength(29);
+    expect(authored.match(/context\.player\.restoreHunger\(restored\)/gu)).toHaveLength(53);
+    expect(authored.match(/kind: 'food_eaten'/gu)).toHaveLength(53);
     expect(authored.match(/context\.item\.repair\(\)/gu)).toHaveLength(39);
     expect(authored.match(/kind: 'tools_repaired'/gu)).toHaveLength(39);
     expect(authored.match(/statistic: 'orchard_tea_consumed'/gu)).toHaveLength(1);
@@ -46,7 +46,7 @@ describe('single authored item callback ownership', () => {
   });
 
   it('merges hoe and watering-can farm and repair lanes without semantic drift', () => {
-    expect(source.revision).toBe(15);
+    expect(source.revision).toBe(18);
     for (const itemId of ['item:hoe', 'item:watering_can']) {
       const handlers = source.handlers.filter((handler) => handler.itemId === itemId);
       expect(handlers, itemId).toHaveLength(1);

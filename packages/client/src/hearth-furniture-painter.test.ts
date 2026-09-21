@@ -11,14 +11,15 @@ vi.mock('@orchard/engine/overworld-art', async importOriginal => ({
   ...await importOriginal<typeof import('@orchard/engine/overworld-art')>(),
   drawAuthoredOverworldObject: vi.fn(() => true),
 }));
-async function fixture(parentState = '{}', missingParentAsset = false) {
+async function fixture(parentState = '{}', missingParentAsset = false, includeKeepsake = false) {
   const content = new LiveContentRegistry('furniture-render-test', null).state;
   const table = { id: 1n, kind: 'furniture_rustic_dining_table', definitionId: 'object:furniture_rustic_dining_table',
     spaceId: 30000, tileX: 5, tileY: 5, stateJson: parentState, open: false, lit: true };
   const lamp = { ...table, id: 2n, kind: 'furniture_townhouse_table_lamp', definitionId: 'object:furniture_townhouse_table_lamp',
     tileY: 4, stateJson: '{"lit":true,"hearthFurnitureSupportId":"1"}' };
   const rug = { ...table, id: 3n, kind: 'furniture_rustic_woven_rug', definitionId: 'object:furniture_rustic_woven_rug', stateJson: '{}' };
-  const placeables = Object.assign([lamp, table, rug], { get: (id: bigint) => placeables.find(row => row.id === id) });
+  const keepsake = { ...table, id: 4n, kind: 'delver_memorial_planter', definitionId: 'object:delver_memorial_planter', tileX: 9, stateJson: '{}' };
+  const placeables = Object.assign([lamp, table, rug, ...(includeKeepsake ? [keepsake] : [])], { get: (id: bigint) => placeables.find(row => row.id === id) });
   const cache = new LiveObjectPresentationCache(() => {}, async name => {
     if (missingParentAsset && name.includes('dining_table')) return await new Promise<LoadedAsset>(() => {});
     return { name, assetId: 1, image: {}, anchor: [8, 31], frames: { base: [[0, 0, 16, 32]] } } as unknown as LoadedAsset;
@@ -46,6 +47,11 @@ function render(f: Awaited<ReturnType<typeof fixture>>) {
   enqueueGameplayDecorations(f.input as unknown as Parameters<typeof enqueueGameplayDecorations>[0]);
 }
 describe('actual furniture painter producers', () => {
+  it('renders the earned planter through the authored furniture pipeline', async () => {
+    const f = await fixture('{}', false, true); render(f);
+    expect(f.queued.some(item => item.tie === 'placeable:4')).toBe(true);
+    expect(vi.mocked(drawAuthoredOverworldObject).mock.calls.map(call => call[1].name)).toContain('prop_delver_memorial_planter');
+  });
   it('groups table and lamp art, retains rug surface phase and anchors light to the raised tabletop', async () => {
     const f = await fixture(); render(f);
     expect(f.queued.map(item => [item.tie, item.depthPhase])).toEqual([['placeable:1', 'entity'], ['placeable:3', 'surface']]);

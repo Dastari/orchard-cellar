@@ -1,6 +1,6 @@
 # Connected estate progression handoff
 
-Branch: `balance/connected-estate-progression`. Version: 0.14.0. Sixth gameplay-loop PR; initially targets main, then the root coordinator will stack it above the other five reviewed feature PRs. No PR merge or deployment has been performed.
+Branch: `balance/connected-estate-progression`. Version: 0.14.0. Sixth gameplay-loop PR, now integrated above the other five feature PRs and targeting `feat/delve-completion-keepsake`; see [the six-PR stack guide](gameplay-loop-pr-stack.md). No PR merge or deployment has been performed.
 
 Future fishing rewards now train Farming: 5 XP per successful catch, plus 10 XP when an ordinary pool depletes. Personal quest/tutorial catches get 5 XP without the depletion bonus. Existing Explorer XP, skill ranks, cast custody, loot and statistics remain intact. Actual authority tests cover ordinary/personal completions, idempotent duplicate completion and failed reward preflight.
 
