@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Reference library
+
+- Refresh stale Cute Fantasy catalog paths after the prior library reorganization
+  and classify existing generated tool-progression references as concept-only.
+
+- Index Kenmi’s 6,982 premium icons across nine native category sheets, with
+  complete vendor-number-to-sheet coordinate lookup and source licence provenance.
+  Verify redundant individual/scaled exports against retained native artwork and
+  preserve the original archive in a local backup outside the indexed library.
+
 ## 0.8.5 — Hoe and swimming fish fixes
 
 - Route F with a hoe to tilling, crop uprooting, or soil restoration instead of

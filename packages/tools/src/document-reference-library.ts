@@ -112,7 +112,8 @@ export function referenceGroup(path: string): ReferenceGroup {
   if (path.startsWith('references/audio/')) return 'audio';
   if (path.startsWith('references/documents/design/')) return 'design-document';
   if (path.startsWith('references/documents/source-captures/')) return 'source-capture';
-  if (path.startsWith('references/generated/concepts/')) return 'generated-concept';
+  if (path.startsWith('references/generated/concepts/')
+    || path.startsWith('references/generated/tool-progression/')) return 'generated-concept';
   return 'other';
 }
 
@@ -126,7 +127,8 @@ export function referenceUsagePolicy(path: string): UsagePolicy {
   if (path.startsWith('references/art/kenmi/cute-fantasy/')) return 'licensed-importable';
   if (path.startsWith('references/art/orchard-originals/')) return 'project-owned';
   if (path.startsWith('references/authoring/')) return 'authoring-source';
-  if (path.startsWith('references/generated/concepts/')) return 'concept-only';
+  if (path.startsWith('references/generated/concepts/')
+    || path.startsWith('references/generated/tool-progression/')) return 'concept-only';
   if (path.startsWith('references/art/clockwork-raven/') || path.startsWith('references/audio/')) {
     return 'license-review-required';
   }
