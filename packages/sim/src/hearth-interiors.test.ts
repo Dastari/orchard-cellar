@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {bootstrapContentRegistry,bootstrapContentRows} from './content/bootstrap-registry.js';
 import {buildContentRegistry} from './content/registry.js';
-import {HEARTH_INTERIORS,HEARTH_INTERIOR_ARRIVAL,HEARTH_INTERIOR_EXIT,hearthInteriorCollision,hearthInteriorNativePlacements,runtimeHearthInteriorForSpace} from './hearth-interiors.js';
+import {HEARTH_INTERIORS,HEARTH_INTERIOR_ARRIVAL,HEARTH_INTERIOR_EXIT,hearthInteriorCollision,hearthInteriorNativePlacements,hearthInteriorFurnitureObstacles,runtimeHearthInteriorForSpace} from './hearth-interiors.js';
 import {hearthFurnitureCells,hearthFurniturePresentationAnchor} from './hearth-furniture-placement.js';
 import {positionCollides} from './movement.js';
 import {TILE_SIZE_FIXED} from './state.js';
@@ -64,6 +64,15 @@ describe('Willowharbour service interiors',()=>{
       }
     }
   });
+  it.each(HEARTH_INTERIORS)('$kind keeps every fixed fixture base inside its room envelope',interior=>{
+    const map=hearthInteriorCollision(interior.spaceId);
+    for(const obstacle of hearthInteriorFurnitureObstacles(interior)){
+      expect(obstacle).not.toBeNull();if(obstacle===null)continue;
+      for(let y=Math.floor(obstacle.top/TILE_SIZE_FIXED);y<=Math.floor(obstacle.bottom/TILE_SIZE_FIXED);y++)
+        for(let x=Math.floor(obstacle.left/TILE_SIZE_FIXED);x<=Math.floor(obstacle.right/TILE_SIZE_FIXED);x++)
+          expect(map.blocked[y*map.width+x],`${interior.kind} fixture base ${x},${y}`).toBe(false);
+    }
+  });
   it('provides ten distinct town spaces and refuses unknown geometry',()=>{
     expect(new Set(HEARTH_INTERIORS.map(row=>row.spaceId)).size).toBe(10);
     expect(()=>hearthInteriorCollision(0)).toThrow('Unknown village interior');
@@ -85,7 +94,7 @@ describe('Willowharbour service interiors',()=>{
     expect(built.report.errors).toEqual([]);
     const interior=runtimeHearthInteriorForSpace(built.registry,65520);
     expect(interior).toMatchObject({name:'The Willow Lantern',spaceId:65520,kind:'inn'});
-    expect(interior?.furniture.find(item=>item.id==='furniture_rustic_dining_table:16:9')?.definitionId)
+    expect(interior?.furniture.find(item=>item.kind==='furniture_rustic_dining_table')?.definitionId)
       .toBe('object:long_oak_table');
     expect(hearthInteriorCollision(built.registry,65520)?.blocked).toEqual(hearthInteriorCollision(65520).blocked);
   });

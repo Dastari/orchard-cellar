@@ -359,3 +359,20 @@ The offline exporter optionally accepts a reviewed prior map export to replace
 only unchanged Willowharbour authoring. It checks prior cells, objects, prefabs
 and transitions, preserves other regions and shared prefabs, then runs the normal
 conflict-aware composer. Publication remains a separate world/content release.
+
+### Willowharbour refinement (0.16.0)
+
+The offline village authoring now cuts a continuous river through the road network;
+four exported bridge spans restore dry crossing cells, with physical rail prefabs.
+Shallow native earth-edge sprites give village greens microrelief without adding a
+fractional elevation model. Native cobble ground prefabs preserve a paved border;
+hedge tiles resolve from run connectivity and picket frontages include side returns.
+Mature forest species use a dedicated list, independent of prop catalog ordering.
+Freshwater edges treat ocean neighbours as connected water at estuaries.
+
+Village interiors continue to use content-owned floor envelopes. Their cached
+renderer now draws two native wall courses, top caps and side/south cut edges in
+blocked cells, including cross-chunk overhangs. Utility spaces retain open working
+halls; domestic wings connect through corridors with visible voids. Collision,
+service approaches and both portal directions remain authoritative. See
+[refinement specification](willowharbour-refinement-spec.md).

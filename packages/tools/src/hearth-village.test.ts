@@ -22,8 +22,8 @@ describe('Willowharbour facades', () => {
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     expect(sha256(facades.prefabs)).toBe('d4560bfebcdb9fef42448e87d89d8a47c428e133a518b305d97d1de9248e25d4');
     expect(sha256(facades.objects)).toBe('3b0a10762d476fb7fda1c70a2d24f0ebf685032435512d65b541c672a37e6fb0');
-    expect(sha256(scenery.prefabs)).toBe('8f3c9df7a579d828a610b26dc4e7c7421f4412dfe1f7d3523564c5872b100d36');
-    expect(sha256(scenery.objects)).toBe('a4f44525bc675d0b463fc1a7025e572f6d09a63c97767c6570be251b6ab0cf6d');
+    expect(sha256(scenery.prefabs)).toBe('c7eb3aa9ef515adf25d8dd4212c00aa6af0eb523367e308dd11237b7ac1e26eb');
+    expect(sha256(scenery.objects)).toBe('8146abea728608866688e5b79cdd637aaa41446ab94c7a8fb84d0c7b06c54213');
   });
   it('marks only public service thresholds with nonblocking ground runners',()=>{
     const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
@@ -129,4 +129,15 @@ it('grows reproducible mixed-age groves on level land without planting across ro
   // A grove has close canopy companions; the main square remains clear.
   expect(trees.filter(a=>trees.some(b=>a!==b&&(a.tileX-b.tileX)**2+(a.tileY-b.tileY)**2<=8)).length).toBeGreaterThan(100);
   expect(trees.some(row=>row.tileX>=163&&row.tileX<=183&&row.tileY>=394&&row.tileY<=406)).toBe(false);
+});
+
+it('keeps mature woodland independent of the decorative asset catalog order',()=>{
+  const cells=composeHearthArchipelago(createLiveIslandMapDocument()).document.cells;
+  const scenery=buildHearthVillageScenery(cells,assetFor,'fixture');
+  const mature=scenery.objects.filter(row=>row.layer==='canopy'&&row.prefabId.includes('-mature'));
+  expect(mature.length).toBeGreaterThan(300);
+  expect(new Set(mature.map(row=>row.prefabId)).size).toBe(4);
+  expect(scenery.objects.filter(row=>row.prefabId.includes('picket-vertical')).length).toBeGreaterThan(8);
+  for(const suffix of ['nw','ne','sw','se'])expect(scenery.objects.some(row=>row.prefabId.endsWith(`hedge-${suffix}`))).toBe(true);
+  expect(scenery.objects.filter(row=>row.prefabId.endsWith('streetlamp')).length).toBeGreaterThan(30);
 });

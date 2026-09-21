@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0 — Willowharbour river town refinement
+
+- Continue the river through the town to a sandy estuary, with four traversable bridges and preserved door/return routes. Add shallow native turf banks, cultivated flower beds, mature garden trees, white picket garden returns, connected hedge corners and a cobbled civic square.
+- Add streetlights at bridges and public junctions using the shared warm authored light component.
+- Separate domestic interior wings with capped and vertical wall faces; give the inn, barn, greenhouse, shop and smith distinct functional envelopes and preserve room/service access.
+- Fix freshwater-to-ocean bank transitions and lock mature tree species independently of the decorative asset catalog.
+- Preserve current-main integration and document independent Astra reference comparison.
+
 ## 0.15.0 / Studio 0.8.1 — Branch integration
 
 - Integrate the reviewed Studio editor, six connected gameplay slices, Willowharbour,
