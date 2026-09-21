@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "..........000...",
-        ".........02210..",
-        ".........02.10..",
-        ".........02110..",
-        ".........0210...",
-        "........0210....",
-        ".......0210.....",
-        "....AAA210......",
-        "...ADCCA0.......",
-        "..ADCCCBA.......",
-        ".ADCCCBA........",
-        ".ACCCBA.........",
-        ".ABBBA..........",
-        "..AAA...........",
+        "...........00...",
+        "..........0700..",
+        ".........070110.",
+        "........06012230",
+        ".......060122350",
+        ".......04023350.",
+        "......04005550..",
+        ".....060.0000...",
+        "....070.........",
+        "...070..........",
+        "..070...........",
+        "0060............",
+        "040.............",
+        "000.............",
         "................"
       ]
     ]
@@ -34,37 +34,35 @@
   "frameKinds": {
     "base": "state"
   },
+  "sourcePath": "art/custom/tool-progression/icon_tool_stone_shovel.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "importedFrom": "icon_tool_stone_shovel.png",
+  "sourcePaletteMode": "exact",
   "sourcePalette": {
-    "0": "#4b2d23",
-    "1": "#9c6034",
-    "2": "#d39a52",
-    "A": "#34383e",
-    "B": "#626b70",
-    "C": "#929b9b",
-    "D": "#c2c8bd"
+    "0": "#000000",
+    "1": "#424548",
+    "2": "#606568",
+    "3": "#80888a",
+    "4": "#8a4836",
+    "5": "#a0a6a5",
+    "6": "#bf6f4a",
+    "7": "#e69c69"
   },
+  "approved": true,
   "tags": [
     "ui.icon",
     "item.tool",
-    "source.orchard_original",
-    "tool.material.stone"
+    "tool.shovel",
+    "tool.material.stone",
+    "source.kenmi_derivative"
   ],
   "placement": {
     "layer": "ui",
     "builderAvailable": false
-  },
-  "approved": true,
-  "importedFrom": "icon_tool_stone_shovel.png",
-  "sourcePath": "art/custom/tool-progression/icon_tool_stone_shovel.png",
-  "sourcePaletteMode": "exact",
-  "sourceRegions": {
-    "base": [
-      [
-        0,
-        0,
-        16,
-        16
-      ]
-    ]
   }
 }

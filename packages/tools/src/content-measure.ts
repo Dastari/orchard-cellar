@@ -10,7 +10,7 @@ import {
 // stations: measured 536,710 bytes, up 175 bytes (0.03%). Keep the budget at
 // the next whole KiB.
 // 0.10.0 adds food metadata and matching eat graphs for22 preserved crops.
-// With Compost and village meals: 548,878 runtime bytes; next whole KiB only.
+// With Compost and village meals: 548,870 runtime bytes; next whole KiB only.
 export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 537 * 1024;
 
 export interface ContentPackMeasurement {
