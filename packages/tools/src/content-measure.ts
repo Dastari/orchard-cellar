@@ -5,11 +5,10 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// 0.8.1 authors geometry/damage for 24 swing tools: measured 536,535 bytes,
-// up 1,421 bytes (0.27%) from 0.8.0. 0.8.3 adds a carry policy to five heavy
-// stations: measured 536,710 bytes, up 175 bytes (0.03%). Keep the budget at
-// the next whole KiB.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 525 * 1024;
+// 0.13.0 cumulative gameplay content: 911 definitions, 549,836 runtime bytes.
+// Delve's four keepsake definitions add 1,642 bytes to the reviewed Orchard
+// stack (548,194 bytes). Retain the next-whole-KiB subscription guard.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 537 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

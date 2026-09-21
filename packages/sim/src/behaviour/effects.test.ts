@@ -83,6 +83,7 @@ describe('behaviour condition and effect contracts', () => {
       { carry: {} },
       { placeCarried: { at: { x: 3, y: 4 } } },
       { plantSeed: { spaceId: '0', x: 3, y: 4 } },
+      { compostCrop: { spaceId: '0', x: 3, y: 4 } },
       { farmTool: { action: 'restore', at: { spaceId: '0', x: 3, y: 4 } } },
       { worldTool: { action: 'digCellar', at: { spaceId: '2', x: 3, y: 4 } } },
       { meleeAttack: { weapon: 'sword' } },

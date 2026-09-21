@@ -1,18 +1,17 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 337,
-    "lifecycleRevision": 15,
-    "lifecycleBundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
-    "authoredCallbackCount": 123,
-    "inertItemCount": 112,
+    "bootstrapItemCount": 340,
+    "lifecycleRevision": 18,
+    "lifecycleBundleSha256": "fff623581f6316f60ba3851350f0bb193684a7d889f6aefdc9fe277c2d4bee0a",
+    "authoredCallbackCount": 148,
+    "inertItemCount": 90,
     "dataGraphItemCount": 69,
     "transactionItemCount": 33
   },
   "reattestation": {
     "date": "2026-09-21",
-    "note": "The 123 actionable callback item IDs and all 112 previously reviewed inert classifications are unchanged. Revision 15 routes the 24 existing swing tools through server contact discovery, including secondary triggers for six hoes. No inert item gained a capability. Delve completion adds one furniture-transaction item, the Delver Memorial Planter; callbacks and inert classifications remain unchanged.",
-    "inertClassificationSha256": "9adecf598f35a29517e2a121b44c384bcc5e60650a2b9004810f0b77d70397fa"
+    "note": "Compost, 22 preserved provisions and two specialist meals have generated callbacks; all 90 remaining inert classifications and 69 graph/32 transaction owners are preserved. Delve completion adds the Delver Memorial Planter as a furniture-transaction item; existing callbacks and inert classifications are unchanged."
   },
   "groups": [
     {
@@ -75,38 +74,6 @@
         "item:bottles",
         "item:must",
         "item:pomace"
-      ]
-    },
-    {
-      "classification": "preserved_food_without_consumption_semantics",
-      "interactionPolicy": "inert",
-      "advertisedCapabilities": [
-        "tag:item.food"
-      ],
-      "reason": "Preserved produce is intentionally inedible until a restore value and consumption semantics are authored.",
-      "itemIds": [
-        "item:preserved_beetroot",
-        "item:preserved_cabbage",
-        "item:preserved_carrot",
-        "item:preserved_corn",
-        "item:preserved_cucumber",
-        "item:preserved_garlic",
-        "item:preserved_grape",
-        "item:preserved_green_pepper",
-        "item:preserved_hot_pepper",
-        "item:preserved_leek",
-        "item:preserved_onion",
-        "item:preserved_parsley",
-        "item:preserved_potato",
-        "item:preserved_pumpkin",
-        "item:preserved_red_pepper",
-        "item:preserved_strawberry",
-        "item:preserved_sunflower",
-        "item:preserved_tomato",
-        "item:preserved_turnip",
-        "item:preserved_watermelon",
-        "item:preserved_wheat",
-        "item:preserved_yellow_pepper"
       ]
     },
     {

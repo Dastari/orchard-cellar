@@ -29,3 +29,13 @@ it('filters by admitted NPC and invalidates withdrawn offers',()=>{
   const flow=setup();flow.update('sessionA',2n,[offer]);expect(flow.offers).toEqual([]);expect(flow.select(offer.id)).toBe(false);
   flow.update('sessionA',1n,[offer]);flow.select(offer.id);flow.update('sessionA',1n,[]);expect(flow.review).toBeNull();
 });
+it('announces newly learned meals from authoritative state without inferring delivery success',()=>{
+  const flow=new VillageOrderFlow();
+  flow.update('a',1n,[{...offer,learnedMeals:[],milestoneTitle:'PANTRY LUNCH',milestoneProgress:'Distinct raw 1/2  Preserved 0/1'}]);
+  expect(flow.milestone?.milestoneTitle).toBe('PANTRY LUNCH');
+  flow.select(offer.id);
+  flow.update('a',1n,[{...offer,revision:1n,learnedMeals:['pantry_lunch'],milestoneTitle:'CELLAR SUPPER',milestoneProgress:'Distinct raw 2/2  Preserved 1/2  Bottle 0/1'}]);
+  expect(flow.notice).toBe('Learned: Pantry Lunch');expect(flow.review).toBeNull();
+  flow.update('b',1n,[{...offer,learnedMeals:['pantry_lunch','cellar_supper']}]);
+  expect(flow.notice).toBe('');
+});

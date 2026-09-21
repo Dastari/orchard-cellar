@@ -1,8 +1,8 @@
 {
   "format": "orchard-item-lifecycle-metadata-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 15,
-  "bundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
+  "revision": 18,
+  "bundleSha256": "fff623581f6316f60ba3851350f0bb193684a7d889f6aefdc9fe277c2d4bee0a",
   "handlers": [
     {
       "itemId": "item:anvil",
@@ -160,6 +160,15 @@
       ]
     },
     {
+      "itemId": "item:cellar_supper",
+      "event": "onUse",
+      "id": "item:cellar_supper.on_use",
+      "prompt": "EAT CELLAR SUPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
       "itemId": "item:cherry",
       "event": "onUse",
       "id": "item:cherry.on_use",
@@ -182,6 +191,15 @@
       "event": "onUse",
       "id": "item:chest.place",
       "prompt": "PLACE CHEST",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:compost",
+      "event": "onUse",
+      "id": "item:compost.on_use",
+      "prompt": "COMPOST CROP (+25% GROWTH, ONCE PER PLANTING)",
       "triggers": [
         "place"
       ]
@@ -756,6 +774,15 @@
       ]
     },
     {
+      "itemId": "item:pantry_lunch",
+      "event": "onUse",
+      "id": "item:pantry_lunch.on_use",
+      "prompt": "EAT PANTRY LUNCH",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
       "itemId": "item:parsley",
       "event": "onUse",
       "id": "item:parsley.on_use",
@@ -836,6 +863,204 @@
       "prompt": "PLANT SEEDS",
       "triggers": [
         "place"
+      ]
+    },
+    {
+      "itemId": "item:preserved_beetroot",
+      "event": "onUse",
+      "id": "item:preserved_beetroot.on_use",
+      "prompt": "EAT PRESERVED BEETROOT",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_cabbage",
+      "event": "onUse",
+      "id": "item:preserved_cabbage.on_use",
+      "prompt": "EAT PRESERVED CABBAGE",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_carrot",
+      "event": "onUse",
+      "id": "item:preserved_carrot.on_use",
+      "prompt": "EAT PRESERVED CARROT",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_corn",
+      "event": "onUse",
+      "id": "item:preserved_corn.on_use",
+      "prompt": "EAT PRESERVED CORN",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_cucumber",
+      "event": "onUse",
+      "id": "item:preserved_cucumber.on_use",
+      "prompt": "EAT PRESERVED CUCUMBER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_garlic",
+      "event": "onUse",
+      "id": "item:preserved_garlic.on_use",
+      "prompt": "EAT PRESERVED GARLIC",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_grape",
+      "event": "onUse",
+      "id": "item:preserved_grape.on_use",
+      "prompt": "EAT PRESERVED GRAPES",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_green_pepper",
+      "event": "onUse",
+      "id": "item:preserved_green_pepper.on_use",
+      "prompt": "EAT PRESERVED GREEN PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_hot_pepper",
+      "event": "onUse",
+      "id": "item:preserved_hot_pepper.on_use",
+      "prompt": "EAT PRESERVED HOT PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_leek",
+      "event": "onUse",
+      "id": "item:preserved_leek.on_use",
+      "prompt": "EAT PRESERVED LEEK",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_onion",
+      "event": "onUse",
+      "id": "item:preserved_onion.on_use",
+      "prompt": "EAT PRESERVED ONION",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_parsley",
+      "event": "onUse",
+      "id": "item:preserved_parsley.on_use",
+      "prompt": "EAT PRESERVED PARSLEY",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_potato",
+      "event": "onUse",
+      "id": "item:preserved_potato.on_use",
+      "prompt": "EAT PRESERVED POTATO",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_pumpkin",
+      "event": "onUse",
+      "id": "item:preserved_pumpkin.on_use",
+      "prompt": "EAT PRESERVED PUMPKIN",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_red_pepper",
+      "event": "onUse",
+      "id": "item:preserved_red_pepper.on_use",
+      "prompt": "EAT PRESERVED RED PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_strawberry",
+      "event": "onUse",
+      "id": "item:preserved_strawberry.on_use",
+      "prompt": "EAT PRESERVED STRAWBERRY",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_sunflower",
+      "event": "onUse",
+      "id": "item:preserved_sunflower.on_use",
+      "prompt": "EAT PRESERVED SUNFLOWER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_tomato",
+      "event": "onUse",
+      "id": "item:preserved_tomato.on_use",
+      "prompt": "EAT PRESERVED TOMATO",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_turnip",
+      "event": "onUse",
+      "id": "item:preserved_turnip.on_use",
+      "prompt": "EAT PRESERVED TURNIP",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_watermelon",
+      "event": "onUse",
+      "id": "item:preserved_watermelon.on_use",
+      "prompt": "EAT PRESERVED WATERMELON",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_wheat",
+      "event": "onUse",
+      "id": "item:preserved_wheat.on_use",
+      "prompt": "EAT PRESERVED WHEAT",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:preserved_yellow_pepper",
+      "event": "onUse",
+      "id": "item:preserved_yellow_pepper.on_use",
+      "prompt": "EAT PRESERVED YELLOW PEPPER",
+      "triggers": [
+        "secondary"
       ]
     },
     {

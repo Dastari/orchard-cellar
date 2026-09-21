@@ -7,3 +7,9 @@
 - Passed: 177 tests across 11 focused files, including production finish/sync/quest-reset blocks, run admission, content, furniture rendering and UI. All workspace typechecks, lint, lifecycle integrity, source content validation, asset generation/validation, sim/world/client builds passed. Existing client large-chunk warning remains.
 - No live deployment or browser playtest. Full coverage/exhaustive validation is coordinated on the final cumulative PR stack by root; no concurrent full suites were run here.
 - Standalone source adds four content definitions (904 total; b19bf4bf fingerprint) and one art asset (1183 total). Refresh cumulative fixtures when stacking atop Orchard.
+
+## Stacked integration
+
+Merged the reviewed Orchard stack (32b5fbd7), retaining compost, provisions, village milestones, renewable trees, lifecycle revision 18 and regenerated additive bindings. The cumulative pack has 911 definitions, fingerprint `739112ea`, and 549,836 runtime payload bytes. Delve adds 1,642 bytes; the measured cap is the next whole KiB (537 KiB). Reviewed ownership is 340 items: 148 callbacks, 90 inert, 69 data graphs, 33 furniture transactions; 53 foods remain unchanged.
+
+Stack checks passed: 56 focused tests across 13 files, all workspace typechecks, lint, lifecycle integrity, content validation and world/client builds. The inherited secondary-registration golden is 158, including both village meals. Root coordinates the final full suite on the economy tip.

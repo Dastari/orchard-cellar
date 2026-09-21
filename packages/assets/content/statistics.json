@@ -383,6 +383,26 @@
     ]
   },
   {
+    "id": "statistic:compost_applied",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Compost Applied",
+    "description": "Growing crops successfully treated with compost, once per planting.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
     "id": "statistic:connections_opened",
     "kind": "statistic",
     "schemaVersion": 1,

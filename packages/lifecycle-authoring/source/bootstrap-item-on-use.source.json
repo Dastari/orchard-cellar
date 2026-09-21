@@ -1,7 +1,7 @@
 {
   "format": "orchard-lifecycle-source-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 15,
+  "revision": 18,
   "engineApiVersion": 1,
   "handlers": [
     {
@@ -165,6 +165,13 @@
       "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
     },
     {
+      "itemId": "item:cellar_supper",
+      "id": "item:cellar_supper.on_use",
+      "event": "onUse",
+      "prompt": "EAT CELLAR SUPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
       "itemId": "item:cherry",
       "id": "item:cherry.on_use",
       "event": "onUse",
@@ -190,6 +197,16 @@
         "place"
       ],
       "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:chest', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:compost",
+      "id": "item:compost.on_use",
+      "event": "onUse",
+      "prompt": "COMPOST CROP (+25% GROWTH, ONCE PER PLANTING)",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse {\n  context.emit({ compostCrop: targetTile });\n  context.item.consume();\n  context.emit({ statistic: { kind: 'compost_applied' } });\n}"
     },
     {
       "itemId": "item:cooked_beef",
@@ -770,6 +787,13 @@
       "source": "context.item.applyEffect('orchard_tea');\ncontext.item.consume();\ncontext.emit({ statistic: 'orchard_tea_consumed' });"
     },
     {
+      "itemId": "item:pantry_lunch",
+      "id": "item:pantry_lunch.on_use",
+      "event": "onUse",
+      "prompt": "EAT PANTRY LUNCH",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
       "itemId": "item:parsley",
       "id": "item:parsley.on_use",
       "event": "onUse",
@@ -848,6 +872,160 @@
         "place"
       ],
       "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:preserved_beetroot",
+      "id": "item:preserved_beetroot.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED BEETROOT",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_cabbage",
+      "id": "item:preserved_cabbage.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED CABBAGE",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_carrot",
+      "id": "item:preserved_carrot.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED CARROT",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_corn",
+      "id": "item:preserved_corn.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED CORN",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_cucumber",
+      "id": "item:preserved_cucumber.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED CUCUMBER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_garlic",
+      "id": "item:preserved_garlic.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED GARLIC",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_grape",
+      "id": "item:preserved_grape.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED GRAPES",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_green_pepper",
+      "id": "item:preserved_green_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED GREEN PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_hot_pepper",
+      "id": "item:preserved_hot_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED HOT PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_leek",
+      "id": "item:preserved_leek.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED LEEK",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_onion",
+      "id": "item:preserved_onion.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED ONION",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_parsley",
+      "id": "item:preserved_parsley.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED PARSLEY",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_potato",
+      "id": "item:preserved_potato.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED POTATO",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_pumpkin",
+      "id": "item:preserved_pumpkin.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED PUMPKIN",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_red_pepper",
+      "id": "item:preserved_red_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED RED PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_strawberry",
+      "id": "item:preserved_strawberry.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED STRAWBERRY",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_sunflower",
+      "id": "item:preserved_sunflower.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED SUNFLOWER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_tomato",
+      "id": "item:preserved_tomato.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED TOMATO",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_turnip",
+      "id": "item:preserved_turnip.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED TURNIP",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_watermelon",
+      "id": "item:preserved_watermelon.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED WATERMELON",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_wheat",
+      "id": "item:preserved_wheat.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED WHEAT",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
+    },
+    {
+      "itemId": "item:preserved_yellow_pepper",
+      "id": "item:preserved_yellow_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT PRESERVED YELLOW PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
     },
     {
       "itemId": "item:pumpkin",

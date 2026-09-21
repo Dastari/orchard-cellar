@@ -19,6 +19,9 @@ function fixture(){
   let wallet={balanceBronze:100n};
   type Receipt={identity:typeof owner;revision:bigint;lastOrderId:string;completedTick:bigint};
   let receipt:Receipt|null=null;
+  type Progress=sim.VillageOrderProgress&{identity:typeof owner};
+  let progress:Progress|null=null;
+  const known=new Map<string,{recipeId:string;identity:typeof owner}>();
   const npc={id:BigInt(registry.npcs.get('npc:willow_storekeeper')!.runtimeId),spaceId:10};
   const active={npcId:npc.id,dialogueId:'willow_storekeeper',nodeId:'greeting'};
   const position={spaceId:10};let inReach=true,alive=true,locked=false,mounted=false,hands=false;
@@ -27,6 +30,8 @@ function fixture(){
     active_dialogue:{identity:{find:()=>active}},player_position:{identity:{find:()=>position}},
     world_merchant:{npcId:{find:()=>({dialogueId:active.dialogueId})}},world_npc:{id:{find:()=>npc}},
     world_clock:{id:{find:()=>({authorityTick:100n})}},
+    player_village_order_progress:{identity:{find:(identity:typeof owner)=>identity===owner?progress:null,update:(next:Progress)=>{writes.push('progress');progress=next;}},insert:(next:Progress)=>{writes.push('progress');progress=next;}},
+    player_known_recipe:{id:{find:(id:string)=>known.get(id)??null},insert:(row:{id:string;recipeId:string;identity:typeof owner})=>{writes.push('knowledge');known.set(row.id,row);}},
     player_wallet:{identity:{find:()=>wallet,update:(next:typeof wallet)=>{writes.push('wallet');wallet=next;}}},
     player_village_order_receipt:{identity:{find:receiptRead,update:(next:Receipt)=>{writes.push('receipt');receipt=next;}},insert:(next:Receipt)=>{writes.push('receipt');receipt=next;}}}};
   const dependencies={...sim,SenderError:Error,contentRegistry:()=>registry,requireAuthorizedSender:vi.fn(),
@@ -39,10 +44,12 @@ function fixture(){
   const code=ts.transpile(['activeMerchantSession','fulfillVillageOrder','ownVillageOrders'].map(declaration).join('\n')+';return {fulfillVillageOrder,ownVillageOrders};',{target:ts.ScriptTarget.ES2022});
   const api=new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as {
     fulfillVillageOrder:(ctx:unknown,args:{orderId:string;expectedRevision:bigint;expectedContentHash:string;expectedTotalBronze:bigint})=>void;
-    ownVillageOrders:(ctx:unknown)=>Array<{id:string;revision:bigint;totalBronze:bigint}>};
+    ownVillageOrders:(ctx:unknown)=>Array<{id:string;revision:bigint;totalBronze:bigint;learnedMeals:string[];milestoneTitle:string}>};
   const request={orderId:'market_carrots',expectedRevision:0n,expectedContentHash:registry.contentHash,expectedTotalBronze:530n};
   return {ctx,other,npc,position,active,registry,api,writes,statistics,receiptRead,request,
-    snapshot:()=>structuredClone({inventory,wallet,receipt:receipt===null?null:{revision:receipt.revision,lastOrderId:receipt.lastOrderId}}),
+    snapshot:()=>structuredClone({inventory,wallet,progress:progress===null?null:{rawKinds:progress.rawKinds,preservedKinds:progress.preservedKinds,bottleDelivered:progress.bottleDelivered},known:[...known.keys()],receipt:receipt===null?null:{revision:receipt.revision,lastOrderId:receipt.lastOrderId}}),
+    restock:(kind:string,quantity:number)=>{inventory={...inventory,hotbar:{id:'hotbar',capacity:1,slots:[{itemKind:kind,quantity}]}};},
+    corruptProgress:()=>{progress={identity:owner,rawKinds:['carrot','carrot'],preservedKinds:[],bottleDelivered:false};},
     deliver:(args=request)=>api.fulfillVillageOrder(ctx,args),set:(key:string)=>{if(key==='range')inReach=false;if(key==='dead')alive=false;if(key==='locked')locked=true;if(key==='mounted')mounted=true;if(key==='hands')hands=true;}};
 }
 describe('actual village order reducer and private quote view with fake database boundaries',()=>{
@@ -50,7 +57,7 @@ describe('actual village order reducer and private quote view with fake database
     const f=fixture();f.deliver();const after=f.snapshot();
     expect(after.wallet.balanceBronze).toBe(630n);expect(after.receipt).toEqual({revision:1n,lastOrderId:'market_carrots'});
     expect(after.inventory.hotbar?.slots[0]?.quantity).toBe(20);expect(after.inventory.backpack?.slots[0]?.quantity).toBe(40);
-    expect(f.writes).toEqual(['inventory','wallet','receipt']);expect(f.statistics).toHaveBeenCalledTimes(3);
+    expect(f.writes).toEqual(['inventory','wallet','receipt','progress']);expect(f.statistics).toHaveBeenCalledTimes(3);
     expect(()=>f.deliver()).toThrow('order_changed');expect(f.snapshot()).toEqual(after);
     f.deliver({...f.request,expectedRevision:1n});expect(f.snapshot().receipt?.revision).toBe(2n);
   });
@@ -85,7 +92,7 @@ it('derives bottle quotes from only the caller estate vintage and receipt',()=>{
   const estateLookup=vi.fn((identity:typeof owner)=>identity===owner?[{spaceId:900}]:[]);
   const upgradeLookup=vi.fn((id:string)=>id==='900:estate_vintage'?{rank:3}:null);
   const receiptLookup=vi.fn((identity:typeof owner)=>identity===owner?{revision:5n}:null);
-  const ctx={sender:owner,db:{homestead:{by_owner:{filter:estateLookup}},homestead_upgrade:{id:{find:upgradeLookup}},player_village_order_receipt:{identity:{find:receiptLookup}}}};
+  const ctx={sender:owner,db:{homestead:{by_owner:{filter:estateLookup}},homestead_upgrade:{id:{find:upgradeLookup}},player_village_order_receipt:{identity:{find:receiptLookup}},player_village_order_progress:{identity:{find:()=>null}},player_known_recipe:{id:{find:()=>null}}}};
   const dependencies={...sim,contentRegistry:()=>registry,firstIndexRow:(rows:unknown[])=>rows[0]??null};
   const code=ts.transpile(['homesteadUpgradeId','villageOrderVintageRank','ownVillageOrders'].map(declaration).join('\n')+';return ownVillageOrders;',{target:ts.ScriptTarget.ES2022});
   const view=new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as (ctx:unknown)=>Array<{id:string;revision:bigint;totalBronze:bigint}>;
@@ -93,4 +100,29 @@ it('derives bottle quotes from only the caller estate vintage and receipt',()=>{
   expect(view({...ctx,sender:other}).find(row=>row.id==='inn_vintage')).toMatchObject({totalBronze:5350n,revision:0n});
   expect(estateLookup).toHaveBeenCalledWith(owner);expect(estateLookup).toHaveBeenCalledWith(other);
   expect(upgradeLookup).toHaveBeenCalledExactlyOnceWith('900:estate_vintage');expect(receiptLookup).toHaveBeenCalledWith(other);
+});
+
+it('persists distinct family credit and exactly-once knowledge through repeated deliveries and reconnect views',()=>{
+  const f=fixture();
+  const deliverOrder=(id:string)=>{
+    const quote=sim.villageOrderQuote(f.registry,id,0)!;
+    f.npc.id=BigInt(f.registry.npcs.get(quote.npc)!.runtimeId);f.active.npcId=f.npc.id;
+    f.restock(quote.itemKind,quote.quantity);
+    f.deliver({...f.request,orderId:id,expectedTotalBronze:quote.totalBronze,expectedRevision:f.snapshot().receipt?.revision??0n});
+  };
+  deliverOrder('market_carrots');deliverOrder('market_carrots');deliverOrder('pantry_carrots');
+  expect(f.snapshot().progress?.rawKinds).toEqual(['carrot']);expect(f.snapshot().known).toEqual([]);
+  deliverOrder('market_potatoes');expect(f.snapshot().known).toEqual(['owner:pantry_lunch']);
+  deliverOrder('pantry_potatoes');deliverOrder('inn_vintage');
+  expect(f.snapshot().known).toEqual(['owner:pantry_lunch','owner:cellar_supper']);
+  const reconnected=f.api.ownVillageOrders({...f.ctx});
+  expect(reconnected.every(row=>row.milestoneTitle==='BOTH MEAL RECIPES LEARNED')).toBe(true);
+  expect(f.api.ownVillageOrders({...f.ctx,sender:f.other})[0]?.learnedMeals).toEqual([]);
+  const knowledgeWrites=f.writes.filter(write=>write==='knowledge').length;
+  deliverOrder('inn_vintage');expect(f.writes.filter(write=>write==='knowledge')).toHaveLength(knowledgeWrites);
+  expect(f.statistics.mock.calls.filter(call=>call[2]==='recipes_learned').map(call=>call[3])).toEqual([1n,1n]);
+});
+it('rejects corrupt stored milestones before any inventory/payment/receipt writes',()=>{
+  const f=fixture();f.corruptProgress();const before=f.snapshot();
+  expect(()=>f.deliver()).toThrow('order_progress_invalid');expect(f.snapshot()).toEqual(before);expect(f.writes).toEqual([]);
 });
