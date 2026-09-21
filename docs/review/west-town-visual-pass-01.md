@@ -6,7 +6,7 @@ Branch: `feat/west-town-visual-pass`
 
 ## Verdict
 
-**Visual acceptance:** exterior revision R3 and the final ten-interior contact sheet address the material findings from this review. No blocking path-transition seam, damaging exterior sprite overlap, or remaining smith partition-placement defect was visible in the reviewed images.
+**Visual acceptance:** the final island and town renders, following exterior revision R3, and the final ten-interior contact sheet address the material findings from this review. No blocking path-transition seam, damaging exterior sprite overlap, or remaining smith partition-placement defect was visible in the reviewed images.
 
 This is an independent visual comparison and a limited scenery-anchor support check. It does not certify live deployment, collision, portal behavior, service reachability, animation, or performance. Those checks belong to the implementation agents' separate test and runtime evidence.
 
@@ -28,6 +28,8 @@ Reviewed local renders:
 - `output/town-review/after-town-r2.png`
 - `output/town-review/after-island-r2.png`
 - `output/town-review/after-town-r3.png`
+- `output/town-review/final-island.png`
+- `output/town-review/final-town.png`
 - `output/west-town-interiors-draft.png`
 - `output/west-town-interiors-refined.png`
 - `output/west-town-interiors-final.png`
@@ -47,13 +49,13 @@ Exterior paving, inn, pond and farm areas were also inspected in native-resoluti
 
 The coastline review found an improvement over the baseline's narrow, uniform sand rim: broader southern beaches, coves/headlands and northern cliff shelves establish distinct terrain areas. Paving crops showed consistent grass-fringed convex and concave corners, without the baseline's hard untransitioned edges.
 
-The town retains more open lawn than the supplied examples. In R3, planted greens, benches, flower borders and woodland edges make that space understandable; it is not a blocking defect. A brook spring-head vignette was suggested as optional polish. The implementation agent subsequently reported small rock/grass additions at `(137,362)` and `(143,362)` on dry land; those additions are **not present in the R3 image reviewed here**.
+The town retains more open lawn than the supplied examples. Planted greens, benches, flower borders and woodland edges make that space understandable; it is not a blocking defect. The final island and town renders were subsequently inspected to close the optional brook spring-head feedback. Small rock/grass details beside the brook's upper end, at the reported `(137,362)` and `(143,362)` placements, sit visibly on grass and add context without obscuring the water or cliff edge. Final island-scale inspection also confirms the woodland patches, coastal outline and agricultural/public-path distinction remain coherent. No new blocking visual finding arose from the final images.
 
 ## Independent scenery support check
 
 The reviewer executed `buildHearthArchipelagoContribution()` and `buildHearthVillageScenery()` using actual sprite dimensions and anchors. The generated R3 scene contained **1,350 scenery objects**.
 
-Checking each object's anchor against the authored terrain found **zero unsupported or accidental-water anchors**, after excluding intentional bridge modules, the boat, and aquatic flower/grass assets. This checks anchor support only: it does not prove that every pixel, collision cell or complete sprite footprint is supported, nor that every route is traversable. The count describes R3 before the reported spring-head additions.
+Checking each object's anchor against the authored terrain found **zero unsupported or accidental-water anchors**, after excluding intentional bridge modules, the boat, and aquatic flower/grass assets. This checks anchor support only: it does not prove that every pixel, collision cell or complete sprite footprint is supported, nor that every route is traversable. The count describes R3 before the spring-head additions; those final additions were checked visually in the final renders, not included in this earlier numerical check.
 
 ## Interior findings and resolution
 

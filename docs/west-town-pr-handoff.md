@@ -49,5 +49,11 @@ Workspace typechecks/lint and the world, simulation, engine, tools and client
 builds passed. Atlas/PWA assets, client chunk checks, all 908 content definitions
 and the 534 KiB payload budget passed. Focused suites cover exterior access and
 return landings, ten interior plans, native art crops, deterministic generation
-and upgrade conflicts. The PR records the final aggregate coverage/exhaustive
-result; one earlier coverage process was terminated before reporting a result.
+and upgrade conflicts. Final coverage passed all 832 suites (4,736 tests, one
+skipped), with 92.71% lines, 88.57% statements, 94.19% functions and 83.76%
+branches. The final run used four workers; the earlier serial run identified
+three stale fixtures and a stale local atlas, all corrected before the clean run.
+The separate exhaustive terrain/world suite passed all 51 tests. Asset validation
+passed all 1,186 assets, three songs and ten SFX. GitHub checks were queued at
+handoff; local checks passed. One earlier coverage process was terminated before
+reporting a result.
