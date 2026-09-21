@@ -9,10 +9,19 @@ export function enqueueHearthInteriorFurniture(context:CanvasRenderingContext2D,
   registry:ContentRegistry,spaceId:number,cameraX:number,cameraY:number,scale:number,enqueue:(x:number,y:number,item:WorldDepthItem,terrainSampleY?:number,receiver?:'flat'|'south')=>void):void{
   const interior=hearthInteriorForSpace(registry,spaceId);
   if(!interior)return;
+  const space=[...registry.spaces.values()].find(s=>s.spaceId===spaceId&&s.retired!==true);
+  for(const [tileX,tileY] of space?.hearthInteriorWindows??[]){
+    const floor=(x:number,y:number)=>interior.rooms.some(([l,t,r,b])=>x>=l&&x<=r&&y>=t&&y<=b);
+    if(!floor(tileX,tileY)||[1,2,3].some(dy=>floor(tileX,tileY-dy)))continue;
+    const x=tileX*16+8,y=tileY*16;
+    if(art.hearthPartitionWindow)enqueue(x,y,{footY:y,depthPhase:'entity',tie:`hearth-window:${tileX}:${tileY}`,
+      draw:()=>drawAuthoredOverworldObject(context,art.hearthPartitionWindow,'base',0,x,y,cameraX,cameraY,scale)});
+  }
   const placements=hearthInteriorNativePlacements(registry,interior);
   for(const root of placements){
     if(root.shape.layer==='tabletop')continue;
-    const contact=hearthFurniturePresentationAnchor(root,placements)!;
+    const base=hearthFurniturePresentationAnchor(root,placements)!;
+    const contact={x:base.x,y:base.y-(root.shape.layer==='wall'?32:0)};
     const asset=art.itemIcons[root.shape.id];
     if(!asset)continue;
     const group=[root,...placements.filter(item=>item.supportId===root.id)];
@@ -20,7 +29,7 @@ export function enqueueHearthInteriorFurniture(context:CanvasRenderingContext2D,
       depthPhase:root.shape.layer==='floor'?'surface':'entity',tie:`hearth-interior:${root.id}`,
       draw:()=>{for(const item of group){
         const native=art.itemIcons[item.shape.id],anchor=hearthFurniturePresentationAnchor(item,placements);
-        if(native&&anchor)drawAuthoredOverworldObject(context,native,item.shape.id==='furniture_rustic_cooking_range'?'burn':'base',0,anchor.x,anchor.y,cameraX,cameraY,scale);
+        if(native&&anchor)drawAuthoredOverworldObject(context,native,item.shape.id==='furniture_rustic_cooking_range'?'burn':'base',0,anchor.x,anchor.y-(item.shape.layer==='wall'?32:0),cameraX,cameraY,scale);
       }}},contact.y,root.shape.layer==='floor'?'flat':'south');
   }
   const objects=[...interior.furniture,{id:'outside-door',kind:'residence_door',

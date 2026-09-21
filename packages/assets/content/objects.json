@@ -1045,7 +1045,7 @@
           "id": "read",
           "verb": "use",
           "prompt": "READ FARMER JANE'S GRAVE",
-          "feedback": "FARMER JANE — BELOVED WIFE AND GARDENER",
+          "feedback": "FARMER JANE \u2014 BELOVED WIFE AND GARDENER",
           "reachTiles": 2.5,
           "conditions": [],
           "effects": [],
@@ -1068,7 +1068,7 @@
         ]
       },
       "sprite": {
-        "asset": "prop_cf_fence_horizontal",
+        "asset": "prop_cf_willow_boundary_wood_large_connected",
         "animationByState": {
           "default": "base"
         },
@@ -3611,7 +3611,8 @@
       "sprite": {
         "asset": "prop_cf_hearth_streetlamp",
         "animationByState": {
-          "default": "base"
+          "default": "base",
+          "lit": "on"
         }
       },
       "collision": {
@@ -3631,8 +3632,92 @@
         ],
         "radiusTiles": 5,
         "profile": "steady",
-        "offsetY": -37
-      }
+        "offsetY": -37,
+        "when": {
+          "state": "lit",
+          "equals": true
+        }
+      },
+      "states": {
+        "mode": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "on",
+            "off"
+          ],
+          "default": "auto"
+        },
+        "lit": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "interactions": [
+        {
+          "id": "switch_on_use",
+          "verb": "use",
+          "conditions": [
+            {
+              "state": "mode",
+              "equals": "auto"
+            }
+          ],
+          "effects": [
+            {
+              "setState": {
+                "mode": "on"
+              }
+            }
+          ],
+          "priority": 70,
+          "prompt": "LAMP AUTO: SET ON",
+          "feedback": "LAMP MODE: ON",
+          "reachTiles": 2.5
+        },
+        {
+          "id": "switch_off_use",
+          "verb": "use",
+          "conditions": [
+            {
+              "state": "mode",
+              "equals": "on"
+            }
+          ],
+          "effects": [
+            {
+              "setState": {
+                "mode": "off"
+              }
+            }
+          ],
+          "priority": 71,
+          "prompt": "LAMP ON: SET OFF",
+          "feedback": "LAMP MODE: OFF",
+          "reachTiles": 2.5
+        },
+        {
+          "id": "switch_auto_use",
+          "verb": "use",
+          "conditions": [
+            {
+              "state": "mode",
+              "equals": "off"
+            }
+          ],
+          "effects": [
+            {
+              "setState": {
+                "mode": "auto"
+              }
+            }
+          ],
+          "priority": 72,
+          "prompt": "LAMP OFF: SET AUTO",
+          "feedback": "LAMP MODE: AUTO",
+          "reachTiles": 2.5
+        }
+      ]
     }
   },
   {

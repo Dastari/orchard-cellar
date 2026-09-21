@@ -136,7 +136,7 @@ describe('complete Willowharbour interior catalogue',()=>{
       expect(footprint).toBeLessThan(inn.blocked.filter(blocked=>!blocked).length);
     }
     const conservatory=[...registry.spaces.values()].find(space=>space.hearthInterior?.[0]==='p')!;
-    expect(conservatory.hearthInteriorFloors?.filter(region=>region.style==='soil')).toHaveLength(4);
+    expect(conservatory.hearthInteriorFloors?.filter(region=>region.style==='soil')).toHaveLength(2);
   });
   it('resolves explicit native barrel art when its compact fingerprint collides, but rejects duplicate native art',()=>{
     const base=bootstrapContentRegistry(),barn=HEARTH_INTERIORS.find(room=>room.kind==='barn')!;

@@ -1,3 +1,4 @@
+import {streetlampState} from '@orchard/sim';
 import {TransformedLightSpriteCache} from './transformed-light-sprite.js';
 import {mapShadowContacts} from './map-shadow-contacts.js';
 import {createFrameLightOccluder,type LightTrunkOccluder} from './light-occlusion.js';
@@ -302,6 +303,9 @@ function transformedDelta(
 }
 
 export interface LiveMapObjectRenderOptions {
+  /** Gameplay draws authoritative placeables; editor/offline previews use auto. */
+  readonly materializedStreetlamps?: boolean;
+  readonly calendarTick?: bigint;
   readonly context: CanvasRenderingContext2D;
   readonly cameraX: number;
   readonly cameraY: number;
@@ -324,7 +328,10 @@ export function enqueueLiveMapObjects(
     for (const placement of prefab.placements) {
       const asset = loadedAsset(placement.assetName);
       if (asset === null) continue;
-      const frame = visualFrame(asset, placement.visual, options.timeMs);
+      const lamp=placement.assetName==='prop_cf_hearth_streetlamp';
+      if(lamp&&options.materializedStreetlamps)continue;
+      const visual=lamp?{...placement.visual,name:streetlampState('{}',options.calendarTick??0n).lit?'on':'base'}:placement.visual;
+      const frame = visualFrame(asset, visual, options.timeMs);
       if (frame === null) continue;
       const delta = transformedDelta(placement.tileX, placement.tileY, prefab, object);
       const worldX = (object.tileX + delta.tileX) * 16 + 8;
@@ -395,7 +402,7 @@ function boundMapLightDefinition(registry:ContentRegistry,assetName:string,visua
 }
 /** Lights follow the same loaded native placements as the map renderer. */
 export interface MapObjectPointLight extends PointLight {readonly terrainContactX:number}
-export function liveMapObjectPointLights(document:MapDocumentV3|null,registry:ContentRegistry,authorityTick:bigint):MapObjectPointLight[]{
+export function liveMapObjectPointLights(document:MapDocumentV3|null,registry:ContentRegistry,authorityTick:bigint,materializedStreetlamps=false):MapObjectPointLight[]{
   if(document===null)return [];
   const lights:MapObjectPointLight[]=[];
   for(const object of document.objects){
@@ -409,7 +416,11 @@ export function liveMapObjectPointLights(document:MapDocumentV3|null,registry:Co
       if(!component)continue;
       const asset=loadedAsset(placement.assetName);
       if(!asset||!visualFrame(asset,placement.visual,0))continue;
-      const authored=resolveObjectLight(component,{lit:true});
+      const lamp=placement.assetName==='prop_cf_hearth_streetlamp';
+      if(lamp&&materializedStreetlamps)continue;
+      const lit=!lamp||streetlampState('{}',authorityTick).lit;
+      if(!lit)continue;
+      const authored=resolveObjectLight(component,{lit});
       let seed=0n;
       for(const character of `${object.id}/${placement.id}`)seed=(seed*31n+BigInt(character.charCodeAt(0)))&0xffffffffffffffffn;
       const light=placeablePointLight({id:seed,kind:binding.objectId,tileX:0,tileY:0},authorityTick,authored);

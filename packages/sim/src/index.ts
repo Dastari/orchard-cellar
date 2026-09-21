@@ -183,3 +183,7 @@ export * from './fruit-seeds.js';
 export * from './orchard-harvest.js';
 
 export * from './delve-keepsake.js';
+
+export * from './connected-boundaries.js';
+export * from './turf-bank.js';
+export * from './streetlamp.js';

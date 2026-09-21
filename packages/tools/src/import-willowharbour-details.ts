@@ -1,4 +1,5 @@
 /** Native, reproducible crops for the second Willowharbour composition pass. */
+import {TURF_BANK_CROPS} from '@orchard/sim';
 import {execFileSync} from 'node:child_process';
 import {existsSync,readFileSync,writeFileSync} from 'node:fs';
 const root=new URL('../../../',import.meta.url).pathname;
@@ -13,7 +14,7 @@ const crops:[string,string,number,number,number,number][]=[
  ['picket_vertical','Outdoor decoration/White_Fence.png',0,16,16,16],
  ['cobble','Tiles/Cobble_Road/Cobble_Road_1.png',16,16,16,16],
 ];
-for(const [i,[x,y]] of [[48,0],[64,0],[80,0],[48,16],[80,16],[48,32],[64,32],[80,32]].entries())
+for(const [i,[x,y]] of TURF_BANK_CROPS.entries())
  crops.push([`bank_${i}`,'Tiles/Grass/Grass_Tiles_1.png',x!,y!,16,16]);
 for(const [suffix,sheet,x,y,w,h] of crops){
  const name=`prop_cf_willow_${suffix}`,output=`${root}packages/assets/props/${name}.sprite.json`;

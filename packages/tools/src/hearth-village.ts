@@ -1,4 +1,4 @@
-import {type HearthBuildingAsset,type MapDocumentV3CellOverride,type MapObjectInstance,
+import {BOUNDARY_SHEETS,boundaryAsset,boundaryCrop,resolveBoundaryCells,turfBankMask,resolveTurfBank,type BoundaryFamily,type BoundaryCell,type HearthBuildingAsset,type MapDocumentV3CellOverride,type MapObjectInstance,
   type MapPrefabDocumentV2} from '@orchard/sim';
 import {WILLOWHARBOUR_PLOTS,WILLOW_BRIDGES,willowRiverCenter} from './hearth-archipelago-authoring.js';
 
@@ -44,6 +44,8 @@ export function buildHearthVillageFacades(
 }
 
 export const HEARTH_SCENERY_ASSETS = [
+  ...Object.keys(BOUNDARY_SHEETS).flatMap(family=>Array.from({length:16},(_,mask)=>boundaryCrop(family as BoundaryFamily,mask)?boundaryAsset(family as BoundaryFamily,mask):null).filter((name):name is string=>name!==null)),
+  'prop_cf_willow_bank_8','prop_cf_willow_bank_9','prop_cf_willow_bank_10','prop_cf_willow_bank_11',
   'prop_cf_willow_hedge_nw','prop_cf_willow_hedge_ne','prop_cf_willow_hedge_sw','prop_cf_willow_hedge_se','prop_cf_willow_hedge_end_left','prop_cf_willow_hedge_end_right','prop_cf_willow_hedge_end_top','prop_cf_willow_hedge_end_bottom','prop_cf_willow_picket','prop_cf_willow_picket_left','prop_cf_willow_picket_right','prop_cf_willow_picket_vertical','prop_cf_willow_cobble','prop_cf_willow_bank_0','prop_cf_willow_bank_1','prop_cf_willow_bank_2','prop_cf_willow_bank_3','prop_cf_willow_bank_4','prop_cf_willow_bank_5','prop_cf_willow_bank_6','prop_cf_willow_bank_7',
 'tree_cf_oak_mature','tree_cf_birch_mature',
   'tree_cf_fruit_mature','tree_cf_spruce_mature','prop_cf_farm_potted_flowers',
@@ -110,12 +112,13 @@ export function buildHearthVillageScenery(
   });
   const objects: MapObjectInstance[]=[];
   const occupied=new Set<string>();
-  const hedgeCells=new Set<string>();
+  const boundaryCells=new Map<string,BoundaryCell>();
   const put=(name: typeof HEARTH_SCENERY_ASSETS[number],x: number,y: number): void => {
     const key=`${x},${y}`;
     if(name.startsWith('tree_')&&cells[key]?.biome!=='meadow')return;
     if(!name.includes('_bridge_')&&!groundScenery(name)&&WILLOW_BRIDGES.some(([left,right,north])=>x>=left-2&&x<=right+2&&y>=north+1&&y<=north+2))return;
-    if(name==='prop_cf_hearth_hedge_horizontal'||name==='prop_cf_hearth_hedge_vertical'){hedgeCells.add(key);return;}
+    const family:BoundaryFamily|null=name.includes('hearth_hedge_')?'hedge':name.startsWith('prop_cf_willow_picket')?'picket':name==='prop_cf_fence_horizontal'||name==='prop_cf_fence_vertical'?'wood':null;
+    if(family){if(cells[key]?.surface!=='water')boundaryCells.set(key,{tileX:x,tileY:y,family});return;}
     if(occupied.has(key)&&name!=='prop_cf_willow_cobble'&&!name.includes('willow_bank_')) return;
     if(cells[key]?.surface==='water'&&!name.includes('_bridge_')&&!name.startsWith('nature_cf_water_')&&name!=='vehicle_cf_boat')return;
     occupied.add(key);
@@ -153,12 +156,12 @@ export function buildHearthVillageScenery(
     for(let y=434;y<=438;y+=2) for(let x=left;x<=right;x++) put(crop,x,y);
   }
   // Farm pen east of the barn, opening onto the public lane through a two-tile gap.
-  for(let x=121;x<=127;x++) {
+  for(let x=121;x<=126;x++) {
     put('prop_cf_fence_horizontal',x,442); put('prop_cf_fence_horizontal',x,451);
   }
   for(let y=443;y<451;y++) {
     put('prop_cf_fence_vertical',121,y);
-    if(y!==447 && y!==448) put('prop_cf_fence_vertical',127,y);
+    if(y!==447 && y!==448) put('prop_cf_fence_vertical',126,y);
   }
   put('prop_cf_farm_hay_stack',124,444);
   put('prop_cf_farm_hay_bale',123,445); put('prop_cf_farm_hay_bale',125,450);
@@ -169,10 +172,10 @@ export function buildHearthVillageScenery(
   put('vehicle_cf_boat',221,400);
   put('prop_cf_hearth_harbour_sign',202,396);
   // Compact cargo yard beside the store; keep the guide and ferry approach open.
-  put('prop_cf_barrel',200,396); put('prop_cf_chest',201,397);
+  put('prop_cf_barrel',200,396);
   put('prop_cf_hearth_stall_red',167,396); put('prop_cf_hearth_stall_blue',172,396);
   put('prop_cf_hearth_stall_gold',182,402);
-  put('prop_cf_barrel',166,398); put('prop_cf_chest',171,398);
+  put('prop_cf_barrel',166,398);
   put('prop_cf_barrel',183,403);
   put('prop_cf_hearth_fountain',175,401);
   put('prop_cf_hearth_bench',170,404); put('prop_cf_hearth_bench',179,404);
@@ -195,7 +198,7 @@ export function buildHearthVillageScenery(
     for(let y=back+1;y<front;y++) { hedge(left,y,true); hedge(right,y,true); }
   }
   put('prop_cf_barrel',158,393);
-  put('prop_cf_chest',195,403);
+
   put('prop_cf_furniture_rustic_bookshelf',176,384);
   put('prop_cf_furniture_rustic_standing_lamp',174,423);
   put('prop_cf_interior_table',160,391);
@@ -205,7 +208,7 @@ export function buildHearthVillageScenery(
   put('prop_cf_anvil',194,422); put('prop_cf_barrel',195,424);
   put('prop_cf_interior_table',173,419);
   put('prop_cf_camp_round_stool',172,421); put('prop_cf_camp_round_stool',174,421);
-  put('prop_cf_chest',172,423);
+
   for (const [x,y] of [[151,386],[153,386],[156,387],[180,390],[181,389],[160,418],[162,418]] as const) {
     put((x+y)%2===0?'prop_cf_flowers_pink':'prop_cf_flowers_gold',x,y);
   }
@@ -226,7 +229,7 @@ export function buildHearthVillageScenery(
   for(const [x,y] of [[178,397],[180,397]] as const)put('prop_cf_farm_potted_flowers',x,y);
   put('prop_cf_hearth_bench',183,388);put('prop_cf_hearth_bench',159,412);
   put('prop_cf_hearth_harbour_sign',162,397);
-  put('prop_cf_barrel',185,397);put('prop_cf_chest',185,399);
+  put('prop_cf_barrel',185,397);
   put('prop_cf_workbench',140,396);put('prop_cf_poi_stump',138,397);
   put('prop_cf_poi_fallen_log',135,401);put('prop_cf_poi_fallen_log',135,403);
   put('prop_cf_barrel',192,418);put('nature_cf_rock_04',194,418);
@@ -244,7 +247,7 @@ export function buildHearthVillageScenery(
     if(clear(x,y))put('tree_cf_fruit_mature',x,y);
 
   put('prop_cf_hearth_well',134,389);
-  put('wildlife_cf_cow_01',124,447);put('wildlife_cf_chicken_01',126,444);
+  put('wildlife_cf_cow_01',124,447);put('wildlife_cf_chicken_01',122,444);
   put('wildlife_cf_chicken_01',122,450);
   put('prop_cf_hearth_trough',124,449);put('prop_cf_hearth_scarecrow',140,432);
   put('prop_cf_hearth_trough',159,388);
@@ -279,17 +282,17 @@ export function buildHearthVillageScenery(
     [188,432],[190,435],[185,438],[164,434],[163,437],[154,369]] as const)
     put((x+y)%2?'prop_cf_flowers_gold':'prop_cf_flowers_pink',x,y);
 
-  // Four planted neighbourhood gardens. Low banks use the native shallow
-  // earth lip, never logical cliff elevation. Staggered outlines avoid boxes.
-  for(const [cx,cy,rx,ry] of [[116,392,9,7],[148,415,7,5],[178,436,10,6],[153,366,7,4]]) {
-    const inside=(x:number,y:number)=>((x-cx!)/rx!)**2+((y-cy!)/ry!)**2<1+.13*Math.sin(x*.7)+.1*Math.cos(y*.8);
-    for(let y=cy!-ry!;y<=cy!+ry!;y++)for(let x=cx!-rx!;x<=cx!+rx!;x++) {
-      if(!inside(x,y)||cells[`${x},${y}`]?.biome!=='meadow')continue;
-      const n=inside(x,y-1),e=inside(x+1,y),w=inside(x-1,y),b=inside(x,y+1);
-      const frame=!n?(!w?0:!e?2:1):!b?(!w?5:!e?7:6):!w?3:!e?4:null;
-      if(frame!==null)put(`prop_cf_willow_bank_${frame}` as typeof HEARTH_SCENERY_ASSETS[number],x,y);
-      else if((x*7+y*3)%11===0)put((x+y)%2?'prop_cf_flowers_pink':'prop_cf_flowers_gold',x,y);
-      else if((x*3+y*7)%23===0)put('nature_cf_grass_01',x,y);
+  // Whole two-cell shelves, never clipped edge-by-edge against roads or water.
+  const shelves=[{left:108,top:386,rows:[[1,3],[0,4],[0,4],[0,4],[1,3]]},
+    {left:142,top:411,rows:[[0,2],[0,3],[0,4],[1,4],[1,3]]},
+    {left:170,top:432,rows:[[0,3],[0,4],[1,4],[1,4],[2,3]]},
+    {left:148,top:362,rows:[[1,4],[0,4],[0,3],[1,3],[1,2]]}] as const;
+  for(const {left,top,rows} of shelves) {
+    const mask=turfBankMask(left,top,rows);
+    if([...mask].some(key=>cells[key]?.biome!=='meadow'))continue;
+    for(const edge of resolveTurfBank(mask))put(`prop_cf_willow_bank_${edge.frame}`,edge.tileX,edge.tileY);
+    for(const key of mask){const [x,y]=key.split(',').map(Number) as [number,number];
+      if((x*7+y*3)%11===0)put((x+y)%2?'prop_cf_flowers_pink':'prop_cf_flowers_gold',x,y);
     }
   }
   // Cobble centre of the civic square; native grass fringe remains on street edges.
@@ -350,20 +353,11 @@ export function buildHearthVillageScenery(
     [181,431,187,432],[105,432,109,433],[168,427,172,428]])
     for(let y=top!;y<=bottom!;y++)for(let x=left!;x<=right!;x++)if(cells[`${x},${y}`]?.biome==='meadow')
       put((x+y)%3?'prop_cf_flowers_pink':'prop_cf_flowers_gold',x,y);
-  // Resolve native hedge tiles from connectivity after collecting complete runs.
-  for(const position of hedgeCells) {
-    const [x,y]=position.split(',').map(Number) as [number,number];
-    for(let i=objects.length-1;i>=0;i--)if(objects[i]!.tileX===x&&objects[i]!.tileY===y&&objects[i]!.layer!=='ground')objects.splice(i,1);
-    occupied.delete(position);
-    const n=hedgeCells.has(`${x},${y-1}`),b=hedgeCells.has(`${x},${y+1}`),
-      w=hedgeCells.has(`${x-1},${y}`),e=hedgeCells.has(`${x+1},${y}`);
-    const suffix=b&&e?'nw':b&&w?'ne':n&&e?'sw':n&&w?'se':e&&!w?'end_left':w&&!e?'end_right':b&&!n?'end_top':n&&!b?'end_bottom':null;
-    // Bypass collection only for already resolved straight segments.
-    if(suffix)put(`prop_cf_willow_hedge_${suffix}` as typeof HEARTH_SCENERY_ASSETS[number],x,y);
-    else if(!occupied.has(position)&&cells[position]?.surface!=='water'){
-      const name=n||b?'prop_cf_hearth_hedge_vertical':'prop_cf_hearth_hedge_horizontal';
-      occupied.add(position);objects.push({id:`hearth-scenery-${x}-${y}`,prefabId:`hearth-${name.replaceAll('_','-')}`,prefabRevision:1,tileX:x,tileY:y,elevation:0,layer:'objects',quarterTurns:0,flipX:false,enabled:true});
-    }
+  // Resolve complete family outlines once, so corners and gateway ends agree.
+  for(const edge of resolveBoundaryCells([...boundaryCells.values()])) {
+    const key=`${edge.tileX},${edge.tileY}`;
+    for(let i=objects.length-1;i>=0;i--)if(objects[i]!.tileX===edge.tileX&&objects[i]!.tileY===edge.tileY&&objects[i]!.layer!=='ground')objects.splice(i,1);
+    occupied.delete(key);put(edge.assetName,edge.tileX,edge.tileY);
   }
 
   // Seeded rejection sampling has no underlying tree lattice. Broad ecological

@@ -1,0 +1,46 @@
+{
+  "name": "prop_cf_willow_boundary_picket_4",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "...00...........",
+        "..0110..........",
+        ".011110.........",
+        ".012310.........",
+        ".024430.........",
+        ".024430.........",
+        ".024430.........",
+        ".024430.........",
+        ".020030.........",
+        ".001100.........",
+        ".0111105........",
+        ".0123105........",
+        ".0244305........",
+        ".0244305........",
+        ".0244305........",
+        ".0244305........"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#ffffff",
+    "2": "#eee9e3",
+    "3": "#988d7f",
+    "4": "#d8cec1",
+    "5": "#00000064"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/White_Fence.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "White_Fence.png"
+}

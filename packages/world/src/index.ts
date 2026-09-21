@@ -1,3 +1,4 @@
+import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
 import { orchardHarvestResult } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
@@ -11895,7 +11896,9 @@ function worldBehaviourEffectWriter(
     setState: (state) => {
       const row = targetPlaceable();
       const plan = planPlaceableStateEffect(contentRegistry(ctx), row, { setState: state });
-      ctx.db.world_placeable.id.update({ ...row, ...plan });
+      const lampState=row.definitionId===STREETLAMP_DEFINITION
+        ?streetlampState(plan.stateJson,ctx.db.world_environment.id.find(0)?.calendarTick??ctx.db.world_clock.id.find(0)?.authorityTick??0n):{};
+      ctx.db.world_placeable.id.update({ ...row, ...plan, ...lampState });
     },
     setLight: (light) => {
       if (target === undefined) {
@@ -12681,6 +12684,13 @@ function commitLiveMapSnapshot(
   };
   if (existing === null) ctx.db.live_map_document.insert(row);
   else ctx.db.live_map_document.mapId.update(row);
+  if(canonical.id===LIVE_ISLAND_MAP_ID){
+    const active=new Set(mapStreetlampPlans(canonical).map(plan=>plan.id));
+    // Map publication is infrequent; only inspect permanent authority-owned rows.
+    for(const lamp of ctx.db.world_placeable.by_placer.filter(ctx.databaseIdentity))
+      if(lamp.definitionId===STREETLAMP_DEFINITION&&!active.has(lamp.id))ctx.db.world_placeable.id.delete(lamp.id);
+    settleTownStreetlamps(ctx,ctx.db.world_environment.id.find(0)?.calendarTick??0n);
+  }
   ctx.db.live_map_revision.insert({
     id: 0n,
     mapId: canonical.id,
@@ -12725,6 +12735,29 @@ function ensureLandmarkCampfireStates(ctx: WorldReducerContext, calendarTick: bi
       manualOverride: false,
       automatedByNpc: actor === undefined ? undefined : BigInt(actor.runtimeId),
     });
+  }
+}
+
+/** Materialize authored lamps as ordinary persistent, interactable placeables.
+ * Indexed identities and cached plans avoid scanning player-owned objects. */
+function settleTownStreetlamps(ctx:WorldReducerContext,calendarTick:bigint):void {
+  const runtime=compiledLiveIslandRuntime(ctx);
+  const definition=contentRegistry(ctx).objects.get(STREETLAMP_DEFINITION);
+  if(!runtime||!definition||definition.retired===true)return;
+  for(const plan of mapStreetlampPlans(runtime.document)){
+    const existing=ctx.db.world_placeable.id.find(plan.id);
+    if(existing!==null&&existing.definitionId!==STREETLAMP_DEFINITION)throw new SenderError('streetlamp_identity_conflict');
+    const next=streetlampState(existing?.stateJson??'{}',calendarTick);
+    if(existing!==null){
+      if(existing.lit!==next.lit||existing.stateJson!==next.stateJson)ctx.db.world_placeable.id.update({...existing,...next});
+      continue;
+    }
+    ctx.db.world_placeable.insert({id:plan.id,kind:'hearth_streetlamp',tileX:plan.tileX,tileY:plan.tileY,
+      chunkX:Math.floor(plan.tileX/SURVIVAL_CHUNK_TILES),chunkY:Math.floor(plan.tileY/SURVIVAL_CHUNK_TILES),spaceId:0,
+      placedBy:ctx.databaseIdentity,facing:'down',open:false,smeltStartTick:undefined,carriedBy:undefined,
+      barrelSealedTick:undefined,barrelSealedBy:undefined,cookStartTick:undefined,cookStartedBy:undefined,
+      cookInputKind:undefined,processStartTick:undefined,processStartedBy:undefined,processInputKind:undefined,
+      definitionId:STREETLAMP_DEFINITION,...next});
   }
 }
 
@@ -23992,6 +24025,7 @@ export const stepWorld = spacetimedb.reducer(
     const authorityTick = clock.authorityTick + 1n;
     ctx.db.world_clock.id.update({ ...clock, authorityTick });
     const calendarTick = authorityTick + calendarOffset;
+    if(authorityTick%20n===0n)settleTownStreetlamps(ctx,calendarTick);
     recordTickRowTouch(updateCounters);
     respawnMiningResources(ctx, authorityTick);
     if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {

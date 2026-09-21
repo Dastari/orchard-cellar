@@ -68,7 +68,7 @@ describe('decorated Willowharbour public NPC access',()=>{
     for(const [tileX,tileY] of [[142,440],[138,436],[146,436],[126,447],[117,454],[142,454]]) {
       expect(reachable(map,{tileX:tileX!,tileY:tileY!},true),`farm approach ${tileX},${tileY}`).toBe(true);
     }
-    for(const [x,y] of [[121,447],[127,445],[124,451]]) {
+    for(const [x,y] of [[121,447],[126,445],[124,451]]) {
       expect(positionCollides(center(x!,y!),map),`farm fence ${x},${y}`).toBe(true);
     }
   },30000);

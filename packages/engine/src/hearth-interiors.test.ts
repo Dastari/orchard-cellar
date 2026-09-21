@@ -14,12 +14,12 @@ describe('village interior terrain parity',()=>{
       expect(lights.every(light=>Number.isFinite(light.worldY)&&light.radiusTiles>0)).toBe(true);
     }
     const lights=hearthInteriorPointLights(65523,registry,art,42n);
-    const lamp=lights.find(light=>light.worldX===25.5*16)!;
-    expect(lamp.worldY).toBe(11*16-20-20);
-    expect(lamp.receiverDirectionWorldY).toBe(11*16);
+    const lamp=lights.find(light=>light.worldX===24.5*16)!;
+    expect(lamp.worldY).toBe(9*16-20-20);
+    expect(lamp.receiverDirectionWorldY).toBe(9*16);
     const missingParent={...art,itemIcons:{...art.itemIcons}};
     delete missingParent.itemIcons['furniture_townhouse_dining_table'];
-    expect(hearthInteriorPointLights(65523,registry,missingParent,42n).some(light=>light.worldX===25.5*16)).toBe(false);
+    expect(hearthInteriorPointLights(65523,registry,missingParent,42n).some(light=>light.worldX===24.5*16)).toBe(false);
     expect(hearthInteriorPointLights(0,registry,art,42n)).toEqual([]);
   });
   it('submits showroom rugs as flat receivers and attachments only with their parent',()=>{
