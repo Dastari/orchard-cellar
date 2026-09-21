@@ -369,3 +369,18 @@ describe('27§1/§3 quantized light flood', () => {
     );
   });
 });
+
+it('multiplies radiance 3.5 times without expanding reach or changing native hue',()=>{
+ const width=25,height=9;
+ const render=(intensityPerMille:number)=>{
+  const f=fixture(width,height);
+  f.flood.apply(f.pixels,f.halo,width,height,{centerX:12,centerY:4,radius:10,color:{r:240,g:180,b:90},intensityPerMille},f.mask);
+  return f.pixels;
+ };
+ const normal=render(1000),bright=render(3500);
+ const i=(4*width+20)*4;
+ expect(bright[i]).toBeCloseTo(normal[i]!*3.5,0);
+ expect(bright[i+1]).toBeCloseTo(normal[i+1]!*3.5,0);
+ expect([...bright.slice((4*width+12)*4,(4*width+12)*4+3)]).toEqual([240,180,90]);
+ expect(redAt(bright,width,23,4)).toBe(0);
+});

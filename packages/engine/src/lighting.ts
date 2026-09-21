@@ -23,6 +23,7 @@ export interface PointLight {
   readonly radiusTiles: number;
   readonly color: RgbColor;
   readonly strengthPerMille?: number;
+  readonly intensityPerMille?: number;
   readonly facing?: LightFacing;
   readonly profile?: LightProfile;
   /** Integer terrain plane sampled at the emitter's ground contact. Lights
@@ -157,7 +158,7 @@ export function southFacingReceiverBrightness(
       (light.strengthPerMille ?? 1000) / 1000 - octileDistance / Math.max(1, light.radiusTiles * 16),
     );
     if (strength <= 0) continue;
-    const contribution = perceivedLight(light.color) * strength;
+    const contribution = perceivedLight(light.color) * strength * (light.intensityPerMille ?? 1000) / 1000;
     unrestricted = Math.max(unrestricted, contribution);
     const directionY = (light.receiverDirectionWorldY ?? light.worldY) - footY;
     facingRestricted = Math.max(
@@ -380,6 +381,7 @@ export class TileLightmap {
       ));
       hash = mixLightHash(hash, Math.round(light.radiusTiles * 100));
       hash = mixLightHash(hash, light.strengthPerMille ?? 1000);
+      hash = mixLightHash(hash, light.intensityPerMille ?? 1000);
       hash = mixLightHash(hash, light.color.r);
       hash = mixLightHash(hash, light.color.g);
       hash = mixLightHash(hash, light.color.b);
@@ -483,6 +485,7 @@ export class TileLightmap {
               }),
               radius: light.radiusTiles * LIGHT_TEXELS_PER_TILE,
               color: light.color,
+              ...(light.intensityPerMille === undefined ? {} : { intensityPerMille: light.intensityPerMille }),
               ...(light.strengthPerMille === undefined ? {} : { strengthPerMille: light.strengthPerMille }),
               ...(light.facing === undefined ? {} : { facing: light.facing }),
               ...(light.profile === undefined ? {} : { profile: light.profile }),

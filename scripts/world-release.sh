@@ -52,6 +52,15 @@ rehearsal_port=${WORLD_RELEASE_REHEARSAL_PORT:-3300}
 dry_run=${WORLD_RELEASE_DRY_RUN:-false}
 migration_kind=${WORLD_RELEASE_MIGRATION_KIND:-legacy-chests}
 [[ "$migration_kind" = legacy-chests || "$migration_kind" = schema-only ]] || usage
+studio_mode=${WORLD_RELEASE_STUDIO_MODE:-build}
+studio_reviewed_source=${WORLD_RELEASE_STUDIO_REVIEWED_SOURCE:-}
+studio_reviewed_artifact=${WORLD_RELEASE_STUDIO_REVIEWED_ARTIFACT:-}
+[[ "$studio_mode" = build || "$studio_mode" = preserve-current ]] || usage
+if [[ "$studio_mode" = preserve-current ]]; then
+  [[ "$studio_reviewed_source" = /* && -d "$studio_reviewed_source"
+    && -f "$studio_reviewed_source/source-manifest.json"
+    && "$studio_reviewed_artifact" = /* && -d "$studio_reviewed_artifact" ]] || usage
+fi
 rehearsal_pre_drain_log=${WORLD_RELEASE_REHEARSAL_PRE_DRAIN_CHEST_LOG:-$backup_directory/chest-migration-rehearsal-pre-drain.jsonl}
 rehearsal_post_drain_log=${WORLD_RELEASE_REHEARSAL_POST_DRAIN_CHEST_LOG:-$backup_directory/chest-migration-rehearsal-post-drain.jsonl}
 production_pre_drain_log=${WORLD_RELEASE_PRODUCTION_PRE_DRAIN_CHEST_LOG:-$backup_directory/chest-migration-production-pre-drain.jsonl}
@@ -194,6 +203,17 @@ rollback_staging_directory=$(mktemp -d /tmp/orchard-release-rollback.XXXXXX)
 rollback_artifacts=$rollback_staging_directory/pre-release-rollback-artifacts.tar.gz
 ops/orchard-runtime/bin/package-rollback-artifacts.sh "$rollback_artifacts"
 
+# Pin the explicitly handed-off Studio before any candidate build. A preserved
+# editor must match both its reviewed output and reviewed source/API snapshot.
+studio_stage=$(mktemp -d /tmp/orchard-release-reviewed-studio.XXXXXX)
+if [[ "$studio_mode" = preserve-current ]]; then
+  node scripts/studio-release-inputs.mjs "$studio_reviewed_source" "$studio_stage/source-before.json"
+  cmp "$studio_reviewed_source/source-manifest.json" "$studio_stage/source-before.json"
+  node --import tsx scripts/world-release-routine.ts manifest "$studio_reviewed_artifact" > "$studio_stage/reviewed.sha256"
+  node --import tsx scripts/world-release-routine.ts preserve-studio \
+    packages/studio/dist "$studio_stage/dist" "$studio_stage/reviewed.sha256"
+fi
+
 printf 'Running repository and content gates...\n'
 npm run lifecycle:integrity
 npm run build --workspace @orchard/world
@@ -228,8 +248,18 @@ npm run typecheck --workspace @orchard/world-bindings
 
 # Stage the integrated Studio with this repository's generated API before
 # stopping traffic; retain the reviewed UI-kit guard.
-studio_stage=$(mktemp -d /tmp/orchard-release-reviewed-studio.XXXXXX)
-bash scripts/build-reviewed-studio.sh "$studio_stage/source" "$studio_stage/dist"
+if [[ "$studio_mode" = preserve-current ]]; then
+  node packages/studio/scripts/verify-ui-kit.mjs
+  cmp packages/studio/scripts/verify-ui-kit.mjs "$studio_reviewed_source/packages/studio/scripts/verify-ui-kit.mjs"
+  node "$studio_reviewed_source/packages/studio/scripts/verify-ui-kit.mjs"
+  node scripts/studio-release-inputs.mjs "$studio_reviewed_source" "$studio_stage/source-after.json"
+  cmp "$studio_stage/source-before.json" "$studio_stage/source-after.json"
+  node --import tsx scripts/world-release-routine.ts same-schema \
+    "$studio_reviewed_source/packages/world-bindings/src" packages/world-bindings/src
+else
+  bash scripts/build-reviewed-studio.sh "$studio_stage/source" "$studio_stage/dist"
+fi
+printf '%s\n' "$studio_mode" > "$studio_stage/studio-mode"
 node --import tsx scripts/world-release-routine.ts manifest "$studio_stage/dist" > "$studio_stage/static.sha256"
 node --import tsx scripts/world-release-routine.ts manifest packages/world-bindings/src > "$studio_stage/bindings.sha256"
 install_reviewed_studio() {

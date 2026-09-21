@@ -189,6 +189,21 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
       cells[key(x,y)]={surface:'grass',biome:'meadow',feature:'farmland'};
     }
   }
+  // Upper freshwater headwater lake and its narrow spillway share the cliff plane.
+  // The buffered ellipse keeps shoreline corners away from the plateau edge.
+  for(let y=343;y<=358;y++)for(let x=128;x<=148;x++){
+    const distance=((x-138)/8)**2+((y-351)/5)**2;
+    if(distance<=1.7)cells[key(x,y)]={biome:'meadow',surface:'grass',elevation:1,cliffFamily:'stone_1'};
+  }
+  // Two-cell shoreline steps avoid isolated water tips the native shore cannot join.
+  const lakeRows=[[2,5],[1,6],[0,7],[0,7],[1,6]] as const;
+  for(let row=0;row<lakeRows.length;row++){
+    const [left,right]=lakeRows[row]!;
+    for(let y=346+row*2;y<348+row*2;y++)for(let x=130+left*2;x<132+right*2;x++)
+      cells[key(x,y)]={biome:'freshwater',surface:'water',elevation:1,cliffFamily:'stone_1'};
+  }
+  for(let y=355;y<=359;y++)for(let x=139;x<=141;x++)
+    cells[key(x,y)]={biome:'freshwater',surface:'water',elevation:1,cliffFamily:'stone_1'};
   // The river cuts through the settlement to the sea. Public roads terminate at
   // its banks and reconnect on actual bridges, not invisible water causeways.
   for(let y=360;y<=475;y++) {

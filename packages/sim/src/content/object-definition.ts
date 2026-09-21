@@ -76,6 +76,8 @@ export type ObjectStateDefinition =
   | { readonly type: 'counter'; readonly default: number; readonly min?: number; readonly max?: number };
 
 export interface ObjectLightComponent {
+  /** Radiance multiplier; independent of propagation radius. Default 1000. */
+  readonly intensityPerMille?: number;
   readonly when?: { readonly state: string; readonly equals: StateValue };
   readonly color: readonly [number, number, number];
   readonly radiusTiles: number;
@@ -978,6 +980,7 @@ export function parseObjectDefinition(value: string | unknown): ObjectContentDef
         } }),
         color: lightColor.map((channel, index) => integer(channel, `$.components.light.color[${index}]`, 0, 255)) as unknown as readonly [number, number, number],
         radiusTiles: integer(light.radiusTiles, '$.components.light.radiusTiles', 1),
+        ...(light.intensityPerMille === undefined ? {} : { intensityPerMille: integer(light.intensityPerMille, '$.components.light.intensityPerMille', 0, 4000) }),
         profile: (() => {
           const profile = stringValue(light.profile, '$.components.light.profile');
           if (profile !== 'steady' && profile !== 'flicker') fail('$.components.light.profile', 'unknown light profile');

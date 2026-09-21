@@ -1,5 +1,12 @@
 # Project Agent Guidance
 
+## Dedicated agent account
+
+Use the owner-authorized development account documented in
+[Agent development account](docs/agent-development-account.md). Its password is
+stored only in encrypted local credential storage; never print credentials or
+tokens. Account access does not grant release approval or world owner privileges.
+
 ## T3 shared browser preview
 
 Use `https://orchard.dastari.net/` as the canonical Orchard & Cellar URL for

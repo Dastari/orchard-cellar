@@ -1,8 +1,7 @@
 # Approved town release — 2026-09-21
 
 The owner approved merging and publishing PRs #39, #40 and #42, in stack order.
-PR #41 is excluded. Publication must wait for IndigoForge's explicit primary
-checkout and service handoff. RubyBay is the current release coordinator.
+PR #41 is excluded. IndigoForge's explicit primary checkout and service handoff has been received. RubyBay is the current release coordinator.
 
 ## Current evidence
 
@@ -21,8 +20,10 @@ checkout and service handoff. RubyBay is the current release coordinator.
 - All six suites in the updated non-coverage lane pass: 90 tests in 164.34 seconds.
   Lifecycle integrity, world build, workspace typechecks, lint and 1,213-asset
   validation passed. The seven release-helper tests and release typecheck pass.
-  Full coverage is still running; its earlier frame-budget failure is now assigned
-  to the non-coverage lane without weakening the assertion.
+  Final candidate local coverage finished with 5,781 passing tests and one failure:
+  a licensed artwork source missing from this worktree. Restored source artwork
+  from the primary checkout; the affected three premium-icon tests now pass.
+  CI for repaired heads remains pending. No merge or publication has occurred.
 - Release investigation uses
   `/home/toby/projects/orchard-town-release-ci`, branch `fix/town-release-ci`,
   created from upstream main and advanced to the #39 candidate.
@@ -38,17 +39,72 @@ clean primary checkout at `d2f290fb` on PR #41. All Studio reservations are rele
 The reviewed Studio 0.9.1 artifact is
 `/home/toby/.local/state/orchard-release/studio-feedback-20260921/output-checked`
 with entry `index-CpnebIh7.js`.
-Use the tested `WORLD_RELEASE_STUDIO_MODE=preserve-current` routine option to pin
-and preserve the installed artifact, subject to full schema and public binding
-equality. All existing release gates and the UI-kit guard remain required.
+The actual full-schema comparison rejects the routine lane: candidate adds village
+order progress, crop composted and resource fruit-ready fields. Use the guarded
+`schema-only` migration lane with backup and restore rehearsal. The reviewed
+Studio source snapshot's generated public API exactly matches the candidate.
+The migration preservation option is being validated on #42; it pins installed
+bytes against `output-checked` and validates `source-checked/source-manifest.json`,
+the UI-kit guard and generated public API before downtime.
 Do not merge #41 or silently replace the independently deployed Studio UI.
 
 Determine full live/candidate schema equality, prepare the reviewed content and
 saved-map upgrades, retain rollback evidence, and pass same-identity reconnect
 and live route/lamp acceptance before declaring the release complete.
 
-The existing `/dev/shm/orchard-pr18-rejoin.json` failed guarded refresh with HTTP
-400; do not retry it as a valid session. The owner requested a permanent agent
-development account. A private Playwright registration session is open, awaiting
-the owner's chosen verification email. User-scoped `systemd-creds` encryption was
-verified for durable credential storage; no account or password has been created.
+The old `/dev/shm/orchard-pr18-rejoin.json` failed refresh; do not reuse it.
+The owner-requested account is now signed-in verified with an active Content
+Editor grant, confirmed by an authenticated own-grant query after the owner
+committed it in Studio. See `docs/agent-development-account.md` for safe reuse.
+RubyBay owns refresh of `/dev/shm/orchard-agent-town-rejoin.json`; the browser was
+cleared and navigated away to prevent competing refresh. Refresh succeeds.
+Private release evidence is under
+`/home/toby/.local/state/orchard-release/town-20260921-rubybay`.
+
+Repaired stack heads: #39 c1072537, #40 422afa48, #42 80d2c6bb before the account
+and migration-preservation follow-up. Check current GitHub heads and all CI before
+merging. Remaining work: content/live-map capture and reviewed town upgrade,
+exact candidate checks, guarded schema-only release, route/lamp and reconnect
+acceptance, and final evidence. Never claim these remaining steps completed.
+
+Follow-up validation: all 90 exhaustive tests pass on the final town candidate;
+17 release continuity/helper tests and release typecheck pass. Installed Studio
+preservation and reviewed-source manifest checks pass against the handed-off
+artifacts. A separate read-only agent review found no blocking preservation issue.
+Content candidate starts at live revision 14 and updates 56 definitions to hash
+`2f704947`; digest `b946603a3e9318f3032232019a4474aab0ac50790380178ec4fc3e2e951b15ea`.
+Live map is revision 5/hash `38ce9f5e`. Its current-parser export adds only the
+inferred `soil.watered` role to 18 farm landmarks; a comparison verified all other
+fields and collection members are preserved. The raw capture and normalization
+report are retained privately. Town-map upgrade verification remains in progress.
+
+## Follow-up gates and owner handoff
+
+The completed map candidate is private at
+`town-20260921-rubybay/map-candidate/map.json` under the evidence root above:
+revision 6, SHA256 `78d2ad5275a4e03e76168894e2d039ff2c7ac402610c3f13b3d6736ba6f4e394`,
+39,954 cells, 201 prefabs and 2,100 objects, zero unapproved assets. The original
+published baseline was recovered from `output/doc60/map-candidate-live-r4-v3`
+(SHA256 `ef53c93da32b0eabcae33477317effeb1f49c6b53e81dfa96cec69b96ace087b`).
+The unmodified baseline passed town cell/object/prefab/transition checks. Eleven
+retained shared prefab definitions match that baseline exactly; only their asset
+registry references were updated, recorded privately. Export then passes and an
+independent comparison verifies every terrain cell and object outside town is
+unchanged. Publication still requires occupancy/asset/live-CAS and route checks.
+
+`publishLiveMapDocument` requires a world owner. Content Editor alone cannot
+publish this map. The previous persistent owner reconnect file fails refresh
+HTTP 400. A fresh encrypted owner handoff is pending user action via
+`python3 /home/toby/.local/state/orchard-agent/store-owner-handoff.py`.
+It prints a same-origin Studio encryption snippet and accepts only its ciphertext
+at a hidden prompt. The temporary RSA key is private in `/dev/shm/orchard-town-owner`;
+success writes `/dev/shm/orchard-town-owner-rejoin.json` and deletes the key. Do not
+claim owner verification until guarded refresh and own-membership checks pass.
+
+PR40 had one passing CI run and one failing selection-inspection 50ms budget
+under coverage (66ms). The nine-test suite passes without coverage in 3.95s and
+has been added to the unchanged-budget serial lane across all three PRs. Fresh
+CI is required on the updated heads. A fresh full local check is running with
+restored licensed art; log `/tmp/orchard-town-headwaters-check-verified.log`.
+No PR has been merged, no service stopped, and no production module/content/map
+has been published by RubyBay. Keep PR41 excluded and preserve its deployed UI.

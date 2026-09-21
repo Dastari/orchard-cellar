@@ -2,10 +2,22 @@
 
 ## Unreleased — Town release verification
 
+- Preserve a separately reviewed Studio artifact during guarded schema migrations
+  after source-manifest, installed-output, UI-kit and generated API checks.
+- Document the encrypted dedicated development account and verified Content
+  Editor grant for future agents.
+
 - Run CPU-heavy town/Studio fixtures and UI timing budgets in the serial,
   non-coverage test lane, preserving all assertions and existing timing limits.
 - Allow guarded same-schema world releases to preserve the independently reviewed
   installed Studio artifact with exact manifest and static validation.
+
+## 0.17.1 — Willowharbour headwaters and finishing details
+
+- Make streetlamps 3.5× brighter within their existing light radius and use the matching bright native lantern frame.
+- Complete bridge undersides with native stone arches over animated river water.
+- Connect an upper freshwater lake to the town river with a complete animated waterfall anchored on the cliff plane.
+- Keep fences off shallow turf shelves and flowers out of fence cells and gateway approaches.
 
 ## 0.17.0 — Connected town scenery and inhabited rooms
 
