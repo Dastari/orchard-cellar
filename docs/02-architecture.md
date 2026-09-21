@@ -278,3 +278,10 @@ The hammer HUD button and B key share the client build-mode toggle. The retained
 UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
+
+## Developer coordination service
+
+[Agent Mail Rust](../ops/agent-mail/README.md) runs as an independent loopback
+systemd user service for Codex and Claude Code. Its SQLite index and Git archive
+live outside the repository; it has no application runtime or deployment role.
+See [ADR 002](adr/002-agent-mail.md) for the shared-service decision.

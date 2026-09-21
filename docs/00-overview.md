@@ -94,3 +94,5 @@ resource/item, skill icon, prop, building, sprite, or animation source.
   before opening source sheets manually.
 
 Docs 16/17 summarize both faithfully; implementers should rarely need the raw files.
+
+Developer coordination: [Agent Mail setup and workflow](../ops/agent-mail/README.md).

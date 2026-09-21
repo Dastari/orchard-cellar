@@ -10,6 +10,11 @@ All Orchard worktrees use `/home/toby/projects/orchard-cellar` as `project_key`
 (and as `human_key` for `ensure_project`). Other hosts use their primary clone's
 absolute path consistently. Branch paths must not create separate mail projects.
 
+For operator CLI commands that access local storage, first change directory to
+`~/.local/share/orchard-agent-mail/` and run
+`export STORAGE_ROOT="$HOME/.local/share/orchard-agent-mail/archive"`.
+Use the HTTP MCP tools for normal agent workflows.
+
 The service owns SQLite indexing and a Git archive under
 `~/.local/share/orchard-agent-mail/`. State, identities, messages and binaries
 are outside the source checkout. Application builds and deployments are unaffected.
@@ -27,8 +32,10 @@ python3 ops/agent-mail/verify.py /home/toby/projects/orchard-cellar
 ```
 
 The installer verifies a pinned release hash, installs binaries into
-`~/.local/lib/orchard-agent-mail/v0.3.36/`, and enables
+`~/.local/lib/orchard-agent-mail/v0.3.36/`, links `am` and `mcp-agent-mail` into
+`~/.local/bin/` (which must be on PATH), and enables
 `orchard-agent-mail.service`. Re-running it preserves persistent state.
+It refuses to replace command links belonging to another installation.
 Checked-in `.codex/config.toml` and `.mcp.json` connect Codex and Claude Code
 respectively when this branch is checked out (and after merge). Codex requires a
 trusted project; Claude may require approving the project MCP server.
@@ -88,4 +95,14 @@ For a binary rollback, retain the old version directory and restore the previous
 unit's `ExecStart`; run daemon-reload and restart. Database compatibility must be
 checked against upstream release notes before a downgrade.
 User services survive logout only when user lingering is enabled; check with
-`loginctl show-user "$USER" -p Linger`.
+`loginctl show-user "$USER" -p Linger`. Enable it with
+`sudo loginctl enable-linger "$USER"` when this host should run the service across
+logouts and boot. The installer itself does not elevate privileges.
+
+## Installed-host handoff (2026-09-21)
+
+On this host, v0.3.36 is installed, the user service is enabled, and lingering is
+enabled for `toby`. Codex also has the endpoint registered at user scope; Claude
+has a local entry for the primary checkout. Both project templates are in this PR.
+Live MCP verification passed before and after restart and repeat installation.
+Agents must start a new session to discover the newly configured server.

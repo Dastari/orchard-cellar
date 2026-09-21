@@ -145,6 +145,11 @@ Conventional commits with these types: `feat` `fix` `art` `audio` `docs` `balanc
 
 ## 8. Multi-agent etiquette
 
+Use [Agent Mail](../ops/agent-mail/README.md) for shared inboxes and advisory
+file reservations. Use the canonical primary-clone project key across worktrees;
+register per session, check conflicts before edits, and release leases afterward.
+Repository milestone claims and PR review requirements still apply.
+
 - **Claim before you code**: tick your milestone "in progress" in
   [14-roadmap.md](14-roadmap.md) with agent name and date
   (`- [ ] M3 … — IN PROGRESS: opus, 2026-09-02`) and commit that first. A claimed

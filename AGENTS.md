@@ -74,3 +74,11 @@ For every task:
 
 
 The task is not considered complete until the PR exists.
+
+## Agent Mail coordination
+
+Use the shared local MCP Agent Mail server for inbox checks and advisory file
+reservations. All worktrees use `/home/toby/projects/orchard-cellar` as the project
+key. Register a distinct session identity; check conflicts before editing and
+release reservations on completion. Follow user messaging permissions.
+Setup, recovery and client configuration: [Agent Mail runbook](ops/agent-mail/README.md).
