@@ -114,7 +114,7 @@
     "schemaVersion": 1,
     "displayName": "Apple Seed",
     "icon": {
-      "asset": "icon_resource_seeds"
+      "asset": "icon_seed_apple"
     },
     "maxStack": 99,
     "tags": [
@@ -775,7 +775,7 @@
     "schemaVersion": 1,
     "displayName": "Cherry Seed",
     "icon": {
-      "asset": "icon_resource_seeds"
+      "asset": "icon_seed_cherry"
     },
     "maxStack": 99,
     "tags": [
@@ -824,6 +824,24 @@
     "economy": {
       "buy": null,
       "sell": 30
+    }
+  },
+  {
+    "id": "item:compost",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Compost",
+    "icon": {
+      "asset": "icon_resource_pomace"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.crafted",
+      "item.farming.compost"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
     }
   },
   {
@@ -8460,7 +8478,7 @@
     "schemaVersion": 1,
     "displayName": "Peach Seed",
     "icon": {
-      "asset": "icon_resource_seeds"
+      "asset": "icon_seed_peach"
     },
     "maxStack": 99,
     "tags": [
@@ -8527,7 +8545,7 @@
     "schemaVersion": 1,
     "displayName": "Pear Seed",
     "icon": {
-      "asset": "icon_resource_seeds"
+      "asset": "icon_seed_pear"
     },
     "maxStack": 99,
     "tags": [
@@ -10839,24 +10857,6 @@
     "economy": {
       "buy": 30,
       "sell": 7
-    }
-  },
-  {
-    "id": "item:compost",
-    "kind": "item",
-    "schemaVersion": 1,
-    "displayName": "Compost",
-    "icon": {
-      "asset": "icon_resource_pomace"
-    },
-    "maxStack": 99,
-    "tags": [
-      "item.crafted",
-      "item.farming.compost"
-    ],
-    "economy": {
-      "buy": null,
-      "sell": 4
     }
   }
 ]

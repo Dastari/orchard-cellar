@@ -292,6 +292,26 @@
     ]
   },
   {
+    "id": "recipe:compost",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:compost",
+      "count": 1
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:pomace",
+        "count": 4
+      },
+      {
+        "item": "item:fiber",
+        "count": 1
+      }
+    ]
+  },
+  {
     "id": "recipe:cooking_fire",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4375,26 +4395,6 @@
         "item:plank",
         "item:plank"
       ]
-    ]
-  },
-  {
-    "id": "recipe:compost",
-    "kind": "recipe",
-    "schemaVersion": 1,
-    "output": {
-      "item": "item:compost",
-      "count": 1
-    },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:pomace",
-        "count": 4
-      },
-      {
-        "item": "item:fiber",
-        "count": 1
-      }
     ]
   }
 ]
