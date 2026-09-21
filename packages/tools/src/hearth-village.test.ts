@@ -22,8 +22,8 @@ describe('Willowharbour facades', () => {
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     expect(sha256(facades.prefabs)).toBe('d4560bfebcdb9fef42448e87d89d8a47c428e133a518b305d97d1de9248e25d4');
     expect(sha256(facades.objects)).toBe('3b0a10762d476fb7fda1c70a2d24f0ebf685032435512d65b541c672a37e6fb0');
-    expect(sha256(scenery.prefabs)).toBe('b4dba90ae0c96955e35e72a76cd5d8954415b56badf5fae736b1ea1f91f9e453');
-    expect(sha256(scenery.objects)).toBe('1c7aad97fdc18eadcd07c35ebb02de379c6cf97a20f6bd3ee026ca527f5c9aa4');
+    expect(sha256(scenery.prefabs)).toBe('681763826026ebd2078f2891388ab52565f91da45f64e92257e8dd6d571d44d5');
+    expect(sha256(scenery.objects)).toBe('3f8fdca2464c49a99db29b65a29f19d9d460d4c5f60e68ca484a3c0cf86742e9');
   });
   it('marks only public service thresholds with nonblocking ground runners',()=>{
     const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
@@ -153,4 +153,19 @@ it('closes the farm pen on dry land with only the authored two-cell east gate',(
   }
   expect(fence(126,442)?.prefabId).toMatch(/-12$/);
   expect(scenery.objects.some(o=>o.prefabId.includes('chest'))).toBe(false);
+});
+
+it('keeps fences off shallow shelves and plants out of their gateways',()=>{
+ const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
+ const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
+ const fences=scenery.objects.filter(o=>o.prefabId.includes('boundary-'));
+ const banks=scenery.objects.filter(o=>o.prefabId.includes('willow-bank-'));
+ for(const bank of banks)expect(fences.some(o=>o.tileX===bank.tileX&&o.tileY===bank.tileY)).toBe(false);
+ // Southern garden rail must terminate before the raised footprint at x170.
+ expect(fences.some(o=>o.tileY===433&&o.tileX>=170&&o.tileX<=177)).toBe(false);
+ for(const [gate,y] of [[123,383],[112,431],[164,426],[187,429],[191,406],[113,437],[158,433]]){
+  for(const plant of scenery.objects.filter(o=>o.prefabId.includes('flower')))
+   expect(Math.abs(plant.tileX-gate!)<=1&&Math.abs(plant.tileY-y!)<=1,`plant in gateway ${gate},${y}`).toBe(false);
+ }
+ for(const fence of fences)expect(scenery.objects.some(o=>o.prefabId.includes('flower')&&o.tileX===fence.tileX&&o.tileY===fence.tileY)).toBe(false);
 });

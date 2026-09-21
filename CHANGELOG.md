@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.1 — Willowharbour headwaters and finishing details
+
+- Make streetlamps 3.5× brighter within their existing light radius and use the matching bright native lantern frame.
+- Complete bridge undersides with native stone arches over animated river water.
+- Connect an upper freshwater lake to the town river with a complete animated waterfall anchored on the cliff plane.
+- Keep fences off shallow turf shelves and flowers out of fence cells and gateway approaches.
+
 ## 0.17.0 — Connected town scenery and inhabited rooms
 
 - Resolve native wooden, large wooden, picket, stone, large stone and hedge boundaries from cardinal neighbours; player-built wooden fences now use all sixteen native joins.

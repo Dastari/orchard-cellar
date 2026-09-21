@@ -3636,7 +3636,8 @@
         "when": {
           "state": "lit",
           "equals": true
-        }
+        },
+        "intensityPerMille": 3500
       },
       "states": {
         "mode": {

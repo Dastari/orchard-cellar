@@ -70,3 +70,9 @@ describe('placed crafting light emitters', () => {
     expect(deterministicFlameFlicker(id, 100)).toEqual(deterministicFlameFlicker(id, 100n));
   });
 });
+
+it('preserves authored lamp intensity separately from its bounded propagation strength',()=>{
+ const lamp=placeablePointLight({id:1n,kind:'hearth_streetlamp',tileX:10,tileY:10},0n,{enabled:true,color:[255,206,131],radiusTiles:5,profile:'steady',intensityPerMille:3500});
+ expect(lamp).toMatchObject({intensityPerMille:3500,strengthPerMille:1000,radiusTiles:5});
+ expect(placeablePointLight({id:1n,kind:'hearth_streetlamp',tileX:10,tileY:10},0n,{enabled:false,color:[255,206,131],radiusTiles:5,profile:'steady',intensityPerMille:3500})).toBeNull();
+});

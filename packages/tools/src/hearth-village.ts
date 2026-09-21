@@ -44,6 +44,7 @@ export function buildHearthVillageFacades(
 }
 
 export const HEARTH_SCENERY_ASSETS = [
+  'prop_cf_willow_waterfall',...Array.from({length:4},(_,i)=>`prop_cf_hearth_bridge_arch_${i}`),
   ...Object.keys(BOUNDARY_SHEETS).flatMap(family=>Array.from({length:16},(_,mask)=>boundaryCrop(family as BoundaryFamily,mask)?boundaryAsset(family as BoundaryFamily,mask):null).filter((name):name is string=>name!==null)),
   'prop_cf_willow_bank_8','prop_cf_willow_bank_9','prop_cf_willow_bank_10','prop_cf_willow_bank_11',
   'prop_cf_willow_hedge_nw','prop_cf_willow_hedge_ne','prop_cf_willow_hedge_sw','prop_cf_willow_hedge_se','prop_cf_willow_hedge_end_left','prop_cf_willow_hedge_end_right','prop_cf_willow_hedge_end_top','prop_cf_willow_hedge_end_bottom','prop_cf_willow_picket','prop_cf_willow_picket_left','prop_cf_willow_picket_right','prop_cf_willow_picket_vertical','prop_cf_willow_cobble','prop_cf_willow_bank_0','prop_cf_willow_bank_1','prop_cf_willow_bank_2','prop_cf_willow_bank_3','prop_cf_willow_bank_4','prop_cf_willow_bank_5','prop_cf_willow_bank_6','prop_cf_willow_bank_7',
@@ -68,9 +69,10 @@ export const HEARTH_SCENERY_ASSETS = [
   'prop_cf_hearth_bridge_middle_north','prop_cf_hearth_bridge_middle_deck','prop_cf_hearth_bridge_middle_south',
   'prop_cf_hearth_bridge_right_north','prop_cf_hearth_bridge_right_deck','prop_cf_hearth_bridge_right_south'] as const;
 
-const groundScenery=(name:string):boolean=>name.endsWith('_deck')||name.includes('willow_bank_')||name==='prop_cf_willow_cobble'||name==='prop_cf_furniture_rustic_runner';
+const groundScenery=(name:string):boolean=>(name.endsWith('_deck')||name.includes('_bridge_arch_'))||name.includes('willow_bank_')||name==='prop_cf_willow_cobble'||name==='prop_cf_furniture_rustic_runner';
 
 export function hearthSceneryVisual(name: string): { readonly name: string; readonly animated: boolean } {
+  if(name==='prop_cf_willow_waterfall')return {name:'flow',animated:true};
   if(name.startsWith('wildlife_')) return {name:'idle_side',animated:true};
   if(name.startsWith('nature_cf_grass_')||name.startsWith('nature_cf_water_')) return {name:'sway',animated:true};
   if(name==='prop_cf_standing_torch') return {name:'burn',animated:true};
@@ -94,7 +96,7 @@ export function buildHearthVillageScenery(
     const asset=assetFor(name), tree=name.startsWith('tree_'), visual=hearthSceneryVisual(name);
     const pivot={ tileX: Math.floor(asset.anchor[0]/16), tileY: Math.floor(asset.anchor[1]/16) };
     const collisionCells=[];
-    const decorative=name.startsWith('wildlife_') || name.startsWith('nature_cf_') && !name.includes('_rock_') || name.includes('flowers') || name.startsWith('crop_') || groundScenery(name);
+    const decorative=name.startsWith('wildlife_') || name.startsWith('nature_cf_') && !name.includes('_rock_') || name.includes('flowers') || name.startsWith('crop_') || groundScenery(name)||name==='prop_cf_willow_waterfall';
     const solidWidth=tree ? 1 : !decorative ? Math.ceil(asset.width/16) : 0;
     const solidRows=name==='prop_cf_hearth_fountain' ? 2 : 1;
     for(let y=0;y<solidRows;y++) for(let x=0;x<solidWidth;x++) collisionCells.push({
@@ -113,16 +115,24 @@ export function buildHearthVillageScenery(
   const objects: MapObjectInstance[]=[];
   const occupied=new Set<string>();
   const boundaryCells=new Map<string,BoundaryCell>();
+  const gatewayCells=new Set<string>();
+  const shelves=[{left:108,top:386,rows:[[1,3],[0,4],[0,4],[0,4],[1,3]]},
+    {left:142,top:411,rows:[[0,2],[0,3],[0,4],[1,4],[1,3]]},
+    {left:170,top:432,rows:[[0,3],[0,4],[1,4],[1,4],[2,3]]},
+    {left:148,top:362,rows:[[1,4],[0,4],[0,3],[1,3],[1,2]]}] as const;
+  const shelfMasks=shelves.map(({left,top,rows})=>turfBankMask(left,top,rows)).filter(mask=>[...mask].every(key=>cells[key]?.biome==='meadow'));
+  const shelfCells=new Set(shelfMasks.flatMap(mask=>[...mask]));
   const put=(name: typeof HEARTH_SCENERY_ASSETS[number],x: number,y: number): void => {
     const key=`${x},${y}`;
     if(name.startsWith('tree_')&&cells[key]?.biome!=='meadow')return;
     if(!name.includes('_bridge_')&&!groundScenery(name)&&WILLOW_BRIDGES.some(([left,right,north])=>x>=left-2&&x<=right+2&&y>=north+1&&y<=north+2))return;
     const family:BoundaryFamily|null=name.includes('hearth_hedge_')?'hedge':name.startsWith('prop_cf_willow_picket')?'picket':name==='prop_cf_fence_horizontal'||name==='prop_cf_fence_vertical'?'wood':null;
-    if(family){if(cells[key]?.surface!=='water')boundaryCells.set(key,{tileX:x,tileY:y,family});return;}
+    if(family){if(cells[key]?.surface!=='water'&&!shelfCells.has(key))boundaryCells.set(key,{tileX:x,tileY:y,family});return;}
+    if(name.includes('flower')&&(boundaryCells.has(key)||gatewayCells.has(key)))return;
     if(occupied.has(key)&&name!=='prop_cf_willow_cobble'&&!name.includes('willow_bank_')) return;
-    if(cells[key]?.surface==='water'&&!name.includes('_bridge_')&&!name.startsWith('nature_cf_water_')&&name!=='vehicle_cf_boat')return;
+    if(cells[key]?.surface==='water'&&!name.includes('_bridge_')&&!name.startsWith('nature_cf_water_')&&name!=='vehicle_cf_boat'&&name!=='prop_cf_willow_waterfall')return;
     occupied.add(key);
-    objects.push({ id: `hearth-scenery-${x}-${y}${name==='prop_cf_willow_cobble'?'-cobble':name.includes('willow_bank_')?'-bank':''}`, prefabId: `hearth-${name.replaceAll('_','-')}`,
+    objects.push({ id: `hearth-scenery-${x}-${y}${name==='prop_cf_willow_cobble'?'-cobble':name.includes('willow_bank_')?'-bank':name.includes('_bridge_arch_')?'-arch':''}`, prefabId: `hearth-${name.replaceAll('_','-')}`,
       prefabRevision: 1, tileX: x, tileY: y, elevation: cells[`${x},${y}`]?.elevation??0,
       layer: name.startsWith('tree_') ? 'canopy' : groundScenery(name) ? 'ground' : 'objects', quarterTurns: 0, flipX: false, enabled: true });
   };
@@ -151,6 +161,13 @@ export function buildHearthVillageScenery(
       put(`prop_cf_hearth_bridge_${end}_south`,x,north+3);
     }
   }
+  // Native arch band hangs below each bridge rail over actual river water.
+  for(const [left,right,north] of WILLOW_BRIDGES){
+    let column=0;
+    for(let x=left;x<=right;x++)if(cells[`${x},${north+4}`]?.surface==='water')
+      put(`prop_cf_hearth_bridge_arch_${column++%4}`,x,north+4);
+  }
+  put('prop_cf_willow_waterfall',140,359);
   // Cultivated beds remain visual farmland, separate from player-owned soil.
   for(const [left,right,crop] of [[136,140,'crop_cf_carrot_mature'],[144,148,'crop_cf_wheat_mature']] as const) {
     for(let y=434;y<=438;y+=2) for(let x=left;x<=right;x++) put(crop,x,y);
@@ -254,7 +271,7 @@ export function buildHearthVillageScenery(
   for(const [x,y] of [[161,395],[153,418],[151,431],[129,441],[180,389]] as const)
     put('prop_cf_hearth_streetlamp',x,y);
   // A rock spring explains the brook's head below the northern escarpment.
-  put('nature_cf_rock_04',137,362);put('nature_cf_rock_01',143,362);
+  put('nature_cf_rock_04',135,360);put('nature_cf_rock_01',145,360);
   put('nature_cf_grass_02',138,363);put('nature_cf_grass_01',142,363);
   // Reeds and lily pads break up selected pond banks; the navigable bridge stays clear.
   for(const [x,y] of [[134,374],[143,373],[146,375],[137,383],[144,383],[138,365],[140,369]] as const) {
@@ -283,13 +300,7 @@ export function buildHearthVillageScenery(
     put((x+y)%2?'prop_cf_flowers_gold':'prop_cf_flowers_pink',x,y);
 
   // Whole two-cell shelves, never clipped edge-by-edge against roads or water.
-  const shelves=[{left:108,top:386,rows:[[1,3],[0,4],[0,4],[0,4],[1,3]]},
-    {left:142,top:411,rows:[[0,2],[0,3],[0,4],[1,4],[1,3]]},
-    {left:170,top:432,rows:[[0,3],[0,4],[1,4],[1,4],[2,3]]},
-    {left:148,top:362,rows:[[1,4],[0,4],[0,3],[1,3],[1,2]]}] as const;
-  for(const {left,top,rows} of shelves) {
-    const mask=turfBankMask(left,top,rows);
-    if([...mask].some(key=>cells[key]?.biome!=='meadow'))continue;
+  for(const mask of shelfMasks) {
     for(const edge of resolveTurfBank(mask))put(`prop_cf_willow_bank_${edge.frame}`,edge.tileX,edge.tileY);
     for(const key of mask){const [x,y]=key.split(',').map(Number) as [number,number];
       if((x*7+y*3)%11===0)put((x+y)%2?'prop_cf_flowers_pink':'prop_cf_flowers_gold',x,y);
@@ -300,6 +311,7 @@ export function buildHearthVillageScenery(
     if([[0,0],[0,1],[0,-1],[1,0],[-1,0]].every(([dx,dy])=>cells[`${x+dx!},${y+dy!}`]?.biome==='paving'))put('prop_cf_willow_cobble',x,y);
   // Picket frontages frame gateways, leaving door and street movement clear.
   const picket=(left:number,right:number,y:number,gateway:number)=>{
+    for(let x=gateway-1;x<=gateway+1;x++)for(let yy=y-1;yy<=y+1;yy++)gatewayCells.add(`${x},${yy}`);
     for(let x=left;x<=right;x++) {
       if(Math.abs(x-gateway)<=1||cells[`${x},${y}`]?.surface==='water')continue;
       put(x===left||x===gateway+2?'prop_cf_willow_picket_left':x===right||x===gateway-2?'prop_cf_willow_picket_right':'prop_cf_willow_picket',x,y);
@@ -353,6 +365,8 @@ export function buildHearthVillageScenery(
     [181,431,187,432],[105,432,109,433],[168,427,172,428]])
     for(let y=top!;y<=bottom!;y++)for(let x=left!;x<=right!;x++)if(cells[`${x},${y}`]?.biome==='meadow')
       put((x+y)%3?'prop_cf_flowers_pink':'prop_cf_flowers_gold',x,y);
+  // Gateways stay visibly open even when their flower border was authored earlier.
+  for(let i=objects.length-1;i>=0;i--){const o=objects[i]!;if(o.prefabId.includes('flower')&&gatewayCells.has(`${o.tileX},${o.tileY}`)){objects.splice(i,1);occupied.delete(`${o.tileX},${o.tileY}`);}}
   // Resolve complete family outlines once, so corners and gateway ends agree.
   for(const edge of resolveBoundaryCells([...boundaryCells.values()])) {
     const key=`${edge.tileX},${edge.tileY}`;

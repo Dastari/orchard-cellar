@@ -340,6 +340,7 @@ export function interactionPrompt(
 }
 
 export interface ResolvedObjectLight {
+  readonly intensityPerMille?: number;
   readonly enabled: boolean;
   readonly color: readonly [number, number, number];
   readonly radiusTiles: number;
@@ -354,6 +355,7 @@ export function resolveObjectLight(
   return Object.freeze({
     enabled: light.when === undefined || state[light.when.state] === light.when.equals,
     color: light.color,
+    ...(light.intensityPerMille === undefined ? {} : { intensityPerMille: light.intensityPerMille }),
     radiusTiles: light.radiusTiles,
     profile: light.profile,
     ...(light.offsetY === undefined ? {} : { offsetY: light.offsetY }),

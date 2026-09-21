@@ -511,3 +511,11 @@ describe('object content definition', () => {
     ]));
   });
 });
+
+it('accepts bounded authored light intensity and preserves the legacy default',()=>{
+ const base=oilLamp();
+ expect(parseObjectDefinition(base).components.light?.intensityPerMille).toBeUndefined();
+ const withIntensity=(intensityPerMille:number)=>({...base,components:{...base.components,light:{...base.components.light,intensityPerMille}}});
+ expect(parseObjectDefinition(withIntensity(3500)).components.light?.intensityPerMille).toBe(3500);
+ for(const invalid of [-1,4001,1.5])expect(()=>parseObjectDefinition(withIntensity(invalid))).toThrow();
+});

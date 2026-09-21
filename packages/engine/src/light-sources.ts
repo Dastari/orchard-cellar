@@ -107,6 +107,7 @@ export function placeablePointLight(
     radiusTiles: Math.max(0.25, emitter.radiusTiles + flicker.radiusOffset),
     color: emitter.color,
     strengthPerMille: flicker.strengthPerMille,
+    ...(authored?.intensityPerMille === undefined ? {} : { intensityPerMille: authored.intensityPerMille }),
     profile: emitter.profile,
     ...(facing === undefined ? {} : { facing }),
   };

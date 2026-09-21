@@ -10,3 +10,11 @@ it('continues from the northern spring to sea with only declared bridge decks in
   expect(cells[`${x},${y}`]?.biome).toBe('paving');
  expect(cells['133,464']?.biome).toBe('water');
 });
+
+it('feeds the lower river from a freshwater lake and spillway on the upper cliff plane',()=>{
+ const {cells}=buildHearthArchipelagoContribution();
+ expect(cells['138,351']).toMatchObject({surface:'water',biome:'freshwater',elevation:1});
+ for(let y=351;y<=359;y++)expect(cells[`140,${y}`]).toMatchObject({surface:'water',elevation:1});
+ expect(cells['140,360']).toMatchObject({surface:'water',biome:'freshwater'});
+ expect(cells['140,360']?.elevation??0).toBe(0);
+});
