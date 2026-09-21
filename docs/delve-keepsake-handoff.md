@@ -16,3 +16,5 @@ Stack checks passed: 56 focused tests across 13 files, all workspace typechecks,
 
 
 Furniture-catalog regression followup explicitly partitions 32 purchasable plan-backed pieces and one earned keepsake, retains common residence/footprint/noncombat constraints for all 33, checks the unique art identity and zero-value economy, and proves the keepsake and a plan are absent from all shops. Homestead palette tests include the earned residence-only shape without adding it to outdoor construction.
+
+Phase-zero seam review compared all five pinned sources against Orchard `666ef9fb`: only the reviewed Delve admission label changed, from “FIGHT THROUGH 12 ROOMS.” to “12 ROOMS. HOME RECIPE ON FIRST WIN.” The predecessor reproduces the old digest exactly; the recaptured digest retains every ownership, source-count and acyclic-import assertion. This followup changes no production code.
