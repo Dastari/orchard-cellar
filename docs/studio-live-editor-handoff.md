@@ -2,6 +2,9 @@
 
 Date: 2026-09-21. Branch: `feat/studio-live-map-tools`.
 
+Pull request: https://github.com/Dastari/orchard-cellar/pull/41 (not merged).
+Implementation commit: `577c63a0`; subsequent documentation records closeout.
+
 ## Delivered behavior
 
 Studio 0.9.0 authenticates immediately, automatically connects to production and
