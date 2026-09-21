@@ -51,19 +51,25 @@ masks, with editor-only overrides. See [generation rules](studio-generation-rule
 
 ## Deployment and integration
 
-Studio 0.9.1 is prepared at
+Studio 0.9.1 is deployed from implementation commit `fba0fc44`; release evidence is at
 `/home/toby/.local/state/orchard-release/studio-feedback-20260921`.
-The checked source is `source-checked`; intended installed artifact is
+The checked source is `source-checked`; installed artifact is
 `output-checked`, entry `/assets/index-CpnebIh7.js`. `studio-before` retains the
 previous 0.9.0 artifact. Browser screenshots and validation logs are retained there.
-Installation/public verification results will be recorded after deployment.
+Public static, headers, proxy, JS/CSS byte checks and all six pixel-icon byte checks pass.
+Studio PID is 4076339; game/world PIDs stayed 3549396 / 26438. The installation
+waited for HTTP readiness and succeeded without rollback. The terrain-build fixture
+also passes all ten tests after removing the explicit CI timeout; assertions and
+repository-configured coverage timeout are preserved. New PR CI is pending.
 
 Only Studio is deployed by this task. Shared gameplay/authority code needs its own
 guarded release. No production test strokes, content publication, schema migration
 or game/world restart are part of this update. PRs #40/#42 independently change
 shared rendering and versions; reconcile them on integration. Release agent RubyBay
 has permission for a narrow isolated-worktree terrain-build test timeout correction;
-primary checkout ownership transfers only after this Studio release is recorded.
+the clean primary checkout is handed back after this release closeout. Preserve the
+installed checked Studio artifact during the town release; do not replace it by
+building unmerged Studio source from another branch.
 
 The user confirmed sign-in twice, but automation tab_5 still shows Orchard login
 without a Studio session. Anonymous immediate authentication is verified; authenticated

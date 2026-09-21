@@ -49,5 +49,3 @@ Source: `packages/ui/public/studio-icons/eyedropper.png`.
 Prompt:
 
 Use case: stylized-concept. Asset type: small pixel-art toolbar icon for a cozy top-down farming RPG editor. Subject: A diagonal glass eyedropper with a brown rubber bulb and one vivid green drop at its tip. Material sampling tool. Style: authentic low-resolution 32 by 32 pixel sprite, displayed enlarged with hard square pixels, no anti-aliasing, restrained warm cream/brown/green/blue palette, dark plum-brown outline, simple readable silhouette matching rustic pixel-art inventory objects. Composition: single centered icon occupying 80% of the square canvas with generous transparent padding. Background truly transparent alpha. No button frame, no badge, no text, no letters, no logo, no shadows outside the sprite, no vector/SVG look, no gradients, no photorealism.
-
-
