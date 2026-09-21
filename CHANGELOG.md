@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.2 / Studio 0.9.3 — Live map freeze recovery
+
+- Load the player appearance/held-light, enemy, mount and wildlife artwork used by Studio's live map before rendering actors, fixing repeated missing-art exceptions that froze the canvas.
+- Store map drafts with lossless compact JSON so the published town fits browser storage. Storage failures preserve the open map and previous saved draft, show an export warning once, and no longer interrupt checkout or editing.
+- Preserve explicit conflict resolution and existing local drafts; no map or content publication is part of this Studio update.
+
 ## 0.18.1 — Ripe fruit when a tree is chopped
 
 - Chopping a ripe apple, pear, peach or cherry tree again drops its fruit, the Orchard Seed Saver seed roll and Farming XP along with the wood.

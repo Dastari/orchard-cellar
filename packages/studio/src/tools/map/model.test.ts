@@ -6,6 +6,7 @@ import {
   migrateMapDocumentV2,
   normalizeMapDocumentV3,
   serializeMapDocumentV3,
+  serializeMapDocumentV3ForTransport,
   type MapDocumentV3,
 } from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
@@ -67,6 +68,49 @@ function mapHead(document: MapDocumentV3): NonNullable<StudioConnectionView['map
 }
 
 describe('Studio Map Editor model', () => {
+  it('stores compact drafts that restore the same map and live revision', () => {
+    const remote = remoteDocument(6, 'Published town');
+    const adapter = { view: () => view({ mapDocument: mapHead(remote) }) } as StudioLiveAdapter;
+    const storage = new MemoryStorage();
+    const { model } = harness(adapter, storage);
+    model.reconcileLiveHead();
+    const stored = storage.getItem('orchard.studio.map-draft.v1.live-island')!;
+    const envelope = JSON.parse(stored) as { document: string };
+    expect(envelope.document).toBe(serializeMapDocumentV3ForTransport(remote));
+    expect(stored.length).toBeLessThan(JSON.stringify({ ...JSON.parse(stored), document: serializeMapDocumentV3(remote) }).length);
+    const restored = harness(adapter, storage).model;
+    expect(mapDocumentV3Hash(restored.document())).toBe(mapDocumentV3Hash(remote));
+    expect(restored.baseRevision()).toBe(6);
+    expect(restored.dirty()).toBe(false);
+    model.dispose(); restored.dispose();
+  });
+
+  it('keeps checkout, editing and undo usable when storage fills without overwriting the saved draft', () => {
+    const remote = remoteDocument(6, 'Published town');
+    const adapter = { view: () => view({ mapDocument: mapHead(remote) }) } as StudioLiveAdapter;
+    const storage = new MemoryStorage();
+    const { model, notifications } = harness(adapter, storage);
+    model.reconcileLiveHead();
+    const saved = storage.getItem('orchard.studio.map-draft.v1.live-island');
+    vi.spyOn(storage, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    expect(() => model.renameLayer('objects', 'Draft objects')).not.toThrow();
+    expect(model.dirty()).toBe(true);
+    expect(storage.getItem('orchard.studio.map-draft.v1.live-island')).toBe(saved);
+    expect(() => model.undo()).not.toThrow();
+    expect(model.dirty()).toBe(false);
+    expect(() => model.reloadLatest()).not.toThrow();
+    expect(model.validationState()).toBe('ready');
+    expect(notifications.items().filter(item => item.title === 'Map draft could not be saved')).toHaveLength(1);
+    model.dispose();
+  });
+
+  it('opens the editor when browser storage cannot be read', () => {
+    const storage: MapDraftStorage = { getItem() { throw new Error('Storage blocked'); }, setItem() {} };
+    const { model } = harness(null, storage);
+    expect(model.document().id).toBe('live-island');
+    model.dispose();
+  });
+
   it('exposes all doc42 workspaces, Photoshop-style layers, selection, and validation kernels', () => {
     const { model, selection, inspector, validation } = harness();
     expect(MAP_EDITOR_WORKSPACES).toEqual(['terrain', 'objects', 'biomes', 'scatter']);

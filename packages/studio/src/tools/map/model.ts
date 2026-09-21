@@ -11,6 +11,7 @@ import {
   normalizeMapDocumentV3,
   parseMapDocumentV3,
   serializeMapDocumentV3,
+  serializeMapDocumentV3ForTransport,
   terrainDocumentForMapV3,
   validateMapDocument,
   type MapBiomeId,
@@ -157,6 +158,7 @@ export class MapEditorModel {
   #schemaInspectorTarget: MapSchemaInspectorTarget | null = null;
   readonly #unsubscribeSelection: () => void;
   #disposed = false;
+  #draftStorageWarningShown = false;
 
   constructor(
     readonly mapId: string,
@@ -707,15 +709,28 @@ export class MapEditorModel {
       baseRevision: this.#baseRevision,
       baseSemanticHash: this.#baseSemanticHash,
       dirty: this.#dirty,
-      document: serializeMapDocumentV3(this.#document),
+      // Pretty exports can exceed localStorage's quota on the live town map.
+      // Drafts use the same lossless compact representation as publication.
+      document: serializeMapDocumentV3ForTransport(this.#document),
     };
-    this.storage?.setItem(storageKey(this.mapId), JSON.stringify(envelope));
+    try {
+      this.storage?.setItem(storageKey(this.mapId), JSON.stringify(envelope));
+      this.#draftStorageWarningShown = false;
+    } catch {
+      // Storage failure must not abort checkout, validation or the render loop.
+      // Preserve both the in-memory draft and any previously stored draft.
+      if (!this.#draftStorageWarningShown) {
+        this.#draftStorageWarningShown = true;
+        this.services.notifications.push('warning', 'Map draft could not be saved',
+          'Your map remains open. Browser storage is unavailable or full; export your draft before closing or reloading.');
+      }
+    }
   }
 
   private restore(): void {
-    const source = this.storage?.getItem(storageKey(this.mapId));
-    if (source === null || source === undefined) return;
     try {
+      const source = this.storage?.getItem(storageKey(this.mapId));
+      if (source === null || source === undefined) return;
       const envelope = JSON.parse(source) as Partial<DraftEnvelope | LegacyDraftEnvelope>;
       if ((envelope.version !== 1 && envelope.version !== 2)
         || typeof envelope.baseRevision !== 'number' || typeof envelope.document !== 'string') return;

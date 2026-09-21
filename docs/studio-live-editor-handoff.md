@@ -1,4 +1,41 @@
-# Integration update — 2026-09-21
+# Live map freeze fix — 2026-09-22
+
+Branch: `fix/studio-map-character-art`, based on `cb1b97aa` (current main).
+Studio 0.9.3 / root 0.18.2 / engine 0.18.1. PR and installation checks are
+recorded below at release closeout; earlier entries are historical.
+
+The supplied console log contained 85 `playerRig.hair` drawing exceptions.
+An isolated sign-in using the dedicated development account reproduced the same
+incomplete-art problem for `rogueEnemies.slime_small_red`, plus a localStorage
+quota exception while accepting published map revision 6. The map art loader
+had deliberately omitted the actor banks even though the live renderer uses them.
+
+The loader now includes player appearance and held-light poses, wildlife/mounts,
+enemies and legacy NPC/chest/target artwork. It still excludes the gameplay UI skin,
+weather and combat tools and retains the shared asset request budget. Draft saving
+uses compact, lossless map JSON instead of pretty export JSON. Failed storage reads
+or writes cannot abort initialization, checkout, validation or editing; write failures
+preserve the in-memory and previously saved drafts and warn to export before closing.
+Existing draft versions and explicit map conflict choices remain unchanged.
+
+Regression coverage reproduces the exact missing-hair failure with the actual map
+art loader and actor painters, tests compact draft round-trip, and exercises editing,
+undo and checkout while storage throws. The signed-in staged production candidate
+loads map revision 6, persists a clean draft and supports detailed zoom/right-drag pan
+without errors. No production map edits or publication are used for verification.
+
+Release evidence: `/home/toby/.local/state/orchard-release/studio-freeze-20260922`.
+Guarded source: `source`; output: `output`; entry: `/assets/index-NbK5V0gu.js`.
+All changed runtime inputs match the staged snapshot; only a test call's explicit
+`hitFlash=false` argument was completed after staging and checked separately.
+
+All 5,915 tests pass (5,814 coverage + 101 exhaustive), with all thresholds met:
+88.69% statements, 84.02% branches, 94.35% functions, 92.78% lines. Workspace
+TypeScript/ESLint, canonical content, lifecycle integrity, world build and 1,320-asset
+validation pass. The real saved draft shrank from 6,141,603 to 4,150,073 characters
+and restores cleanly after reload.
+
+## Historical integration update — 2026-09-21
 
 The owner now authorizes merging and publishing #41 with the town release.
 RubyBay is reconciling current main into this branch. Version 0.18.0 / Studio
