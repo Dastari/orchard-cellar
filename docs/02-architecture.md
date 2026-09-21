@@ -279,6 +279,26 @@ UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
 
+### Willowharbour visual authoring (0.9.0)
+
+The tools-only archipelago composer rounds the village coastline, authors variable
+beaches and raised northern shelves, and places seeded mixed-age woodland around
+reserved buildings, paths and level terrain. Paving retains one semantic public
+network; dirt surfaces select soil art for rural lanes, while both surfaces use
+the existing 47-frame native grass fringe. This does not change the original
+island or Cinderwake generator.
+
+All ten village buildings use content-defined interior spaces and bidirectional
+portals. Optional bounded `hearthInteriorFloors` regions select rustic wood,
+parquet, stone or planting soil without changing authoritative collision. See
+[interior contracts](willowharbour-interiors.md) and
+[visual pass specification](west-town-visual-pass-spec.md).
+
+The offline exporter optionally accepts a reviewed prior map export to replace
+only unchanged Willowharbour authoring. It checks prior cells, objects, prefabs
+and transitions, preserves other regions and shared prefabs, then runs the normal
+conflict-aware composer. Publication remains a separate world/content release.
+
 ## Developer coordination service
 
 [Agent Mail Rust](../ops/agent-mail/README.md) runs as an independent loopback

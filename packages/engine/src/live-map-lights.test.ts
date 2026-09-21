@@ -4,7 +4,7 @@ import {liveMapObjectPointLights,preloadLiveMapObjectAssets} from './live-map-ru
 import {projectPointLightToTerrain} from './light-projection.js';
 import type {TerrainArray} from './terrain.js';
 vi.mock('@orchard/ui',async importOriginal=>({...await importOriginal<typeof import('@orchard/ui')>(),
-  loadGeneratedAsset:async()=>({metadata:{image:'fixture.png',animations:{burn:[{x:0,y:0,width:16,height:32,durationTicks:1}]},states:{}},anchor:[8,31]})}));
+  loadGeneratedAsset:async()=>({metadata:{image:'fixture.png',animations:{burn:[{x:0,y:0,width:16,height:32,durationTicks:1}],base:[{x:0,y:0,width:16,height:48,durationTicks:1}]},states:{}},anchor:[8,31]})}));
 vi.mock('./terrain.js',async importOriginal=>({...await importOriginal<typeof import('./terrain.js')>(),
   terrainElevationAtWorldFoot:(_terrain:unknown,x:number)=>x<180?2:0}));
 const registry=bootstrapContentRegistry();
@@ -57,4 +57,19 @@ it('combines placement rotation, parent mirror and scale without changing flicke
   expect([light.worldX,light.worldY,light.terrainContactX,light.receiverDirectionWorldY]).toEqual([136,112+offset*2,136,112]);
   const other={...transformed.objects[0]!,id:'other',tileX:20};
   expect(liveMapObjectPointLights({...transformed,objects:[other,...transformed.objects]},registry,93n)[1]).toEqual(light);
+});
+
+it('lights the native streetlamp from its lantern and rejects mismatched or retired fixtures',async()=>{
+  const base=fixture();
+  const document={...base,prefabs:[{...base.prefabs[0]!,placements:[{
+    ...base.prefabs[0]!.placements[0]!,assetName:'prop_cf_hearth_streetlamp',
+    visual:{kind:'animation' as const,name:'base',frameIndex:0},
+  }]}]};
+  await preloadLiveMapObjectAssets(document);
+  const lights=liveMapObjectPointLights(document,registry,0n);
+  expect(lights).toHaveLength(1);
+  expect(lights[0]).toMatchObject({worldX:168,worldY:102,radiusTiles:5,receiverDirectionWorldY:176});
+  const objects=new Map(registry.objects),definition=objects.get('object:hearth_streetlamp')!;
+  objects.set(definition.id,{...definition,retired:true});
+  expect(liveMapObjectPointLights(document,{...registry,objects},0n)).toEqual([]);
 });

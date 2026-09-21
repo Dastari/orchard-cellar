@@ -36,7 +36,7 @@ describe('Hearth archipelago composition', () => {
       }
     }
     expect(WILLOWHARBOUR_PLOTS).toHaveLength(10);
-    expect(WILLOWHARBOUR_PLOTS.filter(({ enterable }) => enterable)).toHaveLength(6);
+    expect(WILLOWHARBOUR_PLOTS.filter(({ enterable }) => enterable)).toHaveLength(10);
     for (const plot of WILLOWHARBOUR_PLOTS) expect(seen.has(`${plot.door.tileX},${plot.door.tileY}`), plot.id).toBe(true);
     expect(seen.has('209,400')).toBe(true);
   });

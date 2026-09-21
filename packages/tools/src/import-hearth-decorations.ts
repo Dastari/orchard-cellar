@@ -16,6 +16,10 @@ const sources=[
   ['stall_blue','Buildings/Buildings/Unique_Buildings/Stalls/Market_Stalls.png',48,48,96,0],
   ['stall_gold','Buildings/Buildings/Unique_Buildings/Stalls/Market_Stalls.png',48,48,144,0],
   ['bench','Outdoor decoration/Benches.png',32,32,32,0],
+  ['streetlamp','Outdoor decoration/Lanter_Posts.png',16,48,0,0],
+  ['well','Outdoor decoration/Well.png',32,48,0,0],
+  ['trough','Outdoor decoration/Water_Troughs.png',32,16,16,0],
+  ['scarecrow','Outdoor decoration/Scarecrows.png',32,32,0,0],
 
   ['hedge_horizontal','Tiles/Hedge_Tiles.png',16,16,32,0],
   ['hedge_vertical','Tiles/Hedge_Tiles.png',16,16,0,16],

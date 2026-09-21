@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {describe,it,expect} from 'vitest';
-import {bootstrapContentRegistry,
+import {bootstrapContentRegistry,runtimeSpacePortalPlans,
   createLiveIslandMapDocument,terrainDocumentForMapV3,compileMapDocument,collisionMapForCompiledMapDocument,
   mapObjectCollisionCells,positionCollides,movementPositionAllowed,TILE_SIZE_FIXED,PLAYER_HITBOX_FOOT_OFFSET,
   PLAYER_HITBOX_TOP,type CollisionMap,type CollisionObstacle} from '@orchard/sim';
@@ -10,7 +10,7 @@ import {buildHearthVillageFacades,buildHearthVillageScenery} from './hearth-vill
 function village(){
   let id=1;
   const assetFor=(name:string)=>{
-    const category=name.startsWith('building_')?'buildings':name.startsWith('tree_')?'trees':name.startsWith('crop_')?'crops':'props';
+    const category=name.startsWith('wildlife_')?'characters':name.startsWith('building_')?'buildings':name.startsWith('tree_')?'trees':name.startsWith('crop_')?'crops':'props';
     const asset=JSON.parse(readFileSync(new URL(`../../assets/${category}/${name}.sprite.json`,import.meta.url),'utf8')) as {
       size:[number,number];anchor:[number,number]};
     return {id:id++,width:asset.size[0],height:asset.size[1],anchor:asset.anchor};
@@ -53,9 +53,13 @@ function reachable(map:CollisionMap,target:{tileX:number;tileY:number},centerPhy
 }
 describe('decorated Willowharbour public NPC access',()=>{
   it('reaches every public threshold through the decorated frontage',()=>{
-    const map=village();
+    const map=village(),portals=runtimeSpacePortalPlans(bootstrapContentRegistry());
     for(const plot of WILLOWHARBOUR_PLOTS.filter(p=>p.enterable)) {
       expect(reachable(map,plot.door,true),plot.id).toBe(true);
+      const entry=portals.find(portal=>portal.fromSpaceId===0&&portal.fromTileX===plot.door.tileX&&portal.fromTileY===plot.door.tileY);
+      expect(entry,`${plot.id} entry portal`).toBeDefined();
+      const exit=portals.find(portal=>portal.fromSpaceId===entry!.toSpaceId&&portal.toSpaceId===0)!;
+      expect(positionCollides(center(exit.toTileX,exit.toTileY),map),`${plot.id} return landing`).toBe(false);
     }
   });
   it('reaches farm beds, pen and both agricultural doors without passing through fences',()=>{

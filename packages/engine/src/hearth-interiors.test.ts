@@ -44,3 +44,22 @@ describe('village interior terrain parity',()=>{
     expect(terrain.width).toBe(collision.width);expect(terrain.height).toBe(collision.height);
   });
 });
+
+it('paints authored room materials without making walls into floor or changing collision',()=>{
+  const registry=bootstrapContentRegistry();
+  for(const room of HEARTH_INTERIORS){
+    const definition=[...registry.spaces.values()].find(space=>space.spaceId===room.spaceId)!;
+    const terrain=terrainForSpace(definition,1,1,registry);
+    const styles=terrain.hearthInteriorFloorStyles!;
+    expect(styles.length).toBe(terrain.width*terrain.height);
+    for(let i=0;i<styles.length;i++)if(terrain.blocked[i])expect(styles[i]).toBe(0);
+    for(const {bounds:[left,top,right,bottom],style} of definition.hearthInteriorFloors??[]){
+      // Later regions may intentionally overlay a broad room, e.g. nursery beds.
+      const expected=style==='townhouse'?1:style==='stone'?2:3;
+      expect(Array.from({length:(right-left+1)*(bottom-top+1)},(_,i)=>{
+        const x=left+i%(right-left+1),y=top+Math.floor(i/(right-left+1));
+        return styles[y*terrain.width+x];
+      }).includes(expected),`${room.kind}: ${style}`).toBe(true);
+    }
+  }
+});

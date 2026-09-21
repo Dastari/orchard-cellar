@@ -1,5 +1,5 @@
 import {parseHearthArchitectureState,persistedHearthArchitectureCollision} from '@orchard/sim';
-import {hearthInteriorCollision} from '@orchard/sim';
+import {hearthInteriorCollision,bootstrapContentRegistry} from '@orchard/sim';
 import {
   FIXED_UNITS_PER_PIXEL,
   PLAYER_HITBOX_FOOT_OFFSET,
@@ -92,6 +92,8 @@ export interface TerrainArray {
   readonly rogueHazards?: Uint8Array;
   readonly rogueRoomRevision?: string;
   readonly hearthLobbyFloorThresholdY?: number;
+  /** Authored interior materials: 0 rustic wood, 1 townhouse parquet, 2 stone, 3 planting soil. */
+  readonly hearthInteriorFloorStyles?: Uint8Array;
   readonly defaultCliffFamily?: string;
   /** Space-wide projection contract. Per-cell cliff families select artwork;
    * they must not change the map's datum, projection, or collision plane. */
@@ -276,8 +278,17 @@ export function terrainForSpace(
           dirtCliffRoles:new Uint8Array(length),dirtTerraces:new Uint8Array(length)};
       }
       const layout={width:collision.width,height:collision.height,blocked:collision.blocked};
+      const authored = [...(registry ?? bootstrapContentRegistry()).spaces.values()]
+        .find(candidate => candidate.retired !== true && candidate.spaceId === space.spaceId);
+      const hearthInteriorFloorStyles = new Uint8Array(layout.width * layout.height);
+      for (const {bounds: [left, top, right, bottom], style} of authored?.hearthInteriorFloors ?? [])
+        for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
+          const index = y * layout.width + x;
+          if (!layout.blocked[index]) hearthInteriorFloorStyles[index] = style === 'townhouse' ? 1 : style === 'stone' ? 2 : 3;
+        }
+
       const length=layout.width*layout.height;
-      classification={...layout,spaceId:space.spaceId,generator:space.generator,
+      classification={...layout,hearthInteriorFloorStyles,spaceId:space.spaceId,generator:space.generator,
         defaultCliffFamily:'stone_1',projectionStyle:'raised',baseDatum:0,
         biomes:new Uint8Array(length).fill(Math.max(0,SURVIVAL_BIOMES.indexOf('plains'))),
         horseJumpableTerrain:Array<boolean>(length).fill(false),elevations:new Int16Array(length),
@@ -537,6 +548,14 @@ export function grassSandTransitionFrameIndexAt(
       ),
   );
   return frame === 46 ? null : frame;
+}
+
+/** Paving uses the same native grass fringe, including diagonal inside corners.
+ * Water/bridge decks count as continuous pavement so quay ends stay unobstructed. */
+export function pavingGrassTransitionFrameIndexAt(terrain: TerrainArray,tileX:number,tileY:number):number|null {
+  if(terrainBiomeAt(terrain,tileX,tileY)!=='paving')return null;
+  const frame=blob47FrameIndexFor((dx,dy)=>!vegetatedBiome(terrainBiomeAt(terrain,tileX+dx,tileY+dy)));
+  return frame===46?null:frame;
 }
 
 /** Savanna is the ecological buffer between humid grass and bare desert. Its

@@ -145,7 +145,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
 // Kenmi icon refresh shares Build/Crafting button chrome and preserves purse inventory.
 // Review: docs/reference-assets/kenmi-icon-implementation.md; HUD interaction tests cover the change.
-const STRUCTURAL_SEAM_DIGEST = '348dbb56aabdb3050aca2b686f0187599cfa64ac1fc6e30831322ebe844fc438';
+// Willowharbour binds native streetlamps to the authored lighting definition.
+// Review: docs/review/west-town-visual-pass-01.md; fixture-light tests cover this seam.
+const STRUCTURAL_SEAM_DIGEST = 'e914339321c728351460f16f3ada1390d2b2a524e3651b9de59233c9908d2ef4';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

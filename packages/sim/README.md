@@ -20,3 +20,11 @@ registry shared by the world server and client.
 
 Planting permissions, collision, inventory consumption and resource writes
 belong to the world authority. See [the feature specification](../../docs/fruit-seeds-spec.md).
+
+## Village interior content
+
+Willowharbour's ten `village_interior` spaces share deterministic room and furniture
+collision. `hearthInteriorFloors` optionally assigns bounded `townhouse`, `stone`
+or `soil` finishes; it changes presentation only. Authored portal pairs connect
+each space to its exterior door through the ordinary content portal planner.
+See [the interior format and room catalogue](../../docs/willowharbour-interiors.md).
