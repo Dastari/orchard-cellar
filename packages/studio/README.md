@@ -21,3 +21,5 @@ The live service is `orchard-studio.service`, serving `packages/studio/dist` on
 port 5174 behind https://cellar.dastari.net/. For staging, rollback, installation
 and validation, follow [the runtime runbook](../../ops/orchard-runtime/README.md).
 Edit source in a Git branch and deliver through a PR; never edit live dist files.
+
+Migration, validation and cleanup evidence: [integration handoff](../../docs/studio-integration-handoff.md).

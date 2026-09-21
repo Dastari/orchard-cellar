@@ -13,6 +13,7 @@ The final pass found no unresolved integration issue.
 | Exporting the kit from the shared UI root inflated the game chunk | Separate `@orchard/ui/studio`; real Vite fixture builds reject editor dependencies, including dynamic imports. Independent game build passes its chunk checks. |
 | Two text-editor classes broke instance identity | Existing shared path reexports the kit editing model; bridge identity regression passes. |
 | Old item publish fixtures omitted current hash/readiness contracts | Preserve current serialization, verified content-head and numeric NPC ID behavior; publish/bootstrap/New-action regressions pass. |
+| Source-image palette preprocessing tripped the world-surface readback guard | Request a CPU-read scratch canvas and allow only its exact expression; focused regressions and the full coverage rerun pass. |
 | Duplicated public symbols and external source overlay could drift | One `packages/ui/public` source, per-app build copies, and a single-source staging helper with before/after manifests. |
 | Broad worktree deletion could destroy unrelated work | Archive private inputs; remove only clean merged checkouts after process checks; retain branches and unique/open-PR work. |
 

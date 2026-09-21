@@ -1,6 +1,7 @@
 # Reviewed Studio integration
 
-Status: implementation authorized by the owner on 2026-09-21.
+Status: integrated and deployed on 2026-09-21; PR #36 remains unmerged.
+Results: [deployment and cleanup handoff](studio-integration-handoff.md).
 
 ## Objective
 
