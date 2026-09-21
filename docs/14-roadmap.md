@@ -7,6 +7,14 @@ hand-off notes. Single-player ships value before any server work: the shared
 deterministic sim ([02-architecture.md](02-architecture.md)) is what makes moving
 authority to the server later a mechanical change, not a rewrite.
 
+## Unified actions P0 — `⏳ in progress (codex, 2026-09-21)`
+
+The [design and phase plan (PR 34)](https://github.com/Dastari/orchard-cellar/pull/34)
+now has its first implementation slice: a generated [item action inventory](action-baseline.md),
+a drift check and current tool geometry/charge goldens. The [handoff](action-baseline-notes.md)
+records completed coverage and the remaining lifecycle, parameter and custody-writer audits.
+P0 is not complete; P1 remains gated on the completed phase being integrated.
+
 ## M0 — Skeleton `☑ complete (codex, 2026-08-24)`
 Monorepo (npm workspaces per 02), strict tsconfig, Vitest, ESLint (incl. sim bans on
 `Math.random`/`Date.now`), Vite client shell showing a colored canvas at 480×270

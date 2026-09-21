@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5 — Unified action baseline tooling
+
+- Begin P0 with a generated inventory of every live bootstrap item variant, current action owner, lifecycle triggers and numeric authored values. Add `actions:baseline -- --check|--write` and make drift a normal test failure.
+- Add current-main geometry and bow charge goldens for the future tool/spell migration, plus ownership validation tests.
+- Record the repair cursor/escrow requirements, pending gameplay PRs and remaining P0 audits in [the implementation handoff](docs/action-baseline-notes.md). This slice does not enable the new action system or repair UI.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool
