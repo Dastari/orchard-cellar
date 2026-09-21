@@ -18,3 +18,12 @@ The PR40 saved-map upgrade rehearsal passed through the normal exporter using it
 ## Release scope
 
 Game assets/client, world content and reviewed saved-map update. Shared light fields are backward compatible and default to intensity 1000. No persistence-table change. Follow `ops/orchard-runtime/PUBLISHING.md` for publication and verify real map conflicts and live results at https://orchard.dastari.net/. No Studio UI change or Studio deployment. PR41's independent shared-generation work still needs normal integration with the town PR stack.
+
+## Final validation
+
+- Clean coverage run: 928 files passed; 5,663 tests passed, two skipped. Statements 88.71%, branches 84.03%, functions 94.26%, lines 92.78%; all thresholds passed.
+- 51 exhaustive terrain tests; 144 native-source pixel tests; 22 scenery/composition/access checks passed.
+- Workspace type checks and ESLint; simulation/tools/world/client builds; 1,314 assets validated; lifecycle integrity passed.
+- Content payload 559,662 bytes, within budget; content hash `2f704947`.
+- An initial run concurrent with builds/exhaustive tests hit Studio's 50 ms pointer threshold. It passed in isolation and in the clean complete rerun; no Studio code or threshold was changed.
+- PR https://github.com/Dastari/orchard-cellar/pull/42 is stacked on PR40. GitHub checks were pending at local closeout. No merge or deployment.
