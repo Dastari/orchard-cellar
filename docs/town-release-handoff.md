@@ -77,3 +77,34 @@ Live map is revision 5/hash `38ce9f5e`. Its current-parser export adds only the
 inferred `soil.watered` role to 18 farm landmarks; a comparison verified all other
 fields and collection members are preserved. The raw capture and normalization
 report are retained privately. Town-map upgrade verification remains in progress.
+
+## Follow-up gates and owner handoff
+
+The completed map candidate is private at
+`town-20260921-rubybay/map-candidate/map.json` under the evidence root above:
+revision 6, SHA256 `78d2ad5275a4e03e76168894e2d039ff2c7ac402610c3f13b3d6736ba6f4e394`,
+39,954 cells, 201 prefabs and 2,100 objects, zero unapproved assets. The original
+published baseline was recovered from `output/doc60/map-candidate-live-r4-v3`
+(SHA256 `ef53c93da32b0eabcae33477317effeb1f49c6b53e81dfa96cec69b96ace087b`).
+The unmodified baseline passed town cell/object/prefab/transition checks. Eleven
+retained shared prefab definitions match that baseline exactly; only their asset
+registry references were updated, recorded privately. Export then passes and an
+independent comparison verifies every terrain cell and object outside town is
+unchanged. Publication still requires occupancy/asset/live-CAS and route checks.
+
+`publishLiveMapDocument` requires a world owner. Content Editor alone cannot
+publish this map. The previous persistent owner reconnect file fails refresh
+HTTP 400. A fresh encrypted owner handoff is pending user action via
+`python3 /home/toby/.local/state/orchard-agent/store-owner-handoff.py`.
+It prints a same-origin Studio encryption snippet and accepts only its ciphertext
+at a hidden prompt. The temporary RSA key is private in `/dev/shm/orchard-town-owner`;
+success writes `/dev/shm/orchard-town-owner-rejoin.json` and deletes the key. Do not
+claim owner verification until guarded refresh and own-membership checks pass.
+
+PR40 had one passing CI run and one failing selection-inspection 50ms budget
+under coverage (66ms). The nine-test suite passes without coverage in 3.95s and
+has been added to the unchanged-budget serial lane across all three PRs. Fresh
+CI is required on the updated heads. A fresh full local check is running with
+restored licensed art; log `/tmp/orchard-town-headwaters-check-verified.log`.
+No PR has been merged, no service stopped, and no production module/content/map
+has been published by RubyBay. Keep PR41 excluded and preserve its deployed UI.
