@@ -2,6 +2,11 @@
 
 ## Unreleased — Town release verification
 
+- Preserve a separately reviewed Studio artifact during guarded schema migrations
+  after source-manifest, installed-output, UI-kit and generated API checks.
+- Document the encrypted dedicated development account and verified Content
+  Editor grant for future agents.
+
 - Run CPU-heavy town/Studio fixtures and UI timing budgets in the serial,
   non-coverage test lane, preserving all assertions and existing timing limits.
 - Allow guarded same-schema world releases to preserve the independently reviewed

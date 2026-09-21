@@ -33,6 +33,16 @@ Classify the actual candidate against the deployed module and content head:
   backup, restoration rehearsal and parity requirements. Additive schema-only
   work uses `WORLD_RELEASE_MIGRATION_KIND=schema-only`; do not request legacy-chest
   migration inputs unless that migration actually applies.
+  To preserve an independently reviewed Studio during migration, set
+  `WORLD_RELEASE_STUDIO_MODE=preserve-current`, plus absolute
+  `WORLD_RELEASE_STUDIO_REVIEWED_SOURCE` and
+  `WORLD_RELEASE_STUDIO_REVIEWED_ARTIFACT` paths from its agent's handoff.
+  The source directory must contain its original `source-manifest.json`.
+  Before any build, the installed artifact must match the reviewed output.
+  Before downtime, the source manifest, UI-kit guard and generated public bindings
+  must match the reviewed Studio snapshot. A mismatch stops the release; it does
+  not fall back to rebuilding Studio. Backup, restore rehearsal and parity gates
+  remain mandatory.
 
 For world/game releases, establish explicit approval for the concrete release per
 README. Preparing credentials or opening a PR is not permission to merge or deploy.
