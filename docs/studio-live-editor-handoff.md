@@ -1,8 +1,9 @@
 # Live map freeze fix — 2026-09-22
 
 Branch: `fix/studio-map-character-art`, based on `cb1b97aa` (current main).
-Studio 0.9.3 / root 0.18.2 / engine 0.18.1. PR and installation checks are
-recorded below at release closeout; earlier entries are historical.
+Studio 0.9.3 / root 0.18.2 / engine 0.18.1. Implementation `721379c4`.
+PR: https://github.com/Dastari/orchard-cellar/pull/46 (open, not merged; CI running).
+Earlier entries below are historical.
 
 The supplied console log contained 85 `playerRig.hair` drawing exceptions.
 An isolated sign-in using the dedicated development account reproduced the same
@@ -34,6 +35,14 @@ All 5,915 tests pass (5,814 coverage + 101 exhaustive), with all thresholds met:
 TypeScript/ESLint, canonical content, lifecycle integrity, world build and 1,320-asset
 validation pass. The real saved draft shrank from 6,141,603 to 4,150,073 characters
 and restores cleanly after reload.
+
+Deployed successfully with public static/headers/proxy and JS/CSS byte checks.
+Only Studio restarted (PID 563170); game/world PIDs stayed 535262 / 134213.
+Dedicated account verification was repeated against the public release with all
+candidate overrides removed: authenticated map revision 6, working detailed zoom
+and right-drag pan, zero page/unhandled errors and a persisted clean draft.
+Rollback: `studio-before` (0.9.2). No production map edits/publication, role changes
+or reconnect credential handoffs occurred. The isolated browser session is closed.
 
 ## Historical integration update — 2026-09-21
 
