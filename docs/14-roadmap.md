@@ -16,6 +16,14 @@ fixtures -> repair escrow/UI -> retirement and release rehearsal. Implementation
 not started. Preserve open gameplay PR behavior, including hoe/fish fixes and fishing
 progression; do not merge or deploy as part of the planning request.
 
+## Unified actions P0 — `⏳ in progress (codex, 2026-09-21)`
+
+The [design and phase plan (PR 34)](https://github.com/Dastari/orchard-cellar/pull/34)
+now has its first implementation slice: a generated [item action inventory](action-baseline.md),
+a drift check and current tool geometry/charge goldens. The [handoff](action-baseline-notes.md)
+records completed coverage and the remaining lifecycle, parameter and custody-writer audits.
+P0 is not complete; P1 remains gated on the completed phase being integrated.
+
 ## M0 — Skeleton `☑ complete (codex, 2026-08-24)`
 Monorepo (npm workspaces per 02), strict tsconfig, Vitest, ESLint (incl. sim bans on
 `Math.random`/`Date.now`), Vite client shell showing a colored canvas at 480×270
