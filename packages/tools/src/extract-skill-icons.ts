@@ -18,6 +18,9 @@ type SkillIconCrop = {
 };
 
 const sources = {
+  premiumTools: 'references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png',
+  premiumFarming: 'references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png',
+  premiumResources: 'references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png',
   warrior: 'references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png',
   rogue: 'references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png',
   spells: 'references/art/clockwork-raven/magic/skills-spells-400/sheet-16.png',
@@ -52,9 +55,9 @@ const crops: readonly SkillIconCrop[] = [
   { nodeId: 'deep_pockets', source: sources.tools, column: 10, row: 5 },
   { nodeId: 'prospector', source: sources.tools, column: 6, row: 9 },
   { nodeId: 'efficient_strikes', source: sources.tools, column: 13, row: 9 },
-  { nodeId: 'ore_dressing', source: sources.materials, column: 9, row: 2 },
+  { nodeId: 'ore_dressing', source: sources.premiumResources, column: 1, row: 3 },
   { nodeId: 'rockhound', source: sources.materials, column: 2, row: 8 },
-  { nodeId: 'mother_lode', source: sources.treasure, column: 7, row: 0 },
+  { nodeId: 'mother_lode', source: sources.premiumResources, column: 3, row: 12 },
   // Discovery uses retained plain native awareness, cave and navigation art.
   { nodeId: 'ore_sense', source: sources.attributes, column: 3, row: 6 },
   { nodeId: 'deep_ore_sense', source: sources.places, column: 3, row: 1 },
@@ -79,11 +82,12 @@ const crops: readonly SkillIconCrop[] = [
   { nodeId: 'perfect_volley', source: sources.rogue, column: 12, row: 13 },
 
   // Farming — cultivation, harvests, stations, orchards, and automation.
-  { nodeId: 'farming_root', source: sources.farming, column: 7, row: 4 },
+  { nodeId: 'farming_root', source: sources.premiumFarming, column: 0, row: 0 },
   { nodeId: 'green_thumb', source: sources.farming, column: 10, row: 1 },
-  { nodeId: 'tender_hand', source: sources.attributes, column: 5, row: 2 },
-  { nodeId: 'farmcraft', asset: 'props/item_cf_apple' },
-  { nodeId: 'seed_saver', source: sources.farming, column: 3, row: 4 },
+  { nodeId: 'tender_hand', source: sources.premiumTools, column: 0, row: 32 },
+  { nodeId: 'farmcraft', source: sources.premiumTools, column: 0, row: 5 },
+  { nodeId: 'orchard_seed_saver', source: sources.premiumFarming, column: 1, row: 10 },
+  { nodeId: 'seed_saver', source: sources.premiumFarming, column: 1, row: 0 },
   { nodeId: 'bountiful_harvest', source: sources.farming, column: 9, row: 6 },
   { nodeId: 'soil_whisperer', source: sources.spells, column: 6, row: 12 },
   { nodeId: 'grafting', source: sources.trees, column: 3, row: 0 },
@@ -96,11 +100,11 @@ const crops: readonly SkillIconCrop[] = [
 
   // Rural specializations — each node receives a distinct licensed native
   // frame so branches remain recognizable at the skill tree's compact scale.
-  { nodeId: 'mining_endurance', asset: 'props/prop_cf_anvil', animation: 'animate' },
+  { nodeId: 'mining_endurance', source: sources.premiumTools, column: 0, row: 0 },
   { nodeId: 'fishing_endurance', asset: 'props/item_cf_fishing_rod' },
   { nodeId: 'seasoned_angler', source: sources.fishing, column: 0, row: 5 },
   { nodeId: 'master_angler', source: sources.fishing, column: 7, row: 5 },
-  { nodeId: 'woodcutting_endurance', source: sources.trees, column: 0, row: 1 },
+  { nodeId: 'woodcutting_endurance', source: sources.premiumTools, column: 0, row: 12 },
   { nodeId: 'timber_sense', source: sources.trees, column: 9, row: 0 },
   { nodeId: 'master_forester', source: sources.trees, column: 2, row: 0 },
   { nodeId: 'animal_bond', source: sources.animals, column: 3, row: 0 },
@@ -220,7 +224,7 @@ for (const crop of selectedCrops) {
     importedFrom: basename(crop.source),
     sourcePath: crop.source,
     sourceRegion: [originX, originY, 16, 16],
-    tags: ['ui.icon', 'ui.skill', `skill.${crop.nodeId}`, 'source.clockwork_raven'],
+    tags: ['ui.icon', 'ui.skill', `skill.${crop.nodeId}`, crop.source.includes('/kenmi/') ? 'source.kenmi' : 'source.clockwork_raven'],
     placement: { layer: 'ui', builderAvailable: false },
   };
   await writeFile(resolve(outputRoot, `${name}.sprite.json`), `${JSON.stringify(asset, null, 2)}\n`);

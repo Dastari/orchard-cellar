@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "................",
         "...........00...",
-        "..........0540..",
-        ".........055420.",
-        "........0554420.",
-        ".......0544220..",
-        ".......054420...",
-        "......0220......",
-        ".....0310.......",
-        "....0310........",
-        "...0310.........",
-        "..0310..........",
-        ".01310..........",
-        "..000...........",
+        "..........0700..",
+        ".........070110.",
+        "........05012240",
+        ".......050122460",
+        ".......03024460.",
+        "......03006660..",
+        ".....050.0000...",
+        "....070.........",
+        "...070..........",
+        "..070...........",
+        "0050............",
+        "030.............",
+        "000.............",
         "................"
       ]
     ]
@@ -34,33 +34,34 @@
   "frameKinds": {
     "base": "state"
   },
-  "lintAllow": [
-    "sparkle"
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+  "sourceRegion": [
+    16,
+    128,
+    16,
+    16
   ],
+  "importedFrom": "Tools_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#424c6e",
+    "2": "#6c7c9d",
+    "3": "#8a4836",
+    "4": "#8e9ab4",
+    "5": "#bf6f4a",
+    "6": "#c0cbdc",
+    "7": "#e69c69"
+  },
+  "approved": true,
   "tags": [
     "ui.icon",
-    "item.tool"
+    "item.tool",
+    "tool.shovel",
+    "source.kenmi"
   ],
   "placement": {
     "layer": "ui",
     "builderAvailable": false
-  },
-  "approved": true,
-  "sourcePath": "references/art/orchard-originals/tools/Tool_Icons_Extra_NO_Outline.png",
-  "importedFrom": "Tool_Icons_Extra_NO_Outline.png",
-  "sourceRegion": [
-    0,
-    0,
-    16,
-    16
-  ],
-  "sourcePaletteMode": "exact",
-  "sourcePalette": {
-    "0": "#1a1210",
-    "1": "#6b4423",
-    "2": "#6e6a75",
-    "3": "#8a5b3c",
-    "4": "#969099",
-    "5": "#c4bec6"
   }
 }
