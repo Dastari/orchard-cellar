@@ -11,10 +11,10 @@ export const WILLOWHARBOUR_PLOTS = [
   { id: 'furnisher', minX: 158, minY: 408, maxX: 170, maxY: 421, enterable: true, door: { tileX: 164, tileY: 422 } },
   { id: 'smith', minX: 180, minY: 411, maxX: 193, maxY: 424, enterable: true, door: { tileX: 187, tileY: 425 } },
   { id: 'guild', minX: 174, minY: 366, maxX: 185, maxY: 381, enterable: true, door: { tileX: 179, tileY: 382 } },
-  { id: 'garden-cottage', minX: 116, minY: 363, maxX: 130, maxY: 378, enterable: false, door: { tileX: 123, tileY: 379 } },
-  { id: 'orchard-cottage', minX: 105, minY: 411, maxX: 119, maxY: 426, enterable: false, door: { tileX: 112, tileY: 427 } },
-  { id: 'barn', minX: 108, minY: 440, maxX: 126, maxY: 453, enterable: false, door: { tileX: 117, tileY: 454 } },
-  { id: 'greenhouse', minX: 136, minY: 442, maxX: 149, maxY: 453, enterable: false, door: { tileX: 142, tileY: 454 } },
+  { id: 'garden-cottage', minX: 116, minY: 363, maxX: 130, maxY: 378, enterable: true, door: { tileX: 123, tileY: 379 } },
+  { id: 'orchard-cottage', minX: 105, minY: 411, maxX: 119, maxY: 426, enterable: true, door: { tileX: 112, tileY: 427 } },
+  { id: 'barn', minX: 108, minY: 440, maxX: 126, maxY: 453, enterable: true, door: { tileX: 117, tileY: 454 } },
+  { id: 'greenhouse', minX: 136, minY: 442, maxX: 149, maxY: 453, enterable: true, door: { tileX: 142, tileY: 454 } },
 ] as const;
 
 /** Offline-only coastline catalogs. Field order preserves export-manifest compatibility. */
@@ -23,9 +23,11 @@ export const HEARTH_AUTHORING_ISLANDS = {
     name: HEARTH_ISLANDS.willowharbour.name,
     minX: HEARTH_ISLANDS.willowharbour.minX, minY: HEARTH_ISLANDS.willowharbour.minY,
     maxX: HEARTH_ISLANDS.willowharbour.maxX, maxY: HEARTH_ISLANDS.willowharbour.maxY,
-    coast: [[95,333],[124,325],[147,336],[177,330],[200,348],[208,374],[217,390],
-      [214,415],[198,432],[196,451],[171,468],[143,472],[121,456],[98,462],
-      [80,441],[71,416],[82,391],[74,367],[88,349]],
+    coast: [[83,355],[94,337],[112,329],[127,331],[140,341],[153,339],[168,331],
+      [183,336],[194,348],[199,363],[207,376],[214,390],[215,408],[206,419],
+      [207,428],[197,444],[183,455],[170,464],[153,470],[139,469],[128,462],
+      [115,463],[102,465],[91,455],[82,441],[76,425],[77,409],[87,397],
+      [89,389],[80,380],[76,369]],
     arrival: HEARTH_ISLANDS.willowharbour.arrival, ferry: HEARTH_ISLANDS.willowharbour.ferry,
   },
   cinderwake: {
@@ -58,6 +60,24 @@ function insideCoast(x: number, y: number, polygon: readonly (readonly [number, 
   return inside;
 }
 
+/** Catmull–Rom samples round authored headlands without random tile speckle. */
+function roundedCoast(points: readonly (readonly [number,number])[]): readonly (readonly [number,number])[] {
+  return points.flatMap((b,i)=>{
+    const a=points[(i+points.length-1)%points.length]!,c=points[(i+1)%points.length]!,d=points[(i+2)%points.length]!;
+    return Array.from({length:6},(_,step)=>{
+      const t=step/6;
+      const at=(axis:0|1)=>.5*((2*b[axis])+(-a[axis]+c[axis])*t+(2*a[axis]-5*b[axis]+4*c[axis]-d[axis])*t*t+(-a[axis]+3*b[axis]-3*c[axis]+d[axis])*t*t*t);
+      return [at(0),at(1)] as const;
+    });
+  });
+}
+const WILLOW_COAST=roundedCoast(HEARTH_AUTHORING_ISLANDS.willowharbour.coast);
+const WILLOW_SHELVES=[
+  roundedCoast([[89,348],[110,337],[127,341],[142,350],[165,343],[182,350],[186,359],
+    [169,363],[151,360],[140,361],[122,354],[107,363],[92,371],[86,361]]),
+  roundedCoast([[99,345],[112,341],[124,345],[131,350],[121,350],[109,349],[99,354]]),
+] as const;
+
 function key(x: number, y: number): string { return `${x},${y}`; }
 
 export interface HearthArchipelagoContribution {
@@ -72,10 +92,17 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
   for (const [id, island] of Object.entries(HEARTH_AUTHORING_ISLANDS)) {
     for (let y = island.minY; y <= island.maxY; y += 1) {
       for (let x = island.minX; x <= island.maxX; x += 1) {
-        if (!insideCoast(x + 0.5, y + 0.5, island.coast)) continue;
-        const shore = [[-2,0],[2,0],[0,-2],[0,2]].some(([dx,dy]) => !insideCoast(x + dx! + 0.5, y + dy! + 0.5, island.coast));
+        const coast=id==='willowharbour'?WILLOW_COAST:island.coast;
+        if (!insideCoast(x + 0.5, y + 0.5, coast)) continue;
         if (id === 'willowharbour') {
-          cells[key(x,y)] = shore ? { biome: 'beach', surface: 'sand' } : { biome: 'meadow', surface: 'grass' };
+          // Deep southern/western coves open into sand; sheltered headlands have
+          // narrow shingle. Distance samples include diagonals to avoid diamond rims.
+          const beachWidth=y>438?5+2*Math.sin(x/11):x<96?3.5:1.5;
+          const beach=Array.from({length:16},(_,i)=>i*Math.PI/8).some(angle=>
+            !insideCoast(x+.5+Math.cos(angle)*beachWidth,y+.5+Math.sin(angle)*beachWidth,coast));
+          const elevation=WILLOW_SHELVES.reduce((level,shelf,index)=>insideCoast(x+.5,y+.5,shelf)?index+1:level,0);
+          cells[key(x,y)] = beach ? { biome: 'beach', surface: 'sand' }
+            : { biome: 'meadow', surface: 'grass', ...(elevation?{elevation,cliffFamily:'stone_1'}:{}) };
         } else {
           const elevation = CINDER_TERRACES.reduce((level, coast, index) =>
             insideCoast(x + 0.5, y + 0.5, coast) ? index + 1 : level, 0);
@@ -85,9 +112,18 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
       }
     }
   }
+  // Broad woodland stair landings, connected through the meadow north of town.
+  for(let x=144;x<=147;x++) {
+    for(let y=354;y<=364;y++) cells[key(x,y)]={biome:'meadow',surface:'grass',...(y<360?{elevation:1,cliffFamily:'stone_1' as const}:{})};
+    transitions.push({contourLevel:1,kind:'slope',direction:'up',lowerTileX:x,lowerTileY:360,upperTileX:x,upperTileY:359});
+  }
   // Town pond, crossed by a real walkable bridge lane below.
   for (let y = 370; y <= 385; y += 1) for (let x = 131; x <= 149; x += 1) {
-    if (((x - 140) / 9) ** 2 + ((y - 378) / 7) ** 2 < 1) cells[key(x,y)] = { biome: 'freshwater', surface: 'water' };
+    if (((x - 140 + 1.2*Math.sin(y/2.8)) / 9) ** 2 + ((y - 378) / 7) ** 2 < 1) cells[key(x,y)] = { biome: 'freshwater', surface: 'water' };
+  }
+  for(let y=362;y<=374;y++) {
+    const center=139+Math.round(1.5*Math.sin(y/4));
+    for(let x=center-1;x<=center+1;x++)cells[key(x,y)]={biome:'freshwater',surface:'water'};
   }
   const road = (points: readonly MapPoint[], width: number, volcanic = false): void => {
     for (let i = 1; i < points.length; i += 1) {
@@ -128,7 +164,7 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
     cells[key(x,y)] = { surface: 'stone', biome: 'paving' };
   }
   // Open inn terrace, timber yard and the furnisher's outdoor display apron.
-  for (const [left,top,right,bottom] of [[158,390,162,393],[136,399,140,405],[171,418,175,424],[175,383,176,385],[194,402,196,404]] as const) {
+  for (const [left,top,right,bottom] of [[158,390,173,392],[136,395,140,405],[171,418,175,424],[175,383,176,385],[194,402,196,404]] as const) {
     for(let y=top;y<=bottom;y++) for(let x=left;x<=right;x++) cells[key(x,y)]={ surface: 'stone', biome: 'paving' };
   }
   road([point(142,430),point(142,440)],2);
@@ -138,6 +174,12 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
     for(let y=plot.door.tileY;y<=plot.door.tileY+1;y++) for(let x=plot.door.tileX-1;x<=plot.door.tileX+1;x++) {
       cells[key(x,y)]={surface:'stone',biome:'paving'};
     }
+  }
+  // Rural lanes retain their public-path biome but select native dirt rather
+  // than municipal stone; transitions and collision remain the same network.
+  for(const [position,cell] of Object.entries(cells)) {
+    const [x,y]=position.split(',').map(Number);
+    if(cell.biome==='paving'&&x!<155&&y!>=427)cells[position]={...cell,surface:'dirt'};
   }
   // Two cultivated beds with a broad grass aisle and headland by the greenhouse.
   for(const [left,right] of [[136,140],[144,148]] as const) {

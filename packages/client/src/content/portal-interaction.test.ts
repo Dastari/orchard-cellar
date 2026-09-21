@@ -92,3 +92,17 @@ describe('authored space portal prompts', () => {
       .toEqual({ authored: false, prompt: null });
   });
 });
+
+
+it('labels every village building entrance and exit from its active authored name',()=>{
+  const interiors=authoredSpaces.filter(space=>space.generator==='village_interior');
+  expect(interiors).toHaveLength(10);
+  for(const interior of interiors){
+    for(const portal of interior.portals??[]){
+      const entering=portal.toSpace===interior.id;
+      expect(authoredSpacePortalPrompt(base,portalRow(portal.portalKind))).toEqual({
+        authored:true,prompt:`${entering?'ENTER':'LEAVE'} ${interior.name.toUpperCase()}`,
+      });
+    }
+  }
+});

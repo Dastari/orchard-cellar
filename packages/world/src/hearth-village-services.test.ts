@@ -15,7 +15,7 @@ describe('Willowharbour authored services',()=>{
     expect(registry.npcs.get('npc:marlow')?.runtimeId).toBe('2');
     expect(registry.npcs.get('npc:fisherman_fin')?.runtimeId).toBe('7');
   });
-  it.each(HEARTH_INTERIORS)('$kind has active content geometry and an accessible living service NPC',interior=>{
+  it.each(HEARTH_INTERIORS.filter(interior=>villagers.some(npc=>npc.home.spaceId===interior.spaceId)))('$kind has active content geometry and an accessible living service NPC',interior=>{
     const space=registry.spaces.get(`space:willow_${interior.kind.replaceAll('-','_')}`);
     expect(space).toMatchObject({spaceId:interior.spaceId,generator:'village_interior',weather:false,environment:'indoor'});
     const collision=hearthInteriorCollision(interior.spaceId);

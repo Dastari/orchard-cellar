@@ -23,6 +23,7 @@ import {
   desertGrassInsetFrameIndicesAt,
   desertShoreFrameIndexAt,
   grassSandTransitionFrameIndexAt,
+  pavingGrassTransitionFrameIndexAt,
   savannaGrassTransitionFrameIndexAt,
   shorelineInsetFrameIndicesAt,
   dirtTerraceFrameIndexAt,
@@ -406,6 +407,7 @@ function groundAssetForTile(
   tileY: number,
   biome: SurvivalBiome,
 ): LoadedAsset {
+  if (biome==='paving'&&terrain.dirtTerraces[tileY*terrain.width+tileX])return art.farmland;
   if (biome !== 'plains') return groundAssetForBiome(art, biome);
   const index = tileY * terrain.width + tileX;
   const familyId = surfaceFamilyAtIndex(terrain.surfaceFamilies?.[index] ?? 0)
@@ -679,7 +681,11 @@ export class GroundChunkCache {
         if (!groundTileInsideTerrain(terrain, tileX, tileY)) continue;
         if(terrain.generator==='village_interior'){
           const index=tileY*terrain.width+tileX;
-          if(!terrain.blocked[index])drawGroundAsset(context,art.woodFloor,localX,localY,0);
+          if(!terrain.blocked[index]) {
+            const style=terrain.hearthInteriorFloorStyles?.[index]??0;
+            const floor=style===1?art.hearthTownhouseFloor:style===2?art.rogueDungeonFloor:style===3?art.farmland:art.woodFloor;
+            drawGroundAsset(context,floor,localX,localY,style===3?46:0);
+          }
           else if(tileY+1<terrain.height&&!terrain.blocked[index+terrain.width])drawGroundAsset(context,art.hearthInteriorWall,localX,localY);
           continue;
         }
@@ -808,7 +814,7 @@ export class GroundChunkCache {
         const base = groundAssetForTile(art, terrain, tileX, tileY, biome);
         const baseFrame =
           biome === 'paving'
-            ? (tileY % 2) * 2 + tileX % 2
+            ? terrain.dirtTerraces[tileY*terrain.width+tileX]?46:(tileY % 2) * 2 + tileX % 2
             : biome === 'volcanic_ash' || biome === 'lava'
             ? 4
             : biome === "beach"
@@ -847,6 +853,9 @@ export class GroundChunkCache {
             localY,
             grassSandFrame,
           );
+
+        const pavingGrassFrame=pavingGrassTransitionFrameIndexAt(terrain,tileX,tileY);
+        if(pavingGrassFrame!==null)drawGrassSandTransition(context,art.farmlandGrassInset,localX,localY,pavingGrassFrame);
 
         const savannaGrassFrame = savannaGrassTransitionFrameIndexAt(
           terrain,
@@ -928,7 +937,7 @@ export class GroundChunkCache {
           );
 
         const dirtTerraceFrame = dirtTerraceFrameIndexAt(terrain, tileX, tileY);
-        if (dirtTerraceFrame !== null) {
+        if (dirtTerraceFrame !== null && biome !== 'paving') {
           drawGroundAsset(
             context,
             art.dirtTerrace,

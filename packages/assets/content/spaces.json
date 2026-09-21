@@ -1110,6 +1110,62 @@
     ]
   },
   {
+    "id": "space:willow_barn",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65528,
+    "name": "Orchard Grange",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "b",
+      "38ce;k8se;3icr;kisr;e5hr;85n9;abmd;almo;a9md",
+      "2b5aec!farm_hay_stack;2b8aec!farm_hay_stack;o95dc8!farm_hay_bale;o99dc8!farm_hay_bale;g0l8;g0p8;7zlb;7zob;7zrb;5386;h3a8;0yc6;0yk6;2b5lec!farm_hay_stack;o95oc8!farm_hay_bale;o98oc8!farm_hay_bale;xl9j;7zbr;53nj;h3nl;xlqo;g0lq;7zpr;0ycj;0ykj;2b5cec!farm_hay_stack;2b8cec!farm_hay_stack;2bbaec!farm_hay_stack;2b5nec!farm_hay_stack;2b8lec!farm_hay_stack;o95qc8!farm_hay_bale;o98qc8!farm_hay_bale;7zmc;7zpc;12rd78!barrel;12sd78!barrel;12rk78!barrel;12sk78!barrel;12rm78!barrel",
+      "ghgj"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          14,
+          5,
+          17,
+          27
+        ],
+        "style": "stone"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966816",
+        "portalKind": "willow_barn_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 117,
+        "fromTileY": 454,
+        "toSpace": "space:willow_barn",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966817",
+        "portalKind": "willow_barn_exit",
+        "fromSpace": "space:willow_barn",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 117,
+        "toTileY": 455
+      }
+    ]
+  },
+  {
     "id": "space:willow_carpenter",
     "kind": "space",
     "schemaVersion": 1,
@@ -1128,8 +1184,50 @@
     "hearthInterior": [
       "c",
       "45rr",
-      "fhk9;4x8fga;4xofga;538m;g067;g0o7;xl7h;xlnh;7zam;h38o;o8mm;xlpne6!camp_bench;s65p;0ykd",
+      "fhk9;4x8fga;4xofga;538m;g067;g0o7;xl7h;xlnh;7zam;h38o;o8mm;xlpne6!camp_bench;s65p;0ykd;g05j;5zb7;5zr7;7z5m;7zrl;ftnp;xlaq;xlkq;0ybi;0yrq;dyfp",
       "h9hb"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          4,
+          5,
+          27,
+          11
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          4,
+          13,
+          27,
+          19
+        ],
+        "style": "stone"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966804",
+        "portalKind": "willow_carpenter_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 149,
+        "fromTileY": 405,
+        "toSpace": "space:willow_carpenter",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966805",
+        "portalKind": "willow_carpenter_exit",
+        "fromSpace": "space:willow_carpenter",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 149,
+        "toTileY": 406
+      }
     ]
   },
   {
@@ -1151,7 +1249,141 @@
     "hearthInterior": [
       "f",
       "d5jr;46be;l6se;4ibr;lisr;abmd;ammo",
-      "53g9;wk69;7z89;g097;dy7c;l5oa;ado9-6;qtmc;qtqc;tvr7;v87o;586k;g89n;kt6o;rh5k;9hnl;orqj;elpq;vooo;tvrp"
+      "53g9;wk69;7z89;g097;dy7c;l5oa;ado9-6;qtmc;qtqc;tvr7;v87o;586k;g89n;kt6o;rh5k;9hnl;orqj;elpq;vooo;tvrp;5mlq;5z47;tvbr;rhmq;0yb7;dyfp"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          21,
+          6,
+          28,
+          14
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          4,
+          18,
+          11,
+          27
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          21,
+          18,
+          28,
+          27
+        ],
+        "style": "townhouse"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966806",
+        "portalKind": "willow_furnisher_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 164,
+        "fromTileY": 422,
+        "toSpace": "space:willow_furnisher",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966807",
+        "portalKind": "willow_furnisher_exit",
+        "fromSpace": "space:willow_furnisher",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 164,
+        "toTileY": 423
+      }
+    ]
+  },
+  {
+    "id": "space:willow_garden_cottage",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65526,
+    "name": "Foxglove Cottage",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "h",
+      "65cc;k5pc;6gcr;kgpr;e5hr;aamc;akmm",
+      "5886;g869;kta9;v88a;rhb6;s666;5mn6;elk6;vom9;kfnb;tvp9;z36g;g09g;el6j;fh9o;o87p;o8bp;s66r;0ycq;9hmi;orog;7zki;voml;53np;o8nr;rhkp;tvpr;dyfn;dyfe",
+      "ghgj"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          6,
+          5,
+          12,
+          12
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          20,
+          5,
+          25,
+          12
+        ],
+        "style": "stone"
+      },
+      {
+        "bounds": [
+          6,
+          16,
+          12,
+          20
+        ],
+        "style": "stone"
+      },
+      {
+        "bounds": [
+          20,
+          16,
+          25,
+          27
+        ],
+        "style": "townhouse"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966812",
+        "portalKind": "willow_garden_cottage_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 123,
+        "fromTileY": 379,
+        "toSpace": "space:willow_garden_cottage",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966813",
+        "portalKind": "willow_garden_cottage_exit",
+        "fromSpace": "space:willow_garden_cottage",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 123,
+        "toTileY": 380
+      }
     ]
   },
   {
@@ -1173,7 +1405,141 @@
     "hearthInterior": [
       "g",
       "75on;enir",
-      "53g9;g086;g0m6;kf8d;kfmd;7z9j;7zbj;7zmj;7zoj;xl8f;xlmf;s68m;s6nm;0yi7"
+      "53g9;g086;g0m6;kf8d;kfmd;7z9j;7zbj;7zmj;7zoj;xl8f;xlmf;s68m;s6nm;0yi7;5z79;5zo9;5z7i;5zoh;7za6;7zk6;tvcm;tvkm;dyfo;0ycg;0ykg;kfac;kfic;g0af;g0if;5z75;5zo5;7zbk;7zmk;128l78!barrel;12ol78!barrel;12kk78!barrel"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          7,
+          5,
+          24,
+          10
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          14,
+          23,
+          18,
+          27
+        ],
+        "style": "stone"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966802",
+        "portalKind": "willow_general_store_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 191,
+        "fromTileY": 402,
+        "toSpace": "space:willow_general_store",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966803",
+        "portalKind": "willow_general_store_exit",
+        "fromSpace": "space:willow_general_store",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 191,
+        "toTileY": 403
+      }
+    ]
+  },
+  {
+    "id": "space:willow_greenhouse",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65529,
+    "name": "Glassleaf Conservatory",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "p",
+      "59qp;enir",
+      "537a;53na;h3ab;h3lb;g0b9;eli9;s66e;tv9e;xrcf76!farm_potted_flowers;tvje;s6me;xrpf76!farm_potted_flowers;tv6i;xr9j76!farm_potted_flowers;s6ci;xrjj76!farm_potted_flowers;tvmi;s6pi;xl6n;7zao;xlmn;7zpo;0yda;rhio;tv5p;tvqp;tv7f;s6af;tvkf;s6nf;s67k;tvak;s6kk;tvnk;xrbe76!farm_potted_flowers;xroe76!farm_potted_flowers;xr8i76!farm_potted_flowers;xrli76!farm_potted_flowers",
+      "ghgj"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          5,
+          9,
+          26,
+          25
+        ],
+        "style": "stone"
+      },
+      {
+        "bounds": [
+          5,
+          13,
+          12,
+          15
+        ],
+        "style": "soil"
+      },
+      {
+        "bounds": [
+          19,
+          13,
+          26,
+          15
+        ],
+        "style": "soil"
+      },
+      {
+        "bounds": [
+          5,
+          17,
+          12,
+          20
+        ],
+        "style": "soil"
+      },
+      {
+        "bounds": [
+          19,
+          17,
+          26,
+          20
+        ],
+        "style": "soil"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966818",
+        "portalKind": "willow_greenhouse_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 142,
+        "fromTileY": 454,
+        "toSpace": "space:willow_greenhouse",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966819",
+        "portalKind": "willow_greenhouse_exit",
+        "fromSpace": "space:willow_greenhouse",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 142,
+        "toTileY": 455
+      }
     ]
   },
   {
@@ -1194,8 +1560,41 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "u",
-      "55qr",
-      "fhg9;wr87;wro7;wr8c;wroc;ft9j;fh9i;o87j;o8bj;ftnj;fhni;o8lj;o8pj;wr8o;wroo;s6eo;s6io;rhbe;rhll"
+      "d5ir;55be;l5qe;5ibr;liqr;98na;9jnl",
+      "fhg9;wr87;wro7;wr8c;wroc;ft9l;fh9k;o87l;o8bl;ftnl;fhnk;o8ll;o8pl;wr8o;wroo;s6eo;s6io;rhbe;rhqn;53e6;5z57;5zq7;kf5p;kfpp;g85l;g8ql;tvbr;tvlr;dyfo;vogk;wr5c;wrlc;wr5i;wrpi;5zb5;5zl5;rhhh"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          5,
+          5,
+          26,
+          27
+        ],
+        "style": "townhouse"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966810",
+        "portalKind": "willow_guild_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 179,
+        "fromTileY": 382,
+        "toSpace": "space:willow_guild",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966811",
+        "portalKind": "willow_guild_exit",
+        "fromSpace": "space:willow_guild",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 179,
+        "toTileY": 383
+      }
     ]
   },
   {
@@ -1227,7 +1626,132 @@
     "hearthInterior": [
       "i",
       "4crr;44a8;l4r8;89ad;l9nd;c4je",
-      "fhg9;wk77;9hn7;7z97;orp5;qf5d;z3i5;ft9i;fh9h;o87i;o8bi;ftni;fhnh;o8li;o8pi;ft9o;fh9n;o87o;o8bo;ftno;fhnn;o8lo;o8po;s67e;s6qe;0yci;0ykn"
+      "fhg9;9h77;9hn7;7z95;orp5;qf5d;z3i5;ft9i;fh9h;o87i;o8bi;ftni;fhnh;o8li;o8pi;ft9o;fh9n;o87o;o8bo;ftno;fhnn;o8lo;o8po;s67e;s6qe;0yci;0ykn;g0e4;elh4;rh45;rhr7;tv4r;tvrr;5z4k;5zrk;dyfo;xldq;xljq;kt47;vo78;ktl5;vop8;7zr8"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          12,
+          4,
+          19,
+          6
+        ],
+        "style": "stone"
+      },
+      {
+        "bounds": [
+          21,
+          4,
+          27,
+          8
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          4,
+          12,
+          27,
+          27
+        ],
+        "style": "townhouse"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966800",
+        "portalKind": "willow_inn_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 165,
+        "fromTileY": 390,
+        "toSpace": "space:willow_inn",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966801",
+        "portalKind": "willow_inn_exit",
+        "fromSpace": "space:willow_inn",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 165,
+        "toTileY": 391
+      }
+    ]
+  },
+  {
+    "id": "space:willow_orchard_cottage",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65527,
+    "name": "Applewood Cottage",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "o",
+      "75oc;7gcr;kgor;eahr;bkmm",
+      "qf75;z3a5;g0c5;fha9;o88a;o8ca;ftaa;5zi5;58k6;g8n8;kti9;vola;rhn5;s6oc;wk8h;wkbh;7z9j;g07o;53aq;h3ar;0yco;dy8m;5mmg;elkj;vomm;tvok;kfmq;s6kr;dyfo;0yhf",
+      "ghgj"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          17,
+          5,
+          24,
+          12
+        ],
+        "style": "townhouse"
+      },
+      {
+        "bounds": [
+          7,
+          5,
+          14,
+          6
+        ],
+        "style": "stone"
+      },
+      {
+        "bounds": [
+          20,
+          16,
+          24,
+          27
+        ],
+        "style": "stone"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966814",
+        "portalKind": "willow_orchard_cottage_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 112,
+        "fromTileY": 427,
+        "toSpace": "space:willow_orchard_cottage",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966815",
+        "portalKind": "willow_orchard_cottage_exit",
+        "fromSpace": "space:willow_orchard_cottage",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 112,
+        "toTileY": 428
+      }
     ]
   },
   {
@@ -1248,9 +1772,42 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "s",
-      "65pn;enir",
-      "fhc9;ru9fa8;4xnfga;qfm6;g076;7zmk;7zok;h39h;xllh",
+      "65cb;k5pb;e5ir;6fpn;a8mb",
+      "fhc9;ru9ha8;4xnhga;qfm6;g076;7zmk;7zok;h3bi;xllh;g0ma;7z7k;7z9k;5z68;0yi7;0ycj;xl7m;s6om;dyfp;g0k5;7zo7;7zo9;12k978!barrel;12kb78!barrel;qfif;rukia8;4xcgga;7z6i;7z6k;7zcm;7zim;12pi78!barrel;12pk78!barrel",
       "999b"
+    ],
+    "hearthInteriorFloors": [
+      {
+        "bounds": [
+          6,
+          5,
+          25,
+          23
+        ],
+        "style": "stone"
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966808",
+        "portalKind": "willow_smith_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 187,
+        "fromTileY": 425,
+        "toSpace": "space:willow_smith",
+        "toTileX": 16,
+        "toTileY": 24
+      },
+      {
+        "runtimeId": "4294966809",
+        "portalKind": "willow_smith_exit",
+        "fromSpace": "space:willow_smith",
+        "fromTileX": 16,
+        "fromTileY": 25,
+        "toSpace": "space:island",
+        "toTileX": 187,
+        "toTileY": 426
+      }
     ]
   }
 ]
