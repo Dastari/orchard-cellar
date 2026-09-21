@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Developer tooling
+
+- Add checksum-pinned MCP Agent Mail Rust installation, a persistent local service,
+  Codex/Claude project configuration, shared startup instructions, verification
+  and a coordination runbook.
+
 ## 0.8.5 — Kenmi icons and crafting button
 
 - Frame the crafting wrench button to match Build’s size, icon inset and hover

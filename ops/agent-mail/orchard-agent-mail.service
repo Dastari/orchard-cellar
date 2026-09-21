@@ -1,0 +1,18 @@
+[Unit]
+Description=Orchard MCP Agent Mail Rust
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/share/orchard-agent-mail
+ExecStart=%h/.local/lib/orchard-agent-mail/v0.3.36/mcp-agent-mail serve --no-tui --host 127.0.0.1 --port 8765 --path /mcp/ --no-reuse-running
+Environment=DATABASE_URL=sqlite:///%h/.local/share/orchard-agent-mail/storage.sqlite3
+Environment=STORAGE_ROOT=%h/.local/share/orchard-agent-mail/archive
+Environment=HTTP_ALLOW_LOCALHOST_UNAUTHENTICATED=true
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
