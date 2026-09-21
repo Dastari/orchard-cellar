@@ -7,6 +7,15 @@ hand-off notes. Single-player ships value before any server work: the shared
 deterministic sim ([02-architecture.md](02-architecture.md)) is what makes moving
 authority to the server later a mechanical change, not a rewrite.
 
+## Planned — Unified actions, tool limits and repair UI
+
+See [the executable phase plan](unified-actions-plan.md). Sequence: inventory current
+contracts -> shared action/modifier schema -> authority and resource accounting ->
+facing actions with G parity -> tile/context actions -> aimed delivery and spell
+fixtures -> repair escrow/UI -> retirement and release rehearsal. Implementation has
+not started. Preserve open gameplay PR behavior, including hoe/fish fixes and fishing
+progression; do not merge or deploy as part of the planning request.
+
 ## M0 — Skeleton `☑ complete (codex, 2026-08-24)`
 Monorepo (npm workspaces per 02), strict tsconfig, Vitest, ESLint (incl. sim bans on
 `Math.random`/`Date.now`), Vite client shell showing a colored canvas at 480×270

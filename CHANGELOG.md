@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Planning
+
+- Specify unified tool/spell actions, modifiable targeting and resource costs, exact
+  G-debug limits, and a dedicated repair UI with atomic output-to-cursor collection.
+  Record phased delivery and anti-duplication gates; no runtime changes.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool
