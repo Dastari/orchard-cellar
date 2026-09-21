@@ -1,5 +1,26 @@
 # Changelog
 
+## Publishing guidance — 2026-09-17
+
+- Documented release-lane selection, encrypted shared-preview credential handoff,
+  refresh validation, content equality and signed-in verification for future agents.
+
+## 0.8.3 — Unreleased
+
+- Draw fishing pools from their authored nature artwork again. A resource whose
+  visual names a decoration family resolved to no atlas entry and rendered the
+  placeholder "?" tile.
+- Rain now waters crops. While a shower runs, every crop tile in an open-air space
+  — the island and every homestead, never a residence or cellar — is topped up on
+  the weather sweep, with growth settled first so no progress is lost. Tilled soil
+  without a crop keeps its own decay timer.
+- Climb a cellar ladder only from the tile at its foot while facing it. The prompt
+  no longer reaches sideways or diagonally past nearby objects, and the reducer
+  enforces the same tile and facing.
+- Count a placed anvil as the crafting station its recipes require. Anvil recipes
+  such as the watch reported "REQUIRES AN ANVIL WITHIN 2 TILES" even while the
+  player stood against one, because a placed anvil reported no station at all.
+
 ## Unreleased — Planning
 
 - Specify unified tool/spell actions, modifiable targeting and resource costs, exact

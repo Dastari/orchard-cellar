@@ -1,5 +1,7 @@
 # Orchard runtime services
 
+Agent quick start: [Publishing and credential handoff](PUBLISHING.md).
+
 The public NPM host forwards the game to `10.0.1.150:5173`. The production frontend
 is a checked static Vite build supervised by `orchard-frontend.service`; its preview
 server proxies same-origin `/v1` HTTP and WebSocket traffic to the loopback-only
