@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Frontend asset delivery audit
+
+- Document measured frontend payloads, live cache/compression behavior, and
+  prioritized asset-loading improvements for catalog growth. Include validation
+  criteria and implementation handoff; no runtime or deployment changes.
+
 ## Unreleased — Icon audit
 
 - Audit 336 item definitions and 66 skill nodes against the new Kenmi premium

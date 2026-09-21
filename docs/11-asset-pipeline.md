@@ -101,6 +101,10 @@ npm run document:references -w @orchard/tools
 npm run check:references -w @orchard/tools
 ```
 
+The [2026-09-21 frontend delivery audit](frontend-asset-delivery-audit-2026-09-21.md)
+records current production payloads and recommendations for caching, startup
+loading, and catalog growth. Recommendations are not implemented behavior.
+
 ## 1. Sprite source format (`*.sprite.json`)
 
 ```jsonc
