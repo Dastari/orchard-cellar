@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Town release verification
+
+- Run CPU-heavy town/Studio fixtures and UI timing budgets in the serial,
+  non-coverage test lane, preserving all assertions and existing timing limits.
+- Allow guarded same-schema world releases to preserve the independently reviewed
+  installed Studio artifact with exact manifest and static validation.
+
 ## 0.17.0 — Connected town scenery and inhabited rooms
 
 - Resolve native wooden, large wooden, picket, stone, large stone and hedge boundaries from cardinal neighbours; player-built wooden fences now use all sixteen native joins.
