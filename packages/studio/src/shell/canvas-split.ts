@@ -1,4 +1,4 @@
-import type { UiPoint, UiRect } from '@orchard/ui';
+import type { UiPoint, UiRect } from '@orchard/ui/studio';
 import { clampStudioCanvasLayoutRatio } from './canvas-layout-state.js';
 import type { StudioToolRoute } from './tool-registry.js';
 

@@ -1,3 +1,4 @@
+import { kitElement, kitElements, pressKit, chooseKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import type { AdminMutationPreview } from '../../../../world/src/admin/contracts.js';
 import type { AdminObjectMutationResult, AdminObjectsApi } from '../../admin/objects-api.js';
@@ -117,13 +118,13 @@ describe('Map schema Inspector Canvas actions', () => {
     let surface = buildMapCanvasTool(context);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-view-schema');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-view');
     });
-    surface.actions.find(({ id }) => id === 'map-selection-view-schema')?.activate();
+    chooseKit(surface, 'map-selection-view', 'Schema');
     surface = buildMapCanvasTool(context);
-    expect(surface.actions.some(({ id }) => id === 'map-selection-property-map')).toBe(false);
-    expect(surface.nodes.map(({ id }) => id)).toContain('map-selection-property-map');
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-property-map')?.label)
+    expect(kitElements(surface).some(({ id }) => id === 'map-selection-property-map')).toBe(false);
+    expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-property-map-label');
+    expect(kitElement(surface, 'map-selection-property-map-label')?.label)
       .toContain('READ ONLY');
     const retained = context.controller.toolState<{
       selectionOffset: number;
@@ -133,14 +134,14 @@ describe('Map schema Inspector Canvas actions', () => {
     retained.selectionOffset = Number.MAX_SAFE_INTEGER;
     surface = buildMapCanvasTool(context);
 
-    const stateAction = surface.actions.find(({ id }) => id === 'map-selection-property-live-state-lit');
-    expect(stateAction).toMatchObject({ disabled: false, label: expect.stringContaining('WHY') });
+    const stateAction = kitElement(surface, 'map-selection-property-live-state-lit');
+    expect(stateAction).toMatchObject({ disabled: false, label: 'Change' });
 
-    stateAction?.activate();
+    pressKit(surface, 'map-selection-property-live-state-lit');
     surface = buildMapCanvasTool(context);
     retained.schemaActionEditor.setValue('false');
     surface = buildMapCanvasTool(context);
-    surface.actions.find(({ id }) => id === 'map-schema-action-proceed')?.activate();
+    pressKit(surface, 'map-schema-action-proceed');
     await vi.waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject([
       { operation: 'set_entity_state', entityId: '41', patch: { lit: false }, dryRun: true },
@@ -148,9 +149,9 @@ describe('Map schema Inspector Canvas actions', () => {
     ]);
 
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-schema-action-receipt')?.label)
+    expect(kitElement(surface, 'map-schema-action-receipt')?.label)
       .toBe('BASE object:exact-before · RECEIPT preview:schema-canvas-exact');
-    surface.actions.find(({ id }) => id === 'map-schema-action-proceed')?.activate();
+    pressKit(surface, 'map-schema-action-proceed');
     await vi.waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1]).toMatchObject([
       { operation: 'set_entity_state', entityId: '41', patch: { lit: false }, dryRun: false },
@@ -170,16 +171,17 @@ describe('Map schema Inspector Canvas actions', () => {
     let surface = buildMapCanvasTool(context);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-view-schema');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-view');
     });
-    surface.actions.find(({ id }) => id === 'map-selection-view-schema')?.activate();
+    chooseKit(surface, 'map-selection-view', 'Schema');
     surface = buildMapCanvasTool(context);
     const retained = context.controller.toolState<{ selectionOffset: number }>(
       'map-canvas:live-island', () => { throw new Error('map state was not retained'); },
     );
     retained.selectionOffset = Number.MAX_SAFE_INTEGER;
     surface = buildMapCanvasTool(context);
-    expect(surface.actions.find(({ id }) => id === 'map-selection-property-live-state-lit'))
-      .toMatchObject({ disabled: true, label: expect.stringContaining('owner or administrator') });
+    expect(kitElements(surface).some(element => element.label.includes('owner or administrator'))).toBe(true);
+    expect(kitElement(surface, 'map-selection-property-live-state-lit'))
+      .toMatchObject({ disabled: true });
   });
 });

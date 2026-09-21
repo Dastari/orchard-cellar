@@ -1,3 +1,4 @@
+import { UI_LUCIDE_FILES } from './kit/skin/lucide.js';
 import { bootstrapContentRegistry, type ContentRegistry } from '@orchard/sim';
 import { loadGeneratedAsset, type LoadedAsset } from "./assets.js";
 import { assetRequestQueue } from './asset-request-queue.js';
@@ -7,6 +8,7 @@ import { drawNineSlice, snapRectForContext } from "./nine-slice.js";
 import { insetRect, type UiRect } from "./geometry.js";
 
 export const UI_ICON_NAMES = [
+  "chevronDown", "chevronRight", "chevronLeft", "search", "sort", "filter",
   "undo",
   "redo",
   "save",
@@ -266,58 +268,10 @@ export async function loadUiGeneratedSkin<const K extends readonly UiGeneratedSk
   return Object.fromEntries(entries) as Pick<UiSkin, K[number]>;
 }
 
-const UI_ICON_FILES: Readonly<Record<UiIconName, string>> = {
-  undo: "undo-2.svg",
-  redo: "redo-2.svg",
-  save: "save.svg",
-  load: "folder-open.svg",
-  export: "file-up.svg",
-  import: "file-down.svg",
-  randomize: "shuffle.svg",
-  grid: "grid-3x3.svg",
-  height: "layers.svg",
-  collision: "shield-x.svg",
-  autoEdges: "wand-sparkles.svg",
-  cloudConnect: "cloud.svg",
-  cloudPublish: "cloud-upload.svg",
-  visibility: "eye.svg",
-  layers: "layers.svg",
-  pointer: "mouse-pointer-2.svg",
-  sprout: "sprout.svg",
-  brush: "paintbrush.svg",
-  landPlot: "land-plot.svg",
-  pickaxe: "pickaxe.svg",
-  cave: "brick-wall.svg",
-  waves: "droplets.svg",
-  route: "route.svg",
-  mountain: "mountain.svg",
-  moveDown: "move-down.svg",
-  level: "between-horizontal-start.svg",
-  flatten: "align-horizontal-justify-center.svg",
-  stairs: "list-chevrons-up-down.svg",
-  penTool: "pen-tool.svg",
-  eraser: "eraser.svg",
-  replace: "replace.svg",
-  map: "map.svg",
-  box: "box.svg",
-  palette: "palette.svg",
-  gamepad: "gamepad-2.svg",
-  trees: "trees.svg",
-  package: "package.svg",
-  copy: "copy-plus.svg",
-  trash: "trash-2.svg",
-  eyeOff: "eye-off.svg",
-  lock: "lock.svg",
-  unlock: "lock-open.svg",
-  rotate: "rotate-cw.svg",
-  flip: "flip-horizontal-2.svg",
-  scale: "maximize-2.svg",
-};
-
 /** Public asset-contract seam for build/test tooling. Runtime consumers still
  * request semantic icon names and never select SVG filenames directly. */
 export function uiIconFileName(name: UiIconName): string {
-  return UI_ICON_FILES[name];
+  return UI_LUCIDE_FILES[name];
 }
 
 const uiIconPromises = new Map<UiIconName, Promise<UiIconAsset>>();

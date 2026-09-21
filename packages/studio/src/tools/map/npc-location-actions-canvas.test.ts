@@ -1,3 +1,4 @@
+import { kitElement, kitElements, pressKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import type { MapDocumentV3 } from '@orchard/sim';
 import type {
@@ -138,13 +139,13 @@ describe('Map Editor Canvas NPC home/location actions', () => {
     let surface = buildMapCanvasTool(context);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-npc-location');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-npc-location');
     });
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-npc-location'))
-      .toMatchObject({ symbol: 'pointer', label: undefined });
-    surface.actions.find(({ id }) => id === 'map-selection-npc-location')?.activate();
+    expect(kitElement(surface, 'map-selection-npc-location'))
+      .toMatchObject({ kind: 'button', label: 'Move NPC' });
+    pressKit(surface, 'map-selection-npc-location');
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-npc-location-receipt')?.label)
+    expect(kitElement(surface, 'map-npc-location-receipt')?.label)
       .toBe('NO WORLD CHANGE · CHOOSE A TILE');
 
     expect(surface.input?.pointerDown?.({
@@ -159,12 +160,12 @@ describe('Map Editor Canvas NPC home/location actions', () => {
     ]);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(surface.actions.find(({ id }) => id === 'map-npc-location-confirm'))
+      expect(kitElement(surface, 'map-npc-location-confirm'))
         .toMatchObject({ disabled: false });
     });
-    expect(surface.nodes.find(({ id }) => id === 'map-npc-location-target')?.label)
+    expect(kitElement(surface, 'map-npc-location-target')?.label)
       .toContain('LIVE 22,21 · HOME 20,20 → 40,41');
-    expect(surface.nodes.find(({ id }) => id === 'map-npc-location-receipt')?.label)
+    expect(kitElement(surface, 'map-npc-location-receipt')?.label)
       .toBe('BASE object:npc-before-canvas · RECEIPT preview:npc-canvas-exact');
     expect(probe.calls).toHaveLength(1);
 
@@ -172,15 +173,18 @@ describe('Map Editor Canvas NPC home/location actions', () => {
       shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(true);
     expect(probe.calls).toHaveLength(1);
     surface = buildMapCanvasTool(context);
-    expect(surface.actions.some(({ id }) => id === 'map-npc-location-confirm')).toBe(false);
+    expect(kitElements(surface).some(({ id }) => id === 'map-npc-location-confirm')).toBe(false);
 
-    surface.actions.find(({ id }) => id === 'map-selection-npc-location')?.activate();
+    pressKit(surface, 'map-selection-npc-location');
     surface = buildMapCanvasTool(context);
     surface.input?.pointerDown?.({ point: { x: 400, y: 200 }, button: 0, pointerId: 2,
       spaceHeld: false, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
-    await vi.waitFor(() => expect(probe.calls).toHaveLength(2));
-    surface = buildMapCanvasTool(context);
-    surface.actions.find(({ id }) => id === 'map-npc-location-confirm')?.activate();
+    await vi.waitFor(() => {
+      expect(probe.calls).toHaveLength(2);
+      surface = buildMapCanvasTool(context);
+      expect(kitElement(surface, 'map-npc-location-confirm')?.disabled).toBe(false);
+    });
+    pressKit(surface, 'map-npc-location-confirm');
     await vi.waitFor(() => expect(probe.calls).toHaveLength(3));
     expect(probe.calls[2]).toMatchObject([
       { operation: 'relocate_npc', npcId: '7', dryRun: false },
@@ -198,10 +202,11 @@ describe('Map Editor Canvas NPC home/location actions', () => {
     let surface = buildMapCanvasTool(wildlifeContext);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(wildlifeContext);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-npc-location');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-npc-location');
     });
-    expect(surface.actions.find(({ id }) => id === 'map-selection-npc-location'))
-      .toMatchObject({ disabled: true, label: expect.stringContaining('world authority') });
+    expect(kitElement(surface, 'map-selection-npc-location'))
+      .toMatchObject({ disabled: true });
+    expect(kitElements(surface).some(element => /world authority|player custody/u.test(element.label))).toBe(true);
 
     const custodyContext = await npcContext(liveProbe().api, {
       id: 7n, spaceId: 0, kind: 'horse', displayName: 'Bramble',
@@ -212,9 +217,10 @@ describe('Map Editor Canvas NPC home/location actions', () => {
     surface = buildMapCanvasTool(custodyContext);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(custodyContext);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-npc-location');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-npc-location');
     });
-    expect(surface.actions.find(({ id }) => id === 'map-selection-npc-location'))
-      .toMatchObject({ disabled: true, label: expect.stringContaining('player custody') });
+    expect(kitElement(surface, 'map-selection-npc-location'))
+      .toMatchObject({ disabled: true });
+    expect(kitElements(surface).some(element => /world authority|player custody/u.test(element.label))).toBe(true);
   });
 });

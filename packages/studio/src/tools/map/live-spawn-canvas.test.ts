@@ -1,3 +1,4 @@
+import { kitElement, pressKit, kitElements } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createMapPrefabDocument, normalizeMapPrefab } from '@orchard/sim';
 import type { AdminMutationPreview } from '../../../../world/src/admin/contracts.js';
@@ -63,21 +64,21 @@ describe('Map Editor Canvas functional live spawn mode', () => {
   it('exposes compact Canvas-native height and collision toggles with keyboard parity', async () => {
     const context = await liveContext(liveApi().api);
     let surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-height-overlay')).toMatchObject({
-      symbol: 'height', label: undefined,
+    expect(kitElement(surface, 'map-height-overlay')).toMatchObject({
+      kind: 'button', label: 'H',
     });
-    expect(surface.nodes.find(({ id }) => id === 'map-collision-overlay')).toMatchObject({
-      symbol: 'collision', label: undefined,
+    expect(kitElement(surface, 'map-collision-overlay')).toMatchObject({
+      kind: 'button', label: 'C',
     });
-    expect(surface.actions.find(({ id }) => id === 'map-height-overlay')?.label).toContain('(H)');
-    expect(surface.actions.find(({ id }) => id === 'map-collision-overlay')?.label).toContain('(C)');
 
-    surface.actions.find(({ id }) => id === 'map-height-overlay')?.activate();
+
+
+    pressKit(surface, 'map-height-overlay');
     expect(surface.input?.keyDown?.({ key: 'c', repeat: false,
       shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(true);
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-height-overlay')?.state).toBe('active');
-    expect(surface.nodes.find(({ id }) => id === 'map-collision-overlay')?.state).toBe('active');
+    expect(kitElement(surface, 'map-height-overlay')?.props['tone']).toBe('success');
+    expect(kitElement(surface, 'map-collision-overlay')?.props['tone']).toBe('success');
     expect(surface.input?.keyDown?.({ key: 'g', repeat: false,
       shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(false);
   });
@@ -115,13 +116,13 @@ describe('Map Editor Canvas functional live spawn mode', () => {
     state.catalogReady = true;
 
     let surface = buildMapCanvasTool(context);
-    const mode = surface.actions.find(({ id }) => id === 'map-live-spawn-mode');
+    const mode = kitElement(surface, 'map-live-spawn-mode');
     expect(mode).toMatchObject({ disabled: false,
       label: 'Spawn selected object as a functional live entity' });
-    mode?.activate();
+    pressKit(surface,'map-live-spawn-mode');
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-live-spawn-mode'))
-      .toMatchObject({ symbol: 'gamepad', state: 'active', label: undefined });
+    expect(kitElement(surface, 'map-live-spawn-mode'))
+      .toMatchObject({ kind:'button',props:{tone:'success'},label:'Cancel functional live entity spawn (Escape)' });
 
     expect(surface.input?.pointerDown?.({
       point: { x: WORKSPACE.x + 200, y: WORKSPACE.y + 200 }, button: 0, pointerId: 1,
@@ -135,23 +136,23 @@ describe('Map Editor Canvas functional live spawn mode', () => {
       tileX: 72, tileY: 81, dryRun: true });
 
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-live-spawn-content')?.label)
+    expect(kitElement(surface, 'map-live-spawn-content')?.label)
       .toBe('CONTENT R27 · content:canvas-exact');
-    expect(surface.nodes.find(({ id }) => id === 'map-live-spawn-receipt')?.label)
+    expect(kitElement(surface, 'map-live-spawn-receipt')?.label)
       .toBe('BASE objects:base-canvas · RECEIPT preview:canvas-exact');
-    expect(surface.nodes.find(({ id }) => id === 'map-live-spawn-authority')?.label)
+    expect(kitElement(surface, 'map-live-spawn-authority')?.label)
       .toContain('AUTHORITY OWNER · REASON Spawn Chest from Map Editor');
-    expect(surface.actions.find(({ id }) => id === 'map-live-spawn-confirm'))
+    expect(kitElement(surface, 'map-live-spawn-confirm'))
       .toMatchObject({ disabled: false });
     expect(probe.calls).toHaveLength(1);
 
     expect(surface.input?.keyDown?.({ key: 'Escape', repeat: false,
       shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(true);
     surface = buildMapCanvasTool(context);
-    expect(surface.actions.some(({ id }) => id === 'map-live-spawn-confirm')).toBe(false);
+    expect(kitElements(surface).some(({ id }) => id === 'map-live-spawn-confirm')).toBe(false);
     expect(probe.calls).toHaveLength(1);
 
-    surface.actions.find(({ id }) => id === 'map-live-spawn-mode')?.activate();
+    pressKit(surface, 'map-live-spawn-mode');
     surface = buildMapCanvasTool(context);
     surface.input?.pointerDown?.({
       point: { x: WORKSPACE.x + 200, y: WORKSPACE.y + 200 }, button: 0, pointerId: 2,
@@ -162,7 +163,7 @@ describe('Map Editor Canvas functional live spawn mode', () => {
       expect(state.liveSpawnPreviewing).toBe(false);
     });
     surface = buildMapCanvasTool(context);
-    surface.actions.find(({ id }) => id === 'map-live-spawn-confirm')?.activate();
+    pressKit(surface, 'map-live-spawn-confirm');
     await vi.waitFor(() => expect(probe.calls).toHaveLength(3));
     expect(probe.calls[2]).toMatchObject([
       { operation: 'spawn_entity', definitionId: 'object:chest', tileX: 72, tileY: 81, dryRun: false },

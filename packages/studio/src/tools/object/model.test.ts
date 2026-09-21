@@ -24,6 +24,13 @@ function harness(storage: ObjectDraftStorage = new MemoryStorage()) {
 }
 
 describe('Studio Object Studio model', () => {
+  it('moves and transforms an individual placement without requiring a group',()=>{
+    const {model}=harness();model.stamp(placement('single',10,12));
+    model.move('single',1,-2);model.transform('single','rotate_clockwise');model.transform('single','flip_horizontal');
+    expect(model.workspace().placements[0]).toMatchObject({tileX:11,tileY:10,quarterTurns:1,flipX:true});
+    model.transform('single','rotate_counterclockwise');expect(model.workspace().placements[0]?.quarterTurns).toBe(0);
+    expect(()=>model.move('single',.5,0)).toThrow('whole tiles');
+  });
   it('supports Shift-add/Ctrl-toggle semantics, marquee selection, grouping, transforms, pivot, and prefab export', () => {
     const { model } = harness();
     model.stamp(placement('wall-1', 10, 12));

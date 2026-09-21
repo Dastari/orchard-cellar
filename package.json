@@ -16,7 +16,7 @@
     "test:coverage": "vitest run --coverage --exclude packages/sim/src/procedural-terrain.test.ts --exclude packages/sim/src/survival-world.test.ts",
     "test:exhaustive": "vitest run packages/sim/src/procedural-terrain.test.ts packages/sim/src/survival-world.test.ts --no-file-parallelism",
     "assets:validate": "npm run validate -w @orchard/tools",
-    "assets:build": "npm run atlas -w @orchard/tools",
+    "assets:build": "npm run atlas -w @orchard/tools && npm run ui:assets -w @orchard/tools",
     "client:chunks:check": "tsx scripts/check-client-build-chunks.ts",
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
@@ -54,7 +54,7 @@
     "world:restore-rehearsal": "bash ops/orchard-runtime/bin/restore-world-rehearsal.sh",
     "client:static:validate": "bash ops/orchard-runtime/bin/validate-client-static.sh",
     "studio:static:validate": "bash ops/orchard-runtime/bin/validate-studio-static.sh",
-    "studio:build": "npm run build -w @orchard/studio",
+    "studio:build": "npm run build -w @orchard/studio --",
     "world:smoke": "tsx scripts/world-smoke.ts",
     "world:auth-smoke": "tsx scripts/auth-world-smoke.ts",
     "world:load": "spacetime publish orchard-cellar-netcode-load --server local --module-path packages/world --yes --delete-data && tsx scripts/netcode-load.ts",
@@ -71,6 +71,7 @@
     "eslint": "^10.0.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@napi-rs/canvas": "1.0.8"
   }
 }

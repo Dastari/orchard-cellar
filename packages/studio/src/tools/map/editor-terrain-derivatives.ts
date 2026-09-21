@@ -1,7 +1,5 @@
 import {
   SURVIVAL_BIOMES,
-  generateSurvivalResources,
-  type GeneratedSurvivalResource,
   SURVIVAL_WORLD_SEED,
   mapDocumentUsesSurvivalIslandBase,
   resolvedMapBiomeAt,
@@ -42,7 +40,6 @@ export interface MapEditorOverviewPixels {
 }
 
 export interface MapEditorTerrainDerivatives {
-  readonly generatedResources?: readonly GeneratedSurvivalResource[];
   readonly overview: MapEditorOverviewPixels;
   readonly generatedBaseTerrain: TerrainArray;
   readonly generatedBaseTerrainKey: string;
@@ -189,17 +186,6 @@ export function mapTerrainOverrideInfluenceRuns(
   return runs;
 }
 
-let resourceCache: { seed: number; resources: readonly GeneratedSurvivalResource[] } | null = null;
-
-/** Runs with terrain generation in the worker; sparse edits reuse the seed cache. */
-export function mapGeneratedResourcePreview(document: MapDocumentV3): readonly GeneratedSurvivalResource[] {
-  if (!mapDocumentUsesSurvivalIslandBase(document)) return [];
-  const seed = document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;
-  if (resourceCache?.seed !== seed) resourceCache = { seed, resources: generateSurvivalResources(seed) };
-  const suppressed = new Set(document.generatedSuppressions);
-  return resourceCache.resources.filter((resource) => !suppressed.has(`resource-${resource.id}`));
-}
-
 /** Builds all dense terrain derivatives in the worker before the renderer is
  * invalidated. The only remaining UI-thread work is one bitmap materialisation
  * per task, never a full-map semantic scan inside draw(). */
@@ -238,7 +224,6 @@ export function buildMapEditorTerrainDerivatives(
     },
     generatedBaseTerrain,
     generatedBaseTerrainKey: mapGeneratedBaseTerrainKey(document),
-    generatedResources: mapGeneratedResourcePreview(document),
     terrainOverrideInfluenceRuns: mapTerrainOverrideInfluenceRuns(terrain, generatedBaseTerrain),
   };
 }

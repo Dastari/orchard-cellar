@@ -22,7 +22,7 @@ export type { WorldPlaytestAdapter, WorldPlaytestRequest } from '../../admin/wor
 
 export const WORLD_TABLE_KINDS = Object.freeze([
   'crop', 'creature', 'spawn', 'space', 'skill_tree', 'effect', 'statistic', 'upgrade',
-  'balance_group',
+  'balance_group', 'resource',
 ] as const);
 export type WorldTableKind = typeof WORLD_TABLE_KINDS[number];
 export type WorldAuthoringAccess = 'anonymous' | 'read_only' | 'write';

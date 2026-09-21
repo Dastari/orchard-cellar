@@ -1,5 +1,5 @@
 import { firstAccessibleStudioMode, isStudioRole, type StudioRole } from './access.js';
-import type { StudioMode } from '@orchard/ui';
+import type { StudioMode } from '@orchard/ui/studio';
 
 export type StudioEnvironment = 'sandbox' | 'local' | 'production';
 export type StudioConnectionPhase = 'anonymous' | 'connecting' | 'connected' | 'error';

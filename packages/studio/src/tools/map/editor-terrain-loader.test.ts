@@ -129,9 +129,7 @@ describe('map editor terrain loader lifecycle', () => {
     const loader = new MapEditorTerrainLoader();
     const pending = loader.load(document, palette)!;
     const message = FakeWorker.instances[0]?.messages[0] as {
-      requestId: number;
-      tilesetContentKey: string;
-      tilesetDefinitions: readonly unknown[];
+      requestId: number; tilesetContentKey: string; tilesetDefinitions: readonly unknown[];
     };
     expect(message.tilesetContentKey).toBe(palette.contentKey);
     expect(message.tilesetDefinitions).toEqual([definition]);
@@ -142,7 +140,6 @@ describe('map editor terrain loader lifecycle', () => {
       terrain: encodeMapEditorTerrain(terrain).wire,
       derivatives: encodeMapEditorTerrainDerivatives(derivatives, terrain).wire,
     });
-
     const result = await pending;
     expect(result.terrain.tilesets?.tileSetFor('orchard_moss')).not.toBeNull();
     expect(result.terrain.tilesets?.tileSetFor('stone_1')).toBeNull();

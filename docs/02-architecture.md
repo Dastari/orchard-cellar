@@ -279,9 +279,20 @@ UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
 
-## Developer coordination service
 
-[Agent Mail Rust](../ops/agent-mail/README.md) runs as an independent loopback
-systemd user service for Codex and Claude Code. Its SQLite index and Git archive
-live outside the repository; it has no application runtime or deployment role.
-See [ADR 002](adr/002-agent-mail.md) for the shared-service decision.
+
+## Independently deployed Cellar Studio
+
+The reviewed editor source is `packages/studio`; its Canvas UI kit is
+`packages/ui/src/kit`. It consumes the same current assets, content, simulation,
+authentication and generated bindings as the game, with separate frontend entry,
+build, origin, OIDC client and service. The game retains its existing UI. Studio imports the separate `@orchard/ui/studio`
+entry so editor kit registration and UI Lab never enter the game bundle. Canonical
+Lucide symbols live in `packages/ui/public`; prebuild prepares the requested app's
+ignored public copy. `assets:build` prepares both copies for workspace validation.
+
+`scripts/build-reviewed-studio.sh` stages one repository and its checked lockfile,
+verifies the reviewed kit, and builds Studio without rebuilding or publishing the
+game or database. See [integration spec](studio-integration-spec.md),
+[decision](adr/ADR-studio-single-repository.md), and
+[runtime procedure](../ops/orchard-runtime/README.md).

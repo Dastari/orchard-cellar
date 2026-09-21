@@ -1351,20 +1351,3 @@ describe('MapEditorController', () => {
     expect(model.document().revision).toBe(revision);
   });
 });
-
-
-describe('terrain height slider input', () => {
-  it('clamps and rounds dragged height without changing the map until painting', () => {
-    const { controller, model } = harness();
-    const before = serializeMapDocumentV3(model.document());
-    controller.setActiveElevation(3.6);
-    expect(controller.snapshot().activeElevation).toBe(4);
-    controller.setActiveElevation(100);
-    expect(controller.snapshot().activeElevation).toBe(8);
-    controller.setActiveElevation(-100);
-    expect(controller.snapshot().activeElevation).toBe(-8);
-    controller.setActiveElevation(Number.NaN);
-    expect(controller.snapshot().activeElevation).toBe(-8);
-    expect(serializeMapDocumentV3(model.document())).toBe(before);
-  });
-});

@@ -1,22 +1,11 @@
+import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
+import { studioSelectionEditor } from '../../shell/selection-editor.js';
+import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
+import { studioDefinitionFields } from '../../shell/definition-fields.js';
 import type { SupportedContentDefinition } from '@orchard/sim';
-import {
-  CanvasTextEditor,
-  layoutStudioCanvasTable,
-  layoutUiFlex,
-  layoutUiFrameSlots,
-  scrollStudioCanvasTable,
-  studioCanvasFrameContentRect,
-  type FantasyButtonGlyph,
-  type StudioCanvasShellNode,
-  type UiFlexItem,
-  type UiRect,
-} from '@orchard/ui';
-import type {
-  StudioCanvasToolAction,
-  StudioCanvasToolContext,
-  StudioCanvasToolSurface,
-  StudioCanvasToolTable,
-} from '../../shell/canvas-tool.js';
+import { CanvasTextEditor, ui as kit, type UiElement, type UiTone, type UiTableState } from '@orchard/ui/studio';
+import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
+import { studioLiveContentSnapshot, studioLiveContentStatusSurface } from '../../shell/live-content-readiness.js';
 import {
   itemsAccessForConnection,
   itemsHeadFromConnection,
@@ -50,52 +39,10 @@ interface WorldCanvasState {
   kind: WorldTableKind | undefined;
   selectedId: string | null;
   syncedId: string | null;
-  browserScroll: number;
+  browserTable?: UiTableState;
+  tab: string;
   mutationSequence: number;
   batchSummary: string;
-}
-
-const BUTTON_HEIGHT = 42;
-const LAYOUT_GAP = 6;
-
-type LiveContentReadiness = 'offline' | 'loading' | 'unavailable' | 'ready';
-
-function liveContentReadiness(context: StudioCanvasToolContext): LiveContentReadiness {
-  const live = context.controller.liveAdapter();
-  if (live === null) return 'offline';
-  const view = live.view();
-  if (view.error !== null || (!view.connected && !view.synchronizing)) return 'unavailable';
-  if (view.synchronizing || !view.connected
-    || view.contentHead === undefined || view.contentDefinitions === undefined) return 'loading';
-  return view.contentHead === null || view.contentDefinitions.length === 0 ? 'unavailable' : 'ready';
-}
-
-function contentStatusSurface(
-  context: StudioCanvasToolContext,
-  readiness: Exclude<LiveContentReadiness, 'offline' | 'ready'>,
-): StudioCanvasToolSurface {
-  const prefix = `${context.route.tool.id}-`;
-  const controls = context.controlsBounds ?? context.bounds;
-  const workspace = context.workspaceBounds ?? context.bounds;
-  const controlContent = studioCanvasFrameContentRect(controls, 'parchment_panel');
-  const workspaceContent = studioCanvasFrameContentRect(workspace, 'parchment_panel');
-  return Object.freeze({
-    nodes: Object.freeze([
-      { id: `${prefix}content-status-controls`, kind: 'parchment_panel' as const, bounds: controls },
-      { id: `${prefix}content-status-workspace`, kind: 'parchment_panel' as const, bounds: workspace },
-      { id: `${prefix}content-status-title`, kind: 'heading' as const, bounds: controlContent,
-        label: readiness === 'loading' ? 'LOADING LIVE CONTENT' : 'LIVE CONTENT UNAVAILABLE',
-        tone: readiness === 'loading' ? undefined : 'danger' as const },
-      { id: `${prefix}content-status-detail`, kind: 'field' as const, bounds: workspaceContent,
-        label: readiness === 'loading' ? 'WAITING FOR VERIFIED LIVE CONTENT'
-          : 'NO VERIFIED LIVE CONTENT HEAD IS AVAILABLE' },
-    ]),
-    actions: Object.freeze([]), tables: Object.freeze([]), textEditors: Object.freeze([]),
-  });
-}
-
-function flexItem(width: number, height: number, options: Partial<UiFlexItem> = {}): UiFlexItem {
-  return { minSize: { width, height }, ...options };
 }
 
 function labelFor(definition: SupportedContentDefinition): string {
@@ -105,18 +52,6 @@ function labelFor(definition: SupportedContentDefinition): string {
   return definition.id;
 }
 
-function scalarFields(value: unknown, path = '$', result: string[] = []): readonly string[] {
-  if (result.length >= 64) return result;
-  if (value === null || typeof value !== 'object') result.push(`${path}: ${String(value)}`);
-  else if (Array.isArray(value)) {
-    if (value.length === 0) result.push(`${path}: []`);
-    value.forEach((entry, index) => scalarFields(entry, `${path}[${index}]`, result));
-  } else {
-    Object.entries(value as Record<string, unknown>).forEach(([key, entry]) =>
-      scalarFields(entry, path === '$' ? key : `${path}.${key}`, result));
-  }
-  return result;
-}
 
 function report(context: StudioCanvasToolContext, title: string, error: unknown): void {
   context.controller.notifications.push('error', title, error instanceof Error ? error.message : String(error));
@@ -128,7 +63,6 @@ function createState(context: StudioCanvasToolContext): WorldCanvasState {
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
   const head = view === undefined ? null : itemsHeadFromConnection(view);
-  if (live !== null && head === null) throw new Error('world_live_content_not_ready');
   const model = createWorldAuthoringModel({
     access,
     ...(head === null ? {} : { head }),
@@ -160,82 +94,25 @@ function createState(context: StudioCanvasToolContext): WorldCanvasState {
     kind,
     selectedId: model.browser(kind)[0]?.id ?? null,
     syncedId: null,
-    browserScroll: 0,
+    tab: 'fields',
     mutationSequence: 0,
     batchSummary: '',
   };
 }
 
-function action(
-  nodes: StudioCanvasShellNode[], actions: StudioCanvasToolAction[], id: string, label: string,
-  bounds: UiRect, activate: () => void,
-  options: {
-    readonly role?: StudioCanvasToolAction['role'];
-    readonly disabled?: boolean;
-    readonly active?: boolean;
-    readonly tone?: StudioCanvasShellNode['tone'];
-    readonly glyph?: FantasyButtonGlyph;
-    readonly visibleLabel?: string;
-  } = {},
-): void {
-  const disabled = options.disabled === true;
-  nodes.push({
-    id,
-    kind: options.role === 'textbox' ? 'field' : options.role === 'tab' ? 'tab' : 'button',
-    bounds,
-    label: options.visibleLabel ?? label,
-    glyph: options.glyph,
-    state: disabled ? 'disabled' : options.active ? 'active' : 'idle',
-    tone: options.tone,
-  });
-  actions.push({ id, label, role: options.role ?? 'button', bounds, disabled, activate });
-}
-
-function fieldNodes(
-  nodes: StudioCanvasShellNode[], id: string, values: readonly string[], bounds: UiRect,
-  tone?: (value: string) => StudioCanvasShellNode['tone'],
-): void {
-  const count = Math.min(values.length, Math.max(0, Math.floor(bounds.height / BUTTON_HEIGHT)));
-  const rows = layoutUiFlex(bounds, values.slice(0, count).map(() => flexItem(1, 36, { basis: 36, shrink: 0 })),
-    { direction: 'column', gap: 4 });
-  rows.forEach((row, index) => nodes.push({ id: `${id}:${index}`, kind: 'field', bounds: row, clip: bounds,
-    label: values[index]!, tone: tone?.(values[index]!) }));
-}
-
-function prefixSurface(
-  context: StudioCanvasToolContext,
-  nodes: readonly StudioCanvasShellNode[],
-  actions: readonly StudioCanvasToolAction[],
-  tables: readonly StudioCanvasToolTable[],
-  state: WorldCanvasState,
-): StudioCanvasToolSurface {
-  const prefix = `${context.route.tool.id}-`;
-  return Object.freeze({
-    nodes: Object.freeze(nodes.map((node) => Object.freeze({ ...node, id: `${prefix}${node.id}` }))),
-    actions: Object.freeze(actions.map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-    tables: Object.freeze(tables.map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-    textEditors: Object.freeze([
-      { id: 'world:query', editor: state.query },
-      { id: 'world:note', editor: state.note },
-      { id: 'world:definition-json', editor: state.definition },
-      { id: 'world:pack-json', editor: state.pack },
-      { id: 'world:playtest-target', editor: state.targetPlayer },
-      { id: 'world:playtest-space', editor: state.spaceId },
-      { id: 'world:playtest-x', editor: state.tileX },
-      { id: 'world:playtest-y', editor: state.tileY },
-      { id: 'world:playtest-rank', editor: state.rank },
-    ].map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-  });
-}
-
 export function buildWorldAuthoringCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const live = context.controller.liveAdapter();
+  const content = studioLiveContentSnapshot(live);
+  if (content.mode === 'loading' || content.mode === 'unavailable') {
+    return studioLiveContentStatusSurface(content);
+  }
   const view = live?.view();
-  const readiness = liveContentReadiness(context);
-  if (readiness === 'loading' || readiness === 'unavailable') return contentStatusSurface(context, readiness);
   const access = itemsAccessForConnection(context.route.access, live);
   const identity = view?.identity ?? 'anonymous';
-  const state = context.controller.toolState(`world-authoring-canvas:${identity}:${access}`, () => createState(context));
+  const state = context.controller.toolState(
+    `world-authoring-canvas:${identity}:${access}:${content.contentKey}`,
+    () => createState(context),
+  );
   const head = view === undefined ? null : itemsHeadFromConnection(view);
   if (head !== null) state.model.receiveHead(head);
   state.model.receiveHistory(view === undefined ? [] : itemsHistoryFromConnection(view));
@@ -252,226 +129,70 @@ export function buildWorldAuthoringCanvasTool(context: StudioCanvasToolContext):
     state.syncedId = selected?.id ?? null;
   }
 
-  const controlsBounds = context.controlsBounds ?? context.bounds;
-  const workspaceBounds = context.workspaceBounds ?? context.bounds;
-  const nodes: StudioCanvasShellNode[] = [
-    { id: 'world:controls-panel', kind: 'parchment_panel', bounds: controlsBounds },
-    { id: 'world:surface', kind: 'parchment_panel', bounds: workspaceBounds },
-  ];
-  const actions: StudioCanvasToolAction[] = [];
-  const tables: StudioCanvasToolTable[] = [];
-  const kinds = context.route.tool.id === 'pack-studio' ? ([undefined, ...WORLD_TABLE_KINDS] as const) : WORLD_TABLE_KINDS;
-  const kindSpecs = kinds.map(() => flexItem(44, BUTTON_HEIGHT, { basis: 44, grow: 1, shrink: 1 }));
-  const controlsContent = studioCanvasFrameContentRect(controlsBounds, 'parchment_panel');
-  const kindMeasure = layoutUiFlex({ ...controlsContent, height: BUTTON_HEIGHT * kinds.length }, kindSpecs,
-    { gap: 3, wrap: true });
-  const kindToolbarHeight = Math.max(BUTTON_HEIGHT,
-    ...kindMeasure.map(({ y, height }) => y + height - controlsContent.y));
-  const controlLayout = layoutUiFrameSlots(controlsBounds, 'wood_parchment', [
-    { id: 'kindToolbar', ...flexItem(1, kindToolbarHeight, { basis: kindToolbarHeight, shrink: 0 }) },
-    { id: 'fields', ...flexItem(1, 88, { basis: 88, shrink: 0 }) },
-    { id: 'commandToolbar', ...flexItem(1, 88, { basis: 88, shrink: 0 }) },
-    { id: 'spacer', ...flexItem(1, 1, { grow: 1 }) },
-  ], { direction: 'column', gap: LAYOUT_GAP });
-
-  const kindRects = layoutUiFlex(controlLayout.slots.kindToolbar!,
-    kindSpecs, { gap: 3, wrap: true });
-  kinds.forEach((kind, index) => action(nodes, actions, `world:kind:${kind ?? 'all'}`, (kind ?? 'all').toUpperCase(),
-    kindRects[index]!, () => {
-      state.kind = kind;
-      state.selectedId = state.model.browser(kind, state.query.snapshot().value)[0]?.id ?? null;
-      state.syncedId = null;
-      state.browserScroll = 0;
-      context.invalidate();
-    }, { role: 'tab', active: state.kind === kind, visibleLabel: (kind ?? 'all').slice(0, 4).toUpperCase() }));
-
-  const fields = layoutUiFlex(controlLayout.slots.fields!, [
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  action(nodes, actions, 'world:query', `SEARCH ${state.query.snapshot().value || '…'}`, fields[0]!, () => state.query.focus(), { role: 'textbox' });
-  action(nodes, actions, 'world:note', `NOTE ${state.note.snapshot().value || '…'}`, fields[1]!, () => state.note.focus(), { role: 'textbox' });
-  const toolbar = layoutUiFlex(controlLayout.slots.commandToolbar!, [
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(80, BUTTON_HEIGHT, { basis: 80, shrink: 0 }),
-  ], { gap: 4, wrap: true });
-  action(nodes, actions, 'world:undo', 'Undo', toolbar[0]!, () => { state.model.undo(); context.invalidate(); },
-    { disabled: !snapshot.canUndo, glyph: 'back', visibleLabel: '' });
-  action(nodes, actions, 'world:redo', 'Redo', toolbar[1]!, () => { state.model.redo(); context.invalidate(); },
-    { disabled: !snapshot.canRedo, glyph: 'return', visibleLabel: '' });
-  action(nodes, actions, 'world:rebase', 'Rebase', toolbar[2]!, () => {
+  const id=(name:string)=>`${context.route.tool.id}-world:${name}`;
+  const text=(name:string,value:string)=>kit.text(value,{id:id(name),layout:{width:'grow'}});
+  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>kit.button({id:id(name),label,disabled,tone,layout:{width:'grow',shrink:0},onPress:()=>{
+    try{onPress();}catch(error){report(context,`${label} failed`,error);}
+  }});
+  const input=(name:string,label:string,editor:CanvasTextEditor)=>kit.input({id:id(name),label,placeholder:label,editor,onChange:()=>context.invalidate()});
+  const packMode=context.route.tool.id==='pack-studio';
+  const kinds=packMode?([undefined,...WORLD_TABLE_KINDS] as const):WORLD_TABLE_KINDS;
+  const controls=kit.flex({width:'grow',gap:4},[
+    kit.select({id:id('kind'),label:'Definition kind',value:state.kind??'all',options:kinds.map(kind=>({value:kind??'all',label:(kind??'all').replaceAll('_',' ').replace(/^./u,value=>value.toUpperCase())})),onChange:kind=>{
+      state.kind=kind==='all'?undefined:kind as WorldTableKind;state.selectedId=state.model.browser(state.kind,state.query.snapshot().value)[0]?.id??null;
+      state.syncedId=null;state.browserTable=undefined;context.invalidate();
+    }}),input('query','Search definitions',state.query),input('note','Publish / playtest reason',state.note),
+    button('undo','Undo',()=>{state.model.undo();context.invalidate();},!snapshot.canUndo),
+    button('redo','Redo',()=>{state.model.redo();context.invalidate();},!snapshot.canRedo),
+    button('rebase','Rebase',()=>{
     try { state.model.rebase(); context.invalidate(); } catch (error) { report(context, 'World rebase blocked', error); }
-  }, { disabled: !snapshot.conflict, glyph: 'down', visibleLabel: '' });
-  action(nodes, actions, 'world:publish', 'PUBLISH', toolbar[3]!, () => {
+    },!snapshot.conflict,'primary'),
+    button('publish','Publish',()=>{
     state.mutationSequence += 1;
     void state.model.publish(`world.canvas.${state.mutationSequence}`, state.note.snapshot().value)
       .then(() => context.controller.notifications.push('success', 'World content published', 'Waiting for verified live head.'))
       .catch((error: unknown) => report(context, 'World publish failed', error)).finally(context.invalidate);
-  }, { disabled: !snapshot.canPublish, tone: 'success' });
-
-  const workspaceContent = studioCanvasFrameContentRect(workspaceBounds, 'parchment_panel');
-  const workspace = layoutUiFlex(workspaceContent, [
-    flexItem(185, 240, { basis: 250, grow: 1 }),
-    flexItem(280, 240, { basis: 420, grow: 2 }),
-    flexItem(220, 240, { basis: 320, grow: 1 }),
-  ], { gap: LAYOUT_GAP });
-  const [browser, editor, preview] = workspace as [UiRect, UiRect, UiRect];
-  const browserSlots = layoutUiFlex(browser, [
-    flexItem(1, 120, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  const browserTable = layoutStudioCanvasTable({
-    columns: [
-      { id: 'name', label: `${state.kind?.toUpperCase() ?? 'PACK'} (${entries.length})`, minWidth: 110 },
-      { id: 'refs', label: 'REFS', width: 54 },
-    ],
-    rows: entries.map((entry) => ({ id: entry.id, cells: [entry.label, String(entry.referencedBy)], selected: entry.id === state.selectedId })),
-    scrollRow: state.browserScroll,
-    rowHeight: BUTTON_HEIGHT,
-    headerHeight: BUTTON_HEIGHT,
-    frameStyle: 'thin',
-    emptyLabel: 'No world definitions',
-  }, browserSlots[0]!);
-  state.browserScroll = browserTable.firstRow;
-  const selectDefinition = (definitionId: string): void => {
-    const entry = entries.find(({ id }) => id === definitionId);
-    if (entry === undefined) return;
-    state.selectedId = entry.id;
-    state.syncedId = null;
-    context.controller.selection.select({ kind: 'definition', definitionKind: entry.kind, id: entry.id });
-    context.invalidate();
-  };
-  tables.push({
-    id: 'world:browser-table',
-    layout: browserTable,
-    onHit: (hit) => { if (hit.kind !== 'header') selectDefinition(hit.rowId); },
-    onScroll: (_command, nextScrollRow) => { state.browserScroll = nextScrollRow; context.invalidate(); },
+    },!snapshot.canPublish,'success'),
+  ]);
+  const browser=kit.table({id:id('browser-table'),label:state.kind?.toUpperCase()??'PACK',rows:entries,key:entry=>entry.id,
+    columns:[{id:'name',label:'Name',value:entry=>entry.label}],
+    selected:state.selectedId?[state.selectedId]:[],state:state.browserTable,onStateChange:next=>{state.browserTable=next;},onSelect:keys=>{
+      const entry=entries.find(entry=>entry.id===keys[0]);if(!entry)return;state.selectedId=entry.id;state.syncedId=null;
+      context.controller.selection.select({kind:'definition',definitionKind:entry.kind,id:entry.id});context.invalidate();
+    },layout:{width:'grow',height:'grow'},
   });
-  browserTable.rows.forEach((row) => {
-    const entry = entries[row.rowIndex]!;
-    actions.push({ id: `world:definition:${entry.id}`, label: entry.label, role: 'option', bounds: row.bounds,
-      activate: () => selectDefinition(entry.id) });
-  });
-  const scrollButtons = layoutUiFlex(browserSlots[1]!, [
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-  ], { gap: 4 });
-  action(nodes, actions, 'world:browser-up', 'Previous definitions', scrollButtons[0]!, () => {
-    state.browserScroll = scrollStudioCanvasTable(browserTable, 'page_up'); context.invalidate();
-  }, { disabled: browserTable.firstRow === 0, glyph: 'up', visibleLabel: '' });
-  action(nodes, actions, 'world:browser-down', 'Next definitions', scrollButtons[1]!, () => {
-    state.browserScroll = scrollStudioCanvasTable(browserTable, 'page_down'); context.invalidate();
-  }, { disabled: browserTable.firstRow === browserTable.maximumScrollRow, glyph: 'down', visibleLabel: '' });
-
-  nodes.push(
-    { id: 'world:editor-panel', kind: 'parchment_panel', bounds: editor },
-    { id: 'world:preview-panel', kind: 'wood_panel', bounds: preview },
-  );
-  const packMode = context.route.tool.id === 'pack-studio';
-  const editorContent = studioCanvasFrameContentRect(editor, 'parchment_panel');
-  const editorSpecs = [
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, 60, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    ...(packMode ? [
-      flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-      flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    ] : []),
+  const editor=kit.scrollArea({width:'grow',height:'grow',gap:4},[
+    text('editor-title',selected?labelFor(selected):'NO SELECTION'),
+    ...(selected?[
+      kit.textArea({id:id('definition-json'),label:'Definition JSON',editor:state.definition,readOnly:access==='read_only',rows:20,lineCount:true,resizable:true}),
+      button('apply-json','Apply JSON',()=>{state.model.upsert(JSON.parse(state.definition.snapshot().value));context.invalidate();},access==='read_only','success'),
+      button('delete','Delete definition',()=>{state.model.delete(selected.id);state.syncedId=null;context.invalidate();},access==='read_only','danger'),
+    ]:[]),
+  ]);
+  const packControls:UiElement[]=[kit.textArea({id:id('pack-json'),label:'Pack JSON',editor:state.pack,readOnly:access==='read_only',rows:20,lineCount:true,resizable:true}),
+    button('stage-pack','Stage pack',()=>{
+      const batches=planBoundedPackImport(state.pack.snapshot().value,50);state.model.replaceWithPack(state.pack.snapshot().value);
+      state.batchSummary=`${batches.length} BATCHES · ≤50 DEFINITIONS`;context.invalidate();
+    },access==='read_only','success'),
+    button('export-pack','Export pack',()=>{state.pack.setValue(serializeWorldPack(state.model.snapshot().definitions));state.batchSummary='CURRENT DRAFT SERIALIZED';context.invalidate();}),
   ];
-  const editorSlots = layoutUiFlex(editorContent, editorSpecs, { direction: 'column', gap: 4 });
-  nodes.push({ id: 'world:editor-title', kind: 'heading', bounds: editorSlots[0]!,
-    label: selected === null ? 'NO SELECTION' : labelFor(selected), clip: editorContent });
-  if (selected !== null) {
-    fieldNodes(nodes, 'world:field', scalarFields(selected), editorSlots[1]!);
-    action(nodes, actions, 'world:definition-json', `JSON ${state.definition.snapshot().value.slice(0, 38)}`,
-      editorSlots[2]!, () => state.definition.focus(), { role: 'textbox', disabled: access === 'read_only' });
-    const editButtons = layoutUiFlex(editorSlots[3]!, [
-      flexItem(112, BUTTON_HEIGHT, { basis: 112, shrink: 0 }),
-      flexItem(96, BUTTON_HEIGHT, { basis: 96, shrink: 0 }),
-    ], { gap: 4 });
-    action(nodes, actions, 'world:apply-json', 'APPLY JSON', editButtons[0]!, () => {
-      try { state.model.upsert(JSON.parse(state.definition.snapshot().value)); context.invalidate(); }
-      catch (error) { report(context, 'World definition invalid', error); }
-    }, { disabled: access === 'read_only', tone: 'success' });
-    action(nodes, actions, 'world:delete', 'DELETE', editButtons[1]!, () => {
-      try { state.model.delete(selected.id); state.syncedId = null; context.invalidate(); }
-      catch (error) { report(context, 'World definition delete failed', error); }
-    }, { disabled: access === 'read_only', tone: 'danger' });
-  }
-  if (packMode) {
-    action(nodes, actions, 'world:pack-json', `PACK ${state.pack.snapshot().value.slice(0, 34) || '…'}`,
-      editorSlots[4]!, () => state.pack.focus(), { role: 'textbox', disabled: access === 'read_only' });
-    const packButtons = layoutUiFlex(editorSlots[5]!, [
-      flexItem(150, BUTTON_HEIGHT, { basis: 150, shrink: 0 }),
-      flexItem(130, BUTTON_HEIGHT, { basis: 130, shrink: 0 }),
-    ], { gap: 4 });
-    action(nodes, actions, 'world:stage-pack', 'STAGE PACK', packButtons[0]!, () => {
-      try {
-        const batches = planBoundedPackImport(state.pack.snapshot().value, 50);
-        state.model.replaceWithPack(state.pack.snapshot().value);
-        state.batchSummary = `${batches.length} BATCHES · ≤50 DEFINITIONS`;
-        context.invalidate();
-      } catch (error) { report(context, 'Pack import failed', error); }
-    }, { disabled: access === 'read_only', tone: 'success' });
-    action(nodes, actions, 'world:export-pack', 'EXPORT', packButtons[1]!, () => {
-      state.pack.setValue(serializeWorldPack(state.model.snapshot().definitions));
-      state.batchSummary = 'CURRENT DRAFT SERIALIZED';
-      context.invalidate();
-    }, { glyph: 'down' });
-  }
-
-  const manifest = worldPackManifest(snapshot.definitions);
-  const fixture = diffWorldPackManifest(snapshot.definitions, bootstrapManifest);
-  const previewContent = studioCanvasFrameContentRect(preview, 'wood_panel');
-  const previewSlots = layoutUiFlex(previewContent, [
-    flexItem(1, 80, { basis: 150, shrink: 1 }),
-    flexItem(1, 20, { grow: 1 }),
-    flexItem(1, 30, { basis: 70, shrink: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT * 3 + 8, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  const summary = [
-    `PACK ${manifest.contentHash}`,
-    state.batchSummary,
-    `${manifest.definitionCount} DEFINITIONS · ${Object.keys(manifest.kindCounts).length} KINDS`,
-    `ENGINE ${snapshot.engineGate.toUpperCase()}`,
-    fixture.matches ? 'GIT FIXTURE: EXACT HASH MATCH' : `FIXTURE DRIFT ${fixture.expectedHash} → ${fixture.actualHash}`,
-    `${snapshot.validation.errors.length} ERRORS · ${snapshot.validation.warnings.length} WARNINGS`,
-    `${snapshot.diffs.length} DRAFT CHANGES`,
-  ].filter(Boolean);
-  fieldNodes(nodes, 'world:preview', summary, previewSlots[0]!,
-    (line) => line.includes('ERROR') || line.includes('DRIFT') ? 'danger' : line.includes('MATCH') ? 'success' : 'normal');
-  fieldNodes(nodes, 'world:diff', snapshot.diffs.slice(0, 5).map((diff) =>
-    `${diff.kind.toUpperCase()} ${diff.id} · ${diff.changedPaths.join(', ')}`), previewSlots[1]!);
-  fieldNodes(nodes, 'world:history', state.model.history().slice(0, 4).map((revision) =>
-    `R${revision.revision} · ${revision.note || 'UNTITLED'} · ${revision.actor}`), previewSlots[2]!);
-  const playtestKind = selected?.kind === 'creature' || selected?.kind === 'spawn' ? 'spawn'
-    : selected?.kind === 'effect' ? 'apply_effect' : selected?.kind === 'upgrade' ? 'grant_upgrade' : null;
-  const inputRows = layoutUiFlex(previewSlots[3]!, Array.from({ length: 3 }, () =>
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 })), { direction: 'column', gap: 4 });
-  if (playtestKind === 'spawn') {
-    const coordinateRow = layoutUiFlex(inputRows[1]!, [
-      flexItem(60, BUTTON_HEIGHT, { basis: 60, grow: 1 }), flexItem(60, BUTTON_HEIGHT, { basis: 60, grow: 1 }),
-    ], { gap: 4 });
-    action(nodes, actions, 'world:playtest-space', `SPACE ${state.spaceId.snapshot().value || '…'}`, inputRows[0]!,
-      () => state.spaceId.focus(), { role: 'textbox' });
-    action(nodes, actions, 'world:playtest-x', `X ${state.tileX.snapshot().value || '…'}`, coordinateRow[0]!,
-      () => state.tileX.focus(), { role: 'textbox' });
-    action(nodes, actions, 'world:playtest-y', `Y ${state.tileY.snapshot().value || '…'}`, coordinateRow[1]!,
-      () => state.tileY.focus(), { role: 'textbox' });
-    nodes.push({ id: 'world:playtest-help', kind: 'label', bounds: inputRows[2]!, label: 'SPAWN USES EXACT SPACE + TILE' });
-  } else if (playtestKind === 'apply_effect' || playtestKind === 'grant_upgrade') {
-    action(nodes, actions, 'world:playtest-target', `PLAYER ${state.targetPlayer.snapshot().value || '…'}`, inputRows[0]!,
-      () => state.targetPlayer.focus(), { role: 'textbox' });
-    if (playtestKind === 'grant_upgrade') action(nodes, actions, 'world:playtest-rank',
-      `RANK ${state.rank.snapshot().value || '…'}`, inputRows[1]!, () => state.rank.focus(), { role: 'textbox' });
-    nodes.push({ id: 'world:playtest-help', kind: 'label', bounds: inputRows[2]!,
-      label: playtestKind === 'apply_effect' ? 'TARGET IDENTITY REQUIRED' : 'TARGET IDENTITY + EXACT RANK' });
-  } else nodes.push({ id: 'world:playtest-help', kind: 'label', bounds: previewSlots[3]!,
-    label: 'SELECT CREATURE, SPAWN, EFFECT OR UPGRADE' });
+  const manifest=worldPackManifest(snapshot.definitions),fixture=diffWorldPackManifest(snapshot.definitions,bootstrapManifest);
+  const preview:UiElement[]=[
+    ...[`PACK ${manifest.contentHash}`,state.batchSummary,`${manifest.definitionCount} DEFINITIONS · ${Object.keys(manifest.kindCounts).length} KINDS`,
+      `ENGINE ${snapshot.engineGate.toUpperCase()}`,fixture.matches?'GIT FIXTURE: EXACT HASH MATCH':`FIXTURE DRIFT ${fixture.expectedHash} → ${fixture.actualHash}`,
+      `${snapshot.validation.errors.length} ERRORS · ${snapshot.validation.warnings.length} WARNINGS`,`${snapshot.diffs.length} DRAFT CHANGES`]
+      .filter(Boolean).map((line,index)=>text(`preview:${index}`,line)),
+    ...snapshot.diffs.map((diff,index)=>text(`diff:${index}`,`${diff.kind.toUpperCase()} ${diff.id} · ${diff.changedPaths.join(', ')}`)),
+    ...state.model.history().map((revision,index)=>text(`history:${index}`,`R${revision.revision} · ${revision.note||'UNTITLED'} · ${revision.actor}`)),
+  ];
+  const playtestKind=selected?.kind==='creature'||selected?.kind==='spawn'?'spawn':selected?.kind==='effect'?'apply_effect':selected?.kind==='upgrade'?'grant_upgrade':null;
+  const playtestControls:UiElement[]=[];
+  if(playtestKind==='spawn')playtestControls.push(input('playtest-space','Space',state.spaceId),input('playtest-x','Tile X',state.tileX),input('playtest-y','Tile Y',state.tileY),text('playtest-help','SPAWN USES EXACT SPACE + TILE'));
+  else if(playtestKind==='apply_effect'||playtestKind==='grant_upgrade'){
+    playtestControls.push(input('playtest-target','Player identity',state.targetPlayer));
+    if(playtestKind==='grant_upgrade')playtestControls.push(input('playtest-rank','Rank',state.rank));
+    playtestControls.push(text('playtest-help',playtestKind==='apply_effect'?'TARGET IDENTITY REQUIRED':'TARGET IDENTITY + EXACT RANK'));
+  }else playtestControls.push(text('playtest-help','SELECT CREATURE, SPAWN, EFFECT OR UPGRADE'));
   const playtestReason = state.note.snapshot().value.trim();
   const integer = (editor: CanvasTextEditor): number => Number(editor.snapshot().value.trim());
   const target = state.targetPlayer.snapshot().value.trim();
@@ -480,8 +201,7 @@ export function buildWorldAuthoringCanvasTool(context: StudioCanvasToolContext):
     : playtestKind === 'apply_effect' ? target.length > 0
       : playtestKind === 'grant_upgrade' ? target.length > 0 && Number.isSafeInteger(integer(state.rank)) && integer(state.rank) > 0
         : false;
-  const playtest = layoutUiFlex(previewSlots[4]!, [flexItem(152, BUTTON_HEIGHT, { basis: 152, shrink: 0 })])[0]!;
-  action(nodes, actions, 'world:playtest', 'PLAYTEST', playtest, () => {
+  playtestControls.push(button('playtest','Playtest',()=>{
     if (selected === null || playtestKind === null) return;
     state.mutationSequence += 1;
     const base = { definitionId: selected.id, reason: playtestReason,
@@ -494,12 +214,22 @@ export function buildWorldAuthoringCanvasTool(context: StudioCanvasToolContext):
     void state.model.playtest(request)
       .then(() => context.controller.notifications.push('success', 'World playtest committed', selected.id))
       .catch((error: unknown) => report(context, 'World playtest failed', error)).finally(context.invalidate);
-  }, { disabled: !snapshot.playtestAvailable || selected === null || !playtestInputValid || playtestReason.length < 8,
-    glyph: 'play', tone: 'success' });
-
+  },!snapshot.playtestAvailable||selected===null||!playtestInputValid||playtestReason.length<8,'success'));
   context.controller.validation.setIssues([
     ...snapshot.validation.errors.map((issue, index) => ({ id: `world:error:${index}`, severity: 'error' as const, message: issue.message })),
     ...snapshot.validation.warnings.map((issue, index) => ({ id: `world:warning:${index}`, severity: 'warning' as const, message: issue.message })),
   ]);
-  return prefixSurface(context, nodes, actions, tables, state);
+  const inspector=studioSelectionEditor({id:id('tabs'),label:'World content editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
+    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,readOnly:access==='read_only',apply:()=>{state.model.upsert(JSON.parse(state.definition.snapshot().value));}})},
+    {id:'editor',label:'JSON',content:editor},
+    ...(packMode?[{id:'pack',label:'Pack',content:kit.text('Import or export the content pack in the workspace.',{wrap:true})}]:[]),
+    {id:'preview',label:'Changes',content:kit.text('Review draft changes in the workspace.',{wrap:true})},
+    {id:'playtest',label:'Playtest',content:kit.scrollArea({width:'grow',height:'grow',gap:4},playtestControls)},
+  ]});
+  const [kindPicker, queryInput, noteInput, undo, redo, rebase, publish] = controls.children;
+  const drawer = studioLibraryDrawer([kindPicker!, queryInput!], browser, [
+    studioActionBar([studioIconAction(undo!, {lucide:'undo'}), studioIconAction(redo!, {lucide:'redo'}), studioIconAction(rebase!, {lucide:'cloudConnect'})]),
+    noteInput!, publish!,
+  ]);
+  return {lifecycle:studioDefinitionPreviewLifecycle(context),kit:{controls:drawer,workspace:state.tab === 'pack' ? kit.scrollArea({width:'grow',height:'grow',gap:8,padding:8},packControls) : state.tab === 'preview' ? kit.scrollArea({width:'grow',height:'grow',gap:8,padding:8},preview) : studioDefinitionPreview(context,selected),inspector}};
 }

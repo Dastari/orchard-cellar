@@ -51,17 +51,20 @@ server proxies its same-origin `/v1` HTTP and WebSocket traffic to that same
 loopback-only SpaceTimeDB process. Studio does not share the game service worker,
 build, origin, OIDC client, or CSP.
 
-While `.git/cellar-ui-release.md` names the separate reviewed Studio checkout,
-the world release scripts use `scripts/build-reviewed-studio.sh` to stage that
-source with the candidate's generated bindings, content, shared simulation/auth/engine, and atlas. The reviewed renderer's loading and raster adapters remain paired with its UI kit. The helper copies an
-isolated workspace, runs the unchanged UI-kit guard and Studio typecheck, and
-builds with `--mode studio-production` into a new directory. It records the
-copied source and reconciled dependency lock and verifies the source again after
-building. Neither source checkout nor the served files are build destinations.
-The migration release pins that static artifact and its bindings before traffic
-stops, then installs it only while traffic is closed. The main checkout's retired
-renderer guard remains in place; it is not a reason to bypass Studio checks or
-to classify an otherwise static update as a database migration.
+Studio's reviewed source is now integrated in this repository: `packages/studio`
+and `packages/ui/src/kit`. The independent production entry remains
+`packages/studio/dist`; source is never served. The helper
+`scripts/build-reviewed-studio.sh /absolute/new-workspace /absolute/new-output`
+stages this repository's current source, shared assets and checked dependency lock.
+It materializes shared public resources, runs the UI-kit guard and Studio typecheck,
+builds with `--mode studio-production`, and verifies source manifests before/after.
+The historical helper name remains for the guarded world-release callers; it no
+longer reads a separate reviewed checkout or overlays different source versions.
+
+Studio-only updates build/install only this frontend and restart only
+`orchard-studio.service`. Coordinated releases can still stage it alongside the
+game. Keep a verified prior artifact and retain hashed assets needed by open tabs.
+The source integration requires no database migration or content publication.
 
 For an additive schema update that does not migrate legacy chests, set
 `WORLD_RELEASE_MIGRATION_KIND=schema-only`. This keeps the verified fresh backup,
@@ -270,7 +273,8 @@ site before installing or restarting its unit:
 
 ```bash
 install -m 0600 ops/orchard-runtime/orchard-studio.env.example .env.studio-production.local
-npm run build -w @orchard/studio -- --mode studio-production
+npm run assets:build
+npm run studio:build -- --mode studio-production
 test -r packages/studio/dist/index.html
 sudo install -m 0644 ops/orchard-runtime/systemd/orchard-studio.service /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -278,6 +282,15 @@ sudo systemctl enable --now orchard-studio.service
 curl -fsS -H 'Host: cellar.dastari.net' http://10.0.1.150:5174/ >/dev/null
 curl -fsS -H 'Host: cellar.dastari.net' http://10.0.1.150:5174/v1/ping
 ```
+
+For an already running service, build with the staging helper into a new private
+release directory first. Preserve and checksum the old `packages/studio/dist`,
+run the helper's Studio checks, then use `world-release-routine.ts retain-assets`
+to carry forward collision-checked old hashed chunks. Stop only
+`orchard-studio.service`, install the checked output into `packages/studio/dist`,
+restart it, and run the static/public validators below plus a browser check.
+Restore the preserved artifact and restart if verification fails. Keep the game
+service, game dist, authority and stored content unchanged during Studio-only work.
 
 The unit deliberately refuses to start without `packages/studio/dist/index.html`.
 It serves only the built output; it does not rebuild on startup. Repeat the checked

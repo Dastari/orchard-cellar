@@ -1,4 +1,4 @@
-import { buildStudioUiLabModel } from '@orchard/ui';
+import { UI_LAB_SPECIMENS } from '@orchard/ui/studio';
 
 export const UI_LAB_TOOL_REGISTRATION = Object.freeze({
   id: 'ui-lab', label: 'UI Lab', mode: 'author' as const, icon: 'editor.ui',
@@ -7,6 +7,6 @@ export const UI_LAB_TOOL_REGISTRATION = Object.freeze({
   commands: Object.freeze([{ id: 'ui.scale', label: 'Change UI scale' }] as const),
 });
 
-export function createUiLabSnapshot(): ReturnType<typeof buildStudioUiLabModel> {
-  return buildStudioUiLabModel();
+export function createUiLabSnapshot() {
+  return { specimens: UI_LAB_SPECIMENS };
 }

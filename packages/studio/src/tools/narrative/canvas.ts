@@ -1,27 +1,11 @@
-import type {
-  DialogueContentDefinition,
-  NpcContentDefinition,
-  QuestContentDefinition,
-  SupportedContentDefinition,
-} from '@orchard/sim';
-import {
-  CanvasTextEditor,
-  layoutStudioCanvasTable,
-  layoutUiFlex,
-  layoutUiFrameSlots,
-  scrollStudioCanvasTable,
-  studioCanvasFrameContentRect,
-  type FantasyButtonGlyph,
-  type StudioCanvasShellNode,
-  type UiFlexItem,
-  type UiRect,
-} from '@orchard/ui';
-import type {
-  StudioCanvasToolAction,
-  StudioCanvasToolContext,
-  StudioCanvasToolSurface,
-  StudioCanvasToolTable,
-} from '../../shell/canvas-tool.js';
+import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
+import { studioSelectionEditor } from '../../shell/selection-editor.js';
+import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
+import { studioDefinitionFields } from '../../shell/definition-fields.js';
+import type { SupportedContentDefinition } from '@orchard/sim';
+import { ui as kit,uiFixed,CanvasTextEditor,type UiElement,type UiTone,type UiTableState } from '@orchard/ui/studio';
+import type { StudioCanvasToolContext,StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
+import { studioLiveContentSnapshot, studioLiveContentStatusSurface } from '../../shell/live-content-readiness.js';
 import {
   itemsAccessForConnection,
   itemsHeadFromConnection,
@@ -30,7 +14,6 @@ import {
 } from '../items/connection.js';
 import {
   createNarrativeWorkspace,
-  type DialogueGraphNode,
   type DialoguePlayState,
   type NarrativeKind,
   type NarrativeWorkspaceModel,
@@ -45,54 +28,12 @@ interface NarrativeCanvasState {
   readonly fixture: CanvasTextEditor;
   selectedId: string | null;
   syncedId: string | null;
-  browserScroll: number;
+  browserTable?:UiTableState;
+  tab:string;
   play: DialoguePlayState | null;
   questFixture: QuestProgressFixture;
   includeRetired: boolean;
   mutationSequence: number;
-}
-
-const BUTTON_HEIGHT = 42;
-const LAYOUT_GAP = 6;
-
-type LiveContentReadiness = 'offline' | 'loading' | 'unavailable' | 'ready';
-
-function liveContentReadiness(context: StudioCanvasToolContext): LiveContentReadiness {
-  const live = context.controller.liveAdapter();
-  if (live === null) return 'offline';
-  const view = live.view();
-  if (view.error !== null || (!view.connected && !view.synchronizing)) return 'unavailable';
-  if (view.synchronizing || !view.connected
-    || view.contentHead === undefined || view.contentDefinitions === undefined) return 'loading';
-  return view.contentHead === null || view.contentDefinitions.length === 0 ? 'unavailable' : 'ready';
-}
-
-function contentStatusSurface(
-  context: StudioCanvasToolContext,
-  readiness: Exclude<LiveContentReadiness, 'offline' | 'ready'>,
-): StudioCanvasToolSurface {
-  const prefix = `${context.route.tool.id}-`;
-  const controls = context.controlsBounds ?? context.bounds;
-  const workspace = context.workspaceBounds ?? context.bounds;
-  const controlContent = studioCanvasFrameContentRect(controls, 'parchment_panel');
-  const workspaceContent = studioCanvasFrameContentRect(workspace, 'parchment_panel');
-  return Object.freeze({
-    nodes: Object.freeze([
-      { id: `${prefix}content-status-controls`, kind: 'parchment_panel' as const, bounds: controls },
-      { id: `${prefix}content-status-workspace`, kind: 'parchment_panel' as const, bounds: workspace },
-      { id: `${prefix}content-status-title`, kind: 'heading' as const, bounds: controlContent,
-        label: readiness === 'loading' ? 'LOADING LIVE CONTENT' : 'LIVE CONTENT UNAVAILABLE',
-        tone: readiness === 'loading' ? undefined : 'danger' as const },
-      { id: `${prefix}content-status-detail`, kind: 'field' as const, bounds: workspaceContent,
-        label: readiness === 'loading' ? 'WAITING FOR VERIFIED LIVE CONTENT'
-          : 'NO VERIFIED LIVE CONTENT HEAD IS AVAILABLE' },
-    ]),
-    actions: Object.freeze([]), tables: Object.freeze([]), textEditors: Object.freeze([]),
-  });
-}
-
-function flexItem(width: number, height: number, options: Partial<UiFlexItem> = {}): UiFlexItem {
-  return { minSize: { width, height }, ...options };
 }
 
 function routeKind(path: string): NarrativeKind {
@@ -107,19 +48,6 @@ function definitionLabel(definition: SupportedContentDefinition): string {
   return definition.id;
 }
 
-function scalarFields(value: unknown, path = '$', result: string[] = []): readonly string[] {
-  if (result.length >= 60) return result;
-  if (value === null || typeof value !== 'object') {
-    result.push(`${path}: ${String(value)}`);
-  } else if (Array.isArray(value)) {
-    if (value.length === 0) result.push(`${path}: []`);
-    value.forEach((entry, index) => scalarFields(entry, `${path}[${index}]`, result));
-  } else {
-    Object.entries(value as Record<string, unknown>).forEach(([key, entry]) =>
-      scalarFields(entry, path === '$' ? key : `${path}.${key}`, result));
-  }
-  return result;
-}
 
 function report(context: StudioCanvasToolContext, title: string, error: unknown): void {
   context.controller.notifications.push('error', title, error instanceof Error ? error.message : String(error));
@@ -131,7 +59,6 @@ function createState(context: StudioCanvasToolContext): NarrativeCanvasState {
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
   const head = view === undefined ? null : itemsHeadFromConnection(view);
-  if (live !== null && head === null) throw new Error('narrative_live_content_not_ready');
   const model = createNarrativeWorkspace({
     access,
     ...(head === null ? {} : { head }),
@@ -153,7 +80,7 @@ function createState(context: StudioCanvasToolContext): NarrativeCanvasState {
     fixture: new CanvasTextEditor({ value: '{}', maxLength: 16_000, multiline: true }),
     selectedId: model.definitions(kind)[0]?.id ?? null,
     syncedId: null,
-    browserScroll: 0,
+    tab:'fields',
     play: null,
     questFixture: {},
     includeRetired: false,
@@ -190,80 +117,22 @@ function createDefinition(state: NarrativeCanvasState, kind: NarrativeKind): voi
   state.model.upsertDefinition(value);
   state.selectedId = `${kind}:${slug}`;
   state.syncedId = null;
-  state.browserScroll = 0;
-}
-
-function action(
-  nodes: StudioCanvasShellNode[], actions: StudioCanvasToolAction[], id: string, label: string,
-  bounds: UiRect, activate: () => void,
-  options: {
-    readonly role?: StudioCanvasToolAction['role'];
-    readonly disabled?: boolean;
-    readonly active?: boolean;
-    readonly tone?: StudioCanvasShellNode['tone'];
-    readonly glyph?: FantasyButtonGlyph;
-    readonly visibleLabel?: string;
-  } = {},
-): void {
-  const disabled = options.disabled === true;
-  nodes.push({
-    id,
-    kind: options.role === 'textbox' ? 'field' : options.role === 'tab' ? 'tab' : 'button',
-    bounds,
-    label: options.visibleLabel ?? label,
-    glyph: options.glyph,
-    state: disabled ? 'disabled' : options.active ? 'active' : 'idle',
-    tone: options.tone,
-  });
-  actions.push({ id, label, role: options.role ?? 'button', bounds, disabled, activate });
-}
-
-function fieldNodes(
-  nodes: StudioCanvasShellNode[], id: string, values: readonly string[], bounds: UiRect,
-  tone?: (value: string) => StudioCanvasShellNode['tone'],
-): void {
-  const count = Math.min(values.length, Math.max(0, Math.floor(bounds.height / BUTTON_HEIGHT)));
-  const rows = layoutUiFlex(bounds, values.slice(0, count).map(() => flexItem(1, 36, { basis: 36, shrink: 0 })),
-    { direction: 'column', gap: 4 });
-  rows.forEach((row, index) => nodes.push({
-    id: `${id}:${index}`,
-    kind: 'field',
-    bounds: row,
-    clip: bounds,
-    label: values[index]!,
-    tone: tone?.(values[index]!),
-  }));
-}
-
-function prefixSurface(
-  context: StudioCanvasToolContext,
-  nodes: readonly StudioCanvasShellNode[],
-  actions: readonly StudioCanvasToolAction[],
-  tables: readonly StudioCanvasToolTable[],
-  state: NarrativeCanvasState,
-): StudioCanvasToolSurface {
-  const prefix = `${context.route.tool.id}-`;
-  return Object.freeze({
-    nodes: Object.freeze(nodes.map((node) => Object.freeze({ ...node, id: `${prefix}${node.id}` }))),
-    actions: Object.freeze(actions.map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-    tables: Object.freeze(tables.map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-    textEditors: Object.freeze([
-      { id: 'narrative:query', editor: state.query },
-      { id: 'narrative:note', editor: state.note },
-      { id: 'narrative:definition-json', editor: state.definition },
-      { id: 'narrative:fixture', editor: state.fixture },
-    ].map((entry) => Object.freeze({ ...entry, id: `${prefix}${entry.id}` }))),
-  });
+  state.browserTable = undefined;
 }
 
 export function buildNarrativeCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const live = context.controller.liveAdapter();
+  const content = studioLiveContentSnapshot(live);
+  if (content.mode === 'loading' || content.mode === 'unavailable') {
+    return studioLiveContentStatusSurface(content);
+  }
   const view = live?.view();
-  const readiness = liveContentReadiness(context);
-  if (readiness === 'loading' || readiness === 'unavailable') return contentStatusSurface(context, readiness);
   const access = itemsAccessForConnection(context.route.access, live);
   const identity = view?.identity ?? 'anonymous';
-  const state = context.controller.toolState(`narrative-canvas:${identity}:${access}`, () => createState(context));
+  const state = context.controller.toolState(
+    `narrative-canvas:${identity}:${access}:${content.contentKey}`,
+    () => createState(context),
+  );
   const head = view === undefined ? null : itemsHeadFromConnection(view);
   if (head !== null) state.model.receiveHead(head);
   state.model.receiveHistory(view === undefined ? [] : itemsHistoryFromConnection(view));
@@ -282,274 +151,112 @@ export function buildNarrativeCanvasTool(context: StudioCanvasToolContext): Stud
     state.play = selected?.kind === 'dialogue' ? state.model.startDialogue(selected.id) : null;
   }
 
-  const snapshot = state.model.snapshot();
-  const controlsBounds = context.controlsBounds ?? context.bounds;
-  const workspaceBounds = context.workspaceBounds ?? context.bounds;
-  const nodes: StudioCanvasShellNode[] = [
-    { id: 'narrative:controls-panel', kind: 'parchment_panel', bounds: controlsBounds },
-    { id: 'narrative:surface', kind: 'parchment_panel', bounds: workspaceBounds },
-  ];
-  const actions: StudioCanvasToolAction[] = [];
-  const tables: StudioCanvasToolTable[] = [];
-  const controlLayout = layoutUiFrameSlots(controlsBounds, 'wood_parchment', [
-    { id: 'fields', ...flexItem(1, 88, { basis: 88, shrink: 0 }) },
-    { id: 'toolbar', ...flexItem(1, 88, { basis: 88, shrink: 0 }) },
-    { id: 'status', ...flexItem(1, 64, { basis: 64, shrink: 1 }) },
-    { id: 'spacer', ...flexItem(1, 1, { grow: 1 }) },
-  ], { direction: 'column', gap: LAYOUT_GAP });
-  const fields = layoutUiFlex(controlLayout.slots.fields!, [
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  action(nodes, actions, 'narrative:query', `SEARCH ${state.query.snapshot().value || '…'}`, fields[0]!, () => state.query.focus(), { role: 'textbox' });
-  action(nodes, actions, 'narrative:note', `NOTE ${state.note.snapshot().value || '…'}`, fields[1]!, () => state.note.focus(), { role: 'textbox' });
-  const toolbar = layoutUiFlex(controlLayout.slots.toolbar!, [
-    flexItem(80, BUTTON_HEIGHT, { basis: 80, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(80, BUTTON_HEIGHT, { basis: 80, shrink: 0 }),
-  ], { gap: 4, wrap: true });
-  action(nodes, actions, 'narrative:new', `NEW ${kind.toUpperCase()}`, toolbar[0]!, () => {
-    try { createDefinition(state, kind); context.invalidate(); }
-    catch (error) { report(context, `New ${kind} failed`, error); }
-  }, { disabled: access === 'read_only', tone: 'success', glyph: 'star' });
-  action(nodes, actions, 'narrative:retired', 'Include retired definitions', toolbar[1]!, () => {
-    state.includeRetired = !state.includeRetired; state.browserScroll = 0; context.invalidate();
-  }, { active: state.includeRetired, glyph: 'alert', visibleLabel: '' });
-  action(nodes, actions, 'narrative:undo', 'Undo', toolbar[2]!, () => { state.model.undo(); context.invalidate(); },
-    { disabled: !snapshot.canUndo, glyph: 'back', visibleLabel: '' });
-  action(nodes, actions, 'narrative:redo', 'Redo', toolbar[3]!, () => { state.model.redo(); context.invalidate(); },
-    { disabled: !snapshot.canRedo, glyph: 'return', visibleLabel: '' });
-  action(nodes, actions, 'narrative:rebase', 'Rebase', toolbar[4]!, () => {
-    try { state.model.rebase(); context.invalidate(); } catch (error) { report(context, 'Narrative rebase blocked', error); }
-  }, { disabled: !snapshot.conflict, glyph: 'down', visibleLabel: '' });
-  action(nodes, actions, 'narrative:publish', 'PUBLISH', toolbar[5]!, () => {
-    state.mutationSequence += 1;
-    void state.model.publish(`narrative.canvas.${state.mutationSequence}`, state.note.snapshot().value)
-      .then(() => context.controller.notifications.push('success', 'Narrative published', 'Waiting for the verified live head.'))
-      .catch((error: unknown) => report(context, 'Narrative publish failed', error)).finally(context.invalidate);
-  }, { disabled: !snapshot.canPublish, tone: 'success' });
-  nodes.push({ id: 'narrative:status', kind: 'label', bounds: controlLayout.slots.status!,
-    label: `${kind.toUpperCase()} · ${access.toUpperCase()} · HEAD ${snapshot.headRevision} · ${snapshot.diffs.length} CHANGES · ${snapshot.validation.errors.length} ERRORS${snapshot.conflict ? ' · CONFLICT' : ''}` });
-  const history = state.model.history().slice(0, Math.max(0,
-    Math.floor(controlLayout.slots.spacer!.height / (BUTTON_HEIGHT + 4))));
-  const historyRects = layoutUiFlex(controlLayout.slots.spacer!,
-    history.map(() => flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 })),
-    { direction: 'column', gap: 4 });
-  history.forEach((revision, index) => action(nodes, actions, `narrative:history:${revision.revision}`,
-    `R${revision.revision} ${revision.note || 'UNTITLED'}`, historyRects[index]!, () => {
-      try {
-        const revisionPreview = state.model.previewRevision(revision.revision, 'published_change');
-        context.controller.notifications.push('info', `Revision ${revision.revision}`,
-          `${revisionPreview.diffs.length} published changes.`);
-      } catch (error) { report(context, 'Narrative revision preview failed', error); }
-    }, { role: 'option' }));
-
-  const workspaceContent = studioCanvasFrameContentRect(workspaceBounds, 'parchment_panel');
-  const workspace = layoutUiFlex(workspaceContent, [
-    flexItem(190, 240, { basis: 250, grow: 1 }),
-    flexItem(280, 240, { basis: 410, grow: 2 }),
-    flexItem(220, 240, { basis: 330, grow: 1 }),
-  ], { gap: LAYOUT_GAP });
-  const [browser, editor, preview] = workspace as [UiRect, UiRect, UiRect];
-  const browserSlots = layoutUiFlex(browser, [
-    flexItem(1, 120, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  const browserTable = layoutStudioCanvasTable({
-    columns: [
-      { id: 'name', label: `${kind.toUpperCase()} (${entries.length})`, minWidth: 110 },
-      { id: 'refs', label: 'REFS', width: 54 },
-    ],
-    rows: entries.map((entry) => ({
-      id: entry.id,
-      cells: [entry.label, String(entry.referencedBy)],
-      selected: entry.id === state.selectedId,
-    })),
-    scrollRow: state.browserScroll,
-    rowHeight: BUTTON_HEIGHT,
-    headerHeight: BUTTON_HEIGHT,
-    frameStyle: 'thin',
-    emptyLabel: `No ${kind} definitions`,
-  }, browserSlots[0]!);
-  state.browserScroll = browserTable.firstRow;
-  const selectDefinition = (definitionId: string): void => {
-    const entry = entries.find(({ id }) => id === definitionId);
-    if (entry === undefined) return;
-    state.selectedId = entry.id;
-    state.syncedId = null;
-    context.controller.selection.select({ kind: 'definition', definitionKind: entry.kind, id: entry.id });
-    context.invalidate();
-  };
-  tables.push({
-    id: 'narrative:browser-table',
-    layout: browserTable,
-    onHit: (hit) => { if (hit.kind !== 'header') selectDefinition(hit.rowId); },
-    onScroll: (_command, nextScrollRow) => { state.browserScroll = nextScrollRow; context.invalidate(); },
-  });
-  browserTable.rows.forEach((row) => {
-    const entry = entries[row.rowIndex]!;
-    actions.push({ id: `narrative:definition:${entry.id}`, label: entry.label, role: 'option', bounds: row.bounds,
-      activate: () => selectDefinition(entry.id) });
-  });
-  const scrollButtons = layoutUiFlex(browserSlots[1]!, [
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-    flexItem(44, BUTTON_HEIGHT, { basis: 44, shrink: 0 }),
-  ], { gap: 4 });
-  action(nodes, actions, 'narrative:browser-up', 'Previous definitions', scrollButtons[0]!, () => {
-    state.browserScroll = scrollStudioCanvasTable(browserTable, 'page_up'); context.invalidate();
-  }, { disabled: browserTable.firstRow === 0, glyph: 'up', visibleLabel: '' });
-  action(nodes, actions, 'narrative:browser-down', 'Next definitions', scrollButtons[1]!, () => {
-    state.browserScroll = scrollStudioCanvasTable(browserTable, 'page_down'); context.invalidate();
-  }, { disabled: browserTable.firstRow === browserTable.maximumScrollRow, glyph: 'down', visibleLabel: '' });
-
-  nodes.push(
-    { id: 'narrative:editor-panel', kind: 'parchment_panel', bounds: editor },
-    { id: 'narrative:preview-panel', kind: 'wood_panel', bounds: preview },
-  );
-  const editorContent = studioCanvasFrameContentRect(editor, 'parchment_panel');
-  const editorSlots = layoutUiFlex(editorContent, [
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, 80, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  nodes.push({ id: 'narrative:editor-title', kind: 'heading', bounds: editorSlots[0]!,
-    label: selected === undefined ? 'NO SELECTION' : definitionLabel(selected), clip: editorContent });
-  if (selected !== undefined) {
-    fieldNodes(nodes, 'narrative:field', scalarFields(selected), editorSlots[1]!);
-    action(nodes, actions, 'narrative:definition-json', `JSON ${state.definition.snapshot().value.slice(0, 42)}`,
-      editorSlots[2]!, () => state.definition.focus(), { role: 'textbox', disabled: access === 'read_only' });
-    const apply = layoutUiFlex(editorSlots[3]!, [flexItem(116, BUTTON_HEIGHT, { basis: 116, shrink: 0 })])[0]!;
-    action(nodes, actions, 'narrative:apply-json', 'APPLY JSON', apply, () => {
-      try { state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value)); context.invalidate(); }
-      catch (error) { report(context, 'Narrative definition invalid', error); }
-    }, { disabled: access === 'read_only', tone: 'success' });
-  }
-
-  const previewContent = studioCanvasFrameContentRect(preview, 'wood_panel');
-  const previewSlots = layoutUiFlex(previewContent, [
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, 160, { grow: 1 }),
-  ], { direction: 'column', gap: 4 });
-  nodes.push({ id: 'narrative:preview-title', kind: 'heading', bounds: previewSlots[0]!, label: `${kind.toUpperCase()} PREVIEW` });
-  if (selected?.kind === 'npc') renderNpcPreview(nodes, previewSlots[1]!, state.model, selected);
-  else if (selected?.kind === 'dialogue') renderDialoguePreview(nodes, actions, previewSlots[1]!, state, selected, context);
-  else if (selected?.kind === 'quest') renderQuestPreview(nodes, actions, previewSlots[1]!, state, selected, context);
-
-  context.controller.validation.setIssues([
-    ...snapshot.validation.errors.map((issue, index) => ({ id: `narrative:error:${index}`, severity: 'error' as const, message: issue.message })),
-    ...snapshot.validation.warnings.map((issue, index) => ({ id: `narrative:warning:${index}`, severity: 'warning' as const, message: issue.message })),
+  const snapshot = state.model.snapshot(), prefix=`${context.route.tool.id}-narrative:`;
+  const id=(name:string)=>`${prefix}${name}`;
+  const text=(name:string,value:string)=>kit.text(value,{id:id(name),wrap:true,layout:{width:'grow'}});
+  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>kit.button({id:id(name),label,disabled,tone,layout:{width:'grow',shrink:0},onPress:()=>{
+    try{onPress();}catch(error){report(context,`${label} failed`,error);}
+  }});
+  const fields=(name:string,lines:readonly string[])=>kit.flex({width:'grow',gap:4},lines.map((line,index)=>text(`${name}:${index}`,line)));
+  const controls=kit.flex({width:'grow',gap:4},[
+    kit.input({id:id('query'),label:'Search definitions',placeholder:'Search definitions',editor:state.query,onChange:()=>context.invalidate()}),
+    kit.input({id:id('note'),label:'Publish note',placeholder:'Publish note',editor:state.note}),
+    button('new',`New ${kind}`,()=>{createDefinition(state,kind);context.invalidate();},access==='read_only','success'),
+    kit.checkbox({id:id('retired'),label:'Retired',value:state.includeRetired,onChange:value=>{state.includeRetired=value;state.browserTable=undefined;context.invalidate();}}),
+    button('undo','Undo',()=>{state.model.undo();context.invalidate();},!snapshot.canUndo),
+    button('redo','Redo',()=>{state.model.redo();context.invalidate();},!snapshot.canRedo),
+    button('rebase','Rebase',()=>{state.model.rebase();context.invalidate();},!snapshot.conflict),
+    button('publish','Publish',()=>{
+      state.mutationSequence++;
+      void state.model.publish(`narrative.canvas.${state.mutationSequence}`,state.note.snapshot().value)
+        .then(()=>context.controller.notifications.push('success','Narrative published','Waiting for the verified live head.'))
+        .catch((error:unknown)=>report(context,'Narrative publish failed',error)).finally(context.invalidate);
+    },!snapshot.canPublish,'success'),
+    text('status',`${kind.toUpperCase()} · ${access.toUpperCase()} · HEAD ${snapshot.headRevision} · ${snapshot.diffs.length} CHANGES · ${snapshot.validation.errors.length} ERRORS${snapshot.conflict?' · CONFLICT':''}`),
+    kit.list({id:id('history'),label:'Revision history',items:state.model.history(),key:revision=>String(revision.revision),layout:{width:'grow',height:uiFixed(120),shrink:0},
+      render:revision=>text(`history:${revision.revision}`,`R${revision.revision} ${revision.note||'UNTITLED'}`),
+      onSelect:(_keys,revision)=>{
+        try{const preview=state.model.previewRevision(revision.revision,'published_change');context.controller.notifications.push('info',`Revision ${revision.revision}`,`${preview.diffs.length} published changes.`);context.invalidate();}
+        catch(error){report(context,'Narrative revision preview failed',error);}
+      },
+    }),
   ]);
-  return prefixSurface(context, nodes, actions, tables, state);
-}
-
-function renderNpcPreview(
-  nodes: StudioCanvasShellNode[], bounds: UiRect, model: NarrativeWorkspaceModel, definition: NpcContentDefinition,
-): void {
-  const preview = model.npcPreview(definition.id);
-  const lines = [
-    preview.definition.displayName,
-    `PORTRAIT ${preview.portraitAsset}`,
-    `HOME ${definition.home.spaceId}:${definition.home.tileX},${definition.home.tileY}`,
-    `DIALOGUE ${preview.dialogue?.nodes.length ?? 0} NODES`,
-    `QUESTS ${preview.quests.length}`,
-    `SHOP ${preview.shop?.offers.length ?? 0} OFFERS`,
-    ...(definition.barks ?? []).map((bark) => `BARK “${bark}”`),
-  ];
-  fieldNodes(nodes, 'narrative:npc-preview', lines, bounds);
-}
-
-function renderDialoguePreview(
-  nodes: StudioCanvasShellNode[], actions: StudioCanvasToolAction[], bounds: UiRect,
-  state: NarrativeCanvasState, definition: DialogueContentDefinition, context: StudioCanvasToolContext,
-): void {
-  const graph = state.model.dialoguePreview(definition.id);
-  const graphNodes = graph.nodes;
-  const regions = layoutUiFlex(bounds, [
-    flexItem(1, 150, { basis: 250, grow: 2 }),
-    flexItem(1, 100, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  const graphCapacity = Math.max(1, Math.floor(regions[0]!.height / (BUTTON_HEIGHT + 3)));
-  const graphNodeCount = Math.min(graphNodes.length, 3, Math.max(1, Math.ceil(graphCapacity * 0.6)));
-  const graphEdgeCount = Math.min(graph.edges.length, 2, Math.max(0, graphCapacity - graphNodeCount));
-  const graphLines: readonly (
-    | { readonly id: string; readonly label: string; readonly node: DialogueGraphNode }
-    | { readonly id: string; readonly label: string }
-  )[] = [
-    ...graphNodes.slice(0, graphNodeCount).map((node) => ({ id: `narrative:graph-node:${node.id}`, label: `${node.id} · ${node.speaker}: ${node.body}`, node })),
-    ...graph.edges.slice(0, graphEdgeCount).map((edge) => ({ id: `narrative:graph-edge:${edge.id}`, label: `EDGE ${edge.from} → ${edge.to} (${edge.choiceId})` })),
-  ];
-  const graphRects = layoutUiFlex(regions[0]!, graphLines.map(() => flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 })),
-    { direction: 'column', gap: 3 });
-  graphLines.forEach((line, index) => {
-    const dialogueNode = 'node' in line ? line.node : null;
-    if (dialogueNode !== null) {
-      action(nodes, actions, line.id, line.label, graphRects[index]!, () => {
-        state.model.moveDialogueNode(definition.id, dialogueNode.id, dialogueNode.x + 16, dialogueNode.y);
-        context.invalidate();
-      }, { role: 'option' });
-    } else {
-      nodes.push({ id: line.id, kind: 'label', bounds: graphRects[index]!, label: line.label, clip: regions[0] });
-    }
+  const selectDefinition=(definitionId:string)=>{
+    const entry=entries.find(entry=>entry.id===definitionId);if(!entry)return;
+    state.selectedId=entry.id;state.syncedId=null;
+    context.controller.selection.select({kind:'definition',definitionKind:entry.kind,id:entry.id});context.invalidate();
+  };
+  const browser=kit.table({id:id('browser-table'),label:`${kind} definitions`,rows:entries,key:entry=>entry.id,
+    columns:[{id:'name',label:'Name',value:entry=>entry.label}],
+    selected:state.selectedId?[state.selectedId]:[],state:state.browserTable,onStateChange:next=>{state.browserTable=next;},onSelect:keys=>{if(keys[0])selectDefinition(keys[0]);},layout:{width:'grow',height:'grow'},
   });
-  if (state.play?.currentNodeId !== null && state.play?.currentNodeId !== undefined) {
-    const current = graph.nodes.find(({ id }) => id === state.play?.currentNodeId);
-    const choiceCapacity = Math.max(0, Math.floor((regions[1]!.height - BUTTON_HEIGHT) / (BUTTON_HEIGHT + 3)));
-    const choices = state.model.availableChoices(state.play).slice(0, choiceCapacity);
-    const playRects = layoutUiFlex(regions[1]!, [
-      flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-      ...choices.map(() => flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 1 })),
-    ], { direction: 'column', gap: 3 });
-    nodes.push({ id: 'narrative:dialogue-current', kind: 'field', bounds: playRects[0]!,
-      label: current === undefined ? 'MISSING PLAYBACK NODE' : `PLAY ${current.speaker}: ${current.body}` });
-    choices.forEach((choice, index) => action(nodes, actions, `narrative:choice:${choice.id}`, choice.label,
-      playRects[index + 1]!, () => {
-        state.play = state.model.chooseDialogue(state.play!, choice.id);
-        context.invalidate();
+  const editor=kit.scrollArea({width:'grow',height:'grow',gap:4},[
+    text('editor-title',selected?definitionLabel(selected):'NO SELECTION'),
+    ...(selected?[
+      kit.textArea({id:id('definition-json'),label:'Definition JSON',editor:state.definition,readOnly:access==='read_only',rows:20,lineCount:true,resizable:true}),
+      button('apply-json','Apply JSON',()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));context.invalidate();},access==='read_only','success'),
+    ]:[]),
+  ]);
+  const preview:UiElement[]=[];
+  const testing:UiElement[]=[];
+  let dialoguePreview:UiElement|undefined;
+  if(selected?.kind==='npc'){
+    const npc=state.model.npcPreview(selected.id);
+    preview.push(fields('npc-preview',[
+      npc.definition.displayName,`PORTRAIT ${npc.portraitAsset}`,`HOME ${selected.home.spaceId}:${selected.home.tileX},${selected.home.tileY}`,
+      `DIALOGUE ${npc.dialogue?.nodes.length??0} NODES`,`QUESTS ${npc.quests.length}`,`SHOP ${npc.shop?.offers.length??0} OFFERS`,...(selected.barks??[]).map(bark=>`BARK “${bark}”`),
+    ]));
+  }else if(selected?.kind==='dialogue'){
+    const graph=state.model.dialoguePreview(selected.id);
+    testing.push(kit.list({id:id('graph'),label:'Dialogue graph',items:[...graph.nodes.map(node=>({id:`node:${node.id}`,node,label:`${node.id} · ${node.speaker}: ${node.body}`})),
+      ...graph.edges.map(edge=>({id:`edge:${edge.id}`,node:null,label:`EDGE ${edge.from} → ${edge.to} (${edge.choiceId})`}))],key:entry=>entry.id,layout:{width:'grow',height:uiFixed(160),shrink:0},
+      render:entry=>entry.node?button(`graph-node:${entry.node.id}`,entry.node.id,()=>{state.play={...state.model.startDialogue(selected.id),currentNodeId:entry.node!.id};context.invalidate();}):
+        text(`graph-edge:${entry.id.slice(5)}`,entry.label),
+    }));
+    const current=graph.nodes.find(node=>node.id===state.play?.currentNodeId);
+    if(current && state.play){
+      dialoguePreview=kit.dialogue({model:{id:current.id,speaker:current.speaker,body:current.body,choices:state.model.availableChoices(state.play).map(choice=>({id:choice.id,label:choice.label,tone:choice.tone==='accept'?'success':choice.tone==='decline'?'danger':'neutral'}))},
+        choose:choiceId=>{state.play=state.model.chooseDialogue(state.play!,choiceId);context.invalidate();},
+        onClose:()=>{state.play={...state.play!,currentNodeId:null};context.invalidate();}});
+      preview.push(text('dialogue-current',current.speaker));
+    }else preview.push(text('dialogue-end','Conversation finished'));
+    testing.push(kit.textArea({id:id('fixture'),label:'Playback fixture JSON',editor:state.fixture,rows:5}),
+      button('restart-dialogue','Restart preview',()=>{
+        const fixture=JSON.parse(state.fixture.snapshot().value) as Readonly<Record<string,'available'|'active'|'complete'|'turned_in'>>;
+        state.play=state.model.startDialogue(selected.id,fixture);context.invalidate();
       }));
-  } else {
-    nodes.push({ id: 'narrative:dialogue-end', kind: 'label', bounds: regions[1]!,
-      label: `END${state.play?.openedShop === null || state.play?.openedShop === undefined ? '' : ` · ${state.play.openedShop}`}` });
-  }
-  const restart = layoutUiFlex(regions[2]!, [flexItem(170, BUTTON_HEIGHT, { basis: 170, shrink: 0 })])[0]!;
-  action(nodes, actions, 'narrative:restart-dialogue', 'RESTART PLAY-THROUGH', restart, () => {
-    try {
-      const fixture = JSON.parse(state.fixture.snapshot().value) as Readonly<Record<string, 'available' | 'active' | 'complete' | 'turned_in'>>;
-      state.play = state.model.startDialogue(definition.id, fixture);
-      context.invalidate();
-    } catch (error) { report(context, 'Dialogue fixture invalid', error); }
-  }, { glyph: 'play' });
-}
+  }else if(selected?.kind==='quest'){
+    const quest=state.model.questPreview(selected.id,state.questFixture);
+    preview.push(kit.frame({style:'parchment_plain',layout:{width:'grow',height:'fit',gap:8},children:[
+      kit.text(selected.title,{role:'header',wrap:true}),
+      text('quest-summary',selected.summary),
+      ...quest.objectives.map((objective,index)=>kit.flex({width:'grow',gap:4},[
+        text(`quest-objective:${index}`,`${objective.label} · ${objective.current}/${objective.required}`),
+        kit.progressBar({label:objective.label,value:objective.required?objective.current/objective.required:0,tone:objective.complete?'success':'info'}),
+      ])),
+      text('quest-rewards',`${quest.rewards.bronze} bronze · ${quest.rewards.items.reduce((sum,reward)=>sum+reward.count,0)} items · ${quest.rewards.experience.reduce((sum,reward)=>sum+reward.amount,0)} XP`),
+    ]}));
+    testing.push(text('fixture-label','Preview progress'),
+      kit.textArea({id:id('fixture'),label:'Completion fixture JSON',editor:state.fixture,rows:6}),
+      button('apply-fixture','Apply completion',()=>{state.questFixture=JSON.parse(state.fixture.snapshot().value) as QuestProgressFixture;context.invalidate();},false,'success'));
 
-function renderQuestPreview(
-  nodes: StudioCanvasShellNode[], actions: StudioCanvasToolAction[], bounds: UiRect,
-  state: NarrativeCanvasState, definition: QuestContentDefinition, context: StudioCanvasToolContext,
-): void {
-  const preview = state.model.questPreview(definition.id, state.questFixture);
-  const regions = layoutUiFlex(bounds, [
-    flexItem(1, 54, { basis: 54, shrink: 0 }),
-    flexItem(1, 80, { grow: 1 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-    flexItem(1, BUTTON_HEIGHT, { basis: BUTTON_HEIGHT, shrink: 0 }),
-  ], { direction: 'column', gap: 4 });
-  nodes.push({ id: 'narrative:quest-summary', kind: 'field', bounds: regions[0]!,
-    label: `${preview.available ? 'AVAILABLE' : 'LOCKED'} · ${preview.complete ? 'COMPLETE' : 'IN PROGRESS'} · ${definition.summary}`,
-    tone: preview.complete ? 'success' : 'normal' });
-  fieldNodes(nodes, 'narrative:quest-objective', preview.objectives.map((objective) =>
-    `${objective.complete ? '✓' : '○'} ${objective.label} ${objective.current}/${objective.required}`), regions[1]!,
-  (line) => line.startsWith('✓') ? 'success' : 'normal');
-  nodes.push({ id: 'narrative:quest-rewards', kind: 'label', bounds: regions[2]!,
-    label: `REWARDS ${preview.rewards.bronze} BRONZE · ${preview.rewards.items.length} ITEMS · ${preview.rewards.experience.length} XP` });
-  action(nodes, actions, 'narrative:fixture', `FIXTURE ${state.fixture.snapshot().value.slice(0, 28)}`,
-    regions[3]!, () => state.fixture.focus(), { role: 'textbox' });
-  const apply = layoutUiFlex(regions[4]!, [flexItem(190, BUTTON_HEIGHT, { basis: 190, shrink: 0 })])[0]!;
-  action(nodes, actions, 'narrative:apply-fixture', 'APPLY COMPLETION', apply, () => {
-    try { state.questFixture = JSON.parse(state.fixture.snapshot().value) as QuestProgressFixture; context.invalidate(); }
-    catch (error) { report(context, 'Quest fixture invalid', error); }
-  }, { tone: 'success' });
+  }
+  context.controller.validation.setIssues([
+    ...snapshot.validation.errors.map((issue,index)=>({id:`narrative:error:${index}`,severity:'error' as const,message:issue.message})),
+    ...snapshot.validation.warnings.map((issue,index)=>({id:`narrative:warning:${index}`,severity:'warning' as const,message:issue.message})),
+  ]);
+  const inspector=studioSelectionEditor({id:id('tabs'),label:'Narrative editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
+    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,readOnly:access==='read_only',apply:()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));}})},
+    {id:'editor',label:'JSON',content:editor},
+    {id:'history',label:'History',content:kit.scrollArea({width:'grow',height:'grow',gap:8},[controls.children[8]!,controls.children[9]!])},
+    ...(testing.length ? [{id:'testing',label:kind==='dialogue'?'Nodes & testing':'Testing',content:kit.scrollArea({width:'grow',height:'grow',gap:8},testing)}] : []),
+    ...(selected?.kind === 'npc' ? [{id:'links',label:'Connections',content:kit.scrollArea({width:'grow',height:'grow',gap:8},preview)}] : []),
+
+  ]});
+  const [queryInput, noteInput, create, retired, undo, redo, rebase, publish] = controls.children;
+  const drawer = studioLibraryDrawer([queryInput!, studioActionBar([
+    studioIconAction(create!, {lucide:'copy'}), studioIconAction(undo!, {lucide:'undo'}),
+    studioIconAction(redo!, {lucide:'redo'}), studioIconAction(rebase!, {lucide:'cloudConnect'}),
+  ])], browser, [retired!, noteInput!, publish!]);
+  return {lifecycle:studioDefinitionPreviewLifecycle(context),kit:{controls:drawer,workspace:selected?.kind === 'npc' ? studioDefinitionPreview(context,selected) : dialoguePreview ?? kit.scrollArea({width:'grow',height:'grow',gap:8,padding:8},preview),inspector}};
 }

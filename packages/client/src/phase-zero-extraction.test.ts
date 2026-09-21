@@ -145,7 +145,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
 // Kenmi icon refresh shares Build/Crafting button chrome and preserves purse inventory.
 // Review: docs/reference-assets/kenmi-icon-implementation.md; HUD interaction tests cover the change.
-const STRUCTURAL_SEAM_DIGEST = '348dbb56aabdb3050aca2b686f0187599cfa64ac1fc6e30831322ebe844fc438';
+// Studio integration shares the player-rig asset contract through the game-safe
+// UI barrel; the workbench stays behind @orchard/ui/studio and the client build guard.
+const STRUCTURAL_SEAM_DIGEST = '7131ba7a4aca312db0c1e2a63cb6b1eba8c97cb63de106c0d67f16183461847c';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -231,6 +233,7 @@ describe('Phase 0 extraction equivalence', () => {
     const engine = new URL('../../engine/src/', import.meta.url);
     const ui = new URL('../../ui/src/', import.meta.url);
     expect(importsMatching(client, /^@orchard\/studio(?:\/|$)/)).toEqual([]);
+    expect(importsMatching(client, /^@orchard\/ui\/studio(?:\/|$)/)).toEqual([]);
     expect(importsMatching(studio, /^@orchard\/client(?:\/|$)/)).toEqual([]);
     expect(importsMatching(engine, /^@orchard\/(?:auth|world-bindings)(?:\/|$)/)).toEqual([]);
     expect(importsMatching(ui, /^@orchard\/(?:auth|world-bindings)(?:\/|$)/)).toEqual([]);

@@ -34,3 +34,7 @@ output/
 
 # Native licensed tool silhouettes remain local source artwork.
 art/custom/tool-progression/
+
+# Copies generated from the canonical shared UI symbols.
+packages/client/public/ui/lucide/
+packages/studio/public/ui/lucide/

@@ -1,20 +1,19 @@
+import type { AssetPaletteItem } from './object/asset-palette.js';
+import { kitElement, kitElements, pressKit, chooseKit, keyKit } from './kit-test-driver.js';
+import { ui, UiRoot, scrollUiElement } from '@orchard/ui/studio';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createLiveIslandMapDocument } from '@orchard/sim';
-import type { StudioCanvasShellArt, UiRect } from '@orchard/ui';
+import type { StudioSpatialArt, CanvasTextEditor } from '@orchard/ui/studio';
 import { StudioShellController } from '../shell/controller.js';
-import type { StudioCanvasToolBuilder, StudioCanvasToolContext, StudioCanvasToolSurface } from '../shell/canvas-tool.js';
-import { canvasAction, canvasParts } from './build-canvas-common.js';
+import type { StudioCanvasToolContext } from '../shell/canvas-tool.js';
 import { buildAudioCanvasTool } from './audio/canvas.js';
+import { AUDIO_PREVIEW_SFX, AudioPreviewModel } from './audio/model.js';
 import { buildCharacterCanvasTool } from './character/canvas.js';
 import { buildMapCanvasTool } from './map/canvas.js';
 import { buildObjectCanvasTool } from './object/canvas.js';
 import { buildTilesCanvasTool } from './tiles/canvas.js';
 import { buildUiLabCanvasTool } from './ui-lab/canvas.js';
-import { buildItemsCanvasTool } from './items/canvas.js';
-import { buildNarrativeCanvasTool } from './narrative/canvas.js';
-import { buildWorldAuthoringCanvasTool } from './world-tables/canvas.js';
-import type { StudioConnectionView, StudioLiveAdapter } from '../shell/studio-connection.js';
 
 const CONTROLS = Object.freeze({ x: 10, y: 20, width: 206, height: 620 });
 const WORKSPACE = Object.freeze({ x: 300, y: 20, width: 820, height: 620 });
@@ -25,81 +24,6 @@ function context(path: string): StudioCanvasToolContext {
   expect(controller.navigate(path)).toBe(true);
   return { controlsBounds: CONTROLS, workspaceBounds: WORKSPACE, inspectorBounds: INSPECTOR, bounds: WORKSPACE,
     route: controller.activeRoute(), controller, invalidate: vi.fn() };
-}
-
-async function liveContentContext(
-  path: string,
-  view: StudioConnectionView,
-): Promise<StudioCanvasToolContext> {
-  let changed = (): void => undefined;
-  const adapter: StudioLiveAdapter = {
-    view: () => view,
-    connect: () => changed(),
-    disconnect: () => undefined,
-  };
-  const controller = new StudioShellController(async (_environment, onChanged) => {
-    changed = onChanged;
-    return adapter;
-  });
-  controller.chooseEnvironment('local');
-  await controller.connectExplicit();
-  expect(controller.navigate(path)).toBe(true);
-  return { controlsBounds: CONTROLS, workspaceBounds: WORKSPACE, inspectorBounds: INSPECTOR,
-    bounds: WORKSPACE, route: controller.activeRoute(), controller, invalidate: vi.fn() };
-}
-
-function connectionView(overrides: Partial<StudioConnectionView> = {}): StudioConnectionView {
-  return {
-    connected: true, synchronizing: false, identity: '01'.repeat(32), role: 'content_editor',
-    contentRevision: null, contentHead: null, contentDefinitions: [], mapRevision: null,
-    mapDocument: null, publishingMap: false, worldMutating: false, error: null,
-    rows: { placeables: [], npcs: [], homesteads: [], players: [] },
-    ...overrides,
-  };
-}
-
-function setOutlinerView(context: StudioCanvasToolContext, view: 'palette' | 'world' | 'live'): void {
-  context.controller.toolState<{ leftView: string }>('map-canvas:live-island', () => {
-    throw new Error('Expected initialized map');
-  }).leftView = view;
-}
-
-function inside(child: UiRect, parent: UiRect): boolean {
-  return child.x >= parent.x && child.y >= parent.y
-    && child.x + child.width <= parent.x + parent.width
-    && child.y + child.height <= parent.y + parent.height;
-}
-
-function overlaps(a: UiRect, b: UiRect): boolean {
-  return a.x < b.x + b.width && a.x + a.width > b.x
-    && a.y < b.y + b.height && a.y + a.height > b.y;
-}
-
-function assertSurface(surface: StudioCanvasToolSurface, toolId: string, requiresWorkspaceNode = true): void {
-  expect(surface.nodes.length).toBeGreaterThan(4);
-  expect(surface.nodes.length).toBeLessThanOrEqual(200);
-  expect(surface.actions.length).toBeGreaterThan(0);
-  expect(surface.actions.length).toBeLessThanOrEqual(200);
-  expect(new Set(surface.nodes.map(({ id }) => id)).size).toBe(surface.nodes.length);
-  expect(new Set(surface.actions.map(({ id }) => id)).size).toBe(surface.actions.length);
-  expect(surface.nodes.every(({ id }) => id.startsWith(`${toolId}-`))).toBe(true);
-  expect(surface.actions.every(({ id }) => id.startsWith(`${toolId}-`))).toBe(true);
-  expect(surface.nodes.some(({ bounds }) => inside(bounds, CONTROLS))).toBe(true);
-  if (requiresWorkspaceNode) expect(surface.nodes.some(({ bounds }) => inside(bounds, WORKSPACE))).toBe(true);
-  expect(surface.actions.every(({ bounds }) => bounds.width >= 40 && bounds.height >= 40)).toBe(true);
-  expect(surface.nodes.some(({ id }) => id.endsWith('-controls-surface') || id.endsWith('-workspace-surface'))).toBe(false);
-  expect(surface.nodes.filter(({ id }) => id.endsWith('-panel'))
-    .every(({ kind }) => kind === 'thin_panel')).toBe(true);
-  const outside = surface.actions.find(({ bounds }) => !inside(bounds, CONTROLS)
-    && !inside(bounds, WORKSPACE) && !inside(bounds, INSPECTOR));
-  expect(outside, outside === undefined ? undefined : `${outside.id} outside shell-safe bounds ${JSON.stringify(outside.bounds)}`).toBeUndefined();
-  for (let index = 0; index < surface.actions.length; index += 1) {
-    for (let other = index + 1; other < surface.actions.length; other += 1) {
-      expect(overlaps(surface.actions[index]!.bounds, surface.actions[other]!.bounds),
-        `${surface.actions[index]!.id} overlaps ${surface.actions[other]!.id}`).toBe(false);
-    }
-  }
-  expect(surface.draw).toBeTypeOf('function');
 }
 
 function fakeCanvasContext(): CanvasRenderingContext2D {
@@ -115,282 +39,80 @@ function fakeCanvasContext(): CanvasRenderingContext2D {
   } }) as unknown as CanvasRenderingContext2D;
 }
 
-const BUILDERS: readonly [string, string, StudioCanvasToolBuilder][] = [
-  ['object', '/build/object', buildObjectCanvasTool],
-  ['tiles', '/build/tiles', buildTilesCanvasTool],
-  ['character', '/author/character', buildCharacterCanvasTool],
-  ['audio', '/author/audio', buildAudioCanvasTool],
-  ['ui-lab', '/author/ui-lab', buildUiLabCanvasTool],
-];
-
-const LIVE_CONTENT_BUILDERS: readonly [string, string, StudioCanvasToolBuilder][] = [
-  ['tiles', '/build/tiles', buildTilesCanvasTool],
-  ['ui-lab', '/author/ui-lab', buildUiLabCanvasTool],
-  ['items', '/author/items', buildItemsCanvasTool],
-  ['npc-studio', '/author/npcs', buildNarrativeCanvasTool],
-  ['world-tables', '/author/world-tables', buildWorldAuthoringCanvasTool],
-];
-
 describe('canvas-native Build and asset tools', () => {
-  it.each(LIVE_CONTENT_BUILDERS)('%s shows loading while its live content subscription is not ready', async (
-    _toolId, path, builder,
-  ) => {
-    const toolContext = await liveContentContext(path, connectionView({
-      connected: false, synchronizing: true, contentHead: undefined, contentDefinitions: undefined,
-    }));
-    const surface = builder(toolContext);
-    expect(surface.nodes.find(({ id }) => id.endsWith('content-status-title'))?.label).toBe('LOADING LIVE CONTENT');
-    expect(surface.nodes.find(({ id }) => id.endsWith('content-status-detail'))?.label)
-      .toBe('WAITING FOR VERIFIED LIVE CONTENT');
-    expect(surface.actions).toHaveLength(0);
+  it('delegates the lab to its complete retained kit canvas without legacy draw nodes', () => {
+    expect(buildUiLabCanvasTool(context('/author/ui-lab'))).toEqual({ standalone: 'ui-lab' });
   });
-
-  it.each(LIVE_CONTENT_BUILDERS)('%s fails closed when connected live content has no verified head or rows', async (
-    _toolId, path, builder,
-  ) => {
-    const toolContext = await liveContentContext(path, connectionView());
-    const surface = builder(toolContext);
-    expect(surface.nodes.find(({ id }) => id.endsWith('content-status-title'))?.label).toBe('LIVE CONTENT UNAVAILABLE');
-    expect(surface.nodes.find(({ id }) => id.endsWith('content-status-detail'))?.label)
-      .toBe('NO VERIFIED LIVE CONTENT HEAD IS AVAILABLE');
-    expect(surface.actions).toHaveLength(0);
-    expect(surface.tables ?? []).toHaveLength(0);
-  });
-
-  it.each(LIVE_CONTENT_BUILDERS)('%s retains explicit offline bootstrap authoring', (
-    _toolId, path, builder,
-  ) => {
-    const surface = builder(context(path));
-    expect(surface.nodes.some(({ id }) => id.endsWith('content-status-title'))).toBe(false);
-    expect(surface.actions.length).toBeGreaterThan(0);
-  });
-
-  it.each(['/build/map', '/build/map/terrain-lab', '/build/map/procedural-world'])('builds map route %s without route controls', async (path) => {
-    const toolContext = context(path);
-    let surface = buildMapCanvasTool(toolContext);
-    assertSurface(surface, 'map', false);
-    expect(surface.actions.some(({ label }) => label.includes('/build/map'))).toBe(false);
-    expect(surface.actions.find(({ id }) => id === 'map-export')).toMatchObject({
-      label: 'Download the current local map draft as validated JSON',
-      disabled: false,
-    });
-    expect(surface.nodes.find(({ id }) => id === 'map-export')).toMatchObject({
-      kind: 'button', symbol: 'export', label: undefined,
-    });
-    expect(surface.nodes.find(({ id }) => id === 'map-layers-ribbon')).toMatchObject({ kind: 'ribbon', label: 'LAYERS' });
-    expect(surface.nodes.some(({ id }) => id === 'map-selection-ribbon')).toBe(false);
-    expect(surface.actions.some(({ id }) => id === 'map-layer-visible-terrain')).toBe(true);
-    expect(surface.actions.some(({ id }) => id === 'map-layer-select-objects')).toBe(true);
-    expect(surface.actions.map(({ id }) => id).filter((id) => id.startsWith('map-left-view-')))
-      .toEqual([]);
-    expect(surface.actions.find(({ id }) => id === 'map-layer-select-generated_base')?.label)
-      .toContain('(system locked)');
-    expect(surface.nodes.find(({ id }) => id === 'map-layers-card-panel'))
-      .toMatchObject({ kind: 'thin_panel' });
-    expect(surface.nodes.some(({ id }) => id === 'map-selection-card-panel')).toBe(false);
-    expect(surface.nodes.filter(({ id }) => id.startsWith('map-layer-visible-')))
-      .toEqual(expect.arrayContaining([
-        expect.objectContaining({ symbol: 'visibility', label: undefined }),
-      ]));
-    const layerRows = surface.nodes.filter(({ id }) => id.startsWith('map-layer-select-'));
-    expect(layerRows).toHaveLength(8);
-    expect(layerRows.every(({ kind, label }) => kind === 'button' && label === undefined)).toBe(true);
-    expect(surface.nodes.some(({ label }) => label?.startsWith('Work on '))).toBe(false);
-    expect(surface.nodes.filter(({ id }) => id.startsWith('map-layer-thumbnail-'))
-      .every(({ kind, symbol }) => kind === 'slot' && symbol !== undefined)).toBe(true);
-    expect(surface.nodes.filter(({ id }) => id.startsWith('map-layer-lock-')))
-      .toEqual(expect.arrayContaining([
-        expect.objectContaining({ kind: 'button', symbol: 'lock', state: 'disabled' }),
-        expect.objectContaining({ kind: 'button', symbol: 'unlock' }),
-      ]));
-    expect(surface.actions.some(({ id }) => id.startsWith('map-layer-lock-'))).toBe(true);
-    expect(surface.nodes.filter(({ id }) => id.startsWith('map-layer-solo-'))
-      .every(({ kind, symbol, label }) => kind === 'button' && symbol === 'layers' && label === undefined))
-      .toBe(true);
-    expect(surface.nodes.filter(({ id }) => id.startsWith('map-layer-select-')).map(({ id }) => id))
-      .toEqual([
-        'map-layer-select-anchors', 'map-layer-select-canopy', 'map-layer-select-player_owned',
-        'map-layer-select-gameplay', 'map-layer-select-objects', 'map-layer-select-ground',
-        'map-layer-select-terrain', 'map-layer-select-generated_base',
-      ]);
-    expect(surface.actions.filter(({ id }) => id.startsWith('map-layer-select-')).map(({ id }) => id))
-      .toEqual([
-        'map-layer-select-anchors', 'map-layer-select-canopy', 'map-layer-select-player_owned',
-        'map-layer-select-gameplay', 'map-layer-select-objects', 'map-layer-select-ground',
-        'map-layer-select-terrain', 'map-layer-select-generated_base',
-      ]);
-    surface.actions.find(({ id }) => id === 'map-export')?.activate();
-    expect(toolContext.controller.notifications.items().at(-1)).toMatchObject({
-      kind: 'error',
-      title: 'Map export unavailable',
-      detail: 'This browser preview does not provide a file-download bridge.',
-    });
-    if (path === '/build/map') {
-      setOutlinerView(toolContext, 'world');
-      let outlinerSurface = buildMapCanvasTool(toolContext);
-      expect(outlinerSurface.nodes.find(({ id }) => id === 'map-world-outliner-card-panel'))
-        .toMatchObject({ kind: 'thin_panel' });
-      expect(outlinerSurface.nodes.find(({ id }) => id === 'map-world-outliner-ribbon'))
-        .toMatchObject({ kind: 'ribbon', label: expect.stringMatching(/^WORLD OUTLINER(?: |$)/) });
-      expect(outlinerSurface.actions.some(({ id }) => id === 'map-outliner-select-space:0:layer:objects'))
-        .toBe(true);
-      outlinerSurface.actions.find(({ id }) => id === 'map-outliner-toggle-space:0:layer:objects')?.activate();
-      outlinerSurface = buildMapCanvasTool(toolContext);
-      expect(outlinerSurface.actions.some(({ id }) => id.startsWith('map-outliner-select-map-object:')))
-        .toBe(true);
-      setOutlinerView(toolContext, 'live');
-      const liveOutlinerSurface = buildMapCanvasTool(toolContext);
-      expect(liveOutlinerSurface.nodes.find(({ id }) => id === 'map-live-outliner-card-panel'))
-        .toMatchObject({ kind: 'thin_panel' });
-      expect(liveOutlinerSurface.nodes.find(({ id }) => id === 'map-live-outliner-empty')?.label)
-        .toBe('CONNECT TO VIEW LIVE WORLD');
-      setOutlinerView(toolContext, 'palette');
-      surface = buildMapCanvasTool(toolContext);
-
-      const terrainTools = surface.nodes.filter(({ id }) => id.startsWith('map-terrain-tool-'));
-      expect(terrainTools.length).toBeGreaterThan(0);
-      expect(terrainTools.length).toBeLessThanOrEqual(18);
-      expect(terrainTools.every(({ kind, symbol, label }) =>
-        kind === 'slot' && symbol !== undefined && label === undefined)).toBe(true);
-      expect(surface.nodes.find(({ id }) => id === 'map-object-search'))
-        .toMatchObject({ kind: 'field', label: 'SEARCH PALETTE' });
-      expect(surface.actions.find(({ id }) => id === 'map-eyedropper')?.label)
-        .toBe('Sample map content into the palette (I)');
-      expect(surface.nodes.find(({ id }) => id === 'map-eyedropper'))
-        .toMatchObject({ kind: 'button', symbol: 'pointer', label: undefined, state: 'idle' });
-      expect(surface.nodes.filter(({ id }) => id.startsWith('map-terrain-mode-')))
-        .toEqual(expect.arrayContaining([
-          expect.objectContaining({ id: 'map-terrain-mode-brush', state: 'active' }),
-          expect.objectContaining({ id: 'map-terrain-mode-surface_family' }),
-          expect.objectContaining({ id: 'map-terrain-mode-cliff_family' }),
-          expect.objectContaining({ id: 'map-terrain-mode-exact_override' }),
-          expect.objectContaining({ id: 'map-terrain-mode-farmland_visual' }),
-        ]));
-      const paletteSearch = surface.textEditors?.find(({ id }) => id === 'map-object-search')?.editor;
-      paletteSearch?.setValue('crossing');
-      surface = buildMapCanvasTool(toolContext);
-      surface.actions.find(({ id }) => id === 'map-terrain-tool-transition')!.activate();
-      paletteSearch?.setValue('');
-      let transitionSurface = buildMapCanvasTool(toolContext);
-      const transitionControls = transitionSurface.nodes.filter(({ id }) => id.startsWith('map-transition-'));
-      expect(transitionControls).toHaveLength(5);
-      expect(transitionControls.every(({ label }) => label === undefined)).toBe(true);
-      expect(transitionSurface.actions.find(({ id }) => id === 'map-transition-slope'))
-        .toMatchObject({ label: 'Author a complete slope bank' });
-      transitionSurface.actions.find(({ id }) => id === 'map-transition-stairs')?.activate();
-      transitionSurface.actions.find(({ id }) => id === 'map-transition-width-more')?.activate();
-      transitionSurface = buildMapCanvasTool(toolContext);
-      expect(transitionSurface.nodes.find(({ id }) => id === 'map-transition-stairs'))
-        .toMatchObject({ symbol: 'stairs', state: 'active' });
-      expect(transitionSurface.nodes.find(({ id }) => id === 'map-map-stats')?.label)
-        .toContain('STAIRS W3');
-      transitionSurface.actions.find(({ id }) => id === 'map-transition-ladder')?.activate();
-      transitionSurface = buildMapCanvasTool(toolContext);
-      expect(transitionSurface.actions.find(({ id }) => id === 'map-transition-width-more'))
-        .toMatchObject({ disabled: true });
-      surface.actions.find(({ id }) => id === 'map-eyedropper')?.activate();
-      const samplingSurface = buildMapCanvasTool(toolContext);
-      expect(samplingSurface.nodes.find(({ id }) => id === 'map-eyedropper'))
-        .toMatchObject({ state: 'active' });
-      expect(samplingSurface.nodes.find(({ id }) => id === 'map-map-stats')?.label)
-        .toContain('EYEDROPPER · CLICK MAP');
-      samplingSurface.actions.find(({ id }) => id === 'map-eyedropper')?.activate();
-      expect(samplingSurface.actions.some(({ id }) => id.startsWith('map-workspace-'))).toBe(false);
-      samplingSurface.actions.find(({ id }) => id === 'map-layer-select-canopy')!.activate();
-      const canopySurface = buildMapCanvasTool(toolContext);
-      expect(canopySurface.nodes.find(({ id }) => id === 'map-layer-select-canopy')?.state).toBe('active');
-      expect(canopySurface.nodes.some(({ id }) => id.startsWith('map-terrain-tool-'))).toBe(false);
-      canopySurface.actions.find(({ id }) => id === 'map-layer-select-terrain')!.activate();
-
-      const landmark = createLiveIslandMapDocument().landmarks[0]!;
-      toolContext.controller.selection.select({
-        kind: 'entity', entityKind: 'map-object', id: landmark.id, spaceId: 0,
-      });
-      let selectionSurface = buildMapCanvasTool(toolContext);
-      await vi.waitFor(() => {
-        selectionSurface = buildMapCanvasTool(toolContext);
-        expect(selectionSurface.nodes.find(({ id }) => id === 'map-selection-hide'))
-          .toMatchObject({ glyph: 'power', label: undefined, state: 'active' });
-      });
-      expect(selectionSurface.nodes.find(({ id }) => id === 'map-selection-card-panel'))
-        .toMatchObject({ kind: 'thin_panel' });
-      expect(overlaps(
-        selectionSurface.nodes.find(({ id }) => id === 'map-selection-card-panel')!.bounds,
-        selectionSurface.nodes.find(({ id }) => id === 'map-layers-card-panel')!.bounds,
-      )).toBe(false);
-      expect(selectionSurface.nodes.find(({ id }) => id === 'map-selection-provenance')?.label)
-        .toContain('AUTHORED');
-      expect(selectionSurface.nodes.find(({ id }) => id === 'map-selection-layer')?.label)
-        .toMatch(/LAYER.*CANOPY.*INACTIVE.*VISIBLE.*EDITABLE/u);
-      expect(selectionSurface.nodes.find(({ id }) => id === 'map-selection-material')?.label)
-        .toMatch(/BIOME.*SURFACE/u);
-      selectionSurface.actions.find(({ id }) => id === 'map-selection-view-schema')?.activate();
-      let schemaSurface = buildMapCanvasTool(toolContext);
-      expect(schemaSurface.nodes.find(({ id }) => id === 'map-selection-group-document'))
-        .toMatchObject({ kind: 'heading', label: 'DOCUMENT · 3 FIELDS' });
-      expect(schemaSurface.input?.wheel?.({
-        point: { x: INSPECTOR.x + 20, y: INSPECTOR.y + 110 },
-        deltaX: 0,
-        deltaY: 1_000,
-        ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
-      })).toBe(true);
-      schemaSurface = buildMapCanvasTool(toolContext);
-      expect(schemaSurface.nodes.some(({ id }) => id.startsWith('map-selection-property-'))).toBe(true);
-      expect(schemaSurface.nodes.some(({ id }) => id.startsWith('map-selection-why-'))).toBe(true);
-      schemaSurface.actions.find(({ id }) => id === 'map-selection-view-visual')?.activate();
-      const visualSurface = buildMapCanvasTool(toolContext);
-      expect(visualSurface.actions.map(({ id }) => id)).toEqual(expect.arrayContaining([
-        'map-selection-hide', 'map-selection-clone', 'map-selection-rotate',
-        'map-selection-flip', 'map-selection-scale', 'map-selection-delete',
-      ]));
-      const selectionActionIds = new Set([
-        'map-selection-hide', 'map-selection-clone', 'map-selection-rotate',
-        'map-selection-flip', 'map-selection-scale', 'map-selection-delete',
-      ]);
-      expect(visualSurface.nodes.filter(({ id }) => selectionActionIds.has(id))
-        .every(({ glyph, label }) => glyph !== undefined && label === undefined)).toBe(true);
-      expect(visualSurface.input?.wheel?.({
-        point: { x: INSPECTOR.x + 20, y: INSPECTOR.y + 100 },
-        deltaX: 0,
-        deltaY: 1_000,
-        ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
-      })).toBe(true);
-      const scrolledInspectionSurface = buildMapCanvasTool(toolContext);
-      expect(scrolledInspectionSurface.nodes.some(({ id }) => id.startsWith('map-selection-visual-'))).toBe(true);
-      const terrainRow = selectionSurface.nodes.find(({ id }) => id === 'map-layer-select-terrain');
-      expect(terrainRow).toMatchObject({ kind: 'button', state: 'active' });
-      expect(selectionSurface.nodes.find(({ id }) => id === 'map-layer-lock-terrain'))
-        .toMatchObject({ kind: 'button', symbol: 'unlock' });
-      expect(selectionSurface.nodes.some(({ id }) => id === 'map-layer-select-anchors')).toBe(false);
-      expect(selectionSurface.nodes.find(({ id }) => id === 'map-layers-ribbon')?.label)
-        .toMatch(/^LAYERS \d+-\d+\/8$/u);
-      expect(selectionSurface.input?.wheel?.({
-        point: { x: terrainRow!.bounds.x + 2, y: terrainRow!.bounds.y + 2 },
-        deltaX: 0,
-        deltaY: -100,
-        ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
-      })).toBe(true);
-      const scrolledLayerSurface = buildMapCanvasTool(toolContext);
-      expect(scrolledLayerSurface.nodes.some(({ id }) => id === 'map-layer-select-anchors')).toBe(true);
-      expect(scrolledLayerSurface.nodes.find(({ id }) => id === 'map-layers-ribbon')?.label)
-        .toMatch(/^LAYERS \d+-\d+\/8$/u);
-      const canopyEye = scrolledLayerSurface.actions.find(({ id }) => id === 'map-layer-visible-canopy');
-      canopyEye?.activate();
-      expect(buildMapCanvasTool(toolContext).nodes.find(({ id }) => id === 'map-layer-visible-canopy'))
-        .toMatchObject({ symbol: 'eyeOff', state: 'idle' });
-
-      const scatterSurface = buildMapCanvasTool(context('/build/map/procedural-world'));
-      expect(scatterSurface.actions.map(({ id }) => id)).toEqual(expect.arrayContaining([
-        'map-scatter-less', 'map-scatter-more',
-      ]));
-      expect(scatterSurface.nodes.find(({ id }) => id === 'map-scatter-density'))
-        .toMatchObject({ label: '35% DENSITY' });
-      expect(scatterSurface.nodes.find(({ id }) => id === 'map-map-stats')?.label).toContain('DRAW TO SCATTER');
+  it.each(['/build/map', '/build/map/terrain-lab', '/build/map/procedural-world'])('builds map route %s with retained drawers', async (path) => {
+    const toolContext=context(path);let surface=buildMapCanvasTool(toolContext);
+    expect(surface.kit?.controls).toBeDefined();expect(surface.kit?.inspector).toBeDefined();
+    expect(surface.kit?.overlays).toBeDefined();
+    const root = new UiRoot({scale:2}); root.resize(1280,736);
+    root.mount(ui.workbench({navigation:[],workspace:ui.text('Map'),controls:{title:'',surface:'thin',fill:true,content:surface.kit!.controls!}}));root.arrange();
+    for (const id of ['map-workspace','map-left-view','map-auto-publish']) {
+      const control=kitElement(surface,id)!;
+      expect(control.rect.height).toBeGreaterThanOrEqual(24);
+      expect(control.clip).toEqual(control.rect);
     }
-    expect(surface.nodes.some(({ label }) => label === 'KIND  none' || label === 'ROUTE  /build/map')).toBe(false);
-    vi.stubGlobal('document', { createElement: vi.fn(() => ({ width: 0, height: 0, getContext: () => fakeCanvasContext() })) });
-    expect(() => surface.draw?.(fakeCanvasContext(), {} as StudioCanvasShellArt)).not.toThrow();
-    vi.unstubAllGlobals();
+    const controls=surface.kit!.controls!;controls.parent!.remove(controls);root.dispose();
+    expect(kitElement(surface,'map-export')).toMatchObject({kind:'button',disabled:false});
+    expect(kitElement(surface,'map-left-view')).toMatchObject({kind:'select'});
+    const layers=kitElement(surface,'map-layer-tree')!.props['items'] as {node:{id:string}}[];
+    expect(layers.map(row=>row.node.id)).toEqual(['anchors','canopy','player_owned','gameplay','objects','ground','terrain','generated_base']);
+    expect(kitElement(surface,'map-layer-lock-generated_base')).toMatchObject({disabled:true});
+    expect(kitElement(surface,'map-layer-lock-terrain')).toMatchObject({disabled:false});
+    pressKit(surface,'map-export');
+    expect(toolContext.controller.notifications.items().at(-1)).toMatchObject({kind:'error',title:'Map export unavailable',detail:'This browser preview does not provide a file-download bridge.'});
+    if(path==='/build/map') {
+      chooseKit(surface,'map-left-view','World');let outliner=buildMapCanvasTool(toolContext);
+      const tree=kitElement(outliner,'map-outliner-world')!;
+      tree.setProps({active:(tree.props['items'] as {node:{id:string}}[]).findIndex(row=>row.node.id==='space:0:layer:objects')});
+      keyKit(outliner,'map-outliner-world','ArrowRight');outliner=buildMapCanvasTool(toolContext);
+      expect((kitElement(outliner,'map-outliner-world')!.props['items'] as {node:{id:string}}[]).some(row=>row.node.id.startsWith('map-object:'))).toBe(true);
+      chooseKit(outliner,'map-left-view','Live');outliner=buildMapCanvasTool(toolContext);
+      expect(kitElement(outliner,'map-live-outliner-empty')?.label).toBe('CONNECT TO VIEW LIVE WORLD');
+      chooseKit(outliner,'map-left-view','Palette');surface=buildMapCanvasTool(toolContext);
+      expect(kitElements(surface).some(node=>node.kind==='combobox')).toBe(true);
+      const palette=kitElement(surface,'map-palette-list')!;
+      expect((palette.props['items'] as {id:string}[]).length).toBeGreaterThan(0);
+      expect(palette.children[0]!.children.length).toBeLessThanOrEqual(11);
+      expect(kitElement(surface,'map-eyedropper')?.label).toBe('Sample map content into the palette (I)');
+      for(const mode of ['brush','surface_family','cliff_family','exact_override','farmland_visual'])expect(kitElement(surface,`map-terrain-mode-${mode}`)).toBeDefined();
+      expect(kitElement(surface,'map-terrain-mode-brush')).toMatchObject({props:{tone:'success'}});
+      pressKit(surface,'map-terrain-tool-transition');let transition=buildMapCanvasTool(toolContext);
+      expect(kitElements(transition).filter(({id})=>id.startsWith('map-transition-'))).toHaveLength(5);
+      pressKit(transition,'map-transition-stairs');pressKit(transition,'map-transition-width-more');transition=buildMapCanvasTool(toolContext);
+      expect(kitElement(transition,'map-transition-stairs')).toMatchObject({props:{tone:'success'}});
+      expect(kitElement(transition,'map-map-stats')?.label).toContain('STAIRS W3');
+      pressKit(transition,'map-transition-ladder');transition=buildMapCanvasTool(toolContext);
+      expect(kitElement(transition,'map-transition-width-more')).toMatchObject({disabled:true});
+      pressKit(transition,'map-eyedropper');surface=buildMapCanvasTool(toolContext);
+      expect(kitElement(surface,'map-eyedropper')).toMatchObject({props:{tone:'success'}});
+      expect(kitElement(surface,'map-map-stats')?.label).toContain('EYEDROPPER · CLICK MAP');
+      pressKit(surface,'map-eyedropper');chooseKit(surface,'map-workspace','biomes');surface=buildMapCanvasTool(toolContext);
+      expect((kitElement(surface,'map-palette-list')!.props['items'] as {id:string}[]).every(item=>item.id.startsWith('map-biome-'))).toBe(true);
+      const landmark=createLiveIslandMapDocument().landmarks[0]!;
+      toolContext.controller.selection.select({kind:'entity',entityKind:'map-object',id:landmark.id,spaceId:0});
+      await vi.waitFor(()=>{surface=buildMapCanvasTool(toolContext);expect(kitElement(surface,'map-selection-hide')).toMatchObject({kind:'button',props:{tone:'success'}});});
+      expect(kitElement(surface,'map-selection-provenance-label')?.label).toContain('AUTHORED');
+      expect(kitElement(surface,'map-selection-layer-label')?.label).toMatch(/LAYER.*CANOPY.*INACTIVE.*VISIBLE.*EDITABLE/u);
+      expect(kitElement(surface,'map-selection-material-label')?.label).toMatch(/BIOME.*SURFACE/u);
+      chooseKit(surface,'map-selection-view','Schema');surface=buildMapCanvasTool(toolContext);
+      expect(kitElement(surface,'map-selection-group-document-label')?.label).toBe('DOCUMENT · 3 FIELDS');
+      expect(kitElements(surface).some(({id})=>id.startsWith('map-selection-property-'))).toBe(true);
+      expect(kitElements(surface).some(({id})=>id.startsWith('map-selection-why-'))).toBe(true);
+      chooseKit(surface,'map-selection-view','Selection');surface=buildMapCanvasTool(toolContext);
+      for(const name of ['hide','clone','rotate','flip','scale','delete'])expect(kitElement(surface,`map-selection-${name}`)).toMatchObject({kind:'button'});
+      expect(kitElement(surface,'map-layer-select-terrain')).toMatchObject({props:{tone:'success'}});
+      pressKit(surface,'map-layer-visible-canopy');surface=buildMapCanvasTool(toolContext);
+      expect(kitElement(surface,'map-layer-visible-canopy')?.label).toContain('Show');
+      chooseKit(surface,'map-workspace','scatter');surface=buildMapCanvasTool(toolContext);
+      expect(kitElement(surface,'map-scatter-less')).toBeDefined();expect(kitElement(surface,'map-scatter-more')).toBeDefined();
+      expect(kitElement(surface,'map-scatter-density')?.label).toBe('35% DENSITY');
+      expect(kitElement(surface,'map-map-stats')?.label).toContain('DRAW TO SCATTER');
+    }
+    vi.stubGlobal('document',{createElement:vi.fn(()=>({width:0,height:0,getContext:()=>fakeCanvasContext()}))});
+    expect(()=>surface.draw?.(fakeCanvasContext(),{} as StudioSpatialArt)).not.toThrow();vi.unstubAllGlobals();
   });
 
   it('keeps warm map scene construction inside one animation-frame budget', () => {
@@ -404,236 +126,125 @@ describe('canvas-native Build and asset tools', () => {
     expect(Math.max(...samples)).toBeLessThan(16.7);
   });
 
-  it('mounts searchable keyboard Outliners and guarded one-entry authored tree edits', () => {
-    const toolContext = context('/build/map');
-    buildMapCanvasTool(toolContext);
-    setOutlinerView(toolContext, 'world');
-    let surface = buildMapCanvasTool(toolContext);
+  it('mounts searchable virtual kit Outliners and guarded one-entry authored tree edits', () => {
+    const toolContext=context('/build/map');
+    let surface=buildMapCanvasTool(toolContext);
+    chooseKit(surface,'map-left-view','World');
+    surface=buildMapCanvasTool(toolContext);
+    const landmark=createLiveIslandMapDocument().landmarks[0]!;
+    const search=kitElement(surface,'map-outliner-search-world')!.props['editor'] as CanvasTextEditor;
+    const tree=()=>kitElement(surface,'map-outliner-world')!;
+    const rows=()=>tree().props['items'] as {node:{id:string}}[];
+    const active=()=>rows()[Number(tree().props['active'])]?.node.id;
+    const focusRow=(id:string)=>tree().setProps({active:rows().findIndex(row=>row.node.id===id)});
+    search.setValue(landmark.id);surface=buildMapCanvasTool(toolContext);
+    expect(rows().map(row=>row.node.id)).toContain('space:0');
+    expect(rows().filter(row=>row.node.id.startsWith('map-object:')).map(row=>row.node.id)).toEqual([`map-object:${landmark.id}`]);
+    pressKit(surface,'map-outliner-clear-world');surface=buildMapCanvasTool(toolContext);
+    focusRow('space:0:layer:ground');keyKit(surface,'map-outliner-world','ArrowRight');surface=buildMapCanvasTool(toolContext);
+    expect(active()).toBe('space:0:layer:ground');
+    keyKit(surface,'map-outliner-world','ArrowRight');surface=buildMapCanvasTool(toolContext);
+    expect(active()).toMatch(/^map-object:/u);
+    keyKit(surface,'map-outliner-world','Enter');
+    expect(toolContext.controller.selection.current()).toMatchObject({kind:'entity',entityKind:'map-object',spaceId:0});
+    toolContext.controller.selection.select({kind:'entity',entityKind:'map-object',id:landmark.id,spaceId:0});
+    surface=buildMapCanvasTool(toolContext);
+    const targetLayer=landmark.layer==='canopy'?'ground':'canopy';
+    search.setValue(targetLayer);surface=buildMapCanvasTool(toolContext);
+    const reparent=`map-outliner-reparent-space:0:layer:${targetLayer}`;
+    expect(kitElement(surface,reparent)).toMatchObject({disabled:false});pressKit(surface,reparent);
+    const retained=toolContext.controller.toolState<{readonly model:{document():ReturnType<typeof createLiveIslandMapDocument>}}>('map-canvas:live-island',()=>{throw new Error('missing map state');});
+    expect(retained.model.document().landmarks.find(({id})=>id===landmark.id)?.layer).toBe(targetLayer);
+    pressKit(buildMapCanvasTool(toolContext),'map-undo');
+    expect(retained.model.document().landmarks.find(({id})=>id===landmark.id)?.layer).toBe(landmark.layer);
+    search.setValue('world objects');surface=buildMapCanvasTool(toolContext);focusRow('space:0:layer:objects');
+    expect(keyKit(surface,'map-outliner-world','ArrowUp',{ctrlKey:true})).toBe(true);
+    expect(retained.model.document().layers.map(({id})=>id).indexOf('objects')).toBeLessThan(retained.model.document().layers.map(({id})=>id).indexOf('ground'));
+    pressKit(buildMapCanvasTool(toolContext),'map-undo');
+    surface=buildMapCanvasTool(toolContext);chooseKit(surface,'map-left-view','Live');surface=buildMapCanvasTool(toolContext);
+    expect(kitElement(surface,'map-live-outliner-title')?.label).toContain('READ ONLY');
+    expect(kitElements(surface).some(({id})=>id.startsWith('map-outliner-reparent-'))).toBe(false);
+  });
 
-    const landmark = createLiveIslandMapDocument().landmarks[0]!;
-    const search = surface.textEditors
-      ?.find(({ id }) => id === 'map-outliner-search-world')?.editor;
-    expect(search).toBeDefined();
-    search?.setValue(landmark.id);
-    surface = buildMapCanvasTool(toolContext);
-    const filteredRows = surface.actions.filter(({ id }) => id.startsWith('map-outliner-select-'))
-      .map(({ id }) => id);
-    expect(filteredRows).toEqual(expect.arrayContaining([
-      'map-outliner-select-space:0',
-      `map-outliner-select-map-object:${landmark.id}`,
-    ]));
-    expect(filteredRows.filter((id) => id.startsWith('map-outliner-select-map-object:')))
-      .toEqual([`map-outliner-select-map-object:${landmark.id}`]);
-
-    surface.actions.find(({ id }) => id === 'map-outliner-clear-world')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    const groundRowId = 'map-outliner-select-space:0:layer:ground';
-    const groundRow = surface.actions.find(({ id }) => id === groundRowId)!;
-    const right = groundRow.keyDown?.({ key: 'ArrowRight', repeat: false,
-      shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
-    expect(right).toBe(groundRowId);
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-outliner-toggle-space:0:layer:ground'))
-      .toMatchObject({ state: 'active' });
-    const firstChildFocus = surface.actions.find(({ id }) => id === groundRowId)?.keyDown?.({
-      key: 'ArrowRight', repeat: false, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false,
-    });
-    expect(firstChildFocus).toMatch(/^map-outliner-select-map-object:/u);
-    surface = buildMapCanvasTool(toolContext);
-    const firstChild = surface.actions.find(({ id }) => id === firstChildFocus)!;
-    expect(firstChild.keyDown?.({ key: 'Enter', repeat: false,
-      shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(firstChildFocus);
-    expect(toolContext.controller.selection.current()).toMatchObject({
-      kind: 'entity', entityKind: 'map-object', spaceId: 0,
-    });
-
-    toolContext.controller.selection.select({
-      kind: 'entity', entityKind: 'map-object', id: landmark.id, spaceId: 0,
-    });
-    surface = buildMapCanvasTool(toolContext);
-    const targetLayer = landmark.layer === 'canopy' ? 'ground' : 'canopy';
-    const reparent = surface.actions.find(({ id }) => (
-      id === `map-outliner-reparent-space:0:layer:${targetLayer}`
-    ));
-    expect(reparent).toMatchObject({ disabled: false });
-    reparent?.activate();
-    type OutlinerModelProbe = { readonly model: {
-      document(): ReturnType<typeof createLiveIslandMapDocument>;
-    } };
-    const retained = toolContext.controller.toolState<OutlinerModelProbe>('map-canvas:live-island', () => {
-      throw new Error('map state was not retained');
-    });
-    expect(retained.model.document().landmarks.find(({ id }) => id === landmark.id)?.layer)
-      .toBe(targetLayer);
-    buildMapCanvasTool(toolContext).actions.find(({ id }) => id === 'map-undo')?.activate();
-    expect(retained.model.document().landmarks.find(({ id }) => id === landmark.id)?.layer)
-      .toBe(landmark.layer);
-
-    search?.setValue('world objects');
-    surface = buildMapCanvasTool(toolContext);
-    const objectsRow = surface.actions.find(({ id }) => id === 'map-outliner-select-space:0:layer:objects')!;
-    expect(objectsRow.keyDown?.({ key: 'ArrowUp', repeat: false,
-      shiftKey: false, altKey: false, ctrlKey: true, metaKey: false }))
-      .toBe('map-outliner-select-space:0:layer:objects');
-    expect(retained.model.document().layers.map(({ id }) => id).indexOf('objects'))
-      .toBeLessThan(retained.model.document().layers.map(({ id }) => id).indexOf('ground'));
-    buildMapCanvasTool(toolContext).actions.find(({ id }) => id === 'map-undo')?.activate();
-
-    setOutlinerView(toolContext, 'live');
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-live-outliner-ribbon')?.label)
-      .toContain('READ ONLY');
-    expect(surface.actions.some(({ id }) => id.startsWith('map-outliner-reparent-'))).toBe(false);
+  it('fits all three layer actions inside a default-width retained drawer', () => {
+    const surface=buildMapCanvasTool(context('/build/map'));
+    const root=new UiRoot({scale:1});root.resize(95,320);root.mount(surface.kit!.inspector!);root.arrange();
+    for(const name of ['visible','lock','solo']) {
+      const action=root.entries().find(({element})=>element.id===`map-layer-${name}-anchors`)!.element;
+      expect(action.clip.width).toBe(action.rect.width);expect(action.clip.height).toBe(action.rect.height);
+      expect(action.rect.width).toBe(24);expect(action.rect.height).toBe(24);
+    }
+    root.dispose();
   });
 
   it('provides compact canvas-native layer rename/reorder controls with locked system boundaries', () => {
     const toolContext = context('/build/map');
     let surface = buildMapCanvasTool(toolContext);
-    const rename = surface.actions.find(({ id }) => id === 'map-layer-rename-terrain');
-    const towardFront = surface.actions.find(({ id }) => id === 'map-layer-front-terrain');
-    const towardBack = surface.actions.find(({ id }) => id === 'map-layer-back-terrain');
-    expect(rename?.label).toBe('Rename Terrain Overrides');
-    expect(surface.nodes.find(({ id }) => id === rename?.id)).toMatchObject({ glyph: undefined, label: 'Rename' });
-    expect(towardFront).toMatchObject({
-      disabled: true,
-      label: 'Terrain Overrides is not an authored object painter layer',
-    });
-    expect(towardBack).toMatchObject({ disabled: true });
-
-    rename?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    const editor = surface.textEditors?.find(({ id }) => id === 'map-layer-rename-terrain')?.editor;
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-rename-terrain')).toMatchObject({
-      kind: 'field', label: 'Terrain Overrides|',
-    });
-    editor?.setValue('Cultivated Ground');
-    surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-layer-rename-confirm-terrain')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-name-terrain')?.label)
-      .toBe('CULTIVATED GROUND');
-    expect(surface.textEditors?.some(({ id }) => id === 'map-layer-rename-terrain')).toBe(false);
-
-    surface.actions.find(({ id }) => id === 'map-layer-select-objects')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.actions.find(({ id }) => id === 'map-layer-back-objects')).toMatchObject({
-      disabled: false,
-      label: 'Move World Objects toward back at equal elevation and depth',
-    });
-    surface.actions.find(({ id }) => id === 'map-layer-back-objects')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    const orderedRows = surface.nodes.filter(({ id }) => id.startsWith('map-layer-select-'))
-      .map(({ id }) => id);
-    expect(orderedRows.indexOf('map-layer-select-ground'))
-      .toBeLessThan(orderedRows.indexOf('map-layer-select-objects'));
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-select-objects'))
-      .toMatchObject({ state: 'active' });
-
-    surface.actions.find(({ id }) => id === 'map-undo')?.activate();
-    buildMapCanvasTool(toolContext).actions.find(({ id }) => id === 'map-undo')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-name-terrain')?.label)
-      .toBe('TERRAIN OVERRIDES');
-
-    surface.actions.find(({ id }) => id === 'map-layer-select-generated_base')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.actions.find(({ id }) => id === 'map-layer-rename-generated_base'))
-      .toMatchObject({ disabled: true, label: 'Generated Base is a required read-only system layer' });
-    expect(surface.actions.find(({ id }) => id === 'map-layer-front-generated_base'))
-      .toMatchObject({ disabled: true });
-    expect(surface.actions.find(({ id }) => id === 'map-layer-back-generated_base'))
-      .toMatchObject({ disabled: true });
+    expect(kitElement(surface,'map-layer-rename-terrain')).toMatchObject({disabled:false});
+    expect(kitElement(surface,'map-layer-front-terrain')).toMatchObject({disabled:true});
+    expect(kitElement(surface,'map-layer-back-terrain')).toMatchObject({disabled:true});
+    pressKit(surface,'map-layer-rename-terrain');
+    surface=buildMapCanvasTool(toolContext);
+    const editor=kitElement(surface,'map-layer-rename-terrain')!.props['editor'] as CanvasTextEditor;
+    expect(editor.snapshot().value).toBe('Terrain Overrides');
+    editor.setValue('Cultivated Ground');
+    pressKit(surface,'map-layer-rename-confirm-terrain');
+    surface=buildMapCanvasTool(toolContext);
+    expect(kitElement(surface,'map-layer-select-terrain')?.label).toBe('Cultivated Ground');
+    expect(kitElement(surface,'map-layer-rename-terrain')?.kind).toBe('button');
+    pressKit(surface,'map-layer-select-objects');
+    surface=buildMapCanvasTool(toolContext);
+    expect(kitElement(surface,'map-layer-back-objects')).toMatchObject({disabled:false});
+    pressKit(surface,'map-layer-back-objects');
+    surface=buildMapCanvasTool(toolContext);
+    const ids=kitElements(surface).filter(({id})=>id.startsWith('map-layer-select-')).map(({id})=>id);
+    expect(ids.indexOf('map-layer-select-ground')).toBeLessThan(ids.indexOf('map-layer-select-objects'));
+    expect(kitElement(surface,'map-layer-select-objects')).toMatchObject({props:{tone:'success'}});
+    pressKit(surface,'map-undo');
+    pressKit(buildMapCanvasTool(toolContext),'map-undo');
+    surface=buildMapCanvasTool(toolContext);
+    expect(kitElement(surface,'map-layer-select-terrain')?.label).toBe('Terrain Overrides');
+    pressKit(surface,'map-layer-select-generated_base');
+    surface=buildMapCanvasTool(toolContext);
+    for(const action of ['rename','front','back']) expect(kitElement(surface,`map-layer-${action}-generated_base`)).toMatchObject({disabled:true});
   });
 
-  it('supports Photoshop-style layer ranges and safe bulk eye/lock actions', () => {
-    const toolContext = context('/build/map');
-    const modifiers = (overrides: Partial<{
-      shiftKey: boolean;
-      altKey: boolean;
-      ctrlKey: boolean;
-      metaKey: boolean;
-    }> = {}) => ({ shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...overrides });
-    let surface = buildMapCanvasTool(toolContext);
-
-    surface.actions.find(({ id }) => id === 'map-layer-select-objects')
-      ?.activate(modifiers({ ctrlKey: true }));
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layers-ribbon')?.label)
-      .toBe('LAYERS · 2 SELECTED');
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-select-objects'))
-      .toMatchObject({ state: 'active' });
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-select-terrain'))
-      .toMatchObject({ state: 'active' });
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-name-objects')?.label)
-      .toBe('> WORLD OBJECTS');
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-name-terrain')?.label)
-      .toBe('+ TERRAIN OVERRIDES');
-    expect(surface.actions.find(({ id }) => id === 'map-layers-bulk-visibility'))
-      .toMatchObject({ disabled: false, label: 'Hide all 2 selected layers' });
-    expect(surface.actions.find(({ id }) => id === 'map-layers-bulk-lock'))
-      .toMatchObject({ disabled: false, label: 'Lock 2 selected editable layers' });
-
-    surface.actions.find(({ id }) => id === 'map-layers-bulk-visibility')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-visible-objects'))
-      .toMatchObject({ symbol: 'eyeOff' });
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-visible-terrain'))
-      .toMatchObject({ symbol: 'eyeOff' });
-    expect(surface.actions.find(({ id }) => id === 'map-layers-bulk-visibility'))
-      .toMatchObject({ label: 'Show all 2 selected layers' });
-    surface.actions.find(({ id }) => id === 'map-layers-bulk-visibility')?.activate();
-
-    surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-layer-select-player_owned')
-      ?.activate(modifiers({ shiftKey: true }));
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layers-ribbon')?.label)
-      .toBe('LAYERS · 3 SELECTED');
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-name-player_owned')?.label)
-      .toBe('> PLAYER-OWNED OBJECTS');
-    expect(surface.actions.find(({ id }) => id === 'map-layers-bulk-lock')).toMatchObject({
-      disabled: false,
-      label: 'Lock 2 selected editable layers; 1 immutable system lock remains',
-    });
-    surface.actions.find(({ id }) => id === 'map-layers-bulk-lock')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-lock-player_owned'))
-      .toMatchObject({ state: 'disabled', symbol: 'lock' });
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-lock-gameplay'))
-      .toMatchObject({ state: 'active', symbol: 'lock' });
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-lock-objects'))
-      .toMatchObject({ state: 'active', symbol: 'lock' });
-    expect(surface.actions.find(({ id }) => id === 'map-layers-bulk-lock')?.label)
-      .toBe('Unlock 2 selected editable layers; 1 immutable system lock remains');
-    surface.actions.find(({ id }) => id === 'map-layers-bulk-lock')?.activate();
-
-    surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-layer-select-canopy')
-      ?.activate(modifiers({ metaKey: true }));
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layers-ribbon')?.label)
-      .toBe('LAYERS · 4 SELECTED');
-    expect(surface.nodes.find(({ id }) => id === 'map-layer-name-canopy')?.label)
-      .toBe('> CANOPY / FOREGROUND');
-
-    surface.actions.find(({ id }) => id === 'map-layer-select-terrain')?.activate();
-    surface = buildMapCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id === 'map-layers-ribbon')?.label).toBe('LAYERS');
-    expect(surface.nodes.filter(({ id, state }) => id.startsWith('map-layer-select-') && state === 'active'))
-      .toHaveLength(1);
-    expect(surface.actions.some(({ id }) => id.startsWith('map-layers-bulk-'))).toBe(false);
-
-    const state = toolContext.controller.toolState<{
-      readonly model: { canUndo(): boolean; isLayerUserLocked(layer: 'objects' | 'gameplay'): boolean };
-      readonly interaction: { snapshot(): { readonly activeLayer: string } };
-    }>('map-canvas:live-island', () => { throw new Error('map state was not retained'); });
+  it('supports keyboard layer ranges and safe bulk eye/lock actions', () => {
+    const toolContext=context('/build/map');
+    let surface=buildMapCanvasTool(toolContext);
+    const selected=()=>kitElements(surface).filter(node=>node.id.startsWith('map-layer-select-')&&node.props['tone']==='success').map(node=>node.id);
+    pressKit(surface,'map-layer-select-objects',{ctrlKey:true});
+    surface=buildMapCanvasTool(toolContext);
+    expect(selected()).toEqual(['map-layer-select-objects','map-layer-select-terrain']);
+    pressKit(surface,'map-layers-bulk-visibility');
+    surface=buildMapCanvasTool(toolContext);
+    for(const id of ['objects','terrain']) expect(kitElement(surface,`map-layer-visible-${id}`)?.label).toContain('Show');
+    pressKit(surface,'map-layers-bulk-visibility');
+    surface=buildMapCanvasTool(toolContext);
+    pressKit(surface,'map-layer-select-player_owned',{shiftKey:true});
+    surface=buildMapCanvasTool(toolContext);
+    expect(selected()).toEqual(['map-layer-select-player_owned','map-layer-select-gameplay','map-layer-select-objects']);
+    pressKit(surface,'map-layers-bulk-lock');
+    surface=buildMapCanvasTool(toolContext);
+    expect(kitElement(surface,'map-layer-lock-player_owned')).toMatchObject({disabled:true});
+    for(const id of ['gameplay','objects']) expect(kitElement(surface,`map-layer-lock-${id}`)).toMatchObject({disabled:false,props:{tone:'success'}});
+    expect(kitElement(surface,'map-layers-bulk-lock')?.label).toBe('Unlock selected');
+    pressKit(surface,'map-layers-bulk-lock');
+    surface=buildMapCanvasTool(toolContext);
+    pressKit(surface,'map-layer-select-canopy',{metaKey:true});
+    surface=buildMapCanvasTool(toolContext); expect(selected()).toHaveLength(4);
+    pressKit(surface,'map-layer-select-terrain');
+    surface=buildMapCanvasTool(toolContext); expect(selected()).toEqual(['map-layer-select-terrain']);
+    expect(kitElements(surface).some(({id})=>id.startsWith('map-layers-bulk-'))).toBe(false);
+    const state=toolContext.controller.toolState<{readonly model:{canUndo():boolean;isLayerUserLocked(layer:'objects'|'gameplay'):boolean};readonly interaction:{snapshot():{readonly activeLayer:string}}}>
+      ('map-canvas:live-island',()=>{throw new Error('missing map state');});
     expect(state.interaction.snapshot().activeLayer).toBe('terrain');
     expect(state.model.isLayerUserLocked('objects')).toBe(false);
     expect(state.model.isLayerUserLocked('gameplay')).toBe(false);
     expect(state.model.canUndo()).toBe(false);
   });
 
-  it('offers icon-only annotation anchor tools and disabled runtime-authority references', () => {
+  it('offers labelled annotation anchor tools and disabled runtime-authority references', () => {
     const toolContext = context('/build/map/terrain-lab');
     buildMapCanvasTool(toolContext);
     type AnchorProbe = {
@@ -653,27 +264,27 @@ describe('canvas-native Build and asset tools', () => {
     state.interaction.selectLayer('anchors');
     let surface = buildMapCanvasTool(toolContext);
 
-    expect(surface.actions.find(({ id }) => id === 'map-anchor-tool-poi')).toMatchObject({
+    expect(kitElement(surface, 'map-anchor-tool-poi')).toMatchObject({
       disabled: false,
       label: expect.stringContaining('exact projected terrain elevation'),
     });
-    expect(surface.nodes.find(({ id }) => id === 'map-anchor-tool-poi')).toMatchObject({
-      kind: 'slot', symbol: 'pointer', label: undefined,
+    expect(kitElement(surface, 'map-anchor-tool-poi')).toMatchObject({
+      kind: 'button', label: expect.stringContaining('Point of interest'),
     });
-    expect(surface.nodes.find(({ id }) => id === 'map-anchor-tool-label')).toMatchObject({
-      kind: 'slot', symbol: 'landPlot', label: undefined,
+    expect(kitElement(surface, 'map-anchor-tool-label')).toMatchObject({
+      kind: 'button', label: expect.stringContaining('Map label'),
     });
     for (const kind of ['spawn', 'portal', 'npc', 'resource']) {
-      expect(surface.actions.find(({ id }) => id === `map-anchor-tool-${kind}`)).toMatchObject({
+      expect(kitElement(surface, `map-anchor-tool-${kind}`)).toMatchObject({
         disabled: true,
         label: expect.stringContaining('runtime authority not available'),
       });
     }
 
-    surface.actions.find(({ id }) => id === 'map-anchor-tool-poi')?.activate();
+    pressKit(surface, 'map-anchor-tool-poi');
     surface = buildMapCanvasTool(toolContext);
     expect(state.interaction.snapshot().selectedAnchorKind).toBe('poi');
-    expect(surface.nodes.find(({ id }) => id === 'map-map-stats')?.label)
+    expect(kitElement(surface, 'map-map-stats')?.label)
       .toContain('PLACE POI · CLICK MAP · ESC CANCEL');
     expect(surface.input?.keyDown?.({
       key: 'Escape', repeat: false, shiftKey: false, altKey: false,
@@ -681,11 +292,11 @@ describe('canvas-native Build and asset tools', () => {
     })).toBe(true);
     expect(state.interaction.snapshot().selectedAnchorKind).toBeNull();
 
-    surface.actions.find(({ id }) => id === 'map-anchor-tool-label')?.activate();
+    pressKit(surface, 'map-anchor-tool-label');
     state.model.toggleLayer('anchors');
     surface = buildMapCanvasTool(toolContext);
     expect(state.interaction.snapshot().selectedAnchorKind).toBeNull();
-    expect(surface.actions.find(({ id }) => id === 'map-anchor-tool-label'))
+    expect(kitElement(surface, 'map-anchor-tool-label'))
       .toMatchObject({ disabled: true });
   });
 
@@ -710,8 +321,8 @@ describe('canvas-native Build and asset tools', () => {
     });
     state.model.selectAnchor('editor-spawn');
     let surface = buildMapCanvasTool(toolContext);
-    expect(surface.actions.some(({ id }) => id === 'map-selection-edit-anchor-label')).toBe(false);
-    expect(surface.actions.some(({ id }) => id === 'map-selection-delete-anchor')).toBe(false);
+    expect(kitElements(surface).some(({ id }) => id === 'map-selection-edit-anchor-label')).toBe(false);
+    expect(kitElements(surface).some(({ id }) => id === 'map-selection-delete-anchor')).toBe(false);
 
     state.model.placeAnchor({
       id: 'poi-1', kind: 'poi', label: 'Old Label', tileX: 2, tileY: 2, elevation: 0,
@@ -721,37 +332,37 @@ describe('canvas-native Build and asset tools', () => {
     const editedAnchor = () => state.model.document().anchors.find(({ id }) => id === 'poi-1');
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(toolContext);
-      expect(surface.nodes.find(({ id }) => id === 'map-selection-edit-anchor-label'))
-        .toMatchObject({ kind: 'button', symbol: 'penTool', label: undefined });
+      expect(kitElement(surface, 'map-selection-edit-anchor-label'))
+        .toMatchObject({ kind: 'button', label: 'Edit label' });
     });
-    expect(surface.actions.find(({ id }) => id === 'map-selection-edit-anchor-label')?.label)
-      .toBe('Edit Old Label label');
+    expect(kitElement(surface, 'map-selection-edit-anchor-label')?.label)
+      .toBe('Edit label');
 
-    surface.actions.find(({ id }) => id === 'map-selection-edit-anchor-label')?.activate();
+    pressKit(surface, 'map-selection-edit-anchor-label');
     surface = buildMapCanvasTool(toolContext);
-    const editor = surface.textEditors?.find(({ id }) => id === 'map-selection-edit-anchor-label')?.editor;
+    const editor = kitElement(surface, 'map-selection-edit-anchor-label')?.props['editor'] as CanvasTextEditor | undefined;
     expect(editor?.snapshot()).toMatchObject({ value: 'Old Label', focused: true });
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-edit-anchor-label'))
-      .toMatchObject({ kind: 'field' });
+    expect(kitElement(surface, 'map-selection-edit-anchor-label'))
+      .toMatchObject({ kind: 'input' });
 
     editor?.setValue('   ');
     surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-selection-confirm-anchor-label')?.activate();
+    pressKit(surface, 'map-selection-confirm-anchor-label');
     surface = buildMapCanvasTool(toolContext);
     expect(state.model.document().revision).toBe(beforeRevision);
     expect(editedAnchor()?.label).toBe('Old Label');
     expect(editor?.snapshot().value).toBe('   ');
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-edit-anchor-label'))
-      .toMatchObject({ kind: 'field', tone: 'danger' });
+    expect(kitElement(surface, 'map-selection-edit-anchor-label'))
+      .toMatchObject({ kind: 'input', props: { tone: 'danger' } });
 
     editor?.setValue('x'.repeat(97));
     surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-selection-confirm-anchor-label')?.activate();
+    pressKit(surface, 'map-selection-confirm-anchor-label');
     surface = buildMapCanvasTool(toolContext);
     expect(state.model.document().revision).toBe(beforeRevision);
     expect(editedAnchor()?.label).toBe('Old Label');
     expect(editor?.snapshot().value).toHaveLength(97);
-    expect(surface.actions.find(({ id }) => id === 'map-selection-edit-anchor-label')?.label)
+    expect(kitElement(surface, 'map-selection-anchor-label-error')?.label)
       .toContain('96 characters or fewer');
 
     editor?.setValue(' Orchard Gate ');
@@ -765,16 +376,14 @@ describe('canvas-native Build and asset tools', () => {
     expect(editedAnchor()).toMatchObject({
       id: 'poi-1', label: 'Orchard Gate', tileX: 2, tileY: 2, elevation: 0,
     });
-    expect(surface.textEditors?.some(({ id }) => id === 'map-selection-edit-anchor-label')).toBe(false);
+    expect((kitElement(surface, 'map-selection-edit-anchor-label')?.kind === 'input')).toBe(false);
     state.model.undo();
     expect(editedAnchor()?.label).toBe('Old Label');
 
     surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-selection-edit-anchor-label')?.activate();
+    pressKit(surface, 'map-selection-edit-anchor-label');
     surface = buildMapCanvasTool(toolContext);
-    const cancelledEditor = surface.textEditors?.find(
-      ({ id }) => id === 'map-selection-edit-anchor-label',
-    )?.editor;
+    const cancelledEditor = kitElement(surface, 'map-selection-edit-anchor-label')?.props['editor'] as CanvasTextEditor | undefined;
     cancelledEditor?.setValue('Discard Me');
     expect(surface.input?.keyDown?.({
       key: 'Escape', repeat: false, shiftKey: false, altKey: false,
@@ -782,13 +391,11 @@ describe('canvas-native Build and asset tools', () => {
     })).toBe(true);
     surface = buildMapCanvasTool(toolContext);
     expect(editedAnchor()?.label).toBe('Old Label');
-    expect(surface.textEditors?.some(({ id }) => id === 'map-selection-edit-anchor-label')).toBe(false);
+    expect((kitElement(surface, 'map-selection-edit-anchor-label')?.kind === 'input')).toBe(false);
 
-    surface.actions.find(({ id }) => id === 'map-selection-edit-anchor-label')?.activate();
+    pressKit(surface, 'map-selection-edit-anchor-label');
     surface = buildMapCanvasTool(toolContext);
-    const disposedEditor = surface.textEditors?.find(
-      ({ id }) => id === 'map-selection-edit-anchor-label',
-    )?.editor;
+    const disposedEditor = kitElement(surface, 'map-selection-edit-anchor-label')?.props['editor'] as CanvasTextEditor | undefined;
     disposedEditor?.setValue('Discard On Dispose');
     surface.lifecycle?.dispose();
     expect(disposedEditor?.snapshot().focused).toBe(false);
@@ -797,27 +404,24 @@ describe('canvas-native Build and asset tools', () => {
 
   it('previews finite-map crop loss in canvas chrome before one undoable resize command', () => {
     const protectedMap = buildMapCanvasTool(context('/build/map'));
-    expect(protectedMap.actions.find(({ id }) => id === 'map-resize-mode')).toMatchObject({
+    expect(kitElement(protectedMap, 'map-resize-mode')).toMatchObject({
       disabled: true, label: 'Live island dimensions are fixed by server authority',
     });
-    expect(protectedMap.actions.some(({ id }) => id === 'map-resize-west-shrink')).toBe(false);
+    expect(kitElements(protectedMap).some(({ id }) => id === 'map-resize-west-shrink')).toBe(false);
     const procedural = buildMapCanvasTool(context('/build/map/procedural-world'));
-    expect(procedural.actions.find(({ id }) => id === 'map-resize-mode')).toMatchObject({
+    expect(kitElement(procedural, 'map-resize-mode')).toMatchObject({
       disabled: true, label: 'Signed procedural worlds have no finite map edge',
     });
-    expect(procedural.actions.some(({ id }) => id === 'map-resize-west-shrink')).toBe(false);
+    expect(kitElements(procedural).some(({ id }) => id === 'map-resize-west-shrink')).toBe(false);
 
     const toolContext = context('/build/map/terrain-lab');
     let surface = buildMapCanvasTool(toolContext);
-    expect(surface.actions.find(({ id }) => id === 'map-resize-mode')).toMatchObject({ disabled: false });
-    surface.actions.find(({ id }) => id === 'map-resize-mode')?.activate();
+    expect(kitElement(surface, 'map-resize-mode')).toMatchObject({ disabled: false });
+    pressKit(surface, 'map-resize-mode');
     surface = buildMapCanvasTool(toolContext);
-    const resizeActions = surface.actions.filter(({ id }) => id.startsWith('map-resize-'));
-    expect(resizeActions).toHaveLength(9);
-    expect(resizeActions.filter(({ id }) => id !== 'map-resize-mode')
-      .every(({ disabled }) => !disabled)).toBe(true);
-    expect(surface.nodes.filter(({ id }) => id.startsWith('map-resize-') && id !== 'map-resize-mode')
-      .every(({ bounds }) => bounds.width >= 40 && bounds.height >= 40)).toBe(true);
+    const resizeActions = kitElements(surface).filter(({ id, kind }) => kind === 'button' && /^map-resize-(west|east|north|south)-/u.test(id));
+    expect(resizeActions).toHaveLength(8);
+    expect(resizeActions.every(({ disabled }) => !disabled)).toBe(true);
     type ResizeProbe = {
       readonly model: { document(): { readonly width: number; readonly height: number } };
     };
@@ -826,14 +430,14 @@ describe('canvas-native Build and asset tools', () => {
     });
     const initial = { width: state.model.document().width, height: state.model.document().height };
 
-    surface.actions.find(({ id }) => id === 'map-resize-west-shrink')?.activate();
+    pressKit(surface, 'map-resize-west-shrink');
     surface = buildMapCanvasTool(toolContext);
     expect(state.model.document()).toMatchObject(initial);
-    expect(surface.nodes.find(({ id }) => id === 'map-resize-preview-dimensions')?.label)
+    expect(kitElement(surface, 'map-resize-preview-dimensions')?.label)
       .toContain(`CROP WEST · ${initial.width - 1}×${initial.height}`);
-    expect(surface.nodes.find(({ id }) => id === 'map-resize-preview-loss')?.label)
+    expect(kitElement(surface, 'map-resize-preview-loss')?.label)
       .toMatch(/OBJECT \d+ · TRANSITION \d+ · OTHER \d+/u);
-    expect(surface.actions.map(({ id }) => id)).toEqual(expect.arrayContaining([
+    expect(kitElements(surface).map(({ id }) => id)).toEqual(expect.arrayContaining([
       'map-resize-cancel', 'map-resize-confirm',
     ]));
     expect(surface.input?.pointerDown?.({
@@ -844,7 +448,7 @@ describe('canvas-native Build and asset tools', () => {
       createElement: vi.fn(() => ({ width: 0, height: 0, getContext: () => fakeCanvasContext() })),
     });
     const previewDrawing = fakeCanvasContext();
-    expect(() => surface.draw?.(previewDrawing, {} as StudioCanvasShellArt)).not.toThrow();
+    expect(() => surface.draw?.(previewDrawing, {} as StudioSpatialArt)).not.toThrow();
     expect(previewDrawing.fillRect).toHaveBeenCalled();
     expect(previewDrawing.setLineDash).toHaveBeenCalledWith([6, 4]);
     vi.unstubAllGlobals();
@@ -853,32 +457,32 @@ describe('canvas-native Build and asset tools', () => {
       shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(true);
     surface = buildMapCanvasTool(toolContext);
     expect(state.model.document()).toMatchObject(initial);
-    expect(surface.actions.some(({ id }) => id === 'map-resize-confirm')).toBe(false);
+    expect(kitElements(surface).some(({ id }) => id === 'map-resize-confirm')).toBe(false);
 
-    surface.actions.find(({ id }) => id === 'map-resize-west-shrink')?.activate();
+    pressKit(surface, 'map-resize-west-shrink');
     surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-resize-confirm')?.activate();
+    pressKit(surface, 'map-resize-confirm');
     expect(state.model.document()).toMatchObject({ width: initial.width - 1, height: initial.height });
     surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-undo')?.activate();
+    pressKit(surface, 'map-undo');
     expect(state.model.document()).toMatchObject(initial);
     surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-redo')?.activate();
+    pressKit(surface, 'map-redo');
     expect(state.model.document()).toMatchObject({ width: initial.width - 1, height: initial.height });
   });
 
   it('gates terrain authoring controls when the active terrain layer is hidden or locked', () => {
     const toolContext = context('/build/map');
     let surface = buildMapCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id === 'map-layer-visible-terrain')?.activate();
+    pressKit(surface, 'map-layer-visible-terrain');
     surface = buildMapCanvasTool(toolContext);
-    expect(surface.actions.filter(({ id }) => id.startsWith('map-terrain-tool-'))
+    expect((kitElement(surface,'map-palette-list')!.props['items'] as {id:string;disabled?:boolean}[]).filter(({ id }) => id.startsWith('map-terrain-tool-'))
       .every(({ disabled }) => disabled)).toBe(true);
 
-    surface.actions.find(({ id }) => id === 'map-layer-visible-terrain')?.activate();
-    surface.actions.find(({ id }) => id === 'map-layer-select-generated_base')?.activate();
+    pressKit(surface, 'map-layer-visible-terrain');
+    pressKit(surface, 'map-layer-select-generated_base');
     surface = buildMapCanvasTool(toolContext);
-    expect(surface.actions.filter(({ id }) => id.startsWith('map-terrain-tool-'))
+    expect((kitElement(surface,'map-palette-list')!.props['items'] as {id:string;disabled?:boolean}[]).filter(({ id }) => id.startsWith('map-terrain-tool-'))
       .every(({ disabled }) => disabled)).toBe(true);
   });
 
@@ -945,9 +549,9 @@ describe('canvas-native Build and asset tools', () => {
       let surface = buildMapCanvasTool(first);
       surface.input?.keyDown?.({ key: '7', repeat: false,
         shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
-      surface.actions.find(({ id }) => id === 'map-layer-visible-canopy')?.activate();
-      surface.actions.find(({ id }) => id === 'map-layer-lock-objects')?.activate();
-      surface.actions.find(({ id }) => id === 'map-layer-solo-gameplay')?.activate();
+      pressKit(surface, 'map-layer-visible-canopy');
+      pressKit(surface, 'map-layer-lock-objects');
+      pressKit(surface, 'map-layer-solo-gameplay');
 
       type Probe = {
         readonly model: {
@@ -969,18 +573,15 @@ describe('canvas-native Build and asset tools', () => {
       });
       firstState.search.setValue('e');
       surface = buildMapCanvasTool(first);
-      const paletteAction = surface.actions.find(({ id }) => id.startsWith('map-terrain-tool-'))!;
-      const palettePoint = { x: paletteAction.bounds.x + 2, y: paletteAction.bounds.y + 2 };
-      surface.input?.wheel?.({ point: palettePoint, deltaX: 0, deltaY: 1,
-        shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
-      surface.input?.wheel?.({ point: palettePoint, deltaX: 0, deltaY: 1,
-        shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
+      const root=new UiRoot({scale:1});root.resize(95,320);root.mount(surface.kit!.controls!);root.arrange();
+      const palette=root.entries().find(({element})=>element.id==='map-palette-list')!.element;
+      scrollUiElement(palette,0,96);root.arrange();root.unmount(surface.kit!.controls!);root.dispose();
       surface.input?.wheel?.({ point: { x: WORKSPACE.x + 100, y: WORKSPACE.y + 100 },
         deltaX: 0, deltaY: -1, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
       buildMapCanvasTool(first);
       const expectedCamera = firstState.interaction.snapshot().camera;
       expect(firstState.paletteOffset).toBeGreaterThan(0);
-      setOutlinerView(first, 'world');
+      chooseKit(surface,'map-left-view','World');
       surface = buildMapCanvasTool(first);
       firstState.worldOutlinerSearch.setValue('farm tree');
       buildMapCanvasTool(first);
@@ -998,10 +599,10 @@ describe('canvas-native Build and asset tools', () => {
       });
       expect(secondState.model.isLayerEyeVisible('canopy')).toBe(false);
       expect(secondState.model.isLayerUserLocked('objects')).toBe(true);
-      expect(secondState.model.soloLayer()).toBeNull();
+      expect(secondState.model.soloLayer()).toBe('gameplay');
       expect(secondState.search.snapshot().value).toBe('e');
       expect(secondState.paletteOffset).toBe(firstState.paletteOffset);
-      expect(secondState.leftView).toBe('palette');
+      expect(secondState.leftView).toBe('world');
       expect(secondState.worldOutlinerSearch.snapshot().value).toBe('farm tree');
       expect(secondState.worldOutlinerState.expandedIds).toContain('space:0');
     } finally {
@@ -1009,45 +610,93 @@ describe('canvas-native Build and asset tools', () => {
     }
   });
 
-  it.each(BUILDERS)('builds functional %s controls and a clipped workspace draw layer', (toolId, path, builder) => {
-    const surface = builder(context(path));
-    assertSurface(surface, toolId);
-    expect(() => surface.draw?.(fakeCanvasContext(), {} as StudioCanvasShellArt)).not.toThrow();
+  it('uses kit tileset editors and preserves datum edits and JSON drafts', () => {
+    const toolContext=context('/build/tiles');let surface=buildTilesCanvasTool(toolContext);
+    expect(surface.draw).toBeUndefined();
+    const initial=String(kitElements(surface).find(node=>node.kind==='text'&&String(node.props['text']).startsWith('Datum '))?.props['text']);
+    pressKit(surface,'tiles-datum-up');surface=buildTilesCanvasTool(toolContext);
+    expect(kitElements(surface).find(node=>node.kind==='text'&&String(node.props['text']).startsWith('Datum '))?.props['text']).not.toBe(initial);
+    pressKit(surface,'tiles-tabs:tab:json');surface=buildTilesCanvasTool(toolContext);
+    const draft=kitElement(surface,'tiles-json')!.props['editor'] as CanvasTextEditor;
+    const value=JSON.parse(draft.snapshot().value) as {baseDatum:number};
+    draft.setValue(JSON.stringify({...value,baseDatum:value.baseDatum+2}));
+    pressKit(surface,'tiles-apply');surface=buildTilesCanvasTool(toolContext);
+    expect(kitElements(surface).some(node=>node.props['text']===`Datum ${value.baseDatum+2}`)).toBe(true);
+    pressKit(surface,'tiles-tabs:tab:fixtures');surface=buildTilesCanvasTool(toolContext);
+    expect(kitElements(surface).filter(node=>node.id.startsWith('tiles-fixture-')).length).toBeGreaterThan(0);
   });
 
-  it('shares the global gray-white grid preference with Object Studio', () => {
-    const toolContext = context('/build/object');
-    const surface = buildObjectCanvasTool(toolContext);
-    const visible = fakeCanvasContext();
-    surface.draw?.(visible, {} as StudioCanvasShellArt);
-    expect(visible.strokeStyle).toBe('rgba(255, 255, 255, 0.52)');
-    expect(visible.stroke).toHaveBeenCalled();
+  it('uses kit audio controls, reaches the final virtual cue, and tears down playback', async () => {
+    vi.useFakeTimers();
+    const play=vi.spyOn(AudioPreviewModel.prototype,'playSfx').mockResolvedValue();
+    const stop=vi.spyOn(AudioPreviewModel.prototype,'stop');
+    try {
+      const toolContext=context('/author/audio');const surface=buildAudioCanvasTool(toolContext);
+      expect(surface.draw).toBeUndefined();
+      expect(kitElement(surface,'audio-meter')?.kind).toBe('progress');
+      keyKit(surface,'audio-sfx','End');
+      const last=AUDIO_PREVIEW_SFX.at(-1)!;
+      pressKit(surface,`audio-sfx-${last}`);await Promise.resolve();
+      expect(play).toHaveBeenCalledWith(last);
+      expect(vi.getTimerCount()).toBe(1);
+      surface.lifecycle?.dispose();expect(stop).toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);
+      expect(buildAudioCanvasTool(toolContext).lifecycle).not.toBe(surface.lifecycle);
+    } finally {vi.useRealTimers();play.mockRestore();stop.mockRestore();}
+  });
 
-    expect(toolContext.controller.toggleGrid()).toBe(false);
-    const hidden = fakeCanvasContext();
-    surface.draw?.(hidden, {} as StudioCanvasShellArt);
-    expect(hidden.stroke).not.toHaveBeenCalled();
+  it('uses kit prefab controls and preserves the shared grid preference', () => {
+    const toolContext=context('/build/object');let surface=buildObjectCanvasTool(toolContext);
+    expect(surface.draw).toBeUndefined();
+    expect(kitElement(surface,'object-prefab-grid')?.props['background']).toBe('checkerboard');
+    const assets=toolContext.controller.toolState<{palette:readonly AssetPaletteItem[];selectedAsset:string|null}>('object-canvas',()=>{throw new Error('missing object state');});
+    assets.palette=[{key:'test',assetId:1,assetName:'prop_test',category:'props',tags:[],layer:'object',footprint:[1,1],blocksMovement:false,builderAvailable:true,
+      visual:{kind:'state',name:'default',frameIndex:0},frame:{x:0,y:0,width:16,height:16,durationTicks:1},animated:false}];
+    assets.selectedAsset='test';surface=buildObjectCanvasTool(toolContext);
+    pressKit(surface,'object-prefab-stamp');surface=buildObjectCanvasTool(toolContext);
+    const root=new UiRoot({scale:1});root.resize(380,310);root.mount(surface.kit!.workspace!);root.arrange();
+    const piece=kitElement(surface,'object-prefab-piece-piece-1')!;
+    expect(piece.clip.width).toBeGreaterThanOrEqual(16);expect(piece.clip.height).toBeGreaterThanOrEqual(16);
+    root.unmount(surface.kit!.workspace!);root.dispose();
+    pressKit(surface,'object-prefab-tabs:tab:pieces');surface=buildObjectCanvasTool(toolContext);
+    pressKit(surface,'object-prefab-select-piece-1');surface=buildObjectCanvasTool(toolContext);
+    pressKit(surface,'object-prefab-right');surface=buildObjectCanvasTool(toolContext);
+    expect(kitElement(surface,'object-prefab-select-piece-1')?.label).toContain('5,4');
+    expect(toolContext.controller.toggleGrid()).toBe(false);surface=buildObjectCanvasTool(toolContext);
+    expect(kitElement(surface,'object-prefab-grid')?.props['background']).toBe('none');
+  });
+  it('edits object behaviour through kit graph and JSON controls', () => {
+    const toolContext=context('/build/object');let surface=buildObjectCanvasTool(toolContext);
+    chooseKit(surface,'object-mode','Behaviour');surface=buildObjectCanvasTool(toolContext);
+    pressKit(surface,'object-behaviour-add');surface=buildObjectCanvasTool(toolContext);
+    const graph=kitElement(surface,'object-behaviour-graph')!;
+    const nodes=graph.props['items'] as {id:string;kind:string}[];
+    expect(nodes.map(node=>node.kind)).toEqual(['trigger','condition','effect']);
+    const effect=nodes.find(node=>node.kind==='effect')!;
+    pressKit(surface,`object-behaviour-node-${effect.id}`);surface=buildObjectCanvasTool(toolContext);
+    expect(kitElement(surface,'object-behaviour-remove')?.disabled).toBe(false);
+    pressKit(surface,'object-behaviour-remove');surface=buildObjectCanvasTool(toolContext);
+    expect((kitElement(surface,'object-behaviour-graph')!.props['items'] as {id:string}[]).some(node=>node.id===effect.id)).toBe(false);
   });
 
   it('mutates retained character state through a semantic canvas action', () => {
     const toolContext = context('/author/character');
     const initial = buildCharacterCanvasTool(toolContext);
-    initial.actions.find(({ id }) => id === 'character-facing-right')?.activate();
+    expect(initial.draw).toBeUndefined();
+    pressKit(initial,'character-facing-right');
     const updated = buildCharacterCanvasTool(toolContext);
-    expect(updated.nodes.find(({ id }) => id === 'character-facing-right')?.state).toBe('active');
+    expect(kitElement(updated,'character-facing-right')?.props['tone']).toBe('success');
     expect(toolContext.invalidate).toHaveBeenCalled();
   });
 
   it('contains no DOM, HTML, or SVG implementation path in the canonical adapters', () => {
     const sources = [
-      'build-canvas-common.ts', 'map/canvas.ts', 'object/canvas.ts', 'tiles/canvas.ts',
+      'map/canvas.ts', 'object/canvas.ts', 'tiles/canvas.ts',
       'character/canvas.ts', 'audio/canvas.ts', 'ui-lab/canvas.ts',
     ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
     expect(sources).not.toMatch(/document\.(?:createElement|querySelector|body|head)|createElement|HTMLElement|innerHTML|insertAdjacentHTML|<svg|SVGElement/u);
-    expect(sources).toContain('layoutUiFrameSlots');
-    expect(sources).toContain('layoutUiFlex');
-    expect(sources).toContain('controlsBounds');
-    expect(sources).toContain('workspaceBounds');
+    expect(sources).toContain('ui.tabs(');
+    expect(sources).not.toMatch(/layoutUiFlex|canvasAction|canvasLabel|finishCanvasTool/u);
+    expect(sources).toContain('kit:');
   });
 
   it('leaves transparent editor workspaces open for the shared alpha grid', () => {
@@ -1055,17 +704,5 @@ describe('canvas-native Build and asset tools', () => {
       const source = readFileSync(new URL(path, import.meta.url), 'utf8');
       expect(source, path).not.toMatch(/fillRect\((?:workspaceBody|target)\.x,\s*(?:workspaceBody|target)\.y,\s*(?:workspaceBody|target)\.width/gu);
     }
-  });
-});
-
-
-describe('square icon controls', () => {
-  it('keeps the painted icon and its hit target square inside a stretched layout cell', () => {
-    const parts = canvasParts();
-    canvasAction(parts, 'undo', 'Undo', { x: 10, y: 20, width: 72, height: 40 }, () => {}, { symbol: 'undo' });
-    expect(parts.nodes[0]!.bounds).toEqual({ x: 26, y: 20, width: 40, height: 40 });
-    expect(parts.actions[0]!.bounds).toEqual(parts.nodes[0]!.bounds);
-    canvasAction(parts, 'text', 'Rename', { x: 10, y: 60, width: 100, height: 40 }, () => {});
-    expect(parts.nodes[1]!.bounds.width).toBe(100);
   });
 });

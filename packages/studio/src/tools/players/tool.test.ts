@@ -22,7 +22,7 @@ describe('Player Manager registration and view surface', () => {
     expect(PLAYER_MANAGER_TABS).toHaveLength(9);
     expect(PLAYER_MANAGER_OPERATIONS).toHaveLength(19);
     for (const operation of PLAYER_MANAGER_OPERATIONS) expect(canvas).toContain(`operation: '${operation}'`);
-    expect(canvas).toContain('No immutable preview. Every write requires a fresh dry run.');
+    expect(canvas).toContain('state.pendingPreview === null');
     expect(canvas).toContain("ui.field('players-reason', 'Audited reason'");
     expect(api).not.toMatch(/DbConnection|@orchard\/world-bindings/u);
   });
