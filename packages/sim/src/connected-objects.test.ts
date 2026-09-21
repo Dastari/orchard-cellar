@@ -1,10 +1,21 @@
 import {describe,it,expect} from 'vitest';
+import {bootstrapContentDefinitions} from './content/bootstrap-registry.js';
 import {connectedObjectIndex,connectedObjectFrame,connectedObjectFamily,mapObjectConnectionMasks,MANUAL_OBJECT_CONNECTION_TAG,type ConnectedObjectFamily} from './connected-objects.js';
 import {createEmptyMapDocument} from './index.js';
 import {migrateMapDocumentV2,serializeMapDocumentV3,parseMapDocumentV3,type MapObjectInstance} from './map-document-v3.js';
 import {createMapPrefabDocument,type MapPrefabDocumentV2} from './map-prefab.js';
 
 describe('shared object topology',()=>{
+ it('keeps crafted fence joins connected to the current content sprite',()=>{
+  const fence=bootstrapContentDefinitions().find(definition=>definition.id==='object:fence');
+  if(fence?.kind!=='object')throw new Error('Missing crafted fence definition');
+  const family=connectedObjectFamily(fence.components.sprite?.asset ?? '');
+  expect(family).toBe('wood_fence');
+  if(family===null)throw new Error('Missing crafted fence connection family');
+  const center={tileX:5,tileY:5,elevation:0,space:0,family};
+  const cells=[{...center,tileX:4},center,{...center,tileX:6}];
+  expect(connectedObjectIndex(cells)(center)).toBe(10);
+ });
  it.each(['hedge','wood_fence','white_fence','wood_small_fence','stone_fence','stone_large_fence'] as const)('resolves every %s cardinal mask with native unique frames',family=>{
   const origin={tileX:3,tileY:3,elevation:1,space:0,family};
   for(let mask=0;mask<16;mask++){

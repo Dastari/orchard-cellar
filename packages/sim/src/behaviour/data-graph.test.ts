@@ -188,6 +188,7 @@ describe('data graph behaviour compiler', () => {
       enabled: true, color: [255, 196, 120], radiusTiles: 4, profile: 'steady', offsetY: -6,
     });
     expect(resolveObjectLight(component, { lit: false }).enabled).toBe(false);
+    expect(resolveObjectLight({...component,intensityPerMille:3500}, {lit:true}).intensityPerMille).toBe(3500);
   });
 
   it('evaluates selected-item conditions before emitting ordered effects', () => {

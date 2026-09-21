@@ -22,8 +22,8 @@ describe('Willowharbour facades', () => {
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     expect(sha256(facades.prefabs)).toBe('d4560bfebcdb9fef42448e87d89d8a47c428e133a518b305d97d1de9248e25d4');
     expect(sha256(facades.objects)).toBe('3b0a10762d476fb7fda1c70a2d24f0ebf685032435512d65b541c672a37e6fb0');
-    expect(sha256(scenery.prefabs)).toBe('8f3c9df7a579d828a610b26dc4e7c7421f4412dfe1f7d3523564c5872b100d36');
-    expect(sha256(scenery.objects)).toBe('a4f44525bc675d0b463fc1a7025e572f6d09a63c97767c6570be251b6ab0cf6d');
+    expect(sha256(scenery.prefabs)).toBe('681763826026ebd2078f2891388ab52565f91da45f64e92257e8dd6d571d44d5');
+    expect(sha256(scenery.objects)).toBe('3f8fdca2464c49a99db29b65a29f19d9d460d4c5f60e68ca484a3c0cf86742e9');
   });
   it('marks only public service thresholds with nonblocking ground runners',()=>{
     const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
@@ -129,4 +129,43 @@ it('grows reproducible mixed-age groves on level land without planting across ro
   // A grove has close canopy companions; the main square remains clear.
   expect(trees.filter(a=>trees.some(b=>a!==b&&(a.tileX-b.tileX)**2+(a.tileY-b.tileY)**2<=8)).length).toBeGreaterThan(100);
   expect(trees.some(row=>row.tileX>=163&&row.tileX<=183&&row.tileY>=394&&row.tileY<=406)).toBe(false);
+});
+
+it('keeps mature woodland independent of the decorative asset catalog order',()=>{
+  const cells=composeHearthArchipelago(createLiveIslandMapDocument()).document.cells;
+  const scenery=buildHearthVillageScenery(cells,assetFor,'fixture');
+  const mature=scenery.objects.filter(row=>row.layer==='canopy'&&row.prefabId.includes('-mature'));
+  expect(mature.length).toBeGreaterThan(300);
+  expect(new Set(mature.map(row=>row.prefabId)).size).toBe(4);
+  expect(scenery.objects.filter(row=>row.prefabId.includes('boundary-picket-')&&(Number(row.prefabId.split('-').at(-1))&5)!==0).length).toBeGreaterThan(8);
+  for(const suffix of [6,12,3,9])expect(scenery.objects.some(row=>row.prefabId.endsWith(`boundary-hedge-${suffix}`))).toBe(true);
+  expect(scenery.objects.filter(row=>row.prefabId.endsWith('streetlamp')).length).toBeGreaterThan(30);
+});
+
+it('closes the farm pen on dry land with only the authored two-cell east gate',()=>{
+  const map=composeHearthArchipelago(createLiveIslandMapDocument()).document;
+  const scenery=buildHearthVillageScenery(map.cells,assetFor,'test-registry');
+  const fence=(x:number,y:number)=>scenery.objects.find(o=>o.tileX===x&&o.tileY===y&&o.prefabId.includes('boundary-wood-'));
+  for(let x=121;x<=126;x++)for(const y of [442,451])expect(fence(x,y),`${x},${y}`).toBeDefined();
+  for(let y=443;y<451;y++){
+    expect(fence(121,y)).toBeDefined();
+    expect(Boolean(fence(126,y))).toBe(![447,448].includes(y));
+  }
+  expect(fence(126,442)?.prefabId).toMatch(/-12$/);
+  expect(scenery.objects.some(o=>o.prefabId.includes('chest'))).toBe(false);
+});
+
+it('keeps fences off shallow shelves and plants out of their gateways',()=>{
+ const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
+ const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
+ const fences=scenery.objects.filter(o=>o.prefabId.includes('boundary-'));
+ const banks=scenery.objects.filter(o=>o.prefabId.includes('willow-bank-'));
+ for(const bank of banks)expect(fences.some(o=>o.tileX===bank.tileX&&o.tileY===bank.tileY)).toBe(false);
+ // Southern garden rail must terminate before the raised footprint at x170.
+ expect(fences.some(o=>o.tileY===433&&o.tileX>=170&&o.tileX<=177)).toBe(false);
+ for(const [gate,y] of [[123,383],[112,431],[164,426],[187,429],[191,406],[113,437],[158,433]]){
+  for(const plant of scenery.objects.filter(o=>o.prefabId.includes('flower')))
+   expect(Math.abs(plant.tileX-gate!)<=1&&Math.abs(plant.tileY-y!)<=1,`plant in gateway ${gate},${y}`).toBe(false);
+ }
+ for(const fence of fences)expect(scenery.objects.some(o=>o.prefabId.includes('flower')&&o.tileX===fence.tileX&&o.tileY===fence.tileY)).toBe(false);
 });

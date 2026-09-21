@@ -8,6 +8,10 @@ function importReviewed(name:string,args:string[]):void {
   const previous=existsSync(output)?JSON.parse(readFileSync(output,'utf8')) as Record<string,unknown>:null;
   execFileSync(resolve(root,'node_modules/.bin/tsx'),args,{cwd:root,stdio:'inherit'});
   const current=JSON.parse(readFileSync(output,'utf8')) as Record<string,unknown>;
+  if(name==='prop_cf_hearth_streetlamp'){
+    const frames=current['frames'] as Record<string,string[][]>;
+    current['frames']={base:[frames['base']![0]!],on:[frames['base']![1]!]};
+  }
   if(previous?.['approved']===true&&JSON.stringify({...previous,approved:false})===JSON.stringify({...current,approved:false})) current['approved']=true;
   writeFileSync(output,JSON.stringify(current,null,2)+'\n');
 }
@@ -28,7 +32,8 @@ for(const [id,source,width,height,x,y] of sources) {
   importReviewed(`prop_cf_hearth_${id}`,['packages/tools/src/import-image.ts',
     `references/art/kenmi/cute-fantasy/core/${source}`, '--size',`${width}x${height}`,
     '--source-size',`${width}x${height}`,'--crop',`${x},${y}`,'--category','props',
-    '--name',`prop_cf_hearth_${id}`]);
+    '--name',`prop_cf_hearth_${id}`, ...(id==='streetlamp'?['--frame-grid','4x1','--frame-order','0,2','--animation-names','base']:[])]);
+
 }
 
 importReviewed('prop_cf_hearth_fountain',['packages/tools/src/import-image.ts',

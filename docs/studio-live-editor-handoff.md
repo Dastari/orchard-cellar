@@ -1,3 +1,12 @@
+# Integration update — 2026-09-21
+
+The owner now authorizes merging and publishing #41 with the town release.
+RubyBay is reconciling current main into this branch. Version 0.18.0 / Studio
+0.9.2 keeps both rendering paths, repairs crafted-fence family recognition and
+inherits the serial timing-test lane and canonical export gate. Full validation
+and deployment are pending; the 0.9.1 artifact below remains rollback evidence.
+See [town release handoff](town-release-handoff.md) for current release state.
+
 # Cellar Studio live editor handoff
 
 Date: 2026-09-21. Branch: `feat/studio-live-map-tools`.

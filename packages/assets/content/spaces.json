@@ -1127,20 +1127,20 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "b",
-      "38ce;k8se;3icr;kisr;e5hr;85n9;abmd;almo;a9md",
-      "2b5aec!farm_hay_stack;2b8aec!farm_hay_stack;o95dc8!farm_hay_bale;o99dc8!farm_hay_bale;g0l8;g0p8;7zlb;7zob;7zrb;5386;h3a8;0yc6;0yk6;2b5lec!farm_hay_stack;o95oc8!farm_hay_bale;o98oc8!farm_hay_bale;xl9j;7zbr;53nj;h3nl;xlqo;g0lq;7zpr;0ycj;0ykj;2b5cec!farm_hay_stack;2b8cec!farm_hay_stack;2bbaec!farm_hay_stack;2b5nec!farm_hay_stack;2b8lec!farm_hay_stack;o95qc8!farm_hay_bale;o98qc8!farm_hay_bale;7zmc;7zpc;12rd78!barrel;12sd78!barrel;12rk78!barrel;12sk78!barrel;12rm78!barrel",
-      "ghgj"
+      "88pk;ekhr",
+      "2b9aec!farm_hay_stack;2bcaec!farm_hay_stack;2b9dec!farm_hay_stack;2bcdec!farm_hay_stack;2b9gec!farm_hay_stack;2bcgec!farm_hay_stack;o99jc8!farm_hay_bale;o9cjc8!farm_hay_bale;4xnaga!workbench;4xnhga!workbench;12ld78!barrel;12od78!barrel;12lj78!barrel;12oj78!barrel;xlme;0yd8;0yj8",
+      "g9gb"
     ],
-    "hearthInteriorFloors": [
-      {
-        "bounds": [
-          14,
-          5,
-          17,
-          27
-        ],
-        "style": "stone"
-      }
+    "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        10,
+        8
+      ],
+      [
+        23,
+        8
+      ]
     ],
     "portals": [
       {
@@ -1183,29 +1183,28 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "c",
-      "45rr",
-      "fhk9;4x8fga;4xofga;538m;g067;g0o7;xl7h;xlnh;7zam;h38o;o8mm;xlpne6!camp_bench;s65p;0ykd;g05j;5zb7;5zr7;7z5m;7zrl;ftnp;xlaq;xlkq;0ybi;0yrq;dyfp",
+      "65bb;k5qb;6ibo;kiqo;e8hr;b9la;bmln;d8dc",
+      "4x97ga!workbench;g065;xl9a;0yb5;53l5;h3l6;5zp5;s6pb;4x9kga!workbench;xl7n;0ybi;ftnm;fhnl;o8lm;o8pm;g0ki;s6qi",
       "h9hb"
     ],
-    "hearthInteriorFloors": [
-      {
-        "bounds": [
-          4,
-          5,
-          27,
-          11
-        ],
-        "style": "townhouse"
-      },
-      {
-        "bounds": [
-          4,
-          13,
-          27,
-          19
-        ],
-        "style": "stone"
-      }
+    "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        10,
+        5
+      ],
+      [
+        23,
+        5
+      ],
+      [
+        10,
+        18
+      ],
+      [
+        24,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1248,25 +1247,16 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "f",
-      "d5jr;46be;l6se;4ibr;lisr;abmd;ammo",
-      "53g9;wk69;7z89;g097;dy7c;l5oa;ado9-6;qtmc;qtqc;tvr7;v87o;586k;g89n;kt6o;rh5k;9hnl;orqj;elpq;vooo;tvrp;5mlq;5z47;tvbr;rhmq;0yb7;dyfp"
+      "65bb;l5rb;6ibo;liro;e8hr;b9la;bmln;d8dc",
+      "wk66;g095;dy68;0y85;539a;h39b;l5o8;ado7-7;qtm9;qtq9;kfl5;tvr5;586i;rh9i;v88m;g8al;kt7l;s6ao;9hlj;oroi;dyll;rhqk;53on;h3oo"
     ],
     "hearthInteriorFloors": [
       {
         "bounds": [
-          21,
           6,
-          28,
-          14
-        ],
-        "style": "townhouse"
-      },
-      {
-        "bounds": [
-          4,
           18,
-          11,
-          27
+          12,
+          24
         ],
         "style": "townhouse"
       },
@@ -1274,11 +1264,29 @@
         "bounds": [
           21,
           18,
-          28,
-          27
+          27,
+          24
         ],
         "style": "townhouse"
       }
+    ],
+    "hearthInteriorWindows": [
+      [
+        7,
+        5
+      ],
+      [
+        25,
+        5
+      ],
+      [
+        8,
+        18
+      ],
+      [
+        23,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1321,17 +1329,17 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "h",
-      "65cc;k5pc;6gcr;kgpr;e5hr;aamc;akmm",
-      "5886;g869;kta9;v88a;rhb6;s666;5mn6;elk6;vom9;kfnb;tvp9;z36g;g09g;el6j;fh9o;o87p;o8bp;s66r;0ycq;9hmi;orog;7zki;voml;53np;o8nr;rhkp;tvpr;dyfn;dyfe",
-      "ghgj"
+      "75bb;k5pb;7ibo;kipo;e8hr;b9la;bmln;d8dc",
+      "5875;rha5;v899;g8b8;kt88;s6bb;elk5;ukk6;5mn5;vom8;kfka;tvoa;z37i;g09i;el7k;fh9m;o88n;o8bn;9hkj;orni;dykl;rhpk;53nn;h3no",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
         "bounds": [
-          6,
+          7,
           5,
           12,
-          12
+          11
         ],
         "style": "townhouse"
       },
@@ -1340,28 +1348,37 @@
           20,
           5,
           25,
-          12
-        ],
-        "style": "stone"
-      },
-      {
-        "bounds": [
-          6,
-          16,
-          12,
-          20
+          11
         ],
         "style": "stone"
       },
       {
         "bounds": [
           20,
-          16,
+          18,
           25,
-          27
+          24
         ],
         "style": "townhouse"
       }
+    ],
+    "hearthInteriorWindows": [
+      [
+        9,
+        5
+      ],
+      [
+        24,
+        5
+      ],
+      [
+        11,
+        18
+      ],
+      [
+        22,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1404,28 +1421,27 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "g",
-      "75on;enir",
-      "53g9;g086;g0m6;kf8d;kfmd;7z9j;7zbj;7zmj;7zoj;xl8f;xlmf;s68m;s6nm;0yi7;5z79;5zo9;5z7i;5zoh;7za6;7zk6;tvcm;tvkm;dyfo;0ycg;0ykg;kfac;kfic;g0af;g0if;5z75;5zo5;7zbk;7zmk;128l78!barrel;12ol78!barrel;12kk78!barrel"
+      "65qb;6ico;kiqo;e8hr;b9la;bmln;d8dc",
+      "g065;kf95;g0l5;kfo5;53e8;127878!barrel;129878!barrel;12n878!barrel;12p878!barrel;0yj5;g06i;g09i;127l78!barrel;12al78!barrel;127n78!barrel;53li;h3lj;58nm;s6qi;0yko"
     ],
-    "hearthInteriorFloors": [
-      {
-        "bounds": [
-          7,
-          5,
-          24,
-          10
-        ],
-        "style": "townhouse"
-      },
-      {
-        "bounds": [
-          14,
-          23,
-          18,
-          27
-        ],
-        "style": "stone"
-      }
+    "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        12,
+        5
+      ],
+      [
+        18,
+        5
+      ],
+      [
+        11,
+        18
+      ],
+      [
+        24,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1468,56 +1484,43 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "p",
-      "59qp;enir",
-      "537a;53na;h3ab;h3lb;g0b9;eli9;s66e;tv9e;xrcf76!farm_potted_flowers;tvje;s6me;xrpf76!farm_potted_flowers;tv6i;xr9j76!farm_potted_flowers;s6ci;xrjj76!farm_potted_flowers;tvmi;s6pi;xl6n;7zao;xlmn;7zpo;0yda;rhio;tv5p;tvqp;tv7f;s6af;tvkf;s6nf;s67k;tvak;s6kk;tvnk;xrbe76!farm_potted_flowers;xroe76!farm_potted_flowers;xr8i76!farm_potted_flowers;xrli76!farm_potted_flowers",
-      "ghgj"
+      "78pm;emhr",
+      "5388;ell8;0yc8;0yk8;xr9c76!farm_potted_flowers;s6bc;tvlc;xrnc76!farm_potted_flowers;xr9f76!farm_potted_flowers;s6bf;tvlf;xrnf76!farm_potted_flowers;xr9i76!farm_potted_flowers;s6bi;tvli;xrni76!farm_potted_flowers;s67m;s6pm",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
         "bounds": [
-          5,
-          9,
-          26,
-          25
-        ],
-        "style": "stone"
-      },
-      {
-        "bounds": [
-          5,
-          13,
+          8,
+          11,
           12,
-          15
+          19
         ],
         "style": "soil"
       },
       {
         "bounds": [
-          19,
-          13,
-          26,
-          15
-        ],
-        "style": "soil"
-      },
-      {
-        "bounds": [
-          5,
-          17,
-          12,
-          20
-        ],
-        "style": "soil"
-      },
-      {
-        "bounds": [
-          19,
-          17,
-          26,
-          20
+          20,
+          11,
+          24,
+          19
         ],
         "style": "soil"
       }
+    ],
+    "hearthInteriorWindows": [
+      [
+        11,
+        8
+      ],
+      [
+        16,
+        8
+      ],
+      [
+        24,
+        8
+      ]
     ],
     "portals": [
       {
@@ -1560,19 +1563,27 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "u",
-      "d5ir;55be;l5qe;5ibr;liqr;98na;9jnl",
-      "fhg9;wr87;wro7;wr8c;wroc;ft9l;fh9k;o87l;o8bl;ftnl;fhnk;o8ll;o8pl;wr8o;wroo;s6eo;s6io;rhbe;rhqn;53e6;5z57;5zq7;kf5p;kfpp;g85l;g8ql;tvbr;tvlr;dyfo;vogk;wr5c;wrlc;wr5i;wrpi;5zb5;5zl5;rhhh"
+      "65bb;k5qb;6ibo;kiqo;e8hr;b9la;bmln;d8dc",
+      "5z65;5z85;5za5;ft9a;5388;h389;0yb5;5zk5;5zm5;5zo5;ftna;53m8;h3m9;0yq5;537i;h37j;g0ai;s66o;58ki;v8nm;g8pl;ktml;rhqi;s6qo"
     ],
-    "hearthInteriorFloors": [
-      {
-        "bounds": [
-          5,
-          5,
-          26,
-          27
-        ],
-        "style": "townhouse"
-      }
+    "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        7,
+        5
+      ],
+      [
+        21,
+        5
+      ],
+      [
+        9,
+        18
+      ],
+      [
+        23,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1625,37 +1636,37 @@
     ],
     "hearthInterior": [
       "i",
-      "4crr;44a8;l4r8;89ad;l9nd;c4je",
-      "fhg9;9h77;9hn7;7z95;orp5;qf5d;z3i5;ft9i;fh9h;o87i;o8bi;ftni;fhnh;o8li;o8pi;ft9o;fh9n;o87o;o8bo;ftno;fhnn;o8lo;o8po;s67e;s6qe;0yci;0ykn;g0e4;elh4;rh45;rhr7;tv4r;tvrr;5z4k;5zrk;dyfo;xldq;xljq;kt47;vo78;ktl5;vop8;7zr8"
+      "65ab;d5hb;l5qb;6iqo;e8hr;b9la;bmln;d8dc",
+      "wk66;g085;dy68;0ya5;538a;h38b;wkl6;g0o5;dyl8;0yn5;53oa;h3ob;z3f5;elg5;53e8;qf6i;g0oi;s66o;s6qo;ft9n;fh9l;o87m;o8bm;ftnn;fhnl;o8lm;o8pm;0yci;0yki"
     ],
     "hearthInteriorFloors": [
       {
         "bounds": [
-          12,
-          4,
-          19,
-          6
+          13,
+          5,
+          17,
+          7
         ],
         "style": "stone"
-      },
-      {
-        "bounds": [
-          21,
-          4,
-          27,
-          8
-        ],
-        "style": "townhouse"
-      },
-      {
-        "bounds": [
-          4,
-          12,
-          27,
-          27
-        ],
-        "style": "townhouse"
       }
+    ],
+    "hearthInteriorWindows": [
+      [
+        7,
+        5
+      ],
+      [
+        22,
+        5
+      ],
+      [
+        10,
+        18
+      ],
+      [
+        22,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1698,38 +1709,38 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "o",
-      "75oc;7gcr;kgor;eahr;bkmm",
-      "qf75;z3a5;g0c5;fha9;o88a;o8ca;ftaa;5zi5;58k6;g8n8;kti9;vola;rhn5;s6oc;wk8h;wkbh;7z9j;g07o;53aq;h3ar;0yco;dy8m;5mmg;elkj;vomm;tvok;kfmq;s6kr;dyfo;0yhf",
-      "ghgj"
+      "75bb;k5pb;7ibo;kipo;e8hr;b9la;bmln;d8dc",
+      "z375;g095;el77;fh99;o88a;o8ba;58k5;rhn5;v8m9;g8o8;ktl8;s6ob;wk7j;g0ai;dy7l;53an;h3ao;0y9i;elki;ukkj;5mni;voml;kfkn;tvon",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
         "bounds": [
-          17,
-          5,
-          24,
-          12
-        ],
-        "style": "townhouse"
-      },
-      {
-        "bounds": [
-          7,
-          5,
-          14,
-          6
-        ],
-        "style": "stone"
-      },
-      {
-        "bounds": [
           20,
-          16,
-          24,
-          27
+          18,
+          25,
+          24
         ],
         "style": "stone"
       }
+    ],
+    "hearthInteriorWindows": [
+      [
+        11,
+        5
+      ],
+      [
+        22,
+        5
+      ],
+      [
+        8,
+        18
+      ],
+      [
+        24,
+        18
+      ]
     ],
     "portals": [
       {
@@ -1772,20 +1783,30 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "s",
-      "65cb;k5pb;e5ir;6fpn;a8mb",
-      "fhc9;ru9ha8;4xnhga;qfm6;g076;7zmk;7zok;h3bi;xllh;g0ma;7z7k;7z9k;5z68;0yi7;0ycj;xl7m;s6om;dyfp;g0k5;7zo7;7zo9;12k978!barrel;12kb78!barrel;qfif;rukia8;4xcgga;7z6i;7z6k;7zcm;7zim;12pi78!barrel;12pk78!barrel",
+      "65cb;k5qb;6iqo;e8hr;b9la;bmln;d8dc",
+      "g065;53a8;0yc5;53l5;h3l6;g0o5;xlma;qf6i;qfni;ru9la8!anvil;4xmlga!workbench;126n78!barrel;12pn78!barrel;0ydi;0yji",
       "999b"
     ],
     "hearthInteriorFloors": [
       {
         "bounds": [
           6,
-          5,
-          25,
-          23
+          18,
+          26,
+          24
         ],
         "style": "stone"
       }
+    ],
+    "hearthInteriorWindows": [
+      [
+        10,
+        5
+      ],
+      [
+        23,
+        5
+      ]
     ],
     "portals": [
       {

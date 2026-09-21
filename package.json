@@ -1,6 +1,6 @@
 {
   "name": "orchard-cellar",
-  "version": "0.16.1",
+  "version": "0.18.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,12 +9,12 @@
   "scripts": {
     "dev": "npm run assets:build && concurrently -k -n world-host,world,client,assets -c magenta,blue,green,yellow \"npm run world:host\" \"npm run world:dev\" \"VITE_SPACETIMEDB_DATABASE=${ORCHARD_DEV_DATABASE:-orchard-cellar-dev} npm run dev -w @orchard/client\" \"npm run watch -w @orchard/tools\"",
     "build": "npm run assets:build && npm run pwa:assets && npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/world && npm run build -w @orchard/client && npm run build -w @orchard/studio",
-    "check": "npm run lifecycle:integrity && npm run build -w @orchard/world && npm run typecheck && npm run lint && npm test && npm run assets:validate",
+    "check": "npm run lifecycle:integrity && npm run content:validate && npm run build -w @orchard/world && npm run typecheck && npm run lint && npm test && npm run assets:validate",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test:coverage && npm run test:exhaustive",
-    "test:coverage": "vitest run --coverage --exclude packages/sim/src/procedural-terrain.test.ts --exclude packages/sim/src/survival-world.test.ts",
-    "test:exhaustive": "vitest run packages/sim/src/procedural-terrain.test.ts packages/sim/src/survival-world.test.ts --no-file-parallelism",
+    "test:coverage": "vitest run --coverage --exclude packages/sim/src/procedural-terrain.test.ts --exclude packages/sim/src/survival-world.test.ts --exclude packages/tools/src/hearth-village-access.test.ts --exclude packages/studio/src/tools/map/editor-terrain-build.test.ts --exclude packages/ui/src/kit/runtime/app-performance.test.ts --exclude packages/studio/src/tools/build-canvas.test.ts --exclude packages/studio/src/tools/map/selection-inspection.test.ts",
+    "test:exhaustive": "vitest run packages/sim/src/procedural-terrain.test.ts packages/sim/src/survival-world.test.ts packages/tools/src/hearth-village-access.test.ts packages/studio/src/tools/map/editor-terrain-build.test.ts packages/ui/src/kit/runtime/app-performance.test.ts packages/studio/src/tools/build-canvas.test.ts packages/studio/src/tools/map/selection-inspection.test.ts --no-file-parallelism",
     "assets:validate": "npm run validate -w @orchard/tools",
     "assets:build": "npm run atlas -w @orchard/tools && npm run ui:assets -w @orchard/tools",
     "client:chunks:check": "tsx scripts/check-client-build-chunks.ts",

@@ -53,7 +53,7 @@ function buildEnqueueGameplayDecorations(input: Inputs): void {
   if(dynamicLighting&&!debugEntitiesHidden&&activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID){
     for(const light of liveMapObjectPointLights(liveIslandDocument(
       snapshot.liveMapDocument, snapshot.content.registry,
-    ),snapshot.content.registry,snapshot.clock?.authorityTick??0n)){
+    ),snapshot.content.registry,snapshot.clock?.authorityTick??0n,true)){
       if(worldPointVisible(light.worldX,light.worldY,{left:visible.left-light.radiusTiles*16,right:visible.right+light.radiusTiles*16,top:visible.top-light.radiusTiles*16,bottom:visible.bottom+light.radiusTiles*16}))
         pointLights.push(projectedLight(light,light.receiverDirectionWorldY,light.terrainContactX));
     }

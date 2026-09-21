@@ -156,7 +156,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Combined review: docs/branch-integration-handoff.md; retain all three approved seam edits.
 // Live editor review: shared authored-object adjacency retains original-art fallback
 // and complete-document topology. See docs/studio-generation-rules.md.
-const STRUCTURAL_SEAM_DIGEST = 'f7a04fd823331be81a5104d3e7b225a142e97728c0b3c94f6eb8d4a73bc8588e';
+// Connected town lamps resolve one authoritative state and skip static duplicates.
+// Review: docs/review/willowharbour-rules-pass-01.md.
+const STRUCTURAL_SEAM_DIGEST = "eb32925609b88a0fb78884757602cd3a071c92244579e9458d616573336c22dc";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

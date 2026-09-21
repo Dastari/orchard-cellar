@@ -88,8 +88,8 @@ describe('lifecycle registration versus production raise coverage', () => {
     })) as Record<LifecycleEventType, RaiseCoverage>;
 
     expect(matrix).toEqual({
-      // Eleven furniture graphs plus the authored memorial add use handlers.
-      use: { registrations: 32, production: 'raised' },
+      // Furniture, memorial and three streetlamp mode branches add use handlers.
+      use: { registrations: 35, production: 'raised' },
       // Three process-job callbacks plus the authored container-seal command.
       frameAction: { registrations: 4, production: 'raised' },
       // Sixty-nine plan graphs plus cooking-range light/put_out.

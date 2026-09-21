@@ -66,7 +66,9 @@ it('lights the native streetlamp from its lantern and rejects mismatched or reti
     visual:{kind:'animation' as const,name:'base',frameIndex:0},
   }]}]};
   await preloadLiveMapObjectAssets(document);
-  const lights=liveMapObjectPointLights(document,registry,0n);
+  expect(liveMapObjectPointLights(document,registry,0n)).toEqual([]);
+  const lights=liveMapObjectPointLights(document,registry,9000n);
+  expect(liveMapObjectPointLights(document,registry,9000n,true)).toEqual([]);
   expect(lights).toHaveLength(1);
   expect(lights[0]).toMatchObject({worldX:168,worldY:102,radiusTiles:5,receiverDirectionWorldY:176});
   const objects=new Map(registry.objects),definition=objects.get('object:hearth_streetlamp')!;

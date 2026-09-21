@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.18.0 / Studio 0.9.2 — Integrated town and live editor
+
+- Combine the refined town, persistent streetlights and connected scenery with Studio’s local draft editing, native joins and incremental rendering.
+- Preserve both shared rendering paths and the canonical content validation and serial timing-test gates.
+
+## Unreleased — Town release verification
+
+- Regenerate canonical space/object property ordering and check exports early in CI;
+  definition values and the approved content hash are unchanged.
+
+- Preserve a separately reviewed Studio artifact during guarded schema migrations
+  after source-manifest, installed-output, UI-kit and generated API checks.
+- Document the encrypted dedicated development account and verified Content
+  Editor grant for future agents.
+
+- Run CPU-heavy town/Studio fixtures and UI timing budgets in the serial,
+  non-coverage test lane, preserving all assertions and existing timing limits.
+- Allow guarded same-schema world releases to preserve the independently reviewed
+  installed Studio artifact with exact manifest and static validation.
+
+## 0.17.1 — Willowharbour headwaters and finishing details
+
+- Make streetlamps 3.5× brighter within their existing light radius and use the matching bright native lantern frame.
+- Complete bridge undersides with native stone arches over animated river water.
+- Connect an upper freshwater lake to the town river with a complete animated waterfall anchored on the cliff plane.
+- Keep fences off shallow turf shelves and flowers out of fence cells and gateway approaches.
+
+## 0.17.0 — Connected town scenery and inhabited rooms
+
+- Resolve native wooden, large wooden, picket, stone, large stone and hedge boundaries from cardinal neighbours; player-built wooden fences now use all sixteen native joins.
+- Close shallow bank contours with native inner/outer corners and two-cell returns; repair the farm gateway and remove decorative Willowharbour chests.
+- Persist streetlamp Auto/On/Off modes through ordinary world objects and interactions; synchronize native artwork and emitted light with world time.
+- Join native interior wall caps and sides, place supported windows, and redesign all ten interiors around their room functions and clear circulation.
+- Record independent Astra visual acceptance and saved-map upgrade rehearsal.
+
+## 0.16.0 — Willowharbour river town refinement
+
+- Continue the river through the town to a sandy estuary, with four traversable bridges and preserved door/return routes. Add shallow native turf banks, cultivated flower beds, mature garden trees, white picket garden returns, connected hedge corners and a cobbled civic square.
+- Add streetlights at bridges and public junctions using the shared warm authored light component.
+- Separate domestic interior wings with capped and vertical wall faces; give the inn, barn, greenhouse, shop and smith distinct functional envelopes and preserve room/service access.
+- Fix freshwater-to-ocean bank transitions and lock mature tree species independently of the decorative asset catalog.
+- Preserve current-main integration and document independent Astra reference comparison.
+
 ## 0.16.1 / Studio 0.9.1 — Immediate local map editing
 
 - Enlarge object and terrain palettes, use generated pixel tools on one row, native inventory reticles and framed in-game category icons. Keep footer chrome intact and place explicit Publish below Auto.

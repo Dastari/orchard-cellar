@@ -1068,7 +1068,7 @@
         ]
       },
       "sprite": {
-        "asset": "prop_cf_fence_horizontal",
+        "asset": "prop_cf_willow_boundary_wood_large_connected",
         "animationByState": {
           "default": "base"
         },
@@ -3611,7 +3611,8 @@
       "sprite": {
         "asset": "prop_cf_hearth_streetlamp",
         "animationByState": {
-          "default": "base"
+          "default": "base",
+          "lit": "on"
         }
       },
       "collision": {
@@ -3623,16 +3624,101 @@
         "blocksMovement": false,
         "occludesLight": false
       },
+      "states": {
+        "mode": {
+          "type": "enum",
+          "default": "auto",
+          "values": [
+            "auto",
+            "on",
+            "off"
+          ]
+        },
+        "lit": {
+          "type": "bool",
+          "default": false
+        }
+      },
       "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
         "color": [
           255,
           206,
           131
         ],
         "radiusTiles": 5,
+        "intensityPerMille": 3500,
         "profile": "steady",
         "offsetY": -37
-      }
+      },
+      "interactions": [
+        {
+          "id": "switch_on_use",
+          "verb": "use",
+          "prompt": "LAMP AUTO: SET ON",
+          "feedback": "LAMP MODE: ON",
+          "reachTiles": 2.5,
+          "conditions": [
+            {
+              "state": "mode",
+              "equals": "auto"
+            }
+          ],
+          "effects": [
+            {
+              "setState": {
+                "mode": "on"
+              }
+            }
+          ],
+          "priority": 70
+        },
+        {
+          "id": "switch_off_use",
+          "verb": "use",
+          "prompt": "LAMP ON: SET OFF",
+          "feedback": "LAMP MODE: OFF",
+          "reachTiles": 2.5,
+          "conditions": [
+            {
+              "state": "mode",
+              "equals": "on"
+            }
+          ],
+          "effects": [
+            {
+              "setState": {
+                "mode": "off"
+              }
+            }
+          ],
+          "priority": 71
+        },
+        {
+          "id": "switch_auto_use",
+          "verb": "use",
+          "prompt": "LAMP OFF: SET AUTO",
+          "feedback": "LAMP MODE: AUTO",
+          "reachTiles": 2.5,
+          "conditions": [
+            {
+              "state": "mode",
+              "equals": "off"
+            }
+          ],
+          "effects": [
+            {
+              "setState": {
+                "mode": "auto"
+              }
+            }
+          ],
+          "priority": 72
+        }
+      ]
     }
   },
   {

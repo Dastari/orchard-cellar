@@ -1,3 +1,4 @@
+import {WILLOW_BRIDGES} from './hearth-archipelago-authoring.js';
 import {readFileSync} from 'node:fs';
 import {describe,it,expect} from 'vitest';
 import {bootstrapContentRegistry,runtimeSpacePortalPlans,
@@ -67,24 +68,26 @@ describe('decorated Willowharbour public NPC access',()=>{
     for(const [tileX,tileY] of [[142,440],[138,436],[146,436],[126,447],[117,454],[142,454]]) {
       expect(reachable(map,{tileX:tileX!,tileY:tileY!},true),`farm approach ${tileX},${tileY}`).toBe(true);
     }
-    for(const [x,y] of [[121,447],[127,445],[124,451]]) {
+    for(const [x,y] of [[121,447],[126,445],[124,451]]) {
       expect(positionCollides(center(x!,y!),map),`farm fence ${x},${y}`).toBe(true);
     }
   },30000);
   it('crosses both bridge deck lanes bank to bank while blocking the rails',()=>{
     const map=village();
-    for(const y of [379,380]) for(const direction of [1,-1]) {
-      const bank=center(direction===1?129:152,y);
+    for(const [left,right,north] of WILLOW_BRIDGES) {
+    for(const y of [north+1,north+2]) for(const direction of [1,-1]) {
+      const bank=center(direction===1?left-1:right+1,y);
       // Position is a sprite anchor; centre its raised physical foot box on the lane.
       let previous={x:bank.x,y:bank.y+PLAYER_HITBOX_FOOT_OFFSET+PLAYER_HITBOX_TOP/2};
-      for(let step=1;step<=23*16;step++) {
+      for(let step=1;step<=(right-left+2)*16;step++) {
         const position={x:previous.x+direction*TILE_SIZE_FIXED/16,y:previous.y};
         expect(movementPositionAllowed(previous,position,map),`bridge lane ${y} step ${step}`).toBe(true);
         previous=position;
       }
     }
-    for(let x=130;x<=150;x++) for(const y of [378,381]) {
+    for(let x=left;x<=right;x++) for(const y of [north,north+3]) {
       expect(positionCollides(center(x,y),map),`bridge rail ${x},${y}`).toBe(true);
+    }
     }
   });
   it('walks to the quay tip and back without permitting entry into the surrounding sea',()=>{

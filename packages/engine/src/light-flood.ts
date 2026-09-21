@@ -28,6 +28,7 @@ export interface FloodLight {
   readonly radius: number;
   readonly color: { readonly r: number; readonly g: number; readonly b: number };
   readonly strengthPerMille?: number;
+  readonly intensityPerMille?: number;
   readonly facing?: LightFacing;
   readonly profile?: LightProfile;
 }
@@ -578,12 +579,13 @@ export class QuantizedLightFlood {
 
   private prepareColorBands(light: FloodLight): void {
     for (let band = 1; band <= LIGHT_BANDS; band += 1) {
-      this.bandRed[band] = Math.round(light.color.r * band / LIGHT_BANDS);
-      this.bandGreen[band] = Math.round(light.color.g * band / LIGHT_BANDS);
-      this.bandBlue[band] = Math.round(light.color.b * band / LIGHT_BANDS);
+      const radianceBand = Math.min(LIGHT_BANDS, band * (light.intensityPerMille ?? 1000) / 1000);
+      this.bandRed[band] = Math.round(light.color.r * radianceBand / LIGHT_BANDS);
+      this.bandGreen[band] = Math.round(light.color.g * radianceBand / LIGHT_BANDS);
+      this.bandBlue[band] = Math.round(light.color.b * radianceBand / LIGHT_BANDS);
       this.bandLuma[band] = Math.round(
         (light.color.r * 0.2126 + light.color.g * 0.7152 + light.color.b * 0.0722)
-        * band / LIGHT_BANDS,
+        * radianceBand / LIGHT_BANDS,
       );
     }
   }

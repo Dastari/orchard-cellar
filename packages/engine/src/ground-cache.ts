@@ -728,6 +728,29 @@ export class GroundChunkCache {
     for(const jamb of hearthDoorwayFeatures(terrain.residenceArchitecture??[]).jambs){
       const key=`${jamb.tileX},${jamb.tileY}`;const list=residenceJambs.get(key)??[];list.push(jamb);residenceJambs.set(key,list);
     }
+    const frameTile=art.hearthInteriorFrame?selectAtlasFrame(art.hearthInteriorFrame.metadata,'base',0):null;
+    const frameSource=frameTile?worldAssetFrameSource(context,art.hearthInteriorFrame,frameTile):null;
+    const wallFrame=(sx:number,sy:number,w:number,h:number,x:number,y:number)=>{
+      if(frameSource)context.drawImage(frameSource.image,frameSource.x+sx,frameSource.y+sy,w,h,x,y,w,h);
+    };
+    if(terrain.generator==='village_interior') {
+      // Native caps extend five pixels into adjacent solid columns, exactly
+      // meeting the vertical cut walls. Include neighbour chunks' overhangs.
+      for(let y=0;y<SURVIVAL_CHUNK_TILES+3;y++)for(let x=-1;x<=SURVIVAL_CHUNK_TILES;x++) {
+        const tx=firstTileX+x,ty=firstTileY+y;
+        if(!residenceWallAt(terrain,tx,ty))continue;
+        const frame=selectAtlasFrame(art.hearthInteriorWall.metadata,'base',0);
+        const source=frame?worldAssetFrameSource(context,art.hearthInteriorWall,frame):null;
+        const top=(y-1)*16;
+        if(source)context.drawImage(source.image,source.x,source.y+16,16,32,x*16,top,16,32);
+        wallFrame(16,10,16,6,x*16,top);
+        for(const [dx,sx,offset] of [[-1,11,-5],[1,32,16]])if(!residenceWallAt(terrain,tx+dx!,ty)){
+          wallFrame(sx!,10,5,6,x*16+offset!,top);
+          wallFrame(sx!,16,5,16,x*16+offset!,top+6);
+          wallFrame(sx!,16,5,10,x*16+offset!,top+22);
+        }
+      }
+    }
     if (terrain.generator === 'residence') {
       const envelope={...terrain,blocked:terrain.residenceEnvelopeBlocked??terrain.blocked};
       // A wall anchored in the next chunk may project two rows into this one.
@@ -753,7 +776,18 @@ export class GroundChunkCache {
             const floor=style===1?art.hearthTownhouseFloor:style===2?art.rogueDungeonFloor:style===3?art.farmland:art.woodFloor;
             drawGroundAsset(context,floor,localX,localY,style===3?46:0);
           }
-          else if(tileY+1<terrain.height&&!terrain.blocked[index+terrain.width])drawGroundAsset(context,art.hearthInteriorWall,localX,localY);
+          else {
+            const open=(x:number,y:number)=>x>=0&&y>=0&&x<terrain.width&&y<terrain.height&&!terrain.blocked[y*terrain.width+x];
+            const left=open(tileX-1,tileY),right=open(tileX+1,tileY),above=open(tileX,tileY-1);
+            // Both faces matter for a one-cell partition between two rooms.
+            if(left)wallFrame(32,16,5,16,localX*16,localY*16);
+            if(right)wallFrame(11,16,5,16,localX*16+11,localY*16);
+            if(above){
+              wallFrame(16,32,16,7,localX*16,localY*16);
+              if(!open(tileX-1,tileY-1))wallFrame(11,32,5,7,localX*16-5,localY*16);
+              if(!open(tileX+1,tileY-1))wallFrame(32,32,5,7,localX*16+16,localY*16);
+            }
+          }
           continue;
         }
         if(terrain.generator==='residence') {

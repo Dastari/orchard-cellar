@@ -359,3 +359,42 @@ The offline exporter optionally accepts a reviewed prior map export to replace
 only unchanged Willowharbour authoring. It checks prior cells, objects, prefabs
 and transitions, preserves other regions and shared prefabs, then runs the normal
 conflict-aware composer. Publication remains a separate world/content release.
+
+### Willowharbour refinement (0.16.0)
+
+The offline village authoring now cuts a continuous river through the road network;
+four exported bridge spans restore dry crossing cells, with physical rail prefabs.
+Shallow native earth-edge sprites give village greens microrelief without adding a
+fractional elevation model. Native cobble ground prefabs preserve a paved border;
+hedge tiles resolve from run connectivity and picket frontages include side returns.
+Mature forest species use a dedicated list, independent of prop catalog ordering.
+Freshwater edges treat ocean neighbours as connected water at estuaries.
+
+Village interiors continue to use content-owned floor envelopes. Their cached
+renderer now draws two native wall courses, top caps and side/south cut edges in
+blocked cells, including cross-chunk overhangs. Utility spaces retain open working
+halls; domestic wings connect through corridors with visible voids. Collision,
+service approaches and both portal directions remain authoritative. See
+[refinement specification](willowharbour-refinement-spec.md).
+
+## Connected Willowharbour scenery and lamps
+
+`sim/connected-boundaries.ts` resolves same-family cardinal masks into native tiles.
+Town authoring uses this grammar for fences and hedges; the normal buildable wooden
+fence uses a sixteen-frame atlas in the same mask order. Unsupported hedge T/cross
+junctions fail explicitly because the source contains no matching boundary tiles.
+`sim/turf-bank.ts` validates closed shallow shelves with two-cell stepped returns.
+The shared rules are available to editor work; this change adds no Studio UI.
+
+Authored map streetlamps materialize into `world_placeable` rows with reserved stable
+coordinate identities. Their JSON state stores Auto/On/Off and the resolved lit flag.
+The authority settles Auto at 18:00/06:00 and cycles modes through the ordinary use
+interaction; rendering and light emission consume that same state. Active-map commits
+remove retired authority-owned lamps and materialize new locations. The game skips
+static lamp artwork/emission to prevent duplicates; offline map previews resolve Auto
+from their supplied calendar time. No new persistence table is introduced.
+
+Willowharbour interiors retain compact authored floor masks and explicitly placed
+fixtures. Optional `hearthInteriorWindows` identifies supported north-facing room
+walls; native wall-face and frame crops join tops, sides and returns. The room
+programmes and placement reasons are in [the interior rationale](willowharbour-rules-interiors.md).

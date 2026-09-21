@@ -10,7 +10,7 @@ export function connectedObjectFamily(assetName: string): ConnectedObjectFamily 
   if (/^prop_cf_(?:join_wood_small_fence|willow_boundary_wood_\d+)$/u.test(assetName)) return 'wood_small_fence';
   if (/^prop_cf_(?:join_stone_fence|willow_boundary_stone_\d+)$/u.test(assetName)) return 'stone_fence';
   if (/^prop_cf_(?:join_stone_large_fence|willow_boundary_stone_large_\d+)$/u.test(assetName)) return 'stone_large_fence';
-  if (/^prop_cf_willow_(?:wood_large_connected|boundary_wood_large_\d+)$/u.test(assetName)) return 'wood_fence';
+  if (/^prop_cf_willow_(?:wood_large_connected|boundary_wood_large_(?:\d+|connected))$/u.test(assetName)) return 'wood_fence';
   if (/^prop_cf_willow_boundary_picket_\d+$/u.test(assetName)) return 'white_fence';
   if (/^prop_cf_willow_boundary_hedge_\d+$/u.test(assetName)) return 'hedge';
   if (assetName === 'prop_cf_join_hedge' || /^prop_cf_(?:hearth_hedge_(?:horizontal|vertical)|willow_hedge_.*)$/u.test(assetName)) return 'hedge';

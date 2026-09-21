@@ -69,3 +69,14 @@ The study canvas expands to four rows to include all ten rooms. A separate Astra
 visual comparison of the reference and draft led to the denser shop aisles,
 archive partitions, grouped barn stock, inn bedroom suites and greenhouse beds.
 The final smith fixtures are set down on the workshop floor below the partition.
+
+## 0.16.0 reference refinement
+
+Domestic wings have black separation between rooms, narrow connectors, visible
+wall tops and vertical side faces. Shared floor-envelope collision drives the
+renderer; two wall courses stay outside the walkable floor. The barn is a single
+aisled store with flanking hay/tool groups, the greenhouse a continuous conservatory
+with planting bays, the smith a broad forge and smaller front rooms, the shop a
+retail floor connected to stores, and the inn guest wing connects to a communal
+dining hall. Table groups leave a clear north–south aisle. All ten room, service,
+entry/exit and physical fixture-base contracts are tested.

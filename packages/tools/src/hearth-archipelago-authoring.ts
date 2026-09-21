@@ -78,6 +78,16 @@ const WILLOW_SHELVES=[
   roundedCoast([[99,345],[112,341],[124,345],[131,350],[121,350],[109,349],[99,354]]),
 ] as const;
 
+/** Continuous town river; crossings are the only authored dry links between banks. */
+export const WILLOW_RIVER_POINTS = [[140,360],[140,380],[137,396],[137,406],[132,419],[127,430],[129,440],[133,450],[133,475]] as const;
+export function willowRiverCenter(y:number):number {
+  const i=WILLOW_RIVER_POINTS.findIndex((p,index)=>index>0&&y<=p[1]);
+  if(i<1)return WILLOW_RIVER_POINTS[i===0?0:WILLOW_RIVER_POINTS.length-1]![0];
+  const a=WILLOW_RIVER_POINTS[i-1]!,b=WILLOW_RIVER_POINTS[i]!;
+  return Math.round(a[0]+(b[0]-a[0])*(y-a[1])/(b[1]-a[1]));
+}
+export const WILLOW_BRIDGES = [[134,146,378],[131,143,404],[121,134,429],[127,139,455]] as const;
+
 function key(x: number, y: number): string { return `${x},${y}`; }
 
 export interface HearthArchipelagoContribution {
@@ -113,17 +123,9 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
     }
   }
   // Broad woodland stair landings, connected through the meadow north of town.
-  for(let x=144;x<=147;x++) {
+  for(let x=146;x<=149;x++) {
     for(let y=354;y<=364;y++) cells[key(x,y)]={biome:'meadow',surface:'grass',...(y<360?{elevation:1,cliffFamily:'stone_1' as const}:{})};
     transitions.push({contourLevel:1,kind:'slope',direction:'up',lowerTileX:x,lowerTileY:360,upperTileX:x,upperTileY:359});
-  }
-  // Town pond, crossed by a real walkable bridge lane below.
-  for (let y = 370; y <= 385; y += 1) for (let x = 131; x <= 149; x += 1) {
-    if (((x - 140 + 1.2*Math.sin(y/2.8)) / 9) ** 2 + ((y - 378) / 7) ** 2 < 1) cells[key(x,y)] = { biome: 'freshwater', surface: 'water' };
-  }
-  for(let y=362;y<=374;y++) {
-    const center=139+Math.round(1.5*Math.sin(y/4));
-    for(let x=center-1;x<=center+1;x++)cells[key(x,y)]={biome:'freshwater',surface:'water'};
   }
   const road = (points: readonly MapPoint[], width: number, volcanic = false): void => {
     for (let i = 1; i < points.length; i += 1) {
@@ -186,6 +188,49 @@ export function buildHearthArchipelagoContribution(): HearthArchipelagoContribut
     for(let y=433;y<=439;y++) for(let x=left;x<=right;x++) {
       cells[key(x,y)]={surface:'grass',biome:'meadow',feature:'farmland'};
     }
+  }
+  // Upper freshwater headwater lake and its narrow spillway share the cliff plane.
+  // The buffered ellipse keeps shoreline corners away from the plateau edge.
+  for(let y=343;y<=358;y++)for(let x=128;x<=148;x++){
+    const distance=((x-138)/8)**2+((y-351)/5)**2;
+    if(distance<=1.7)cells[key(x,y)]={biome:'meadow',surface:'grass',elevation:1,cliffFamily:'stone_1'};
+  }
+  // Two-cell shoreline steps avoid isolated water tips the native shore cannot join.
+  const lakeRows=[[2,5],[1,6],[0,7],[0,7],[1,6]] as const;
+  for(let row=0;row<lakeRows.length;row++){
+    const [left,right]=lakeRows[row]!;
+    for(let y=346+row*2;y<348+row*2;y++)for(let x=130+left*2;x<132+right*2;x++)
+      cells[key(x,y)]={biome:'freshwater',surface:'water',elevation:1,cliffFamily:'stone_1'};
+  }
+  for(let y=355;y<=359;y++)for(let x=139;x<=141;x++)
+    cells[key(x,y)]={biome:'freshwater',surface:'water',elevation:1,cliffFamily:'stone_1'};
+  // The river cuts through the settlement to the sea. Public roads terminate at
+  // its banks and reconnect on actual bridges, not invisible water causeways.
+  for(let y=360;y<=475;y++) {
+    const center=willowRiverCenter(y),half=3+Math.round(.5+.5*Math.sin(y/9));
+    for(let x=center-half;x<=center+half;x++) if(cells[key(x,y)])
+      cells[key(x,y)]={biome:y>=461?'water':'freshwater',surface:'water'};
+  }
+  for(const [left,right,north] of WILLOW_BRIDGES) {
+    for(let x=left-2;x<=right+2;x++)for(let y=north+1;y<=north+2;y++)
+      cells[key(x,y)]={biome:'paving',surface:y>425?'dirt':'stone'};
+  }
+  // Both banks connect to the bridges without crossing water outside the decks.
+  road([point(124,382),point(124,405),point(131,405)],2);
+  road([point(112,428),point(112,430),point(121,430)],2);
+  road([point(134,430),point(157,430)],2);
+  road([point(117,456),point(142,456)],2);
+  // Cultivated village flower beds use the same native soil transitions as crops.
+  for(const [left,top,right,bottom] of [[158,409,163,410],[177,385,180,386],[114,385,119,386],
+    [181,431,187,432],[105,432,109,433],[168,427,172,428]])
+    for(let y=top!;y<=bottom!;y++)for(let x=left!;x<=right!;x++)if(cells[key(x,y)]?.biome==='meadow')
+      cells[key(x,y)]={...cells[key(x,y)],feature:'farmland'};
+  // Sandy estuary banks connect the river outlet to the existing beach rather
+  // than leaving rectangular meadow tiles exposed directly to ocean water.
+  for(let y=458;y<=475;y++)for(let x=willowRiverCenter(y)-7;x<=willowRiverCenter(y)+7;x++) {
+    const cell=cells[key(x,y)];
+    if(cell&&cell.surface!=='water'&&cell.biome!=='paving'&&[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>cells[key(x+dx!,y+dy!)]?.surface==='water'))
+      cells[key(x,y)]={biome:'beach',surface:'sand'};
   }
   // The quay extends past the coast with an explicit two-row walking surface.
   // The scenery rails bound its sides; ocean beyond the eastern tip remains blocked.
