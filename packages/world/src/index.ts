@@ -271,8 +271,8 @@ import {
   FISH_POOL_RESOURCE_ID_BASE,
   FISH_POOL_MIN_SPACING_TILES,
   FISHING_CAST_TICKS,
-  FISHING_CATCH_EXPLORER_XP,
-  FISHING_POOL_DEPLETION_EXPLORER_XP,
+  FISHING_CATCH_FARMING_XP,
+  FISHING_POOL_DEPLETION_FARMING_XP,
   miningWorkPerHit,
   resolveMiningLoot,
   resolveMiningRockBonus,
@@ -22728,7 +22728,7 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
     );
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
     wearInventoryTool(ctx, selected);
-    grantSkillExperience(ctx, ctx.sender, 'explorer', FISHING_CATCH_EXPLORER_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
     ctx.db.player_position.identity.update({
       ...position,
       actionKind: 'fish_reel',
@@ -22803,9 +22803,9 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
       ])
       : 0n,
   });
-  grantSkillExperience(ctx, ctx.sender, 'explorer', FISHING_CATCH_EXPLORER_XP);
+  grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
   if (depleted) {
-    grantSkillExperience(ctx, ctx.sender, 'explorer', FISHING_POOL_DEPLETION_EXPLORER_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_POOL_DEPLETION_FARMING_XP);
     recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, pool.kind);
   }
   ctx.db.player_position.identity.update({

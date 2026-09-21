@@ -278,3 +278,7 @@ The hammer HUD button and B key share the client build-mode toggle. The retained
 UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
+
+## Connected estate progression (0.14.0)
+
+Residence expansion prices live in the shared `RESIDENCE_EXPANSION_COSTS_BRONZE` balance constants and flow through `hearthResidenceExpansionQuote` to both client quotes and server debits. Reports read the same quotes. Fishing authority records future catch/depletion XP on Farming, with unchanged single-use cast custody, loot and existing lifetime statistics. No schema, inventory, historical XP or purchased-room migration is needed. See [the accepted specification](connected-estate-progression-spec.md).
