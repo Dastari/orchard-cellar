@@ -20,6 +20,21 @@ email in Keycloak. The address has **no mailbox**; email recovery is unavailable
   administration or world owner role was granted. Using this account does not
   authorize production releases or edits.
 
+## Publishing roles
+
+The live map publishing guard accepts **Owner or Admin** despite its internal
+`requireWorldOwner` name. Content Editor alone does not permit map publication.
+Multiple owners are supported; adding an owner does not replace existing owners.
+Only an owner can assign these membership roles. Admin is sufficient for normal
+approved game/map release operations and does not grant membership administration.
+
+The dedicated account currently remains friend plus Content Editor. No persistent
+Admin or Owner grant was applied during release preparation. An encrypted,
+temporary owner handoff supplies this release's additional authority. Such sessions
+expire and must be refreshed while an authorized release is active; their existence
+on disk does not prove validity. The user must explicitly authorize any persistent
+role elevation. Release approval remains separate from account privileges.
+
 ## Future agent use
 
 Coordinate account/session ownership through Agent Mail. Use an isolated browser
