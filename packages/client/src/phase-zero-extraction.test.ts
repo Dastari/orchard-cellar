@@ -143,7 +143,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // dwell, and real item-label regressions accompany this re-capture.
 // Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
-const STRUCTURAL_SEAM_DIGEST = '1dd4de931dc46d0392312b2a7f9ff6bafd14514d5480e3b3e4c3ff8f4eb60802';
+// Delve keepsake review: docs/delve-keepsake-spec.md. Against Orchard 666ef9fb,
+// all five seams differ only in the admission label announcing the first-win
+// home recipe; package ownership and acyclic-import gates remain unchanged.
+const STRUCTURAL_SEAM_DIGEST = '86cf06f58689e75887ec8ba6d107127fafaf0fc89c93554d43f1f8be8ccd6042';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
