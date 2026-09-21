@@ -255,3 +255,5 @@ explicitly. Reuse authored skill capabilities for farming effects rather than
 hardcoding node IDs in reducers. Keep existing vintage ranks as progression;
 new machine tiers would require a separate economy design. See
 [harvest/cellar audit](docs/harvest-cellar-audit.md).
+
+2026-09-21 | agent tooling | adopt checksum-pinned MCP Agent Mail Rust v0.3.36 as a loopback systemd user service, with external state and canonical primary-clone project key | user-requested coordination across Codex/Claude and worktrees; see docs/adr/002-agent-mail.md and ops/agent-mail/README.md; standalone tooling task outside gameplay milestones | —
