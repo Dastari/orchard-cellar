@@ -1,5 +1,6 @@
 # Willowharbour refinement handoff
 
+PR: https://github.com/Dastari/orchard-cellar/pull/39
 Branch: `feat/willowharbour-river-gardens`.
 Worktree: `/home/toby/projects/orchard-town-refinement`.
 Based on current upstream integration `8d8abf53`, preserving the prior town pass.
@@ -17,6 +18,8 @@ steps sit clear of the widened river.
 Interior floor envelopes separate domestic wings while retaining distinct barn,
 conservatory, forge, retail/store and inn hall layouts. The shared cached renderer
 draws wall faces, caps and vertical edges without covering collision-floor cells.
+Service markers stay aligned with NPC homes; the inn kitchen passage includes
+the cook’s spawn and the showroom lamp retains its table support and height.
 
 Reference analysis and independent Astra review:
 [review report](review/willowharbour-refinement-pass-01.md).

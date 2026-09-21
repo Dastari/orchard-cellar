@@ -82,3 +82,11 @@ certify every furniture collision footprint, doorway route, runtime transition,
 or nighttime movement path. The implementation's automated tests and release
 verification must cover those separately. No claim is made that the generated
 candidate has been deployed to the canonical shared preview.
+
+## Final service and route adjustment recheck
+
+Astra re-inspected the regenerated interior sheet, town and island after the inn
+kitchen connector widened to include the cook’s spawn and the northern woodland
+steps moved east clear of the river. Acceptance remains valid: the kitchen
+connector reads naturally, room separation remains intact, and no new blocking
+visual issues were found.
