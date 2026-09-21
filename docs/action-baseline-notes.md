@@ -1,7 +1,10 @@
 # Unified actions: first implementation slice
 
 This is the first P0 implementation from the [unified actions plan (PR 34)](https://github.com/Dastari/orchard-cellar/pull/34).
-The branch starts at upstream `1d2462cd`, independently of the unmerged plan and gameplay PRs.
+The initial branch started at upstream `1d2462cd`. The 2026-09-21 integration
+refreshes it against all six gameplay slices, the hoe fix and reviewed Studio.
+The inventory now covers 340 items: 148 callbacks, 69 data graphs, 33 furniture
+transactions and 90 inert items. See [integration record](branch-integration-handoff.md).
 It establishes an executable bootstrap-content inventory and numerical behavior goldens.
 **P0 remains in progress:** this is not approval to start P1 or a claim that the full
 custody-writer, lifecycle-payload and parameter-classification audit is finished.
@@ -31,7 +34,7 @@ remain required. A new numeric field needs classification before it becomes modi
 | --- | --- | --- |
 | Axe / sword | Actor-centred 90° sector, base reach 384 fixed units (1.5 tiles) | Shared resolved sector for targeting, authority and G |
 | Pickaxe | Actor-centred 45° sector, base reach 256 fixed units (1 tile); separate precise cellar action | Keep separate named actions and target policies |
-| Hoe | Actor-centred 90° secondary swing, reach 320 fixed units; separate cultivate/restore tile action with 2-tile radius | Retain farming actions; resolve input priority regression separately |
+| Hoe | F routes to the cultivate/uproot/restore tile action with a 2-tile radius; generic entity swing is bypassed | Retain farming actions and the integrated input-priority fix |
 | Watering can | Tile action, 1-tile radius | Shared resolved tile policy |
 | Fishing rod | Tile cast/reel, 3-tile radius, persistent single-use cast token | Pin accepted source/activation identity |
 | Bow | Continuous cursor aim and authority-timed draw/release; arrow delivery | Separate point/direction targeting from projectile executor |

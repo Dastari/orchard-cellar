@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0 / Studio 0.8.1 — Branch integration
+
+- Integrate the reviewed Studio editor, six connected gameplay slices, Willowharbour,
+  hoe/fish fixes, action baselines, catalogs and operational/design audits.
+- Preserve Agent Mail startup guidance and all feature histories; refresh combined
+  content and action baselines with independent Studio versioning.
+- Consolidate review through one integration PR and retire stale worktrees only
+  after preserving their committed work and non-reproducible local evidence.
+
 ## 0.8.5 — Unified action baseline tooling
 
 - Begin P0 with a generated inventory of every live bootstrap item variant, current action owner, lifecycle triggers and numeric authored values. Add `actions:baseline -- --check|--write` and make drift a normal test failure.

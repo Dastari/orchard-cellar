@@ -5,10 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// 0.13.0 cumulative gameplay content: 911 definitions, 549,831 runtime bytes.
-// Delve's four keepsake definitions add 1,645 bytes to the reviewed Orchard
-// stack (548,186 bytes). Retain the next-whole-KiB subscription guard.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 537 * 1024;
+// Combined gameplay and Willowharbour content: 919 definitions, 559,532 runtime
+// bytes. Retain the next-whole-KiB subscription guard for this reviewed merge.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 547 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;
