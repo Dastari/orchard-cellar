@@ -102,7 +102,7 @@ export function mapTerrainPalette(query = ''): readonly MapTerrainPaletteEntry[]
 }
 
 export function mapPrefabSuggestedLayer(prefab: MapPrefabDocumentV2): MapObjectLayer {
-  if (prefab.placements.some(({ layer }) => layer === 'canopy')) return 'canopy';
+  if (prefab.behaviors.some(behavior=>behavior.archetype==='resource.tree') || prefab.tags.includes('trees') || prefab.placements.some(({ layer }) => layer === 'canopy')) return 'canopy';
   if (prefab.behaviors.some(({ kind }) => kind === 'surface')) return 'ground';
   if (prefab.behaviors.some(({ kind }) => kind !== 'static')) return 'gameplay';
   return 'objects';

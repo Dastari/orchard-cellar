@@ -115,6 +115,8 @@ export interface TerrainArray {
   /** Visual-only authored farmland from MapDocument features. This dry mask is
    * deliberately separate from authority-backed world soil and crop state. */
   readonly authoredFarmland?: Uint8Array;
+  /** Compiled authored substrate, retained for per-cell interior floor rendering. */
+  readonly authoredSurfaces?: readonly import('@orchard/sim').MapSurfaceKind[];
   /** Per-cell zero-height ledge/lip mask. */
   readonly ledges?: Uint8Array;
   readonly biomes: Uint8Array;

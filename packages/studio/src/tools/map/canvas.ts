@@ -1,23 +1,23 @@
 import {
-  MAP_BIOME_IDS,
   MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH,
   TOPSIDE_SPACE_ID,
   TILE_SIZE_PIXELS,
   mapCellKey,
   mapDocumentV3Hash,
-  isMapObjectLayer,
+
   contentDefinitionRowsHash,
   parseContentDefinition,
   type ContentRegistry,
-  type MapBiomeId,
+
   type MapContentLayerId,
   type MapDocumentV3,
   type TilesetContentDefinition,
 } from '@orchard/sim';
+import { mapMaterialChoices, mapObjectCategory, mapPaletteColumns, MAP_OBJECT_FILTERS, type MapObjectFilter } from './material-palette.js';
 import { studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { terrainProjectedDepthForElevation, type TerrainArray } from '@orchard/engine';
 import {
-  ui as kit, uiFixed, type UiElement, type UiButtonModifiers, type UiTone,
+  ui as kit, uiFixed, UiElement, type UiButtonModifiers, type UiTone,
   CanvasTextEditor,
   STUDIO_SKIN_TOKENS,
   loadGeneratedAsset,
@@ -31,7 +31,7 @@ import {
 } from '@orchard/ui/studio';
 import type {
   StudioCanvasToolContext,
-  StudioCanvasToolKeyInput,
+
   StudioCanvasToolSurface,
 } from '../../shell/canvas-tool.js';
 import { requestStudioFileDownload } from '../../shell/file-download.js';
@@ -39,15 +39,8 @@ import type { AdminObjectsApi } from '../../admin/objects-api.js';
 import type { StudioSelection } from '../../shell/index.js';
 import { studioRoleCan } from '../../shell/access.js';
 import { buildAssetPalette, type AssetPaletteItem } from '../object/asset-palette.js';
+
 import {
-  mapContextPaletteKind,
-  mapAnchorToolPalette,
-  mapTerrainPalette,
-  type MapTerrainPaletteEntry,
-} from './context-palette.js';
-import {
-  MAP_EDITOR_TERRAIN_TOOLS,
-  MAP_EDITOR_TERRAIN_TOOL_LABELS,
   MapEditorController,
   type MapEditorLiveMarker,
 } from './editor-controller.js';
@@ -84,7 +77,7 @@ import {
   type MapSchemaInspectorField,
   type MapSchemaInspectorReceipt,
 } from './schema-inspector-actions.js';
-import { MAP_EDITOR_WORKSPACES, MapEditorModel, type MapEditorWorkspace } from './model.js';
+import {  MapEditorModel } from './model.js';
 import { MapRouteSessionStore, mapRouteSessionState, type MapOutlinerView } from './route-session-state.js';
 import { studioMapId } from './routes.js';
 import { mapSelectionDrawerRows } from './selection-drawer.js';
@@ -93,25 +86,17 @@ import {
   type MapCanvasInspectorRow,
 } from './canvas-dock-projections.js';
 import {
-  applyMapOutlinerTreeKey,
   createMapOutlinerTreeState,
-  mapOutlinerTreeRows,
-  setMapOutlinerQuery,
-  type MapOutlinerTreeKey,
-  type MapOutlinerTreeRow,
+
   type MapOutlinerTreeState,
 } from './outliner-tree.js';
-import type { MapOutlinerMutationRequest } from './outliner-authored-actions.js';
+
 import {
   inspectMapSelection,
   type MapGeneratedSelectionDescriptor,
   type MapSelectionInspection,
 } from './selection-inspection.js';
 import {
-  applyMapLayerSelectionGesture,
-  planMapLayerBulkLock,
-  planMapLayerBulkVisibility,
-  reconcileMapLayerSelection,
   type MapLayerSelectionState,
 } from './layer-selection.js';
 import { createMapDocumentExport } from './document-export.js';
@@ -119,14 +104,11 @@ import { MapAutoPublishCoordinator } from './auto-publish.js';
 import { mapResizeImpactLossCount, type MapResizeEdge, type MapResizeImpact } from './resize.js';
 import { verifiedStudioLiveContent } from './live-content-registry.js';
 import {
-  MAP_TERRAIN_AUTHORING_MODES,
   OFFLINE_TERRAIN_AUTHORING_PALETTE,
   liveTerrainAuthoringPalette,
-  terrainCliffFamilyChoices,
-  terrainFarmlandVisualChoices,
-  terrainSurfaceFamilyChoices,
+
   type ExactTerrainOverrideChoice,
-  type MapTerrainAuthoringMode,
+
   type TerrainAuthoringPalette,
   type TerrainPalettePreview,
 } from './terrain-authoring-palette.js';
@@ -187,6 +169,7 @@ interface MapCanvasState {
   catalogLoading: boolean;
   catalogReady: boolean;
   catalogPalette: readonly AssetPaletteItem[] | null;
+  objectFilter: MapObjectFilter;
   catalogAssetRevision: string;
   catalogContentSource: readonly MapContentDefinitionRow[] | undefined | null;
   catalogItems: ReadonlyMap<string, AssetPaletteItem>;
@@ -245,26 +228,6 @@ interface MapCanvasState {
   liveOutlinerState: MapOutlinerTreeState;
   inspectorView: 'selection' | 'schema';
 }
-
-const LAYER_TYPE_SYMBOLS: Readonly<Record<MapContentLayerId, UiIconName>> = Object.freeze({
-  generated_base: 'layers',
-  terrain: 'map',
-  ground: 'landPlot',
-  objects: 'box',
-  gameplay: 'gamepad',
-  player_owned: 'box',
-  canopy: 'trees',
-  anchors: 'pointer',
-});
-
-const ANCHOR_KIND_SYMBOLS = Object.freeze({
-  poi: 'pointer',
-  label: 'landPlot',
-  spawn: 'gamepad',
-  portal: 'map',
-  npc: 'pointer',
-  resource: 'trees',
-} as const satisfies Readonly<Record<string, UiIconName>>);
 
 export type MapEditorPublishState = 'CLEAN' | 'DIRTY' | 'PUBLISHING' | 'CONFLICT';
 
@@ -327,10 +290,6 @@ export function mapEditorPublishPresentation(input: {
     state: 'DIRTY', disabled: false, icon: 'cloudPublish', tone: 'success',
     tooltip: `DIRTY — Publish local changes against live revision ${input.baseRevision}`,
   };
-}
-
-function terrainToolShortcut(index: number): string {
-  return index < 9 ? `${index + 1}` : `Alt+${index - 8}`;
 }
 
 interface TerrainPaletteSnapshot {
@@ -398,12 +357,13 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
     || (restored.soloLayer !== null
       && !model.document().layers.some((layer) => layer.id === restored!.soloLayer))
     || !model.restoreSession(
-      restored.workspace, restored.hiddenLayers, restored.userLockedLayers, restored.soloLayer,
+      restored.workspace, restored.hiddenLayers, [], null,
     ))) {
     restored = null;
   }
   const terrainPalette = terrainPaletteSnapshot(context);
   const interaction = new MapEditorController(model, context.invalidate, terrainPalette.palette);
+  interaction.selectEditingTool(restored?.workspace === 'terrain' ? 'terrain' : 'objects');
   if (restored !== null) interaction.restoreSession(restored);
   const renderer = new MapEditorRenderer(context.invalidate, terrainPalette.palette);
   // Start the immutable terrain derivative when the route mounts. Browser
@@ -412,6 +372,7 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
   renderer.prepareInspectionTerrain(model.document(), model.terrainIdentity());
   const state = {} as MapCanvasState;
   Object.assign(state, {
+    objectFilter: 'all',
     model,
     interaction,
     renderer,
@@ -434,7 +395,7 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
       onChange: () => { state.outlinerOffset = 0; context.invalidate(); } }),
     session,
     autoPublish: new MapAutoPublishCoordinator(context.invalidate),
-    autoPublishEnabled: restored?.autoPublish ?? false,
+    autoPublishEnabled: false,
     paletteOffset: restored?.paletteOffset ?? 0,
     paletteBounds: { x: 0, y: 0, width: 0, height: 0 },
     paletteRowCount: 0,
@@ -521,29 +482,6 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
 function cancelLayerRename(state: MapCanvasState): void {
   state.renamingLayerId = null;
   state.layerName.blur();
-}
-
-function beginLayerRename(
-  state: MapCanvasState,
-  layer: MapContentLayerId,
-  label: string,
-): void {
-  if (!state.model.canRenameLayer(layer)) return;
-  state.renamingLayerId = layer;
-  state.layerName.setValue(label);
-  state.layerName.setSelection(0, label.length);
-  state.layerName.focus();
-}
-
-function commitLayerRename(state: MapCanvasState, context: StudioCanvasToolContext): void {
-  const layer = state.renamingLayerId;
-  if (layer === null) return;
-  try {
-    state.interaction.renameLayer(layer, state.layerName.snapshot().value);
-    cancelLayerRename(state);
-  } catch (error: unknown) {
-    reportCanvasError(context, 'Layer name was not changed', error);
-  }
 }
 
 function cancelAnchorLabelEdit(state: MapCanvasState): void {
@@ -925,27 +863,6 @@ function currentLiveSpawnAvailability(
   });
 }
 
-function armLiveSpawn(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  mapId: string,
-): void {
-  if (state.liveSpawnMode) {
-    resetLiveSpawn(state);
-    context.invalidate();
-    return;
-  }
-  const definitionId = selectedLiveSpawnDefinition(state);
-  const availability = currentLiveSpawnAvailability(state, context, mapId);
-  if (!availability.allowed || definitionId === null) return;
-  state.resizeMode = false;
-  cancelMapResize(state);
-  state.liveSpawnMode = true;
-  state.liveSpawnDefinitionId = definitionId;
-  state.liveSpawnPrefabId = state.interaction.snapshot().selectedPrefabId;
-  context.invalidate();
-}
-
 function liveSpawnDisplayName(state: MapCanvasState): string | null {
   if (state.liveSpawnPrefabId === null) return null;
   return state.interaction.palette().find(({ id }) => id === state.liveSpawnPrefabId)?.title
@@ -1320,18 +1237,6 @@ function prefabPreview(
   return frame === null || frame === undefined ? undefined : { image: asset.image, frame };
 }
 
-function terrainPreview(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  entry: MapTerrainPaletteEntry,
-): { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined {
-  if (entry.assetName === null) return undefined;
-  const asset = previewAsset(state, context, entry.assetName);
-  if (asset === null) return undefined;
-  const frame = firstPreviewFrame(asset);
-  return frame === null ? undefined : { image: asset.image, frame };
-}
-
 function terrainChoicePreview(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
@@ -1345,38 +1250,10 @@ function terrainChoicePreview(
   return frame === null || frame === undefined ? undefined : { image: asset.image, frame };
 }
 
-const TERRAIN_MODE_PRESENTATION: Readonly<Record<MapTerrainAuthoringMode, {
-  readonly tooltip: string;
-  readonly symbol: 'brush' | 'landPlot' | 'mountain' | 'replace' | 'sprout';
-}>> = Object.freeze({
-  brush: { tooltip: 'Normal terrain brushes', symbol: 'brush' },
-  surface_family: { tooltip: 'Choose a grass surface family', symbol: 'landPlot' },
-  cliff_family: { tooltip: 'Choose a cliff family', symbol: 'mountain' },
-  exact_override: { tooltip: 'Choose a topology-compatible exact tile override', symbol: 'replace' },
-  farmland_visual: {
-    tooltip: 'Farmland · Visual — dry authored appearance only; wet soil and crops remain runtime authority',
-    symbol: 'sprout',
-  },
-});
-
 function pointInside(point: { readonly x: number; readonly y: number }, bounds: UiRect): boolean {
   return point.x >= bounds.x && point.y >= bounds.y
     && point.x <= bounds.x + bounds.width && point.y <= bounds.y + bounds.height;
 }
-
-function workspaceLayer(workspace: MapEditorWorkspace): MapContentLayerId {
-  return workspace === 'terrain' || workspace === 'biomes' ? 'terrain' : 'objects';
-}
-
-function workspaceForLayer(layer: MapContentLayerId): MapEditorWorkspace {
-  return layer === 'generated_base' || layer === 'terrain' ? 'terrain' : 'objects';
-}
-
-function biomePalette(query: string): readonly MapBiomeId[] {
-  const normalized = query.trim().toLocaleLowerCase();
-  return MAP_BIOME_IDS.filter((biome) => biome.includes(normalized));
-}
-
 
 export function selectedGeneratedMapDescriptor(
   document: MapDocumentV3,
@@ -1502,198 +1379,6 @@ function selectionInspection(state: MapCanvasState): MapSelectionInspection | nu
   return inspection;
 }
 
-function outlinerSelectionLayer(
-  state: MapCanvasState,
-  row: MapOutlinerTreeRow,
-): MapContentLayerId | null {
-  const layerMarker = ':layer:';
-  const markerIndex = row.node.id.indexOf(layerMarker);
-  if (markerIndex >= 0) {
-    const layerId = row.node.id.slice(markerIndex + layerMarker.length);
-    const layer = state.model.document().layers.find(({ id }) => id === layerId);
-    if (layer !== undefined) return layer.id;
-  }
-  const selection = row.node.selection ?? null;
-  if (selection === null) return null;
-  if (selection.kind === 'entity' && selection.entityKind === 'map-object') {
-    return state.model.document().objects.find(({ id }) => id === selection.id)?.layer
-      ?? state.model.document().landmarks.find(({ id }) => id === selection.id)?.layer
-      ?? null;
-  }
-  if (selection.kind === 'entity' && selection.entityKind === 'map-anchor') return 'anchors';
-  const liveMarker = state.interaction.liveMarkers().find((candidate) => selection.kind === 'player'
-    ? candidate.entityKind === 'player' && candidate.id === selection.identity
-    : selection.kind === 'entity' && candidate.entityKind === selection.entityKind
-      && candidate.id === selection.id && candidate.spaceId === selection.spaceId);
-  return liveMarker?.layer ?? null;
-}
-
-function activateOutlinerRow(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  row: MapOutlinerTreeRow,
-): void {
-  const current = state.leftView === 'live' ? state.liveOutlinerState : state.worldOutlinerState;
-  const selected = Object.freeze({ ...current, focusedId: row.node.id, selectedId: row.node.id });
-  if (state.leftView === 'live') state.liveOutlinerState = selected;
-  else state.worldOutlinerState = selected;
-  const layer = outlinerSelectionLayer(state, row);
-  if (layer !== null) {
-    state.model.selectWorkspace(workspaceForLayer(layer));
-    state.interaction.selectLayer(layer);
-  }
-  if (row.node.selection !== undefined) context.controller.selection.select(row.node.selection);
-  context.invalidate();
-}
-
-function authoredOutlinerSelection(
-  state: MapCanvasState,
-): Readonly<{ readonly nodeKind: 'object' | 'landmark'; readonly nodeId: string }> | null {
-  const selection = state.model.selection();
-  if (selection.kind !== 'entity' || selection.entityKind !== 'map-object') return null;
-  if (state.model.document().objects.some(({ id }) => id === selection.id)) {
-    return Object.freeze({ nodeKind: 'object', nodeId: selection.id });
-  }
-  return state.model.document().landmarks.some(({ id }) => id === selection.id)
-    ? Object.freeze({ nodeKind: 'landmark', nodeId: selection.id }) : null;
-}
-
-function outlinerLayerMutationRequest(
-  state: MapCanvasState,
-  row: MapOutlinerTreeRow,
-): MapOutlinerMutationRequest | null {
-  const selected = authoredOutlinerSelection(state);
-  const targetLayer = outlinerSelectionLayer(state, row);
-  if (selected === null || targetLayer === null || !isMapObjectLayer(targetLayer)) return null;
-  return Object.freeze({
-    kind: 'reparent',
-    view: 'world',
-    ...selected,
-    targetLayer,
-    targetAncestorIds: Object.freeze([...(row.parentId === null ? [] : [row.parentId]), row.node.id]),
-  });
-}
-
-function runOutlinerMutation(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  request: MapOutlinerMutationRequest,
-): boolean {
-  const access = context.route.access === 'write' ? 'write' : 'read_only';
-  const result = state.model.applyOutlinerMutation(request, access);
-  if (!result.ok) {
-    context.controller.notifications.push('error', 'Outliner edit was not applied',
-      result.reason.replaceAll('_', ' '));
-    context.invalidate();
-    return false;
-  }
-  if (result.operation.kind === 'reparent_object' || result.operation.kind === 'reparent_landmark') {
-    state.model.selectWorkspace(workspaceForLayer(result.operation.targetLayer));
-    state.interaction.selectLayer(result.operation.targetLayer);
-  }
-  context.invalidate();
-  return true;
-}
-
-const MAP_OUTLINER_TREE_KEYS: ReadonlySet<string> = new Set([
-  'ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', ' ',
-]);
-
-function handleOutlinerTreeKey(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  tree: Parameters<typeof mapOutlinerTreeRows>[0],
-  live: boolean,
-  focusedId: string,
-  input: StudioCanvasToolKeyInput,
-): string | null {
-  let treeState = createMapOutlinerTreeState(tree, {
-    ...(live ? state.liveOutlinerState : state.worldOutlinerState),
-    focusedId,
-  });
-  if (live) state.liveOutlinerState = treeState;
-  else state.worldOutlinerState = treeState;
-  if (!live && (input.ctrlKey || input.metaKey)
-    && (input.key === 'ArrowUp' || input.key === 'ArrowDown')) {
-    const focused = mapOutlinerTreeRows(tree, treeState)
-      .find(({ node }) => node.id === treeState.focusedId);
-    const layer = focused === undefined ? null : outlinerSelectionLayer(state, focused);
-    if (focused?.node.kind !== 'group' || layer === null) return null;
-    runOutlinerMutation(state, context, {
-      kind: 'reorder', view: 'world', nodeKind: 'layer', nodeId: layer,
-      direction: input.key === 'ArrowUp' ? 'toward_back' : 'toward_front',
-    });
-    return `outliner-select-${focused.node.id}`;
-  }
-  if (input.ctrlKey || input.metaKey || input.altKey || input.shiftKey
-    || !MAP_OUTLINER_TREE_KEYS.has(input.key)) return null;
-  const result = applyMapOutlinerTreeKey(tree, treeState, input.key as MapOutlinerTreeKey);
-  treeState = result.state;
-  if (live) state.liveOutlinerState = treeState;
-  else state.worldOutlinerState = treeState;
-  if (result.effect === 'activate' && result.activatedId !== null) {
-    const activated = mapOutlinerTreeRows(tree, treeState)
-      .find(({ node }) => node.id === result.activatedId);
-    if (activated !== undefined) activateOutlinerRow(state, context, activated);
-  }
-  const rows = mapOutlinerTreeRows(tree, treeState);
-  const focusedIndex = rows.findIndex(({ node }) => node.id === treeState.focusedId);
-  if (focusedIndex >= 0) {
-    if (focusedIndex < state.outlinerOffset) state.outlinerOffset = focusedIndex;
-    else if (focusedIndex >= state.outlinerOffset + state.outlinerVisibleRows) {
-      state.outlinerOffset = Math.max(0, focusedIndex - state.outlinerVisibleRows + 1);
-    }
-  }
-  context.invalidate();
-  return treeState.focusedId === null ? null : `outliner-select-${treeState.focusedId}`;
-}
-
-function mapKitOutliner(state: MapCanvasState, context: StudioCanvasToolContext): UiElement {
-  const live = state.leftView === 'live', scope = live ? 'live' : 'world';
-  const tree = live ? context.controller.liveOutliner() : context.controller.worldOutliner();
-  const editor = live ? state.liveOutlinerSearch : state.worldOutlinerSearch;
-  let treeState = createMapOutlinerTreeState(tree, live ? state.liveOutlinerState : state.worldOutlinerState);
-  if (treeState.query !== editor.snapshot().value) treeState = setMapOutlinerQuery(tree, treeState, editor.snapshot().value);
-  const update = (next: typeof treeState) => { if (live) state.liveOutlinerState = next; else state.worldOutlinerState = next; };
-  update(treeState);
-  const rows = mapOutlinerTreeRows(tree, treeState);
-  // Search retains matching ancestors and id matches from the authored model.
-  const visible = new Set(rows.map(row => row.node.id));
-  const nodes = (source: typeof tree): import('@orchard/ui/studio').UiTreeNode[] => source.filter(node => !treeState.query || visible.has(node.id)).map(node => ({
-    id: node.id, label: node.label, children: nodes(node.children),
-  }));
-  state.outlinerBounds = {x:0,y:0,width:0,height:0};
-  state.outlinerRowCount=rows.length;state.outlinerVisibleRows=6;
-  const list = kit.tree({id:`map-outliner-${scope}`,label:live?'Live Outliner (read only)':'World Outliner',nodes:nodes(tree),
-    expanded: rows.filter(row=>row.expanded).map(row=>row.node.id), activeId:treeState.focusedId,
-    selected:treeState.selectedId?[treeState.selectedId]:[],initialScrollY:state.outlinerOffset*24,
-    layout:{width:'grow',height:'grow',minHeight:uiFixed(24)},
-    onScroll:element=>{state.outlinerOffset=Math.floor(element.scroll.y/24);},
-    onActiveChange:id=>update({...live?state.liveOutlinerState:state.worldOutlinerState,focusedId:id}),
-    onExpandedChange:expandedIds=>{update({...live?state.liveOutlinerState:state.worldOutlinerState,expandedIds});context.invalidate();},
-    onSelect:id=>{const row=rows.find(row=>row.node.id===id);if(row)activateOutlinerRow(state,context,row);},
-    onKey:(event,element)=>{
-      const focused = (element.props['items'] as readonly {node:{id:string}}[])[Number(element.props['active'])]?.node.id;
-      if(!focused)return false;
-      const next=handleOutlinerTreeKey(state,context,tree,live,focused,{key:event.key,repeat:false,shiftKey:event.shiftKey??false,ctrlKey:event.ctrlKey??false,metaKey:event.metaKey??false,altKey:event.altKey??false});
-      return next!==null;
-    },
-    trailing:node=>{
-      const row=rows.find(row=>row.node.id===node.id),request=live||!row?null:outlinerLayerMutationRequest(state,row);
-      if(!request)return undefined;
-      const plan=state.model.planOutlinerMutation(request,context.route.access==='write'?'write':'read_only');
-      return kit.tooltip(plan.ok?`Move selected authored node to ${node.label}`:`Cannot move here: ${plan.reason.replaceAll('_',' ')}`,
-        kit.iconButton({lucide:'replace'},{id:`map-outliner-reparent-${node.id}`,label:`Move to ${node.label}`,size:'sm',disabled:!plan.ok,onPress:()=>runOutlinerMutation(state,context,request)}));
-    },
-  });
-  return kit.flex({width:'grow',height:'grow',gap:4},[
-    kit.text(live?'LIVE OUTLINER · READ ONLY':'WORLD OUTLINER',{id:`map-${scope}-outliner-title`}),
-    kit.input({id:`map-outliner-search-${scope}`,label:'Search tree',placeholder:'Search tree',editor,onChange:()=>{state.outlinerOffset=0;context.invalidate();}}),
-    kit.button({id:`map-outliner-clear-${scope}`,label:'Clear search',size:'sm',disabled:!editor.snapshot().value,onPress:()=>{editor.setValue('');state.outlinerOffset=0;context.invalidate();}}),
-    ...(rows.length?[list]:[kit.text(live?'CONNECT TO VIEW LIVE WORLD':'NO AUTHORED MAP NODES',{id:`map-${scope}-outliner-empty`})]),
-  ]);
-}
-
 function exportMapDraft(state: MapCanvasState, context: StudioCanvasToolContext): void {
   const prepared = createMapDocumentExport(state.model.document());
   if (!prepared.ok) {
@@ -1716,194 +1401,59 @@ function exportMapDraft(state: MapCanvasState, context: StudioCanvasToolContext)
 }
 
 interface MapKitPaletteChoice { readonly id:string; readonly label:string; readonly apply:()=>void; readonly preview?:()=>{readonly image:CanvasImageSource;readonly frame:AtlasFrame}|undefined;readonly symbol?:UiIconName;readonly active?:boolean;readonly disabled?:boolean;readonly tone?:UiTone;readonly glyph?:string }
-function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolContext,query:string):{choices:MapKitPaletteChoice[];empty:string}{
-  const document=state.model.document(),workspace=state.model.workspace(),interactionSnapshot=state.interaction.snapshot(),paletteKind=mapContextPaletteKind(interactionSnapshot.activeLayer),searchQuery=query.trim().toLocaleLowerCase();
-  const choices:MapKitPaletteChoice[]=[];let empty='NO MATCHING PALETTE ITEMS';
-  const add=(id:string,label:string,apply:()=>void,options:Omit<MapKitPaletteChoice,'id'|'label'|'apply'>={})=>choices.push({id:`map-${id}`,label,apply,...options});
-  if (workspace === 'terrain' && paletteKind === 'terrain') {
-    const mode = interactionSnapshot.terrainPaletteMode;
-    const editable = state.interaction.terrainAuthoringAvailable();
-    if (mode === 'brush') {
-      const palette = mapTerrainPalette(searchQuery);
-
-      const visible = palette;
-      if (visible.length === 0) empty = 'NO MATCHING TERRAIN';
-      visible.forEach((entry) => {
-        const absoluteIndex = MAP_EDITOR_TERRAIN_TOOLS.indexOf(entry.tool);
-        const preview = () => terrainPreview(state, context, entry);
-        add(`terrain-tool-${entry.tool}`, `${entry.title} · ${MAP_EDITOR_TERRAIN_TOOL_LABELS[entry.tool]} (${terrainToolShortcut(absoluteIndex)})`, () => {
-            state.interaction.selectTerrainTool(entry.tool);
-            context.invalidate();
-          }, {
-            symbol: entry.tool === 'inspect' ? 'pointer' as const
-              : entry.tool === 'transition' ? 'stairs' as const : 'map' as const, preview,
-            active: interactionSnapshot.terrainTool === entry.tool,
-            disabled: !editable,
-            tone: entry.tool === 'erase_ledge' || entry.tool === 'block' ? 'danger' : undefined,
-          });
-      });
-    } else if (mode === 'surface_family') {
-      const choices = terrainSurfaceFamilyChoices(searchQuery, state.terrainPalette);
-
-      choices.forEach((choice) => {
-        const preview = () => terrainChoicePreview(state, context, choice.preview);
-        add(`terrain-surface-${choice.familyId}`, `Paint ${choice.label} surface family`, () => {
-            state.interaction.selectSurfaceFamily(choice.familyId); context.invalidate();
-          }, { symbol: 'landPlot' as const, preview,
-            active: interactionSnapshot.selectedSurfaceFamily === choice.familyId, disabled: !editable });
-      });
-    } else if (mode === 'cliff_family') {
-      const choices = terrainCliffFamilyChoices(searchQuery, state.terrainPalette);
-
-      choices.forEach((choice) => {
-        const preview = () => terrainChoicePreview(state, context, choice.preview);
-        add(`terrain-cliff-${choice.familyId}`, `Paint ${choice.label} cliff family · ${choice.projectionStyle}`, () => {
-            state.interaction.selectCliffFamily(choice.familyId); context.invalidate();
-          }, { symbol: 'mountain' as const, preview,
-            active: interactionSnapshot.selectedCliffFamily === choice.familyId, disabled: !editable });
-      });
-    } else if (mode === 'exact_override') {
-      const point = state.interaction.selectedTerrainPoint();
-      const tileKey = point === null ? '' : `${point.tileX},${point.tileY}`;
-      const cached = state.exactTerrainPaletteCache;
-      if (cached === null || cached.document !== document || cached.tileKey !== tileKey
-        || cached.query !== searchQuery || cached.contentKey !== state.terrainPalette.contentKey) {
-        state.exactTerrainPaletteCache = {
-          document, tileKey, query: searchQuery, contentKey: state.terrainPalette.contentKey,
-          choices: state.interaction.exactTerrainChoicesAtSelection(searchQuery),
-        };
-      }
-      const choices = state.exactTerrainPaletteCache?.choices ?? [];
-
-      if (point === null || choices.length === 0) empty = point === null
-        ? 'SELECT A TERRAIN CELL' : 'NO COMPATIBLE EXACT TILES';
-      choices.forEach((choice) => {
-        const preview = () => terrainChoicePreview(state, context, {
-          assetId: choice.assetId, frameIndex: choice.frameIndex,
-        });
-        add(`terrain-exact-${choice.id}`, choice.label, () => {
-          state.interaction.selectExactTerrainOverride(choice); context.invalidate();
-        }, { symbol: 'replace' as const, preview,
-          active: interactionSnapshot.selectedExactTerrainOverrideId === choice.id, disabled: !editable });
-      });
-    } else {
-      const entries = terrainFarmlandVisualChoices(searchQuery);
-
-      if (entries.length === 0) empty = 'NO MATCHING TERRAIN';
-      entries.forEach((entry) => add('terrain-farmland-visual', `${entry.label} — ${entry.warning.charAt(0).toLocaleLowerCase()}${entry.warning.slice(1)}`, () => {
-        state.interaction.selectTerrainPaletteMode('farmland_visual'); context.invalidate();
-      }, { symbol: 'sprout', preview: () => terrainChoicePreview(state, context, entry.preview),
-        active: true, disabled: !editable }));
-    }
-  } else if (workspace === 'biomes') {
-    const palette = biomePalette(searchQuery);
-
-
-
-    const visible = palette;
-    if (visible.length === 0) empty = 'NO MATCHING TERRAIN';
-    visible.forEach((biome: MapBiomeId) => {
-      add(`biome-${biome}`, `Paint ${biome}`, () => {
-        state.interaction.selectBiome(biome); context.invalidate();
-      }, { glyph: biome.replaceAll('_', ' ').toUpperCase(),
-        active: state.interaction.snapshot().selectedBiome === biome });
-    });
-  } else if (paletteKind === 'objects') {
-    const palette = state.interaction.palette(query);
-
-    const visible = palette;
-    if (visible.length === 0) empty = state.catalogLoading
-      ? 'LOADING ASSET LIBRARY' : 'NO OBJECTS FOR THIS LAYER';
-    visible.forEach((entry) => {
-      const preview = () => prefabPreview(state, context, entry);
-      add(`prefab-${entry.id}`, `Place ${entry.title} as authored scenery`, () => {
-          const nextDefinitionId = state.catalogDefinitionIds.get(entry.id);
-          if (state.liveSpawnMode && isMapFunctionalLiveDefinitionId(nextDefinitionId)) {
-            resetLiveSpawn(state, false);
-            state.liveSpawnDefinitionId = nextDefinitionId;
-            state.liveSpawnPrefabId = entry.id;
-          } else if (state.liveSpawnMode) resetLiveSpawn(state);
-          state.interaction.selectPrefab(entry.id);
-          context.invalidate();
-        }, { symbol: 'box' as const, preview,
-          active: interactionSnapshot.selectedPrefabId === entry.id });
-    });
-  } else if (paletteKind === 'anchors') {
-    const entries = mapAnchorToolPalette(query);
-
-    const visible = entries;
-    if (visible.length === 0) empty = 'NO MATCHING ANCHOR TOOLS';
-    visible.forEach((entry) => {
-      const available = entry.authorable && state.interaction.anchorPlacementAvailable();
-      const tooltip = entry.authorable
-        ? available ? `Place ${entry.title}; click map at exact projected terrain elevation`
-          : `Cannot place ${entry.title}; select the visible editable Anchors layer`
-        : `${entry.title}: runtime authority not available`;
-      add(`anchor-tool-${entry.kind}`, tooltip, () => {
-        if (!entry.authorable) return;
-        state.interaction.selectAnchorKind(
-          interactionSnapshot.selectedAnchorKind === entry.kind ? null : entry.kind,
-        );
-        context.invalidate();
-      }, { symbol: ANCHOR_KIND_SYMBOLS[entry.kind],
-        active: interactionSnapshot.selectedAnchorKind === entry.kind,
-        disabled: !available });
-    });
-  } else {
-
-
-
-
-    empty = 'LIVE PLAYER OBJECTS · READ ONLY';
-  }
-  return {choices,empty};
+function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolContext,query:string):{choices:MapKitPaletteChoice[];empty:string} {
+  const interaction = state.interaction;
+  if (interaction.editingTool() !== 'objects') return {
+    choices: mapMaterialChoices(state.terrainPalette,query).map(choice=>({
+      id:`map-material-${choice.id}`, label:choice.label,
+      apply:()=>{interaction.selectMaterial(choice.id,choice.label,choice.patch,choice.biome);context.invalidate();},
+      preview:()=>terrainChoicePreview(state,context,choice.preview),
+      active:interaction.materialId()===choice.id, symbol:'landPlot', disabled:!interaction.terrainAuthoringAvailable(),
+    })), empty:'No matching terrain',
+  };
+  return {choices:interaction.allObjectChoices(query)
+    .filter(prefab=>state.objectFilter==='all'||mapObjectCategory(prefab)===state.objectFilter)
+    .map(prefab=>({id:`map-prefab-${prefab.id}`,label:prefab.title,
+      apply:()=>{interaction.selectObjectChoice(prefab.id);context.invalidate();},
+      preview:()=>prefabPreview(state,context,prefab),symbol:'box',
+      active:interaction.snapshot().selectedPrefabId===prefab.id,
+    })),empty:state.catalogLoading?'Loading objects':'No matching objects'};
 }
 
-function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext,mapId:string):UiElement {
-  const snapshot=state.interaction.snapshot(),workspace=state.model.workspace(),children:UiElement[]=[];
-  const icon=(id:string,label:string,symbol:UiIconName,onPress:()=>void,disabled=false,active=false)=>kit.tooltip(label,
-    kit.iconButton({lucide:symbol},{id:`map-${id}`,label,onPress,disabled,tone:active?'success':'primary'}),{width:uiFixed(24),height:uiFixed(24)});
-  const strip=(items:UiElement[])=>kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,width:'grow',height:uiFixed(Math.ceil(items.length/3)*28-4),shrink:0},items);
-  if(workspace==='terrain')children.push(strip(MAP_TERRAIN_AUTHORING_MODES.map(mode=>{
-    const presentation=TERRAIN_MODE_PRESENTATION[mode];return icon(`terrain-mode-${mode}`,presentation.tooltip,presentation.symbol,()=>{state.interaction.selectTerrainPaletteMode(mode);state.paletteOffset=0;context.invalidate();},false,snapshot.terrainPaletteMode===mode);
-  })));
-  const resize=state.model.resizeAvailability();
-  const actions=[icon('eyedropper','Sample map content into the palette (I)','pointer',()=>{resetLiveSpawn(state);state.interaction.toggleEyedropper();context.invalidate();},false,snapshot.eyedropperActive),
-    icon('resize-mode',resize.allowed?'Show or hide finite map edge resize handles':resize.reason,'scale',()=>{resetLiveSpawn(state);state.resizeMode=!state.resizeMode;if(!state.resizeMode)cancelMapResize(state);context.invalidate();},!resize.allowed,state.resizeMode)];
-  if(mapId==='live-island'&&workspace==='objects'){
-    const spawn=currentLiveSpawnAvailability(state,context,mapId);
-    actions.push(icon('live-spawn-mode',spawn.allowed?(state.liveSpawnMode?'Cancel functional live entity spawn (Escape)':'Spawn selected object as a functional live entity'):spawn.reason,'gamepad',()=>armLiveSpawn(state,context,mapId),!spawn.allowed||state.liveSpawnPreviewing||state.liveSpawnCommitting,state.liveSpawnMode));
+function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext):UiElement {
+  const children:UiElement[]=[];
+  children.push(kit.input({id:'map-object-search',label:'Search palette',placeholder:'Search palette',editor:state.search,
+    onChange:()=>{state.paletteOffset=0;context.invalidate();}}));
+  if(state.interaction.editingTool()==='objects') {
+    const symbols:Record<MapObjectFilter,UiIconName>={all:'grid',plants:'sprout',fences:'cave',buildings:'map',prefabs:'package',other:'box'};
+    children.push(kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,height:uiFixed(52),shrink:0},
+      MAP_OBJECT_FILTERS.map(filter=>kit.tooltip(filter[0]!.toUpperCase()+filter.slice(1),kit.iconButton({lucide:symbols[filter]},
+        {id:`map-filter-${filter}`,label:`Filter ${filter}`,tone:state.objectFilter===filter?'success':'primary',onPress:()=>{
+          state.objectFilter=filter;state.paletteOffset=0;context.invalidate();}}),{width:uiFixed(24),height:uiFixed(24)}))));
   }
-  children.push(strip(actions));
-  if(workspace==='scatter')children.push(kit.flex({width:'grow',gap:4},[
-    kit.text(`${Math.round(snapshot.scatterDensity/100)}% DENSITY`,{id:'map-scatter-density'}),
-    strip([icon('scatter-less','Decrease scatter density','chevronLeft',()=>{state.interaction.adjustScatterDensity(-500);context.invalidate();},snapshot.scatterDensity===0),icon('scatter-more','Increase scatter density','chevronRight',()=>{state.interaction.adjustScatterDensity(500);context.invalidate();},snapshot.scatterDensity===10000)]),
-  ]));
-  if(workspace==='terrain'&&snapshot.terrainTool==='transition')children.push(strip([
-    icon('transition-slope','Author a complete slope bank','mountain',()=>{state.interaction.selectTransitionKind('slope');context.invalidate();},false,snapshot.transitionKind==='slope'),
-    icon('transition-stairs','Author a multi-course stair run','stairs',()=>{state.interaction.selectTransitionKind('stairs');context.invalidate();},false,snapshot.transitionKind==='stairs'),
-    icon('transition-ladder','Author a single-lane interaction ladder','cave',()=>{state.interaction.selectTransitionKind('ladder');context.invalidate();},false,snapshot.transitionKind==='ladder'),
-    icon('transition-width-less',`Decrease transition width from ${snapshot.transitionWidth} ([)`,'chevronLeft',()=>{state.interaction.adjustTransitionWidth(-1);context.invalidate();},snapshot.transitionWidth<=2||snapshot.transitionKind==='ladder'),
-    icon('transition-width-more',`Increase transition width from ${snapshot.transitionWidth} (])`,'chevronRight',()=>{state.interaction.adjustTransitionWidth(1);context.invalidate();},snapshot.transitionWidth>=4||snapshot.transitionKind==='ladder'),
-  ]));
-  let result=mapKitPaletteChoices(state,context,state.search.snapshot().value);
-  const empty=kit.text(result.empty,{id:'map-palette-empty',layout:{visible:result.choices.length===0}});
-  const list=kit.list<MapKitPaletteChoice>({id:'map-palette-list',label:'Placement palette',items:result.choices,key:choice=>choice.id,
-    rowHeight:uiFixed(36),layout:{width:'grow',height:'grow',minHeight:uiFixed(36)},initialScrollY:state.paletteOffset,
-    onScroll:element=>{state.paletteOffset=element.scroll.y;},onSelect:(_keys,choice)=>{if(!choice.disabled)choice.apply();},
-    render:choice=>{const preview=choice.preview?.();const control=kit.button({id:choice.id,label:'',disabled:choice.disabled,tone:choice.active?'success':choice.tone??'primary',layout:{width:'grow',height:'grow'},onPress:choice.apply,children:[
-      kit.flex({direction:'row',align:'center',width:'grow',height:'grow',gap:2},[
-        ...(preview?[kit.image(preview.image,preview.frame,{label:choice.label,fit:'contain',integerScale:true,layout:{width:uiFixed(24),height:uiFixed(24),shrink:0}})]:choice.symbol?[kit.icon({lucide:choice.symbol},{layout:{width:uiFixed(16),height:uiFixed(16),shrink:0}})]:[]),
-        kit.text((choice.glyph??choice.label).split(/[\n·—]/u)[0]!.trim().replace(/^(?:Place|Paint) /u,'').replace(/ as authored scenery.*$/u,''),{maxLines:2,layout:{width:'grow'}}),
-      ]),
-    ]});control.label=choice.label;return kit.tooltip(choice.label,control,{width:'grow',height:'grow'});},
+  const result=mapKitPaletteChoices(state,context,state.search.snapshot().value);
+  if(result.choices.length===0)children.push(kit.text(result.empty,{id:'map-palette-empty'}));
+  let columns=mapPaletteColumns(context.controlsBounds.width/2);
+  const rows=()=>Array.from({length:Math.ceil(result.choices.length/columns)},(_,index)=>result.choices.slice(index*columns,(index+1)*columns));
+  const list=kit.list<readonly MapKitPaletteChoice[]>({id:'map-palette-list',label:'Placement palette',items:rows(),key:row=>row[0]!.id,
+    rowHeight:uiFixed(28),rowPadding:0,layout:{width:'grow',height:'grow',minHeight:uiFixed(28)},initialScrollY:state.paletteOffset,
+    onScroll:element=>{state.paletteOffset=element.scroll.y;},
+    onArrange:element=>{const next=mapPaletteColumns(element.contentRect.width);if(next!==columns){columns=next;element.setProps({items:rows()},false);}},
+    render:row=>kit.grid({columns,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,width:'grow',height:uiFixed(24)},row.map(choice=>{
+      const preview=choice.preview?.();
+      const control=kit.button({id:choice.id,label:'',ariaLabel:choice.label,disabled:choice.disabled,size:'md',
+        tone:choice.active?'success':'primary',layout:{width:uiFixed(24),height:uiFixed(24),padding:2},onPress:choice.apply,
+        children:[preview?kit.image(preview.image,preview.frame,{label:choice.label,fit:'contain',integerScale:true,layout:{width:'grow',height:'grow'}})
+          :kit.icon({lucide:choice.symbol??'box'},{layout:{width:'grow',height:'grow'}}),
+          ...(choice.active?[new UiElement({kind:'palette-selection-reticle',style:{position:'absolute',inset:{left:0,right:0,top:0,bottom:0}},
+            paintOverlay(element,{context:ctx}) {const r=element.rect;ctx.save();ctx.strokeStyle='#fff4ad';ctx.lineWidth=1;
+              ctx.beginPath();for(const [x,y,dx,dy] of [[r.x,r.y,1,1],[r.x+r.width,r.y,-1,1],[r.x,r.y+r.height,1,-1],[r.x+r.width,r.y+r.height,-1,-1]]){
+                ctx.moveTo(x!+dx!*5,y!);ctx.lineTo(x!,y!);ctx.lineTo(x!,y!+dy!*5);
+              }ctx.stroke();ctx.restore();}})]:[])]});
+      return kit.tooltip(choice.label,control,{width:uiFixed(24),height:uiFixed(24)});
+    })),
   });
-  const search=kit.combobox({id:'map-object-search',label:'Search palette',placeholder:'Search palette',editor:state.search,open:state.paletteSuggestionsOpen,onOpenChange:open=>{state.paletteSuggestionsOpen=open;},
-    suggestions:async query=>mapKitPaletteChoices(state,context,query).choices.map(choice=>({value:choice.id,label:choice.label,disabled:choice.disabled})),
-    onQueryChange:query=>{result=mapKitPaletteChoices(state,context,query);state.paletteOffset=0;list.setProps({items:result.choices,active:0});list.scroll.y=0;empty.setProps({text:result.empty});empty.setStyle({visible:result.choices.length===0});},
-    onChange:id=>{const choice=mapKitPaletteChoices(state,context,'').choices.find(choice=>choice.id===id);if(choice&&!choice.disabled){state.search.setValue('');choice.apply();}},
-  });
-  children.push(search,empty,list);
+  children.push(list);
   state.paletteBounds={x:0,y:0,width:0,height:0};state.paletteRowCount=result.choices.length;state.paletteVisibleRows=4;
   return kit.flex({width:'grow',height:'grow',gap:4},children);
 }
@@ -1911,75 +1461,47 @@ function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext,mapI
 function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContext,
   parts: MapCanvasParts, mapId: string): void {
   const document = state.model.document();
-  const liveAdapter = context.controller.liveAdapter();
-  const liveView = liveAdapter?.view();
+
   const resizeAvailability = state.model.resizeAvailability();
   if (state.resizeImpact !== null && (state.resizeImpact.sourceHash !== mapDocumentV3Hash(document)
     || !resizeAvailability.allowed)) cancelMapResize(state);
   if (!resizeAvailability.allowed) state.resizeMode = false;
-  const workspace = state.model.workspace();
+
   let interactionSnapshot = state.interaction.snapshot();
   if (interactionSnapshot.selectedAnchorKind !== null
     && !state.interaction.anchorPlacementAvailable()) {
     state.interaction.selectAnchorKind(null);
     interactionSnapshot = state.interaction.snapshot();
   }
-  const activeLayer = interactionSnapshot.activeLayer;
-  const paletteView = state.leftView === 'palette';
+
   const liveSpawnAvailability = currentLiveSpawnAvailability(state, context, mapId);
   if (state.liveSpawnMode && !liveSpawnAvailability.allowed && !state.liveSpawnCommitting) {
     resetLiveSpawn(state);
   }
-  const currentContentHead = liveView?.contentHead;
-  const stagedLiveSpawn = state.liveSpawnModel?.pending();
-  if (!state.liveSpawnCommitting && stagedLiveSpawn !== null && stagedLiveSpawn !== undefined
-    && (currentContentHead === null || currentContentHead === undefined
-      || stagedLiveSpawn.contentVersion !== String(currentContentHead.revision)
-      || stagedLiveSpawn.contentFingerprint !== currentContentHead.contentHash)) {
-    // The server fingerprint would reject a changed definition, but removing
-    // the stale Canvas confirmation makes the exact-content guarantee visible.
-    resetLiveSpawn(state, false);
-  }
-    state.paletteBounds={x:0,y:0,width:0,height:0};
-    const command=(id:string,label:string,icon:UiIconName,onPress:()=>void,disabled=false)=>kit.tooltip(label,kit.iconButton({lucide:icon},{id:`map-${id}`,label,onPress,disabled}),{width:uiFixed(24),height:uiFixed(24)});
-    const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||liveView?.publishingMap===true,conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),connected:liveView?.connected===true,synchronizing:liveView?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(liveView?.role??null,'publish_map'),publishAvailable:mapId==='live-island'&&liveAdapter?.publishMap!==undefined});
-  const liveSpawnReceipt = state.liveSpawnModel?.pending() ?? null;
-  const stateLabel = state.liveSpawnMode
-    ? state.liveSpawnCommitting ? 'LIVE SPAWN · COMMITTING'
-      : state.liveSpawnPreviewing ? 'LIVE SPAWN · VALIDATING'
-        : liveSpawnReceipt === null ? 'LIVE SPAWN · CLICK MAP'
-          : `LIVE SPAWN · ${liveSpawnReceipt.tileX},${liveSpawnReceipt.tileY} · CONFIRM`
-    : state.interaction.snapshot().eyedropperActive
-    ? 'EYEDROPPER · CLICK MAP'
-    : interactionSnapshot.selectedAnchorKind !== null
-      ? `PLACE ${interactionSnapshot.selectedAnchorKind.toUpperCase()} · CLICK MAP · ESC CANCEL`
-    : workspace === 'terrain'
-    ? interactionSnapshot.terrainAuthoringFeedback !== null
-      ? interactionSnapshot.terrainAuthoringFeedback
-      : state.interaction.snapshot().terrainTool === 'transition'
-      ? `${state.interaction.snapshot().transitionKind.toUpperCase()} W${
-        state.interaction.snapshot().transitionKind === 'ladder' ? 1 : state.interaction.snapshot().transitionWidth
-      } · ${state.interaction.snapshot().transitionFeedback ?? 'DRAG LOWER TO UPPER'}`
-      : `${interactionSnapshot.terrainPaletteMode.replaceAll('_', ' ').toUpperCase()} · ${
-        state.interaction.snapshot().terrainTool.replaceAll('_', ' ').toUpperCase()
-      } · L${state.interaction.snapshot().activeElevation}`
-    : workspace === 'scatter'
-      ? `DRAW TO SCATTER · ${Math.round(state.interaction.snapshot().scatterDensity / 100)}%`
-    : `${activeLayer.toUpperCase()} · ${state.paletteRowCount}`;
-    parts.kit.controls=studioLibraryDrawer([
-      kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,width:'grow',height:uiFixed(52),shrink:0},[
-        command('undo','Undo','undo',()=>{cancelMapResize(state);state.interaction.undo();context.invalidate();},!state.model.canUndo()),
-        command('redo','Redo','redo',()=>{cancelMapResize(state);state.interaction.redo();context.invalidate();},!state.model.canRedo()),
-        command('frame-map','Frame map','map',()=>{state.interaction.frameMap();context.invalidate();}),
-        command('export','Export','export',()=>exportMapDraft(state,context)),
-        command('publish',publish.tooltip,'cloudPublish',()=>state.autoPublish.requestManual(),publish.disabled),
-      ]),
-      kit.select({id:'map-workspace',label:'Workspace',value:workspace,options:MAP_EDITOR_WORKSPACES.map(value=>({value,label:value.replace(/^./u,char=>char.toUpperCase())})),onChange:value=>{resetLiveSpawn(state);state.model.selectWorkspace(value as typeof workspace);state.interaction.selectLayer(workspaceLayer(value as typeof workspace));state.paletteOffset=0;context.invalidate();}}),
-      kit.select({id:'map-left-view',label:'Drawer view',value:state.leftView,options:[{value:'palette',label:'Palette'},{value:'world',label:'World'},{value:'live',label:'Live'}],onChange:value=>{state.leftView=value as typeof state.leftView;state.outlinerOffset=0;context.invalidate();}}),
-    ], paletteView?mapKitPalette(state,context,mapId):mapKitOutliner(state,context), [
-      kit.text(`${document.width}×${document.height} · ${stateLabel} · AUTO ${state.autoPublish.presentation().state}`,{id:'map-map-stats'}),
-      kit.tooltip(state.autoPublish.presentation().tooltip,kit.checkbox({id:'map-auto-publish',label:'Auto',layout:{width:'grow'},value:state.autoPublishEnabled,onChange:value=>{state.autoPublishEnabled=value===true;context.invalidate();}}),{width:'grow',shrink:0}),
-    ]);
+  const command=(id:string,label:string,icon:UiIconName,onPress:()=>void,active=false)=>kit.tooltip(label,
+    kit.iconButton({lucide:icon},{id:`map-${id}`,label,onPress,tone:active?'success':'primary'}),{width:uiFixed(24),height:uiFixed(24)});
+  const tool=state.interaction.editingTool();
+  const choose=(value:NonNullable<ReturnType<MapEditorController['editingTool']>>)=>{
+    resetLiveSpawn(state);state.interaction.selectEditingTool(value);state.paletteOffset=0;context.invalidate();
+  };
+  const selectedName=tool==='objects'
+    ? state.interaction.allObjectChoices().find(prefab=>prefab.id===interactionSnapshot.selectedPrefabId)?.title??state.model.document().prefabs.find(prefab=>prefab.id===interactionSnapshot.selectedPrefabId)?.title??'Select an object'
+    : state.interaction.materialLabel();
+  parts.kit.controls=studioLibraryDrawer([
+    kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,height:uiFixed(52),shrink:0},[
+      command('tool-objects','Select objects','pointer',()=>choose('objects'),tool==='objects'&&!interactionSnapshot.eyedropperActive),
+      command('tool-terrain','Paint terrain','landPlot',()=>choose('terrain'),tool==='terrain'&&!interactionSnapshot.eyedropperActive),
+      command('tool-raise','Raise terrain','mountain',()=>choose('raise'),tool==='raise'&&!interactionSnapshot.eyedropperActive),
+      command('tool-lower','Lower terrain','moveDown',()=>choose('lower'),tool==='lower'&&!interactionSnapshot.eyedropperActive),
+      command('tool-fill','Flood fill terrain','waves',()=>choose('fill'),tool==='fill'&&!interactionSnapshot.eyedropperActive),
+      command('eyedropper','Sample selected object or terrain (I)','penTool',()=>{state.interaction.toggleEyedropper();context.invalidate();},interactionSnapshot.eyedropperActive),
+    ]),
+  ],mapKitPalette(state,context),[
+    kit.text(selectedName,{id:'map-selected-material',maxLines:2,layout:{width:'grow'}}),
+    kit.tooltip('Automatically generate surrounding terrain and connect neighboring objects',
+      kit.checkbox({id:'map-auto-generation',label:'Auto surround',value:state.interaction.automaticGeneration(),
+        onChange:value=>{state.interaction.setAutomaticGeneration(value===true);context.invalidate();}}),{width:'grow',shrink:0}),
+  ]);
 }
 
 /** Overlay content uses the same retained hit tree as the surrounding workbench.
@@ -2039,20 +1561,49 @@ function appendAnchorAnnotation(state: MapCanvasState, context: StudioCanvasTool
   })]);
 }
 
+function armLiveSpawn(state: MapCanvasState, context: StudioCanvasToolContext, mapId: string): void {
+  if (state.liveSpawnMode) { resetLiveSpawn(state); context.invalidate(); return; }
+  const definitionId = selectedLiveSpawnDefinition(state);
+  if (!currentLiveSpawnAvailability(state, context, mapId).allowed || definitionId === null) return;
+  state.resizeMode = false; cancelMapResize(state); state.liveSpawnMode = true;
+  state.liveSpawnDefinitionId = definitionId;
+  state.liveSpawnPrefabId = state.interaction.snapshot().selectedPrefabId;
+  context.invalidate();
+}
+
+function heightArrow(direction: number): UiElement {
+  return new UiElement({kind:'height-arrow',style:{width:'grow',height:'grow'},paintOverlay(element,{context}) {
+    const x=element.rect.x+element.rect.width/2,y=element.rect.y+element.rect.height/2;
+    context.save();context.strokeStyle='#202536';context.lineWidth=2;context.beginPath();
+    context.moveTo(x,y-direction*5);context.lineTo(x,y+direction*5);
+    context.moveTo(x-4,y+direction);context.lineTo(x,y+direction*5);context.lineTo(x+4,y+direction);
+    context.stroke();context.restore();
+  }});
+}
+
 function appendWorldOverlayControls(
   state: MapCanvasState, context: StudioCanvasToolContext, parts: MapCanvasParts,
 ): void {
   const snapshot = state.interaction.snapshot();
-  parts.kit.overlays?.append(kit.flex({ direction: 'row', gap: 4, position: 'absolute',
-    inset: { left: 8, top: 8 }, height: uiFixed(24) }, [
-    kit.tooltip('Show or hide elevation overlay (H)', kit.button({ id: 'map-height-overlay', label: 'H',
-      tone: snapshot.heightOverlayVisible ? 'success' : 'neutral',
-      onPress: () => { state.interaction.toggleHeightOverlay(); context.invalidate(); },
-      layout: { width: uiFixed(24) } })),
-    kit.tooltip('Show or hide collision overlay (C)', kit.button({ id: 'map-collision-overlay', label: 'C',
-      tone: snapshot.collisionOverlayVisible ? 'success' : 'neutral',
-      onPress: () => { state.interaction.toggleCollisionOverlay(); context.invalidate(); },
-      layout: { width: uiFixed(24) } })),
+  if(snapshot.terrainAuthoringFeedback)parts.kit.overlays?.append(kit.text(snapshot.terrainAuthoringFeedback,{id:'map-tool-feedback',maxLines:3,layout:{position:'absolute',inset:{left:8,bottom:8},width:uiFixed(260)}}));
+  const view=context.controller.liveAdapter()?.view();
+  const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||view?.publishingMap===true,
+    conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),
+    connected:view?.connected===true,synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
+    publishAvailable:context.controller.liveAdapter()?.publishMap!==undefined});
+  parts.kit.overlays?.append(kit.flex({ direction:'row',gap:4,position:'absolute',inset:{left:8,top:8},height:uiFixed(24) },[
+    kit.tooltip('Edit lower height level ([)',kit.button({children:[heightArrow(1)],id:'map-height-down',label:'',ariaLabel:'Lower active height',disabled:snapshot.activeElevation<=-8,
+      layout:{width:uiFixed(24)},onPress:()=>{state.interaction.adjustActiveElevation(-1);context.invalidate();}})),
+    kit.text(`Height ${snapshot.activeElevation}`,{id:'map-current-height',layout:{width:uiFixed(64)}}),
+    kit.tooltip('Edit higher height level (])',kit.button({children:[heightArrow(-1)],id:'map-height-up',label:'',ariaLabel:'Raise active height',disabled:snapshot.activeElevation>=8,
+      layout:{width:uiFixed(24)},onPress:()=>{state.interaction.adjustActiveElevation(1);context.invalidate();}})),
+    kit.tooltip('Undo',kit.iconButton({lucide:'undo'},{id:'map-undo',label:'Undo',disabled:!state.model.canUndo(),onPress:()=>{state.interaction.undo();context.invalidate();}})),
+    kit.tooltip('Redo',kit.iconButton({lucide:'redo'},{id:'map-redo',label:'Redo',disabled:!state.model.canRedo(),onPress:()=>{state.interaction.redo();context.invalidate();}})),
+    kit.tooltip('Frame map',kit.iconButton({lucide:'map'},{id:'map-frame-map',label:'Frame map',onPress:()=>{state.interaction.frameMap();context.invalidate();}})),
+    kit.tooltip('Export map',kit.iconButton({lucide:'export'},{id:'map-export',label:'Export map',onPress:()=>exportMapDraft(state,context)})),
+    kit.tooltip('Resize map',kit.iconButton({lucide:'scale'},{id:'map-resize-mode',label:state.model.resizeAvailability().reason??'Resize map',disabled:!state.model.resizeAvailability().allowed,onPress:()=>{state.resizeMode=!state.resizeMode;cancelMapResize(state);context.invalidate();}})),
+    kit.tooltip('Place functional live entity',kit.iconButton({lucide:'gamepad'},{id:'map-live-spawn-mode',label:state.liveSpawnMode?'Cancel functional live entity spawn (Escape)':'Spawn selected object as a functional live entity',tone:state.liveSpawnMode?'success':'primary',disabled:!currentLiveSpawnAvailability(state,context,studioMapId(context.route.path)).allowed,onPress:()=>armLiveSpawn(state,context,studioMapId(context.route.path))})),
+    kit.tooltip(publish.tooltip,kit.iconButton({lucide:'cloudPublish'},{id:'map-publish',label:publish.tooltip,disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual()})),
   ]));
 }
 
@@ -2348,6 +1899,9 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     return options.help ? kit.tooltip(options.help,base,{width:'grow',height:uiFixed(24),shrink:0}) : base;
   };
   const action = (id:string,label:string,onPress:()=>void,options:Parameters<typeof button>[3]={}) => children.push(button(id,label,onPress,options));
+  if (state.interaction.snapshot().activeLayer === 'anchors') {
+    for (const kind of ['poi','label'] as const) action(`anchor-tool-${kind}`,kind==='poi'?'Point of interest':'Map label',()=>{state.interaction.selectAnchorKind(kind);context.invalidate();},{disabled:!state.interaction.anchorPlacementAvailable()});
+  }
   // Scrolling now belongs to the retained drawer, not the map's wheel router.
   state.selectionBounds = {x:0,y:0,width:0,height:0}; state.layerBounds = {x:0,y:0,width:0,height:0};
   state.selectionRowCount = 0;
@@ -2411,41 +1965,20 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     }
     children.push(kit.separator());
   } else if(state.editingAnchorId!==null)cancelAnchorLabelEdit(state);
-  const layers=[...state.model.document().layers].sort((a,b)=>b.order-a.order),ids=layers.map(layer=>layer.id),activeId=state.interaction.snapshot().activeLayer;
-  state.layerSelection=reconcileMapLayerSelection(ids,state.layerSelection,activeId);
-  const selected=new Set(state.layerSelection.selected);
-  children.push(kit.text(`Layers${selected.size>1?` (${selected.size} selected)`:''}`,{role:'header'}));
-  const selectLayer=(value:string,event:UiButtonModifiers={})=>{const id=layers.find(layer=>layer.id===value)?.id;if(!id)return;cancelLayerRename(state);const next=applyMapLayerSelectionGesture(ids,state.layerSelection!,id,{range:event.shiftKey===true,additive:event.ctrlKey===true||event.metaKey===true});state.layerSelection=next;state.model.selectWorkspace(workspaceForLayer(next.active));state.interaction.selectLayer(next.active);state.paletteOffset=0;context.invalidate();};
-  children.push(kit.tree({id:'map-layer-tree',label:'Map layers',nodes:layers.map(layer=>({id:layer.id,label:layer.label})),selected:state.layerSelection.selected,activeId:activeId,
-    rowHeight:uiFixed(60),layout:{width:'grow',height:uiFixed(180),shrink:0},onSelect:id=>selectLayer(id),renderNode:node=>{
-    const layer=layers.find(layer=>layer.id===node.id)!;const rowChildren:UiElement[]=[];
-    const lockable=state.model.canToggleLayerLock(layer.id),locked=state.model.isLayerLocked(layer.id),visible=state.model.isLayerEyeVisible(layer.id),solo=state.model.soloLayer()===layer.id;
-    rowChildren.push(button(`layer-select-${layer.id}`,layer.label,event=>selectLayer(layer.id,event),{icon:LAYER_TYPE_SYMBOLS[layer.id],tone:selected.has(layer.id)?'success':'primary',help:`${layer.label}: ${locked?'locked':'editable'}. Shift selects a range; Ctrl or Command toggles.`}));
-    const iconButton=(id:string,label:string,icon:UiIconName,onPress:()=>void,disabled=false,active=false)=>kit.tooltip(label,kit.iconButton({lucide:icon},{id:`map-${id}`,label,onPress,disabled,tone:active?'success':'primary'}),{width:uiFixed(24),height:uiFixed(24)});
-    rowChildren.push(kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:2,width:'grow',height:uiFixed(24),shrink:0},[
-      iconButton(`layer-visible-${layer.id}`,`${visible?'Hide':'Show'} ${layer.label}`,visible?'visibility':'eyeOff',()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},false,visible),
-      iconButton(`layer-lock-${layer.id}`,lockable?`${locked?'Unlock':'Lock'} ${layer.label}`:'Immutable system layer',locked?'lock':'unlock',()=>{state.interaction.toggleLayerLock(layer.id);context.invalidate();},!lockable,locked),
-      iconButton(`layer-solo-${layer.id}`,`${solo?'Unsolo':'Solo'} ${layer.label}`,'layers',()=>{state.interaction.toggleLayerSolo(layer.id);context.invalidate();},!lockable,solo),
+  const layers=[...state.model.document().layers].sort((a,b)=>b.order-a.order);
+  const activeId=state.interaction.snapshot().activeLayer;
+  children.push(kit.text('Layers',{role:'header'}));
+  for(const layer of layers){
+    const visible=state.model.isLayerEyeVisible(layer.id);
+    children.push(kit.flex({direction:'row',width:'grow',height:uiFixed(24),gap:4,shrink:0},[
+      kit.tooltip(`${visible?'Hide':'Show'} ${layer.label}`,kit.iconButton({lucide:visible?'visibility':'eyeOff'},
+        {id:`map-layer-visible-${layer.id}`,label:`${visible?'Hide':'Show'} ${layer.label}`,tone:visible?'success':'primary',
+          onPress:()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();}}),{width:uiFixed(24),height:uiFixed(24)}),
+      button(`layer-select-${layer.id}`,layer.label,()=>{
+        state.interaction.selectEditingTool(layer.id==='terrain'||layer.id==='generated_base'?'terrain':'objects');
+        state.interaction.selectLayer(layer.id);state.paletteOffset=0;context.invalidate();
+      },{tone:activeId===layer.id?'success':'primary'}),
     ]));
-    return kit.flex({width:'grow',gap:4},rowChildren);
-  }}));
-  const active=layers.find(layer=>layer.id===state.layerSelection?.active);
-  if(active){
-    if(state.renamingLayerId!==null&&state.renamingLayerId!==active.id)cancelLayerRename(state);
-    if(state.renamingLayerId===active.id){
-      children.push(kit.input({id:`map-layer-rename-${active.id}`,label:'Layer name',editor:state.layerName,onSubmit:()=>commitLayerRename(state,context)}));
-      action(`layer-rename-confirm-${active.id}`,'Confirm name',()=>{commitLayerRename(state,context);context.invalidate();},{tone:'success'});
-      action(`layer-rename-cancel-${active.id}`,'Cancel',()=>{cancelLayerRename(state);context.invalidate();});
-    }else if(selected.size>1){
-      const visibility=planMapLayerBulkVisibility(state.layerSelection.selected,id=>state.model.isLayerEyeVisible(id));
-      const lock=planMapLayerBulkLock(state.layerSelection.selected,id=>state.model.canToggleLayerLock(id),id=>state.model.isLayerUserLocked(id));
-      action('layers-bulk-visibility',visibility?.value?'Show selected':'Hide selected',()=>{if(visibility)for(const id of visibility.layers)if(state.model.isLayerEyeVisible(id)!==visibility.value)state.interaction.toggleLayerVisibility(id);context.invalidate();},{disabled:!visibility});
-      action('layers-bulk-lock',lock?.value===false?'Unlock selected':'Lock selected',()=>{if(lock)for(const id of lock.layers)if(state.model.isLayerUserLocked(id)!==lock.value)state.interaction.toggleLayerLock(id);context.invalidate();},{disabled:!lock});
-    }else{
-      action(`layer-rename-${active.id}`,'Rename layer',()=>{beginLayerRename(state,active.id,active.label);context.invalidate();},{disabled:!state.model.canRenameLayer(active.id)});
-      action(`layer-front-${active.id}`,'Toward front',()=>{state.interaction.reorderLayer(active.id,'toward_front');context.invalidate();},{disabled:!state.model.canReorderLayer(active.id,'toward_front')});
-      action(`layer-back-${active.id}`,'Toward back',()=>{state.interaction.reorderLayer(active.id,'toward_back');context.invalidate();},{disabled:!state.model.canReorderLayer(active.id,'toward_back')});
-    }
   }
   parts.kit.inspector=kit.flex({width:'grow',gap:4},children);
 }
@@ -2461,6 +1994,7 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
   // Terrain Lab and Procedural World are isolated drafts. Feeding production
   // subscription rows into them rebuilt every live entity marker after each
   // unrelated server update and overlaid entities from the wrong document.
+
   const liveView = mapId === 'live-island' ? context.controller.liveAdapter()?.view() : undefined;
   const liveRows = liveView?.rows ?? null;
   const contentSource = liveView?.contentDefinitions ?? null;

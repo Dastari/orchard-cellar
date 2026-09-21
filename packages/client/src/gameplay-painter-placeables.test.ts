@@ -70,6 +70,7 @@ function paint(
     get: (id: bigint) => rows.find((row) => row.id === id),
   });
   enqueueGameplayPlaceables({
+    terrain: {width:8,height:8,elevations:new Int16Array(64),defaultCliffFamily:'stone_1'},
     snapshot: {
       content: { registry }, placeables, players: [], chests: [], combatTargets: [],
       surfaces: [], hives: [], questWorldItems: [], activeChest: null,

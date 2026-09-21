@@ -1,3 +1,4 @@
+import {mapMaterialChoices} from './material-palette.js';
 import {
   FIXED_UNITS_PER_PIXEL,
   MAP_BIOME_IDS,
@@ -13,6 +14,8 @@ import {
   mapDocumentUsesSurvivalIslandBase,
   mapCellKey,
   minimumTerrainBrushPoints,
+  isChoppableTreeKind,
+  MANUAL_OBJECT_CONNECTION_TAG,
   resolvedMapBiomeAt,
   resolvedMapCellAt,
   stairRunValid,
@@ -49,7 +52,7 @@ import {
 } from './editor-viewport.js';
 import { editorTerrainHitOnPlane, topmostEditorTerrainHit } from './editor-picking.js';
 import type { MapEditorModel, MapLayerReorderDirection } from './model.js';
-import { mapContextPrefabPalette } from './context-palette.js';
+import { mapPrefabSuggestedLayer, mapContextPrefabPalette } from './context-palette.js';
 import {
   MAP_TERRAIN_AUTHORING_MODES,
   OFFLINE_TERRAIN_AUTHORING_PALETTE,
@@ -309,6 +312,8 @@ export interface MapEditorCameraSnapshot {
   readonly zoom: number;
 }
 
+export type MapEditingTool = 'objects' | 'terrain' | 'raise' | 'lower' | 'fill';
+
 export interface MapEditorInteractionSnapshot {
   readonly camera: MapEditorCameraSnapshot;
   readonly viewport: UiRect;
@@ -535,7 +540,7 @@ export function pickTopmostVisibleMapEntity(
   return (selected as RankedVisibleEntityPick | null)?.pick ?? null;
 }
 
-function liveMarkerFootprint(registry: Pick<ContentRegistry, 'objects'> | null, reference: PlaceableContentReference): { readonly width: number; readonly height: number } {
+function liveMarkerFootprint(registry: (Pick<ContentRegistry, 'objects'> & Partial<Pick<ContentRegistry, 'resources'>>) | null, reference: PlaceableContentReference): { readonly width: number; readonly height: number } {
   const object = registry === null ? null : placeableObjectDefinition(registry, reference);
   const cells = object?.components.placement?.footprint ?? object?.components.collision?.footprint;
   return Object.freeze({ width: Math.max(1, ...cells?.map((row) => row.length) ?? []),
@@ -559,7 +564,7 @@ function tileMarkerPosition(tileX: number, tileY: number): {
     worldY: (tileY + 1) * TILE_SIZE_PIXELS };
 }
 
-export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: Pick<ContentRegistry, 'objects'> | null = null): readonly MapEditorLiveMarker[] {
+export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: (Pick<ContentRegistry, 'objects'> & Partial<Pick<ContentRegistry, 'resources'>>) | null = null): readonly MapEditorLiveMarker[] {
   if (liveRows === null) return [];
   const markers: MapEditorLiveMarker[] = [];
   for (const row of liveRows?.placeables ?? []) {
@@ -595,7 +600,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
     markers.push({ id: row.id.toString(), entityKind: 'resource', kind: row.kind, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
+      layer: isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined) ? 'canopy' : 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
       growthStage: row.growthStage, miningClass: row.miningClass, richness: row.richness,
       maxHealth: row.maximumRichness });
   }
@@ -672,7 +677,7 @@ type PaintStroke = {
 } | {
   readonly kind: 'terrain_patch';
   readonly elevation: number;
-  readonly tool: 'inspect';
+  readonly tool: 'inspect' | 'raise' | 'lower';
   readonly patch: Readonly<MapCellPatch>;
   readonly consumesSample: boolean;
   readonly continuous: boolean;
@@ -706,6 +711,12 @@ export class MapEditorController {
   #sampledTerrainPatch: Readonly<MapCellPatch> | null = null;
   #terrainAuthoringFeedback: string | null = null;
   #activeElevation = 0;
+  #editingTool: MapEditingTool | null = null;
+  #automaticGeneration = true;
+  #material: Readonly<MapCellPatch> = { surface:'grass', feature:'none', surfaceFamily:'grass_1', cliffFamily:'stone_1', terrainOverride:null };
+  #materialBiome: MapBiomeId | undefined = 'plains';
+  #materialId = 'grass_1';
+  #materialLabel = 'Grass 1';
   #heightOverlayVisible = false;
   #collisionOverlayVisible = false;
   #transitionKind: MapEditorTransitionKind = 'slope';
@@ -727,7 +738,7 @@ export class MapEditorController {
     readonly offset: MapPoint;
   }>();
   #liveRows: StudioLiveRows | null = null;
-  #liveObjectRegistry: Pick<ContentRegistry, 'objects'> | null = null;
+  #liveObjectRegistry: (Pick<ContentRegistry, 'objects'> & Partial<Pick<ContentRegistry, 'resources'>>) | null = null;
   #staticLiveMarkers: readonly MapEditorLiveMarker[] = [];
   #dynamicLiveMarkers: readonly MapEditorLiveMarker[] = [];
   #liveMarkers: readonly MapEditorLiveMarker[] = [];
@@ -877,6 +888,46 @@ export class MapEditorController {
     this.model.clearSelection();
   }
 
+  editingTool(): MapEditingTool | null { return this.#editingTool; }
+  automaticGeneration(): boolean { return this.#automaticGeneration; }
+  setAutomaticGeneration(value: boolean): void { this.#automaticGeneration = value; }
+  materialId(): string { return this.#materialId; }
+  materialLabel(): string { return this.#materialLabel; }
+  selectMaterial(id: string, label: string, patch: Readonly<MapCellPatch>, biome?: MapBiomeId): void {
+    this.cancelFloodFill();
+    this.#materialBiome = biome;
+    this.#materialId = id; this.#materialLabel = label; this.#material = patch;
+    this.#eyedropperActive = false;
+    if (this.#editingTool === null || this.#editingTool === 'objects') this.selectEditingTool('terrain');
+  }
+  selectEditingTool(tool: MapEditingTool): void {
+    this.pointerCancel();
+    this.#editingTool = tool;
+    this.#terrainAuthoringFeedback = null;
+    this.#eyedropperActive = false;
+    this.#selectedPrefabId = null; this.#selectedAnchorKind = null; this.#selectedBiome = null;
+    this.model.selectWorkspace(tool === 'objects' ? 'objects' : 'terrain');
+    this.#activeLayer = tool === 'objects' ? 'objects' : 'terrain';
+    this.#terrainTool = tool === 'raise' || tool === 'lower' ? tool : 'inspect';
+    this.model.clearSelection();
+  }
+  adjustActiveElevation(delta: number): void {
+    this.pointerCancel();
+    this.#activeElevation = Math.max(-TERRAIN_ELEVATION_LIMIT, Math.min(TERRAIN_ELEVATION_LIMIT, this.#activeElevation + delta));
+  }
+  allObjectChoices(query = ''): readonly MapPrefabDocumentV2[] {
+    const terms = query.trim().toLowerCase().split(/\s+/u).filter(Boolean);
+    return this.allPrefabs().filter(prefab => !prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG) && terms.every(term =>
+      [prefab.id, prefab.title, ...prefab.tags].join(' ').toLowerCase().includes(term)));
+  }
+  selectObjectChoice(prefabId: string): void {
+    const prefab = this.allPrefabs().find(entry => entry.id === prefabId);
+    if (!prefab) return;
+    this.selectEditingTool('objects');
+    this.#activeLayer = mapPrefabSuggestedLayer(prefab);
+    this.selectPrefab(prefabId);
+  }
+
   toggleEyedropper(): void {
     this.#eyedropperActive = !this.#eyedropperActive;
     if (this.#eyedropperActive) {
@@ -936,6 +987,7 @@ export class MapEditorController {
   selectTerrainTool(tool: MapEditorTerrainTool): void {
     if (!MAP_EDITOR_TERRAIN_TOOLS.includes(tool)) return;
     this.cancelFloodFill();
+    this.#editingTool = null;
     this.#terrainTool = tool;
     this.#terrainPaletteMode = 'brush';
     this.#selectedExactTerrainOverride = null;
@@ -1103,7 +1155,7 @@ export class MapEditorController {
     }
   }
 
-  setLiveRows(rows: StudioLiveRows | null, registry: Pick<ContentRegistry, 'objects'> | null = null): void {
+  setLiveRows(rows: StudioLiveRows | null, registry: (Pick<ContentRegistry, 'objects'> & Partial<Pick<ContentRegistry, 'resources'>>) | null = null): void {
     const contentChanged = registry !== this.#liveObjectRegistry;
     this.#liveObjectRegistry = registry;
     if (rows === this.#liveRows && !contentChanged) return;
@@ -1224,7 +1276,9 @@ export class MapEditorController {
       this.#pan = { x: point.x, y: point.y };
       return true;
     }
-    const tile = this.tileAt(point);
+    const plane = this.#editingTool !== null && this.#editingTool !== 'objects' && !this.#eyedropperActive
+      ? this.#activeElevation : undefined;
+    const tile = this.tileAt(point, plane);
     if (tile === null) return false;
     if (button === 0 && this.#eyedropperActive) {
       this.sampleAt(tile.tileX, tile.tileY, tile.elevation);
@@ -1242,6 +1296,21 @@ export class MapEditorController {
         this.beginAuthoredDrag(picked, tile.tileX, tile.tileY);
         return true;
       }
+    }
+    if (this.#editingTool !== null && this.#editingTool !== 'objects') {
+      if (!this.terrainAuthoringAvailable()) return true;
+      this.model.selectTile(tile.tileX, tile.tileY);
+      const tool = this.#editingTool;
+      if (tool === 'fill') {
+        if(tile.elevation!==this.#activeElevation){this.#terrainAuthoringFeedback='Choose the height of the terrain you want to fill';return true;}
+        this.beginFloodFill(this.model.document(), tile, this.#material, this.#terrainTool);
+      } else {
+        const elevation = Math.max(-TERRAIN_ELEVATION_LIMIT, Math.min(TERRAIN_ELEVATION_LIMIT,
+          this.#activeElevation + (tool === 'raise' ? 1 : tool === 'lower' ? -1 : 0)));
+        this.#stroke = {kind:'terrain_patch', elevation:this.#activeElevation, tool:tool === 'terrain' ? 'inspect' : tool,
+          patch:tool === 'terrain' ? {...this.#material, elevation} : {elevation,terrainOverride:null}, consumesSample:false, continuous:true, points:[tile]};
+      }
+      return true;
     }
     if (this.#activeLayer === 'player_owned') {
       this.model.selectTile(tile.tileX, tile.tileY);
@@ -1419,7 +1488,28 @@ export class MapEditorController {
         if (command !== null) this.model.editTerrain(command);
       } else if (stroke.kind === 'terrain_patch') {
         const before = this.model.document();
-        this.model.paintTerrainPatch(stroke.points, stroke.patch);
+        const expand = this.#automaticGeneration && (stroke.tool === 'raise' || stroke.tool === 'lower');
+        const terrain = terrainDocumentForMapV3(before);
+        let candidates = stroke.points;
+        if(expand){
+          const planned:MapPoint[]=[];
+          for(const point of stroke.points){
+            if(resolvedMapCellAt(terrain,point.tileX,point.tileY).elevation!==stroke.elevation)continue;
+            const footprints=[point,{tileX:point.tileX-1,tileY:point.tileY},{tileX:point.tileX,tileY:point.tileY-1},{tileX:point.tileX-1,tileY:point.tileY-1}]
+              .map(anchor=>minimumTerrainBrushPoints(anchor,before.width,before.height))
+              .filter(points=>points.length===4&&points.every(p=>{
+                const height=resolvedMapCellAt(terrain,p.tileX,p.tileY).elevation;
+                return height===stroke.elevation||height===stroke.patch.elevation;
+              }));
+            const footprint=footprints[0];
+            if(!footprint){this.#terrainAuthoringFeedback='This height needs a clear 2 by 2 area. Change height or turn Auto surround off.';return true;}
+            planned.push(...footprint);
+          }
+          candidates=[...new Map(planned.map(point=>[mapCellKey(point.tileX,point.tileY),point])).values()];
+        }
+        const points = stroke.tool === 'raise' || stroke.tool === 'lower'
+          ? candidates.filter(point=>resolvedMapCellAt(terrain,point.tileX,point.tileY).elevation === stroke.elevation) : candidates;
+        this.model.editTerrain({kind:'paint', points, patch:stroke.patch, }, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined);
         if (this.model.document() !== before) {
           if (stroke.consumesSample) this.#sampledTerrainPatch = null;
           if (this.#selectedExactTerrainOverride !== null) this.#selectedExactTerrainOverride = null;
@@ -1518,6 +1608,12 @@ export class MapEditorController {
     if (this.model.workspace() === 'terrain') {
       const shortcutIndex = /^[1-9]$/u.test(key) && !alt ? Number(key) - 1
         : /^[1-8]$/u.test(key) && alt ? 8 + Number(key) : -1;
+      if (this.#editingTool !== null && shortcutIndex >= 0) {
+        const tools: readonly MapEditingTool[] = ['objects','terrain','raise','lower','fill'];
+        if (tools[shortcutIndex]) this.selectEditingTool(tools[shortcutIndex]!);
+        else if (shortcutIndex === 5) this.toggleEyedropper();
+        return true;
+      }
       const tool = MAP_EDITOR_TERRAIN_TOOLS[shortcutIndex];
       if (tool !== undefined) {
         this.selectTerrainTool(tool);
@@ -1697,6 +1793,7 @@ export class MapEditorController {
     patch: MapCellPatch,
     tool: MapEditorTerrainTool,
   ): void {
+    const biome = this.#editingTool === null ? undefined : this.#materialBiome;
     const task = startMapEditorSurfaceFloodFill(document, start);
     const pending = Object.freeze({ task, document, tool });
     this.#floodFill = pending;
@@ -1706,7 +1803,7 @@ export class MapEditorController {
       if (points === null || this.#disposed || this.model.document() !== document
         || this.#activeLayer !== 'terrain' || this.model.workspace() !== 'terrain'
         || this.#terrainTool !== tool || !this.layerEditableAndVisible('terrain')) return;
-      this.model.editTerrain({ kind: 'paint', points, patch });
+      this.model.editTerrain({ kind: 'paint', points, patch }, biome);
       this.invalidate();
     }).catch((error: unknown) => {
       if (this.#floodFill !== pending) return;
@@ -1816,7 +1913,11 @@ export class MapEditorController {
           .some((cell) => cell.tileX === tileX && cell.tileY === tileY))?.candidate;
       if (object === undefined) return false;
       this.#activeLayer = object.layer;
-      this.#selectedPrefabId = object.prefabId;
+      const sampled=this.allPrefabs().find(prefab=>prefab.id===object.prefabId);
+      const originalId=sampled?.tags.find(tag=>tag.startsWith('studio.connection.source:'))?.slice('studio.connection.source:'.length);
+      const original=originalId===undefined?undefined:this.allPrefabs().find(prefab=>prefab.id===originalId);
+      this.#selectedPrefabId = original?.id ?? object.prefabId;
+      if(sampled?.tags.includes(MANUAL_OBJECT_CONNECTION_TAG))this.#automaticGeneration=false;
       this.#selectedBiome = null;
       this.#eyedropperActive = false;
       this.model.selectObject(object.id);
@@ -1834,6 +1935,18 @@ export class MapEditorController {
     }
     if (workspace !== 'terrain') return false;
     const cell = resolvedMapCellAt(terrainDocumentForMapV3(document), tileX, tileY);
+    if (this.#editingTool !== null) {
+      this.#material = { surface:cell.surface, feature:cell.feature, surfaceFamily:cell.surfaceFamily, cliffFamily:cell.cliffFamily, collision:cell.collision, collisionReason:cell.collisionReason ?? '', ledge:cell.ledge, terrainOverride:null };
+      this.#materialBiome = resolvedMapBiomeAt(document,tileX,tileY);
+      this.#materialId = cell.surface === 'grass' ? cell.surfaceFamily : cell.surface === 'water' ? cell.feature === 'river' ? 'water' : 'ocean' : cell.feature === 'path' || cell.feature === 'farmland' ? cell.feature : cell.surface;
+      const choices = mapMaterialChoices(this.#terrainPalette);
+      const match = choices.find(choice=>choice.biome===this.#materialBiome && choice.patch.surface===cell.surface && (choice.patch.feature??'none')===cell.feature && (choice.patch.cliffFamily??'stone_1')===cell.cliffFamily && (choice.patch.surfaceFamily??document.defaultSurfaceFamily??'grass_1')===cell.surfaceFamily);
+      if(match)this.#materialId=match.id;
+      this.#materialLabel = match?.label ?? this.#materialId.replaceAll('_', ' ');
+      this.#editingTool = 'terrain'; this.#eyedropperActive = false;
+      this.#activeLayer = 'terrain'; this.model.selectTile(tileX,tileY);
+      return true;
+    }
     const authoredCell = document.cells[mapCellKey(tileX, tileY)];
     this.#activeLayer = 'terrain';
     this.#terrainTool = 'inspect';
@@ -1873,6 +1986,7 @@ export class MapEditorController {
   }
 
   private selectionCursorActive(): boolean {
+    if (this.#editingTool !== null && this.#editingTool !== 'objects') return false;
     if (this.#eyedropperActive || this.#selectedPrefabId !== null || this.#selectedBiome !== null
       || this.#selectedAnchorKind !== null) return false;
     return this.model.workspace() !== 'terrain' || this.#terrainTool === 'inspect';
@@ -1926,9 +2040,12 @@ export class MapEditorController {
   }
 
   private placeSelectedPrefab(tileX: number, tileY: number, elevation: number): boolean {
-    const prefab = this.allPrefabs().find(({ id }) => id === this.#selectedPrefabId);
+    let prefab = this.allPrefabs().find(({ id }) => id === this.#selectedPrefabId);
     if (prefab === undefined || !OBJECT_LAYERS.has(this.#activeLayer)
       || !this.layerEditableAndVisible(this.#activeLayer)) return false;
+    if(this.#automaticGeneration && prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG))prefab={...prefab,tags:prefab.tags.filter(tag=>tag!==MANUAL_OBJECT_CONNECTION_TAG&&!tag.startsWith('studio.connection.source:')),id:`auto-${prefab.id.slice(0,59)}`};
+    if (!this.#automaticGeneration && !prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)) prefab = {...prefab, id:`manual-${prefab.id.slice(0,42)}-${[...prefab.id].reduce((hash,char)=>Math.imul(hash^char.charCodeAt(0),16777619)>>>0,2166136261).toString(16)}`,
+      tags:[...prefab.tags,MANUAL_OBJECT_CONNECTION_TAG,`studio.connection.source:${prefab.id}`]};
     if (!this.model.document().prefabs.some(({ id, revision }) => id === prefab.id && revision === prefab.revision)) {
       this.model.embedPrefab(prefab);
     }

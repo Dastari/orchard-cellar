@@ -154,7 +154,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review: docs/review/west-town-visual-pass-01.md; fixture-light tests cover this seam.
 
 // Combined review: docs/branch-integration-handoff.md; retain all three approved seam edits.
-const STRUCTURAL_SEAM_DIGEST = '778ffab4b522305edf708c8e7ee72714efa29128195a29a94bbb585231540ffb';
+// Live editor review: shared authored-object adjacency retains original-art fallback
+// and complete-document topology. See docs/studio-generation-rules.md.
+const STRUCTURAL_SEAM_DIGEST = 'f7a04fd823331be81a5104d3e7b225a142e97728c0b3c94f6eb8d4a73bc8588e';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

@@ -156,3 +156,12 @@ it('keeps the navigation scrollbar beside complete icons for an owner with every
   expect(thumb.track.x).toBeGreaterThanOrEqual(icon.rect.x + icon.rect.width);
   root.dispose();
 });
+
+it('respects editor-specific drawer bounds for fixed icon grids',()=>{
+ const changed=vi.fn();const root=new UiRoot({scale:1});root.resize(1000,700);
+ const shell=ui.workbench({navigation:[],workspace:ui.text('Map'),controls:{title:'Palette',content:ui.text('Objects'),width:uiFixed(90),minWidth:uiFixed(118),maxWidth:uiFixed(360)},onDrawerResize:changed});
+ root.mount(shell);root.arrange();
+ const handle=root.entries().find(e=>e.element.id==='workbench.controls.resize')!.element;
+ root.focus.set(handle);root.key({key:'Home'});root.arrange();expect(changed).toHaveBeenLastCalledWith('controls',uiFixed(118));
+ root.key({key:'End'});root.arrange();expect(changed).toHaveBeenLastCalledWith('controls',uiFixed(360));root.dispose();
+});

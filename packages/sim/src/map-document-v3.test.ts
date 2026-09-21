@@ -454,3 +454,15 @@ describe('MapDocumentV3', () => {
     ]);
   });
 });
+
+it('preserves explicit plains over generated island biomes and makes repeated material paint a no-op',()=>{
+ const source=createLiveIslandMapDocument();
+ let point={tileX:0,tileY:0};
+ for(let y=0;y<source.height;y+=8){for(let x=0;x<source.width;x+=8){if(resolvedMapBiomeAt(source,x,y)==='desert')point={tileX:x,tileY:y};}}
+ expect(resolvedMapBiomeAt(source,point.tileX,point.tileY)).toBe('desert');
+ const command={kind:'terrain' as const,command:{kind:'paint' as const,points:[point],patch:{surface:'grass' as const,feature:'none' as const}},biome:'plains' as const};
+ const edited=applyMapDocumentV3Edit(source,command).document;
+ const restored=parseMapDocumentV3(serializeMapDocumentV3(edited));
+ expect(resolvedMapBiomeAt(restored,point.tileX,point.tileY)).toBe('plains');
+ expect(applyMapDocumentV3Edit(edited,command).document).toBe(edited);
+});

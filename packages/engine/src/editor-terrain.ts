@@ -96,6 +96,7 @@ export function terrainArrayForMapDocument(
           : semanticDocument?.baseBiome ?? biomeForSurface(surface));
     biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
     horseJumpableTerrain[index] = survivalBiomeAllowsHorseJump(biome);
+    if (hasAuthoredSurface || semanticCell?.biome !== undefined) { dirtTerraces[index] = 0; dirtCliffRoles[index] = 0; }
     if (surface === 'dirt') dirtTerraces[index] = 1;
     if (compiled.features[index] === 'farmland') {
       authoredFarmland ??= new Uint8Array(length);
@@ -124,6 +125,7 @@ export function terrainArrayForMapDocument(
       : { fixedTerrainPlane: defaultTileSet.fixedPlane }),
     cliffFamilies: compiled.cliffFamilies,
     surfaceFamilies: compiled.surfaceFamilies,
+    authoredSurfaces: compiled.surfaces,
     terrainOverrides: compiled.terrainOverrides,
     ...(authoredFarmland === undefined ? {} : { authoredFarmland }),
     ledges: compiled.ledges,

@@ -1,3 +1,5 @@
+import { connectedObjectFamily, connectedObjectIndex } from '@orchard/sim';
+import { drawConnectedObject } from '@orchard/engine/connected-objects';
 import {
   TILE_SIZE_PIXELS,
   authoredMapContentPainterTie,
@@ -9,6 +11,7 @@ import {
   homesteadBuildFootprintTiles,
   mapLandmarkDecoration,
   treeGrowthStageName,
+  runtimeResourceDefinition,
   type ContentRegistry,
   type MiningNodeClass,
   type MapDocumentV3,
@@ -33,6 +36,7 @@ import {
   drawOverworldRogueEnemy,
   drawOverworldStump,
   drawOverworldTree,
+  drawAuthoredResourceVisual,
   drawOverworldTreeRegrowth,
   drawOverworldWildlife,
   enqueueLiveMapObjects,
@@ -43,6 +47,7 @@ import {
   preloadLiveMapObjectAssets,
   sortWorldDepthItems,
   terrainProjectedDepthAtFoot,
+  terrainElevationAtWorldFoot,
   terrainProjectedDepthForElevation,
   terrainProjectedElevationAtFoot,
   terrainProjectedSortOffset,
@@ -363,14 +368,11 @@ export const MAX_EDITOR_DETAILED_TILES = 20_000;
 export const EDITOR_ART_RETRY_INITIAL_MS = 1_000;
 export const EDITOR_ART_RETRY_MAXIMUM_MS = 60_000;
 
-/** Dense one-tile runtime substrates collapse into the terrain overview. At
- * fit-map zoom their minimum three-pixel markers overlap by design and repaint
- * thousands of invisible squares; the exact resources/surfaces return at the
- * same object-detail threshold used by production artwork. */
+/** Keep tree/resource markers visible at overview zoom; only flat surfaces collapse. */
 export function mapEditorOverviewLiveMarkerVisible(
   marker: Pick<MapEditorLiveMarker, 'entityKind'>,
 ): boolean {
-  return marker.entityKind !== 'resource' && marker.entityKind !== 'surface';
+  return marker.entityKind !== 'surface';
 }
 
 export function editorArtRetryDelayMs(failureCount: number): number {
@@ -1093,6 +1095,7 @@ export class MapEditorRenderer {
         (object.tileY + 1) * TILE_SIZE_PIXELS,
       ) && model.isLayerVisible(object.layer));
       enqueueLiveMapObjects({ ...mapDocument, objects: visibleObjects }, {
+        connectionDocument: mapDocument,
         context,
         cameraX: camera.x,
         cameraY: camera.y,
@@ -1143,12 +1146,19 @@ export class MapEditorRenderer {
 
     if (drawLiveArtwork) {
       const liveAnimationFrame = Math.floor(performance.now() / 125);
+      const connections = interaction.liveMarkers().flatMap(marker=>{
+        const presentation=resolveStudioLiveMarkerPresentation(this.#liveRegistry,marker);
+        const family=presentation.kind==='object'?connectedObjectFamily(presentation.definition.components.sprite?.asset??''):null;
+        return family?[{marker,family,tileX:marker.tileX,tileY:marker.tileY,elevation:marker.elevation??terrainElevationAtWorldFoot(terrain,marker.worldX,marker.worldY),space:marker.spaceId}]:[];
+      });
+      const masks=connectedObjectIndex(connections);
+      const byId=new Map(connections.map(cell=>[cell.marker.id,{family:cell.family,mask:masks(cell)}]));
       for (const marker of interaction.liveMarkers()) {
         if (!model.isLayerVisible(marker.layer)
           || !pointInsideCull(cull, marker.worldX, marker.worldY)) continue;
         this.enqueueLiveMarker(
           enqueueProjected, context, art, marker, marker.worldX, marker.worldY, camera,
-          liveAnimationFrame,
+          liveAnimationFrame, byId.get(marker.id),
         );
       }
     }
@@ -1257,11 +1267,13 @@ export class MapEditorRenderer {
     worldY: number,
     camera: { readonly x: number; readonly y: number; readonly zoom: number },
     animationFrameBase: number,
+    connection?: {family:NonNullable<ReturnType<typeof connectedObjectFamily>>;mask:number},
   ): void {
     if (!this.liveMarkerHasArtwork(marker)) return;
     const presentation = resolveStudioLiveMarkerPresentation(this.#liveRegistry, marker);
     const animationFrame = animationFrameBase + (marker.animationPhase ?? marker.id.length % 19);
     const draw = (): void => {
+      if(connection && marker.kind !== 'fence_gate' && drawConnectedObject(context,connection.family,connection.mask,worldX,worldY,camera.x,camera.y,camera.zoom)) return;
       if (presentation.kind === 'object') {
         const sprite = presentation.definition.components.sprite;
         const asset = sprite === undefined ? undefined : this.#liveObjectAssets.get(sprite.asset);
@@ -1279,7 +1291,16 @@ export class MapEditorRenderer {
             camera.x, camera.y, camera.zoom, sprite.scale ?? 1,
           ) || !presentation.legacyFallback) return;
         } else if (!presentation.legacyFallback) return;
-      } else if (presentation.kind === 'neutral') return;
+      } else if (presentation.kind === 'neutral' && ['placeable','chest','combat-target','npc'].includes(marker.entityKind)) return;
+      if(marker.entityKind==='resource' && this.#liveRegistry!==null) {
+        const definition=runtimeResourceDefinition(this.#liveRegistry,marker);
+        if(!definition)return;
+        const growth=treeGrowthStageName(marker.growthStage??3);
+        const visualState=marker.depleted?(growth==='small'?'depleted_small':growth==='medium'?'depleted_medium':'depleted'):growth==='small'||growth==='medium'?growth:'mature';
+        const nodeClass:MiningNodeClass=marker.miningClass==='pure'||marker.miningClass==='pristine'||marker.miningClass==='rock'?marker.miningClass:'mixed';
+        drawAuthoredResourceVisual(context,art,definition.visual,visualState,worldX,worldY,camera.x,camera.y,camera.zoom,nodeClass,marker.richness??1,animationFrame);
+        return;
+      }
       if (marker.entityKind === 'chest') {
         drawOverworldChest(
           context, art, worldX, worldY, camera.x, camera.y, camera.zoom, marker.open ? 5 : 0,

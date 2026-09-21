@@ -394,7 +394,7 @@ export function normalizeMapDocumentV3(document: MapDocumentV3): MapDocumentV3 {
   const cells = Object.fromEntries(Object.entries(document.cells)
     .map(([key, cell]) => [key, {
       ...(terrain.cells[key] ?? {}),
-      ...(cell.biome === undefined || cell.biome === document.baseBiome ? {} : { biome: cell.biome }),
+      ...(cell.biome === undefined || (!mapDocumentUsesSurvivalIslandBase(document) && cell.biome === document.baseBiome) ? {} : { biome: cell.biome }),
     }] as const)
     .filter(([, cell]) => Object.keys(cell).length > 0)
     .sort(([left], [right]) => left.localeCompare(right)));
@@ -561,7 +561,7 @@ export function mapDocumentV3Hash(document: MapDocumentV3): string {
 }
 
 export type MapDocumentV3EditCommand =
-  | { readonly kind: 'terrain'; readonly command: MapEditCommand }
+  | { readonly kind: 'terrain'; readonly command: MapEditCommand; readonly biome?: MapBiomeId }
   | { readonly kind: 'paint_biome'; readonly points: readonly MapPoint[]; readonly biome: MapBiomeId }
   | { readonly kind: 'embed_prefab'; readonly prefab: MapPrefabDocumentV2 }
   | { readonly kind: 'place_object'; readonly object: MapObjectInstance }
@@ -619,12 +619,21 @@ export function applyMapDocumentV3Edit(
   if (command.kind === 'terrain') {
     const terrain = terrainDocumentForMapV3(document);
     const edit = applyMapEdit(terrain, command.command);
-    if (edit.document === terrain) return { document, changed: [] };
-    return {
-      document: mergeTerrainEdit(document, edit),
-      changed: edit.changed,
-      ...(edit.fullRebuild === undefined ? {} : { fullRebuild: edit.fullRebuild }),
-    };
+    let next = edit.document === terrain ? document : mergeTerrainEdit(document, edit);
+    const changed = new Map(edit.changed.map(point => [mapCellKey(point.tileX, point.tileY), point]));
+    if (command.biome !== undefined && command.command.kind === 'paint') {
+      const cells = {...next.cells};
+      for (const point of command.command.points) {
+        if (point.tileX < 0 || point.tileY < 0 || point.tileX >= document.width || point.tileY >= document.height) continue;
+        const key = mapCellKey(point.tileX,point.tileY);
+        if (resolvedMapBiomeAt(next,point.tileX,point.tileY) === command.biome) continue;
+        cells[key] = {...cells[key],biome:command.biome};
+        changed.set(key,point);
+      }
+      if (changed.size > 0) next = normalizeMapDocumentV3({...next,cells,revision:document.revision+1});
+    }
+    return {document:next,changed:[...changed.values()],
+      ...(edit.fullRebuild === undefined ? {} : {fullRebuild:edit.fullRebuild})};
   }
   if (command.kind === 'paint_biome') {
     const cells = { ...document.cells };
@@ -635,7 +644,7 @@ export function applyMapDocumentV3Edit(
       if (resolvedMapBiomeAt(document, point.tileX, point.tileY) === command.biome) continue;
       cells[key] = {
         ...(cells[key] ?? {}),
-        ...(command.biome === document.baseBiome ? {} : { biome: command.biome }),
+        biome: command.biome,
       };
       if (Object.keys(cells[key]!).length === 0) delete cells[key];
       changed.push(point);
@@ -1031,3 +1040,5 @@ export function mapV3TerrainCellAt(document: MapDocumentV3, tileX: number, tileY
 export function serializeMapV3TerrainCompatibility(document: MapDocumentV3): string {
   return serializeMapDocument(terrainDocumentForMapV3(document));
 }
+
+export * from './connected-objects.js';

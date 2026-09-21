@@ -37,9 +37,9 @@ describe('map object catalog', () => {
     });
     expect(prefab.cells).toHaveLength(6);
     expect(prefab.cells.every((cell) => cell.collisionMask === 0xffff)).toBe(true);
-    expect(mapLayerForPaletteItem(tree)).toBe('gameplay');
+    expect(mapLayerForPaletteItem(tree)).toBe('canopy');
     expect(mapObjectCatalogEntries([tree], 'assets-r4')).toEqual([
-      expect.objectContaining({ item: tree, layer: 'gameplay',
+      expect.objectContaining({ item: tree, layer: 'canopy',
         prefab: expect.objectContaining({ id: 'asset-10-state-base-0' }) }),
     ]);
   });

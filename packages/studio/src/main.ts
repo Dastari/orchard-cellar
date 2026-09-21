@@ -2,12 +2,11 @@ import './shell/shell.css';
 
 const initialParameters = new URLSearchParams(location.search);
 const hasInitialOidcCallback = initialParameters.has('code') || initialParameters.has('error');
-let callbackCompleted = false;
 let callbackError: string | null = null;
 if (hasInitialOidcCallback) {
   try {
     const { completeStudioOidcCallback } = await import('./shell/auth.js');
-    callbackCompleted = await completeStudioOidcCallback();
+    await completeStudioOidcCallback();
   } catch (error: unknown) {
     callbackError = error instanceof Error ? error.message : String(error);
   }
@@ -40,22 +39,11 @@ const controller = new StudioShellController(
 app = new StudioShellApp(studioRoot, controller);
 app.mount();
 
+controller.chooseEnvironment('production');
 if (callbackError !== null) {
   controller.session.failed(callbackError);
   app.render();
-} else if (callbackCompleted) {
-  controller.chooseEnvironment('production');
+} else {
+  // Every visit authenticates and connects; no editable sandbox is mounted.
   void controller.connectExplicit().catch(() => undefined);
-}
- else {
-  try {
-    const { resumeStudioOidcSession } = await import('./shell/auth.js');
-    if (await resumeStudioOidcSession()) {
-      controller.chooseEnvironment('production');
-      await controller.connectExplicit();
-    }
-  } catch (error: unknown) {
-    controller.session.failed(error instanceof Error ? error.message : String(error));
-    app.render();
-  }
 }

@@ -145,3 +145,61 @@ describe('chunked ground cache', () => {
     expect(build).toHaveBeenCalledTimes(firstPassBuilds);
   });
 });
+
+it('selects the authored grass family and interior floor independently of the world projection',async()=>{
+ const {groundAssetForTile}=await import('./ground-cache.js');
+ const {terrainArrayForMapDocument}=await import('./editor-terrain.js');
+ const {createEmptyMapDocument,applyMapEdit}=await import('@orchard/sim');
+ const base=createEmptyMapDocument({id:'materials',title:'Materials',width:8,height:8});
+ const document=applyMapEdit(base,{kind:'paint',points:[{tileX:2,tileY:2}],patch:{surface:'cave_floor',cliffFamily:'dungeon_1'}}).document;
+ const terrain=terrainArrayForMapDocument(document);
+ const dungeon={} as OverworldArt['rogueDungeonFloor'],grass={} as OverworldArt['grass'];
+ const art={rogueDungeonFloor:dungeon,grass,terrainAssets:{tile_cf_grass_2_middle:grass}} as unknown as OverworldArt;
+ expect(groundAssetForTile(art,terrain,2,2,'highland')).toBe(dungeon);
+ const meadow={...terrain,defaultSurfaceFamily:'grass_2' as const};
+ expect(groundAssetForTile(art,meadow,1,1,'meadow')).toBe(grass);
+});
+
+it('uses neighboring grass palette fringe art without crossing height planes',async()=>{
+ const {authoredGrassFringeLayersAt}=await import('./ground-cache.js');
+ const {terrainArrayForMapDocument}=await import('./editor-terrain.js');
+ const {createEmptyMapDocument,applyMapEdit}=await import('@orchard/sim');
+ let document=createEmptyMapDocument({id:'fringe',title:'Fringe',width:5,height:5});
+ document=applyMapEdit(document,{kind:'paint',points:[{tileX:2,tileY:2}],patch:{surface:'sand'}}).document;
+ document=applyMapEdit(document,{kind:'paint',points:[{tileX:2,tileY:1}],patch:{surface:'grass',surfaceFamily:'grass_2'}}).document;
+ const terrain=terrainArrayForMapDocument(document);
+ expect(authoredGrassFringeLayersAt(terrain,2,2)).toEqual(expect.arrayContaining([expect.objectContaining({assetId:'tile_cf_grass_2_sheet',frame:1})]));
+ terrain.elevations[1*5+2]=1;
+ expect(authoredGrassFringeLayersAt(terrain,2,2)).toBeNull();
+});
+
+it('selects complete native cardinal and diagonal grass fringes for all four palettes',async()=>{
+ const {authoredGrassFringeLayersAt}=await import('./ground-cache.js');
+ const {terrainArrayForMapDocument}=await import('./editor-terrain.js');
+ const {createEmptyMapDocument,applyMapEdit}=await import('@orchard/sim');
+ for(const family of ['grass_1','grass_2','grass_3','grass_4'] as const){
+  for(const [dx,dy,frame] of [[0,-1,1],[0,1,33],[-1,0,16],[1,0,18],[-1,-1,65],[1,-1,64],[-1,1,49],[1,1,48]]){
+   let document=createEmptyMapDocument({id:'fringe-directions',title:'Fringe',width:5,height:5});
+   document=applyMapEdit(document,{kind:'paint',points:Array.from({length:25},(_,i)=>({tileX:i%5,tileY:Math.floor(i/5)})),patch:{surface:family==='grass_4'?'sand':'grass',surfaceFamily:'grass_4'}}).document;
+   document=applyMapEdit(document,{kind:'paint',points:[{tileX:2+dx!,tileY:2+dy!}],patch:{surface:'grass',surfaceFamily:family}}).document;
+   const terrain=terrainArrayForMapDocument(document);
+   // Grass 1–3 fringe onto lower-priority grass 4; grass 4 fringes onto beach.
+   expect(authoredGrassFringeLayersAt(terrain,2,2)).toEqual([{assetId:`tile_cf_${family}_sheet`,frame}]);
+  }
+ }
+});
+
+it('uses native corners and opaque fill for combined grass neighbors',async()=>{
+ const {authoredGrassFringeLayersAt}=await import('./ground-cache.js');
+ const {terrainArrayForMapDocument}=await import('./editor-terrain.js');
+ const {createEmptyMapDocument,applyMapEdit}=await import('@orchard/sim');
+ const frames=[null,1,18,2,33,-1,34,-1,16,0,-1,-1,32,-1,-1,-1];
+ for(let mask=0;mask<16;mask++){
+  let document=createEmptyMapDocument({id:'fringe-masks',title:'Fringe',width:5,height:5});
+  document=applyMapEdit(document,{kind:'paint',points:Array.from({length:25},(_,i)=>({tileX:i%5,tileY:Math.floor(i/5)})),patch:{surface:'grass',surfaceFamily:'grass_4'}}).document;
+  const points=[[0,-1],[1,0],[0,1],[-1,0]].flatMap(([dx,dy],index)=>mask&(1<<index)?[{tileX:2+dx!,tileY:2+dy!}]:[]);
+  document=applyMapEdit(document,{kind:'paint',points,patch:{surface:'grass',surfaceFamily:'grass_2'}}).document;
+  const frame=frames[mask];
+  expect(authoredGrassFringeLayersAt(terrainArrayForMapDocument(document),2,2)).toEqual(frame===null?[]:[{assetId:frame===-1?'tile_cf_grass_2_middle':'tile_cf_grass_2_sheet',frame:frame===-1?0:frame}]);
+ }
+});

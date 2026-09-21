@@ -71,10 +71,10 @@ describe('active-layer map context palette', () => {
     const gameplay = prefab('apple-tree', 'object', { kind: 'resource', archetype: 'resource.tree' });
     const canopy = prefab('oak-canopy', 'canopy', { kind: 'static' });
     expect([ground, object, gameplay, canopy].map(mapPrefabSuggestedLayer))
-      .toEqual(['ground', 'objects', 'gameplay', 'canopy']);
+      .toEqual(['ground', 'objects', 'canopy', 'canopy']);
     expect(mapContextPrefabPalette([ground, object, gameplay, canopy], 'objects', 'wood sign'))
       .toEqual([object]);
-    expect(mapContextPrefabPalette([ground, object, gameplay, canopy], 'gameplay', 'tree'))
+    expect(mapContextPrefabPalette([ground, object, gameplay, canopy], 'canopy', 'apple'))
       .toEqual([gameplay]);
     expect(mapContextPrefabPalette([ground], 'terrain')).toEqual([]);
   });

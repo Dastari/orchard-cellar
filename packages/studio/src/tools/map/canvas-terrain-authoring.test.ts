@@ -76,35 +76,12 @@ async function surfaceWithTerrainSelection(
 }
 
 describe('Map Canvas terrain authoring', () => {
-  it('mounts compact searchable Canvas modes with an explicit dry farmland warning', async () => {
-    const canvasContext = await context();
-    let surface = buildMapCanvasTool(canvasContext);
-    const modeIds = [
-      'map-terrain-mode-brush',
-      'map-terrain-mode-surface_family',
-      'map-terrain-mode-cliff_family',
-      'map-terrain-mode-exact_override',
-      'map-terrain-mode-farmland_visual',
-    ];
-    for (const id of modeIds) {
-      expect(kitElement(surface, id)).toMatchObject({kind:'button',focusable:true});
-    }
-    expect(kitElement(surface, 'map-terrain-tool-dirt')!.label).toContain('Dirt');
-
-    pressKit(surface, 'map-terrain-mode-farmland_visual');
-    surface = buildMapCanvasTool(canvasContext);
-    expect(kitElement(surface, 'map-terrain-farmland-visual')!).toMatchObject({
-      disabled: false,
-      label: 'Farmland · Visual — dry appearance only; wet soil and crops remain runtime authority',
-    });
-
-    const state = canvasContext.controller.toolState('map-canvas:terrain-lab', () => null) as unknown as {
-      readonly model: MapEditorModel;
-    };
-    state.model.toggleLayer('terrain');
-    surface = buildMapCanvasTool(canvasContext);
-    expect(kitElement(surface, 'map-terrain-farmland-visual')!.disabled).toBe(true);
-  });
+  it('shows semantic materials and gates them when Terrain is hidden',async()=>{
+ const c=await context();let s=buildMapCanvasTool(c);pressKit(s,'map-tool-terrain');s=buildMapCanvasTool(c);
+ const choices=()=> (kitElement(s,'map-palette-list')!.props['items'] as {id:string;disabled:boolean}[][]).flat();
+ expect(choices().some(x=>x.id==='map-material-farmland')).toBe(true);expect(choices().every(x=>!x.disabled)).toBe(true);
+ pressKit(s,'map-layer-visible-terrain');s=buildMapCanvasTool(c);expect(choices().every(x=>x.disabled)).toBe(true);
+});
 
   it('provides current/default/inherit/exact selection actions and gates mutations to Terrain', async () => {
     const canvasContext = await context();
@@ -113,6 +90,7 @@ describe('Map Canvas terrain authoring', () => {
       readonly model: MapEditorModel;
       readonly interaction: MapEditorController;
     };
+    state.interaction.selectEditingTool('terrain');
     state.model.selectTile(20, 20);
     state.interaction.selectSurfaceFamily('grass_3');
     let surface = await surfaceWithTerrainSelection(canvasContext);

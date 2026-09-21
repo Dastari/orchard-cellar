@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0 / Studio 0.9.0 — Live map authoring
+
+- Require sign-in and a verified live map before opening the Studio workspace; remove offline/connect toolbar controls.
+- Replace map drawer dropdowns with six tools, searchable virtual object/material icon grids, category filters, reticles, height controls and an Auto surround preference. Simplify each layer to visibility and selection.
+- Put authored and live resource trees under Canopy and render resources at overview and detail.
+- Preserve material, biome and collision together; constrain raise/lower to the active plane, generate local footprints, and retain interior floor and grass-family rendering.
+- Share height-aware native fence/hedge joins between Studio and gameplay, with persisted editor overrides. Audit all tile assets and native art limits in [generation rules](docs/studio-generation-rules.md).
+- Studio deploys independently; game/authority updates remain subject to a separate release.
+
 ## 0.15.0 / Studio 0.8.1 — Branch integration
 
 - Integrate the reviewed Studio editor, six connected gameplay slices, Willowharbour,

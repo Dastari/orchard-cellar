@@ -32,6 +32,7 @@ import {
   freshwaterInsetFrameIndicesAt,
   terrainDecorationHash,
   terrainElevationAt,
+  terrainCliffFamilyAt,
   terrainBiomeAt,
   terrainColorAt,
   terrainProjectionStyle,
@@ -400,21 +401,73 @@ function groundAssetForBiome(
   return art.grass;
 }
 
-function groundAssetForTile(
+export function groundAssetForTile(
   art: OverworldArt,
   terrain: TerrainArray,
   tileX: number,
   tileY: number,
   biome: SurvivalBiome,
 ): LoadedAsset {
+  if (terrain.authoredSurfaces?.[tileY*terrain.width+tileX] === 'cave_floor') {
+    const family=terrainCliffFamilyAt(terrain,tileX,tileY);
+    return family.startsWith('dungeon') ? art.rogueDungeonFloor : family.startsWith('volcanic') ? art.rogueVolcanicFloor : art.caveFloorMiddle;
+  }
   if (biome==='paving'&&terrain.dirtTerraces[tileY*terrain.width+tileX])return art.farmland;
-  if (biome !== 'plains') return groundAssetForBiome(art, biome);
+  if (!['plains','meadow','highland','forest','valley','ridge'].includes(biome)) return groundAssetForBiome(art, biome);
   const index = tileY * terrain.width + tileX;
   const familyId = surfaceFamilyAtIndex(terrain.surfaceFamilies?.[index] ?? 0)
     ?? terrain.defaultSurfaceFamily;
   if (familyId === undefined) return art.grass;
   const family = TERRAIN_SURFACE_FAMILIES[familyId];
   return art.terrainAssets[family.assetId] ?? art.grass;
+}
+
+/** Complete native grass fringes. Material priority makes family seams
+ * deterministic; neighbors on a different height never bleed onto this plane. */
+export function authoredGrassFringeLayersAt(terrain: TerrainArray, tileX: number, tileY: number): readonly {
+  assetId: string; frame: number;
+}[] | null {
+  const vegetated = (biome: SurvivalBiome) => ['plains','meadow','forest','valley','highland','ridge'].includes(biome);
+  const biome=terrainBiomeAt(terrain,tileX,tileY);
+  if(!vegetated(biome)&&biome!=='beach'&&biome!=='paving')return null;
+  const familyAt=(x:number,y:number)=>surfaceFamilyAtIndex(terrain.surfaceFamilies?.[y*terrain.width+x]??0)??terrain.defaultSurfaceFamily??'grass_1';
+  const own=vegetated(biome)?familyAt(tileX,tileY):null;
+  const height=terrainElevationAt(terrain,tileX,tileY);
+  const neighbor=(dx:number,dy:number)=>{
+    const x=tileX+dx,y=tileY+dy;
+    if(!groundTileInsideTerrain(terrain,x,y)||!vegetated(terrainBiomeAt(terrain,x,y))||terrainElevationAt(terrain,x,y)!==height)return null;
+    const family=familyAt(x,y);return own!==null&&family>=own?null:family;
+  };
+  const all=[neighbor(0,-1),neighbor(1,0),neighbor(0,1),neighbor(-1,0),neighbor(-1,-1),neighbor(1,-1),neighbor(-1,1),neighbor(1,1)];
+  if(own===null&&!all.some(family=>family!==null&&family!=='grass_1'))return null;
+  const layers:{assetId:string;frame:number}[]=[];
+  for(const family of new Set(all.filter(value=>value!==null))){
+    const definition=TERRAIN_SURFACE_FAMILIES[family];
+    const mask=(all[0]===family?1:0)|(all[1]===family?2:0)|(all[2]===family?4:0)|(all[3]===family?8:0);
+    // Adjacent sides use native corners, not overlapping straight fringes.
+    // Opposite sides fill the tile; sheet frame 17 is transparent, so use the
+    // separate opaque middle asset. -2 means no cardinal, -1 means full fill.
+    const frame=[-2,1,18,2,33,-1,34,-1,16,0,-1,-1,32,-1,-1,-1][mask]!;
+    if(frame===-1){layers.push({assetId:definition.assetId,frame:0});continue;}
+    if(frame>=0)layers.push({assetId:definition.sheetAssetId,frame});
+    // Flat diagonal fringes are the native quartet at columns 0–1, rows 3–4,
+    // distinct from raised ledge insets. Their taper spans the entire 16px tile.
+    for(const [dx,dy,corner] of [[-1,-1,65],[1,-1,64],[-1,1,49],[1,1,48]] as const){
+      if(neighbor(dx,dy)===family&&neighbor(dx,0)!==family&&neighbor(0,dy)!==family)
+        layers.push({assetId:definition.sheetAssetId,frame:corner});
+    }
+  }
+  layers.sort((a,b)=>b.assetId.localeCompare(a.assetId));
+  return layers;
+}
+
+function drawAuthoredGrassFringe(context:CanvasRenderingContext2D,art:OverworldArt,layers:NonNullable<ReturnType<typeof authoredGrassFringeLayersAt>>,localX:number,localY:number):void {
+  for(const layer of layers){
+    const asset=art.terrainAssets[layer.assetId];if(!asset)continue;
+    const frame=selectAtlasFrame(asset.metadata,'base',layer.frame);if(!frame)continue;
+    const source=worldAssetFrameSource(context,asset,frame);if(!source)continue;
+    context.drawImage(source.image,source.x,source.y,16,16,localX*16,localY*16,16,16);
+  }
 }
 
 export class GroundChunkCache {
@@ -812,8 +865,9 @@ export class GroundChunkCache {
           TILE_SIZE_PIXELS,
         );
         const base = groundAssetForTile(art, terrain, tileX, tileY, biome);
+        const interiorFloor = terrain.authoredSurfaces?.[tileY*terrain.width+tileX] === 'cave_floor';
         const baseFrame =
-          biome === 'paving'
+          interiorFloor ? (base === art.caveFloorMiddle ? 0 : (tileY % 3)*3+tileX%3) : biome === 'paving'
             ? terrain.dirtTerraces[tileY*terrain.width+tileX]?46:(tileY % 2) * 2 + tileX % 2
             : biome === 'volcanic_ash' || biome === 'lava'
             ? 4
@@ -825,6 +879,7 @@ export class GroundChunkCache {
                 ? desertShoreFrameIndexAt(terrain, tileX, tileY)
                 : 0;
         drawGroundAsset(context, base, localX, localY, baseFrame);
+        if (interiorFloor) continue;
 
         for (const shorelineInsetFrame of shorelineInsetFrameIndicesAt(
           terrain,
@@ -845,7 +900,9 @@ export class GroundChunkCache {
           tileX,
           tileY,
         );
-        if (grassSandFrame !== null)
+        const authoredFringe=authoredGrassFringeLayersAt(terrain,tileX,tileY);
+        if(authoredFringe!==null)drawAuthoredGrassFringe(context,art,authoredFringe,localX,localY);
+        if (authoredFringe===null && grassSandFrame !== null)
           drawGrassSandTransition(
             context,
             art.farmlandGrassInset,
@@ -855,7 +912,7 @@ export class GroundChunkCache {
           );
 
         const pavingGrassFrame=pavingGrassTransitionFrameIndexAt(terrain,tileX,tileY);
-        if(pavingGrassFrame!==null)drawGrassSandTransition(context,art.farmlandGrassInset,localX,localY,pavingGrassFrame);
+        if(authoredFringe===null && pavingGrassFrame!==null)drawGrassSandTransition(context,art.farmlandGrassInset,localX,localY,pavingGrassFrame);
 
         const savannaGrassFrame = savannaGrassTransitionFrameIndexAt(
           terrain,

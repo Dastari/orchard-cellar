@@ -109,7 +109,7 @@ describe('map editor render culling', () => {
   });
 
   it('collapses dense one-tile runtime substrates into the fit-map overview', () => {
-    expect(mapEditorOverviewLiveMarkerVisible({ entityKind: 'resource' })).toBe(false);
+    expect(mapEditorOverviewLiveMarkerVisible({ entityKind: 'resource' })).toBe(true);
     expect(mapEditorOverviewLiveMarkerVisible({ entityKind: 'surface' })).toBe(false);
     expect(mapEditorOverviewLiveMarkerVisible({ entityKind: 'player' })).toBe(true);
     expect(mapEditorOverviewLiveMarkerVisible({ entityKind: 'npc' })).toBe(true);

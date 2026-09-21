@@ -1,3 +1,4 @@
+import { studioLiveMapReadiness } from '../tools/map/verified-live-map.js';
 import type { UiWorkbenchNavigation } from '@orchard/ui/studio';
 import { bootstrapContentDefinitions, type FrameContentDefinition } from '@orchard/sim';
 import { CUTE_FANTASY_ACTOR_CATALOG } from '@orchard/engine';
@@ -170,6 +171,7 @@ export class StudioShellApp {
     if (!this.#kitArt || !this.#art) return;
     const labContent = studioLiveContentSnapshot(this.controller.liveAdapter());
     if (this.controller.activeRoute().path === '/author/ui-lab'
+      && (this.controller.session.snapshot().environment === 'sandbox' || this.controller.session.snapshot().phase === 'connected')
       && (labContent.mode === 'offline' || labContent.mode === 'ready')) {
       this.openLab(labContent.definitions); return;
     }
@@ -182,7 +184,7 @@ export class StudioShellApp {
     if (this.canvas.width !== Math.round(width*dpr)) this.canvas.width = Math.round(width*dpr);
     if (this.canvas.height !== Math.round(height*dpr)) this.canvas.height = Math.round(height*dpr);
     this.#root.resize(width,height,dpr);
-    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
+    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.liveAdapter()?.view().mapDocument?.contentHash,this.controller.liveAdapter()?.view().synchronizing,this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
     if (key !== this.#shellKey) { this.#shellKey = key; this.buildShell(); this.#dirtyTools = true; }
     this.#root.arrange();
     if (this.#dirtyTools && this.#uiPointerOwner === null) { this.#dirtyTools = false; this.buildTools(); this.#root.arrange(); }
@@ -203,6 +205,23 @@ export class StudioShellApp {
     for (const child of [...this.#root.tree.children]) child.dispose(); this.#palette = null; this.#regions = {};
     this.#controls = ui.flex({ width: 'grow', height: 'grow' }); this.#inspector = ui.flex({ width: 'grow',height:'grow' });
     this.#workspace = ui.stack({ width: 'grow', height: 'grow' }); this.#secondary = ui.stack({ width: 'grow', height: 'grow' });
+    const session = this.controller.session.snapshot();
+    const mapReadiness = this.controller.activeRoute().path === '/build/map' ? studioLiveMapReadiness(this.controller.liveAdapter()?.view().mapDocument) : null;
+    if (session.environment !== 'sandbox' && (session.phase !== 'connected' || mapReadiness !== null)) {
+      this.#surface?.input?.keyDown?.({key:'Escape',repeat:false,shiftKey:false,altKey:false,ctrlKey:false,metaKey:false});
+      this.#secondarySurface?.input?.keyDown?.({key:'Escape',repeat:false,shiftKey:false,altKey:false,ctrlKey:false,metaKey:false});
+      this.#toolPointerOwner = null;
+      this.#mountedToolLifecycles = reconcileStudioToolLifecycles(this.#mountedToolLifecycles, []);
+      this.#surface = null; this.#secondarySurface = null;
+      this.#primaryBounds = null; this.#secondaryBounds = null;
+      this.#root.mount(ui.flex({ width:'grow', height:'grow', align:'center', justify:'center', gap:12 }, [
+        ui.text(session.phase === 'error' ? 'Unable to open live Studio' : 'Connecting to live Studio', {role:'header'}),
+        ui.text(session.error ?? (session.phase === 'connected' ? mapReadiness ?? 'Loading live Studio' : 'Sign in to load the live map')),
+        ...(session.phase === 'connecting' ? [] : [ui.button({ id:'studio-retry', label:'Retry sign in',
+          onPress:()=>{void this.controller.connectExplicit().catch(()=>undefined);} })]),
+      ]));
+      return;
+    }
     const route = this.controller.activeRoute();
     const observe = (node: UiElement, side: 'primary' | 'secondary') => new UiElement({ kind: 'studio-workspace', style: { width: 'grow', height: 'grow', display: 'stack' }, children: [node], onArrange: element => {
       const rect = physical(element.rect), previous = side === 'primary' ? this.#primaryBounds : this.#secondaryBounds;
@@ -217,43 +236,9 @@ export class StudioShellApp {
       ]),secondary]), direction: this.#layoutState.direction, ratio: this.#layoutState.ratio,
       onResize: ratio => { this.#layoutState=resizeStudioCanvasSplit(this.#layoutState,ratio);this.persistLayoutSession();this.render(); },
     }) : primary;
-    const named = studioCanvasNamedLayoutName(route.tool.label,route.path);
-    const layoutMenuButton=ui.button({id:'studio-layout-menu',label:'Layout',size:'sm',onPress:()=>layoutMenu.open(layoutMenuButton)});
-    const layoutMenu=ui.menu({id:'studio-layout-actions',anchor:layoutMenuButton,items:[
-      {id:'save',label:'Save layout',onSelect:()=>this.saveNamedLayout(route)},
-      {id:'restore',label:'Restore layout',disabled:!this.controller.layouts.layouts(route.tool.mode).some(layout=>layout.name===named),onSelect:()=>this.restoreNamedLayout(route)},
-      {id:'split',label:'Toggle split',onSelect:()=>this.toggleSplit(route.tool.id)},
-      {id:'controls',label:'Show controls',onSelect:()=>{this.#activeDrawer='controls';this.#shellKey='';this.render();}},
-      {id:'inspect',label:'Show inspector',onSelect:()=>{this.#activeDrawer='inspector';this.#shellKey='';this.render();}},
-    ]});
-    const toolbar = ui.frame({style:'thin',layout:{width:'grow',height:uiFixed(32),shrink:0},children:[
-      ui.flex({direction:'row',width:'grow',height:'grow',gap:8,align:'center'},[
-        ui.select({id:'studio-route',label:'Workspace',size:'sm',value:route.path,
-          options:this.controller.tools.routes(this.controller.session.snapshot().role).map(candidate=>({value:candidate.path,
-            label:candidate.tool.routes.length>1?`${candidate.tool.label} / ${candidate.path.split('/').at(-1)!.replaceAll('-',' ')}`:candidate.tool.label})),
-          layout:{width:'grow'},onChange:path=>this.navigate(path)}),
-        ui.text(this.controller.session.snapshot().phase === 'connected'
-          ? `LIVE MAP R${this.controller.session.snapshot().mapRevision ?? '…'}`
-          : this.controller.session.snapshot().phase === 'connecting' ? 'CONNECTING'
-          : this.controller.session.snapshot().error !== null ? 'CONNECTION FAILED' : 'OFFLINE SANDBOX',
-          { id: 'studio-connection-status' }),
-        ui.button({ id: 'studio-connect', size: 'sm',
-          label: this.controller.session.snapshot().phase === 'connected' ? 'Disconnect' : 'Connect live',
-          disabled: this.controller.session.snapshot().phase === 'connecting',
-          onPress: () => {
-            if (this.controller.session.snapshot().phase === 'connected') this.controller.disconnect();
-            else {
-              this.controller.chooseEnvironment('production');
-              void this.controller.connectExplicit().catch(() => undefined);
-            }
-          },
-        }),
-        ui.flex({},[layoutMenuButton,layoutMenu]),
-      ]),
-    ]});
-    this.#root.mount(ui.flex({width:'grow',height:'grow'},[toolbar,ui.workbench({ navigation: this.routeNavigation(),
+    this.#root.mount(ui.flex({width:'grow',height:'grow'},[ui.workbench({ navigation: this.routeNavigation(),
       workspace, activeDrawer:this.#activeDrawer,
-      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),content:this.#controls},
+      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(118),maxWidth:uiFixed(360)}:{}),content:this.#controls},
       inspector:{title:'Selection',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector',width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
       onRegionArrange:(name,rect)=>{this.#regions[name]=physical(rect);this.#dirtyTools=true;},
       onRegionVisibility:(name,visible)=>{if(!visible)delete this.#regions[name];this.#dirtyTools=true;},
@@ -370,7 +355,7 @@ export class StudioShellApp {
     }
     this.#kitLab.resize();this.#kitLab.invalidate();
   }
-  private clampDrawer(value: number): number { return Math.max(180, Math.min(420, Math.round(value))); }
+  private clampDrawer(value: number): number { return Math.max(236, Math.min(720, Math.round(value))); }
   private persistDrawers(): void {
     try { sessionStorage.setItem(DRAWER_WIDTHS_KEY, JSON.stringify(this.#drawerWidths)); } catch { /* non-persistent sandbox */ }
   }
