@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.1 — September 22 integrated release
+
+- Combine Studio freeze recovery, atomic map deltas, responsive terrain and Canopy selection with NPC camera alignment, world interaction registration, the two-tile crafting workbench and picked-fruit visuals.
+- Preserve all six PR histories and their highest workspace versions; release scope and verification are recorded in [the release handoff](docs/release-2026-09-22.md).
+
 ## 0.21.0 — Picked fruit disappears from trees
 
 - Picking apples, pears, peaches, or cherries now shows the matching fruitless tree until fruit ripens again.
