@@ -22,3 +22,9 @@ Automatic raising/lowering must produce complete 2×2 top footprints at the sele
 Regression tests cover hover rebuild/dwell/leave, virtual palette tooltips, layer geometry, tree and tile previews, local resource move/undo/publish, valid raised footprints and sparse terrain parity with a complete compile. Profile a real-sized map to distinguish UI, persistence and compiler latency. Verify the actual canvas in an isolated browser without publishing test map edits.
 
 Studio builds retain the reviewed UI kit guard and may deploy under standing authorization after checks. Any new authority behavior beyond PR #47 needs a concrete reviewed release candidate and deployment approval. PR merges remain separately authorized.
+
+### Functional resource placement decision
+
+Persist optional `resourcePlacements` entries keyed by decimal resource ID, containing immutable origin coordinates and current destination coordinates. Historical documents omit the collection; an empty collection is canonicalized to omission so old map hashes remain unchanged. Movement and undo are ordinary document commands; the existing delta protocol sends only changed entries. Studio overlays these positions on live markers without changing their resource identity, art or harvest state.
+
+At map commit the authority validates new origins against existing resource rows, preserves origins on subsequent moves, rejects missing resources/blocked destinations, and updates only coordinates/chunk membership in the same transaction as the map head/history. Removing a placement restores its recorded origin. Generated-resource reconciliation reapplies published positions after generator refreshes. Authored fixed resource sites remain fixed until their site-specific placement contract can support relocation. This adds no database columns or reducers; the world module and Studio must deploy together for this new document collection.
