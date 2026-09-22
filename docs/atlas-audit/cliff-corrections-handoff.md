@@ -2,7 +2,8 @@
 
 ## Candidate and scope
 
-Branch `fix/terrain-cliff-rules`, based on merged PR #61 (`2e1d9a4f`).
+Branch `fix/terrain-cliff-rules`, [PR #62](https://github.com/Dastari/orchard-cellar/pull/62),
+based on merged PR #61 (`2e1d9a4f`). PR #62 is not merged.
 Workspace 0.23.2, Studio 0.13.2, sim 0.21.1, engine 0.20.1.
 
 The shared local placement helper prevents competing inset blocks only within
@@ -28,7 +29,8 @@ native family artwork while preserving a different live asset override.
   This file is review evidence, **not** a captured live content release candidate.
 - Local guide: `http://10.0.1.150:8872/docs/atlas-audit/terrain/index.html`, served by
   user unit `orchard-terrain-preview.service`. Its isolated web root exposes the
-  audit and licensed art only, not repository secrets.
+  audit, licensed art and five explicitly linked rule source files, not repository
+  secrets or the whole checkout.
 
 ## Outstanding source and assembly gaps
 
@@ -57,4 +59,29 @@ user's approval for that specific release.
 
 ## Validation and deployment evidence
 
-Final aggregate check and release results are recorded below when complete.
+- Full runtime coverage: 5,957 tests / 963 files passed; coverage thresholds met.
+  Exhaustive terrain/canvas suite: 101 tests / seven files passed.
+- The final asset step initially identified duplicate shroomland lower inverse
+  art across tall and compact banks. Source pixels confirm primary frames 12/13
+  at `(48,16)` / `(64,16)` equal ledge frames 10/11 at `(48,112)` / `(64,112)`.
+  Only these aliases were declared using the existing mechanism; the validator
+  was not relaxed. All 16 registry tests, sim types/lint and final asset validation
+  pass after that metadata correction (1,320 assets, three songs, ten SFX).
+- Workspace typecheck/lint, lifecycle/content validation and world build passed.
+  The guarded Studio production build passed on the final source.
+- Catalogue regeneration/check: 303 artifacts, 8,448 raw masks, 105 waterfall
+  cases. Browser verification: all 295 displayed images and 559 local links load.
+- Studio 0.13.2 deployed from application source `c51ea330477b62396187b99a78c39eab63bfd522`.
+  All 3,826 tracked staged inputs match that source. Subsequent changes in this
+  PR record generated catalogue metadata and release evidence only.
+- Reviewed source: `/home/toby/.local/state/orchard-release/cliff-studio-0132-release-source`.
+  Artifact: `/home/toby/.local/state/orchard-release/cliff-studio-0132-release-artifact`.
+  Evidence and verified rollback: `/home/toby/.local/state/orchard-release/cliff-studio-0132`.
+- Public bundle `/assets/index-BfqkjMMM.js`, SHA-256
+  `bb2cb4e75e883fc4c391831500d92363eee98af289d0675cf4630d1997ad2849`.
+  Installed manifest/public static checks pass. Authorized account verification
+  opens the live map, loaded artwork and Published state on that exact bundle.
+  Game/world service PIDs are unchanged; no map or content writes were performed.
+- GitHub CI status is maintained on PR #62. The initial asset-check failure above
+  is corrected in the final candidate; do not confuse obsolete run status with
+  the current PR head.
