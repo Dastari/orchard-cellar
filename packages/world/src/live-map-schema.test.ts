@@ -26,22 +26,14 @@ describe('revisioned live map authority', () => {
     expect(source).toContain('LIVE_MAP_ALLOWED_BEHAVIORS');
   });
 
-  it('rejects terrain which cannot be reproduced by the bootstrap engine registry', () => {
-    expect(source).toContain(
-      'const LIVE_MAP_TILESET_RESOLVER = runtimeTilesetResolver(bootstrapTilesetDefinitions())',
-    );
-    const validation = source.slice(
-      source.indexOf('function validatedLiveMapDocument'),
-      source.indexOf('function commitLiveMapSnapshot'),
-    );
-    expect(validation).toContain('validateMapDocument(');
-    expect(validation).toContain('LIVE_MAP_TILESET_RESOLVER');
-    expect(validation).toContain("terrainIssues.some(({ severity }) => severity === 'error')");
-    expect(validation).toContain("throw new SenderError('invalid_live_map_terrain')");
-    expect(validation.indexOf('validateMapDocument(')).toBeLessThan(validation.indexOf('return document'));
+  it('validates document data without enforcing whole-map design conventions', () => {
+    const validation = source.slice(source.indexOf('function validatedLiveMapDocument'), source.indexOf('function commitLiveMapSnapshot'));
+    expect(validation).toContain('validateLiveMapShape(document)');
+    expect(validation).not.toContain('validateMapDocument(');
+    expect(validation).not.toContain('invalid_live_map_terrain');
   });
 
-  it('inherits fail-closed transition capability findings before live publication', () => {
+  it('retains optional design diagnostics without using them as publication gates', () => {
     const base = createEmptyMapDocument({ id: 'live-island', title: 'Transition Gate', width: 4, height: 4 });
     const raised = applyMapEdit(base, {
       kind: 'paint',

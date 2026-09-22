@@ -62,7 +62,7 @@ export class UiRoot {
   arrange(): UiArrangeStats {
     if (this.tree.props['art'] !== this.art) this.tree.setProps({ art: this.art }, false);
     const stats = arrangeUiElement(this.tree, this.viewport, this.viewport, this.viewport);
-    this.focus.update(this.entries()); this.textBridge?.sync(); return stats;
+    this.focus.update(this.entries()); this.input.reconcileHover(); this.textBridge?.sync(); return stats;
   }
   draw(context: CanvasRenderingContext2D, now = performance.now(), clear = true, view?: { readonly scale: number; readonly x: number; readonly y: number; readonly clip?: UiRect }): void {
     context.save();

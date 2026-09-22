@@ -6,6 +6,9 @@ import { uiTopModal, type UiPaintEntry } from './layers.js';
 export type UiRootPointer = Omit<UiElementPointer, 'capture' | 'release'>;
 export class UiInput {
   hovered: UiElement | null = null;
+  private hoverPoint: UiPoint | null = null;
+  private hoverKey: string | null = null;
+  private hoverSince = 0;
   private captured = new Map<number, UiElement>();
   private thumbDrag: { pointer: number; node: UiElement; axis: 'x' | 'y'; start: number; offset: number; travel: number } | null = null;
   constructor(private readonly entries: () => readonly UiPaintEntry[], readonly focus: UiFocus,
@@ -35,7 +38,7 @@ export class UiInput {
     if (event.type === 'down') for (const { element } of this.entries()) if (element.hooks.onOutsidePointer && this.allowed(element) && !containsPoint(element.rect, event.point)) element.hooks.onOutsidePointer(element, event.point);
     const hits = this.hits(event.point);
     if (event.type === 'down' && event.button === 2) for (const node of hits) if (node.hooks.onContextMenu?.({ ...event, capture() {}, release() {} }, node)) return true;
-    if (event.type === 'move') this.setHover(hits[0] ?? null);
+    if (event.type === 'move' || event.type === 'down') { this.hoverPoint = event.point; this.setHover(hits[0] ?? null); }
     if (event.type === 'down') {
       this.focus.set(hits.find(node => node.focusable) ?? null, 'pointer');
       for (const node of hits) for (const axis of ['y', 'x'] as const) {
@@ -107,11 +110,21 @@ export class UiInput {
   text(text: string): boolean { const node = this.focus.current; return node && this.allowed(node) ? node.hooks.onText?.(text, node) ?? false : false; }
   private setHover(next: UiElement | null): void {
     if (next === this.hovered) return;
-    const previous = this.hovered; this.hovered = next;
+    const previous = this.hovered;
+    let key: string | null = null;
+    for (let node = next; node; node = node.parent) {
+      if (!/^ui-\d+$/u.test(node.id) && node.id !== 'ui-root') {
+        key = `${node.id}:${node.rect.x},${node.rect.y},${node.rect.width},${node.rect.height}`; break;
+      }
+    }
+    if (key === null || key !== this.hoverKey) this.hoverSince = performance.now();
+    this.hoverKey = key; this.hovered = next;
     for (let node = previous; node; node = node.parent) if (!next?.isDescendantOf(node)) node.hooks.onHover?.(false, node);
-    for (let node = next; node; node = node.parent) if (!previous?.isDescendantOf(node)) node.hooks.onHover?.(true, node);
+    for (let node = next; node; node = node.parent) if (!previous?.isDescendantOf(node)) node.hooks.onHover?.(true, node, this.hoverSince);
     this.invalidate();
   }
-  clearHover(): void { this.setHover(null); }
+  /** Layout and retained-tree replacement can change the hit without a mouse move. */
+  reconcileHover(): void { if (this.hoverPoint) this.setHover(this.hits(this.hoverPoint)[0] ?? null); }
+  clearHover(): void { this.hoverPoint = null; this.setHover(null); }
   dispose(): void { this.captured.clear(); this.thumbDrag = null; this.clearHover(); }
 }

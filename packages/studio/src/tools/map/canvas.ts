@@ -16,10 +16,10 @@ import {
 import { mapMaterialChoices, mapObjectCategory, mapPaletteColumns, MAP_OBJECT_FILTERS, type MapObjectFilter } from './material-palette.js';
 import { mapPixelToolIcon, type MapPixelTool } from './pixel-tool-icons.js';
 import { studioLibraryDrawer } from '../../shell/workspace-controls.js';
-import { terrainProjectedDepthForElevation, type TerrainArray } from '@orchard/engine';
+import { terrainProjectedDepthForElevation, terrainInspectionVisualLayout, type TerrainArray } from '@orchard/engine';
 import {
   ui as kit, uiFixed, UiElement, type UiButtonModifiers, type UiTone,
-  CanvasTextEditor, drawUiSkinAsset,
+  CanvasTextEditor, drawUiSkinAsset, uiInventorySelectorRect,
   STUDIO_SKIN_TOKENS,
   loadGeneratedAsset,
   loadGeneratedAssetCatalog,
@@ -154,6 +154,7 @@ interface MapCanvasState {
   resizeMode: boolean;
   resizeImpact: MapResizeImpact | null;
   dismissedConflictRevision: number | null;
+  publishError: string | null;
   selectionOffset: number;
   selectionBounds: UiRect;
   selectionRowCount: number;
@@ -263,14 +264,6 @@ export function mapEditorPublishPresentation(input: {
   if (!input.dirty) return {
     state: 'CLEAN', disabled: true, icon: 'save',
     tooltip: 'CLEAN — No unpublished map changes',
-  };
-  if (input.validation === 'pending') return {
-    state: 'DIRTY', disabled: true, icon: 'cloudPublish',
-    tooltip: 'DIRTY — Wait for map validation to finish',
-  };
-  if (input.validation === 'invalid') return {
-    state: 'DIRTY', disabled: true, icon: 'lock', tone: 'danger',
-    tooltip: 'DIRTY — Resolve blocking map validation errors before publishing',
   };
   if (input.synchronizing) return {
     state: 'DIRTY', disabled: true, icon: 'cloudPublish',
@@ -413,6 +406,7 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
     resizeMode: false,
     resizeImpact: null,
     dismissedConflictRevision: null,
+    publishError: null,
     selectionOffset: 0,
     selectionBounds: { x: 0, y: 0, width: 0, height: 0 },
     selectionRowCount: 0,
@@ -628,11 +622,13 @@ function publishMapFromCanvas(
   context: StudioCanvasToolContext,
 ): Promise<void> {
   const title = state.model.document().title;
+  state.publishError = null;
   const pending = state.model.publish();
   context.invalidate();
   return pending.then(() => {
     context.controller.notifications.push('success', 'Map published', title);
   }).catch((error: unknown) => {
+    state.publishError = error instanceof Error ? error.message : String(error);
     reportCanvasError(context, 'Map publish failed', error);
     throw error;
   }).finally(context.invalidate);
@@ -1305,6 +1301,7 @@ export function selectedGeneratedMapDescriptor(
     source: `live-world:${marker.entityKind}`,
     provenance: 'live',
     runtimeKind: marker.kind,
+    movable: marker.entityKind==='resource'&&marker.layer==='canopy'&&!marker.fixedResourceSite,
     details,
     suppressionId: marker.entityKind === 'resource' ? `resource-${marker.id}` : null,
   };
@@ -1316,7 +1313,7 @@ function generatedDescriptorKey(descriptor: MapGeneratedSelectionDescriptor | nu
     descriptor.tileX, descriptor.tileY, descriptor.elevation, descriptor.layer,
     descriptor.source, descriptor.provenance ?? '', descriptor.runtimeKind ?? '',
     descriptor.details?.map(({ label, value }) => `${label}:${value}`).join(',') ?? '',
-    descriptor.suppressionId ?? '',
+    descriptor.suppressionId ?? '', descriptor.movable === true,
   ].join('|');
 }
 
@@ -1426,7 +1423,7 @@ function paletteReticle(state: MapCanvasState, context: StudioCanvasToolContext)
   const asset = previewAsset(state, context, 'ui_cf_selector_confirm');
   return new UiElement({kind:'palette-selection-reticle',style:{position:'absolute',inset:{left:0,right:0,top:0,bottom:0}},
     paintOverlay(element,{context:ctx}) {
-      if (asset) drawUiSkinAsset(ctx,asset,element.rect,'idle');
+      if (asset) drawUiSkinAsset(ctx,asset,uiInventorySelectorRect({x:element.rect.x+2,y:element.rect.y+2,width:Math.max(0,element.rect.width-4),height:Math.max(0,element.rect.height-4)},1),'idle');
     }});
 }
 
@@ -1636,7 +1633,7 @@ function mapPublishButton(state:MapCanvasState,context:StudioCanvasToolContext):
     conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),
     connected:view?.connected===true,synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
     publishAvailable:context.controller.liveAdapter()?.publishMap!==undefined});
-  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?'Publishing…':state.model.dirty()?'Publish changes':'Published',
+  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?'Publishing…':state.publishError!==null?'Retry publish':state.model.dirty()?'Publish changes':'Published',
     disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},leading:kit.icon({cf:'save'})}),
     {width:'grow',minWidth:uiFixed(0),shrink:0});
 }
@@ -1967,10 +1964,20 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     const terrainPreviewId=terrainCell?.surfaceFamily??`biome-${inspection.terrain.biome}`;
     const terrainPreview=mapMaterialChoices(state.terrainPalette,'').find(value=>value.id===terrainPreviewId)?.preview;
     const landmark=state.model.document().landmarks.find(value=>value.id===inspection.entity?.id);
-    const marker=state.interaction.liveMarkers().find(value=>value.id===inspection.entity?.id);
+    const selection=state.model.selection();
+    const marker=selection.kind==='entity'?state.interaction.liveMarkers().find(value=>value.id===selection.id&&value.entityKind===selection.entityKind&&value.spaceId===selection.spaceId):undefined;
     const preview=marker?state.renderer.liveMarkerPreview(marker):landmark?state.renderer.landmarkPreview(landmark.kind):prefab?prefabPreview(state,context,prefab):inspection.target==='tile'&&terrainPreview
       ?terrainChoicePreview(state,context,terrainPreview):undefined;
-    if(preview)children.push(kit.image(preview.image,preview.frame,{id:'map-selection-preview',label:inspection.entity?.name??'Selected terrain',fit:'contain',quarterTurns:selected?.quarterTurns,flipX:selected?.flipX,
+    if(inspection.target==='tile') {
+      const composition=inspection.visualComposition,layout=terrainInspectionVisualLayout(composition);
+      children.push(new UiElement({id:'map-tile-composition',kind:'tile-composition',label:'Tile composition',
+        style:{width:'grow',height:uiFixed(Math.ceil(layout.height*Math.min(1,Math.max(1,context.inspectorBounds!.width/2-16)/layout.width))),shrink:0},paint(element,{context:ctx}) {
+          const scale=Math.min(1,element.rect.width/layout.width);
+          ctx.save();ctx.translate(element.rect.x+(element.rect.width-layout.width*scale)/2,element.rect.y);ctx.scale(scale,scale);
+          state.renderer.drawTileInspection(ctx,composition);ctx.restore();
+        }}));
+    }
+    if(preview&&inspection.target!=='tile')children.push(kit.image(preview.image,preview.frame,{id:'map-selection-preview',label:inspection.entity?.name??'Selected terrain',fit:'contain',quarterTurns:selected?.quarterTurns,flipX:selected?.flipX,
       layout:{width:'grow',height:uiFixed(48),shrink:0}}));
     const editableAnchor = inspection.entity?.kind==='authored_anchor'&&!inspection.entity.readOnly;
     if(state.editingAnchorId!==null&&(!editableAnchor||inspection.entity?.id!==state.editingAnchorId))cancelAnchorLabelEdit(state);
@@ -2039,22 +2046,22 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
   const layerRows=layers.map(layer=>{
     const visible=state.model.isLayerEyeVisible(layer.id);
     const activate=(id:string,label:string,onPress:()=>void,content:UiElement,width?:number)=>new UiElement({
-      id,kind:'layer-action',label,focusable:true,pointerMode:'capture',style:{width:width?uiFixed(width):'grow',height:uiFixed(14),padding:0},children:[content],
+      id,kind:'layer-action',label,focusable:true,pointerMode:'capture',style:{display:'flex',direction:'row',align:'center',justify:width?'center':'start',width:width?uiFixed(width):'grow',height:uiFixed(16),padding:0},children:[content],
       onPointer(event,element){if(event.button!==0)return false;if(event.type==='down')return true;
         if(event.type==='up'&&event.point.x>=element.rect.x&&event.point.x<element.rect.x+element.rect.width
           &&event.point.y>=element.rect.y&&event.point.y<element.rect.y+element.rect.height){onPress();return true;}return event.type==='move';},
       onKey(event){if(event.key==='Enter'||event.key===' '){onPress();return true;}return false;}});
-    return new UiElement({kind:'map-layer-row',props:{selected:activeId===layer.id},style:{display:'flex',direction:'row',width:'grow',height:uiFixed(14),gap:4,shrink:0},
+    return new UiElement({kind:'map-layer-row',props:{selected:activeId===layer.id},style:{display:'flex',direction:'row',width:'grow',height:uiFixed(16),align:'center',gap:2,shrink:0},
       paint(element,{context:ctx}){if(activeId===layer.id){ctx.fillStyle='#4f8b54';ctx.fillRect(element.rect.x,element.rect.y,element.rect.width,element.rect.height);}},children:[
       kit.tooltip(`${visible?'Hide':'Show'} ${layer.label}`,activate(`map-layer-visible-${layer.id}`,`${visible?'Hide':'Show'} ${layer.label}`,
-        ()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},kit.icon({fantasy:visible?'check_white_medium':'minus_white_small'},{layout:{width:uiFixed(12),height:uiFixed(12)}}),14),{width:uiFixed(14),height:uiFixed(14)}),
+        ()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},kit.icon({fantasy:visible?'check_white_medium':'minus_white_small'},{layout:{width:uiFixed(8),height:uiFixed(8)}}),12),{width:uiFixed(12),height:uiFixed(16)}),
       activate(`map-layer-select-${layer.id}`,layer.label,()=>{
         state.interaction.selectEditingTool(layer.id==='terrain'||layer.id==='generated_base'?'terrain':'objects');
         state.interaction.selectLayer(layer.id);state.paletteOffset=0;context.invalidate();
       },kit.text(layer.label,{maxLines:1,layout:{width:'grow',minWidth:uiFixed(0)}})),
     ]});
   });
-  panels.push(kit.frame({id:'map-layers-panel',style:'thin',header:{title:'Layers'},layout:{width:'grow',height:uiFixed(layers.length*14+52),shrink:0},
+  panels.push(kit.frame({id:'map-layers-panel',style:'thin',header:{title:'Layers'},layout:{width:'grow',height:uiFixed(layers.length*16+52),shrink:0},
     children:[kit.scrollArea({width:'grow',height:'grow'},[kit.flex({width:'grow'},layerRows)])]}));
   parts.kit.inspector=kit.flex({width:'grow',height:'grow',gap:8},panels);
 }
@@ -2178,6 +2185,16 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
     appendRuntimeObjectOverlay(state, context, parts);
     appendNpcLocationOverlay(state, context, parts);
     appendSchemaInspectorOverlay(state, context, parts, mapId);
+    if (state.publishError !== null) {
+      appendMapOverlayPanel(parts, context, 'publish-error', [
+        kit.text('Publish failed — your draft is retained', { id: 'map-publish-error-title', maxLines: 2 }),
+        kit.text(state.publishError, { id: 'map-publish-error-message', maxLines: 4 }),
+        mapOverlayAction('publish-error-retry', 'Retry publish', () => state.autoPublish.requestManual(), {
+          disabled: state.model.publishing() || !state.model.dirty(),
+        }),
+        mapOverlayAction('publish-error-dismiss', 'Dismiss', () => { state.publishError = null; context.invalidate(); }),
+      ]);
+    }
   }
   persistSession(state);
 

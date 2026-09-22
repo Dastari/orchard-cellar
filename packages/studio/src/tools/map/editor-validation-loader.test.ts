@@ -52,7 +52,7 @@ describe('map editor validation worker queue', () => {
     await expect(third).resolves.toEqual([expect.objectContaining({ code: 'latest' })]);
   });
 
-  it('debounces structural edits and applies the exact worker result', async () => {
+  it('runs whole-map design checks only when explicitly requested', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('Worker', FakeWorker);
     const {
@@ -73,6 +73,9 @@ describe('map editor validation worker queue', () => {
       points: [{ tileX: 400, tileY: 400 }],
       patch: { surface: 'stone' },
     });
+    expect(validation.issues()).toEqual([]);
+    expect(FakeWorker.instances).toHaveLength(0);
+    model.validateDesign();
     expect(validation.issues()).toEqual([expect.objectContaining({
       id: 'map_validation_pending', severity: 'info',
     })]);
@@ -115,6 +118,7 @@ describe('map editor validation worker queue', () => {
       points: [{ tileX: 400, tileY: 400 }],
       patch: { surface: 'stone' },
     });
+    model.validateDesign();
     model.dispose();
     await vi.advanceTimersByTimeAsync(MAP_EDITOR_VALIDATION_DEBOUNCE_MS);
 

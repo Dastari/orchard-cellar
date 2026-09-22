@@ -265,6 +265,7 @@ export function mapEditorTerrainCommand(
   points: readonly MapPoint[],
   document: MapDocumentV3,
   activeElevation: number,
+  automaticSurround = true,
 ): MapEditCommand | null {
   const unique = [...new Map(points.map((point) => [`${point.tileX},${point.tileY}`, point])).values()];
   if (unique.length === 0 || tool === 'inspect') return null;
@@ -282,7 +283,7 @@ export function mapEditorTerrainCommand(
   }
   const terrain = terrainDocumentForMapV3(document);
   if (unique.length < 3) {
-    const brush = minimumTerrainBrushPoints(unique[0]!, document.width, document.height);
+    const brush = automaticSurround ? minimumTerrainBrushPoints(unique[0]!, document.width, document.height) : unique;
     const sampled = resolvedMapCellAt(terrain, unique[0]!.tileX, unique[0]!.tileY).elevation;
     const elevation = tool === 'raise' ? sampled + 1
       : tool === 'lower' ? sampled - 1
@@ -290,18 +291,18 @@ export function mapEditorTerrainCommand(
     return { kind: 'paint', points: brush, patch: {
       elevation: Math.max(-TERRAIN_ELEVATION_LIMIT, Math.min(TERRAIN_ELEVATION_LIMIT, elevation)),
       cliffFamily: document.defaultCliffFamily ?? 'stone_1',
-    }, enforceMinimumTerrainFootprint: true };
+    }, enforceMinimumTerrainFootprint: automaticSurround };
   }
   if (tool === 'raise' || tool === 'lower') return {
     kind: 'change_elevation_polygon', polygon: unique, delta: tool === 'raise' ? 1 : -1,
-    enforceMinimumTerrainFootprint: true,
+    enforceMinimumTerrainFootprint: automaticSurround,
   };
   if (tool === 'set_elevation') return {
     kind: 'set_elevation_polygon', polygon: unique, elevation: activeElevation,
-    enforceMinimumTerrainFootprint: true,
+    enforceMinimumTerrainFootprint: automaticSurround,
   };
   if (tool === 'flatten') return {
-    kind: 'flatten_elevation_polygon', polygon: unique, enforceMinimumTerrainFootprint: true,
+    kind: 'flatten_elevation_polygon', polygon: unique, enforceMinimumTerrainFootprint: automaticSurround,
   };
   return null;
 }
@@ -338,7 +339,7 @@ export interface MapEditorInteractionSnapshot {
   readonly scatterDensity: number;
   readonly eyedropperActive: boolean;
   readonly dragDestination: {
-    readonly kind: 'object' | 'landmark' | 'anchor';
+    readonly kind: 'object' | 'landmark' | 'anchor' | 'resource';
     readonly id: string;
     readonly tileX: number;
     readonly tileY: number;
@@ -392,6 +393,7 @@ export interface MapEditorLiveMarker {
   readonly open?: boolean;
   readonly lit?: boolean;
   readonly health?: number;
+  readonly fixedResourceSite?: boolean;
   readonly maxHealth?: number;
   readonly depleted?: boolean;
   readonly growthStage?: number;
@@ -597,12 +599,14 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
   }
   for (const row of liveRows?.resources ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
+    const definition=row.definitionId?registry?.resources?.get(row.definitionId):undefined;
+    const fixedResourceSite=definition?.fixedSites?.some(site=>BigInt(site[0])===row.id)??false;
     markers.push({ id: row.id.toString(), entityKind: 'resource', kind: row.kind, definitionId: row.definitionId, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
       layer: ((row.definitionId&&registry?.resources?.get(row.definitionId)?.visual.kind==='tree')||isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined)) ? 'canopy' : 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
       growthStage: row.growthStage, miningClass: row.miningClass, richness: row.richness,
-      maxHealth: row.maximumRichness });
+      maxHealth: row.maximumRichness, fixedResourceSite });
   }
   for (const row of liveRows.combatTargets ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
@@ -657,7 +661,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
 }
 
 interface DragState {
-  readonly kind: 'object' | 'landmark' | 'anchor';
+  readonly kind: 'object' | 'landmark' | 'anchor' | 'resource';
   readonly id: string;
   readonly offsetX: number;
   readonly offsetY: number;
@@ -742,6 +746,9 @@ export class MapEditorController {
   #staticLiveMarkers: readonly MapEditorLiveMarker[] = [];
   #dynamicLiveMarkers: readonly MapEditorLiveMarker[] = [];
   #liveMarkers: readonly MapEditorLiveMarker[] = [];
+  #placedMarkerSource: readonly MapEditorLiveMarker[] | null = null;
+  #placedMarkerDocument: MapDocumentV3 | null = null;
+  #placedMarkers: readonly MapEditorLiveMarker[] = [];
   #disposed = false;
 
   constructor(
@@ -1192,7 +1199,20 @@ export class MapEditorController {
     this.#liveMarkers = Object.freeze([...this.#staticLiveMarkers, ...this.#dynamicLiveMarkers]);
   }
 
-  liveMarkers(): readonly MapEditorLiveMarker[] { return this.#liveMarkers; }
+  liveMarkers(): readonly MapEditorLiveMarker[] {
+    const document=this.model.document();
+    if(this.#placedMarkerDocument!==document||this.#placedMarkerSource!==this.#liveMarkers) {
+      const placements=new Map((document.resourcePlacements??[]).map(value=>[value.id,value]));
+      this.#placedMarkers=this.#liveMarkers.map(marker=>{
+        const placement=marker.entityKind==='resource'?placements.get(marker.id):undefined;
+        return placement?{...marker,tileX:placement.tileX,tileY:placement.tileY,elevation:null,...tileMarkerPosition(placement.tileX,placement.tileY)}:marker;
+      });
+      this.#placedMarkerDocument=document;this.#placedMarkerSource=this.#liveMarkers;
+    }
+    const drag=this.#drag;
+    return drag?.kind==='resource'?this.#placedMarkers.map(marker=>marker.entityKind==='resource'&&marker.id===drag.id
+      ?{...marker,tileX:drag.destinationX,tileY:drag.destinationY,elevation:drag.destinationElevation,...tileMarkerPosition(drag.destinationX,drag.destinationY)}:marker):this.#placedMarkers;
+  }
 
   /** Reuses terrain which the renderer has already received from its worker.
    * Picking reads the same elevation/projection arrays, so generating another
@@ -1276,7 +1296,7 @@ export class MapEditorController {
       this.#pan = { x: point.x, y: point.y };
       return true;
     }
-    const plane = this.#editingTool !== null && this.#editingTool !== 'objects' && !this.#eyedropperActive
+    const plane = (this.#editingTool === 'raise' || this.#editingTool === 'lower') && !this.#eyedropperActive
       ? this.#activeElevation : undefined;
     const tile = this.tileAt(point, plane);
     if (tile === null) return false;
@@ -1302,8 +1322,9 @@ export class MapEditorController {
       } else {
         const elevation = Math.max(-TERRAIN_ELEVATION_LIMIT, Math.min(TERRAIN_ELEVATION_LIMIT,
           this.#activeElevation + (tool === 'raise' ? 1 : tool === 'lower' ? -1 : 0)));
-        this.#stroke = {kind:'terrain_patch', elevation:this.#activeElevation, tool:tool === 'terrain' ? 'inspect' : tool,
-          patch:tool === 'terrain' ? {...this.#material, elevation} : {elevation,terrainOverride:null}, consumesSample:false, continuous:true, points:[tile]};
+        const material={...this.#material};delete material.elevation;
+        this.#stroke = {kind:'terrain_patch', elevation:tool==='terrain'?tile.elevation:this.#activeElevation, tool:tool === 'terrain' ? 'inspect' : tool,
+          patch:tool === 'terrain' ? material : {elevation,terrainOverride:null}, consumesSample:false, continuous:true, points:[tile]};
       }
       return true;
     }
@@ -1478,7 +1499,7 @@ export class MapEditorController {
         this.model.paintBiome(unique, this.#selectedBiome);
       } else if (stroke.kind === 'terrain') {
         const command = mapEditorTerrainCommand(
-          stroke.tool, stroke.points, this.model.document(), this.#activeElevation,
+          stroke.tool, stroke.points, this.model.document(), this.#activeElevation, this.#automaticGeneration,
         );
         if (command !== null) this.model.editTerrain(command);
       } else if (stroke.kind === 'terrain_patch') {
@@ -1504,7 +1525,7 @@ export class MapEditorController {
         }
         const points = stroke.tool === 'raise' || stroke.tool === 'lower'
           ? candidates.filter(point=>resolvedMapCellAt(terrain,point.tileX,point.tileY).elevation === stroke.elevation) : candidates;
-        this.model.editTerrain({kind:'paint', points, patch:stroke.patch, }, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined);
+        this.model.editTerrain({kind:'paint', points, patch:stroke.patch, }, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined, this.#automaticGeneration && stroke.tool === 'inspect');
         if (this.model.document() !== before) {
           if (stroke.consumesSample) this.#sampledTerrainPatch = null;
           if (this.#selectedExactTerrainOverride !== null) this.#selectedExactTerrainOverride = null;
@@ -1533,7 +1554,9 @@ export class MapEditorController {
     if (drag.destinationX === drag.sourceX && drag.destinationY === drag.sourceY
       && drag.destinationElevation === drag.sourceElevation) return true;
     try {
-      if (drag.kind === 'object') {
+      if(drag.kind==='resource'){
+        this.model.moveResource(drag.id,drag.sourceX,drag.sourceY,drag.destinationX,drag.destinationY);
+      } else if (drag.kind === 'object') {
         this.model.moveObject(drag.id, drag.destinationX, drag.destinationY, drag.destinationElevation);
       } else if (drag.kind === 'landmark') {
         this.model.moveLandmark(drag.id, drag.destinationX, drag.destinationY, drag.destinationElevation);
@@ -1798,7 +1821,7 @@ export class MapEditorController {
       if (points === null || this.#disposed || this.model.document() !== document
         || this.#activeLayer !== 'terrain' || this.model.workspace() !== 'terrain'
         || this.#terrainTool !== tool || !this.layerEditableAndVisible('terrain')) return;
-      this.model.editTerrain({ kind: 'paint', points, patch }, biome);
+      this.model.editTerrain({ kind: 'paint', points, patch }, biome, this.#automaticGeneration);
       this.invalidate();
     }).catch((error: unknown) => {
       if (this.#floodFill !== pending) return;
@@ -1992,11 +2015,12 @@ export class MapEditorController {
     pointerTileX: number,
     pointerTileY: number,
   ): void {
-    if (selected.kind === 'live') return;
+    if (selected.kind === 'live' && (selected.entityKind!=='resource'||selected.layer!=='canopy'||selected.spaceId!==LIVE_ISLAND_SPACE_ID
+      ||this.liveMarkers().some(marker=>marker.entityKind==='resource'&&marker.id===selected.id&&marker.fixedResourceSite))) return;
     if (selected.kind === 'anchor' && this.selectedAuthoredAnchor() === null) return;
     if (!this.layerEditableAndVisible(selected.layer)) return;
     this.#drag = {
-      kind: selected.kind,
+      kind: selected.kind==='live'?'resource':selected.kind,
       id: selected.id,
       offsetX: pointerTileX - selected.tileX,
       offsetY: pointerTileY - selected.tileY,
@@ -2012,7 +2036,7 @@ export class MapEditorController {
   private selectAt(tileX: number, tileY: number): MapEditorVisibleEntityPick | null {
     const selected = pickTopmostVisibleMapEntity(
       this.model.document(),
-      this.#liveMarkers,
+      this.liveMarkers(),
       (layer) => this.model.isLayerRendered(layer),
       tileX,
       tileY,

@@ -1,7 +1,7 @@
 import {
   SURVIVAL_BIOMES, TERRAIN_MATERIAL_DEFINITIONS, resolvedMapCellAt, terrainDocumentForMapV3,
   mapDocumentUsesSurvivalIslandBase, survivalBiomeAt, survivalBiomeAllowsHorseJump,
-  survivalDirtTerraceBytes, survivalDirtCliffRoleBytes, surfaceFamilyIndex,
+  survivalDirtTerraceAt, survivalDirtCliffRoleAt, SURVIVAL_DIRT_CLIFF_ROLES, surfaceFamilyIndex,
   type MapDocumentV3, type MapSurfaceKind, type SurvivalBiome,
 } from '@orchard/sim';
 import type { TerrainArray } from '@orchard/engine/terrain';
@@ -54,8 +54,8 @@ export function patchMapEditorTerrain(previous: TerrainArray, before: MapDocumen
     if(authoredSurfaces)authoredSurfaces[index]=cell.surface;
     if(cell.feature==='farmland')authoredFarmland??=new Uint8Array(length);
     if(authoredFarmland)authoredFarmland[index]=Number(cell.feature==='farmland');
-    dirtTerraces[index]=generated?survivalDirtTerraceBytes(previous.seed)[index]!:0;
-    dirtCliffRoles[index]=generated?survivalDirtCliffRoleBytes(previous.seed)[index]!:0;
+    dirtTerraces[index]=generated?Number(survivalDirtTerraceAt(previous.seed,tileX,tileY)):0;
+    dirtCliffRoles[index]=generated?SURVIVAL_DIRT_CLIFF_ROLES.indexOf(survivalDirtCliffRoleAt(previous.seed,tileX,tileY)):0;
     if(hasSurface||semantic?.biome!==undefined){dirtTerraces[index]=0;dirtCliffRoles[index]=0;}
     if(surface==='dirt')dirtTerraces[index]=1;
   }

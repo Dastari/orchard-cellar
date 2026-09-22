@@ -47,6 +47,7 @@ export interface MapGeneratedSelectionDescriptor {
   /** Omitted for generated-map descriptors retained by older callers. */
   readonly provenance?: 'generated' | 'live';
   readonly runtimeKind?: string;
+  readonly movable?: boolean;
   readonly details?: readonly { readonly label: string; readonly value: string }[];
   /** Canonical persisted suppression key, such as `resource-42` or
    * `decoration-123`. Null means that generator has no suppression seam. */
@@ -226,7 +227,7 @@ function generatedObject(generated: MapGeneratedSelectionDescriptor): ResolvedTa
       tileX: generated.tileX, tileY: generated.tileY, elevation: generated.elevation,
       quarterTurns: 0, flipX: false, scale: 1, enabled: true,
       prefabId: null, prefabRevision: null,
-      runtimeKind: generated.runtimeKind ?? null, readOnly: true,
+      runtimeKind: generated.runtimeKind ?? null, readOnly: generated.movable!==true,
       details: generated.details ?? [],
     },
   };

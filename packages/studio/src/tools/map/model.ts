@@ -10,7 +10,8 @@ import {
   migrateMapDocumentV2,
   normalizeMapDocumentV3,
   parseMapDocumentV3,
-  serializeMapDocumentV3,
+  createMapDocumentDelta,
+  serializeMapDocumentV3ForTransport,
   terrainDocumentForMapV3,
   validateMapDocument,
   type MapBiomeId,
@@ -153,10 +154,19 @@ export class MapEditorModel {
   #validatedTerrainIdentity: object | null = null;
   #validationTimer: ReturnType<typeof setTimeout> | null = null;
   #validationGeneration = 0;
-  #validationState: 'ready' | 'pending' | 'invalid' = 'pending';
+  #validationState: 'ready' | 'pending' | 'invalid' = 'ready';
   #schemaInspectorTarget: MapSchemaInspectorTarget | null = null;
   readonly #unsubscribeSelection: () => void;
   #disposed = false;
+  #draftStorageWarningShown = false;
+  #draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly #flushPendingDraft = (): void => {
+    if (this.#draftSaveTimer === null) return;
+    clearTimeout(this.#draftSaveTimer);
+    this.#draftSaveTimer = null;
+    this.updateDirtyState();
+    this.save();
+  };
 
   constructor(
     readonly mapId: string,
@@ -165,6 +175,7 @@ export class MapEditorModel {
   ) {
     this.#document = initialDocument(mapId);
     this.restore();
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', this.#flushPendingDraft);
     this.#terrainIdentities.set(this.#document, this.#terrainIdentity);
     this.#terrainValidationIdentities.set(this.#document, this.#terrainValidationIdentity);
     this.#unsubscribeSelection = this.services.selection.subscribe((selection) => this.inspect(selection));
@@ -173,6 +184,8 @@ export class MapEditorModel {
 
   dispose(): void {
     if (this.#disposed) return;
+    this.#flushPendingDraft();
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', this.#flushPendingDraft);
     this.#disposed = true;
     this.#validationGeneration += 1;
     if (this.#validationTimer !== null) {
@@ -408,11 +421,23 @@ export class MapEditorModel {
     this.#terrainValidationIdentities.set(next, this.#terrainValidationIdentity);
     this.#document = next;
     this.#future = [];
-    this.updateDirtyState();
-    this.save();
+    if (typeof requestAnimationFrame === 'undefined') {
+      this.updateDirtyState();
+      this.save();
+    } else {
+      // Show the local edit first; coalesce serialization/hash work while a
+      // brush is active. Navigation and disposal synchronously flush the draft.
+      this.#dirty = true;
+      if (this.#draftSaveTimer !== null) clearTimeout(this.#draftSaveTimer);
+      this.#draftSaveTimer = setTimeout(this.#flushPendingDraft, 250);
+    }
     this.reconcileKernels();
   }
 
+  moveResource(id:string,sourceTileX:number,sourceTileY:number,tileX:number,tileY:number):void {
+    const prior=this.#document.resourcePlacements?.find(value=>value.id===id);
+    this.apply({kind:'move_resource',placement:{id,originTileX:prior?.originTileX??sourceTileX,originTileY:prior?.originTileY??sourceTileY,tileX,tileY}});
+  }
   embedPrefab(prefab: MapPrefabDocumentV2): void { this.apply({ kind: 'embed_prefab', prefab }); }
   placeObject(object: MapObjectInstance): void { this.apply({ kind: 'place_object', object }); }
   placeLandmark(landmark: MapLandmarkInstance): void { this.apply({ kind: 'place_landmark', landmark }); }
@@ -460,7 +485,7 @@ export class MapEditorModel {
   setDefaultSurfaceFamily(family: TerrainSurfaceFamilyId): void {
     this.editTerrain({ kind: 'set_default_surface_family', family });
   }
-  editTerrain(command: MapEditCommand, biome?: MapBiomeId): void { this.apply({ kind: 'terrain', command, ...(biome === undefined ? {} : {biome}) }); }
+  editTerrain(command: MapEditCommand, biome?: MapBiomeId, automaticSurround = false): void { this.apply({ kind: 'terrain', command, automaticSurround, ...(biome === undefined ? {} : {biome}) }); }
   suppressGenerated(generatedId: string, suppressed = true): void {
     this.apply({ kind: 'suppress_generated_object', generatedId, suppressed });
   }
@@ -651,14 +676,20 @@ export class MapEditorModel {
     if (this.#publishing !== null) throw new Error('map_publish_in_progress');
     const adapter = this.services.live();
     if (adapter?.publishMap === undefined) throw new Error('live_map_adapter_unavailable');
+    const head = adapter.view().mapDocument;
+    if (head === null || head === undefined || head.revision !== this.#baseRevision) {
+      throw new Error('live_map_head_unavailable');
+    }
+    const base = parseVerifiedStudioMapHead(head, this.mapId);
     const document = this.#document;
+    const deltaJson = JSON.stringify(createMapDocumentDelta(base, document));
     const publishing = Object.freeze({
       baseRevision: this.#baseRevision,
       semanticHash: editorMapSemanticHash(document),
     });
     this.#publishing = publishing;
     try {
-      await adapter.publishMap(document, serializeMapDocumentV3(document), publishing.baseRevision);
+      await adapter.publishMap(document, deltaJson, publishing.baseRevision);
     } catch (error: unknown) {
       if (this.#publishing === publishing) this.#publishing = null;
       this.reconcileLiveHead();
@@ -702,20 +733,35 @@ export class MapEditorModel {
   }
 
   private save(): void {
+    if (this.#draftSaveTimer !== null) clearTimeout(this.#draftSaveTimer);
+    this.#draftSaveTimer = null;
     const envelope: DraftEnvelope = {
       version: 2,
       baseRevision: this.#baseRevision,
       baseSemanticHash: this.#baseSemanticHash,
       dirty: this.#dirty,
-      document: serializeMapDocumentV3(this.#document),
+      // Pretty exports can exceed localStorage's quota on the live town map.
+      // Drafts use the same lossless compact representation as publication.
+      document: serializeMapDocumentV3ForTransport(this.#document),
     };
-    this.storage?.setItem(storageKey(this.mapId), JSON.stringify(envelope));
+    try {
+      this.storage?.setItem(storageKey(this.mapId), JSON.stringify(envelope));
+      this.#draftStorageWarningShown = false;
+    } catch {
+      // Storage failure must not abort checkout, validation or the render loop.
+      // Preserve both the in-memory draft and any previously stored draft.
+      if (!this.#draftStorageWarningShown) {
+        this.#draftStorageWarningShown = true;
+        this.services.notifications.push('warning', 'Map draft could not be saved',
+          'Your map remains open. Browser storage is unavailable or full; export your draft before closing or reloading.');
+      }
+    }
   }
 
   private restore(): void {
-    const source = this.storage?.getItem(storageKey(this.mapId));
-    if (source === null || source === undefined) return;
     try {
+      const source = this.storage?.getItem(storageKey(this.mapId));
+      if (source === null || source === undefined) return;
       const envelope = JSON.parse(source) as Partial<DraftEnvelope | LegacyDraftEnvelope>;
       if ((envelope.version !== 1 && envelope.version !== 2)
         || typeof envelope.baseRevision !== 'number' || typeof envelope.document !== 'string') return;
@@ -778,6 +824,11 @@ export class MapEditorModel {
   }
 
   private reconcileKernels(): void {
+    // Design review is opt-in. An ordinary edit neither scans nor repairs the map.
+    this.inspect(this.services.selection.current());
+  }
+
+  validateDesign(): void {
     if (this.#validatedTerrainIdentity === this.#terrainValidationIdentity) {
       this.inspect(this.services.selection.current());
       return;

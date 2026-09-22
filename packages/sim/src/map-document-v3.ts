@@ -1,3 +1,6 @@
+import {surroundMapMaterial} from './map-material-surround.js';
+import {parseMapResourcePlacements,type MapResourcePlacement} from './map-resource-placement.js';
+export type {MapResourcePlacement} from './map-resource-placement.js';
 import { parseCombatRegions, type CombatRegion } from './combat-regions.js';
 import { MAP_BIOME_IDS, type MapBiomeId } from './biomes.js';
 import {
@@ -132,6 +135,7 @@ export interface MapDocumentV3 extends Omit<MapDocumentV2, 'schemaVersion' | 'ce
   readonly objects: readonly MapObjectInstance[];
   readonly landmarks: readonly MapLandmarkInstance[];
   readonly generatedSuppressions: readonly string[];
+  readonly resourcePlacements?: readonly MapResourcePlacement[];
   /** Authored authority policy; absent on historical maps means peaceful. */
   readonly combatRegions?: readonly CombatRegion[];
 }
@@ -223,17 +227,18 @@ export function defaultBiomeForSurface(surface: MapSurfaceKind): MapBiomeId {
   return 'plains';
 }
 
+const terrainDocuments = new WeakMap<MapDocumentV3, MapDocumentV2>();
 export function terrainDocumentForMapV3(document: MapDocumentV3): MapDocumentV2 {
+  const cached = terrainDocuments.get(document);
+  if (cached !== undefined) return cached;
   const cells = Object.fromEntries(Object.entries(document.cells).map(([key, cell]) => {
     const terrain = { ...cell };
     delete (terrain as { biome?: MapBiomeId }).biome;
     return [key, terrain] as const;
   }));
-  return normalizeMapDocument({
-    ...document,
-    schemaVersion: 2,
-    cells,
-  });
+  const terrain = normalizeMapDocument({...document, schemaVersion: 2, cells});
+  terrainDocuments.set(document, terrain);
+  return terrain;
 }
 
 export function migrateMapDocumentV2(
@@ -390,7 +395,10 @@ function parseLayer(value: unknown): MapContentLayerDefinition | null {
 }
 
 export function normalizeMapDocumentV3(document: MapDocumentV3): MapDocumentV3 {
-  const terrain = normalizeMapDocument(terrainDocumentForMapV3Unnormalized(document));
+  const terrain = normalizeMapDocument(terrainDocumentForMapV3Unnormalized(document)) as MapDocumentV2 & {resourcePlacements?:readonly MapResourcePlacement[]};
+  delete terrain.resourcePlacements;
+  const resourcePlacements=parseMapResourcePlacements(document.resourcePlacements??[],document.width,document.height);
+  const base={...document};delete base.resourcePlacements;
   const cells = Object.fromEntries(Object.entries(document.cells)
     .map(([key, cell]) => [key, {
       ...(terrain.cells[key] ?? {}),
@@ -401,8 +409,9 @@ export function normalizeMapDocumentV3(document: MapDocumentV3): MapDocumentV3 {
   const suppliedLayers = new Map(document.layers.map((layer) => [layer.id, layer] as const));
   const layers = DEFAULT_MAP_CONTENT_LAYERS.map((fallback) => suppliedLayers.get(fallback.id) ?? fallback);
   return {
-    ...document,
+    ...base,
     ...terrain,
+    ...(resourcePlacements.length?{resourcePlacements}:{}),
     schemaVersion: MAP_DOCUMENT_V3_SCHEMA_VERSION,
     cells,
     layers: layers.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id)),
@@ -539,6 +548,7 @@ export function parseMapDocumentV3(
     ...terrain,
     schemaVersion: MAP_DOCUMENT_V3_SCHEMA_VERSION,
     baseBiome: candidate['baseBiome'] as MapBiomeId,
+    ...(candidate['resourcePlacements']===undefined?{}:{resourcePlacements:parseMapResourcePlacements(candidate['resourcePlacements'],terrain.width,terrain.height)}),
     ...(candidate['combatRegions'] === undefined ? {} : {combatRegions:parseCombatRegions(candidate['combatRegions'],terrain.width,terrain.height)}),
     cells,
     layers: layers as MapContentLayerDefinition[],
@@ -561,7 +571,8 @@ export function mapDocumentV3Hash(document: MapDocumentV3): string {
 }
 
 export type MapDocumentV3EditCommand =
-  | { readonly kind: 'terrain'; readonly command: MapEditCommand; readonly biome?: MapBiomeId }
+  | {readonly kind:'move_resource';readonly placement:MapResourcePlacement}
+  | { readonly kind: 'terrain'; readonly command: MapEditCommand; readonly biome?: MapBiomeId; readonly automaticSurround?: boolean }
   | { readonly kind: 'paint_biome'; readonly points: readonly MapPoint[]; readonly biome: MapBiomeId }
   | { readonly kind: 'embed_prefab'; readonly prefab: MapPrefabDocumentV2 }
   | { readonly kind: 'place_object'; readonly object: MapObjectInstance }
@@ -597,6 +608,19 @@ export interface AppliedMapDocumentV3Edit {
 }
 
 function mergeTerrainEdit(document: MapDocumentV3, edit: AppliedMapEdit): MapDocumentV3 {
+  if (edit.fullRebuild !== true) {
+    // Both inputs already have canonical terrain cells. Preserve untouched
+    // references instead of normalizing every prefab and cell for a brush dab.
+    const cells = {...document.cells};
+    for (const point of edit.changed) {
+      const key = mapCellKey(point.tileX, point.tileY);
+      const biome = document.cells[key]?.biome;
+      const cell = {...edit.document.cells[key], ...(biome === undefined ? {} : {biome})};
+      if (Object.keys(cell).length === 0) delete cells[key];
+      else cells[key] = cell;
+    }
+    return {...document, ...edit.document, schemaVersion: 3, cells};
+  }
   const cells = Object.fromEntries(Object.entries(edit.document.cells).map(([key, cell]) => [key, {
     ...cell,
     ...(document.cells[key]?.biome === undefined ? {} : { biome: document.cells[key]!.biome }),
@@ -616,6 +640,15 @@ export function applyMapDocumentV3Edit(
   document: MapDocumentV3,
   command: MapDocumentV3EditCommand,
 ): AppliedMapDocumentV3Edit {
+  if(command.kind==='move_resource') {
+    const [placement]=parseMapResourcePlacements([command.placement],document.width,document.height);
+    const previous=document.resourcePlacements?.find(value=>value.id===placement!.id);
+    if(previous&&(previous.originTileX!==placement!.originTileX||previous.originTileY!==placement!.originTileY))throw new TypeError('map_resource_origin_changed');
+    if(JSON.stringify(previous)===JSON.stringify(placement))return {document,changed:[]};
+    const placements=(document.resourcePlacements??[]).filter(value=>value.id!==placement!.id);
+    if(placement!.tileX!==placement!.originTileX||placement!.tileY!==placement!.originTileY)placements.push(placement!);
+    return {document:normalizeMapDocumentV3({...document,revision:document.revision+1,resourcePlacements:placements}),changed:[]};
+  }
   if (command.kind === 'terrain') {
     const terrain = terrainDocumentForMapV3(document);
     const edit = applyMapEdit(terrain, command.command);
@@ -628,9 +661,24 @@ export function applyMapDocumentV3Edit(
         const key = mapCellKey(point.tileX,point.tileY);
         if (resolvedMapBiomeAt(next,point.tileX,point.tileY) === command.biome) continue;
         cells[key] = {...cells[key],biome:command.biome};
+        if (!mapDocumentUsesSurvivalIslandBase(next) && command.biome === next.baseBiome) {
+          const cell = {...cells[key]}; delete cell.biome;
+          if (Object.keys(cell).length === 0) delete cells[key]; else cells[key] = cell;
+        }
         changed.set(key,point);
       }
-      if (changed.size > 0) next = normalizeMapDocumentV3({...next,cells,revision:document.revision+1});
+      if (changed.size > 0) next = {...next,cells,revision:document.revision+1};
+    }
+    if (command.automaticSurround === true && command.command.kind === 'paint'
+      && command.command.patch.surface !== undefined) {
+      const updates = surroundMapMaterial(next, command.command.points);
+      const cells = {...next.cells, ...updates};
+      for (const [key, cell] of Object.entries(updates)) {
+        if (JSON.stringify(cell) === JSON.stringify(next.cells[key])) continue;
+        const [tileX, tileY] = key.split(',').map(Number);
+        changed.set(key, {tileX: tileX!, tileY: tileY!});
+      }
+      if (changed.size > 0) next = {...next, cells, revision: document.revision + 1};
     }
     return {document:next,changed:[...changed.values()],
       ...(edit.fullRebuild === undefined ? {} : {fullRebuild:edit.fullRebuild})};

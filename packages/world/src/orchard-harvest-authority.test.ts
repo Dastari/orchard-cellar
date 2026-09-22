@@ -185,6 +185,7 @@ describe('renewable orchard authority', () => {
     const { reconcileGeneratedSurvivalResources } = load(['reconcileGeneratedSurvivalResources'], {
       ...sim, SenderError: Error, TOPSIDE_SPACE_ID: 0,
       contentRegistry: () => registry, generateSurvivalResources: () => [desired],
+      compiledLiveIslandRuntime: () => null,
       generatedWorldResourceRow: () => ({ ...desired, id: generated.id, fruitReadyAtTick: 0n, activationOrdinal: 0 }),
     });
     reconcileGeneratedSurvivalResources(ctx); reconcileGeneratedSurvivalResources(ctx);

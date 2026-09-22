@@ -383,9 +383,8 @@ export function parseMapDocument(source: string): MapDocumentV2 {
     ...(candidate as MapDocumentV2),
     anchors: anchors as MapGameplayAnchor[],
   });
-  if (reconstructed.anchors.some((anchor) => (
-    resolvedMapCellAt(reconstructed, anchor.tileX, anchor.tileY).elevation !== anchor.elevation
-  ))) throw new Error('Map gameplay anchor elevation does not match terrain');
+  // Annotation height is authored data. Changing nearby terrain must not make
+  // an otherwise well-formed map impossible to reload or publish.
   return reconstructed;
 }
 

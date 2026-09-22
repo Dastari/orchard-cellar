@@ -581,6 +581,12 @@ function legacyLandmarkArt(existing:Readonly<Record<string,LoadedAsset>>):Readon
 }
 
 const MAP_EDITOR_ASSET_NAMES = {
+  horse: 'horse_cf_bramble',
+  merchantNpc: 'npc_cf_bartender_bruno',
+  farmerBobNpc: 'npc_cf_farmer_bob',
+  fishermanFinNpc: 'npc_cf_fisherman_fin',
+  chest: 'prop_cf_chest',
+  archeryTarget: 'prop_cf_archery_target',
   rockStone: 'resource_cf_rock_stone',
   poiFlowersPink: LEGACY_LANDMARK_ASSET_NAMES.poi_flowers_pink,
   poiFlowersGold: LEGACY_LANDMARK_ASSET_NAMES.poi_flowers_gold,
@@ -690,10 +696,10 @@ const MAP_EDITOR_ASSET_NAMES = {
   treePalmStump: 'tree_cf_palm_stump',
 } as const;
 
-/** Loads only artwork used by the retained map-detail renderer. In
- * particular, this excludes player paper dolls, full wildlife, weather and
- * the browser-SVG UiSkin icon set that made Studio burst through its edge
- * request budget when it zoomed in. */
+/** Loads the terrain, objects and live actors used by the retained map renderer.
+ * Live players need the modular rig (including held-light poses), and runtime
+ * NPCs need wildlife/mount and enemy banks. Weather, combat tools and the
+ * browser-SVG UiSkin icon set remain excluded; requests share the bounded queue. */
 export async function loadMapEditorArt(
   ui: PixelUi,
   uiSkin: UiSkin,
@@ -701,7 +707,8 @@ export async function loadMapEditorArt(
 ): Promise<OverworldArt> {
   const contentArt = createOverworldContentArtRequests(registry);
   const [namedEntries, natureDecorations, oceanSurfaceDecorations, fruitTrees,
-    itemIcons, crops, cow, oreNodes, registeredTerrainEntries] = await Promise.all([
+    itemIcons, crops, wildlife, oreNodes, registeredTerrainEntries,
+    playerRig, rogueEnemies, heldLightEntries] = await Promise.all([
     Promise.all(Object.entries(MAP_EDITOR_ASSET_NAMES).map(async ([key, assetName]) => [
       key, await loadGeneratedAsset(assetName, 'summer'),
     ] as const)),
@@ -713,11 +720,22 @@ export async function loadMapEditorArt(
     loadFruitTreeArt(),
     loadItemIconArt(registry, contentArt),
     loadCropArt(registry, contentArt),
-    loadNumberedWildlife('cow', 9),
+    loadWildlifeArt(),
     loadOreArt('resource_cf_ore_', ''),
     Promise.all(additionalTerrainAssetIds().map(async (assetId) => [
       assetId, await loadGeneratedAsset(assetId, 'summer'),
     ] as const)),
+    loadPlayerRig(),
+    loadRogueEnemyArt(),
+    Promise.all((['torch', 'lantern'] as const).map(async (kind) => {
+      const [idle, running, idleHands, runningHands] = await Promise.all([
+        loadGeneratedAsset(`tool_cf_${kind}_idle`, 'summer'),
+        loadGeneratedAsset(`tool_cf_${kind}_running`, 'summer'),
+        loadGeneratedAsset(`hands_cf_${kind}_idle`, 'summer'),
+        loadGeneratedAsset(`hands_cf_${kind}_running`, 'summer'),
+      ]);
+      return [kind, { idle, running, idleHands, runningHands }] as const;
+    })),
   ]);
   const named = Object.fromEntries(namedEntries) as Record<keyof typeof MAP_EDITOR_ASSET_NAMES, LoadedAsset>;
   const art = {
@@ -734,7 +752,10 @@ export async function loadMapEditorArt(
       tile_cf_cave_wall: named.caveWall,
       tile_cf_waterfall: named.waterfall,
     },
-    wildlife: { cow },
+    wildlife,
+    playerRig,
+    rogueEnemies,
+    heldLights: Object.fromEntries(heldLightEntries),
     natureDecorations,
     oceanSurfaceDecorations,
     fruitTrees,
@@ -780,8 +801,8 @@ export async function loadMapEditorArt(
     ui,
     uiSkin,
   };
-  // The editor calls only the terrain, prefab and decoration renderers whose
-  // complete dependencies are present above. Keeping this adapter separate
+  // Terrain, prefab, decoration and unmounted live-actor dependencies are
+  // complete above. Keeping this adapter separate
   // avoids manufacturing hundreds of unused gameplay-art fields.
   return art as unknown as OverworldArt;
 }

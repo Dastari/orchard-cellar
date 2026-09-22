@@ -86,5 +86,44 @@ production entry. Use it with the Studio Vite server to exercise palette drag,
 right-drag pan, local painting, selection properties, reticles and drawer resizing.
 Production remains immediately authenticated at `/build/map`.
 
+## Revision-checked delta publication
+
+Publishing diffs the local draft against its verified live base. The wire payload
+contains only changed metadata and keyed collection upserts/removals (terrain
+cells, objects, prefabs, landmarks, layers, anchors, scenery, transitions, stairs,
+combat regions and generated suppressions). Revision numbers are authority-owned.
+Undoing an edit before publication removes it from the delta. Browser reloads
+recover the base from the verified live subscription, not another full saved copy.
+
+Use a versioned delta envelope in the existing `publishLiveMapDocument` JSON
+argument. Existing snapshot callers remain supported. The server checks owner
+permission, input limits, expected revision and base hash, applies the delta to
+the stored head, and runs the existing complete map/terrain/behavior validation.
+It then atomically stores the canonical head, revision history and derived lamps.
+The existing live map subscription distributes the resulting head to the game.
+The delta's target semantic hash must match the validated result. Retries with
+the same mutation ID and matching committed target are idempotent; stale or
+malformed requests change nothing. Never silently retry a conflict on a new base.
+
+Publication hashes omit authority revision and content-derived landmark roles;
+the latter are hydrated from the authority registry during validation, so an
+editor with a different bundled catalog cannot overwrite them. Clearing combat
+policy requires an explicit empty list; omission cannot remove existing policy.
+
+Malformed keys, duplicate collection identities, forbidden metadata, unknown format versions,
+oversized payloads/results, invalid references and authority errors reject the
+whole operation. Studio retains the draft and displays a persistent failure with
+retry/dismiss controls. Only a matching subscribed head marks the draft published;
+edits made while publishing remain dirty for the next delta.
+
+Acceptance: removing the tree at 386,373 yields a payload below 1 KB regardless
+of unchanged map size; changed terrain includes its generated neighboring cells;
+applying each delta reproduces the intended canonical document. Test removals,
+upserts, undo, reload, in-flight edits, retries, stale revisions, invalid terrain,
+authorization and game runtime consumption. Snapshot downloads/history remain
+unchanged; this change reduces publication uploads, not subscription snapshots.
+World rollout requires the concrete release approval described in the publishing
+runbook. Do not deploy delta-only Studio ahead of its server support.
+
 Generated toolbar artwork and reproducible prompts are recorded in
 [the icon source ledger](studio-pixel-tool-icons.md).
