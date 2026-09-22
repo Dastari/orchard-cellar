@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage, type Canvas } from '@napi-rs/canvas';
 import { loadAssets, loadPalette } from '../packages/tools/src/assets/load.js';
 import { framesForAsset, resolveColor } from '../packages/tools/src/assets/pixels.js';
+import { catalogueFormation, TERRAIN_CATALOGUE_SHAPES } from './terrain-catalogue-formations.js';
 import type { AssetSource } from '../packages/tools/src/assets/types.js';
 import { TERRAIN_CLIFF_FAMILIES, TERRAIN_SURFACE_FAMILIES } from '../packages/sim/src/terrain-tilesets.js';
 import { resolveRaisedTerrainTile, type RaisedTerrainTileSet } from '../packages/sim/src/raised-terrain-autotile.js';
@@ -85,12 +86,13 @@ function drawMask(c: Canvas, mask: number, x: number, y: number) {
   }
   ctx.fillStyle='#edf4ed';
 }
-type MaskResult = { mask: number; kind: string; refs: Ref[]; missingRoles?: string[]; detail?: unknown };
+type MaskResult = { mask: number; kind: string; refs: Ref[]; unsupported?: string; missingRoles?: string[]; detail?: unknown };
 function maskSheet(id: string, rows: MaskResult[]) {
   const c = board(16*100, Math.ceil(rows.length/16)*99); const ctx=c.getContext('2d');
   rows.forEach((r,i)=>{const x=i%16*100,y=Math.floor(i/16)*99;drawMask(c,r.mask,x+3,y+3);
     ctx.fillText(String(r.mask).padStart(3,'0'),x+31,y+15);
-    r.refs.forEach(ref=>draw(c,ref,x+25,y+27,3));
+    if (!r.unsupported) r.refs.forEach(ref=>draw(c,ref,x+25,y+27,3));
+    else { ctx.fillStyle='#ffb088';ctx.fillText('Smart repair',x+3,y+48);ctx.fillText('required',x+3,y+63);ctx.fillStyle='#edf4ed'; }
     ctx.fillText(r.refs.map(ref=>ref.frame).join('+').slice(0,14) || 'base',x+3,y+91);
     if(r.missingRoles?.length){ctx.fillStyle='#ffb088';ctx.fillText('role missing',x+3,y+78);ctx.fillStyle='#edf4ed';}
   }); imageOut(`rules/${id}-masks.png`,c);
@@ -104,7 +106,7 @@ for(const [id, family] of Object.entries(TERRAIN_CLIFF_FAMILIES)) {
     const refs:Ref[]=[];
     if(plan.edgeFrame!==null) refs.push({asset:ts.assetId,frame:plan.edgeFrame,role:plan.edgeRole!});
     plan.insetFrames.forEach((f,i)=>refs.push({asset:ts.insetAssetId??ts.assetId,frame:f,role:plan.insetRoles[i]}));
-    return {mask,kind:maskKind(mask),refs,missingRoles:plan.insetRoles.filter(role=>ts.insetFrames[role]===undefined),detail:plan};
+    return {mask,kind:maskKind(mask),refs,...(plan.insetRoles.length>1?{unsupported:'Multiple inset blocks occupy one cell; Smart Placement widens the local neck.'}:{}),missingRoles:plan.insetRoles.filter(role=>ts.insetFrames[role]===undefined),detail:plan};
   });
   maskSheet(`cliff-${id}`,masks);
   const notes=['Eight adjacent cells resolve the local rim and inset; face projection also reads source rows behind the displayed cell.',
@@ -112,7 +114,7 @@ for(const [id, family] of Object.entries(TERRAIN_CLIFF_FAMILIES)) {
     'South-facing exposed rows supply vertical faces; face left/middle/right depends on neighbouring face coverage. Native alpha shadows are retained.'];
   if(Object.keys(ts.insetFrames).length===0) notes.push('No inset frames registered: diagonal concave roles have no source mapping in this family.');
   if(!ts.faceProfiles.tall?.rows.length) notes.push('No authored vertical face bank; this is a flat rim, not a tall cliff.');
-  if(ts.projectionStyle==='interior')notes.push('Inverse interior: solid rock owns the rim; face-clearance rows preserve narrow openings. This preview exposes logical courses before northward screen projection.');
+  if(ts.projectionStyle==='interior')notes.push('Inverse interior: solid rock owns the rim; a complete room requires a verified opaque mass fill. Missing fill or source banks with unverified roles are not presented as valid assembled examples.');
   const named:Ref[]=[...Object.entries(ts.edgeFrames).map(([role,frame])=>({asset:ts.assetId,frame:frame!,role})),...Object.entries(ts.insetFrames).map(([role,frame])=>({asset:ts.insetAssetId??ts.assetId,frame:frame!,role}))];
   for(const [profile,bank]of Object.entries(ts.faceProfiles))for(const row of [...bank.rows,...(bank.repeatRows??(bank.repeatRow?[bank.repeatRow]:[]))])row.frames.forEach((frame,i)=>named.push({asset:ts.assetId,frame,role:`${profile}.${row.id}.${['left','middle','right'][i]}`}));
   if(ts.rampBank)for(const [course,bank]of [['crest',ts.rampBank.crest],...ts.rampBank.treads.map((t,i)=>[`tread${i}`,t]),['base',ts.rampBank.base]] as const){
@@ -123,28 +125,48 @@ for(const [id, family] of Object.entries(TERRAIN_CLIFF_FAMILIES)) {
   const bankImage=board(6*225,Math.ceil(named.length/6)*94);
   named.forEach((r,i)=>{const x=i%6*225,y=Math.floor(i/6)*94;draw(bankImage,r,x+3,y+3,3);bankImage.getContext('2d').fillText(r.role??'',x+3,y+68);bankImage.getContext('2d').fillText(`${r.frame} ${r.asset.replace('tile_cf_','')}`.slice(0,33),x+3,y+85);});
   imageOut(`rules/cliff-${id}-roles.png`,bankImage);
-  const shapes={minimum_2x2:['##','##'],rectangle:['#####','#####','#####','#####'],concave:['####','####','##..','##..'],diagonal:['##..','###.','.###','..##'],T:['######','######','..##..','..##..'],cross:['..##..','..##..','######','######','..##..','..##..']};
-  const c=board(6*240,330); const ctx=c.getContext('2d');
-  Object.entries(shapes).forEach(([name,shape],i)=>{
-    const raisedAt=(x:number,y:number)=>shape[y]?.[x]==='#';
-    ctx.fillText(name,i*240+8,18);
-    for(let y=-1;y<8;y++)for(let x=-1;x<7;x++){
-      const px=i*240+12+(x+1)*27,py=30+(y+1)*27;
-      draw(c,{asset:ts.projectionStyle==='interior'?'tile_cf_cave_floor_middle':'tile_cf_grass_1_middle',frame:0},px,py,27/16);
+  const c=board(6*272,414); const ctx=c.getContext('2d');
+  const formationEvidence: {name:string;input:unknown;added:unknown;points:unknown}[]=[];
+  const substrate = 'substrate' in family ? family.substrate : undefined;
+  // Explicit fallback is diagnostic only; reviewed outdoor families supply
+  // source-backed surrounding/cap refs instead of a universal grass fill.
+  const surrounding = substrate?.surrounding ?? {assetId:'tile_cf_cave_floor_middle',frame:0};
+  const cap = substrate?.cap;
+  const sourceReview = 'sourceReview' in family ? family.sourceReview : undefined;
+  const formationStatus = sourceReview?.status==='unverified' ? sourceReview.reason : cap===null ? 'No verified opaque rock-mass fill is registered for this interior. Native banks are shown; complete room assembly remains unverified.' : undefined;
+  Object.entries(TERRAIN_CATALOGUE_SHAPES).forEach(([name,shape],i)=>{
+    const normalized=catalogueFormation(shape), raisedAt=normalized.occupiedAt;
+    formationEvidence.push({name,input:normalized.input,added:normalized.added,points:normalized.points});
+    ctx.fillText(name,i*272+8,18);
+    for(let y=-1;y<9;y++)for(let x=-1;x<8;x++){
+      const px=i*272+8+(x+1)*28,py=30+(y+1)*28;
       const p=resolveRaisedTerrainTile({raisedAt},ts,'tall',x,y);
-      if(raisedAt(x,y)&&ts.projectionStyle==='interior') {ctx.fillStyle='#392023';ctx.fillRect(px,py,27,27);ctx.fillStyle='#edf4ed';}
-      p.faceLayers.forEach(f=>{if(f.seamUnderlayFrame!==undefined)draw(c,{asset:ts.assetId,frame:f.seamUnderlayFrame},px,py,27/16);draw(c,{asset:ts.assetId,frame:f.frame},px,py,27/16);});
-      if(p.edgeSeamUnderlayFrame!==undefined)draw(c,{asset:ts.assetId,frame:p.edgeSeamUnderlayFrame},px,py,27/16);
-      if(p.edgeFrame!==null)draw(c,{asset:ts.assetId,frame:p.edgeFrame},px,py,27/16);
-      p.insetFrames.forEach(f=>draw(c,{asset:ts.insetAssetId??ts.assetId,frame:f},px,py,27/16));
+      const fill=raisedAt(x,y)&&p.edgeFrame===null&&cap?cap:surrounding;
+      draw(c,{asset:fill.assetId,frame:fill.frame},px,py,28/16);
+      // Match the shared painter: indirect face coverage supports topology,
+      // but is not another visible wall at a stepped corner.
+      if(p.faceLayers.some(f=>f.direct))p.faceLayers.forEach(f=>{
+        if(f.seamUnderlayFrame!==undefined)draw(c,{asset:ts.assetId,frame:f.seamUnderlayFrame},px,py,28/16);
+        draw(c,{asset:ts.assetId,frame:f.frame},px,py,28/16);
+      });
+      if(p.edgeSeamUnderlayFrame!==undefined&&p.insetFrames.length===0)draw(c,{asset:ts.assetId,frame:p.edgeSeamUnderlayFrame},px,py,28/16);
+      if(p.edgeFrame!==null)draw(c,{asset:ts.assetId,frame:p.edgeFrame},px,py,28/16);
+      if(p.insetRoles.length>1)throw new Error(`Multiple insets in Smart formation: ${id}/${name}/${x},${y}`);
+      p.insetFrames.forEach(f=>draw(c,{asset:ts.insetAssetId??ts.assetId,frame:f},px,py,28/16));
     }
-    ctx.fillText('Native rim / face / foot alpha',i*240+8,316);
-  }); imageOut(`rules/cliff-${id}-formations.png`,c);
-  rules.push({id:`cliff-${id}`,evidence:'packages/sim/src/terrain-tilesets.ts',meaning:'Bit=adjacent raised/solid cell; centre is raised.',notes,masks,tileSet:ts,namedRoles:named,roleImage:`rules/cliff-${id}-roles.png`,formations:`rules/cliff-${id}-formations.png`});
+    ctx.fillText(normalized.added.length?`Smart added ${normalized.added.length} neighbouring cells`:'Native continuous courses',i*272+8,334);
+    // Small tile-plan evidence: amber marks assisted cells; outlines are the
+    // authored input. This makes diagonal widening inspectable, not hidden.
+    for(const point of normalized.points){ctx.fillStyle=normalized.inputAt(point.tileX,point.tileY)?'#94aa83':'#f8bd69';ctx.fillRect(i*272+8+point.tileX*9,350+point.tileY*9,8,8);}
+    ctx.fillStyle='#edf4ed';
+  });
+  if(formationStatus){ctx.fillStyle='#243039';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#ffb088';ctx.fillText(`${id}: assembled preview withheld`,24,42);ctx.fillText('Native role banks below remain available for inspection; this family is not verified for automatic room assembly.',24,72);}
+  imageOut(`rules/cliff-${id}-formations.png`,c);
+  rules.push({id:`cliff-${id}`,evidence:'packages/sim/src/terrain-tilesets.ts',meaning:'Bit=adjacent raised/solid cell; centre is raised.',notes,masks,tileSet:ts,substrate,formationStatus,formationEvidence,namedRoles:named,roleImage:`rules/cliff-${id}-roles.png`,formations:`rules/cliff-${id}-formations.png`});
 }
 for(const [id,f]of Object.entries(TERRAIN_SURFACE_FAMILIES)) {
   const ts:RaisedTerrainTileSet={projectionStyle:'raised',assetId:f.ledgeBank.assetId,edgeFrames:f.ledgeBank.edgeFrames,insetFrames:f.ledgeBank.insetFrames,rampFrames:{},rampBank:null,ledgeBank:null,stairFrames:null,ladderFrames:null,faceProfiles:{tall:{rows:[]}}};
-  const masks=Array.from({length:256},(_,mask)=>{const p=resolveRaisedTerrainTile({raisedAt:matches(mask)},ts,'tall',0,0);return{mask,kind:maskKind(mask),refs:[{asset:f.assetId,frame:0},...(p.edgeFrame===null?[]:[{asset:ts.assetId,frame:p.edgeFrame}]),...p.insetFrames.map(frame=>({asset:ts.assetId,frame}))]};});
+  const masks=Array.from({length:256},(_,mask)=>{const p=resolveRaisedTerrainTile({raisedAt:matches(mask)},ts,'tall',0,0);return{mask,kind:maskKind(mask),refs:[{asset:f.assetId,frame:0},...(p.edgeFrame===null?[]:[{asset:ts.assetId,frame:p.edgeFrame}]),...p.insetFrames.map(frame=>({asset:ts.assetId,frame}))],...(p.insetRoles.length>1?{unsupported:'Multiple inset blocks; Smart Placement repairs the local neck.'}:{})};});
   maskSheet(id,masks);rules.push({id,evidence:'packages/sim/src/terrain-tilesets.ts',meaning:'Bit=adjacent same surface; extracted ledge bank. Centre fill beneath native edge/inset.',notes:['Source fringe and wood/stone ramp banks remain separate named banks; ramp minimum width is two lanes.'],masks,surface:f});
 }
 function terrain(mask:number,center:string,on:string,off:string):TerrainArray {
@@ -162,27 +184,28 @@ const flat=[
   {id:'paving-grass',center:'paving',on:'paving',off:'plains',base:'tile_cf_farmland_grass_inset',resolve:pavingGrassTransitionFrameIndexAt,meaning:'Bit=non-vegetated neighbour; centre is paving. This is grass fringe, not pavement kerb art.'},
   {id:'savanna-grass',center:'savanna',on:'savanna',off:'plains',base:'tile_cf_savanna_grass_inset',resolve:savannaGrassTransitionFrameIndexAt,meaning:'Bit=non-dark-grass neighbour; centre is savanna.'},
 ];
-for(const f of flat){const masks=Array.from({length:256},(_,mask)=>{const t=terrain(mask,f.center,f.on,f.off),n=f.resolve(t,3,3);return {mask,kind:maskKind(mask),refs:[...(n===null?[]:[{asset:f.base,frame:n}]),...('insets'in f?f.insets!(t,3,3).map(frame=>({asset:f.inset!,frame})):[])]};});maskSheet(f.id,masks);rules.push({id:f.id,evidence:'packages/engine/src/terrain.ts',meaning:f.meaning,notes:['Every raw 8-neighbour mask is recorded, including unsupported-looking narrow/T/cross cases. Nine-grid edge selection has precedence, not dedicated art for all 256 masks.','All qualifying diagonal inset overlays compose independently. Empty result means underlying fill remains visible.'],masks});}
+for(const f of flat){const masks=Array.from({length:256},(_,mask)=>{const t=terrain(mask,f.center,f.on,f.off),n=f.resolve(t,3,3),insets='insets'in f?f.insets!(t,3,3):[];return {mask,kind:maskKind(mask),refs:[...(n===null?[]:[{asset:f.base,frame:n}]),...insets.map(frame=>({asset:f.inset!,frame}))],...(insets.length>1?{unsupported:'Multiple inset blocks; Smart Placement repairs the local neck.'}:{})};});maskSheet(f.id,masks);rules.push({id:f.id,evidence:'packages/engine/src/terrain.ts',meaning:f.meaning,notes:['Every raw 8-neighbour mask is recorded, including unsupported-looking narrow/T/cross cases. Nine-grid edge selection has precedence, not dedicated art for all 256 masks.','Raw multi-inset masks describe existing invalid geometry, not accepted Smart designs. Smart Placement repairs its local patch; Exact and historical geometry remain allowed.'],masks});}
 // Assembled native examples exercise the same neighbour functions across a
 // complete small patch, not just a selected centre frame.
 for(const f of flat){
-  const shapes={minimum_2x2:['##','##'],rectangle:['#####','#####','#####'],concave:['####','####','##..','##..'],diagonal_river:['##...','###..','.###.','..###','...##'],T:['######','######','..##..','..##..'],cross:['..##..','..##..','######','######','..##..','..##..']};
+  const shapes=TERRAIN_CATALOGUE_SHAPES;
   const c=board(6*240,300),ctx=c.getContext('2d');
   Object.entries(shapes).forEach(([name,shape],i)=>{
     const t=terrain(0,f.center,f.on,f.off),biomes=new Uint8Array(100);
     const shore=f.id==='beach'||f.id==='desert-shore';
     const inside=shore?f.on:f.center,outside=shore?f.center:(f.id==='freshwater-river'?'plains':f.id==='desert-grass'?'savanna':'plains');
     biomes.fill(MAP_BIOME_IDS.indexOf(outside as typeof MAP_BIOME_IDS[number]));
-    for(let y=0;y<shape.length;y++)for(let x=0;x<shape[y]!.length;x++)if(shape[y]![x]==='#')biomes[(y+2)*10+x+2]=MAP_BIOME_IDS.indexOf(inside as typeof MAP_BIOME_IDS[number]);
+    const normalized=catalogueFormation(shape);
+    for(const {tileX,tileY} of normalized.points)biomes[(tileY+2)*10+tileX+2]=MAP_BIOME_IDS.indexOf(inside as typeof MAP_BIOME_IDS[number]);
     const field={...t,width:10,height:10,biomes};
     ctx.fillText(name,i*240+5,17);
     for(let y=1;y<9;y++)for(let x=1;x<9;x++){
       const biome=MAP_BIOME_IDS[biomes[y*10+x]!],px=i*240+5+(x-1)*28,py=30+(y-1)*28;
-      const base=biome==='water'||biome==='oasis_water'?'tile_cf_water':biome==='paving'?'tile_cf_hearth_pavement':biome==='beach'?'tile_cf_beach':biome==='desert_shore'?'tile_cf_desert_shore':biome==='desert'?'tile_cf_desert':biome==='savanna'?'tile_cf_desert_grass':'tile_cf_grass';
-      draw(c,{asset:base,frame:biome==='beach'||biome==='desert_shore'?4:biome==='paving'?(y%2)*2+x%2:0},px,py,28/16);
+      const base=biome==='oasis_water'?'tile_cf_desert_waterfall_1':biome==='water'?'tile_cf_water':biome==='paving'?'tile_cf_hearth_pavement':biome==='beach'?'tile_cf_beach':biome==='desert_shore'?'tile_cf_desert_shore':biome==='desert'?'tile_cf_desert':biome==='savanna'?'tile_cf_desert_grass':'tile_cf_grass';
+      draw(c,{asset:base,frame:biome==='oasis_water'?1:biome==='beach'||biome==='desert_shore'?4:biome==='paving'?(y%2)*2+x%2:0},px,py,28/16);
       if(biome===f.center){const n=f.resolve(field,x,y);if(n!==null)draw(c,{asset:f.base,frame:n},px,py,28/16);if('insets'in f)f.insets!(field,x,y).forEach(frame=>draw(c,{asset:f.inset!,frame},px,py,28/16));}
     }
-    ctx.fillText('Actual resolver across patch',i*240+5,278);
+    ctx.fillText(normalized.added.length?`Smart added ${normalized.added.length} local cells`:'Native local assembly',i*240+5,278);
   });imageOut(`rules/${f.id}-formations.png`,c);rules.find(r=>r.id===f.id)!.formations=`rules/${f.id}-formations.png`;
 }
 // The source itself proves this four-corner ring; do not infer repeatable
@@ -195,7 +218,7 @@ for(const[y,row]of [['top',0],['bottom',1]] as const)for(const[x,col]of [['left'
 pctx.fillText('Source-authored 2x2 curb ring',315,18);imageOut('rules/pavement-source-assembly.png',pavement);
 const blobMasks=Array.from({length:256},(_,mask)=>({mask,kind:maskKind(mask),refs:[{asset:'tile_cf_path',frame:blob47FrameIndexFor(matches(mask))}]}));
 maskSheet('blob47-path',blobMasks);rules.push({id:'blob47-path',evidence:'packages/engine/src/tilemap.ts',meaning:'Bit=connected same-material neighbour. Diagonal counts only when both adjacent cardinals match.',notes:['256 raw masks collapse to 47 canonical frames; frames are imported native art, not synthetic examples.'],masks:blobMasks});
-for(const center of [false,true]){const id=`cave-floor-${center?'rocky':'normal'}`;const masks=Array.from({length:256},(_,mask)=>{const p=caveFloorAutotilePlan(matches(mask,center));return{mask,kind:maskKind(mask),refs:[{asset:'tile_cf_cave_floor_middle',frame:0},...(p.transitionFrame===null?[]:[{asset:'tile_cf_cave_floor',frame:p.transitionFrame}]),...p.insetFrames.map(frame=>({asset:'tile_cf_cave_floor',frame}))],detail:p};});maskSheet(id,masks);rules.push({id,evidence:'packages/sim/src/cave-floor-autotile.ts',meaning:`Bit=rocky neighbour; centre ${center?'rocky':'normal'}.`,notes:['Cave Floor 1 and 2 share this role layout; variation and floor decoration are separate from adjacency.'],masks});}
+for(const center of [false,true]){const id=`cave-floor-${center?'rocky':'normal'}`;const masks=Array.from({length:256},(_,mask)=>{const p=caveFloorAutotilePlan(matches(mask,center));return{mask,kind:maskKind(mask),refs:[{asset:'tile_cf_cave_floor_middle',frame:0},...(p.transitionFrame===null?[]:[{asset:'tile_cf_cave_floor',frame:p.transitionFrame}]),...p.insetFrames.map(frame=>({asset:'tile_cf_cave_floor',frame}))],detail:p,...(p.insetFrames.length>1?{unsupported:'Multiple inset blocks in this raw input; not a valid Smart design.'}:{})};});maskSheet(id,masks);rules.push({id,evidence:'packages/sim/src/cave-floor-autotile.ts',meaning:`Bit=rocky neighbour; centre ${center?'rocky':'normal'}.`,notes:['Cave Floor 1 and 2 share this role layout; variation and floor decoration are separate from adjacency.'],masks});}
 for(const family of Object.keys(TERRAIN_SURFACE_FAMILIES) as (keyof typeof TERRAIN_SURFACE_FAMILIES)[]) {
   const id=`flat-fringe-${family}`;
   const masks=Array.from({length:256},(_,mask)=>{
@@ -269,7 +292,7 @@ const totals={registeredTileAssets:tileAssets.length,registeredTileFrames:assetL
 const gaps=[
   'Initial audit found tile_cf_interior_wall imported a transparent gutter at (48,0), and tile_cf_desert_grass was all transparent. The audit corrected these stable IDs with native crops; the contact sheets below show the corrected imports. This historical finding must not be mistaken for an intentional empty joining state.',
   'Snow cliff family is explicitly reserved: checked Christmas source has no cliff sheet. Ground overlays are not substitute cliff faces.',
-  'Shroomlands cliff has no primary inset mapping; its salmon ground quartet is not inverse cliff art. The separate ledge bank has its own roles.',
+  'Shroomlands primary inverse corners use source frames 3, 4, 12 and 13. Its separate salmon ground quartet is path art, not inverse cliff art; the compact ledge bank also has separate roles.',
   'Basic cliff has no authored vertical wall course. No synthetic face or shadow is fabricated.',
   'No cliff family supports a dedicated stair painter contract; ladder artwork is not traversable ladder authority. Registered ramps support north/up only, minimum two lanes.',
   'Pavement source includes kerbs/rings/stairs as well as fill. Coordinate variants do not prove complete automatic joining roles. Paving-grass mask is a grass fringe only.',
@@ -277,19 +300,21 @@ const gaps=[
   'Source cells without declared regions remain unresolved even if their sheet has imports. Some transformed/imported frames intentionally lack a direct source rectangle; consult full inventory pixel comparisons.',
   'Source table includes indexed terrain sheets and every registered tile source within the Cute Fantasy index. Other source formats/library packs are accounted for by the complete inventory, not silently claimed by this terrain guide.',
   'Family waterfallAssetId is source availability, not proof of all animation/course mappings. Only the core waterfall runtime lane resolver is exercised here; biome sheets retain unknown roles where absent.',
-  'Mask sheets are local rules. Formation images expose logical courses and native alpha shadows before world elevation projection; they are not screenshots or a certification of all map geometry.',
+  'Smart formations are local native cap/wall/foot assemblies, with family-specific substrate and repaired diagonal necks. Raw multi-inset masks are explicitly unsupported placement designs; old maps and Exact Placement remain legal.',
+  'Volcanic interior legacy primary frames are staircase art; a complete inverse wall bank is unverified. Its assembled preview is withheld. Cave/dungeon interiors also lack a verified opaque rock-mass fill; no generic green/brown block substitutes for that missing contract.',
+  'Shroomland ground patches and path transitions are visible in the source sheets, but are not yet registered as complete semantic material families. Cliff source correctness does not establish those missing joining rules.',
 ];
 json('catalogue.json',{version:1,generator:'scripts/render-terrain-catalogue.ts',totals,maskLegend,biomes,gaps,assets:assetLedger,sources:sourceLedger,rules,waterfall:{evidence:'packages/engine/src/terrain.ts#waterfallFrameIndexAt',notes:'Column left/middle/right from neighbours. Row 0 crest, 1 upper flow, 2 middle, 3 lower flow, 4 foot, requiring two rows of context. One-lane chooses left, not a double-cap. Animation remains separate.',cases:waterfallCases}});
 const style=`body{font:16px/1.55 system-ui;background:#141e25;color:#edf4ed;margin:0 auto;max-width:1500px;padding:24px}a{color:#a5d4ff}nav{position:sticky;top:0;background:#141e25;padding:12px;border-bottom:1px solid #65808e}h2{margin-top:48px}img{image-rendering:pixelated;max-width:100%;height:auto;background:#243039}details{scroll-margin-top:70px;border:1px solid #465c66;padding:12px;margin:12px 0}summary{cursor:pointer;font-weight:bold}code{color:#dce6aa}table{border-collapse:collapse;width:100%}td,th{padding:6px;text-align:left;border:1px solid #465c66}.gap{color:#ffc39d}.scroll{overflow:auto}.scroll img{max-width:none}input{padding:10px;width:70%;font:inherit}small{color:#adc0ca}`;
 let html=`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Native terrain joining atlas</title><link rel="icon" href="data:,"><style>${style}</style><h1>Native terrain joining atlas</h1><p>Generated from registered pixel grids, licensed source sheets and the actual shared runtime resolvers. No invented art, deleted stable IDs, or global map repair.</p><nav><a href="#rules">Joining rules</a> · <a href="#sources">Source sheets</a> · <a href="#assets">All registered tiles</a> · <a href="#gaps">Gaps</a> · <a href="catalogue.json">Machine-readable catalogue</a> · <a href="../inventory/README.md">Full atlas inventory</a></nav><p>${Object.entries(totals).map(([k,v])=>`${escape(k)}: <b>${v}</b>`).join(' · ')}</p><h2>Reading the guide</h2><p>Each mask uses bits <code>N=1 E=2 S=4 W=8 NE=16 SE=32 SW=64 NW=128</code>. Green squares mean the family-specific predicate is true; read each family's definition. The centre square is selected. Numbers under art are frame IDs drawn in order; all layer asset IDs appear in JSON. Every raw mask (0–255) is shown, including centres, straight edges, convex/concave turns, endpoints, T/crosses and diagonals. Repeated images can be intentional rule fallbacks.</p><p>Native transparent shadows are retained against the preview background. Source inspection grids use 16px cells; a cell is not automatically a valid placement unit or joining role. Orange source coordinates mark nonempty cells without a declared import rectangle. The grid preserves incomplete edge cells. Complete source-sheet captures are generated locally and excluded from Git, like the licensed references directory; regenerate on the licensed host to view them.</p><h2 id="gaps">Known limitations and missing rules</h2><ul>${gaps.map(x=>`<li class="gap">${escape(x)}</li>`).join('')}</ul><h2 id="rules">Implemented joining rules</h2>`;
-for(const r of rules){html+=`<details id="${r.id}"><summary>${escape(r.id)} — ${r.masks.length} masks</summary><p>${escape(r.meaning)} <a href="${link(r.evidence)}">Resolver source</a></p><ul>${r.notes.map(n=>`<li>${escape(n)}</li>`).join('')}</ul>${r.roleImage?`<p>Named native banks: edge, inset, face/foot, ramp and ledge roles. Frame IDs refer to the named asset, never to a global index.</p><a href="${r.roleImage}"><img loading="lazy" src="${r.roleImage}" alt="${r.id} named source roles"></a>`:''}${r.formations?`<p>Six local formations: 2×2 minimum, rectangle, concave notch, diagonal, T and cross. Raised families include face/foot and baked shadow where authored; flat families resolve every tile in the patch.</p><a href="${r.formations}"><img loading="lazy" src="${r.formations}" alt="${r.id} native assembled formations"></a>`:''}<a href="rules/${r.id}-masks.png"><img loading="lazy" src="rules/${r.id}-masks.png" alt="All 256 masks for ${r.id}"></a></details>`;}
+for(const r of rules){html+=`<details id="${r.id}"><summary>${escape(r.id)} — ${r.masks.length} masks</summary><p>${escape(r.meaning)} <a href="${link(r.evidence)}">Resolver source</a></p><ul>${r.notes.map(n=>`<li>${escape(n)}</li>`).join('')}</ul>${r.roleImage?`<p>Named native banks: edge, inset, face/foot, ramp and ledge roles. Frame IDs refer to the named asset, never to a global index.</p><a href="${r.roleImage}"><img loading="lazy" src="${r.roleImage}" alt="${r.id} named source roles"></a>`:''}${r.formationStatus?`<p class="gap">${escape(r.formationStatus)}</p>`:''}${r.formations&&!r.formationStatus?`<p>Six Smart Placement formations: 2×2 logical minimum (native inset pixels reduce the visible cap), rectangle, concave notch, corrected diagonal, T and cross. Amber plan cells show local assistance. Native cap, wall and foot courses use the family’s own substrate. Raw unsupported masks below are diagnostic and are not valid placement examples.</p><a href="${r.formations}"><img loading="lazy" src="${r.formations}" alt="${r.id} native assembled formations"></a>`:''}<a href="rules/${r.id}-masks.png"><img loading="lazy" src="rules/${r.id}-masks.png" alt="All 256 masks for ${r.id}"></a></details>`;}
 html+=`<details id="waterfalls"><summary>Waterfall lane and course rules</summary><p>Core waterfall uses 3 columns × 5 courses, with two rows of vertical lookahead. One-lane art uses the left frame; no double-capped tile is implied. Other biome falls are visible in their source and registered banks, with mapping gaps recorded.</p><img loading="lazy" src="rules/waterfall-lanes.png" alt="Native waterfall lanes one through six"></details><details id="pavement-source-assembly"><summary>Paving: native fill and authored curb ring</summary><p>The four native corner crops reassemble the original 2×2 ring. Straight kerbs and arbitrary T/cross/concave paving joins remain unverified; source-coordinate fragments are exposed for exact placement, without invented automatic roles.</p><img loading="lazy" src="rules/pavement-source-assembly.png" alt="Native pavement fill and four-corner curb ring"></details><h2 id="sources">Every terrain source sheet</h2><p>Filter by pack, source filename, or asset ID. Open a sheet to inspect every source cell and import gaps. Detailed cell-to-frame ownership is in <a href="catalogue.json">catalogue.json</a>.</p><input id="filter" placeholder="Filter source sheets and registered tiles" aria-label="Filter source sheets and registered tiles">`;
 for(const s of sourceLedger){const missing=s.cells.filter(c=>c.status==='unmapped-source-cell').length;html+=`<details class="searchable" data-search="${escape(s.source+' '+s.importedAssets.join(' '))}" id="source-${s.id}"><summary>${escape(s.pack+' / '+s.source.split('/').at(-1))} — ${s.cells.length} cells, ${missing} unresolved</summary><p><a href="${link(s.source)}">Original native PNG</a> · ${s.width}×${s.height} · SHA-256 <code>${s.sha256}</code></p><p>${escape(s.tileSet??'Roles unknown')}</p><p class="gap">${escape(s.ruleStatus)}</p><p>Implemented banks: ${s.implementedRules.map(id=>`<a href="#${id}">${id}</a>`).join(', ')||'none'}. This does not cover the entire source sheet.</p><p>Imports: ${s.importedAssets.map(id=>`<a href="${assetLedger.some(a=>a.asset===id)?`#asset-${id}`:'../inventory/README.md'}">${id}</a>`).join(', ')||'<span class="gap">None registered</span>'}</p><p>Imports without located crop metadata: ${escape(s.unlocatedImports.join(', ')||'none')}. These do not count as source-cell coverage.</p><a href="${s.image}"><img loading="lazy" src="${s.image}" alt="${escape(s.source)} every source cell"></a><p class="gap">${missing} nonempty cells with no declared import: ${s.cells.filter(c=>c.status==='unmapped-source-cell').map(c=>`(${c.column},${c.row})`).join(' ')||'none'}</p></details>`;}
 html+='<h2 id="assets">Every tile-category or tile-named asset and frame</h2>';
 for(const a of assetLedger){html+=`<details class="searchable" data-search="${escape(a.asset+' '+a.source)}" id="asset-${a.asset}"><summary>${a.asset} — ${a.frameCount} frames</summary><p>${a.source?`<a href="${link(a.source)}">Source PNG</a>`:'No source path'} · ${escape(JSON.stringify(a.frameKinds))}. Groups preserve variation/animation/state identity.</p><a href="${a.image}"><img loading="lazy" src="${a.image}" alt="All frames of ${a.asset}"></a></details>`;}
 html+=`<h2>Runtime biome ledger</h2><ul>${biomes.map(b=>`<li><code>${b.id}</code>: ${b.assets.map(a=>`<a href="#asset-${a}">${a}</a>`).join(', ')}</li>`).join('')}</ul><p>Biomes are substrate identities; several share art and join rules. Interior floor/architecture sources are also included above.</p><script>document.querySelector('#filter').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('.searchable').forEach(d=>{d.hidden=!d.dataset.search.toLowerCase().includes(q)})});function openHash(){if(location.hash){const d=document.getElementById(location.hash.slice(1));if(d?.tagName==='DETAILS'){d.hidden=false;d.open=true}}}addEventListener('hashchange',openHash);openHash()</script></html>`;
 emit('index.html',html);
-emit('README.md',`# Terrain atlas evidence\n\nOpen [the navigable guide](index.html), [machine-readable rules and source-cell ledger](catalogue.json), or [the full asset inventory](../inventory/README.md).\n\nReproduce from repository root:\n\n\`\`\`sh\nnpx tsx scripts/render-terrain-catalogue.ts\nnpx tsx scripts/render-terrain-catalogue.ts --check\n\`\`\`\n\nRequires the licensed \`references/art\` source library and installed workspace dependencies. Complete source-sheet captures in \`sources/\` are local-only and excluded from Git, matching the existing licensed-reference policy. Registered-art examples and source-cell metadata are versioned. Missing source files, frames or invalid colors fail generation. \`--check\` regenerates in memory and compares every expected artifact byte-for-byte; it writes nothing. No live source/generated atlas files change. The audit PR owns release notes and integration checks.\n\n${Object.entries(totals).map(([k,v])=>`- ${k}: ${v}`).join('\n')}\n\nThe source ledger selects all Cute Fantasy index entries under \`/Tiles/\`, classified as \`tile-set\`, or referenced by a registered tile. Every selected sheet and cell is retained, including empty cells; source crop ownership is conservatively classified as declared/partial/unmapped, never inferred from filename alone. The full inventory accounts for the rest of the source library and formats.\n\nAll 256 neighbour masks are enumerated per rule family using the actual exported resolver. JSON records the bit predicate, frame/layer IDs, full cliff bank definitions, and missing roles. T/cross/diagonal cases may map to repeated native frames through the current precedence rules. Coverage is an audit of implementation, not a claim that every topology is visually supported.\n\nRaised examples show minimum 2×2, rectangle, concave, diagonal, T and cross formations for each available cliff family. They expose native rim, face and foot/shadow courses in logical coordinates; world projection/collision is not simulated. Local authoring assistance may update a placed cell and neighbours; historical invalid maps remain allowed.\n\n## Explicit gaps\n\n${gaps.map(g=>`- ${g}`).join('\n')}\n`);
+emit('README.md',`# Terrain atlas evidence\n\nOpen [the navigable guide](index.html), [machine-readable rules and source-cell ledger](catalogue.json), or [the full asset inventory](../inventory/README.md).\n\nReproduce from repository root:\n\n\`\`\`sh\nnpx tsx scripts/render-terrain-catalogue.ts\nnpx tsx scripts/render-terrain-catalogue.ts --check\n\`\`\`\n\nRequires the licensed \`references/art\` source library and installed workspace dependencies. Complete source-sheet captures in \`sources/\` are local-only and excluded from Git, matching the existing licensed-reference policy. Registered-art examples and source-cell metadata are versioned. Missing source files, frames or invalid colors fail generation. \`--check\` regenerates in memory and compares every expected artifact byte-for-byte; it writes nothing. No live source/generated atlas files change. The audit PR owns release notes and integration checks.\n\n${Object.entries(totals).map(([k,v])=>`- ${k}: ${v}`).join('\n')}\n\nThe source ledger selects all Cute Fantasy index entries under \`/Tiles/\`, classified as \`tile-set\`, or referenced by a registered tile. Every selected sheet and cell is retained, including empty cells; source crop ownership is conservatively classified as declared/partial/unmapped, never inferred from filename alone. The full inventory accounts for the rest of the source library and formats.\n\nAll 256 neighbour masks are enumerated per rule family using the actual exported resolver. JSON records the bit predicate, frame/layer IDs, full cliff bank definitions, and missing roles. T/cross/diagonal cases may map to repeated native frames through the current precedence rules. Coverage is an audit of implementation, not a claim that every topology is visually supported.\n\nOutdoor examples show minimum 2×2, rectangle, concave, corrected diagonal, T and cross formations with matching native substrate. Tile plans expose the edited input and amber Smart additions. Multi-inset raw masks are not advertised as valid geometry. Unverified interior assemblies are withheld with precise missing-role explanations; native source banks remain visible. Local authoring assistance may update a placed cell and neighbours; historical invalid maps remain allowed.\n\n## Explicit gaps\n\n${gaps.map(g=>`- ${g}`).join('\n')}\n`);
 // Check coverage invariants before considering output successful.
 if(rules.some(r=>r.masks.length!==256||new Set(r.masks.map(m=>m.mask)).size!==256))throw new Error('Incomplete masks');
 if(new Set(blobMasks.map(m=>m.refs[0]!.frame)).size!==47)throw new Error('Blob47 coverage mismatch');
