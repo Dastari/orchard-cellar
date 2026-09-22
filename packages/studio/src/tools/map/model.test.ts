@@ -8,6 +8,9 @@ import {
   serializeMapDocumentV3,
   serializeMapDocumentV3ForTransport,
   type MapDocumentV3,
+  applyMapDocumentDelta,
+  parseMapDocumentDelta,
+  parseMapDocumentV3,
 } from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -68,6 +71,41 @@ function mapHead(document: MapDocumentV3): NonNullable<StudioConnectionView['map
 }
 
 describe('Studio Map Editor model', () => {
+  it('publishes a restored tree deletion as a delta and keeps in-flight edits for the next revision', async () => {
+    const tree = { id: 'old-tree-386-373', prefabId: 'old-tree', prefabRevision: 0,
+      tileX: 386, tileY: 373, elevation: 0, layer: 'objects' as const, quarterTurns: 0 as const, flipX: false, enabled: true };
+    const base = normalizeMapDocumentV3({ ...remoteDocument(6, 'Town'),
+      prefabs: [createMapPrefabDocument({ id: 'old-tree', title: 'Old tree' })], objects: [tree],
+    });
+    let liveView = view({ mapDocument: mapHead(base), mapRevision: 6 });
+    const publishMap = vi.fn(async () => undefined);
+    const adapter: StudioLiveAdapter = { view: () => liveView, connect: () => undefined, disconnect: () => undefined, publishMap };
+    const storage = new MemoryStorage();
+    const first = harness(adapter, storage).model;
+    first.reconcileLiveHead(); first.removeObject(tree.id);
+    first.dispose();
+    const { model } = harness(adapter, storage);
+    await model.publish();
+    const args = publishMap.mock.calls[0] as unknown as [MapDocumentV3, string, number];
+    const deletion = parseMapDocumentDelta(JSON.parse(args[1]));
+    expect(args[2]).toBe(6);
+    expect(args[1].length).toBeLessThan(1_000);
+    expect(deletion.collections).toEqual({ objects: { [tree.id]: null } });
+    model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
+    const accepted = normalizeMapDocumentV3({ ...parseMapDocumentV3(applyMapDocumentDelta(base, deletion)), revision: 7 });
+    liveView = view({ mapDocument: mapHead(accepted), mapRevision: 7 });
+    model.reconcileLiveHead();
+    expect(model.baseRevision()).toBe(7);
+    expect(model.publishing()).toBe(false);
+    expect(model.dirty()).toBe(true);
+    await model.publish();
+    const nextArgs = publishMap.mock.calls[1] as unknown as [MapDocumentV3, string, number];
+    const next = parseMapDocumentDelta(JSON.parse(nextArgs[1]));
+    expect(nextArgs[2]).toBe(7);
+    expect(next.collections?.objects).toBeUndefined();
+    expect(next.collections?.cells?.['400,400']).toEqual({ biome: 'forest' });
+    model.dispose();
+  });
   it('stores compact drafts that restore the same map and live revision', () => {
     const remote = remoteDocument(6, 'Published town');
     const adapter = { view: () => view({ mapDocument: mapHead(remote) }) } as StudioLiveAdapter;

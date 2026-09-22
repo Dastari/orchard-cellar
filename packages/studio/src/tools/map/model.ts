@@ -10,7 +10,7 @@ import {
   migrateMapDocumentV2,
   normalizeMapDocumentV3,
   parseMapDocumentV3,
-  serializeMapDocumentV3,
+  createMapDocumentDelta,
   serializeMapDocumentV3ForTransport,
   terrainDocumentForMapV3,
   validateMapDocument,
@@ -653,14 +653,20 @@ export class MapEditorModel {
     if (this.#publishing !== null) throw new Error('map_publish_in_progress');
     const adapter = this.services.live();
     if (adapter?.publishMap === undefined) throw new Error('live_map_adapter_unavailable');
+    const head = adapter.view().mapDocument;
+    if (head === null || head === undefined || head.revision !== this.#baseRevision) {
+      throw new Error('live_map_head_unavailable');
+    }
+    const base = parseVerifiedStudioMapHead(head, this.mapId);
     const document = this.#document;
+    const deltaJson = JSON.stringify(createMapDocumentDelta(base, document));
     const publishing = Object.freeze({
       baseRevision: this.#baseRevision,
       semanticHash: editorMapSemanticHash(document),
     });
     this.#publishing = publishing;
     try {
-      await adapter.publishMap(document, serializeMapDocumentV3(document), publishing.baseRevision);
+      await adapter.publishMap(document, deltaJson, publishing.baseRevision);
     } catch (error: unknown) {
       if (this.#publishing === publishing) this.#publishing = null;
       this.reconcileLiveHead();

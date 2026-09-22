@@ -154,6 +154,7 @@ interface MapCanvasState {
   resizeMode: boolean;
   resizeImpact: MapResizeImpact | null;
   dismissedConflictRevision: number | null;
+  publishError: string | null;
   selectionOffset: number;
   selectionBounds: UiRect;
   selectionRowCount: number;
@@ -413,6 +414,7 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
     resizeMode: false,
     resizeImpact: null,
     dismissedConflictRevision: null,
+    publishError: null,
     selectionOffset: 0,
     selectionBounds: { x: 0, y: 0, width: 0, height: 0 },
     selectionRowCount: 0,
@@ -628,11 +630,13 @@ function publishMapFromCanvas(
   context: StudioCanvasToolContext,
 ): Promise<void> {
   const title = state.model.document().title;
+  state.publishError = null;
   const pending = state.model.publish();
   context.invalidate();
   return pending.then(() => {
     context.controller.notifications.push('success', 'Map published', title);
   }).catch((error: unknown) => {
+    state.publishError = error instanceof Error ? error.message : String(error);
     reportCanvasError(context, 'Map publish failed', error);
     throw error;
   }).finally(context.invalidate);
@@ -1636,7 +1640,7 @@ function mapPublishButton(state:MapCanvasState,context:StudioCanvasToolContext):
     conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),
     connected:view?.connected===true,synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
     publishAvailable:context.controller.liveAdapter()?.publishMap!==undefined});
-  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?'Publishing…':state.model.dirty()?'Publish changes':'Published',
+  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?'Publishing…':state.publishError!==null?'Retry publish':state.model.dirty()?'Publish changes':'Published',
     disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},leading:kit.icon({cf:'save'})}),
     {width:'grow',minWidth:uiFixed(0),shrink:0});
 }
@@ -2178,6 +2182,16 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
     appendRuntimeObjectOverlay(state, context, parts);
     appendNpcLocationOverlay(state, context, parts);
     appendSchemaInspectorOverlay(state, context, parts, mapId);
+    if (state.publishError !== null) {
+      appendMapOverlayPanel(parts, context, 'publish-error', [
+        kit.text('Publish failed — your draft is retained', { id: 'map-publish-error-title', maxLines: 2 }),
+        kit.text(state.publishError, { id: 'map-publish-error-message', maxLines: 4 }),
+        mapOverlayAction('publish-error-retry', 'Retry publish', () => state.autoPublish.requestManual(), {
+          disabled: state.model.publishing() || !state.model.dirty(),
+        }),
+        mapOverlayAction('publish-error-dismiss', 'Dismiss', () => { state.publishError = null; context.invalidate(); }),
+      ]);
+    }
   }
   persistSession(state);
 

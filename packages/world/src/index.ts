@@ -1,4 +1,5 @@
 import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
+import { LIVE_MAP_MAX_DOCUMENT_CHARACTERS, prepareLiveMapPublication } from './live-map-publication.js';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
 import { orchardHarvestResult, orchardFruitStatus } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
@@ -12363,7 +12364,6 @@ const entityTimerAuthority: EntityTimerAuthority = {
 };
 // --- end docs/55 lane 55-B0 behaviour authority bridge ---
 
-const LIVE_MAP_MAX_DOCUMENT_CHARACTERS = 4_000_000;
 const LIVE_MAP_MAX_PREFABS = 2_048;
 const LIVE_MAP_MAX_OBJECTS = 50_000;
 const LIVE_MAP_MAX_OVERRIDES = 250_000;
@@ -16983,7 +16983,20 @@ export const publishLiveMapDocument = spacetimedb.reducer(
   },
   (ctx, { mapId, expectedRevision, documentJson, clientMutationId }) => {
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    const document = validatedLiveMapDocument(ctx, mapId, documentJson);
+    let document: MapDocumentV3 | null;
+    try {
+      document = prepareLiveMapPublication(documentJson, expectedRevision, clientMutationId, () => {
+        const head = ctx.db.live_map_document.mapId.find(mapId);
+        return head === null ? null : {
+          revision: head.revision, clientMutationId: head.clientMutationId,
+          document: parseMapDocumentV3(head.documentJson,
+            mapId === LIVE_ISLAND_MAP_ID ? activeTopsideLandmarks(ctx) : undefined),
+        };
+      }, json => validatedLiveMapDocument(ctx, mapId, json));
+    } catch (error) {
+      throw new SenderError(error instanceof Error ? error.message : 'invalid_live_map_document');
+    }
+    if (document === null) return;
     commitLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId);
   },
 );
