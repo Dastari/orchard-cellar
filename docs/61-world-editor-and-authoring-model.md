@@ -1,6 +1,6 @@
 # 61 — World Editor Model, Object Archetypes, Rule Catalogue, and UI-Kit Enforcement
 
-Plan, **2026-09-23**. Status: **proposed; owner decisions in §9 are open**. No
+Plan, **2026-09-23**. Status: **proposed; owner decisions D1–D4 settled 2026-09-23 (§9), D5 open**. No
 code changes accompany this document.
 
 **Relationship to other plans**
@@ -215,14 +215,82 @@ audited change.
 - The current 832×832 world is materialized into chunks with its effective
   terrain, overrides, objects, removals and identity bindings unchanged. Hashes
   are verified before and after.
-- New land can arrive in two ways: curated (generate in Studio, edit, publish a
-  region) or frontier (generate on first approach, persist). Both use one
-  pipeline; §9 D1 chooses the policy.
+- New land is curated (§9 D1). Studio runs the generator to draft a region; the
+  author edits it and publishes static chunks. Generator code never ships to the
+  client.
 - Streaming and active-area simulation follow. Dormant growth settles from
   timestamps, as crops already do.
 
 **The cell part stack (§2.2) is stored per chunk from the start**, so the map is
 migrated once, not twice.
+
+#### 2.5.1 Delivery today (audited 2026-09-23)
+
+- **The client runs the island generator itself.** `terrainForSnapshot`
+  (`client/src/overworld-main.ts:1756`) builds the 832² base with
+  `survivalTerrainBytes`/`survivalElevationBytes`. It also generates
+  decorations and tree kinds locally.
+- The live document is a sparse overlay on generator output.
+- The client subscribes to the whole `live_map_document` row
+  (`net/overworld-connection.ts:1294`): about **3.1 MB of JSON**, 97% of it
+  `cells`. It then compiles the full map.
+- The server compiles the whole map too (`world/src/index.ts:12465`).
+- `@orchard/sim` ships to the client as a 930 KB chunk that includes
+  `survival-world.ts`.
+
+**What can be reused:**
+
+- Entity subscriptions are already regional (`subscribeRegion`, 16-tile chunks).
+- `world-coordinates.ts` has signed chunk maths with a size parameter.
+- The ground cache already draws in chunks.
+
+**Art delivery today:**
+
+- Any asset request loads its category's whole metadata file: 2.86 MB for
+  characters, 1.2 MB for the asset registry.
+- `loadOverworldArt()` awaits every category before connecting.
+- The service-worker cache is wiped on every release.
+
+#### 2.5.2 Chunk delivery design
+
+- **Format.** One immutable binary blob per 64×64 chunk per space. Header:
+  schema, space, chunk coordinates, content hash, asset revision. Payload:
+  - per-cell arrays (biome, surface family, elevation, collision, terrace and
+    cliff roles, horse-jump, feature);
+  - cell parts;
+  - objects, landmarks and formerly generated decorations, anchored in the
+    chunk;
+  - a one-cell halo so autotiling needs no neighbour fetch;
+  - the atlas pack ids the chunk uses.
+- **Transport.** Blobs are served as content-addressed static files
+  (`/world/<space>/<hash>.bin`, cacheable at a CDN). A small public
+  `world_chunk_head(spaceId, cx, cy, contentHash)` table is subscribed within
+  the view radius plus one ring. Only changed hashes are fetched. The server
+  compiles collision lazily per chunk from the same blobs.
+- **Client.** A `ChunkTerrainStore` implements the `TerrainArray` interface. It
+  pins the view plus one ring, keeps an LRU in memory, and persists to
+  IndexedDB by hash. Movement prediction waits for the chunks under the player.
+- **Atlas splitting.**
+  - Repack into semantic, content-addressed packs: terrain core, per-biome
+    terrain, per-family props and trees, player-core versus NPC/mob
+    characters.
+  - Keep one small asset→pack index.
+  - Prefetch the packs listed by pinned and ring chunks; first play waits only
+    on the spawn chunks' packs.
+  - Deduplicate seasonal variants.
+  - Move immutable assets to a service-worker cache that survives releases.
+  - This extends `docs/frontend-asset-delivery-audit-2026-09-21.md`.
+- **Migration.**
+  1. A Node tool runs today's exact client path (terrain, decorations,
+     suppressions) on the published revision and writes 13×13 chunks.
+  2. A golden test rebuilds the full terrain and collision arrays from chunks
+     and byte-compares every array, obstacle and decoration id. Generated
+     resource ids must be preserved exactly.
+  3. Publish chunk heads, then run the client in shadow mode behind a flag.
+  4. Switch server collision to chunks.
+  5. Remove generator, compiler and whole-document code from the client bundle.
+     `scripts/check-client-build-chunks.ts` enforces this.
+  6. Retire the `documentJson` row once Studio reads and writes chunks.
 
 ### 2.6 Shared placement function
 
@@ -449,16 +517,23 @@ hoeing next to the path.
 - **Lifecycle callbacks for objects widen the reviewed-code surface.**
   Mitigation: graphs remain the default.
 
-## 9. Owner decisions
+## 9. Owner decisions (settled 2026-09-23 unless noted)
 
-- **D1 World growth policy:** curated regions, frontier generation on approach,
-  or both. *Recommendation:* build the shared pipeline and launch curated first;
-  frontier is a policy flag later.
-- **D2 Chunk size:** 64×64 proposed.
-- **D3 Fold resources and crops into `object:`:** *recommended yes*. The
-  alternative keeps three families with duplicated state editors.
-- **D4 Object hooks:** graphs only, or graphs plus TypeScript object callbacks
-  (§3.4). *Recommendation:* both, graphs first.
-- **D5 Studio deployment during parallel lanes:** lanes land as separate PRs.
-  *Recommendation:* deploy Studio only from `main` after merge, so concurrent
-  branch builds don't overwrite each other in `packages/studio/dist`.
+- **D1 World growth policy: curated static regions.** Studio may generate
+  islands and regions. The output is saved static terrain that is edited and
+  published like any other authored region. The client never needs generator
+  code. The current island is materialized to static saved data (§2.5). Clients
+  receive terrain per chunk, not the whole world, and tile/sprite art is split so
+  a client downloads only the atlas pages its nearby chunks reference. Frontier
+  generation is dropped.
+- **D2 Chunk size: 64×64 cells.**
+- **D3 Fold resources and crops into `object:`: yes, and expandable.** States,
+  per-state overrides, transitions, `growth` and hooks are generic components.
+  Later entity kinds (NPCs/mobs, items, zones) attach them rather than
+  re-implementing them.
+- **D4 Object hooks: both data graphs and TypeScript lifecycle callbacks.**
+  Transitions and hooks reference either one. Callback scripting extends to
+  quests and conversations (see doc 62).
+- **D5 Studio deployment during parallel lanes:** *open*. The proposal is to
+  deploy Studio only from `main` after merge, so concurrent branch builds don't
+  overwrite each other in `packages/studio/dist`.
