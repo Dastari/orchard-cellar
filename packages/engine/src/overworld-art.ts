@@ -1487,8 +1487,11 @@ function drawAnchored(
   const sourceX = source.x;
   const sourceY = source.y;
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
-  const x = Math.round((worldX - cameraX - anchorX) * zoom);
-  const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
+  // Quantize world and camera separately. Besides sharing the ground's pixel
+  // phase, this keeps half-pixel ties stable when cameraX/Y is a rounded pixel
+  // divided by a non-power-of-two world-pass scale (for example 3 or 6).
+  const x = Math.round((worldX - anchorX) * zoom) - Math.round(cameraX * zoom);
+  const y = Math.round((worldY - asset.anchor[1]) * zoom) - Math.round(cameraY * zoom);
   const previousAlpha = dimmed ? context.globalAlpha : 1;
   const previousFilter = dimmed ? context.filter : '';
   const savedTransform = saveSpriteTransform(context, flipX);
@@ -1657,8 +1660,8 @@ function drawAnchoredBand(
   const end = Math.max(start, Math.min(source.height, Math.floor(endRow)));
   if (start === end) return;
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
-  const x = Math.round((worldX - cameraX - anchorX) * zoom);
-  const y = Math.round((worldY - cameraY - asset.anchor[1] + start) * zoom);
+  const x = Math.round((worldX - anchorX) * zoom) - Math.round(cameraX * zoom);
+  const y = Math.round((worldY - asset.anchor[1] + start) * zoom) - Math.round(cameraY * zoom);
   const height = end - start;
   const savedTransform = saveSpriteTransform(context, flipX);
   if (flipX) {
@@ -4013,8 +4016,8 @@ export function drawOverworldBoat(
     : cardinal === 'up' ? -Math.PI / 2
     : 0;
   const flipX = authored === null && boatFlipsForDirection(facing);
-  const screenX = Math.round((x - cameraX) * zoom);
-  const screenY = Math.round((y - cameraY) * zoom);
+  const screenX = Math.round(x * zoom) - Math.round(cameraX * zoom);
+  const screenY = Math.round(y * zoom) - Math.round(cameraY * zoom);
   const previousImageSmoothingEnabled = context.imageSmoothingEnabled;
   const savedTransform = saveSpriteTransform(context, true);
   context.translate(screenX, screenY);

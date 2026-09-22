@@ -133,6 +133,7 @@ import {
 import { AvatarAnimationController, LocalActionPresentation, FrameVisualTickClock, PresentationCorrection, ProjectileSnapshotBuffer, RemoteSnapshotBuffer, RenderTickClock, VisualTickClock, presentationAuthorityTick, type SampledProjectile, type SampledRemote } from './net/netcode.js';
 import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortrait, drawPlayerPaperDoll, drawNpcPortrait, drawUiAsset, drawUiAssetFrame, horseJumpPose, loadOverworldArt, type WorldVisualBounds } from '@orchard/engine/overworld-art';
 import { cameraAxisOffset } from '@orchard/engine/camera';
+import { snapGameplayCamera } from './gameplay-camera.js';
 import { createClientCollisionMap } from '@orchard/engine/collision';
 import { drawAnimatedTerrain } from '@orchard/engine/animated-terrain';
 import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from '@orchard/engine/farmland';
@@ -4483,8 +4484,12 @@ function renderFrame(alpha = 1): void {
   const viewportWidth = frame.layout.width / scale;
   const viewportHeight = frame.layout.height / scale;
   const worldPixels = activeSpaceDefinition.sizeTiles * 16;
-  const cameraX = lightingPreview?.cameraX ?? cameraAxisOffset(localX, viewportWidth, worldPixels);
-  const cameraY = lightingPreview?.cameraY ?? cameraAxisOffset(projectedLocalY, viewportHeight, worldPixels);
+  const cameraX = snapGameplayCamera(
+    lightingPreview?.cameraX ?? cameraAxisOffset(localX, viewportWidth, worldPixels), scale,
+  );
+  const cameraY = snapGameplayCamera(
+    lightingPreview?.cameraY ?? cameraAxisOffset(projectedLocalY, viewportHeight, worldPixels), scale,
+  );
   latestCameraX = cameraX;
   latestCameraY = cameraY;
   latestRenderedZoom = worldZoom;

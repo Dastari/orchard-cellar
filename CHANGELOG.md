@@ -13,6 +13,12 @@
 - Apply deltas atomically on the authority with revision/hash conflict checks, full map validation, retry receipts and existing history/game subscriptions. Existing snapshot callers remain supported without a database schema change.
 - Keep rejected drafts and show visible publish failures with retry/dismiss controls. Preserve edits made while a previous publication is awaiting its live receipt.
 
+## 0.18.3 — NPC camera alignment
+
+- Keep resting and sleeping animals fixed to the ground while the player moves by aligning all world layers to the same camera pixel grid.
+- Preserve NPC/player movement interpolation and stabilize actor rounding at higher rendering resolutions.
+- Record the measured cause, regression coverage and release handoff in [the investigation](docs/npc-camera-jitter-investigation.md).
+
 ## 0.18.2 / Studio 0.9.3 — Live map freeze recovery
 
 - Load the player appearance/held-light, enemy, mount and wildlife artwork used by Studio's live map before rendering actors, fixing repeated missing-art exceptions that froze the canvas.
