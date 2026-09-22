@@ -75,7 +75,7 @@ this development host.
 
 Asset build, source-pixel comparisons, atlas reconciliation, focused Studio
 regressions, type checks, lint and the reviewed production build are required.
-The complete repository suite and browser checks are recorded in the PR/release
-handoff when finished. Studio deploys independently; game/world code, schema and
+The complete repository suite and browser checks passed; see the
+[release handoff](release-handoff.md) for counts and deployment evidence. Studio deploys independently; game/world code, schema and
 live content are unchanged. A future game asset release must retain the existing
 world release approval and guarded procedure.
