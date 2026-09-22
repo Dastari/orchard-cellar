@@ -191,3 +191,22 @@ from the local fixture or HTTP checks. No credentials are recorded here.
 Auto surround does not disable the terrain compositor globally; exact terrain role
 overrides remain in the inspector. Missing native snow source, shroomlands tall
 inverse corners and dedicated lava shore artwork remain documented capability limits.
+
+
+## PR47 deployment verification
+
+Live: https://cellar.dastari.net/
+Source: c6b4f32818af7b3098bb08ce5b944afbff5f43ec, feat/studio-map-delta-publish.
+PR: https://github.com/Dastari/orchard-cellar/pull/47 (open, unmerged; source CI passed).
+Bundle: /assets/index-9MeJb9eh.js
+Bundle SHA256: df8ab4f39eb29ef8387f7d1e8c21260f20a88a378799bc36379592655fe5e5c7
+World module: d3e9761d54325593612cc85465016d10f213dc5c377e8590d5268e1514ff1b7d
+Database identity: c200af6ca3e4663bde9be65c18114d5d296f4b811bf0fa35d3771f8fdba89c21
+Content remains R15 / 2f704947. No content upserts or map publication.
+Evidence/rollback: /home/toby/.local/state/orchard-release/map-delta-20260922-routine
+Status: deployed. Full schema and public bindings unchanged; guarded routine lane,
+rollback manifests, 42-table owner reconnect parity and static/public byte checks passed.
+Reviewed Studio guard preserved. Dedicated account sign-in and live R6 canvas verified.
+Owner reconnect credentials removed after verification; user Studio draft untouched.
+New selection/terrain work is isolated in orchard-studio-feedback and is NOT deployed.
+
