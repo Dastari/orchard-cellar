@@ -2534,10 +2534,11 @@ export function drawAuthoredOverworldObject(
   return true;
 }
 
-/** Large licensed prop sheets are normalized to their authoritative tile
- * footprint when placed in the world. Inventory icons retain their native art. */
+/** Placeable source sprites use their native world-pixel footprint. The
+ * dedicated workbench is 32px wide, matching its two-tile collision. */
 export function overworldPlaceableVisualScale(kind: string): number {
-  return kind === "workbench" ? 0.5 : 1;
+  void kind; // Preserve the public kind-based API; all current sprites are native scale.
+  return 1;
 }
 
 /** A tiny palette-matched arrow is rotated around its shaft so aiming is not

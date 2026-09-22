@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.4 — World interactions and crafting workbench
+
+- Empty hotbar rows no longer show missing-item question marks; real unknown items retain fallback artwork.
+- Nearby E actions, including picking ripe fruit, remain visible alongside selected-item F hints.
+- Route nearby interaction selection through a provider registry supporting UI-opening and action callbacks, deterministic proximity, unregistering and exclusive dismount. Existing adapters retain their authority/reach rules.
+- Replace the table-derived workbench with dedicated AI pixel art, a two-tile footprint, carry/placement support and three-hit axe dismantling that returns its four planks. Validate and target both occupied tiles.
+- Document current direct anvil repair, its material/currency cost, and the unshipped repair panel. Client 0.18.2; UI 0.18.1.
+
 ## 0.18.1 — Ripe fruit when a tree is chopped
 
 - Chopping a ripe apple, pear, peach or cherry tree again drops its fruit, the Orchard Seed Saver seed roll and Farming XP along with the wood.

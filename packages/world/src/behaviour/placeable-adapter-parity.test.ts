@@ -51,7 +51,7 @@ describe('placeable world-adapter row-write parity', () => {
     expect(validate).toContain("throw new SenderError('mounted_action_forbidden')");
     expect(validate).toContain("throw new SenderError('homestead_builder_required')");
     expect(validate).toContain('requireChestPlacementTile(ctx, position, tileX, tileY)');
-    expect(validate).toContain('requirePlaceablePlacementTile(ctx, position, tileX, tileY)');
+    expect(validate).toContain('requirePlaceablePlacementTile(ctx, position, tileX, tileY, { kind: runtimeKind, definitionId: definition.id })');
   });
 
   it('writes the same fresh chest/placeable rows and consumes only the selected quantity', () => {

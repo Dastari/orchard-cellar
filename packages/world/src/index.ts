@@ -1,3 +1,4 @@
+import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
 import { orchardHarvestResult, orchardFruitStatus } from '@orchard/sim';
@@ -10218,12 +10219,16 @@ function assertBehaviourTargetReach(
         }
         return;
       }
-      if (!placeableTargetMatchesFacingTile({
+      const cells = runtimeObjectFootprintTiles(contentRegistry(ctx), {
+        kind: target.snapshot.definitionId.slice('object:'.length), definitionId: target.snapshot.definitionId,
+        tileX: target.snapshot.tile.x, tileY: target.snapshot.tile.y,
+      });
+      if (!cells.some(tile => placeableTargetMatchesFacingTile({
         x: position.x,
         y: position.y,
         facing: parseDirection(position.facing) ?? 'down',
         spaceId: position.spaceId.toString(),
-      }, target.snapshot.tile)) {
+      }, { ...target.snapshot.tile, x: tile.tileX, y: tile.tileY }))) {
         throw new SenderError('behaviour_target_out_of_range');
       }
       return;
@@ -10759,7 +10764,7 @@ function worldBehaviourEffectWriter(
       else if (runtimeHomesteadBuildDefinition(contentRegistry(ctx), { kind: runtimeKind, definitionId: definition.id })?.layer === 'prefab') {
         requireHomesteadBuildPlacement(ctx, position, definition.components.placement!.item.slice('item:'.length), tileX, tileY);
       } else {
-        requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+        requirePlaceablePlacementTile(ctx, position, tileX, tileY, { kind: runtimeKind, definitionId: definition.id });
       }
       plannedPlaceableSpawns += 1;
       return;
@@ -11239,7 +11244,7 @@ function worldBehaviourEffectWriter(
         || carriedPlaceablePolicy?.mode === 'preserve_entity_or_item_when_empty') {
         requireChestPlacementTile(ctx, position, tileX, tileY);
       } else if (carriedPlaceable !== null) {
-        requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+        requirePlaceablePlacementTile(ctx, position, tileX, tileY, carriedPlaceable);
       } else {
         throw new SenderError('carried_object_not_found');
       }
@@ -18219,6 +18224,7 @@ function requirePlaceablePlacementTile(
   position: { readonly x: number; readonly y: number; readonly spaceId: number },
   tileX: number,
   tileY: number,
+  reference?: { readonly kind: string; readonly definitionId?: string },
 ): void {
   if (position.spaceId === TOPSIDE_SPACE_ID && activeWildlifeFeedReservedAt(ctx, tileX, tileY)) {
     throw new SenderError('placement_blocked');
@@ -18232,6 +18238,16 @@ function requirePlaceablePlacementTile(
     tileOverlapsAnyPlayer(ctx, position.spaceId, tileX, tileY),
   );
   if (result !== 'ok') throw new SenderError('placement_blocked');
+  if (reference === undefined) return;
+  const cells = runtimeObjectFootprintTiles(contentRegistry(ctx), { ...reference, tileX, tileY }, 'placement');
+  const collision = collisionForSpace(ctx, position.spaceId);
+  if (cells.length === 0 || cells.some(tile => tile.tileX < 0 || tile.tileY < 0
+    || tile.tileX >= collision.width || tile.tileY >= collision.height
+    || tileTargetIsBlocked(collision, tile)
+    || tileOverlapsAnyPlayer(ctx, position.spaceId, tile.tileX, tile.tileY)
+    || (position.spaceId === TOPSIDE_SPACE_ID && activeWildlifeFeedReservedAt(ctx, tile.tileX, tile.tileY)))) {
+    throw new SenderError('placement_blocked');
+  }
 }
 
 function insertPlayerCarriedItem(
@@ -18383,7 +18399,7 @@ function placeableAtFacingTile(
 ): WorldPlaceableRow | null {
   const target = facingTile(position.x, position.y, position.facing);
   return [...ctx.db.world_placeable.by_chunk.filter(position.spaceId)].find((row) => (
-    row.carriedBy === undefined && row.tileX === target.tileX && row.tileY === target.tileY
+    row.carriedBy === undefined && runtimeObjectOccupiesTile(contentRegistry(ctx), row, target)
   )) ?? null;
 }
 
@@ -18418,7 +18434,7 @@ function placeCarriedHandsObject(
   if (carry === null) return false;
   const containerCarry = carry.mode === 'preserve_entity_or_item_when_empty';
   if (containerCarry) requireChestPlacementTile(ctx, position, tileX, tileY);
-  else requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+  else requirePlaceablePlacementTile(ctx, position, tileX, tileY, carriedPlaceable);
   const placed = {
     ...carriedPlaceable,
     tileX,
@@ -20428,7 +20444,8 @@ function applyHarvestPlaceableLifecycle(
       throw new SenderError('wrong_tool');
     }
     requireUsableTool(ctx, selected);
-    if (!campfireWithinReach(position.x, position.y, fire)) throw new SenderError('target_out_of_range');
+    if (!runtimeObjectFootprintTiles(contentRegistry(ctx), fire)
+      .some(tile => campfireWithinReach(position.x, position.y, tile))) throw new SenderError('target_out_of_range');
     if (!mutate) {
       if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
       return;
@@ -22236,8 +22253,9 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
   ) => {
     if (!toolSwingContains(position, facing, reachPoint, geometry)
       || combatElevationAt(collision, position.x, position.y) !== combatElevationAt(collision, point.x, point.y)
-      || combatSegmentObstructed(position, point, terrainCollision)) return;
+      || combatSegmentObstructed(position, point, terrainCollision)) return false;
     contacts.push({ kind, id });
+    return true;
   };
   const tilePoint = (row: { tileX: number; tileY: number }) => ({
     x: (row.tileX + 0.5) * TILE_SIZE_FIXED, y: (row.tileY + 0.5) * TILE_SIZE_FIXED,
@@ -22264,7 +22282,9 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
       if (placeable.carriedBy !== undefined || authoredHitsDamageable(ctx, placeable) === null) continue;
       if (genericChest(ctx, placeable) && ctx.db.chest_migration_mapping.placeableId.find(placeable.id) !== null
         && !chestMigrationReadsUsePlaceables(ctx)) continue;
-      include('placeable', placeable.id, tilePoint(placeable));
+      for (const tile of runtimeObjectFootprintTiles(registry, placeable)) {
+        if (include('placeable', placeable.id, tilePoint(tile))) break;
+      }
     }
     for (const chest of ctx.db.world_chest.by_chunk.filter(chunk)) {
       if (chest.carriedBy !== undefined || legacyChestDamageable(ctx) === null) continue;

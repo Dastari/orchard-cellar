@@ -13,8 +13,9 @@ const compose=(input:MapDocumentV3)=>composeHearthContentMap(input,assetFor,'fix
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 it('preserves the reviewed map, prefab, and object composition hashes at the tools boundary',()=>{
   const document=compose(createLiveIslandMapDocument()).document!;
-  expect(sha256(serializeMapDocumentV3ForTransport(document))).toBe('62b18d7ae193f8264ff20f9f6ddad6ea1333ab9a3cc852c04db444392dcd9938');
-  expect(sha256(JSON.stringify(document.prefabs))).toBe('323a5fd3f76ce39b7b718179b2e760e5c899316471cfdd6f28865b2e08236d41');
+  // Reviewed workbench native dimensions/anchor change only its prefab; object positions remain stable.
+  expect(sha256(serializeMapDocumentV3ForTransport(document))).toBe('470c7e0b23d0de2995ca0bae4bd5a571fcc0fbace690c7d192f10481a14904c7');
+  expect(sha256(JSON.stringify(document.prefabs))).toBe('1e0c1fa93299024180b88c2f0e3f493b5eb5bea215fec1762b1d2e7cf1112f43');
   expect(sha256(JSON.stringify(document.objects))).toBe('74dd1cba00c950f5fb631c8c2a6b5ee04c2b43e8a943b1210ad1f57bcbd0022c');
 });
 it('composes once, preserves original authoring and is exactly idempotent',()=>{

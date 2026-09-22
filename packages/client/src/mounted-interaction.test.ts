@@ -6,9 +6,9 @@ import { selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent } from
 
 it.each(['horse', 'boat'])('makes E dismount a ridden %s before selecting the homestead portal', kind => {
   const source = ts.createSourceFile('overworld-main.ts', readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'targetInteraction');
+  const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'collectLegacyInteractions');
   if (declaration === undefined) throw new Error('missing production interaction target selector');
-  const code = ts.transpileModule(declaration.getText(source) + '\nreturn targetInteraction;', {
+  const code = ts.transpileModule(declaration.getText(source) + '\nreturn collectLegacyInteractions;', {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const mount = { id: 90001n, kind, x: 100, y: 100 };
@@ -17,9 +17,9 @@ it.each(['horse', 'boat'])('makes E dismount a ridden %s before selecting the ho
   const target = new Function('predicted', 'localMount', 'runtimeNpcMount', code)(
     { position: { x: 100, y: 100 } }, () => mount, runtimeNpcMount,
   );
-  expect(target({ content: { registry: bootstrapContentRegistry() } })).toEqual({
+  expect(target({ content: { registry: bootstrapContentRegistry() } })).toEqual([{
     kind, x: 100, y: 100, stableId: `${kind}:90001`, npc: mount,
-  });
+  }]);
 });
 
 

@@ -90,15 +90,15 @@ describe('live object presentation cache', () => {
       .toMatchObject({ authored: false, stateJsonValid: false,
         collision: { blocksMovement: true, occludesLight: true } });
   });
-  it('keeps the authored workbench at its one-tile visual width without changing placement', () => {
+  it('renders the native two-tile workbench with matching placement and collision', () => {
     const content = new LiveContentRegistry('workbench-scale', null).state;
     const definition = content.registry.objects.get('object:workbench')!;
     const presentation = new LiveObjectPresentationCache().resolve(content, {
       id: 1n, kind: 'workbench', definitionId: definition.id, open: false, lit: false,
     });
-    expect(presentation.sprite?.scale).toBe(0.5);
-    expect(definition.components.placement?.footprint).toEqual([[15]]);
-    expect(definition.components.collision?.footprint).toEqual([[15]]);
+    expect(presentation.sprite?.scale).toBe(1);
+    expect(definition.components.placement?.footprint).toEqual([[15, 15]]);
+    expect(definition.components.collision?.footprint).toEqual([[15, 15]]);
   });
   it('feeds the verified cache into authored sprites and shared point lights', () => {
     expect(overworldSource).toContain('new LiveObjectPresentationCache(');

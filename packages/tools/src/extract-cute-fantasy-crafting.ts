@@ -24,7 +24,6 @@ interface Extract {
 const resources = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png';
 const food = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png';
 const foodNoOutline = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png';
-const tables = 'references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Tables.png';
 const signs = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Signs.png';
 const gate = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png';
 const torch = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Torch_Anim.png';
@@ -105,12 +104,6 @@ const extracts: readonly Extract[] = [
     groups: { base: [[x, 0, 16, 16]] }, frameKinds: { base: 'state' },
     tags: ['item.food', tag], placement: itemPlacement,
   })),
-  {
-    name: 'prop_cf_workbench', source: tables, size: [32, 48], anchor: [16, 47],
-    groups: { base: [[72, 16, 32, 48]] }, frameKinds: { base: 'state' },
-    tags: ['world.placeable', 'station.workbench'],
-    placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
-  },
   {
     name: 'prop_cf_sign', source: signs, size: [16, 32], anchor: [8, 31],
     groups: { base: [[0, 0, 16, 32]] }, frameKinds: { base: 'state' },
