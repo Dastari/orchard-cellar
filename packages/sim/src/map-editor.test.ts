@@ -34,6 +34,7 @@ import {
   terrainDocumentForMapV3,
   terrainWalkingStepAllowed,
   terrainPlaneCollisionBytesForElevationGrid,
+  raisedTerrainInsetRolesAt,
 } from './index.js';
 
 describe('MapDocumentV2 editor foundation', () => {
@@ -860,4 +861,23 @@ it('limits footprint assistance to the stroke and its immediate neighbors',()=>{
  expect(compileMapDocument(assisted.document).elevations[8080]).toBe(3);
  expect(assisted.changed.every(p=>p.tileX>=3&&p.tileX<=6&&p.tileY>=3&&p.tileY<=6)).toBe(true);
  expect(assisted.document.cells['4,4']?.elevation).toBe(1);
+});
+
+it('joins diagonal height strokes locally at positive and excavated levels without stacked insets',()=>{
+ for(const elevation of [1,-1]){
+  const base=createEmptyMapDocument({id:'diagonal-local',title:'Diagonal',width:20,height:20});
+  const initial=applyMapEdit(base,{kind:'paint',points:minimumTerrainBrushPoints({tileX:4,tileY:4},20,20),patch:{elevation,cliffFamily:'stone_2'}}).document;
+  const before=applyMapEdit(initial,{kind:'paint',points:[{tileX:17,tileY:17}],patch:{elevation:3}}).document;
+  const points=minimumTerrainBrushPoints({tileX:5,tileY:5},20,20);
+  const exact=applyMapEdit(before,{kind:'paint',points,patch:{elevation,cliffFamily:'stone_2'}}).document;
+  const raisedAt=(doc:typeof before)=>(x:number,y:number)=>resolvedMapCellAt(doc,x,y).elevation===elevation;
+  expect(raisedTerrainInsetRolesAt({raisedAt:raisedAt(exact)},5,5).length).toBe(2);
+  const result=applyMapEdit(before,{kind:'paint',points,patch:{elevation,cliffFamily:'stone_2'},enforceSingleTerrainInset:true});
+  expect(result.document).not.toBe(before);
+  for(let y=3;y<8;y++)for(let x=3;x<8;x++)expect(raisedTerrainInsetRolesAt({raisedAt:raisedAt(result.document)},x,y).length).toBeLessThanOrEqual(1);
+  for(const p of points)expect(resolvedMapCellAt(result.document,p.tileX,p.tileY).elevation).toBe(elevation);
+  expect(result.changed.every(p=>p.tileX>=4&&p.tileX<=7&&p.tileY>=4&&p.tileY<=7)).toBe(true);
+  expect(result.document.cells['17,17']).toEqual(before.cells['17,17']);
+  for(const p of result.changed)expect(resolvedMapCellAt(result.document,p.tileX,p.tileY).cliffFamily).toBe('stone_2');
+ }
 });

@@ -1,3 +1,12 @@
+import cliffSource0 from '../../assets/tiles/tile_cf_desert_cliff.tile.json?raw';
+import cliffSource1 from '../../assets/tiles/tile_cf_desert_cliff_2.tile.json?raw';
+import cliffSource2 from '../../assets/tiles/tile_cf_desert_cliff_3.tile.json?raw';
+import cliffSource3 from '../../assets/tiles/tile_cf_shroomlands_cliff.tile.json?raw';
+import cliffSource4 from '../../assets/tiles/tile_cf_volcanic_cliff.tile.json?raw';
+import cliffSource5 from '../../assets/tiles/tile_cf_grass_1_middle.tile.json?raw';
+import cliffSource6 from '../../assets/tiles/tile_cf_grass_2_middle.tile.json?raw';
+import cliffSource7 from '../../assets/tiles/tile_cf_grass_3_middle.tile.json?raw';
+import cliffSource8 from '../../assets/tiles/tile_cf_grass_4_middle.tile.json?raw';
 import { describe, expect, it } from 'vitest';
 import grass1StoneRampJson from '../../assets/tiles/tile_cf_grass_1_ramp_bank_stone.tile.json?raw';
 import grass1WoodRampJson from '../../assets/tiles/tile_cf_grass_1_ramp_bank_wood.tile.json?raw';
@@ -29,6 +38,19 @@ import {
 interface ExtractedTileJson {
   readonly frames: { readonly base: readonly (readonly string[])[] };
 }
+
+
+const cliffAssets = new Map<string, ExtractedTileJson>([
+  ['tile_cf_desert_cliff', JSON.parse(cliffSource0) as ExtractedTileJson],
+  ['tile_cf_desert_cliff_2', JSON.parse(cliffSource1) as ExtractedTileJson],
+  ['tile_cf_desert_cliff_3', JSON.parse(cliffSource2) as ExtractedTileJson],
+  ['tile_cf_shroomlands_cliff', JSON.parse(cliffSource3) as ExtractedTileJson],
+  ['tile_cf_volcanic_cliff', JSON.parse(cliffSource4) as ExtractedTileJson],
+  ['tile_cf_grass_1_middle', JSON.parse(cliffSource5) as ExtractedTileJson],
+  ['tile_cf_grass_2_middle', JSON.parse(cliffSource6) as ExtractedTileJson],
+  ['tile_cf_grass_3_middle', JSON.parse(cliffSource7) as ExtractedTileJson],
+  ['tile_cf_grass_4_middle', JSON.parse(cliffSource8) as ExtractedTileJson],
+]);
 
 const rampFrameRows = new Map<string, readonly (readonly string[])[]>([
   ['tile_cf_grass_1_ramp_bank_stone', (JSON.parse(grass1StoneRampJson) as ExtractedTileJson).frames.base],
@@ -186,10 +208,85 @@ describe('terrain family registries', () => {
     expect(cliffFamilyForProceduralFamily('temperate_highland')).toBe('stone_4');
   });
 
-  it('keeps the authored shroom and desert stacked wall-course variants', () => {
-    expect(TERRAIN_CLIFF_FAMILIES.shroomlands.tileSet.faceProfiles.tall?.repeatRows)
-      .toHaveLength(3);
-    expect(TERRAIN_CLIFF_FAMILIES.desert_1.tileSet.faceProfiles.tall?.repeatRows)
-      .toHaveLength(2);
+  it('keeps raised plateau crests connected to their physical wall courses', () => {
+    for (const id of ['desert_1', 'desert_2', 'desert_3', 'shroomlands', 'volcanic'] as const) {
+      const tileSet = TERRAIN_CLIFF_FAMILIES[id].tileSet;
+      const asset = cliffAssets.get(tileSet.assetId)!;
+      const middleFrames = [tileSet.edgeFrames.bottom!, ...tileSet.faceProfiles.tall!.rows
+        .filter(row => row.contributesHeight !== false).map(row => row.frames[1])];
+      for (const frame of middleFrames) {
+        // A structural middle course cannot be the disconnected foot strip or
+        // shadow: every native row must fill the centre of the wall.
+        const pixels = asset.frames.base[frame]!;
+        expect(pixels.every(row => row[8] !== '.'), `${id} middle course ${frame}`).toBe(true);
+      }
+    }
+  });
+
+  it('uses structural wall art, never flat cap fill, for repeated wall courses', () => {
+    for (const id of ['desert_1', 'desert_2', 'desert_3', 'shroomlands'] as const) {
+      const tileSet = TERRAIN_CLIFF_FAMILIES[id].tileSet;
+      const asset = cliffAssets.get(tileSet.assetId)!;
+      const bank = tileSet.faceProfiles.tall!;
+      for (const course of bank.repeatRows ?? [bank.repeatRow!]) {
+        const pixels = asset.frames.base[course.frames[1]]!;
+        expect(pixels.every(row => !row.includes('.')), `${id} repeat is opaque rock`).toBe(true);
+        expect(new Set(pixels.join('')).size, `${id} repeat has native stone texture`).toBeGreaterThan(1);
+      }
+    }
+  });
+
+  it('uses the shroom rock inverse quartet rather than the salmon path quartet', () => {
+    const inset = TERRAIN_CLIFF_FAMILIES.shroomlands.tileSet.insetFrames;
+    expect(inset).toEqual({
+      inner_bottom_right: 3, inner_bottom_left: 4,
+      inner_top_right: 12, inner_top_left: 13,
+    });
+    const source = JSON.parse(cliffSource3) as ExtractedTileJson & { sourceRegions: { base: number[][] } };
+    expect(Object.values(inset).map(index => source.sourceRegions.base[index!])).toEqual([
+      [48, 0, 16, 16], [64, 0, 16, 16], [48, 16, 16, 16], [64, 16, 16, 16],
+    ]);
+  });
+
+  it('ends desert cliffs at the native terminal row before the separate small-lip bank', () => {
+    for (const id of ['desert_1', 'desert_2', 'desert_3'] as const) {
+      const profile = TERRAIN_CLIFF_FAMILIES[id].tileSet.faceProfiles.tall!;
+      expect(profile.rows).toHaveLength(1);
+      expect(profile.rows[0]!.frames).toEqual([66, 67, 68]);
+      expect(profile.rows.every(row => row.contributesHeight !== false)).toBe(true);
+    }
+  });
+
+  it('counts the opaque volcanic terminal column as physical terrain, not shadow', () => {
+    const rows = TERRAIN_CLIFF_FAMILIES.volcanic.tileSet.faceProfiles.tall!.rows;
+    expect(rows.filter(row => row.contributesHeight !== false)).toHaveLength(2);
+    expect(rows.every(row => row.blocksMovement && row.blocksLight)).toBe(true);
+  });
+
+  it('pairs every outdoor cap with an opaque fill from its matching native palette', () => {
+    for (const [id, family] of Object.entries(TERRAIN_CLIFF_FAMILIES)) {
+      if (!family.available || family.tileSet.projectionStyle !== 'raised') continue;
+      const substrate = family.substrate!;
+      expect(substrate.cap, id).not.toBeNull();
+      for (const ref of [substrate.surrounding, substrate.cap!]) {
+        const asset = cliffAssets.get(ref.assetId)!;
+        expect(asset, `${id} ${ref.assetId}`).toBeDefined();
+        expect(asset.frames.base[ref.frame]!.every(row => !row.includes('.')), id).toBe(true);
+      }
+      if (id.startsWith('stone_')) {
+        expect(substrate.cap!.assetId).toBe(`tile_cf_grass_${id.slice(-1)}_middle`);
+      }
+      if (id.startsWith('desert_')) {
+        expect(substrate.surrounding.assetId).toBe(family.tileSet.assetId);
+        expect(substrate.cap!.assetId).toBe(family.tileSet.assetId);
+      }
+    }
+  });
+
+  it('retains the legacy volcanic interior identifier while reporting its proven source gap', () => {
+    expect(TERRAIN_CLIFF_FAMILIES.volcanic_interior.available).toBe(true);
+    expect(TERRAIN_CLIFF_FAMILIES.volcanic_interior.sourceReview.status).toBe('unverified');
+    expect(TERRAIN_CLIFF_FAMILIES.volcanic_interior.sourceReview.reason).toContain('staircase');
+    expect(TERRAIN_CLIFF_FAMILIES.volcanic_interior.substrate.cap).toBeNull();
   });
 });

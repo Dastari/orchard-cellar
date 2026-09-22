@@ -9,6 +9,7 @@ import {
   resolvedMapCellAt,
   serializeMapDocumentV3,
   terrainDocumentForMapV3,
+  raisedTerrainInsetRolesAt,
 } from '@orchard/sim';
 import { terrainProjectedDepthForElevation, type TerrainArray } from '@orchard/engine/terrain';
 import { describe, expect, it } from 'vitest';
@@ -1422,6 +1423,23 @@ it('raises a complete two by two footprint, then raises it again on the next lev
  const point=screenForProjectedTile(controller,mapEditorPickingTerrain(model.document()),2,2,1);
  controller.pointerDown(point,0);controller.pointerUp();
  for(const [x,y] of [[2,2],[3,2],[2,3],[3,3]])expect(resolvedMapCellAt(terrainDocumentForMapV3(model.document()),x!,y!).elevation).toBe(2);
+});
+
+it('widens a diagonal height brush before commit and keeps one undo step',()=>{
+ const {controller,model}=terrainHarness([[2,2,1],[3,2,1],[2,3,1],[3,3,1]],12,12);
+ const before=model.document();
+ controller.selectEditingTool('raise');
+ // Two joined brush footprints wrap the existing southeast corner and would
+ // require both northeast and southwest inset blocks at (3,3).
+ controller.pointerDown(screenForTile(controller,3,4),0);
+ controller.pointerMove(screenForTile(controller,4,3));
+ controller.pointerUp();
+ const after=model.document();expect(after).not.toBe(before);
+ const terrain=terrainDocumentForMapV3(after);
+ const raisedAt=(x:number,y:number)=>resolvedMapCellAt(terrain,x,y).elevation>=1;
+ expect(raisedAt(2,4)).toBe(true);expect(raisedAt(4,2)).toBe(true);
+ for(let y=1;y<7;y++)for(let x=1;x<7;x++)expect(raisedTerrainInsetRolesAt({raisedAt},x,y).length).toBeLessThanOrEqual(1);
+ controller.undo();expect(model.document()).toEqual(before);
 });
 
 it('drags a canopy resource locally and undo restores its functional marker',()=>{

@@ -20,6 +20,7 @@ import {
   TERRAIN_SURFACE_FAMILY_IDS,
   type TerrainSurfaceFamilyId,
 } from './terrain-tilesets.js';
+import {planLocalTerrainInsets} from './local-terrain-insets.js';
 
 export interface MapPoint {
   readonly tileX: number;
@@ -54,6 +55,8 @@ export type MapEditCommand =
     readonly points: readonly MapPoint[];
     readonly patch: MapCellPatch;
     readonly enforceMinimumTerrainFootprint?: boolean;
+    /** The Studio height brush already supplies its 2x2 footprint. */
+    readonly enforceSingleTerrainInset?: boolean;
   }
   | { readonly kind: 'line'; readonly from: MapPoint; readonly to: MapPoint; readonly patch: MapCellPatch }
   | { readonly kind: 'fill_surface'; readonly start: MapPoint; readonly surface: MapSurfaceKind }
@@ -93,6 +96,7 @@ export interface AppliedMapEdit {
   readonly changed: readonly MapPoint[];
   /** Dimension changes invalidate coordinate-derived output for the whole map. */
   readonly fullRebuild?: boolean;
+  readonly rejected?: 'terrain_inset_conflict';
 }
 
 export interface MapEditHistory {
@@ -124,7 +128,8 @@ function normalizeTerrainFootprints(
   document: MapDocumentV2,
   cells: Record<string, MapCellOverride>,
   points: readonly MapPoint[],
-): readonly MapPoint[] {
+  enforceMinimum = true,
+): readonly MapPoint[] | null {
   const interim = {...document, cells};
   const affected = new Map<string, MapPoint>();
   for (const point of points) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -141,13 +146,40 @@ function normalizeTerrainFootprints(
     return false;
   };
   const updates: {point:MapPoint;elevation:number}[] = [];
-  for (const point of affected.values()) {
+  for (const point of enforceMinimum?affected.values():[]) {
     const before=height(point.tileX,point.tileY);let elevation=before;
     while(elevation>document.baseElevation&&!supported(point,elevation,false))elevation--;
     while(elevation<document.baseElevation&&!supported(point,elevation,true))elevation++;
     if(elevation!==before)updates.push({point,elevation});
   }
-  return updates.filter(({point,elevation})=>writeResolvedPatch(interim,cells,point,{elevation})).map(({point})=>point);
+  const changed=updates.filter(({point,elevation})=>writeResolvedPatch(interim,cells,point,{elevation})).map(({point})=>point);
+  // Only contours crossed by this edit participate. A higher, historical
+  // malformed cliff nearby is not a reason to repair a different elevation.
+  const levels=new Set<number>();
+  for(const {tileX,tileY} of points){
+    const before=resolvedMapCellAt(document,tileX,tileY).elevation,after=height(tileX,tileY);
+    for(let level=Math.min(before,after);level<=Math.max(before,after);level++){
+      if((level>document.baseElevation&&level>Math.min(before,after))
+        ||(level<document.baseElevation&&level<Math.max(before,after)))levels.add(level);
+    }
+  }
+  const strokeKeys=new Set(points.map(p=>mapCellKey(p.tileX,p.tileY)));
+  for(const level of [...levels].sort((a,b)=>Math.abs(a-document.baseElevation)-Math.abs(b-document.baseElevation))){
+    const excavated=level<document.baseElevation;
+    const occupiedAt=(x:number,y:number):boolean=>mapCoordinateInBounds(document,x,y)
+      &&(excavated?height(x,y)<=level:height(x,y)>=level);
+    const plan=planLocalTerrainInsets({points,occupiedAt,canFillAt:(x,y)=>
+      mapCoordinateInBounds(document,x,y)&&!strokeKeys.has(mapCellKey(x,y))
+      &&height(x,y)===level+(excavated?1:-1)});
+    if(plan.unresolved.length>0)return null;
+    for(const point of plan.added){
+      const donor=[...points,...affected.values()].find(p=>occupiedAt(p.tileX,p.tileY)
+        &&Math.abs(p.tileX-point.tileX)<=1&&Math.abs(p.tileY-point.tileY)<=1);
+      const cliffFamily=donor===undefined?undefined:resolvedMapCellAt(interim,donor.tileX,donor.tileY).cliffFamily;
+      if(writeResolvedPatch(interim,cells,point,{elevation:level,...(cliffFamily===undefined?{}:{cliffFamily})}))changed.push(point);
+    }
+  }
+  return changed;
 }
 
 function canonicalPatch(
@@ -541,9 +573,12 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
       : patch;
     if (writeResolvedPatch(document, cells, point, pointPatch)) changed.push(point);
   }
-  if ('enforceMinimumTerrainFootprint' in command && command.enforceMinimumTerrainFootprint) {
+  if (('enforceMinimumTerrainFootprint' in command && command.enforceMinimumTerrainFootprint)
+    ||(command.kind==='paint'&&command.enforceSingleTerrainInset)) {
     const changedKeys = new Set(changed.map(({ tileX, tileY }) => mapCellKey(tileX, tileY)));
-    for (const point of normalizeTerrainFootprints(document, cells, changed)) {
+    const assisted=normalizeTerrainFootprints(document, cells, changed,command.enforceMinimumTerrainFootprint===true);
+    if(assisted===null)return {document,changed:[],rejected:'terrain_inset_conflict'};
+    for (const point of assisted) {
       const key = mapCellKey(point.tileX, point.tileY);
       if (changedKeys.has(key)) continue;
       changedKeys.add(key);
