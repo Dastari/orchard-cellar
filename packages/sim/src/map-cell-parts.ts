@@ -32,7 +32,9 @@ export interface CellPart {
 }
 
 export const MAP_CELL_PARTS_MAXIMUM = 8;
-export const CELL_PART_FRAME_MAXIMUM = 65_535;
+/** Matches the world's non-negative integer bound for legacy `frameIndex`, so
+ * every publishable legacy override migrates to a parseable part. */
+export const CELL_PART_FRAME_MAXIMUM = 0x7fff_ffff;
 const CONTOUR_LEVEL_LIMIT = 32;
 const PART_ID = /^[a-z0-9]+(?:_[a-z0-9]+)*$/u;
 const CONTOUR_SLOT = /^contour:(-?(?:0|[1-9][0-9]?))$/u;
@@ -195,8 +197,11 @@ export function upsertCellPart(parts: readonly CellPart[] | undefined, part: Cel
 export function revertCellPartExact(parts: readonly CellPart[] | undefined, slot: CellPartSlot): readonly CellPart[] {
   return (parts ?? []).map((part) => {
     if (part.slot !== slot) return part;
-    const { exact: _exact, ...rest } = part;
-    return rest;
+    return {
+      slot: part.slot,
+      ...(part.family === undefined ? {} : { family: part.family }),
+      ...(part.role === undefined ? {} : { role: part.role }),
+    };
   }).filter((part) => !cellPartIsEmpty(part));
 }
 

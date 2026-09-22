@@ -45,6 +45,8 @@ const LEGACY_OVERRIDES: readonly TerrainOverride[] = [
   { contourLevel: 1, frameIndex: 4 },
   { contourLevel: 1, family: 'shroomlands', role: 'top' },
   { contourLevel: -2, role: 'face.lower_wall.middle', frameIndex: 57, family: 'dungeon_2' },
+  // Stale/invalid legacy frames stay legal and must survive migration.
+  { contourLevel: 7, frameIndex: 999_999 },
 ];
 
 describe('cell part parsing', () => {
@@ -65,7 +67,7 @@ describe('cell part parsing', () => {
       { slot: 'contour:33', exact: { frame: 1 } }, { slot: 'contour:-0', exact: { frame: 1 } },
       { slot: 'contour:01', exact: { frame: 1 } }, { slot: 'fringe:', exact: { frame: 1 } },
       { slot: 'fringe:Grass', exact: { frame: 1 } }, { slot: 'path', exact: { frame: 1.5 } },
-      { slot: 'path', exact: { frame: -1 } }, { slot: 'path', exact: { frame: 65_536 } },
+      { slot: 'path', exact: { frame: -1 } }, { slot: 'path', exact: { frame: 2 ** 31 } },
       { slot: 'path', exact: { frame: 1, quarterTurns: 0 } }, { slot: 'path', exact: { frame: 1, flipX: false } },
       { slot: 'path', exact: { frame: 1, extra: 1 } }, { slot: 'path', exact: { frame: 1 }, extra: true },
       { slot: 'path', role: 'top', exact: { frame: 1 } }, { slot: 'path', family: 'Bad-Id' },
