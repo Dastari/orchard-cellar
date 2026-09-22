@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { StudioMode } from '@orchard/ui/studio';
+import type { StudioMode } from './studio-models.js';
 import { resolveStudioEffectiveRole, studioModeAccess, studioRoleCan } from './access.js';
 
 const MODES = ['build', 'author', 'operate', 'observe'] as const satisfies readonly StudioMode[];

@@ -1,4 +1,4 @@
-import type { StudioInspectorGroupModel, StudioPropertyRowModel } from '@orchard/ui/studio';
+import type { StudioInspectorGroupModel, StudioPropertyRowModel } from '../../shell/studio-models.js';
 import type { StudioOutlinerNode } from '../../shell/outliners.js';
 import type { StudioSelection } from '../../shell/selection.js';
 

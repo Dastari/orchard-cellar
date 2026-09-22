@@ -1,4 +1,4 @@
-import type { StudioMode } from '@orchard/ui/studio';
+import type { StudioMode } from './studio-models.js';
 
 export type StudioRole = 'owner' | 'admin' | 'content_editor' | 'support' | 'moderator';
 export type StudioAccess = 'hidden' | 'read_only' | 'write';
