@@ -1,3 +1,5 @@
+import {validateLiveMapShape} from './live-map-shape.js';
+import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
 import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
 import { LIVE_MAP_MAX_DOCUMENT_CHARACTERS, prepareLiveMapPublication } from './live-map-publication.js';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
@@ -359,7 +361,6 @@ import {
   WILDLIFE_GENERATION_VERSION,
   LIVE_ISLAND_MAP_ID,
   MAP_PREFAB_COLLISION_RESOLUTION,
-  bootstrapTilesetDefinitions,
   compileMapDocument,
   createLiveIslandMapDocument,
   compiledMapTerrainPlaneCollisionBytes,
@@ -373,7 +374,6 @@ import {
   serializeMapDocumentV3ForTransport,
   survivalBiomeAllowsHorseJump,
   terrainDocumentForMapV3,
-  validateMapDocument,
   type MapDocumentV3,
   type GeneratedWildlife,
   type GeneratedWildlifeHive,
@@ -6970,14 +6970,21 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
       throw new SenderError('hearth_resource_site_conflict');
     }
   }
+  const placements = new Map((compiledLiveIslandRuntime(ctx)?.document.resourcePlacements ?? [])
+    .map(placement => [BigInt(placement.id), placement]));
   const desired = new Map(generateSurvivalResources(SURVIVAL_WORLD_SEED, registry)
-    .map((resource) => [BigInt(resource.id), resource]));
+    .map(resource => {
+      const placement = placements.get(BigInt(resource.id));
+      return [BigInt(resource.id), placement === undefined ? resource
+        : {...resource, tileX: placement.tileX, tileY: placement.tileY}] as const;
+    }));
   for (const existing of existingRows) {
     if (existing.spaceId !== TOPSIDE_SPACE_ID
       || isPlantedFruitTreeId(existing.id)
       || isAuthoredHearthResourceSiteId(registry, existing.id)) continue;
     const generated = desired.get(existing.id);
     if (generated === undefined) {
+      if (placements.has(existing.id)) continue;
       ctx.db.world_resource_mining_claim.resourceId.delete(existing.id);
       ctx.db.world_resource.id.delete(existing.id);
       continue;
@@ -12368,7 +12375,6 @@ const LIVE_MAP_MAX_PREFABS = 2_048;
 const LIVE_MAP_MAX_OBJECTS = 50_000;
 const LIVE_MAP_MAX_OVERRIDES = 250_000;
 const LIVE_MAP_MAX_ANCHORS = 4_096;
-const LIVE_MAP_TILESET_RESOLVER = runtimeTilesetResolver(bootstrapTilesetDefinitions());
 const LIVE_MAP_ANNOTATION_ANCHOR_KINDS = new Set(['poi', 'label']);
 const LIVE_MAP_ALLOWED_BEHAVIORS = new Set([
   'gate:world.gate',
@@ -12609,14 +12615,9 @@ function validatedLiveMapDocument(
     || document.anchors.length > LIVE_MAP_MAX_ANCHORS) {
     throw new SenderError('live_map_content_limit');
   }
-  const terrainIssues = validateMapDocument(
-    terrainDocumentForMapV3(document),
-    undefined,
-    LIVE_MAP_TILESET_RESOLVER,
-  );
-  if (terrainIssues.some(({ severity }) => severity === 'error')) {
-    throw new SenderError('invalid_live_map_terrain');
-  }
+  try { validateLiveMapShape(document); }
+  catch { throw new SenderError('invalid_live_map_document'); }
+  // Geometry conventions are authoring assistance, never a publication gate.
   if (document.anchors.some(({ kind }) => !LIVE_MAP_ANNOTATION_ANCHOR_KINDS.has(kind))) {
     // Functional anchors need an explicit transactional binding to the
     // authoritative portal/NPC/resource tables. A map snapshot must never
@@ -12665,6 +12666,22 @@ function commitLiveMapSnapshot(
   const currentRevision = existing?.revision ?? 0;
   if (currentRevision !== expectedRevision) throw new SenderError('live_map_revision_conflict');
   if (currentRevision === 0xffff_ffff) throw new SenderError('live_map_revision_exhausted');
+  let resourceMoves: ReturnType<typeof planLiveMapResourceMoves>;
+  try {
+    resourceMoves = planLiveMapResourceMoves(
+      existing === null ? null : parseMapDocumentV3(existing.documentJson, authoredLandmarks),
+      document,
+      id => ctx.db.world_resource.id.find(id),
+      row => {
+        const resource = ctx.db.world_resource.id.find(row.id);
+        const registry = contentRegistry(ctx);
+        return resource !== null && runtimeResourceDefinition(registry, resource)?.visual.kind === 'tree'
+          && !isAuthoredHearthResourceSiteId(registry, row.id);
+      },
+    );
+  } catch (error) {
+    throw new SenderError(error instanceof Error ? error.message : 'map_resource_move_invalid');
+  }
   const revision = currentRevision + 1;
   const canonical = normalizeMapDocumentV3({ ...document, revision });
   const documentJson = serializeMapDocumentV3ForTransport(canonical);
@@ -12684,6 +12701,32 @@ function commitLiveMapSnapshot(
   };
   if (existing === null) ctx.db.live_map_document.insert(row);
   else ctx.db.live_map_document.mapId.update(row);
+  if (resourceMoves.length > 0) {
+    // The transaction's new map head supplies candidate terrain and authored
+    // collision. Excluding the whole move set permits atomic swaps.
+    const movingIds = new Set(resourceMoves.map(move => move.id));
+    const collision = collisionForSpace(ctx, TOPSIDE_SPACE_ID, undefined, {
+      resources: [...ctx.db.world_resource.by_chunk.filter(TOPSIDE_SPACE_ID)].filter(row => !movingIds.has(row.id)),
+      chests: [...ctx.db.world_chest.by_chunk.filter(TOPSIDE_SPACE_ID)],
+      combatTargets: [...ctx.db.world_combat_target.by_chunk.filter(TOPSIDE_SPACE_ID)],
+    });
+    const occupied = new Set<string>();
+    for (const move of resourceMoves) {
+      const key = `${move.tileX},${move.tileY}`;
+      if (occupied.has(key) || collision.blocked[move.tileY * collision.width + move.tileX]
+        || collision.obstacles?.some(obstacle => boundsOverlap(tileTargetBounds(move), obstacle))
+        || tileOverlapsAnyPlayer(ctx, TOPSIDE_SPACE_ID, move.tileX, move.tileY)) {
+        throw new SenderError('map_resource_destination_blocked');
+      }
+      occupied.add(key);
+    }
+    for (const move of resourceMoves) {
+      const resource = ctx.db.world_resource.id.find(move.id)!;
+      ctx.db.world_resource.id.update({...resource, tileX: move.tileX, tileY: move.tileY,
+        chunkX: Math.floor(move.tileX / SURVIVAL_CHUNK_TILES),
+        chunkY: Math.floor(move.tileY / SURVIVAL_CHUNK_TILES)});
+    }
+  }
   if(canonical.id===LIVE_ISLAND_MAP_ID){
     const active=new Set(mapStreetlampPlans(canonical).map(plan=>plan.id));
     // Map publication is infrequent; only inspect permanent authority-owned rows.

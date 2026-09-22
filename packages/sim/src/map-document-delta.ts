@@ -3,7 +3,7 @@ import { mapDocumentV3Hash, normalizeMapDocumentV3, type MapDocumentV3 } from '.
 /** Keys, never array offsets: unrelated objects/terrain are absent from uploads. */
 const COLLECTIONS = [
   'cells', 'objects', 'prefabs', 'landmarks', 'layers', 'anchors', 'scenery',
-  'transitions', 'stairRuns', 'combatRegions', 'generatedSuppressions',
+  'transitions', 'stairRuns', 'combatRegions', 'generatedSuppressions', 'resourcePlacements',
 ] as const;
 type Collection = typeof COLLECTIONS[number];
 const METADATA = [

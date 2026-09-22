@@ -1,6 +1,5 @@
 import {
   mapDocumentV3Hash,
-  normalizeMapDocumentV3,
   type MapDocumentV3,
 } from '@orchard/sim';
 
@@ -12,8 +11,14 @@ export const EDITOR_LIVE_SYNC_DEBOUNCE_MS = 250;
  * Comparing a checked-out draft with an acknowledged head must therefore pin
  * the revision before hashing; otherwise two or more local commands can never
  * match the single revision assigned by the publish transaction. */
+const semanticHashes = new WeakMap<MapDocumentV3, string>();
 export function editorMapSemanticHash(document: MapDocumentV3): string {
-  return mapDocumentV3Hash(normalizeMapDocumentV3({ ...document, revision: 0 }));
+  let hash = semanticHashes.get(document);
+  if (hash === undefined) {
+    hash = mapDocumentV3Hash({...document, revision: 0});
+    semanticHashes.set(document, hash);
+  }
+  return hash;
 }
 
 export interface EditorLivePublishSnapshot {

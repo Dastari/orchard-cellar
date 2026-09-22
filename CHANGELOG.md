@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0 / Studio 0.11.0 — Responsive terrain and selection
+
+- Keep hover outlines and palette tooltips stable through control rebuilds; size inventory reticles to each palette button and center compact layer rows.
+- Show selected tree/object sprites and the resolved tile composition. Move Canopy resource trees in local drafts, with atomic placement deltas that preserve identity, harvest state, and generator reconciliation.
+- Keep material painting at the existing elevation, create complete 2×2 height footprints, and continue grass-water banks with Auto surround. Limit assistance to each placement and its immediate neighbors; preserve manual geometry and make whole-map design checks opt-in and advisory.
+- Avoid repeated whole-island cliff generation and whole-document work during a stroke; coalesce draft persistence after drawing and flush it on navigation.
+
 ## 0.19.0 / Studio 0.10.0 — Atomic map delta publication
 
 - Publish only changed map entries and removals against a verified live base; deleting a tree no longer uploads the entire map or exceeds the server's payload limit.

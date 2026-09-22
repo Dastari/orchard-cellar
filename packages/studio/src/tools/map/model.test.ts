@@ -785,6 +785,26 @@ describe('Studio Map Editor model', () => {
     } });
     expect(model.terrainIdentity()).not.toBe(biomeIdentity);
     expect(model.terrainGeometryIdentity()).not.toBe(terrainGeometryIdentity);
-    expect(setIssues).toHaveBeenCalledOnce();
+    expect(setIssues).not.toHaveBeenCalled();
   });
+});
+
+it('draws browser edits before saving, coalesces rapid strokes, and flushes the latest draft on disposal',()=>{
+ vi.useFakeTimers();vi.stubGlobal('requestAnimationFrame',()=>0);
+ try {
+  const storage=new MemoryStorage(),save=vi.spyOn(storage,'setItem');
+  const {model}=mapHarness('terrain-lab',null,storage);
+  model.editTerrain({kind:'paint',points:[{tileX:2,tileY:2}],patch:{surface:'water'}});
+  expect(model.document().cells['2,2']?.surface).toBe('water');
+  expect(model.dirty()).toBe(true);expect(save).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(200);
+  model.editTerrain({kind:'paint',points:[{tileX:3,tileY:2}],patch:{surface:'water'}});
+  vi.advanceTimersByTime(200);expect(save).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(50);expect(save).toHaveBeenCalledTimes(1);
+  model.editTerrain({kind:'paint',points:[{tileX:4,tileY:2}],patch:{surface:'water'}});
+  model.dispose();expect(save).toHaveBeenCalledTimes(2);
+  const draft=JSON.parse(save.mock.calls[1]![1]) as {document:string};
+  expect(parseMapDocumentV3(draft.document).cells['4,2']?.surface).toBe('water');
+  vi.runAllTimers();expect(save).toHaveBeenCalledTimes(2);
+ } finally {vi.unstubAllGlobals();vi.useRealTimers();}
 });

@@ -108,7 +108,7 @@ describe('canvas-native Build and asset tools', () => {
   it('fits visibility and layer selection on one row',()=>{
  const s=buildMapCanvasTool(context('/build/map'));const root=new UiRoot({scale:1});root.resize(130,620);root.mount(s.kit!.inspector!);root.arrange();
  const eye=kitElement(s,'map-layer-visible-canopy')!,name=kitElement(s,'map-layer-select-canopy')!;
- expect(eye.rect.y).toBe(name.rect.y);expect(eye.rect.height).toBe(14);expect(eye.clip.width).toBe(eye.rect.width);root.dispose();
+ expect(eye.rect.y).toBe(name.rect.y);expect(eye.rect.height).toBe(16);expect(eye.clip.width).toBe(eye.rect.width);root.dispose();
 });
 
   it('exposes exactly one eye and one name per layer',()=>{

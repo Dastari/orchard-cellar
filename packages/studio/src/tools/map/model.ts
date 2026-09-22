@@ -154,11 +154,19 @@ export class MapEditorModel {
   #validatedTerrainIdentity: object | null = null;
   #validationTimer: ReturnType<typeof setTimeout> | null = null;
   #validationGeneration = 0;
-  #validationState: 'ready' | 'pending' | 'invalid' = 'pending';
+  #validationState: 'ready' | 'pending' | 'invalid' = 'ready';
   #schemaInspectorTarget: MapSchemaInspectorTarget | null = null;
   readonly #unsubscribeSelection: () => void;
   #disposed = false;
   #draftStorageWarningShown = false;
+  #draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly #flushPendingDraft = (): void => {
+    if (this.#draftSaveTimer === null) return;
+    clearTimeout(this.#draftSaveTimer);
+    this.#draftSaveTimer = null;
+    this.updateDirtyState();
+    this.save();
+  };
 
   constructor(
     readonly mapId: string,
@@ -167,6 +175,7 @@ export class MapEditorModel {
   ) {
     this.#document = initialDocument(mapId);
     this.restore();
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', this.#flushPendingDraft);
     this.#terrainIdentities.set(this.#document, this.#terrainIdentity);
     this.#terrainValidationIdentities.set(this.#document, this.#terrainValidationIdentity);
     this.#unsubscribeSelection = this.services.selection.subscribe((selection) => this.inspect(selection));
@@ -175,6 +184,8 @@ export class MapEditorModel {
 
   dispose(): void {
     if (this.#disposed) return;
+    this.#flushPendingDraft();
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', this.#flushPendingDraft);
     this.#disposed = true;
     this.#validationGeneration += 1;
     if (this.#validationTimer !== null) {
@@ -410,11 +421,23 @@ export class MapEditorModel {
     this.#terrainValidationIdentities.set(next, this.#terrainValidationIdentity);
     this.#document = next;
     this.#future = [];
-    this.updateDirtyState();
-    this.save();
+    if (typeof requestAnimationFrame === 'undefined') {
+      this.updateDirtyState();
+      this.save();
+    } else {
+      // Show the local edit first; coalesce serialization/hash work while a
+      // brush is active. Navigation and disposal synchronously flush the draft.
+      this.#dirty = true;
+      if (this.#draftSaveTimer !== null) clearTimeout(this.#draftSaveTimer);
+      this.#draftSaveTimer = setTimeout(this.#flushPendingDraft, 250);
+    }
     this.reconcileKernels();
   }
 
+  moveResource(id:string,sourceTileX:number,sourceTileY:number,tileX:number,tileY:number):void {
+    const prior=this.#document.resourcePlacements?.find(value=>value.id===id);
+    this.apply({kind:'move_resource',placement:{id,originTileX:prior?.originTileX??sourceTileX,originTileY:prior?.originTileY??sourceTileY,tileX,tileY}});
+  }
   embedPrefab(prefab: MapPrefabDocumentV2): void { this.apply({ kind: 'embed_prefab', prefab }); }
   placeObject(object: MapObjectInstance): void { this.apply({ kind: 'place_object', object }); }
   placeLandmark(landmark: MapLandmarkInstance): void { this.apply({ kind: 'place_landmark', landmark }); }
@@ -462,7 +485,7 @@ export class MapEditorModel {
   setDefaultSurfaceFamily(family: TerrainSurfaceFamilyId): void {
     this.editTerrain({ kind: 'set_default_surface_family', family });
   }
-  editTerrain(command: MapEditCommand, biome?: MapBiomeId): void { this.apply({ kind: 'terrain', command, ...(biome === undefined ? {} : {biome}) }); }
+  editTerrain(command: MapEditCommand, biome?: MapBiomeId, automaticSurround = false): void { this.apply({ kind: 'terrain', command, automaticSurround, ...(biome === undefined ? {} : {biome}) }); }
   suppressGenerated(generatedId: string, suppressed = true): void {
     this.apply({ kind: 'suppress_generated_object', generatedId, suppressed });
   }
@@ -710,6 +733,8 @@ export class MapEditorModel {
   }
 
   private save(): void {
+    if (this.#draftSaveTimer !== null) clearTimeout(this.#draftSaveTimer);
+    this.#draftSaveTimer = null;
     const envelope: DraftEnvelope = {
       version: 2,
       baseRevision: this.#baseRevision,
@@ -799,6 +824,11 @@ export class MapEditorModel {
   }
 
   private reconcileKernels(): void {
+    // Design review is opt-in. An ordinary edit neither scans nor repairs the map.
+    this.inspect(this.services.selection.current());
+  }
+
+  validateDesign(): void {
     if (this.#validatedTerrainIdentity === this.#terrainValidationIdentity) {
       this.inspect(this.services.selection.current());
       return;

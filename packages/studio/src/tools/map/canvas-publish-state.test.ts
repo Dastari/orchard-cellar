@@ -104,11 +104,10 @@ describe('Map Editor publish state', () => {
       state: 'DIRTY', disabled: true, tooltip: 'DIRTY — Live map publishing is unavailable',
     });
     expect(mapEditorPublishPresentation({ ...base, validation: 'pending' })).toMatchObject({
-      state: 'DIRTY', disabled: true, tooltip: 'DIRTY — Wait for map validation to finish',
+      state: 'DIRTY', disabled: false,
     });
     expect(mapEditorPublishPresentation({ ...base, validation: 'invalid' })).toMatchObject({
-      state: 'DIRTY', disabled: true, tone: 'danger',
-      tooltip: 'DIRTY — Resolve blocking map validation errors before publishing',
+      state: 'DIRTY', disabled: false,
     });
   });
 

@@ -32,7 +32,7 @@ export interface UiElementHooks {
   readonly onComposition?: (type: 'start' | 'update' | 'end', data: string, element: UiElement) => boolean;
   readonly onClipboard?: (type: 'copy' | 'cut' | 'paste', data: string, element: UiElement) => string | null;
   readonly onText?: (text: string, element: UiElement) => boolean;
-  readonly onHover?: (hovered: boolean, element: UiElement) => void;
+  readonly onHover?: (hovered: boolean, element: UiElement, since?: number) => void;
   readonly onFocus?: (focused: boolean, element: UiElement, source?: 'keyboard' | 'pointer') => void;
   readonly onDismiss?: (element: UiElement) => void;
   readonly onDispose?: (element: UiElement) => void;

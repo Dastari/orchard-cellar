@@ -38,3 +38,36 @@ describe('incremental visual terrain',()=>{
     expect(patchMapEditorTerrain(terrain,before,{...before,baseElevation:2})).toBeNull();
   });
 });
+
+
+it('patches a four-cell island height stamp without rebuilding island-wide cliff channels',()=>{
+ const before=createStudioLiveIslandBootstrapDocument(),source=buildMapEditorTerrain(before);
+ const after={...before,revision:before.revision+1,cells:{...before.cells,
+  '410,410':{elevation:1},'411,410':{elevation:1},'410,411':{elevation:1},'411,411':{elevation:1}}};
+ const start=performance.now(),patch=patchMapEditorTerrain(source,before,after)!;
+ const elapsed=performance.now()-start;
+ console.info(`Four-cell 832x832 terrain patch: ${elapsed.toFixed(1)}ms`);
+ expect(elapsed).toBeLessThan(1000);
+ expect(patch.changed).toHaveLength(4);
+ const full=buildMapEditorTerrain(after);
+ expect(patch.terrain.elevations).toEqual(full.elevations);
+ expect(patch.terrain.dirtCliffRoles).toEqual(full.dirtCliffRoles);
+});
+
+it('continues the straight river bank in the painted grass cell and patches the same frames as full compilation',async()=>{
+ const {applyMapDocumentV3Edit}=await import('@orchard/sim');
+ const {freshwaterFrameIndexAt,freshwaterInsetFrameIndicesAt}=await import('@orchard/engine/terrain');
+ const base=migrateMapDocumentV2(createEmptyMapDocument({id:'shore-patch',title:'Shore',width:10,height:10}));
+ const cells:MapDocumentV3['cells']={};
+ const writable=cells as Record<string,{surface:'water';biome:'water'|'freshwater'}>;
+ for(let y=0;y<10;y++)for(let x=4;x<10;x++)writable[`${x},${y}`]={surface:'water',biome:y<4?'freshwater':'water'};
+ const before={...base,cells};
+ const after=applyMapDocumentV3Edit(before,{kind:'terrain',command:{kind:'paint',points:[{tileX:4,tileY:4}],patch:{surface:'grass'}},biome:'plains',automaticSurround:true}).document;
+ const source=buildMapEditorTerrain(before),full=buildMapEditorTerrain(after);
+ const patch=patchMapEditorTerrain(source,before,after)!;
+ expect(freshwaterFrameIndexAt(full,4,4)).toBe(3);
+ expect(freshwaterFrameIndexAt(full,4,4)).toBe(freshwaterFrameIndexAt(full,4,3));
+ expect(freshwaterInsetFrameIndicesAt(full,4,4)).toEqual([]);
+ expect(patch.terrain.biomes).toEqual(full.biomes);
+ expect(patch.terrain.elevations).toEqual(source.elevations);
+});

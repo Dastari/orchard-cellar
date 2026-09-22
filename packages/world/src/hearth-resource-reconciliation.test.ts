@@ -6,7 +6,7 @@ const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts'
 const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'reconcileGeneratedSurvivalResources');
 if (!declaration) throw new Error('missing production resource reconciliation');
 const code = ts.transpileModule(`${declaration.getText(source)}\nreturn reconcileGeneratedSurvivalResources;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-function fixture(patch: Record<string, unknown> = {}) {
+function fixture(patch: Record<string, unknown> = {}, placements: sim.MapResourcePlacement[] = []) {
   type Row = { id: bigint; kind: string; tileX: number; tileY: number; chunkX: number; chunkY: number; spaceId: number; [key: string]: unknown };
   const sites: Row[] = sim.HEARTH_RESOURCE_SITES.map(site => ({ id: site.id, kind: site.kind, spaceId: 0,
     tileX: site.tileX, tileY: site.tileY, chunkX: Math.floor(site.tileX / 16), chunkY: Math.floor(site.tileY / 16),
@@ -26,6 +26,7 @@ function fixture(patch: Record<string, unknown> = {}) {
   world_resource_mining_claim: { resourceId: { delete: (id: bigint) => { writes.push(`claim:${id}`); claims.delete(id); } } } } };
   const dependencies = { ...sim, TOPSIDE_SPACE_ID: 0, SenderError: Error,
     contentRegistry: () => sim.bootstrapContentRegistry(),
+    compiledLiveIslandRuntime: () => ({document:{resourcePlacements:placements}}),
     generateSurvivalResources: () => [desired], generatedWorldResourceRow: (row: Row) => row };
   const reconcile = new Function(...Object.keys(dependencies), code)(...Object.values(dependencies));
   return { rows, claims, writes, sites, run: () => reconcile(ctx) };
@@ -44,4 +45,13 @@ describe('manifest-owned resource reconciliation', () => {
       expect([...f.rows]).toEqual(before); expect(f.writes).toEqual([]); expect(f.claims.size).toBe(8);
     }
   });
+});
+
+it('retains authored tree positions and harvest state through repeated generator reconciliation',()=>{
+ const placements=[{id:'1',originTileX:400,originTileY:400,tileX:405,tileY:406},{id:'2',originTileX:400,originTileY:400,tileX:407,tileY:408}];
+ const f=fixture({},placements),original={...f.rows.get(1n)!};
+ f.run();f.run();
+ expect(f.rows.get(1n)).toEqual({...original,tileX:405,tileY:406,chunkX:25,chunkY:25});
+ expect(f.rows.has(2n)).toBe(true);
+ expect(f.claims.has(2n)).toBe(true);
 });
