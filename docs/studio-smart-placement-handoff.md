@@ -5,7 +5,8 @@
 Branch: `feat/studio-smart-placement`, based on `2d13a3ee` (production 0.21.1).
 Versions: root 0.22.0, Studio 0.12.0, sim 0.21.0, engine/UI/client/world 0.20.0.
 Production source, installed artifacts, services and live map content were not changed.
-Do not merge without explicit user instruction.
+The user subsequently approved merging and publishing PR56. Production mutation
+waits for the preceding PR57 release and its explicit checkout/credential handoff.
 
 The implementation addresses compact stable tooltips; larger toolbar buttons;
 native scrollbars and unclipped layer eyes; one-cell connected fence families;
@@ -71,7 +72,12 @@ Prepared local review artifacts:
 - Full-check log: `/tmp/studio-smart-check-final.log`
 
 The routine release must pin the final committed candidate and revalidate the
-installed production baseline at release time. PRs #53–55 were separate open work
-at the final fetch. #55 also changes UI snapshot hashes; an integration branch must
-review and regenerate the combined art baseline if both are included. Do not
-silently discard either set of changes.
+installed production baseline at release time. PR57 integrates the separately approved PR53–55 release and publishes first.
+Its frozen head `c64ab976` is integrated into PR56 in the isolated worktree.
+Retain root0.22.0, client/UI0.20.0, assets0.17.2 and tools0.18.2. Both renderer
+state resolution and the dialog button inset are retained in the reviewed source
+fingerprint; combined visual baselines are regenerated from the updated native
+workbench art. NavyBay owns canonical source/services/credentials until an explicit
+handoff to BoldEagle. The final merged candidate must pass CI and the guarded
+routine release checks; the earlier standalone Studio artifact is review evidence,
+not the combined deployment artifact.

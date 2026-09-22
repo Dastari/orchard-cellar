@@ -22,9 +22,15 @@ occupied tiles in existing worlds before content publication.
 
 ## Artwork provenance
 
-AI generation produced `art/custom/workbench/workbench-ai-source.png`. The retained
-source is imported by `npx tsx packages/tools/src/import-workbench.ts`, which crops
-to its alpha bounds, samples a 32px grid and maps to a fixed 20-color palette. The
+The original AI artwork remains at `art/custom/workbench/workbench-ai-source.png`.
+Its fine detail did not survive the 32-pixel import. The replacement
+`art/custom/workbench/workbench-native-source.png` is a simplified AI edit of the
+actual game pixel grid, with broad wood planes, separated tool silhouettes and
+a connected vise. A targeted AI mallet edit is retained in
+`art/custom/workbench/workbench-mallet-source.png`; only its reviewed native-grid
+rectangle (columns 8–19, rows 12–19) is imported so incidental edits elsewhere
+cannot overwrite the accepted bench and vise. The replacement is imported by `npx tsx packages/tools/src/import-workbench.ts`, which crops
+to its alpha bounds, samples a 32px grid and maps to a restrained 11-color palette. The
 32x32 game sprite uses anchor `[8,31]` so its 32px width covers the anchor tile and
 its right neighbor. No licensed table source is used by the new sprite; the old
 crafting extraction list no longer overwrites it. The source PNG is a retained
@@ -40,3 +46,19 @@ Reviewed fixture updates preserve object positions and all unrelated sprites.
 Only the workbench prefab dimensions/anchor, its native-art fingerprint, three
 build-palette pixel snapshots, and bootstrap-content hashes change. The structural
 seam digest includes the reviewed hotbar sentinel and shared collision edits.
+
+## Native-scale readability review — 22 September 2026
+
+An independent Astra review rejected the first simplified import because its
+mallet and vise still lost their shapes. The accepted revision uses a longer
+mallet handle, a solid steel vise and restrained plank seams. Astra accepted both
+the final 32-pixel sprite and browser previews through `drawOverworldPlaceable`
+at 2×, 4× and 6×. The original source remains unchanged.
+
+Verification: 544 UI lab tests and 10 native-asset/collision/authority/capability
+tests passed; only three existing workbench build-palette hashes changed. Tools
+type checking, lint, all 1,320 asset validations and the client production build
+passed. Re-running the importer reproduces identical sprite bytes. Size, anchor,
+placement metadata, content definitions and world interaction code are unchanged.
+Preview evidence: `/home/toby/.local/state/orchard-release/workbench-polish-20260922/renderer-preview.png`.
+This records candidate verification; no production deployment was performed.
