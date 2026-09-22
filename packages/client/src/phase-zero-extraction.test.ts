@@ -160,7 +160,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review: docs/review/willowharbour-rules-pass-01.md.
 // Empty hotbar sentinels no longer render missing-art icons; collision now uses
 // shared authored footprint cells. Review: docs/workbench-spec.md and docs/world-interactions.md.
-const STRUCTURAL_SEAM_DIGEST = "f6de4d39a84f56a20be7bca717ea3acad32e41913b3f8cedb1b71478a9396ba2";
+// Smart object state resolves growth/appearance through the shared renderer.
+// Review: docs/studio-smart-placement-spec.md; parser, delta and visual regressions.
+const STRUCTURAL_SEAM_DIGEST = "a476dd79272b49daacb3f6648b942da79539c3701f2cf72eb4a1fc2d8db94cdb";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

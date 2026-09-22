@@ -23,3 +23,21 @@ and validation, follow [the runtime runbook](../../ops/orchard-runtime/README.md
 Edit source in a Git branch and deliver through a PR; never edit live dist files.
 
 Migration, validation and cleanup evidence: [integration handoff](../../docs/studio-integration-handoff.md).
+
+## Map placement and selection
+
+Choose **Smart placement** for one palette entry per connected family or terrain
+material. Drawing a fence connects neighboring cells using shared rules. Choose
+**Exact placement** to expose individual object and terrain pieces; exact terrain
+pieces are Ground Details overlays. Assistance stays local to the edited area.
+
+Select an object to tint its sprite and edit labelled position, orientation and
+supported appearance/growth properties. New same-layer object overlap is rejected.
+Right-click opens Delete; right-drag pans. Authored edits and resource state edits
+remain undoable drafts until **Publish changes**. Functional live placeable/chest
+controls retain the explicit audited Preview/Confirm action flow.
+
+Stateful-object support in Studio 0.12.0 also changes the shared game renderer and
+world map commit handler. Deploy this feature with the matching game/world code;
+it is not a standalone editor release. The full database schema and generated
+public bindings remain unchanged. See [the verification and release handoff](../../docs/studio-smart-placement-handoff.md).

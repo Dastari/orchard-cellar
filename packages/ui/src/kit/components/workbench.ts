@@ -117,7 +117,7 @@ export function uiWorkbench(options: UiWorkbenchOptions): UiElement {
 export function uiWorkbenchNavigationRail(navigation: readonly UiWorkbenchNavigation[], options: { readonly id?: string; readonly layout?: UiStyle } = {}): UiElement {
   const id = options.id ?? 'workbench.rail', buttonPrefix = id.replace(/\.rail$/u, ''), layout = options.layout;
   const rail = uiFrame({ id: id, style: 'thin', layout: { width: uiFixed(40), height: 'grow', shrink: 0, ...layout },
-    children: [uiScrollArea({ width: 'grow', height: 'grow', gap: 4 }, navigation.map(item =>
+    children: [uiScrollArea({ width: 'grow', height: 'grow', gap: 4, padding:{right:4} }, navigation.map(item =>
       uiTooltip(item.label, uiIconButton(item.icon, { id: `${buttonPrefix}.nav.${item.id}`, label: item.label,
         tone: item.selected ? 'success' : 'primary', disabled: item.disabled, onPress: item.onPress,
         layout: { width: uiFixed(24), height: uiFixed(24), shrink: 0 } }),

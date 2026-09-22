@@ -1,3 +1,4 @@
+import {parseObjectPresentation,type ObjectPresentation} from './object-presentation.js';
 import {
   MAP_STAMP_LAYERS,
   isMapStampPlacement,
@@ -56,6 +57,7 @@ export interface MapPrefabDocumentV2 {
   readonly tags: readonly string[];
   readonly collection: MapPrefabCollection | null;
   readonly behaviors: readonly MapPrefabBehavior[];
+  readonly presentation?: ObjectPresentation;
   readonly placements: readonly MapStampPlacement[];
   readonly cells: readonly MapPrefabCell[];
 }
@@ -127,6 +129,7 @@ function placementSortKey(placement: MapStampPlacement): string {
 export function normalizeMapPrefab(document: MapPrefabDocumentV2): MapPrefabDocumentV2 {
   return {
     ...document,
+    ...(document.presentation?{presentation:parseObjectPresentation(document.presentation,document.placements.map(p=>p.id))}:{}),
     tags: [...new Set(document.tags)].sort(),
     behaviors: [...document.behaviors].sort((left, right) => (
       `${left.kind}:${left.archetype ?? ''}`.localeCompare(`${right.kind}:${right.archetype ?? ''}`)
@@ -241,6 +244,7 @@ export function parseMapPrefabDocument(source: string): MapPrefabDocumentV2 {
     behaviors: behaviors as MapPrefabBehavior[],
     placements: candidate['placements'] as MapStampPlacement[],
     cells: cells as MapPrefabCell[],
+    ...(candidate['presentation']===undefined?{}:{presentation:parseObjectPresentation(candidate['presentation'],placementIds)}),
   });
 }
 

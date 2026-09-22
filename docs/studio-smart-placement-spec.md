@@ -1,14 +1,14 @@
 # Studio smart placement and stable inspectors
 
-Status: implementation in progress, 2026-09-22.
+Status: implemented; release verification recorded in [the handoff](studio-smart-placement-handoff.md), 2026-09-22.
 
 ## Contract
 
 Tooltips use the UI kit's small parchment frame, fit their text with compact padding, and stay visible while the pointer remains over a stable target. Drawer refreshes preserve scroll, focus, and open controls. Scrollbars use authored track/grip artwork. Tool buttons keep one row with more icon clearance. Layer visibility uses a fully visible eye glyph.
 
-Smart placement presents one entry per connected fence/hedge family and terrain material. Exact placement exposes individual visual pieces. A smart fence occupies one world cell and joins same-family neighbours using the shared game resolver. Strokes interpolate cells; duplicate placement and movement into occupied cells on the same layer/elevation are rejected without changing existing content. Different layers remain independently authorable; existing overlaps are not repaired globally.
+Smart placement presents one entry per connected fence/hedge family and terrain material. Exact placement exposes individual visual pieces. Exact terrain pieces are authored Ground Details overlays; they do not rewrite the underlying terrain semantics or enforce topology. A smart fence occupies one world cell and joins same-family neighbours using the shared game resolver. Strokes interpolate cells; duplicate placement and movement into occupied cells on the same layer/elevation are rejected without changing existing content. Different layers remain independently authorable; existing overlaps are not repaired globally.
 
-Object selection tints the actual sprite silhouette. A stationary right click opens a context menu with Delete when supported; right drag continues to pan. Delete, placement, movement and property editing remain undoable local drafts until publication. Selection panels show labelled properties and appropriate controls, including position, orientation and supported object state. Remove the redundant Selection/Schema dropdown and raw debug prose. Read-only fields explain their meaning and do not masquerade as editable controls.
+Object selection tints the actual sprite silhouette. A stationary right click opens a context menu with Delete when supported; right drag continues to pan. Authored-object deletion, placement, movement and property editing remain undoable local drafts until publication. Live resource state edits and suppression also remain drafts. Functional placeable/chest state and despawn controls retain the existing audited Preview/Confirm live action flow and its permission checks. Selection panels show labelled properties and appropriate controls, including position, orientation and supported object state. Remove the redundant Selection/Schema dropdown and raw debug prose. Read-only fields explain their meaning and do not masquerade as editable controls.
 
 Object visual state is shared data, not an editor-only sprite override. Reuse existing typed object state schemas and art metadata to describe supported states and resolve the corresponding visual. Growth-capable objects expose growth choices; other objects expose only declared properties. The game and editor use the same resolver. Functional resource edits must preserve resource identity, retain authority checks, and flow through the existing atomic delta publication boundary. Unknown values reject explicitly and preserve the draft.
 

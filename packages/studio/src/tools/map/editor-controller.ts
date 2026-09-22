@@ -1,6 +1,7 @@
+import {mapObjectOccupiedCells} from '@orchard/sim';
 import {mapMaterialChoices} from './material-palette.js';
 import {
-  FIXED_UNITS_PER_PIXEL,
+  FIXED_UNITS_PER_PIXEL, smartConnectedObjectPrefabs, connectedObjectFamily, smartObjectPresentationPrefabs, mapPrefabPresentationFamily,
   MAP_BIOME_IDS,
   SURVIVAL_WORLD_SEED,
   TERRAIN_ELEVATION_LIMIT,
@@ -729,7 +730,10 @@ export class MapEditorController {
   #transitionFeedback: string | null = null;
   #scatterDensity = 3_500;
   #eyedropperActive = false;
+  #catalogChoices: {source:readonly MapPrefabDocumentV2[];smart:readonly MapPrefabDocumentV2[]}|null=null;
+  #prefabCache: {document:MapDocumentV3;catalog:readonly MapPrefabDocumentV2[];all:readonly MapPrefabDocumentV2[]}|null=null;
   #catalog: readonly MapPrefabDocumentV2[] = [];
+  #objectStroke: {tileX:number;tileY:number;elevation:number}|null = null;
   #pan: { readonly x: number; readonly y: number } | null = null;
   #drag: DragState | null = null;
   #stroke: PaintStroke | null = null;
@@ -757,6 +761,16 @@ export class MapEditorController {
     terrainPalette: TerrainAuthoringPalette = OFFLINE_TERRAIN_AUTHORING_PALETTE,
   ) {
     this.#terrainPalette = terrainPalette;
+    model.setLiveObjectOccupancy(object=>{
+      if(!object.enabled)return false;
+      const cells=mapObjectOccupiedCells(model.document(),object);
+      return this.liveMarkers().some(marker=>marker.spaceId===0&&marker.layer===object.layer
+        &&!['player','npc'].includes(marker.entityKind)&&!model.document().generatedSuppressions.includes(`${marker.entityKind}-${marker.id}`)
+        &&cells.some(cell=>cell.tileX>=marker.tileX-Math.floor((marker.footprint.width-1)/2)
+          &&cell.tileX<marker.tileX-Math.floor((marker.footprint.width-1)/2)+marker.footprint.width
+          &&cell.tileY<=marker.tileY&&cell.tileY>marker.tileY-marker.footprint.height
+          &&cell.elevation===(marker.elevation??resolvedMapCellAt(terrainDocumentForMapV3(model.document()),marker.tileX,marker.tileY).elevation)));
+    });
     this.#activeLayer = model.document().layers.find(({ editable }) => editable)?.id ?? 'terrain';
     this.#selectedSurfaceFamily = model.document().defaultSurfaceFamily ?? 'grass_1';
     this.#selectedCliffFamily = model.document().defaultCliffFamily ?? 'stone_1';
@@ -897,11 +911,19 @@ export class MapEditorController {
 
   editingTool(): MapEditingTool | null { return this.#editingTool; }
   automaticGeneration(): boolean { return this.#automaticGeneration; }
-  setAutomaticGeneration(value: boolean): void { this.#automaticGeneration = value; }
+  setAutomaticGeneration(value: boolean): void {
+    this.pointerCancel();this.#automaticGeneration=value;
+    const selected=this.allPrefabs().find(p=>p.id===this.#selectedPrefabId);
+    const family=selected?.placements.length===1?connectedObjectFamily(selected.placements[0]!.assetName):null;
+    if(family){const replacement=this.allPrefabs().find(p=>p.placements.length===1&&connectedObjectFamily(p.placements[0]!.assetName)===family&&(value?p.tags.includes('studio.smart-family'):!p.tags.includes('studio.smart-family')&&!p.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)));
+      this.#selectedPrefabId=replacement?.id??null;
+    }else if(this.#editingTool!=='objects')this.#selectedPrefabId=null;
+  }
   materialId(): string { return this.#materialId; }
   materialLabel(): string { return this.#materialLabel; }
   selectMaterial(id: string, label: string, patch: Readonly<MapCellPatch>, biome?: MapBiomeId): void {
     this.cancelFloodFill();
+    this.#selectedPrefabId=null;
     this.#materialBiome = biome;
     this.#materialId = id; this.#materialLabel = label; this.#material = patch;
     this.#eyedropperActive = false;
@@ -924,8 +946,18 @@ export class MapEditorController {
   }
   allObjectChoices(query = ''): readonly MapPrefabDocumentV2[] {
     const terms = query.trim().toLowerCase().split(/\s+/u).filter(Boolean);
-    return this.allPrefabs().filter(prefab => !prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG) && terms.every(term =>
+    const all=this.allPrefabs();const stateFamilies=new Set(all.filter(p=>p.presentation).flatMap(p=>p.tags.filter(t=>t.startsWith('studio.state-family.')).map(t=>t.slice(20))));
+    return all.filter(prefab => (!this.#automaticGeneration||!stateFamilies.has(mapPrefabPresentationFamily(prefab)??'')) && !prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)
+      && (this.#automaticGeneration ? prefab.tags.includes('studio.smart-family') || prefab.placements.length!==1 || !connectedObjectFamily(prefab.placements[0]!.assetName) || prefab.placements[0]!.assetName.endsWith('_gate') : !prefab.tags.includes('studio.smart-family')&&!prefab.tags.includes('studio.smart-state')) && terms.every(term =>
       [prefab.id, prefab.title, ...prefab.tags].join(' ').toLowerCase().includes(term)));
+  }
+  exactTileChoices(query=''):readonly MapPrefabDocumentV2[] {
+    const terms=query.toLowerCase().trim().split(/\s+/u).filter(Boolean);
+    return this.allPrefabs().filter(p=>p.tags.includes('tiles')&&!p.tags.includes('studio.smart-state')&&!p.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)&&terms.every(t=>`${p.title} ${p.tags.join(' ')}`.toLowerCase().includes(t)));
+  }
+  selectExactTile(prefabId:string):void {
+    if(!this.exactTileChoices().some(p=>p.id===prefabId))return;
+    this.selectEditingTool('terrain');this.#activeLayer='ground';this.model.selectWorkspace('objects');this.#selectedPrefabId=prefabId;
   }
   selectObjectChoice(prefabId: string): void {
     const prefab = this.allPrefabs().find(entry => entry.id === prefabId);
@@ -1205,7 +1237,9 @@ export class MapEditorController {
       const placements=new Map((document.resourcePlacements??[]).map(value=>[value.id,value]));
       this.#placedMarkers=this.#liveMarkers.map(marker=>{
         const placement=marker.entityKind==='resource'?placements.get(marker.id):undefined;
-        return placement?{...marker,tileX:placement.tileX,tileY:placement.tileY,elevation:null,...tileMarkerPosition(placement.tileX,placement.tileY)}:marker;
+        const properties=marker.entityKind==='resource'?this.model.pendingEntityProperties(marker.id):undefined;
+        const positioned=placement?{...marker,tileX:placement.tileX,tileY:placement.tileY,elevation:null,...tileMarkerPosition(placement.tileX,placement.tileY)}:marker;
+        return properties?{...positioned,...properties}:positioned;
       });
       this.#placedMarkerDocument=document;this.#placedMarkerSource=this.#liveMarkers;
     }
@@ -1312,6 +1346,9 @@ export class MapEditorController {
         return true;
       }
     }
+    if(this.#editingTool==='terrain'&&!this.#automaticGeneration&&this.#selectedPrefabId!==null){
+      this.#objectStroke=tile;this.placeSelectedPrefab(tile.tileX,tile.tileY,tile.elevation);return true;
+    }
     if (this.#editingTool !== null && this.#editingTool !== 'objects') {
       if (!this.terrainAuthoringAvailable()) return true;
       this.model.selectTile(tile.tileX, tile.tileY);
@@ -1411,7 +1448,9 @@ export class MapEditorController {
       return true;
     }
     if (this.#selectedPrefabId !== null && OBJECT_LAYERS.has(this.#activeLayer)) {
-      return this.placeSelectedPrefab(tile.tileX, tile.tileY, tile.elevation);
+      const prefab=this.allPrefabs().find(p=>p.id===this.#selectedPrefabId);
+      this.#objectStroke=this.#automaticGeneration&&prefab?.tags.includes('studio.smart-family')?tile:null;
+      this.placeSelectedPrefab(tile.tileX, tile.tileY, tile.elevation);return true;
     }
     const selected = this.selectAt(tile.tileX, tile.tileY);
     if (selected !== null) this.beginAuthoredDrag(selected, tile.tileX, tile.tileY);
@@ -1419,6 +1458,7 @@ export class MapEditorController {
   }
 
   pointerMove(point: UiPoint): boolean {
+    if(this.#objectStroke){const tile=this.tileAt(point,this.#objectStroke.elevation);if(tile){for(const p of rasterMapLine(this.#objectStroke,tile).slice(1))this.placeSelectedPrefab(p.tileX,p.tileY,tile.elevation);this.#objectStroke=tile;}return true;}
     if (this.#pan !== null) {
       this.#camera = Object.freeze({
         ...this.#camera,
@@ -1478,6 +1518,7 @@ export class MapEditorController {
   }
 
   pointerUp(): boolean {
+    if(this.#objectStroke){this.#objectStroke=null;return true;}
     if (this.#pan !== null) {
       this.#pan = null;
       return true;
@@ -1570,7 +1611,9 @@ export class MapEditorController {
   }
 
   pointerCancel(): boolean {
-    const active = this.#pan !== null || this.#drag !== null || this.#stroke !== null
+    const objectStrokeActive=this.#objectStroke!==null;
+    this.#objectStroke=null;
+    const active = objectStrokeActive || this.#pan !== null || this.#drag !== null || this.#stroke !== null
       || this.#transitionDraft !== null || this.#floodFill !== null;
     this.#pan = null;
     this.#drag = null;
@@ -1780,10 +1823,10 @@ export class MapEditorController {
     while (ids.has(id)) id = `${base}-${++suffix}`;
     const tileX = selection.value.tileX < document.width - 1
       ? selection.value.tileX + 1 : Math.max(0, selection.value.tileX - 1);
-    if (selection.kind === 'object') this.model.placeObject({ ...selection.value, id, tileX });
-    else this.model.placeLandmark({ ...selection.value, id, tileX });
-    this.model.selectObject(id);
-    return true;
+    const placed = selection.kind === 'object' ? this.model.placeObject({ ...selection.value, id, tileX })
+      : (this.model.placeLandmark({ ...selection.value, id, tileX }), true);
+    if(placed)this.model.selectObject(id);
+    return placed;
   }
 
   screenToWorld(point: UiPoint): UiPoint {
@@ -1932,7 +1975,7 @@ export class MapEditorController {
       if (object === undefined) return false;
       this.#activeLayer = object.layer;
       const sampled=this.allPrefabs().find(prefab=>prefab.id===object.prefabId);
-      const originalId=sampled?.tags.find(tag=>tag.startsWith('studio.connection.source:'))?.slice('studio.connection.source:'.length);
+      const originalId=sampled?.tags.find(tag=>tag.startsWith('studio.connection.source.'))?.slice('studio.connection.source.'.length);
       const original=originalId===undefined?undefined:this.allPrefabs().find(prefab=>prefab.id===originalId);
       this.#selectedPrefabId = original?.id ?? object.prefabId;
       if(sampled?.tags.includes(MANUAL_OBJECT_CONNECTION_TAG))this.#automaticGeneration=false;
@@ -2033,6 +2076,8 @@ export class MapEditorController {
     };
   }
 
+  selectAtPoint(point: UiPoint): boolean {const tile=this.tileAt(point);return tile!==null&&this.selectAt(tile.tileX,tile.tileY)!==null;}
+
   private selectAt(tileX: number, tileY: number): MapEditorVisibleEntityPick | null {
     const selected = pickTopmostVisibleMapEntity(
       this.model.document(),
@@ -2062,9 +2107,9 @@ export class MapEditorController {
     let prefab = this.allPrefabs().find(({ id }) => id === this.#selectedPrefabId);
     if (prefab === undefined || !OBJECT_LAYERS.has(this.#activeLayer)
       || !this.layerEditableAndVisible(this.#activeLayer)) return false;
-    if(this.#automaticGeneration && prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG))prefab={...prefab,tags:prefab.tags.filter(tag=>tag!==MANUAL_OBJECT_CONNECTION_TAG&&!tag.startsWith('studio.connection.source:')),id:`auto-${prefab.id.slice(0,59)}`};
+    if(this.#automaticGeneration && prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG))prefab={...prefab,tags:prefab.tags.filter(tag=>tag!==MANUAL_OBJECT_CONNECTION_TAG&&!tag.startsWith('studio.connection.source.')),id:`auto-${prefab.id.slice(0,59)}`};
     if (!this.#automaticGeneration && !prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)) prefab = {...prefab, id:`manual-${prefab.id.slice(0,42)}-${[...prefab.id].reduce((hash,char)=>Math.imul(hash^char.charCodeAt(0),16777619)>>>0,2166136261).toString(16)}`,
-      tags:[...prefab.tags,MANUAL_OBJECT_CONNECTION_TAG,`studio.connection.source:${prefab.id}`]};
+      tags:[...prefab.tags,MANUAL_OBJECT_CONNECTION_TAG,`studio.connection.source.${prefab.id}`]};
     if (!this.model.document().prefabs.some(({ id, revision }) => id === prefab.id && revision === prefab.revision)) {
       this.model.embedPrefab(prefab);
     }
@@ -2073,7 +2118,7 @@ export class MapEditorController {
     let suffix = this.model.document().revision + 1;
     let id = `${base}-${suffix}`;
     while (this.model.document().objects.some((object) => object.id === id)) id = `${base}-${++suffix}`;
-    this.model.placeObject({
+    const placed = this.model.placeObject({
       id,
       prefabId: prefab.id,
       prefabRevision: prefab.revision,
@@ -2085,8 +2130,8 @@ export class MapEditorController {
       flipX: false,
       enabled: true,
     });
-    this.model.selectObject(id);
-    return true;
+    if(placed)this.model.selectObject(id);
+    return placed;
   }
 
   private tileAt(point: UiPoint, lockedElevation?: number): {
@@ -2134,9 +2179,12 @@ export class MapEditorController {
   }
 
   private allPrefabs(): readonly MapPrefabDocumentV2[] {
+    if(this.#prefabCache?.document===this.model.document()&&this.#prefabCache.catalog===this.#catalog)return this.#prefabCache.all;
     const authored = new Map(this.#catalog.map((prefab) => [prefab.id, prefab] as const));
     for (const prefab of this.model.document().prefabs) authored.set(prefab.id, prefab);
-    return [...authored.values()];
+    if(this.#catalogChoices?.source!==this.#catalog)this.#catalogChoices={source:this.#catalog,smart:[...smartConnectedObjectPrefabs(this.#catalog),...smartObjectPresentationPrefabs(this.#catalog)]};
+    for(const prefab of [...this.#catalogChoices.smart,...smartConnectedObjectPrefabs(this.model.document().prefabs),...smartObjectPresentationPrefabs(this.model.document().prefabs)])if(!authored.has(prefab.id))authored.set(prefab.id,prefab);
+    const all=[...authored.values()];this.#prefabCache={document:this.model.document(),catalog:this.#catalog,all};return all;
   }
 
   private clampCamera(): void {

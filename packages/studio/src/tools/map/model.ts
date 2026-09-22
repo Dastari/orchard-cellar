@@ -1,6 +1,6 @@
 import { parseVerifiedStudioMapHead } from './verified-live-map.js';
 import {
-  LIVE_ISLAND_MAP_ID,
+  LIVE_ISLAND_MAP_ID, mapObjectPlacementConflict, type MapEntityStateEdit, type ObjectPropertyState,
   isMapObjectLayer,
   applyMapDocumentV3Edit,
   createEmptyMapDocument,
@@ -135,6 +135,7 @@ function initialDocument(mapId: string): MapDocumentV3 {
 
 export class MapEditorModel {
   #document: MapDocumentV3;
+  #publishedEntityStates: readonly MapEntityStateEdit[] = [];
   #past: MapDocumentV3[] = [];
   #future: MapDocumentV3[] = [];
   #workspace: MapEditorWorkspace = 'terrain';
@@ -434,16 +435,36 @@ export class MapEditorModel {
     this.reconcileKernels();
   }
 
+  pendingEntityProperties(entityId:string):ObjectPropertyState|undefined {
+    const id=`resource:${entityId}`,draft=this.#document.entityStates?.find(e=>e.id===id),published=this.#publishedEntityStates.find(e=>e.id===id);
+    if(JSON.stringify(draft)===JSON.stringify(published))return undefined;
+    return draft?.state??published?.baseState;
+  }
+  editResourceState(entityId:string,current:ObjectPropertyState,patch:ObjectPropertyState):void {
+    const id=`resource:${entityId}`,previous=this.#document.entityStates?.find(e=>e.id===id);
+    const pending=this.pendingEntityProperties(entityId)!==undefined;
+    const state={...(pending?previous?.state:{}),...patch};
+    const baseState=Object.fromEntries(Object.keys(state).map(key=>[key,pending&&previous&&Object.hasOwn(previous.baseState,key)?previous.baseState[key]!:current[key]!]));
+    this.apply({kind:'edit_entity_state',edit:{id,entityId,entityKind:'resource',baseState,state}});
+  }
   moveResource(id:string,sourceTileX:number,sourceTileY:number,tileX:number,tileY:number):void {
     const prior=this.#document.resourcePlacements?.find(value=>value.id===id);
     this.apply({kind:'move_resource',placement:{id,originTileX:prior?.originTileX??sourceTileX,originTileY:prior?.originTileY??sourceTileY,tileX,tileY}});
   }
   embedPrefab(prefab: MapPrefabDocumentV2): void { this.apply({ kind: 'embed_prefab', prefab }); }
-  placeObject(object: MapObjectInstance): void { this.apply({ kind: 'place_object', object }); }
+  #liveOccupancy: (object:MapObjectInstance)=>boolean = ()=>false;
+  setLiveObjectOccupancy(check:(object:MapObjectInstance)=>boolean):void {this.#liveOccupancy=check;}
+  placeObject(object: MapObjectInstance): boolean {
+    const previous=this.#document.objects.find(value=>value.id===object.id);
+    const geometryChanged=!previous||['tileX','tileY','elevation','layer','prefabId','quarterTurns','flipX','scale','enabled'].some(key=>previous[key as keyof MapObjectInstance]!==object[key as keyof MapObjectInstance]);
+    if(geometryChanged&&(mapObjectPlacementConflict(this.#document,object)!==null||this.#liveOccupancy(object))){this.services.notifications.push('warning','Space occupied','Choose an empty position on this layer.');return false;}
+    this.apply({ kind: 'place_object', object });return true;
+  }
   placeLandmark(landmark: MapLandmarkInstance): void { this.apply({ kind: 'place_landmark', landmark }); }
   placeAnchor(anchor: MapGameplayAnchor): void { this.apply({ kind: 'place_anchor', anchor }); }
   moveObject(objectId: string, tileX: number, tileY: number, elevation?: number): void {
-    this.apply({ kind: 'move_object', objectId, tileX, tileY, ...(elevation === undefined ? {} : { elevation }) });
+    const object=this.#document.objects.find(value=>value.id===objectId);
+    if(object)this.placeObject({...object,tileX,tileY,...(elevation===undefined?{}:{elevation})});
   }
   moveLandmark(landmarkId: string, tileX: number, tileY: number, elevation?: number): void {
     this.apply({ kind: 'move_landmark', landmarkId, tileX, tileY, ...(elevation === undefined ? {} : { elevation }) });
@@ -584,6 +605,7 @@ export class MapEditorModel {
       this.markConflict(head.revision, `Live map revision ${head.revision} could not be verified; local edits were preserved.`);
       return;
     }
+    this.#publishedEntityStates=remoteDocument.entityStates??[];
     const remoteSemanticHash = editorMapSemanticHash(remoteDocument);
     const localSemanticHash = editorMapSemanticHash(this.#document);
 

@@ -1,4 +1,4 @@
-import { kitElement, pressKit } from '../kit-test-driver.js';
+import { kitElement, pressKit, keyKit } from '../kit-test-driver.js';
 import {
   bootstrapTilesetDefinitions,
   contentDefinitionRowsHash,
@@ -69,7 +69,7 @@ async function surfaceWithTerrainSelection(
 ): Promise<StudioCanvasToolSurface> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const surface = buildMapCanvasTool(canvasContext);
-    if (kitElement(surface, 'map-selection-terrain-apply-current')) return surface;
+    if (kitElement(surface, 'map-property-family')) return surface;
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   throw new Error('Terrain selection drawer did not receive its worker terrain');
@@ -83,7 +83,7 @@ describe('Map Canvas terrain authoring', () => {
  pressKit(s,'map-layer-visible-terrain');s=buildMapCanvasTool(c);expect(choices().every(x=>x.disabled)).toBe(true);
 });
 
-  it('provides current/default/inherit/exact selection actions and gates mutations to Terrain', async () => {
+  it('provides labelled family and biome inputs and gates mutations to Terrain', async () => {
     const canvasContext = await context();
     buildMapCanvasTool(canvasContext);
     const state = canvasContext.controller.toolState('map-canvas:terrain-lab', () => null) as unknown as {
@@ -94,18 +94,13 @@ describe('Map Canvas terrain authoring', () => {
     state.model.selectTile(20, 20);
     state.interaction.selectSurfaceFamily('grass_3');
     let surface = await surfaceWithTerrainSelection(canvasContext);
-    const ids = [
-      'map-selection-terrain-apply-current',
-      'map-selection-terrain-use-default',
-      'map-selection-terrain-apply-default',
-      'map-selection-terrain-inherit',
-      'map-selection-terrain-apply-exact',
-      'map-selection-terrain-clear',
-    ];
-    for (const id of ids) expect(kitElement(surface, id)).toMatchObject({kind:'button',focusable:true});
-
+    expect(kitElement(surface,'map-selection-view')).toBeUndefined();
+    expect(kitElement(surface,'map-property-family')).toMatchObject({disabled:false});
     const before = state.model.document();
-    pressKit(surface, 'map-selection-terrain-apply-current');
+    keyKit(surface,'map-property-family','ArrowDown');
+    keyKit(surface,'map-property-family','End');
+    keyKit(surface,'map-property-family','ArrowUp');
+    keyKit(surface,'map-property-family','Enter');
     expect(state.model.document().cells['20,20']?.surfaceFamily).toBe('grass_3');
     expect(state.model.document().revision).toBe(before.revision + 1);
     state.model.undo();
@@ -113,9 +108,7 @@ describe('Map Canvas terrain authoring', () => {
 
     state.model.toggleLayer('terrain');
     surface = await surfaceWithTerrainSelection(canvasContext);
-    for (const id of ids.filter((id) => id !== 'map-selection-terrain-use-default')) {
-      expect(kitElement(surface, id)?.disabled).toBe(true);
-    }
-    expect(kitElement(surface, 'map-selection-terrain-use-default')?.disabled).toBe(false);
+    expect(kitElement(surface,'map-property-family')?.disabled).toBe(true);
+    expect(kitElement(surface,'map-property-biome')?.disabled).toBe(true);
   });
 });

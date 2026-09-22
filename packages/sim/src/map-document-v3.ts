@@ -1,3 +1,5 @@
+import {parseMapEntityStates,type MapEntityStateEdit} from './map-entity-state.js';
+import {parseObjectPropertyState,type ObjectPropertyState} from './object-presentation.js';
 import {surroundMapMaterial} from './map-material-surround.js';
 import {parseMapResourcePlacements,type MapResourcePlacement} from './map-resource-placement.js';
 export type {MapResourcePlacement} from './map-resource-placement.js';
@@ -84,6 +86,7 @@ export const DEFAULT_MAP_CONTENT_LAYERS: readonly MapContentLayerDefinition[] = 
 export type MapObjectLayer = 'ground' | 'objects' | 'gameplay' | 'canopy';
 
 export interface MapObjectInstance {
+  readonly state?: ObjectPropertyState;
   readonly id: string;
   readonly prefabId: string;
   readonly prefabRevision: number;
@@ -135,6 +138,7 @@ export interface MapDocumentV3 extends Omit<MapDocumentV2, 'schemaVersion' | 'ce
   readonly objects: readonly MapObjectInstance[];
   readonly landmarks: readonly MapLandmarkInstance[];
   readonly generatedSuppressions: readonly string[];
+  readonly entityStates?: readonly MapEntityStateEdit[];
   readonly resourcePlacements?: readonly MapResourcePlacement[];
   /** Authored authority policy; absent on historical maps means peaceful. */
   readonly combatRegions?: readonly CombatRegion[];
@@ -339,6 +343,7 @@ function parseObjectInstance(value: unknown, width: number, height: number): Map
     flipX: candidate['flipX'],
     ...(candidate['scale'] === 2 ? { scale: 2 as const } : {}),
     enabled: candidate['enabled'],
+    ...(candidate['state']===undefined?{}:{state:parseObjectPropertyState(candidate['state'])}),
   };
 }
 
@@ -397,8 +402,10 @@ function parseLayer(value: unknown): MapContentLayerDefinition | null {
 export function normalizeMapDocumentV3(document: MapDocumentV3): MapDocumentV3 {
   const terrain = normalizeMapDocument(terrainDocumentForMapV3Unnormalized(document)) as MapDocumentV2 & {resourcePlacements?:readonly MapResourcePlacement[]};
   delete terrain.resourcePlacements;
+  delete (terrain as MapDocumentV2 & {entityStates?:unknown}).entityStates;
+  const entityStates=parseMapEntityStates(document.entityStates??[]);
   const resourcePlacements=parseMapResourcePlacements(document.resourcePlacements??[],document.width,document.height);
-  const base={...document};delete base.resourcePlacements;
+  const base={...document};delete base.resourcePlacements;delete base.entityStates;
   const cells = Object.fromEntries(Object.entries(document.cells)
     .map(([key, cell]) => [key, {
       ...(terrain.cells[key] ?? {}),
@@ -412,11 +419,12 @@ export function normalizeMapDocumentV3(document: MapDocumentV3): MapDocumentV3 {
     ...base,
     ...terrain,
     ...(resourcePlacements.length?{resourcePlacements}:{}),
+    ...(entityStates.length?{entityStates}:{}),
     schemaVersion: MAP_DOCUMENT_V3_SCHEMA_VERSION,
     cells,
     layers: layers.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id)),
     prefabs: [...document.prefabs].map(normalizeMapPrefab).sort((left, right) => left.id.localeCompare(right.id)),
-    objects: [...document.objects].sort((left, right) => (
+    objects: document.objects.map(object=>{if(!object.state)return object;const normalized=parseObjectInstance(object,document.width,document.height);if(!normalized)throw new TypeError('Map object state instance is invalid');return normalized;}).sort((left, right) => (
       left.layer.localeCompare(right.layer) || left.elevation - right.elevation
       || left.tileY - right.tileY || left.tileX - right.tileX || left.id.localeCompare(right.id)
     )),
@@ -544,10 +552,12 @@ export function parseMapDocumentV3(
     || objects.some((object) => !prefabIds.includes(object!.prefabId))) {
     throw new TypeError('Map V3 ids and prefab references must be unique and complete');
   }
+  for(const object of objects)if(object?.state)parseObjectPropertyState(object.state,prefabs.find(p=>p.id===object.prefabId)?.presentation?.properties??{});
   return normalizeMapDocumentV3({
     ...terrain,
     schemaVersion: MAP_DOCUMENT_V3_SCHEMA_VERSION,
     baseBiome: candidate['baseBiome'] as MapBiomeId,
+    ...(candidate['entityStates']===undefined?{}:{entityStates:parseMapEntityStates(candidate['entityStates'])}),
     ...(candidate['resourcePlacements']===undefined?{}:{resourcePlacements:parseMapResourcePlacements(candidate['resourcePlacements'],terrain.width,terrain.height)}),
     ...(candidate['combatRegions'] === undefined ? {} : {combatRegions:parseCombatRegions(candidate['combatRegions'],terrain.width,terrain.height)}),
     cells,
@@ -575,6 +585,7 @@ export type MapDocumentV3EditCommand =
   | { readonly kind: 'terrain'; readonly command: MapEditCommand; readonly biome?: MapBiomeId; readonly automaticSurround?: boolean }
   | { readonly kind: 'paint_biome'; readonly points: readonly MapPoint[]; readonly biome: MapBiomeId }
   | { readonly kind: 'embed_prefab'; readonly prefab: MapPrefabDocumentV2 }
+  | { readonly kind:'edit_entity_state'; readonly edit:MapEntityStateEdit }
   | { readonly kind: 'place_object'; readonly object: MapObjectInstance }
   | {
       readonly kind: 'place_objects';
@@ -640,6 +651,7 @@ export function applyMapDocumentV3Edit(
   document: MapDocumentV3,
   command: MapDocumentV3EditCommand,
 ): AppliedMapDocumentV3Edit {
+  if(command.kind==='edit_entity_state'){const edit=parseMapEntityStates([command.edit])[0]!;const entityStates=[...(document.entityStates??[]).filter(e=>e.id!==edit.id),edit];return {document:normalizeMapDocumentV3({...document,revision:document.revision+1,entityStates}),changed:[]};}
   if(command.kind==='move_resource') {
     const [placement]=parseMapResourcePlacements([command.placement],document.width,document.height);
     const previous=document.resourcePlacements?.find(value=>value.id===placement!.id);

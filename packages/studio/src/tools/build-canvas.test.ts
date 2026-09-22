@@ -47,7 +47,7 @@ describe('canvas-native Build and asset tools', () => {
  const c=context(path);let s=buildMapCanvasTool(c);
  for(const id of ['objects','terrain','raise','lower','fill'])expect(kitElement(s,'map-tool-'+id)).toMatchObject({kind:'button'});
  expect(kitElement(s,'map-eyedropper')).toBeDefined();expect(kitElement(s,'map-workspace')).toBeUndefined();expect(kitElement(s,'map-auto-publish')).toBeUndefined();
- expect(kitElement(s,'map-auto-generation')).toMatchObject({kind:'checkbox',props:{value:true}});
+ expect(kitElement(s,'map-auto-generation')).toMatchObject({kind:'select'});
  pressKit(s,'map-tool-terrain');s=buildMapCanvasTool(c);expect(kitElement(s,'map-filter-all')).toBeUndefined();
  const rows=kitElement(s,'map-palette-list')!.props['items'] as {id:string}[][];expect(rows.flat().some(x=>x.id==='map-material-grass_1')).toBe(true);
  pressKit(s,'map-height-up');s=buildMapCanvasTool(c);expect(kitElement(s,'map-current-height')?.label).toBe('Height 1');

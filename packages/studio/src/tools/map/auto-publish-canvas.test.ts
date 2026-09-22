@@ -1,4 +1,4 @@
-import { kitElement, pressKit } from '../kit-test-driver.js';
+import { kitElement, pressKit, chooseKit } from '../kit-test-driver.js';
 import {
   createLiveIslandMapDocument,
   mapDocumentV3Hash,
@@ -66,8 +66,8 @@ afterEach(() => vi.useRealTimers());
 describe('Map Canvas automatic publication', () => {
   it('keeps surrounding generation independent of live publication',async()=>{
  vi.useFakeTimers();const {context,retained,publishMap}=await harness();retained.model.paintBiome([{tileX:400,tileY:400}],'forest');
- let s=buildMapCanvasTool(context);expect(kitElement(s,'map-auto-publish')).toBeUndefined();expect(kitElement(s,'map-auto-generation')?.props['value']).toBe(true);
- pressKit(s,'map-auto-generation');s=buildMapCanvasTool(context);expect(kitElement(s,'map-auto-generation')?.props['value']).toBe(false);
+ let s=buildMapCanvasTool(context);expect(kitElement(s,'map-auto-publish')).toBeUndefined();expect(kitElement(s,'map-auto-generation')?.props['value']).toBe('smart');
+ chooseKit(s,'map-auto-generation','Exact');s=buildMapCanvasTool(context);expect(kitElement(s,'map-auto-generation')?.props['value']).toBe('exact');
  await vi.advanceTimersByTimeAsync(1000);expect(publishMap).not.toHaveBeenCalled();expect(retained.autoPublishEnabled).toBe(false);
 });
 

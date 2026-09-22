@@ -132,5 +132,7 @@ it('places measured tooltips inside small viewports instead of assuming a fixed 
   const popup = tooltip.children[1]!; expect(popup.visible).toBe(true);
   expect(popup.rect.x).toBeGreaterThanOrEqual(0); expect(popup.rect.y).toBeGreaterThanOrEqual(0);
   expect(popup.rect.x + popup.rect.width).toBeLessThanOrEqual(140); expect(popup.rect.y + popup.rect.height).toBeLessThanOrEqual(120);
-  expect(popup.rect.height).toBeGreaterThan(64); root.dispose(); vi.useRealTimers();
+  expect(popup.rect.height).toBeGreaterThan(32);
+  const text=popup.children[0]!.children[0]!.children[0]!.children[0]!;
+  expect(popup.rect.height).toBeGreaterThanOrEqual(text.measured.preferred.height+16); root.dispose(); vi.useRealTimers();
 });

@@ -1,5 +1,5 @@
 import {
-  MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH,
+  MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH, resolveObjectAppearance, objectPropertyValues, resourceEditableProperties, bootstrapContentRegistry, MAP_BIOME_IDS, type TerrainSurfaceFamilyId, type MapObjectInstance, type ObjectStateDefinition, type ObjectPropertyValue,
   TOPSIDE_SPACE_ID,
   TILE_SIZE_PIXELS,
   mapCellKey,
@@ -81,10 +81,8 @@ import {
 import {  MapEditorModel } from './model.js';
 import { MapRouteSessionStore, mapRouteSessionState, type MapOutlinerView } from './route-session-state.js';
 import { studioMapId } from './routes.js';
-import { mapSelectionDrawerRows } from './selection-drawer.js';
 import {
   mapCanvasInspectorRows,
-  type MapCanvasInspectorRow,
 } from './canvas-dock-projections.js';
 import {
   createMapOutlinerTreeState,
@@ -136,6 +134,9 @@ interface MapCanvasState {
   readonly autoPublish: MapAutoPublishCoordinator;
   autoPublishEnabled: boolean;
   paletteOffset: number;
+  contextGesture?: {x:number;y:number;moved:boolean};
+  contextMenu?: {x:number;y:number};
+  propertyEditors?: Map<string,{source:string;editor:CanvasTextEditor}>;
   paletteDrag?: { prefabId: string; point: {x:number;y:number}; active: boolean };
   paletteSuggestionsOpen: boolean;
   paletteBounds: UiRect;
@@ -1220,12 +1221,14 @@ function prefabPreview(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
   prefab: ReturnType<MapEditorController['palette']>[number],
+  object?: MapObjectInstance,
 ): { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined {
-  const placement = prefab.placements[0];
-  if (placement === undefined) return undefined;
+  const base = prefab.placements[0];
+  if (base === undefined) return undefined;
+  const placement = resolveObjectAppearance(base,prefab.presentation,object?.state).placement;
   const asset = previewAsset(state, context, placement.assetName);
   if (asset === null) return undefined;
-  const catalogFrame = state.catalogItems.get(prefab.id)?.frame;
+  const catalogFrame = prefab.presentation ? undefined : state.catalogItems.get(prefab.id)?.frame;
   const frame = catalogFrame ?? (placement.visual.kind === 'state'
     ? asset.metadata.states?.[placement.visual.name]
     : placement.visual.kind === 'variant'
@@ -1402,8 +1405,12 @@ function exportMapDraft(state: MapCanvasState, context: StudioCanvasToolContext)
 interface MapKitPaletteChoice { readonly prefabId?:string; readonly id:string; readonly label:string; readonly apply:()=>void; readonly preview?:()=>{readonly image:CanvasImageSource;readonly frame:AtlasFrame}|undefined;readonly symbol?:UiIconName;readonly active?:boolean;readonly disabled?:boolean;readonly tone?:UiTone;readonly glyph?:string }
 function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolContext,query:string):{choices:MapKitPaletteChoice[];empty:string} {
   const interaction = state.interaction;
+  if(interaction.editingTool()==='terrain'&&!interaction.automaticGeneration())return {choices:interaction.exactTileChoices(query).map(prefab=>({
+    id:`map-exact-tile-${prefab.id}`,label:prefab.title,apply:()=>{interaction.selectExactTile(prefab.id);context.invalidate();},
+    preview:()=>prefabPreview(state,context,prefab),active:interaction.snapshot().selectedPrefabId===prefab.id,
+  })),empty:'No matching tile pieces'};
   if (interaction.editingTool() !== 'objects') return {
-    choices: mapMaterialChoices(state.terrainPalette,query).map(choice=>({
+    choices: mapMaterialChoices(state.terrainPalette,query).filter(choice=>!interaction.automaticGeneration()||!['biome-plains','biome-meadow','biome-forest','biome-valley','biome-highland','biome-ridge','biome-water','biome-freshwater','biome-beach','biome-dirt_terrace','biome-oasis_water','biome-savanna'].includes(choice.id)).map(choice=>({
       id:`map-material-${choice.id}`, label:choice.label,
       apply:()=>{interaction.selectMaterial(choice.id,choice.label,choice.patch,choice.biome);context.invalidate();},
       preview:()=>terrainChoicePreview(state,context,choice.preview),
@@ -1522,18 +1529,18 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
     resetLiveSpawn(state);
   }
   const command=(id:string,label:string,icon:MapPixelTool,onPress:()=>void,active=false)=>kit.tooltip(label,
-    kit.stack({width:uiFixed(28),height:uiFixed(28),padding:2},[kit.button({id:`map-${id}`,label:'',ariaLabel:label,onPress,
-      layout:{width:uiFixed(24),height:uiFixed(24),padding:2},children:[mapPixelToolIcon(icon,context.invalidate)]}),
-      ...(active?[paletteReticle(state,context)]:[])]),{width:uiFixed(28),height:uiFixed(28)});
+    kit.stack({width:uiFixed(36),height:uiFixed(36),padding:2},[kit.button({id:`map-${id}`,label:'',ariaLabel:label,onPress,
+      layout:{width:uiFixed(32),height:uiFixed(32),padding:4},children:[mapPixelToolIcon(icon,context.invalidate)]}),
+      ...(active?[paletteReticle(state,context)]:[])]),{width:uiFixed(36),height:uiFixed(36)});
   const tool=state.interaction.editingTool();
   const choose=(value:NonNullable<ReturnType<MapEditorController['editingTool']>>)=>{
     resetLiveSpawn(state);state.interaction.selectEditingTool(value);state.paletteOffset=0;context.invalidate();
   };
   const selectedName=tool==='objects'
     ? state.interaction.allObjectChoices().find(prefab=>prefab.id===interactionSnapshot.selectedPrefabId)?.title??state.model.document().prefabs.find(prefab=>prefab.id===interactionSnapshot.selectedPrefabId)?.title??'Select an object'
-    : state.interaction.materialLabel();
+    : (!state.interaction.automaticGeneration()?state.interaction.exactTileChoices():[]).find(p=>p.id===interactionSnapshot.selectedPrefabId)?.title??state.interaction.materialLabel();
   parts.kit.controls=studioLibraryDrawer([
-    kit.flex({direction:'row',gap:2,height:uiFixed(28),shrink:0},[
+    kit.flex({direction:'row',gap:2,height:uiFixed(36),shrink:0},[
       command('tool-objects','Select objects','select',()=>choose('objects'),tool==='objects'&&!interactionSnapshot.eyedropperActive),
       command('tool-terrain','Paint terrain','terrain',()=>choose('terrain'),tool==='terrain'&&!interactionSnapshot.eyedropperActive),
       command('tool-raise','Raise terrain','raise',()=>choose('raise'),tool==='raise'&&!interactionSnapshot.eyedropperActive),
@@ -1544,8 +1551,8 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
   ],mapKitPalette(state,context),[
     kit.text(selectedName,{id:'map-selected-material',maxLines:1,layout:{width:'grow',minWidth:uiFixed(0)}}),
     kit.tooltip('Automatically generate surrounding terrain and connect neighboring objects',
-      kit.checkbox({id:'map-auto-generation',label:'Auto surround',value:state.interaction.automaticGeneration(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},
-        onChange:value=>{state.interaction.setAutomaticGeneration(value===true);context.invalidate();}}),{width:'grow',minWidth:uiFixed(0),shrink:0}),
+      kit.select({id:'map-auto-generation',label:'Placement mode',value:state.interaction.automaticGeneration()?'smart':'exact',options:[{value:'smart',label:'Smart placement'},{value:'exact',label:'Exact placement'}],layout:{width:'grow',minWidth:uiFixed(0),shrink:0},
+        onChange:value=>{state.interaction.setAutomaticGeneration(value==='smart');state.paletteOffset=0;context.invalidate();}}),{width:'grow',minWidth:uiFixed(0),shrink:0}),
     mapPublishButton(state,context),
   ]);
 }
@@ -1966,7 +1973,7 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     const landmark=state.model.document().landmarks.find(value=>value.id===inspection.entity?.id);
     const selection=state.model.selection();
     const marker=selection.kind==='entity'?state.interaction.liveMarkers().find(value=>value.id===selection.id&&value.entityKind===selection.entityKind&&value.spaceId===selection.spaceId):undefined;
-    const preview=marker?state.renderer.liveMarkerPreview(marker):landmark?state.renderer.landmarkPreview(landmark.kind):prefab?prefabPreview(state,context,prefab):inspection.target==='tile'&&terrainPreview
+    const preview=marker?state.renderer.liveMarkerPreview(marker):landmark?state.renderer.landmarkPreview(landmark.kind):prefab?prefabPreview(state,context,prefab,selected):inspection.target==='tile'&&terrainPreview
       ?terrainChoicePreview(state,context,terrainPreview):undefined;
     if(inspection.target==='tile') {
       const composition=inspection.visualComposition,layout=terrainInspectionVisualLayout(composition);
@@ -1981,17 +1988,69 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
       layout:{width:'grow',height:uiFixed(48),shrink:0}}));
     const editableAnchor = inspection.entity?.kind==='authored_anchor'&&!inspection.entity.readOnly;
     if(state.editingAnchorId!==null&&(!editableAnchor||inspection.entity?.id!==state.editingAnchorId))cancelAnchorLabelEdit(state);
-    children.push(kit.select({id:'map-selection-view',label:'Inspector view',value:state.inspectorView,
-      options:[{value:'selection',label:'Selection'},{value:'schema',label:'Schema'}],onChange:value=>{state.inspectorView=value as 'selection'|'schema';context.invalidate();}}));
-    const rows: readonly MapCanvasInspectorRow[] = state.inspectorView==='schema' ? mapCanvasInspectorRows(context.controller.inspector.groups())
-      : mapSelectionDrawerRows(inspection).map(row=>({...row,heading:false,danger:false,property:null}));
+    const field=(label:string,control:UiElement)=>children.push(kit.flex({width:'grow',gap:2,shrink:0},[kit.text(label,{maxLines:1}),control]));
+    const title=inspection.entity?.name??'Terrain tile';
+    children.push(kit.text(title,{maxLines:2}));
+    const numberField=(key:string,label:string,value:number,min:number,max:number,apply?:(value:number)=>void)=>{
+      const id=`${inspection.entity?.id??`${inspection.tileX},${inspection.tileY}`}:${key}`;
+      const editors=state.propertyEditors??=new Map();let entry=editors.get(id);
+      if(!entry){entry={source:String(value),editor:new CanvasTextEditor({value:String(value),maxLength:16})};editors.set(id,entry);}
+      if(entry.source!==String(value)){if(entry.editor.snapshot().value===entry.source)entry.editor.setValue(String(value));entry.source=String(value);}
+      const editor=entry.editor;
+      field(label,kit.input({id:`map-property-${key}`,label,editor,readOnly:!apply,onSubmit:text=>{
+        const parsed=Number(text);if(!/^-?\d+$/u.test(text)||!Number.isSafeInteger(parsed)||parsed<min||parsed>max){context.controller.notifications.push('warning',`Invalid ${label}`,`Enter a whole number from ${min} to ${max}.`);return;}
+        apply?.(parsed);context.invalidate();},layout:{width:'grow'}}));
+    };
+    const propertyField=(key:string,label:string,schema:ObjectStateDefinition,value:ObjectPropertyValue,apply:(value:ObjectPropertyValue)=>void)=>{
+      if(schema.type==='bool')field(label,kit.checkbox({id:`map-property-${key}`,label:value===true?'Yes':'No',value:value===true,onChange:next=>{apply(next===true);context.invalidate();}}));
+      else if(schema.type==='enum'||key==='growthStage')field(label,kit.select({id:`map-property-${key}`,label,value:String(value),options:schema.type==='enum'?schema.values.map(v=>({value:v,label:v.replace(/^(?:state|variant|animation):/u,'').replaceAll('_',' ')})):[{value:'1',label:'Sapling'},{value:'2',label:'Young'},{value:'3',label:'Mature'}],onChange:next=>{apply(schema.type==='counter'?Number(next):next);context.invalidate();}}));
+      else numberField(key,label,Number(value),schema.min??-2147483648,schema.max??2147483647,next=>apply(next));
+    };
+    if(selected){
+      const set=(patch:Partial<MapObjectInstance>)=>state.model.placeObject({...selected,...patch});
+      numberField('x','Tile X',selected.tileX,0,state.model.document().width-1,x=>set({tileX:x}));
+      numberField('y','Tile Y',selected.tileY,0,state.model.document().height-1,y=>set({tileY:y}));
+      numberField('height','Height',selected.elevation,-32,32,elevation=>set({elevation}));
+      field('Scale',kit.select({id:'map-property-scale',label:'Scale',value:String(selected.scale??1),options:[{value:'1',label:'Original size'},{value:'2',label:'Double size'}],onChange:v=>{set({scale:Number(v) as 1|2});context.invalidate();}}));
+      field('Rotation',kit.select({id:'map-property-rotation',label:'Rotation',value:String(selected.quarterTurns),options:[0,1,2,3].map(v=>({value:String(v),label:`${v*90} degrees`})),onChange:v=>{set({quarterTurns:Number(v) as 0|1|2|3});context.invalidate();}}));
+      field('Mirror',kit.checkbox({id:'map-property-flip',label:'Flip horizontally',value:selected.flipX,onChange:value=>{set({flipX:value===true});context.invalidate();}}));
+      field('Layer',kit.select({id:'map-property-layer',label:'Layer',value:selected.layer,options:state.model.document().layers.filter(l=>['objects','ground','gameplay','canopy'].includes(l.id)).map(l=>({value:l.id,label:l.label})),onChange:value=>{set({layer:value as MapObjectInstance['layer']});context.invalidate();}}));
+      if(prefab?.presentation){const values=objectPropertyValues(prefab.presentation,selected.state);for(const [key,schema] of Object.entries(prefab.presentation.properties))propertyField(key,key==='growthStage'?'Growth stage':key.replaceAll('_',' ').replace(/^./u,c=>c.toUpperCase()),schema,values[key]!,value=>set({state:{...selected.state,[key]:value}}));}
+    } else if(landmark){
+      const set=(patch:Partial<typeof landmark>)=>state.model.placeLandmark({...landmark,...patch});
+      numberField('x','Tile X',landmark.tileX,0,state.model.document().width-1,tileX=>set({tileX}));
+      numberField('y','Tile Y',landmark.tileY,0,state.model.document().height-1,tileY=>set({tileY}));
+      numberField('height','Height',landmark.elevation,-32,32,elevation=>set({elevation}));
+      field('Rotation',kit.select({id:'map-property-rotation',label:'Rotation',value:String(landmark.quarterTurns),options:[0,1,2,3].map(v=>({value:String(v),label:`${v*90} degrees`})),onChange:v=>{set({quarterTurns:Number(v) as 0|1|2|3});context.invalidate();}}));
+      field('Mirror',kit.checkbox({id:'map-property-flip',label:'Flip horizontally',value:landmark.flipX,onChange:value=>{set({flipX:value===true});context.invalidate();}}));
+    } else if(marker){
+      const movable=marker.entityKind==='resource'&&marker.layer==='canopy'&&!marker.fixedResourceSite;
+      const move=(x:number,y:number)=>state.model.moveResource(marker.id,marker.tileX,marker.tileY,x,y);
+      numberField('x','Tile X',marker.tileX,0,state.model.document().width-1,movable?x=>move(x,marker.tileY):undefined);
+      numberField('y','Tile Y',marker.tileY,0,state.model.document().height-1,movable?y=>move(marker.tileX,y):undefined);
+      field('Layer',kit.text(inspection.layer.label));
+      if(marker.entityKind==='resource'){
+        const resources=state.liveObjectRegistry?.resources??bootstrapContentRegistry().resources;
+        const definition=marker.definitionId?resources.get(marker.definitionId):[...resources.values()].find(d=>d.runtimeKind===marker.kind);
+        if(definition){const values={health:marker.health??definition.health.initial,depleted:marker.depleted??false,growthStage:marker.growthStage??3};
+          for(const [key,schema] of Object.entries(resourceEditableProperties(definition)))propertyField(key,key==='growthStage'?'Growth stage':key[0]!.toUpperCase()+key.slice(1),schema,values[key as keyof typeof values],value=>{
+            const patch:Record<string,ObjectPropertyValue>={[key]:value};
+            if(key==='depleted')patch.health=value===true?0:definition.health.followsGrowthStage?values.growthStage:definition.health.initial;
+            if(key==='health')patch.depleted=value===0;
+            if(key==='growthStage'&&!values.depleted&&definition.health.followsGrowthStage)patch.health=Number(value);
+            state.model.editResourceState(marker.id,values,patch);
+          });
+        }
+      }
+    } else if(inspection.target==='tile'){
+      numberField('height','Height',inspection.terrain.cell.elevation,-32,32,state.interaction.terrainAuthoringAvailable()?elevation=>state.model.editTerrain({kind:'paint',points:[{tileX:inspection.tileX,tileY:inspection.tileY}],patch:{elevation}}):undefined);
+      field('Biome',kit.select({id:'map-property-biome',label:'Biome',disabled:!state.interaction.terrainAuthoringAvailable(),value:inspection.terrain.biome,options:MAP_BIOME_IDS.map(value=>({value,label:value.replaceAll('_',' ')})),onChange:value=>{state.model.paintBiome([{tileX:inspection.tileX,tileY:inspection.tileY}],value as typeof MAP_BIOME_IDS[number]);context.invalidate();}}));
+      field('Surface',kit.text(inspection.terrain.cell.surface.replaceAll('_',' ')));
+    }
     const entity=inspection.entity;
     if(entity?.kind==='authored_object'||entity?.kind==='authored_landmark'){
       action('selection-hide','Visibility',()=>{state.interaction.toggleSelectedVisibility();context.invalidate();},{icon:'visibility',tone:entity.enabled?'success':'primary'});
       action('selection-clone','Clone',()=>{state.interaction.cloneSelected();context.invalidate();});
-      action('selection-rotate','Rotate',()=>{state.interaction.rotateSelected();context.invalidate();});
-      action('selection-flip','Flip',()=>{state.interaction.flipSelected();context.invalidate();});
-      action('selection-scale','Scale',()=>{state.interaction.cycleSelectedScale();context.invalidate();});
       action('selection-delete','Delete',()=>{state.interaction.deleteSelected();context.invalidate();},{tone:'danger'});
     }else if(editableAnchor){
       if(state.editingAnchorId===entity!.id){
@@ -2013,24 +2072,17 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
         const availability=currentNpcLocationAvailability(state,context,mapId,npc);
         action('selection-npc-location','Move NPC',()=>startNpcLocationAction(state,context,mapId),{disabled:!availability.allowed,help:availability.allowed?undefined:availability.reason});
       }else if(inspection.target==='tile'&&state.model.workspace()==='terrain'){
-        const snapshot=state.interaction.snapshot(),available=state.interaction.terrainAuthoringAvailable();
-        const defaultFamily=state.model.document().defaultSurfaceFamily??'grass_1';
         const override=state.model.document().cells[mapCellKey(inspection.tileX,inspection.tileY)];
-        children.push(kit.text(`Cell ${inspection.terrain.cell.surfaceFamily}; default ${defaultFamily}`));
-        action('selection-terrain-apply-current','Apply family',()=>{state.interaction.applySelectedSurfaceFamilyToCell();context.invalidate();},{disabled:!available});
-        action('selection-terrain-use-default','Use default',()=>{state.interaction.selectDocumentDefaultSurfaceFamily();context.invalidate();},{disabled:snapshot.selectedSurfaceFamily===defaultFamily&&snapshot.terrainPaletteMode==='surface_family'});
-        action('selection-terrain-apply-default','Set default',()=>{state.interaction.setSelectedSurfaceFamilyAsDefault();context.invalidate();},{disabled:!available||snapshot.selectedSurfaceFamily===defaultFamily});
-        action('selection-terrain-inherit','Inherit',()=>{state.interaction.clearSelectedSurfaceFamily();context.invalidate();},{disabled:!available||override?.surfaceFamily===undefined});
-        action('selection-terrain-apply-exact','Apply exact',()=>{state.interaction.applySelectedExactTerrainOverride();context.invalidate();},{disabled:!available||snapshot.selectedExactTerrainOverrideId===null});
-        action('selection-terrain-clear','Clear exact',()=>{state.interaction.clearSelectedExactTerrainOverride();context.invalidate();},{disabled:!available||override?.terrainOverride===undefined,tone:'danger'});
+        field('Grass family',kit.select({id:'map-property-family',label:'Grass family',disabled:!state.interaction.terrainAuthoringAvailable(),value:override?.surfaceFamily??'',options:[{value:'',label:'Use map default'},...mapMaterialChoices(state.terrainPalette).filter(v=>v.id.startsWith('grass_')).map(v=>({value:v.id,label:v.label}))],onChange:value=>{state.model.editTerrain({kind:'paint',points:[{tileX:inspection.tileX,tileY:inspection.tileY}],patch:{surfaceFamily:(value||null) as TerrainSurfaceFamilyId|null}});context.invalidate();}}));
+        if(override?.terrainOverride)action('selection-terrain-clear','Clear exact override',()=>{state.interaction.clearSelectedExactTerrainOverride();context.invalidate();},{tone:'danger'});
       }
     }
-    for(const row of rows){
-      children.push(kit.text(row.label,{id:`map-selection-${row.id}-label`,role:row.heading?'header':'body',layout:{width:'grow'}}));
+    for(const row of mapCanvasInspectorRows(context.controller.inspector.groups())){
       const property=row.property;
       if(property&&parseMapSchemaInspectorAction(property.action)){
         const availability=mapSchemaInspectorAvailability(property as MapSchemaInspectorField,currentSchemaInspectorAuthority(state,context,mapId));
-        action(`selection-${row.id}`,'Change',()=>beginSchemaInspectorAction(state,context,mapId,property),{disabled:!availability.editable,help:availability.reason,tone:row.danger?'danger':'primary'});
+        const control=kit.button({id:`map-selection-${row.id}`,label:String(property.value??'Unavailable'),disabled:!availability.editable,onPress:()=>beginSchemaInspectorAction(state,context,mapId,property)});
+        field(property.label,kit.tooltip(availability.editable?'Preview a change to this live property':availability.reason,control,{width:'grow'}));
       }
     }
     if(inspection.suppression.supported){const suppressed=inspection.suppression.suppressed;
@@ -2039,10 +2091,15 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
 
   } else if(state.editingAnchorId!==null)cancelAnchorLabelEdit(state);
   const panels:UiElement[]=[];
+  const scrollKey=JSON.stringify(state.model.selection());
+  if(state.selectionActiveKey!==scrollKey){state.selectionActiveKey=scrollKey;state.selectionOffset=0;state.propertyEditors?.clear();}
+  const selectionScroll=kit.scrollArea({id:'map-selection-scroll',width:'grow',height:'grow',initialScrollY:state.selectionOffset,onScroll:element=>{state.selectionOffset=element.scroll.y;}},[kit.flex({width:'grow',gap:6},children)]);
   if(children.length)panels.push(kit.frame({id:'map-selection-panel',style:'thin',header:{title:'Selection'},
-    layout:{width:'grow',height:'grow',minHeight:uiFixed(100)},children:[kit.scrollArea({id:'map-selection-scroll',width:'grow',height:'grow'},[kit.flex({width:'grow',gap:4},children)])]}));
+    layout:{width:'grow',height:'grow',minHeight:uiFixed(100)},children:[selectionScroll]}));
   const layers=[...state.model.document().layers].sort((a,b)=>b.order-a.order);
   const activeId=state.interaction.snapshot().activeLayer;
+  const eye=previewAsset(state,context,'icon_skill_night_eyes');
+  const eyeFrame=eye&&selectAtlasFrame(eye.metadata,'base',0);
   const layerRows=layers.map(layer=>{
     const visible=state.model.isLayerEyeVisible(layer.id);
     const activate=(id:string,label:string,onPress:()=>void,content:UiElement,width?:number)=>new UiElement({
@@ -2054,7 +2111,7 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     return new UiElement({kind:'map-layer-row',props:{selected:activeId===layer.id},style:{display:'flex',direction:'row',width:'grow',height:uiFixed(16),align:'center',gap:2,shrink:0},
       paint(element,{context:ctx}){if(activeId===layer.id){ctx.fillStyle='#4f8b54';ctx.fillRect(element.rect.x,element.rect.y,element.rect.width,element.rect.height);}},children:[
       kit.tooltip(`${visible?'Hide':'Show'} ${layer.label}`,activate(`map-layer-visible-${layer.id}`,`${visible?'Hide':'Show'} ${layer.label}`,
-        ()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},kit.icon({fantasy:visible?'check_white_medium':'minus_white_small'},{layout:{width:uiFixed(8),height:uiFixed(8)}}),12),{width:uiFixed(12),height:uiFixed(16)}),
+        ()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},new UiElement({kind:'layer-eye',style:{width:uiFixed(12),height:uiFixed(12)},paint(element,{context:ctx}){if(eye&&eyeFrame){ctx.save();ctx.globalAlpha=visible?1:0.3;ctx.drawImage(eye.image,eyeFrame.x+3,eyeFrame.y+5,9,5,element.rect.x+1,element.rect.y+3,10,6);ctx.restore();}}}),12),{width:uiFixed(12),height:uiFixed(16)}),
       activate(`map-layer-select-${layer.id}`,layer.label,()=>{
         state.interaction.selectEditingTool(layer.id==='terrain'||layer.id==='generated_base'?'terrain':'objects');
         state.interaction.selectLayer(layer.id);state.paletteOffset=0;context.invalidate();
@@ -2196,6 +2253,15 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       ]);
     }
   }
+  if(state.contextMenu){const point=state.contextMenu;const inspection=selectionInspection(state);
+    const runtime=selectedRuntimeObjectMarker(state);
+    const liveDelete=runtime&&(runtime.entityKind==='placeable'||runtime.entityKind==='chest')&&currentRuntimeObjectAvailability(state,context,mapId,runtime).allowed;
+    const canDelete=inspection?.suppression.supported||inspection?.entity?.kind.startsWith('authored_')||liveDelete;
+    const menu=kit.menu({id:'map-object-context-menu',anchor:()=>({x:point.x/2,y:point.y/2,width:0,height:0}),width:uiFixed(120),open:true,
+      onClose:()=>{state.contextMenu=undefined;context.invalidate();},items:[{id:'delete',label:'Delete',disabled:!canDelete,tone:'danger',onSelect:()=>{
+        if(liveDelete){startRuntimeObjectAction(state,context,mapId,'despawn_entity');state.contextMenu=undefined;context.invalidate();return;}
+        if(!state.interaction.deleteSelected()&&inspection?.suppression.id)state.model.suppressGenerated(inspection.suppression.id,true);
+        state.model.clearSelection();state.contextMenu=undefined;context.invalidate();}}]});parts.kit.overlays?.append(menu);}
   persistSession(state);
 
   const surface: StudioCanvasToolSurface = { kit: parts.kit, draw: (drawing, shellArt) => {
@@ -2219,6 +2285,8 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
   }, input: {
     spaceDragPan: true,
     pointerDown: (input) => {
+      state.contextMenu=undefined;
+      if(input.button===2)state.contextGesture={...input.point,moved:false};
       if (state.editingAnchorId !== null) {
         cancelAnchorLabelEdit(state);
         context.invalidate();
@@ -2262,9 +2330,10 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       }
       return consumed;
     },
-    pointerMove: (input) => state.resizeImpact !== null || state.interaction.pointerMove(input.point),
-    pointerUp: () => state.resizeImpact !== null || state.interaction.pointerUp(),
-    pointerCancel: () => state.resizeImpact !== null || state.interaction.pointerCancel(),
+    pointerMove: (input) => {if(state.contextGesture&&Math.hypot(input.point.x-state.contextGesture.x,input.point.y-state.contextGesture.y)>4)state.contextGesture.moved=true;return state.resizeImpact !== null || state.interaction.pointerMove(input.point);},
+    pointerUp: () => {const gesture=state.contextGesture;state.contextGesture=undefined;const handled=state.resizeImpact!==null||state.interaction.pointerUp();
+      if(gesture&&!gesture.moved&&state.interaction.selectAtPoint(gesture)){state.contextMenu={x:gesture.x,y:gesture.y};context.invalidate();}return handled;},
+    pointerCancel: () => {state.contextGesture=undefined;return state.resizeImpact !== null || state.interaction.pointerCancel();},
     wheel: (input) => {
       if (state.selectionRowCount > 0 && pointInside(input.point, state.selectionBounds)) {
         const visibleRows = Math.max(1, Math.floor((state.selectionBounds.height + 2) / 32));
