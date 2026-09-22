@@ -45,8 +45,6 @@ describe('Map automatic publication coordinator', () => {
 
   it.each([
     ['conflict', { conflictRevision: 8 }],
-    ['pending validation', { validation: 'pending' as const }],
-    ['invalid document', { validation: 'invalid' as const }],
     ['disconnected', { connected: false }],
     ['synchronizing', { synchronizing: true }],
     ['read only', { writable: false }],

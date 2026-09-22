@@ -1,3 +1,6 @@
+import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
+import { WorldInteractionRegistry } from './world-interactions.js';
+import { worldActionPrompt } from './world-action-prompt.js';
 import { orchardHarvestPrompt } from './orchard-presentation.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
@@ -133,6 +136,7 @@ import {
 import { AvatarAnimationController, LocalActionPresentation, FrameVisualTickClock, PresentationCorrection, ProjectileSnapshotBuffer, RemoteSnapshotBuffer, RenderTickClock, VisualTickClock, presentationAuthorityTick, type SampledProjectile, type SampledRemote } from './net/netcode.js';
 import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortrait, drawPlayerPaperDoll, drawNpcPortrait, drawUiAsset, drawUiAssetFrame, horseJumpPose, loadOverworldArt, type WorldVisualBounds } from '@orchard/engine/overworld-art';
 import { cameraAxisOffset } from '@orchard/engine/camera';
+import { snapGameplayCamera } from './gameplay-camera.js';
 import { createClientCollisionMap } from '@orchard/engine/collision';
 import { drawAnimatedTerrain } from '@orchard/engine/animated-terrain';
 import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from '@orchard/engine/farmland';
@@ -160,7 +164,6 @@ import {
 import { cellarExposedWallAt, cellarWallSourceAtProjectedTile, terrainContactWorldYForPlayer, terrainElevationAtWorldFoot, terrainForSpace, terrainForWorld, terrainColorAt, terrainWithCellarExcavations, terrainBaseDatum, terrainPlaneCollisionCellAt, terrainProjectionStyle, terrainProjectedDepthAtFoot, terrainProjectedWorldYAtFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain';
 import { interpolateFixedPosition, rebaseInterpolationPosition, sampleLocalProjectilePrediction } from './overworld-prediction.js';
 import {
-  nearestInteractionCandidate,
   type InteractionCandidate,
 } from './interaction-targeting.js';
 import { worldPlayerParticipatesInCollision } from './player-presence.js';
@@ -2983,6 +2986,7 @@ function placementTileBlocked(
   snapshot: OverworldView,
   tile: { readonly tileX: number; readonly tileY: number },
   excludeLocalPlayer = false,
+  footprintReference?: { readonly kind: string; readonly definitionId?: string },
 ): boolean {
   if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     && survivalLandmarkRoleReservedAt(
@@ -2997,7 +3001,9 @@ function placementTileBlocked(
     const local = player.identity.toHexString() === snapshot.identityHex;
     return local && predicted !== null ? predicted.position : { x: player.x, y: player.y };
   });
-  return worldPlacementTileIsBlocked(worldCollision, tile, players);
+  const cells = footprintReference === undefined ? [tile]
+    : runtimeObjectFootprintTiles(snapshot.content.registry, { ...footprintReference, ...tile }, 'placement');
+  return cells.length === 0 || cells.some(cell => worldPlacementTileIsBlocked(worldCollision, cell, players));
 }
 
 function boatPlacementTileBlocked(
@@ -3206,7 +3212,8 @@ function targetPlaceable(snapshot: OverworldView): WorldPlaceable | null {
   if (predicted === null) return null;
   const target = facedInteractionTile(predicted.position.x, predicted.position.y, predicted.facing);
   return snapshot.placeables.find((row) => row.carriedBy === undefined
-    && row.tileX === target.tileX && row.tileY === target.tileY) ?? null;
+    && row.spaceId === activeSpaceDefinition.spaceId
+    && runtimeObjectOccupiesTile(snapshot.content.registry, row, target)) ?? null;
 }
 
 /** A damaged tool faced at an anvil is repaired by F rather than swung. The
@@ -3561,15 +3568,15 @@ function tileInteractionPoint(tileX: number, tileY: number): { readonly x: numbe
   };
 }
 
-function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
-  if (predicted === null) return null;
+function collectLegacyInteractions(snapshot: OverworldView): EInteractionTarget[] {
+  if (predicted === null) return [];
   // While riding, E always means dismount, even beside a portal or another NPC.
   const ridden = localMount(snapshot);
   const mount = runtimeNpcMount(snapshot.content.registry, ridden);
-  if (ridden !== null && mount !== null) return {
+  if (ridden !== null && mount !== null) return [{
     kind: mount.adapter, x: ridden.x, y: ridden.y,
     stableId: `${mount.adapter}:${ridden.id}`, npc: ridden,
-  };
+  }];
   const candidates: EInteractionTarget[] = [];
   if(activeSpaceDefinition.generator==='delve_lobby'&&snapshot.rogueRun===null){
     const lobby=activeHearthLobbyDefinition(snapshot.content.registry);
@@ -3740,7 +3747,34 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
     kind: 'world_item', x: item.x, y: item.y,
     stableId: `item:${item.id}`, item,
   });
-  return nearestInteractionCandidate(predicted.position.x, predicted.position.y, candidates);
+  return candidates;
+}
+
+/** Existing entity adapters register through the same extension point as new
+ * UI-opening or action-performing world entities. */
+export const worldInteractions = new WorldInteractionRegistry<OverworldView, EInteractionTarget>();
+worldInteractions.register('seated-player', () => {
+  const position = network.ownPosition();
+  return position?.actionKind !== 'sitting' ? [] : [{
+    kind: 'player-state', stableId: 'self:stand', x: position.x, y: position.y,
+    exclusive: true, priority: -1, prompt: '[E] STAND / MOVE TO STAND',
+    activate: () => showResult(network.standHearthFurniture(), null),
+  }];
+});
+worldInteractions.register('existing-world-entities', snapshot => {
+  const riding = localMount(snapshot) !== null;
+  return collectLegacyInteractions(snapshot).map(target => ({
+    ...target,
+    exclusive: riding && (target.kind === 'horse' || target.kind === 'boat'),
+    prompt: interactionPrompt(target, snapshot),
+    activate: () => activateInteraction(target, snapshot),
+    payload: target,
+  }));
+});
+
+function targetInteraction(snapshot: OverworldView) {
+  return predicted === null ? null
+    : worldInteractions.resolve(snapshot, predicted.position.x, predicted.position.y);
 }
 
 function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView): string {
@@ -3768,6 +3802,9 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
         snapshot.content.registry, target.placeable,
       )?.seatPoseOffsetPixels!==undefined)return '[E] SIT';
       const usePrompt = `[E] ${target.presentation?.prompt ?? 'USE'}`;
+      const damageable = runtimeObjectDamageable(snapshot.content.registry, target.placeable);
+      if (damageable?.model === 'hits' && damageable.toolSpecialization === 'woodcutting'
+        && woodcuttingAction !== null) return `${usePrompt}  [F] BREAK WITH AXE`;
       // Heavy stations are carried in both hands, never pocketed: the hint
       // only appears while the placeable is faced and the hands are free.
       const carriable = targetPlaceable(snapshot)?.id === target.placeable.id
@@ -4483,8 +4520,12 @@ function renderFrame(alpha = 1): void {
   const viewportWidth = frame.layout.width / scale;
   const viewportHeight = frame.layout.height / scale;
   const worldPixels = activeSpaceDefinition.sizeTiles * 16;
-  const cameraX = lightingPreview?.cameraX ?? cameraAxisOffset(localX, viewportWidth, worldPixels);
-  const cameraY = lightingPreview?.cameraY ?? cameraAxisOffset(projectedLocalY, viewportHeight, worldPixels);
+  const cameraX = snapGameplayCamera(
+    lightingPreview?.cameraX ?? cameraAxisOffset(localX, viewportWidth, worldPixels), scale,
+  );
+  const cameraY = snapGameplayCamera(
+    lightingPreview?.cameraY ?? cameraAxisOffset(projectedLocalY, viewportHeight, worldPixels), scale,
+  );
   latestCameraX = cameraX;
   latestCameraY = cameraY;
   latestRenderedZoom = worldZoom;
@@ -4776,16 +4817,21 @@ function renderFrame(alpha = 1): void {
       runtimeToolDefinition(snapshot.content.registry, farmItem), predicted?.position ?? null,
       interactionTarget, network.ownPosition(),
     );
+    const carriedPlacement = carriedCarriablePlaceable(snapshot);
+    const footprintReference = carriedPlacement ?? (carriedChest(snapshot) !== null
+      || carriedCarriableCombatTarget(snapshot) !== null ? undefined : { kind: selectedItem(snapshot) });
     const blocked = outsideToolReach || (fishingToolAction !== null
       ? fishingTargetBlocked(interactionTarget)
       : boatSelected
       ? boatPlacementTileBlocked(snapshot, interactionTarget)
       : deedSelected
       ? homesteadPlacementBlocked(snapshot, interactionTarget)
-      : placeableSelected && placementTileBlocked(snapshot, interactionTarget));
+      : placeableSelected && placementTileBlocked(snapshot, interactionTarget, false, footprintReference));
     const previewTiles = deedSelected
       ? homesteadMarkerPlacementTiles(interactionTarget.tileX, interactionTarget.tileY)
-      : [interactionTarget];
+      : placeableSelected && !boatSelected && footprintReference !== undefined
+        ? runtimeObjectFootprintTiles(snapshot.content.registry, { ...footprintReference, ...interactionTarget }, 'placement')
+        : [interactionTarget];
     for (const tile of previewTiles) {
       drawInteractionTileReticle(
         context,
@@ -4961,7 +5007,7 @@ function renderFrame(alpha = 1): void {
               ? selectedRepairPrompt ?? `[F] CARRY ${liveItemLabel(snapshot, actionPlaceable.kind)}`
               : (farmToolAction !== null || selectedDefinition?.tags.includes('item.farming.compost') === true) && farmPrompt !== null
                 ? farmPrompt
-              : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
+              : interaction === null ? farmPrompt : interaction.prompt;
   const groundItemUseAction = groundLightItem === null ? null : selectedItemLifecycleAction(
     liveItemContentDefinition(snapshot, groundLightItem.itemKind),
     'worldItemUse',
@@ -4979,9 +5025,9 @@ function renderFrame(alpha = 1): void {
     selectedContentDefinition,
   );
   const promptBase = basePrompt;
-  const campfireAlreadyInPrompt = interaction?.kind === 'placeable'
+  const campfireAlreadyInPrompt = interaction?.payload?.kind === 'placeable'
     && nearbyCampfire?.targetKind === 'placeable'
-    && interaction.placeable.id === nearbyCampfire.id;
+    && interaction.payload.placeable.id === nearbyCampfire.id;
   const campfirePrompt = nearbyCampfire === null || campfireAlreadyInPrompt
     ? null
     : nearbyCampfire.targetKind === 'placeable'
@@ -4992,17 +5038,20 @@ function renderFrame(alpha = 1): void {
   const actionPrompt = promptBase === null ? campfirePrompt
     : campfirePrompt === null ? promptBase : `${promptBase}  ${campfirePrompt}`;
   const targetPrompt = lightPrompt === null
-    || (interaction?.kind === 'world_item'
+    || (interaction?.payload?.kind === 'world_item'
       && selectedItemLifecycleAction(
-        liveItemContentDefinition(snapshot, interaction.item.itemKind),
+        liveItemContentDefinition(snapshot, interaction.payload.item.itemKind),
         'worldItemUse',
       ) !== null)
     ? actionPrompt
     : actionPrompt === null ? lightPrompt : `${actionPrompt}  ${lightPrompt}`;
   // The authority resolves selected-item handlers before target handlers. Show
-  // the same single winning action instead of advertising two F actions when
-  // only the first can execute.
-  const contextualPrompt = selectedUsePrompt ?? targetPrompt;
+  // the same single winning F action. E remains independently available and
+  // must describe the exact target selected by the E-key handler.
+  const nearbyPrompt = debugEntitiesHidden || npcInteractionUi.active
+    || interaction === null
+    ? null : interaction.prompt;
+  const contextualPrompt = worldActionPrompt(nearbyPrompt, selectedUsePrompt ?? targetPrompt);
   const prompt = homesteadBuildMode
     ? activeSpaceDefinition.generator === 'residence'
       ? '[B] EXIT FURNISHING  [CLICK] PLACE / PICK UP / MOVE'
@@ -6567,7 +6616,7 @@ window.addEventListener('keydown', (event) => {
         setToast('HOMESTEAD CANNOT BE PLACED THERE', 'failure', 90);
       } else if (boat && boatPlacementTileBlocked(snapshot, tile)) {
         setToast('BOATS CAN ONLY BE PLACED ON OPEN WATER', 'failure', 90);
-      } else if (!homestead && !boat && placementTileBlocked(snapshot, tile)) {
+      } else if (!homestead && !boat && placementTileBlocked(snapshot, tile, false, { kind: selectedItem(snapshot) })) {
         setToast('PLACEMENT BLOCKED', 'failure', 90);
       } else showResult(
         network.useSelected('place', { tileX: tile.tileX, tileY: tile.tileY }),
@@ -6638,7 +6687,7 @@ window.addEventListener('keydown', (event) => {
       );
       if (tile === null) {
         setToast('NO PLACEMENT TILE TARGETED', 'failure', 90);
-      } else if (placing && placementTileBlocked(snapshot, tile)) {
+      } else if (placing && placementTileBlocked(snapshot, tile, false, handsPlaceable ?? undefined)) {
         setToast('PLACEMENT BLOCKED', 'failure', 90);
       } else {
         showResult(
@@ -6786,9 +6835,8 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyE' && !event.repeat) {
-    if(network.ownPosition()?.actionKind==='sitting'){showResult(network.standHearthFurniture(),null);event.preventDefault();return;}
     const interaction = targetInteraction(latestSnapshot);
-    if (interaction !== null) activateInteraction(interaction, latestSnapshot);
+    if (interaction !== null) interaction.activate();
     event.preventDefault();
     return;
   }

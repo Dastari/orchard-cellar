@@ -67,7 +67,7 @@ describe('production server swing discovery', () => {
   it('continues across mixed contacts when a resource resists, wearing once per contact', () => {
     const f = fixture();
     const resource = { id: 7n, tileX: 8, tileY: 8, spaceId: 0, depleted: false };
-    const placeable = { id: 8n, tileX: 8, tileY: 8 };
+    const placeable = { id: 8n, kind: 'campfire', tileX: 8, tileY: 8 };
     const ctx = { ...f.ctx, db: { ...f.ctx.db,
       world_resource: { by_chunk: { filter: () => [resource] } },
       world_placeable: { by_chunk: { filter: () => [placeable] }, id: { find: () => placeable } },
@@ -145,4 +145,20 @@ describe('production server swing discovery', () => {
     expect(f.spend).not.toHaveBeenCalled();
     expect(f.wear).not.toHaveBeenCalled();
   });
+});
+
+it('hits the right half of a two-tile workbench once per swing', () => {
+  const f = fixture();
+  Object.assign(f.position(), { x: 10.5 * sim.TILE_SIZE_FIXED, y: 8.5 * sim.TILE_SIZE_FIXED, facing: 'left' });
+  const placeable = { id: 8n, kind: 'workbench', tileX: 8, tileY: 8 };
+  const ctx = { ...f.ctx, db: { ...f.ctx.db,
+    world_npc: { by_chunk: { filter: () => [] } },
+    world_placeable: { by_chunk: { filter: () => [placeable] }, id: { find: () => placeable } },
+  } };
+  const hit = vi.fn();
+  production('applyToolSwingLifecycle', { ...f.dependencies,
+    authoredHitsDamageable: () => sim.runtimeObjectDamageable(registry, placeable), genericChest: () => false,
+    applyHarvestPlaceableLifecycle: (_ctx: unknown, id: bigint, write: boolean) => { if (write) hit(id); },
+  })(ctx);
+  expect(hit).toHaveBeenCalledExactlyOnceWith(8n);
 });

@@ -581,6 +581,12 @@ function legacyLandmarkArt(existing:Readonly<Record<string,LoadedAsset>>):Readon
 }
 
 const MAP_EDITOR_ASSET_NAMES = {
+  horse: 'horse_cf_bramble',
+  merchantNpc: 'npc_cf_bartender_bruno',
+  farmerBobNpc: 'npc_cf_farmer_bob',
+  fishermanFinNpc: 'npc_cf_fisherman_fin',
+  chest: 'prop_cf_chest',
+  archeryTarget: 'prop_cf_archery_target',
   rockStone: 'resource_cf_rock_stone',
   poiFlowersPink: LEGACY_LANDMARK_ASSET_NAMES.poi_flowers_pink,
   poiFlowersGold: LEGACY_LANDMARK_ASSET_NAMES.poi_flowers_gold,
@@ -690,10 +696,10 @@ const MAP_EDITOR_ASSET_NAMES = {
   treePalmStump: 'tree_cf_palm_stump',
 } as const;
 
-/** Loads only artwork used by the retained map-detail renderer. In
- * particular, this excludes player paper dolls, full wildlife, weather and
- * the browser-SVG UiSkin icon set that made Studio burst through its edge
- * request budget when it zoomed in. */
+/** Loads the terrain, objects and live actors used by the retained map renderer.
+ * Live players need the modular rig (including held-light poses), and runtime
+ * NPCs need wildlife/mount and enemy banks. Weather, combat tools and the
+ * browser-SVG UiSkin icon set remain excluded; requests share the bounded queue. */
 export async function loadMapEditorArt(
   ui: PixelUi,
   uiSkin: UiSkin,
@@ -701,7 +707,8 @@ export async function loadMapEditorArt(
 ): Promise<OverworldArt> {
   const contentArt = createOverworldContentArtRequests(registry);
   const [namedEntries, natureDecorations, oceanSurfaceDecorations, fruitTrees,
-    itemIcons, crops, cow, oreNodes, registeredTerrainEntries] = await Promise.all([
+    itemIcons, crops, wildlife, oreNodes, registeredTerrainEntries,
+    playerRig, rogueEnemies, heldLightEntries] = await Promise.all([
     Promise.all(Object.entries(MAP_EDITOR_ASSET_NAMES).map(async ([key, assetName]) => [
       key, await loadGeneratedAsset(assetName, 'summer'),
     ] as const)),
@@ -713,11 +720,22 @@ export async function loadMapEditorArt(
     loadFruitTreeArt(),
     loadItemIconArt(registry, contentArt),
     loadCropArt(registry, contentArt),
-    loadNumberedWildlife('cow', 9),
+    loadWildlifeArt(),
     loadOreArt('resource_cf_ore_', ''),
     Promise.all(additionalTerrainAssetIds().map(async (assetId) => [
       assetId, await loadGeneratedAsset(assetId, 'summer'),
     ] as const)),
+    loadPlayerRig(),
+    loadRogueEnemyArt(),
+    Promise.all((['torch', 'lantern'] as const).map(async (kind) => {
+      const [idle, running, idleHands, runningHands] = await Promise.all([
+        loadGeneratedAsset(`tool_cf_${kind}_idle`, 'summer'),
+        loadGeneratedAsset(`tool_cf_${kind}_running`, 'summer'),
+        loadGeneratedAsset(`hands_cf_${kind}_idle`, 'summer'),
+        loadGeneratedAsset(`hands_cf_${kind}_running`, 'summer'),
+      ]);
+      return [kind, { idle, running, idleHands, runningHands }] as const;
+    })),
   ]);
   const named = Object.fromEntries(namedEntries) as Record<keyof typeof MAP_EDITOR_ASSET_NAMES, LoadedAsset>;
   const art = {
@@ -734,7 +752,10 @@ export async function loadMapEditorArt(
       tile_cf_cave_wall: named.caveWall,
       tile_cf_waterfall: named.waterfall,
     },
-    wildlife: { cow },
+    wildlife,
+    playerRig,
+    rogueEnemies,
+    heldLights: Object.fromEntries(heldLightEntries),
     natureDecorations,
     oceanSurfaceDecorations,
     fruitTrees,
@@ -780,8 +801,8 @@ export async function loadMapEditorArt(
     ui,
     uiSkin,
   };
-  // The editor calls only the terrain, prefab and decoration renderers whose
-  // complete dependencies are present above. Keeping this adapter separate
+  // Terrain, prefab, decoration and unmounted live-actor dependencies are
+  // complete above. Keeping this adapter separate
   // avoids manufacturing hundreds of unused gameplay-art fields.
   return art as unknown as OverworldArt;
 }
@@ -1466,8 +1487,11 @@ function drawAnchored(
   const sourceX = source.x;
   const sourceY = source.y;
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
-  const x = Math.round((worldX - cameraX - anchorX) * zoom);
-  const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
+  // Quantize world and camera separately. Besides sharing the ground's pixel
+  // phase, this keeps half-pixel ties stable when cameraX/Y is a rounded pixel
+  // divided by a non-power-of-two world-pass scale (for example 3 or 6).
+  const x = Math.round((worldX - anchorX) * zoom) - Math.round(cameraX * zoom);
+  const y = Math.round((worldY - asset.anchor[1]) * zoom) - Math.round(cameraY * zoom);
   const previousAlpha = dimmed ? context.globalAlpha : 1;
   const previousFilter = dimmed ? context.filter : '';
   const savedTransform = saveSpriteTransform(context, flipX);
@@ -1636,8 +1660,8 @@ function drawAnchoredBand(
   const end = Math.max(start, Math.min(source.height, Math.floor(endRow)));
   if (start === end) return;
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
-  const x = Math.round((worldX - cameraX - anchorX) * zoom);
-  const y = Math.round((worldY - cameraY - asset.anchor[1] + start) * zoom);
+  const x = Math.round((worldX - anchorX) * zoom) - Math.round(cameraX * zoom);
+  const y = Math.round((worldY - asset.anchor[1] + start) * zoom) - Math.round(cameraY * zoom);
   const height = end - start;
   const savedTransform = saveSpriteTransform(context, flipX);
   if (flipX) {
@@ -1832,7 +1856,7 @@ export function drawOverworldCrop(
 export { sortWorldDepthItems as sortWorldDrawItems } from "./renderer.js";
 
 export type AuthoredResourceVisualState =
-  | 'mature' | 'small' | 'medium' | 'depleted' | 'depleted_small' | 'depleted_medium';
+  | 'mature' | 'fruitless' | 'small' | 'medium' | 'depleted' | 'depleted_small' | 'depleted_medium';
 
 export interface AuthoredResourceVisual {
   readonly asset: LoadedAsset;
@@ -1890,7 +1914,12 @@ export function authoredResourceVisual(
   richness = 1,
 ): AuthoredResourceVisual | null {
   let selected: readonly [string, number] | undefined;
-  if (state === 'mature') {
+  if (state === 'mature' || state === 'fruitless') {
+    // The four native orchard varieties share the same fruitless canopy.
+    if (state === 'fruitless' && visual.kind === 'tree'
+      && ['tree_apple', 'tree_pear', 'tree_peach', 'tree_cherry'].includes(visual.asset)) {
+      return { asset: art.treeMature, scale: 1 };
+    }
     const variant = visual.kind === 'ore' && visual.variant !== 'fixed'
       ? miningNodeArtVariant(nodeClass, richness) : null;
     return {
@@ -1927,7 +1956,7 @@ export function drawAuthoredResourceVisual(
 ): void {
   const resolved = authoredResourceVisual(art, visual, state, nodeClass, richness);
   if (resolved === null) return;
-  if (visual.kind === 'tree' && state === 'mature') {
+  if (visual.kind === 'tree' && (state === 'mature' || state === 'fruitless')) {
     drawAnchoredTreeSway(context, resolved.asset, x, y, cameraX, cameraY, zoom, swayX, swayY);
     return;
   }
@@ -2534,10 +2563,11 @@ export function drawAuthoredOverworldObject(
   return true;
 }
 
-/** Large licensed prop sheets are normalized to their authoritative tile
- * footprint when placed in the world. Inventory icons retain their native art. */
+/** Placeable source sprites use their native world-pixel footprint. The
+ * dedicated workbench is 32px wide, matching its two-tile collision. */
 export function overworldPlaceableVisualScale(kind: string): number {
-  return kind === "workbench" ? 0.5 : 1;
+  void kind; // Preserve the public kind-based API; all current sprites are native scale.
+  return 1;
 }
 
 /** A tiny palette-matched arrow is rotated around its shaft so aiming is not
@@ -3992,8 +4022,8 @@ export function drawOverworldBoat(
     : cardinal === 'up' ? -Math.PI / 2
     : 0;
   const flipX = authored === null && boatFlipsForDirection(facing);
-  const screenX = Math.round((x - cameraX) * zoom);
-  const screenY = Math.round((y - cameraY) * zoom);
+  const screenX = Math.round(x * zoom) - Math.round(cameraX * zoom);
+  const screenY = Math.round(y * zoom) - Math.round(cameraY * zoom);
   const previousImageSmoothingEnabled = context.imageSmoothingEnabled;
   const savedTransform = saveSpriteTransform(context, true);
   context.translate(screenX, screenY);

@@ -1401,3 +1401,40 @@ it('samples a manual fence and restores automatic joining for the next placement
  controller.pointerDown(screenForTile(controller,3,2),0);controller.pointerUp();
  const next=model.document().objects.find(o=>o.tileX===3)!;expect(model.document().prefabs.find(p=>p.id===next.prefabId)?.tags).not.toContain('studio.connection.manual');
 });
+
+
+it('paints ocean material without changing height when another editing level is active',()=>{
+ const {controller,model}=terrainHarness([]);
+ controller.selectEditingTool('terrain');controller.adjustActiveElevation(1);
+ controller.selectMaterial('ocean','Ocean',{surface:'water',feature:'none',terrainOverride:null},'water');
+ const point=screenForTile(controller,2,2);controller.pointerDown(point,0);controller.pointerUp();
+ const cell=resolvedMapCellAt(terrainDocumentForMapV3(model.document()),2,2);
+ expect(cell.surface).toBe('water');expect(cell.elevation).toBe(0);
+ expect(model.document().cells['2,2']?.biome).toBe('freshwater');
+});
+
+it('raises a complete two by two footprint, then raises it again on the next level',()=>{
+ const {controller,model}=terrainHarness([]);
+ controller.selectEditingTool('raise');controller.pointerDown(screenForTile(controller,2,2),0);controller.pointerUp();
+ for(const [x,y] of [[2,2],[3,2],[2,3],[3,3]])expect(resolvedMapCellAt(terrainDocumentForMapV3(model.document()),x!,y!).elevation).toBe(1);
+ controller.adjustActiveElevation(1);
+ const point=screenForProjectedTile(controller,mapEditorPickingTerrain(model.document()),2,2,1);
+ controller.pointerDown(point,0);controller.pointerUp();
+ for(const [x,y] of [[2,2],[3,2],[2,3],[3,3]])expect(resolvedMapCellAt(terrainDocumentForMapV3(model.document()),x!,y!).elevation).toBe(2);
+});
+
+it('drags a canopy resource locally and undo restores its functional marker',()=>{
+ const {controller,model,selection}=terrainHarness([]);
+ controller.setLiveRows({resources:[{id:42n,spaceId:0,kind:'tree',tileX:2,tileY:2,health:7,depleted:false}],placeables:[],chests:[],combatTargets:[],surfaces:[],homesteads:[],npcs:[],players:[]});
+ controller.selectEditingTool('objects');controller.selectLayer('canopy');
+ const original=controller.liveMarkers()[0]!;
+ controller.pointerDown(screenForTile(controller,2,2),0);
+ expect(selection.current()).toMatchObject({kind:'entity',entityKind:'resource',id:'42'});
+ controller.pointerMove(screenForTile(controller,4,4));
+ expect(controller.liveMarkers()[0]).toMatchObject({tileX:4,tileY:4,health:7,entityKind:'resource'});
+ expect(model.document().resourcePlacements).toBeUndefined();
+ controller.pointerUp();
+ expect(model.document().resourcePlacements).toEqual([{id:'42',originTileX:2,originTileY:2,tileX:4,tileY:4}]);
+ expect(controller.liveMarkers()[0]).toMatchObject({tileX:4,tileY:4,health:7});
+ controller.undo();expect(controller.liveMarkers()[0]).toBe(original);
+});

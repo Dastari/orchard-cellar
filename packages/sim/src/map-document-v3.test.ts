@@ -191,14 +191,13 @@ describe('MapDocumentV3', () => {
     expect(() => parseMapDocumentV3(JSON.stringify(source))).toThrow('Map gameplay anchor is invalid');
   });
 
-  it('rejects anchor elevation drift and ids shared with objects', () => {
+  it('preserves annotation elevation drift but rejects ids shared with objects', () => {
     const raised = applyMapDocumentV3Edit(fixture(), {
       kind: 'terrain', command: { kind: 'paint', points: [{ tileX: 2, tileY: 2 }], patch: { elevation: 1 } },
     }).document;
     const mismatched = JSON.parse(serializeMapDocumentV3(raised)) as Record<string, unknown>;
     mismatched['anchors'] = [{ id: 'height-drift', kind: 'spawn', tileX: 2, tileY: 2, elevation: 0 }];
-    expect(() => parseMapDocumentV3(JSON.stringify(mismatched)))
-      .toThrow('Map gameplay anchor elevation does not match terrain');
+    expect(parseMapDocumentV3(JSON.stringify(mismatched)).anchors[0]?.elevation).toBe(0);
 
     const prefab = createMapPrefabDocument({ id: 'marker', title: 'Marker' });
     let withObject = applyMapDocumentV3Edit(fixture(), { kind: 'embed_prefab', prefab }).document;

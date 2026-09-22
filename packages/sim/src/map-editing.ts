@@ -11,7 +11,6 @@ import {
 } from './map-document.js';
 import {
   TERRAIN_ELEVATION_LIMIT,
-  retainMinimumTerrainFootprint,
   stairRunValid,
   terrainTransitionValid,
   type StairRun,
@@ -124,42 +123,31 @@ export function minimumTerrainBrushPoints(
 function normalizeTerrainFootprints(
   document: MapDocumentV2,
   cells: Record<string, MapCellOverride>,
+  points: readonly MapPoint[],
 ): readonly MapPoint[] {
-  const length = document.width * document.height;
-  const interim = { ...document, cells };
-  const elevations = Int16Array.from({ length }, (_, index) => resolvedMapCellAt(
-    interim,
-    index % document.width,
-    Math.floor(index / document.width),
-  ).elevation);
-  const normalized = elevations.slice();
-  let maximum = document.baseElevation;
-  let minimum = document.baseElevation;
-  for (const elevation of elevations) {
-    maximum = Math.max(maximum, elevation);
-    minimum = Math.min(minimum, elevation);
+  const interim = {...document, cells};
+  const affected = new Map<string, MapPoint>();
+  for (const point of points) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const tileX = point.tileX + dx, tileY = point.tileY + dy;
+    if (mapCoordinateInBounds(document, tileX, tileY)) affected.set(mapCellKey(tileX,tileY), {tileX,tileY});
   }
-  for (let level = document.baseElevation + 1; level <= maximum; level += 1) {
-    const contour = Uint8Array.from(normalized, (elevation) => Number(elevation >= level));
-    const retained = retainMinimumTerrainFootprint(contour, document.width, document.height);
-    for (let index = 0; index < length; index += 1) {
-      if (contour[index] === 1 && retained[index] === 0) normalized[index] = level - 1;
+  const height = (x: number, y: number): number => resolvedMapCellAt(interim,x,y).elevation;
+  const supported = (point: MapPoint, level: number, excavated: boolean): boolean => {
+    for (const dx of [-1,0]) for (const dy of [-1,0]) {
+      const x=point.tileX+dx,y=point.tileY+dy;
+      if (!mapCoordinateInBounds(document,x,y) || !mapCoordinateInBounds(document,x+1,y+1)) continue;
+      if ([[x,y],[x+1,y],[x,y+1],[x+1,y+1]].every(([px,py]) => excavated ? height(px!,py!)<=level : height(px!,py!)>=level)) return true;
     }
+    return false;
+  };
+  const updates: {point:MapPoint;elevation:number}[] = [];
+  for (const point of affected.values()) {
+    const before=height(point.tileX,point.tileY);let elevation=before;
+    while(elevation>document.baseElevation&&!supported(point,elevation,false))elevation--;
+    while(elevation<document.baseElevation&&!supported(point,elevation,true))elevation++;
+    if(elevation!==before)updates.push({point,elevation});
   }
-  for (let level = document.baseElevation - 1; level >= minimum; level -= 1) {
-    const contour = Uint8Array.from(normalized, (elevation) => Number(elevation <= level));
-    const retained = retainMinimumTerrainFootprint(contour, document.width, document.height);
-    for (let index = 0; index < length; index += 1) {
-      if (contour[index] === 1 && retained[index] === 0) normalized[index] = level + 1;
-    }
-  }
-  const changed: MapPoint[] = [];
-  for (let index = 0; index < length; index += 1) {
-    if (normalized[index] === elevations[index]) continue;
-    const point = { tileX: index % document.width, tileY: Math.floor(index / document.width) };
-    if (writeResolvedPatch(interim, cells, point, { elevation: normalized[index]! })) changed.push(point);
-  }
-  return changed;
+  return updates.filter(({point,elevation})=>writeResolvedPatch(interim,cells,point,{elevation})).map(({point})=>point);
 }
 
 function canonicalPatch(
@@ -210,9 +198,9 @@ function writeResolvedPatch(
     terrainOverride: patch.terrainOverride === undefined ? before.terrainOverride : patch.terrainOverride,
     ledge: patch.ledge ?? before.ledge,
   };
-  const baselineCells = { ...cells };
-  delete baselineCells[key];
-  const baseline = resolvedMapCellAt({ ...document, cells: baselineCells }, point.tileX, point.tileY);
+  // Resolution reads only this cell. Its inherited baseline needs no copy of
+  // the other tens of thousands of authored overrides.
+  const baseline = resolvedMapCellAt({ ...document, cells: {} }, point.tileX, point.tileY);
   const next = canonicalPatch(document, resolved, baseline);
   if (next.collision === undefined) delete (next as { collisionReason?: string }).collisionReason;
   const previousJson = JSON.stringify(cells[key] ?? {});
@@ -555,14 +543,17 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
   }
   if ('enforceMinimumTerrainFootprint' in command && command.enforceMinimumTerrainFootprint) {
     const changedKeys = new Set(changed.map(({ tileX, tileY }) => mapCellKey(tileX, tileY)));
-    for (const point of normalizeTerrainFootprints(document, cells)) {
+    for (const point of normalizeTerrainFootprints(document, cells, changed)) {
       const key = mapCellKey(point.tileX, point.tileY);
       if (changedKeys.has(key)) continue;
       changedKeys.add(key);
       changed.push(point);
     }
   }
-  if (JSON.stringify(cells) === JSON.stringify(document.cells)) return { document, changed: [] };
+  if (changed.every(point => {
+    const key = mapCellKey(point.tileX, point.tileY);
+    return JSON.stringify(cells[key]) === JSON.stringify(document.cells[key]);
+  })) return { document, changed: [] };
   if (changed.length === 0) return { document, changed };
   return {
     document: normalizeMapDocument({ ...document, revision: document.revision + 1, cells }),

@@ -851,3 +851,13 @@ describe('MapDocumentV2 editor foundation', () => {
     expect(validateMapDocument(edited)).toContainEqual(expect.objectContaining({ code: 'collision_reason_missing' }));
   });
 });
+
+it('limits footprint assistance to the stroke and its immediate neighbors',()=>{
+ const base=createEmptyMapDocument({id:'local-assist',title:'Local',width:100,height:100});
+ const manual=applyMapEdit(base,{kind:'paint',points:[{tileX:80,tileY:80}],patch:{elevation:3}}).document;
+ const assisted=applyMapEdit(manual,{kind:'paint',points:minimumTerrainBrushPoints({tileX:4,tileY:4},100,100),patch:{elevation:1},enforceMinimumTerrainFootprint:true});
+ expect(assisted.document.cells['80,80']?.elevation).toBe(3);
+ expect(compileMapDocument(assisted.document).elevations[8080]).toBe(3);
+ expect(assisted.changed.every(p=>p.tileX>=3&&p.tileX<=6&&p.tileY>=3&&p.tileY<=6)).toBe(true);
+ expect(assisted.document.cells['4,4']?.elevation).toBe(1);
+});

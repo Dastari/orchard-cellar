@@ -6,7 +6,11 @@ import {
   migrateMapDocumentV2,
   normalizeMapDocumentV3,
   serializeMapDocumentV3,
+  serializeMapDocumentV3ForTransport,
   type MapDocumentV3,
+  applyMapDocumentDelta,
+  parseMapDocumentDelta,
+  parseMapDocumentV3,
 } from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -67,6 +71,84 @@ function mapHead(document: MapDocumentV3): NonNullable<StudioConnectionView['map
 }
 
 describe('Studio Map Editor model', () => {
+  it('publishes a restored tree deletion as a delta and keeps in-flight edits for the next revision', async () => {
+    const tree = { id: 'old-tree-386-373', prefabId: 'old-tree', prefabRevision: 0,
+      tileX: 386, tileY: 373, elevation: 0, layer: 'objects' as const, quarterTurns: 0 as const, flipX: false, enabled: true };
+    const base = normalizeMapDocumentV3({ ...remoteDocument(6, 'Town'),
+      prefabs: [createMapPrefabDocument({ id: 'old-tree', title: 'Old tree' })], objects: [tree],
+    });
+    let liveView = view({ mapDocument: mapHead(base), mapRevision: 6 });
+    const publishMap = vi.fn(async () => undefined);
+    const adapter: StudioLiveAdapter = { view: () => liveView, connect: () => undefined, disconnect: () => undefined, publishMap };
+    const storage = new MemoryStorage();
+    const first = harness(adapter, storage).model;
+    first.reconcileLiveHead(); first.removeObject(tree.id);
+    first.dispose();
+    const { model } = harness(adapter, storage);
+    await model.publish();
+    const args = publishMap.mock.calls[0] as unknown as [MapDocumentV3, string, number];
+    const deletion = parseMapDocumentDelta(JSON.parse(args[1]));
+    expect(args[2]).toBe(6);
+    expect(args[1].length).toBeLessThan(1_000);
+    expect(deletion.collections).toEqual({ objects: { [tree.id]: null } });
+    model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
+    const accepted = normalizeMapDocumentV3({ ...parseMapDocumentV3(applyMapDocumentDelta(base, deletion)), revision: 7 });
+    liveView = view({ mapDocument: mapHead(accepted), mapRevision: 7 });
+    model.reconcileLiveHead();
+    expect(model.baseRevision()).toBe(7);
+    expect(model.publishing()).toBe(false);
+    expect(model.dirty()).toBe(true);
+    await model.publish();
+    const nextArgs = publishMap.mock.calls[1] as unknown as [MapDocumentV3, string, number];
+    const next = parseMapDocumentDelta(JSON.parse(nextArgs[1]));
+    expect(nextArgs[2]).toBe(7);
+    expect(next.collections?.objects).toBeUndefined();
+    expect(next.collections?.cells?.['400,400']).toEqual({ biome: 'forest' });
+    model.dispose();
+  });
+  it('stores compact drafts that restore the same map and live revision', () => {
+    const remote = remoteDocument(6, 'Published town');
+    const adapter = { view: () => view({ mapDocument: mapHead(remote) }) } as StudioLiveAdapter;
+    const storage = new MemoryStorage();
+    const { model } = harness(adapter, storage);
+    model.reconcileLiveHead();
+    const stored = storage.getItem('orchard.studio.map-draft.v1.live-island')!;
+    const envelope = JSON.parse(stored) as { document: string };
+    expect(envelope.document).toBe(serializeMapDocumentV3ForTransport(remote));
+    expect(stored.length).toBeLessThan(JSON.stringify({ ...JSON.parse(stored), document: serializeMapDocumentV3(remote) }).length);
+    const restored = harness(adapter, storage).model;
+    expect(mapDocumentV3Hash(restored.document())).toBe(mapDocumentV3Hash(remote));
+    expect(restored.baseRevision()).toBe(6);
+    expect(restored.dirty()).toBe(false);
+    model.dispose(); restored.dispose();
+  });
+
+  it('keeps checkout, editing and undo usable when storage fills without overwriting the saved draft', () => {
+    const remote = remoteDocument(6, 'Published town');
+    const adapter = { view: () => view({ mapDocument: mapHead(remote) }) } as StudioLiveAdapter;
+    const storage = new MemoryStorage();
+    const { model, notifications } = harness(adapter, storage);
+    model.reconcileLiveHead();
+    const saved = storage.getItem('orchard.studio.map-draft.v1.live-island');
+    vi.spyOn(storage, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    expect(() => model.renameLayer('objects', 'Draft objects')).not.toThrow();
+    expect(model.dirty()).toBe(true);
+    expect(storage.getItem('orchard.studio.map-draft.v1.live-island')).toBe(saved);
+    expect(() => model.undo()).not.toThrow();
+    expect(model.dirty()).toBe(false);
+    expect(() => model.reloadLatest()).not.toThrow();
+    expect(model.validationState()).toBe('ready');
+    expect(notifications.items().filter(item => item.title === 'Map draft could not be saved')).toHaveLength(1);
+    model.dispose();
+  });
+
+  it('opens the editor when browser storage cannot be read', () => {
+    const storage: MapDraftStorage = { getItem() { throw new Error('Storage blocked'); }, setItem() {} };
+    const { model } = harness(null, storage);
+    expect(model.document().id).toBe('live-island');
+    model.dispose();
+  });
+
   it('exposes all doc42 workspaces, Photoshop-style layers, selection, and validation kernels', () => {
     const { model, selection, inspector, validation } = harness();
     expect(MAP_EDITOR_WORKSPACES).toEqual(['terrain', 'objects', 'biomes', 'scatter']);
@@ -703,6 +785,26 @@ describe('Studio Map Editor model', () => {
     } });
     expect(model.terrainIdentity()).not.toBe(biomeIdentity);
     expect(model.terrainGeometryIdentity()).not.toBe(terrainGeometryIdentity);
-    expect(setIssues).toHaveBeenCalledOnce();
+    expect(setIssues).not.toHaveBeenCalled();
   });
+});
+
+it('draws browser edits before saving, coalesces rapid strokes, and flushes the latest draft on disposal',()=>{
+ vi.useFakeTimers();vi.stubGlobal('requestAnimationFrame',()=>0);
+ try {
+  const storage=new MemoryStorage(),save=vi.spyOn(storage,'setItem');
+  const {model}=mapHarness('terrain-lab',null,storage);
+  model.editTerrain({kind:'paint',points:[{tileX:2,tileY:2}],patch:{surface:'water'}});
+  expect(model.document().cells['2,2']?.surface).toBe('water');
+  expect(model.dirty()).toBe(true);expect(save).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(200);
+  model.editTerrain({kind:'paint',points:[{tileX:3,tileY:2}],patch:{surface:'water'}});
+  vi.advanceTimersByTime(200);expect(save).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(50);expect(save).toHaveBeenCalledTimes(1);
+  model.editTerrain({kind:'paint',points:[{tileX:4,tileY:2}],patch:{surface:'water'}});
+  model.dispose();expect(save).toHaveBeenCalledTimes(2);
+  const draft=JSON.parse(save.mock.calls[1]![1]) as {document:string};
+  expect(parseMapDocumentV3(draft.document).cells['4,2']?.surface).toBe('water');
+  vi.runAllTimers();expect(save).toHaveBeenCalledTimes(2);
+ } finally {vi.unstubAllGlobals();vi.useRealTimers();}
 });

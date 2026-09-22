@@ -22,7 +22,7 @@ import {
   type MapGameplayAnchorKind,
 } from '@orchard/sim';
 import {
-  drawTileRaster,
+  drawTileRaster, drawTerrainInspectionVisuals, type TerrainInspection,
   GroundChunkCache,
   drawAuthoredOverworldObject,
   drawAnimatedTerrain,
@@ -548,6 +548,10 @@ export class MapEditorRenderer {
     this.invalidate();
   }
 
+  drawTileInspection(context:CanvasRenderingContext2D,inspection:TerrainInspection):void {
+    if(this.#art&&this.#terrain)drawTerrainInspectionVisuals(context,this.#art,this.#terrain,this.#groundCache,inspection,0,0);
+  }
+
   /** Inspector images use the same loaded assets as the map. */
   liveMarkerPreview(marker:MapEditorLiveMarker):{image:CanvasImageSource;frame:import('@orchard/ui').AtlasFrame}|undefined {
     if(this.#art===null||this.#liveRegistry===null)return undefined;
@@ -557,7 +561,7 @@ export class MapEditorRenderer {
       const state=marker.depleted?(growth==='small'?'depleted_small':growth==='medium'?'depleted_medium':'depleted'):growth==='small'||growth==='medium'?growth:'mature';
       const resolved=authoredResourceVisual(this.#art,definition.visual,state);
       if(!resolved)return undefined;
-      const frame=resolved.asset.metadata.animations['base']?.[0]??Object.values(resolved.asset.metadata.animations)[0]?.[0];
+      const frame=Object.values(resolved.asset.metadata.states??{})[0]??Object.values(resolved.asset.metadata.variants??{})[0]?.[0]??resolved.asset.metadata.animations['base']?.[0]??Object.values(resolved.asset.metadata.animations)[0]?.[0];
       return frame?{image:resolved.asset.image,frame}:undefined;
     }
     const presentation=resolveStudioLiveMarkerPresentation(this.#liveRegistry,marker);

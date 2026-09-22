@@ -17,7 +17,7 @@ describe('selected item lifecycle client retirement', () => {
     );
     expect(keyHandler.indexOf('selectedItemUseAction(selectedUseDefinition)'))
       .toBeLessThan(keyHandler.indexOf('targetCampfire(snapshot)'));
-    expect(source).toContain('const contextualPrompt = selectedUsePrompt ?? targetPrompt;');
+    expect(source).toContain('const contextualPrompt = worldActionPrompt(nearbyPrompt, selectedUsePrompt ?? targetPrompt);');
     expect(source).not.toContain('`${basePrompt}  ${selectedUsePrompt}`');
   });
 

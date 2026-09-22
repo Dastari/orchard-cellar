@@ -94,6 +94,7 @@ it('preserves planted outdoor trees during generated resource reconciliation', (
     world_resource_mining_claim: { resourceId: { delete: () => {} } } } };
   const actions = compile(['reconcileGeneratedSurvivalResources'], { ...sim, SenderError: Error,
     TOPSIDE_SPACE_ID: 0, contentRegistry: () => registry, generateSurvivalResources: () => [],
+    compiledLiveIslandRuntime: () => null,
   });
   actions.reconcileGeneratedSurvivalResources(ctx);
   expect(removed).toEqual([42n]);

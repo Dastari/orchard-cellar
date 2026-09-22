@@ -22,7 +22,8 @@ describe('Willowharbour facades', () => {
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     expect(sha256(facades.prefabs)).toBe('d4560bfebcdb9fef42448e87d89d8a47c428e133a518b305d97d1de9248e25d4');
     expect(sha256(facades.objects)).toBe('3b0a10762d476fb7fda1c70a2d24f0ebf685032435512d65b541c672a37e6fb0');
-    expect(sha256(scenery.prefabs)).toBe('681763826026ebd2078f2891388ab52565f91da45f64e92257e8dd6d571d44d5');
+    // Only the workbench prefab changes: native 32x32 art and a left-cell anchor.
+    expect(sha256(scenery.prefabs)).toBe('b4d8b738c277d7a7d4391691c62b6f76cc47b9f59d99403e846bafad00cbe2dc');
     expect(sha256(scenery.objects)).toBe('3f8fdca2464c49a99db29b65a29f19d9d460d4c5f60e68ca484a3c0cf86742e9');
   });
   it('marks only public service thresholds with nonblocking ground runners',()=>{

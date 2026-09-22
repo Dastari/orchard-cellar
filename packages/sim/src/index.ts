@@ -65,6 +65,7 @@ export * from './abilities.js';
 export * from './terrain-elevation.js';
 export * from './map-document.js';
 export * from './map-document-v3.js';
+export * from './map-document-delta.js';
 export * from './map-scatter.js';
 export * from './map-editing.js';
 export * from './map-compiler.js';

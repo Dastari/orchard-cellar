@@ -158,7 +158,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // and complete-document topology. See docs/studio-generation-rules.md.
 // Connected town lamps resolve one authoritative state and skip static duplicates.
 // Review: docs/review/willowharbour-rules-pass-01.md.
-const STRUCTURAL_SEAM_DIGEST = "eb32925609b88a0fb78884757602cd3a071c92244579e9458d616573336c22dc";
+// Empty hotbar sentinels no longer render missing-art icons; collision now uses
+// shared authored footprint cells. Review: docs/workbench-spec.md and docs/world-interactions.md.
+const STRUCTURAL_SEAM_DIGEST = "f6de4d39a84f56a20be7bca717ea3acad32e41913b3f8cedb1b71478a9396ba2";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

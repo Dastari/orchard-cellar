@@ -16,6 +16,11 @@ import {
   migrateMapDocumentV2,
   serializeMapDocumentV3,
   type MapPrefabDocumentV2,
+  applyMapDocumentDelta,
+  createMapDocumentDelta,
+  normalizeMapDocumentV3,
+  parseMapDocumentV3,
+  mapDocumentV3Hash,
 } from '@orchard/sim';
 import {
   liveIslandTerrain,
@@ -26,6 +31,26 @@ import {
 import { terrainForWorld } from './terrain.js';
 
 describe('live map runtime', () => {
+  it('removes the old tree at 386,373 from the game document and collision after a delta commit', () => {
+    const base = normalizeMapDocumentV3({ ...createLiveIslandMapDocument(), revision: 6,
+      prefabs: [{ ...createMapPrefabDocument({ id: 'old-tree', title: 'Old tree' }),
+        cells: [{ id: 'trunk', tileX: 0, tileY: 0, elevation: 0, collisionMask: 0xffff }],
+      }],
+      objects: [{ id: 'old-tree-386-373', prefabId: 'old-tree', prefabRevision: 0,
+        tileX: 386, tileY: 373, elevation: 0, layer: 'objects', quarterTurns: 0, flipX: false, enabled: true }],
+    });
+    const row = (document: typeof base) => ({ mapId: document.id, revision: document.revision,
+      contentHash: mapDocumentV3Hash(document), documentJson: serializeMapDocumentV3(document) });
+    const before = liveIslandDocument(row(base))!;
+    expect(before.objects.map(object => object.id)).toContain('old-tree-386-373');
+    const obstacles = liveMapObjectCollisionObstacles(before);
+    const committed = normalizeMapDocumentV3({
+      ...parseMapDocumentV3(applyMapDocumentDelta(base, createMapDocumentDelta(base, { ...base, objects: [] }))), revision: 7,
+    });
+    const after = liveIslandDocument(row(committed))!;
+    expect(after.objects).toEqual([]);
+    expect(liveMapObjectCollisionObstacles(after)).toHaveLength(obstacles.length - 16);
+  });
   it('reuses generated world arrays when the sparse live document has no terrain edits', () => {
     const document = createLiveIslandMapDocument();
     const seed = document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;

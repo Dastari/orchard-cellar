@@ -128,3 +128,30 @@ export function runtimePlaceableObjectDefinitionByTag(
   });
   return candidates.length === 1 ? candidates[0]! : null;
 }
+
+/** Occupied cells for a bottom-centred authored object. Even widths extend
+ * right of the anchor, matching homesteadBuildFootprintTiles and world art. */
+export function runtimeObjectFootprintTiles(
+  registry: Pick<ContentRegistry, 'objects'>,
+  reference: ObjectContentReference & { readonly tileX: number; readonly tileY: number },
+  component: 'collision' | 'placement' = 'collision',
+): readonly { readonly tileX: number; readonly tileY: number }[] {
+  const definition = runtimeObjectDefinition(registry, reference);
+  if (definition === null) return [];
+  const footprint = definition.components[component]?.footprint
+    ?? definition.components.collision?.footprint ?? [[15]];
+  const width = footprint[0]?.length ?? 1;
+  const startX = reference.tileX - Math.floor((width - 1) / 2);
+  const startY = reference.tileY - footprint.length + 1;
+  return footprint.flatMap((row, y) => row.flatMap((mask, x) => mask === 0 ? []
+    : [{ tileX: startX + x, tileY: startY + y }]));
+}
+
+export function runtimeObjectOccupiesTile(
+  registry: Pick<ContentRegistry, 'objects'>,
+  reference: ObjectContentReference & { readonly tileX: number; readonly tileY: number },
+  tile: { readonly tileX: number; readonly tileY: number },
+): boolean {
+  return runtimeObjectFootprintTiles(registry, reference)
+    .some(cell => cell.tileX === tile.tileX && cell.tileY === tile.tileY);
+}

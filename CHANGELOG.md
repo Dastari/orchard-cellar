@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.21.1 — September 22 integrated release
+
+- Combine Studio freeze recovery, atomic map deltas, responsive terrain and Canopy selection with NPC camera alignment, world interaction registration, the two-tile crafting workbench and picked-fruit visuals.
+- Preserve all six PR histories and their highest workspace versions; release scope and verification are recorded in [the release handoff](docs/release-2026-09-22.md).
+
+## 0.21.0 — Picked fruit disappears from trees
+
+- Picking apples, pears, peaches, or cherries now shows the matching fruitless tree until fruit ripens again.
+- Reuse the existing native fruitless sprite, preserving tree position, scale, sway, and sapling/stump states.
+- Select visuals from shared authoritative harvest state so reconnects and other players see the same fruit availability.
+
+## 0.20.0 / Studio 0.11.0 — Responsive terrain and selection
+
+- Keep hover outlines and palette tooltips stable through control rebuilds; size inventory reticles to each palette button and center compact layer rows.
+- Show selected tree/object sprites and the resolved tile composition. Move Canopy resource trees in local drafts, with atomic placement deltas that preserve identity, harvest state, and generator reconciliation.
+- Keep material painting at the existing elevation, create complete 2×2 height footprints, and continue grass-water banks with Auto surround. Limit assistance to each placement and its immediate neighbors; preserve manual geometry and make whole-map design checks opt-in and advisory.
+- Avoid repeated whole-island cliff generation and whole-document work during a stroke; coalesce draft persistence after drawing and flush it on navigation.
+
+## 0.19.0 / Studio 0.10.0 — Atomic map delta publication
+
+- Publish only changed map entries and removals against a verified live base; deleting a tree no longer uploads the entire map or exceeds the server's payload limit.
+- Apply deltas atomically on the authority with revision/hash conflict checks, full map validation, retry receipts and existing history/game subscriptions. Existing snapshot callers remain supported without a database schema change.
+- Keep rejected drafts and show visible publish failures with retry/dismiss controls. Preserve edits made while a previous publication is awaiting its live receipt.
+
+## 0.18.4 — World interactions and crafting workbench
+
+- Empty hotbar rows no longer show missing-item question marks; real unknown items retain fallback artwork.
+- Nearby E actions, including picking ripe fruit, remain visible alongside selected-item F hints.
+- Route nearby interaction selection through a provider registry supporting UI-opening and action callbacks, deterministic proximity, unregistering and exclusive dismount. Existing adapters retain their authority/reach rules.
+- Replace the table-derived workbench with dedicated AI pixel art, a two-tile footprint, carry/placement support and three-hit axe dismantling that returns its four planks. Validate and target both occupied tiles.
+- Document current direct anvil repair, its material/currency cost, and the unshipped repair panel. Client 0.18.2; UI 0.18.1.
+
+## 0.18.3 — NPC camera alignment
+
+- Keep resting and sleeping animals fixed to the ground while the player moves by aligning all world layers to the same camera pixel grid.
+- Preserve NPC/player movement interpolation and stabilize actor rounding at higher rendering resolutions.
+- Record the measured cause, regression coverage and release handoff in [the investigation](docs/npc-camera-jitter-investigation.md).
+
+## 0.18.2 / Studio 0.9.3 — Live map freeze recovery
+
+- Load the player appearance/held-light, enemy, mount and wildlife artwork used by Studio's live map before rendering actors, fixing repeated missing-art exceptions that froze the canvas.
+- Store map drafts with lossless compact JSON so the published town fits browser storage. Storage failures preserve the open map and previous saved draft, show an export warning once, and no longer interrupt checkout or editing.
+- Preserve explicit conflict resolution and existing local drafts; no map or content publication is part of this Studio update.
+
 ## 0.18.1 — Ripe fruit when a tree is chopped
 
 - Chopping a ripe apple, pear, peach or cherry tree again drops its fruit, the Orchard Seed Saver seed roll and Farming XP along with the wood.
@@ -292,6 +336,7 @@
   and upgrades. Fix preserving timing when inputs occupy a nonzero slot.
 - Add deterministic probability, daily boundary, authority, input restriction,
   processor and UI regression coverage.
+
 ## 0.9.0 — Willowharbour town and interiors
 
 - Round the western island into coves and headlands with varied beaches and northern stone shelves. Replace grid-based trees with deterministic mixed-age groves and undergrowth.
@@ -313,13 +358,11 @@
 - Preserve completion receipts across quest resets and restore run-entry vitals as before.
 - Keep the earned planter nonbuyable in authored commerce; reject purchase prices, including zero, in reward validation.
 
-
 ## 0.12.0 — 2026-09-21
 
 - Mature apple, pear, peach and cherry trees now offer renewable E/touch fruit picking every game day, with ripening countdowns and existing seed-saver rolls. Picking preserves the tree; axe felling yields forestry materials only.
 - Require a living player, current inventory protocol and unlocked persistent inventory before picking; rejected attempts leave the harvest and its rewards untouched.
 - Persist readiness independently of tree health with an additive defaulted schema migration; inventory overflow uses the existing reserved drops.
-
 
 ## 0.11.0 — Village order specialist meals
 
@@ -330,6 +373,7 @@
 ## 0.10.0 — Preserved expedition provisions
 
 - Eat any preserved crop to restore 12–23 Hunger during outdoor work and expeditions. Full Hunger leaves the portion untouched; successful consumption records the existing food statistic. Preserving, prices and village orders retain their current behavior.
+
 ## 0.9.0 — Pomace compost
 
 - Handcraft four Pomace and one Fiber into Compost. Select it and use F or the primary pointer action on a growing crop to advance its growth by 25%, once per planting.
@@ -345,3 +389,4 @@
 - Retain live-map verification, draft safety, UI-kit checks, and rollback evidence;
   archive and retire the external source, remove six merged worktrees, and preserve
   active work plus checked rollback artifacts.
+

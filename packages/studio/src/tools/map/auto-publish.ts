@@ -46,8 +46,6 @@ function blockedReason(snapshot: MapAutoPublishSnapshot): string | null {
   if (snapshot.conflictRevision !== null) {
     return `Live revision ${snapshot.conflictRevision} conflicts with this draft`;
   }
-  if (snapshot.validation === 'pending') return 'Map validation is still updating';
-  if (snapshot.validation === 'invalid') return 'Map validation has blocking errors';
   if (snapshot.synchronizing) return 'Wait for the live map subscription to synchronize';
   if (!snapshot.connected) return 'Connect to the live world to publish';
   if (!snapshot.writable) return 'This map route is read only';

@@ -21,7 +21,9 @@ export type InteractionTargetKind =
   | 'world_item';
 
 export interface InteractionCandidate {
-  readonly kind: InteractionTargetKind;
+  readonly kind: string;
+  /** Optional priority for registered kinds; distance still wins. */
+  readonly priority?: number;
   /** Interaction point in the same fixed-point coordinate space as the player. */
   readonly x: number;
   readonly y: number;
@@ -29,7 +31,7 @@ export interface InteractionCandidate {
   readonly stableId: string;
 }
 
-const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
+const TIE_PRIORITY: Readonly<Record<string, number>> = {
   portal: 0,
   placeable: 1,
   chest: 2,
@@ -72,7 +74,8 @@ export function nearestInteractionCandidate<T extends InteractionCandidate>(
       continue;
     }
     if (distanceSquared !== nearestDistanceSquared || nearest === null) continue;
-    const priority = TIE_PRIORITY[candidate.kind] - TIE_PRIORITY[nearest.kind];
+    const priority = (candidate.priority ?? TIE_PRIORITY[candidate.kind] ?? 100)
+      - (nearest.priority ?? TIE_PRIORITY[nearest.kind] ?? 100);
     if (priority < 0 || (priority === 0 && candidate.stableId < nearest.stableId)) nearest = candidate;
   }
   return nearest;

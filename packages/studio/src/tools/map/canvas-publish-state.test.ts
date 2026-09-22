@@ -32,12 +32,13 @@ function connectionView(document: MapDocumentV3): StudioConnectionView {
 
 async function connectedContext(
   view: () => StudioConnectionView,
+  publishMap: NonNullable<StudioLiveAdapter['publishMap']> = async () => undefined,
 ): Promise<StudioCanvasToolContext> {
   const adapter: StudioLiveAdapter = {
     view,
     connect: () => undefined,
     disconnect: () => undefined,
-    publishMap: async () => undefined,
+    publishMap,
   };
   const controller = new StudioShellController(async () => adapter, null);
   controller.chooseEnvironment('production');
@@ -55,6 +56,24 @@ async function connectedContext(
 }
 
 describe('Map Editor publish state', () => {
+  it('shows a rejected publication, retains the draft, and allows an explicit retry', async () => {
+    const base = normalizeMapDocumentV3({ ...createLiveIslandMapDocument(), revision: 6 });
+    const publish = vi.fn().mockRejectedValueOnce(new Error('invalid_live_map_terrain')).mockResolvedValue(undefined);
+    const context = await connectedContext(() => connectionView(base), publish);
+    buildMapCanvasTool(context);
+    const retained = context.controller.toolState('map-canvas:live-island', () => null) as unknown as { model: MapEditorModel };
+    retained.model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
+    const localHash = mapDocumentV3Hash(retained.model.document());
+    pressKit(buildMapCanvasTool(context), 'map-publish');
+    await vi.waitFor(() => expect(kitElement(buildMapCanvasTool(context), 'map-publish-error-message')).toMatchObject({ label: 'invalid_live_map_terrain' }));
+    expect(retained.model.dirty()).toBe(true);
+    expect(mapDocumentV3Hash(retained.model.document())).toBe(localHash);
+    pressKit(buildMapCanvasTool(context), 'map-publish-error-retry');
+    await vi.waitFor(() => expect(publish).toHaveBeenCalledTimes(2));
+    expect(kitElements(buildMapCanvasTool(context)).some(element => element.id === 'map-publish-error-message')).toBe(false);
+    expect(retained.model.dirty()).toBe(true); // reducer completion alone cannot acknowledge the live head
+    retained.model.dispose();
+  });
   it('gives every compact command state a precise disabled or enabled reason', () => {
     const base = {
       dirty: true, publishing: false, conflictRevision: null, baseRevision: 7,
@@ -85,11 +104,10 @@ describe('Map Editor publish state', () => {
       state: 'DIRTY', disabled: true, tooltip: 'DIRTY — Live map publishing is unavailable',
     });
     expect(mapEditorPublishPresentation({ ...base, validation: 'pending' })).toMatchObject({
-      state: 'DIRTY', disabled: true, tooltip: 'DIRTY — Wait for map validation to finish',
+      state: 'DIRTY', disabled: false,
     });
     expect(mapEditorPublishPresentation({ ...base, validation: 'invalid' })).toMatchObject({
-      state: 'DIRTY', disabled: true, tone: 'danger',
-      tooltip: 'DIRTY — Resolve blocking map validation errors before publishing',
+      state: 'DIRTY', disabled: false,
     });
   });
 
