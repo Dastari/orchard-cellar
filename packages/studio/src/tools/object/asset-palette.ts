@@ -117,3 +117,14 @@ export function displayAssetName(assetName: string): string {
     .replaceAll('_', ' ')
     .replace(/\b\w/gu, (character) => character.toLocaleUpperCase());
 }
+
+/** Exact choices must identify the authored group/index, even when neighbouring
+ * frames differ only by a few wear pixels. Never infer aliases from thumbnails. */
+export function displayAssetPaletteItemName(entry: AssetPaletteItem): string {
+  const title = displayAssetName(entry.assetName);
+  if (entry.visual.kind === 'state' && entry.visual.name === 'base') return title;
+  const group = displayAssetName(entry.visual.name);
+  return entry.visual.kind === 'variant'
+    ? `${title} · ${group} · ${entry.visual.frameIndex + 1}`
+    : `${title} · ${group}`;
+}

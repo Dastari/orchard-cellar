@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedAssetCatalog } from '@orchard/ui/studio';
-import { buildAssetPalette, filterAssetPalette } from './asset-palette.js';
+import { buildAssetPalette, displayAssetPaletteItemName, filterAssetPalette } from './asset-palette.js';
 
 const frame = { x: 0, y: 0, width: 16, height: 16, durationTicks: 0 };
 const catalog: GeneratedAssetCatalog = {
@@ -53,5 +53,35 @@ describe('asset authoring palette', () => {
     expect(filterAssetPalette(entries, { category: 'tiles' })).toHaveLength(3);
     expect(filterAssetPalette(entries, { builderAvailableOnly: true })).toHaveLength(3);
     expect(entries.some((entry) => entry.assetName === 'ui_cf_button')).toBe(false);
+  });
+
+  it('retains distinct semantic groups even when their preview rectangles match', () => {
+    const source = catalog.assets.tile_cf_path!;
+    const entries = buildAssetPalette({ ...catalog, assets: { tile_cf_path: { ...source,
+      states: { dry: frame, wet: frame },
+      variants: { base: [frame], curb_corner_top_left: [frame], autumn: [frame] },
+    } } });
+    expect(entries.map(entry => entry.visual.name)).toEqual(['ripple', 'dry', 'wet', 'autumn', 'base', 'curb_corner_top_left']);
+    expect(filterAssetPalette(entries, { search: 'curb corner top left' })).toHaveLength(1);
+    expect(new Set(entries.map(entry => entry.key)).size).toBe(entries.length);
+    expect(new Set(entries.map(displayAssetPaletteItemName)).size).toBe(entries.length);
+  });
+
+  it('enumerates every authored mask, edge and corner instead of only a family preview', () => {
+    const source = catalog.assets.tile_cf_path!;
+    const entries = buildAssetPalette({ ...catalog, assets: { tile_cf_path: { ...source,
+      animations: {}, animationMeta: {}, states: {},
+      variants: {
+        base: Array.from({ length: 47 }, (_, index) => ({ ...frame, x: index * 16 })),
+        curb_corner_top_left: [{ ...frame, y: 16 }],
+        edge_top: [{ ...frame, y: 32 }],
+      },
+      variantMeta: { base: { topology: 'blob47' } },
+    } } });
+    expect(entries).toHaveLength(49);
+    expect(entries.filter(entry => entry.visual.name === 'base').map(entry => entry.visual.frameIndex))
+      .toEqual(Array.from({ length: 47 }, (_, index) => index));
+    expect(filterAssetPalette(entries, { search: 'corner' })).toHaveLength(1);
+    expect(filterAssetPalette(entries, { search: 'edge top' })).toHaveLength(1);
   });
 });

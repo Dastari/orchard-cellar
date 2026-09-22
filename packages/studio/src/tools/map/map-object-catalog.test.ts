@@ -50,4 +50,18 @@ describe('map object catalog', () => {
     expect(mapObjectCatalog([reviewed], 'assets-r4')).toHaveLength(1);
     expect(mapPaletteItemAvailable({ ...reviewed, tags: ['review.pending'] })).toBe(false);
   });
+
+  it('gives exact terrain groups searchable names without changing persisted IDs', () => {
+    const pavement: AssetPaletteItem = { ...tree, assetId: 123, assetName: 'tile_cf_hearth_pavement',
+      category: 'tiles', footprint: [1, 1], layer: 'ground', blocksMovement: false,
+      visual: { kind: 'variant', name: 'curb_corner_top_left', frameIndex: 0 } };
+    const prefab = mapPrefabForPaletteItem(pavement, 'assets-r4');
+    expect(prefab.id).toBe('asset-123-variant-curb-corner-top-left-0');
+    expect(prefab.title).toBe('Hearth Pavement · Curb Corner Top Left · 1');
+    expect(prefab.placements[0]?.visual).toEqual(pavement.visual);
+    const base = mapObjectCatalog([0, 1, 2, 3].map(frameIndex => ({ ...pavement,
+      visual: { kind: 'variant', name: 'base', frameIndex } })), 'assets-r4');
+    expect(new Set(base.map(entry => entry.title)).size).toBe(4);
+    expect(base.map(entry => entry.id)).toEqual([0, 1, 2, 3].map(index => `asset-123-variant-base-${index}`));
+  });
 });

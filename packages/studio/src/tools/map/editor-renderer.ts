@@ -1,4 +1,5 @@
 import { patchMapEditorTerrain } from './editor-terrain-patch.js';
+import { drawStudioLiveGroundPaths } from './live-ground-paths.js';
 import { terrainMinimumElevation, terrainMaximumElevation } from '@orchard/engine/terrain';
 import { writeEditorMapOverviewPixel } from './editor-map-overview.js';
 import { connectedObjectFamily, connectedObjectIndex } from '@orchard/sim';
@@ -1073,6 +1074,11 @@ export class MapEditorRenderer {
         viewportWorldHeight,
       );
     });
+
+    if (detailedTerrain !== null) drawStudioLiveGroundPaths(
+      context, art, mapDocument, this.#liveRegistry,
+      model.isLayerVisible('generated_base'), camera, viewport,
+    );
 
     const queue: WorldDepthItem[] = [];
     const terrainQueue: WorldDepthItem[] = [];

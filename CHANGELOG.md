@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.0 — 2026-09-22
+
+- Studio 0.13.0 restores Marlow's live camp path under Generated Base and removes the proven duplicate 47-frame path bank from Exact Placement without deleting saved IDs.
+- Assets 0.18.0 imports 38 exact paving variants and repairs empty desert grass/interior wall imports with complete native source coverage. Tools 0.19.0 adds deterministic import and atlas audit tooling.
+- Adds the source-linked atlas inventory and visual terrain joining guide: all 1,320 registered assets, 1,233 source files, 22 runtime biomes and 8,448 neighbour-mask cases, with explicit unimported/unverified source gaps.
+- Includes the Studio 0.12.1 legacy joined-fence drag footprint repair; records the read-only live-map duplicate audit.
+
 ## 0.22.1 — Legacy fence movement
 
 - Match older automatically joined fence and hedge selection/placement footprints to their one-cell rendered segments. Moving a legacy segment back into a joined row now commits correctly.

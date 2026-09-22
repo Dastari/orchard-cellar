@@ -1,0 +1,618 @@
+[
+  {
+    "name": "tile_cf_desert_grass",
+    "sourcePath": "references/art/kenmi/cute-fantasy/desert/Tiles/Desert_Grass.png",
+    "width": 48,
+    "height": 80,
+    "expectedCells": 15,
+    "processedCells": 15,
+    "importedFrames": 13,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "group": "source_row_1_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 0,
+        "group": "source_row_1_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 0,
+        "group": "source_row_1_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 0,
+        "y": 16,
+        "group": "source_row_2_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 32,
+        "y": 16,
+        "group": "source_row_2_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 0,
+        "y": 32,
+        "group": "source_row_3_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 32,
+        "group": "source_row_3_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 32,
+        "group": "source_row_3_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 0,
+        "y": 48,
+        "group": "source_row_4_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 48,
+        "group": "source_row_4_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 48,
+        "group": "base",
+        "classification": "repaired-base"
+      },
+      {
+        "x": 0,
+        "y": 64,
+        "group": "source_row_5_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 64,
+        "group": "source_row_5_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 64,
+        "group": null,
+        "classification": "transparent"
+      }
+    ]
+  },
+  {
+    "name": "tile_cf_interior_wall",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Houses_Interiors/Interior_Walls.png",
+    "width": 224,
+    "height": 96,
+    "expectedCells": 84,
+    "processedCells": 84,
+    "importedFrames": 54,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "group": "source_row_1_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 0,
+        "group": "source_row_1_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 0,
+        "group": "source_row_1_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 48,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 64,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 80,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 96,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 112,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 128,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 144,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 160,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 176,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 192,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 208,
+        "y": 0,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 0,
+        "y": 16,
+        "group": "source_row_2_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 32,
+        "y": 16,
+        "group": "source_row_2_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 48,
+        "y": 16,
+        "group": "source_row_2_column_4",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 64,
+        "y": 16,
+        "group": "source_row_2_column_5",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 80,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 96,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 112,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 128,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 144,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 160,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 176,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 192,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 208,
+        "y": 16,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 0,
+        "y": 32,
+        "group": "source_row_3_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 32,
+        "group": "source_row_3_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 32,
+        "group": "source_row_3_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 48,
+        "y": 32,
+        "group": "source_row_3_column_4",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 64,
+        "y": 32,
+        "group": "source_row_3_column_5",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 80,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 96,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 112,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 128,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 144,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 160,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 176,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 192,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 208,
+        "y": 32,
+        "group": null,
+        "classification": "transparent"
+      },
+      {
+        "x": 0,
+        "y": 48,
+        "group": "source_row_4_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 48,
+        "group": "source_row_4_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 48,
+        "group": "source_row_4_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 48,
+        "y": 48,
+        "group": "base",
+        "classification": "repaired-base"
+      },
+      {
+        "x": 64,
+        "y": 48,
+        "group": "source_row_4_column_5",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 80,
+        "y": 48,
+        "group": "source_row_4_column_6",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 96,
+        "y": 48,
+        "group": "source_row_4_column_7",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 112,
+        "y": 48,
+        "group": "source_row_4_column_8",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 128,
+        "y": 48,
+        "group": "source_row_4_column_9",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 144,
+        "y": 48,
+        "group": "source_row_4_column_10",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 160,
+        "y": 48,
+        "group": "source_row_4_column_11",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 176,
+        "y": 48,
+        "group": "source_row_4_column_12",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 192,
+        "y": 48,
+        "group": "source_row_4_column_13",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 208,
+        "y": 48,
+        "group": "source_row_4_column_14",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 0,
+        "y": 64,
+        "group": "source_row_5_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 64,
+        "group": "source_row_5_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 64,
+        "group": "source_row_5_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 48,
+        "y": 64,
+        "group": "source_row_5_column_4",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 64,
+        "y": 64,
+        "group": "source_row_5_column_5",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 80,
+        "y": 64,
+        "group": "source_row_5_column_6",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 96,
+        "y": 64,
+        "group": "source_row_5_column_7",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 112,
+        "y": 64,
+        "group": "source_row_5_column_8",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 128,
+        "y": 64,
+        "group": "source_row_5_column_9",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 144,
+        "y": 64,
+        "group": "source_row_5_column_10",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 160,
+        "y": 64,
+        "group": "source_row_5_column_11",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 176,
+        "y": 64,
+        "group": "source_row_5_column_12",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 192,
+        "y": 64,
+        "group": "source_row_5_column_13",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 208,
+        "y": 64,
+        "group": "source_row_5_column_14",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 0,
+        "y": 80,
+        "group": "source_row_6_column_1",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 16,
+        "y": 80,
+        "group": "source_row_6_column_2",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 32,
+        "y": 80,
+        "group": "source_row_6_column_3",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 48,
+        "y": 80,
+        "group": "source_row_6_column_4",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 64,
+        "y": 80,
+        "group": "source_row_6_column_5",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 80,
+        "y": 80,
+        "group": "source_row_6_column_6",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 96,
+        "y": 80,
+        "group": "source_row_6_column_7",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 112,
+        "y": 80,
+        "group": "source_row_6_column_8",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 128,
+        "y": 80,
+        "group": "source_row_6_column_9",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 144,
+        "y": 80,
+        "group": "source_row_6_column_10",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 160,
+        "y": 80,
+        "group": "source_row_6_column_11",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 176,
+        "y": 80,
+        "group": "source_row_6_column_12",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 192,
+        "y": 80,
+        "group": "source_row_6_column_13",
+        "classification": "imported-source-piece"
+      },
+      {
+        "x": 208,
+        "y": 80,
+        "group": "source_row_6_column_14",
+        "classification": "imported-source-piece"
+      }
+    ]
+  }
+]

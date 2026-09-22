@@ -1,5 +1,6 @@
 import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
 import {mapMaterialChoices} from './material-palette.js';
+import { exactTilePaletteChoices } from './exact-tile-palette.js';
 import {
   FIXED_UNITS_PER_PIXEL, smartConnectedObjectPrefabs, connectedObjectFamily, smartObjectPresentationPrefabs, mapPrefabPresentationFamily,
   MAP_BIOME_IDS,
@@ -952,8 +953,7 @@ export class MapEditorController {
       [prefab.id, prefab.title, ...prefab.tags].join(' ').toLowerCase().includes(term)));
   }
   exactTileChoices(query=''):readonly MapPrefabDocumentV2[] {
-    const terms=query.toLowerCase().trim().split(/\s+/u).filter(Boolean);
-    return this.allPrefabs().filter(p=>p.tags.includes('tiles')&&!p.tags.includes('studio.smart-state')&&!p.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)&&terms.every(t=>`${p.title} ${p.tags.join(' ')}`.toLowerCase().includes(t)));
+    return exactTilePaletteChoices(this.allPrefabs(), query);
   }
   selectExactTile(prefabId:string):void {
     if(!this.exactTileChoices().some(p=>p.id===prefabId))return;
