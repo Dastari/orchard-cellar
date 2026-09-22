@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.1 — Legacy fence movement
+
+- Match older automatically joined fence and hedge selection/placement footprints to their one-cell rendered segments. Moving a legacy segment back into a joined row now commits correctly.
+- Save one-cell geometry for only the edited instance, with atomic undo and small-delta publication; retain Exact pieces, gates, scaled objects, and untouched legacy prefabs.
+
+
 ## 0.22.0 / Studio 0.12.0 — Smart placement and stable object editing
 
 - Use compact parchment tooltips, persistent drawer scrolling, larger tool buttons, native scrollbar art and uncropped layer eyes.
