@@ -10,6 +10,8 @@
 
 ## 0.21.3 — Clearer workbench artwork
 
+- Published with the Update Ready dialog spacing fix through PR57; all 5,992 release tests and strict reconnect checks passed. See `docs/release-2026-09-22.md` for artifacts and observer-milestone recovery evidence.
+
 - Rework the crafting workbench for its native 32-pixel width: quieter wood, clear plank seams, a readable mallet and a connected iron vise. Preserve the two-tile size, collision and interactions.
 - Retain the original high-resolution artwork alongside the revised AI source and reproducible sprite import.
 
