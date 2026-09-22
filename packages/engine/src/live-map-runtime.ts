@@ -1,3 +1,4 @@
+import {resolveObjectAppearance} from '@orchard/sim';
 import { mapObjectConnectionMasks } from '@orchard/sim';
 import { drawConnectedObject, preloadConnectedObjectArt } from './connected-objects.js';
 import {streetlampState} from '@orchard/sim';
@@ -263,7 +264,7 @@ export async function preloadLiveMapObjectAssets(document: MapDocumentV3): Promi
   for (const object of document.objects) {
     const prefab = mapObjectPrefab(document, object);
     if (prefab === null) continue;
-    for (const placement of prefab.placements) assetNames.add(placement.assetName);
+    for (const placement of prefab.placements) assetNames.add(resolveObjectAppearance(placement,prefab.presentation,object.state).placement.assetName);
   }
   const families=new Set([...mapObjectConnectionMasks(document).values()].map(entry=>entry.family));
   await Promise.all([...assetNames].map(requestAsset).concat([...families].map(family=>preloadConnectedObjectArt(family).catch(()=>undefined))));
@@ -274,7 +275,7 @@ export function liveMapObjectAssetsReady(document: MapDocumentV3): boolean {
     const prefab = mapObjectPrefab(document, object);
     if (prefab === null) continue;
     for (const placement of prefab.placements) {
-      if (!assets.has(placement.assetName)) return false;
+      if (!assets.has(resolveObjectAppearance(placement,prefab.presentation,object.state).placement.assetName)) return false;
     }
   }
   return true;
@@ -331,7 +332,9 @@ export function enqueueLiveMapObjects(
     if (!object.enabled) continue;
     const prefab = mapObjectPrefab(document, object);
     if (prefab === null) continue;
-    for (const placement of prefab.placements) {
+    for (const originalPlacement of prefab.placements) {
+      const appearance=resolveObjectAppearance(originalPlacement,prefab.presentation,object.state);
+      const placement=appearance.placement;
       const asset = loadedAsset(placement.assetName);
       if (asset === null) continue;
       const lamp=placement.assetName==='prop_cf_hearth_streetlamp';
@@ -357,7 +360,7 @@ export function enqueueLiveMapObjects(
           const savedTransform = saveSpriteTransform(options.context, true);
           options.context.translate(screenX, screenY);
           options.context.rotate(object.quarterTurns * Math.PI / 2);
-          const objectScale = object.scale ?? 1;
+          const objectScale = (object.scale ?? 1)*appearance.scalePermille/1000;
           options.context.scale(object.flipX ? -objectScale : objectScale, objectScale);
           options.context.rotate(placement.quarterTurns * Math.PI / 2);
           options.context.scale(placement.flipX ? -1 : 1, 1);

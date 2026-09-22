@@ -408,3 +408,24 @@ The four existing orchard fruit sprites reuse their matching, already loaded
 states take precedence over fruit cooldowns. See
 [harvested fruit tree visuals](fruit-tree-visuals-spec.md) for compatibility,
 asset selection, and verification requirements.
+
+### Studio smart placement and stateful scenery
+
+Map prefabs optionally declare typed presentation properties and conditional
+visual rules. Instances persist only their state values; the shared engine calls
+`resolveObjectAppearance` for both game and editor rendering. Catalog grouping
+presents semantic fence and growth families, while Exact mode retains individual
+pieces. Same-layer occupancy checks run at the authoring operation boundary;
+existing invalid geometry is not rejected or repaired globally.
+
+Functional resource property edits are optional one-shot records in the map JSON
+and small delta. The world validates all changed records against current resource
+values before writing, preserves row identity, and ignores unchanged records on
+later publishes so normal gameplay growth is never pinned to editor state. No
+public reducer signature or database table changes are required. Functional
+placeable/chest actions retain their existing audited preview/confirm boundary.
+
+The selection inspector preserves its scroll and input models across actual data
+refreshes. Open popovers defer shell replacement, and stable hover dwell survives
+replacement without a hide/show timer. Native UI-kit track/grip art and compact
+parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).

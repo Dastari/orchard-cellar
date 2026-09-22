@@ -493,7 +493,8 @@ describe('MapEditorController', () => {
     });
     model.placeObject(instance('lower-object', 'objects'));
     model.placeObject(instance('earlier-canopy', 'canopy'));
-    model.placeObject(instance('latest-canopy', 'canopy'));
+    // Historical/imported maps may overlap; new interactive placements cannot.
+    model.apply({kind:'place_object',object:instance('latest-canopy', 'canopy')});
     const transformedCell = mapEditorAuthoredObjectFootprint(
       model.document(), model.document().objects.find(({ id }) => id === 'latest-canopy')!,
     ).find(({ tileX, tileY }) => tileX !== 400 || tileY !== 400)!;

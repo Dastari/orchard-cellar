@@ -11,7 +11,6 @@ import {
   isGatherableResourceKind,
   isMineableOreKind,
   isWildlifeSpecies,
-  homesteadBuildFootprintTiles,
   mapLandmarkDecoration,
   treeGrowthStageName,
   runtimeResourceDefinition,
@@ -87,7 +86,6 @@ import {
 } from './editor-terrain-derivatives.js';
 import {
   mapEditorAuthoredDragFootprint,
-  mapEditorAuthoredObjectFootprint,
   type MapEditorSelectionFootprintCell,
 } from './selection-footprint.js';
 import type { MapEditorTransitionPlan } from './transition-authoring.js';
@@ -103,8 +101,8 @@ import {
 import { resolveStudioLiveMarkerPresentation } from './live-marker-presentation.js';
 
 export {
-  mapEditorAuthoredDragFootprint,
   mapEditorAuthoredObjectFootprint,
+  mapEditorAuthoredDragFootprint,
   type MapEditorSelectionFootprintCell,
 } from './selection-footprint.js';
 
@@ -450,6 +448,7 @@ export function visibleMapTileRange(
  * happens only when terrain changes; content, pan, zoom and shell redraws
  * reuse it, and each draw copies only the visible source rectangle. */
 export class MapEditorRenderer {
+  #selectionMask: HTMLCanvasElement | null = null;
   #terrainIdentity: object | null = null;
   #terrainPendingIdentity: object | null = null;
   #terrain: TerrainArray | null = null;
@@ -792,62 +791,7 @@ export class MapEditorRenderer {
       marker(live.id, live.tileX, live.tileY, live.color, true, live.entityKind,
         live.spaceId, artworkVisible && this.liveMarkerHasArtwork(live), live.worldX, live.worldY);
     }
-    if (wantsObjectSprites && terrain !== null
-      && (selection.kind === 'entity' || selection.kind === 'player')) {
-      const object = selection.kind === 'entity' && selection.entityKind === 'map-object'
-        ? document.objects.find(({ id }) => id === selection.id) : undefined;
-      if (object !== undefined && selection.kind === 'entity'
-        && selection.spaceId === 0 && model.isLayerVisible(object.layer)) {
-        drawMapEditorSelectionFootprint(
-          context,
-          visibleMapSelectionFootprint(mapEditorAuthoredObjectFootprint(document, object), range),
-          terrain,
-          viewport,
-          camera,
-        );
-      } else {
-        const landmark = selection.kind === 'entity' && selection.entityKind === 'map-object'
-          ? document.landmarks.find(({ id }) => id === selection.id) : undefined;
-        if (landmark !== undefined && selection.kind === 'entity'
-          && selection.spaceId === 0 && model.isLayerVisible(landmark.layer)) {
-          drawMapEditorSelectionFootprint(context, visibleMapSelectionFootprint([{
-            tileX: landmark.tileX,
-            tileY: landmark.tileY,
-            elevation: landmark.elevation,
-            collisionMask: 0,
-          }], range), terrain, viewport, camera);
-        } else {
-          const live = interaction.liveMarkers().find((candidate) => selection.kind === 'player'
-            ? candidate.entityKind === 'player' && candidate.id === selection.identity
-              && (selection.spaceId === null || candidate.spaceId === selection.spaceId)
-            : candidate.entityKind === selection.entityKind && candidate.id === selection.id
-              && candidate.spaceId === selection.spaceId);
-          if (live !== undefined) {
-            const footprint = homesteadBuildFootprintTiles(
-              { footprint: live.footprint },
-              live.tileX,
-              live.tileY,
-            ).map(({ tileX, tileY }) => ({
-              tileX,
-              tileY,
-              elevation: live.elevation ?? terrainProjectedElevationAtFoot(
-                terrain,
-                tileX * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS / 2,
-                (tileY + 1) * TILE_SIZE_PIXELS,
-              ),
-              collisionMask: 0,
-            }));
-            drawMapEditorSelectionFootprint(
-              context,
-              visibleMapSelectionFootprint(footprint, range),
-              terrain,
-              viewport,
-              camera,
-            );
-          }
-        }
-      }
-    }
+    if(wantsObjectSprites&&terrain!==null)this.drawSelectedSilhouette(context,model,interaction,terrain,viewport,camera);
     if (dragDestination !== null) {
       context.setLineDash([5, 3]);
       const draggedObject = dragDestination.kind === 'object'
@@ -1304,6 +1248,35 @@ export class MapEditorRenderer {
     }
     if (presentation.kind === 'wildlife') return isWildlifeSpecies(presentation.species);
     return true;
+  }
+
+  private drawSelectedSilhouette(context:CanvasRenderingContext2D,model:MapEditorModel,interaction:MapEditorController,
+    terrain:TerrainArray,viewport:UiRect,camera:ReturnType<MapEditorController['snapshot']>['camera']):void {
+    const selection=model.selection();if(selection.kind!=='entity'&&selection.kind!=='player')return;
+    if(typeof globalThis.document==='undefined'||!this.#art)return;
+    const canvas=this.#selectionMask??=globalThis.document.createElement('canvas');
+    if(canvas.width!==Math.ceil(viewport.width))canvas.width=Math.ceil(viewport.width);
+    if(canvas.height!==Math.ceil(viewport.height))canvas.height=Math.ceil(viewport.height);
+    const mask=canvas.getContext('2d');if(!mask)return;
+    mask.clearRect(0,0,canvas.width,canvas.height);mask.imageSmoothingEnabled=false;
+    const enqueue=(x:number,y:number,item:WorldDepthItem)=>{mask.save();mask.translate(0,-terrainProjectedDepthAtFoot(terrain,x,y)*camera.zoom);item.draw();mask.restore();};
+    const document=model.document();
+    const object=selection.kind==='entity'&&selection.entityKind==='map-object'?document.objects.find(value=>value.id===selection.id):undefined;
+    const landmark=selection.kind==='entity'&&selection.entityKind==='map-object'?document.landmarks.find(value=>value.id===selection.id):undefined;
+    if(object&&model.isLayerVisible(object.layer)) {
+      enqueueLiveMapObjects({...document,objects:[object]},{connectionDocument:document,context:mask,cameraX:camera.x,cameraY:camera.y,scale:camera.zoom,timeMs:performance.now(),visible:()=>true,enqueue});
+    } else if(landmark&&model.isLayerVisible(landmark.layer)) {
+      const x=landmark.tileX*16+8,y=(landmark.tileY+1)*16;
+      const sx=Math.round((x-camera.x)*camera.zoom),sy=Math.round((y-camera.y)*camera.zoom);
+      mask.save();mask.translate(0,-terrainProjectedDepthAtFoot(terrain,x,y)*camera.zoom);mask.translate(sx,sy);mask.rotate(landmark.quarterTurns*Math.PI/2);
+      mask.scale((landmark.flipX?-1:1)*(landmark.scale??1),landmark.scale??1);mask.translate(-sx,-sy);
+      drawOverworldPoiDecoration(mask,this.#art,landmark.kind,x,y,camera.x,camera.y,camera.zoom,landmark.variant,0);mask.restore();
+    } else {
+      const marker=interaction.liveMarkers().find(value=>selection.kind==='player'?value.entityKind==='player'&&value.id===selection.identity:value.entityKind===selection.entityKind&&value.id===selection.id&&value.spaceId===selection.spaceId);
+      if(marker&&model.isLayerVisible(marker.layer))this.enqueueLiveMarker(enqueue,mask,this.#art,marker,marker.worldX,marker.worldY,camera,Math.floor(performance.now()/125));
+    }
+    mask.save();mask.globalCompositeOperation='source-in';mask.fillStyle='rgba(255,206,82,0.48)';mask.fillRect(0,0,canvas.width,canvas.height);mask.restore();
+    context.drawImage(canvas,viewport.x,viewport.y);
   }
 
   private ensureLiveObjectAsset(name: string): void {

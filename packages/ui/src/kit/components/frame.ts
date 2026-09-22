@@ -14,13 +14,13 @@ export interface UiFrameOptions {
   readonly header?: { readonly title: string; readonly content?: UiElement; readonly ribbon?: boolean; readonly closable?: boolean; readonly draggable?: boolean; readonly onClose?: () => void };
   readonly blockInput?: boolean;
   readonly resizable?: { readonly min: UiSize; readonly max?: UiSize; readonly handles?: 'corner' | 'corners' | 'edges' | 'all'; readonly onResize?: (size: UiSize) => void };
-  readonly layout?: UiStyle; readonly children?: readonly UiElement[];
+  readonly padding?: UiSpace; readonly layout?: UiStyle; readonly children?: readonly UiElement[];
   readonly slots?: { readonly leading?: UiElement; readonly body?: UiElement; readonly trailing?: UiElement };
 }
 export function uiFrame(options: UiFrameOptions = {}): UiElement {
   const surface = options.style ?? 'tonal', tone = options.tone ?? 'primary';
-  const padding: UiSpace = surface === 'unframed' ? 0 : surface === 'wood_parchment' || surface === 'book' ? 24
-    : surface === 'thin' || surface.includes('parchment') || surface.startsWith('grey') ? 8 : 16;
+  const padding: UiSpace = options.padding ?? (surface === 'unframed' ? 0 : surface === 'wood_parchment' || surface === 'book' ? 24
+    : surface === 'thin' || surface.includes('parchment') || surface.startsWith('grey') ? 8 : 16);
   if (options.slots && options.children?.length) throw new Error('Frame accepts named slots or free children');
   const children = options.slots ? [uiFlex({ direction: 'row', wrap: true, gap: 8, width: 'grow', height: 'grow' },
     Object.entries(options.slots).map(([name, child]) => uiFlex({ direction: 'column', grow: name === 'body' ? 1 : 0, basis: uiFixed(80), gap: 4 }, [child]).setProps({ slot: name })))] : options.children;

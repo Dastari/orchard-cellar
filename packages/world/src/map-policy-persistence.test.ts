@@ -1,3 +1,4 @@
+import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
@@ -12,7 +13,7 @@ function fixture(blocked = false){
   const initial={...sim.createLiveIslandMapDocument({landmarks}),combatRegions:sim.HEARTH_COMBAT_REGIONS};
   let row={mapId:initial.id,revision:1,documentJson:sim.serializeMapDocumentV3(initial),contentHash:sim.mapDocumentV3Hash(initial),clientMutationId:'initial'};
   const history:unknown[]=[];
-  const tree={id:42n,kind:'tree_oak',definitionId:'resource:tree_oak',tileX:3,tileY:4,chunkX:0,chunkY:0,spaceId:0,health:7,regrowthProgress:35,depleted:false};
+  const tree={id:42n,kind:'tree_oak',definitionId:'resource:tree_oak',tileX:3,tileY:4,chunkX:0,chunkY:0,spaceId:0,health:7,regrowthProgress:35,depleted:false,growthStage:3};
   const resources=new Map([[tree.id,tree]]);
   const resourceWrites:typeof tree[]=[];
   const ctx={sender:{},timestamp:{},db:{
@@ -21,9 +22,9 @@ function fixture(blocked = false){
     live_map_document:{mapId:{find:()=>row,update:(next:typeof row)=>{row=next;}}},
     world_placeable:{by_placer:{filter:()=>[]}},world_environment:{id:{find:()=>null}},
     live_map_revision:{insert:(next:unknown)=>history.push(next)}}};
-  const dependencies={...sim,planLiveMapResourceMoves,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{},settleTownStreetlamps:()=>{},
+  const dependencies={...sim,planLiveMapResourceMoves,planLiveMapEntityStates,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{},settleTownStreetlamps:()=>{},
     contentRegistry:()=>sim.bootstrapContentRegistry(),
-    runtimeResourceDefinition:()=>({visual:{kind:'tree'}}),
+    runtimeResourceDefinition:()=>[...sim.bootstrapContentRegistry().resources.values()].find(d=>d.runtimeKind==='tree_oak'),
     collisionForSpace:()=>({width:832,height:832,blocked:new Uint8Array(832*832).fill(blocked?1:0)}),
     tileOverlapsAnyPlayer:()=>false};
   const commit=new Function(...Object.keys(dependencies),`${javascript};return commitLiveMapSnapshot;`)(...Object.values(dependencies));
@@ -69,4 +70,19 @@ it('rejects blocked tree destinations before applying any resource position',()=
  expect(()=>f.commit(f.ctx,moved,1,'tree-blocked')).toThrow('destination_blocked');
  expect(f.resourceWrites).toEqual([]);expect(f.history).toEqual([]);
  expect(f.resources.get(42n)).toEqual(f.tree);
+});
+
+it('commits growth state once with history and validates conflicts before all writes',()=>{
+ const f=fixture();f.resources.set(42n,{...f.tree,health:3});
+ const next={...f.initial,entityStates:[{id:'resource:42',entityKind:'resource' as const,entityId:'42',baseState:{health:3,growthStage:3},state:{health:1,growthStage:1}}]};
+ f.commit(f.ctx,next,1,'growth');
+ expect(f.resources.get(42n)).toMatchObject({health:1,growthStage:1,regrowthProgress:sim.TREE_REGROWTH_SMALL_PROGRESS});
+ expect(f.history).toHaveLength(1);
+ f.resources.set(42n,{...f.resources.get(42n)!,health:2,growthStage:2});
+ f.commit(f.ctx,{...next,title:'Other map edit'},2,'unrelated');
+ expect(f.resources.get(42n)).toMatchObject({health:2,growthStage:2});
+ expect(f.resourceWrites).toHaveLength(1);
+ const bad={...next,entityStates:[{...next.entityStates[0]!,baseState:{health:1,growthStage:1},state:{health:3,growthStage:3}}]};
+ expect(()=>f.commit(f.ctx,bad,3,'stale-growth')).toThrow('conflict');
+ expect(f.history).toHaveLength(2);expect(f.resourceWrites).toHaveLength(1);
 });

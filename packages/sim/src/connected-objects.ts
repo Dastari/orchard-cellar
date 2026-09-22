@@ -49,10 +49,34 @@ export function mapObjectConnectionMasks(document: MapDocumentV3): ReadonlyMap<s
   const cells=document.objects.flatMap(object=>{
     const prefab=prefabs.get(object.prefabId);
     const family=prefab ? mapObjectConnectionFamily(prefab,object):null;
-    return object.enabled && family ? [{object,prefab:prefab!,tileX:object.tileX,tileY:object.tileY,elevation:object.elevation,family,space:document.id}] : [];
+    return object.enabled && family ? [{object,prefab:prefab!,tileX:object.tileX,tileY:object.tileY,elevation:object.elevation,family,space:`${document.id}:${object.layer}`}] : [];
   });
   const mask=connectedObjectIndex(cells);
   const result = new Map(cells.filter(cell=>!cell.prefab.tags.includes(MANUAL_OBJECT_CONNECTION_TAG) && !cell.prefab.placements[0]!.assetName.endsWith('_gate'))
     .map(cell=>[cell.object.id,{family:cell.family,mask:mask(cell)}]));
   mapConnections.set(document,result); return result;
+}
+
+export const CONNECTED_OBJECT_LABELS: Readonly<Record<ConnectedObjectFamily,string>> = {
+ wood_fence:'Wooden fence',white_fence:'White picket fence',hedge:'Hedge',
+ wood_small_fence:'Small wooden fence',stone_fence:'Stone fence',stone_large_fence:'Large stone fence',
+};
+
+/** Canonical palette entries have semantic one-cell geometry, independent of
+ * how wide any source atlas crop happened to be. Gates remain separate objects. */
+export function smartConnectedObjectPrefabs(prefabs: readonly MapPrefabDocumentV2[]): readonly MapPrefabDocumentV2[] {
+ const groups=new Map<ConnectedObjectFamily,MapPrefabDocumentV2>();
+ for(const prefab of prefabs) {
+  const placement=prefab.placements.length===1?prefab.placements[0]:undefined;
+  if(!placement||placement.assetName.endsWith('_gate'))continue;
+  const family=connectedObjectFamily(placement.assetName);if(!family)continue;
+  if(!groups.has(family)||placement.assetName===connectedObjectAsset(family))groups.set(family,prefab);
+ }
+ return [...groups].map(([family,source])=>({
+  ...source,id:`smart-${family.replaceAll('_','-')}`,title:CONNECTED_OBJECT_LABELS[family],width:1,height:1,pivot:{tileX:0,tileY:0},
+  tags:[...source.tags.filter(tag=>tag!==MANUAL_OBJECT_CONNECTION_TAG),'studio.smart-family'],
+  placements:[{...source.placements[0]!,tileX:0,tileY:0,elevation:0,quarterTurns:0,flipX:false,
+   ...(source.placements[0]!.assetName===connectedObjectAsset(family)?{visual:{kind:'variant' as const,name:'base',frameIndex:connectedObjectFrame(family,0)}}:{})}],
+  cells:[{id:'cell-0',tileX:0,tileY:0,elevation:0,collisionMask:source.cells.some(cell=>cell.collisionMask!==0)?65535:0}],
+ }));
 }

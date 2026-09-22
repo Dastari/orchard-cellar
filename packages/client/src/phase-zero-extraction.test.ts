@@ -160,8 +160,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review: docs/review/willowharbour-rules-pass-01.md.
 // Empty hotbar sentinels no longer render missing-art icons; collision now uses
 // shared authored footprint cells. Review: docs/workbench-spec.md and docs/world-interactions.md.
-// Re-reviewed Update Ready button inset: 21px above the frame bottom.
-const STRUCTURAL_SEAM_DIGEST = "f7cfdbffd1cc3c70ecc6a9b8afc33fd76e439dbf2c41b7af66b51d15461c666f";
+// Smart object state resolves growth/appearance through the shared renderer.
+// Review: docs/studio-smart-placement-spec.md; parser, delta and visual regressions.
+// Retain the separately reviewed Update Ready button inset of 21px.
+const STRUCTURAL_SEAM_DIGEST = "73f153d686c0aef899dd46b4a70959e8b775652fe4d8b1a456b6a0b43cb74680";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

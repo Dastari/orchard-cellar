@@ -17,8 +17,9 @@ export function uiScrollThumb(node: UiElement, axis: 'x' | 'y'): { track: UiRect
   const r = node.contentRect, length = vertical ? r.height : r.width;
   const extent = Math.min(length, Math.max(8, Math.floor(length * length / (length + maximum))));
   const offset = Math.round((length - extent) * (vertical ? node.scroll.y : node.scroll.x) / maximum);
-  const track = vertical ? { x: node.rect.x + node.rect.width - 4, y: r.y, width: 4, height: r.height }
-    : { x: r.x, y: node.rect.y + node.rect.height - 4, width: r.width, height: 4 };
+  const thickness = Number(node.props['scrollbarWidth']) || 4;
+  const track = vertical ? { x: node.rect.x + node.rect.width - thickness, y: r.y, width: thickness, height: r.height }
+    : { x: r.x, y: node.rect.y + node.rect.height - thickness, width: r.width, height: thickness };
   const thumb = vertical ? { ...track, y: track.y + offset, height: extent } : { ...track, x: track.x + offset, width: extent };
   return { track, thumb };
 }

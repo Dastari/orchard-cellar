@@ -1,3 +1,4 @@
+import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
@@ -8,7 +9,7 @@ import { orchardHarvestResult, orchardFruitStatus } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
 import { toolSwingContains, toolSwingChunks, runtimeResourceTargetVector } from '@orchard/sim';
 import { npcBehaviourDefinitionId } from './behaviour/npc-target.js';
-import { fruitSeedDrop, fruitTreeForSeed, plantedFruitTreeId, isPlantedFruitTreeId, TREE_REGROWTH_SMALL_PROGRESS } from '@orchard/sim';
+import { fruitSeedDrop, fruitTreeForSeed, plantedFruitTreeId, isPlantedFruitTreeId, TREE_REGROWTH_MEDIUM_PROGRESS, TREE_REGROWTH_SMALL_PROGRESS } from '@orchard/sim';
 import { vehicleCustodyPlan } from './behaviour/vehicle.js';
 import {
   planHearthSealExchange, hearthRecipeExchangeNpcForRuntimeId,
@@ -12672,7 +12673,10 @@ function commitLiveMapSnapshot(
   if (currentRevision !== expectedRevision) throw new SenderError('live_map_revision_conflict');
   if (currentRevision === 0xffff_ffff) throw new SenderError('live_map_revision_exhausted');
   let resourceMoves: ReturnType<typeof planLiveMapResourceMoves>;
+  let resourceStates:ReturnType<typeof planLiveMapEntityStates>;
   try {
+    resourceStates=planLiveMapEntityStates(existing===null?null:parseMapDocumentV3(existing.documentJson,authoredLandmarks),document,
+      id=>ctx.db.world_resource.id.find(id),row=>{const resource=ctx.db.world_resource.id.find(row.id);return resource?runtimeResourceDefinition(contentRegistry(ctx),resource):null;});
     resourceMoves = planLiveMapResourceMoves(
       existing === null ? null : parseMapDocumentV3(existing.documentJson, authoredLandmarks),
       document,
@@ -12731,6 +12735,14 @@ function commitLiveMapSnapshot(
         chunkX: Math.floor(move.tileX / SURVIVAL_CHUNK_TILES),
         chunkY: Math.floor(move.tileY / SURVIVAL_CHUNK_TILES)});
     }
+  }
+  for(const change of resourceStates){
+    const resource=ctx.db.world_resource.id.find(change.id)!;
+    const stage=change.state.growthStage??resource.growthStage;
+    ctx.db.world_resource.id.update({...resource,...change.state,
+      ...(change.state.depleted===true?{regrowthProgress:0}:change.state.growthStage!==undefined||change.state.depleted===false
+        ?{regrowthProgress:stage===1?TREE_REGROWTH_SMALL_PROGRESS:stage===2?TREE_REGROWTH_MEDIUM_PROGRESS:TREE_REGROWTH_PROGRESS_MAX}:{}),
+    });
   }
   if(canonical.id===LIVE_ISLAND_MAP_ID){
     const active=new Set(mapStreetlampPlans(canonical).map(plan=>plan.id));

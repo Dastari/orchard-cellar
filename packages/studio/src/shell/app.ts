@@ -187,7 +187,7 @@ export class StudioShellApp {
     const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.liveAdapter()?.view().mapDocument?.contentHash,this.controller.liveAdapter()?.view().synchronizing,this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
     if (key !== this.#shellKey) { this.#shellKey = key; this.buildShell(); this.#dirtyTools = true; }
     this.#root.arrange();
-    if (this.#dirtyTools && this.#uiPointerOwner === null) { this.#dirtyTools = false; this.buildTools(); this.#root.arrange(); }
+    if (this.#dirtyTools && this.#uiPointerOwner === null && !this.#root.entries().some(({element}) => element.kind === 'popover' && element.visible)) { this.#dirtyTools = false; this.buildTools(); this.#root.arrange(); }
     if (this.#pendingFocusId) { const target = this.#root.entries().find(({ element }) => element.id === this.#pendingFocusId)?.element;
       if (target) this.#root.focus.set(target,this.#pendingFocusSource); this.#pendingFocusId = null; this.#pendingFocusSource = 'keyboard'; }
     const context = this.canvas.getContext('2d', { alpha: false }); if (!context) throw new Error('studio_shell_canvas_context_unavailable');
@@ -238,7 +238,7 @@ export class StudioShellApp {
     }) : primary;
     this.#root.mount(ui.flex({width:'grow',height:'grow'},[ui.workbench({ navigation: this.routeNavigation(),
       workspace, activeDrawer:this.#activeDrawer,
-      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(216),maxWidth:uiFixed(480)}:{}),content:this.#controls},
+      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(248),maxWidth:uiFixed(480)}:{}),content:this.#controls},
       inspector:{title:route.tool.id==='map'?'':'Selection',surface:route.tool.id==='map'?'unframed':'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector',width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
       onRegionArrange:(name,rect)=>{this.#regions[name]=physical(rect);this.#dirtyTools=true;},
       onRegionVisibility:(name,visible)=>{if(!visible)delete this.#regions[name];this.#dirtyTools=true;},

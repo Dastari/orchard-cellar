@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.22.0 / Studio 0.12.0 — Smart placement and stable object editing
+
+- Use compact parchment tooltips, persistent drawer scrolling, larger tool buttons, native scrollbar art and uncropped layer eyes.
+- Select object silhouettes, delete through a right-click menu, and edit labelled properties without a redundant Selection dropdown.
+- Group joinable objects and terrain materials in Smart placement; expose individual pieces in Exact placement. White picket fences use one-cell geometry and local connections; reject new same-layer object overlap.
+- Share typed object appearance and growth rules between Studio and the game renderer. Publish live resource growth and health edits as atomic, conflict-checked deltas applied once, preserving subsequent gameplay growth.
+- Invalid map geometry remains allowed. No whole-map placement repair or new database schema is introduced.
+
 ## 0.21.3 — Clearer workbench artwork
 
 - Rework the crafting workbench for its native 32-pixel width: quieter wood, clear plank seams, a readable mallet and a connected iron vise. Preserve the two-tile size, collision and interactions.

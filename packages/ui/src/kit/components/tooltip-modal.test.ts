@@ -22,3 +22,18 @@ it('keeps stationary hover and tooltip dwell across replacement controls',()=>{
  expect(root.entries().some(e=>e.element.kind==='tooltip-popup'&&e.element.visible)).toBe(false);
  root.dispose();vi.useRealTimers();
 });
+
+
+it('keeps an open compact tooltip visible in every replacement frame without a timer flash',()=>{
+ vi.useFakeTimers();const root=new UiRoot({scale:1});root.resize(400,300);
+ const make=()=>uiTooltip('Chest',uiButton({id:'chest',label:'Chest'}));
+ let tip=make();root.mount(tip);root.arrange();
+ root.pointer({type:'move',point:{x:5,y:5},pointerId:1,button:0});vi.advanceTimersByTime(600);root.arrange();
+ for(let frame=0;frame<20;frame++){
+  tip.dispose();tip=make();root.mount(tip);root.arrange();
+  const popup=root.entries().find(e=>e.element.kind==='tooltip-popup')!.element;
+  expect(popup.visible).toBe(true);expect(popup.rect.width).toBeLessThan(65);expect(popup.rect.height).toBeLessThan(32);
+  vi.advanceTimersByTime(16);
+ }
+ root.dispose();vi.useRealTimers();
+});

@@ -1,8 +1,8 @@
+import { paintUiScrollbar } from './scroll-art.js';
 import { paintUiSkin } from './art.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { uiFixed, type UiStyle, type UiDimension } from '../layout/box.js';
-import { scrollUiElement, uiScrollThumb } from '../layout/scroll.js';
-import { resolveUiTextContrast } from '../skin/contrast.js';
+import { scrollUiElement } from '../layout/scroll.js';
 import { UI_SIZE_METRICS, UI_TABLE_DEFAULTS, type UiControlSize, type UiTone } from '../tokens.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText } from './text.js';
@@ -52,7 +52,7 @@ export function uiList<T>(options: UiListOptions<T>): UiElement {
     }
     range = next; rendered = all; renderedWidth = element.contentRect.width;
     for (const child of [...element.children]) child.dispose();
-    const extent = new UiElement({ kind: 'list-extent', style: { width: uiFixed(Math.max(0, element.contentRect.width - 4)), height: uiFixed(all.length * rowHeight), shrink: 0 } }); element.append(extent);
+    const extent = new UiElement({ kind: 'list-extent', style: { width: uiFixed(Math.max(0, element.contentRect.width - 12)), height: uiFixed(all.length * rowHeight), shrink: 0 } }); element.append(extent);
     for (let index = start; index < end; index++) {
       const item = all[index]!, key = options.key(item);
       const existing=retained.get(`${index}:${key}`); if(existing){extent.append(existing);continue;}
@@ -68,7 +68,7 @@ export function uiList<T>(options: UiListOptions<T>): UiElement {
     }
     element.setProps({ range: [start, end], active }, false);
   };
-  const list = new UiElement({ id: options.id, kind: options.kind ?? 'list', label: options.label, focusable: true, pointerMode: 'capture', props: { items: options.items, selected: [...selected], active },
+  const list = new UiElement({ id: options.id, kind: options.kind ?? 'list', label: options.label, focusable: true, pointerMode: 'capture', props: { scrollbarWidth:12, items: options.items, selected: [...selected], active },
     style: { width: 'grow', height: 'grow', display: 'stack', overflow: 'scroll-y', ...options.layout },
     onArrange: element => { options.onArrange?.(element); rebuild(element); }, onScroll: element => { rebuild(element); options.onScroll?.(element); }, onFocus: (focused, element) => { element.setProps({ focused }, false); },
     onKey(event) {
@@ -80,7 +80,7 @@ export function uiList<T>(options: UiListOptions<T>): UiElement {
       if (next !== undefined) { active = Math.max(0, Math.min(count - 1, next)); options.onActiveChange?.(active); list.setProps({ active }, false); list.requestFocus(); reveal(); range = ''; rebuild(list); return true; }
       if (event.key === 'Enter' || event.key === ' ') { choose(active); if (event.key === 'Enter') options.onActivate?.(items()[active]!); return true; } return false;
     },
-    paintOverlay(element, { context }) { const thumb = uiScrollThumb(element, 'y'); if (thumb) { context.fillStyle = resolveUiTextContrast(options.tone ?? 'neutral').color; const r = thumb.thumb; context.fillRect(r.x, r.y, r.width, r.height); } },
+    paintOverlay(element, { context, art }) { paintUiScrollbar(element, context, art); },
   });
   list.scroll.y = Math.max(0, options.initialScrollY ?? 0); rebuild(list); return list;
 }

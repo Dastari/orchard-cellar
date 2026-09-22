@@ -1,4 +1,4 @@
-import { kitElement, kitElements, pressKit, chooseKit } from '../kit-test-driver.js';
+import { kitElement, kitElements, pressKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import type { AdminMutationPreview } from '../../../../world/src/admin/contracts.js';
 import type { AdminObjectMutationResult, AdminObjectsApi } from '../../admin/objects-api.js';
@@ -118,14 +118,10 @@ describe('Map schema Inspector Canvas actions', () => {
     let surface = buildMapCanvasTool(context);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-view');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-property-live-state-lit');
     });
-    chooseKit(surface, 'map-selection-view', 'Schema');
     surface = buildMapCanvasTool(context);
-    expect(kitElements(surface).some(({ id }) => id === 'map-selection-property-map')).toBe(false);
-    expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-property-map-label');
-    expect(kitElement(surface, 'map-selection-property-map-label')?.label)
-      .toContain('READ ONLY');
+    expect(kitElement(surface, 'map-selection-view')).toBeUndefined();
     const retained = context.controller.toolState<{
       selectionOffset: number;
       readonly schemaActionEditor: { setValue(value: string): void };
@@ -135,7 +131,7 @@ describe('Map schema Inspector Canvas actions', () => {
     surface = buildMapCanvasTool(context);
 
     const stateAction = kitElement(surface, 'map-selection-property-live-state-lit');
-    expect(stateAction).toMatchObject({ disabled: false, label: 'Change' });
+    expect(stateAction).toMatchObject({ disabled: false, label: 'true' });
 
     pressKit(surface, 'map-selection-property-live-state-lit');
     surface = buildMapCanvasTool(context);
@@ -171,9 +167,8 @@ describe('Map schema Inspector Canvas actions', () => {
     let surface = buildMapCanvasTool(context);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-view');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-property-live-state-lit');
     });
-    chooseKit(surface, 'map-selection-view', 'Schema');
     surface = buildMapCanvasTool(context);
     const retained = context.controller.toolState<{ selectionOffset: number }>(
       'map-canvas:live-island', () => { throw new Error('map state was not retained'); },
