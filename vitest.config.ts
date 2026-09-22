@@ -14,6 +14,7 @@ export default defineConfig({
       'packages/tools/src/hearth-bridge-assets.test.ts',
       'packages/tools/src/hearth-icon-assets.test.ts',
       'packages/tools/src/hearth-pavement-assets.test.ts',
+      'packages/tools/src/empty-terrain-assets.test.ts',
       'packages/tools/src/hearth-resource-assets.test.ts',
       'packages/tools/src/hearth-seating-assets.test.ts',
       'packages/tools/src/hearth-village-assets.test.ts',

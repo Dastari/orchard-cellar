@@ -1,8 +1,9 @@
 import {describe,it,expect} from 'vitest';
-import {createEmptyMapDocument,createMapPrefabDocument,migrateMapDocumentV2,serializeMapDocumentV3,mapObjectConnectionMasks} from '@orchard/sim';
+import {createEmptyMapDocument,createMapPrefabDocument,migrateMapDocumentV2,serializeMapDocumentV3,mapObjectConnectionMasks,mapObjectCollisionCells,createMapDocumentDelta,applyMapDocumentDelta,parseMapDocumentV3,MANUAL_OBJECT_CONNECTION_TAG} from '@orchard/sim';
 import {StudioSelectionBus,StudioInspectorKernel,StudioValidationPanel,StudioNotifications} from '../../shell/index.js';
 import {MapEditorController} from './editor-controller.js';
 import {MapEditorModel} from './model.js';
+import {mapEditorAuthoredObjectFootprint} from './selection-footprint.js';
 function fixture(){
  const document=migrateMapDocumentV2(createEmptyMapDocument({id:'smart-test',title:'Smart test',width:16,height:16}));
  const selection=new StudioSelectionBus();const source=JSON.stringify({version:2,baseRevision:0,baseSemanticHash:null,dirty:true,document:serializeMapDocumentV3(document)});
@@ -13,6 +14,52 @@ function fixture(){
 }
 function fence(id:string,assetName:string,width=1){return {...createMapPrefabDocument({id,title:'White fence',width,height:1}),pivot:{tileX:0,tileY:0},placements:[{id:'visual',assetId:1,assetName,tileX:0,tileY:0,elevation:0,layer:'object' as const,quarterTurns:0 as const,flipX:false,visual:{kind:'variant' as const,name:'base',frameIndex:0}}],cells:Array.from({length:width},(_,tileX)=>({id:`cell-${tileX}`,tileX,tileY:0,elevation:0,collisionMask:65535}))};}
 describe('Smart and Exact editor placement',()=>{
+ it('moves a legacy two-cell fence out of a joined row and back as one cell',()=>{
+  const {model,controller,point}=fixture();
+  const legacy=fence('legacy-white','prop_cf_fence_white_horizontal',2);
+  model.embedPrefab(legacy);
+  for(const [id,tileX] of [['left',2],['moving',3],['right',4]] as const)model.apply({kind:'place_object',object:{id,prefabId:legacy.id,prefabRevision:legacy.revision,tileX,tileY:2,elevation:0,layer:'objects',quarterTurns:0,flipX:false,enabled:true}});
+  const before=model.document();
+  expect(mapEditorAuthoredObjectFootprint(before,before.objects[1]!)).toHaveLength(1);
+  controller.selectLayer('objects');controller.selectEditingTool('objects');
+  controller.pointerDown(point(3,2),0);controller.pointerMove(point(3,3));controller.pointerUp();
+  expect(model.document().objects.find(o=>o.id==='moving')).toMatchObject({tileX:3,tileY:3});
+  controller.pointerDown(point(3,3),0);controller.pointerMove(point(3,2));controller.pointerUp();
+  const after=model.document(),moved=after.objects.find(o=>o.id==='moving')!;
+  expect(moved).toMatchObject({tileX:3,tileY:2});
+  expect(mapObjectConnectionMasks(after).get('moving')?.mask).toBe(10);
+  expect(after.prefabs.find(p=>p.id===moved.prefabId)).toMatchObject({width:1,height:1,cells:[{tileX:0,tileY:0,collisionMask:65535}]});
+  expect(after.objects.filter(o=>o.id!=='moving')).toEqual(before.objects.filter(o=>o.id!=='moving'));
+  expect(after.prefabs.find(p=>p.id===legacy.id)).toEqual(legacy);
+  const published=parseMapDocumentV3(applyMapDocumentDelta(before,createMapDocumentDelta(before,after)));
+  expect(mapObjectCollisionCells(published,published.objects.find(o=>o.id==='moving')!)).toHaveLength(1);
+  expect(model.placeObject({...moved,tileX:2})).toBe(false);
+  expect(model.document()).toBe(after);
+  model.undo();expect(model.document().objects.find(o=>o.id==='moving')?.tileY).toBe(3);
+  model.undo();expect(serializeMapDocumentV3(model.document())).toBe(serializeMapDocumentV3(before));
+ });
+ it.each(['exact','gate','scaled','compound'] as const)('preserves multi-cell %s fence geometry',kind=>{
+  const {model}=fixture();
+  const source=fence('wide',kind==='gate'?'prop_cf_fence_gate':'prop_cf_fence_white_horizontal',2);
+  const prefab={...source,tags:kind==='exact'?[MANUAL_OBJECT_CONNECTION_TAG]:source.tags,
+   placements:kind==='compound'?[...source.placements,{...source.placements[0]!,id:'second',tileX:1}]:source.placements};
+  model.embedPrefab(prefab);
+  const object={id:'piece',prefabId:prefab.id,prefabRevision:prefab.revision,tileX:2,tileY:2,elevation:0,layer:'objects' as const,quarterTurns:0 as const,flipX:false,enabled:true,...(kind==='scaled'?{scale:2 as const}: {})};
+  model.apply({kind:'place_object',object});
+  expect(mapEditorAuthoredObjectFootprint(model.document(),object).length).toBeGreaterThan(1);
+  model.moveObject(object.id,2,3);
+  expect(model.document().objects[0]).toMatchObject({prefabId:prefab.id,tileY:3});
+  expect(model.document().prefabs).toEqual([prefab]);
+ });
+ it('lets a legacy joined fence reach the map edge and restores its original prefab on undo',()=>{
+  const {model}=fixture(),legacy=fence('wide-edge','prop_cf_fence_white_horizontal',2);
+  model.embedPrefab(legacy);
+  model.apply({kind:'place_object',object:{id:'edge',prefabId:legacy.id,prefabRevision:legacy.revision,tileX:13,tileY:2,elevation:0,layer:'objects',quarterTurns:0,flipX:false,enabled:true}});
+  const before=model.document();model.moveObject('edge',15,2);
+  expect(model.document().objects[0]?.tileX).toBe(15);
+  expect(mapObjectCollisionCells(model.document(),model.document().objects[0]!)).toHaveLength(1);
+  model.undo();expect(model.document()).toBe(before);
+ });
  it('draws a continuous one-cell fence and refuses repeated placement or moves onto it',()=>{
   const {model,controller,point}=fixture();controller.setCatalog([fence('wide','prop_cf_fence_white_horizontal',2),fence('joined','prop_cf_join_white_fence')]);
   const choices=controller.allObjectChoices('white');expect(choices).toHaveLength(1);expect(choices[0]!.width).toBe(1);

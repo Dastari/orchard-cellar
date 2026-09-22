@@ -1,0 +1,49 @@
+# Terrain atlas evidence
+
+Open [the navigable guide](index.html), [machine-readable rules and source-cell ledger](catalogue.json), or [the full asset inventory](../inventory/README.md).
+
+Reproduce from repository root:
+
+```sh
+npx tsx scripts/render-terrain-catalogue.ts
+npx tsx scripts/render-terrain-catalogue.ts --check
+```
+
+Requires the licensed `references/art` source library and installed workspace dependencies. Complete source-sheet captures in `sources/` are local-only and excluded from Git, matching the existing licensed-reference policy. Registered-art examples and source-cell metadata are versioned. Missing source files, frames or invalid colors fail generation. `--check` regenerates in memory and compares every expected artifact byte-for-byte; it writes nothing. No live source/generated atlas files change. The audit PR owns release notes and integration checks.
+
+- registeredTileAssets: 103
+- registeredTileFrames: 3581
+- sourceSheets: 126
+- sourceOnlySheets: 63
+- sourceSheetsWithImplementedBanks: 26
+- sourceCells: 7349
+- nonemptySourceCells: 5906
+- unmappedNonemptySourceCells: 3553
+- partialImportCells: 10
+- runtimeBiomes: 22
+- availableCliffFamilies: 14
+- reservedCliffFamilies: 1
+- surfaceFamilies: 4
+- maskRuleFamilies: 33
+- maskCases: 8448
+- waterfallCases: 105
+
+The source ledger selects all Cute Fantasy index entries under `/Tiles/`, classified as `tile-set`, or referenced by a registered tile. Every selected sheet and cell is retained, including empty cells; source crop ownership is conservatively classified as declared/partial/unmapped, never inferred from filename alone. The full inventory accounts for the rest of the source library and formats.
+
+All 256 neighbour masks are enumerated per rule family using the actual exported resolver. JSON records the bit predicate, frame/layer IDs, full cliff bank definitions, and missing roles. T/cross/diagonal cases may map to repeated native frames through the current precedence rules. Coverage is an audit of implementation, not a claim that every topology is visually supported.
+
+Raised examples show minimum 2×2, rectangle, concave, diagonal, T and cross formations for each available cliff family. They expose native rim, face and foot/shadow courses in logical coordinates; world projection/collision is not simulated. Local authoring assistance may update a placed cell and neighbours; historical invalid maps remain allowed.
+
+## Explicit gaps
+
+- Initial audit found tile_cf_interior_wall imported a transparent gutter at (48,0), and tile_cf_desert_grass was all transparent. The audit corrected these stable IDs with native crops; the contact sheets below show the corrected imports. This historical finding must not be mistaken for an intentional empty joining state.
+- Snow cliff family is explicitly reserved: checked Christmas source has no cliff sheet. Ground overlays are not substitute cliff faces.
+- Shroomlands cliff has no primary inset mapping; its salmon ground quartet is not inverse cliff art. The separate ledge bank has its own roles.
+- Basic cliff has no authored vertical wall course. No synthetic face or shadow is fabricated.
+- No cliff family supports a dedicated stair painter contract; ladder artwork is not traversable ladder authority. Registered ramps support north/up only, minimum two lanes.
+- Pavement source includes kerbs/rings/stairs as well as fill. Coordinate variants do not prove complete automatic joining roles. Paving-grass mask is a grass fringe only.
+- Nine-grid shores and freshwater banks collapse many T/cross/narrow masks through precedence. Existing behavior is shown exactly; it does not prove an authored tile for each topology.
+- Source cells without declared regions remain unresolved even if their sheet has imports. Some transformed/imported frames intentionally lack a direct source rectangle; consult full inventory pixel comparisons.
+- Source table includes indexed terrain sheets and every registered tile source within the Cute Fantasy index. Other source formats/library packs are accounted for by the complete inventory, not silently claimed by this terrain guide.
+- Family waterfallAssetId is source availability, not proof of all animation/course mappings. Only the core waterfall runtime lane resolver is exercised here; biome sheets retain unknown roles where absent.
+- Mask sheets are local rules. Formation images expose logical courses and native alpha shadows before world elevation projection; they are not screenshots or a certification of all map geometry.

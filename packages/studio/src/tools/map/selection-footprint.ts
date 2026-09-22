@@ -4,6 +4,7 @@ import {
   type MapDocumentV3,
   type MapObjectInstance,
 } from '@orchard/sim';
+import { mapEditorJoinedPrefab } from './connected-object-footprint.js';
 
 export interface MapEditorSelectionFootprintCell {
   readonly tileX: number;
@@ -17,6 +18,9 @@ export function mapEditorAuthoredObjectFootprint(
   document: MapDocumentV3,
   object: MapObjectInstance,
 ): readonly MapEditorSelectionFootprintCell[] {
+  const joined = mapEditorJoinedPrefab(document, object);
+  if (joined) return [{ tileX: object.tileX, tileY: object.tileY, elevation: object.elevation,
+    collisionMask: joined.cells.some(cell => cell.collisionMask !== 0) ? 65535 : 0 }];
   const enabledObject = object.enabled ? object : { ...object, enabled: true };
   const collision = mapObjectCollisionCells(document, enabledObject);
   if (collision.length > 0) return collision;

@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { repairEmptyTerrainImports } from './import-empty-terrain.js';
 import { basename, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPalette, workspaceRoot } from './assets/load.js';
@@ -120,7 +121,7 @@ extracts.push(
   {
     name: 'prop_cf_fence_left_end', category: 'props',
     source: 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Fence_Big.png',
-    frames: [[48, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    frames: [[48, 48, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
     animation: 'base', frameKind: 'state',
   },
 );
@@ -128,7 +129,7 @@ extracts.push(
   {
     name: 'tile_cf_interior_wall', category: 'tiles',
     source: 'references/art/kenmi/cute-fantasy/core/Buildings/Houses_Interiors/Interior_Walls.png',
-    frames: [[48, 0, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',
+    frames: [[48, 48, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',
   },
   {
     name: 'tile_cf_cave_floor', category: 'tiles',
@@ -721,5 +722,8 @@ for (const extract of extracts) {
   const extension = extract.category === 'tiles' ? 'tile' : 'sprite';
   await writeFile(resolve(outputRoot, `${extract.name}.${extension}.json`), `${JSON.stringify(asset, null, 2)}\n`);
 }
+
+// Retain all native wall/grass variants after the base extraction.
+await repairEmptyTerrainImports(rootPath);
 
 console.log(`Extracted ${extracts.length} reviewed nature assets.`);

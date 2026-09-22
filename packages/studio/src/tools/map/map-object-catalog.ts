@@ -8,7 +8,7 @@ import {
   type MapPrefabDocumentV2,
 } from '@orchard/sim';
 import type { AssetPaletteItem, AuthoringAssetCategory } from '../object/asset-palette.js';
-import { displayAssetName } from '../object/asset-palette.js';
+import { displayAssetPaletteItemName } from '../object/asset-palette.js';
 
 const COLLECTION_COLORS: Readonly<Record<AuthoringAssetCategory, string>> = {
   tiles: '#6689c3',
@@ -56,7 +56,7 @@ export function mapPrefabForPaletteItem(
   const [width, height] = item.footprint;
   const base = createMapPrefabDocument({
     id: mapPrefabIdForPaletteItem(item),
-    title: displayAssetName(item.assetName),
+    title: displayAssetPaletteItemName(item),
     width,
     height,
     assetRegistryRevision,

@@ -1,0 +1,515 @@
+{
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Pavement_Tiles.png",
+  "width": 144,
+  "height": 128,
+  "cellSize": 16,
+  "expectedCells": 72,
+  "processedCells": 72,
+  "importedFrames": 38,
+  "cells": [
+    {
+      "x": 0,
+      "y": 0,
+      "classification": "retained-base",
+      "group": "base",
+      "frameIndex": 0
+    },
+    {
+      "x": 16,
+      "y": 0,
+      "classification": "retained-base",
+      "group": "base",
+      "frameIndex": 1
+    },
+    {
+      "x": 32,
+      "y": 0,
+      "classification": "imported-source-piece",
+      "group": "source_row_1_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 0,
+      "classification": "imported-source-piece",
+      "group": "source_row_1_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 64,
+      "y": 0,
+      "classification": "imported-source-piece",
+      "group": "source_row_1_column_5",
+      "frameIndex": 0
+    },
+    {
+      "x": 80,
+      "y": 0,
+      "classification": "imported-corner",
+      "group": "curb_corner_top_left",
+      "frameIndex": 0
+    },
+    {
+      "x": 96,
+      "y": 0,
+      "classification": "imported-corner",
+      "group": "curb_corner_top_right",
+      "frameIndex": 0
+    },
+    {
+      "x": 112,
+      "y": 0,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 0,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 16,
+      "classification": "retained-base",
+      "group": "base",
+      "frameIndex": 2
+    },
+    {
+      "x": 16,
+      "y": 16,
+      "classification": "retained-base",
+      "group": "base",
+      "frameIndex": 3
+    },
+    {
+      "x": 32,
+      "y": 16,
+      "classification": "imported-source-piece",
+      "group": "source_row_2_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 16,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 64,
+      "y": 16,
+      "classification": "imported-source-piece",
+      "group": "source_row_2_column_5",
+      "frameIndex": 0
+    },
+    {
+      "x": 80,
+      "y": 16,
+      "classification": "imported-corner",
+      "group": "curb_corner_bottom_left",
+      "frameIndex": 0
+    },
+    {
+      "x": 96,
+      "y": 16,
+      "classification": "imported-corner",
+      "group": "curb_corner_bottom_right",
+      "frameIndex": 0
+    },
+    {
+      "x": 112,
+      "y": 16,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 16,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 32,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 16,
+      "y": 32,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 32,
+      "y": 32,
+      "classification": "imported-source-piece",
+      "group": "source_row_3_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 32,
+      "classification": "imported-source-piece",
+      "group": "source_row_3_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 64,
+      "y": 32,
+      "classification": "imported-source-piece",
+      "group": "source_row_3_column_5",
+      "frameIndex": 0
+    },
+    {
+      "x": 80,
+      "y": 32,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 96,
+      "y": 32,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 112,
+      "y": 32,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 32,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 48,
+      "classification": "imported-source-piece",
+      "group": "source_row_4_column_1",
+      "frameIndex": 0
+    },
+    {
+      "x": 16,
+      "y": 48,
+      "classification": "duplicate-source-piece",
+      "group": "source_row_1_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 32,
+      "y": 48,
+      "classification": "imported-source-piece",
+      "group": "source_row_4_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 48,
+      "classification": "imported-source-piece",
+      "group": "source_row_4_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 64,
+      "y": 48,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 80,
+      "y": 48,
+      "classification": "imported-source-piece",
+      "group": "source_row_4_column_6",
+      "frameIndex": 0
+    },
+    {
+      "x": 96,
+      "y": 48,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 112,
+      "y": 48,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 48,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 64,
+      "classification": "imported-source-piece",
+      "group": "source_row_5_column_1",
+      "frameIndex": 0
+    },
+    {
+      "x": 16,
+      "y": 64,
+      "classification": "imported-source-piece",
+      "group": "source_row_5_column_2",
+      "frameIndex": 0
+    },
+    {
+      "x": 32,
+      "y": 64,
+      "classification": "imported-source-piece",
+      "group": "source_row_5_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 64,
+      "classification": "imported-source-piece",
+      "group": "source_row_5_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 64,
+      "y": 64,
+      "classification": "imported-source-piece",
+      "group": "source_row_5_column_5",
+      "frameIndex": 0
+    },
+    {
+      "x": 80,
+      "y": 64,
+      "classification": "imported-source-piece",
+      "group": "source_row_5_column_6",
+      "frameIndex": 0
+    },
+    {
+      "x": 96,
+      "y": 64,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 112,
+      "y": 64,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 64,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 80,
+      "classification": "imported-source-piece",
+      "group": "source_row_6_column_1",
+      "frameIndex": 0
+    },
+    {
+      "x": 16,
+      "y": 80,
+      "classification": "imported-source-piece",
+      "group": "source_row_6_column_2",
+      "frameIndex": 0
+    },
+    {
+      "x": 32,
+      "y": 80,
+      "classification": "imported-source-piece",
+      "group": "source_row_6_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 80,
+      "classification": "imported-source-piece",
+      "group": "source_row_6_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 64,
+      "y": 80,
+      "classification": "imported-source-piece",
+      "group": "source_row_6_column_5",
+      "frameIndex": 0
+    },
+    {
+      "x": 80,
+      "y": 80,
+      "classification": "imported-source-piece",
+      "group": "source_row_6_column_6",
+      "frameIndex": 0
+    },
+    {
+      "x": 96,
+      "y": 80,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 112,
+      "y": 80,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 80,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 96,
+      "classification": "imported-source-piece",
+      "group": "source_row_7_column_1",
+      "frameIndex": 0
+    },
+    {
+      "x": 16,
+      "y": 96,
+      "classification": "imported-source-piece",
+      "group": "source_row_7_column_2",
+      "frameIndex": 0
+    },
+    {
+      "x": 32,
+      "y": 96,
+      "classification": "imported-source-piece",
+      "group": "source_row_7_column_3",
+      "frameIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 96,
+      "classification": "imported-source-piece",
+      "group": "source_row_7_column_4",
+      "frameIndex": 0
+    },
+    {
+      "x": 64,
+      "y": 96,
+      "classification": "imported-source-piece",
+      "group": "source_row_7_column_5",
+      "frameIndex": 0
+    },
+    {
+      "x": 80,
+      "y": 96,
+      "classification": "imported-source-piece",
+      "group": "source_row_7_column_6",
+      "frameIndex": 0
+    },
+    {
+      "x": 96,
+      "y": 96,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 112,
+      "y": 96,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 96,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 0,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 16,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 32,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 48,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 64,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 80,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 96,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 112,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    },
+    {
+      "x": 128,
+      "y": 112,
+      "classification": "transparent",
+      "group": null,
+      "frameIndex": null
+    }
+  ]
+}

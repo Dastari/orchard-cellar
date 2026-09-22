@@ -1,5 +1,6 @@
-import {mapObjectOccupiedCells} from '@orchard/sim';
+import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
 import {mapMaterialChoices} from './material-palette.js';
+import { exactTilePaletteChoices } from './exact-tile-palette.js';
 import {
   FIXED_UNITS_PER_PIXEL, smartConnectedObjectPrefabs, connectedObjectFamily, smartObjectPresentationPrefabs, mapPrefabPresentationFamily,
   MAP_BIOME_IDS,
@@ -763,7 +764,7 @@ export class MapEditorController {
     this.#terrainPalette = terrainPalette;
     model.setLiveObjectOccupancy(object=>{
       if(!object.enabled)return false;
-      const cells=mapObjectOccupiedCells(model.document(),object);
+      const cells=mapEditorObjectOccupiedCells(model.document(),object);
       return this.liveMarkers().some(marker=>marker.spaceId===0&&marker.layer===object.layer
         &&!['player','npc'].includes(marker.entityKind)&&!model.document().generatedSuppressions.includes(`${marker.entityKind}-${marker.id}`)
         &&cells.some(cell=>cell.tileX>=marker.tileX-Math.floor((marker.footprint.width-1)/2)
@@ -952,8 +953,7 @@ export class MapEditorController {
       [prefab.id, prefab.title, ...prefab.tags].join(' ').toLowerCase().includes(term)));
   }
   exactTileChoices(query=''):readonly MapPrefabDocumentV2[] {
-    const terms=query.toLowerCase().trim().split(/\s+/u).filter(Boolean);
-    return this.allPrefabs().filter(p=>p.tags.includes('tiles')&&!p.tags.includes('studio.smart-state')&&!p.tags.includes(MANUAL_OBJECT_CONNECTION_TAG)&&terms.every(t=>`${p.title} ${p.tags.join(' ')}`.toLowerCase().includes(t)));
+    return exactTilePaletteChoices(this.allPrefabs(), query);
   }
   selectExactTile(prefabId:string):void {
     if(!this.exactTileChoices().some(p=>p.id===prefabId))return;

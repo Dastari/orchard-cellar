@@ -1,0 +1,968 @@
+{
+  "map": {
+    "mapId": "live-island",
+    "revision": 9,
+    "contentHash": "64571628",
+    "width": 832,
+    "height": 832
+  },
+  "scope": "Supplied public live map document and 45 public placeable rows. No account fields or world IDs retained.",
+  "counts": {
+    "objects": 2125,
+    "enabledObjects": 2125,
+    "prefabs": 209,
+    "legacyScenery": 0,
+    "landmarks": 184,
+    "placeableRows": 45,
+    "streetlampPlans": 35,
+    "streetlampRows": 35,
+    "unmatchedStreetlampPlans": 0,
+    "orphanStreetlampRows": 0,
+    "exactAuthoredDuplicateGroups": 1,
+    "exactVisualDuplicateGroups": 1,
+    "sameAnchorGroups": 15,
+    "sameLayerOccupiedCellOverlaps": 8,
+    "solidCollisionMaskOverlapCells": 2,
+    "authoritativeSameAnchorGroups": 0,
+    "enabledLandmarks": 184,
+    "landmarkDuplicateGroups": 0,
+    "objectLandmarkSameAnchors": 0,
+    "placeableLandmarkOverlaps": 3
+  },
+  "streetlamps": {
+    "classification": "intentional persistent backing rows; authored gameplay sprite and light skipped",
+    "coordinates": [
+      {
+        "x": 129,
+        "y": 377
+      },
+      {
+        "x": 151,
+        "y": 377
+      },
+      {
+        "x": 132,
+        "y": 378
+      },
+      {
+        "x": 148,
+        "y": 378
+      },
+      {
+        "x": 151,
+        "y": 380
+      },
+      {
+        "x": 176,
+        "y": 382
+      },
+      {
+        "x": 182,
+        "y": 384
+      },
+      {
+        "x": 180,
+        "y": 389
+      },
+      {
+        "x": 168,
+        "y": 392
+      },
+      {
+        "x": 157,
+        "y": 394
+      },
+      {
+        "x": 174,
+        "y": 394
+      },
+      {
+        "x": 184,
+        "y": 394
+      },
+      {
+        "x": 161,
+        "y": 395
+      },
+      {
+        "x": 211,
+        "y": 396
+      },
+      {
+        "x": 201,
+        "y": 399
+      },
+      {
+        "x": 157,
+        "y": 403
+      },
+      {
+        "x": 184,
+        "y": 403
+      },
+      {
+        "x": 199,
+        "y": 403
+      },
+      {
+        "x": 122,
+        "y": 404
+      },
+      {
+        "x": 129,
+        "y": 404
+      },
+      {
+        "x": 145,
+        "y": 404
+      },
+      {
+        "x": 152,
+        "y": 407
+      },
+      {
+        "x": 174,
+        "y": 407
+      },
+      {
+        "x": 194,
+        "y": 407
+      },
+      {
+        "x": 153,
+        "y": 418
+      },
+      {
+        "x": 167,
+        "y": 424
+      },
+      {
+        "x": 136,
+        "y": 429
+      },
+      {
+        "x": 153,
+        "y": 429
+      },
+      {
+        "x": 151,
+        "y": 431
+      },
+      {
+        "x": 118,
+        "y": 435
+      },
+      {
+        "x": 125,
+        "y": 455
+      },
+      {
+        "x": 141,
+        "y": 455
+      },
+      {
+        "x": 120,
+        "y": 456
+      },
+      {
+        "x": 145,
+        "y": 456
+      },
+      {
+        "x": 142,
+        "y": 457
+      }
+    ],
+    "unmatchedPlans": [],
+    "orphanRows": []
+  },
+  "exactAuthoredDuplicateGroups": [
+    {
+      "x": 127,
+      "y": 400,
+      "count": 2,
+      "objects": [
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        },
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        }
+      ]
+    }
+  ],
+  "exactVisualDuplicateGroups": [
+    {
+      "x": 127,
+      "y": 400,
+      "asset": "prop_cf_join_hedge",
+      "visual": {
+        "kind": "variant",
+        "name": "base",
+        "frameIndex": 0
+      },
+      "count": 2,
+      "objects": [
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        },
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        }
+      ]
+    }
+  ],
+  "sameAnchorGroups": [
+    {
+      "x": 154,
+      "y": 369,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 154,
+          "y": 369,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-bank-6",
+          "assets": [
+            "prop_cf_willow_bank_6"
+          ]
+        },
+        {
+          "x": 154,
+          "y": 369,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-flowers-gold",
+          "assets": [
+            "prop_cf_flowers_gold"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 167,
+      "y": 396,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 167,
+          "y": 396,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 167,
+          "y": 396,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-hearth-stall-red",
+          "assets": [
+            "prop_cf_hearth_stall_red"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 172,
+      "y": 396,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 172,
+          "y": 396,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 172,
+          "y": 396,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-hearth-stall-blue",
+          "assets": [
+            "prop_cf_hearth_stall_blue"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 177,
+      "y": 397,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 177,
+          "y": 397,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 177,
+          "y": 397,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-furniture-rustic-potted-fern",
+          "assets": [
+            "prop_cf_furniture_rustic_potted_fern"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 178,
+      "y": 397,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 178,
+          "y": 397,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 178,
+          "y": 397,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-farm-potted-flowers",
+          "assets": [
+            "prop_cf_farm_potted_flowers"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 180,
+      "y": 397,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 180,
+          "y": 397,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 180,
+          "y": 397,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-farm-potted-flowers",
+          "assets": [
+            "prop_cf_farm_potted_flowers"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 181,
+      "y": 397,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 181,
+          "y": 397,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 181,
+          "y": 397,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-furniture-rustic-potted-fern",
+          "assets": [
+            "prop_cf_furniture_rustic_potted_fern"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 166,
+      "y": 398,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 166,
+          "y": 398,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 166,
+          "y": 398,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-barrel",
+          "assets": [
+            "prop_cf_barrel"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 168,
+      "y": 398,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 168,
+          "y": 398,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 168,
+          "y": 398,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-barrel-apples",
+          "assets": [
+            "prop_cf_barrel_apples"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 175,
+      "y": 401,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 175,
+          "y": 401,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 175,
+          "y": 401,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-hearth-fountain",
+          "assets": [
+            "prop_cf_hearth_fountain"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 182,
+      "y": 402,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 182,
+          "y": 402,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 182,
+          "y": 402,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-hearth-stall-gold",
+          "assets": [
+            "prop_cf_hearth_stall_gold"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 183,
+      "y": 403,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 183,
+          "y": 403,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-cobble",
+          "assets": [
+            "prop_cf_willow_cobble"
+          ]
+        },
+        {
+          "x": 183,
+          "y": 403,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-barrel",
+          "assets": [
+            "prop_cf_barrel"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 142,
+      "y": 411,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 142,
+          "y": 411,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-bank-0",
+          "assets": [
+            "prop_cf_willow_bank_0"
+          ]
+        },
+        {
+          "x": 142,
+          "y": 411,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-flowers-gold",
+          "assets": [
+            "prop_cf_flowers_gold"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 147,
+      "y": 413,
+      "classification": "cross-layer composition",
+      "objects": [
+        {
+          "x": 147,
+          "y": 413,
+          "elevation": 0,
+          "layer": "ground",
+          "prefab": "hearth-prop-cf-willow-bank-10",
+          "assets": [
+            "prop_cf_willow_bank_10"
+          ]
+        },
+        {
+          "x": 147,
+          "y": 413,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-flowers-pink",
+          "assets": [
+            "prop_cf_flowers_pink"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 127,
+      "y": 400,
+      "classification": "same-layer overlap",
+      "objects": [
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        },
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        }
+      ]
+    }
+  ],
+  "sameLayerOccupiedCellOverlaps": [
+    {
+      "x": 127,
+      "y": 400,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        },
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 145,
+      "y": 404,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 145,
+          "y": 404,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-hearth-streetlamp",
+          "assets": [
+            "prop_cf_hearth_streetlamp"
+          ]
+        },
+        {
+          "x": 149,
+          "y": 404,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-village-carpenter",
+          "assets": [
+            "building_cf_hearth_carpenter"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 191,
+      "y": 406,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 190,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        },
+        {
+          "x": 191,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 192,
+      "y": 406,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 191,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        },
+        {
+          "x": 192,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 193,
+      "y": 406,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 192,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        },
+        {
+          "x": 193,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-willow-boundary-picket-2",
+          "assets": [
+            "prop_cf_willow_boundary_picket_2"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 200,
+      "y": 406,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 199,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        },
+        {
+          "x": 200,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 201,
+      "y": 406,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 200,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        },
+        {
+          "x": 201,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        }
+      ]
+    },
+    {
+      "x": 202,
+      "y": 406,
+      "elevation": 0,
+      "layer": "objects",
+      "objects": [
+        {
+          "x": 201,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        },
+        {
+          "x": 202,
+          "y": 406,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-287026657-state-base-0",
+          "assets": [
+            "prop_cf_fence_white_horizontal"
+          ]
+        }
+      ]
+    }
+  ],
+  "solidCollisionMaskOverlapCells": [
+    {
+      "x": 127,
+      "y": 400,
+      "elevation": 0,
+      "objects": [
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ],
+          "collisionMask": 65535
+        },
+        {
+          "x": 127,
+          "y": 400,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "asset-3300934979-variant-base-0",
+          "assets": [
+            "prop_cf_join_hedge"
+          ],
+          "collisionMask": 65535
+        }
+      ]
+    },
+    {
+      "x": 145,
+      "y": 404,
+      "elevation": 0,
+      "objects": [
+        {
+          "x": 145,
+          "y": 404,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-prop-cf-hearth-streetlamp",
+          "assets": [
+            "prop_cf_hearth_streetlamp"
+          ],
+          "collisionMask": 65535
+        },
+        {
+          "x": 149,
+          "y": 404,
+          "elevation": 0,
+          "layer": "objects",
+          "prefab": "hearth-village-carpenter",
+          "assets": [
+            "building_cf_hearth_carpenter"
+          ],
+          "collisionMask": 65535
+        }
+      ]
+    }
+  ],
+  "authoritativeSameAnchorGroups": [],
+  "limitations": [
+    "Snapshot only; source-based renderer inference, not live frame instrumentation.",
+    "Occupancy overlaps are candidates, not automatic defects. Geometry is permitted to remain invalid.",
+    "Procedurally generated decorations/resources and all player-world rows were not enumerated beyond supplied data; legacy scenery list is empty.",
+    "All world IDs omitted: the supplied JSON had precision loss for some U64 values. Coordinates and map/object/prefab names remain exact."
+  ],
+  "landmarkDuplicateGroups": [],
+  "objectLandmarkSameAnchors": [],
+  "placeableLandmarkOverlaps": [
+    {
+      "x": 336,
+      "y": 356,
+      "placeableKind": "camp_cooking_fire",
+      "landmarkKind": "camp_campfire",
+      "classification": "intentional materialized campfire; coordinate-bound legacy draw suppressed"
+    },
+    {
+      "x": 390,
+      "y": 371,
+      "placeableKind": "farmer_jane_memorial",
+      "landmarkKind": "farm_grave",
+      "classification": "source-derived duplicate draw candidate; no general materialized-landmark suppression found"
+    },
+    {
+      "x": 403,
+      "y": 319,
+      "placeableKind": "campfire",
+      "landmarkKind": "camp_campfire",
+      "classification": "intentional materialized campfire; coordinate-bound legacy draw suppressed"
+    }
+  ]
+}
