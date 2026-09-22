@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0 — Picked fruit disappears from trees
+
+- Picking apples, pears, peaches, or cherries now shows the matching fruitless tree until fruit ripens again.
+- Reuse the existing native fruitless sprite, preserving tree position, scale, sway, and sapling/stump states.
+- Select visuals from shared authoritative harvest state so reconnects and other players see the same fruit availability.
+
 ## 0.20.0 / Studio 0.11.0 — Responsive terrain and selection
 
 - Keep hover outlines and palette tooltips stable through control rebuilds; size inventory reticles to each palette button and center compact layer rows.

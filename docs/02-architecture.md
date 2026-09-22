@@ -398,3 +398,13 @@ Willowharbour interiors retain compact authored floor masks and explicitly place
 fixtures. Optional `hearthInteriorWindows` identifies supported north-facing room
 walls; native wall-face and frame crops join tops, sides and returns. The room
 programmes and placement reasons are in [the interior rationale](willowharbour-rules-interiors.md).
+
+### Fruit tree harvest presentation
+
+The gameplay resource painter uses the replicated `fruitReadyAtTick` deadline
+and authority clock to choose a standing fruitless tree until fruit ripens.
+The four existing orchard fruit sprites reuse their matching, already loaded
+`tree_cf_fruit_mature` artwork at its native anchor and scale. Sapling and stump
+states take precedence over fruit cooldowns. See
+[harvested fruit tree visuals](fruit-tree-visuals-spec.md) for compatibility,
+asset selection, and verification requirements.

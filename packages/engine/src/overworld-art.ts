@@ -1856,7 +1856,7 @@ export function drawOverworldCrop(
 export { sortWorldDepthItems as sortWorldDrawItems } from "./renderer.js";
 
 export type AuthoredResourceVisualState =
-  | 'mature' | 'small' | 'medium' | 'depleted' | 'depleted_small' | 'depleted_medium';
+  | 'mature' | 'fruitless' | 'small' | 'medium' | 'depleted' | 'depleted_small' | 'depleted_medium';
 
 export interface AuthoredResourceVisual {
   readonly asset: LoadedAsset;
@@ -1914,7 +1914,12 @@ export function authoredResourceVisual(
   richness = 1,
 ): AuthoredResourceVisual | null {
   let selected: readonly [string, number] | undefined;
-  if (state === 'mature') {
+  if (state === 'mature' || state === 'fruitless') {
+    // The four native orchard varieties share the same fruitless canopy.
+    if (state === 'fruitless' && visual.kind === 'tree'
+      && ['tree_apple', 'tree_pear', 'tree_peach', 'tree_cherry'].includes(visual.asset)) {
+      return { asset: art.treeMature, scale: 1 };
+    }
     const variant = visual.kind === 'ore' && visual.variant !== 'fixed'
       ? miningNodeArtVariant(nodeClass, richness) : null;
     return {
@@ -1951,7 +1956,7 @@ export function drawAuthoredResourceVisual(
 ): void {
   const resolved = authoredResourceVisual(art, visual, state, nodeClass, richness);
   if (resolved === null) return;
-  if (visual.kind === 'tree' && state === 'mature') {
+  if (visual.kind === 'tree' && (state === 'mature' || state === 'fruitless')) {
     drawAnchoredTreeSway(context, resolved.asset, x, y, cameraX, cameraY, zoom, swayX, swayY);
     return;
   }

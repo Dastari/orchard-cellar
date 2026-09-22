@@ -1,6 +1,7 @@
+import { resourceVisualState } from './resource-visual-state.js';
 import { profilePainterProducer } from './painter-producer-profile.js';
-import { FIXED_UNITS_PER_PIXEL, cropGrowthAt, runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem, recoverableArrowDirection, treeGrowthStageName } from '@orchard/sim';
-import { drawAuthoredResourceVisual, drawOverworldArrow, drawOverworldCrop, drawOverworldItem, natureDecorationFrame, type AuthoredResourceVisualState } from '@orchard/engine/overworld-art';
+import { FIXED_UNITS_PER_PIXEL, cropGrowthAt, runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem, recoverableArrowDirection } from '@orchard/sim';
+import { drawAuthoredResourceVisual, drawOverworldArrow, drawOverworldCrop, drawOverworldItem, natureDecorationFrame } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import { deterministicFlameFlicker } from '@orchard/engine/light-sources';
 import { treeSwayOffset } from '@orchard/engine/weather-effects';
@@ -57,11 +58,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
       footY: resourceY,
       tie: `resource:${resource.id}`,
       draw: () => {
-        const growthStage = treeGrowthStageName(resource.growthStage);
-        const visualState: AuthoredResourceVisualState = resource.depleted
-          ? growthStage === 'small' ? 'depleted_small'
-            : growthStage === 'medium' ? 'depleted_medium' : 'depleted'
-          : growthStage === 'big' ? 'mature' : growthStage;
+        const visualState = resourceVisualState(resource, definition, renderAuthorityTick);
         if (definition.visual.kind === 'fish') {
           if (resource.depleted) return;
           drawAuthoredResourceVisual(
