@@ -4,9 +4,43 @@
 
 Branch: `feat/studio-smart-placement`, based on `2d13a3ee` (production 0.21.1).
 Versions: root 0.22.0, Studio 0.12.0, sim 0.21.0, engine/UI/client/world 0.20.0.
-Production source, installed artifacts, services and live map content were not changed.
-The user subsequently approved merging and publishing PR56. Production mutation
-waits for the preceding PR57 release and its explicit checkout/credential handoff.
+The user approved merging and publishing PR56. It merged and deployed on
+2026-09-22 from `5ed1422a3574b6fa4d3f1c3f9cdf0d4c4bc94358`, after the preceding
+PR57 release and its explicit checkout/credential handoff. Live map content was
+preserved.
+
+## Completed production release
+
+[PR56](https://github.com/Dastari/orchard-cellar/pull/56) is merged. Root 0.22.0,
+game/world 0.20.0 and Studio 0.12.0 are live. Both final PR checks passed. The
+guarded routine release reran all workspace/release typechecks, 6,006 tests across
+961 files, lint, content validation, unchanged full/private schema and public
+binding comparisons, production builds, reviewed Studio UI-kit guard, no-delete
+publication, content CAS, strict 42-table same-identity reconnect parity, and
+public artifact-byte validation.
+
+- Game bundle: `/assets/index-DROBHHg6.js`; SHA256
+  `4aebc382daf1e71a793fa5f4ecf23ece88597409642eabed8e7215508e54df93`.
+- Studio bundle: `/assets/index-DQjSAMGS.js`; SHA256
+  `a37216e9404c5cfdc9f107e3fec60e1cd815a8d905e114013a42f642f537847a`.
+- World module: `3f4a2d8d28b80e1b85c73ef3904fa3d72880dd0b613f5a0db46e2397f3f9ed13`.
+- Database identity remains
+  `c200af6ca3e4663bde9be65c18114d5d296f4b811bf0fa35d3771f8fdba89c21`.
+- Content remains R16 / `0f06c798`, with zero upserts or deletions. Map remains
+  R8 / `1859cc67` before and after release.
+- Evidence and rollback:
+  `/home/toby/.local/state/orchard-release/studio-smart-0220-routine` (`deployed`).
+- Preflight log and authenticated browser screenshots:
+  `/home/toby/.local/state/orchard-release/studio-smart-0220-preflight`.
+
+A fresh dedicated-account browser loaded the new game bundle, connected as Admin,
+reported content ready and no network error, and observed map R8. Studio signed in
+through normal SSO and rendered `/build/map` with Smart Placement, the enlarged
+toolbar, native scrollbar, and layer eyes. Its compact palette tooltip remained
+visible across redraws; the Studio console reported zero errors or warnings.
+No production map edits were made during verification. All three runtime services
+are active. The earlier standalone review artifacts below are not the installed
+combined release.
 
 The implementation addresses compact stable tooltips; larger toolbar buttons;
 native scrollbars and unclipped layer eyes; one-cell connected fence families;
@@ -77,7 +111,7 @@ Its frozen head `c64ab976` is integrated into PR56 in the isolated worktree.
 Retain root0.22.0, client/UI0.20.0, assets0.17.2 and tools0.18.2. Both renderer
 state resolution and the dialog button inset are retained in the reviewed source
 fingerprint; combined visual baselines are regenerated from the updated native
-workbench art. NavyBay owns canonical source/services/credentials until an explicit
-handoff to BoldEagle. The final merged candidate must pass CI and the guarded
-routine release checks; the earlier standalone Studio artifact is review evidence,
-not the combined deployment artifact.
+workbench art. NavyBay handed canonical source/services/credentials to BoldEagle
+after the verified PR57 release. The final merged PR56 candidate passed CI and the
+guarded routine release checks recorded above; the earlier standalone Studio
+artifact is review evidence, not the combined deployment artifact.
