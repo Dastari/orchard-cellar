@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.3 — Clearer workbench artwork
+
+- Rework the crafting workbench for its native 32-pixel width: quieter wood, clear plank seams, a readable mallet and a connected iron vise. Preserve the two-tile size, collision and interactions.
+- Retain the original high-resolution artwork alongside the revised AI source and reproducible sprite import.
+
 ## 0.21.2 — Update dialog spacing
 
 - Raise Refresh Now and Later inside the Update Ready dialog so both buttons clear the bottom frame; pointer targets follow their visible position.
