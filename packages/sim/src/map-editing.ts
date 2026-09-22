@@ -10,6 +10,14 @@ import {
   type TerrainOverride,
 } from './map-document.js';
 import {
+  canonicalCellParts,
+  cellPartContourLevel,
+  revertCellPartExact,
+  upsertCellPart,
+  type CellPart,
+  type CellPartSlot,
+} from './map-cell-parts.js';
+import {
   TERRAIN_ELEVATION_LIMIT,
   stairRunValid,
   terrainTransitionValid,
@@ -36,6 +44,12 @@ export interface MapCellPatch {
   readonly cliffFamily?: string | null;
   readonly surfaceFamily?: TerrainSurfaceFamilyId | null;
   readonly terrainOverride?: TerrainOverride | null;
+  /** Replaces the whole part stack; `null` clears it. */
+  readonly parts?: readonly CellPart[] | null;
+  /** Inserts or replaces the part with the same slot (after `parts`). */
+  readonly cellPart?: CellPart;
+  /** "Revert to smart": removes only `exact` from this slot's part. */
+  readonly revertPartExact?: CellPartSlot;
   readonly ledge?: boolean;
 }
 
@@ -173,8 +187,25 @@ function canonicalPatch(
     ...(patch.terrainOverride === undefined || patch.terrainOverride === null
       || patch.terrainOverride === baseline.terrainOverride
       ? {} : { terrainOverride: patch.terrainOverride }),
+    ...(canonicalCellParts(patch.parts ?? undefined) === undefined
+      ? {} : { parts: canonicalCellParts(patch.parts ?? undefined)! }),
     ...(patch.ledge !== undefined && patch.ledge !== baseline.ledge ? { ledge: patch.ledge } : {}),
   };
+}
+
+/** Part stack after one patch. A contour part and the legacy override are one
+ * slot: writing either form replaces the other, so they never coexist. */
+function patchedParts(
+  existing: readonly CellPart[],
+  patch: MapCellPatch,
+): readonly CellPart[] {
+  let parts = patch.parts === undefined ? existing : patch.parts ?? [];
+  if (patch.terrainOverride !== undefined && patch.terrainOverride !== null) {
+    parts = parts.filter(({ slot }) => cellPartContourLevel(slot) === null);
+  }
+  if (patch.cellPart !== undefined) parts = upsertCellPart(parts, patch.cellPart);
+  if (patch.revertPartExact !== undefined) parts = revertCellPartExact(parts, patch.revertPartExact);
+  return parts;
 }
 
 function writeResolvedPatch(
@@ -186,6 +217,9 @@ function writeResolvedPatch(
   if (!mapCoordinateInBounds(document, point.tileX, point.tileY)) return false;
   const key = mapCellKey(point.tileX, point.tileY);
   const before = resolvedMapCellAt({ ...document, cells }, point.tileX, point.tileY);
+  const parts = patchedParts(cells[key]?.parts ?? [], patch);
+  const partsWriteContour = (patch.parts !== undefined || patch.cellPart !== undefined)
+    && parts.some(({ slot }) => cellPartContourLevel(slot) !== null);
   const resolved: MapCellPatch = {
     elevation: patch.elevation ?? before.elevation,
     surface: patch.surface ?? before.surface,
@@ -195,7 +229,11 @@ function writeResolvedPatch(
       ? {} : { collisionReason: (patch.collisionReason ?? before.collisionReason)! }),
     cliffFamily: patch.cliffFamily === undefined ? before.cliffFamily : patch.cliffFamily,
     surfaceFamily: patch.surfaceFamily === undefined ? before.surfaceFamily : patch.surfaceFamily,
-    terrainOverride: patch.terrainOverride === undefined ? before.terrainOverride : patch.terrainOverride,
+    // Only the stored legacy field is carried; `before.terrainOverride` also
+    // reflects a contour part and must not be copied back into legacy form.
+    terrainOverride: patch.terrainOverride !== undefined ? patch.terrainOverride
+      : partsWriteContour ? null : cells[key]?.terrainOverride ?? null,
+    parts,
     ledge: patch.ledge ?? before.ledge,
   };
   // Resolution reads only this cell. Its inherited baseline needs no copy of
