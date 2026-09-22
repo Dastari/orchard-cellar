@@ -1,3 +1,4 @@
+import { consumeStudioDefinition } from '../../shell/content-navigation.js';
 import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { studioSelectionEditor } from '../../shell/selection-editor.js';
 import { studioDefinitionFields } from '../../shell/definition-fields.js';
@@ -160,6 +161,14 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
   if (head !== null) state.model.receiveHead(head);
   state.model.receiveHistory(view === undefined ? [] : itemsHistoryFromConnection(view));
 
+  const requested = consumeStudioDefinition(context.controller, kind => (ITEMS_TOOL_CONTENT_KINDS as readonly string[]).includes(kind));
+  if (requested) { state.kind = requested.split(':')[0] as ItemsToolContentKind; state.selectedId = requested; state.syncedId = null; state.query.setValue(''); }
+  const createDefinition = (kind: 'item' | 'recipe') => {
+    const definition = state.model.createDefinition(kind);
+    state.kind = kind; state.selectedId = definition.id; state.syncedId = null; state.query.setValue(''); state.tab = 'fields'; state.model.persistDraft();
+  };
+  const command = context.controller.consumeAuthorCommand();
+  if (command) { try { createDefinition(command === 'item.new' ? 'item' : 'recipe'); } catch (error) { report(context, 'Create definition failed', error); } }
   const snapshot = state.model.snapshot();
   const query = state.query.snapshot().value;
   const definitions = state.model.definitions(state.kind, query);
@@ -297,14 +306,14 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
       severity: 'error' as const, message: issue.message })),
   ]);
   const inspector=studioSelectionEditor({id:id('tabs'),label:'Item editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
-    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,readOnly:access==='read_only',apply:()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));state.model.persistDraft();}})},
+    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,definitions:snapshot.definitions,readOnly:access==='read_only',apply:()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));state.model.persistDraft();}})},
     {id:'status',label:'Draft status',content:controls.children[6]!},
     {id:'editor',label:'JSON',content:kit.text('Edit the selected definition in the workspace.',{wrap:true})},
 
     {id:'lifecycle',label:'Lifecycle',content:kit.text('Edit and test callbacks in the workspace.',{wrap:true})},
   ]});
   const [kindPicker, queryInput, noteInput, rebase, clear, publish] = controls.children;
-  const drawer = studioLibraryDrawer([kindPicker!, queryInput!], browser, [
+  const drawer = studioLibraryDrawer([kindPicker!, queryInput!, button('new-item','New item',()=>{createDefinition('item');context.invalidate();},access==='read_only'), button('new-recipe','New recipe',()=>{createDefinition('recipe');context.invalidate();},access==='read_only')], browser, [
     studioActionBar([studioIconAction(rebase!, {lucide:'cloudConnect'}), studioIconAction(clear!, {lucide:'trash'})]),
     noteInput!, publish!,
   ]);

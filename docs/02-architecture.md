@@ -429,3 +429,19 @@ The selection inspector preserves its scroll and input models across actual data
 refreshes. Open popovers defer shell replacement, and stable hover dwell survives
 replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
+
+
+### Schema-driven Studio forms (F1)
+
+The compiler-generated content schema graph reflects the exported definition types
+in `packages/sim/src/content`. The graph describes literals/enums, optional fields,
+arrays, fixed/optional/rest tuples, recursive variants and typed references. The
+Studio kit consumes this graph through `uiSchemaForm` and `UiSchemaFormState`;
+`uiArrayEditor`, `uiReferencePicker` and `uiUsedBy` are reusable compositions.
+Domain parsers and the existing revision-checked publish models remain authoritative.
+The generator drift test and bootstrap parser/schema parity test protect the boundary.
+
+Items, Narrative and World Tables share the form adapter. Reference navigation
+selects a concrete target; kinds without a specialized selector use the generic
+World Tables form. The reverse-reference index follows declared reference fields
+rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).
