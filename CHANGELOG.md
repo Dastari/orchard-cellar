@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0 — Picked fruit disappears from trees
+
+- Picking apples, pears, peaches, or cherries now shows the matching fruitless tree until fruit ripens again.
+- Reuse the existing native fruitless sprite, preserving tree position, scale, sway, and sapling/stump states.
+- Select visuals from shared authoritative harvest state so reconnects and other players see the same fruit availability.
+
 ## 0.18.1 — Ripe fruit when a tree is chopped
 
 - Chopping a ripe apple, pear, peach or cherry tree again drops its fruit, the Orchard Seed Saver seed roll and Farming XP along with the wood.

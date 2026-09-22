@@ -23,7 +23,9 @@ Select fruitless only for a mature, standing resource with `fruitHarvest` whose
 `fruitReadyAtTick` is greater than the authority tick. Missing timestamps mean
 ripe for compatibility. Unknown/custom art retains its authored mature sprite
 rather than substituting an unrelated tree. Preserve tree sway and native scale.
-Use the same state selection for painting and light occluders.
+Keep the existing stable mature-tree lighting occluders: picking changes the
+fruit artwork, not the structural tree geometry. This avoids invalidating the
+collision/lighting cache merely because a fruit cooldown expires.
 
 ## Verification
 
