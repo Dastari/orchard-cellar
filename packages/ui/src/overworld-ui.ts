@@ -670,6 +670,7 @@ export function overworldItemArtwork(
   itemKind: string,
   registry?: ContentRegistry,
 ): LoadedAsset | undefined {
+  if (itemKind === 'empty') return undefined;
   if (registry === undefined) return itemArt[itemKind];
   const definition = registry.items.get(`item:${itemKind}`);
   return definition === undefined || definition.retired === true
@@ -3404,7 +3405,9 @@ export class OverworldUi {
   }
 
   private drawHotbar(context: CanvasRenderingContext2D): void {
-    const itemBySlot = new Map(this.model.inventory.map((item) => [item.slot, item]));
+    const itemBySlot = new Map(this.model.inventory
+      .filter(item => item.itemKind !== 'empty' && item.quantity > 0)
+      .map(item => [item.slot, item]));
     for (let slot = 0; slot < HOTBAR_SLOT_COUNT; slot += 1) {
       const rect = this.layout.slots[slot]!;
       const item = itemBySlot.get(slot);

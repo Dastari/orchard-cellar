@@ -4119,11 +4119,12 @@
         "animationByState": {
           "default": "base"
         },
-        "scale": 0.5
+        "scale": 1
       },
       "collision": {
         "footprint": [
           [
+            15,
             15
           ]
         ],
@@ -4139,6 +4140,7 @@
         "facing": false,
         "footprint": [
           [
+            15,
             15
           ]
         ]
@@ -4158,6 +4160,15 @@
       ],
       "frame": {
         "ref": "frame:crafting"
+      },
+      "damageable": {
+        "model": "hits",
+        "maximumHits": 3,
+        "toolSpecialization": "woodcutting",
+        "salvageRecipe": "recipe:workbench"
+      },
+      "carry": {
+        "mode": "preserve_entity"
       }
     }
   }

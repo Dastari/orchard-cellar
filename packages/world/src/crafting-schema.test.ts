@@ -174,7 +174,8 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(harvest).toContain('authoredHitsDamageable(ctx, fire)');
     expect(harvest).toContain('isAuthoredLandmarkPlaceable(ctx, fire.id)');
     expect(harvest).toContain('runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind) !== damageable.toolSpecialization');
-    expect(harvest).toContain('campfireWithinReach(position.x, position.y, fire)');
+    expect(harvest).toContain('runtimeObjectFootprintTiles(contentRegistry(ctx), fire)');
+    expect(harvest).toContain('campfireWithinReach(position.x, position.y, tile)');
     expect(harvest).toContain('recipeIngredientStacks(salvageRecipe)');
     expect(harvest).toContain('world_placeable_damage');
     expect(harvest).toContain('if (hits < damageable.maximumHits)');
@@ -189,7 +190,8 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(reach).toContain("target.snapshot.tags.includes('station.campfire')");
     expect(reach).toContain('CAMPFIRE_INTERACTION_REACH_FIXED');
     const harvest = reducerAuthoritySource('harvestCampfire');
-    expect(harvest).toContain('campfireWithinReach(position.x, position.y, fire)');
+    expect(harvest).toContain('runtimeObjectFootprintTiles(contentRegistry(ctx), fire)');
+    expect(harvest).toContain('campfireWithinReach(position.x, position.y, tile)');
   });
 
   it('opens the nearest chest radially instead of requiring one faced tile', () => {

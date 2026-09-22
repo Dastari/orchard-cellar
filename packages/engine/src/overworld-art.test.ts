@@ -70,8 +70,8 @@ describe('overworld art topology', () => {
     ]));
   });
 
-  it('renders the workbench at its one-tile world footprint', () => {
-    expect(overworldPlaceableVisualScale('workbench')).toBe(0.5);
+  it('renders the workbench at its native two-tile world footprint', () => {
+    expect(overworldPlaceableVisualScale('workbench')).toBe(1);
     expect(overworldPlaceableVisualScale('barrel')).toBe(1);
   });
 

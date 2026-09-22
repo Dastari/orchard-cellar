@@ -12,8 +12,7 @@ import {
   runtimeResourceObstacle,
   survivalTerrainPlaneCollisionBytes,
   runtimePlaceableBlocksMovement,
-  runtimeHomesteadBuildDefinition,
-  homesteadBuildFootprintTiles,
+  runtimeObjectFootprintTiles,
   hearthFurnitureShapeForPlaceable,
   hearthFurnitureObstacle,
   type CollisionMap,
@@ -115,13 +114,8 @@ export function createClientCollisionMap(
       continue;
     }
     if (contentRegistry === undefined) continue;
-    const reference = { kind: placeable.kind, definitionId: placeable.definitionId };
     if (!runtimePlaceableBlocksMovement(contentRegistry, placeable)) continue;
-    for (const tile of homesteadBuildFootprintTiles(
-      runtimeHomesteadBuildDefinition(contentRegistry, reference) ?? { footprint: { width: 1, height: 1 } },
-      placeable.tileX,
-      placeable.tileY,
-    )) obstacles.push({
+    for (const tile of runtimeObjectFootprintTiles(contentRegistry, placeable)) obstacles.push({
       left: tile.tileX * TILE_SIZE_FIXED,
       top: tile.tileY * TILE_SIZE_FIXED,
       right: (tile.tileX + 1) * TILE_SIZE_FIXED - 1,
