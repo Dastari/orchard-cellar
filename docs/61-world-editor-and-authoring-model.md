@@ -1,6 +1,6 @@
 # 61 — World Editor Model, Object Archetypes, Rule Catalogue, and UI-Kit Enforcement
 
-Plan, **2026-09-23**. Status: **proposed; owner decisions D1–D4 settled 2026-09-23 (§9), D5 open**. No
+Plan, **2026-09-23**. Status: **proposed; owner decisions D1–D5 settled 2026-09-23 (§9)**. No
 code changes accompany this document.
 
 **Relationship to other plans**
@@ -534,6 +534,6 @@ hoeing next to the path.
 - **D4 Object hooks: both data graphs and TypeScript lifecycle callbacks.**
   Transitions and hooks reference either one. Callback scripting extends to
   quests and conversations (see doc 62).
-- **D5 Studio deployment during parallel lanes:** *open*. The proposal is to
-  deploy Studio only from `main` after merge, so concurrent branch builds don't
-  overwrite each other in `packages/studio/dist`.
+- **D5 Studio deployment during parallel lanes: deploy only from `main` after
+  merge.** Concurrent branch builds must not overwrite each other in
+  `packages/studio/dist`.

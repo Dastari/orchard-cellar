@@ -1,6 +1,6 @@
 # 62 — Studio Tool Coverage: Authoring the Whole Game
 
-Plan, **2026-09-23**. Status: **proposed**. Companion to
+Plan, **2026-09-23**. Status: **proposed; owner decisions A1–A3 settled 2026-09-23 (§7)**. Companion to
 [61](61-world-editor-and-authoring-model.md), which covers the map model,
 object archetypes, rule catalogue and UI-kit gate. This document audits every
 Studio route. It then defines the tool set needed to author the game from start
@@ -89,6 +89,7 @@ content change set or admin reducer call that reaches the live authority.
 | F3 | **Scripting** | Extend `packages/lifecycle-authoring` from item `onUse` to object hooks, `dialogueChoice`, `questState`, encounter and NPC hooks. Add a kit code-editor component, a type-checked API surface, and test-run against a sandbox snapshot. Scripts publish through the existing reviewed warm-build pipeline. Data graphs remain the default. |
 | F4 | **Space registry + multi-space live viewport** | Covers static spaces (`spaces.json`), homestead exterior/residence/cellar, rogue rooms and correct sizes. Subscriptions take any `spaceId`. Non-document spaces are rendered through `terrainForSpace`, and later through chunks (doc 61 §2.5). |
 | F5 | **Shared pickers for live entities** | Player, entity and space pickers used by every Operate tool, replacing typed ids. |
+| F6 | **Permission scopes** | Replace the five fixed roles (`shell/access.ts`) with scoped grants. Scopes are per domain: `map`, `tilesets`, `objects`, `items_economy`, `frames`, `narrative`, `actors`, `loot_progression`, `world_rules`, `audio`, `art`, `scripts.author`, `scripts.approve`, plus `operate.players`, `operate.world`, `operate.membership`, `observe`. Roles become named presets of scopes. The server enforces the scope for each content kind on publish; the Studio UI only mirrors it. `scripts.approve` lets granted editors send scripts live (A2). The approver must differ from the author. Grants, approvals and revocations are audited. |
 
 ### 3.2 Build (world and art)
 
@@ -97,7 +98,7 @@ content change set or admin reducer call that reaches the live authority.
 | **World Map** (evolves `map`) | Every space: the island, interiors, Delve lobby, homesteads (any owner's farm), residences and cellars | Space picker and breadcrumb. Doc 61 terrain/object model, drawing bands and part stack. Portals as visible, editable links ("walk through" to the target space). Interior geometry edited visually and published as `space` content. **Live layer:** entities in view with a container/processor inspector (slot grid, `set_container_slot` dry run), state editing (growth, lit, open), NPC relocation and resource respawn. Go-to-player. Validation panel and minimap. |
 | **Region Generator** (replaces `procedural-world`/`terrain-lab`) | New curated regions (doc 61 D1) | Runs the generator in Studio only. Seed/biome/size parameters, then preview. Output is **static chunks** that open in World Map for editing and publishing. |
 | **Tilesets & Rules** (evolves `tiles`) | Every tileset family (doc 61 §4) | Atlas import, family creation of any kind, visual mask→frame grid, compatibility, formation preview. The terrain guide is generated from this data. |
-| **Sprites & Animation** (replaces `character`) | Player, NPC, mob and object sprites | Frame viewer/scrubber. Animation sets (activity → animation, per facing) replacing the hard-coded 13-profile switch (`engine/overworld-art.ts:3393`). Equipment layers from item definitions. Appearance presets. Pivot and hitbox. Sprite import through the pixel-art pipeline. |
+| **Sprites & Animation** (replaces `character`) | Player, NPC, mob, object and tile art | **Phase 1 (import first, A3):** sprite import through the pixel-art pipeline, frame viewer/scrubber, animation sets (activity → animation, per facing) replacing the hard-coded 13-profile switch (`engine/overworld-art.ts:3393`), equipment layers from item definitions, appearance presets, pivot and hitbox. **Phase 2:** a full **pixel editor**. Palette-locked to the style bible palette. Layers, onion skinning and frame timeline. Tile mode with seamless-edge preview and autotile-role preview (links to Tilesets & Rules). Seasonal remap preview. Saves `*.sprite.json`/`*.tile.json` and rebuilds atlas packs. |
 
 ### 3.3 Author (content and logic)
 
@@ -112,7 +113,7 @@ content change set or admin reducer call that reaches the live authority.
 | **Loot** (new) | `loot` (35 tables) | Weighted table editor. Simulate N rolls. "Used by" (resources, fishing, mining, enemies). |
 | **Progression** (from world-tables) | `skill_tree`, `statistic`, `effect`, `upgrade`, XP curve and awards | Skill-tree graph. XP curve plotted and editable. XP award table replacing literals in `world/index.ts` and `sim/fishing.ts`. |
 | **World Rules** (new) | `balance`, `world_rules`, `crop` tuning, fishing/mining/regrowth tuning | Named fields in place of unnamed tuples. Day/night and season calendar. Weather modes. Lighting and seasonal palette preview. Simulation hooks (`sim:pace`) show pacing effects before publishing. |
-| **Audio** (rebuilds `audio`) | `audio_assignment`, music/SFX library | Library read from disk. Preview. Assign music by space, time of day and event, and SFX by event and definition, replacing `songForAmbience` and SFX names in code. Composition depends on decision A1. |
+| **Audio** (rebuilds `audio`) | `audio_assignment`, songs, SFX | **Tracker composer** (A1): pattern/track editor, instrument designer (oscillators, filter, envelopes, effects sends), mixer, live preview through the game's synth. SFX designer. Assign music by space, time of day and event, and SFX by event and definition, replacing `songForAmbience` and SFX names in code. |
 | **Player Setup** (new) | `loadout`, appearance catalogue, `help_page`, onboarding | Starting kit. Appearance options. Help book text (out of `ui/src/help-book.ts`). |
 
 ### 3.4 Operate (live world)
@@ -179,7 +180,7 @@ parity test, then delete the code path.
 
 | Phase | Lanes | Depends on |
 |---|---|---|
-| **S0** | F1 form generator + pickers; F5 live pickers; doc 61 P0–P3 (in progress) | — |
+| **S0** | F1 form generator + pickers; F5 live pickers; F6 permission scopes; doc 61 P0–P3 (in progress) | — |
 | **S1** | F4 space registry + multi-space World Map (read-only live layer and container inspector); World Control UI wiring; Players pickers | F5 |
 | **S2** | Items & Equipment, Recipes & Economy, Loot, Progression on F1 | F1 |
 | **S3** | Objects & Machines (on doc 61 P2), Frames & UI Layout | F1, doc 61 P2 |
@@ -205,20 +206,17 @@ branch, an author creates each of the following in Studio only:
 After publishing, a player can do all of it in game. No TypeScript is edited
 except scripts written in Studio.
 
-## 7. Owner decisions
+## 7. Owner decisions (settled 2026-09-23)
 
-- **A1 Music format.** Runtime music is MP3, and the `*.song.json` tracker
-  format is unused. Options:
-  - (a) Studio manages MP3 import and assignment only.
-  - (b) Revive the sequencer and author songs in Studio.
-  - (c) Both, with tracker songs rendered to MP3 at build.
-
-  *Recommendation: (c).*
-- **A2 Script review.** Studio-authored TypeScript enters the reviewed
-  warm-build pipeline (doc 55 §3.1). Decide who may approve a script to go
-  live: owner only, or granted editors.
-- **A3 Sprite authoring depth.** Choose between:
-  - importing and assembling existing art (frames, animation sets, pivots);
-  - a full in-Studio pixel editor.
-
-  *Recommendation: import and assemble first.*
+- **A1 Music: tracker songs only.**
+  - The streamed MP3s (royalty-free, 8.8 MB) are removed.
+  - Music plays through the engine sequencer from `*.song.json`.
+  - The synth must sound clearly better than General MIDI: layered voices,
+    filters and envelopes, reverb/chorus buses, mastering.
+  - The owner composes in Studio's tracker (§3.3 Audio).
+  - Implementation began immediately in its own PR.
+- **A2 Script approval: granted editors**, through proper permission scopes
+  (F6, `scripts.approve`). Studio-authored TypeScript enters the reviewed
+  warm-build pipeline (doc 55 §3.1). The approver must differ from the author.
+- **A3 Sprite authoring: import first, then a full pixel editor** in Studio
+  (§3.2 Sprites & Animation, phase 2).
