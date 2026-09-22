@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.2 — Update dialog spacing
+
+- Raise Refresh Now and Later inside the Update Ready dialog so both buttons clear the bottom frame; pointer targets follow their visible position.
+
 ## 0.21.1 — September 22 integrated release
 
 - Combine Studio freeze recovery, atomic map deltas, responsive terrain and Canopy selection with NPC camera alignment, world interaction registration, the two-tile crafting workbench and picked-fruit visuals.
