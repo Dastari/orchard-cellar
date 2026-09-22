@@ -1,0 +1,79 @@
+{
+  "id": "object:apple_tree",
+  "kind": "object",
+  "schemaVersion": 1,
+  "displayName": "Apple Tree",
+  "components": {
+    "identity": { "tags": ["object.archetype", "tree.fruit"] },
+    "sprite": { "asset": "tree_apple_mature" },
+    "collision": { "footprint": [[15]], "blocksMovement": true, "occludesLight": false },
+    "states": {
+      "growth": { "type": "enum", "default": "sapling", "values": ["sapling", "young", "mature", "stump"] },
+      "fruiting": { "type": "bool", "default": false }
+    },
+    "interactions": [
+      {
+        "id": "pick", "verb": "use", "prompt": "PICK",
+        "conditions": [{ "state": "fruiting", "equals": true }],
+        "effects": [{ "giveItem": { "kind": "item:apple", "count": 2 } }],
+        "priority": 70
+      },
+      {
+        "id": "fell", "verb": "break",
+        "conditions": [],
+        "effects": [{ "sfx": "tree_fall" }],
+        "priority": 70
+      }
+    ],
+    "lighting": { "receivesGlobal": true, "castsShadow": "column" },
+    "target": { "rect": { "left": -4, "right": 3, "top": -10, "bottom": -5 } },
+    "overrides": [
+      {
+        "when": { "growth": "sapling" },
+        "sprite": { "asset": "tree_apple_sapling" },
+        "collision": { "blocksMovement": false },
+        "lighting": { "castsShadow": "silhouette" },
+        "interactions": { "fell": false, "pick": false },
+        "target": { "left": -2, "right": 2, "top": -6, "bottom": -1 }
+      },
+      {
+        "when": { "growth": "young" },
+        "sprite": { "asset": "tree_apple_young" },
+        "lighting": { "castsShadow": "silhouette" },
+        "interactions": { "pick": false }
+      },
+      {
+        "when": { "growth": "mature", "fruiting": true },
+        "sprite": { "asset": "tree_apple_fruiting" }
+      },
+      {
+        "when": { "growth": "stump" },
+        "sprite": { "asset": "tree_cf_fruit_stump" },
+        "lighting": { "castsShadow": "none" },
+        "interactions": { "fell": false, "pick": false }
+      }
+    ],
+    "transitions": [
+      { "id": "sapling_grows", "from": { "growth": "sapling" }, "to": { "growth": "young" }, "after": { "growthProgress": 6 } },
+      { "id": "young_matures", "from": { "growth": "young" }, "to": { "growth": "mature" }, "after": { "growthProgress": 15 } },
+      {
+        "id": "blossoms", "from": { "growth": "mature", "fruiting": false }, "to": { "fruiting": true },
+        "after": { "gameHours": 48 }
+      },
+      { "id": "picked", "on": "use", "from": { "fruiting": true }, "to": { "fruiting": false }, "run": { "graph": "pick" } },
+      { "id": "felled", "on": "break", "from": { "growth": "mature" }, "to": { "growth": "stump" }, "run": { "graph": "fell" } },
+      { "id": "stump_drops_fruit", "on": "stateEnter", "from": { "growth": "stump" }, "to": { "fruiting": false } },
+      {
+        "id": "stump_resprouts", "from": { "growth": "stump" }, "to": { "growth": "sapling" },
+        "after": { "gameHours": 24 }, "resetGrowth": true
+      }
+    ],
+    "growth": {
+      "maxProgress": 24,
+      "sweepTicks": 750,
+      "stageThresholds": [0, 6, 15],
+      "pausedWhen": [{ "growth": "stump" }],
+      "modifiers": { "rainBps": 1000, "wateredBps": 2500, "seasonBps": { "winter": -10000 } }
+    }
+  }
+}
