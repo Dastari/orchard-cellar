@@ -110,7 +110,7 @@ the latter are hydrated from the authority registry during validation, so an
 editor with a different bundled catalog cannot overwrite them. Clearing combat
 policy requires an explicit empty list; omission cannot remove existing policy.
 
-Malformed keys, duplicate operations, forbidden metadata, unknown format versions,
+Malformed keys, duplicate collection identities, forbidden metadata, unknown format versions,
 oversized payloads/results, invalid references and authority errors reject the
 whole operation. Studio retains the draft and displays a persistent failure with
 retry/dismiss controls. Only a matching subscribed head marks the draft published;

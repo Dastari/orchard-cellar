@@ -1,13 +1,14 @@
 # Map delta publication — 2026-09-22
 
 Branch: `feat/studio-map-delta-publish`, stacked on PR46's `42dbb7ee`.
+PR: https://github.com/Dastari/orchard-cellar/pull/47; implementation `891b905b`.
 Root/sim 0.19.0, world 0.18.0, Studio 0.10.0; engine remains 0.18.1.
 Status: implemented and checked; **not deployed**. The live editor remains 0.9.3.
 
 The reported deletion at 386,373 is the authored object
 `asset-3132196081-animation-base-0-386-373-1`. A read-only authenticated query
 confirmed it remains in live map revision 6 (`140237bf`). The old publication
-uploads 5,274,751 characters of pretty JSON (above the server's 4,000,000 limit),
+uploads 5.27 million characters of pretty JSON (above the server's 4,000,000 limit),
 although the compact head is 3,525,763 characters. Its keyed deletion is now
 146 bytes: envelope/base/target hashes plus one object ID mapped to null.
 
