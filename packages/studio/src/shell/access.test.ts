@@ -46,3 +46,15 @@ describe('Studio role routing', () => {
     expect(resolveStudioEffectiveRole(null, grant, grant)).toBeNull();
   });
 });
+
+import { studioScopedToolAccess } from './access.js';
+describe('scoped Studio tool routes', () => {
+  it('gives a domain editor write access only to matching tools', () => {
+    expect(studioScopedToolAccess(['objects'], 'object')).toBe('write');
+    expect(studioScopedToolAccess(['objects'], 'items')).toBe('hidden');
+    expect(studioScopedToolAccess(['narrative'], 'dialogue-graph')).toBe('write');
+    expect(studioScopedToolAccess(['actors'], 'npc-studio')).toBe('write');
+    expect(studioScopedToolAccess(['observe'], 'items')).toBe('read_only');
+    expect(studioScopedToolAccess([], 'membership')).toBe('hidden');
+  });
+});

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0 — 2026-09-23
+
+- Add server-enforced Studio domain scopes with additive grant overrides, legacy access compatibility, audited previews, stale-state protection and idempotent audit receipts.
+- Check all content kinds in publishes, deletions and restores, and gate administration families. Studio mirrors private scope state in tool access.
+- Bind script review records to artifact hashes and authenticated authors; require a separately scoped approver. Reviewed warm-build release gates remain required.
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.

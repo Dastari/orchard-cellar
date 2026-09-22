@@ -1,3 +1,4 @@
+import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
@@ -1651,6 +1652,23 @@ const content_revision = table(
   },
 );
 
+// Additive scope overrides. Revoked rows intentionally deny legacy preset access.
+const studio_scope_grant = table(
+  { name: 'studio_scope_grant', indexes: [{ accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] }] },
+  { id: t.string().primaryKey(), identity: t.identity(), scope: t.string(),
+    grantedBy: t.identity(), grantedAt: t.timestamp(), revokedAt: t.option(t.timestamp()), reason: t.string() },
+);
+const studio_scope_change = table(
+  { name: 'studio_scope_change' },
+  { id: t.string().primaryKey(), actor: t.identity(), target: t.identity(), scope: t.string(),
+    granted: t.bool(), reason: t.string(), expectedVersion: t.string(), auditId: t.u64() },
+);
+const studio_script_review = table(
+  { name: 'studio_script_review' },
+  { artifactHash: t.string().primaryKey(), author: t.identity(), submittedAt: t.timestamp(),
+    approvedBy: t.option(t.identity()), approvedAt: t.option(t.timestamp()), reason: t.string() },
+);
+
 const content_editor_grant = table(
   { name: 'content_editor_grant' },
   {
@@ -2990,6 +3008,9 @@ const spacetimedb = schema({
   content_editor_grant,
   support_grant,
   content_draft,
+  studio_scope_grant,
+  studio_scope_change,
+  studio_script_review,
   admin_mutation_preview,
   admin_player_mutation_commit,
   admin_player_undo,
@@ -3218,7 +3239,10 @@ function insertCapabilityAdminAudit(
   });
 }
 
-function requireAdminProcedure(tx: AdminProcedureTx): void {
+function requireAdminProcedure(tx: AdminProcedureTx, scope: StudioScope = 'observe'): void {
+  if (!scopesFor(tx).includes(scope)) throw new SenderError(`studio_scope_required:${scope}`);
+  const grant = tx.db.studio_scope_grant.id.find(`${tx.sender.toHexString()}:${scope}`);
+  if (grant !== null && grant.revokedAt === undefined) return;
   const membershipRow = tx.db.membership.identity.find(tx.sender);
   try {
     requireOwnerOrAdminRead(membershipRow === null ? null : {
@@ -3232,6 +3256,11 @@ function requireAdminProcedure(tx: AdminProcedureTx): void {
 }
 
 function requirePlayerAdminResultRead(tx: AdminProcedureTx): void {
+  const override = tx.db.studio_scope_grant.id.find(`${tx.sender.toHexString()}:operate.players`);
+  if (override !== null) {
+    if (override.revokedAt === undefined && scopesFor(tx).includes('operate.players')) return;
+    throw new SenderError('studio_scope_required:operate.players');
+  }
   const role = resolveAdminEffectiveRole(
     tx.db.membership.identity.find(tx.sender),
     tx.db.content_editor_grant.identity.find(tx.sender),
@@ -7911,6 +7940,11 @@ export const ownContentEditorGrant = spacetimedb.view(
   (ctx) => ctx.db.content_editor_grant.identity.find(ctx.sender) ?? undefined,
 );
 
+export const ownStudioScopeGrants = spacetimedb.view(
+  { name: 'own_studio_scope_grants', public: true }, t.array(studio_scope_grant.rowType),
+  (ctx) => [...ctx.db.studio_scope_grant.by_identity.filter(ctx.sender)],
+);
+
 export const ownSupportGrant = spacetimedb.view(
   { name: 'own_support_grant', public: true },
   t.option(support_grant.rowType),
@@ -7941,7 +7975,8 @@ export const ownContentRevisions = spacetimedb.view(
   (ctx) => contentEditorAuthorized(
     ctx.db.membership.identity.find(ctx.sender),
     ctx.db.content_editor_grant.identity.find(ctx.sender),
-  ) ? [...ctx.db.content_revision.by_pack.filter(LIVE_CONTENT_PACK_ID)] : [],
+  ) || scopesFor(ctx).some(scope => CONTENT_SCOPES.includes(scope))
+    ? [...ctx.db.content_revision.by_pack.filter(LIVE_CONTENT_PACK_ID)] : [],
 );
 
 export const ownCharacterProfile = spacetimedb.view(
@@ -7970,7 +8005,7 @@ export const adminFindPlayers = spacetimedb.procedure(
   { query: t.string(), cursor: t.option(t.string()) },
   t.string(),
   (ctx, { query, cursor }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.players');
     const trimmed = query.trim();
     let profiles: Iterable<NonNullable<ReturnType<typeof tx.db.player_public.identity.find>>>;
     if (/^(?:0x)?[0-9a-f]{64}$/iu.test(trimmed)) {
@@ -7995,7 +8030,7 @@ export const adminPlayerSnapshot = spacetimedb.procedure(
   { identity: t.string() },
   t.string(),
   (ctx, { identity }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.players');
     const target = parseAdminIdentity(identity);
     let scanned = 0;
     const summary = adminPlayerSummary(tx, target); scanned += 3;
@@ -8057,7 +8092,7 @@ export const adminPlayerInventory = spacetimedb.procedure(
   { identity: t.string() },
   t.string(),
   (ctx, { identity }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.players');
     const target = parseAdminIdentity(identity);
     if (tx.db.player_public.identity.find(target) === null) throw new SenderError('admin_target_not_found');
     const adminInventory = loadAdminInventoryState(tx, target);
@@ -8086,7 +8121,7 @@ export const adminContainerContents = spacetimedb.procedure(
   { entityId: t.string() },
   t.string(),
   (ctx, { entityId }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.world');
     let id: bigint; try { id = BigInt(entityId); } catch { throw new SenderError('admin_entity_not_found'); }
     const chest = tx.db.world_chest.id.find(id);
     if (chest !== null) {
@@ -8120,7 +8155,7 @@ export const adminMissingContainerRecovery = spacetimedb.procedure(
   { entityId: t.string(), targetIdentity: t.string() },
   t.string(),
   (ctx, { entityId, targetIdentity }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.players');
     const source = latestMissingContainerAuditSource(tx, entityId, targetIdentity);
     const entity = source === null ? null : missingContainerEntityFromAudit(source, entityId, targetIdentity);
     const authority = missingContainerAuthority(tx, entity);
@@ -8134,7 +8169,7 @@ export const adminEntitiesInArea = spacetimedb.procedure(
   { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32() },
   t.string(),
   (ctx, bounds) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.world');
     const spaceId = Number(bounds.spaceId);
     if (!Number.isInteger(spaceId) || spaceId < 0 || spaceId > 65_535) throw new SenderError('admin_payload_invalid');
     const rows = function* (): Generator<AdminEntitySummary> {
@@ -8182,7 +8217,7 @@ export const adminHomestead = spacetimedb.procedure(
   { spaceId: t.string() },
   t.string(),
   (ctx, { spaceId }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.world');
     const parsed = Number(spaceId);
     if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65_535) throw new SenderError('admin_entity_not_found');
     const home = tx.db.homestead.spaceId.find(parsed);
@@ -8513,7 +8548,7 @@ export const adminValidateWorld = spacetimedb.procedure(
   {},
   t.string(),
   (ctx) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.world');
     const report = planAdminValidateWorld(
       loadAdminWorldState(tx as WorldReducerContext),
       ctx.newUuidV7().toString(),
@@ -9735,11 +9770,38 @@ function ensureContentPublicationBase(ctx: WorldReducerContext): void {
   else assertContentIntegrity(head, contentDefinitionRows(ctx));
 }
 
+interface StudioScopeContext {
+  readonly sender: Identity;
+  readonly db: {
+    readonly membership: { readonly identity: { find(identity: Identity): ScopeMembership | null } };
+    readonly content_editor_grant: { readonly identity: { find(identity: Identity): ScopeGrant | null } };
+    readonly support_grant: { readonly identity: { find(identity: Identity): ScopeGrant | null } };
+    readonly studio_scope_grant: { readonly by_identity: { filter(identity: Identity): Iterable<ScopeOverride> } };
+  };
+}
+function scopesFor(ctx: StudioScopeContext, identity = ctx.sender): readonly StudioScope[] {
+  return resolveStudioScopes(ctx.db.membership.identity.find(identity),
+    ctx.db.content_editor_grant.identity.find(identity), ctx.db.support_grant.identity.find(identity),
+    [...ctx.db.studio_scope_grant.by_identity.filter(identity)]);
+}
+
+function requireStudioScope(ctx: WorldReducerContext, scope: StudioScope): void {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  if (!scopesFor(ctx).includes(scope)) throw new SenderError(`studio_scope_required:${scope}`);
+}
+
+/** Explicit domain grants authorize its admin family; compatibility grants retain
+ * the existing role-specific operation limits and support caps. */
+function scopedAdminRole(ctx: WorldReducerContext, scope: StudioScope,
+  legacyRole: ReturnType<typeof resolveAdminEffectiveRole>): ReturnType<typeof resolveAdminEffectiveRole> {
+  requireStudioScope(ctx, scope);
+  const override = ctx.db.studio_scope_grant.id.find(`${ctx.sender.toHexString()}:${scope}`);
+  return override !== null && override.revokedAt === undefined ? 'admin' : legacyRole;
+}
+
 function requireContentEditor(ctx: WorldReducerContext): void {
-  const member = ctx.db.membership.identity.find(ctx.sender);
-  requireAuthorizedSender(ctx.senderAuth.jwt, member);
-  const grant = ctx.db.content_editor_grant.identity.find(ctx.sender);
-  if (!contentEditorAuthorized(member, grant)) throw new SenderError('content_editor_required');
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  if (!scopesFor(ctx).some(scope => CONTENT_SCOPES.includes(scope))) throw new SenderError('content_editor_required');
 }
 
 function contentMutationAlreadyApplied(
@@ -9789,6 +9851,12 @@ function commitContentPublication(
     if (error instanceof ContentAuthorityError) throw new SenderError(error.code);
     throw error;
   }
+  try {
+    requireContentScopes(scopesFor(ctx), [
+      ...plan.upserts.map(row => row.kind),
+      ...plan.deletes.map(id => ctx.db.content_definition.id.find(id)?.kind ?? id.split(':')[0]!),
+    ]);
+  } catch (error) { throw new SenderError(error instanceof Error ? error.message : 'studio_scope_required'); }
   for (const id of plan.deletes) {
     if (ctx.db.content_definition.id.find(id) !== null) ctx.db.content_definition.id.delete(id);
   }
@@ -13784,6 +13852,7 @@ export const sendWorldSpeech = spacetimedb.reducer(
 export const approveMember = spacetimedb.reducer(
   { identity: t.identity(), role: t.string() },
   (ctx, { identity, role }) => {
+    requireStudioScope(ctx, 'operate.membership');
     if (!productionAuthEnabled()) throw new SenderError('membership_management_disabled');
     const actor = requireAuthorizedSender(
       ctx.senderAuth.jwt,
@@ -13818,6 +13887,7 @@ export const approveMember = spacetimedb.reducer(
 export const revokeMember = spacetimedb.reducer(
   { identity: t.identity(), blocked: t.bool() },
   (ctx, { identity, blocked }) => {
+    requireStudioScope(ctx, 'operate.membership');
     if (!productionAuthEnabled()) throw new SenderError('membership_management_disabled');
     const actor = requireAuthorizedSender(
       ctx.senderAuth.jwt,
@@ -13863,6 +13933,7 @@ export const revokeMember = spacetimedb.reducer(
 export const setWorldTime = spacetimedb.reducer(
   { calendarTick: t.u64() },
   (ctx, { calendarTick }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (calendarTick > MAX_WORLD_CALENDAR_TICK) throw new SenderError('world_time_out_of_range');
     const environment = ctx.db.world_environment.id.find(0);
@@ -13888,6 +13959,7 @@ export const setWorldTime = spacetimedb.reducer(
 export const setWorldWeather = spacetimedb.reducer(
   { weatherMode: t.string() },
   (ctx, { weatherMode }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (!isWeatherMode(weatherMode)) throw new SenderError('invalid_weather_mode');
     const environment = ctx.db.world_environment.id.find(0);
@@ -13910,6 +13982,7 @@ export const setWorldWeather = spacetimedb.reducer(
 export const setWorldWindDirection = spacetimedb.reducer(
   { direction: t.string() },
   (ctx, { direction }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (!isWindDirectionMode(direction)) throw new SenderError('invalid_wind_direction');
     const existing = ctx.db.world_wind.id.find(0);
@@ -13929,6 +14002,7 @@ export const setWorldWindDirection = spacetimedb.reducer(
 export const setMessageOfDay = spacetimedb.reducer(
   { body: t.string() },
   (ctx, { body }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const normalized = normalizeMessageOfDay(body);
     if (normalized === null) throw new SenderError('invalid_message_of_day');
@@ -14028,9 +14102,149 @@ export const restoreContentRevision = spacetimedb.reducer(
   },
 );
 
+/** Scope edits use a CAS over current overrides and legacy authority. */
+function studioScopeVersion(ctx: AdminProcedureTx, identity: Identity): string {
+  return JSON.stringify({ scopes: scopesFor(ctx, identity), overrides:
+    [...ctx.db.studio_scope_grant.by_identity.filter(identity)]
+      .map(row => [row.scope, row.grantedAt.microsSinceUnixEpoch.toString(), row.revokedAt?.microsSinceUnixEpoch.toString() ?? null])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0]))) });
+}
+
+export const adminStudioMembers = spacetimedb.procedure(
+  { query: t.string() }, t.string(), (ctx, { query }) => ctx.withTx(tx => {
+    if (!scopesFor(tx).includes('operate.membership')) throw new SenderError('studio_scope_required:operate.membership');
+    const term = query.trim().toLowerCase();
+    return JSON.stringify([...tx.db.membership.iter()].filter(member => {
+      const name = tx.db.player_public.identity.find(member.identity)?.displayName ?? '';
+      return !term || name.toLowerCase().includes(term) || member.identity.toHexString().includes(term);
+    }).slice(0, 200).map(member => ({ identity: member.identity.toHexString(),
+      displayName: tx.db.player_public.identity.find(member.identity)?.displayName ?? member.identity.toHexString(),
+      role: member.role, blocked: member.blocked, revoked: member.revokedAt !== undefined,
+      lastActiveOwner: member.role === 'owner' && [...tx.db.membership.iter()].filter(row => row.role === 'owner' && !row.blocked && row.revokedAt === undefined).length <= 1,
+      grants: [
+        ...(tx.db.content_editor_grant.identity.find(member.identity)?.revokedAt === undefined && tx.db.content_editor_grant.identity.find(member.identity) !== null ? ['content_editor'] : []),
+        ...(tx.db.support_grant.identity.find(member.identity)?.revokedAt === undefined && tx.db.support_grant.identity.find(member.identity) !== null ? ['support'] : []),
+      ], scopes: scopesFor(tx, member.identity),
+      version: studioScopeVersion(tx, member.identity) })));
+  }),
+);
+
+export const adminStudioScopes = spacetimedb.procedure(
+  { identity: t.identity() }, t.string(), (ctx, { identity }) => ctx.withTx(tx => {
+    if (!scopesFor(tx).includes('operate.membership')) throw new SenderError('studio_scope_required:operate.membership');
+    return JSON.stringify({ scopes: scopesFor(tx, identity), version: studioScopeVersion(tx, identity) });
+  }),
+);
+
+function validateScopeDelegation(ctx: AdminProcedureTx, identity: Identity, scope: string): StudioScope {
+  const scopes = scopesFor(ctx);
+  if (!scopes.includes('operate.membership')) throw new SenderError('studio_scope_required:operate.membership');
+  if (!isStudioScope(scope)) throw new SenderError('studio_scope_invalid');
+  const actor = ctx.db.membership.identity.find(ctx.sender);
+  const managerGrant = ctx.db.studio_scope_grant.id.find(`${ctx.sender.toHexString()}:operate.membership`);
+  if (actor?.role !== 'owner' && actor?.role !== 'admin' && (managerGrant === null || managerGrant.revokedAt !== undefined)) {
+    throw new SenderError('studio_scope_delegation_forbidden');
+  }
+  const target = ctx.db.membership.identity.find(identity);
+  if (target === null || target.blocked || target.revokedAt !== undefined) throw new SenderError('admin_target_not_found');
+  if (target.role === 'owner') throw new SenderError('studio_owner_scopes_protected');
+  if (actor?.role !== 'owner' && !scopes.includes(scope)) throw new SenderError('studio_scope_delegation_forbidden');
+  return scope;
+}
+
+export const previewStudioScope = spacetimedb.procedure(
+  { identity: t.identity(), scope: t.string(), granted: t.bool(), reason: t.string(), clientMutationId: t.string() },
+  t.string(), (ctx, input) => ctx.withTx(tx => {
+    validatedAdminMutationReason(input.reason, input.clientMutationId);
+    const scope = validateScopeDelegation(tx, input.identity, input.scope);
+    return JSON.stringify({ version: studioScopeVersion(tx, input.identity),
+      before: scopesFor(tx, input.identity).includes(scope), after: input.granted });
+  }),
+);
+
+export const studioScopeReceipt = spacetimedb.procedure(
+  { clientMutationId: t.string() }, t.string(), (ctx, { clientMutationId }) => ctx.withTx(tx => {
+    const receipt = tx.db.studio_scope_change.id.find(`${tx.sender.toHexString()}:${clientMutationId}`);
+    if (receipt === null) throw new SenderError('studio_scope_receipt_not_found');
+    return receipt.auditId.toString();
+  }),
+);
+
+export const setStudioScope = spacetimedb.reducer(
+  { identity: t.identity(), scope: t.string(), granted: t.bool(), reason: t.string(),
+    clientMutationId: t.string(), expectedVersion: t.string() },
+  (ctx, input) => {
+    requireStudioScope(ctx, 'operate.membership');
+    const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    validateScopeDelegation(ctx, input.identity, input.scope);
+    const receiptId = `${ctx.sender.toHexString()}:${input.clientMutationId}`;
+    const receipt = ctx.db.studio_scope_change.id.find(receiptId);
+    if (receipt !== null) {
+      if (!receipt.target.isEqual(input.identity) || receipt.scope !== input.scope || receipt.granted !== input.granted
+        || receipt.reason !== reason || receipt.expectedVersion !== input.expectedVersion) throw new SenderError('studio_scope_mutation_conflict');
+      return;
+    }
+    if (studioScopeVersion(ctx, input.identity) !== input.expectedVersion) throw new SenderError('admin_preview_stale');
+    const id = `${input.identity.toHexString()}:${input.scope}`;
+    const old = ctx.db.studio_scope_grant.id.find(id);
+    const row = { id, identity: input.identity, scope: input.scope, grantedBy: ctx.sender,
+      grantedAt: ctx.timestamp, revokedAt: input.granted ? undefined : ctx.timestamp, reason };
+    if (old === null) ctx.db.studio_scope_grant.insert(row); else ctx.db.studio_scope_grant.id.update(row);
+    const audit = ctx.db.world_admin_audit.insert({ id: 0n, actor: ctx.sender,
+      action: input.granted ? 'grant_studio_scope' : 'revoke_studio_scope',
+      value: JSON.stringify({ target: input.identity.toHexString(), scope: input.scope, reason, clientMutationId: input.clientMutationId }),
+      occurredAt: ctx.timestamp, occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+      targetKey: `membership:${input.identity.toHexString()}`, payload: '' });
+    ctx.db.studio_scope_change.insert({ id: receiptId, actor: ctx.sender, target: input.identity, scope: input.scope,
+      granted: input.granted, reason, expectedVersion: input.expectedVersion, auditId: audit.id });
+  },
+);
+
+export const submitStudioScript = spacetimedb.reducer(
+  { artifactHash: t.string(), reason: t.string(), clientMutationId: t.string() }, (ctx, input) => {
+    requireStudioScope(ctx, 'scripts.author');
+    const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    if (!/^[a-f0-9]{64}$/u.test(input.artifactHash)) throw new SenderError('script_artifact_hash_invalid');
+    if (ctx.db.studio_script_review.artifactHash.find(input.artifactHash) !== null) throw new SenderError('script_artifact_already_submitted');
+    ctx.db.studio_script_review.insert({ artifactHash: input.artifactHash, author: ctx.sender,
+      submittedAt: ctx.timestamp, approvedBy: undefined, approvedAt: undefined, reason });
+    insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'submit_studio_script',
+      value: JSON.stringify(input), occurredAt: ctx.timestamp });
+  },
+);
+
+export const studioScriptReview = spacetimedb.procedure(
+  { artifactHash: t.string() }, t.string(), (ctx, { artifactHash }) => ctx.withTx(tx => {
+    const scopes = scopesFor(tx);
+    if (!scopes.includes('scripts.author') && !scopes.includes('scripts.approve')) throw new SenderError('script_review_forbidden');
+    const review = tx.db.studio_script_review.artifactHash.find(artifactHash);
+    if (review === null) throw new SenderError('script_artifact_not_found');
+    return JSON.stringify({ artifactHash, author: review.author.toHexString(),
+      submittedAtMicros: review.submittedAt.microsSinceUnixEpoch.toString(),
+      approvedBy: review.approvedBy?.toHexString() ?? null,
+      approvedAtMicros: review.approvedAt?.microsSinceUnixEpoch.toString() ?? null, reason: review.reason });
+  }),
+);
+
+export const approveStudioScript = spacetimedb.reducer(
+  { artifactHash: t.string(), reason: t.string(), clientMutationId: t.string() }, (ctx, input) => {
+    requireStudioScope(ctx, 'scripts.approve');
+    const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    const review = ctx.db.studio_script_review.artifactHash.find(input.artifactHash);
+    if (review === null) throw new SenderError('script_artifact_not_found');
+    try { requireScriptApproval(scopesFor(ctx), ctx.sender.toHexString(), review.author.toHexString()); }
+    catch (error) { throw new SenderError(error instanceof Error ? error.message : 'script_approval_forbidden'); }
+    if (review.approvedAt !== undefined) throw new SenderError('script_artifact_already_approved');
+    ctx.db.studio_script_review.artifactHash.update({ ...review, approvedBy: ctx.sender, approvedAt: ctx.timestamp, reason });
+    insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'approve_studio_script',
+      value: JSON.stringify({ ...input, author: review.author.toHexString() }), occurredAt: ctx.timestamp });
+  },
+);
+
 export const grantContentEditor = spacetimedb.reducer(
   { identity: t.identity() },
   (ctx, { identity }) => {
+    requireStudioScope(ctx, 'operate.membership');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const target = ctx.db.membership.identity.find(identity);
     if (target === null || target.blocked || target.revokedAt !== undefined) {
@@ -14054,6 +14268,7 @@ export const grantContentEditor = spacetimedb.reducer(
 export const revokeContentEditor = spacetimedb.reducer(
   { identity: t.identity() },
   (ctx, { identity }) => {
+    requireStudioScope(ctx, 'operate.membership');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const grant = ctx.db.content_editor_grant.identity.find(identity);
     if (grant === null || grant.revokedAt !== undefined) return;
@@ -14074,6 +14289,7 @@ export const adminGrantContentEditor = spacetimedb.reducer(
   { identity: t.identity(), reason: t.string(), clientMutationId: t.string() },
   (ctx, input) => {
     const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    requireStudioScope(ctx, 'operate.membership');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const target = ctx.db.membership.identity.find(input.identity);
     if (target === null || target.blocked || target.revokedAt !== undefined) throw new SenderError('admin_target_not_found');
@@ -14090,6 +14306,7 @@ export const adminRevokeContentEditor = spacetimedb.reducer(
   { identity: t.identity(), reason: t.string(), clientMutationId: t.string() },
   (ctx, input) => {
     const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    requireStudioScope(ctx, 'operate.membership');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const grant = ctx.db.content_editor_grant.identity.find(input.identity);
     if (grant === null || grant.revokedAt !== undefined) return;
@@ -14102,6 +14319,7 @@ export const adminGrantSupport = spacetimedb.reducer(
   { identity: t.identity(), reason: t.string(), clientMutationId: t.string() },
   (ctx, input) => {
     const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    requireStudioScope(ctx, 'operate.membership');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const target = ctx.db.membership.identity.find(input.identity);
     if (target === null || target.blocked || target.revokedAt !== undefined) throw new SenderError('admin_target_not_found');
@@ -14118,6 +14336,7 @@ export const adminRevokeSupport = spacetimedb.reducer(
   { identity: t.identity(), reason: t.string(), clientMutationId: t.string() },
   (ctx, input) => {
     const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
+    requireStudioScope(ctx, 'operate.membership');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const grant = ctx.db.support_grant.identity.find(input.identity);
     if (grant === null || grant.revokedAt !== undefined) return;
@@ -14204,11 +14423,11 @@ function executeAdminInventoryMutation(
     throw new SenderError('admin_target_not_found');
   }
   const membership = ctx.db.membership.identity.find(ctx.sender);
-  const role = resolveAdminEffectiveRole(
+  const role = scopedAdminRole(ctx, 'operate.players', resolveAdminEffectiveRole(
     membership,
     ctx.db.content_editor_grant.identity.find(ctx.sender),
     ctx.db.support_grant.identity.find(ctx.sender),
-  );
+  ));
   if (role === null) throw new SenderError('admin_role_forbidden');
   const caps = resolveSupportCaps(contentRegistry(ctx).balances.values());
   const mutationsInLastHour = role === 'support' ? supportAdminMutationCountInLastHour(ctx) : 0;
@@ -14395,11 +14614,11 @@ function executeAdminProgressionMutation(
   const target = parseAdminIdentity(mutation.targetIdentity);
   if (ctx.db.player_public.identity.find(target) === null) throw new SenderError('admin_target_not_found');
   const membership = ctx.db.membership.identity.find(ctx.sender);
-  const role = resolveAdminEffectiveRole(
+  const role = scopedAdminRole(ctx, 'operate.players', resolveAdminEffectiveRole(
     membership,
     ctx.db.content_editor_grant.identity.find(ctx.sender),
     ctx.db.support_grant.identity.find(ctx.sender),
-  );
+  ));
   if (role === null) throw new SenderError('admin_role_forbidden');
   const loaded = loadAdminProgressionState(ctx, target);
   const caps = resolveSupportCaps(contentRegistry(ctx).balances.values());
@@ -14707,11 +14926,11 @@ function executeAdminPositionMutation(
     moving: false, actionKind: 'none', mountedEntityId: null,
     carriedEntityIds: [], connectionIds: [],
   } satisfies AdminPositionState : loadAdminPositionState(ctx, target);
-  const role = resolveAdminEffectiveRole(
+  const role = scopedAdminRole(ctx, 'operate.players', resolveAdminEffectiveRole(
     ctx.db.membership.identity.find(ctx.sender),
     ctx.db.content_editor_grant.identity.find(ctx.sender),
     ctx.db.support_grant.identity.find(ctx.sender),
-  );
+  ));
   if (role === null) throw new SenderError('admin_role_forbidden');
   const caps = resolveSupportCaps(contentRegistry(ctx).balances.values());
   try {
@@ -14931,11 +15150,11 @@ export const adminUndoPlayer = spacetimedb.reducer(
   },
   (ctx, input) => {
     const reason = validatedAdminMutationReason(input.reason, input.clientMutationId);
-    const role = resolveAdminEffectiveRole(
+    const role = scopedAdminRole(ctx, 'operate.players', resolveAdminEffectiveRole(
       ctx.db.membership.identity.find(ctx.sender),
       ctx.db.content_editor_grant.identity.find(ctx.sender),
       ctx.db.support_grant.identity.find(ctx.sender),
-    );
+    ));
     const commitId = adminPlayerMutationCommitId(ctx.sender, input.clientMutationId);
     const existingCommit = ctx.db.admin_player_mutation_commit.id.find(commitId);
     const guardBase = {
@@ -15573,8 +15792,8 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
 
 function executeAdminObjectMutation(ctx: WorldReducerContext, mutation: AdminObjectMutation, expectedBaseVersion: string, previewFingerprint: string | undefined): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const role = resolveAdminEffectiveRole(ctx.db.membership.identity.find(ctx.sender),
-    ctx.db.content_editor_grant.identity.find(ctx.sender), ctx.db.support_grant.identity.find(ctx.sender));
+  const role = scopedAdminRole(ctx, 'operate.world', resolveAdminEffectiveRole(ctx.db.membership.identity.find(ctx.sender),
+    ctx.db.content_editor_grant.identity.find(ctx.sender), ctx.db.support_grant.identity.find(ctx.sender)));
   if (role === null) throw new SenderError('admin_role_forbidden');
   try { requireAdminObjectAuthority(role, mutation); }
   catch (error) { if (error instanceof AdminObjectError) throw new SenderError(error.code); throw error; }
@@ -15696,8 +15915,8 @@ function executeMissingContainerRecovery(ctx: WorldReducerContext, input: {
   readonly expectedBaseVersion: string; readonly previewFingerprint?: string | undefined;
 }): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const role = resolveAdminEffectiveRole(ctx.db.membership.identity.find(ctx.sender),
-    ctx.db.content_editor_grant.identity.find(ctx.sender), ctx.db.support_grant.identity.find(ctx.sender));
+  const role = scopedAdminRole(ctx, 'operate.players', resolveAdminEffectiveRole(ctx.db.membership.identity.find(ctx.sender),
+    ctx.db.content_editor_grant.identity.find(ctx.sender), ctx.db.support_grant.identity.find(ctx.sender)));
   if (role === null || !adminRoleCanMutate(role, 'restore_missing_container')) {
     throw new SenderError('admin_role_forbidden');
   }
@@ -15873,11 +16092,11 @@ function executeAdminWorldMutation(
   reportFingerprint?: string,
 ): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const role = resolveAdminEffectiveRole(
+  const role = scopedAdminRole(ctx, 'operate.world', resolveAdminEffectiveRole(
     ctx.db.membership.identity.find(ctx.sender),
     ctx.db.content_editor_grant.identity.find(ctx.sender),
     ctx.db.support_grant.identity.find(ctx.sender),
-  );
+  ));
   if (role === null) throw new SenderError('admin_role_forbidden');
   try { requireAdminWorldAuthority(role, mutation); }
   catch (error) {
@@ -16170,11 +16389,11 @@ function executeAdminWorldControlMutation(
   previewFingerprint: string | undefined,
 ): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const role = resolveAdminEffectiveRole(
+  const role = scopedAdminRole(ctx, 'operate.world', resolveAdminEffectiveRole(
     ctx.db.membership.identity.find(ctx.sender),
     ctx.db.content_editor_grant.identity.find(ctx.sender),
     ctx.db.support_grant.identity.find(ctx.sender),
-  );
+  ));
   if (role === null) throw new SenderError('admin_role_forbidden');
   try { requireAdminWorldControlAuthority(role, mutation); }
   catch (error) {
@@ -16436,11 +16655,11 @@ function executeAdminPlaytestMutation(
   previewFingerprint: string | undefined,
 ): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const role = resolveAdminEffectiveRole(
+  const role = scopedAdminRole(ctx, 'operate.world', resolveAdminEffectiveRole(
     ctx.db.membership.identity.find(ctx.sender),
     ctx.db.content_editor_grant.identity.find(ctx.sender),
     ctx.db.support_grant.identity.find(ctx.sender),
-  );
+  ));
   if (role === null) throw new SenderError('admin_role_forbidden');
   try { requireAdminPlaytestAuthority(role, mutation); }
   catch (error) {
@@ -16602,7 +16821,7 @@ export const adminChestMigrationStatus = spacetimedb.procedure(
   {},
   t.string(),
   (ctx) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.world');
     const control = tx.db.chest_migration_control.id.find(CHEST_MIGRATION_CONTROL_ID);
     return JSON.stringify({
       schemaVersion: 1,
@@ -16629,6 +16848,7 @@ export const adminChestMigrationStatus = spacetimedb.procedure(
 export const adminBackfillLegacyChests = spacetimedb.reducer(
   { expectedPhase: t.string(), limit: t.u16() },
   (ctx, { expectedPhase, limit }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (limit < 1 || limit > CHEST_MIGRATION_BATCH_MAX) throw new SenderError('chest_migration_limit_invalid');
     const control = ensureChestMigrationControl(ctx);
@@ -16672,6 +16892,7 @@ export const adminBackfillLegacyChests = spacetimedb.reducer(
 export const adminVerifyLegacyChests = spacetimedb.reducer(
   { expectedPhase: t.string(), maximumChests: t.u16() },
   (ctx, { expectedPhase, maximumChests }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (maximumChests < 1 || maximumChests > CHEST_MIGRATION_VERIFY_MAX) {
       throw new SenderError('chest_migration_limit_invalid');
@@ -16715,6 +16936,7 @@ export const adminSetChestMigrationPhase = spacetimedb.reducer(
     studioUsesPlaceables: t.bool(),
   },
   (ctx, input) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const control = ensureChestMigrationControl(ctx);
     const current = chestMigrationPhase(control.phase);
@@ -16781,6 +17003,7 @@ export const adminSetChestMigrationPhase = spacetimedb.reducer(
 export const adminDrainLegacyChests = spacetimedb.reducer(
   { expectedPhase: t.string(), limit: t.u16(), verificationFingerprint: t.string() },
   (ctx, { expectedPhase, limit, verificationFingerprint }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (limit < 1 || limit > CHEST_MIGRATION_BATCH_MAX) throw new SenderError('chest_migration_limit_invalid');
     const control = ensureChestMigrationControl(ctx);
@@ -16827,7 +17050,7 @@ export const adminLegacyFarmRetirementStatus = spacetimedb.procedure(
   {},
   t.string(),
   (ctx) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx);
+    requireAdminProcedure(tx, 'operate.world');
     const control = tx.db.legacy_farm_retirement_control.id.find(LEGACY_FARM_RETIREMENT_CONTROL_ID);
     const source = legacyFarmRetirementSource(tx);
     const current = inspectLegacyFarmRetirement(source, Number.MAX_SAFE_INTEGER);
@@ -16858,6 +17081,7 @@ export const adminLegacyFarmRetirementStatus = spacetimedb.procedure(
 export const adminInspectLegacyFarmRetirement = spacetimedb.reducer(
   { expectedPhase: t.string(), maximumRows: t.u16() },
   (ctx, { expectedPhase, maximumRows }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (maximumRows < 1 || maximumRows > LEGACY_FARM_RETIREMENT_VERIFY_MAX) {
       throw new SenderError('legacy_farm_retirement_limit_invalid');
@@ -16887,6 +17111,7 @@ export const adminInspectLegacyFarmRetirement = spacetimedb.reducer(
 export const adminVerifyLegacyFarmRetirement = spacetimedb.reducer(
   { expectedPhase: t.string(), maximumRows: t.u16(), inspectionFingerprint: t.string() },
   (ctx, { expectedPhase, maximumRows, inspectionFingerprint }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (maximumRows < 1 || maximumRows > LEGACY_FARM_RETIREMENT_VERIFY_MAX) {
       throw new SenderError('legacy_farm_retirement_limit_invalid');
@@ -16918,6 +17143,7 @@ export const adminSetLegacyFarmRetirementPhase = spacetimedb.reducer(
     verificationFingerprint: t.string(), drainFingerprint: t.string(),
   },
   (ctx, input) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const control = ensureLegacyFarmRetirementControl(ctx);
     const current = legacyFarmRetirementPhase(control.phase);
@@ -16963,6 +17189,7 @@ export const adminDrainLegacyFarmRetirement = spacetimedb.reducer(
     verificationFingerprint: t.string(), expectedRemainingFingerprint: t.string(),
   },
   (ctx, input) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (input.limit < 1 || input.limit > LEGACY_FARM_RETIREMENT_BATCH_MAX) {
       throw new SenderError('legacy_farm_retirement_limit_invalid');
@@ -17042,7 +17269,11 @@ export const publishLiveMapDocument = spacetimedb.reducer(
     clientMutationId: t.string(),
   },
   (ctx, { mapId, expectedRevision, documentJson, clientMutationId }) => {
-    requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    requireStudioScope(ctx, 'map');
+    const mapGrant = ctx.db.studio_scope_grant.id.find(`${ctx.sender.toHexString()}:map`);
+    if (mapGrant === null || mapGrant.revokedAt !== undefined) {
+      requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    }
     let document: MapDocumentV3 | null;
     try {
       document = prepareLiveMapPublication(documentJson, expectedRevision, clientMutationId, () => {
@@ -17067,6 +17298,7 @@ export const publishLiveMapDocument = spacetimedb.reducer(
 export const adminMoveHomestead = spacetimedb.reducer(
   { spaceId: t.u16(), tileX: t.u16(), tileY: t.u16() },
   (ctx, { spaceId, tileX, tileY }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const home = ctx.db.homestead.spaceId.find(spaceId);
     if (home === null) throw new SenderError('homestead_not_found');
@@ -17119,6 +17351,7 @@ export const adminMoveHomestead = spacetimedb.reducer(
 export const restoreLiveMapRevision = spacetimedb.reducer(
   { revisionId: t.u64(), expectedRevision: t.u32(), clientMutationId: t.string() },
   (ctx, { revisionId, expectedRevision, clientMutationId }) => {
+    requireStudioScope(ctx, 'operate.world');
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const revision = ctx.db.live_map_revision.id.find(revisionId);
     if (revision === null) throw new SenderError('live_map_revision_not_found');

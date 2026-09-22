@@ -25,7 +25,7 @@ describe('W5 world validation and repair registration', () => {
 
   it('validates a bounded snapshot and persists a server-owned repair receipt', () => {
     const procedure = between('export const adminValidateWorld = spacetimedb.procedure(', '// requestLastConnections');
-    expect(procedure).toContain('requireAdminProcedure(tx)');
+    expect(procedure).toContain("requireAdminProcedure(tx, 'operate.world')");
     expect(procedure).toContain('planAdminValidateWorld(');
     expect(procedure).toContain('tx.db.admin_world_validation_report.insert(row)');
     expect(procedure).toContain('adminValidateWorldRowsScanned=');
