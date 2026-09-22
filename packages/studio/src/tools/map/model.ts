@@ -1,6 +1,7 @@
 import { parseVerifiedStudioMapHead } from './verified-live-map.js';
+import { mapEditorJoinedPrefabForEdit, mapEditorObjectPlacementConflict } from './connected-object-footprint.js';
 import {
-  LIVE_ISLAND_MAP_ID, mapObjectPlacementConflict, type MapEntityStateEdit, type ObjectPropertyState,
+  LIVE_ISLAND_MAP_ID, type MapEntityStateEdit, type ObjectPropertyState,
   isMapObjectLayer,
   applyMapDocumentV3Edit,
   createEmptyMapDocument,
@@ -410,12 +411,16 @@ export class MapEditorModel {
 
   apply(command: MapDocumentV3EditCommand): void {
     const next = applyMapDocumentV3Edit(this.#document, command).document;
+    this.acceptDocument(next, command.kind === 'terrain' || command.kind === 'paint_biome', command.kind === 'terrain');
+  }
+
+  private acceptDocument(next: MapDocumentV3, terrainChanged = false, terrainValidationChanged = false): void {
     if (next === this.#document) return;
     this.#past.push(this.#document);
-    this.#terrainIdentity = command.kind === 'terrain' || command.kind === 'paint_biome'
+    this.#terrainIdentity = terrainChanged
       ? {}
       : this.#terrainIdentity;
-    this.#terrainValidationIdentity = command.kind === 'terrain'
+    this.#terrainValidationIdentity = terrainValidationChanged
       ? {}
       : this.#terrainValidationIdentity;
     this.#terrainIdentities.set(next, this.#terrainIdentity);
@@ -457,7 +462,16 @@ export class MapEditorModel {
   placeObject(object: MapObjectInstance): boolean {
     const previous=this.#document.objects.find(value=>value.id===object.id);
     const geometryChanged=!previous||['tileX','tileY','elevation','layer','prefabId','quarterTurns','flipX','scale','enabled'].some(key=>previous[key as keyof MapObjectInstance]!==object[key as keyof MapObjectInstance]);
-    if(geometryChanged&&(mapObjectPlacementConflict(this.#document,object)!==null||this.#liveOccupancy(object))){this.services.notifications.push('warning','Space occupied','Choose an empty position on this layer.');return false;}
+    if(geometryChanged&&(mapEditorObjectPlacementConflict(this.#document,object)!==null||this.#liveOccupancy(object))){this.services.notifications.push('warning','Space occupied','Choose an empty position on this layer.');return false;}
+    const prefab = geometryChanged ? mapEditorJoinedPrefabForEdit(this.#document, object) : null;
+    if (prefab) {
+      const embedded = applyMapDocumentV3Edit(this.#document, { kind: 'embed_prefab', prefab }).document;
+      const placed = applyMapDocumentV3Edit(embedded, { kind: 'place_object', object: {
+        ...object, prefabId: prefab.id, prefabRevision: prefab.revision,
+      } }).document;
+      this.acceptDocument(normalizeMapDocumentV3({ ...placed, revision: this.#document.revision + 1 }));
+      return true;
+    }
     this.apply({ kind: 'place_object', object });return true;
   }
   placeLandmark(landmark: MapLandmarkInstance): void { this.apply({ kind: 'place_landmark', landmark }); }

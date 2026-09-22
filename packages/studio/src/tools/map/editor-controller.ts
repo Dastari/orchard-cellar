@@ -1,4 +1,4 @@
-import {mapObjectOccupiedCells} from '@orchard/sim';
+import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
 import {mapMaterialChoices} from './material-palette.js';
 import {
   FIXED_UNITS_PER_PIXEL, smartConnectedObjectPrefabs, connectedObjectFamily, smartObjectPresentationPrefabs, mapPrefabPresentationFamily,
@@ -763,7 +763,7 @@ export class MapEditorController {
     this.#terrainPalette = terrainPalette;
     model.setLiveObjectOccupancy(object=>{
       if(!object.enabled)return false;
-      const cells=mapObjectOccupiedCells(model.document(),object);
+      const cells=mapEditorObjectOccupiedCells(model.document(),object);
       return this.liveMarkers().some(marker=>marker.spaceId===0&&marker.layer===object.layer
         &&!['player','npc'].includes(marker.entityKind)&&!model.document().generatedSuppressions.includes(`${marker.entityKind}-${marker.id}`)
         &&cells.some(cell=>cell.tileX>=marker.tileX-Math.floor((marker.footprint.width-1)/2)
