@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.3 — NPC camera alignment
+
+- Keep resting and sleeping animals fixed to the ground while the player moves by aligning all world layers to the same camera pixel grid.
+- Preserve NPC/player movement interpolation and stabilize actor rounding at higher rendering resolutions.
+- Record the measured cause, regression coverage and release handoff in [the investigation](docs/npc-camera-jitter-investigation.md).
+
 ## 0.18.1 — Ripe fruit when a tree is chopped
 
 - Chopping a ripe apple, pear, peach or cherry tree again drops its fruit, the Orchard Seed Saver seed roll and Farming XP along with the wood.
