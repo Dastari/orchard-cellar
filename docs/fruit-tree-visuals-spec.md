@@ -35,3 +35,26 @@ missing legacy timestamp, immature growth, chopped stump, and non-fruit trees.
 Check native anchor contact, dimensions, draw count, and nonzero sway. Inspect a
 sprite comparison visually. Run repository checks and a client build. This PR
 is not a production deployment.
+
+## PR handoff — 2026-09-22
+
+- [PR #50](https://github.com/Dastari/orchard-cellar/pull/50), branch
+  `feat/harvested-fruit-tree-visuals`, implementation commit `2c4f6432`.
+- Feature complete; PR open, CI pending at handoff. No merge or deployment.
+- Passed lifecycle/content validation, world and client builds, workspace type
+  checks, lint, asset build/validation, 101 exhaustive tests and 15 focused
+  fruit/hearth tests. Visual review confirmed matching native tree shapes.
+- The initial full coverage execution passed 5,654 tests and failed 164 while
+  the renderer edit was pending and local art fixtures were absent. The final
+  client/engine and previously failing art-file run passed 1,184 tests; its sole
+  missing custom-icon fixture was then linked and that three-test file passed.
+  All observed failures were rechecked successfully; full coverage was not rerun.
+- Local-only `references` and `art/custom/tool-progression` symlinks supply
+  ignored artwork fixtures from the canonical checkout. No artwork was changed.
+- NavyBay cleared isolated overlap in Agent Mail message 54. PR49 changes
+  `overworldPlaceableVisualScale`; preserve that change alongside these resource
+  visuals. Preserve highest package versions and both changelog entries when
+  integrating concurrent work (this PR: root 0.21.0, client/engine 0.19.0).
+- Next action: inspect PR checks and review; merge or deployment needs an
+  explicit user instruction. No server or content release is required by this
+  rendering-only feature.
