@@ -2074,6 +2074,10 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
         const override=state.model.document().cells[mapCellKey(inspection.tileX,inspection.tileY)];
         field('Grass family',kit.select({id:'map-property-family',label:'Grass family',disabled:!state.interaction.terrainAuthoringAvailable(),value:override?.surfaceFamily??'',options:[{value:'',label:'Use map default'},...mapMaterialChoices(state.terrainPalette).filter(v=>v.id.startsWith('grass_')).map(v=>({value:v.id,label:v.label}))],onChange:value=>{state.model.editTerrain({kind:'paint',points:[{tileX:inspection.tileX,tileY:inspection.tileY}],patch:{surfaceFamily:(value||null) as TerrainSurfaceFamilyId|null}});context.invalidate();}}));
         if(override?.terrainOverride)action('selection-terrain-clear','Clear exact override',()=>{state.interaction.clearSelectedExactTerrainOverride();context.invalidate();},{tone:'danger'});
+        // Cell part stack: an exact part can always go back to the smart frame.
+        for(const part of state.interaction.selectedCellExactParts())action(`selection-part-revert-${part.slot.replace(/[^a-z0-9_-]+/gu,'-')}`,
+          `Revert ${part.slot.replace(':',' ').replaceAll('_',' ')} to smart`,()=>{state.interaction.revertSelectedCellPartExact(part.slot);context.invalidate();},
+          {disabled:!state.interaction.terrainAuthoringAvailable()});
       }
     }
     for(const row of mapCanvasInspectorRows(context.controller.inspector.groups())){
