@@ -1,6 +1,6 @@
 # Studio selection and terrain feedback
 
-Status: implementation complete; final verification in progress, 2026-09-22. Follows PR #47; does not alter its approved release candidate.
+Status: implementation and local verification complete; PR #51 ready for review, 2026-09-22. Follows deployed PR #47; this candidate is not deployed.
 
 ## Contract
 
@@ -45,6 +45,8 @@ The isolated browser loaded a 3,525,763-character live map copy with 39,954 auth
 
 Browser captures verify a full-size palette reticle and stable tooltip, selected resource tree art, game-style tile composition, compact layer rows, and the grass-water bank continuation. No production test edits were published. Evidence: `/home/toby/.local/state/orchard-release/studio-selection-20260922`.
 
-Reviewed Studio production output and an independent game production build pass. The original Studio UI-kit guard and immutable staged-source manifest pass. Candidate world full/private schema and public bindings match deployed PR47; this is a same-schema code release with no content changes. Relevant focused tests, workspace TypeScript, lint, lifecycle integrity, content validation and world build pass; full coverage/exhaustive checks are running.
+Reviewed Studio production output and an independent game production build pass. The original Studio UI-kit guard and immutable staged-source manifest pass. Candidate world full/private schema and public bindings match deployed PR47; this is a same-schema code release with no content changes. Workspace TypeScript, lint, lifecycle integrity, content validation and world build pass. The final coverage run passes all 943 files / 5,844 tests, with 88.79% statements, 84.13% branches, 94.40% functions and 92.87% lines, exceeding all configured thresholds. The separate exhaustive lane passes all seven files / 101 tests. Asset validation passes 1,320 art assets, three songs, ten sound effects, 55 palette colors and four seasonal remaps. Licensed raw-art fixtures remain local and untracked.
+
+Verified source: `8ea241367ae3a3fa71d2197340a1beb345823e74`; production implementation: `191a5631`. The final Studio snapshot/output are `source-verified` / `output-verified` under the evidence directory; the game artifact is `game-output-production`. GitHub CI remains independently visible on the PR. Subsequent documentation-only commits do not change these checked production inputs.
 
 The candidate is not deployed. PR47 is deployed and remains unmerged. The new resource-placement collection and non-blocking design policy require coordinated world/game/Studio deployment through the routine lane after explicit approval for this candidate; Studio alone cannot enable the authority behavior.
