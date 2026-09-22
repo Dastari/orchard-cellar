@@ -333,7 +333,10 @@ const SHROOMLANDS: RaisedTerrainTileSet = {
   ledgeBank: extractedLedgeBank('tile_cf_shroomlands_ledge'),
   stairFrames: null,
   waterfallAssetId: 'tile_cf_shroomlands_waterfall',
-  intentionalRoleFrameReuse: [0, 1, 9, 11, 45, 46, 47],
+  // The source repeats its lower inverse pair at (48,16)/(64,16) and
+  // (48,112)/(64,112): primary insets 12/13 equal ledge insets 10/11.
+  // The upper inverse pair is different artwork and is not an alias.
+  intentionalRoleFrameReuse: [0, 1, 9, 11, 12, 13, 45, 46, 47],
 };
 const VOLCANIC_BASE = outdoorFamily('tile_cf_volcanic_cliff', {
   top: [0, 1, 2], sides: [3, 5], bottom: [6, 7, 8],

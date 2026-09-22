@@ -248,6 +248,30 @@ describe('terrain family registries', () => {
     ]);
   });
 
+  it('declares only source-proven shroom lower inverse aliases across the two native banks', () => {
+    type NativeTile = ExtractedTileJson & {
+      sourcePath: string;
+      sourcePalette: Record<string, string>;
+      sourceRegions: { base: number[][] };
+    };
+    const primary = JSON.parse(cliffSource3) as NativeTile;
+    const ledge = JSON.parse(shroomLedgeJson) as NativeTile;
+    const colors = (asset: NativeTile, index: number) => asset.frames.base[index]!
+      .map(row => [...row].map(pixel => pixel === '.' ? 'transparent' : asset.sourcePalette[pixel]));
+    expect(primary.sourcePath).toBe(ledge.sourcePath);
+    expect(primary.sourcePath).toBe('references/art/kenmi/cute-fantasy/shroomlands/Tiles/ShroomLands_Cliff_Tiles.png');
+    for (const [primaryIndex, ledgeIndex, x] of [[12, 10, 48], [13, 11, 64]] as const) {
+      expect(primary.sourceRegions.base[primaryIndex]).toEqual([x, 16, 16, 16]);
+      expect(ledge.sourceRegions.base[ledgeIndex]).toEqual([x, 112, 16, 16]);
+      expect(colors(primary, primaryIndex)).toEqual(colors(ledge, ledgeIndex));
+      expect(TERRAIN_CLIFF_FAMILIES.shroomlands.tileSet.intentionalRoleFrameReuse).toContain(primaryIndex);
+    }
+    for (const [primaryIndex, ledgeIndex] of [[3, 8], [4, 9]] as const) {
+      expect(colors(primary, primaryIndex)).not.toEqual(colors(ledge, ledgeIndex));
+      expect(TERRAIN_CLIFF_FAMILIES.shroomlands.tileSet.intentionalRoleFrameReuse).not.toContain(primaryIndex);
+    }
+  });
+
   it('ends desert cliffs at the native terminal row before the separate small-lip bank', () => {
     for (const id of ['desert_1', 'desert_2', 'desert_3'] as const) {
       const profile = TERRAIN_CLIFF_FAMILIES[id].tileSet.faceProfiles.tall!;
