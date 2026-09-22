@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.3 — Clearer workbench artwork
+
+- Rework the crafting workbench for its native 32-pixel width: quieter wood, clear plank seams, a readable mallet and a connected iron vise. Preserve the two-tile size, collision and interactions.
+- Retain the original high-resolution artwork alongside the revised AI source and reproducible sprite import.
+
 ## 0.21.1 — September 22 integrated release
 
 - Combine Studio freeze recovery, atomic map deltas, responsive terrain and Canopy selection with NPC camera alignment, world interaction registration, the two-tile crafting workbench and picked-fruit visuals.
