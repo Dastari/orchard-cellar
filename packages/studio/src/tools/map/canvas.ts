@@ -15,6 +15,7 @@ import {
 } from '@orchard/sim';
 import { mapMaterialChoices, mapObjectCategory, mapPaletteColumns, MAP_OBJECT_FILTERS, type MapObjectFilter } from './material-palette.js';
 import { mapPixelToolIcon, type MapPixelTool } from './pixel-tool-icons.js';
+import { mapPaletteThumbnail } from './terrain-preview.js';
 import { studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { terrainProjectedDepthForElevation, terrainInspectionVisualLayout, type TerrainArray } from '@orchard/engine';
 import {
@@ -1494,11 +1495,9 @@ function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext):UiE
     onScroll:element=>{state.paletteOffset=element.scroll.y;},
     onArrange:element=>{const next=mapPaletteColumns(element.contentRect.width);if(next!==columns){columns=next;element.setProps({items:rows()},false);}},
     render:row=>kit.grid({columns,columnWidth:uiFixed(46),rowHeight:uiFixed(46),gap:0,width:'grow',height:uiFixed(46)},row.map(choice=>{
-      const preview=choice.preview?.();
       const control=paletteObjectDrag(kit.button({id:choice.id,label:'',ariaLabel:choice.label,disabled:choice.disabled,size:'md',
         layout:{width:uiFixed(40),height:uiFixed(40),padding:4},onPress:choice.apply,
-        children:[preview?kit.image(preview.image,preview.frame,{label:choice.label,fit:'contain',layout:{width:'grow',height:'grow'}})
-          :kit.icon({cf:'gift'},{layout:{width:'grow',height:'grow'}})]}),choice,state,context);
+        children:[mapPaletteThumbnail(choice.label,choice.preview)]}),choice,state,context);
       return kit.tooltip(choice.label,kit.stack({width:uiFixed(46),height:uiFixed(46),padding:2},[
         control,...(choice.active?[paletteReticle(state,context)]:[])]),{width:uiFixed(46),height:uiFixed(46)});
     })),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.23.1 — 2026-09-22
+
+- Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.
+
 ## 0.23.0 — 2026-09-22
 
 - Studio 0.13.0 restores Marlow's live camp path under Generated Base and removes the proven duplicate 47-frame path bank from Exact Placement without deleting saved IDs.

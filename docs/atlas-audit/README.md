@@ -1,4 +1,4 @@
-# Atlas and Studio audit — 0.23.0 / Studio 0.13.0
+# Atlas and Studio audit — 0.23.1 / Studio 0.13.1
 
 Start with the [interactive terrain guide](terrain/index.html): actual source
 pixels, assembled examples and neighbour masks, with a searchable source and
@@ -8,6 +8,8 @@ explain which need semantic review. [Live-map findings](live-map.md) cover the
 reported village lamp overlap and other authored duplicates.
 
 ## Corrections delivered
+
+- Palette artwork updates as it loads even while the placement-mode menu remains open.
 
 - Hearth Pavement has 38 Exact Placement choices instead of four: the four stable
   centres, four named curb corners and 30 native source fragments. Every source
