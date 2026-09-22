@@ -1,9 +1,19 @@
 # Changelog
 
+## 0.21.3 — Clearer workbench artwork
+
+- Rework the crafting workbench for its native 32-pixel width: quieter wood, clear plank seams, a readable mallet and a connected iron vise. Preserve the two-tile size, collision and interactions.
+- Retain the original high-resolution artwork alongside the revised AI source and reproducible sprite import.
+
+## 0.21.2 — Update dialog spacing
+
+- Raise Refresh Now and Later inside the Update Ready dialog so both buttons clear the bottom frame; pointer targets follow their visible position.
+
 ## 0.21.1 — September 22 integrated release
 
 - Combine Studio freeze recovery, atomic map deltas, responsive terrain and Canopy selection with NPC camera alignment, world interaction registration, the two-tile crafting workbench and picked-fruit visuals.
 - Preserve all six PR histories and their highest workspace versions; release scope and verification are recorded in [the release handoff](docs/release-2026-09-22.md).
+- Record the owner-approved workbench relocation with unchanged chest contents and the dedicated development account’s verified Admin publishing access.
 
 ## 0.21.0 — Picked fruit disappears from trees
 

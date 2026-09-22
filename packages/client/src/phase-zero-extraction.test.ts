@@ -160,7 +160,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review: docs/review/willowharbour-rules-pass-01.md.
 // Empty hotbar sentinels no longer render missing-art icons; collision now uses
 // shared authored footprint cells. Review: docs/workbench-spec.md and docs/world-interactions.md.
-const STRUCTURAL_SEAM_DIGEST = "f6de4d39a84f56a20be7bca717ea3acad32e41913b3f8cedb1b71478a9396ba2";
+// Re-reviewed Update Ready button inset: 21px above the frame bottom.
+const STRUCTURAL_SEAM_DIGEST = "f7cfdbffd1cc3c70ecc6a9b8afc33fd76e439dbf2c41b7af66b51d15461c666f";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

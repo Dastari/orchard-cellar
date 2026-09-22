@@ -518,7 +518,7 @@ export function pwaUpdatePromptLayout(width: number, height: number): PwaUpdateP
     height: frameHeight,
   };
   const buttonWidth = Math.min(112, Math.floor((frameWidth - 42) / 2));
-  const buttonY = frame.y + frame.height - 31;
+  const buttonY = frame.y + frame.height - BUTTON_HEIGHT.regular - 21;
   return {
     frame,
     refreshButton: { x: frame.x + 16, y: buttonY, width: buttonWidth, height: BUTTON_HEIGHT.regular },

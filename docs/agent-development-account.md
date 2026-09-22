@@ -14,11 +14,12 @@ email in Keycloak. The address has **no mailbox**; email recovery is unavailable
   reports connected, content ready, and no error.
 - World identity:
   `c2008879d1c8357547804a5ef7f56c9315a31781d0875c6ca271977062f93dbe`.
-- Permissions: friend membership plus **Content Editor** grant. The owner applied
-  the grant in Studio on 2026-09-21; an authenticated `own_content_editor_grant`
-  query verified this exact identity has an unrevoked grant. No Keycloak
-  administration or world owner role was granted. Using this account does not
-  authorize production releases or edits.
+- Permissions: **Admin** membership plus the existing **Content Editor** grant.
+  The owner explicitly authorized Admin publishing access on 2026-09-22. The
+  normal `approveMember` reducer applied the role; authenticated
+  `adminFindPlayers` verified Admin and the retained Content Editor grant.
+  No Keycloak administration or world Owner role was granted. Account access
+  does not itself authorize production releases or edits.
 
 ## Publishing roles
 
@@ -28,9 +29,11 @@ Multiple owners are supported; adding an owner does not replace existing owners.
 Only an owner can assign these membership roles. Admin is sufficient for normal
 approved game/map release operations and does not grant membership administration.
 
-The dedicated account currently remains friend plus Content Editor. No persistent
-Admin or Owner grant was applied during release preparation. An encrypted,
-temporary owner handoff supplies this release's additional authority. Such sessions
+The dedicated account now has persistent Admin membership, approved and verified
+on 2026-09-22. It can perform approved publication operations without a separate
+owner session. The 0.21.1 release retained its already-prepared temporary owner handoff to avoid
+changing credential ownership mid-release; those files were removed after verified
+publication. Such sessions
 expire and must be refreshed while an authorized release is active; their existence
 on disk does not prove validity. The user must explicitly authorize any persistent
 role elevation. Release approval remains separate from account privileges.
