@@ -1,5 +1,18 @@
 # Changelog
 
+## Chunk materialization groundwork — sim 0.21.1 / engine 0.20.1
+
+- Add SHA-256-addressed 64×64 static world chunks with one-cell halos, signed
+  elevations, ordered authored/generated records, exact generated resource IDs,
+  and an optional cell-part section.
+- Add an offline materializer and actual-server parity oracle, plus a compatible
+  `ChunkTerrainStore`. Runtime subscriptions and world schema are unchanged.
+- Preserve independently captured client/server collision channels; validate
+  bootstrap goldens and the local authored-map snapshot before runtime migration.
+- See [materialization procedure](docs/world-chunk-materialization.md) for commands,
+  format details, asset-index integration, and the subsequent streaming boundary.
+
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.

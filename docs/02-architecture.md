@@ -429,3 +429,16 @@ The selection inspector preserves its scroll and input models across actual data
 refreshes. Open popovers defer shell replacement, and stable hover dwell survives
 replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
+
+## Static world chunk materialization (pre-runtime migration)
+
+`@orchard/sim/world-chunk` defines the versioned binary envelope, SHA-256 integrity,
+64×64 core plus 1-cell halo, typed channels, and stable anchored records. The
+engine's `ChunkTerrainStore` reconstructs today's `TerrainArray` contract without
+calling generators. `scripts/materialize-world-chunks.ts` runs the existing client
+path offline and audits the actual server collision functions in a VM with a
+read-only fixture context. Client and server snapshots remain distinct where the
+existing implementations disagree. This is additive tooling; the live server and
+client continue to use their current map-document path. See
+[world chunk materialization](world-chunk-materialization.md) for the format,
+validation, and streaming follow-up boundary.

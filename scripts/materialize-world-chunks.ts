@@ -1,0 +1,257 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { brotliCompressSync, constants as zlibConstants, gzipSync } from 'node:zlib';
+import { fileURLToPath } from 'node:url';
+import {
+  MAP_FEATURE_KINDS, MAP_SURFACE_KINDS, LIVE_ISLAND_MAP_ID, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID,
+  activeSpaceGroundWalkableTiles, activeSurvivalLandmarks, bootstrapContentRegistry, buildContentRegistry, compileMapDocument,
+  createLiveIslandMapDocument, generateSurvivalDecorations, generateSurvivalLandmarkDecorations,
+  generateSurvivalProceduralDecorations, generateSurvivalResources, mapLandmarkDecoration,
+  parseMapDocumentV3, runtimeTilesetResolver, serializeMapDocumentV3, terrainDocumentForMapV3,
+  TERRAIN_CLIFF_FAMILIES, TERRAIN_SURFACE_FAMILIES, TERRAIN_SURFACE_FAMILY_IDS, SURVIVAL_BIOMES,
+  type CollisionMap, type ContentRegistry, type ContentDefinitionRow, type MapDocumentV3,
+} from '@orchard/sim';
+import { liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
+import { createClientCollisionMap } from '@orchard/engine/collision';
+import type { TerrainArray } from '@orchard/engine/terrain';
+import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
+import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE,
+  type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
+import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
+import { serverLiveIslandReference } from './world-chunk-server-reference.js';
+
+export interface WorldChunkSnapshot {
+  readonly terrain: TerrainArray;
+  readonly document: MapDocumentV3;
+  readonly channels: Readonly<Record<string, ChunkArray>>;
+  readonly records: readonly WorldChunkRecord[];
+  readonly metadata: Readonly<Record<string, ChunkJson>>;
+  readonly collisions: Readonly<Record<'clientGround' | 'clientWater' | 'serverGround' | 'serverWater', CollisionMap>>;
+}
+function json(value: unknown): ChunkJson { return JSON.parse(JSON.stringify(value)) as ChunkJson; }
+function assetStrings(value: unknown, result: Set<string>): void {
+  if (value === null || typeof value !== 'object') return;
+  for (const [key, item] of Object.entries(value)) {
+    if (['asset', 'assetId', 'assetName', 'sheetAssetId', 'insetAssetId', 'rampAssetId', 'waterfallAssetId', 'stairAssetId', 'ladderAssetId'].includes(key) && typeof item === 'string') result.add(item);
+    else assetStrings(item, result);
+  }
+}
+/** Calls the same live terrain, decoration and collision functions as the client. */
+export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry): WorldChunkSnapshot {
+  const document = parseMapDocumentV3(row.documentJson, activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
+  const raw = JSON.parse(row.documentJson) as { cells?: Record<string, { parts?: unknown }> };
+  for (const [key, value] of Object.entries(raw.cells ?? {})) {
+    if (value.parts !== undefined && !('parts' in (document.cells[key] ?? {}))) {
+      throw new Error('Cell parts require the authoring parser from PR #66; refusing lossy materialization');
+    }
+  }
+  const terrain = liveIslandTerrain(row, registry);
+  if (terrain === null) throw new Error('Published map is not a compatible live island');
+  const compiled = compileMapDocument(terrainDocumentForMapV3(document), runtimeTilesetResolver(registry.tilesets));
+  const channels: Record<string, ChunkArray> = {};
+  const records: WorldChunkRecord[] = [];
+  const add = (kind: string, ordinal: number, tileX: number, tileY: number, value: unknown): void => {
+    records.push({ kind, ordinal, tileX: Math.max(0, Math.min(terrain.width - 1, Math.floor(tileX))), tileY: Math.max(0, Math.min(terrain.height - 1, Math.floor(tileY))), value: json(value) });
+  };
+  for (const field of ['biomes', 'elevations', 'dirtCliffRoles', 'dirtTerraces', 'cliffFamilies', 'surfaceFamilies', 'ledges', 'authoredFarmland', 'terrainPlaneBlocked'] as const) {
+    const value = terrain[field];
+    if (value !== undefined) channels[field] = value;
+  }
+  channels['blocked'] = Uint8Array.from(terrain.blocked, Number);
+  channels['horseJumpableTerrain'] = Uint8Array.from(terrain.horseJumpableTerrain, Number);
+  channels['features'] = Uint8Array.from(compiled.features, feature => MAP_FEATURE_KINDS.indexOf(feature));
+  channels['compiledSurfaces'] = Uint8Array.from(compiled.surfaces, surface => MAP_SURFACE_KINDS.indexOf(surface));
+  if (terrain.authoredSurfaces) channels['authoredSurfaces'] = Uint8Array.from(terrain.authoredSurfaces, surface => MAP_SURFACE_KINDS.indexOf(surface));
+  terrain.terrainOverrides?.forEach((value, index) => { if (value !== null) add('terrainOverride', index, index % terrain.width, Math.floor(index / terrain.width), value); });
+  terrain.terrainTransitions?.forEach((value, index) => add('transition', index, value.lowerTileX, value.lowerTileY, value));
+  document.stairRuns?.forEach((value, index) => add('stairRun', index, value.x, value.y, value));
+  for (const kind of ['objects', 'landmarks', 'scenery', 'anchors', 'resourcePlacements'] as const) document[kind]?.forEach((value, index) => add(kind, index, value.tileX, value.tileY, value));
+  const suppressions = new Set(document.generatedSuppressions);
+  const resources = generateSurvivalResources(terrain.seed, registry);
+  resources.forEach((value, index) => add('generatedResource', index, value.tileX, value.tileY, value));
+  // Preserve raw IDs and suppressed rows; suppression remains explicit data.
+  const decorations = [
+    ...generateSurvivalProceduralDecorations(terrain.seed, registry),
+    ...document.landmarks.filter(landmark => landmark.enabled).map(landmark => ({ ...mapLandmarkDecoration(landmark), landmark })),
+  ];
+  decorations.forEach((value, index) => add('decoration', index, value.tileX, value.tileY, value));
+  const procedural = new Set(generateSurvivalProceduralDecorations(terrain.seed, registry).map(({ id }) => id));
+  for (const decoration of generateSurvivalDecorations(terrain.seed, registry)) if (!procedural.has(decoration.id)) suppressions.add(`decoration-${decoration.id}`);
+  for (const decoration of generateSurvivalLandmarkDecorations(activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID))) suppressions.add(`decoration-${decoration.id}`);
+  const docks = activeSpaceGroundWalkableTiles(registry, TOPSIDE_SPACE_ID, document.landmarks);
+  const clientCollision = (medium: 'ground' | 'water'): CollisionMap => {
+    const base = createClientCollisionMap(terrain, [], [], medium, [], suppressions, docks, registry);
+    const collision: CollisionMap = { width: base.width, height: base.height, blocked: base.blocked,
+      ...(base.elevations === undefined ? {} : { elevations: base.elevations }),
+      ...(base.terrainPlaneBlocked === undefined ? {} : { terrainPlaneBlocked: base.terrainPlaneBlocked }),
+      ...(base.terrainMinimumElevation === undefined ? {} : { terrainMinimumElevation: base.terrainMinimumElevation }),
+      ...(base.horseJumpableTerrain === undefined ? {} : { horseJumpableTerrain: base.horseJumpableTerrain }),
+      ...(base.terrainTransitions === undefined ? {} : { terrainTransitions: base.terrainTransitions }),
+    };
+    return { ...collision, obstacles: [...(base.obstacles ?? []), ...liveMapObjectCollisionObstacles(document, medium, registry)] };
+  };
+  const server = serverLiveIslandReference(row, registry);
+  const collisions = { clientGround: clientCollision('ground'), clientWater: clientCollision('water'), serverGround: server.ground, serverWater: server.water };
+  const collisionMetadata: Record<string, ChunkJson> = {};
+  for (const [name, collision] of Object.entries(collisions)) {
+    channels[`${name}.blocked`] = Uint8Array.from(collision.blocked, Number);
+    if (collision.elevations) channels[`${name}.elevations`] = Int16Array.from(collision.elevations);
+    if (collision.terrainPlaneBlocked) channels[`${name}.terrainPlaneBlocked`] = Uint8Array.from(collision.terrainPlaneBlocked);
+    if (collision.horseJumpableTerrain) channels[`${name}.horseJumpableTerrain`] = Uint8Array.from(collision.horseJumpableTerrain, Number);
+    collision.obstacles?.forEach((value, index) => add(`${name}.obstacle`, index, value.left / TILE_SIZE_FIXED, value.top / TILE_SIZE_FIXED, value));
+    collision.terrainTransitions?.forEach((value, index) => add(`${name}.transition`, index, value.lowerTileX, value.lowerTileY, value));
+    collisionMetadata[name] = json({
+      ...(collision.terrainMinimumElevation === undefined ? {} : { terrainMinimumElevation: collision.terrainMinimumElevation }),
+      ...(collision.fixedTerrainPlane === undefined ? {} : { fixedTerrainPlane: collision.fixedTerrainPlane }),
+      ...(collision.terrainTransitions === undefined ? {} : { terrainTransitions: [] }),
+    });
+  }
+  const terrainMeta: Record<string, unknown> = {};
+  for (const field of ['seed', 'version', 'generator', 'defaultCliffFamily', 'defaultSurfaceFamily', 'cliffFamilyIds', 'projectionStyle', 'baseDatum', 'fixedTerrainPlane', 'raisedTerrainCollisionClassified'] as const) if (terrain[field] !== undefined) terrainMeta[field] = terrain[field];
+  terrainMeta['hasTransitions'] = terrain.terrainTransitions !== undefined;
+  terrainMeta['hasOverrides'] = terrain.terrainOverrides !== undefined;
+  return { terrain, document, channels, records, collisions, metadata: {
+    terrain: json(terrainMeta), collisions: collisionMetadata,
+    channels: json(Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: value.length / (terrain.width * terrain.height) }]))),
+    surfacePalette: json(MAP_SURFACE_KINDS), featurePalette: json(MAP_FEATURE_KINDS),
+    biomePalette: json(SURVIVAL_BIOMES), surfaceFamilyPalette: json(TERRAIN_SURFACE_FAMILY_IDS),
+    // Authored global policy and definitions are retained losslessly, separate from terrain.
+    document: json({ id: document.id, provenance: document.provenance, layers: document.layers, prefabs: document.prefabs,
+      generatedSuppressions: document.generatedSuppressions, entityStates: document.entityStates, combatRegions: document.combatRegions }),
+  } };
+}
+export interface MaterializedWorldChunks { readonly manifest: WorldChunkManifest; readonly blobs: readonly Uint8Array[]; }
+export interface MaterializationOptions {
+  readonly atlasPackIdsForAssets?: (assetIds: readonly string[]) => readonly string[];
+  readonly assetRevision?: string;
+  readonly includeServerOracle?: boolean;
+}
+export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMapDocumentRow, registry: ContentRegistry,
+  options: MaterializationOptions = {}): MaterializedWorldChunks {
+  const atlasPackIdsForAssets = options.atlasPackIdsForAssets ?? (() => []);
+  const assetRevision = options.assetRevision ?? registry.contentHash;
+  const included = (name: string): boolean => options.includeServerOracle === true || !name.startsWith('server');
+  const channels = Object.fromEntries(Object.entries(snapshot.channels).filter(([name]) => included(name)));
+  const sourceRecords = snapshot.records.filter(record => included(record.kind));
+  const metadata = { ...snapshot.metadata,
+    includesServerOracle: options.includeServerOracle === true,
+    channels: Object.fromEntries(Object.entries(snapshot.metadata['channels'] as Record<string, ChunkJson>).filter(([name]) => included(name))),
+    collisions: Object.fromEntries(Object.entries(snapshot.metadata['collisions'] as Record<string, ChunkJson>).filter(([name]) => included(name))),
+  };
+  const { width, height, spaceId } = snapshot.terrain;
+  const blobs: Uint8Array[] = [];
+  const heads: WorldChunkManifest['chunks'][number][] = [];
+  const commonAssets = new Set<string>();
+  // Conservative terrain closure until per-biome art dependency analysis is integrated.
+  assetStrings(TERRAIN_CLIFF_FAMILIES, commonAssets);
+  assetStrings(TERRAIN_SURFACE_FAMILIES, commonAssets);
+  for (const tileset of registry.tilesets.values()) assetStrings(tileset, commonAssets);
+  for (const id of chunkTerrainAssetIds()) commonAssets.add(id);
+  const byChunk = new Map<string, WorldChunkRecord[]>();
+  for (const record of sourceRecords) {
+    const key = `${Math.floor(record.tileX / WORLD_CHUNK_SIZE)}:${Math.floor(record.tileY / WORLD_CHUNK_SIZE)}`;
+    const list = byChunk.get(key) ?? []; list.push(record); byChunk.set(key, list);
+  }
+  for (let cy = 0; cy < Math.ceil(height / WORLD_CHUNK_SIZE); cy++) for (let cx = 0; cx < Math.ceil(width / WORLD_CHUNK_SIZE); cx++) {
+    const records = byChunk.get(`${cx}:${cy}`) ?? [];
+    const assets = new Set(commonAssets);
+    for (const record of records) {
+      assetStrings(record.value, assets);
+      const value = record.value as Record<string, ChunkJson>;
+      if (record.kind === 'objects') {
+        const prefab = snapshot.document.prefabs.find(prefab => prefab.id === value['prefabId']);
+        if (prefab) assetStrings(prefab, assets);
+      }
+      if (record.kind === 'generatedResource') {
+        const resource = [...registry.resources.values()].find(resource => resource.runtimeKind === value['kind']);
+        if (resource) for (const asset of chunkResourceAssetIds(resource.visual)) assets.add(asset);
+      }
+      if (record.kind === 'decoration' || record.kind === 'landmarks') {
+        for (const asset of chunkDecorationAssetIds(String(value['kind']), Number(value['variant']), registry)) assets.add(asset);
+      }
+    }
+    const cellParts: Record<string, ChunkJson> = {};
+    for (let y = 0; y < WORLD_CHUNK_SIZE; y++) for (let x = 0; x < WORLD_CHUNK_SIZE; x++) {
+      const cell = snapshot.document.cells[`${cx * WORLD_CHUNK_SIZE + x},${cy * WORLD_CHUNK_SIZE + y}`] as unknown as Record<string, unknown> | undefined;
+      if (cell?.['parts'] !== undefined) cellParts[String(y * WORLD_CHUNK_SIZE + x)] = json(cell['parts']);
+    }
+    const assetIds = [...assets].sort();
+    const bytes = encodeWorldChunk({ schema: 1, spaceId, cx, cy, assetRevision,
+      arrays: Object.fromEntries(Object.entries(channels).map(([name, source]) => [name, sliceWorldChunkChannel(source, width, height, cx, cy, /blocked/iu.test(name) ? 1 : 0)])),
+      records, assetIds, atlasPackIds: [...new Set(atlasPackIdsForAssets(assetIds))].sort(),
+      ...(Object.keys(cellParts).length ? { cellParts } : {}),
+    });
+    blobs.push(bytes);
+    heads.push({ cx, cy, contentHash: decodeWorldChunk(bytes).contentHash, byteLength: bytes.length });
+  }
+  return { blobs, manifest: { schema: 1, chunkSize: WORLD_CHUNK_SIZE, spaceId, width, height, assetRevision,
+    sourceRevision: row.revision, sourceHash: row.contentHash, metadata, chunks: heads } };
+}
+export function verifyWorldChunkParity(snapshot: WorldChunkSnapshot, materialized: MaterializedWorldChunks): void {
+  const store = new ChunkTerrainStore(materialized.manifest, snapshot.terrain.tilesets);
+  for (const bytes of [...materialized.blobs].reverse()) store.install(bytes);
+  for (const [name, expected] of Object.entries(snapshot.terrain)) {
+    if (name === 'tilesets') continue; // same immutable registry resolver supplied above
+    const actual = (store as unknown as Record<string, unknown>)[name];
+    if (canonicalChunkJson(actual) !== canonicalChunkJson(expected)) throw new Error(`TerrainArray parity failed: ${name}`);
+  }
+  const included = (name: string): boolean => materialized.manifest.metadata['includesServerOracle'] === true || !name.startsWith('server');
+  for (const [name, expected] of Object.entries(snapshot.channels).filter(([name]) => included(name))) {
+    const actual = store.channels[name];
+    if (!actual || actual.length !== expected.length || actual.some((value, index) => value !== expected[index])) throw new Error(`Chunk parity failed: ${name}`);
+  }
+  for (const kind of new Set(snapshot.records.filter(record => included(record.kind)).map(record => record.kind))) if (canonicalChunkJson(store.records(kind)) !== canonicalChunkJson(snapshot.records.filter(record => record.kind === kind))) throw new Error(`Chunk record parity failed: ${kind}`);
+  for (const name of ['clientGround', 'clientWater', 'serverGround', 'serverWater'] as const) {
+    if (!included(name)) continue;
+    if (canonicalChunkJson(store.collision(name)) !== canonicalChunkJson(snapshot.collisions[name])) throw new Error(`Chunk collision parity failed: ${name}`);
+  }
+}
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const value = (flag: string): string | undefined => { const index = args.indexOf(flag); return index < 0 ? undefined : args[index + 1]; };
+  const input = value('--input');
+  const output = value('--output');
+  if (!output || (!input && !args.includes('--bootstrap'))) throw new Error('Usage: tsx scripts/materialize-world-chunks.ts (--input map.json | --bootstrap) --output directory');
+  const contentRowsPath = value('--content-rows');
+  const content = contentRowsPath ? buildContentRegistry(JSON.parse(await readFile(contentRowsPath, 'utf8')) as ContentDefinitionRow[]) : null;
+  if (content && !content.report.valid) throw new Error(`Invalid content rows: ${JSON.stringify(content.report.errors)}`);
+  const registry = content?.registry ?? bootstrapContentRegistry();
+  const atlasIndexPath = value('--atlas-index');
+  const atlasIndexSource = atlasIndexPath ? await readFile(atlasIndexPath, 'utf8') : null;
+  const atlasIndex = atlasIndexSource ? JSON.parse(atlasIndexSource) as { assetPacks: Record<string, string> } : null;
+  const packIds = (assetIds: readonly string[]): readonly string[] => atlasIndex === null ? [] : assetIds.map(id => {
+    const pack = atlasIndex.assetPacks?.[id];
+    if (typeof pack !== 'string') throw new Error(`Atlas index has no pack for ${id}`);
+    return pack;
+  });
+  const assetRevision = value('--asset-revision') ?? (atlasIndexSource ? worldChunkHash(new TextEncoder().encode(atlasIndexSource)) : registry.contentHash);
+  const source: unknown = input ? JSON.parse(await readFile(input, 'utf8')) : createLiveIslandMapDocument({ landmarks: activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID) });
+  const row = typeof source === 'object' && source !== null && 'documentJson' in source ? source as LiveMapDocumentRow : (() => {
+    const document = parseMapDocumentV3(JSON.stringify(source), activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
+    const documentJson = serializeMapDocumentV3(document);
+    return { mapId: LIVE_ISLAND_MAP_ID, revision: document.revision, documentJson, contentHash: worldChunkHash(new TextEncoder().encode(documentJson)) };
+  })();
+  const snapshot = captureWorldChunkSnapshot(row, registry);
+  const audit = materializeWorldChunks(snapshot, row, registry, { atlasPackIdsForAssets: packIds, assetRevision, includeServerOracle: true });
+  verifyWorldChunkParity(snapshot, audit);
+  const result = args.includes('--audit') ? audit : materializeWorldChunks(snapshot, row, registry, { atlasPackIdsForAssets: packIds, assetRevision });
+  if (result !== audit) verifyWorldChunkParity(snapshot, result);
+  await mkdir(output, { recursive: true });
+  const sizes: { cx: number; cy: number; raw: number; gzip: number; brotli: number }[] = [];
+  for (let index = 0; index < result.blobs.length; index++) {
+    const head = result.manifest.chunks[index]!;
+    const bytes = result.blobs[index]!;
+    const gzip = gzipSync(bytes, { level: 9 });
+    const brotli = brotliCompressSync(bytes, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 5 } });
+    await writeFile(resolve(output, `${head.contentHash}.bin`), bytes);
+    await writeFile(resolve(output, `${head.contentHash}.bin.gz`), gzip);
+    await writeFile(resolve(output, `${head.contentHash}.bin.br`), brotli);
+    sizes.push({ cx: head.cx, cy: head.cy, raw: bytes.length, gzip: gzip.length, brotli: brotli.length });
+  }
+  const manifestBytes = new TextEncoder().encode(canonicalChunkJson(result.manifest) + '\n');
+  await writeFile(resolve(output, 'manifest.json'), manifestBytes);
+  const totals = sizes.reduce((total, size) => ({ raw: total.raw + size.raw, gzip: total.gzip + size.gzip, brotli: total.brotli + size.brotli }), { raw: 0, gzip: 0, brotli: 0 });
+  await writeFile(resolve(output, 'sizes.json'), JSON.stringify({ includesServerOracle: args.includes('--audit'), compression: { gzipLevel: 9, brotliQuality: 5 }, totals, manifestBytes: manifestBytes.length, chunks: sizes }, null, 2) + '\n');
+  console.log(JSON.stringify({ chunks: result.blobs.length, totals, manifestBytes: manifestBytes.length, sourceHash: row.contentHash, contentHash: registry.contentHash, assetRevision, atlasPacksResolved: atlasIndex !== null, parity: 'passed' }));
+}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
