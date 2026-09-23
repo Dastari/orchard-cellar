@@ -9,10 +9,10 @@ const policy: TraversalPolicy = {
   shallow_water: { requiresAny: [['boat'], ['water_walk']], hazards: [] },
   deep_water: { requiresAny: [['boat'], ['water_walk']], hazards: [] },
   lava: { requiresAny: [['walk', 'lava_immune']], hazards: [
-    { id: 'burn', damageCenti: 7, intervalTicks: 3, immunityAbilities: ['lava_immune'] },
+    { id: 'burn', maxHealthBasisPointsPerSecond: 7, intervalTicks: 3, immunityAbilities: ['lava_immune'] },
   ] },
   shroom_water: { requiresAny: [['boat'], ['water_walk']], hazards: [
-    { id: 'toxin', damageCenti: 5, intervalTicks: 2, immunityAbilities: ['toxin_immune'] },
+    { id: 'toxin', maxHealthBasisPointsPerSecond: 5, intervalTicks: 2, immunityAbilities: ['toxin_immune'] },
   ] },
   void: { requiresAny: [], hazards: [] },
 };

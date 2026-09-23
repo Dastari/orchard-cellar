@@ -13,6 +13,8 @@ export interface WorldRulesContentDefinition {
   /** Activation is an authored, reviewed content change after shadow parity. */
   readonly mode: 'shadow' | 'active';
   readonly playerAbilities: readonly string[];
+  readonly placementAbilities: readonly string[];
+  readonly boatPlacementAbilities: readonly string[];
   readonly projectileAbilities: readonly string[];
   readonly media: TraversalPolicy;
 }
@@ -26,18 +28,18 @@ export function parseWorldRulesDefinition(value: string | unknown): WorldRulesCo
     throw new ContentParseError('invalid_type', '$', 'expected world rules object');
   }
   const row = source as Record<string, unknown>;
-  for (const key of Object.keys(row)) if (!['id', 'kind', 'schemaVersion', 'retired', 'replacement', 'profile', 'mode', 'playerAbilities', 'projectileAbilities', 'media'].includes(key)) {
+  for (const key of Object.keys(row)) if (!['id', 'kind', 'schemaVersion', 'retired', 'replacement', 'profile', 'mode', 'playerAbilities', 'placementAbilities', 'boatPlacementAbilities', 'projectileAbilities', 'media'].includes(key)) {
     throw new ContentParseError('invalid_type', `$.${key}`, 'unknown field');
   }
   if (row.kind !== 'world_rules') throw new ContentParseError('kind_mismatch', '$.kind', 'expected world_rules');
   if (row.schemaVersion !== 1) throw new ContentParseError('unsupported_schema_version', '$.schemaVersion', 'expected schema 1');
-  if (typeof row.id !== 'string' || !/^world_rules:[a-z0-9][a-z0-9_]*$/u.test(row.id)) {
+  if (typeof row.id !== 'string' || !/^world_rules:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(row.id)) {
     throw new ContentParseError('invalid_id', '$.id', 'expected world_rules identifier');
   }
   if (row.profile !== 'traversal') throw new ContentParseError('invalid_type', '$.profile', 'expected traversal profile');
   if (row.mode !== 'shadow' && row.mode !== 'active') throw new ContentParseError('invalid_type', '$.mode', 'expected shadow or active');
   if (row.retired !== undefined && typeof row.retired !== 'boolean') throw new ContentParseError('invalid_type', '$.retired', 'expected boolean');
-  if (row.replacement !== undefined && (typeof row.replacement !== 'string' || !/^world_rules:[a-z0-9][a-z0-9_]*$/u.test(row.replacement))) {
+  if (row.replacement !== undefined && (typeof row.replacement !== 'string' || !/^world_rules:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(row.replacement))) {
     throw new ContentParseError('invalid_id', '$.replacement', 'expected world_rules identifier');
   }
   return Object.freeze({
@@ -45,6 +47,8 @@ export function parseWorldRulesDefinition(value: string | unknown): WorldRulesCo
     ...(row.retired === undefined ? {} : { retired: row.retired }),
     ...(row.replacement === undefined ? {} : { replacement: row.replacement as WorldRulesDefinitionId }),
     playerAbilities: parseTraversalAbilities(row.playerAbilities, '$.playerAbilities'),
+    placementAbilities: parseTraversalAbilities(row.placementAbilities, '$.placementAbilities'),
+    boatPlacementAbilities: parseTraversalAbilities(row.boatPlacementAbilities, '$.boatPlacementAbilities'),
     projectileAbilities: parseTraversalAbilities(row.projectileAbilities, '$.projectileAbilities'),
     media: parseTraversalPolicy(row.media),
   });

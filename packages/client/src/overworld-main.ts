@@ -1,3 +1,4 @@
+import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
@@ -1952,7 +1953,11 @@ function refreshCollision(snapshot: OverworldView): void {
         ],
       }
     : baseBoatCollision;
-  projectileCollision = worldStaticProjection.projectile(worldCollision, boatCollision);
+  const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
+  worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  projectileCollision = runtimeActorCollision(snapshot.content.registry, worldStaticProjection.projectile(worldCollision, boatCollision),
+    { kind: 'projectile' }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
   baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
     terrain,
     [],
@@ -2144,7 +2149,9 @@ function update(): void {
   const direction = defending || snapshot.rogueRun?.phase === 'reward' ? 'idle' : directionFromKeys();
   const mount = localMount(snapshot);
   const mounted = mount !== null;
-  const movementCollision = runtimeNpcMount(snapshot.content.registry, mount)?.adapter === 'boat' ? boatCollision : worldCollision;
+  const legacyMovementCollision = runtimeNpcMount(snapshot.content.registry, mount)?.adapter === 'boat' ? boatCollision : worldCollision;
+  const movementCollision = runtimeActorCollision(snapshot.content.registry, legacyMovementCollision,
+    { kind: 'player', mount, effects: [...snapshot.effects] }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
   const sprintRequested = direction !== 'idle'
     && !mounted
     && (keys.has('ShiftLeft') || keys.has('ShiftRight'));
@@ -2285,7 +2292,11 @@ function update(): void {
   );
   for (const [id, buffer] of remoteBuffers) {
     const remoteMount = snapshot.npcs.find((npc) => npc.rider?.toHexString() === id);
-    const sample = buffer.sample(renderTick, runtimeNpcMount(snapshot.content.registry, remoteMount)?.adapter === 'boat' ? boatCollision : worldCollision);
+    // Remote effects are private. Active traversal uses authority positions rather
+    // than inventing the remote actor's grants during presentation extrapolation.
+    const remoteCollision = runtimeTraversalPolicy(snapshot.content.registry)?.mode === 'active' ? undefined
+      : runtimeNpcMount(snapshot.content.registry, remoteMount)?.adapter === 'boat' ? boatCollision : worldCollision;
+    const sample = buffer.sample(renderTick, remoteCollision);
     if (sample !== null) {
       const current = remoteDisplay.get(id);
       if (current !== undefined) previousRemoteDisplay.set(id, current);

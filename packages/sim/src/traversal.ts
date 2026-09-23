@@ -5,7 +5,7 @@ import type { CollisionMap } from './state.js';
 export type TraversalAbility = string;
 export interface MediumHazard {
   readonly id: string;
-  readonly damageCenti: number;
+  readonly maxHealthBasisPointsPerSecond: number;
   readonly intervalTicks: number;
   /** Only these explicitly authored grants suppress this hazard. */
   readonly immunityAbilities: readonly TraversalAbility[];
@@ -66,7 +66,7 @@ export function mediumHazardsAtTick(
   if (!Number.isSafeInteger(tick) || tick < 0) throw new RangeError('invalid_traversal_tick');
   return policy[medium].hazards.filter(hazard => {
     if (!Number.isSafeInteger(hazard.intervalTicks) || hazard.intervalTicks <= 0
-      || !Number.isSafeInteger(hazard.damageCenti) || hazard.damageCenti <= 0) {
+      || !Number.isSafeInteger(hazard.maxHealthBasisPointsPerSecond) || hazard.maxHealthBasisPointsPerSecond <= 0) {
       throw new RangeError('invalid_medium_hazard');
     }
     return tick % hazard.intervalTicks === 0

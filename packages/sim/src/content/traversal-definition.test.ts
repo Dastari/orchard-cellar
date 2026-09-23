@@ -18,9 +18,9 @@ describe('traversal authoring validation', () => {
     expect(() => parseTraversalAbilities(Array<string>(33).fill('walk'))).toThrow('at most 32');
     expect(() => parseTraversalAbilities(null)).toThrow('expected array');
     expect(() => parseTraversalPolicy({ ...rawPolicy(), lava: { requiresAny: [], hazards: [
-      { id: 'burn', damageCenti: 2, intervalTicks: 0, immunityAbilities: [] },
+      { id: 'burn', maxHealthBasisPointsPerSecond: 2, intervalTicks: 0, immunityAbilities: [] },
     ] } })).toThrow('intervalTicks');
-    const hazard = { id: 'burn', damageCenti: 2, intervalTicks: 4, immunityAbilities: ['lava_immune'] };
+    const hazard = { id: 'burn', maxHealthBasisPointsPerSecond: 2, intervalTicks: 4, immunityAbilities: ['lava_immune'] };
     expect(parseTraversalPolicy({ ...rawPolicy(), lava: { requiresAny: [], hazards: [hazard] } }).lava.hazards)
       .toEqual([hazard]);
     expect(() => parseTraversalPolicy({ ...rawPolicy(), lava: { requiresAny: [], hazards: [hazard, hazard] } }))
@@ -32,6 +32,7 @@ describe('traversal authoring validation', () => {
   it.each(['npc', 'creature', 'enemy', 'effect'] as const)('adds explicit %s abilities without changing legacy rows', kind => {
     const row = bootstrapContentRows().find(row => row.kind === kind)!;
     const raw = typeof row.json === 'string' ? JSON.parse(row.json) as Record<string, unknown> : row.json as Record<string, unknown>;
+    delete raw.traversalAbilities;
     expect(parseContentDefinition(kind, raw)).not.toHaveProperty('traversalAbilities');
     expect(parseContentDefinition(kind, { ...raw, traversalAbilities: ['walk', 'toxin_immune'] }))
       .toHaveProperty('traversalAbilities', ['walk', 'toxin_immune']);

@@ -1020,7 +1020,7 @@ export const CONTENT_FIELD_SCHEMAS: ContentFieldSchemaGraph = {
     "s1014": {"type":"array","items":"s1015"},
     "s1015": {"type":"object","fields":{"tileX":{"schema":"s9"},"tileY":{"schema":"s9"}}},
     "s1016": {"type":"literal","value":"encounter"},
-    "s1017": {"type":"object","fields":{"id":{"schema":"s1018"},"kind":{"schema":"s1019"},"schemaVersion":{"schema":"s241"},"retired":{"schema":"s56","optional":true},"replacement":{"schema":"s1018","optional":true},"profile":{"schema":"s1020"},"mode":{"schema":"s1021","help":"Activation is an authored, reviewed content change after shadow parity."},"playerAbilities":{"schema":"s10"},"projectileAbilities":{"schema":"s10"},"media":{"schema":"s1023"}}},
+    "s1017": {"type":"object","fields":{"id":{"schema":"s1018"},"kind":{"schema":"s1019"},"schemaVersion":{"schema":"s241"},"retired":{"schema":"s56","optional":true},"replacement":{"schema":"s1018","optional":true},"profile":{"schema":"s1020"},"mode":{"schema":"s1021","help":"Activation is an authored, reviewed content change after shadow parity."},"playerAbilities":{"schema":"s10"},"placementAbilities":{"schema":"s10"},"boatPlacementAbilities":{"schema":"s10"},"projectileAbilities":{"schema":"s10"},"media":{"schema":"s1023"}}},
     "s1018": {"type":"string","reference":"world_rules"},
     "s1019": {"type":"literal","value":"world_rules"},
     "s1020": {"type":"literal","value":"traversal"},
@@ -1030,7 +1030,7 @@ export const CONTENT_FIELD_SCHEMAS: ContentFieldSchemaGraph = {
     "s1024": {"type":"object","fields":{"requiresAny":{"schema":"s1025","help":"OR of AND clauses. [] denies; [[]] explicitly permits every actor."},"hazards":{"schema":"s1026"}}},
     "s1025": {"type":"array","items":"s10"},
     "s1026": {"type":"array","items":"s1027"},
-    "s1027": {"type":"object","fields":{"id":{"schema":"s1"},"damageCenti":{"schema":"s9","unit":"hundredths"},"intervalTicks":{"schema":"s9","unit":"ticks"},"immunityAbilities":{"schema":"s10","help":"Only these explicitly authored grants suppress this hazard."}}},
+    "s1027": {"type":"object","fields":{"id":{"schema":"s1"},"maxHealthBasisPointsPerSecond":{"schema":"s9"},"intervalTicks":{"schema":"s9","unit":"ticks"},"immunityAbilities":{"schema":"s10","help":"Only these explicitly authored grants suppress this hazard."}}},
     "kind_recipe": {"type":"union","options":["s242","s253"]},
     "kind_balance": {"type":"union","options":["s645","s658","s661","s664"]},
     "kind_upgrade": {"type":"union","options":["s897","s904","s911"]}

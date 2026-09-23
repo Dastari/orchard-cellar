@@ -1,5 +1,5 @@
 import type { TerrainArray } from './terrain.js';
-import type { CellPart, CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
+import type { CellPart, MediumCollisionChannels, CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
 import { WORLD_CHUNK_VOID, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, decodeWorldChunk, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 
 /** Compatibility adapter for today's contiguous TerrainArray contract.
@@ -26,6 +26,8 @@ export class ChunkTerrainStore implements TerrainArray {
   readonly dirtCliffRoles: Uint8Array;
   readonly dirtTerraces: Uint8Array;
   readonly channels: Readonly<Record<string, ChunkArray>>;
+  declare readonly traversalChannels?: MediumCollisionChannels;
+  #traversalChannels: MediumCollisionChannels | undefined;
   readonly #chunks = new Map<string, WorldChunk>();
   readonly #heads: ReadonlyMap<string, WorldChunkManifest['chunks'][number]>;
   readonly #manifest: WorldChunkManifest;
@@ -80,6 +82,9 @@ export class ChunkTerrainStore implements TerrainArray {
     this.dirtCliffRoles = this.requiredU8('dirtCliffRoles');
     this.dirtTerraces = this.requiredU8('dirtTerraces');
     this.requiredU8('blocked'); this.requiredU8('horseJumpableTerrain');
+    if (this.#terrainMetadata['hasTraversalChannels']) Object.defineProperty(this, 'traversalChannels', {
+      get: () => this.traversalProjection(), enumerable: true,
+    });
     for (const name of ['cliffFamilies', 'surfaceFamilies', 'ledges', 'authoredFarmland', 'terrainPlaneBlocked']) {
       if (channels[name]) Object.defineProperty(this, name, { value: channels[name], enumerable: true });
     }
@@ -110,6 +115,10 @@ export class ChunkTerrainStore implements TerrainArray {
     });
     this.blocked = Array<boolean>(this.width * this.height).fill(true);
     this.horseJumpableTerrain = Array<boolean>(this.width * this.height).fill(false);
+  }
+  private traversalProjection(): MediumCollisionChannels {
+    return this.#traversalChannels ??= { width: this.width, height: this.height,
+      medium: this.requiredU8('medium'), solidBlocked: this.requiredU8('solidBlocked') };
   }
   private requiredU8(name: string): Uint8Array {
     const value = this.channels[name];
@@ -167,18 +176,21 @@ export class ChunkTerrainStore implements TerrainArray {
       }
     }
     this.#chunks.set(key, chunk);
+    this.#traversalChannels = undefined; // invalidate ability projections after installation
   }
   records(kind: string): readonly WorldChunkRecord[] {
     return [...this.#chunks.values()].flatMap(chunk => chunk.records.filter(record => record.kind === kind)).sort((a, b) => a.ordinal - b.ordinal);
   }
   collision(name: 'clientGround' | 'clientWater' | 'serverGround' | 'serverWater'): CollisionMap {
     if (!this.complete) throw new Error('Collision reconstruction requires every manifest chunk');
-    const meta = (this.#manifest.metadata['collisions'] as Readonly<Record<string, ChunkJson>>)[name] as unknown as CollisionMap;
+    const meta = (this.#manifest.metadata['collisions'] as Readonly<Record<string, ChunkJson>>)[name] as unknown as CollisionMap & { readonly hasTraversalChannels?: boolean };
+    const { hasTraversalChannels, ...geometry } = meta;
     const prefix = `${name}.`;
     const plane = this.channels[`${prefix}terrainPlaneBlocked`] as Uint8Array | undefined;
     const elevations = this.channels[`${prefix}elevations`] as Int16Array | undefined;
     const horse = this.channels[`${prefix}horseJumpableTerrain`];
-    return { ...meta, width: this.width, height: this.height,
+    return { ...geometry, width: this.width, height: this.height,
+      ...(hasTraversalChannels ? { traversalChannels: this.traversalProjection() } : {}),
       blocked: Array.from(this.requiredU8(`${prefix}blocked`), Boolean),
       ...(plane === undefined ? {} : { terrainPlaneBlocked: plane }),
       ...(elevations === undefined ? {} : { elevations }),

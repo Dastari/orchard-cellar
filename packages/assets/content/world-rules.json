@@ -1,1 +1,136 @@
-[]
+[
+  {
+    "id": "world_rules:traversal",
+    "kind": "world_rules",
+    "schemaVersion": 1,
+    "profile": "traversal",
+    "mode": "shadow",
+    "playerAbilities": [
+      "walk"
+    ],
+    "placementAbilities": [
+      "walk"
+    ],
+    "boatPlacementAbilities": [
+      "boat"
+    ],
+    "projectileAbilities": [
+      "projectile"
+    ],
+    "media": {
+      "land": {
+        "requiresAny": [
+          [
+            "walk"
+          ],
+          [
+            "fly"
+          ],
+          [
+            "projectile"
+          ]
+        ],
+        "hazards": []
+      },
+      "shallow_water": {
+        "requiresAny": [
+          [
+            "boat"
+          ],
+          [
+            "swim"
+          ],
+          [
+            "water_walk"
+          ],
+          [
+            "fly"
+          ],
+          [
+            "projectile"
+          ]
+        ],
+        "hazards": []
+      },
+      "deep_water": {
+        "requiresAny": [
+          [
+            "boat"
+          ],
+          [
+            "swim"
+          ],
+          [
+            "water_walk"
+          ],
+          [
+            "fly"
+          ],
+          [
+            "projectile"
+          ]
+        ],
+        "hazards": []
+      },
+      "lava": {
+        "requiresAny": [
+          [
+            "lava_immune"
+          ],
+          [
+            "fly"
+          ],
+          [
+            "projectile"
+          ]
+        ],
+        "hazards": [
+          {
+            "id": "lava_burn",
+            "maxHealthBasisPointsPerSecond": 1000,
+            "intervalTicks": 20,
+            "immunityAbilities": [
+              "lava_immune"
+            ]
+          }
+        ]
+      },
+      "shroom_water": {
+        "requiresAny": [
+          [
+            "boat"
+          ],
+          [
+            "swim"
+          ],
+          [
+            "water_walk"
+          ],
+          [
+            "toxin_immune"
+          ],
+          [
+            "fly"
+          ],
+          [
+            "projectile"
+          ]
+        ],
+        "hazards": [
+          {
+            "id": "shroom_toxin",
+            "maxHealthBasisPointsPerSecond": 200,
+            "intervalTicks": 20,
+            "immunityAbilities": [
+              "toxin_immune"
+            ]
+          }
+        ]
+      },
+      "void": {
+        "requiresAny": [],
+        "hazards": []
+      }
+    }
+  }
+]

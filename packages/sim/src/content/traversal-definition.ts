@@ -17,8 +17,8 @@ function identifier(value: unknown, path: string): string {
   if (typeof value !== 'string' || !/^[a-z][a-z0-9_]{0,63}$/u.test(value)) return fail(path, 'expected stable ability identifier');
   return value;
 }
-function positiveInteger(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return fail(path, 'expected positive safe integer');
+function positiveInteger(value: unknown, path: string, maximum: number): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0 || value > maximum) return fail(path, 'expected positive bounded integer');
   return value;
 }
 function keys(source: Record<string, unknown>, allowed: readonly string[], path: string): void {
@@ -43,11 +43,11 @@ export function parseTraversalPolicy(value: unknown, path = '$.media'): Traversa
     const hazards = Object.freeze(array(rule.hazards, `${location}.hazards`, 16).map((value, index) => {
       const p = `${location}.hazards[${index}]`;
       const hazard = object(value, p);
-      keys(hazard, ['id', 'damageCenti', 'intervalTicks', 'immunityAbilities'], p);
+      keys(hazard, ['id', 'maxHealthBasisPointsPerSecond', 'intervalTicks', 'immunityAbilities'], p);
       return Object.freeze({
         id: identifier(hazard.id, `${p}.id`),
-        damageCenti: positiveInteger(hazard.damageCenti, `${p}.damageCenti`),
-        intervalTicks: positiveInteger(hazard.intervalTicks, `${p}.intervalTicks`),
+        maxHealthBasisPointsPerSecond: positiveInteger(hazard.maxHealthBasisPointsPerSecond, `${p}.maxHealthBasisPointsPerSecond`, 100_000),
+        intervalTicks: positiveInteger(hazard.intervalTicks, `${p}.intervalTicks`, 1_200),
         immunityAbilities: parseTraversalAbilities(hazard.immunityAbilities, `${p}.immunityAbilities`),
       });
     }));

@@ -4,11 +4,13 @@ import { bootstrapContentRows } from './bootstrap-registry.js';
 import { parseContentDefinition } from './definitions.js';
 import { buildContentRegistry } from './registry.js';
 import { runtimeTraversalAbilities, runtimeTraversalPolicy, runtimeTraversalProjection } from './runtime-traversal.js';
+import { contentDefinitionRowsHash } from './payload-hash.js';
+import { definitionSlug } from './definition-id.js';
 import { parseWorldRulesDefinition } from './world-rules-definition.js';
 
 const rawPolicy = (mode = 'shadow') => ({
   id: 'world_rules:test_policy', kind: 'world_rules', schemaVersion: 1, profile: 'traversal', mode,
-  playerAbilities: ['walk'], projectileAbilities: ['projectile'],
+  playerAbilities: ['walk'], placementAbilities: ['walk'], boatPlacementAbilities: ['boat'], projectileAbilities: ['projectile'],
   media: Object.fromEntries(RULE_MEDIA.map(medium => [medium, {
     requiresAny: medium === 'land' ? [['walk'], ['projectile']] : medium === 'void' ? [] : [['boat'], ['projectile']], hazards: [],
   }])),
@@ -21,8 +23,10 @@ describe('runtime authored traversal', () => {
   it('parses policy, rejects invalid inputs and rebuilds a valid registry', () => {
     const row = rawPolicy();
     expect(parseContentDefinition('world_rules', row)).toEqual(row);
+    expect(definitionSlug(row.id)).toBe('test_policy');
+    expect(contentDefinitionRowsHash([policyRow()])).toMatch(/^[a-f0-9]{8}$/u);
     expect(parseWorldRulesDefinition(JSON.stringify(row))).toEqual(row);
-    expect(buildContentRegistry([...bootstrapContentRows(), policyRow()]).report.valid).toBe(true);
+    expect(buildContentRegistry([...bootstrapContentRows().filter(row => row.kind !== 'world_rules'), policyRow()]).report.valid).toBe(true);
     for (const invalid of [null, '{', { ...row, id: 'bad' }, { ...row, kind: 'effect' },
       { ...row, schemaVersion: 2 }, { ...row, mode: 'maybe' }, { ...row, profile: 'weather' },
       { ...row, retired: 3 }, { ...row, replacement: 'npc:one' }, { ...row, extra: 1 }]) {
@@ -67,7 +71,7 @@ describe('runtime authored traversal', () => {
   });
 
   it('combines explicitly authored mount and effect grants using bigint expiry', () => {
-    const rows = bootstrapContentRows();
+    const rows = bootstrapContentRows().filter(row => row.kind !== 'world_rules');
     const npcRows = rows.filter(row => row.kind === 'npc').map(row => ({ row, raw: typeof row.json === 'string' ? JSON.parse(row.json) as Record<string, unknown> : row.json as Record<string, unknown> }));
     const boat = npcRows.find(({ raw }) => (raw.mount as { adapter?: string } | undefined)?.adapter === 'boat')!;
     const effect = rows.find(row => row.kind === 'effect')!;
