@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.0 — UI release integration (not yet deployed)
+
+- Add a game-only retained UI entry and shared input routing contract. Pointer ownership survives leaving a window, modal takeover cancels unfinished gestures, and world-origin releases cannot activate UI controls.
+- UI 0.24.0. Production surface migration and deployment remain tracked in the [September 24 acceptance ledger](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24).
+
 ## September 23 integrated deployment — verified
 
 - Publish merged `78665a40` through the guarded schema-only lane; content R17 / `0e741b0f`, 921 definitions, no deletions. Restored and production reconnect parity passed for one account across 42 durable tables.
@@ -594,4 +599,3 @@
 - Retain live-map verification, draft safety, UI-kit checks, and rollback evidence;
   archive and retire the external source, remove six merged worktrees, and preserve
   active work plus checked rollback artifacts.
-
