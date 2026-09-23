@@ -1,7 +1,7 @@
 # F4 multi-space backend handoff
 
 Branch: `feat/studio-multi-space-backend`, based on main `2e1d9a4f`.
-PR: https://github.com/Dastari/orchard-cellar/pull/74 (draft while full tests run).
+PR: https://github.com/Dastari/orchard-cellar/pull/74 (draft pending clean broad validation).
 Owner-authorized wave 2. No merge, deployment or world publish in this task.
 
 Implemented shared registry, seven area keyset indexes, admin-gated metadata and
@@ -22,13 +22,17 @@ Validation: 61 focused tests in 12 files, all-workspace typecheck, lint, world b
 guarded studio-production build passed. Exhaustive tests passed: 101/101 in seven
 files, log `/tmp/orchard-f4-exhaustive.log`.
 
-Broad coverage is still running in session 36325, `/tmp/orchard-f4-test.log`; keep
-the PR draft until its remaining result is reviewed. It reported one missing
-licensed-art reference in `hearth-seating-assets.test.ts`; linking this worktree's
-ignored `references/` to the existing local source fixed the setup, and that exact
-test passed on rerun. Initial Studio build also needed generated assets linked
+Broad coverage finished with **5,940 passed / 1 failed**, across 962 files
+(961 passed / 1 failed), in 1,179.36 seconds. The original `npm test` command
+therefore failed; see `/tmp/orchard-f4-test.log`. Its sole failure was ENOENT for
+`references/art/kenmi/cute-fantasy/core/Player/Player_Base/Player_Base_animations.png`
+in `hearth-seating-assets.test.ts`. Linking this worktree's ignored `references/`
+to the existing local source repaired setup, and that exact test passed on a
+separate targeted rerun. This is not evidence of a clean full-suite rerun.
+Exhaustive tests ran separately because the failed coverage command skipped the
+chained exhaustive step. Initial Studio build also needed generated assets linked
 from the prior same-base rebuild. No tracked art or production files changed.
 
-Next coordinator action: monitor coverage session/log, review any additional
-failures, update PR evidence and readiness. No merge or deployment is authorized
-for this wave-2 PR. File reservations have been released.
+Next coordinator action: obtain clean broad validation after repaired worktree
+setup or review final-head CI before changing readiness. No merge or deployment
+is authorized for this wave-2 PR. File reservations have been released.
