@@ -69,6 +69,11 @@
 - Add optional masked neighbour matches and ordered independent layers to the generic interpreter, with strict validation and compiled terrain lookups. Regenerate Studio field schemas.
 - Pin complete farmland/fringe layer goldens and update the measured content envelope to 602 KiB (616,383 runtime bytes).
 
+## 0.24.1 — 2026-09-23
+
+- Fix workstation and private-job progress using calendar offsets: elapsed time now uses the authoritative simulation clock exclusively, while date/weather/moon displays retain calendar time. Client 0.20.2.
+- Document the shared timing delivery plan and add large-offset, reconnect and UI clock-wiring regressions.
+
 - Integration: sim 0.22.2 includes catalogue field schemas; 14 reviewed cliff
   golden hashes now track PR62 while every other resolver hash stays unchanged.
 

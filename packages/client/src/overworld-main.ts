@@ -97,6 +97,7 @@ import { objectHasAuthoredTag, objectSecondaryTarget, objectUseMetadata,
   objectUseWithinRadialReach } from './content/object-interaction.js';
 import { authoredSpacePortalPrompt } from './content/portal-interaction.js';
 import { readPlayerNameplates, writePlayerNameplates } from './player-ui-preferences.js';
+import { calendarTickForSnapshot, cropCalendarOffsetForSnapshot, snapshotTimingClocks } from './content/timing-clock.js';
 import { activeObjectFrameId, activeObjectFrameState, processJobFrameState, processJobMatchesFrame } from './content/frame-presentation.js';
 import {
   DEFAULT_UI_SCALE,
@@ -1064,19 +1065,6 @@ function cropGreenhouseProtectedForSnapshot(
       && placeable.carriedBy === undefined);
 }
 
-function cropCalendarOffsetForSnapshot(
-  snapshot: Pick<OverworldView, 'clock' | 'environment'>,
-): bigint {
-  const authorityTick = snapshot.clock?.authorityTick ?? 0n;
-  return snapshot.environment?.cropCalendarOffset
-    ?? (snapshot.environment?.calendarTick ?? authorityTick) - authorityTick;
-}
-
-function calendarTickForSnapshot(
-  snapshot: Pick<OverworldView, 'clock' | 'environment'>,
-): bigint {
-  return (snapshot.clock?.authorityTick ?? 0n) + cropCalendarOffsetForSnapshot(snapshot);
-}
 const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   unlockHearthLegendaryRecipe: offer => network.unlockHearthLegendaryRecipe(offer.recipeId, offer.expectedContentHash, offer.expectedSeals),
   fulfillVillageOrder:offer=>network.fulfillVillageOrder(offer.id,offer.revision,offer.contentHash,offer.totalBronze),
@@ -5117,13 +5105,9 @@ function renderFrame(alpha = 1): void {
       ? '[B] EXIT BUILD MODE  [CLICK] BUILD  [F] CARRY / PLACE'
       : `[B] EXIT BUILD MODE  ${contextualPrompt}`
     : contextualPrompt;
-  const authorityTick = calendarTickForSnapshot(snapshot);
-  const processorAuthorityTick = BigInt(Math.max(
-    Number(authorityTick),
-    Math.floor(visualTickClock.renderTick),
-  ));
+  const { authorityTick, calendarTick } = snapshotTimingClocks(snapshot);
   const activeProcessorTiming = snapshot.activePlaceable === null
-    ? null : processorTiming(snapshot, snapshot.activePlaceable, processorAuthorityTick);
+    ? null : processorTiming(snapshot, snapshot.activePlaceable, authorityTick);
   const activeProcessorInterface = activeProcessorTiming === null
     ? null : processorInterfaceForAdapter(activeProcessorTiming.adapter);
   const activeFurnaceRemaining = activeProcessorTiming?.adapter === 'smelting'
@@ -5142,7 +5126,7 @@ function renderFrame(alpha = 1): void {
   );
   const activeCellarRemaining = activeCellarInterface === null
     ? null : activeProcessorTiming?.remaining ?? null;
-  const calendar = calendarAtTick(Number(authorityTick) * SIM_STEPS_PER_AUTHORITY_TICK);
+  const calendar = calendarAtTick(Number(calendarTick) * SIM_STEPS_PER_AUTHORITY_TICK);
   const weatherMode = worldWeatherMode();
   const onlinePlayers = onlinePlayerEntries(snapshot);
   const playerVitals = resolvedPlayerVitals(snapshot);
@@ -5300,10 +5284,10 @@ function renderFrame(alpha = 1): void {
     canAdministerWorld: canAdministerWorld(snapshot.membership?.role),
     delveActive: snapshot.rogueRun !== null,
     dateLabel: `${calendar.season.toUpperCase()} ${calendar.dayOfSeason}`,
-    timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(authorityTick), TICKS_PER_DAY),
-    timeFraction: authorityDayProgress(authorityTick),
-    moonPhase: lunarPhaseAtAuthorityTick(authorityTick),
-    moonIlluminationPerMille: lunarIlluminationAtAuthorityTick(authorityTick),
+    timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(calendarTick), TICKS_PER_DAY),
+    timeFraction: authorityDayProgress(calendarTick),
+    moonPhase: lunarPhaseAtAuthorityTick(calendarTick),
+    moonIlluminationPerMille: lunarIlluminationAtAuthorityTick(calendarTick),
     raining: rain.enabled,
     weatherMode,
     windDirectionMode: worldWindDirection(),
@@ -5731,7 +5715,7 @@ function renderFrame(alpha = 1): void {
         && clientProcessorRuntime(snapshot, placeable) !== null
       ));
         if (hoveredProcessor !== undefined) {
-        const timing = processorTiming(snapshot, hoveredProcessor, processorAuthorityTick)!;
+        const timing = processorTiming(snapshot, hoveredProcessor, authorityTick)!;
         const processorInterface = processorInterfaceForAdapter(timing.adapter);
         const { remaining, progress } = timing;
         const title = timing.object.displayName.toUpperCase();
@@ -6006,7 +5990,7 @@ function renderFrame(alpha = 1): void {
       `BND ${lightmap.boundsResizeMs.toFixed(2)} OCC ${lightmap.rasterizeMs.toFixed(2)} SOLVE ${lightmap.floodMs.toFixed(2)} MERGE ${lightmap.mergeMs.toFixed(2)}`,
       `UP ${lightmap.uploadMs.toFixed(2)} REC ${lightmap.receiverMs.toFixed(2)} CMP ${lightmap.compositeMs.toFixed(2)} CACHE ${lightmap.occlusionCacheHits}/${lightmap.occlusionRebuilds}`,
       `LIGHTS ${pointLights.length} VISITED ${lightmap.floodTexelsVisited}`,
-      `MOON ${lunarPhaseAtAuthorityTick(authorityTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(authorityTick)}/1000`,
+      `MOON ${lunarPhaseAtAuthorityTick(calendarTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(calendarTick)}/1000`,
       `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
       `NET RTT ${net.rttMs.toFixed(0)}ms LAG ${net.lagMs}+/-${net.jitterMs}`,
       `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,
