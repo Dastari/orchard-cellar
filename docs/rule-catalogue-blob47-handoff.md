@@ -1,6 +1,6 @@
 # Blob47/fringe migration handoff
 
-Branch `feat/rule-catalogue-blob47` in `/home/toby/projects/orchard-rule-blob47`,
+PR [#79](https://github.com/Dastari/orchard-cellar/pull/79), branch `feat/rule-catalogue-blob47` in `/home/toby/projects/orchard-rule-blob47`,
 stacked on frozen PR #73 `052f23e1`. Assignment #179; GoldCondor coordinates.
 See [specification](rule-catalogue-blob47-spec.md).
 
@@ -12,10 +12,15 @@ and all recorded baseline outputs are preserved. No runtime traversal switch.
 Validation before full suite: 186 focused tests passed, one existing skip; eight
 schema/fingerprint/manifest checks passed. Earlier 156 topology/layer/draw checks
 passed. Repository lint/types, content and asset validation, lifecycle integrity,
-world build and guarded Studio production build passed. Full repository build and
-`npm test` final results are recorded on the PR once complete; do not infer green
-coverage from the focused tests. Local ignored licensed art and custom progression
-art are linked from the canonical checkout before the full run.
+world build and guarded Studio production build passed. Full repository build
+also passed. Final `npm test` on immutable production-source commit `67c9acae`:
+978 coverage files, 6,180 tests passed and one existing skip; statements 89.01%,
+branches 84.33%, functions 94.49%, lines 93.02%, all thresholds passed. Exhaustive:
+seven files, all 101 tests passed. Exit status 0; log
+`/tmp/copper-blob47-full-test.log`. Subsequent closeout edits only update this
+handoff. Local ignored licensed art and custom progression art are linked from
+the canonical checkout. GitHub CI was pending when local validation finished;
+check its current result before any separately authorized merge.
 
 Content: 919 definitions, hash `f0da8070`, 616,383 runtime bytes, 771,045 authoring-row
 JSON bytes; measured guard 602 KiB. Existing basic row is 59,271 compact bytes
