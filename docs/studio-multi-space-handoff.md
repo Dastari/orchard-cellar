@@ -17,8 +17,18 @@ after combining world lanes. Keep retired farm_parcel private and inactive.
 Version bumps are relative to this branch's base; retain higher integration
 versions and add the new shared barrel export alongside other lanes.
 
-Validation: 61 focused tests in 12 files, all-workspace typecheck, lint, world build, 919-definition
-content validation and guarded studio-production build passed. Full repository
-tests are running (session 36325, `/tmp/orchard-f4-test.log`); results will be recorded
-in the PR. The first Studio build lacked local generated assets; linking the
-previously rebuilt assets from the same base resolved that worktree-only setup.
+Validation: 61 focused tests in 12 files, all-workspace typecheck, lint, world build,
+919-definition content validation, lifecycle integrity, 1,320-asset validation and
+guarded studio-production build passed. Exhaustive tests passed: 101/101 in seven
+files, log `/tmp/orchard-f4-exhaustive.log`.
+
+Broad coverage is still running in session 36325, `/tmp/orchard-f4-test.log`; keep
+the PR draft until its remaining result is reviewed. It reported one missing
+licensed-art reference in `hearth-seating-assets.test.ts`; linking this worktree's
+ignored `references/` to the existing local source fixed the setup, and that exact
+test passed on rerun. Initial Studio build also needed generated assets linked
+from the prior same-base rebuild. No tracked art or production files changed.
+
+Next coordinator action: monitor coverage session/log, review any additional
+failures, update PR evidence and readiness. No merge or deployment is authorized
+for this wave-2 PR. File reservations have been released.
