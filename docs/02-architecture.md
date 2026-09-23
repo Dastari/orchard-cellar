@@ -470,8 +470,13 @@ legacy map prefabs use explicit asset membership. Studio and client pass active
 registry catalogues to the same index and engine renderer. The renderer caches
 by asset identity so content changes cannot reuse stale family art. Existing
 content without an envelope reads the bootstrap catalogue; an explicit empty
-envelope disables connections. Other terrain resolvers remain unchanged and
-are pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
+envelope disables connections. Blob47 farmland and the four native grass fringes now resolve committed catalogue
+frames through `sim/terrain-rule-catalogue.ts`. Its fixed mask lookup tables keep
+per-cell work bounded. Optional family layers compose independently; `matchMask`
+selects relevant neighbour bits without encoding art rules in the engine. Hoed
+and authored farmland share frame selection; native fringes retain separate
+transition entries and engine family/height classification. Other terrain resolvers
+remain pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
 
 ### Schema-driven Studio forms (F1)
 

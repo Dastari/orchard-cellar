@@ -1,3 +1,4 @@
+import { farmlandRuleLayers, type ResolvedRuleFrame } from '@orchard/sim';
 import {parseHearthArchitectureState,persistedHearthArchitectureCollision} from '@orchard/sim';
 import {hearthInteriorCollision,bootstrapContentRegistry} from '@orchard/sim';
 import {
@@ -1470,15 +1471,17 @@ export function authoredFarmlandFrameIndexAt(
   tileX: number,
   tileY: number,
 ): number | null {
+  return authoredFarmlandRuleLayersAt(terrain,tileX,tileY)[0]?.frame ?? null;
+}
+
+/** Shared hoed/authored catalogue; only the source of occupancy differs. */
+export function authoredFarmlandRuleLayersAt(terrain:TerrainArray,tileX:number,tileY:number):readonly ResolvedRuleFrame[] {
   const mask = terrain.authoredFarmland;
-  const present = (offsetX: number, offsetY: number): boolean => {
-    const x = tileX + offsetX;
-    const y = tileY + offsetY;
-    return mask !== undefined
-      && x >= 0 && y >= 0 && x < terrain.width && y < terrain.height
-      && mask[y * terrain.width + x] === 1;
+  const present = (offsetX:number,offsetY:number):boolean => {
+    const x=tileX+offsetX,y=tileY+offsetY;
+    return mask!==undefined&&x>=0&&y>=0&&x<terrain.width&&y<terrain.height&&mask[y*terrain.width+x]===1;
   };
-  return present(0, 0) ? blob47FrameIndexFor(present) : null;
+  return present(0,0)?farmlandRuleLayers(present):[];
 }
 
 export function dirtTerraceRampFrameIndexAt(
