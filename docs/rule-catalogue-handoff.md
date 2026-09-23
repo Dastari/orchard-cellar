@@ -49,3 +49,13 @@ BrownHorizon #179 authorizes a next stacked PR `feat/rule-catalogue-blob47`
 after this PR's final validation: migrate hoed soil, authored farmland and grass
 fringe using goldens; retain distinct catalogue entries if unifying changes
 pixels. No merge/deploy/publish.
+
+## Wave 1 integration rehearsal
+
+Integrated preceding #62/#64/#66/#67/#65/#70/#68 source heads in an isolated
+fix worktree, preserving the original author’s full-suite snapshot. Refreshed
+14 cliff baseline hashes only (desert 1–3, shroomlands, volcanic), independently
+comparing every integrated baseline output to reviewed PR62 head `98732c7e`;
+all outputs match that reference. Other golden hashes are unchanged.
+Regenerated F1 field schemas for catalogue roles including optional medium.
+Higher package versions and all documentation/exports are preserved.

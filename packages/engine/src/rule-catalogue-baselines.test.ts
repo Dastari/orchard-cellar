@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import baseline from './rule-catalogue-baselines.json' with { type: 'json' };
 import { ruleBaselineOutputs } from './rule-catalogue-baselines.js';
 
-describe('pre-migration resolver golden baselines (origin/main 2e1d9a4f)', () => {
+describe(`pre-migration resolver golden baselines (${baseline.source})`, () => {
   const outputs = ruleBaselineOutputs(baseline.assetNames);
   it('keeps the entire baseline inventory', () => {
     expect(Object.keys(outputs)).toEqual(Object.keys(baseline.hashes));
