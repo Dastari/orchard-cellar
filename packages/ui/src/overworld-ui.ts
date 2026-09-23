@@ -1,3 +1,4 @@
+import type { TimingProjection } from '@orchard/sim';
 import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
 import {HEARTH_LOBBY_STASH_CAPACITY} from '@orchard/sim';
@@ -323,6 +324,7 @@ export interface OverworldUiModel {
    * this value to bypass container reducers or create inventory authority. */
   readonly activeFrameId?: FrameDefinitionId;
   readonly activeFrameProgress?: number;
+  readonly activeFrameTiming?: TimingProjection;
   readonly activeFrameState?: Readonly<Record<string, boolean | string | number>>;
   readonly inventoryFrameState?: Readonly<Record<string, boolean | string | number>>;
 }
@@ -3745,6 +3747,7 @@ export class OverworldUi {
     const chestSearch = contentFrame === null ? null : chestInventorySearchRect(contentFrame);
     if (contentFrame !== null) drawContentFrame(context, contentFrame, {
       progress: this.model.activeFrameProgress,
+      timing: this.model.activeFrameTiming,
       state: this.activeContentFrameState(),
     }, {
       skin: this.skin,

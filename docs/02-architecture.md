@@ -507,3 +507,48 @@ and [decision](adr/ADR-studio-multi-space.md).
 ## Chunk runtime shadow boundary
 
 The shadow phase adds public `world_chunk_shadow` and `world_chunk_head` metadata and private `world_chunk_blob` bytes. Owner-only staging verifies the existing immutable codec and compares map/content revisions before atomically replacing heads. The client uses a separate bounded chunk-native store with view/ring pins, a two-request loader and hash-key IndexedDB retention. It compares diagnostics without replacing legacy terrain or movement. An owner-only procedure samples private chunk collision without a whole-world reconstruction. Static preparation is offline and publication remains separately gated. See [chunk runtime shadow](chunk-runtime-shadow.md) for interfaces, limits and activation gates.
+
+
+### Gameplay timing clock domains
+
+The client `content/timing-clock.ts` separates simulation authority from calendar
+time. Processor and private-job progress consume `world_clock.authorityTick`;
+calendar offsets only feed seasonal policy and calendar/weather/lighting displays.
+Cosmetic clocks cannot confirm production completion. See
+[shared timing specification](timing-system-spec.md) for the staged frame/hover
+projection work and [decision](adr/ADR-shared-timing.md).
+
+### Shared workstation timing projection
+
+`projectTiming` in sim derives statuses, confidence, progress and deadlines from
+existing process anchors and the same `settleProcess` mathematics as authority.
+It never writes inventory or claims hypothetical output. Unknown private slots
+produce estimates; expired public anchors require settlement confirmation.
+Authored frame `{ timing: "process" }` text panes and spatial hover share the kit
+timing canvas bridge. Retained `ui.timing` uses the same bounded label cache.
+Processor metadata is cached per immutable content registry, projections per
+row/tick/slot snapshot, and hover buckets per entity/map/content revision. Only
+the open or hovered station is projected; no per-object interval is introduced.
+The game build admits the small timing bridge and contrast modules only; retained
+Studio components remain outside its dependency boundary.
+
+### Growth timing and inspection
+
+The same `projectTiming` entry point accepts crop, tree, fruit and stateful
+lifecycle sources. Crop projections call `cropGrowthAt` with raw authority time
+and a separate season offset. Existing watering/season coverage determines
+whether remaining active growth is an exact ETA; dry/winter states have no
+finish deadline. Legacy trees retain global sweep authority and use its bounded
+24-step increment helper for weather-conditional estimates. Fruit uses the
+authoritative ripening timestamp and shared harvest eligibility.
+
+`statefulTimingMilestones` reuses lifecycle settlement, transition deadlines and
+growth anchors. Callers must supply an authorized snapshot and its settled
+environment epoch. Private #81 anchors are not inferred from `stateJson`: missing
+anchors yield timing unavailable. The helper introduces no authority storage.
+
+The shared spatial inspection index accepts authored bounds for processors and
+resources, or projected crop tiles. Immutable keyed stores expose a local
+mutation revision to avoid scanning every crop each frame or invalidating these
+buckets for unrelated moving entities. Suppressed resources and hidden entities
+are not inspected. Only hovered resource/crop timing is projected.

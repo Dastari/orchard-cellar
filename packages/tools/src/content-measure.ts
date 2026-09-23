@@ -5,7 +5,7 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Combined wave2 + D6 content: 921 definitions, 620,770 runtime bytes.
+// Combined wave2, D6 and timing content: 921 definitions, 620,844 runtime bytes.
 // Retain the measured next-whole-KiB regression envelope.
 export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 607 * 1024;
 
