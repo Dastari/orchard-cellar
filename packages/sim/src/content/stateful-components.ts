@@ -724,3 +724,27 @@ export function applyStatefulTransitionEvent(
   const after = settleStatefulTransitions(set, next, { ...inputs, maxFirings: Math.max(0, limit - context.fired.length) });
   return finish(set, after.state, [...context.fired, ...after.fired], inputs.nowTick, rateBps, after.truncated);
 }
+
+/** Read-only timing query using the exact same anchor/rate arithmetic as
+ * settlement. Callers must supply an authorized lifecycle snapshot and the
+ * environment for its settled epoch; this does not expose private authority. */
+export function statefulTimingMilestones(
+  set: StatefulComponentSet, lifecycle: StatefulLifecycle, inputs: StatefulSettlementInputs,
+) {
+  const settled = settleStatefulTransitions(set, lifecycle, inputs);
+  const growth = set.growth;
+  const rate = growth === undefined ? 0 : growthRateBasisPoints(growthComponentModifiers(growth, inputs.environment));
+  const paused = growth !== undefined && (!growthActive(growth, settled.state.values) || rate <= 0);
+  const growthFinish = growth === undefined ? null
+    : tickForProgress(growth, settled.state, growth.maxProgress, rate);
+  const deadlines = (set.transitions ?? []).filter(transition => stateMatches(transition.from, settled.state.values))
+    .map(transition => timedFireTick(set, transition, settled.state, rate))
+    .filter((tick): tick is bigint => tick !== null && tick > inputs.nowTick);
+  if (growth !== undefined) {
+    const nextStage = growth.stageThresholds.find(threshold => threshold > settled.growthProgress);
+    const stageTick = nextStage === undefined ? null : tickForProgress(growth, settled.state, nextStage, rate);
+    if (stageTick !== null && stageTick > inputs.nowTick) deadlines.push(stageTick);
+  }
+  return { settled, paused, growthFinish,
+    nextTransitionTick: deadlines.reduce<bigint | null>((next, tick) => next === null || tick < next ? tick : next, null) };
+}

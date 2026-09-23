@@ -24,6 +24,7 @@ export type FrameBinding =
   | { readonly self: FrameSelfBinding }
   | { readonly entitySlots: readonly number[] }
   | { readonly process: 'progress' }
+  | { readonly timing: 'process' }
   | { readonly state: string }
   | { readonly merchant: 'offers' }
   | { readonly recipeFilter: { readonly process?: `process:${string}`; readonly stationTag?: string } };
@@ -132,7 +133,7 @@ function stateReference(value: unknown, path: string): string {
 
 function parseBinding(value: unknown, path: string): FrameBinding {
   const source = record(value, path);
-  const keys = ['self', 'entitySlots', 'process', 'state', 'merchant', 'recipeFilter']
+  const keys = ['self', 'entitySlots', 'process', 'timing', 'state', 'merchant', 'recipeFilter']
     .filter((key) => source[key] !== undefined);
   if (keys.length !== 1) throw new Error(`${path}: expected exactly one binding`);
   if (source.self !== undefined) {
@@ -151,6 +152,10 @@ function parseBinding(value: unknown, path: string): FrameBinding {
   if (source.process !== undefined) {
     if (source.process !== 'progress') throw new Error(`${path}.process: unsupported binding`);
     return { process: 'progress' };
+  }
+  if (source.timing !== undefined) {
+    if (source.timing !== 'process') throw new Error(`${path}.timing: unsupported binding`);
+    return { timing: 'process' };
   }
   if (source.state !== undefined) return { state: stateReference(source.state, `${path}.state`) };
   if (source.merchant !== undefined) {

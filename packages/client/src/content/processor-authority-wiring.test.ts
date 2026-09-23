@@ -18,7 +18,7 @@ describe('client processor content authority wiring', () => {
       'function processorInterfaceForAdapter(',
     );
 
-    expect(body).toContain('runtimeObjectProcessor(snapshot.content.registry, placeable)');
+    expect(body).toContain('cachedProcessorRuntime(snapshot.content.registry, placeable)');
     expect(body).not.toContain('.objects.get(');
     expect(body).not.toContain('.processes.values(');
   });

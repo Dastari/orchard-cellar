@@ -64,10 +64,10 @@ it('binds cooking batch progress to its state value independently of immediate p
   const definition = bootstrapContentDefinitions().find((entry): entry is FrameContentDefinition => entry.id === 'frame:cooking')!;
   const root = new UiRoot({ scale: 1 }); root.resize(640,480);
   root.mount(uiContentFrame({ definition, aliases: { entity: 'placeable', backpack: 'backpack', hotbar: 'hotbar' }, registry: { items: new Map(), processes: new Map() },
-    progress: .2, state: { processJobPending: true, processJobProgress: .8, processJobLabel: '7 × Soup' },
+    timing: { status: 'running', reason: null, stage: null, progress: .2, remainingActiveTicks: 100n, nextTransitionTick: 200n, confidence: 'exact' }, state: { processJobPending: true, processJobProgress: .8, processJobLabel: '7 × Soup' },
   })); root.arrange();
   expect(root.entries().find(entry => entry.element.kind === 'meter' && entry.element.label === 'BATCH PROGRESS')!.element.props['value']).toBe(.8);
-  expect(root.entries().find(entry => entry.element.kind === 'meter' && entry.element.label === 'PROGRESS')!.element.props['value']).toBe(.2);
+  expect(root.entries().find(entry => entry.element.kind === 'meter' && entry.element.label === 'Progress')!.element.props['value']).toBe(.2);
   expect(root.entries().some(entry => entry.element.kind === 'text' && entry.element.label === '7 × Soup')).toBe(true);
   root.dispose();
 });

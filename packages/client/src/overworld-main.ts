@@ -1,5 +1,13 @@
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
+
+
+import { timingLabels } from '@orchard/ui';
+import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
+import { projectTiming, rainForWeatherMode } from '@orchard/sim';
+import { drawTimingTooltip } from '@orchard/ui';
+import { TimingHoverIndex } from './content/timing-hover.js';
+import { cachedProcessorRuntime, projectProcessorTiming } from './content/processor-timing.js';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
@@ -7,7 +15,7 @@ import { orchardHarvestPrompt } from './orchard-presentation.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
-import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
+import { farmingSkillEffects, farmingCropDefinition } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
 import { runtimeQuestDefinition } from '@orchard/sim';
 import { runtimeWorldPolicyBalance } from '@orchard/sim';
@@ -18,7 +26,6 @@ import {
   generateSurvivalLandmarkPathTiles,
   runtimeDurabilityDefinition,
   runtimeItemAvatarAction,
-  runtimeItemEconomy,
   survivalLandmarkRoleReservedAt,
 } from '@orchard/sim';
 import { authoredResourceVisual } from '@orchard/engine/overworld-art';
@@ -76,7 +83,6 @@ import {
   runtimeObjectCarry,
   runtimeObjectDamageable,
   runtimeObjectDefinition,
-  runtimeObjectProcessor,
   runtimeResourceDefinition,
   runtimeResourceObstacle,
   runtimeResourcePickupPresentation,
@@ -88,7 +94,7 @@ import {
 
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, processDurationTicks, processProgressAt, processRemainingTicksAt, barrelCellarCureTicks, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -97,6 +103,7 @@ import { objectHasAuthoredTag, objectSecondaryTarget, objectUseMetadata,
   objectUseWithinRadialReach } from './content/object-interaction.js';
 import { authoredSpacePortalPrompt } from './content/portal-interaction.js';
 import { readPlayerNameplates, writePlayerNameplates } from './player-ui-preferences.js';
+import { calendarTickForSnapshot, cropCalendarOffsetForSnapshot, snapshotTimingClocks } from './content/timing-clock.js';
 import { activeObjectFrameId, activeObjectFrameState, processJobFrameState, processJobMatchesFrame } from './content/frame-presentation.js';
 import {
   DEFAULT_UI_SCALE,
@@ -117,7 +124,6 @@ import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
-import { cropTooltipIndicator } from './crop-tooltip.js';
 import { drawProgressBar, GREEN_PROGRESS_PALETTE } from '@orchard/ui';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from '@orchard/engine/loading-screen';
 import { isStandaloneWebApp, pwaClient } from './pwa.js';
@@ -672,6 +678,8 @@ let bowChargeStartedAtMs: number | null = null;
 let bowChargeStartingVigourCenti: number | null = null;
 let bowChargeAuthorityPromise: Promise<void> | null = null;
 let bowChargePointerId: number | null = null;
+const timingHoverIndex = new TimingHoverIndex();
+const growthTimingHoverIndex = new GrowthTimingHoverIndex();
 let hoveredInteractionTile: { readonly tileX: number; readonly tileY: number } | null = null;
 let animatedOpenChestId: bigint | null = null;
 let chestAnimationStartedAtMs = 0;
@@ -1064,19 +1072,6 @@ function cropGreenhouseProtectedForSnapshot(
       && placeable.carriedBy === undefined);
 }
 
-function cropCalendarOffsetForSnapshot(
-  snapshot: Pick<OverworldView, 'clock' | 'environment'>,
-): bigint {
-  const authorityTick = snapshot.clock?.authorityTick ?? 0n;
-  return snapshot.environment?.cropCalendarOffset
-    ?? (snapshot.environment?.calendarTick ?? authorityTick) - authorityTick;
-}
-
-function calendarTickForSnapshot(
-  snapshot: Pick<OverworldView, 'clock' | 'environment'>,
-): bigint {
-  return (snapshot.clock?.authorityTick ?? 0n) + cropCalendarOffsetForSnapshot(snapshot);
-}
 const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   unlockHearthLegendaryRecipe: offer => network.unlockHearthLegendaryRecipe(offer.recipeId, offer.expectedContentHash, offer.expectedSeals),
   fulfillVillageOrder:offer=>network.fulfillVillageOrder(offer.id,offer.revision,offer.contentHash,offer.totalBronze),
@@ -2456,7 +2451,7 @@ function liveItemContentDefinition(snapshot: OverworldView, itemKind: string) {
 }
 
 function clientProcessorRuntime(snapshot: OverworldView, placeable: WorldPlaceable) {
-  return runtimeObjectProcessor(snapshot.content.registry, placeable);
+  return cachedProcessorRuntime(snapshot.content.registry, placeable);
 }
 
 function processorInterfaceForAdapter(adapter: ProcessAdapter) {
@@ -2471,48 +2466,13 @@ function processorTiming(
   placeable: WorldPlaceable,
   authorityTick: bigint,
 ) {
-  const runtime = clientProcessorRuntime(snapshot, placeable);
-  if (runtime === null) return null;
-  const inputSlot = runtime.processor.slotRoles.input?.[0];
-  const openInput = snapshot.activePlaceable?.id === placeable.id && inputSlot !== undefined
-    ? (runtime.adapter === 'barrel'
-      ? runtime.processor.slotRoles.input?.map(slot => snapshot.openPlaceableSlots.get(slot))
-        .find(row => row !== undefined && row.itemKind !== 'empty' && row.quantity > 0)
-      : snapshot.openPlaceableSlots.get(inputSlot))?.itemKind
-    : undefined;
-  const inputKind = openInput ?? (runtime.adapter === 'campfire_cooking'
-    ? placeable.cookInputKind
-    : runtime.adapter === 'press' || runtime.adapter === 'fermentation'
-      ? placeable.processInputKind
-      : undefined);
-  let durationTicks = processDurationTicks(
-    runtime.definitions, inputKind, runtime.processor.ticksPerUnit,
-  );
-  if (runtime.adapter === 'barrel') {
-    durationTicks = barrelCellarCureTicks(
-      durationTicks, homesteadUpgradeRank(snapshot, 'barrel'),
-    );
-  } else if (runtime.adapter === 'fermentation') {
-    const outputKind = runtime.definitions[0]?.outputs[0]?.item.slice('item:'.length);
-    const sellPrice = outputKind === undefined
-      ? 0 : runtimeItemEconomy(snapshot.content.registry, outputKind)?.sellPriceBronze ?? 0;
-    durationTicks = estateVintageTier(
-      homesteadUpgradeRank(snapshot, 'vintage'), durationTicks, sellPrice,
-    ).agingTicks;
-  }
-  if (runtime.adapter === 'barrel' || runtime.adapter === 'fermentation') {
-    durationTicks = farmingBarrelTicks(durationTicks, estateFarmingSkills(snapshot).barreling);
-  }
-  const startTick = runtime.adapter === 'smelting' ? placeable.smeltStartTick
-    : runtime.adapter === 'campfire_cooking' ? placeable.cookStartTick
-      : runtime.adapter === 'barrel' ? placeable.barrelSealedTick : placeable.processStartTick;
-  return {
-    ...runtime,
-    inputKind,
-    durationTicks,
-    progress: processProgressAt(startTick, authorityTick, durationTicks),
-    remaining: processRemainingTicksAt(startTick, authorityTick, durationTicks),
-  };
+  return projectProcessorTiming(placeable, authorityTick, {
+    registry: snapshot.content.registry,
+    slots: snapshot.activePlaceable?.id === placeable.id ? snapshot.openPlaceableSlots : undefined,
+    barrelRank: homesteadUpgradeRank(snapshot, 'barrel'),
+    vintageRank: homesteadUpgradeRank(snapshot, 'vintage'),
+    barrelingRank: estateFarmingSkills(snapshot).barreling,
+  });
 }
 
 function selectedAimedUseAction(snapshot: OverworldView) {
@@ -2998,23 +2958,6 @@ function targetCrop(snapshot: OverworldView): WorldCrop | null {
     tile.tileY,
     activeSpaceDefinition.spaceId,
   )) ?? null;
-}
-
-function cropTimeLabel(remainingTicks: bigint): string {
-  const totalMinutes = Math.max(1, Math.ceil(Number(remainingTicks) / AUTHORITY_HZ / 60));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}H ${String(minutes).padStart(2, '0')}M` : `${minutes}M`;
-}
-
-function processorTimeLabel(remainingTicks: bigint): string {
-  const totalSeconds = Math.max(0, Math.ceil(Number(remainingTicks) / AUTHORITY_HZ));
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    : `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function refreshHoveredInteractionTile(): void {
@@ -5117,13 +5060,9 @@ function renderFrame(alpha = 1): void {
       ? '[B] EXIT BUILD MODE  [CLICK] BUILD  [F] CARRY / PLACE'
       : `[B] EXIT BUILD MODE  ${contextualPrompt}`
     : contextualPrompt;
-  const authorityTick = calendarTickForSnapshot(snapshot);
-  const processorAuthorityTick = BigInt(Math.max(
-    Number(authorityTick),
-    Math.floor(visualTickClock.renderTick),
-  ));
+  const { authorityTick, calendarTick } = snapshotTimingClocks(snapshot);
   const activeProcessorTiming = snapshot.activePlaceable === null
-    ? null : processorTiming(snapshot, snapshot.activePlaceable, processorAuthorityTick);
+    ? null : processorTiming(snapshot, snapshot.activePlaceable, authorityTick);
   const activeProcessorInterface = activeProcessorTiming === null
     ? null : processorInterfaceForAdapter(activeProcessorTiming.adapter);
   const activeFurnaceRemaining = activeProcessorTiming?.adapter === 'smelting'
@@ -5142,7 +5081,7 @@ function renderFrame(alpha = 1): void {
   );
   const activeCellarRemaining = activeCellarInterface === null
     ? null : activeProcessorTiming?.remaining ?? null;
-  const calendar = calendarAtTick(Number(authorityTick) * SIM_STEPS_PER_AUTHORITY_TICK);
+  const calendar = calendarAtTick(Number(calendarTick) * SIM_STEPS_PER_AUTHORITY_TICK);
   const weatherMode = worldWeatherMode();
   const onlinePlayers = onlinePlayerEntries(snapshot);
   const playerVitals = resolvedPlayerVitals(snapshot);
@@ -5260,6 +5199,7 @@ function renderFrame(alpha = 1): void {
     ...(activeFrameId === null ? {} : {
       activeFrameId,
       activeFrameProgress,
+      activeFrameTiming: activeProcessorTiming?.timing,
       activeFrameState: {
         ...activeObjectFrameState(activeFramePlaceable),
         ...processJobFrameState(snapshot.content.registry, frameJob, authorityTick),
@@ -5300,10 +5240,10 @@ function renderFrame(alpha = 1): void {
     canAdministerWorld: canAdministerWorld(snapshot.membership?.role),
     delveActive: snapshot.rogueRun !== null,
     dateLabel: `${calendar.season.toUpperCase()} ${calendar.dayOfSeason}`,
-    timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(authorityTick), TICKS_PER_DAY),
-    timeFraction: authorityDayProgress(authorityTick),
-    moonPhase: lunarPhaseAtAuthorityTick(authorityTick),
-    moonIlluminationPerMille: lunarIlluminationAtAuthorityTick(authorityTick),
+    timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(calendarTick), TICKS_PER_DAY),
+    timeFraction: authorityDayProgress(calendarTick),
+    moonPhase: lunarPhaseAtAuthorityTick(calendarTick),
+    moonIlluminationPerMille: lunarIlluminationAtAuthorityTick(calendarTick),
     raining: rain.enabled,
     weatherMode,
     windDirectionMode: worldWindDirection(),
@@ -5584,184 +5524,143 @@ function renderFrame(alpha = 1): void {
   }
   if (hoveredDetectedOre === null && !interfaceHidden && hoveredInteractionTile !== null && worldPointer !== null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    const hoveredCrop = snapshot.crops.get(farmSoilKey(
-      hoveredInteractionTile.tileX,
-      hoveredInteractionTile.tileY,
-      activeSpaceDefinition.spaceId,
+    const hoveredMiningResource = worldResourcesIncludingPersonalQuest(snapshot).find((resource) => (
+      !resource.depleted
+      && resource.spaceId === activeSpaceDefinition.spaceId
+      && resource.tileX === hoveredInteractionTile!.tileX
+      && resource.tileY === hoveredInteractionTile!.tileY
+      && ['fish', 'mine'].includes(runtimeResourceDefinition(snapshot.content.registry, resource)?.interaction.mode ?? '')
     ));
-    const hoveredSoil = hoveredCrop === undefined ? undefined : snapshot.soil.get(hoveredCrop.id);
-    const definition = cropDefinitionForSnapshot(snapshot, hoveredCrop?.cropKind ?? '');
-    if (hoveredCrop !== undefined && hoveredSoil !== undefined && definition !== null) {
-      const growth = cropGrowthAt(
-        definition,
-        hoveredCrop.growthTicks,
-        hoveredCrop.growthUpdatedAtTick,
-        hoveredSoil.wateredAtTick,
-        renderAuthorityTick,
-        hoveredSoil.watered,
-        cropAutomaticallyWateredForSnapshot(
-          snapshot, hoveredCrop.spaceId, hoveredCrop.tileX, hoveredCrop.tileY,
-        ),
-        cropCalendarOffsetForSnapshot(snapshot),
-        cropGreenhouseProtectedForSnapshot(snapshot, hoveredCrop.spaceId),
-      );
-      const indicator = cropTooltipIndicator(definition, growth);
-      const basicStatus = growth.mature
-        ? 'READY TO HARVEST'
-        : !growth.inSeason
-          ? 'DORMANT UNTIL SPRING'
-          : `${growth.watered ? 'WATERED' : 'NEEDS WATER'} - ${cropTimeLabel(growth.remainingTicks)} LEFT`;
-      const status = personalFarmingSkills.soilWhisperer && !growth.mature
-        ? `${!growth.inSeason ? 'DORMANT - ' : ''}${Math.floor(growth.progress * 100)}% - ${growth.watered ? `${cropTimeLabel(growth.wateredUntilTick - renderAuthorityTick)} WATER` : 'DRY'}`
-        : basicStatus;
-      const width = Math.max(
-        104,
-        measurePixelText(definition.displayName.toUpperCase(), 1, art.ui.font) + 31,
-        measurePixelText(status, 1, art.ui.font) + 38,
-      );
-      const worldX = hoveredCrop.tileX * 16 + 8;
-      const worldY = (hoveredCrop.tileY + 1) * 16;
-      const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-      const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-      const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-      const panelY = Math.max(2, Math.round(anchorY - 32));
-      drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-      if (indicator.kind === 'harvest') {
-        drawUiAsset(
-          uiContext,
-          art.fruitItems[indicator.itemKind]
-            ?? art.itemIcons[indicator.itemKind]
-            ?? art.missingItem,
-          panelX + 7,
-          panelY + 7,
-          1,
-        );
-      } else {
-        drawUiAssetFrame(uiContext, art.cropTimer, indicator.frame, panelX + 7, panelY + 7, 1);
-      }
-      drawPixelText(uiContext, art.ui, definition.displayName.toUpperCase(), panelX + 28, panelY + 6);
-      drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
-        color: growth.mature ? '#8a5a2b' : growth.watered ? '#315c35' : '#9c3b2e',
-      });
-    } else {
-      const hoveredMiningResource = worldResourcesIncludingPersonalQuest(snapshot).find((resource) => (
-        !resource.depleted
-        && resource.spaceId === activeSpaceDefinition.spaceId
-        && resource.tileX === hoveredInteractionTile!.tileX
-        && resource.tileY === hoveredInteractionTile!.tileY
-        && ['fish', 'mine'].includes(runtimeResourceDefinition(snapshot.content.registry, resource)?.interaction.mode ?? '')
-      ));
-      if (hoveredMiningResource !== undefined) {
-        if (runtimeResourceDefinition(snapshot.content.registry, hoveredMiningResource)?.interaction.mode === 'fish') {
-          const catches = hoveredMiningResource.richness;
-          const status = `${catches} CATCH${catches === 1 ? '' : 'ES'} LEFT`;
-          const width = Math.max(
-            112,
-            measurePixelText('FISH POOL', 1, art.ui.font) + 31,
-            measurePixelText(status, 1, art.ui.font) + 38,
-          );
-          const worldX = hoveredMiningResource.tileX * 16 + 8;
-          const worldY = (hoveredMiningResource.tileY + 1) * 16;
-          const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-          const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-          const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-          const panelY = Math.max(2, Math.round(anchorY - 32));
-          drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-          drawUiAsset(uiContext, art.itemIcons.raw_fish ?? art.missingItem, panelX + 7, panelY + 7, 1);
-          drawPixelText(uiContext, art.ui, 'FISH POOL', panelX + 28, panelY + 6);
-          drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, { color: '#315c35' });
-        } else {
-        const nodeClass = miningClassFromWire(
-          hoveredMiningResource.miningClass, hoveredMiningResource.spaceId,
-        );
-        const richness = hoveredMiningResource.richness || hoveredMiningResource.health;
-        const maximumRichness = hoveredMiningResource.maximumRichness || richness;
-        const efficientRank = skillCapabilities.efficientStrikesRank;
-        const prospectorRank = skillCapabilities.miningYieldInspection ? 1 : 0;
-        const oreDressingRank = skillCapabilities.oreDressingRank;
-        const rockhoundRank = skillCapabilities.rockhoundRank;
-        const material = hoveredMiningResource.kind.replace(/^ore_/, '').replaceAll('_', ' ').toUpperCase();
-        const title = isBreakableRockKind(hoveredMiningResource.kind, snapshot.content.registry)
-          ? 'ROCK' : `${material} VEIN`;
-        const classLabel = nodeClass === 'pristine' ? 'PRISTINE SURFACE NODE'
-          : nodeClass === 'pure' ? 'PURE CAVE VEIN'
-            : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
-        const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
-        const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
-        const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
-          : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
-            : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
-              : 'GUARANTEED FULL ORE CHUNK';
+    if (hoveredMiningResource !== undefined) {
+      if (runtimeResourceDefinition(snapshot.content.registry, hoveredMiningResource)?.interaction.mode === 'fish') {
+        const catches = hoveredMiningResource.richness;
+        const status = `${catches} CATCH${catches === 1 ? '' : 'ES'} LEFT`;
         const width = Math.max(
-          144,
-          measurePixelText(title, 1, art.ui.font) + 31,
-          measurePixelText(classLabel, 1, art.ui.font) + 38,
+          112,
+          measurePixelText('FISH POOL', 1, art.ui.font) + 31,
           measurePixelText(status, 1, art.ui.font) + 38,
-          measurePixelText(odds, 1, art.ui.font) + 38,
         );
         const worldX = hoveredMiningResource.tileX * 16 + 8;
         const worldY = (hoveredMiningResource.tileY + 1) * 16;
         const anchorX = (worldX - cameraX) * worldZoom / uiScale;
         const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
         const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-        const panelHeight = 48;
-        const panelY = Math.max(2, Math.round(anchorY - panelHeight - 2));
-        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, panelHeight);
-        drawUiAssetFrame(
-          uiContext,
-          art.cropTimer,
-          Math.min(15, Math.floor(hoveredMiningResource.yieldProgress / 12 * 15)),
-          panelX + 7,
-          panelY + 13,
-          1,
-        );
-        drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 4);
-        drawPixelText(uiContext, art.ui, classLabel, panelX + 29, panelY + 14, { color: '#8a5a2b' });
-        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 24, { color: '#315c35' });
-        drawPixelText(uiContext, art.ui, odds, panelX + 29, panelY + 34, {
-          color: prospectorRank > 0 ? '#71532e' : '#836f58',
-        });
-        }
-      } else {
-        const hoveredProcessor = [...snapshot.placeables].find((placeable) => (
-        placeable.carriedBy === undefined
-        && placeable.spaceId === activeSpaceDefinition.spaceId
-        && placeable.tileX === hoveredInteractionTile!.tileX
-        && placeable.tileY === hoveredInteractionTile!.tileY
-        && clientProcessorRuntime(snapshot, placeable) !== null
-      ));
-        if (hoveredProcessor !== undefined) {
-        const timing = processorTiming(snapshot, hoveredProcessor, processorAuthorityTick)!;
-        const processorInterface = processorInterfaceForAdapter(timing.adapter);
-        const { remaining, progress } = timing;
-        const title = timing.object.displayName.toUpperCase();
-        const status = remaining !== null
-          ? `${timing.adapter === 'smelting' ? 'SMELTING'
-            : timing.adapter === 'campfire_cooking' ? 'COOKING'
-              : timing.adapter === 'press' ? 'PRESSING'
-                : timing.adapter === 'fermentation' ? 'FERMENTING' : 'CURING'} - ${processorTimeLabel(remaining)} LEFT`
-          : processorInterface === 'cooking' && !hoveredProcessor.lit
-            ? 'FIRE OUT - PRESS F TO LIGHT'
-            : processorInterface === 'furnace' ? 'ADD ORE + FUEL'
-              : processorInterface === 'cooking' ? 'ADD RAW FOOD'
-                : processorInterface === 'press' ? 'ADD FRUIT' : 'ADD 3 MUST';
-        const width = Math.max(
-          104,
-          measurePixelText(title, 1, art.ui.font) + 31,
-          measurePixelText(status, 1, art.ui.font) + 38,
-        );
-        const worldX = hoveredProcessor.tileX * 16 + 8;
-        const worldY = (hoveredProcessor.tileY + 1) * 16;
-        const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-        const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-        const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
         const panelY = Math.max(2, Math.round(anchorY - 32));
         drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-        drawUiAssetFrame(uiContext, art.cropTimer, Math.min(15, Math.floor(progress * 15)), panelX + 7, panelY + 7, 1);
-        drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 6);
-        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
-          color: remaining !== null ? '#315c35' : '#8a5a2b',
-        });
+        drawUiAsset(uiContext, art.itemIcons.raw_fish ?? art.missingItem, panelX + 7, panelY + 7, 1);
+        drawPixelText(uiContext, art.ui, 'FISH POOL', panelX + 28, panelY + 6);
+        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, { color: '#315c35' });
+      } else {
+      const nodeClass = miningClassFromWire(
+        hoveredMiningResource.miningClass, hoveredMiningResource.spaceId,
+      );
+      const richness = hoveredMiningResource.richness || hoveredMiningResource.health;
+      const maximumRichness = hoveredMiningResource.maximumRichness || richness;
+      const efficientRank = skillCapabilities.efficientStrikesRank;
+      const prospectorRank = skillCapabilities.miningYieldInspection ? 1 : 0;
+      const oreDressingRank = skillCapabilities.oreDressingRank;
+      const rockhoundRank = skillCapabilities.rockhoundRank;
+      const material = hoveredMiningResource.kind.replace(/^ore_/, '').replaceAll('_', ' ').toUpperCase();
+      const title = isBreakableRockKind(hoveredMiningResource.kind, snapshot.content.registry)
+        ? 'ROCK' : `${material} VEIN`;
+      const classLabel = nodeClass === 'pristine' ? 'PRISTINE SURFACE NODE'
+        : nodeClass === 'pure' ? 'PURE CAVE VEIN'
+          : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
+      const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
+      const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
+      const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
+        : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
+          : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
+            : 'GUARANTEED FULL ORE CHUNK';
+      const width = Math.max(
+        144,
+        measurePixelText(title, 1, art.ui.font) + 31,
+        measurePixelText(classLabel, 1, art.ui.font) + 38,
+        measurePixelText(status, 1, art.ui.font) + 38,
+        measurePixelText(odds, 1, art.ui.font) + 38,
+      );
+      const worldX = hoveredMiningResource.tileX * 16 + 8;
+      const worldY = (hoveredMiningResource.tileY + 1) * 16;
+      const anchorX = (worldX - cameraX) * worldZoom / uiScale;
+      const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
+      const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
+      const panelHeight = 48;
+      const panelY = Math.max(2, Math.round(anchorY - panelHeight - 2));
+      drawPixelPanel(uiContext, art.ui, panelX, panelY, width, panelHeight);
+      drawUiAssetFrame(
+        uiContext,
+        art.cropTimer,
+        Math.min(15, Math.floor(hoveredMiningResource.yieldProgress / 12 * 15)),
+        panelX + 7,
+        panelY + 13,
+        1,
+      );
+      drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 4);
+      drawPixelText(uiContext, art.ui, classLabel, panelX + 29, panelY + 14, { color: '#8a5a2b' });
+      drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 24, { color: '#315c35' });
+      drawPixelText(uiContext, art.ui, odds, panelX + 29, panelY + 34, {
+        color: prospectorRank > 0 ? '#71532e' : '#836f58',
+      });
+      }
+    }
+  }
+  if (hoveredDetectedOre === null && !interfaceHidden && !debugEntitiesHidden && worldPointer !== null
+    && overworldUi.openWindow === null && !chatOverlay.isOpen) {
+    const hoveredProcessor = timingHoverIndex.pick({
+      registry: snapshot.content.registry,
+      revision: `${snapshot.placeables.revision ?? network.resourceRevision}:${snapshot.liveMapDocument?.revision ?? 0}`,
+      spaceId: activeSpaceDefinition.spaceId, rows: snapshot.placeables,
+      x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom,
+      projectionAt,
+    });
+    if (hoveredProcessor !== null) {
+      const result = processorTiming(snapshot, hoveredProcessor, authorityTick);
+      if (result !== null) {
+        const x = hoveredProcessor.tileX * 16 + 8, y = (hoveredProcessor.tileY + 1) * 16;
+        const width = Math.min(156, canvasUiWidth - 4);
+        drawTimingTooltip(uiContext, {
+          x: Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round((x - cameraX) * worldZoom / uiScale - width / 2))),
+          y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
+          width, height: 68,
+        }, result.object.displayName, result.timing, { skin: art.uiSkin, fonts: art.ui });
+      }
+    } else {
+      const target = growthTimingHoverIndex.pick({ registry: snapshot.content.registry,
+        revision: `${snapshot.resources.revision ?? network.resourceRevision}:${snapshot.crops.revision ?? snapshot.crops.size}:${snapshot.liveMapDocument?.revision ?? 0}`,
+        spaceId: activeSpaceDefinition.spaceId, crops: snapshot.crops, resources: snapshot.resources,
+        resourceVisible: row => !liveMapSuppressesGeneratedResource(snapshot, row.id),
+        x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom, projectionAt });
+      if (target !== null) {
+        const row = target.row;
+        const definition = target.kind === 'crop' ? cropDefinitionForSnapshot(snapshot, target.row.cropKind) : null;
+        const soil = target.kind === 'crop' ? snapshot.soil.get(target.row.id) : undefined;
+        const timing = target.kind === 'resource'
+          ? projectResourceTiming(snapshot.content.registry, target.row, authorityTick, rainForWeatherMode(worldWeatherMode(), calendarTick))
+          : definition === null || soil === undefined ? null
+            : projectTiming({ kind: 'crop', definition, storedGrowthTicks: target.row.growthTicks,
+              growthUpdatedAtTick: target.row.growthUpdatedAtTick, wateredAtTick: soil.wateredAtTick,
+              watered: soil.watered, automaticallyWatered: cropAutomaticallyWateredForSnapshot(snapshot, row.spaceId, row.tileX, row.tileY),
+              calendarOffsetTicks: cropCalendarOffsetForSnapshot(snapshot),
+              greenhouseProtected: cropGreenhouseProtectedForSnapshot(snapshot, row.spaceId) }, authorityTick);
+        if (timing !== null) {
+          const name = definition?.displayName ?? (target.kind === 'resource'
+            ? runtimeResourceDefinition(snapshot.content.registry, target.row)?.displayName : undefined) ?? 'Growth';
+          const x = row.tileX * 16 + 8, y = (row.tileY + 1) * 16, width = Math.min(156, canvasUiWidth - 4);
+          let detail = timing.stage === null ? '' : `STAGE ${timing.stage + 1}`;
+          if (target.kind === 'crop' && definition !== null && soil !== undefined && personalFarmingSkills.soilWhisperer) {
+            const growth = cropGrowthAt(definition, target.row.growthTicks, target.row.growthUpdatedAtTick,
+              soil.wateredAtTick, authorityTick, soil.watered,
+              cropAutomaticallyWateredForSnapshot(snapshot, row.spaceId, row.tileX, row.tileY),
+              cropCalendarOffsetForSnapshot(snapshot), cropGreenhouseProtectedForSnapshot(snapshot, row.spaceId));
+            const water = growth.watered ? timingLabels({ ...timing, status: 'running', reason: null,
+              confidence: 'exact', remainingActiveTicks: growth.wateredUntilTick - authorityTick }).time.replace(' LEFT', ' WATER') : 'DRY';
+            detail = `${Math.floor(timing.progress * 100)}% ${water}`;
+          }
+          drawTimingTooltip(uiContext, {
+            x: Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round((x - cameraX) * worldZoom / uiScale - width / 2))),
+            y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
+            width, height: detail ? 84 : 68,
+          }, name, timing, { skin: art.uiSkin, fonts: art.ui }, detail);
         }
       }
     }
@@ -6006,7 +5905,7 @@ function renderFrame(alpha = 1): void {
       `BND ${lightmap.boundsResizeMs.toFixed(2)} OCC ${lightmap.rasterizeMs.toFixed(2)} SOLVE ${lightmap.floodMs.toFixed(2)} MERGE ${lightmap.mergeMs.toFixed(2)}`,
       `UP ${lightmap.uploadMs.toFixed(2)} REC ${lightmap.receiverMs.toFixed(2)} CMP ${lightmap.compositeMs.toFixed(2)} CACHE ${lightmap.occlusionCacheHits}/${lightmap.occlusionRebuilds}`,
       `LIGHTS ${pointLights.length} VISITED ${lightmap.floodTexelsVisited}`,
-      `MOON ${lunarPhaseAtAuthorityTick(authorityTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(authorityTick)}/1000`,
+      `MOON ${lunarPhaseAtAuthorityTick(calendarTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(calendarTick)}/1000`,
       `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
       `NET RTT ${net.rttMs.toFixed(0)}ms LAG ${net.lagMs}+/-${net.jitterMs}`,
       `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,

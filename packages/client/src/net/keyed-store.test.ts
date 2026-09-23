@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { BoundedKeyedQueue, KeyedStore } from './keyed-store.js';
 
 describe('persistent keyed store', () => {
+  it('versions mutations without invalidating identical snapshots', () => {
+    const store = new KeyedStore<number, object>(), row = {};
+    expect(store.revision).toBe(0); store.set(1, row); expect(store.revision).toBe(1);
+    store.set(1, row); store.delete(99); expect(store.revision).toBe(1);
+    store.set(1, {}); expect(store.revision).toBe(2); store.delete(1); expect(store.revision).toBe(3);
+    store.clear(); expect(store.revision).toBe(3); store.set(2, row); store.clear(); expect(store.revision).toBe(5);
+  });
   it('updates in place and iterates values without rebuilding arrays', () => {
     const store = new KeyedStore<number, { id: number; name: string }>();
     store.set(1, { id: 1, name: 'apple' });

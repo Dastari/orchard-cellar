@@ -38,7 +38,8 @@ export function clientStudioBoundary(): Plugin {
           if (/\/packages\/studio\/src\//.test(id)) return true;
           if (/\/packages\/ui\/src\/(?:studio-entry\.ts|studio\/spatial-art\.ts)$/.test(id)) return true;
           const kit = id.match(/\/packages\/ui\/src\/kit\/(.+)$/)?.[1];
-          return kit !== undefined && kit !== 'skin/lucide.ts' && kit !== 'runtime/text-editor.ts';
+          return kit !== undefined && !['skin/lucide.ts', 'runtime/text-editor.ts',
+            'components/timing-canvas.ts', 'skin/contrast.ts', 'skin/faces.ts'].includes(kit);
         }))].sort();
       if (forbidden.length > 0) {
         this.error(`Studio modules leaked into the game build. Keep @orchard/ui/studio imports in Studio:\n${forbidden.join('\n')}`);
