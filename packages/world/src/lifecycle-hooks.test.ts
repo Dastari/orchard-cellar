@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { authoredHookApproved, objectStateEvents, type AuthoredHookAuthority } from '@orchard/sim';
+import { authoredHookApproved, objectStateEvents, authoredHookRegistrations, defineAuthoredLifecycle, createHandlerRegistry, raiseEvent, isBlockedHandlerResult, type AuthoredHookAuthority } from '@orchard/sim';
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.ESNext, true);
 function load(names: readonly string[], dependencies: Record<string, unknown>): Record<string, (...args: unknown[]) => unknown> {
   const chunks = names.map(name => source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name)?.getText(source));
@@ -47,4 +47,27 @@ describe('production lifecycle bridge execution', () => {
     expect(() => api['raisePlaceableStateEvents']!({}, before, { ...before, state: { open: true } }, false)).toThrow('no');
     expect(applied).toHaveLength(2);
   });
+  it('routes production dialogue and quest notifications through their real authored registry', () => {
+    const dialogue = defineAuthoredLifecycle({ id: 'dialogue', kind: 'dialogue', definitionId: 'dialogue:merchant', hook: 'onDialogueChoice', run(context) { context.block('dialogue-script'); } });
+    const quest = defineAuthoredLifecycle({ id: 'quest', kind: 'quest', definitionId: 'quest:intro', hook: 'onQuestState', run(context) { context.block('quest-script'); } });
+    const registry = createHandlerRegistry(authoredHookRegistrations([dialogue, quest], { approved: () => true, consume: () => true, audit: () => {} }));
+    const ref = { entityType: 'npc', id: '1', definitionId: 'npc:merchant' };
+    const target = { ref, snapshot: { ...ref, tags: [] } };
+    const apply: unknown[] = [];
+    const api = load(['raiseDialogueChoiceEvent', 'raiseSenderBehaviourEvent'], {
+      resolvedBehaviourTarget: () => target, currentWorldBehaviourHandlers: () => registry,
+      raiseEvent, isBlockedHandlerResult, SenderError: Error,
+      authorityBehaviourSnapshot: (_ctx: unknown, snapshot?: unknown) => ({ target: snapshot }),
+      applyWorldBehaviourEffects: (...args: unknown[]) => apply.push(args),
+    });
+    const ready = { identity: { find: () => ({}) } };
+    const ctx = { sender: { toHexString: () => 'actor' }, db: {
+      active_dialogue: { identity: { find: () => ({ dialogueId: 'merchant' }) } },
+      player_position: ready, player_survival: ready, player_stats: ready, player_wallet: ready,
+    } };
+    expect(() => api['raiseDialogueChoiceEvent']!(ctx, 1n, 'hello', 'accept')).toThrow('dialogue-script');
+    expect(() => api['raiseSenderBehaviourEvent']!(ctx, { type: 'questState', actor: { entityType: 'player', id: 'actor' }, questId: 'intro', from: 'active', to: 'complete' })).toThrow('quest-script');
+    expect(apply).toEqual([]);
+  });
+
 });

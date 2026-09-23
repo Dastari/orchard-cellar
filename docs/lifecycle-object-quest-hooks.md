@@ -38,7 +38,7 @@ A minimal candidate uses `format: "orchard-lifecycle-source-v2"`, `bundleId: "wo
   "definitionId": "object:chest",
   "kind": "object",
   "hook": "onStateEnter",
-  "source": "if (context.event.to.open === true) context.emit({ setLight: { enabled: true } });"
+  "source": "if (context.event.to.open === true) context.block('chest_locked');"
 }
 ```
 
@@ -50,6 +50,8 @@ Object event transitions resolve the first matching external transition in decla
 
 Validation checkpoint: 399 lifecycle/sim/world tests in 72 files, plus 12 targeted adapter/integrity tests passed. World build and 919-definition content validation passed. Final workspace checks and PR details are recorded below when complete. Nothing has been merged or deployed.
 
-Final local checks: workspace typecheck, lint, world build, guarded Studio production build, lifecycle integrity (v1 + v2), schema regeneration check, 919-definition content validation, 399-test broader lifecycle suite, 26 focused compiler/adapter/schema/integrity tests and 21 follow-up hook/reference tests pass. Full `npm test` is running separately; no completion claim is made until its final summary is available. Build warnings are the existing terrain module cycle and Studio chunk-size notices. An initial local validation run was discarded after correcting a package metadata editing error and generating required local assets; it is not counted as successful evidence.
+Final local checks: workspace typecheck, lint, world build, guarded Studio production build, lifecycle integrity (v1 + v2), schema regeneration check, 919-definition content validation, 399-test broader lifecycle suite, 26 focused compiler/adapter/schema/integrity tests and 21 follow-up hook/reference tests pass. Full `npm test` is running separately; no completion claim is made until its final summary is available. Build warnings are the existing terrain module cycle and Studio chunk-size notices.
 
 Review hardening: 16 compiler tests also pass after rejecting string doubling, bigint shifts and type-assertion bypasses. Candidate PR: https://github.com/Dastari/orchard-cellar/pull/78 (stacked on #68).
+
+Production dispatch verification: three executed world bridge tests pass, covering trusted approval/budget/audit, system state exit/entry and real dialogue/quest dispatch into the authored registry.
