@@ -1,6 +1,6 @@
 # F3 lifecycle hooks specification
 
-Status: implementation; Wave 2, stacked on permission scopes #68 and state contracts #65.
+Status: implemented, PR #78 ready for review; Wave 2, stacked on permission scopes #68 and state contracts #65.
 
 ## Objective and scope
 
@@ -48,10 +48,20 @@ Use `npm run lifecycle:verify -- /absolute/source.json` to obtain the review dig
 
 Object event transitions resolve the first matching external transition in declaration order; state entry/exit hooks match crossing the declared state predicate. Their `run.callback` must bind an `onTransition` callback on the same definition; `run.graph` uses the existing bounded graph compiler. Pure lazy timed/growth settlement exposes its firing references through `transitionCallbackEvent`; durable timer/growth settlement integration is still a later adapter. Encounter hooks cannot be compiled until that event authority exists. These boundaries are explicit and do not claim full timed-object or encounter execution.
 
-Validation checkpoint: 399 lifecycle/sim/world tests in 72 files, plus 12 targeted adapter/integrity tests passed. World build and 919-definition content validation passed. Final workspace checks and PR details are recorded below when complete. Nothing has been merged or deployed.
+Nothing has been merged or deployed. Full validation and the source branch are recorded below.
 
-Final local checks: workspace typecheck, lint, world build, guarded Studio production build, lifecycle integrity (v1 + v2), schema regeneration check, 919-definition content validation, 399-test broader lifecycle suite, 26 focused compiler/adapter/schema/integrity tests and 21 follow-up hook/reference tests pass. Full `npm test` is running separately; no completion claim is made until its final summary is available. Build warnings are the existing terrain module cycle and Studio chunk-size notices.
+Final local checks: workspace typecheck, lint, world build, guarded Studio production build, lifecycle integrity (v1 + v2), schema regeneration check, 919-definition content validation, 399-test broader lifecycle suite, 26 focused compiler/adapter/schema/integrity tests and 21 follow-up hook/reference tests pass. Full coverage results and setup corrections are recorded below. Build warnings are the existing terrain module cycle and Studio chunk-size notices.
 
 Review hardening: 16 compiler tests also pass after rejecting string doubling, bigint shifts and type-assertion bypasses. Candidate PR: https://github.com/Dastari/orchard-cellar/pull/78 (stacked on #68).
 
 Production dispatch verification: three executed world bridge tests pass, covering trusted approval/budget/audit, system state exit/entry and real dialogue/quest dispatch into the authored registry.
+
+## Final validation and continuation
+
+PR: https://github.com/Dastari/orchard-cellar/pull/78, branch `feat/lifecycle-object-quest-hooks`, based on `feat/studio-permission-scopes` at `37a7415a`. Merge #68 prerequisites first; keep this Wave 2 PR separately reviewed. Root 0.25.1, sim 0.23.0, world 0.22.0 and lifecycle-authoring 0.16.1. The compiler hardening and additional production dispatch tests were checked after the initial broader suite.
+
+The complete coverage test run finished in 984 seconds: **974 files passed / 3 failed; 5916 tests passed / 147 failed / 1 skipped**. Every failure was ENOENT for ignored licensed or derivative source artwork in this isolated worktree, not a code assertion. Restored ignored links to the canonical checkout's `references/art` and `art/custom/tool-progression`; reruns passed all **149 tests in those three files**. The separate exhaustive run passed **101 tests in seven files**. This evidence is not a clean `npm test` or coverage-threshold pass; current-head GitHub CI remains required before any merge.
+
+Local logs: `/tmp/orchard-f3-full-test-final.log`, `/tmp/orchard-f3-art-rerun-fixed.log`, `/tmp/orchard-f3-premium-rerun-fixed.log`, `/tmp/orchard-f3-exhaustive.log`. Other passed gates: workspace types, lint, world build, guarded Studio production build, content/assets validation, lifecycle integrity and field-schema regeneration. Latest production bridge tests: three passed, with world typecheck repeated. The full test process has exited; no background validation session is required for handoff.
+
+GoldCondor owns coordination per Agent Mail #254. Object-state runtime is a separate queued lane; integrate its durable timed/growth firings through the typed callback bridge, preserving source-hash approval and shared invocation caps. F2/F4 own disjoint world hunks. No schema or binding regeneration is required for this F3 change.
