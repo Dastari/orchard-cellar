@@ -52,7 +52,8 @@ describe('shared timing projection', () => {
   });
 
   it('uses public extinguished-fire state even when inventory is closed', () => {
-    const { state: _state, ...source } = fixture('campfire_cooking');
+    const { kind, definitions, adapter, durationTicks, startTick, options } = fixture('campfire_cooking');
+    const source = { kind, definitions, adapter, durationTicks, startTick, options };
     expect(projectTiming({ ...source, lit: false }, 120n)).toMatchObject({ status: 'blocked', reason: 'fire-out', remainingActiveTicks: null });
   });
 
