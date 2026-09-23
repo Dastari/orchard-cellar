@@ -107,60 +107,68 @@
       "asset": "icon_food_seaweed",
       "group": "fish",
       "status": "proposed",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         160,
         0,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
-      "reviewStatus": "native_import_reviewed"
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
+      "reviewStatus": "native_import_reviewed",
+      "plannedSource": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "sourceCorrection": "Use available plain variant required by existing plain-icon source contract; same authored cell"
     },
     {
       "item": "item:brown_mushroom",
       "asset": "icon_alchemy_brown_mushroom",
       "group": "mushroom",
       "status": "proposed",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         64,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
-      "reviewStatus": "native_import_reviewed"
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
+      "reviewStatus": "native_import_reviewed",
+      "plannedSource": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "sourceCorrection": "Use available plain variant required by existing plain-icon source contract; same authored cell"
     },
     {
       "item": "item:shroom_spore",
       "asset": "icon_alchemy_shroom_spore",
       "group": "mushroom",
       "status": "proposed",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         176,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
-      "reviewStatus": "native_import_reviewed"
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
+      "reviewStatus": "native_import_reviewed",
+      "plannedSource": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "sourceCorrection": "Use available plain variant required by existing plain-icon source contract; same authored cell"
     },
     {
       "item": "item:moonleaf",
       "asset": "icon_alchemy_moonleaf",
       "group": "herb",
       "status": "proposed",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         16,
         256,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
-      "reviewStatus": "native_import_reviewed"
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
+      "reviewStatus": "native_import_reviewed",
+      "plannedSource": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "sourceCorrection": "Use available plain variant required by existing plain-icon source contract; same authored cell"
     },
     {
       "item": "item:feather",

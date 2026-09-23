@@ -44,8 +44,8 @@ rather than approved. Sixteen-pixel icon assets do not substitute for station sp
 ## Validation and publication
 
 Passed: isolated dependency install; workspace typecheck; lint; content validation;
-asset validation (1,523 art assets); atlas/UI assets build; 205 targeted tests including
-all native-pixel comparisons. Full repository test outcome is recorded in the PR.
+asset validation (1,523 art assets); atlas/UI assets build; 208 targeted tests including
+all native-pixel comparisons. The first full `npm test` exposed an outlined-Raven source violation, then ended with SIGTERM (exit 143); it is not a full-suite pass. Switched the four Raven imports to their available plain variant, with unchanged cell coordinates and exact native pixels; both the regression and intake suites now pass (208 tests). A full rerun follows in the PR.
 
 Publication order: client asset bundle first, only after owner deployment instruction;
 future gameplay definitions may reference these keys afterward. This PR needs no world
