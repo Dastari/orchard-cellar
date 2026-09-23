@@ -35,3 +35,17 @@ Checks completed before PR:
   fixed and world typecheck rerun successfully.
 - Asset build, Studio production build with UI-kit guard, world build passed.
 - Full `npm test` coverage/exhaustive is running; final result goes on the PR.
+
+The standalone exhaustive run caught a real Tiles JSON editor limit (32 KB)
+that clipped the 51 KB formatted catalogue. The editor now sizes for the compact
+wire limit plus formatting and existing definitions. Its 25 tests, Studio types,
+lint and guarded production rebuild pass. Local `references/` is linked to the
+canonical ignored licensed art; all 147 previously missing-art checks pass.
+The superseded coverage process cached pre-follow-up code/manifest; it was
+stopped. Fresh targeted coverage passed all 21 relevant checks. Final full-suite
+log is `/tmp/copper-final-full-test.log`.
+
+BrownHorizon #179 authorizes a next stacked PR `feat/rule-catalogue-blob47`
+after this PR's final validation: migrate hoed soil, authored farmland and grass
+fringe using goldens; retain distinct catalogue entries if unifying changes
+pixels. No merge/deploy/publish.
