@@ -1,6 +1,6 @@
 # Chunk runtime shadow phase
 
-Status: implementation in `feat/chunk-runtime-shadow`, based on current main plus PR71 (`37dc1917`). Implements doc61 §2.5.2 step3 and reviewable prerequisites for step4. GoldCondor owns merges; no deployment or publication is authorized.
+Status: implemented in `feat/chunk-runtime-shadow`, based on current main plus PR71 (`37dc1917`). Implements doc61 §2.5.2 step3 and reviewable prerequisites for step4. GoldCondor owns merges; no deployment or publication is authorized.
 
 ## Decision and contract
 
@@ -37,8 +37,20 @@ Replace the final two arguments with the reviewed content hash and current shado
 
 Every game build emits `chunk-runtime-audit.json` from actual bundled module identities. `ORCHARD_REQUIRE_GENERATOR_FREE=1 npm run client:chunks:check` must fail while legacy generator/compiler modules remain; it becomes mandatory at retirement. The normal shadow/off build keeps those modules deliberately.
 
-Versions: repository 0.27.2, sim 0.25.0, world 0.24.0, engine 0.22.0, client 0.22.1, bindings 0.18.0. Draft PR: https://github.com/Dastari/orchard-cellar/pull/83. Full repository check is running at `/tmp/orchard-chunk-check.log`.
+Versions: repository 0.27.2, sim 0.25.0, world 0.24.0, engine 0.22.0, client 0.22.1, bindings 0.18.0. PR: https://github.com/Dastari/orchard-cellar/pull/83, ready for review after local validation; hosted CI remains a separate coordinator merge gate.
 
 Offline acceptance: all 169 bootstrap chunks passed complete source parity and preparation against the actual generated atlas index. Decoded payload bytes total 20,573,165; materializer gzip 456,307 and Brotli 370,110 bytes, plus a 22,591-byte manifest. These are local file sizes, not network/first-play claims. Prepared output is `/tmp/orchard-chunk-shadow-prepared`, never installed or published. This run found and fixed compatibility with the existing eight-hex-character content hash (`b3f30168`); immutable blob/asset-index hashes remain SHA-256. A direct controller lifecycle test also verifies regional-head waiting, actual asset-index hashing, diagnostic comparison and source-revision rejection.
 
-Broad validation initially found one existing region-subscription extraction harness unable to parse an inline `import.meta` expression. The flag now evaluates once in connection initialization; all 110 network/shadow tests across 15 files pass. The superseded broad run was stopped after that diagnosis and is not reported as clean. Final full check log: `/tmp/orchard-chunk-check-final.log`.
+Broad validation initially found one existing region-subscription extraction harness unable to parse an inline `import.meta` expression. The flag now evaluates once in connection initialization; all 110 network/shadow tests across 15 files pass. The superseded broad run was stopped after that diagnosis and is not reported as clean. Final full check completed successfully at `/tmp/orchard-chunk-check-final.log`.
+
+## Final validation and integration handoff
+
+`npm run check` exited 0 on source `3ab8a9f9ca9967bc035621204c3b4af4f9aca065`: lifecycle integrity, 919 content definitions, checked world build, workspace typecheck/lint, 995 coverage files / 6209 passing tests / one skip, seven exhaustive files / 101 passing tests, and asset validation (1320 art, 3 songs, 10 SFX, 55 colors). Coverage: statements 89.02%, branches 84.41%, functions 94.52%, lines 93.05%. Coverage took 1124.86 seconds and exhaustive tests 162.54 seconds.
+
+Latest default-off and shadow client builds, normal bundle boundary checks, generated bindings and guarded Studio production build passed. The explicit generator-free gate rejects the retained five legacy modules as intended. All 110 focused network/shadow tests passed, including the subscription regression and database teardown.
+
+Real bootstrap view churn visited all 169 chunk centers, kept every view plus ring ready, and retained at most 25 decoded chunks representing 4,529,870 encoded bytes. This proves the configured retention limits for that traversal, not browser heap usage or first-play timing. No files were installed into live delivery and no staging reducer was called.
+
+Worktree: `/home/toby/projects/orchard-chunk-runtime`; branch `feat/chunk-runtime-shadow`, stacked on PR71 `37dc1917`. Production source is frozen at the tested commit; the final follow-up records results only. GoldCondor confirmed owner-only CAS and topside shadow scope in Agent Mail319. Coordinate later integration with D6 PR80 `cd5009d3`: retain its optional `hasTraversalChannels` compatibility metadata, actor policy and independent hazard table. Combine additive schemas and bindings with PR81 without altering object-state anchors. OrangePike has shared additive access for timer work in a separate worktree.
+
+Next action is coordinator review/CI reconciliation and a separately authorized publication rehearsal. Live activation still needs chunk-native renderer/collision integration, D6 parity, spawn-pack readiness, browser offline/cache acceptance and rollback evidence. Generator and document retirement remain prohibited until the listed gates are met. No merge, publish or deploy was performed.
