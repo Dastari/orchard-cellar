@@ -51,3 +51,13 @@ before committing the map delta, then applies changed records once; ordinary
 resource growth resumes immediately. Unchanged published records never replay.
 See [the specification](../../docs/studio-smart-placement-spec.md) and
 [the architectural decision](../../docs/adr/ADR-studio-smart-object-state.md).
+
+## Space registry
+
+`buildSpaceRegistry(staticSpaces, instances, portals)` resolves live revision
+static definitions and persisted homestead/rogue instances into sorted entries
+with authoritative geometry, ownership labels and outgoing portal links. Supply
+`registry.compiled.spaces`; it deliberately has no bootstrap fallback. Instances
+include residence expansion and architecture; cellars use the existing 1024-tile
+envelope. Private run rows must be projected behind caller authorization.
+See [the F4 specification](../../docs/studio-multi-space-spec.md).

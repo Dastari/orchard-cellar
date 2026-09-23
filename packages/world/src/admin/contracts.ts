@@ -289,7 +289,7 @@ export interface AdminMissingContainerInspection {
 
 export interface AdminEntitySummary {
   readonly entityId: string;
-  readonly kind: 'placeable' | 'chest' | 'npc' | 'item' | 'resource' | 'surface';
+  readonly kind: 'placeable' | 'chest' | 'npc' | 'item' | 'resource' | 'surface' | 'crop';
   readonly definitionId: string;
   readonly spaceId: string;
   readonly tileX: number;
@@ -377,6 +377,14 @@ export interface AdminProcedureContract {
   readonly adminEntitiesInArea: {
     readonly args: { readonly spaceId: string; readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number };
     readonly result: readonly AdminEntitySummary[];
+  };
+  readonly adminEntitiesInAreaPage: {
+    readonly args: import('./spatial-page.js').AdminAreaRequest;
+    readonly result: import('./spatial-page.js').AdminAreaPage;
+  };
+  readonly adminSpaceRegistry: {
+    readonly args: Record<never, never>;
+    readonly result: readonly import('@orchard/sim').SpaceRegistryEntry[];
   };
   readonly adminHomestead: {
     readonly args: { readonly spaceId: string };
