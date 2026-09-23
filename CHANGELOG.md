@@ -1,5 +1,12 @@
 # Changelog
 
+## September 23 integrated deployment — acceptance pending
+
+- Publish merged `78665a40` through the guarded schema-only lane; content R17 / `0e741b0f`, 921 definitions, no deletions. Restored and production reconnect parity passed for one account across 42 durable tables.
+- Preserve D6 shadow and chunk default-off behavior; food/alchemy delivery remains artwork groundwork.
+- Track returning-client service-worker/atlas startup incompatibility and pending browser acceptance in [the release record and handoff](docs/release-2026-09-23.md). Player announcement remains pending.
+- Record authorized disk cleanup and a proposed current/previous verified-backup retention policy; no automated pruning introduced.
+
 ## 0.27.2 — 2026-09-23
 
 - Add owner-only CAS chunk shadow staging, additive regional heads and verified private collision blobs.
