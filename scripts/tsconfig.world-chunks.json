@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.release.json",
+  "include": ["materialize-world-chunks.ts", "world-chunk*.ts"]
+}

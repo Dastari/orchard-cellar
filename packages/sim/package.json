@@ -1,11 +1,17 @@
 {
   "name": "@orchard/sim",
-  "version": "0.22.2",
+  "version": "0.22.3",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./world-chunk": "./src/world-chunk.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0"
   }
 }
