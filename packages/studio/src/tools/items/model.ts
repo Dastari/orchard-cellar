@@ -325,6 +325,23 @@ export class ItemsToolModel {
     return this.snapshot();
   }
 
+  /** Creates a parser-valid local draft; publication still uses ordinary validation. */
+  createDefinition(kind: 'item' | 'recipe'): SupportedContentDefinition {
+    this.#assertEditable();
+    const definitions = this.snapshot().definitions;
+    let suffix = 1;
+    while (definitions.some(definition => definition.id === `${kind}:new_${suffix}`)) suffix++;
+    const id = `${kind}:new_${suffix}`;
+    const item = definitions.find(definition => definition.kind === 'item' && !definition.retired);
+    if (kind === 'recipe' && !item) throw new Error('Create an item before creating a recipe.');
+    const value = kind === 'item'
+      ? { id, kind, schemaVersion: 1, displayName: `New item ${suffix}`, icon: { asset: item?.kind === 'item' ? item.icon.asset : 'apple' }, quality: 'common', maxStack: 99, tags: [], economy: { buy: null, sell: 0 }, onUse: [] }
+      : { id, kind, schemaVersion: 1, recipeKind: 'shapeless', inputs: [{ item: item!.id, count: 1 }], output: { item: item!.id, count: 1 } };
+    const definition = parseContentDefinition(kind, value);
+    this.upsertDefinition(definition);
+    return definition;
+  }
+
   upsertDefinition(value: unknown): ItemsToolSnapshot {
     return this.upsertDefinitions([value]);
   }

@@ -61,13 +61,13 @@ import {
 import { authoredNpcArt, loadAuthoredNpcArt } from '@orchard/engine/authored-npc-art';
 import {
   STUDIO_SKIN_TOKENS,
-  drawUiIconAsset,
   loadGeneratedAsset,
   type LoadedAsset,
   type StudioSpatialArt,
   type UiIconName,
   type UiRect,
 } from '@orchard/ui/studio';
+import { MAP_SPATIAL_COLOURS } from './spatial-colours.js';
 import type { MapEditorController, MapEditorLiveMarker } from './editor-controller.js';
 import {
   editorShowsObjectSprites,
@@ -211,7 +211,7 @@ function drawMapEditorTransitionPreview(
   context.beginPath();
   context.rect(viewport.x, viewport.y, viewport.width, viewport.height);
   context.clip();
-  context.strokeStyle = plan.error === null ? '#b9f6bd' : '#ff8f82';
+  context.strokeStyle = plan.error === null ? MAP_SPATIAL_COLOURS.planValid : MAP_SPATIAL_COLOURS.planInvalid;
   context.fillStyle = context.strokeStyle;
   context.lineWidth = 2;
   context.setLineDash(plan.error === null ? [] : [5, 3]);
@@ -351,12 +351,14 @@ function drawMapGameplayAnchorMarkers(
     context.stroke();
     const iconSize = Math.max(12, size - 6);
     const icon = art.skin?.icons?.[visual.icon];
-    if (icon !== undefined) drawUiIconAsset(context, icon, {
-        x: Math.round(point.x - iconSize / 2),
-        y: Math.round(point.y - iconSize / 2),
-        width: iconSize,
-        height: iconSize,
-      }, 1, 'brightness(0) invert(1)');
+    if (icon !== undefined) {
+      context.save();
+      context.filter = 'brightness(0) invert(1)';
+      context.imageSmoothingEnabled = true;
+      context.drawImage(icon.image, 0, 0, icon.width, icon.height,
+        Math.round(point.x - iconSize / 2), Math.round(point.y - iconSize / 2), iconSize, iconSize);
+      context.restore();
+    }
 
   }
   context.restore();
@@ -696,7 +698,7 @@ export class MapEditorRenderer {
     }
 
     if (gridVisible && TILE_SIZE_PIXELS * camera.zoom >= 5) {
-      context.strokeStyle = 'rgba(255, 255, 255, 0.52)';
+      context.strokeStyle = MAP_SPATIAL_COLOURS.grid;
       context.lineWidth = 1;
       context.beginPath();
       for (let tileX = range.minimumX; tileX <= range.maximumX; tileX += 1) {
@@ -756,11 +758,11 @@ export class MapEditorRenderer {
           && selection.id === id && selection.spaceId === spaceId;
       const radius = Math.max(3, Math.min(9, TILE_SIZE_PIXELS * camera.zoom * 0.38));
       if (!artworkRendered || !enabled) {
-        context.fillStyle = enabled ? color : 'rgba(110, 110, 110, 0.62)';
+        context.fillStyle = enabled ? color : MAP_SPATIAL_COLOURS.disabledMarker;
         context.fillRect(Math.round(x - radius), Math.round(y - radius), Math.ceil(radius * 2), Math.ceil(radius * 2));
       }
       if (selected && (!wantsObjectSprites || terrain === null)) {
-        context.strokeStyle = '#ffffff';
+        context.strokeStyle = MAP_SPATIAL_COLOURS.selectedMarker;
         context.lineWidth = 2;
         context.strokeRect(Math.round(x - radius - 2), Math.round(y - radius - 2), Math.ceil(radius * 2 + 4), Math.ceil(radius * 2 + 4));
       }
@@ -769,14 +771,14 @@ export class MapEditorRenderer {
       if (!model.isLayerVisible(landmark.layer)) continue;
       if (landmark.tileX < range.minimumX || landmark.tileX >= range.maximumX
         || landmark.tileY < range.minimumY || landmark.tileY >= range.maximumY) continue;
-      marker(landmark.id, landmark.tileX, landmark.tileY, '#f3d37a', landmark.enabled,
+      marker(landmark.id, landmark.tileX, landmark.tileY, MAP_SPATIAL_COLOURS.landmark, landmark.enabled,
         'map-object', 0, artworkVisible && landmark.enabled);
     }
     for (const object of document.objects) {
       if (!model.isLayerVisible(object.layer)) continue;
       if (object.tileX < range.minimumX || object.tileX >= range.maximumX
         || object.tileY < range.minimumY || object.tileY >= range.maximumY) continue;
-      marker(object.id, object.tileX, object.tileY, '#8ad7dd', object.enabled,
+      marker(object.id, object.tileX, object.tileY, MAP_SPATIAL_COLOURS.authoredObject, object.enabled,
         'map-object', 0, prefabArtworkVisible && object.enabled);
     }
     for (const live of interaction.liveMarkers()) {
@@ -1282,7 +1284,7 @@ export class MapEditorRenderer {
       const marker=interaction.liveMarkers().find(value=>selection.kind==='player'?value.entityKind==='player'&&value.id===selection.identity:value.entityKind===selection.entityKind&&value.id===selection.id&&value.spaceId===selection.spaceId);
       if(marker&&model.isLayerVisible(marker.layer))this.enqueueLiveMarker(enqueue,mask,this.#art,marker,marker.worldX,marker.worldY,camera,Math.floor(performance.now()/125));
     }
-    mask.save();mask.globalCompositeOperation='source-in';mask.fillStyle='rgba(255,206,82,0.48)';mask.fillRect(0,0,canvas.width,canvas.height);mask.restore();
+    mask.save();mask.globalCompositeOperation='source-in';mask.fillStyle=MAP_SPATIAL_COLOURS.liveSelectionMask;mask.fillRect(0,0,canvas.width,canvas.height);mask.restore();
     context.drawImage(canvas,viewport.x,viewport.y);
   }
 

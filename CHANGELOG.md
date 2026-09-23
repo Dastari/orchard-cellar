@@ -8,6 +8,29 @@
 - Keep complete formatted catalogue definitions in the Tiles JSON editor instead of clipping them at 32 KB.
 - Pin pre-migration resolver outputs for raised terrain, transition/shore, blob47/farmland, waterfall lanes, cave patches and connect4 masks.
 
+- Add server-enforced Studio domain scopes with additive grant overrides, legacy access compatibility, audited previews, stale-state protection and idempotent audit receipts.
+- Check all content kinds in publishes, deletions and restores, and gate administration families. Studio mirrors private scope state in tool access.
+- Bind script review records to artifact hashes and authenticated authors; require a separately scoped approver. Reviewed warm-build release gates remain required.
+
+- Integrate object-archetype form schemas, omitting excluded optional-never keys;
+  arrange the schema specimen beside data controls to avoid district overlap.
+
+- Studio 0.14.0 replaces leaf-only definition fields with schema forms, optional components, array add/remove/reorder, enum choices and typed references. Items, Narrative and World Tables retain advanced JSON and existing validation/publish gates.
+- UI 0.21.1 adds reusable schema forms, array editors, reference pickers with preview and used-by panels. Sim 0.22.1 exports type-derived schemas for all 25 content kinds with regeneration and bootstrap parity checks.
+- New item/recipe actions create local drafts; references open the selected definition, using World Tables for kinds awaiting specialized selectors.
+
+## Studio 0.13.3 — ownership marker token integration
+
+- Preserve P0 ownership and P1 exact terrain parts under the kit gate; move all
+  live-marker colours to spatial tokens and remove the temporary controller exception.
+
+## 0.23.2 — 2026-09-22
+
+- Correct desert, shroomland and volcanic cliff courses; restore native shroomland inverse corners and per-family cap/floor references (sim 0.21.1).
+- Studio 0.13.2 repairs conflicting diagonal insets only around Smart Placement strokes; Exact Placement and existing maps remain valid. Stone cliff brushes select matching grass 1–4.
+- Engine 0.20.1 renders explicitly authored desert/shroomland cap materials from the selected native family.
+- Regenerate independently reviewed native examples with corrected diagonals, matching grass/desert/volcanic ground, cyan oasis water, and explicit withheld interior assemblies where source roles remain unverified.
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.

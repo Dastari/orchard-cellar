@@ -1,87 +1,64 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CanvasTextEditor, UiRoot } from '@orchard/ui/studio';
+import { CanvasTextEditor } from '@orchard/ui/studio';
+import { parseContentDefinition } from '@orchard/sim';
 import { StudioShellController } from './controller.js';
 import { studioDefinitionFields } from './definition-fields.js';
-import { kitElements, pressKit } from '../tools/kit-test-driver.js';
+import { kitElements, pressKit, chooseKit } from '../tools/kit-test-driver.js';
 import type { StudioCanvasToolContext } from './canvas-tool.js';
 
+const item = { id: 'item:test', kind: 'item', schemaVersion: 1, displayName: 'Apple', icon: { asset: 'apple' }, quality: 'common', maxStack: 20, tags: ['fruit'], economy: { buy: null, sell: 2 }, onUse: [] };
 function setup(readOnly = false) {
   const controller = new StudioShellController(async () => { throw new Error('offline'); });
   controller.navigate('/author/items');
   const bounds = { x: 0, y: 0, width: 900, height: 600 };
-  const context: StudioCanvasToolContext = {controller,route:controller.activeRoute(),bounds,controlsBounds:bounds,workspaceBounds:bounds,invalidate:vi.fn()};
-  const draft = new CanvasTextEditor({value:JSON.stringify({id:'item:test',kind:'item',schemaVersion:1,displayName:'Apple',stack:{quantity:2},edible:true,tags:['fruit']}),multiline:true});
-  const apply = vi.fn();
-  const build = () => ({kit:{workspace:studioDefinitionFields(context,{id:'details',draft,readOnly,apply})}});
-  const change = (surface: ReturnType<typeof build>, label: string, value: string) => {
-    const input = kitElements(surface).find(node => node.kind==='input' && node.label===label)!;
+  const context: StudioCanvasToolContext = { controller, route: controller.activeRoute(), bounds, controlsBounds: bounds, workspaceBounds: bounds, invalidate: vi.fn() };
+  const draft = new CanvasTextEditor({ value: JSON.stringify(item), multiline: true });
+  const apply = vi.fn(() => parseContentDefinition('item', JSON.parse(draft.snapshot().value)));
+  const build = () => ({ kit: { workspace: studioDefinitionFields(context, { id: 'details', draft, readOnly, apply }) } });
+  const change = (surface: ReturnType<typeof build>, id: string, value: string) => {
+    const input = kitElements(surface).find(node => node.id === `details:${id}`)!;
     (input.props['editor'] as CanvasTextEditor).setValue(value);
   };
-  return {draft,apply,build,change};
+  return { draft, apply, build, change };
 }
-
-describe('definition Details workspace',()=>{
-  it('applies typed nested fields and array entries without changing identity',()=>{
-    const {draft,apply,build,change}=setup();const surface=build();
-    change(surface,'Display name','Pear');change(surface,'Stack / quantity','7');change(surface,'Tags / 1','orchard');
-    pressKit(surface,kitElements(surface).find(node=>node.kind==='checkbox')!.id);
-    pressKit(surface,'details:apply');
-    expect(JSON.parse(draft.snapshot().value)).toEqual({id:'item:test',kind:'item',schemaVersion:1,displayName:'Pear',stack:{quantity:7},edible:false,tags:['orchard']});
+describe('schema-driven definition Details', () => {
+  it('edits nested fields, enum selections and empty arrays through retained controls', () => {
+    const { draft, apply, build, change } = setup(); const surface = build();
+    change(surface, 'displayName', 'Pear'); change(surface, 'economy.sell', '7');
+    pressKit(surface, 'details:tags:add'); change(surface, 'tags.1', 'orchard');
+    chooseKit(surface, 'details:quality', 'rare'); pressKit(surface, 'details:apply');
     expect(apply).toHaveBeenCalledOnce();
+    expect(JSON.parse(draft.snapshot().value)).toMatchObject({ id: 'item:test', displayName: 'Pear', quality: 'rare', tags: ['fruit', 'orchard'], economy: { sell: 7 } });
   });
-  it('retains invalid numeric input and its error across host redraws',()=>{
-    const {draft,apply,build,change}=setup();const surface=build(),before=draft.snapshot().value;
-    change(surface,'Stack / quantity','oops');pressKit(surface,'details:apply');
-    expect(apply).not.toHaveBeenCalled();expect(draft.snapshot().value).toBe(before);
-    const rebuilt=build();
-    expect(kitElements(rebuilt).find(node=>node.id==='details:error')!.props['text']).toContain('needs a number');
-    expect((kitElements(rebuilt).find(node=>node.label==='Stack / quantity'&&node.kind==='input')!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('oops');
+  it('adds and removes optional components without raw JSON', () => {
+    const { draft, build, change } = setup(); const surface = build();
+    pressKit(surface, 'details:fuel:add'); change(surface, 'fuel.smelts', '3'); pressKit(surface, 'details:apply');
+    expect(JSON.parse(draft.snapshot().value).fuel).toEqual({ smelts: 3 });
+    const next = build(); pressKit(next, 'details:fuel:remove'); pressKit(next, 'details:apply');
+    expect(JSON.parse(draft.snapshot().value).fuel).toBeUndefined();
   });
-  it('reports domain validation failures without publishing or discarding the draft',()=>{
-    const {apply,build,change}=setup();apply.mockImplementation(()=>{throw new Error('Unknown item reference');});
-    const surface=build();change(surface,'Display name','Invalid draft');pressKit(surface,'details:apply');
-    expect(kitElements(build()).find(node=>node.id==='details:error')!.props['text']).toBe('Unknown item reference');
+  it('retains invalid numbers and errors across host rebuilds without changing the draft', () => {
+    const { draft, apply, build, change } = setup(); const surface = build(), before = draft.snapshot().value;
+    change(surface, 'maxStack', 'oops'); pressKit(surface, 'details:apply');
+    expect(apply).not.toHaveBeenCalled(); expect(draft.snapshot().value).toBe(before);
+    const next = build(); expect(kitElements(next).find(node => node.id === 'details:error')!.props['text']).toContain('finite number');
+    expect((kitElements(next).find(node => node.id === 'details:maxStack')!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('oops');
   });
-  it('refreshes the form when JSON or selection changes',()=>{
-    const {draft,build}=setup();build();draft.setValue('{"id":"item:pear","displayName":"Pear"}');
-    const fields=kitElements(build()).filter(node=>node.kind==='input');
-    expect(fields).toHaveLength(1);expect((fields[0]!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('Pear');
+  it('preserves edits and the original JSON when domain validation rejects Apply', () => {
+    const { draft, apply, build, change } = setup(); const before = draft.snapshot().value;
+    const surface = build(); change(surface, 'maxStack', '-1'); pressKit(surface, 'details:apply');
+    expect(apply).toHaveBeenCalledOnce(); expect(draft.snapshot().value).toBe(before);
+    expect(kitElements(build()).find(node => node.id === 'details:error')!.props['text']).toContain('maxStack');
   });
-  it('keeps read-only forms non-mutating',()=>{
-    const {apply,build}=setup(true);const surface=build();pressKit(surface,'details:apply');
-    expect(apply).not.toHaveBeenCalled();
-    const input=kitElements(surface).find(node=>node.kind==='input')!;
-    const draft=input.props['editor'] as CanvasTextEditor;const before=draft.snapshot().value;
-    input.hooks.onText?.('Changed',input);
-    expect(draft.snapshot().value).toBe(before);
+  it('rebuilds after advanced JSON changes and safely reports invalid JSON', () => {
+    const { draft, build } = setup(); build(); draft.setValue(JSON.stringify({ ...item, displayName: 'Pear' }));
+    expect((kitElements(build()).find(node => node.id === 'details:displayName')!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('Pear');
+    draft.setValue('{'); expect(kitElements(build())[0]!.props['text']).toContain('syntax');
   });
-});
-
-
-it('gives authored prose a multiline editor and preserves line breaks on apply',()=>{
-  const {draft,apply,build}=setup();draft.setValue(JSON.stringify({id:'dialogue:test',body:'First line\nSecond line'}));
-  const surface=build();const area=kitElements(surface).find(element=>element.kind==='text-area');
-  expect(area).toBeDefined();
-  (area!.props['editor'] as CanvasTextEditor).setValue('New first line\nNew second line');
-  pressKit(surface,'details:apply');expect(apply).toHaveBeenCalledOnce();
-  expect(JSON.parse(draft.snapshot().value).body).toBe('New first line\nNew second line');
-});
-
-it('keeps property groups bounded without losing edits in another group', () => {
-  const controller = new StudioShellController(async () => { throw new Error('offline'); });
-  controller.navigate('/author/items');
-  const bounds = { x: 0, y: 0, width: 240, height: 400 };
-  const context: StudioCanvasToolContext = { controller, route: controller.activeRoute(), bounds, controlsBounds: bounds, workspaceBounds: bounds, invalidate: vi.fn() };
-  const draft = new CanvasTextEditor({ value: JSON.stringify({ name: 'Sample', nodes: Array.from({ length: 8 }, (_, i) => ({ id: `node-${i}`, body: `Line ${i}` })) }) });
-  const build = () => ({ kit: { inspector: studioDefinitionFields(context, { id: 'groups', draft, readOnly: false, apply: vi.fn() }) } });
-  let surface = build();
-  const name = kitElements(surface).find(node => node.kind === 'input' && node.label === 'Name')!;
-  (name.props['editor'] as CanvasTextEditor).setValue('Edited');
-  const group = kitElements(surface).find(node => node.id === 'groups:group')!;
-  // Exercise the retained selector instead of changing the source model.
-  const root = new UiRoot({ scale: 1 }); root.resize(240, 400); root.mount(surface.kit.inspector); root.arrange();
-  root.focus.set(group); for (const key of ['ArrowDown','ArrowDown','ArrowDown','Enter']) root.key({ key }); root.unmount(surface.kit.inspector); root.dispose();
-  surface = build();
-  expect(kitElements(surface).find(node => node.id === 'groups:group')?.props['value']).toBe('nodes 2');
-  pressKit(surface, 'groups:apply'); expect(JSON.parse(draft.snapshot().value).name).toBe('Edited');
+  it('keeps read-only forms non-mutating', () => {
+    const { apply, build } = setup(true); const surface = build();
+    pressKit(surface, 'details:apply'); pressKit(surface, 'details:tags:add'); expect(apply).not.toHaveBeenCalled();
+    const input = kitElements(surface).find(node => node.id === 'details:displayName')!;
+    const editor = input.props['editor'] as CanvasTextEditor; input.hooks.onText?.('Changed', input); expect(editor.snapshot().value).toBe('Apple');
+  });
 });

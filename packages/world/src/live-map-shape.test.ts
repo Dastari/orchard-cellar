@@ -12,3 +12,16 @@ it('still rejects malformed coordinates and values independently of design conve
  for(const cells of [{'12,1':{elevation:1}},{'2,2':{elevation:0.5}},{'2,2':{surface:'unknown'}},{'2,2':{terrainOverride:{contourLevel:NaN}}}])
  expect(()=>validateLiveMapShape({...base,cells} as MapDocumentV3)).toThrow();
 });
+it('accepts bounded cell part stacks and rejects malformed or conflicting parts',()=>{
+ const parts=[{slot:'path',exact:{frame:12}},{slot:'fringe:grass_2',exact:{frame:1,quarterTurns:1}},{slot:'contour:1',role:'top',exact:{frame:4}}];
+ expect(()=>validateLiveMapShape({...base,cells:{'3,3':{parts}}} as MapDocumentV3)).not.toThrow();
+ for(const cell of [
+  {parts:[{slot:'path'}]},
+  {parts:[{slot:'road',exact:{frame:1}}]},
+  {parts:[{slot:'path',exact:{frame:-1}}]},
+  {parts:[{slot:'path',exact:{frame:1}},{slot:'path',exact:{frame:2}}]},
+  {parts:[{slot:'path',role:'top',exact:{frame:1}}]},
+  {parts:{slot:'path'}},
+  {terrainOverride:{contourLevel:1,frameIndex:3},parts:[{slot:'contour:1',exact:{frame:4}}]},
+ ])expect(()=>validateLiveMapShape({...base,cells:{'3,3':cell}} as unknown as MapDocumentV3)).toThrow('map_parts_invalid');
+});

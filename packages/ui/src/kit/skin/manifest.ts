@@ -540,6 +540,7 @@ export const UI_SKIN_MANIFEST = {
   },
   selector: {
     "selector_catalog.catalog.0": {"asset":"ui_cf_selector_catalog","group":"catalog","index":0,"sizing":"corners","size":[48,48]},
+    "selector_confirm.idle.0": {"asset":"ui_cf_selector_confirm","group":"idle","index":0,"sizing":"corners","size":[48,48]},
   },
   slider: {
     "slider_track.base.0": {"asset":"ui_cf_slider_track","group":"base","index":0,"sizing":"segmented","size":[32,6]},

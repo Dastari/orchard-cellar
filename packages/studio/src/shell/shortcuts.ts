@@ -1,4 +1,4 @@
-import type { StudioMode } from '@orchard/ui/studio';
+import type { StudioMode } from './studio-models.js';
 
 export const STUDIO_SHORTCUT_STORAGE_KEY = 'orchard.studio.shortcuts:v1';
 

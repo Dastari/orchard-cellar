@@ -1,4 +1,6 @@
+import { MAP_SPATIAL_COLOURS } from './spatial-colours.js';
 import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
+import {classifyLiveOwnership,mapStreetlampLiveBindings,type MapEditorLiveOwnership} from './live-ownership.js';
 import {mapMaterialChoices} from './material-palette.js';
 import { exactTilePaletteChoices } from './exact-tile-palette.js';
 import {
@@ -18,11 +20,17 @@ import {
   minimumTerrainBrushPoints,
   isChoppableTreeKind,
   MANUAL_OBJECT_CONNECTION_TAG,
+  cellPartForTerrainAsset,
+  contourOverrideFromCellParts,
+  exactAppearanceParts,
+  mapObjectIsGroundDecal,
   resolvedMapBiomeAt,
   resolvedMapCellAt,
   stairRunValid,
   survivalElevationBytes,
   terrainDocumentForMapV3,
+  type CellPart,
+  type CellPartSlot,
   type MapBiomeId,
   type MapCellPatch,
   type MapDocumentV3,
@@ -136,7 +144,8 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     defaultCliffFamily,
     ...Object.values(terrainDocument.cells).flatMap((cell) => [
       ...(cell.cliffFamily === undefined ? [] : [cell.cliffFamily]),
-      ...(cell.terrainOverride?.family === undefined ? [] : [cell.terrainOverride.family]),
+      ...((cell.terrainOverride ?? contourOverrideFromCellParts(cell.parts))?.family === undefined
+        ? [] : [(cell.terrainOverride ?? contourOverrideFromCellParts(cell.parts))!.family!]),
     ]),
   ])];
   const cliffFamilyIndex = new Map(cliffFamilyIds.map((family, index) => [family, index + 1]));
@@ -144,7 +153,7 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     (cell) => cell.cliffFamily !== undefined,
   );
   const hasTerrainOverrides = Object.values(terrainDocument.cells).some(
-    (cell) => cell.terrainOverride !== undefined,
+    (cell) => cell.terrainOverride !== undefined || contourOverrideFromCellParts(cell.parts) !== null,
   );
   const cliffFamilies = hasCliffFamilies ? new Uint8Array(length) : undefined;
   const terrainOverrides = hasTerrainOverrides
@@ -163,9 +172,8 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     if (cliffFamilies !== undefined && cell.cliffFamily !== undefined) {
       cliffFamilies[index] = cliffFamilyIndex.get(cell.cliffFamily) ?? 0;
     }
-    if (terrainOverrides !== undefined && cell.terrainOverride !== undefined) {
-      terrainOverrides[index] = cell.terrainOverride;
-    }
+    const override = cell.terrainOverride ?? contourOverrideFromCellParts(cell.parts);
+    if (terrainOverrides !== undefined && override !== null) terrainOverrides[index] = override;
   }
 
   const transitions = [
@@ -193,6 +201,16 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     dirtCliffRoles: new Uint8Array(0),
     dirtTerraces: new Uint8Array(0),
   };
+}
+
+/** An Exact palette tile whose atlas is a terrain component becomes a cell
+ * part at that frame; any other tile (decoration) stays an object. */
+export function exactTileCellPart(prefab: MapPrefabDocumentV2): CellPart | null {
+  const placement = prefab.placements[0];
+  if (prefab.placements.length !== 1 || placement === undefined
+    || placement.visual.kind !== 'variant' || placement.visual.name !== 'base') return null;
+  const target = cellPartForTerrainAsset(placement.assetName);
+  return target === null ? null : { ...target, exact: { frame: placement.visual.frameIndex } };
 }
 
 export const MAP_EDITOR_TERRAIN_TOOLS = [
@@ -388,6 +406,12 @@ export interface MapEditorLiveMarker {
   /** Compact bottom-centred footprint expanded only for the selected marker. */
   readonly footprint: { readonly width: number; readonly height: number };
   readonly layer: MapContentLayerId;
+  /** Actual controller of a live placeable/chest/homestead row. World-owned
+   * rows project onto World Objects; player-owned rows stay locked. */
+  readonly ownership?: MapEditorLiveOwnership;
+  /** The row is materialized from an authored map object (town lamps) and
+   * follows that object's placement on publication. */
+  readonly mapMaterialized?: boolean;
   readonly color: string;
   readonly facing?: Direction;
   readonly moving?: boolean;
@@ -521,7 +545,14 @@ export function pickTopmostVisibleMapEntity(
     landmarkOffset + index);
   });
   const liveOffset = landmarkOffset + document.landmarks.length;
+  const authoredBindings = mapStreetlampLiveBindings(document);
   liveMarkers.forEach((marker, index) => {
+    // One logical object: when the live row is materialized from a visible,
+    // enabled authored object, the authored copy is the editable one.
+    const boundObjectId = marker.mapMaterialized === true ? authoredBindings.get(marker.id) : undefined;
+    const bound = boundObjectId === undefined ? undefined
+      : document.objects.find((object) => object.id === boundObjectId && object.enabled);
+    if (bound !== undefined && isLayerVisible(bound.layer)) return;
     if (!homesteadBuildFootprintTiles({ footprint: marker.footprint }, marker.tileX, marker.tileY)
       .some((cell) => cell.tileX === tileX && cell.tileY === tileY)) return;
     consider({
@@ -571,13 +602,16 @@ function tileMarkerPosition(tileX: number, tileY: number): {
 export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: (Pick<ContentRegistry, 'objects'> & Partial<Pick<ContentRegistry, 'resources'>>) | null = null): readonly MapEditorLiveMarker[] {
   if (liveRows === null) return [];
   const markers: MapEditorLiveMarker[] = [];
+  const owner = classifyLiveOwnership([...liveRows.placeables, ...liveRows.chests ?? []], registry);
   for (const row of liveRows?.placeables ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID || row.tileX === undefined || row.tileY === undefined) continue;
+    const { ownership, mapMaterialized } = owner(row);
     markers.push({ id: row.id.toString(), entityKind: 'placeable', kind: row.kind, label: row.kind,
       definitionId: row.definitionId, state: row.state,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: liveMarkerFootprint(registry, row),
-      layer: 'player_owned', color: '#df9bc7', facing: liveMarkerFacing(row.facing),
+      layer: ownership === 'world' ? 'objects' : 'player_owned', ownership,
+      ...(mapMaterialized ? { mapMaterialized } : {}), color: MAP_SPATIAL_COLOURS.livePlaceable, facing: liveMarkerFacing(row.facing),
       open: row.open, lit: row.lit,
       animationPhase: Number(row.id % 19n),
       activity: row.processStartTick !== undefined || row.barrelSealedTick !== undefined
@@ -585,11 +619,12 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
   }
   for (const row of liveRows.chests ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
+    const { ownership } = owner(row);
     markers.push({ id: row.id.toString(), entityKind: 'chest', kind: 'chest', label: 'Chest',
       definitionId: row.definitionId, state: row.state,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'player_owned', color: '#d7a668', facing: liveMarkerFacing(row.facing), open: row.open });
+      layer: ownership === 'world' ? 'objects' : 'player_owned', ownership, color: MAP_SPATIAL_COLOURS.liveChest, facing: liveMarkerFacing(row.facing), open: row.open });
   }
   for (const row of liveRows?.homesteads ?? []) {
     if (row.tileX === undefined || row.tileY === undefined) continue;
@@ -597,7 +632,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.ownerName?.trim() ? `${row.ownerName}'s Homestead` : `Homestead ${row.spaceId}`,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 3, height: 4 }),
-      layer: 'player_owned', color: '#f0c777' });
+      layer: 'player_owned', ownership: 'player', color: MAP_SPATIAL_COLOURS.liveHomestead });
   }
   for (const row of liveRows?.resources ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
@@ -606,7 +641,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
     markers.push({ id: row.id.toString(), entityKind: 'resource', kind: row.kind, definitionId: row.definitionId, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: ((row.definitionId&&registry?.resources?.get(row.definitionId)?.visual.kind==='tree')||isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined)) ? 'canopy' : 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
+      layer: ((row.definitionId&&registry?.resources?.get(row.definitionId)?.visual.kind==='tree')||isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined)) ? 'canopy' : 'generated_base', color: MAP_SPATIAL_COLOURS.liveResource, health: row.health, depleted: row.depleted,
       growthStage: row.growthStage, miningClass: row.miningClass, richness: row.richness,
       maxHealth: row.maximumRichness, fixedResourceSite });
   }
@@ -617,7 +652,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: `Target ${row.id}`,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'gameplay', color: '#dc7777', health: row.healthCenti,
+      layer: 'gameplay', color: MAP_SPATIAL_COLOURS.liveEnemy, health: row.healthCenti,
       maxHealth: row.maxHealthCenti });
   }
   for (const row of liveRows.surfaces ?? []) {
@@ -625,7 +660,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
     markers.push({ id: row.id.toString(), entityKind: 'surface', kind: row.kind, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'gameplay', color: '#a7a7d9' });
+      layer: 'gameplay', color: MAP_SPATIAL_COLOURS.liveWildlife });
   }
   for (const row of liveRows.npcs) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID || row.x === undefined || row.y === undefined) continue;
@@ -636,7 +671,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.displayName?.trim() || row.kind, spaceId: row.spaceId, tileX, tileY,
       worldX: row.x / FIXED_UNITS_PER_PIXEL, worldY: row.y / FIXED_UNITS_PER_PIXEL,
       elevation: null, footprint: Object.freeze({ width: 1, height: 1 }), layer: 'gameplay',
-      color: '#f1b34b', facing: liveMarkerFacing(row.facing), moving: row.moving,
+      color: MAP_SPATIAL_COLOURS.liveNpc, facing: liveMarkerFacing(row.facing), moving: row.moving,
       activity: row.wanderDirection, health: row.health, variant: row.variant,
       ...(row.homeX === undefined || row.homeY === undefined ? {} : {
         homeTileX: Math.floor(row.homeX / (FIXED_UNITS_PER_PIXEL * TILE_SIZE_PIXELS)),
@@ -655,7 +690,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.displayName?.trim() || identity.slice(0, 8), spaceId: row.spaceId, tileX, tileY,
       worldX: row.x / FIXED_UNITS_PER_PIXEL, worldY: row.y / FIXED_UNITS_PER_PIXEL,
       elevation: null, footprint: Object.freeze({ width: 1, height: 1 }), layer: 'gameplay',
-      color: row.online === false ? '#77838d' : '#64b7e8', facing: liveMarkerFacing(row.facing),
+      color: row.online === false ? MAP_SPATIAL_COLOURS.offlinePlayer : MAP_SPATIAL_COLOURS.onlinePlayer, facing: liveMarkerFacing(row.facing),
       moving: row.moving, activity: row.equippedKind, appearance: row.appearance,
       online: row.online, animationPhase: identity.length % 19 });
   }
@@ -735,6 +770,9 @@ export class MapEditorController {
   #prefabCache: {document:MapDocumentV3;catalog:readonly MapPrefabDocumentV2[];all:readonly MapPrefabDocumentV2[]}|null=null;
   #catalog: readonly MapPrefabDocumentV2[] = [];
   #objectStroke: {tileX:number;tileY:number;elevation:number}|null = null;
+  /** Exact palette tile that is a terrain component (path edge, fringe,
+   * shore, water, farmland). It paints a cell part, never an object. */
+  #selectedExactPart: CellPart | null = null;
   #pan: { readonly x: number; readonly y: number } | null = null;
   #drag: DragState | null = null;
   #stroke: PaintStroke | null = null;
@@ -763,7 +801,7 @@ export class MapEditorController {
   ) {
     this.#terrainPalette = terrainPalette;
     model.setLiveObjectOccupancy(object=>{
-      if(!object.enabled)return false;
+      if(!object.enabled||mapObjectIsGroundDecal(model.document(),object))return false;
       const cells=mapEditorObjectOccupiedCells(model.document(),object);
       return this.liveMarkers().some(marker=>marker.spaceId===0&&marker.layer===object.layer
         &&!['player','npc'].includes(marker.entityKind)&&!model.document().generatedSuppressions.includes(`${marker.entityKind}-${marker.id}`)
@@ -936,6 +974,7 @@ export class MapEditorController {
     this.#terrainAuthoringFeedback = null;
     this.#eyedropperActive = false;
     this.#selectedPrefabId = null; this.#selectedAnchorKind = null; this.#selectedBiome = null;
+    this.#selectedExactPart = null;
     this.model.selectWorkspace(tool === 'objects' ? 'objects' : 'terrain');
     this.#activeLayer = tool === 'objects' ? 'objects' : 'terrain';
     this.#terrainTool = tool === 'raise' || tool === 'lower' ? tool : 'inspect';
@@ -956,8 +995,28 @@ export class MapEditorController {
     return exactTilePaletteChoices(this.allPrefabs(), query);
   }
   selectExactTile(prefabId:string):void {
-    if(!this.exactTileChoices().some(p=>p.id===prefabId))return;
-    this.selectEditingTool('terrain');this.#activeLayer='ground';this.model.selectWorkspace('objects');this.#selectedPrefabId=prefabId;
+    const prefab=this.exactTileChoices().find(p=>p.id===prefabId);
+    if(!prefab)return;
+    this.selectEditingTool('terrain');
+    const part=exactTileCellPart(prefab);
+    if(part!==null){
+      // Terrain components stay on the terrain layer as an exact cell part.
+      this.#selectedPrefabId=prefabId;this.#selectedExactPart=part;
+      return;
+    }
+    // Genuine decorations remain Ground Details objects.
+    this.#activeLayer='ground';this.model.selectWorkspace('objects');this.#selectedPrefabId=prefabId;
+  }
+  /** Part the armed Exact tile will paint, or null for object placement. */
+  selectedExactPart(): CellPart | null { return this.#selectedExactPart; }
+  /** Exact appearance parts on the selected cell, for the inspector. */
+  selectedCellExactParts(): readonly CellPart[] {
+    const point=this.selectedTerrainPoint();
+    return point===null?[]:exactAppearanceParts(this.model.document().cells[`${point.tileX},${point.tileY}`]?.parts);
+  }
+  /** "Revert to smart": drops only the exact frame of one part. */
+  revertSelectedCellPartExact(slot: CellPartSlot): boolean {
+    return this.paintSelectedTerrainPatch({ revertPartExact: slot });
   }
   selectObjectChoice(prefabId: string): void {
     const prefab = this.allPrefabs().find(entry => entry.id === prefabId);
@@ -990,6 +1049,7 @@ export class MapEditorController {
   selectPrefab(prefabId: string | null): void {
     if (prefabId !== null && !this.allPrefabs().some(({ id }) => id === prefabId)) return;
     this.#selectedPrefabId = prefabId;
+    this.#selectedExactPart = null;
     if (prefabId !== null) this.#selectedAnchorKind = null;
     this.#eyedropperActive = false;
     if (prefabId !== null) this.#selectedBiome = null;
@@ -1346,6 +1406,13 @@ export class MapEditorController {
         return true;
       }
     }
+    if(this.#editingTool==='terrain'&&!this.#automaticGeneration&&this.#selectedExactPart!==null){
+      if(!this.terrainAuthoringAvailable()){this.#terrainAuthoringFeedback='SELECT THE VISIBLE EDITABLE TERRAIN LAYER';return true;}
+      this.model.selectTile(tile.tileX,tile.tileY);this.#activeElevation=tile.elevation;
+      this.#stroke={kind:'terrain_patch',elevation:tile.elevation,tool:'inspect',patch:{cellPart:this.#selectedExactPart},
+        consumesSample:false,continuous:true,points:[tile]};
+      return true;
+    }
     if(this.#editingTool==='terrain'&&!this.#automaticGeneration&&this.#selectedPrefabId!==null){
       this.#objectStroke=tile;this.placeSelectedPrefab(tile.tileX,tile.tileY,tile.elevation);return true;
     }
@@ -1542,7 +1609,10 @@ export class MapEditorController {
         const command = mapEditorTerrainCommand(
           stroke.tool, stroke.points, this.model.document(), this.#activeElevation, this.#automaticGeneration,
         );
-        if (command !== null) this.model.editTerrain(command);
+        if (command !== null) {
+          const result=this.model.editTerrain(command);
+          if(result.rejected==='terrain_inset_conflict')this.#terrainAuthoringFeedback='This stroke needs conflicting inset blocks. Widen the area or use Exact Placement.';
+        }
       } else if (stroke.kind === 'terrain_patch') {
         const before = this.model.document();
         const expand = this.#automaticGeneration && (stroke.tool === 'raise' || stroke.tool === 'lower');
@@ -1566,11 +1636,13 @@ export class MapEditorController {
         }
         const points = stroke.tool === 'raise' || stroke.tool === 'lower'
           ? candidates.filter(point=>resolvedMapCellAt(terrain,point.tileX,point.tileY).elevation === stroke.elevation) : candidates;
-        this.model.editTerrain({kind:'paint', points, patch:stroke.patch, }, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined, this.#automaticGeneration && stroke.tool === 'inspect');
+        const result=this.model.editTerrain({kind:'paint', points, patch:stroke.patch, enforceSingleTerrainInset:expand}, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined, this.#automaticGeneration && stroke.tool === 'inspect' && !stroke.consumesSample);
         if (this.model.document() !== before) {
           if (stroke.consumesSample) this.#sampledTerrainPatch = null;
           if (this.#selectedExactTerrainOverride !== null) this.#selectedExactTerrainOverride = null;
           this.#terrainAuthoringFeedback = null;
+        } else if(result.rejected==='terrain_inset_conflict') {
+          this.#terrainAuthoringFeedback='This stroke needs conflicting inset blocks. Widen the area or use Exact Placement.';
         }
       } else if (stroke.kind === 'scatter' && this.#selectedPrefabId !== null) {
         const prefab = this.allPrefabs().find(({ id }) => id === this.#selectedPrefabId);

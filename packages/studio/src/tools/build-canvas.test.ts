@@ -59,7 +59,7 @@ describe('canvas-native Build and asset tools', () => {
     const tools=['objects','terrain','raise','lower','fill'].map(name=>kitElement(s,'map-tool-'+name)!);
     tools.push(kitElement(s,'map-eyedropper')!);
     expect(new Set(tools.map(tool=>tool.rect.y)).size).toBe(1);
-    expect(tools.every(tool=>tool.children.some(child=>child.kind==='map-pixel-tool-icon'))).toBe(true);
+    expect(tools.every(tool=>tool.children.some(child=>child.kind==='deferred-image'&&typeof child.props['url']==='string'))).toBe(true);
     for(const id of ['map-auto-generation','map-publish']){
       const button=kitElement(s,id)!;expect(button.rect.width).toBeLessThanOrEqual(192);
       expect(button.clip.width).toBe(button.rect.width);expect(button.clip.height).toBe(button.rect.height);
@@ -373,7 +373,7 @@ describe('canvas-native Build and asset tools', () => {
  (kitElement(s,'map-object-search')!.props['editor'] as CanvasTextEditor).setValue('grass');buildMapCanvasTool(c);
  const next=buildMapCanvasTool(context('/build/map'));expect(kitElement(next,'map-layer-visible-canopy')?.label).toContain('Show');
  expect((kitElement(next,'map-object-search')!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('grass');
- expect(kitElement(next,'map-tool-terrain')?.parent?.children.some(child=>child.kind==='palette-selection-reticle')).toBe(true);}finally{vi.unstubAllGlobals();}
+ expect(kitElement(next,'map-tool-terrain')?.parent?.children.some(child=>child.kind==='selection-reticle')).toBe(true);}finally{vi.unstubAllGlobals();}
 });
 
   it('uses kit tileset editors and preserves datum edits and JSON drafts', () => {
