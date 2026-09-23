@@ -685,7 +685,7 @@ in the phase PR; do not invent a substitute item or silently bypass the gate.
 
 | ID | Decision requested | Proposed choice / consequence |
 |---|---|---|
-| A1 | Include Mana and Mana Flow now? | Mana already exists; include only when owner identifies the intended mana-spending gameplay. Otherwise keep six fully specified rows dormant; do not invent a mana stat or spells. |
+| A1 | Include Mana and Mana Flow now? | APPROVED: include all six Mana/Mana Flow potions now, even without a mana drain. Existing mana stat only; no new spells or sink. |
 | A2 — direction recorded | Owner, 2026-09-23: “The plan should add support to enable hunting on the currently protected animals.” | Add authored support for all 18 species, enablement for larger unowned wild instances, small-creature capture defaults, and exact loot/cooking/XP rows in §7, and owned/ridden protection. Numeric values, art and final content activation remain part of full plan approval. |
 | A3 | Approve bounded flight? | Optional greater-only, 15s/6 tiles, no combat/gathering/walls/void/mounts. Otherwise omit its potion and flight-only intermediates. Water/lava/toxin potions still depend on D6. |
 | A4 | Approve stacks and simultaneous effects? | Stack 16 potions; one skill + one regen + one utility, stronger wins/equal refreshes; global 20s use cooldown. Raw mini-buffs and current Fruitful Energy remain distinct. |
@@ -698,9 +698,9 @@ in the phase PR; do not invent a substitute item or silently bypass the gate.
 **Approval record — 2026-09-23:** owner explicitly stated “Full content plan approved”
 after separately accepting the visual preview. This authorizes the specified A2–A9
 choices, including bounded flight, confectionery/cooled cream, feed interaction,
-collections and apiaries. A1 retains its explicit use-case condition: six mana rows
-stay dormant unless the owner identifies the intended mana-spending gameplay. A
-clarification was sent; unrelated work can proceed. No new mana sink is inferred.
+collections and apiaries. A1 was explicitly resolved by the owner on 2026-09-23: include all six mana
+potions even though there is no mana drain yet. Mana already exists. Implement all
+64 potion variants; do not invent a mana drain or spells.
 All runtime, art, compatibility and validation acceptance gates still apply. The
 implementation brief explicitly prohibits merging, deploying or publishing the world.
 OrangeCastle owns the first bounded P0 asset-import lane, coordinated with GoldCondor.

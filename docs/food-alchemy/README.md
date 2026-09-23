@@ -81,8 +81,7 @@ remain implementation acceptance work; passing this script does not approve the 
 
 Planning lane: Agent Mail **BeigeCoast**; coordinator **GoldCondor** was notified of
 ownership and both scope revisions. Branch `docs/food-alchemy-plan` is docs-only.
-Owner approval authorizes implementation through reviewed phase PRs. A1 retains its
-mana-use-case condition; see doc 63 §11. No merge, deployment or world publication is
+Owner approval authorizes implementation through reviewed phase PRs. A1 is resolved: include all six mana potions without adding a drain; see doc 63 §11. No merge, deployment or world publication is
 authorized. OrangeCastle is starting P0; GoldCondor has been notified. Read and follow
 `/home/toby/projects/briefs/food-alchemy-implementation-prompt.md`, re-audit current main,
 coordinate reservations and recheck the runtime/Studio dependencies. Approval of this
