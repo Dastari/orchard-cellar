@@ -2,8 +2,11 @@
 
 ## 0.24.0 — 2026-09-23
 
+- Integrate object-archetype form schemas, omitting excluded optional-never keys;
+  arrange the schema specimen beside data controls to avoid district overlap.
+
 - Studio 0.14.0 replaces leaf-only definition fields with schema forms, optional components, array add/remove/reorder, enum choices and typed references. Items, Narrative and World Tables retain advanced JSON and existing validation/publish gates.
-- UI 0.21.0 adds reusable schema forms, array editors, reference pickers with preview and used-by panels. Sim 0.22.0 exports type-derived schemas for all 25 content kinds with regeneration and bootstrap parity checks.
+- UI 0.21.1 adds reusable schema forms, array editors, reference pickers with preview and used-by panels. Sim 0.22.1 exports type-derived schemas for all 25 content kinds with regeneration and bootstrap parity checks.
 - New item/recipe actions create local drafts; references open the selected definition, using World Tables for kinds awaiting specialized selectors.
 
 ## Studio 0.13.3 — ownership marker token integration

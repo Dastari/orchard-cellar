@@ -48,6 +48,9 @@ function schema(type: ts.Type): string {
     const fields: Record<string, unknown> = {};
     for (const field of type.getProperties()) {
       const fieldType = checker.getTypeOfSymbolAtLocation(field, field.valueDeclaration ?? source);
+      // Optional `never` excludes a key in discriminated union alternatives.
+      // TypeScript exposes it as undefined; it has no JSON field to edit.
+      if ((field.flags & ts.SymbolFlags.Optional) && (fieldType.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Never))) continue;
       const help = ts.displayPartsToString(field.getDocumentationComment(checker));
       const unit = /Ticks$/u.test(field.name) || field.name === 'ticksPerUnit' ? 'ticks' : /Centi$/u.test(field.name) ? 'hundredths' : /Tiles$/u.test(field.name) ? 'tiles' : /Degrees$/u.test(field.name) ? 'degrees' : /BasisPoints$/u.test(field.name) ? 'basis points' : undefined;
       fields[field.name] = { schema: schema(fieldType), ...(field.flags & ts.SymbolFlags.Optional ? { optional: true } : {}), ...(help ? { help } : {}), ...(unit ? { unit } : {}) };

@@ -63,3 +63,10 @@ per specimen, keyboard activation and the new pixel hash. Repository typecheck,
 lint, content validation and the guarded Studio production-mode build pass.
 Playwright rendered the exported specimen locally with kit art at scales 1 and 2.
 No authenticated live write, merge or deployment was performed.
+
+Integration verification: schema generation covers object-archetype states, growth
+and transition alternatives from #65. Optional `never` keys are excluded from each
+variant instead of offered as editable fields. The schema specimen is placed
+after data controls so the forms district does not overlap the patterns heading;
+`lab/placement.test.ts` checks this boundary. Explicit F1 exports remain under
+#67’s narrowed Studio entry point.
