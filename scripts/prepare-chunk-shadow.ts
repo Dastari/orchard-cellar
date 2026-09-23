@@ -5,7 +5,7 @@ import {validateRuntimeManifest,verifyRuntimeChunk} from '../packages/sim/src/ch
 import {gzipSync,brotliCompressSync} from 'node:zlib';
 /** Offline preparation only. Does not contact an authority or install live files. */
 export async function prepareChunkShadow(inputDirectory:string,outputDirectory:string,contentHash:string,expectedRevision:number) {
- if(!/^[a-f0-9]{64}$/u.test(contentHash)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||expectedRevision>=0xffffffff)throw new Error('invalid_shadow_publication_input');
+ if(!/^(?:[a-f0-9]{8}|[a-f0-9]{64})$/u.test(contentHash)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||expectedRevision>=0xffffffff)throw new Error('invalid_shadow_publication_input');
  const source=await readFile(resolve(inputDirectory,'manifest.json'),'utf8');
  if(source.length>1024*1024)throw new Error('chunk_manifest_too_large');
  const manifest=validateRuntimeManifest(JSON.parse(source));

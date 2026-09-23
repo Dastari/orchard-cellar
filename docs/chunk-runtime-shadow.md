@@ -12,7 +12,7 @@ Server shadow queries return authored medium/solid and preserved legacy channels
 
 ## Activation gates
 
-Before gameplay activation: publish exact map/content/asset-pinned blobs and heads under the guarded release procedure; collect client/server parity across every cell and dynamic overlays; resolve known boat differences using approved D6 semantics; prove bounded-memory view churn and offline/cache invalidation; integrate spawn-pack prefetch and movement readiness; switch server/client together with rollback evidence. Only after those gates remove generator/compiler imports and enforce the generator-free bundle check. Retiring documentJson additionally requires Studio chunk authoring and a separate reviewed migration.
+Before gameplay activation: publish exact map/content/asset-pinned blobs and heads under the guarded release procedure; collect client/server parity across every cell and dynamic overlays; resolve known boat differences using approved D6 semantics; prove bounded-memory view churn and offline/cache invalidation; adapt live rendering and collision consumers to chunk-native reads without whole-world arrays; integrate spawn-pack prefetch and movement readiness; switch server/client together with rollback evidence. Only after those gates remove generator/compiler imports and enforce the generator-free bundle check. Retiring documentJson additionally requires Studio chunk authoring and a separate reviewed migration.
 
 ## Validation plan and handoff
 
@@ -29,7 +29,7 @@ Tests cover hash/revision rejection, partial staging/CAS, signed halo samples, b
 Prepare reviewed data without publishing:
 
 ```sh
-npx tsx scripts/materialize-world-chunks.ts --input /private/reviewed-map.json --content-rows /private/reviewed-content.json --atlas-index packages/ui/public/generated/atlas.packs.json --output /tmp/chunk-materialization
+npx tsx scripts/materialize-world-chunks.ts --input /private/reviewed-map.json --content-rows /private/reviewed-content.json --atlas-index packages/assets/generated/atlas.packs.json --output /tmp/chunk-materialization
 npx tsx scripts/prepare-chunk-shadow.ts /tmp/chunk-materialization /tmp/chunk-shadow-bundle CONTENT_HASH EXPECTED_SHADOW_REVISION
 ```
 
@@ -37,4 +37,6 @@ Replace the final two arguments with the reviewed content hash and current shado
 
 Every game build emits `chunk-runtime-audit.json` from actual bundled module identities. `ORCHARD_REQUIRE_GENERATOR_FREE=1 npm run client:chunks:check` must fail while legacy generator/compiler modules remain; it becomes mandatory at retirement. The normal shadow/off build keeps those modules deliberately.
 
-Versions: repository 0.27.0, sim 0.25.0, world 0.24.0, engine/client 0.22.0, bindings 0.18.0. Final validation and PR pending.
+Versions: repository 0.27.1, sim 0.25.0, world 0.24.0, engine/client 0.22.0, bindings 0.18.0. Draft PR: https://github.com/Dastari/orchard-cellar/pull/83. Full repository check is running at `/tmp/orchard-chunk-check.log`.
+
+Offline acceptance: all 169 bootstrap chunks passed complete source parity and preparation against the actual generated atlas index. Decoded payload bytes total 20,573,165; materializer gzip 456,307 and Brotli 370,110 bytes, plus a 22,591-byte manifest. These are local file sizes, not network/first-play claims. Prepared output is `/tmp/orchard-chunk-shadow-prepared`, never installed or published. This run found and fixed compatibility with the existing eight-hex-character content hash (`b3f30168`); immutable blob/asset-index hashes remain SHA-256. A direct controller lifecycle test also verifies regional-head waiting, actual asset-index hashing, diagnostic comparison and source-revision rejection.
