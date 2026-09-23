@@ -1,5 +1,19 @@
 # P0 art requests and review holds
 
+## Combined artwork delivery
+
+All 250 planned inventory icons and eight world props (48 state frames) are now
+present in the isolated integration candidate. The original candidate/held-source
+and art-needed records below remain historical provenance. `icon-imports.json`
+now links every delivered file to its reviewed PR/head and SHA-256; held selections
+have explicit bespoke replacement resolutions, and all 35 former art requests have
+delivery links. The ten rejected vendor crops remain rejected: raw game comes from
+#91 and the other nine replacements from #95. The importer still processes only
+`native_import_reviewed` rows and cannot overwrite these bespoke replacements.
+
+See [combined audit and validation](../food-alchemy-artwork-integration.md).
+Gameplay activation and release are separate; no new gameplay definitions are added.
+
 Owner approved the full plan on 23 September 2026, including all 64 potions.
 Requests follow [doc 63](https://github.com/Dastari/orchard-cellar/blob/docs/food-alchemy-plan/docs/63-food-alchemy-content-plan.md) §§7.2/8. No placeholder is authorized for runtime content.
 
@@ -68,10 +82,10 @@ Astra must deliver alchemy bench, copper still, kitchen cauldron, oven, varietal
 
 All bespoke icons: 16×16, anchor (8,15), transparent, closed Orchard palette, no labels or glyphs; warm top-left lighting, readable at 1× and reviewed at 8×. Existing sources are reference-only for the missing set. No copied vendor PNGs or generated atlases in Git.
 
-Core art delivered in PR #91 (AzureOx), collections in PR #92 (CloudyOrchid), and station art delivered in PR #94 (AmberBirch). Nine further semantic corrections are delivered in PR #95 (AzureOx). All sets passed independent native-size visual review; integration/full-suite checks remain pending. P0 native intake and missing-art completion are separate gates.
+Core art delivered in PR #91 (AzureOx), collections in PR #92 (CloudyOrchid), and station art delivered in PR #94 (AmberBirch). Nine further semantic corrections are delivered in PR #95 (AzureOx). All sets passed independent native-size visual review; combined PR #96 passed the full check (6,598 coverage tests and 101 exhaustive tests). Refreshed source heads require fresh CI. P0 native intake and missing-art completion are separate gates.
 
 ## Reviewed native source corrections
 
-The full Farming sheet review locates a milk flask at vendor #168 and an egg at #169. The plan accidentally assigned #167 to milk (orange liquid) and #168 to egg (milk flask). The committed premium index resolves these exact crops. Both are now imported and visually reviewed beside approved neighbours, with plan and import manifest updated together in PR #82/#90 and original selections retained as provenance. Other held silhouettes still need bespoke art or a better source match.
+The full Farming sheet review locates a milk flask at vendor #168 and an egg at #169. The plan accidentally assigned #167 to milk (orange liquid) and #168 to egg (milk flask). The committed premium index resolves these exact crops. Both are now imported and visually reviewed beside approved neighbours, with plan and import manifest updated together in PR #82/#90 and original selections retained as provenance. The other held silhouettes are resolved by independently reviewed bespoke art; original held-source metadata remains intact.
 
 P0 source-contract correction: Raven ingredient cells now use `sheet-16-without-outline.png`, as existing plain-icon tests require. The same four cells were re-rendered beside neighbours and their native RGBA pixels verified. Source hashes and doc63 companion were updated together; no global palette snapping.

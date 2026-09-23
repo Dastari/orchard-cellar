@@ -5,9 +5,11 @@ import { workspaceRoot } from './load.js';
 import { decodePng, hexToRgba } from './png.js';
 import type { AssetSource } from './types.js';
 
-type Entry = { item: string; asset: string; source: string; crop: [number, number, number, number]; sha256: string; reviewStatus: string };
+type Entry = { item: string; asset: string; source: string; crop: [number, number, number, number]; sha256: string; reviewStatus: string; resolution?: { status: string; asset: string; sourcePR: number } };
+type Delivery = { asset: string; path: string; sourcePR: number; sourceCommit: string; sha256: string; item?: string; frameCounts?: Record<string, number> };
 const manifest = JSON.parse(readFileSync(new URL('docs/food-alchemy-p0/icon-imports.json', workspaceRoot), 'utf8')) as {
-  imports: Entry[]; artNeeded: { id: string }[];
+  imports: Entry[]; artNeeded: { id: string; delivery: { asset: string; sourcePR: number; reviewStatus: string } }[];
+  deliveryInventory: { schemaVersion: number; sourceHeads: Record<string, string>; assets: Delivery[] };
 };
 const ready = manifest.imports.filter(e => e.reviewStatus === 'native_import_reviewed');
 const readAsset = (entry: Entry): AssetSource => JSON.parse(readFileSync(new URL(`packages/assets/ui/${entry.asset}.sprite.json`, workspaceRoot), 'utf8')) as AssetSource;
@@ -30,6 +32,62 @@ describe('approved food/alchemy P0 intake', () => {
     }
     const missing = new Set(manifest.artNeeded.map(e => e.id));
     for (const entry of manifest.imports) expect(missing.has(entry.item)).toBe(false);
+  });
+
+  it('delivers every planned item and preserves the exact independently reviewed asset files', () => {
+    const deliveries = manifest.deliveryInventory.assets;
+    expect(manifest.deliveryInventory.schemaVersion).toBe(1);
+    expect(deliveries).toHaveLength(258);
+    expect(new Set(deliveries.map(e => e.asset)).size).toBe(258);
+    const icons = deliveries.filter(e => e.item !== undefined);
+    expect(icons).toHaveLength(250);
+    expect(new Set(icons.map(e => e.item))).toEqual(new Set([
+      ...manifest.imports.map(e => e.item), ...manifest.artNeeded.map(e => e.id),
+    ]));
+    for (const entry of deliveries) {
+      expect(entry.sourceCommit).toBe(manifest.deliveryInventory.sourceHeads[String(entry.sourcePR)]);
+      const bytes = readFileSync(new URL(entry.path, workspaceRoot));
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(entry.sha256);
+      const asset = JSON.parse(bytes.toString()) as AssetSource;
+      expect(asset.name).toBe(entry.asset);
+      expect(asset.approved).toBe(true);
+      if (entry.item !== undefined) {
+        expect(asset.category).toBe('ui');
+        expect(asset.size).toEqual([16, 16]);
+        expect(asset.anchor).toEqual([8, 15]);
+      }
+      if (entry.sourcePR !== 90) expect(asset.sourcePalette).toBeUndefined();
+    }
+    for (const held of manifest.imports.filter(e => e.reviewStatus !== 'native_import_reviewed')) {
+      const delivery = icons.find(e => e.item === held.item)!;
+      expect(held.resolution).toEqual({ status: 'bespoke_replacement_reviewed', asset: held.asset, sourcePR: delivery.sourcePR });
+      expect(delivery.sourcePR).toBe(held.item === 'item:raw_game' ? 91 : 95);
+    }
+    for (const needed of manifest.artNeeded) {
+      const delivery = icons.find(e => e.item === needed.id)!;
+      expect(needed.delivery).toEqual({ asset: delivery.asset, sourcePR: delivery.sourcePR, reviewStatus: 'bespoke_art_reviewed' });
+    }
+  });
+
+  it('retains all eight prop state groups, 48 frames and four-frame five-fps loops', () => {
+    const props = manifest.deliveryInventory.assets.filter(e => e.item === undefined);
+    expect(props).toHaveLength(8);
+    let total = 0;
+    for (const entry of props) {
+      const asset = JSON.parse(readFileSync(new URL(entry.path, workspaceRoot), 'utf8')) as AssetSource;
+      expect(asset.category).toBe('props');
+      expect(Object.fromEntries(Object.entries(asset.frames).map(([group, frames]) => [group, frames.length])))
+        .toEqual(entry.frameCounts);
+      for (const [group, frames] of Object.entries(asset.frames)) {
+        total += frames.length;
+        if (asset.frameKinds?.[group] === 'animation') {
+          expect(frames).toHaveLength(4);
+          expect(asset.animationFps?.[group]).toBe(5);
+          expect(asset.animationLoop?.[group]).toBe(true);
+        } else expect(frames).toHaveLength(1);
+      }
+    }
+    expect(total).toBe(48);
   });
 
   it.each(ready)('retains inspectable native pixels for $item', entry => {
