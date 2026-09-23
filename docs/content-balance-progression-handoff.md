@@ -103,3 +103,17 @@ Standalone F2 pack: 920 definitions / 26 kinds, 561,743 runtime payload bytes
 559,532. The existing regression guard moves from 547 KiB to the next whole KiB,
 549 KiB (562,176 bytes), leaving only 433 bytes slack. This is not a wire limit.
 Remeasure after wave1 integration; do not choose either branch budget blindly.
+
+## Reviewed wave1 and multi-space integration
+
+The refreshed source includes final wave1 main and preceding PR75/74, with every
+existing content kind retained. Progression publication requires `loot_progression`;
+world balance retains `world_rules`. F1 schemas and the current Studio manifest are
+regenerated. Prefix content is 920 definitions / 26 kinds, hash `cfede075`,
+584,644 runtime bytes under a measured 571 KiB guard.
+
+The historical durable tuple fixture is now pinned from immutable PR76 source
+`6148b89f` rather than reconstructed from evolving bootstrap. Its original hash
+`0f06c798` remains unchanged; a separate test checks current content using legacy
+tuples. Combined behavior passed PR87's full 6,310 coverage + 101 exhaustive tests.
+Prefix checks and fresh source CI are recorded in the PR. No deployment.

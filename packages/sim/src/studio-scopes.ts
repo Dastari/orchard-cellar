@@ -8,7 +8,7 @@ export type StudioScope = typeof STUDIO_SCOPES[number];
 export const CONTENT_KIND_SCOPE: Readonly<Record<SupportedContentKind, StudioScope>> = {
   item: 'items_economy', recipe: 'items_economy', shop: 'items_economy',
   process: 'objects', object: 'objects', resource: 'objects', tileset: 'tilesets',
-  frame: 'frames', loot: 'loot_progression', npc: 'actors', dialogue: 'narrative', quest: 'narrative',
+  progression: 'loot_progression', frame: 'frames', loot: 'loot_progression', npc: 'actors', dialogue: 'narrative', quest: 'narrative',
   balance: 'world_rules', balance_group: 'world_rules', crop: 'world_rules',
   creature: 'actors', spawn: 'actors', enemy: 'actors', encounter: 'actors',
   space: 'map', skill_tree: 'loot_progression', effect: 'loot_progression',

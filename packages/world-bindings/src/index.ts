@@ -222,9 +222,9 @@ import * as AdminMissingContainerRecoveryProcedure from "./admin_missing_contain
 import * as AdminPlayerInventoryProcedure from "./admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "./admin_player_mutation_result_procedure";
 import * as AdminPlayerSnapshotProcedure from "./admin_player_snapshot_procedure";
+import * as AdminSpaceRegistryProcedure from "./admin_space_registry_procedure";
 import * as AdminStudioMembersProcedure from "./admin_studio_members_procedure";
 import * as AdminStudioScopesProcedure from "./admin_studio_scopes_procedure";
-import * as AdminSpaceRegistryProcedure from "./admin_space_registry_procedure";
 import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
@@ -1554,9 +1554,9 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_player_inventory", AdminPlayerInventoryProcedure.params, AdminPlayerInventoryProcedure.returnType),
   __procedureSchema("admin_player_mutation_result", AdminPlayerMutationResultProcedure.params, AdminPlayerMutationResultProcedure.returnType),
   __procedureSchema("admin_player_snapshot", AdminPlayerSnapshotProcedure.params, AdminPlayerSnapshotProcedure.returnType),
+  __procedureSchema("admin_space_registry", AdminSpaceRegistryProcedure.params, AdminSpaceRegistryProcedure.returnType),
   __procedureSchema("admin_studio_members", AdminStudioMembersProcedure.params, AdminStudioMembersProcedure.returnType),
   __procedureSchema("admin_studio_scopes", AdminStudioScopesProcedure.params, AdminStudioScopesProcedure.returnType),
-  __procedureSchema("admin_space_registry", AdminSpaceRegistryProcedure.params, AdminSpaceRegistryProcedure.returnType),
   __procedureSchema("admin_telemetry", AdminTelemetryProcedure.params, AdminTelemetryProcedure.returnType),
   __procedureSchema("admin_validate_world", AdminValidateWorldProcedure.params, AdminValidateWorldProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
