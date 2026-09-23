@@ -1,6 +1,6 @@
 # Wave 1 integration rehearsal
 
-Status: every per-stage type/lint/world/Studio gate passed; final combined build/check running, 2026-09-23. Owner coordinator BrownHorizon will perform
+Status: every per-stage gate and final combined build/check passed, 2026-09-23. Owner coordinator BrownHorizon will perform
 GitHub merges only after every source PR is ready and its CI is green. This
 throwaway branch must never be merged into main or deployed.
 
@@ -23,7 +23,6 @@ source branches, with comments and coordinator notification.
 | #65 | 0794ab6b | Clean | Types/lint/world/Studio pass |
 | #70 | 80d4a932 | Source dependencies merged; field generator optional-never + lab layout repairs | Types/lint/world/Studio pass; 13 focused tests |
 | #68 | 37a7415a | Source access import/version conflicts resolved; kit Membership retained | Types/lint/world/Studio pass; 45 focused tests |
-
 | #73 | 052f23e1 | Source version/docs conflicts; 14 reviewed cliff hashes + F1 regen; measured payload budget | Types/lint/world/Studio pass; 110 focused + budget test |
 | #69 | 785784e8 | Clean | Types/lint/world/Studio pass |
 | #72 | b4780767 | Source PWA conflict resolved: immutable packs retained, obsolete MP3 prefix removed | Types/lint/world/Studio pass; 20 focused tests |
@@ -68,9 +67,29 @@ only merge commits and this evidence document beyond those source changes.
 
 - Chunk standalone D6 source: 5,947 coverage tests / 964 files, all thresholds
   met; 101 exhaustive tests / seven files passed.
-- Final combined `npm run build` and `npm run check`: running; not yet a pass.
+- Final combined candidate `8375d65f`: `npm run build` and the complete
+  `npm run check` chain passed. Lifecycle integrity, content validation, world
+  build, workspace types, lint, coverage, exhaustive tests and assets all passed.
+- Coverage: 6,189 tests passed, one skipped, across 986 files (1,067.45 seconds).
+  Statements 89.01% (15,448/17,355), branches 84.36% (14,507/17,196),
+  functions 94.50% (3,303/3,495), lines 93.04% (12,758/13,712).
+  Every configured threshold passed.
+- Exhaustive suite: 101 tests across seven files passed (151.00 seconds).
+  Asset validation: 1,320 art assets, three songs, ten SFX, 55 palette colours
+  and four seasonal remaps. Logs: `/tmp/wave1-final-build.log` and
+  `/tmp/wave1-final-check.log`. The existing run was monitored to completion;
+  no tests were restarted and no candidate source was changed.
+- Integrated authored-map chunk roundtrip: all 169 chunks passed parity and
+  resolved atlas packs. With catalogue content `b3f30168`, chunks total
+  27,001,223 raw bytes, 667,208 gzip bytes or 511,702 Brotli bytes; the manifest
+  adds 82,888 bytes (750,096 gzip / 594,590 Brotli including the raw manifest).
+  Snapshot SHA-256: `c851a3b53af198a5f2a4a8ae8282c8e676a71fc6eacadc724d12c589e3059a45`.
+  These offline sizes preserve legacy collision data and do not imply a runtime
+  chunk switch or live content-head parity.
 - CI: source #62/#64/#65/#69 green at the latest scan; changed source heads
-  rerunning/queued. #73 remains draft until integrated full validation passes.
+  rerunning/queued. #73’s integrated full-validation gate is now satisfied;
+  GoldCondor owns its readiness change and CopperMaple follow-on. Latest source
+  CI must still pass before BrownHorizon merges. PR #77 remains DO NOT MERGE.
 - Merge order remains the requested order above. Source branches carry their
   predecessors where conflicts needed resolution; merge earlier PRs first so
   later diffs narrow to their own feature. Do not merge the rehearsal PR.
