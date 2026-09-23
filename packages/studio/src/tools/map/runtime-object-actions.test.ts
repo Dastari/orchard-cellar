@@ -136,4 +136,16 @@ describe('Map runtime object authority bridge', () => {
       allowed: false, reason: expect.stringContaining('immutable'),
     });
   });
+
+  it('labels custody from the classified owner, not the raw owner identity', async () => {
+    const { api } = probe();
+    const model = new MapRuntimeObjectActionModel(api, () => 'map-owner');
+    await model.preview(marker, { operation: 'repair_entity' }, 'Repair player press');
+    expect(model.pending()?.playerOwned).toBe(true);
+    await model.preview({ ...marker, layer: 'objects', ownership: 'world' },
+      { operation: 'repair_entity' }, 'Repair town press');
+    expect(model.pending()?.playerOwned).toBe(false);
+    await expect(model.preview({ ...marker, layer: 'objects', ownership: 'world', mapMaterialized: true },
+      { operation: 'move_entity', tileX: 1, tileY: 1 }, 'Move town lamp')).rejects.toThrow('map_live_entity_immutable');
+  });
 });

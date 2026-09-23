@@ -1,4 +1,5 @@
 import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
+import {classifyLiveOwnership,mapStreetlampLiveBindings,type MapEditorLiveOwnership} from './live-ownership.js';
 import {mapMaterialChoices} from './material-palette.js';
 import { exactTilePaletteChoices } from './exact-tile-palette.js';
 import {
@@ -18,6 +19,7 @@ import {
   minimumTerrainBrushPoints,
   isChoppableTreeKind,
   MANUAL_OBJECT_CONNECTION_TAG,
+  mapObjectIsGroundDecal,
   resolvedMapBiomeAt,
   resolvedMapCellAt,
   stairRunValid,
@@ -388,6 +390,12 @@ export interface MapEditorLiveMarker {
   /** Compact bottom-centred footprint expanded only for the selected marker. */
   readonly footprint: { readonly width: number; readonly height: number };
   readonly layer: MapContentLayerId;
+  /** Actual controller of a live placeable/chest/homestead row. World-owned
+   * rows project onto World Objects; player-owned rows stay locked. */
+  readonly ownership?: MapEditorLiveOwnership;
+  /** The row is materialized from an authored map object (town lamps) and
+   * follows that object's placement on publication. */
+  readonly mapMaterialized?: boolean;
   readonly color: string;
   readonly facing?: Direction;
   readonly moving?: boolean;
@@ -521,7 +529,14 @@ export function pickTopmostVisibleMapEntity(
     landmarkOffset + index);
   });
   const liveOffset = landmarkOffset + document.landmarks.length;
+  const authoredBindings = mapStreetlampLiveBindings(document);
   liveMarkers.forEach((marker, index) => {
+    // One logical object: when the live row is materialized from a visible,
+    // enabled authored object, the authored copy is the editable one.
+    const boundObjectId = marker.mapMaterialized === true ? authoredBindings.get(marker.id) : undefined;
+    const bound = boundObjectId === undefined ? undefined
+      : document.objects.find((object) => object.id === boundObjectId && object.enabled);
+    if (bound !== undefined && isLayerVisible(bound.layer)) return;
     if (!homesteadBuildFootprintTiles({ footprint: marker.footprint }, marker.tileX, marker.tileY)
       .some((cell) => cell.tileX === tileX && cell.tileY === tileY)) return;
     consider({
@@ -571,13 +586,16 @@ function tileMarkerPosition(tileX: number, tileY: number): {
 export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: (Pick<ContentRegistry, 'objects'> & Partial<Pick<ContentRegistry, 'resources'>>) | null = null): readonly MapEditorLiveMarker[] {
   if (liveRows === null) return [];
   const markers: MapEditorLiveMarker[] = [];
+  const owner = classifyLiveOwnership([...liveRows.placeables, ...liveRows.chests ?? []], registry);
   for (const row of liveRows?.placeables ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID || row.tileX === undefined || row.tileY === undefined) continue;
+    const { ownership, mapMaterialized } = owner(row);
     markers.push({ id: row.id.toString(), entityKind: 'placeable', kind: row.kind, label: row.kind,
       definitionId: row.definitionId, state: row.state,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: liveMarkerFootprint(registry, row),
-      layer: 'player_owned', color: '#df9bc7', facing: liveMarkerFacing(row.facing),
+      layer: ownership === 'world' ? 'objects' : 'player_owned', ownership,
+      ...(mapMaterialized ? { mapMaterialized } : {}), color: '#df9bc7', facing: liveMarkerFacing(row.facing),
       open: row.open, lit: row.lit,
       animationPhase: Number(row.id % 19n),
       activity: row.processStartTick !== undefined || row.barrelSealedTick !== undefined
@@ -585,11 +603,12 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
   }
   for (const row of liveRows.chests ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
+    const { ownership } = owner(row);
     markers.push({ id: row.id.toString(), entityKind: 'chest', kind: 'chest', label: 'Chest',
       definitionId: row.definitionId, state: row.state,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'player_owned', color: '#d7a668', facing: liveMarkerFacing(row.facing), open: row.open });
+      layer: ownership === 'world' ? 'objects' : 'player_owned', ownership, color: '#d7a668', facing: liveMarkerFacing(row.facing), open: row.open });
   }
   for (const row of liveRows?.homesteads ?? []) {
     if (row.tileX === undefined || row.tileY === undefined) continue;
@@ -597,7 +616,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.ownerName?.trim() ? `${row.ownerName}'s Homestead` : `Homestead ${row.spaceId}`,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 3, height: 4 }),
-      layer: 'player_owned', color: '#f0c777' });
+      layer: 'player_owned', ownership: 'player', color: '#f0c777' });
   }
   for (const row of liveRows?.resources ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
@@ -763,7 +782,7 @@ export class MapEditorController {
   ) {
     this.#terrainPalette = terrainPalette;
     model.setLiveObjectOccupancy(object=>{
-      if(!object.enabled)return false;
+      if(!object.enabled||mapObjectIsGroundDecal(model.document(),object))return false;
       const cells=mapEditorObjectOccupiedCells(model.document(),object);
       return this.liveMarkers().some(marker=>marker.spaceId===0&&marker.layer===object.layer
         &&!['player','npc'].includes(marker.entityKind)&&!model.document().generatedSuppressions.includes(`${marker.entityKind}-${marker.id}`)
