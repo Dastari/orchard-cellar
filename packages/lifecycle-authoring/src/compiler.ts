@@ -45,7 +45,7 @@ function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
   return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 }
 
-function parseHandler(handler: ItemLifecycleSource): ts.Block {
+function parseHandler(handler: Pick<ItemLifecycleSource, 'id' | 'source'>): ts.Block {
   const sourceFile = ts.createSourceFile(
     `${handler.id}.ts`,
     `function __orchardLifecycle(context: unknown) {\n${handler.source}\n}`,
@@ -61,13 +61,16 @@ function parseHandler(handler: ItemLifecycleSource): ts.Block {
     throw new Error(`${handler.id}: TypeScript syntax error: ${diagnostic?.messageText.toString() ?? 'unknown'}`);
   }
   const declaration = sourceFile.statements[0];
-  if (!declaration || !ts.isFunctionDeclaration(declaration) || declaration.body === undefined) {
+  if (sourceFile.statements.length !== 1 || !declaration || !ts.isFunctionDeclaration(declaration) || declaration.body === undefined) {
     throw new Error(`${handler.id}: lifecycle body could not be parsed`);
   }
   return declaration.body;
 }
 
-function validateHandlerAst(handler: ItemLifecycleSource): void {
+export function validateHandlerAst(
+  handler: Pick<ItemLifecycleSource, 'id' | 'source'>,
+  allowedCalls: ReadonlySet<string> = ALLOWED_CONTEXT_CALLS,
+): void {
   const body = parseHandler(handler);
   const finiteArrays = new Set<string>();
   let nodeCount = 0;
@@ -112,7 +115,7 @@ function validateHandlerAst(handler: ItemLifecycleSource): void {
         throw new Error(`${handler.id}: dynamic construction is forbidden`);
       }
       const path = propertyPath(node.expression);
-      if (path === null || !ALLOWED_CONTEXT_CALLS.has(path)) {
+      if (path === null || !allowedCalls.has(path)) {
         throw new Error(`${handler.id}: call is outside the lifecycle capability API: ${path ?? 'computed call'}`);
       }
     }
