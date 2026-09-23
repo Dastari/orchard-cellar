@@ -23,6 +23,7 @@ import * as AdminStudioMembersProcedure from "../admin_studio_members_procedure"
 import * as AdminStudioScopesProcedure from "../admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "../admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "../admin_validate_world_procedure";
+import * as InspectWorldChunkShadowProcedure from "../inspect_world_chunk_shadow_procedure";
 import * as PreviewStudioScopeProcedure from "../preview_studio_scope_procedure";
 import * as StudioScopeReceiptProcedure from "../studio_scope_receipt_procedure";
 import * as StudioScriptReviewProcedure from "../studio_script_review_procedure";
@@ -61,6 +62,8 @@ export type AdminTelemetryArgs = __Infer<typeof AdminTelemetryProcedure.params>;
 export type AdminTelemetryResult = __Infer<typeof AdminTelemetryProcedure.returnType>;
 export type AdminValidateWorldArgs = __Infer<typeof AdminValidateWorldProcedure.params>;
 export type AdminValidateWorldResult = __Infer<typeof AdminValidateWorldProcedure.returnType>;
+export type InspectWorldChunkShadowArgs = __Infer<typeof InspectWorldChunkShadowProcedure.params>;
+export type InspectWorldChunkShadowResult = __Infer<typeof InspectWorldChunkShadowProcedure.returnType>;
 export type PreviewStudioScopeArgs = __Infer<typeof PreviewStudioScopeProcedure.params>;
 export type PreviewStudioScopeResult = __Infer<typeof PreviewStudioScopeProcedure.returnType>;
 export type StudioScopeReceiptArgs = __Infer<typeof StudioScopeReceiptProcedure.params>;

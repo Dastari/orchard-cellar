@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.27.0 — 2026-09-23
+
+- Add owner-only CAS chunk shadow staging, additive regional heads and verified private collision blobs.
+- Add bounded view/ring chunk loading, IndexedDB caching and revision-pinned diagnostic subscriptions behind a default-off flag.
+- Add offline static bundle preparation and a generator retirement build gate; live terrain and movement remain unchanged.
+
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue

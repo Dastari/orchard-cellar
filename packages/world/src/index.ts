@@ -1,3 +1,4 @@
+import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
@@ -1783,6 +1784,18 @@ const admin_world_validation_report = table(
  * the JSON locally and receive one atomic row update, so terrain and prefab
  * changes can never appear at different revisions. Mutations remain owner or
  * administrator only. */
+const world_chunk_head = table(
+  { name: 'world_chunk_head', public: true, indexes: [{ accessor: 'by_space', algorithm: 'btree', columns: ['spaceId'] }] },
+  { id: t.string().primaryKey(), spaceId: t.u64(), cx: t.i32(), cy: t.i32(), contentHash: t.string(), revision: t.u32(), byteLength: t.u32() },
+);
+const world_chunk_shadow = table(
+  { name: 'world_chunk_shadow', public: true },
+  { spaceId: t.u64().primaryKey(), revision: t.u32(), mapId: t.string(), contentHash: t.string(), manifestJson: t.string() },
+);
+const world_chunk_blob = table(
+  { name: 'world_chunk_blob' },
+  { contentHash: t.string().primaryKey(), bytes: t.array(t.u8()) },
+);
 const live_map_document = table(
   { name: 'live_map_document', public: true },
   {
@@ -3017,6 +3030,7 @@ const spacetimedb = schema({
   space_admin_flag,
   admin_world_validation_report,
   live_map_document,
+  world_chunk_head, world_chunk_shadow, world_chunk_blob,
   live_map_revision,
   chat_channel,
   chat_channel_member,
@@ -25600,4 +25614,47 @@ export const stepWorld = spacetimedb.reducer(
     tickStageTiming(telemetryTimingSample, 'npc', true);
     finishTickTelemetry(authorityTick, updateCounters, obstacleCount);
   },
+);
+
+// Shadow-only ingestion. Static serving is a separate guarded publication step.
+export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) }, (ctx, { bytes }) => {
+  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const chunk = validateShadowBlob(Uint8Array.from(bytes));
+  if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) === null) ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
+});
+export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.string(), mapId: t.string(), contentHash: t.string(), expectedRevision: t.u32() }, (ctx, input) => {
+  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const map = ctx.db.live_map_document.mapId.find(input.mapId);
+  if (map === null) throw new SenderError('chunk_shadow_map_missing');
+  if (input.manifestJson.length > 1024 * 1024) throw new SenderError('chunk_manifest_too_large');
+  const raw = JSON.parse(input.manifestJson) as { spaceId?: number } | null;
+  if (!Number.isSafeInteger(raw?.spaceId) || raw?.spaceId !== TOPSIDE_SPACE_ID || input.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('chunk_shadow_space_not_supported');
+  const spaceId = BigInt(raw.spaceId);
+  const previous = ctx.db.world_chunk_shadow.spaceId.find(spaceId);
+  const manifest = validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
+    contentHash: contentRegistry(ctx).contentHash, shadowRevision: previous?.revision ?? 0 }, hash => {
+      const row = ctx.db.world_chunk_blob.contentHash.find(hash); return row === null ? undefined : Uint8Array.from(row.bytes);
+    });
+  if (input.expectedRevision === 0xffffffff) throw new SenderError('chunk_shadow_revision_exhausted');
+  const revision = input.expectedRevision + 1;
+  for (const row of ctx.db.world_chunk_head.by_space.filter(spaceId)) ctx.db.world_chunk_head.id.delete(row.id);
+  for (const head of manifest.chunks) ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
+  const row = { spaceId, revision, mapId: input.mapId, contentHash: input.contentHash, manifestJson: input.manifestJson };
+  if (previous === null) ctx.db.world_chunk_shadow.insert(row); else ctx.db.world_chunk_shadow.spaceId.update(row);
+});
+const shadowChunkCollision = new ShadowChunkCollisionCache();
+/** Shadow diagnostics only. No movement/pathfinding authority calls this yet. */
+function chunkShadowCollisionAt(ctx: WorldReducerContext, spaceId: bigint, x: number, y: number) {
+  const head = ctx.db.world_chunk_head.id.find(`${spaceId}:${Math.floor(x / 64)}:${Math.floor(y / 64)}`);
+  return shadowChunkCollision.sample(head?.contentHash, x, y, hash => {
+    const row = ctx.db.world_chunk_blob.contentHash.find(hash); return row === null ? undefined : Uint8Array.from(row.bytes);
+  });
+}
+
+export const inspectWorldChunkShadow = spacetimedb.procedure(
+  { spaceId: t.u64(), x: t.i32(), y: t.i32() }, t.string(),
+  (ctx, { spaceId, x, y }) => ctx.withTx(tx => {
+    requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    return JSON.stringify(chunkShadowCollisionAt(tx, spaceId, x, y));
+  }),
 );

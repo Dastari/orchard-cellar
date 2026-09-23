@@ -147,7 +147,7 @@ export function decodeWorldChunk(bytes: Uint8Array, expectedHash?: string): Worl
   let offset = PREFIX_SIZE + jsonLength;
   for (const entry of channels) {
     if (!object(entry) || typeof entry['name'] !== 'string' || !/^[a-zA-Z][a-zA-Z0-9.]*$/u.test(entry['name'])
-      || Object.hasOwn(arrays, entry['name']) || !validInteger(entry['length']) || entry['length'] <= 0
+      || Object.prototype.hasOwnProperty.call(arrays, entry['name']) || !validInteger(entry['length']) || entry['length'] <= 0
       || entry['length'] % CELL_COUNT !== 0 || entry['length'] / CELL_COUNT > 256
       || (entry['type'] !== 'u8' && entry['type'] !== 'i16')) throw new TypeError('Invalid channel descriptor');
     const length = entry['length'];

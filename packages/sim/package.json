@@ -1,11 +1,13 @@
 {
   "name": "@orchard/sim",
-  "version": "0.22.3",
+  "version": "0.25.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./world-chunk": "./src/world-chunk.ts"
+    "./world-chunk": "./src/world-chunk.ts",
+    "./chunk-runtime": "./src/chunk-runtime.ts",
+    "./chunk-runtime-fixture": "./src/chunk-runtime.fixture.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

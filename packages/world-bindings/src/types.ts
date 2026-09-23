@@ -1495,6 +1495,32 @@ export const WorldChestSlot = __t.object("WorldChestSlot", {
 });
 export type WorldChestSlot = __Infer<typeof WorldChestSlot>;
 
+export const WorldChunkBlob = __t.object("WorldChunkBlob", {
+  contentHash: __t.string(),
+  bytes: __t.byteArray(),
+});
+export type WorldChunkBlob = __Infer<typeof WorldChunkBlob>;
+
+export const WorldChunkHead = __t.object("WorldChunkHead", {
+  id: __t.string(),
+  spaceId: __t.u64(),
+  cx: __t.i32(),
+  cy: __t.i32(),
+  contentHash: __t.string(),
+  revision: __t.u32(),
+  byteLength: __t.u32(),
+});
+export type WorldChunkHead = __Infer<typeof WorldChunkHead>;
+
+export const WorldChunkShadow = __t.object("WorldChunkShadow", {
+  spaceId: __t.u64(),
+  revision: __t.u32(),
+  mapId: __t.string(),
+  contentHash: __t.string(),
+  manifestJson: __t.string(),
+});
+export type WorldChunkShadow = __Infer<typeof WorldChunkShadow>;
+
 export const WorldClock = __t.object("WorldClock", {
   id: __t.u8(),
   authorityTick: __t.u64(),
