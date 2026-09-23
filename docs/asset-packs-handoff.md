@@ -90,3 +90,10 @@ first-frame pixels. The prototype explored locally was withdrawn from this PR.
 
 Retain the reviewed Studio prebuild guard. No Studio source/renderer replacement,
 service restart, or production publication is part of this delivery.
+
+## Delivery
+
+PR [#72](https://github.com/Dastari/orchard-cellar/pull/72) is open on
+`feat/asset-packs`. CI was running at handoff; local worktree is clean. Do not
+merge or deploy without owner instruction. The approved prerequisite scope is
+complete; first-play dependency ownership remains the explicit follow-up above.
