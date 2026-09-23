@@ -20,7 +20,14 @@ Do not merge or deploy from this workstream.
 Disposable loopback world on port 3701 and local client 5178; production untouched.
 Temporary fixture uses real processor inputs and a calendar offset of 354191 ticks.
 Furnace shows IN PROGRESS / 0:20 LEFT, then READY with a copper bar and fuel consumed.
-Barrel shows IN PROGRESS / 0:20 LEFT with four raw beets. Captures:
+Barrel shows IN PROGRESS / 0:20 LEFT with four raw beets, then four preserved beets after settlement. Captures:
 `/tmp/timing-furnace-running.png`, `/tmp/timing-furnace-panel.png`,
-`/tmp/timing-barrel-running.png`. Closed stale furnace hover reads COLLECT TO CONFIRM
+`/tmp/timing-barrel-running.png`, `/tmp/timing-barrel-settled.png`. Closed stale furnace hover reads COLLECT TO CONFIRM
 and ESTIMATED. No inventory tokens or credentials are included in evidence.
+
+Retained authored-frame rendering also consumes `ui.timing` through its typed
+model and update method. Frame pixel goldens and the bootstrap content manifest
+were regenerated for the five authored frame changes. Fixture verification:
+563 tests passed; final ordinary (non-update) replay includes Studio shell assets.
+The first full run also needed generated Studio public assets in the isolated
+worktree; `npm run ui:assets -w @orchard/tools -- studio` supplies them.
