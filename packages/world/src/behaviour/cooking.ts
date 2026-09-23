@@ -1,5 +1,6 @@
 import {
   barrelCanSeal,
+  runtimeActivityExperience,
   barrelCellarBatchCapacity,
   type ContentRegistry,
   type HomesteadUpgradeMechanic,
@@ -88,7 +89,7 @@ export function sealBarrelBehaviour(
     barrelSealedBy: ctx.sender,
   });
   dependencies.clearActivePlaceable(ctx, ctx.sender);
-  dependencies.grantSkillExperience(ctx, ctx.sender, 'farming', 5n);
+  dependencies.grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(dependencies.contentRegistry(ctx), 'seal_barrel'));
   dependencies.recordPlayerStatistic(
     ctx,
     ctx.sender,

@@ -1,3 +1,4 @@
+import type { ProgressionContentDefinition } from '@orchard/sim';
 import {
   isSkillTrack,
   skillLevelForExperience,
@@ -24,11 +25,11 @@ export class SkillPointNoticeTracker {
     this.earnedByTrack.clear();
   }
 
-  observe(rows: Iterable<SkillPointProgress>): readonly SkillPointNotice[] {
+  observe(rows: Iterable<SkillPointProgress>, progression?: ProgressionContentDefinition): readonly SkillPointNotice[] {
     const notices: SkillPointNotice[] = [];
     for (const row of rows) {
       if (!isSkillTrack(row.track)) continue;
-      const earned = skillLevelForExperience(row.experience) + Math.max(0, row.bonusPoints);
+      const earned = skillLevelForExperience(row.experience, progression) + Math.max(0, row.bonusPoints);
       const previous = this.earnedByTrack.get(row.track);
       this.earnedByTrack.set(row.track, earned);
       if (previous !== undefined && earned > previous) {

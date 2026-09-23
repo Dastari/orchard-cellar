@@ -1,3 +1,4 @@
+import { balanceFieldsTuple, balanceTupleFields } from './content/balance-fields.js';
 import balanceJson from '../../assets/content/balance.json' with { type: 'json' };
 import type {
   CharacterCombatBalanceContentDefinition,
@@ -50,7 +51,7 @@ export function runtimeCharacterCombatBalance(
       && definition.profile === 'character_combat'
     ),
   );
-  return matches.length === 1 ? characterCombatBalanceFromTuple(matches[0]!.values) : null;
+  return matches.length === 1 ? Object.freeze({ ...matches[0]!.fields }) : null;
 }
 
 function bootstrapCharacterCombatDefinition(): CharacterCombatBalanceContentDefinition {
@@ -59,15 +60,15 @@ function bootstrapCharacterCombatDefinition(): CharacterCombatBalanceContentDefi
   ));
   if (matches.length !== 1) throw new Error('bootstrap_character_combat_balance_unavailable');
   const definition = matches[0]!;
-  const values = definition.values;
+  const values = definition.values ?? balanceFieldsTuple('character_combat', definition.fields as object);
   if (!Array.isArray(values) || values.length !== 18
     || values.some((value) => !Number.isSafeInteger(value) || Number(value) <= 0)) {
     throw new Error('bootstrap_character_combat_balance_invalid');
   }
-  return definition as unknown as CharacterCombatBalanceContentDefinition;
+  return { ...definition, fields: balanceTupleFields('character_combat', values) } as unknown as CharacterCombatBalanceContentDefinition;
 }
 
 /** Explicit compatibility for isolated simulation callers without a live registry. */
 export const BOOTSTRAP_CHARACTER_COMBAT_BALANCE = characterCombatBalanceFromTuple(
-  bootstrapCharacterCombatDefinition().values,
+  balanceFieldsTuple('character_combat', bootstrapCharacterCombatDefinition().fields) as CharacterCombatBalanceTuple,
 );

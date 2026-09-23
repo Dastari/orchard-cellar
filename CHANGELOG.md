@@ -64,6 +64,11 @@
 
 - Studio 0.14.0 uses per-space viewport subscriptions, all-space presence, authoritative space metadata and bounded server entity pages including crops. Adds F5 picker sources and a read-only runtime-space route/data boundary for the later World Map canvas.
 - Sim 0.22.0 shares static, homestead/residence/cellar and rogue space resolution with portal links. World 0.21.0 and bindings 0.16.0 add admin-gated registry and indexed cursor paging without exposing private run state or reviving retired farm parcels.
+## 0.24.0 — 2026-09-23
+
+- Author named combat, world-policy and residence balance fields with legacy tuple compatibility.
+- Move XP curve, level cap, respec ladder and 16 activity awards into validated progression content; live world and character/skill UI read published tuning.
+- Expose balance and progression through Studio World Tables; preserve current runtime values with migration parity tests.
 
 ## 0.23.1 — 2026-09-22
 

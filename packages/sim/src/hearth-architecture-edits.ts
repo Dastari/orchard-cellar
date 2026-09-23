@@ -1,3 +1,5 @@
+import { balanceFieldsTuple } from './content/balance-fields.js';
+import type { ResidenceConstructionBalanceTuple } from './content/balance-definition.js';
 import {hearthDoorwayWindowConflicts} from './hearth-doorway-support.js';
 import {residenceEnvelopeSize,residencePlayableTile} from './spaces.js';
 import {composeHearthArchitecture,planHearthArchitecture,type HearthArchitectureCell} from './hearth-architecture.js';
@@ -20,11 +22,11 @@ export function runtimeResidenceConstructionMaterials(
   const matches=[...registry.balances.values()].filter(
     (definition):definition is ResidenceConstructionBalanceContentDefinition=>(
       definition.retired!==true&&'profile' in definition&&definition.profile==='residence_construction'
-      &&Array.isArray(definition.values)&&definition.values[0]===recipeVersion
+      &&definition.fields.recipeVersion===recipeVersion
     ),
   );
   if(matches.length!==1)return null;
-  const values=matches[0]!.values;
+  const values=balanceFieldsTuple('residence_construction', matches[0]!.fields) as ResidenceConstructionBalanceTuple;
   if(values.length!==12||!Number.isSafeInteger(recipeVersion)||recipeVersion<1)return null;
   const itemIds=[values[1],values[2],values[3]] as const;
   if(itemIds.some(id=>typeof id!=='string'||!/^item:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(id))

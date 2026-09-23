@@ -1,3 +1,4 @@
+import type { ProgressionContentDefinition } from './progression-definition.js';
 import { contentDefinitionsHash, contentDefinitionRowIdentityHash } from './payload-hash.js';
 export { contentDefinitionsHash, contentDefinitionRowIdentityHash, contentDefinitionRowsHash } from './payload-hash.js';
 import { compiledProjection, type CompiledContentProjection } from './compiled-projection.js';
@@ -77,6 +78,7 @@ export interface ContentRegistry {
   readonly npcs: ReadonlyMap<string, NpcContentDefinition>;
   readonly dialogues: ReadonlyMap<string, DialogueContentDefinition>;
   readonly quests: ReadonlyMap<string, QuestContentDefinition>;
+  readonly progressions: ReadonlyMap<string, ProgressionContentDefinition>;
   readonly balances: ReadonlyMap<string, BalanceContentDefinition>;
   readonly crops: ReadonlyMap<string, CropContentDefinition>;
   readonly creatures: ReadonlyMap<string, CreatureContentDefinition>;
@@ -172,6 +174,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
   const npcs = sorted.filter((definition): definition is NpcContentDefinition => definition.kind === 'npc');
   const dialogues = sorted.filter((definition): definition is DialogueContentDefinition => definition.kind === 'dialogue');
   const quests = sorted.filter((definition): definition is QuestContentDefinition => definition.kind === 'quest');
+  const progressions = sorted.filter((definition): definition is ProgressionContentDefinition => definition.kind === 'progression');
   const balances = sorted.filter((definition): definition is BalanceContentDefinition => definition.kind === 'balance');
   const crops = sorted.filter((definition): definition is CropContentDefinition => definition.kind === 'crop');
   const creatures = sorted.filter((definition): definition is CreatureContentDefinition => definition.kind === 'creature');
@@ -199,6 +202,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
     npcs: new ImmutableMap(npcs.map((definition) => [definition.id, definition] as const)),
     dialogues: new ImmutableMap(dialogues.map((definition) => [definition.id, definition] as const)),
     quests: new ImmutableMap(quests.map((definition) => [definition.id, definition] as const)),
+    progressions: new ImmutableMap(progressions.map((definition) => [definition.id, definition] as const)),
     balances: new ImmutableMap(balances.map((definition) => [definition.id, definition] as const)),
     crops: new ImmutableMap(crops.map((definition) => [definition.id, definition] as const)),
     creatures: new ImmutableMap(creatures.map((definition) => [definition.id, definition] as const)),
