@@ -169,7 +169,7 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // replace asset light lists and prefix shadows; canvas transform/depth tests pass.
 // Combined runtime review: wiki History/Release 2026-09-23; retain both D6 channels and object appearance.
 // Docs retirement (2026-09-24) re-captures one comment in ui/overworld-ui.ts that now cites the wiki
-// page Systems/Lighting & Seasons instead of the retired docs/27; no code changed.
+// page Systems/Lighting & Seasons instead of retired doc 27; no code changed.
 const STRUCTURAL_SEAM_DIGEST = "69efa84392d7f9ae925143dbe89424fd8d16b59dbad63c60ad93283d21c3b61f";
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
