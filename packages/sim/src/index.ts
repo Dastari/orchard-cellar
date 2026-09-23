@@ -197,3 +197,8 @@ export * from './smart-object-prefabs.js';
 export * from './map-entity-state.js';
 
 export * from './rule-catalogue.js';
+
+export * from './traversal.js';
+export * from './traversal-medium.js';
+export * from './content/world-rules-definition.js';
+export * from './content/runtime-traversal.js';

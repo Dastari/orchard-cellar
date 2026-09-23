@@ -1535,6 +1535,12 @@ export function validateContentDefinitions(
   const byId = new Map<string, SupportedContentDefinition>();
   let packBytes = 0;
 
+  const traversalPolicies = definitions.filter(definition => definition.kind === 'world_rules'
+    && definition.profile === 'traversal' && definition.retired !== true);
+  if (traversalPolicies.length > 1) for (const definition of traversalPolicies) {
+    errors.push(issue('error', 'invalid_world_definition', 'traversal profile requires one active owner', definition.id, 'profile'));
+  }
+
   if (definitions.length > MAX_CONTENT_DEFINITION_COUNT) {
     errors.push(issue(
       'error',

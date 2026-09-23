@@ -17,7 +17,7 @@ describe('bootstrap content export', () => {
       'crops.json', 'creatures.json', 'spawns.json', 'spaces.json', 'skill-trees.json',
       'effects.json', 'statistics.json', 'upgrades.json', 'balance-groups.json',
       'objects.json', 'resources.json', 'loadouts.json',
-      'enemies.json', 'encounters.json',
+      'enemies.json', 'encounters.json', 'world-rules.json',
     ]);
 
     const definitions = first.flatMap(({ json }) => (
