@@ -12,6 +12,11 @@ export interface GameUiHost {
   blocking(): boolean;
 }
 
+export interface GameUiPointerScope {
+  /** Restrict new gestures to this host at its legacy dispatch stage. */
+  readonly hostId: string;
+}
+
 /** Routes existing game listeners; never binds a canvas or creates another RAF.
  * A consumed gesture keeps its owner until release, including outside the UI. */
 export class GameUiRuntime {
@@ -59,7 +64,20 @@ export class GameUiRuntime {
     if (this.keyboard && !allowed.includes(this.keyboard)) this.keyboard = null;
   }
 
-  pointer(event: UiRootPointer): boolean {
+  /** Includes cancelled tails, which the DOM adapter must swallow on release. */
+  tracksPointer(pointerId: number): boolean {
+    this.reconcile();
+    return this.pointers.has(pointerId) || this.cancelled.has(pointerId);
+  }
+
+  /** Final world/legacy handoff clears retained keyboard ownership and hover. */
+  clearFocus(): void { this.keyboard = null; this.clearHover(); }
+
+  clearHover(): void {
+    for (const host of this.hosts.values()) host.root.input.clearHover();
+  }
+
+  pointer(event: UiRootPointer, scope?: GameUiPointerScope): boolean {
     this.reconcile();
     if (event.type === 'down') this.cancelled.delete(event.pointerId);
     else if (this.cancelled.has(event.pointerId)) {
@@ -75,8 +93,9 @@ export class GameUiRuntime {
       return true;
     }
     // A release from a world gesture must never activate an up-only UI link.
-    if (event.type === 'up' || event.type === 'cancel') return this.eligible().some(host => host.blocking());
-    for (const host of this.eligible()) {
+    const candidates = this.eligible().filter(host => !scope || host.id === scope.hostId);
+    if (event.type === 'up' || event.type === 'cancel') return candidates.some(host => host.blocking());
+    for (const host of candidates) {
       if (host.root.pointer(event) || host.blocking()) {
         this.clearOtherHover(host);
         if (event.type === 'down') {
@@ -86,13 +105,13 @@ export class GameUiRuntime {
         return true;
       }
     }
-    if (event.type === 'down') this.keyboard = null;
+    if (event.type === 'down' && !scope) this.keyboard = null;
     return false;
   }
 
-  wheel(event: UiElementWheel): boolean {
+  wheel(event: UiElementWheel, hostId?: string): boolean {
     this.reconcile();
-    for (const host of this.eligible()) if (host.root.wheel(event) || host.blocking()) return true;
+    for (const host of this.eligible()) if ((!hostId || host.id === hostId) && (host.root.wheel(event) || host.blocking())) return true;
     return false;
   }
 
@@ -113,10 +132,10 @@ export class GameUiRuntime {
     return true;
   }
 
-  key(event: UiElementKey): boolean {
+  key(event: UiElementKey, hostId?: string): boolean {
     this.reconcile();
     const host = this.keyboardHost();
-    if (!host) return false;
+    if (!host || (hostId !== undefined && host.id !== hostId)) return false;
     host.root.arrange();
     // An empty passive root must not consume the game's Tab roster shortcut.
     if (!host.blocking() && !host.root.entries().some(({ element }) => element.focusable && element.visible && !element.disabled)) return false;

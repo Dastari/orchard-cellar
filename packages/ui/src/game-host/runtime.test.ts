@@ -135,4 +135,69 @@ describe('game retained host input ownership', () => {
     runtime.pointer(pointer('move', 10));
     expect(lower.root.input.hovered).toBeNull();
   });
+
+  it('lets legacy chat consume between scoped hosts without activating the lower tracker', () => {
+    const runtime = new GameUiRuntime(), tracker = fixture(), name = fixture(9);
+    name.root.tree.children[0]!.setStyle({ position: 'absolute', inset: { left: uiFixed(100) } });
+    runtime.register(tracker.host); runtime.register(name.host);
+    let chatCommands = 0;
+    // The point misses the high host and is then handled by legacy chat.
+    if (!runtime.pointer(pointer('down'), { hostId: name.host.id })) {
+      chatCommands++;
+      runtime.clearFocus();
+    }
+    expect(chatCommands).toBe(1);
+    expect(tracker.events).toEqual([]);
+    expect(runtime.tracksPointer(7)).toBe(false);
+    expect(runtime.pointer(pointer('up'), { hostId: tracker.host.id })).toBe(false);
+    expect(tracker.commands).toBe(0);
+  });
+
+  it('keeps focus across intermediate misses until the final world handoff', () => {
+    const runtime = new GameUiRuntime(), lower = fixture(), upper = fixture(9);
+    runtime.register(lower.host); runtime.register(upper.host);
+    runtime.focus(lower.host.id); lower.root.tree.children[0]!.requestFocus();
+    expect(runtime.focusedElement).not.toBeNull();
+    expect(runtime.pointer(pointer('down', 500), { hostId: upper.host.id })).toBe(false);
+    expect(runtime.key({ key: 'Enter' }, upper.host.id)).toBe(false);
+    expect(runtime.key({ key: 'Enter' }, lower.host.id)).toBe(true);
+    expect(lower.commands).toBe(1);
+    runtime.clearFocus();
+    expect(runtime.focusedElement).toBeNull();
+    expect(runtime.key({ key: 'Enter' })).toBe(false);
+  });
+
+  it('tracks owned and cancelled tails globally across scoped stages and recovery', () => {
+    const runtime = new GameUiRuntime(), lower = fixture(), upper = fixture(9);
+    runtime.register(lower.host); runtime.register(upper.host);
+    runtime.pointer(pointer('down'), { hostId: lower.host.id });
+    expect(runtime.tracksPointer(7)).toBe(true);
+    runtime.pointer(pointer('move', 500), { hostId: upper.host.id });
+    expect(lower.events).toEqual(['down', 'move']);
+    expect(upper.events).toEqual([]);
+    lower.hide();
+    expect(runtime.tracksPointer(7)).toBe(true); // reconcile cancels, still swallows release
+    expect(lower.events).toEqual(['down', 'move', 'cancel']);
+    expect(runtime.pointer(pointer('up'), { hostId: upper.host.id })).toBe(true);
+    expect(runtime.tracksPointer(7)).toBe(false);
+    expect(lower.commands).toBe(0); expect(upper.commands).toBe(0);
+  });
+
+  it('scopes wheel dispatch without bypassing a higher modal', () => {
+    const runtime = new GameUiRuntime(), lower = fixture(), upper = fixture(9);
+    let lowerScrolls = 0, upperScrolls = 0;
+    lower.root.mount(new UiElement({ style: { width: uiFixed(50), height: uiFixed(30) },
+      onWheel: () => { lowerScrolls++; return true; } }));
+    upper.root.mount(new UiElement({ style: { width: uiFixed(50), height: uiFixed(30) },
+      onWheel: () => { upperScrolls++; return true; } }));
+    runtime.register(lower.host); runtime.register(upper.host);
+    const wheel = { point: { x: 10, y: 10 }, deltaX: 0, deltaY: 10 };
+    expect(runtime.wheel(wheel, lower.host.id)).toBe(true);
+    expect([lowerScrolls, upperScrolls]).toEqual([1, 0]);
+    upper.block();
+    expect(runtime.wheel(wheel, lower.host.id)).toBe(false);
+    expect(runtime.wheel(wheel, upper.host.id)).toBe(true);
+    expect([lowerScrolls, upperScrolls]).toEqual([1, 1]);
+  });
+
 });

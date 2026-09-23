@@ -4,6 +4,7 @@ import { UI_EMPTY_RECT, uiIsFixed, validateUiStyle, type UiMeasurement, type UiS
 
 export interface UiElementPointer {
   readonly type: 'down' | 'move' | 'up' | 'cancel'; readonly point: UiPoint;
+  readonly pointerType?: string; readonly isPrimary?: boolean;
   readonly pointerId: number; readonly button: number; readonly shiftKey?: boolean; readonly altKey?: boolean; readonly ctrlKey?: boolean; readonly metaKey?: boolean;
   capture(): void; release(): void;
 }

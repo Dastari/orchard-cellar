@@ -4,6 +4,7 @@ One heading per game version, newest first. Parallel branches that bumped to the
 
 ## 0.28.0 — UI release integration (not yet deployed)
 
+- Preserve pointer type and modifiers, scope dispatch around remaining legacy surfaces, and admit concrete shared kit modules while excluding Studio and lab factories from game bundles.
 - Add a game-only retained UI entry and shared input routing contract. Pointer ownership survives leaving a window, modal takeover cancels unfinished gestures, and world-origin releases cannot activate UI controls. Keyboard-opened panels can claim focus while unhandled keys still reach the game; covered hosts clear stale hover and tooltips.
 - Add a two-identity trade authority harness covering escrow, revisions, rejection, full destinations and reconnect recovery; no production reducer behavior changes.
 - UI 0.24.0. Production surface migration and deployment remain tracked in the [September 24 acceptance ledger](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24).
