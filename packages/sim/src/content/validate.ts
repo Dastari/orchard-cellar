@@ -11,6 +11,7 @@ import { CURRENT_BEHAVIOUR_ENGINE_VERSION, type Condition, type Effect, effectKi
 import { validateDataGraphInteraction } from '../behaviour/data-graph.js';
 import { validateTilesetDefinition } from '../terrain/tileset-registry.js';
 import type { ObjectContentDefinition, ObjectStateDefinition } from './object-definition.js';
+import { objectArchetypeIssues } from './object-archetype.js';
 import type { FrameContentDefinition } from './frame-definition.js';
 import type { LootCondition, LootContentDefinition } from './loot-definition.js';
 import type { ResourceContentDefinition } from './resource-definition.js';
@@ -905,6 +906,9 @@ function validateObjectDefinition(
     if (state === undefined || !stateValueMatches(state, components.collision.when.equals)) {
       componentIssue('conditional collision needs a compatible declared state', 'components.collision.when');
     }
+  }
+  for (const archetypeIssue of objectArchetypeIssues(definition)) {
+    componentIssue(archetypeIssue.message, archetypeIssue.path);
   }
   if (components.light?.when !== undefined) {
     const state = states[components.light.when.state];
