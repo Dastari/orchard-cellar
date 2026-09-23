@@ -10,7 +10,7 @@ function tableSource(name: string, nextName: string): string {
   return source.slice(start, end < 0 ? source.length : end);
 }
 
-describe('26§3 additive spaces schema', () => {
+describe('World/Spaces & Interiors: additive spaces schema', () => {
   it('uses defaulted u16 space ids and three-column chunk indexes', () => {
     for (const [name, next] of [
       ['player_position', 'player_input'],

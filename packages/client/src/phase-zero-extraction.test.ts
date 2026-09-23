@@ -117,60 +117,62 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // and retained mobile-control placement settings
 // landed across these package seams. This remains a source-shape tripwire: any later change must be
 // reviewed and deliberately re-captured here.
-// Doc 59 preflight pins the supplied 0.5.7 baseline, including doc 58's
+// Render-recovery (plan 59) preflight pins the supplied 0.5.7 baseline, including seasonal lighting's
 // shared frame-source export and complete Basic/Classic/Dynamic Video selector.
 // All five seams are unchanged from the preserved pre-implementation snapshot;
 // import-direction and ownership assertions below remain independent gates.
-// Doc 59 P0 adds the required touch-accessible Render-panel capture action.
-// Doc 59 P1 adds the persisted World scale control in the same Video panel.
-// Doc 59 P3 deletes the filtered-frame export and keeps only shared frame metadata.
-// Doc 59 P6 shares the outer painter state pair with authored-map sprites.
-// Doc 59 P7 adds the presentation cap and ordered HUD caches.
-// Doc 59 P8 adds the experimental backend control and fallback footer.
-// Doc 60 adds reviewed equipment/reward/ferry UI and explicit private stash
+// Plan 59 P0 adds the required touch-accessible Render-panel capture action.
+// Plan 59 P1 adds the persisted World scale control in the same Video panel.
+// Plan 59 P3 deletes the filtered-frame export and keeps only shared frame metadata.
+// Plan 59 P6 shares the outer painter state pair with authored-map sprites.
+// Plan 59 P7 adds the presentation cap and ordered HUD caches.
+// Plan 59 P8 adds the experimental backend control and fallback footer.
+// Hearth Harbour and Embers adds reviewed equipment/reward/ferry UI and explicit private stash
 // slot bindings. Native fixtures and interaction tests accompany this re-capture.
 // Includes the subsequent reviewed residence architecture/seating controls and
-// protected-boundary ribbon. Source/art review: docs/60-astra-design-review.md.
+// protected-boundary ribbon. Source/art review: wiki History/Hearth Harbour and Embers.
 // Phase 6 resolves visible authored effects from the subscribed registry and
 // gives unknown effect slugs a neutral HUD icon rather than another effect's art.
 // Live inventory slots also reject retained artwork for missing or retired
 // definitions before selecting an authored animation frame.
 // Chest controls restore sort/search within shared authored frames, retaining
-// physical slot custody. Review: docs/chest-inventory-controls.md; interaction
+// physical slot custody. Review: wiki Content/Objects & Machines (chests); interaction
 // and browser-canvas checks accompany this re-capture.
 // Gameplay 0.8.1 keeps tool labels to one line and delays bounded equipment
-// details above the hotbar. Review: docs/gameplay-bug-batch.md; tooltip layout,
+// details above the hotbar. Review: wiki History/Releases 0.7-0.8; tooltip layout,
 // dwell, and real item-label regressions accompany this re-capture.
 // Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
-// Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
+// Review and controls: wiki Systems/Cellar & Processing; touch routing tests accompany this update.
 // Kenmi icon refresh shares Build/Crafting button chrome and preserves purse inventory.
-// Review: docs/reference-assets/kenmi-icon-implementation.md; HUD interaction tests cover the change.
+// Review: wiki Art/Icons; HUD interaction tests cover the change.
 // Studio integration shares the player-rig asset contract through the game-safe
 // UI barrel; the workbench stays behind @orchard/ui/studio and the client build guard.
-// Delve keepsake review: docs/delve-keepsake-spec.md. Against main 2aee1799 / Orchard b8870362,
+// Delve keepsake review: wiki Decisions/ADR-003 Delve Completion Keepsake. Against main 2aee1799 / Orchard b8870362,
 // all five seams differ only in the admission label announcing the first-win
 // home recipe; package ownership and acyclic-import gates remain unchanged.
 // Willowharbour binds native streetlamps to the authored lighting definition.
-// Review: docs/review/west-town-visual-pass-01.md; fixture-light tests cover this seam.
+// Review: wiki History/Willowharbour Town Passes; fixture-light tests cover this seam.
 
-// Combined review: docs/branch-integration-handoff.md; retain all three approved seam edits.
+// Combined review: wiki History/Gameplay Loop Stack (branch integration); retain all three approved seam edits.
 // Live editor review: shared authored-object adjacency retains original-art fallback
-// and complete-document topology. See docs/studio-generation-rules.md.
+// and complete-document topology. See wiki World/Tiles & Rules.
 // Connected town lamps resolve one authoritative state and skip static duplicates.
-// Review: docs/review/willowharbour-rules-pass-01.md.
+// Review: wiki History/Willowharbour Town Passes.
 // Empty hotbar sentinels no longer render missing-art icons; collision now uses
-// shared authored footprint cells. Review: docs/workbench-spec.md and docs/world-interactions.md.
+// shared authored footprint cells. Review: wiki Systems/Crafting (workbench, world interactions).
 // Smart object state resolves growth/appearance through the shared renderer.
-// Review: docs/studio-smart-placement-spec.md; parser, delta and visual regressions.
+// Review: wiki Studio/Map Editor (Smart and Exact modes); parser, delta and visual regressions.
 // Retain the separately reviewed Update Ready button inset of 21px.
-// D6 review: docs/64-medium-traversal-runtime.md; additive shared media channels,
+// D6 review: wiki World/Traversal; additive shared media channels,
 // actor-specific prediction/projectiles and independent solid geometry. Shadow preserves legacy.
-// Object runtime review: docs/object-state-runtime.md; map appearance bindings
+// Object runtime review: wiki Content/Objects & Machines; map appearance bindings
 // replace asset light lists and prefix shadows; canvas transform/depth tests pass.
-// Combined runtime review: docs/runtime-rehearsal.md; retain both D6 channels and object appearance.
-const STRUCTURAL_SEAM_DIGEST = "5a22b9b7ab480b79672775596af1f02dd67396e9bee054a39398ff65926c8feb";
+// Combined runtime review: wiki History/Release 2026-09-23; retain both D6 channels and object appearance.
+// Docs retirement (2026-09-24) re-captures one comment in ui/overworld-ui.ts that now cites the wiki
+// page Systems/Lighting & Seasons instead of retired doc 27; no code changed.
+const STRUCTURAL_SEAM_DIGEST = "69efa84392d7f9ae925143dbe89424fd8d16b59dbad63c60ad93283d21c3b61f";
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
-// Review: docs/timing-system-spec.md; frame, settlement and bundle tests cover the seam.
+// Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

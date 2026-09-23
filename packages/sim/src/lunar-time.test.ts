@@ -13,7 +13,7 @@ import {
 const cycleTicks = BigInt(AUTHORITY_TICKS_PER_DAY * LUNAR_CYCLE_DAYS_NUMERATOR)
   / BigInt(LUNAR_CYCLE_DAYS_DENOMINATOR);
 
-describe('27§7 lunar calendar', () => {
+describe('Systems/Lighting & Seasons: lunar calendar', () => {
   it('pins all eight phase centers and illumination anchors', () => {
     for (let index = 0; index < MOON_PHASES.length; index += 1) {
       const tick = cycleTicks * BigInt(index) / BigInt(MOON_PHASES.length);

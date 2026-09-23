@@ -114,7 +114,7 @@ export interface TerrainArray {
   readonly surfaceFamilies?: Uint8Array;
   /** Sparse authoritative final substitutions from MapDocumentV2. */
   readonly terrainOverrides?: readonly (TerrainOverride | null)[];
-  /** Sparse authored cell part stacks (doc 61 §2.2), keyed by
+  /** Sparse authored cell part stacks (wiki: Studio/Map Editor, Cell parts), keyed by
    * `tileY * width + tileX`. Only non-contour exact parts are read here;
    * contour parts arrive through `terrainOverrides`. Absent on pre-parts maps. */
   readonly cellParts?: ReadonlyMap<number, readonly import('@orchard/sim').CellPart[]>;

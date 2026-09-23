@@ -53,8 +53,8 @@ The index already normalizes common pack misspellings such as `swordman`,
 5. Raised terrain must use `packages/sim/src/raised-terrain-autotile.ts` and the
    matching `RaisedTerrainTileSet`. Do not invent local neighbour tests, collapse
    layered faces into one tile, or mix cliff palettes inside a boundary.
-6. For modular player art, use the 56-row table in
-   `docs/11-asset-pipeline.md`. The companion Aseprite metadata in the index is
+6. For modular player art, use the 56-row table on
+   [wiki: Art/Sprites](https://wiki.orchard.dastari.net/Art/Sprites) (Player and character sheets). The companion Aseprite metadata in the index is
    authoritative for layer order only; its eight timeline frames are not eight
    animation sets.
 
@@ -67,7 +67,7 @@ an authoritative frame map.
 
 The `references/` PNGs are licensed source material. Never commit copied source
 sheets or runtime PNG crops. Import only the needed semantic region through the
-text-grid asset pipeline in `docs/11-asset-pipeline.md`, then render, visually review,
+text-grid asset pipeline on [wiki: Art/Asset Pipeline](https://wiki.orchard.dastari.net/Art/Asset%20Pipeline), then render, visually review,
 validate, and record `sourcePath`/`sourceRegions`. Use the `pixel-art` skill as well
 when creating or editing a runtime visual asset.
 

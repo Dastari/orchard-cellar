@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SKILL_CHECK_DCS, fishingCatchQuality, forageFindBonus, skillCheck } from './checks.js';
 
-describe('25§7 deterministic skill checks', () => {
+describe('Systems/Stats & Vitals: deterministic skill checks', () => {
   it('replays identical seed parts and includes attribute plus check bonuses', () => {
     const seed = [0x4f434852, 'identity-a', 42n, 'fishing.quality'] as const;
     const modifiers = [{

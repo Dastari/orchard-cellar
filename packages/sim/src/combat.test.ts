@@ -3,7 +3,7 @@ import { BOOTSTRAP_CHARACTER_COMBAT_BALANCE } from './character-combat-balance.j
 import { regeneratedCombatTargetHealth, resolveCombatDamage } from './combat.js';
 import type { Modifier } from './modifiers.js';
 
-describe('32§3 deterministic combat damage', () => {
+describe('Systems/Combat: deterministic combat damage', () => {
   const damage = (seed: string) => resolveCombatDamage({
     attackKind: 'ranged',
     weaponBaseCenti: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.bowBaseDamageCenti,

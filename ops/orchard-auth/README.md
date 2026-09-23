@@ -24,7 +24,7 @@ hard gates.
 
 ## Rollout (keep this order)
 
-1. Record the owner approvals and identity-migration decision in `DECISIONS.md`.
+1. Record the owner approvals and identity-migration decision in the wiki [Decision Log](https://wiki.orchard.dastari.net/Decisions/Decision%20Log).
    Confirm `auth.orchard.dastari.net` resolves to the existing NPM edge and verify the
    NPM host key out of band before accepting it into `known_hosts`.
 2. Take the repository and quiesced SpaceTimeDB backups. On NPM, locate the running

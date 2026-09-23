@@ -22,7 +22,7 @@ port 5174 behind https://cellar.dastari.net/. For staging, rollback, installatio
 and validation, follow [the runtime runbook](../../ops/orchard-runtime/README.md).
 Edit source in a Git branch and deliver through a PR; never edit live dist files.
 
-Migration, validation and cleanup evidence: [integration handoff](../../docs/studio-integration-handoff.md).
+Migration, validation and cleanup evidence: [integration history](https://wiki.orchard.dastari.net/History/Studio%20Evolution) (wiki).
 
 ## Map placement and selection
 
@@ -40,7 +40,7 @@ controls retain the explicit audited Preview/Confirm action flow.
 Stateful-object support in Studio 0.12.0 also changes the shared game renderer and
 world map commit handler. Deploy this feature with the matching game/world code;
 it is not a standalone editor release. The full database schema and generated
-public bindings remain unchanged. See [the verification and release handoff](../../docs/studio-smart-placement-handoff.md).
+public bindings remain unchanged. See [the verification and release history](https://wiki.orchard.dastari.net/History/Releases%200.21) on the wiki.
 
 ## Multi-space data boundary (F4)
 

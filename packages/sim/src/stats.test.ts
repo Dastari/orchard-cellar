@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BASE_ATTRIBUTES, advanceVitals, checkModifier, createFullVitalState, resolveStats } from './stats.js';
 import type { Modifier } from './modifiers.js';
 
-describe('25§1 attributes and §2 derived vitals', () => {
+describe('Systems/Stats & Vitals: attributes and derived vitals', () => {
   it('resolves the documented baseline and D&D check modifiers', () => {
     expect(resolveStats(BASE_ATTRIBUTES)).toEqual({
       attributes: BASE_ATTRIBUTES,

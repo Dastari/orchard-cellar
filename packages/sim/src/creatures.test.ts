@@ -12,7 +12,7 @@ import {
 } from './creatures.js';
 import { WILDLIFE_SPECIES } from './wildlife.js';
 
-describe('25§8 creature statlines', () => {
+describe('Content/Creatures: creature statlines', () => {
   it('gives every generated animal the shared non-hostile stat shape', () => {
     expect(Object.keys(CREATURE_DEFINITIONS).sort()).toEqual([...WILDLIFE_SPECIES].sort());
     for (const species of WILDLIFE_SPECIES) {

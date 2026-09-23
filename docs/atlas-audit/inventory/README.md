@@ -2,7 +2,7 @@
 
 Atlas revision: `cee74122708a407f5d63`. Deterministic artifact: [inventory.json](inventory.json).
 
-Complete frame rows are in [frames.jsonl.gz](frames.jsonl.gz), one JSON object per line after gzip decompression. `frameEvidence` records the uncompressed SHA-256 and count. [Duplicate evidence](duplicate-evidence.html) displays every complete-sequence duplicate cohort. [Reviewed findings](findings.md) preserves pre-correction evidence.
+Complete frame rows are in [frames.jsonl.gz](frames.jsonl.gz), one JSON object per line after gzip decompression. `frameEvidence` records the uncompressed SHA-256 and count. [Duplicate evidence](duplicate-evidence.html) displays every complete-sequence duplicate cohort. Reviewed findings and corrections are summarised on the wiki page [Art/Asset Pipeline](https://wiki.orchard.dastari.net/Art/Asset%20Pipeline) (Atlas audit).
 
 Reproduce from the repository root (source corpus is owner-local):
 

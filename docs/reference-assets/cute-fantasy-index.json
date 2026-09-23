@@ -35,7 +35,7 @@
         "tool_top"
       ],
       "frameTags": [],
-      "notes": "Composition source for the modular player. Its Aseprite timeline frames are not the 56 semantic animation rows; use the docs/11 row map for extraction."
+      "notes": "Composition source for the modular player. Its Aseprite timeline frames are not the 56 semantic animation rows; use the modular player row map on the wiki page Art/Sprites for extraction."
     }
   ],
   "entries": [
@@ -27537,10 +27537,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27586,10 +27586,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27640,10 +27640,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27700,10 +27700,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27760,10 +27760,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27816,10 +27816,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27870,10 +27870,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27930,10 +27930,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -27990,10 +27990,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28048,10 +28048,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28098,10 +28098,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28148,10 +28148,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28198,10 +28198,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28248,10 +28248,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28298,10 +28298,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28348,10 +28348,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28398,10 +28398,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28448,10 +28448,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28498,10 +28498,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28548,10 +28548,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28598,10 +28598,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28648,10 +28648,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28698,10 +28698,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28748,10 +28748,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28798,10 +28798,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28848,10 +28848,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28898,10 +28898,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28947,10 +28947,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -28996,10 +28996,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29045,10 +29045,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29096,10 +29096,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29153,10 +29153,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29202,10 +29202,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29251,10 +29251,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29300,10 +29300,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29350,10 +29350,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29400,10 +29400,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29450,10 +29450,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29500,10 +29500,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29550,10 +29550,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29600,10 +29600,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29654,10 +29654,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29713,10 +29713,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29772,10 +29772,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29831,10 +29831,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29886,10 +29886,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29935,10 +29935,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -29984,10 +29984,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30037,10 +30037,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30092,10 +30092,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30145,10 +30145,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30263,10 +30263,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30312,10 +30312,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30365,10 +30365,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30420,10 +30420,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30469,10 +30469,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30522,10 +30522,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30577,10 +30577,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30626,10 +30626,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30675,10 +30675,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30724,10 +30724,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30773,10 +30773,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30826,10 +30826,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30881,10 +30881,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30930,10 +30930,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -30979,10 +30979,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31028,10 +31028,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31077,10 +31077,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31126,10 +31126,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31179,10 +31179,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31234,10 +31234,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31283,10 +31283,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31332,10 +31332,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31381,10 +31381,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31430,10 +31430,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31483,10 +31483,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31538,10 +31538,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31587,10 +31587,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31640,10 +31640,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31695,10 +31695,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31744,10 +31744,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31793,10 +31793,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31843,10 +31843,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31893,10 +31893,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31943,10 +31943,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -31995,10 +31995,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32052,10 +32052,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32102,10 +32102,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32152,10 +32152,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32202,10 +32202,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32253,10 +32253,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32304,10 +32304,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32355,10 +32355,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32408,10 +32408,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32466,10 +32466,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32517,10 +32517,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32568,10 +32568,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32623,10 +32623,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32683,10 +32683,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32743,10 +32743,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32799,10 +32799,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32849,10 +32849,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32899,10 +32899,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -32953,10 +32953,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33013,10 +33013,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33071,10 +33071,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33121,10 +33121,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33171,10 +33171,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33221,10 +33221,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33271,10 +33271,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33321,10 +33321,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33371,10 +33371,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33421,10 +33421,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33471,10 +33471,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33520,10 +33520,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33569,10 +33569,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33618,10 +33618,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33669,10 +33669,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33725,10 +33725,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33774,10 +33774,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33823,10 +33823,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33872,10 +33872,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33922,10 +33922,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -33972,10 +33972,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -34022,10 +34022,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -34072,10 +34072,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -34122,10 +34122,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -34172,10 +34172,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",
@@ -34227,10 +34227,10 @@
         "rows": 56,
         "cells": 504,
         "confidence": "verified",
-        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11."
+        "notes": "Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites."
       },
       "animationSets": [
-        "See canonical 56-row modular player map in docs/11-asset-pipeline.md"
+        "See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)"
       ],
       "use": "equipment-layer",
       "collision": "equipment-only",

@@ -31,7 +31,7 @@ export function mapObjectsAreExactDuplicates(left:MapObjectInstance,right:MapObj
   &&(left.scale??1)===(right.scale??1);
 }
 
-/** Doc 61 §2.3 overlap policy for two objects that share an occupied cell on
+/** Overlap policy (wiki: Studio/Map Editor) for two objects that share an occupied cell on
  * the same layer and height. Two solid objects conflict; a non-solid ground
  * decal may sit over (or under) anything in its band; exact duplicates are
  * always rejected. Non-ground bands keep one-object-per-cell occupancy. */

@@ -161,7 +161,7 @@ function drawGroundAsset(
   );
 }
 
-/** Exact appearance parts authored on one cell, keyed by slot (doc 61 §2.2).
+/** Exact appearance parts authored on one cell, keyed by slot (wiki: Studio/Map Editor, Cell parts).
  * `null` means the cell is fully smart. Shared by the game and Studio because
  * both draw ground through this cache. */
 export function exactGroundPartsAt(

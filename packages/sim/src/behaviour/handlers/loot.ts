@@ -301,7 +301,7 @@ export function resourceLootHandlerRegistrations(
 const resourceHandlers = resourceLootHandlerRegistrations(bootstrapDefinitionsOfKind('resource'));
 const wildlifeHandlers = wildlifeLootHandlerRegistrations(bootstrapDefinitionsOfKind('creature'));
 
-/** Compiled migration bridge for docs/55 §11 rows 16–17. */
+/** Compiled migration bridge for the authoring parity checklist (wiki: Studio/Authoring Suite) rows 16–17. */
 export const LOOT_HANDLER_REGISTRATIONS: readonly AnyHandlerRegistration[] = Object.freeze([
   ...wildlifeHandlers,
   ...resourceHandlers,

@@ -13,7 +13,7 @@ import {
   specializationRankTotal,
 } from './skill-trees.js';
 
-describe('36§3 skill track progression', () => {
+describe('Systems/Progression & Skills: skill track progression', () => {
   it('pins the XP curve and level derivation', () => {
     expect(skillExperienceForLevel(0)).toBe(0n);
     expect(skillExperienceForLevel(1)).toBe(100n);
@@ -38,7 +38,7 @@ describe('36§3 skill track progression', () => {
   });
 });
 
-describe('36§4 skill graph registry', () => {
+describe('Systems/Progression & Skills: skill graph registry', () => {
   it('has one connected root per track, unique ids, and bidirectional edges', () => {
     expect(new Set(SKILL_NODE_DEFINITIONS.map((node) => node.id)).size).toBe(SKILL_NODE_DEFINITIONS.length);
     for (const track of SKILL_TRACKS) {

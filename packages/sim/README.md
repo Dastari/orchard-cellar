@@ -19,7 +19,7 @@ registry shared by the world server and client.
   rows that generated-resource reconciliation must preserve.
 
 Planting permissions, collision, inventory consumption and resource writes
-belong to the world authority. See [the feature specification](../../docs/fruit-seeds-spec.md).
+belong to the world authority. See [the feature description](https://wiki.orchard.dastari.net/Systems/Orchard) on the wiki.
 
 ## Village interior content
 
@@ -27,7 +27,7 @@ Willowharbour's ten `village_interior` spaces share deterministic room and furni
 collision. `hearthInteriorFloors` optionally assigns bounded `townhouse`, `stone`
 or `soil` finishes; it changes presentation only. Authored portal pairs connect
 each space to its exterior door through the ordinary content portal planner.
-See [the interior format and room catalogue](../../docs/willowharbour-interiors.md).
+See [the interior format and room catalogue](https://wiki.orchard.dastari.net/World/Spaces%20%26%20Interiors) on the wiki.
 
 ## Smart placement and object presentation
 
@@ -49,8 +49,8 @@ and one-shot intent. `resourceEditableProperties` describes supported health,
 depletion and tree growth fields. The world compares the baseline with live values
 before committing the map delta, then applies changed records once; ordinary
 resource growth resumes immediately. Unchanged published records never replay.
-See [the specification](../../docs/studio-smart-placement-spec.md) and
-[the architectural decision](../../docs/adr/ADR-studio-smart-object-state.md).
+See [the specification](https://wiki.orchard.dastari.net/Studio/Map%20Editor) and
+[the architectural decision](https://wiki.orchard.dastari.net/Decisions/ADR-Studio%20Smart%20Object%20State) on the wiki.
 
 ## Space registry
 
@@ -60,7 +60,7 @@ with authoritative geometry, ownership labels and outgoing portal links. Supply
 `registry.compiled.spaces`; it deliberately has no bootstrap fallback. Instances
 include residence expansion and architecture; cellars use the existing 1024-tile
 envelope. Private run rows must be projected behind caller authorization.
-See [the F4 specification](../../docs/studio-multi-space-spec.md).
+See [the F4 specification](https://wiki.orchard.dastari.net/Studio/Map%20Editor) (Multi-space) on the wiki.
 ## Authored terrain rule layers
 
 `parseRuleCatalogue` validates optional per-family `layers` and per-entry
@@ -69,4 +69,4 @@ returns base then independent overlays, with first-match and role fallback order
 `ruleNeighbourMask` samples NESW, NE, SE, SW, NW. `terrainRuleLayers` compiles the
 finite mask domain per immutable catalogue identity; `farmlandRuleLayers` uses
 the committed farmland catalogue shared by authored and hoed soil.
-See [the contract](../../docs/rule-catalogue-blob47-spec.md).
+See [the contract](https://wiki.orchard.dastari.net/World/Tiles%20%26%20Rules) on the wiki.

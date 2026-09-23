@@ -26,7 +26,7 @@ function slice(start: string, end: string): string {
 describe('generic behaviour authority schema and reducers', () => {
   it('adds only a private indexed one-shot timer table to the durable schema', () => {
     const table = slice(
-      '// --- docs/55 lane 55-B0: additive bounded behaviour timers ---',
+      '// --- authoring lane 55-B0: additive bounded behaviour timers ---',
       'const spacetimedb = schema({',
     );
     expect(table).toContain("name: 'entity_timer'");
@@ -35,14 +35,14 @@ describe('generic behaviour authority schema and reducers', () => {
     expect(table).toContain('expectedTick: t.u64()');
     expect(table).not.toContain('public: true');
     expect(source).toContain(
-      '// docs/55 lane 55-B0 registration (additive; preserves every legacy timer).\n  entity_timer,',
+      '// authoring lane 55-B0 registration (additive; preserves every legacy timer).\n  entity_timer,',
     );
   });
 
   it('keeps only the generic entrypoints after dual-path parity retirement', () => {
     const reducers = slice(
-      '// --- docs/55 lane 55-B0: additive generic behaviour reducers ---',
-      '// --- end docs/55 lane 55-B0 generic behaviour reducers ---',
+      '// --- authoring lane 55-B0: additive generic behaviour reducers ---',
+      '// --- end authoring lane 55-B0 generic behaviour reducers ---',
     );
     expect(reducers).toContain('export const interactEntity = spacetimedb.reducer');
     expect(reducers).toContain('{ targetKind: t.string(), entityId: t.u64(), verb: t.string() }');
@@ -80,8 +80,8 @@ describe('generic behaviour authority schema and reducers', () => {
 
   it('preflights supported row writes and preserves early timers by rescheduling', () => {
     const bridge = slice(
-      '// --- docs/55 lane 55-B0: generic behaviour authority bridge ---',
-      '// --- end docs/55 lane 55-B0 behaviour authority bridge ---',
+      '// --- authoring lane 55-B0: generic behaviour authority bridge ---',
+      '// --- end authoring lane 55-B0 behaviour authority bridge ---',
     );
     expect(bridge).toContain('const validate = (kind:');
     expect(bridge.indexOf('const validate = (kind:'))

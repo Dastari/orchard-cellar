@@ -34,7 +34,7 @@ each app’s dev/build hooks refresh only its own copy at the existing public UR
 Frames tile and never stretch. Fixed tags, discrete meter levels, compact vitals,
 loading frames, and popups retain their authored size. Empty meter tracks have
 repeatable caps. Some proposed extracts do not exist in the supplied sheets; the
-source audit and decisions in [docs/57](../../../../docs/57-shared-canvas-ui-kit.md)
+source audit and decisions on the wiki page [UI/UI Kit](https://wiki.orchard.dastari.net/UI/UI%20Kit)
 §6/§11 record the actual coverage. Do not invent missing rows or tint pixel chrome.
 
 ## Retained runtime (Phase 1)
@@ -54,7 +54,7 @@ canvases pause scheduling; decorative animation finishes under reduced motion.
 
 Layout fixture provenance and supported CSS differences are documented in
 `layout/fixtures/README.md`. Phase 1 scope and acceptance criteria are in
-[docs/57 §10](../../../../docs/57-shared-canvas-ui-kit.md) (Phase 1 — layout engine
+[wiki UI/UI Kit](https://wiki.orchard.dastari.net/UI/UI%20Kit) (Phase 1 — layout engine
 and element runtime).
 
 ## Core composition (Phase 2)
@@ -170,7 +170,7 @@ dismissal deadline under reduced motion.
   host data. Real host adoption belongs to Phase 6; registering a specimen does
   not migrate an application screen.
 
-`ui.contentFrame` resolves existing doc 55 pane bindings with `resolveFramePaneSlots`.
+`ui.contentFrame` resolves existing content-frame pane bindings ([UI/Frames](https://wiki.orchard.dastari.net/UI/Frames)) with `resolveFramePaneSlots`.
 Callers provide aliases, the item/process registry, and optionally an inventory
 controller/artwork map. `ui.inventoryGrid` chooses automatic columns and native 28×31 slot footprints at integer scales.
 Slot size tokens are `sm`, `md`, `lg`, or `auto`. Fixed column tracks keep slots
@@ -230,7 +230,7 @@ covers the pieces map and object editors need beyond the core controls:
 
 ### UI-kit gate (Studio)
 
-Studio composes kit factories only (doc 61 §5). `@orchard/ui/studio` exports kit
+Studio composes kit factories only ([Decisions/61-Enforced UI-Kit Gate](https://wiki.orchard.dastari.net/Decisions/61-Enforced%20UI-Kit%20Gate)). `@orchard/ui/studio` exports kit
 values explicitly and kit types type-only, so `UiElement` can be named but not
 constructed. It does not expose engine painters (`draw*`), hand layout
 (`layoutUi*`) or the retired Studio shell models. Three checks enforce the

@@ -41,7 +41,7 @@ export function hearthResidenceExpansionFailure(
 }
 
 
-/** Doc 06 permanent housing prices preserve bottle income and create repeated-production goals.
+/** Permanent housing prices (wiki: Systems/Economy) preserve bottle income and create repeated-production goals.
  * Sequential ranks keep quotes and authority charges identical. */
 export function hearthResidenceExpansionQuote(currentRank: number): {rank: 1 | 2; costBronze: bigint; name: string} | null {
   if (currentRank === 0) return {rank: 1, costBronze: RESIDENCE_EXPANSION_COSTS_BRONZE[0], name: 'East room'};

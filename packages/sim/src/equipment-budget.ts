@@ -1,6 +1,6 @@
 import type { Modifier, StatTarget } from './modifiers.js';
 
-/** Doc 60 equipment-only budgets. Skills/effects/Delve boons never pass through
+/** Equipment-only budgets (wiki: History/Hearth Harbour and Embers). Skills/effects/Delve boons never pass through
  * this compiler. Positive benefits share one additive bucket; no multiplicative
  * or override modifier can bypass the catalogue's loadout budget. */
 export const EQUIPMENT_STAT_BUDGETS = {

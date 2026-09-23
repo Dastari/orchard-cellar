@@ -1,5 +1,5 @@
 /**
- * Reusable stateful component contract (doc 61 §3.2–3.4, owner decisions
+ * Reusable stateful component contract (wiki: Content/Objects & Machines; owner decisions
  * D3/D4). Any definition kind — objects today; resources, crops, NPCs/mobs,
  * items or zones later — can embed a `StatefulComponentSet`:
  *
@@ -39,7 +39,7 @@ export type StateMatch = Readonly<Record<string, StateValue>>;
 export type StateValues = Readonly<Record<string, StateValue>>;
 
 /**
- * What a transition or hook runs. Data graphs are the default (doc 55); a
+ * What a transition or hook runs. Data graphs are the default (wiki: Studio/Authoring Suite); a
  * reviewed TypeScript lifecycle callback covers logic graphs cannot express
  * (D4). New variants (e.g. quest scripts) extend this union.
  */

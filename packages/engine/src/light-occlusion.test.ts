@@ -40,7 +40,7 @@ function terrain(spaceId = TOPSIDE_SPACE_ID): TerrainArray {
   };
 }
 
-describe('27§3 light occlusion classification', () => {
+describe('Systems/Lighting & Seasons: light occlusion classification', () => {
   it('makes raised cliff faces hard while ramps, inset edges, and water remain transparent', () => {
     const source = terrain();
     source.elevations[0] = 1;
@@ -85,7 +85,7 @@ describe('27§3 light occlusion classification', () => {
     expect(map.hardBlocked[2 * width + 3]).toBe(1);
   });
 
-  it('27§5 derives nested cliff blockers from elevation contours', () => {
+  it('Systems/Lighting & Seasons: derives nested cliff blockers from elevation contours', () => {
     const source = terrain();
     source.elevations[1] = 2;
     const map = createLightOcclusionMap(source);
@@ -168,7 +168,7 @@ describe('27§3 light occlusion classification', () => {
     expect(receiverOwners[0]).toBe(1);
   });
 
-  it('27§3 gives overlapping elevated receivers to the lower painter-depth foot', () => {
+  it('Systems/Lighting & Seasons: gives overlapping elevated receivers to the lower painter-depth foot', () => {
     const unit = FIXED_UNITS_PER_PIXEL;
     const receiverOpaque = new Uint8Array(16 * 16).fill(1);
     const receiver = { left: 0, top: 0, width: 16, height: 16, opaque: receiverOpaque };
@@ -191,7 +191,7 @@ describe('27§3 light occlusion classification', () => {
     expect(receiverOwners[0]).toBe(2);
   });
 
-  it('27§3 rasterizes a depth-owned silhouette caster without a collision rectangle', () => {
+  it('Systems/Lighting & Seasons: rasterizes a depth-owned silhouette caster without a collision rectangle', () => {
     const unit = FIXED_UNITS_PER_PIXEL;
     const opaque = new Uint8Array(8 * 8);
     for (let y = 0; y < 8; y += 1) opaque[y * 8 + 4] = 1;
@@ -215,7 +215,7 @@ describe('27§3 light occlusion classification', () => {
     expect(receiverOwners[1]).toBe(1);
   });
 
-  it('27§3 relights only fully opaque receiver texels while retaining broad self-ownership', () => {
+  it('Systems/Lighting & Seasons: relights only fully opaque receiver texels while retaining broad self-ownership', () => {
     const unit = FIXED_UNITS_PER_PIXEL;
     const opaque = new Uint8Array(8 * 8);
     for (let y = 0; y < 8; y += 1) opaque[y * 8 + 4] = 1;
@@ -237,7 +237,7 @@ describe('27§3 light occlusion classification', () => {
     expect(relitReceiverOwners[1]).toBe(0);
   });
 
-  it('27§3 rasterizes a tree column from its collision mesh, not its canopy', () => {
+  it('Systems/Lighting & Seasons: rasterizes a tree column from its collision mesh, not its canopy', () => {
     const unit = FIXED_UNITS_PER_PIXEL;
     const canopy = new Uint8Array(16 * 16).fill(1);
     const map = createLightOcclusionMap(terrain(), [], [], [{

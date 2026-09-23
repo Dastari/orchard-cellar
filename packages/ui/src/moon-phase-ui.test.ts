@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MOON_PHASES } from '@orchard/sim';
 import { MOON_PHASE_LABELS, moonPhasePixel } from './overworld-ui.js';
 
-describe('27§7 lunar HUD silhouettes', () => {
+describe('Systems/Lighting & Seasons: lunar HUD silhouettes', () => {
   it('captures all eight named phases with distinct seven-pixel masks', () => {
     const masks = MOON_PHASES.map((phase) => {
       expect(MOON_PHASE_LABELS[phase]).toBeTruthy();

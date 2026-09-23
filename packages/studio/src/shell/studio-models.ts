@@ -1,6 +1,6 @@
 /** Studio-owned data models. These are plain data, not UI: Studio presents
  * them with `@orchard/ui/studio` kit factories. They moved here from the
- * retired `packages/ui/src/studio` DOM/canvas shell (doc 61 §5). */
+ * retired `packages/ui/src/studio` DOM/canvas shell (wiki: Decisions/61-Enforced UI-Kit Gate). */
 
 export type StudioMode = 'build' | 'author' | 'operate' | 'observe';
 

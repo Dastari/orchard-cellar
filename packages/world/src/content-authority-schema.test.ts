@@ -10,8 +10,8 @@ function slice(start: string, end: string): string {
 describe('live content authority schema and reducers', () => {
   it('adds public atomic heads/definitions and private revision, grant, and draft tables', () => {
     const tables = slice(
-      '// --- docs/55 lane 55-C: additive live-content authority tables ---',
-      '// --- end docs/55 lane 55-C tables ---',
+      '// --- authoring lane 55-C: additive live-content authority tables ---',
+      '// --- end authoring lane 55-C tables ---',
     );
     expect(tables).toContain("name: 'content_head', public: true");
     expect(tables).toContain("name: 'content_definition',\n    public: true");
@@ -25,15 +25,15 @@ describe('live content authority schema and reducers', () => {
 
   it('checks idempotency before CAS and writes definitions, head, revision, and audit atomically', () => {
     const reducers = slice(
-      '// --- docs/55 lane 55-C: live content reducers ---',
-      '// --- end docs/55 lane 55-C live content reducers ---',
+      '// --- authoring lane 55-C: live content reducers ---',
+      '// --- end authoring lane 55-C live content reducers ---',
     );
     const publish = slice('export const publishContentChangeSet', 'export const restoreContentRevision');
     expect(publish.indexOf('contentMutationAlreadyApplied')).toBeLessThan(publish.indexOf('commitContentPublication'));
     expect(reducers).toContain('requireContentEditor(ctx)');
     const kernel = slice(
-      '// --- docs/55 lane 55-C: bounded content publication kernel ---',
-      '// --- end docs/55 lane 55-C publication kernel ---',
+      '// --- authoring lane 55-C: bounded content publication kernel ---',
+      '// --- end authoring lane 55-C publication kernel ---',
     );
     expect(kernel).toContain('assertContentRevision(head.revision, expectedRevision)');
     expect(kernel).toContain('planContentPublication(contentDefinitionRows(ctx)');

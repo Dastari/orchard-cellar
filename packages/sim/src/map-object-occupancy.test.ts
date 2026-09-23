@@ -22,7 +22,7 @@ const barrel = prefab('barrel', 0x0660);
 const base = { ...migrateMapDocumentV2(createEmptyMapDocument({ id: 'overlap', title: 'Overlap', width: 8, height: 8 })),
   prefabs: [paving, mat, crate, barrel] };
 
-describe('map object overlap policy (doc 61 §2.3)', () => {
+describe('map object overlap policy (Studio/Map Editor)', () => {
   it('derives solidity from authored collision cells', () => {
     expect(mapObjectIsSolid(base, object('a', 'paving'))).toBe(false);
     expect(mapObjectIsSolid(base, object('a', 'barrel'))).toBe(true);

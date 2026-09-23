@@ -32,7 +32,7 @@ function safeNonNegativeInteger(label: string, value: number): number {
   return value;
 }
 
-/** docs/32 §3: one deterministic integer damage path for every present and
+/** wiki: Systems/Combat (deterministic damage): one deterministic integer damage path for every present and
  * future actor. Callers supply authority-owned stats and stable seed parts. */
 export function resolveCombatDamage(input: CombatDamageInput): CombatDamageResult {
   return resolveCombatDamageWithProfile(BOOTSTRAP_CHARACTER_COMBAT_BALANCE, input);

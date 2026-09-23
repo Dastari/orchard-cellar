@@ -14,7 +14,7 @@ describe('placed crafting light emitters', () => {
     expect(isLightEmitterKind('barrel')).toBe(false);
   });
 
-  it('27§2 registers campfires and standing torches in the shared point-light shape', () => {
+  it('Systems/Lighting & Seasons: registers campfires and standing torches in the shared point-light shape', () => {
     expect(Object.keys(PLACEABLE_LIGHT_EMITTERS).sort()).toEqual(['camp_cooking_fire', 'campfire', 'cooking_fire', 'standing_torch']);
     const torch = placeablePointLight({ id: 4n, kind: 'standing_torch', tileX: 3, tileY: 5 }, 20n);
     expect(torch).toMatchObject({ worldX: 56, worldY: 81, profile: 'flame' });
@@ -61,7 +61,7 @@ describe('placed crafting light emitters', () => {
     })).toBeNull();
   });
 
-  it('27§2 keeps held-flame phase continuous between authority observations', () => {
+  it('Systems/Lighting & Seasons: keeps held-flame phase continuous between authority observations', () => {
     const id = 17n;
     const before = deterministicFlameFlicker(id, 100.25);
     const after = deterministicFlameFlicker(id, 100.5);

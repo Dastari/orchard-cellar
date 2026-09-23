@@ -30,7 +30,7 @@ function fixture(width = 9, height = 7): {
   };
 }
 
-describe('27§1/§3 quantized light flood', () => {
+describe('Systems/Lighting & Seasons: quantized light flood', () => {
   it('emits an effectively continuous eight-bit falloff', () => {
     const width = 25;
     const setup = fixture(width, 1);
@@ -46,7 +46,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 12, 0)).toBe(250);
   });
 
-  it('27§1 shifts an open light field at quarter-texel source increments', () => {
+  it('Systems/Lighting & Seasons: shifts an open light field at quarter-texel source increments', () => {
     const width = 25;
     const left = fixture(width, 1);
     const shifted = fixture(width, 1);
@@ -56,7 +56,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect([...shifted.pixels]).not.toEqual([...left.pixels]);
   });
 
-  it('27§1 shifts an occluded field at sub-world-pixel source increments', () => {
+  it('Systems/Lighting & Seasons: shifts an occluded field at sub-world-pixel source increments', () => {
     const width = 25;
     const left = fixture(width, 3);
     const shifted = fixture(width, 3);
@@ -91,7 +91,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 5, 3)).toBe(0);
   });
 
-  it('27§3 lights stacked front cliff artwork without leaking onto the plateau behind it', () => {
+  it('Systems/Lighting & Seasons: lights stacked front cliff artwork without leaking onto the plateau behind it', () => {
     const width = 9;
     const height = 10;
     const setup = fixture(width, height);
@@ -106,7 +106,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 4, 2)).toBe(0);
   });
 
-  it('27§3 lets ordinary blockers cast onto a front cliff receiver', () => {
+  it('Systems/Lighting & Seasons: lets ordinary blockers cast onto a front cliff receiver', () => {
     const width = 9;
     const height = 10;
     const setup = fixture(width, height);
@@ -181,7 +181,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(shadowed.pixels, width, 15, 15)).toBe(0);
   });
 
-  it('27§3 casts a long collision-width trunk column without shadowing its canopy', () => {
+  it('Systems/Lighting & Seasons: casts a long collision-width trunk column without shadowing its canopy', () => {
     const width = 24;
     const height = 7;
     const open = fixture(width, height);
@@ -209,7 +209,7 @@ describe('27§1/§3 quantized light flood', () => {
       .toBe(redAt(open.pixels, width, 10, 2));
   });
 
-  it('27§3 keeps an above-light prop face lit and casts its shadow behind it', () => {
+  it('Systems/Lighting & Seasons: keeps an above-light prop face lit and casts its shadow behind it', () => {
     const width = 9;
     const height = 17;
     const open = fixture(width, height);
@@ -238,7 +238,7 @@ describe('27§1/§3 quantized light flood', () => {
       .toBe(0);
   });
 
-  it('27§3 does not punch partial receiver ownership into the ground umbra', () => {
+  it('Systems/Lighting & Seasons: does not punch partial receiver ownership into the ground umbra', () => {
     const width = 9;
     const height = 17;
     const partial = fixture(width, height);
@@ -351,7 +351,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 3, 3)).toBe(0);
   });
 
-  it('27§2 moves the additive flame core continuously between light texels', () => {
+  it('Systems/Lighting & Seasons: moves the additive flame core continuously between light texels', () => {
     const width = 12;
     const centered = fixture(width, 7);
     const shifted = fixture(width, 7);

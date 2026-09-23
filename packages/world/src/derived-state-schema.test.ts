@@ -15,7 +15,7 @@ function sourceBetween(source: string, startAnchor: string, endAnchor: string): 
   return source.slice(start, end);
 }
 
-describe('docs/53 T6 derived-state cutover', () => {
+describe('Architecture/World-SpacetimeDB T6 derived-state cutover', () => {
   it('stores a signed optional calendar offset and migrates the legacy value once', () => {
     const environment = sourceBetween(worldSource, 'const world_environment =', 'const world_campfire_state =');
     expect(environment).toContain('cropCalendarOffset: t.option(t.i64()).default(undefined)');

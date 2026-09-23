@@ -1417,7 +1417,7 @@ let musicStruckEnemy = false;
 let musicBiomeTile = '';
 let musicBiome: string | null = null;
 
-/** Feed the music director: zone, biome underfoot, rain and combat (docs/12 §2.5). */
+/** Feed the music director: zone, biome underfoot, rain and combat (wiki: Systems/Audio & Music, Music director). */
 function updateMusicContext(snapshot: OverworldView, raining: boolean): void {
   const player = predicted?.position ?? null;
   let biome: string | null = null;

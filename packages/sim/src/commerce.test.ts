@@ -53,7 +53,7 @@ describe('coin currency and item economy', () => {
     expect(FARMER_MERCHANT_OFFERS).toEqual(expect.arrayContaining(['hoe', 'shovel', 'watering_can']));
   });
 
-  it('06§12 prices every phases 1–3 material and placeable', () => {
+  it('Systems/Economy: prices every phases 1–3 material and placeable', () => {
     expect(ITEM_ECONOMY.fiber!).toEqual({ buyPriceBronze: null, sellPriceBronze: 2 });
     expect(ITEM_ECONOMY.workbench!).toEqual({ buyPriceBronze: 120, sellPriceBronze: 48 });
     expect(ITEM_ECONOMY.campfire!.sellPriceBronze).toBe(18);

@@ -9,7 +9,7 @@ function grid(entries: Readonly<Record<number, string>>): readonly (ItemStack | 
     : null);
 }
 
-describe('28§1 shift-invariant shaped recipes', () => {
+describe('Systems/Crafting: shift-invariant shaped recipes', () => {
   it('normalizes empty outer rows and columns to the occupied bounding box', () => {
     expect(normalizeShapedRecipe({
       id: 'offset', kind: 'shaped', output: { itemKind: 'plank', quantity: 1 },
@@ -35,7 +35,7 @@ describe('28§1 shift-invariant shaped recipes', () => {
   });
 });
 
-describe('06§12 crafting recipe goldens', () => {
+describe('Systems/Economy: crafting recipe goldens', () => {
   it('uses Minecraft\'s five-plank U pattern for boats', () => {
     expect(RECIPES.boat!).toMatchObject({
       station: 'workbench',
@@ -134,7 +134,7 @@ describe('06§12 crafting recipe goldens', () => {
     ]);
   });
 
-  it('28§14 closes the wood + fiber → torch → workbench → fence chain', () => {
+  it('Systems/Crafting: closes the wood + fiber → torch → workbench → fence chain', () => {
     const craft = (recipeId: keyof typeof RECIPES, slots: readonly (ItemStack | null)[]) => {
       const grid = { id: 'crafting', capacity: 9, slots };
       expect(matchingRecipeId(grid)).toBe(recipeId);

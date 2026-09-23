@@ -319,7 +319,7 @@ describe("shared client terrain array", () => {
     expect(first.biomes).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
   }, 60_000);
 
-  it("26§13 keys terrain classification by space and builds the flat debug bounds", () => {
+  it("World/Spaces & Interiors: keys terrain classification by space and builds the flat debug bounds", () => {
     const debugSpace = spaceDefinitionFor(DEBUG_SPACE_ID);
     if (debugSpace === undefined) throw new Error("debug space missing");
     const debug = terrainForSpace(debugSpace, 123, 3);
@@ -473,7 +473,7 @@ describe("shared client terrain array", () => {
     expect(plateauBackgroundFrameIndicesAt(terrain, 3, 4)).toEqual([59]);
   });
 
-  it("30§3 derives nested cliff plans from integer elevation alone", () => {
+  it("World/Map & Terrain: derives nested cliff plans from integer elevation alone", () => {
     const terrain = terrainFixture(7, 7);
     const index = (x: number, y: number): number => y * terrain.width + x;
     for (let y = 1; y <= 5; y += 1)
@@ -503,7 +503,7 @@ describe("shared client terrain array", () => {
     ).toEqual([1, 2, 3]);
   });
 
-  it("30§5 projects painter depth by logical elevation, not blocking rows", () => {
+  it("World/Map & Terrain: projects painter depth by logical elevation, not blocking rows", () => {
     const terrain = terrainFixture(3, 3);
     terrain.elevations[4] = 2;
     expect(terrainProjectedDepthAtFoot(terrain, 24, 24)).toBe(32);
@@ -519,7 +519,7 @@ describe("shared client terrain array", () => {
     expect(terrainProjectedWorldYAtFoot(terrain, 24, 24)).toBe(56);
   });
 
-  it("30§5 samples player projection at the same shoe contact used by movement", () => {
+  it("World/Map & Terrain: samples player projection at the same shoe contact used by movement", () => {
     const terrain = terrainFixture(3, 3);
     terrain.elevations[2 * terrain.width + 1] = 1;
     const authorityAnchorY = 32.5;
@@ -533,7 +533,7 @@ describe("shared client terrain array", () => {
     ).toBe(0);
   });
 
-  it("30§5 exposes strict contour walls and exact transition openings to the debug view", () => {
+  it("World/Map & Terrain: exposes strict contour walls and exact transition openings to the debug view", () => {
     const terrain = terrainFixture(3, 3);
     terrain.elevations[4] = 1;
     expect(terrainContourBoundaryBetween(terrain, 1, 2, 1, 1)).toBe("blocked");
@@ -571,7 +571,7 @@ describe("shared client terrain array", () => {
     expect(terrainProjectedDepthAtFoot(terrainWithTransition, 24, 32)).toBe(8);
   });
 
-  it("30§7 raising then lowering an editor cell restores identical contour plans", () => {
+  it("World/Map & Terrain: raising then lowering an editor cell restores identical contour plans", () => {
     const terrain = terrainFixture(5, 5);
     const index = (x: number, y: number): number => y * terrain.width + x;
     for (let y = 1; y <= 3; y += 1)

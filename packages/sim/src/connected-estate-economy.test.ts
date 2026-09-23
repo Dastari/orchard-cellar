@@ -3,7 +3,7 @@ import { bootstrapContentRegistry } from './content/bootstrap-registry.js';
 import { hearthResidenceExpansionQuote } from './hearth-residence-expansion.js';
 import { estateVintageTier } from './homestead-upgrades.js';
 
-describe('live estate economy: doc 06 housing amendment', () => {
+describe('live estate economy: Systems/Economy housing amendment', () => {
   it('preserves bottle income while making expansions substantial goals', () => {
     const registry = bootstrapContentRegistry();
     const bottle = registry.items.get('item:bottles')!;

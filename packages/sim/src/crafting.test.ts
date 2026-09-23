@@ -18,7 +18,7 @@ import { buildContentRegistry } from './content/registry.js';
 import type { ItemContentDefinition } from './content/definitions.js';
 import type { ObjectContentDefinition } from './content/object-definition.js';
 
-describe('28§8 deterministic fiber drops', () => {
+describe('Systems/Crafting: deterministic fiber drops', () => {
   it('returns the same result for the same authority inputs', () => {
     const input = [0x4f434852, 0, 320, 320, 42n] as const;
     expect(fiberDropsFromTilling(...input)).toBe(fiberDropsFromTilling(...input));
@@ -32,7 +32,7 @@ describe('28§8 deterministic fiber drops', () => {
   });
 });
 
-describe('28§7 fence joins', () => {
+describe('Systems/Crafting: fence joins', () => {
   it('resolves isolated, straight, corner, tee, and cross masks', () => {
     const mask = (neighbors: readonly string[]) => fenceJoinMask(10, 10, (x, y) => neighbors.includes(`${x},${y}`));
     expect(mask([])).toBe(0);
@@ -132,7 +132,7 @@ describe('28§7 fence joins', () => {
   });
 });
 
-describe('28§14 workbench proximity', () => {
+describe('Systems/Crafting: workbench proximity', () => {
   it('accepts the inclusive two-tile boundary and rejects distance three or another space', () => {
     const player = { spaceId: 0, tileX: 10, tileY: 10 };
     expect(craftingStationWithinReach(player, { spaceId: 0, tileX: 12, tileY: 12 }, 2)).toBe(true);

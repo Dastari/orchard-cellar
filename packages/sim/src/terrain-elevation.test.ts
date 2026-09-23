@@ -12,7 +12,7 @@ import {
   type TerrainTransition,
 } from './terrain-elevation.js';
 
-describe('30§3 integer terrain elevation', () => {
+describe('World/Map & Terrain: integer terrain elevation', () => {
   it('retains only cells belonging to a complete 2x2 contour footprint', () => {
     const mask = Uint8Array.from([
       1, 0, 0, 0, 0, 0,

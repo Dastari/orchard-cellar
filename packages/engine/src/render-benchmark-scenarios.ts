@@ -76,7 +76,7 @@ RenderBenchmarkScenario
     ...COMMON, id: 'client-0.5.0-recovery', space: 'overworld',
     recoveryWorkload: {
       renderItemReference: 661, walkingActors: 1, visibleCasters: null, capRuns: null,
-      provenance: 'doc58 release/gameplay-acceptance.json records 661 render items; caster/cap counts and exact placement were not recorded. Capture current live content and report this matching limitation.',
+      provenance: 'The seasonal-lighting (plan 58) release/gameplay-acceptance.json records 661 render items; caster/cap counts and exact placement were not recorded. Capture current live content and report this matching limitation.',
     },
   },
   'new-moon-player-lantern-dense-trees': {

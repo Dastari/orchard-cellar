@@ -9,7 +9,7 @@ The 2026-08-25 pre-change snapshot is permission-restricted at
   directories (it is mode `0600` because ignored local credentials may be present);
 - `spacetime-data.tar.gz`: a quiesced copy of `.spacetime-data`.
 
-The SHA-256 values printed at backup time are recorded in doc 24 acceptance evidence.
+The SHA-256 values printed at backup time are recorded in the self-hosted OIDC acceptance evidence ([Operations/Auth Ops](https://wiki.orchard.dastari.net/Operations/Auth%20Ops)).
 Re-run `sha256sum -c` from a separately stored manifest before restoring after any copy.
 
 ## Repository restore test
@@ -464,4 +464,4 @@ Historical capture and prior-candidate reads verify raw payload integrity rather
 than applying the current runtime parser. This permits upgrades from an older
 content format without changing captured fingerprints. New candidates and their
 complete merged results still require current-runtime validation. See
-[the compatibility contract](../docs/content-release-compatibility.md).
+[the compatibility contract](https://wiki.orchard.dastari.net/Operations/Deploy%20%26%20Publish) (wiki).

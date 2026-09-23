@@ -39,7 +39,7 @@ const definitionFor = (kind: string): EffectDefinition | null => (
   DEFINITIONS as Readonly<Record<string, EffectDefinition>>
 )[kind] ?? null;
 
-describe('25§6 effect definitions', () => {
+describe('Systems/Stats & Vitals: effect definitions', () => {
   it('uses the documented durations and refreshes without exceeding max stacks', () => {
     const first = refreshEffect(null, 'renamed_focus', 100n, DEFINITIONS.renamed_focus, 7n);
     const refreshed = refreshEffect(first, 'renamed_focus', 200n, DEFINITIONS.renamed_focus);

@@ -1,5 +1,5 @@
 /**
- * Studio UI-kit prebuild gate (doc 61 §5). Release scripts run this before any
+ * Studio UI-kit prebuild gate (wiki: Decisions/61-Enforced UI-Kit Gate). Release scripts run this before any
  * Studio build, so it stays dependency-free (Node built-ins only).
  *
  * It refuses to build when:
@@ -106,7 +106,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   const repository = fileURLToPath(new URL('../../../', import.meta.url));
   const problems = studioUiKitViolations(repository);
   if (problems.length > 0) {
-    console.error('Studio build stopped: Studio must compose the reviewed UI kit only (docs/61 §5).');
+    console.error('Studio build stopped: Studio must compose the reviewed UI kit only (wiki: Decisions/61-Enforced UI-Kit Gate).');
     for (const problem of problems.slice(0, 50)) console.error(`  ${problem}`);
     if (problems.length > 50) console.error(`  …and ${problems.length - 50} more`);
     console.error('Integrate the reviewed UI kit source before rebuilding Studio.');

@@ -10,7 +10,7 @@ import {
   worldItemExpired,
 } from './scalability.js';
 
-describe('34§6 stage-1 scalability rules', () => {
+describe('Architecture/World-SpacetimeDB: stage-1 scalability rules', () => {
   it('routes carrier and mounted-player predicates through their indexes', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     expect(source).toContain("{ accessor: 'by_rider', algorithm: 'hash', columns: ['rider'] }");
@@ -32,7 +32,7 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(source).toContain('ctx.db.world_hive.clear()');
   });
 
-  it('30§4 reconciles generated terrain resources without resetting unchanged progress', () => {
+  it('World/Map & Terrain: reconciles generated terrain resources without resetting unchanged progress', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const start = source.indexOf('function reconcileGeneratedSurvivalResources');
     const end = source.indexOf('\nexport const ownSurvival', start);
@@ -77,7 +77,7 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(generic.indexOf('authority.authorize(ctx)')).toBeLessThan(generic.indexOf('authority.resolveTarget(ctx'));
   });
 
-  it('26§13 authorizes portal reducers before target and mount lookups', () => {
+  it('World/Spaces & Interiors: authorizes portal reducers before target and mount lookups', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const start = source.indexOf('export const usePortal =');
     const end = source.indexOf('\nexport const toggleHomesteadGate', start);
@@ -87,7 +87,7 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(reducer.indexOf('usePortalRow(')).toBeGreaterThan(reducer.indexOf('requireAuthorizedSender('));
   });
 
-  it('26§3 keeps scheduled collision and entity work scoped through space/chunk indexes', () => {
+  it('World/Spaces & Interiors: keeps scheduled collision and entity work scoped through space/chunk indexes', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const step = source.slice(source.indexOf('function runOneHertzTickMaintenance('));
     expect(step).toContain('playersBySpace');
@@ -321,7 +321,7 @@ describe('34§6 stage-1 scalability rules', () => {
   });
 });
 
-describe('34§6 stage-2 scalability rules', () => {
+describe('Architecture/World-SpacetimeDB: stage-2 scalability rules', () => {
   it('keeps wildlife profile chunks indexed and synchronized through one update path', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const profileSchema = source.slice(

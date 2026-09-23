@@ -1,0 +1,725 @@
+{
+  "schemaVersion": 2,
+  "auditedAt": "2026-09-11",
+  "wikiPage": "Studio/Acceptance",
+  "classifications": [
+    "repository_verified",
+    "browser_verified",
+    "external_required",
+    "repository_open"
+  ],
+  "entries": [
+    {
+      "id": "55-tests-sim",
+      "planSection": "55 §15 Tests",
+      "statement": "Content parsing, registry determinism, parity, behavior ordering, caps, and validator cases have repository tests.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/sim/src/content/registry.test.ts",
+        "packages/sim/src/content/definitions.test.ts",
+        "packages/sim/src/behaviour/registry.test.ts"
+      ]
+    },
+    {
+      "id": "55-tests-world",
+      "planSection": "55 §15 Tests",
+      "statement": "Content publication, authority behavior, migrations, and bounded timers have repository tests.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/world/src/content/contracts.test.ts",
+        "packages/world/src/content/cache.test.ts",
+        "packages/world/src/behaviour/authority.test.ts"
+      ]
+    },
+    {
+      "id": "55-tests-client",
+      "planSection": "55 §15 Tests",
+      "statement": "Frame layout, live registry, and anonymous publication boundaries have repository tests.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/ui/src/content-frame-overworld.test.ts",
+        "packages/client/src/content/live-content.test.ts",
+        "packages/studio/src/shell/anonymous-boundary.test.ts"
+      ]
+    },
+    {
+      "id": "55-tests-two-client",
+      "planSection": "55 §15 Tests",
+      "statement": "A deployed authenticated author publishes content and a second connected game client observes and uses it without reload.",
+      "classification": "external_required",
+      "evidence": [
+        "scripts/stage-a-acceptance.ts",
+        "scripts/stage-a-acceptance-evidence.ts",
+        "scripts/stage-a-acceptance.test.ts",
+        "ops/BACKUP-RESTORE.md"
+      ],
+      "externalPrerequisites": [
+        "owner/admin/content_editor OIDC account",
+        "second distinct game OIDC account",
+        "deployed compatible world module and generated bindings",
+        "permission to publish and restore a disposable content revision"
+      ]
+    },
+    {
+      "id": "55-tests-load-and-phase-0",
+      "planSection": "55 Phase 0",
+      "statement": "A valid 1,000-definition publication and atomic head advance reach 20 connected clients inside all registry, transaction, and wire budgets.",
+      "classification": "browser_verified",
+      "evidence": [
+        "scripts/content-load-acceptance.test.ts",
+        "scripts/content-database-measure.ts",
+        "scripts/content-registry-browser.html"
+      ],
+      "wikiRecords": [
+        "Content/Content Registry",
+        "Studio/Authoring Suite"
+      ]
+    },
+    {
+      "id": "55-phase-1-live-content",
+      "planSection": "55 Phase 1",
+      "statement": "A browser-authored item/recipe/price is published and crafted, sold, and eaten by a second client without rebuild.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/items/model.test.ts",
+        "packages/client/src/content/live-content.test.ts"
+      ],
+      "externalPrerequisites": [
+        "content-editor OIDC account",
+        "second game OIDC account",
+        "deployed content authority",
+        "temporary item/recipe/shop identifiers",
+        "rollback authorization"
+      ]
+    },
+    {
+      "id": "55-phase-2a-retirement",
+      "planSection": "55 Phase 2a; Phase 6",
+      "statement": "All §11 item input enters registered lifecycle handlers and retired reducer bindings and per-kind client input branches are absent; downstream authority retirement remains Phase-6 work.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/sim/src/behaviour/effects.test.ts",
+        "packages/client/src/phase-zero-extraction.test.ts",
+        "packages/world/src/legacy-runtime-retirement.test.ts",
+        "packages/world/src/behaviour-authority-schema.test.ts"
+      ]
+    },
+    {
+      "id": "55-phase-2b-oil-lamp",
+      "planSection": "55 Phase 2b",
+      "statement": "The oil-lamp definition is browser-published and verified for interaction, lighting, reconnect, and rollback on two clients, after which only engine-shaped compiled handlers remain.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/object/behaviour/model.test.ts",
+        "packages/world/src/content/object-runtime.test.ts"
+      ],
+      "externalPrerequisites": [
+        "content-editor OIDC account",
+        "second game OIDC account",
+        "deployed object/content authority",
+        "permission to publish and restore the oil-lamp definition",
+        "approval to retire the proven non-engine compiled fallbacks"
+      ]
+    },
+    {
+      "id": "55-phase-3-frames",
+      "planSection": "55 Phase 3",
+      "statement": "All nine item windows resolve frame definitions and fit at UI scales 1–3.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/ui/src/content-frame-overworld.test.ts",
+        "packages/studio/src/tools/ui-lab/frame-designer-model.test.ts"
+      ]
+    },
+    {
+      "id": "55-phase-3-live-frame-release",
+      "planSection": "55 Phase 3",
+      "statement": "Frame fallback removal and legacy chest drain are preceded by deployed visual/two-client/reconnect checks while Stage A retains the verified dual-written legacy rows.",
+      "classification": "external_required",
+      "evidence": [
+        "scripts/stage-a-acceptance.ts",
+        "scripts/stage-a-acceptance-evidence.ts",
+        "scripts/stage-a-acceptance.test.ts",
+        "ops/BACKUP-RESTORE.md"
+      ],
+      "externalPrerequisites": [
+        "authenticated Studio and game accounts",
+        "deployed frame-capable authority",
+        "quiesced durable-world backup",
+        "chest migration maintenance window"
+      ]
+    },
+    {
+      "id": "55-phase-4-narrative",
+      "planSection": "55 Phase 4",
+      "statement": "A new NPC, dialogue, shop, and quest are published, materialized, completed, rejoined, and rolled back without rebuild.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/narrative/model.test.ts"
+      ],
+      "externalPrerequisites": [
+        "content-editor OIDC account",
+        "second game OIDC account",
+        "deployed narrative-capable authority",
+        "temporary authored identifiers",
+        "rollback authorization"
+      ]
+    },
+    {
+      "id": "55-phase-5-pack",
+      "planSection": "55 Phase 5",
+      "statement": "The committed pack fixture reproduces the deployed live head hash and playtest actions run through a live admin adapter.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/tools/src/content-export.test.ts",
+        "packages/world/src/admin/playtest.test.ts",
+        "packages/world/src/admin/playtest-schema.test.ts",
+        "packages/studio/src/admin/live-world-playtest.test.ts",
+        "packages/studio/src/tools/world-tables/canvas.test.ts"
+      ],
+      "externalPrerequisites": [
+        "read access to deployed content head/definitions",
+        "owner/admin OIDC account for playtest operations",
+        "compatible deployed module"
+      ]
+    },
+    {
+      "id": "55-phase-6-retirement",
+      "planSection": "55 Phase 6",
+      "statement": "The lifecycle raises, processor/frame effects, object components, semantic gameplay policies and authored runtime catalogs are repository-verified; Phase 6 remains open only for owner-gated continuity evidence, legacy chest/farm draining, and separately reviewed declaration retirement.",
+      "classification": "repository_open",
+      "evidence": [
+        "packages/sim/src/content",
+        "packages/sim/src/behaviour/events.ts",
+        "packages/world/src/behaviour/use-selected.ts",
+        "packages/world/src/behaviour/processors.ts",
+        "packages/sim/src/content/runtime.ts",
+        "packages/sim/src/roguelike.ts",
+        "packages/world/src/landmark-placeable-authority.test.ts",
+        "docs/legacy-farm-retirement-finalizer.md",
+        "scripts/world-release-retire-chests.sh",
+        "ops/orchard-runtime/bin/restore-world-retirement-rehearsal.sh",
+        "scripts/assert-chest-retirement-source.sh"
+      ],
+      "wikiRecords": [
+        "Operations/Backups"
+      ]
+    },
+    {
+      "id": "56-phase-0-extraction",
+      "planSection": "56 Phase 0",
+      "statement": "Shared package extraction preserves game chunks and leaves no render/UI/auth/generated implementation under client/src.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/client/src/phase-zero-extraction.test.ts",
+        "scripts/check-client-build-chunks.ts",
+        "eslint.config.js"
+      ]
+    },
+    {
+      "id": "56-phase-1-shell-repository",
+      "planSection": "56 Phase 1",
+      "statement": "Studio routes render anonymously without a live adapter and the game has no editor documents, routes, or chunks.",
+      "classification": "browser_verified",
+      "evidence": [
+        "packages/studio/src/shell/anonymous-boundary.test.ts",
+        "packages/client/src/phase-zero-extraction.test.ts",
+        "scripts/check-client-build-chunks.ts",
+        "scripts/studio-browser-acceptance-evidence.json"
+      ]
+    },
+    {
+      "id": "56-phase-1-authenticated-deployment",
+      "planSection": "56 Phase 1",
+      "statement": "All map-editor (plan 42) scenarios pass through authenticated Studio at cellar.dastari.net.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/map/doc42-scenarios.test.ts"
+      ],
+      "externalPrerequisites": [
+        "named orchard-studio OIDC account with required role",
+        "interactive PKCE login",
+        "compatible live module",
+        "permission to publish and restore a disposable map revision"
+      ]
+    },
+    {
+      "id": "56-phase-1-live-outliner",
+      "planSection": "56 §4.2 Workflow model: Godot-derived docks, Orchard-specific tools; Phase 1",
+      "statement": "An authenticated Studio connection subscribes successfully and the Live Outliner renders current deployed world rows.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/shell/studio-connection.ts",
+        "packages/studio/src/shell/services.test.ts"
+      ],
+      "externalPrerequisites": [
+        "named orchard-studio OIDC account with an effective Studio role",
+        "compatible deployed world module and generated bindings",
+        "live world rows"
+      ]
+    },
+    {
+      "id": "56-phase-1-live-audio",
+      "planSection": "56 Phase 1",
+      "statement": "The canvas Audio Preview creates its audio context only after an authenticated operator gesture and audibly plays and stops music and SFX cues.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/audio/model.ts",
+        "packages/studio/src/tools/audio/model.test.ts",
+        "packages/studio/src/tools/audio/canvas.ts"
+      ],
+      "externalPrerequisites": [
+        "interactive browser with audio output",
+        "operator gesture permitting AudioContext activation",
+        "deployed Studio static build"
+      ]
+    },
+    {
+      "id": "56-canvas-native-studio",
+      "planSection": "56 Phase 1",
+      "statement": "The dated 2026-09-03 browser record proves the retained sole-canvas invariants: one root canvas, a 20-tool icon rail, pointer-resizable drawers, an alpha-grid workspace, canvas tables, and no HTML UI; its fixed-session-card and split fields are historical, not current-layout evidence.",
+      "classification": "browser_verified",
+      "evidence": [
+        "packages/studio/index.html",
+        "packages/ui/src/kit/components/workbench.ts",
+        "packages/ui/src/kit/runtime/focus.ts",
+        "packages/ui/src/studio/canvas-text-editor.ts",
+        "packages/ui/src/kit/components/collections.ts",
+        "packages/studio/src/shell/app.ts",
+        "packages/studio/src/shell/canvas-tool-registry.ts",
+        "packages/studio/src/ui-kit-gate.test.ts",
+        "packages/studio/src/shell/canvas-shell-policy.test.ts",
+        "scripts/studio-canvas-browser-evidence.json"
+      ]
+    },
+    {
+      "id": "56-map-anchor-authoring",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "Canvas-native POI and Label anchors use exact terrain elevation and deterministic ids and support select, move, nudge, relabel, delete, undo, redo, and strict publication validation while runtime authority anchor kinds fail closed.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/context-palette.test.ts",
+        "packages/studio/src/tools/map/model.test.ts",
+        "packages/studio/src/tools/map/selection-inspection.test.ts",
+        "packages/sim/src/map-document-v3.test.ts",
+        "packages/world/src/live-map-schema.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-transition-terrain-publication-validation",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "One registry-backed validator rejects unreproducible terrain overrides and unsupported transition art or traversal, while preserving only the fingerprinted canonical six-stair compatibility warning for the unchanged live island.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/sim/src/terrain/terrain-override-validation.test.ts",
+        "packages/sim/src/map-editor.test.ts",
+        "packages/engine/src/editor-terrain.test.ts",
+        "packages/world/src/live-map-schema.test.ts",
+        "packages/studio/src/tools/map/transition-authoring.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-publish-conflict-state",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "Map checkout and explicit publication preserve checked-out revision and semantic hash, distinguish clean, dirty, publishing, and conflict states, reject stale-base publication, and expose a bounded canonical local JSON download that explicitly reports unavailable browser bridges without claiming a save.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/model.test.ts",
+        "packages/studio/src/tools/map/live-sync.test.ts",
+        "packages/studio/src/tools/map/canvas-publish-state.test.ts",
+        "packages/studio/src/tools/map/document-export.test.ts",
+        "packages/studio/src/shell/file-download.test.ts",
+        "packages/studio/src/tools/build-canvas.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-live-spawn-repository",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "The Map Canvas mounts an icon-only allowlisted chest, fruit-press, and fermentation-cask placement flow with an authority-issued dry run, exact base/content fingerprints, separate confirmation, cancellation, and fail-closed anonymous or stale paths.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/live-object-tools.test.ts",
+        "packages/studio/src/tools/map/live-spawn-canvas.test.ts",
+        "packages/studio/src/admin/live-services.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-live-spawn-authenticated",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "An authenticated authorized Studio operator previews and confirms one disposable allowlisted functional entity on the deployed live island and verifies the exact resulting row without disturbing existing world state.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/map/live-object-tools.test.ts",
+        "packages/studio/src/tools/map/live-spawn-canvas.test.ts"
+      ],
+      "externalPrerequisites": [
+        "owner/admin OIDC account",
+        "compatible deployed object reducer and bindings",
+        "verified current content head",
+        "approved disposable allowlisted entity and exact cleanup plan",
+        "quiesced backup and rollback authority"
+      ]
+    },
+    {
+      "id": "56-map-runtime-object-actions",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "The Map Canvas mounts icon-only move, repair, and safe-despawn actions for eligible live placeables and generic chests, with a fresh authority snapshot, stale projection guards, exact preview base and fingerprint, explicit confirmation, matching audit receipt, player-custody warning, and cancellation without direct draft mutation.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/runtime-object-actions.ts",
+        "packages/studio/src/tools/map/runtime-object-actions.test.ts",
+        "packages/studio/src/tools/map/runtime-object-actions-canvas.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-npc-location-actions",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "The Map Canvas mounts guarded current/home relocation for eligible live NPC projections, with exact entity targeting, an authority-issued dry run, unchanged base and fingerprint confirmation, matching committed and exact-origin inverse audit receipts, stale-generation cancellation, and fail-closed player-custody, simulation-controlled wildlife/boat, space, role, and write-access boundaries.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/npc-location-actions.ts",
+        "packages/studio/src/tools/map/npc-location-actions.test.ts",
+        "packages/studio/src/tools/map/npc-location-actions-canvas.test.ts",
+        "packages/studio/src/shell/studio-connection-projection.test.ts",
+        "packages/studio/src/tools/map/canvas-dock-projections.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-live-space-subscriptions",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "Seven high-volume Studio live-map tables use deterministic indexed camera-chunk rectangles with overscan, hysteresis, debounce, and a stale-safe make-before-break handoff that keeps the prior complete region until the replacement applies.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/shell/studio-map-region.ts",
+        "packages/studio/src/shell/studio-map-region.test.ts",
+        "packages/studio/src/shell/studio-connection.ts",
+        "packages/studio/src/shell/studio-connection-subscriptions.test.ts",
+        "packages/studio/src/tools/map/canvas-live-region.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-outliner-schema-inspector",
+      "planSection": "56 §4.2 Workflow model: Godot-derived docks, Orchard-specific tools; §13 Current completion boundary and remaining work",
+      "statement": "The sole-Canvas Map route mounts searchable, keyboard-navigable World and explicitly read-only Live Outliners with typed selections, retained authored tree state, guarded one-entry object/landmark reparent and layer reorder, plus a complete schema Inspector projection alongside composed visual details; populated Live acceptance remains separately external-gated.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/outliner-tree.test.ts",
+        "packages/studio/src/tools/map/outliner-authored-actions.test.ts",
+        "packages/studio/src/tools/map/route-session-state.test.ts",
+        "packages/studio/src/tools/map/canvas-dock-projections.test.ts",
+        "packages/studio/src/tools/build-canvas.test.ts",
+        "packages/studio/src/tools/map/model.test.ts",
+        "packages/studio/src/shell/services.test.ts"
+      ]
+    },
+    {
+      "id": "56-map-overlay-main-thread-safety",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "Map terrain preparation, validation, live-row projection, and distant height/collision overlay activation use bounded, coalesced, cancellable work and avoid an unconditional 832x832 synchronous main-thread pass.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/active-overlays.test.ts",
+        "packages/studio/src/tools/map/canvas-performance.test.ts",
+        "packages/studio/src/tools/map/editor-validation-performance.test.ts",
+        "packages/studio/src/shell/studio-connection-refresh.test.ts"
+      ]
+    },
+    {
+      "id": "56-phase-2-player-remedy",
+      "planSection": "56 Phase 2",
+      "statement": "A live stuck player is inspected, unstuck, refunded, notified, audited with an inverse, and undo-tested from Studio.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/tools/players/model.test.ts",
+        "packages/studio/src/tools/playbooks/model.test.ts"
+      ],
+      "externalPrerequisites": [
+        "owner/admin or appropriately capped support OIDC account",
+        "second online game OIDC account",
+        "compatible deployed admin procedures/reducers/bindings",
+        "permission to mutate and undo test state"
+      ]
+    },
+    {
+      "id": "56-phase-3-world-objects",
+      "planSection": "56 Phase 3",
+      "statement": "A missing chest is restored from audit, a station moves without processor loss, and live validation reports zero orphans.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/world/src/admin/objects.test.ts",
+        "packages/world/src/admin/world-repair.test.ts",
+        "packages/studio/src/tools/containers/model.test.ts"
+      ],
+      "externalPrerequisites": [
+        "owner/admin OIDC account",
+        "compatible deployed W4/W5 module and bindings",
+        "approved disposable chest/station fixtures",
+        "quiesced backup and rollback window"
+      ]
+    },
+    {
+      "id": "56-u5-live-world-control-planners",
+      "planSection": "56 Phase 3",
+      "statement": "Time, weather, wind, MOTD, global notice, map restore, and homestead movement have exact authority-issued dry-run/commit previews in the connected Studio service.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/world/src/admin/world-controls.ts",
+        "packages/world/src/admin/world-controls.test.ts",
+        "packages/world/src/admin/world-controls-schema.test.ts",
+        "packages/studio/src/admin/live-services.ts",
+        "packages/studio/src/admin/live-services.test.ts",
+        "packages/studio/src/tools/world/model.ts"
+      ]
+    },
+    {
+      "id": "56-phase-4-authoring",
+      "planSection": "56 Phase 4",
+      "statement": "Every authoring-suite (plan 55) Studio route is mounted and a new tileset family is published and used by a map without rebuild.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/studio/src/shell/tool-registry.test.ts",
+        "packages/studio/src/tools/tiles/model.test.ts"
+      ],
+      "externalPrerequisites": [
+        "content-editor OIDC account",
+        "second game OIDC account",
+        "compatible tileset/map module and bindings",
+        "temporary family/map identifiers",
+        "rollback authorization"
+      ]
+    },
+    {
+      "id": "56-phase-5-shell-polish",
+      "planSection": "56 Phase 5; Phase 1",
+      "statement": "A dated browser record proves drawer resizing, shortcuts, command/global search, route navigation, and anonymous shell invariants. The repository now also verifies Canvas-native named layout controls, route-scoped split persistence, bounded adjacent-pane geometry, and invisible resize hit bands; fresh deployed-browser acceptance of those newer controls is unclaimed.",
+      "classification": "browser_verified",
+      "evidence": [
+        "packages/studio/src/shell/canvas-layout-state.test.ts",
+        "packages/studio/src/shell/canvas-split.test.ts",
+        "packages/studio/src/shell/canvas-shell-policy.test.ts",
+        "packages/studio/src/shell/layouts.test.ts",
+        "packages/studio/src/shell/shortcuts.test.ts",
+        "packages/studio/src/shell/controller.test.ts",
+        "scripts/studio-canvas-browser-evidence.json"
+      ]
+    },
+    {
+      "id": "56-phase-5-live-error-console",
+      "planSection": "56 Phase 5",
+      "statement": "An authenticated deployed game client reports a redacted error through the live reducer and an owner or admin observes it in the Studio Console.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/client/src/client-error-live.test.ts",
+        "packages/world/src/admin/client-errors.test.ts",
+        "packages/studio/src/tools/observe/model.test.ts"
+      ],
+      "externalPrerequisites": [
+        "compatible deployed client-error reducer and procedure bindings",
+        "authenticated game OIDC account",
+        "owner/admin Studio OIDC account",
+        "approved disposable diagnostic"
+      ]
+    },
+    {
+      "id": "56-tests-package-boundaries",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "Client and Studio do not import each other; engine and UI do not import auth or bindings.",
+      "classification": "repository_verified",
+      "evidence": [
+        "eslint.config.js",
+        "packages/client/src/phase-zero-extraction.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-admin-reducers",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "Admin reducer families cover role rejection, support caps, preview parity, inverse audit, and online notice behavior.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/world/src/admin/inventory.test.ts",
+        "packages/world/src/admin/progression.test.ts",
+        "packages/world/src/admin/position.test.ts",
+        "packages/world/src/admin/objects.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-procedures",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "Admin procedures enforce roles, bounded cursor paging, indexed candidates, and explicit scan counters.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/world/src/admin/procedures.test.ts",
+        "packages/world/src/admin/procedures-schema.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-studio-models",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "Studio model tests cover selection, preview/reason safety, playbook ordering, content-head conflicts, and verified Map Editor live-head adoption, dirty preservation, and checked-out-base CAS behavior.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/shell/controller.test.ts",
+        "packages/studio/src/tools/players/model.test.ts",
+        "packages/studio/src/tools/playbooks/model.test.ts",
+        "packages/studio/src/tools/map/model.test.ts",
+        "packages/studio/src/tools/items/model.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-map-terrain-palette",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "The Canvas Map Editor mounts searchable registered surface/cliff families, topology-compatible exact overrides, dry farmland, Inspector apply/clear/default actions, and an undo-free exact eyedropper with repository interaction coverage.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/terrain-authoring-palette.test.ts",
+        "packages/studio/src/tools/map/context-palette.test.ts",
+        "packages/studio/src/tools/map/canvas-terrain-authoring.test.ts",
+        "packages/studio/src/tools/map/editor-controller.test.ts",
+        "packages/studio/src/tools/build-canvas.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-map-layer-session",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "Selection and Layers are separate thin Canvas cards; Shift-range and Ctrl/Meta-additive layer rows retain one primary authoring target, expose safe bulk eye/lock actions, and cannot unlock immutable system layers or bypass hidden, locked, or non-solo mutation gates.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/layer-selection.test.ts",
+        "packages/studio/src/tools/map/right-drawer-layout.test.ts",
+        "packages/studio/src/tools/map/route-session-state.test.ts",
+        "packages/studio/src/tools/map/model.test.ts",
+        "packages/studio/src/tools/map/editor-controller.test.ts",
+        "packages/studio/src/tools/build-canvas.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-map-auto-publish",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "The Canvas Map Editor provides a default-off, session-persisted, latest-only 250 ms auto-publish command that reuses exact checked-out-base CAS, blocks on unsafe authority states, coalesces behind one in-flight request, and cancels pending work on disposal.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/studio/src/tools/map/auto-publish.ts",
+        "packages/studio/src/tools/map/auto-publish.test.ts",
+        "packages/studio/src/tools/map/auto-publish-canvas.test.ts",
+        "packages/studio/src/tools/map/route-session-state.test.ts",
+        "packages/studio/src/tools/map/model.test.ts"
+      ]
+    },
+    {
+      "id": "56-tests-two-client",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "An online player's inventory and notice update live, and audited undo restores the exact stack.",
+      "classification": "external_required",
+      "evidence": [],
+      "externalPrerequisites": [
+        "owner/admin or capped-support OIDC account",
+        "second online game OIDC account",
+        "compatible deployed admin bindings",
+        "permission to mutate and undo a disposable stack"
+      ]
+    },
+    {
+      "id": "56-stage-a-continuity-record",
+      "planSection": "56 §13 Current completion boundary and remaining work",
+      "statement": "Repository-tested release tooling and the documented 2026-09-04 operational record preserve the original world through a no-delete Stage-A release, 38-table same-identity rejoin parity, verified placeable_reads, and the retained chest fingerprint.",
+      "classification": "repository_verified",
+      "evidence": [
+        "ops/BACKUP-RESTORE.md",
+        "scripts/release-continuity.test.ts",
+        "scripts/world-rejoin-snapshot.test.ts",
+        "scripts/chest-migration-runner.test.ts"
+      ],
+      "wikiRecords": [
+        "Operations/Backups",
+        "History/Studio Evolution"
+      ]
+    },
+    {
+      "id": "56-tests-world-continuity-next-rollout",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "Every future or final rollout repeats pre/post same-identity rejoin snapshots and the separate Stage-A visual/mutable acceptance artifact before traffic returns or chest retirement proceeds.",
+      "classification": "external_required",
+      "evidence": [
+        "scripts/world-rejoin-smoke.ts",
+        "scripts/world-rejoin-snapshot.ts",
+        "scripts/stage-a-acceptance.ts",
+        "scripts/stage-a-acceptance-evidence.ts",
+        "scripts/stage-a-acceptance.test.ts",
+        "ops/BACKUP-RESTORE.md"
+      ],
+      "externalPrerequisites": [
+        "refresh-capable saved OIDC session for every sampled identity",
+        "permission-restricted snapshot/evidence files",
+        "quiesced authority backup",
+        "production maintenance window",
+        "restore authority"
+      ]
+    },
+    {
+      "id": "56-tests-spawn-view",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "The caller-private ownPlayerSpawn view is present in the module and generated bindings.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/world-bindings/src/own_player_spawn_table.ts",
+        "packages/world/src/index.ts"
+      ]
+    },
+    {
+      "id": "56-tests-security-and-headers",
+      "planSection": "56 §9 Tests and acceptance",
+      "statement": "The public Studio origin serves the reviewed CSP, no-store, referrer, framing, and content-type controls through the static service.",
+      "classification": "browser_verified",
+      "evidence": [
+        "packages/studio/src/deployment.test.ts",
+        "ops/orchard-runtime/bin/validate-studio-static.sh",
+        "ops/orchard-runtime/npm/orchard-studio.conf",
+        "scripts/studio-browser-acceptance-evidence.json"
+      ]
+    },
+    {
+      "id": "56-tests-login-session-isolation",
+      "planSection": "56 §10 Risks and open questions",
+      "statement": "Interactive Studio login does not disturb an authenticated game session in another tab.",
+      "classification": "external_required",
+      "evidence": [
+        "packages/auth/src/oidc.test.ts"
+      ],
+      "externalPrerequisites": [
+        "named orchard-studio OIDC account",
+        "separate game OIDC account",
+        "interactive two-tab browser session",
+        "deployed exact-origin Keycloak client"
+      ]
+    },
+    {
+      "id": "55-tier-b-chat-approval",
+      "planSection": "55 §3.1 Studio-authored TypeScript and the trusted build boundary",
+      "statement": "Repository lifecycle checks enforce restricted-AST validation and deterministic source, server, metadata and provenance integrity; release checks protect rollback artifacts, non-destructive publication and state parity, with fresh backup and restoration gates for stored-data migrations. Owner chat approval remains a separate per-release requirement.",
+      "classification": "repository_verified",
+      "evidence": [
+        "packages/lifecycle-authoring/src/lifecycle-code.test.ts",
+        "scripts/lifecycle-artifact-integrity.test.ts",
+        "packages/tools/src/world-release-script.test.ts",
+        "scripts/release-continuity.test.ts"
+      ],
+      "decision": "Decisions/55-Owner Chat Approval for Tier B"
+    },
+    {
+      "id": "56-phase-4-chat-approved-release",
+      "planSection": "56 Phase 4",
+      "statement": "The owner approves the specific release in chat. Routine code/UI updates follow the owner-managed Proxmox backup policy and retain code rollback, non-destructive publication and same-identity reconnect; actual stored-data migrations retain fresh verified backup, restoration rehearsal and state-parity gates.",
+      "classification": "external_required",
+      "evidence": [
+        "scripts/world-release.sh",
+        "ops/orchard-runtime/README.md"
+      ],
+      "decision": "Decisions/55-Owner Chat Approval for Tier B",
+      "externalPrerequisites": [
+        "The owner's chat Go for this specific release, given after the change description or explicitly in advance; an agent cannot infer confirmation or carry approval into another release.",
+        "Checked code rollback, non-destructive publication and same-player reconnect for routine updates; fresh verified backup, restoration rehearsal and state parity for actual stored-data migrations. Proxmox backup setup remains the owner’s responsibility and is not asserted verified.",
+        "Stop and report any failed data-preservation check; chat approval does not waive these checks."
+      ]
+    }
+  ]
+}

@@ -6,8 +6,8 @@ description: Author pixel-art sprites, tiles, animations, and maps for Orchard &
 # Pixel Art Authoring — Orchard & Cellar
 
 You are drawing text-based pixel art for a warm, Stardew-inspired farm game.
-Binding rules live in `docs/10-art-style-guide.md` (style bible) and
-`docs/11-asset-pipeline.md` (formats & tools). This skill is the working procedure.
+Binding rules live in the wiki: [wiki: Art/Style Bible](https://wiki.orchard.dastari.net/Art/Style%20Bible) (style bible) and
+[wiki: Art/Asset Pipeline](https://wiki.orchard.dastari.net/Art/Asset%20Pipeline) (formats & tools). This skill is the working procedure.
 
 ## Before drawing anything
 
@@ -16,7 +16,8 @@ Binding rules live in `docs/10-art-style-guide.md` (style bible) and
 2. Open 2–3 approved neighbor assets of the same category (start with the anchor
    set from milestone M2) and keep them beside you as reference.
 3. Confirm the canonical size: tile 16×16, character 16×32, mature tree 48×64,
-   buildings in multiples of 16. Never invent a new size without a DECISIONS.md entry.
+   buildings in multiples of 16. Never invent a new size without a decision recorded in the wiki
+   [Decision Log](https://wiki.orchard.dastari.net/Decisions/Decision%20Log).
 
 ## The iteration loop (never author blind)
 
@@ -44,7 +45,7 @@ Trust the render over your mental image of the grid, always.
 - If you have image generation available, use it only for concept reference, or
   feed a generation through `npm run assets:import` to get a palette-snapped
   *draft* grid — a draft still requires every pass below plus the review loop.
-  Policy details: `docs/11-asset-pipeline.md` §6.
+  Policy details: [wiki: Art/Asset Pipeline](https://wiki.orchard.dastari.net/Art/Asset%20Pipeline) (AI-source imports).
 
 ## Drawing procedure (follow in order)
 
@@ -88,5 +89,5 @@ held tools and asymmetric hair — redraw those.
 - Overdetailing: Stardew reads clean because most pixels are flat color.
 - Scaling sprites instead of drawing each growth stage.
 
-Finish every asset task by filling in the checklist from `docs/10-art-style-guide.md`
-§8 in your commit/PR message, with a preview screenshot.
+Finish every asset task by filling in the review checklist from [wiki: Art/Style Bible](https://wiki.orchard.dastari.net/Art/Style%20Bible)
+in your commit/PR message, with a preview screenshot.

@@ -40,7 +40,7 @@ describe('W4 object/container reducer registration', () => {
     expect(procedure).toContain("requireAdminProcedure(tx, 'operate.players')");
     expect(procedure).toContain('latestMissingContainerAuditSource(tx, entityId, targetIdentity)');
     const reducer = between('export const adminRestoreMissingContainer = spacetimedb.reducer(',
-      '// --- end docs/56 lane 56-W4');
+      '// --- end Studio lane 56-W4');
     const execution = between('function executeMissingContainerRecovery(',
       'export const adminRestoreMissingContainer = spacetimedb.reducer(');
     expect(reducer).toContain('executeMissingContainerRecovery(ctx, input)');
@@ -63,7 +63,7 @@ describe('W4 object/container reducer registration', () => {
 
 describe('Phase 5 client-error authority registration', () => {
   it('keeps reports private, immutable, authenticated, idempotent, and retained', () => {
-    const table = between('const client_error_report = table(', '// --- docs/55 lane 55-C');
+    const table = between('const client_error_report = table(', '// --- authoring lane 55-C');
     expect(table).not.toContain('public: true');
     expect(table).toContain("columns: ['occurredAtMicros']");
     expect(source).toContain('client_error_report,');

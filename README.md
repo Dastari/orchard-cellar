@@ -5,8 +5,10 @@ game. Players restore an orchard, build a cellar, explore a persistent shared
 overworld, and carry a family estate through successive generations.
 
 The project uses TypeScript, HTML5 Canvas, a deterministic shared simulation, and
-SpaceTimeDB as its realtime authority and durable store. The binding design and
-engineering documentation starts at [`docs/00-overview.md`](docs/00-overview.md).
+SpaceTimeDB as its realtime authority and durable store. Design, decisions, plans and
+runbooks live in the project wiki at **https://wiki.orchard.dastari.net/** (start at
+[Home](https://wiki.orchard.dastari.net/Home); see [`docs/README.md`](docs/README.md) for the section map and how to
+edit). The repository's `docs/` directory keeps only tool-generated or tool-read files.
 
 ## Development
 

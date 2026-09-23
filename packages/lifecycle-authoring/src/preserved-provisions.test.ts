@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bootstrapContentRegistry, restoreHunger, runtimeFoodRestoreCenti, type Handler, type ReadOnlySnapshot } from '@orchard/sim';
 import { AUTHORED_ITEM_LIFECYCLE_METADATA, AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS } from '../generated/item-lifecycles.js';
 
-// docs/06: preserved provisions restore ten more Hunger than raw crops;
+// wiki: Systems/Food & Alchemy: preserved provisions restore ten more Hunger than raw crops;
 // wheat/sunflower use the documented 14-point prepared-grain portion.
 const portions = {
   beetroot: 1700, cabbage: 1900, carrot: 1600, corn: 1800, cucumber: 1500,

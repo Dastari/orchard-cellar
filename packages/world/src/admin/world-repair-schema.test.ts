@@ -13,7 +13,7 @@ function between(start: string, end: string): string {
 
 describe('W5 world validation and repair registration', () => {
   it('registers additive runtime flags and caller-private immutable reports', () => {
-    const tables = between('const space_admin_flag = table(', '// --- end docs/55 lane 55-C tables ---');
+    const tables = between('const space_admin_flag = table(', '// --- end authoring lane 55-C tables ---');
     expect(tables).toContain("name: 'space_admin_flag', public: true");
     expect(tables).toContain("name: 'admin_world_validation_report'");
     expect(tables).toContain("columns: ['actor']");
