@@ -1,3 +1,4 @@
+import { parseTraversalAbilities } from './traversal-definition.js';
 import {HEARTH_FURNISHING_CATEGORIES,type HearthFurnishingCategory} from '../hearth-furnishing-categories.js';
 
 export type NpcDefinitionId = `npc:${string}`;
@@ -42,6 +43,8 @@ export interface NpcWildlifeProfileContentDefinition {
 }
 
 export interface NpcHorseMountContentDefinition {
+  readonly traversalAbilities?: readonly string[];
+  readonly replacesAbilities?: readonly string[];
   readonly adapter: 'horse';
   readonly requiredSkill?: string;
   readonly jumpSkill?: string;
@@ -62,6 +65,8 @@ export interface NpcHorseMountContentDefinition {
 }
 
 export interface NpcBoatMountContentDefinition {
+  readonly traversalAbilities?: readonly string[];
+  readonly replacesAbilities?: readonly string[];
   readonly adapter: 'boat';
   readonly requiredSkill?: string;
   readonly jumpSkill?: string;
@@ -81,6 +86,7 @@ interface AuthoredBase<K extends 'npc' | 'dialogue' | 'quest', I extends string>
 }
 
 export interface NpcContentDefinition extends AuthoredBase<'npc', NpcDefinitionId> {
+  readonly traversalAbilities?: readonly string[];
   readonly legacyCompatibility?: true;
   readonly runtimeId: string;
   readonly actorAsset: string;
@@ -349,6 +355,8 @@ export function parseNpcDefinition(value: string | unknown): NpcContentDefinitio
     const mount = object(source.mount, '$.mount');
     if (mount.adapter !== 'boat' && mount.adapter !== 'horse') throw new Error('$.mount.adapter: invalid mount adapter');
     const skills = {
+      ...(mount.traversalAbilities === undefined ? {} : { traversalAbilities: parseTraversalAbilities(mount.traversalAbilities, '$.mount.traversalAbilities') }),
+      ...(mount.replacesAbilities === undefined ? {} : { replacesAbilities: parseTraversalAbilities(mount.replacesAbilities, '$.mount.replacesAbilities') }),
       ...(mount.requiredSkill === undefined ? {} : { requiredSkill: stableName(mount.requiredSkill, '$.mount.requiredSkill') }),
       ...(mount.jumpSkill === undefined ? {} : { jumpSkill: stableName(mount.jumpSkill, '$.mount.jumpSkill') }),
     };
@@ -394,6 +402,7 @@ export function parseNpcDefinition(value: string | unknown): NpcContentDefinitio
   }
   return {
     ...common(source, 'npc'),
+    ...(source.traversalAbilities === undefined ? {} : { traversalAbilities: parseTraversalAbilities(source.traversalAbilities) }),
     ...(legacyFishing||source.legacyCompatibility===true?{legacyCompatibility:true as const}:{}),
     runtimeId,
     actorAsset: string(source.actorAsset, '$.actorAsset'),

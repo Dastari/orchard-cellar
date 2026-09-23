@@ -5,7 +5,7 @@ import {Identity} from 'spacetimedb';
 import * as sim from '@orchard/sim';
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('./index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 function production(dependencies:Record<string,unknown>,actualAttacks=false,boundedCollision=false){
-  const names=['attackCommitmentFromRow','clearOutdoorAdds','prepareOutdoorAdds','stepOutdoorSummons','outdoorHostileSegment','outdoorInsideCamp','outdoorMovementAllowed','outdoorRecoveryPosition',
+  const names=['npcTraversalActor','attackCommitmentFromRow','clearOutdoorAdds','prepareOutdoorAdds','stepOutdoorSummons','outdoorHostileSegment','outdoorInsideCamp','outdoorMovementAllowed','outdoorRecoveryPosition',
     'disableOutdoorEncounter','spawnOutdoorEncounter','outdoorReturnWaypoint','moveOutdoorNpc','stepOutdoorEncounters','activateOutdoorEncounter',
     ...(actualAttacks?['recoverOutdoorKnockout','stepCommittedRogueAttack']:[]),
     ...(boundedCollision?['outdoorCollisionMap']:[])];
@@ -43,7 +43,7 @@ function fixture(actualAttacks=false,boundedCollision=false){
   let policy:sim.CombatRegionPolicy|undefined=new sim.CombatRegionPolicy(sim.HEARTH_COMBAT_REGIONS);
   const scopeQueries:unknown[]=[];let collisionBuilds=0;
   const scoped=()=>({by_chunk:{filter:(scope:unknown)=>{scopeQueries.push(scope);return [];}}});
-  const db={world_resource:scoped(),world_chest:scoped(),world_combat_target:scoped(),outdoor_encounter:table('id'),world_npc:table('id'),outdoor_enemy_profile:table('npcId'),
+  const db={world_wildlife_profile:table('npcId'),world_resource:scoped(),world_chest:scoped(),world_combat_target:scoped(),outdoor_encounter:table('id'),world_npc:table('id'),outdoor_enemy_profile:table('npcId'),
     outdoor_encounter_contribution:table('id'),enemy_attack:table('npcId'),player_position:table('identity'),
     membership:table('identity'),world_seed:table('id'),world_clock:table('id'),player_stats:table('identity'),player_combat_state:table('identity'),
     inventory_slot:table('id'),player_wallet:table('identity')};
@@ -56,6 +56,7 @@ function fixture(actualAttacks=false,boundedCollision=false){
   const kinds={ember_slime:'slime_small_red',ember_cowling:'cowling',cowling_pyromancer:'cowling_mage',cinder_skull:'flying_skull',caldera_warden:'cowling'};
   const api=production({...sim,SenderError:Error,OUTDOOR_NPC_ID_BASE:8_900_000_000_000n,OUTDOOR_NATIVE_KINDS:kinds,OUTDOOR_NAMES:kinds,OUTDOOR_RETURN_PATHS:new Map(),
     contentRegistry:()=>sim.bootstrapContentRegistry(),compiledLiveIslandRuntime:()=>policy===undefined?null:{combatPolicy:policy},
+    waterCollisionForSpace:()=>collision,
     collisionForSpace:()=>{collisionBuilds++;return collision;},outdoorCollisionMap:()=>collision,combatElevationAt:(_collision:unknown,x:number,y:number)=>elevations[Math.floor(y/unit)*width+Math.floor(x/unit)]??-32768,
     chunkAt:(value:number)=>Math.floor(value/(unit*16)),parseNpcFacing:(value:string)=>value,requireAuthorizedSender:()=>{},stepCommittedRogueAttack:()=>true,
     updateWorldNpc:(_ctx:unknown,row:Row)=>db.world_npc.id.update(row),console:{warn:()=>{}},

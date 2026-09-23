@@ -204,3 +204,10 @@ export * from './content/balance-fields.js';
 export * from './behaviour/authored-hooks.js';
 
 export * from './terrain-rule-catalogue.js';
+
+export * from './traversal.js';
+export * from './traversal-medium.js';
+export * from './content/world-rules-definition.js';
+export * from './content/runtime-traversal.js';
+export * from './map-traversal.js';
+export * from './traversal-hazards.js';

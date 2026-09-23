@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "engineVersion": 1,
-  "contentHash": "7dcab09f",
-  "definitionCount": 920,
+  "contentHash": "dac96752",
+  "definitionCount": 921,
   "kindCounts": {
     "item": 340,
     "recipe": 142,
@@ -29,6 +29,7 @@
     "resource": 27,
     "loadout": 1,
     "enemy": 6,
-    "encounter": 5
+    "encounter": 5,
+    "world_rules": 1
   }
 }

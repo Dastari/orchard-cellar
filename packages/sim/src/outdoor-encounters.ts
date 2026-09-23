@@ -82,7 +82,7 @@ export function creditOutdoorSupport(state:OutdoorEncounterState,identity:string
 }
 /** Atomic caller persists both returned state and immutable completion before
  * issuing XP or loot. A second killing blow sees completed and returns no grant. */
-export function damageOutdoorEncounter(state:OutdoorEncounterState,identity:string,damageCenti:number,tick:bigint,
+export function damageOutdoorEncounter(state:OutdoorEncounterState,identity:string|null,damageCenti:number,tick:bigint,
   respawnDelayTicks:bigint):{
     readonly state:OutdoorEncounterState;readonly appliedDamageCenti:number;readonly completion:EncounterCompletion|null;
   } {
@@ -90,7 +90,7 @@ export function damageOutdoorEncounter(state:OutdoorEncounterState,identity:stri
   if(state.phase!=='active'||damageCenti===0)return {state,appliedDamageCenti:0,completion:null};
   const {reward,worldSeed}=state;
   const appliedDamageCenti=Math.min(state.healthCenti,damageCenti),healthCenti=state.healthCenti-appliedDamageCenti;
-  const contributions=creditedContribution(state,identity,appliedDamageCenti,0,tick);
+  const contributions=identity===null?state.contributions:creditedContribution(state,identity,appliedDamageCenti,0,tick);
   if(healthCenti>0)return {state:{...state,healthCenti,contributions},appliedDamageCenti,completion:null};
   const threshold=Math.max(100,Math.ceil(state.maximumHealthCenti*0.05));
   const eligible=contributions.filter(row=>tick>=row.lastUsefulTick&&tick-row.lastUsefulTick<=OUTDOOR_CONTRIBUTION_LIFETIME_TICKS
