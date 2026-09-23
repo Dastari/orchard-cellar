@@ -51,3 +51,13 @@ before committing the map delta, then applies changed records once; ordinary
 resource growth resumes immediately. Unchanged published records never replay.
 See [the specification](../../docs/studio-smart-placement-spec.md) and
 [the architectural decision](../../docs/adr/ADR-studio-smart-object-state.md).
+
+## Authored terrain rule layers
+
+`parseRuleCatalogue` validates optional per-family `layers` and per-entry
+`matchMask` fields. `resolveRuleFrame` resolves the base; `resolveRuleLayers`
+returns base then independent overlays, with first-match and role fallback order.
+`ruleNeighbourMask` samples NESW, NE, SE, SW, NW. `terrainRuleLayers` compiles the
+finite mask domain per immutable catalogue identity; `farmlandRuleLayers` uses
+the committed farmland catalogue shared by authored and hoed soil.
+See [the contract](../../docs/rule-catalogue-blob47-spec.md).

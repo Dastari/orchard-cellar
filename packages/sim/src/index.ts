@@ -197,3 +197,5 @@ export * from './smart-object-prefabs.js';
 export * from './map-entity-state.js';
 
 export * from './rule-catalogue.js';
+
+export * from './terrain-rule-catalogue.js';

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.25.0 — 2026-09-23
+
+- Move blob47 farmland and native grass fringe frame selection/composition into authored catalogue data, preserving all pre-migration pixels. Hoed and authored farmland share the same resolver; wet occupancy remains independent.
+- Add optional masked neighbour matches and ordered independent layers to the generic interpreter, with strict validation and compiled terrain lookups. Regenerate Studio field schemas.
+- Pin complete farmland/fringe layer goldens and update the measured content envelope to 602 KiB (616,383 runtime bytes).
+
 - Integration: sim 0.22.2 includes catalogue field schemas; 14 reviewed cliff
   golden hashes now track PR62 while every other resolver hash stays unchanged.
 
