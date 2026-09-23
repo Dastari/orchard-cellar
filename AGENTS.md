@@ -29,6 +29,15 @@ tests read, write or byte-check (see `docs/README.md`).
   so on) state what the owner has decided, and `Roadmap/Owner Questions` lists what
   is still waiting for the owner. Check them before re-litigating a design choice,
   and add new open questions there rather than guessing.
+- **Bugs.** Known bugs are tracked in the wiki at `Bugs`
+  (https://wiki.orchard.dastari.net/Bugs): one page per bug, `Bugs/BUG-NNN <title>`,
+  with frontmatter `bug_status`, `severity`, `area`, `triage` and `fixed_in`.
+  Bug-fix runs start from the `Bugs` page and follow its workflow: claim a bug by
+  setting `bug_status: in-progress` (with a Log line), reproduce it on the local/dev
+  world (never production), fix it in one PR per bug with a regression test, then set
+  `bug_status: fixed` and `fixed_in` to the PR number. New bugs found during any work
+  are filed there with its template instead of being silently fixed out of scope.
+  Do not fix a bug marked `triage: needs-decision` until the owner decides.
 - **Generated content tables.** After a content change on `main`
   (`packages/assets/content/**`, item or creature art), regenerate the wiki's
   item, recipe, creature and loot tables from the wiki repository:
