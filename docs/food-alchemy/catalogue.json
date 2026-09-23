@@ -21027,134 +21027,134 @@
     },
     "Herbs:10": {
       "key": "Herbs:10",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         160,
         0,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 10 (zero-based)"
     },
     "Herbs:12": {
       "key": "Herbs:12",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         192,
         0,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 12 (zero-based)"
     },
     "Herbs:71": {
       "key": "Herbs:71",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         64,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 71 (zero-based)"
     },
     "Herbs:87": {
       "key": "Herbs:87",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         80,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 87 (zero-based)"
     },
     "Herbs:103": {
       "key": "Herbs:103",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         96,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 103 (zero-based)"
     },
     "Herbs:183": {
       "key": "Herbs:183",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         176,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 183 (zero-based)"
     },
     "Herbs:199": {
       "key": "Herbs:199",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         192,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 199 (zero-based)"
     },
     "Herbs:215": {
       "key": "Herbs:215",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         112,
         208,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 215 (zero-based)"
     },
     "Herbs:257": {
       "key": "Herbs:257",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         16,
         256,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 257 (zero-based)"
     },
     "Herbs:241": {
       "key": "Herbs:241",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         16,
         240,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 241 (zero-based)"
     },
     "Herbs:225": {
       "key": "Herbs:225",
-      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
       "crop": [
         16,
         224,
         16,
         16
       ],
-      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc",
       "label": "Raven herbs cell 225 (zero-based)"
     },
     "Monster_Drops:21": {

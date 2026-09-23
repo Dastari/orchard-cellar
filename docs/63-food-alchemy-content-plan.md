@@ -109,8 +109,10 @@ remain valid; blank cells do not create new numbered icons.
 | Armor; Weapons | All reviewed; equipment silhouettes excluded from this feature. |
 
 The remaining mushroom/herb gap uses owner-purchased Clockwork Raven
-`icon-packs/alchemy-herbs/sheet-16-outline.png`; selected cells and alternatives are
-explicit in the catalogue. Fishing & Sea was also inspected; keep the current
+`icon-packs/alchemy-herbs/sheet-16-without-outline.png`; selected cells and alternatives are
+explicit in the catalogue. P0 correction (2026-09-23): use the available plain variant
+for these same cells, as required by the existing plain-icon source tests; reviewed
+native colours/crop positions remain unchanged. Fishing & Sea was also inspected; keep the current
 reviewed fish icons rather than assigning new species to old catch quality rolls.
 The full-library search found `halloween/Witch/Witch_Cauldron_Anim.png` (six 32×32
 frames) as a cauldron **reference**, not an approved three-state machine. No complete
