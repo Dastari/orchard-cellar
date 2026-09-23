@@ -2,6 +2,7 @@ import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync }
 import { dirname, resolve } from 'node:path';
 import {
   compileLifecycleBundle,
+  compileLifecycleHookBundle, lifecycleHookBundleSha256, parseLifecycleHookBundle,
   lifecycleBundleSha256,
   parseLifecycleSourceBundle,
 } from '../packages/lifecycle-authoring/src/index.js';
@@ -26,6 +27,7 @@ function readSafeJson(path: string, label: string): unknown {
 function writeArtifactsAtomically(
   outputDirectory: string,
   artifacts: ReturnType<typeof compileLifecycleBundle>,
+  hooks = false,
 ): void {
   if (!outputDirectory.startsWith('/')) usage();
   mkdirSync(outputDirectory, { recursive: true, mode: 0o700 });
@@ -34,8 +36,8 @@ function writeArtifactsAtomically(
     throw new Error('output directory must be a real directory');
   }
   const outputs = [
-    ['item-lifecycles.ts', artifacts.serverTypeScript],
-    ['item-lifecycle-metadata.json', artifacts.clientMetadataJson],
+    [hooks ? 'lifecycle-hooks.ts' : 'item-lifecycles.ts', artifacts.serverTypeScript],
+    [hooks ? 'lifecycle-hook-metadata.json' : 'item-lifecycle-metadata.json', artifacts.clientMetadataJson],
     ['build-provenance.json', artifacts.provenanceJson],
   ] as const;
   const partials: string[] = [];
@@ -74,10 +76,12 @@ if ((operation !== 'verify' && operation !== 'build')
   || (operation === 'build' && outputDirectory === undefined)) usage();
 
 try {
-  const bundle = parseLifecycleSourceBundle(readSafeJson(bundlePath, 'source bundle'));
-  const digest = lifecycleBundleSha256(bundle);
-  const artifacts = compileLifecycleBundle(bundle, digest);
-  if (operation === 'build') writeArtifactsAtomically(outputDirectory!, artifacts);
+  const raw = readSafeJson(bundlePath, 'source bundle');
+  const hooks = typeof raw === 'object' && raw !== null && 'format' in raw && raw.format === 'orchard-lifecycle-source-v2';
+  const bundle = hooks ? parseLifecycleHookBundle(raw) : parseLifecycleSourceBundle(raw);
+  const digest = bundle.format === 'orchard-lifecycle-source-v2' ? lifecycleHookBundleSha256(bundle) : lifecycleBundleSha256(bundle);
+  const artifacts = bundle.format === 'orchard-lifecycle-source-v2' ? compileLifecycleHookBundle(bundle) : compileLifecycleBundle(bundle, digest);
+  if (operation === 'build') writeArtifactsAtomically(outputDirectory!, artifacts, hooks);
   process.stdout.write(`${digest}\n`);
 } catch (error) {
   process.stderr.write(`Lifecycle code rejected: ${error instanceof Error ? error.message : String(error)}\n`);

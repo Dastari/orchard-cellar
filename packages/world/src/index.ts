@@ -420,6 +420,8 @@ import {
 } from '@orchard/sim';
 import { runtimeResourceObstacle, runtimeSpaceSurfaceDefinition, runtimeSpaceSurfaceObstacle } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, firstHarvestOfDay, runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim';
+import { authoredHookApproved, authoredHookRegistrations, objectTransitionHookRegistrations, objectStateEvents, type AuthoredHookAuthority } from '@orchard/sim';
+import { AUTHORED_HOOK_BUNDLE_SHA256, AUTHORED_LIFECYCLE_HOOKS } from '@orchard/lifecycle-authoring/hooks';
 import { AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS } from '@orchard/lifecycle-authoring/generated';
 import { Identity } from 'spacetimedb';
 import {
@@ -5244,10 +5246,6 @@ function acceptQuest(
     id, identity: ctx.sender, questId: definition.id, state: 'active',
     acceptedTick: authorityTick, completedTick: undefined, turnedInTick: undefined, pinned: true,
   });
-  raiseSenderBehaviourEvent(ctx, {
-    type: 'questState', actor: { entityType: 'player', id: identityHex },
-    questId: definition.id, from: 'available', to: 'active',
-  });
   for (const objective of definition.objectives) {
     ctx.db.player_quest_baseline.insert({
       id: playerQuestBaselineId(identityHex, definition.id, objective.id),
@@ -5274,6 +5272,10 @@ function acceptQuest(
       itemKind: item.itemKind,
     });
   }
+  raiseSenderBehaviourEvent(ctx, {
+    type: 'questState', actor: { entityType: 'player', id: identityHex },
+    questId: definition.id, from: 'available', to: 'active',
+  });
   recordPlayerStatistic(ctx, ctx.sender, 'quests_accepted', 1n, authorityTick, definition.id);
 }
 
@@ -9972,6 +9974,29 @@ const worldBehaviourHandlers: BehaviourHandlerRegistry = registerPlaceableHandle
   createHandlerRegistry(AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS),
 );
 
+const authoredHookInvocations = new WeakMap<WorldReducerContext, number>();
+function authoredHookAuthority(ctx: WorldReducerContext): AuthoredHookAuthority {
+  return {
+    approved: () => {
+      const review = ctx.db.studio_script_review.artifactHash.find(AUTHORED_HOOK_BUNDLE_SHA256);
+      return authoredHookApproved(AUTHORED_HOOK_BUNDLE_SHA256, review === null ? null : {
+        artifactHash: review.artifactHash, author: review.author.toHexString(),
+        ...(review.approvedBy === undefined ? {} : { approvedBy: review.approvedBy.toHexString() }),
+        approved: review.approvedAt !== undefined,
+      });
+    },
+    consume: () => {
+      const calls = (authoredHookInvocations.get(ctx) ?? 0) + 1;
+      authoredHookInvocations.set(ctx, calls);
+      return calls <= 32;
+    },
+    audit: (id, event, effects) => {
+      insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'authored_lifecycle_hook',
+        value: JSON.stringify({ hash: AUTHORED_HOOK_BUNDLE_SHA256, id, event, effects }), occurredAt: ctx.timestamp });
+    },
+  };
+}
+
 function currentWorldBehaviourHandlers(ctx: WorldReducerContext): BehaviourHandlerRegistry {
   const head = ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID);
   const content = cachedContentRegistry(ctx);
@@ -9985,7 +10010,10 @@ function currentWorldBehaviourHandlers(ctx: WorldReducerContext): BehaviourHandl
     ),
   ));
   return objectGraphRegistryForContent(
-    createHandlerRegistry([...handlers.registrations, ...frameActionHandlerRegistrations(content.registry.frames.values())]),
+    createHandlerRegistry([...handlers.registrations, ...frameActionHandlerRegistrations(content.registry.frames.values()),
+      ...authoredHookRegistrations(AUTHORED_LIFECYCLE_HOOKS, authoredHookAuthority(ctx)),
+      ...objectTransitionHookRegistrations(content.registry.objects.values(), AUTHORED_LIFECYCLE_HOOKS,
+        authoredHookAuthority(ctx), head?.engineVersion ?? CONTENT_ENGINE_VERSION)]),
     content,
     head?.engineVersion ?? CONTENT_ENGINE_VERSION,
   );
@@ -12038,14 +12066,18 @@ function worldBehaviourEffectWriter(
       }
       const row = targetPlaceable();
       const plan = planPlaceableStateEffect(contentRegistry(ctx), row, { toggleState: state });
-      ctx.db.world_placeable.id.update({ ...row, ...plan });
+      const updated = { ...row, ...plan };
+      ctx.db.world_placeable.id.update(updated);
+      raisePlaceableStateEvents(ctx, row, updated, actorIsSender);
     },
     setState: (state) => {
       const row = targetPlaceable();
       const plan = planPlaceableStateEffect(contentRegistry(ctx), row, { setState: state });
       const lampState=row.definitionId===STREETLAMP_DEFINITION
         ?streetlampState(plan.stateJson,ctx.db.world_environment.id.find(0)?.calendarTick??ctx.db.world_clock.id.find(0)?.authorityTick??0n):{};
-      ctx.db.world_placeable.id.update({ ...row, ...plan, ...lampState });
+      const updated = { ...row, ...plan, ...lampState };
+      ctx.db.world_placeable.id.update(updated);
+      raisePlaceableStateEvents(ctx, row, updated, actorIsSender);
     },
     setLight: (light) => {
       if (target === undefined) {
@@ -12131,6 +12163,10 @@ function worldBehaviourEffectWriter(
           authorityTick,
           objective.actionKind,
         );
+        raiseSenderBehaviourEvent(ctx, { type: 'questObjective',
+          actor: { entityType: 'player', id: ctx.sender.toHexString() },
+          questId: definition.id, objectiveId: objective.id, amount: action.amount,
+        });
       }
       // Statistic and location objectives remain derived from canonical rows.
       // Explicit progress is confined to a matching active action objective and
@@ -12253,6 +12289,18 @@ function raisePlaceableSlotChangedEvent(
 /** Raises player lifecycle notifications through the same compiled registry as
  * interactions. Non-sender/system mutations retain the legacy quest authority
  * path because their immutable actor snapshot is not available in this reducer. */
+function raisePlaceableStateEvents(ctx: WorldReducerContext, before: WorldPlaceableRow, after: WorldPlaceableRow, actorIsSender: boolean): void {
+  const from = behaviourObjectSnapshot(ctx, before);
+  const to = behaviourObjectSnapshot(ctx, after);
+  const target = resolvedBehaviourTarget(ctx, 'placeable', after.id);
+  if (target === null) throw new SenderError('behaviour_target_missing');
+  for (const event of objectStateEvents({ entityType: 'object', id: to.id, definitionId: to.definitionId }, from.state, to.state)) {
+    const result = raiseEvent(currentWorldBehaviourHandlers(ctx), event, actorIsSender ? authorityBehaviourSnapshot(ctx, to) : timerBehaviourSnapshot(ctx, to));
+    if (isBlockedHandlerResult(result)) throw new SenderError(result.blocked);
+    applyWorldBehaviourEffects(ctx, result.effects, target, actorIsSender);
+  }
+}
+
 function raiseSenderBehaviourEvent(ctx: WorldReducerContext, event: LifecycleEvent): void {
   const actor = 'actor' in event ? event.actor : undefined;
   if (actor === undefined || actor.entityType !== 'player'
@@ -19580,6 +19628,7 @@ function raiseDialogueChoiceEvent(
     npc: target.ref as NpcRef,
     nodeId,
     choiceId,
+    dialogueId: ctx.db.active_dialogue.identity.find(ctx.sender)?.dialogueId ?? '',
   }, authorityBehaviourSnapshot(ctx, target.snapshot));
   if (isBlockedHandlerResult(result)) throw new SenderError(result.blocked);
   applyWorldBehaviourEffects(ctx, result.effects, target, true);
