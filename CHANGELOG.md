@@ -1,7 +1,9 @@
 # Changelog
 
-## Chunk materialization groundwork — sim 0.21.1 / engine 0.20.1
+## Chunk materialization groundwork — sim 0.21.2 / engine 0.20.2
 
+- Add versioned per-cell medium and independent solid blockers for D6; retain
+  unchanged walking/boat parity channels until the later ability-based runtime.
 - Add SHA-256-addressed 64×64 static world chunks with one-cell halos, signed
   elevations, ordered authored/generated records, exact generated resource IDs,
   and an optional cell-part section.

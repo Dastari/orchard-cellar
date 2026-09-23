@@ -1,6 +1,6 @@
 import type { TerrainArray } from './terrain.js';
 import type { CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
-import { WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, decodeWorldChunk, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
+import { WORLD_CHUNK_VOID, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, decodeWorldChunk, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 
 /** Compatibility adapter for today's contiguous TerrainArray contract.
  * No generator/compiler runs here. Unloaded cells stay blocked. */
@@ -71,6 +71,7 @@ export class ChunkTerrainStore implements TerrainArray {
     for (const [name, spec] of Object.entries(specifications)) {
       if (!Number.isInteger(spec.planes) || spec.planes < 1 || spec.planes > 256 || !['u8', 'i16'].includes(spec.type)) throw new TypeError('Invalid channel specification');
       channels[name] = spec.type === 'i16' ? new Int16Array(this.width * this.height * spec.planes) : new Uint8Array(this.width * this.height * spec.planes);
+      if (name === 'medium') channels[name]!.fill(WORLD_CHUNK_VOID);
       if (/blocked|PlaneBlocked/iu.test(name)) channels[name]!.fill(1);
     }
     this.channels = channels;

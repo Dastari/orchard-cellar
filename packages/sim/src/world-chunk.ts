@@ -2,6 +2,11 @@ import { sha256 } from '@noble/hashes/sha2.js';
 
 /** Offline/materialized world format. No generator or engine dependency. */
 export const WORLD_CHUNK_SCHEMA = 1 as const;
+/** Independent extension version: never reinterpret existing numeric medium IDs. */
+export const WORLD_CHUNK_MEDIUM_SCHEMA = 1 as const;
+export const WORLD_CHUNK_MEDIA = ['land', 'shallow_water', 'deep_water', 'lava', 'shroom_water', 'void'] as const;
+export type WorldChunkMedium = typeof WORLD_CHUNK_MEDIA[number];
+export const WORLD_CHUNK_VOID = 5 as const;
 export const WORLD_CHUNK_SIZE = 64 as const;
 export const WORLD_CHUNK_HALO = 1 as const;
 export const WORLD_CHUNK_STRIDE = WORLD_CHUNK_SIZE + 2 * WORLD_CHUNK_HALO;
@@ -17,6 +22,7 @@ export interface WorldChunkRecord {
 }
 export interface WorldChunk {
   readonly schema: typeof WORLD_CHUNK_SCHEMA;
+  readonly mediumSchema?: typeof WORLD_CHUNK_MEDIUM_SCHEMA;
   readonly spaceId: number;
   readonly cx: number;
   readonly cy: number;
@@ -75,6 +81,7 @@ function checkHeader(value: unknown): asserts value is Omit<WorldChunk, 'arrays'
     || !validInteger(value['spaceId']) || !validInteger(value['cx']) || !validInteger(value['cy'])
     || typeof value['assetRevision'] !== 'string' || !strings(value['assetIds']) || !strings(value['atlasPackIds'])
     || !Array.isArray(value['records'])) throw new TypeError('Invalid world chunk header');
+  if (value['mediumSchema'] !== undefined && value['mediumSchema'] !== WORLD_CHUNK_MEDIUM_SCHEMA) throw new TypeError('Unsupported medium schema');
   for (const record of value['records']) {
     if (!object(record) || typeof record['kind'] !== 'string' || !validInteger(record['ordinal']) || record['ordinal'] < 0
       || !validInteger(record['tileX']) || !validInteger(record['tileY']) || !('value' in record)
@@ -88,16 +95,24 @@ function checkHeader(value: unknown): asserts value is Omit<WorldChunk, 'arrays'
     }
   }
 }
+function checkMedium(schema: unknown, arrays: Readonly<Record<string, ChunkArray>>): void {
+  const medium = arrays['medium'], solid = arrays['solidBlocked'];
+  if (schema === undefined && medium === undefined && solid === undefined) return;
+  if (schema !== WORLD_CHUNK_MEDIUM_SCHEMA || !(medium instanceof Uint8Array) || !(solid instanceof Uint8Array)
+    || medium.length !== CELL_COUNT || solid.length !== CELL_COUNT
+    || medium.some(value => value >= WORLD_CHUNK_MEDIA.length) || solid.some(value => value > 1)) throw new TypeError('Invalid medium channels');
+}
 /** Hash covers coordinates, schema, metadata and every channel byte. LE is explicit. */
 export function encodeWorldChunk(chunk: Omit<WorldChunk, 'contentHash'>): Uint8Array {
   checkHeader(chunk);
+  checkMedium(chunk.mediumSchema, chunk.arrays);
   const channels = Object.entries(chunk.arrays).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
   const descriptors = channels.map(([name, array]) => {
     if (!/^[a-zA-Z][a-zA-Z0-9.]*$/u.test(name) || !(array instanceof Uint8Array || array instanceof Int16Array) || array.length === 0
       || array.length % CELL_COUNT !== 0 || array.length / CELL_COUNT > 256) throw new TypeError(`Invalid channel ${name}`);
     return { name, type: array instanceof Int16Array ? 'i16' : 'u8', length: array.length };
   });
-  const header = { schema: chunk.schema, spaceId: chunk.spaceId, cx: chunk.cx, cy: chunk.cy, assetRevision: chunk.assetRevision,
+  const header = { schema: chunk.schema, ...(chunk.mediumSchema === undefined ? {} : { mediumSchema: chunk.mediumSchema }), spaceId: chunk.spaceId, cx: chunk.cx, cy: chunk.cy, assetRevision: chunk.assetRevision,
     records: chunk.records, assetIds: chunk.assetIds, atlasPackIds: chunk.atlasPackIds, ...(chunk.cellParts === undefined ? {} : { cellParts: chunk.cellParts }) };
   const json = encoder.encode(canonicalChunkJson({ ...header, channels: descriptors }));
   const length = PREFIX_SIZE + json.length + channels.reduce((sum, [, array]) => sum + array.byteLength, 0);
@@ -142,6 +157,7 @@ export function decodeWorldChunk(bytes: Uint8Array, expectedHash?: string): Worl
     arrays[entry['name']] = array;
     offset += length * size;
   }
+  checkMedium(raw.mediumSchema, arrays);
   if (offset !== bytes.length) throw new TypeError('Trailing chunk bytes');
   const header = { ...raw } as unknown as Record<string, unknown>;
   delete header['channels'];

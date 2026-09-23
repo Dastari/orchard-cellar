@@ -26,6 +26,29 @@ interface. This first compatibility store assembles full arrays, with missing
 terrain blocked. View pinning, LRU, IndexedDB and bounded-memory renderer changes
 belong to the subsequent streaming/runtime-switch lane.
 
+## D6 medium extension (schema 1)
+
+Each new blob declares `mediumSchema: 1` and carries one `medium` byte and one
+`solidBlocked` byte per cell, including its halo. The fixed medium palette is
+`land, shallow_water, deep_water, lava, shroom_water, void` (indices 0–5).
+Unknown versions/values fail decoding; extending the palette requires a new
+medium schema. Older blobs without this extension remain readable. Missing or
+outside-map cells use `void` and solid=true.
+
+The offline classifier prefers an explicit resolved rule medium; otherwise it
+uses effective biome and authored surface/feature data. Ocean is deep water;
+freshwater, oasis, waterfall, authored water and river are shallow water. These
+are migration categories, not measured depth. Lava retains its own medium;
+shroom water requires an explicit role declaration. Dry terrain is land.
+Solid blockers remain separate: explicit force-block/ledges and dry terrain
+blockers are captured independently; precise legacy elevation masks and object
+obstacles are also retained. A medium alone never grants movement.
+
+All legacy walking and boat layers remain unchanged. No `canTraverse`, abilities,
+hazards or gameplay switch is introduced. Rule-catalogue resolution is supplied
+through the optional capture callback after #73 integration; this branch has no
+catalogue or per-role declarations yet.
+
 ## Verification and handoff
 
 Golden checks compare every reconstructed typed channel, authored record,
@@ -118,16 +141,16 @@ access. Do not replace the live world document or publish from this lane.
 Using bootstrap content `0f06c798`, the local authored snapshot hash
 `c851a3b53af198a5f2a4a8ae8282c8e676a71fc6eacadc724d12c589e3059a45`, and
 SageIsland's separate `atlas.packs.json` index, all 169 chunks resolved pack IDs
-and passed both audit and delivery parity. The manifest is 82,693 bytes.
+and passed both audit and delivery parity. The manifest is 82,867 bytes.
 
 | Encoding | Total chunk bytes | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: | ---: |
-| Raw | 25,479,885 | 121,546 | 121,547 | 731,973 |
-| gzip level 9 | 648,207 | 1,198 | 1,239 | 40,027 |
-| Brotli quality 5 | 496,898 | 905 | 929 | 27,598 |
+| Raw | 26,970,972 | 130,369 | 130,370 | 740,796 |
+| gzip level 9 | 658,959 | 1,236 | 1,282 | 40,102 |
+| Brotli quality 5 | 504,577 | 937 | 964 | 27,620 |
 
-Including the **uncompressed** manifest, totals are 730,900 bytes with gzip or
-579,591 bytes with Brotli. These are offline file sizes, not network timing or
+Including the **uncompressed** manifest, totals are 741,826 bytes with gzip or
+587,444 bytes with Brotli. These are offline file sizes, not network timing or
 first-play measurements. Delivery still includes compatibility client collision
 copies; server oracle copies are absent.
 
@@ -156,13 +179,15 @@ The 15 pre-existing water-mask discrepancies are exactly:
 
 Every listed cell is blocked in the client water map and walkable in the server
 water map. The server's optional water horse-jump mask contains 692,224 false
-entries; the client has no such field. An owner/engine decision is required
-before unifying these behaviors in a runtime migration.
+entries; the client has no such field. Owner decision D6 now specifies medium plus actor abilities. All 15 cells resolve
+to `shallow_water` with `solidBlocked=0` in both bootstrap and the authored snapshot.
+The old client/server boat masks remain unchanged until the later runtime switch.
 
 PR: [#71](https://github.com/Dastari/orchard-cellar/pull/71), branch
 `feat/world-chunk-materialization`. Validation: repository typecheck/lint,
-independent sim/engine builds, offline-tool typecheck, 10 new focused tests and
+independent sim/engine builds, offline-tool typecheck, 18 new focused tests and
 22 existing live-terrain/collision tests pass. The broad run initially encountered
 stale generated-atlas and absent ignored premium-source fixtures; the isolated
-atlas was rebuilt and all seven affected map-export tests pass. See the PR for
-the final broad-test and CI status. No deployment or world publication occurred.
+atlas was rebuilt and all seven affected map-export tests pass. All three premium-icon tests also pass after restoring ignored source art. The
+original coverage run ended with 5 fixture failures and 5,932 passes; it is not
+reported as a clean full run. See the PR for exhaustive and CI status. No deployment or world publication occurred.

@@ -442,3 +442,8 @@ existing implementations disagree. This is additive tooling; the live server and
 client continue to use their current map-document path. See
 [world chunk materialization](world-chunk-materialization.md) for the format,
 validation, and streaming follow-up boundary.
+
+The additive D6 medium extension stores one versioned material ID per cell plus
+solid blockers, independent of the retained walking/boat oracle channels.
+Outside/unloaded cells are void; runtime ability-based traversal remains a later
+lane. See the materialization procedure for fallback categories and rule metadata.

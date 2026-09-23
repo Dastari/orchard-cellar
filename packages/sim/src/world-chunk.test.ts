@@ -37,6 +37,20 @@ describe('world chunk binary format', () => {
     expect(() => encodeWorldChunk({ ...a, cellParts: { '4096': [] } })).toThrow(/parts/u);
     expect(() => encodeWorldChunk({ ...a, arrays: { biome: new Uint8Array(17) } })).toThrow(/channel/u);
   });
+  it('retains medium beside legacy planes and rejects unsupported extension data', () => {
+    const source = fixture();
+    const arrays = { ...source.arrays, medium: new Uint8Array(WORLD_CHUNK_STRIDE ** 2).fill(4),
+      solidBlocked: new Uint8Array(WORLD_CHUNK_STRIDE ** 2),
+      'clientGround.blocked': new Uint8Array(WORLD_CHUNK_STRIDE ** 2).fill(1),
+      'clientWater.blocked': new Uint8Array(WORLD_CHUNK_STRIDE ** 2) };
+    const input = { ...source, mediumSchema: 1 as const, arrays };
+    expect(decodeWorldChunk(encodeWorldChunk(input))).toEqual({ ...input, contentHash: expect.any(String) });
+    expect(() => encodeWorldChunk({ ...input, mediumSchema: 2 as 1 })).toThrow(/medium/u);
+    expect(() => encodeWorldChunk({ ...source, arrays })).toThrow(/medium/u);
+    expect(() => encodeWorldChunk({ ...input, arrays: { ...arrays, medium: new Uint8Array(WORLD_CHUNK_STRIDE ** 2).fill(6) } })).toThrow(/medium/u);
+    expect(() => encodeWorldChunk({ ...input, arrays: { ...arrays, solidBlocked: new Uint8Array(WORLD_CHUNK_STRIDE ** 2).fill(2) } })).toThrow(/medium/u);
+    expect(() => encodeWorldChunk({ ...input, arrays: source.arrays })).toThrow(/medium/u);
+  });
   it('copies neighbour halos and plane-major channels, including map-edge sentinels', () => {
     const width = 65, height = 2;
     const source = Int16Array.from({ length: width * height * 2 }, (_, index) => index - 100);

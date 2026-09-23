@@ -12,6 +12,13 @@ describe('static island materialization golden parity', () => {
     const snapshot = captureWorldChunkSnapshot(row, registry);
     const result = materializeWorldChunks(snapshot, row, registry, { includeServerOracle: true });
     expect(result.blobs).toHaveLength(169);
+    for (let y = 357; y <= 361; y++) for (let x = 414; x <= 416; x++) {
+      const index = y * snapshot.terrain.width + x;
+      expect(snapshot.channels['medium']![index]).toBe(1); // waterfall: shallow_water
+      expect(snapshot.channels['solidBlocked']![index]).toBe(0);
+      expect(snapshot.channels['clientWater.blocked']![index]).toBe(1);
+      expect(snapshot.channels['serverWater.blocked']![index]).toBe(0);
+    }
     verifyWorldChunkParity(snapshot, result);
     const goldens = JSON.parse(readFileSync(new URL('./world-chunk-goldens.json', import.meta.url), 'utf8')) as Record<string, string>;
     for (const [name, values] of Object.entries(snapshot.channels)) {

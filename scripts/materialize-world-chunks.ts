@@ -15,9 +15,10 @@ import { liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumen
 import { createClientCollisionMap } from '@orchard/engine/collision';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
-import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE,
-  type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
+import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE, WORLD_CHUNK_MEDIA, WORLD_CHUNK_MEDIUM_SCHEMA, WORLD_CHUNK_VOID,
+  type WorldChunkMedium, type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
+import { worldChunkCellMedium } from './world-chunk-medium.js';
 import { serverLiveIslandReference } from './world-chunk-server-reference.js';
 
 export interface WorldChunkSnapshot {
@@ -37,7 +38,8 @@ function assetStrings(value: unknown, result: Set<string>): void {
   }
 }
 /** Calls the same live terrain, decoration and collision functions as the client. */
-export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry): WorldChunkSnapshot {
+export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry,
+  resolvedRoleMedium?: (tileX: number, tileY: number) => WorldChunkMedium | undefined): WorldChunkSnapshot {
   const document = parseMapDocumentV3(row.documentJson, activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
   const raw = JSON.parse(row.documentJson) as { cells?: Record<string, { parts?: unknown }> };
   for (const [key, value] of Object.entries(raw.cells ?? {})) {
@@ -57,6 +59,22 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
     const value = terrain[field];
     if (value !== undefined) channels[field] = value;
   }
+  const medium = new Uint8Array(terrain.width * terrain.height);
+  const solidBlocked = new Uint8Array(medium.length);
+  for (let index = 0; index < medium.length; index++) {
+    const x = index % terrain.width, y = Math.floor(index / terrain.width);
+    const biome = SURVIVAL_BIOMES[terrain.biomes[index]!];
+    if (biome === undefined) throw new TypeError(`Unknown biome at ${x},${y}`);
+    const cell = document.cells[`${x},${y}`];
+    const source = { biome, surface: compiled.surfaces[index], feature: compiled.features[index] };
+    medium[index] = WORLD_CHUNK_MEDIA.indexOf(worldChunkCellMedium({ ...source, ruleMedium: resolvedRoleMedium?.(x, y) }));
+    // Never turn the old water/lava walking restriction into an unconditional solid.
+    solidBlocked[index] = Number(cell?.collision === 'force_block'
+      || (cell?.collision !== 'force_walk' && (cell?.ledge === true
+        || (worldChunkCellMedium(source) === 'land' && terrain.blocked[index]))));
+  }
+  channels['medium'] = medium;
+  channels['solidBlocked'] = solidBlocked;
   channels['blocked'] = Uint8Array.from(terrain.blocked, Number);
   channels['horseJumpableTerrain'] = Uint8Array.from(terrain.horseJumpableTerrain, Number);
   channels['features'] = Uint8Array.from(compiled.features, feature => MAP_FEATURE_KINDS.indexOf(feature));
@@ -111,6 +129,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   terrainMeta['hasTransitions'] = terrain.terrainTransitions !== undefined;
   terrainMeta['hasOverrides'] = terrain.terrainOverrides !== undefined;
   return { terrain, document, channels, records, collisions, metadata: {
+    mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, mediumPalette: json(WORLD_CHUNK_MEDIA),
     terrain: json(terrainMeta), collisions: collisionMetadata,
     channels: json(Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: value.length / (terrain.width * terrain.height) }]))),
     surfacePalette: json(MAP_SURFACE_KINDS), featurePalette: json(MAP_FEATURE_KINDS),
@@ -176,8 +195,8 @@ export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMa
       if (cell?.['parts'] !== undefined) cellParts[String(y * WORLD_CHUNK_SIZE + x)] = json(cell['parts']);
     }
     const assetIds = [...assets].sort();
-    const bytes = encodeWorldChunk({ schema: 1, spaceId, cx, cy, assetRevision,
-      arrays: Object.fromEntries(Object.entries(channels).map(([name, source]) => [name, sliceWorldChunkChannel(source, width, height, cx, cy, /blocked/iu.test(name) ? 1 : 0)])),
+    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, spaceId, cx, cy, assetRevision,
+      arrays: Object.fromEntries(Object.entries(channels).map(([name, source]) => [name, sliceWorldChunkChannel(source, width, height, cx, cy, name === 'medium' ? WORLD_CHUNK_VOID : /blocked/iu.test(name) ? 1 : 0)])),
       records, assetIds, atlasPackIds: [...new Set(atlasPackIdsForAssets(assetIds))].sort(),
       ...(Object.keys(cellParts).length ? { cellParts } : {}),
     });
