@@ -176,7 +176,7 @@ function buildEnqueueGameplayPlaceables(input: Inputs) {
               authoredDefinition.components.sprite?.fenceJoin === true
                 ? fenceMask : Math.floor(performance.now() / 125),
               x, y, cameraX, cameraY,
-              scale, authoredSprite.scale, pressContents,
+              scale, authoredSprite.scale, pressContents, presentation.appearance?.lighting.receivesGlobal ?? true,
             );
             return;
           }
@@ -188,7 +188,9 @@ function buildEnqueueGameplayPlaceables(input: Inputs) {
             pressContents,
           );
         };
-        if (frameLightingModel === 'unified'
+        if (presentation.appearance?.lighting.receivesGlobal === false) {
+          drawPlaceable();
+        } else if (frameLightingModel === 'unified'
           || ((presentation.collision?.blocksMovement ?? (definition?.blocksMovement === true))
             && presentation.light === null
             && (presentation.authored || !isLightEmitterKind(placeable.kind)))) {

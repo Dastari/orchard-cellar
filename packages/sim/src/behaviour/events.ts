@@ -1,3 +1,4 @@
+import type { StateValue } from './effects.js';
 /** The fixed Tier-B lifecycle surface understood by the behaviour engine. */
 export const LIFECYCLE_EVENT_TYPES = [
   'use',
@@ -23,6 +24,10 @@ export const LIFECYCLE_EVENT_TYPES = [
   'dialogueChoice',
   'questState',
   'statistic',
+  'stateEnter',
+  'stateExit',
+  'transition',
+  'questObjective',
 ] as const;
 
 export type LifecycleEventType = typeof LIFECYCLE_EVENT_TYPES[number];
@@ -37,6 +42,13 @@ export const DATA_GRAPH_EVENT_TYPES = [
   'tick',
   'break',
   'timer',
+  'spawn',
+  'despawn',
+  'stateEnter',
+  'stateExit',
+  'dialogueChoice',
+  'questState',
+  'questObjective',
 ] as const satisfies readonly LifecycleEventType[];
 
 export type DataGraphEventType = typeof DATA_GRAPH_EVENT_TYPES[number];
@@ -48,7 +60,14 @@ export type InteractionVerb =
   | 'walk_onto'
   | 'tick'
   | 'break'
-  | 'timer';
+  | 'timer'
+  | 'spawn'
+  | 'despawn'
+  | 'stateEnter'
+  | 'stateExit'
+  | 'dialogueChoice'
+  | 'questState'
+  | 'questObjective';
 
 export interface EntityRef {
   readonly entityType: 'object' | 'npc' | 'player';
@@ -257,6 +276,7 @@ export interface DialogueChoiceEvent {
   readonly npc: NpcRef;
   readonly nodeId: string;
   readonly choiceId: string;
+  readonly dialogueId?: string;
 }
 
 export interface QuestStateEvent {
@@ -273,6 +293,24 @@ export interface StatisticEvent {
   readonly kind: string;
   readonly subject?: string;
   readonly delta: bigint;
+}
+
+export interface ObjectStateEvent<T extends 'stateEnter' | 'stateExit' | 'transition'> {
+  readonly type: T;
+  readonly object: ObjectRef;
+  readonly from: Readonly<Record<string, StateValue>>;
+  readonly to: Readonly<Record<string, StateValue>>;
+}
+export interface TransitionEvent extends ObjectStateEvent<'transition'> {
+  readonly callbackId: string;
+  readonly transitionId: string;
+}
+export interface QuestObjectiveEvent {
+  readonly type: 'questObjective';
+  readonly actor: ActorRef;
+  readonly questId: string;
+  readonly objectiveId: string;
+  readonly amount: number;
 }
 
 export interface LifecycleEventByType {
@@ -299,6 +337,10 @@ export interface LifecycleEventByType {
   readonly dialogueChoice: DialogueChoiceEvent;
   readonly questState: QuestStateEvent;
   readonly statistic: StatisticEvent;
+  readonly stateEnter: ObjectStateEvent<'stateEnter'>;
+  readonly stateExit: ObjectStateEvent<'stateExit'>;
+  readonly transition: TransitionEvent;
+  readonly questObjective: QuestObjectiveEvent;
 }
 
 export type LifecycleEvent = LifecycleEventByType[LifecycleEventType];

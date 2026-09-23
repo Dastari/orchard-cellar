@@ -155,3 +155,21 @@ describe('live object presentation cache', () => {
     expect(load).toHaveBeenCalledOnce();
   });
 });
+
+it('uses ordered state overrides for art, emission, footprint and lighting together', () => {
+  const content = liveState();
+  const altered = { ...lamp, components: { ...lamp.components, overrides: [{ when: { lit: true },
+    sprite: { asset: 'prop_other_lamp', animation: 'charged', scale: 2 }, light: false as const,
+    collision: { blocksMovement: false, footprint: [[0]] }, lighting: { receivesGlobal: false, castsShadow: 'none' as const },
+    target: { left: -2, right: 2, top: -8, bottom: 0 },
+  }] } };
+  const registry = { ...content.registry, objects: new Map([...content.registry.objects, [lamp.id, altered]]) };
+  const cache = new LiveObjectPresentationCache(() => {}, async () => loadedAsset);
+  const result = cache.resolve({ ...content, registry }, { id: 999n, kind: 'oil_lamp', definitionId: lamp.id,
+    open: false, lit: true, stateJson: '{"lit":true}' });
+  expect(result.sprite).toMatchObject({ assetName: 'prop_other_lamp', animation: 'charged', scale: 2 });
+  expect(result.light?.enabled).toBe(false);
+  expect(result.collision?.blocksMovement).toBe(false);
+  expect(result.appearance).toMatchObject({ collision: { footprint: [[0]] },
+    lighting: { receivesGlobal: false, castsShadow: 'none' }, target: { left: -2, right: 2, top: -8, bottom: 0 } });
+});

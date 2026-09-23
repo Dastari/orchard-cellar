@@ -308,9 +308,9 @@ describe('overworld authority rules', () => {
       })},
     );
     const registry = buildContentRegistry(rows).registry;
-    expect(terrainCollisionForSpace(registry, DEBUG_SPACE_ID)).toEqual(
-      hearthLobbyCollision(registry,DEBUG_SPACE_ID),
-    );
+    const { traversalChannels, ...legacy } = terrainCollisionForSpace(registry, DEBUG_SPACE_ID);
+    expect(legacy).toEqual(hearthLobbyCollision(registry,DEBUG_SPACE_ID));
+    expect(Array.from(traversalChannels!.solidBlocked)).toEqual(legacy.blocked.map(Number));
     expect(terrainCollisionForSpace(registry, DEBUG_SPACE_ID, 'air').blocked.every(Boolean)).toBe(true);
   });
 

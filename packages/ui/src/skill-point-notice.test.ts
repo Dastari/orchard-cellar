@@ -34,3 +34,11 @@ describe('skill point notice tracker', () => {
     }])).toEqual([]);
   });
 });
+
+it('uses the published progression curve for earned-point notices', async () => {
+ const {BOOTSTRAP_PROGRESSION}=await import('@orchard/sim');
+ const progression={...BOOTSTRAP_PROGRESSION,levelCap:3,xpCurve:{scale:10,exponent:1}};
+ const tracker=new SkillPointNoticeTracker();
+ tracker.observe([{track:'farming',experience:0n,bonusPoints:0}],progression);
+ expect(tracker.observe([{track:'farming',experience:30n,bonusPoints:0}],progression)).toEqual([{track:'farming',points:3}]);
+});

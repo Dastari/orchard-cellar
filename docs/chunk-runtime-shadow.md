@@ -54,3 +54,17 @@ Real bootstrap view churn visited all 169 chunk centers, kept every view plus ri
 Worktree: `/home/toby/projects/orchard-chunk-runtime`; branch `feat/chunk-runtime-shadow`, stacked on PR71 `37dc1917`. Production source is frozen at the tested commit; the final follow-up records results only. GoldCondor confirmed owner-only CAS and topside shadow scope in Agent Mail319. Coordinate later integration with D6 PR80 `cd5009d3`: retain its optional `hasTraversalChannels` compatibility metadata, actor policy and independent hazard table. Combine additive schemas and bindings with PR81 without altering object-state anchors. OrangePike has shared additive access for timer work in a separate worktree.
 
 Next action is coordinator review/CI reconciliation and a separately authorized publication rehearsal. Live activation still needs chunk-native renderer/collision integration, D6 parity, spawn-pack readiness, browser offline/cache acceptance and rollback evidence. Generator and document retirement remain prohibited until the listed gates are met. No merge, publish or deploy was performed.
+
+
+## Coordinated source integration
+
+This refresh consumes source #81 `1626a476` and #80 `47583aee` over reviewed main
+`df509125`. Its production files exactly equal fullgreen runtime rehearsal #88
+`b6e37eb382cdb27e826d013339c3c466c76cff57` (exclude docs/** and CHANGELOG only).
+That snapshot passed 6,389 coverage tests across 1,022 files, one skip, all 101
+exhaustive tests, integrity/content/world/types/lint and assets. Independent source-prefix checks passed: 52 focused tests / eleven files,
+regenerated bindings, checked world build, all workspace types, lint and guarded
+Studio production build. Fresh hosted CI remains a separate coordinator gate.
+This does not integrate timer PRs #84–86; combined runtime/timer PR93 owns that
+separate gate. All shadow/owner-only/private-schema boundaries remain unchanged.
+No merge, publication, deployment, live activation or generator removal occurred.

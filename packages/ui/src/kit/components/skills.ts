@@ -1,3 +1,4 @@
+import { BOOTSTRAP_PROGRESSION } from '@orchard/sim';
 import { SKILL_TRACKS, availableSkillPoints, skillExperienceForLevel, skillLevelForExperience, skillNodeIsImplemented, skillPurchaseRejectionForNodes, skillRespecCostBronze, type SkillTrack } from '@orchard/sim';
 import type { SkillTreeModel, SkillTreeCallbacks } from '../../skill-tree-ui.js';
 import type { LoadedAsset } from '../../assets.js';
@@ -20,8 +21,8 @@ export function uiSkills(options:UiSkillsOptions):UiSkillsElement {
  const progress=()=>model.tracks.find(entry=>entry.track===track)??{track,experience:0n,spentPoints:0,bonusPoints:0,respecCount:0};
  const ranks=()=>Object.fromEntries(model.ranks.map(entry=>[entry.nodeId,entry.rank]));
  const selectedNode=()=>model.nodes.filter(node=>node.track===track).find(node=>node.id===selected);
- const canLearn=()=>selected!==null&&skillPurchaseRejectionForNodes(model.nodes,selected,{...progress(),ranks:ranks()})===null;
- const canReset=()=>progress().spentPoints>0&&model.balanceBronze>=skillRespecCostBronze(progress().respecCount);
+ const canLearn=()=>selected!==null&&skillPurchaseRejectionForNodes(model.nodes,selected,{...progress(),ranks:ranks()}, model.progression)===null;
+ const canReset=()=>progress().spentPoints>0&&model.balanceBronze>=skillRespecCostBronze(progress().respecCount, model.progression);
  const heading=uiText('',{wrap:true}),xpLabel=uiText(''),xp=uiMeter({label:'Skill experience',value:0,tone:'warning'});
  const detail=uiFlex({width:'grow',gap:4});
  const learn=uiButton({label:'LEARN 1 RANK',tone:'success',size:'sm',layout:{width:'grow'},onPress:()=>{if(canLearn())options.purchase(selected!);}});
@@ -29,18 +30,18 @@ export function uiSkills(options:UiSkillsOptions):UiSkillsElement {
  const graphHost=uiFlex({width:'grow',height:'grow',minHeight:uiFixed(180)},[]);
  const tabs=uiFlex({direction:'row',wrap:true,width:'grow',gap:4,shrink:0});
  const refresh=()=>{
-  const p=progress(),level=skillLevelForExperience(p.experience),start=skillExperienceForLevel(level),end=skillExperienceForLevel(Math.min(50,level+1)),points=availableSkillPoints(p.experience,p.spentPoints,p.bonusPoints);
+  const p=progress(),level=skillLevelForExperience(p.experience, model.progression),start=skillExperienceForLevel(level, model.progression),end=skillExperienceForLevel(level + 1, model.progression),points=availableSkillPoints(p.experience, p.spentPoints, p.bonusPoints, model.progression);
   heading.setProps({text:`${track.toUpperCase()} LEVEL ${level} · ${points} UNSPENT POINT${points===1?'':'S'}`});
-  xpLabel.setProps({text:level>=50?'MAX LEVEL':`${p.experience-start} / ${end-start} XP`});xp.setProps({value:level>=50?1:Number(p.experience-start)/Number(end-start)});
+  xpLabel.setProps({text:level >= (model.progression ?? BOOTSTRAP_PROGRESSION).levelCap?'MAX LEVEL':`${p.experience-start} / ${end-start} XP`});xp.setProps({value:level >= (model.progression ?? BOOTSTRAP_PROGRESSION).levelCap?1:Number(p.experience-start)/Number(end-start)});
   graph.updateRanks(ranks(),selected);
   for(const child of [...detail.children])child.dispose();
   const node=selectedNode();
-  if(node){detail.append(uiText(node.name.toUpperCase(),{role:'header',wrap:true}));detail.append(uiText(skillNodeIsImplemented(node)?'LIVE IN GAME':'PLACEHOLDER — NO EFFECT YET',{wrap:true}));detail.append(uiText(node.root?'ROOT — ALWAYS OWNED':`RANK ${ranks()[node.id]??0}/${node.maxRank} · COST ${node.pointCost}`,{wrap:true}));detail.append(uiText(node.description,{wrap:true}));const rejection=skillPurchaseRejectionForNodes(model.nodes,node.id,{...p,ranks:ranks()});if(rejection&&!node.root)detail.append(uiText(rejection.replaceAll('_',' ').toUpperCase(),{wrap:true}));}
+  if(node){detail.append(uiText(node.name.toUpperCase(),{role:'header',wrap:true}));detail.append(uiText(skillNodeIsImplemented(node)?'LIVE IN GAME':'PLACEHOLDER — NO EFFECT YET',{wrap:true}));detail.append(uiText(node.root?'ROOT — ALWAYS OWNED':`RANK ${ranks()[node.id]??0}/${node.maxRank} · COST ${node.pointCost}`,{wrap:true}));detail.append(uiText(node.description,{wrap:true}));const rejection=skillPurchaseRejectionForNodes(model.nodes,node.id,{...p,ranks:ranks()}, model.progression);if(rejection&&!node.root)detail.append(uiText(rejection.replaceAll('_',' ').toUpperCase(),{wrap:true}));}
   else detail.append(uiText('Select a skill to inspect it. Drag to pan; wheel to zoom. Focus the graph and use arrow keys to pan or Home to center.',{wrap:true}));
-  const cost=skillRespecCostBronze(p.respecCount);reset.setProps({label:`RESET TREE ${cost/10000n}G ${cost%10000n/100n}S ${cost%100n}C`}).setDisabled(!canReset());learn.setProps({label:node?.root?'ROOT OWNED':'LEARN 1 RANK'}).setDisabled(!canLearn());
+  const cost=skillRespecCostBronze(p.respecCount, model.progression);reset.setProps({label:`RESET TREE ${cost/10000n}G ${cost%10000n/100n}S ${cost%100n}C`}).setDisabled(!canReset());learn.setProps({label:node?.root?'ROOT OWNED':'LEARN 1 RANK'}).setDisabled(!canLearn());
  };
  const selectTrack=(next:SkillTrack)=>{
-  track=next;selected=null;key='';graph?.dispose();graph=uiSkillGraph({nodes:model.nodes.filter(node=>node.track===track),ranks:ranks(),canLearn:id=>skillPurchaseRejectionForNodes(model.nodes,id,{...progress(),ranks:ranks()})===null,artwork:options.artwork,onSelect:id=>{selected=id;refresh();}});graphHost.append(graph);
+  track=next;selected=null;key='';graph?.dispose();graph=uiSkillGraph({nodes:model.nodes.filter(node=>node.track===track),ranks:ranks(),canLearn:id=>skillPurchaseRejectionForNodes(model.nodes,id,{...progress(),ranks:ranks()}, model.progression)===null,artwork:options.artwork,onSelect:id=>{selected=id;refresh();}});graphHost.append(graph);
   for(const child of [...tabs.children])child.dispose();
   for(const candidate of SKILL_TRACKS)tabs.append(uiButton({label:candidate.toUpperCase(),tone:candidate===track?'success':'neutral',size:'sm',onPress:()=>selectTrack(candidate)}));refresh();
  };

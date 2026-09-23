@@ -58,7 +58,8 @@ export interface LightTrunkOccluder {
   readonly receiverFacing?: 'omnidirectional' | 'south';
   /** Silhouette casters retain their authored umbra. Column casters use only
    * the collision base for a long projected shadow. */
-  readonly shadowMode?: 'column' | 'silhouette';
+  readonly shadowMode?: 'column' | 'silhouette' | 'none';
+  readonly occludesLocalLight?: boolean;
   readonly contactEnabled?: boolean;
   readonly elevationLayer?: number;
 }
@@ -401,6 +402,7 @@ export function rasterizeLightOcclusion(
   }
 
   for (const [trunkIndex, trunk] of map.trunkOccluders.entries()) {
+    if (trunk.occludesLocalLight === false) continue;
     if ((trunk.elevationLayer ?? 0) !== elevationLayer) continue;
     const owner = trunkIndex + 1;
     if (owner > 0xffff) break;

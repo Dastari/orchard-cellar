@@ -1,0 +1,31 @@
+{
+  "source": "052f23e159c6ca571346768ada4e3eadc01d5a35 before blob47 migration",
+  "hashes": {
+    "farmland": "d1a2581458655cdcb07f91bbed3a84a5a433b472c47e078a6d30f48270ae1548",
+    "grass_1/beach": "815c1430f10bfb473703e78202baa3a7190e28b8e75d9e0060d7a7094794e577",
+    "grass_1/paving": "815c1430f10bfb473703e78202baa3a7190e28b8e75d9e0060d7a7094794e577",
+    "grass_1/grass_1": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_1/grass_2": "fe8171fd29ed1443b27a3c3f2ec7f69c49e22b255891799273fa502d9ff918ca",
+    "grass_1/grass_3": "fe8171fd29ed1443b27a3c3f2ec7f69c49e22b255891799273fa502d9ff918ca",
+    "grass_1/grass_4": "fe8171fd29ed1443b27a3c3f2ec7f69c49e22b255891799273fa502d9ff918ca",
+    "grass_2/beach": "4246ad6aafff8b69dc30ce78ee320c51d0b0e9e6e61aff03a79c36d91e76a17f",
+    "grass_2/paving": "4246ad6aafff8b69dc30ce78ee320c51d0b0e9e6e61aff03a79c36d91e76a17f",
+    "grass_2/grass_1": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_2/grass_2": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_2/grass_3": "e7b6978358540dcc79bd7341138f9c9afffb213529cb9820ee80649a56c9b2d5",
+    "grass_2/grass_4": "e7b6978358540dcc79bd7341138f9c9afffb213529cb9820ee80649a56c9b2d5",
+    "grass_3/beach": "65af2f032027dbd9d9687ba0d371814bf365bc26126b2531fb792f5a47c0d2f0",
+    "grass_3/paving": "65af2f032027dbd9d9687ba0d371814bf365bc26126b2531fb792f5a47c0d2f0",
+    "grass_3/grass_1": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_3/grass_2": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_3/grass_3": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_3/grass_4": "ffd8f0c50fbfd79816ada5f92343ffa30873c254513ab161d148b51804412450",
+    "grass_4/beach": "4a57aab42de0189dff1bf551b282dcc490d0df9ae723191ab10a6ca44ea23aa7",
+    "grass_4/paving": "4a57aab42de0189dff1bf551b282dcc490d0df9ae723191ab10a6ca44ea23aa7",
+    "grass_4/grass_1": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_4/grass_2": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_4/grass_3": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "grass_4/grass_4": "6810b21be47bf17348fab5166e9e0e7c01f0b07e3d7339e2f5b8feabc7d73cf9",
+    "mixed": "3be3750897be4be0a964007a6e3c5211e8b82caccfb2a45ca970f6e95c240ef6"
+  }
+}

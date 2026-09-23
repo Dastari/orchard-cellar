@@ -75,3 +75,20 @@ it('lights the native streetlamp from its lantern and rejects mismatched or reti
   objects.set(definition.id,{...definition,retired:true});
   expect(liveMapObjectPointLights(document,{...registry,objects},0n)).toEqual([]);
 });
+
+it('binds a newly authored lamp without adding an engine asset mapping',async()=>{
+  const base=fixture();
+  const asset='arbitrary_authored_lamp';
+  const definition={...registry.objects.get('object:standing_torch')!,id:'object:custom_lamp' as const,
+    components:{...registry.objects.get('object:standing_torch')!.components,sprite:{asset,animationByState:{default:'burn'}}}};
+  const content={...registry,objects:new Map([...registry.objects,[definition.id,definition]])};
+  const document={...base,prefabs:[{...base.prefabs[0]!,placements:[{...base.prefabs[0]!.placements[0]!,assetName:asset}]}]};
+  await preloadLiveMapObjectAssets(document);
+  expect(liveMapObjectPointLights(document,content,0n)).toHaveLength(1);
+});
+
+it('resolves replicated map state even when on/off share one native visual',async()=>{
+  const document=fixture();
+  await preloadLiveMapObjectAssets(document);
+  expect(liveMapObjectPointLights({...document,objects:[{...document.objects[0]!,state:{lit:false}}]},registry,0n)).toEqual([]);
+});

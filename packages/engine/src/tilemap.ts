@@ -1,3 +1,4 @@
+import { farmlandRuleLayers } from '@orchard/sim';
 import type { AtlasFrame } from '@orchard/ui';
 
 /** Reusable authored-tile contract retained for future instanced maps. */
@@ -19,39 +20,22 @@ export interface TileDefinition {
   readonly overlayAtlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame };
 }
 
-function eligibleDiagonalCount(cardinals: number): number {
-  const north = (cardinals & 1) !== 0;
-  const east = (cardinals & 2) !== 0;
-  const south = (cardinals & 4) !== 0;
-  const west = (cardinals & 8) !== 0;
-  return Number(north && east) + Number(east && south) + Number(south && west) + Number(west && north);
-}
-
-/** Canonical 47-frame blob topology shared by authored paths and the runtime atlas. */
+/** Legacy packed-diagonal adapter; the authored table owns frame numbering. */
 export function canonicalBlob47Index(cardinals: number, diagonalChoice: number): number {
-  let index = diagonalChoice;
-  for (let previous = 0; previous < cardinals; previous += 1) {
-    index += 1 << eligibleDiagonalCount(previous);
+  const eligible = [[1,2],[2,4],[4,8],[8,1]] as const;
+  let mask=cardinals & 15;let bit=0;
+  for(let i=0;i<eligible.length;i++){
+    const [a,b]=eligible[i]!;
+    if((cardinals&a)&&(cardinals&b)){if(diagonalChoice&(1<<bit))mask|=1<<(i+4);bit++;}
   }
-  return index;
+  const offsets=[[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]] as const;
+  return blob47FrameIndexFor((x,y)=>{const i=offsets.findIndex(([dx,dy])=>x===dx&&y===dy);return i>=0&&(mask&(1<<i))!==0;});
 }
 
 export function blob47FrameIndexFor(matches: (offsetX: number, offsetY: number) => boolean): number {
-  const north = matches(0, -1);
-  const east = matches(1, 0);
-  const south = matches(0, 1);
-  const west = matches(-1, 0);
-  const cardinals = Number(north) | (Number(east) << 1) | (Number(south) << 2) | (Number(west) << 3);
-  const diagonals = [matches(1, -1), matches(1, 1), matches(-1, 1), matches(-1, -1)];
-  const eligible = [north && east, east && south, south && west, west && north];
-  let diagonalChoice = 0;
-  let choiceBit = 0;
-  for (let diagonal = 0; diagonal < eligible.length; diagonal += 1) {
-    if (!eligible[diagonal]) continue;
-    if (diagonals[diagonal]) diagonalChoice |= 1 << choiceBit;
-    choiceBit += 1;
-  }
-  return canonicalBlob47Index(cardinals, diagonalChoice);
+  const frame=farmlandRuleLayers(matches)[0];
+  if(!frame)throw new Error('farmland_rule_base_missing');
+  return frame.frame;
 }
 
 export function blob47FrameIndex(tiles: readonly number[], width: number, index: number, tileId: number): number {

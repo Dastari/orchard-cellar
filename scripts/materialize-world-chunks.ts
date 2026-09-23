@@ -119,6 +119,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
     collision.obstacles?.forEach((value, index) => add(`${name}.obstacle`, index, value.left / TILE_SIZE_FIXED, value.top / TILE_SIZE_FIXED, value));
     collision.terrainTransitions?.forEach((value, index) => add(`${name}.transition`, index, value.lowerTileX, value.lowerTileY, value));
     collisionMetadata[name] = json({
+      ...(collision.traversalChannels === undefined ? {} : { hasTraversalChannels: true }),
       ...(collision.terrainMinimumElevation === undefined ? {} : { terrainMinimumElevation: collision.terrainMinimumElevation }),
       ...(collision.fixedTerrainPlane === undefined ? {} : { fixedTerrainPlane: collision.fixedTerrainPlane }),
       ...(collision.terrainTransitions === undefined ? {} : { terrainTransitions: [] }),
@@ -126,6 +127,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   }
   const terrainMeta: Record<string, unknown> = {};
   for (const field of ['seed', 'version', 'generator', 'defaultCliffFamily', 'defaultSurfaceFamily', 'cliffFamilyIds', 'projectionStyle', 'baseDatum', 'fixedTerrainPlane', 'raisedTerrainCollisionClassified'] as const) if (terrain[field] !== undefined) terrainMeta[field] = terrain[field];
+  terrainMeta['hasTraversalChannels'] = terrain.traversalChannels !== undefined;
   terrainMeta['hasCellParts'] = terrain.cellParts !== undefined;
   terrainMeta['hasTransitions'] = terrain.terrainTransitions !== undefined;
   terrainMeta['hasOverrides'] = terrain.terrainOverrides !== undefined;

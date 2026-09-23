@@ -73,3 +73,11 @@ describe('persistent outdoor encounter lifecycle',()=>{
     expect(kill.completion!.grants.map(row=>row.identity)).toEqual(['fighter']);
   });
 });
+
+it('environmental damage completes health without inventing a contributor', () => {
+  const initial = newOutdoorEncounter('hazard', 1000, reward, 1);
+  const result = damageOutdoorEncounter(initial, null, 1000, 100n, 1200n);
+  expect(result.state.healthCenti).toBe(0);
+  expect(result.state.contributions).toEqual([]);
+  expect(result.completion?.grants).toEqual([]);
+});

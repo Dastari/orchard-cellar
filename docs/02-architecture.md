@@ -470,8 +470,13 @@ legacy map prefabs use explicit asset membership. Studio and client pass active
 registry catalogues to the same index and engine renderer. The renderer caches
 by asset identity so content changes cannot reuse stale family art. Existing
 content without an envelope reads the bootstrap catalogue; an explicit empty
-envelope disables connections. Other terrain resolvers remain unchanged and
-are pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
+envelope disables connections. Blob47 farmland and the four native grass fringes now resolve committed catalogue
+frames through `sim/terrain-rule-catalogue.ts`. Its fixed mask lookup tables keep
+per-cell work bounded. Optional family layers compose independently; `matchMask`
+selects relevant neighbour bits without encoding art rules in the engine. Hoed
+and authored farmland share frame selection; native fringes retain separate
+transition entries and engine family/height classification. Other terrain resolvers
+remain pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
 
 ### Schema-driven Studio forms (F1)
 
@@ -491,3 +496,14 @@ rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).
 ## Chunk runtime shadow boundary
 
 The shadow phase adds public `world_chunk_shadow` and `world_chunk_head` metadata and private `world_chunk_blob` bytes. Owner-only staging verifies the existing immutable codec and compares map/content revisions before atomically replacing heads. The client uses a separate bounded chunk-native store with view/ring pins, a two-request loader and hash-key IndexedDB retention. It compares diagnostics without replacing legacy terrain or movement. An owner-only procedure samples private chunk collision without a whole-world reconstruction. Static preparation is offline and publication remains separately gated. See [chunk runtime shadow](chunk-runtime-shadow.md) for interfaces, limits and activation gates.
+## Studio multi-space backend
+
+F4 shares `sim/space-registry.ts` between runtime authority and Studio, resolving
+revision-bound static geometry plus persisted homestead and rogue instances.
+`adminSpaceRegistry` projects only geometry and ownership from private runs after
+the admin gate. `adminEntitiesInAreaPage` uses `(spaceId, chunkX, chunkY, id)`
+indexes and request-bound keyset cursors; scan budgets remain bounded even in
+dense chunks or when filters return no matches. Studio uses per-space viewport
+subscriptions while player presence remains global. Runtime-space route references
+are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
+and [decision](adr/ADR-studio-multi-space.md).

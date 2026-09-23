@@ -13,7 +13,7 @@ import type {
 } from '@orchard/world-bindings/types';
 import type { AdminObjectsApi } from '../admin/objects-api.js';
 import type { AdminApi } from '../admin/api.js';
-import { StudioLiveAdminServices, StudioLiveAdminWorldService } from '../admin/live-services.js';
+import { fetchStudioSpaceRegistry, StudioLiveAdminServices, StudioLiveAdminWorldService } from '../admin/live-services.js';
 import type { AdminWorldApi } from '../admin/world-api.js';
 import type { MembershipApi } from '../tools/membership/model.js';
 import type { ObserveApi } from '../tools/observe/model.js';
@@ -42,30 +42,35 @@ export const STUDIO_LIVE_ISLAND_SPACE_ID = 0;
 /** Seven high-volume tables share the generated (space, chunkX, chunkY) index.
  * A single rectangular query per table keeps query count constant as the
  * camera pans or zooms. */
-export function studioLiveIslandSpatialQueries(bounds: StudioMapChunkBounds) {
+export function studioSpaceSpatialQueries(spaceId: number, bounds: StudioMapChunkBounds) {
+  if (!Number.isInteger(spaceId) || spaceId < 0 || spaceId > 65_535) throw new Error('invalid_space_id');
   return Object.freeze([
-    tables.worldPlaceable.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldPlaceable.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
-    tables.worldCombatTarget.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldCombatTarget.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
-    tables.worldResource.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldResource.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
-    tables.worldSurface.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldSurface.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
-    tables.worldNpc.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldNpc.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
-    tables.worldWildlifeProfile.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldWildlifeProfile.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
-    tables.playerPosition.where((row) => row.spaceId.eq(STUDIO_LIVE_ISLAND_SPACE_ID))
+    tables.worldCrop.where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minimumX)).where((row) => row.chunkX.lte(bounds.maximumX))
       .where((row) => row.chunkY.gte(bounds.minimumY)).where((row) => row.chunkY.lte(bounds.maximumY)),
   ]);
+}
+
+export function studioLiveIslandSpatialQueries(bounds: StudioMapChunkBounds) {
+  return studioSpaceSpatialQueries(STUDIO_LIVE_ISLAND_SPACE_ID, bounds);
 }
 
 /** The stable read-only metadata subscription owned by Studio. Camera-bounded
@@ -83,6 +88,7 @@ export function studioInitialSubscriptionQueries() {
     tables.worldWind,
     tables.liveMapDocument.where((row) => row.mapId.eq(LIVE_MAP_ID)),
     tables.homestead,
+    tables.playerPosition,
     tables.playerPublic,
     tables.playerAppearance,
     tables.contentHead.where((row) => row.packId.eq('live')),
@@ -137,6 +143,7 @@ export interface StudioLiveAdapter {
   /** Supplies the visible live-map camera. Connected adapters use this only to
    * bound read-only subscriptions; it never changes authoritative world state. */
   setMapViewport?(viewport: StudioMapViewport): void;
+  spaceRegistry?(): Promise<readonly import('@orchard/sim').SpaceRegistryEntry[]>;
   /** Optional until final generated W4 bindings land. Connected U4 tools fail
    * closed when a live adapter does not implement this boundary. */
   readonly adminObjects?: AdminObjectsApi;
@@ -603,8 +610,13 @@ export class StudioConnection implements StudioLiveAdapter {
     });
   }
 
+  async spaceRegistry() {
+    if (this.#connection === null || !this.#connected) throw new Error('not_connected');
+    return fetchStudioSpaceRegistry(this.#connection);
+  }
+
   setMapViewport(viewport: StudioMapViewport): void {
-    if (viewport.spaceId !== STUDIO_LIVE_ISLAND_SPACE_ID) return;
+    if (!Number.isInteger(viewport.spaceId) || viewport.spaceId < 0 || viewport.spaceId > 65_535) throw new Error('invalid_space_id');
     this.#mapViewport = Object.freeze({ ...viewport });
     if (this.#subscriptionReady) this.#mapRegion?.request(this.#mapViewport);
   }
@@ -643,7 +655,7 @@ export class StudioConnection implements StudioLiveAdapter {
           (plan, onApplied, onError) => connection.subscriptionBuilder()
             .onApplied(onApplied)
             .onError(onError)
-            .subscribe([...studioLiveIslandSpatialQueries(plan.subscription)]),
+            .subscribe([...studioSpaceSpatialQueries(plan.spaceId, plan.subscription)]),
           () => {
             if (generation !== this.#connectionGeneration || connection !== this.#connection) return;
             this.#rowsProjection.markAll();

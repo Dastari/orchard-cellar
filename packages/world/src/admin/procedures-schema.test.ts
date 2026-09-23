@@ -21,7 +21,19 @@ describe('W1 administration procedure schema', () => {
       const registration = exportedProcedure(name);
       expect(registration).toContain('ctx.withTx((tx) =>');
       expect(registration).toMatch(/requireAdminProcedure\(tx(?:, '(?:operate\.players|operate\.world)')?\);/u);
-      expect(registration).not.toContain('.iter()');
+      // Registry enumerates bounded u16 space identities, not spatial populations.
+      if (name !== 'adminSpaceRegistry') expect(registration).not.toContain('.iter()');
+      else {
+        expect(registration).toContain('buildSpaceRegistry(contentRegistry(tx).compiled.spaces');
+        expect(registration).not.toContain('run.currency');
+        expect(registration).not.toMatch(/\.\.\.run\b/u);
+      }
+    }
+  });
+
+  it('requires world operation scope for spatial registry and area pages', () => {
+    for (const name of ['adminSpaceRegistry', 'adminEntitiesInAreaPage']) {
+      expect(exportedProcedure(name)).toContain("requireAdminProcedure(tx, 'operate.world');");
     }
   });
 
