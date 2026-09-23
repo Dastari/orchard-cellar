@@ -1,5 +1,9 @@
 # Changelog
 
+## Client 0.22.2 / UI 0.23.1 — 2026-09-24
+
+- Version mutable atlas index requests by client build so returning players controlled by an older service worker load matching index/category metadata after deployment. Keep existing revision checks and immutable asset caching.
+
 ## 0.27.2 — 2026-09-23
 
 - Add owner-only CAS chunk shadow staging, additive regional heads and verified private collision blobs.
