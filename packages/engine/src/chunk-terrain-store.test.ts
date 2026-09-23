@@ -23,6 +23,21 @@ function fixture() {
   return { arrays, blobs, manifest };
 }
 describe('ChunkTerrainStore', () => {
+  it('reconstructs additive traversal channels and invalidates their cache identity on install', () => {
+    const { blobs, manifest } = fixture();
+    const store = new ChunkTerrainStore({ ...manifest, metadata: { ...manifest.metadata,
+      terrain: { seed: 42, version: 1, hasTraversalChannels: true } } });
+    const before = store.traversalChannels!;
+    expect(before.medium[0]).toBe(5);
+    expect(before.solidBlocked[0]).toBe(1);
+    store.install(blobs[0]!);
+    const after = store.traversalChannels!;
+    expect(after).not.toBe(before);
+    expect(after.medium[0]).toBe(1);
+    expect(after.solidBlocked[0]).toBe(0);
+    expect(store.traversalChannels).toBe(after);
+  });
+
   it('implements TerrainArray and keeps missing cells blocked', () => {
     const { arrays, blobs, manifest } = fixture();
     const store = new ChunkTerrainStore(manifest);

@@ -83,6 +83,7 @@ export const BIOME_COLORS = [
 
 const WATER = 0;
 export interface TerrainArray {
+  readonly traversalChannels?: import('@orchard/sim').MediumCollisionChannels;
   readonly spaceId: number;
   readonly seed: number;
   readonly version: number;

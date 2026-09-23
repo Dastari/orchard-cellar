@@ -1420,6 +1420,17 @@ export const SupportGrant = __t.object("SupportGrant", {
 });
 export type SupportGrant = __Infer<typeof SupportGrant>;
 
+export const TraversalHazardState = __t.object("TraversalHazardState", {
+  id: __t.string(),
+  actor: __t.string(),
+  policy: __t.string(),
+  spaceId: __t.u16(),
+  numerator: __t.u64(),
+  elapsedTicks: __t.u32(),
+  lastTick: __t.u64(),
+});
+export type TraversalHazardState = __Infer<typeof TraversalHazardState>;
+
 export const VillageOrderQuote = __t.object("VillageOrderQuote", {
   id: __t.string(),
   title: __t.string(),

@@ -1,3 +1,4 @@
+import { parseWorldRulesDefinition, type WorldRulesContentDefinition, type WorldRulesDefinitionId } from './world-rules-definition.js';
 import { parseRuleCatalogue, type RuleCatalogue } from '../rule-catalogue.js';
 import { BALANCE_FIELD_METADATA, balanceTupleFields } from './balance-fields.js';
 import { parseProgressionDefinition, type ProgressionContentDefinition, type ProgressionDefinitionId } from './progression-definition.js';
@@ -97,7 +98,7 @@ export const SUPPORTED_CONTENT_KINDS = [
   'npc', 'dialogue', 'quest', 'balance', 'progression',
   'crop', 'creature', 'spawn', 'space', 'skill_tree', 'effect', 'statistic',
   'upgrade', 'balance_group', 'resource',
-  'loadout', 'enemy', 'encounter',
+  'loadout', 'enemy', 'encounter', 'world_rules',
 ] as const;
 export type SupportedContentKind = typeof SUPPORTED_CONTENT_KINDS[number];
 
@@ -132,7 +133,8 @@ export type ContentDefinitionId =
   | ResourceDefinitionId
   | LoadoutDefinitionId
   | EnemyDefinitionId
-  | EncounterDefinitionId;
+  | EncounterDefinitionId
+  | WorldRulesDefinitionId;
 
 export interface ContentDefinitionRow {
   readonly id: string;
@@ -403,7 +405,8 @@ export type SupportedContentDefinition =
   | ResourceContentDefinition
   | LoadoutContentDefinition
   | EnemyContentDefinition
-  | EncounterContentDefinition;
+  | EncounterContentDefinition
+  | WorldRulesContentDefinition;
 
 /** Canonical durable/wire shape. Parser defaults remain enumerable in the
  * runtime model; only redundant default-equal source bytes are omitted. */
@@ -1184,6 +1187,7 @@ export function parseContentDefinition(kind: string, json: string | unknown): Su
     case 'loadout': return parseLoadoutDefinition(json);
     case 'enemy': return parseEnemyDefinition(json);
     case 'encounter': return parseEncounterDefinition(json);
+    case 'world_rules': return parseWorldRulesDefinition(json);
     default: return fail('kind_mismatch', '$.kind', `unsupported definition kind ${kind}`);
   }
 }

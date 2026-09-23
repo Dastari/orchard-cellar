@@ -163,7 +163,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Smart object state resolves growth/appearance through the shared renderer.
 // Review: docs/studio-smart-placement-spec.md; parser, delta and visual regressions.
 // Retain the separately reviewed Update Ready button inset of 21px.
-const STRUCTURAL_SEAM_DIGEST = "73f153d686c0aef899dd46b4a70959e8b775652fe4d8b1a456b6a0b43cb74680";
+// D6 review: docs/64-medium-traversal-runtime.md; additive shared media channels,
+// actor-specific prediction/projectiles and independent solid geometry. Shadow preserves legacy.
+const STRUCTURAL_SEAM_DIGEST = "b4945a4755cc42ad61487cafe74ced2270e2d0d979cc8009eaa5f5a9fedfc88c";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

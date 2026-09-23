@@ -8,6 +8,22 @@
 - Production source matches the passing PR87 rehearsal; no deployment or later runtime activation.
 
 
+## 0.26.0 — 2026-09-23 — D6 runtime consumers and percentage hazards
+
+- Wire shared medium admission to prediction, authority movement, NPC AI, projectiles and gameplay placement while preserving independent geometry and explicit legacy/shadow modes. The authored bootstrap policy remains shadow.
+- Author boat/mount/creature/enemy grants and approved lava 10% / shroom-water 2% maximum-health damage each second. Boat/water-walk admission is separate from toxin immunity.
+- Add private fractional hazard state, existing knockout/rogue recovery and environmental encounter completion without synthetic player credit. Offline ticks never accrue exposure.
+- Add generated/compiled/chunk medium parity and authority persistence/recovery regression tests; document policy bounds, editor boundary and release gating in docs/64-medium-traversal-runtime.md.
+- Content: 920 definitions, 585,179 runtime bytes (a69b62bf), +2,461 bytes; measured guard 572 KiB.
+
+
+## 0.25.0 — 2026-09-23 — D6 traversal authoring groundwork
+
+- Add authored `world_rules` traversal policies, explicit actor/mount/effect grants, independent hazard cadence, and a shared medium predicate/classifier.
+- Add a bounded cached collision projection with explicit legacy/shadow/active results and immutable shadow differences for integration. No gameplay call site switches in this groundwork.
+- Keep the bootstrap policy collection empty pending owner hazard balance/access decisions. D6 runtime integration, terrain-role coverage and live activation remain incomplete; see `docs/medium-traversal-handoff.md`.
+- Sim 0.23.0; tools 0.21.0. Existing definitions and saved rows retain compatibility.
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue
