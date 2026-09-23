@@ -1,0 +1,71 @@
+{
+  "name": "icon_food_pancake",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00000....",
+        "....000111220...",
+        "...01122233410..",
+        "..0143256623410.",
+        ".01432566772310.",
+        ".01325777556220.",
+        ".02275665668420.",
+        ".02286698824310.",
+        ".012289222331a0.",
+        ".03122344111ba0.",
+        ".03411111ba4a0..",
+        "..043344aa440...",
+        "...03344a000....",
+        "....00000.......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e6cf",
+    "2": "#f6ca9f",
+    "3": "#e69c69",
+    "4": "#bf6f4a",
+    "5": "#ffc825",
+    "6": "#ffeb57",
+    "7": "#fff7b8",
+    "8": "#ffa214",
+    "9": "#ed7614",
+    "a": "#8a4836",
+    "b": "#5d2c28"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    64,
+    32,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "icon_food_roast_wrap",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........00000...",
+        "......00112230..",
+        "....00112112230.",
+        "...011211122320.",
+        "..0111111222230.",
+        ".01223111232330.",
+        ".02456312223370.",
+        ".02489a3233370..",
+        ".0296ba733770...",
+        ".03a95673700....",
+        "..03377700......",
+        "...00000........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e6cf",
+    "2": "#f6ca9f",
+    "3": "#e69c69",
+    "4": "#134c4c",
+    "5": "#1e6f50",
+    "6": "#33984b",
+    "7": "#bf6f4a",
+    "8": "#ca52c9",
+    "9": "#c64524",
+    "a": "#8e251d",
+    "b": "#93388f"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    128,
+    208,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

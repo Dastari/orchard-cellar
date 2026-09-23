@@ -1,0 +1,68 @@
+{
+  "name": "icon_food_cheese_slice",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......0000.....",
+        "......01223000..",
+        ".....0451122330.",
+        "....067744511230",
+        "...0666667744550",
+        "..06886688687450",
+        ".066688686674550",
+        ".06886666834500.",
+        "0686686736500...",
+        "06666734560.....",
+        "06683450080.....",
+        "0683500..00.....",
+        "06300...........",
+        "080.............",
+        "070.............",
+        ".00............."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ebcd7a",
+    "2": "#edab50",
+    "3": "#e07438",
+    "4": "#c64524",
+    "5": "#8e251d",
+    "6": "#ffeb57",
+    "7": "#ffa214",
+    "8": "#ffc825"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    0,
+    96,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

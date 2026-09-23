@@ -1,0 +1,71 @@
+{
+  "name": "icon_food_fruit_sandwich",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00000....",
+        "....000111220...",
+        "...01122233410..",
+        "..0143222223410.",
+        ".01432222222310.",
+        ".02222222222220.",
+        ".022222222243150",
+        "0612222222331750",
+        "0631223441118590",
+        ".064111118755a0.",
+        "06956344765a60..",
+        "0baa96559a690...",
+        "0000ab96a000....",
+        "....0b000.......",
+        ".....00........."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e6cf",
+    "2": "#f6ca9f",
+    "3": "#e69c69",
+    "4": "#bf6f4a",
+    "5": "#ffa214",
+    "6": "#ffc825",
+    "7": "#8a4836",
+    "8": "#5d2c28",
+    "9": "#ed7614",
+    "a": "#ff5000",
+    "b": "#ffeb57"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    160,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

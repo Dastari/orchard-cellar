@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_vegetable_pie",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0011111100...",
+        "..011222333110..",
+        ".01425667772410.",
+        "0142565777752410",
+        "0142577775673410",
+        "0143777756773410",
+        "0484377777734190",
+        ".04884444441190.",
+        ".04448811119990.",
+        "..04444aaaa990..",
+        "...004aaaa900...",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f6ca9f",
+    "2": "#1e6f50",
+    "3": "#33984b",
+    "4": "#e69c69",
+    "5": "#99e65f",
+    "6": "#d3fc7e",
+    "7": "#5ac54f",
+    "8": "#f9e6cf",
+    "9": "#8a4836",
+    "a": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    240,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

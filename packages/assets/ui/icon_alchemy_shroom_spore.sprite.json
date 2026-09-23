@@ -1,0 +1,67 @@
+{
+  "name": "icon_alchemy_shroom_spore",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....57777553...",
+        "...57777777753..",
+        "..575001100153..",
+        "..750102211003..",
+        "..500024421003..",
+        "..30012444013...",
+        "...310244333....",
+        "....33344.......",
+        ".......46.......",
+        "........62......",
+        "........62......",
+        "........62......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
+  "sourceRegion": [
+    112,
+    176,
+    16,
+    16
+  ],
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#200f2b",
+    "1": "#371539",
+    "2": "#5099b8",
+    "3": "#541b54",
+    "4": "#72b0e4",
+    "5": "#8d268d",
+    "6": "#aac0ea",
+    "7": "#de35dd"
+  },
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "item.mushroom",
+    "feature.food_alchemy",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

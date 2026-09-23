@@ -1,0 +1,74 @@
+{
+  "name": "icon_food_rice_cake",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....000000.....",
+        "...0012133200...",
+        "..013331231110..",
+        ".01323111113110.",
+        ".02331113114410.",
+        ".04111311144430.",
+        ".05431114443150.",
+        ".06551131445560.",
+        ".07665555556670.",
+        ".07877677669a70.",
+        ".0718bcc7bbd450.",
+        ".01133be7e44550.",
+        "..011444444550..",
+        "...0014445500...",
+        ".....000000....."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#edab50",
+    "2": "#f4e4b8",
+    "3": "#ebcd7a",
+    "4": "#e07438",
+    "5": "#c64524",
+    "6": "#ffa214",
+    "7": "#ffc825",
+    "8": "#1e6f50",
+    "9": "#ea323c",
+    "a": "#f5555d",
+    "b": "#5d2c28",
+    "c": "#8a4836",
+    "d": "#33984b",
+    "e": "#391f21"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    48,
+    304,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

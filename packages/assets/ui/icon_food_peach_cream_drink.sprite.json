@@ -1,0 +1,76 @@
+{
+  "name": "icon_food_peach_cream_drink",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "...00...........",
+        "...010....000...",
+        "....0200003340..",
+        "....0050603780..",
+        "...09020804800..",
+        "...090a338040...",
+        "...0988833860...",
+        "...06984446b0...",
+        "...0b69966cd0...",
+        "...09334488e0...",
+        "...0993348fe0...",
+        "....09g388b0....",
+        "....06g388b0....",
+        "....06438fe0....",
+        ".....06cbe0.....",
+        "......0000......"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ea323c",
+    "2": "#f9e6cf",
+    "3": "#ffc825",
+    "4": "#ffa214",
+    "5": "#c42430",
+    "6": "#aad3d5",
+    "7": "#8e251d",
+    "8": "#ed7614",
+    "9": "#e4f1f2",
+    "a": "#891e2b",
+    "b": "#66b0b3",
+    "c": "#84c0c2",
+    "d": "#38616d",
+    "e": "#528e9c",
+    "f": "#ff5000",
+    "g": "#ffeb57"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    144,
+    176,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

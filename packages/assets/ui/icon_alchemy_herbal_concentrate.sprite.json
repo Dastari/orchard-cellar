@@ -1,0 +1,74 @@
+{
+  "name": "icon_alchemy_herbal_concentrate",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".........000....",
+        "........01110...",
+        "....0000012210..",
+        "...03403051220..",
+        "..036703305550..",
+        "..04788433000...",
+        "..0498884a70....",
+        "..06bcc9d000....",
+        "..06bbbbbb70....",
+        "..0a88bbbbe0....",
+        "..0aaaa77e0.....",
+        "..00000000......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#e4f1f2",
+    "4": "#aad3d5",
+    "5": "#8a4836",
+    "6": "#84c0c2",
+    "7": "#528e9c",
+    "8": "#1e6f50",
+    "9": "#5ac54f",
+    "a": "#66b0b3",
+    "b": "#134c4c",
+    "c": "#99e65f",
+    "d": "#33984b",
+    "e": "#38616d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Potions_all_16x16.png",
+  "sourceRegion": [
+    64,
+    128,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.herb",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

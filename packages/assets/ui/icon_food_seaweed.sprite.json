@@ -1,0 +1,62 @@
+{
+  "name": "icon_food_seaweed",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...........2....",
+        "......2...12....",
+        ".....21..12.....",
+        ".....1...2......",
+        ".....1..12.011..",
+        ".....0122011....",
+        "......21........",
+        "....121..011....",
+        "....2...02......",
+        "...200122.......",
+        "..20............",
+        "..10............",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
+  "sourceRegion": [
+    160,
+    0,
+    16,
+    16
+  ],
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#743f39",
+    "2": "#b86f50"
+  },
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "item.fish",
+    "feature.food_alchemy",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

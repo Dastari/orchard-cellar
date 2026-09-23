@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_egg_rice_bite",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "...00000........",
+        "..01222300......",
+        ".0122434440.....",
+        ".05522444430....",
+        "..06552433440...",
+        "..066752444430..",
+        "..0678852433440.",
+        "...088981244420.",
+        "....08999122210.",
+        ".....00aa91110..",
+        ".......000000...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ed7614",
+    "2": "#ffa214",
+    "3": "#f4ebaf",
+    "4": "#ffc825",
+    "5": "#ff5000",
+    "6": "#424c6e",
+    "7": "#657392",
+    "8": "#92a1b9",
+    "9": "#c7cfdd",
+    "a": "#ffffff"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    48,
+    288,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

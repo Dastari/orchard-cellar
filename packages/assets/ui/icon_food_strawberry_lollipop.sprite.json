@@ -1,0 +1,68 @@
+{
+  "name": "icon_food_strawberry_lollipop",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........00000...",
+        ".......0123340..",
+        "......051142340.",
+        ".....05514442240",
+        ".....01533244240",
+        ".....01311124240",
+        ".....03151221310",
+        ".....02555511310",
+        ".....04255113250",
+        "......042233250.",
+        ".....060441150..",
+        "....070.00000...",
+        "...070..........",
+        "..080...........",
+        ".080............",
+        ".00............."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f5555d",
+    "2": "#f5c2c5",
+    "3": "#fdf2f3",
+    "4": "#ea8188",
+    "5": "#ea323c",
+    "6": "#8a4836",
+    "7": "#bf6f4a",
+    "8": "#e69c69"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    48,
+    64,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

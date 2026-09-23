@@ -1,0 +1,68 @@
+{
+  "name": "icon_food_fruit_tart",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......0000......",
+        "...00011110.....",
+        "..011222221000..",
+        ".01222342221110.",
+        ".05223433222110.",
+        "..0226337221180.",
+        "..0222672234120.",
+        ".011222223433120",
+        ".011342216337220",
+        ".013433111672280",
+        "022633711122280.",
+        "05126722222180..",
+        ".051181222110...",
+        "..05805211880...",
+        "...00.055800....",
+        ".......000......"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ebcd7a",
+    "2": "#edab50",
+    "3": "#c42430",
+    "4": "#f5555d",
+    "5": "#e07438",
+    "6": "#891e2b",
+    "7": "#571c27",
+    "8": "#c64524"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    80,
+    80,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

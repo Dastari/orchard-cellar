@@ -1,0 +1,75 @@
+{
+  "name": "icon_food_hearty_stew",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............00..",
+        "...........0110.",
+        ".....0000000120.",
+        "...00333440250..",
+        "..033666602500..",
+        ".03667777058040.",
+        "0367779705880640",
+        "0377a77bbb80bc40",
+        "043777bbcbbcb4d0",
+        ".0433b9bbeb44d0.",
+        ".0444333344ddd0.",
+        "..04444ffffdd0..",
+        "...004ffffd00...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c7cfdd",
+    "2": "#92a1b9",
+    "3": "#f6ca9f",
+    "4": "#e69c69",
+    "5": "#657392",
+    "6": "#4b2925",
+    "7": "#ff5000",
+    "8": "#424c6e",
+    "9": "#ffa214",
+    "a": "#3d3d3d",
+    "b": "#ed7614",
+    "c": "#ffc825",
+    "d": "#8a4836",
+    "e": "#5d5d5d",
+    "f": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    0,
+    16,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

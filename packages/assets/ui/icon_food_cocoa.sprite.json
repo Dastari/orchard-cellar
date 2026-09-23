@@ -1,0 +1,66 @@
+{
+  "name": "icon_food_cocoa",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........0000....",
+        ".....000112200..",
+        "...002212222230.",
+        "..02222433335420",
+        ".022443355554220",
+        "0244356544222240",
+        "0435664212222430",
+        "0356221122224350",
+        "056442222444350.",
+        "06334444433350..",
+        ".053333333500...",
+        "..055333500.....",
+        "...000000.......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#5d2c28",
+    "4": "#8a4836",
+    "5": "#391f21",
+    "6": "#1c121c"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Farming_all_16x16.png",
+  "sourceRegion": [
+    32,
+    128,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.grain",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

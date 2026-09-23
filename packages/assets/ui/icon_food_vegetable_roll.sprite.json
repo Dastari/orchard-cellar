@@ -1,0 +1,73 @@
+{
+  "name": "icon_food_vegetable_roll",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "....01212130....",
+        "...0134455160...",
+        "...0647774510...",
+        "...0157744830...",
+        "...0315588210...",
+        "...09213121a0...",
+        "...0ba9a9cad0...",
+        "...09ba9a9da0...",
+        "...0ba9a9cad0...",
+        "....0ba9a9d0....",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffffff",
+    "2": "#c7cfdd",
+    "3": "#92a1b9",
+    "4": "#33984b",
+    "5": "#1e6f50",
+    "6": "#657392",
+    "7": "#5ac54f",
+    "8": "#134c4c",
+    "9": "#3d3d3d",
+    "a": "#272727",
+    "b": "#5d5d5d",
+    "c": "#1b1b1b",
+    "d": "#131313"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    128,
+    256,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

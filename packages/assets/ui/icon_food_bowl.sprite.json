@@ -1,0 +1,67 @@
+{
+  "name": "icon_food_bowl",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0011122200...",
+        "..011333444220..",
+        ".01333344554420.",
+        "0133344455554420",
+        "0133445555554420",
+        "0513344555544260",
+        ".02113444442240.",
+        "..072111122450..",
+        "...0275754540...",
+        "....00475400....",
+        "......0000......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f6ca9f",
+    "2": "#e69c69",
+    "3": "#4b2925",
+    "4": "#743f39",
+    "5": "#91533b",
+    "6": "#5c322d",
+    "7": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Tools_all_16x16.png",
+  "sourceRegion": [
+    32,
+    720,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.grain",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

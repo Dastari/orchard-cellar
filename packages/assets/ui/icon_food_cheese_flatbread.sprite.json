@@ -1,0 +1,69 @@
+{
+  "name": "icon_food_cheese_flatbread",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......0000......",
+        "....00111100....",
+        "...0112222110...",
+        "..012233342250..",
+        ".01234446443250.",
+        "0123474878643250",
+        "0134487876888950",
+        "0536666678888950",
+        "0534888766666610",
+        "0534886787888810",
+        "0259468688789130",
+        ".02564468889130.",
+        "..025533391130..",
+        "...0225555330...",
+        "....00222300....",
+        "......0000......"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#edab50",
+    "2": "#e07438",
+    "3": "#c64524",
+    "4": "#ffa214",
+    "5": "#ebcd7a",
+    "6": "#ed7614",
+    "7": "#be5d0e",
+    "8": "#ffc825",
+    "9": "#f36b49"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    112,
+    80,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}
