@@ -48,6 +48,11 @@
 - Add eleven native-palette inventory icons from approved doc 63: six live specimens in ventilated jars, capture net, empty specimen jar, apiary frame, honeycomb and beeswax.
 - Record native-size/neighbor review and integration mapping in [the art review](docs/food-alchemy-collection-art/README.md). No gameplay data, world artwork or publication changes.
 - Candidate version coordinated after food/alchemy P0 0.19.1 and core art 0.19.2; preserve the higher compatible asset version when integrating parallel PRs.
+## Food and alchemy station artwork — assets 0.19.4 — 2026-09-23
+
+- Add eight native station/habitat sprites and seven inventory icons from doc 63, with stable state groups, anchors and four-frame working loops at 5 fps.
+- Add reproducible contact sheets and complete state-filmstrip review in `docs/food-alchemy-station-art`; existing station art and content definitions are unchanged.
+- Asset-only preparation: no world publication, deployment or gameplay activation.
 
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 

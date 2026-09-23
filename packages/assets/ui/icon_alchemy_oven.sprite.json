@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_oven",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "approved": true,
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..........yyyy..",
+        "..........yAAy..",
+        "....yyyyyyyyyy..",
+        "...CCBBBBBAAzy..",
+        "..yCBBBBBAAAzy..",
+        "..yAAyyyyyyAzy..",
+        "..yAySSSSSSyzy..",
+        "..yAySSSSSSyzy..",
+        "..yAySSSSSSyzy..",
+        "..yAAyyyyyyAzy..",
+        "..yAAAAAAAAAzy..",
+        "..SSSSSSSSSSSS..",
+        "................",
+        "................"
+      ]
+    ]
+  }
+}
