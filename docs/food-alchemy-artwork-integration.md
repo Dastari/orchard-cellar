@@ -62,8 +62,12 @@ committed. Reviewed source PR sheets provide visual evidence; pixels are unchang
   55 palette colors and four seasonal remaps.
 - Focused asset tests: **235 passed / four files**, including native pixel parity.
 - Full repository build, guarded Studio production build and client chunk gate passed.
-- Complete `npm run check` pending on the frozen candidate. Earlier source PR
-  interrupted runs are not claimed as combined validation.
+- First complete coverage attempt: 6,597 passed, one skip, one stale assertion
+  failure across 1,023 files. The old premium test counted all Kenmi imports as
+  exactly 21; the artwork adds 201. Preserve the exact 21 legacy cohort assertion
+  while continuing source-RGBA validation for all 222 imports. No pixels changed.
+- Corrected full `npm run check` pending. Earlier source PR interrupted runs are
+  not claimed as combined validation.
 
 ## Coordination and boundary
 

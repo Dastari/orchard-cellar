@@ -34,7 +34,9 @@ describe('premium tool, skill and seed artwork', () => {
 
   it.skipIf(process.env['ORCHARD_TEST_LICENSED_ART'] === '0')('preserves exact source pixels for every premium import and retained derivative', async () => {
     const assets = (await loadAssets()).filter(a => a.tags?.some(t => t === 'source.kenmi' || t === 'source.kenmi_derivative'));
-    expect(assets).toHaveLength(21); // 20 target replacements plus the legacy shovel alias.
+    // The original 20 replacements plus legacy shovel alias remain intact.
+    // Food/alchemy adds reviewed imports; retain source-pixel checks for all of them.
+    expect(assets.filter(asset => !asset.tags?.includes('feature.food_alchemy'))).toHaveLength(21);
     for (const asset of assets) {
       const image = decodePng(await readFile(new URL(asset.sourcePath!, workspaceRoot)));
       const [x, y, width, height] = asset.sourceRegion!;
