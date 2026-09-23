@@ -430,6 +430,17 @@ refreshes. Open popovers defer shell replacement, and stable hover dwell survive
 replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
 
+## Content-addressed atlas delivery (2026-09-23)
+
+The default category atlas keeps today's eager startup request count. Both category
+and semantic pack PNGs are SHA-256 addressed; a release-independent worker cache
+bounds immutable atlas storage to 64 MiB/512 entries. The additional
+`atlas.packs.json` maps semantic asset IDs to immutable pack metadata. Pack loading
+is explicitly opt-in (`?atlasPacks=1`) until chunk-visible art ownership lands.
+See [the pack contract](asset-packs-spec.md), [measurements and handoff](asset-packs-handoff.md),
+and [UI loader API](../packages/ui/README.md). This prerequisite does not change
+collision, world content, gameplay art ownership, or the first playable frame gate.
+
 
 ### Authored tile rule catalogue
 
