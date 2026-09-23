@@ -7,16 +7,25 @@ export interface ChunkBlobCache {
 interface StoredBlob { hash: string; bytes: ArrayBuffer; touched: number }
 export class IndexedDbChunkCache implements ChunkBlobCache {
   readonly #database: Promise<IDBDatabase>;
+  #closed = false;
   constructor(factory: IDBFactory, readonly maxBytes = 64 * 1024 * 1024, readonly maxEntries = 256) {
     if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || !Number.isSafeInteger(maxEntries) || maxEntries < 1) throw new Error('invalid_persistent_chunk_budget');
     this.#database = new Promise((resolve, reject) => {
       const request = factory.open('orchard-world-chunks-v1', 1);
       request.onupgradeneeded = () => request.result.createObjectStore('blobs', { keyPath: 'hash' });
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        request.result.onversionchange = () => request.result.close();
+        if (this.#closed) request.result.close();
+        resolve(request.result);
+      };
       request.onerror = () => reject(request.error);
       request.onblocked = () => reject(new Error('chunk_cache_blocked'));
     });
     void this.#database.catch(() => undefined);
+  }
+  close(): void {
+    this.#closed = true;
+    void this.#database.then(database => database.close()).catch(() => undefined);
   }
   async get(hash: string): Promise<Uint8Array | undefined> {
     const db = await this.#database;

@@ -76,5 +76,5 @@ export class ChunkShadowController {
     if (sample?.ready) { this.status.compared++; if (sample.legacyGroundBlocked !== legacyBlocked) this.status.differences++; }
     return sample;
   }
-  dispose(): void { this.#disposed = true; this.#subscription?.unsubscribe(); this.#loader?.dispose(); }
+  dispose(): void { this.#disposed = true; this.#subscription?.unsubscribe(); this.#loader?.dispose(); this.#cache?.close(); }
 }

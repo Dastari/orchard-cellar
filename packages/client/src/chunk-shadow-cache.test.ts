@@ -20,3 +20,8 @@ it('owns stored bytes and serializes concurrent writes under its hard budget',as
  await Promise.all([cache.put('b',new Uint8Array(2)),cache.put('c',new Uint8Array(2)),cache.put('d',new Uint8Array(2))]);
  const values=await Promise.all(['a','b','c','d'].map(key=>cache.get(key)));expect(values.filter(Boolean)).toHaveLength(2);
 });
+
+it('closes the database handle at connection teardown',async()=>{
+ const cache=new IndexedDbChunkCache(new IDBFactory());await cache.put('a',new Uint8Array([1]));cache.close();
+ await expect(cache.get('a')).rejects.toThrow();
+});

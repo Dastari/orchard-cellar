@@ -345,6 +345,7 @@ function compatibilityChestSlot(row: WorldPlaceableSlot): WorldChestSlot {
 export class OverworldConnection {
   private connection: DbConnection | null = null;
   private chunkShadow: ChunkShadowController | undefined;
+  private readonly chunkShadowEnabled = import.meta.env.VITE_CHUNK_RUNTIME_MODE === 'shadow';
   get chunkShadowStatus() { return this.chunkShadow?.status; }
   private connected = false;
   private error: string | null = null;
@@ -1378,7 +1379,7 @@ export class OverworldConnection {
       Math.floor(position.y / TILE_SIZE_FIXED),
     ] as const;
     const radius = this.viewRadius;
-    if (import.meta.env.VITE_CHUNK_RUNTIME_MODE === 'shadow') {
+    if (this.chunkShadowEnabled) {
       this.chunkShadow ??= new ChunkShadowController();
       this.chunkShadow.update(connection, BigInt(spaceId), [centerTiles[0] - radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] - radius.y * SURVIVAL_CHUNK_TILES,
         centerTiles[0] + radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] + radius.y * SURVIVAL_CHUNK_TILES], {
