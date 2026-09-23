@@ -7,7 +7,7 @@
  "stepsPerBeat": 4,
  "beatsPerBar": 4,
  "loopBars": 48,
- "masterGainDb": -11,
+ "masterGainDb": -6.0,
  "quotesMotif": {
   "id": "orchard_home",
   "channel": "flute",
@@ -31,11 +31,12 @@
     "Rest",
     "SpringAnswerA",
     "Rest"
-   ]
+   ],
+   "pan": 0.08
   },
   {
    "patch": "bells",
-   "vol": 0.3,
+   "vol": 0.34,
    "patterns": [
     "Rest",
     "DewA",
@@ -49,7 +50,8 @@
     "DewA",
     "Rest",
     "DewHome"
-   ]
+   ],
+   "pan": -0.4
   },
   {
    "patch": "pad",
@@ -103,11 +105,12 @@
     "Pk_EmD",
     "Pk_CD",
     "Rest"
-   ]
+   ],
+   "pan": 0.35
   },
   {
    "patch": "shaker",
-   "vol": 0.12,
+   "vol": 0.18,
    "patterns": [
     "Rest",
     "Rest",
@@ -121,11 +124,12 @@
     "Shk",
     "Shk",
     "Rest"
-   ]
+   ],
+   "pan": 0.5
   },
   {
    "patch": "strings",
-   "vol": 0.16,
+   "vol": 0.2,
    "patterns": [
     "Rest",
     "Rest",
@@ -139,7 +143,8 @@
     "Rest",
     "Str_CD",
     "Str_GG"
-   ]
+   ],
+   "pan": -0.3
   }
  ],
  "patterns": {
@@ -153,32 +158,38 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "D5",
-     8
+     8,
+     0.9
     ],
     [
      32,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      40,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      48,
      "G4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -188,22 +199,26 @@
     [
      4,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      32,
      "E5",
-     4
+     4,
+     0.9
     ],
     [
      44,
      "D5",
-     6
+     6,
+     0.8
     ],
     [
      56,
      "B4",
-     6
+     6,
+     0.7
     ]
    ]
   },
@@ -213,22 +228,26 @@
     [
      0,
      "D5",
-     4
+     4,
+     0.9
     ],
     [
      24,
      "B4",
-     8
+     8,
+     0.8
     ],
     [
      40,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      52,
      "G4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -238,22 +257,26 @@
     [
      8,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      20,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      32,
      "B4",
-     6
+     6,
+     0.8
     ],
     [
      48,
      "D5",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -558,42 +581,50 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "D5",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "C5",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "G4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -603,42 +634,50 @@
     [
      0,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "B4",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "F#4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -648,42 +687,50 @@
     [
      0,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "G4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "D5",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "B4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -693,42 +740,50 @@
     [
      0,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "C5",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "D5",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -738,42 +793,50 @@
     [
      4,
      "C5",
-     1
+     1,
+     0.7
     ],
     [
      12,
      "C5",
-     1
+     1,
+     0.5
     ],
     [
      20,
      "C5",
-     1
+     1,
+     0.7
     ],
     [
      28,
      "C5",
-     1
+     1,
+     0.5
     ],
     [
      36,
      "C5",
-     1
+     1,
+     0.7
     ],
     [
      44,
      "C5",
-     1
+     1,
+     0.5
     ],
     [
      52,
      "C5",
-     1
+     1,
+     0.7
     ],
     [
      60,
      "C5",
-     1
+     1,
+     0.5
     ]
    ]
   },
@@ -821,6 +884,12 @@
  "loop": true,
  "iterationNotes": [
   "Pass 2: removed two answer-phrase notes; motif and cadence retained; listening pass pending audio preview.",
-  "Pass 3: pluck arpeggios from slot 3, soft shaker pulse from slot 5 (drops out for the final phrase), strings only on the two cadence slots. Melody untouched; listening pass pending shared-browser audio preview."
- ]
+  "Pass 3: pluck arpeggios from slot 3, soft shaker pulse from slot 5 (drops out for the final phrase), strings only on the two cadence slots. Melody untouched; listening pass pending shared-browser audio preview.",
+  "Pass 4 (synth v2): mix retuned for the new instrument voices from offline stem renders \u2014 bass trimmed, bells/strings/shaker lifted, channel pans and phrase-shaped velocities added; notes unchanged. Owner listening pass pending."
+ ],
+ "fx": {
+  "reverb": 0.8,
+  "delayBeats": 0.75,
+  "delayFeedback": 0.28
+ }
 }

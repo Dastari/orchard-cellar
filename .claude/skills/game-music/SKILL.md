@@ -6,14 +6,20 @@ description: Compose music (*.song.json tracker files) and sound effects (*.sfx.
 # Music & SFX Authoring — Orchard & Cellar
 
 Binding spec: `docs/12-audio-design.md`. Audio is text: tracker songs and synth
-parameter files rendered at runtime via Web Audio. Target feel: calm, warm,
+parameter files rendered at runtime via Web Audio. Music is **tracker songs only**
+(owner decision 2026-09-23) — never add recorded/streamed music files. Target feel: calm, warm,
 pastoral — Stardew spring themes, A Short Hike. Never harsh, never urgent.
 
 ## Composition rules (songs)
 
 - **Patch set is closed**: flute, pad, pluck, bass, bells, strings, accordion,
-  woodblock, shaker (defined in `client/src/audio/patches.ts`). Compose only with
-  these. New patch = doc change + DECISIONS.md entry.
+  woodblock, shaker (defined in `packages/engine/src/audio/patches.ts`). Compose only
+  with these. New patch = doc change + DECISIONS.md entry.
+- Song format and every instrument parameter (oscillator layers, filter envelope,
+  ADSR, vibrato, velocity, pan, reverb/chorus/echo sends, per-channel `instrument`
+  overrides, `[step, note, length, velocity]` notes) are documented in
+  `docs/12-audio-design.md` §2.1–2.2. Shape phrases with velocity (peak note ~0.9,
+  phrase ending ~0.7) rather than extra notes.
 - Tempo 72–96 BPM, swing 0–0.12. Modes: major, lydian, mixolydian; dorian allowed
   for night/cellar. Avoid minor keys except transient color.
 - **Quote the signature motif** (the 4–8 note phrase defined by `theme_title`) in
@@ -29,9 +35,14 @@ pastoral — Stardew spring themes, A Short Hike. Never harsh, never urgent.
 
 ## Verification (do not skip)
 
-After writing a song, actually listen: `npm run assets:preview` audio tab plays any
-song/sfx. Check: no clipping (master meter), no dissonant collisions between
-channels, melody audible over pad, loop seam inaudible. Iterate at least once —
+After writing a song, actually listen: Studio → Author → Audio Preview
+(`/author/audio`) lists and plays every song/sfx through the game bus (the
+`npm run assets:preview` audio tab embeds the same player). Then run
+`npm run music:render -- <song> --stems` (add `--passes=2` for the loop seam): it
+renders WAVs to `output/music-renders/` (never commit them) and reports peak/RMS,
+per-channel levels and clipping. Check: no clipping, no dissonant collisions between
+channels, melody audible over pad (pad/bass ~6–8 dB under the lead), loop seam
+inaudible. Iterate at least once —
 first drafts of generated music are always too busy; the fix is nearly always
 *deleting notes*.
 

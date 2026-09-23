@@ -7,8 +7,10 @@ import {
   DEFAULT_AUDIO_SETTINGS,
   isAmbienceEligible,
   parsePersistedMusicPlayback,
+  musicCueFor,
+  MUSIC_CUES,
   songForAmbience,
-  STREAMED_MUSIC,
+  songUrl,
 } from './audio-bus.js';
 import type { SfxSource } from './types.js';
 
@@ -50,20 +52,36 @@ describe('text-authored audio', () => {
     expect(songForAmbience({ season: 'spring', time: 'night', location: 'estate' })).toBe('theme_night');
   });
 
-  it('streams title, day, and night recordings while leaving atmospheric gaps in-world', () => {
-    expect(STREAMED_MUSIC.theme_title).toMatchObject({ url: '/music/orchard-title.mp3', continuous: true });
-    expect(STREAMED_MUSIC.theme_spring.continuous).toBe(false);
-    expect(STREAMED_MUSIC.theme_spring.silenceSeconds[0]).toBeGreaterThan(0);
-    expect(STREAMED_MUSIC.theme_night).toMatchObject({ url: '/music/orchard-night.mp3', continuous: false });
+  it('plays tracker songs: the title loops while world cues leave atmospheric gaps', () => {
+    expect(Object.keys(MUSIC_CUES)).toEqual(['theme_title', 'theme_spring', 'theme_night']);
+    expect(MUSIC_CUES.theme_title.continuous).toBe(true);
+    expect(MUSIC_CUES.theme_spring.continuous).toBe(false);
+    expect(MUSIC_CUES.theme_spring.silenceSeconds[0]).toBeGreaterThan(0);
+    expect(MUSIC_CUES.theme_night.continuous).toBe(false);
+    expect(musicCueFor('theme_audition')).toEqual({ continuous: true, silenceSeconds: [0, 0] });
+    expect(songUrl('theme_night')).toBe('/generated/music/theme_night.song.json');
+    expect(() => songUrl('../secrets')).toThrow(/Invalid song name/);
+    expect(songForAmbience({ season: 'spring', time: 'dawn', location: 'estate' })).toBe('theme_spring');
+    expect(songForAmbience({ season: 'winter', time: 'night', location: 'cellar' })).toBe('theme_spring');
   });
 
-  it('validates durable music checkpoints without accepting corrupt positions', () => {
+  it('validates versioned tracker checkpoints and ignores retired streamed checkpoints', () => {
     const checkpoint = {
-      version: 1, song: 'theme_night', phase: 'playing', positionSeconds: 42.5, gapRemainingSeconds: 0,
+      version: 2, song: 'theme_night', phase: 'playing', positionSteps: 212.5, gapRemainingSeconds: 0,
     };
     expect(parsePersistedMusicPlayback(JSON.stringify(checkpoint))).toEqual(checkpoint);
-    expect(parsePersistedMusicPlayback(JSON.stringify({ ...checkpoint, positionSeconds: -1 }))).toBeNull();
+    expect(parsePersistedMusicPlayback(JSON.stringify({ ...checkpoint, phase: 'gap', gapRemainingSeconds: 30 })))
+      .toMatchObject({ phase: 'gap', gapRemainingSeconds: 30 });
+    expect(parsePersistedMusicPlayback(JSON.stringify({ ...checkpoint, positionSteps: -1 }))).toBeNull();
+    expect(parsePersistedMusicPlayback(JSON.stringify({ ...checkpoint, positionSteps: Number.NaN }))).toBeNull();
     expect(parsePersistedMusicPlayback(JSON.stringify({ ...checkpoint, song: 'missing' }))).toBeNull();
+    expect(parsePersistedMusicPlayback(JSON.stringify({ ...checkpoint, extra: 'dropped' }))).toEqual(checkpoint);
+    // Version 1 stored seconds into an MP3; it must never be reinterpreted as a tracker position.
+    expect(parsePersistedMusicPlayback(JSON.stringify({
+      version: 1, song: 'theme_night', phase: 'playing', positionSeconds: 42.5, gapRemainingSeconds: 0,
+    }))).toBeNull();
+    expect(parsePersistedMusicPlayback('null')).toBeNull();
     expect(parsePersistedMusicPlayback('{')).toBeNull();
+    expect(parsePersistedMusicPlayback(null)).toBeNull();
   });
 });

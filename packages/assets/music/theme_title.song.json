@@ -7,7 +7,7 @@
  "stepsPerBeat": 4,
  "beatsPerBar": 4,
  "loopBars": 48,
- "masterGainDb": -10,
+ "masterGainDb": -6.0,
  "signatureMotif": {
   "id": "orchard_home",
   "steps": 64,
@@ -79,11 +79,12 @@
     "Rest",
     "MotifReturn",
     "Rest"
-   ]
+   ],
+   "pan": 0.1
   },
   {
    "patch": "bells",
-   "vol": 0.28,
+   "vol": 0.34,
    "patterns": [
     "Rest",
     "Rest",
@@ -97,7 +98,8 @@
     "BellDew",
     "Rest",
     "BellHome"
-   ]
+   ],
+   "pan": -0.4
   },
   {
    "patch": "bass",
@@ -133,7 +135,8 @@
     "Str_EmD",
     "Str_CD",
     "Str_GG"
-   ]
+   ],
+   "pan": -0.3
   },
   {
    "patch": "pluck",
@@ -151,7 +154,8 @@
     "Pk_EmD",
     "Pk_DG",
     "Pk_GG"
-   ]
+   ],
+   "pan": 0.35
   }
  ],
  "patterns": {
@@ -165,32 +169,38 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "D5",
-     8
+     8,
+     0.9
     ],
     [
      32,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      40,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      48,
      "G4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -200,32 +210,38 @@
     [
      0,
      "D4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "B4",
-     8
+     8,
+     0.9
     ],
     [
      32,
      "F#4",
-     4
+     4,
+     0.8
     ],
     [
      40,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      48,
      "G4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -235,22 +251,26 @@
     [
      4,
      "E4",
-     6
+     6,
+     0.8
     ],
     [
      28,
      "A4",
-     8
+     8,
+     0.9
     ],
     [
      44,
      "F#4",
-     4
+     4,
+     0.8
     ],
     [
      52,
      "D4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -260,22 +280,26 @@
     [
      0,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      12,
      "D5",
-     6
+     6,
+     0.9
     ],
     [
      40,
      "D5",
-     6
+     6,
+     0.9
     ],
     [
      52,
      "A4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -285,32 +309,38 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "D5",
-     8
+     8,
+     0.9
     ],
     [
      36,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      44,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      52,
      "G4",
-     10
+     10,
+     0.7
     ]
    ]
   },
@@ -705,42 +735,50 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "D5",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "C5",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "G4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -750,42 +788,50 @@
     [
      0,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "B4",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "F#4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -795,42 +841,50 @@
     [
      0,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "G4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "D5",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "B4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -840,22 +894,26 @@
     [
      0,
      "G4",
-     6
+     6,
+     0.85
     ],
     [
      16,
      "B4",
-     6
+     6,
+     0.85
     ],
     [
      32,
      "D5",
-     6
+     6,
+     0.85
     ],
     [
      48,
      "G5",
-     8
+     8,
+     0.85
     ]
    ]
   }
@@ -863,6 +921,12 @@
  "loop": true,
  "iterationNotes": [
   "Pass 2: removed two mid-phrase flute notes to preserve breathing room; listening pass pending audio preview.",
-  "Pass 3: arranged an arc \u2014 strings swells enter at slot 5, pluck arpeggios at slot 7, both resolve on the final G. Chord tones only; listening pass pending shared-browser audio preview."
- ]
+  "Pass 3: arranged an arc \u2014 strings swells enter at slot 5, pluck arpeggios at slot 7, both resolve on the final G. Chord tones only; listening pass pending shared-browser audio preview.",
+  "Pass 4 (synth v2): mix retuned for the new instrument voices from offline stem renders \u2014 bass trimmed, bells/strings/shaker lifted, channel pans and phrase-shaped velocities added; notes unchanged. Owner listening pass pending."
+ ],
+ "fx": {
+  "reverb": 0.9,
+  "delayBeats": 0.75,
+  "delayFeedback": 0.3
+ }
 }

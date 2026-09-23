@@ -1,11 +1,23 @@
 import type { AudioStatus, GameAudio } from '@orchard/engine/audio/audio-bus';
 
-export const AUDIO_PREVIEW_SONGS = ['theme_title', 'theme_spring', 'theme_night'] as const;
-export const AUDIO_PREVIEW_SFX = [
-  'footstep_grass', 'footstep_path', 'footstep_cellar',
-  'ui_hover', 'ui_confirm',
-  'bird_chirp_1', 'bird_chirp_2', 'bird_chirp_3', 'wind_gust',
-] as const;
+/**
+ * Cue names discovered from the shared authored sources, so new songs/SFX appear without
+ * code changes. The eager `name` import bundles only each file's name string, not its data.
+ */
+export function audioCueNames(paths: readonly string[], suffix: '.song.json' | '.sfx.json'): readonly string[] {
+  return paths.map((path) => path.slice(path.lastIndexOf('/') + 1))
+    .filter((file) => file.endsWith(suffix))
+    .map((file) => file.slice(0, -suffix.length))
+    .sort((left, right) => left.localeCompare(right));
+}
+
+// Title first, then the rest alphabetically: the order a composer usually auditions in.
+export const AUDIO_PREVIEW_SONGS: readonly string[] = audioCueNames(
+  Object.keys(import.meta.glob('../../../../assets/music/*.song.json', { eager: true, import: 'name' })), '.song.json',
+).toSorted((left, right) => Number(right === 'theme_title') - Number(left === 'theme_title'));
+export const AUDIO_PREVIEW_SFX: readonly string[] = audioCueNames(
+  Object.keys(import.meta.glob('../../../../assets/sfx/*.sfx.json', { eager: true, import: 'name' })), '.sfx.json',
+);
 
 export const AUDIO_TOOL_REGISTRATION = Object.freeze({
   id: 'audio', label: 'Audio Preview', mode: 'author' as const, icon: 'editor.audio',
@@ -25,11 +37,11 @@ export class AudioPreviewModel {
   error(): string | null { return this.#lastError; }
   status(): AudioStatus | null { return this.#audio?.getStatus() ?? null; }
 
-  async playSong(name: typeof AUDIO_PREVIEW_SONGS[number]): Promise<void> {
+  async playSong(name: string): Promise<void> {
     await this.activate((audio) => audio.playSong(name));
   }
 
-  async playSfx(name: typeof AUDIO_PREVIEW_SFX[number]): Promise<void> {
+  async playSfx(name: string): Promise<void> {
     await this.activate((audio) => audio.playSfx(name));
   }
 

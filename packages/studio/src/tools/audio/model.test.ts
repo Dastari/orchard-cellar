@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GameAudio } from '@orchard/engine/audio/audio-bus';
-import { AUDIO_PREVIEW_SFX, AUDIO_PREVIEW_SONGS, AudioPreviewModel } from './model.js';
+import { AUDIO_PREVIEW_SFX, AUDIO_PREVIEW_SONGS, AudioPreviewModel, audioCueNames } from './model.js';
 
 function fakeAudio() {
   return {
@@ -21,8 +21,11 @@ describe('Audio Preview model', () => {
     expect(factory).toHaveBeenCalledOnce(); expect(audio.unlock).toHaveBeenCalledBefore(audio.playSong);
   });
 
-  it('exposes the complete migrated preview cue catalogs', () => {
-    expect(AUDIO_PREVIEW_SONGS).toEqual(['theme_title', 'theme_spring', 'theme_night']);
+  it('lists every authored song and sound effect from the shared asset sources', () => {
+    expect(AUDIO_PREVIEW_SONGS).toEqual(['theme_title', 'theme_night', 'theme_spring']);
     expect(AUDIO_PREVIEW_SFX).toContain('footstep_cellar'); expect(AUDIO_PREVIEW_SFX).toContain('wind_gust');
+    expect(AUDIO_PREVIEW_SFX).toContain('tool_swing');
+    expect(audioCueNames(['/a/music/theme_b.song.json', '/a/music/theme_a.song.json', '/a/music/readme.md'], '.song.json'))
+      .toEqual(['theme_a', 'theme_b']);
   });
 });
