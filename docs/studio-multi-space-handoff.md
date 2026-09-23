@@ -1,6 +1,7 @@
 # F4 multi-space backend handoff
 
 Branch: `feat/studio-multi-space-backend`, based on main `2e1d9a4f`.
+PR: https://github.com/Dastari/orchard-cellar/pull/74 (draft while full tests run).
 Owner-authorized wave 2. No merge, deployment or world publish in this task.
 
 Implemented shared registry, seven area keyset indexes, admin-gated metadata and
@@ -16,8 +17,8 @@ after combining world lanes. Keep retired farm_parcel private and inactive.
 Version bumps are relative to this branch's base; retain higher integration
 versions and add the new shared barrel export alongside other lanes.
 
-Validation: 43 focused tests, Studio typecheck, lint, world build, 919-definition
+Validation: 61 focused tests in 12 files, all-workspace typecheck, lint, world build, 919-definition
 content validation and guarded studio-production build passed. Full repository
-tests and final all-workspace typecheck are running; their results will be recorded
+tests are running (session 36325, `/tmp/orchard-f4-test.log`); results will be recorded
 in the PR. The first Studio build lacked local generated assets; linking the
 previously rebuilt assets from the same base resolved that worktree-only setup.

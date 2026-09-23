@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.24.1 — 2026-09-23
+
+- Studio 0.14.1 retries read-only space metadata when the shell connects or its signed-in identity/role changes.
+
 ## 0.24.0 — 2026-09-23
 
 - Studio 0.14.0 uses per-space viewport subscriptions, all-space presence, authoritative space metadata and bounded server entity pages including crops. Adds F5 picker sources and a read-only runtime-space route/data boundary for the later World Map canvas.

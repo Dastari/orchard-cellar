@@ -3,6 +3,8 @@ import { bootstrapContentRegistry, buildSpaceRegistry } from '@orchard/sim';
 import type { StudioLiveAdapter } from '../../shell/studio-connection.js';
 import { studioLivePickerSources, studioRuntimeSpaceTerrain } from './space-data.js';
 import { studioMapId, studioSpacePath, studioSpaceRef } from './routes.js';
+import { buildRuntimeSpaceTool } from './space-canvas.js';
+import type { StudioCanvasToolContext } from '../../shell/canvas-tool.js';
 
 describe('runtime space data boundary', () => {
   it('separates u16 runtime routes from editable documents', () => {
@@ -29,5 +31,27 @@ describe('runtime space data boundary', () => {
     expect((await sources.spaces())[0]?.path).toBe('/build/map/space/10000');
     await expect(sources.entities(query)).resolves.toMatchObject({ nextCursor: 'opaque', rowsScanned: 2048 });
     expect(listEntities).toHaveBeenCalledWith(query);
+  });
+  it('retries runtime metadata after a disconnected shell connects', async () => {
+    let connected = false;
+    const states = new Map<string, unknown>();
+    const spaceRegistry = vi.fn(async () => {
+      if (!connected) throw new Error('not_connected');
+      return buildSpaceRegistry([], [{ spaceId: 10000 }], []);
+    });
+    const context = { route: { path: '/build/map/space/10000' }, invalidate: vi.fn(), controller: {
+      liveAdapter: () => ({ view: () => ({ connected, identity: 'ada', role: 'admin' }), spaceRegistry }),
+      toolState: (key: string, create: () => unknown) => {
+        if (!states.has(key)) states.set(key, create());
+        return states.get(key);
+      },
+    } } as unknown as StudioCanvasToolContext;
+    buildRuntimeSpaceTool(context);
+    await Promise.resolve(); await Promise.resolve();
+    connected = true;
+    buildRuntimeSpaceTool(context);
+    await Promise.resolve();
+    expect(spaceRegistry).toHaveBeenCalledTimes(2);
+    expect(context.invalidate).toHaveBeenCalled();
   });
 });
