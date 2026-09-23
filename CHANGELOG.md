@@ -1,5 +1,12 @@
 # Changelog
 
+## September 23 integrated deployment — verified
+
+- Publish merged `78665a40` through the guarded schema-only lane; content R17 / `0e741b0f`, 921 definitions, no deletions. Restored and production reconnect parity passed for one account across 42 durable tables.
+- Preserve D6 shadow and chunk default-off behavior; food/alchemy delivery remains artwork groundwork.
+- Record the corrected returning-client service-worker/atlas startup and successful browser acceptance in [the release record and handoff](docs/release-2026-09-23.md).
+- Record authorized disk cleanup and a proposed current/previous verified-backup retention policy; no automated pruning introduced.
+
 ## Client 0.22.2 / UI 0.23.1 — 2026-09-24
 
 - Version mutable atlas index requests by client build so returning players controlled by an older service worker load matching index/category metadata after deployment. Keep existing revision checks and immutable asset caching.
