@@ -9,10 +9,16 @@ import {
   caveFloorPatchVariantAt,
   SURVIVAL_CHUNK_TILES,
   TERRAIN_SURFACE_FAMILIES,
+  TERRAIN_SURFACE_FAMILY_IDS,
   TERRAIN_CLIFF_FAMILIES,
   type TerrainCliffFamily,
   TILE_SIZE_PIXELS,
   surfaceFamilyAtIndex,
+  cellPartExactAssetName,
+  exactAppearanceParts,
+  type CellPart,
+  type CellPartExact,
+  type CellPartSlot,
   type SurvivalBiome,
 } from "@orchard/sim";
 import type { OverworldArt } from "./overworld-art.js";
@@ -152,6 +158,68 @@ function drawGroundAsset(
     source.width,
     source.height,
   );
+}
+
+/** Exact appearance parts authored on one cell, keyed by slot (doc 61 §2.2).
+ * `null` means the cell is fully smart. Shared by the game and Studio because
+ * both draw ground through this cache. */
+export function exactGroundPartsAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): ReadonlyMap<CellPartSlot, CellPart> | null {
+  if (terrain.cellParts === undefined || !groundTileInsideTerrain(terrain, tileX, tileY)) return null;
+  const parts = exactAppearanceParts(terrain.cellParts.get(tileY * terrain.width + tileX));
+  return parts.length === 0 ? null : new Map(parts.map((part) => [part.slot, part]));
+}
+
+const EXACT_PART_NAMED_ART: Readonly<Record<string, keyof OverworldArt>> = {
+  tile_cf_path: 'dirtTerrace',
+  tile_cf_farmland: 'farmland',
+  tile_cf_freshwater: 'freshwater',
+  tile_cf_beach: 'beach',
+  tile_cf_desert_shore: 'desertShore',
+  tile_cf_beach_inset: 'beachInset',
+  tile_cf_desert_shore_inset: 'desertShoreInset',
+  tile_cf_freshwater_inset: 'freshwaterInset',
+  tile_cf_farmland_grass_inset: 'farmlandGrassInset',
+  tile_cf_savanna_grass_inset: 'savannaGrassInset',
+  tile_cf_desert_grass_edge: 'desertGrassEdge',
+  tile_cf_desert_grass_inset: 'desertGrassInset',
+};
+
+function exactPartAsset(art: OverworldArt, part: CellPart): LoadedAsset | undefined {
+  const assetName = cellPartExactAssetName(part);
+  if (assetName === null) return undefined;
+  const named = EXACT_PART_NAMED_ART[assetName];
+  return named === undefined ? art.terrainAssets[assetName] : art[named] as LoadedAsset;
+}
+
+function drawExactGroundAsset(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset | undefined,
+  tileX: number,
+  tileY: number,
+  exact: CellPartExact,
+): void {
+  if (asset === undefined) return;
+  if (exact.quarterTurns === undefined && exact.flipX !== true) {
+    drawGroundAsset(context, asset, tileX, tileY, exact.frame);
+    return;
+  }
+  const selected = selectAtlasFrame(asset.metadata, "base", exact.frame);
+  if (selected === null) return;
+  const source = worldAssetFrameSource(context, asset, selected);
+  if (source === null) return;
+  context.save();
+  context.translate(tileX * TILE_SIZE_PIXELS + 8, tileY * TILE_SIZE_PIXELS + 8);
+  context.rotate((exact.quarterTurns ?? 0) * Math.PI / 2);
+  if (exact.flipX === true) context.scale(-1, 1);
+  context.drawImage(
+    source.image, source.x, source.y, source.width, source.height,
+    Math.round(-asset.anchor[0]), Math.round(7 - asset.anchor[1]), source.width, source.height,
+  );
+  context.restore();
 }
 
 /** Exact lower native wall course: no rescaling or invented perspective cap. */
@@ -478,6 +546,16 @@ export function authoredGrassFringeLayersAt(terrain: TerrainArray, tileX: number
   }
   layers.sort((a,b)=>b.assetId.localeCompare(a.assetId));
   return layers;
+}
+
+function withoutExactFringeFamilies(
+  layers: NonNullable<ReturnType<typeof authoredGrassFringeLayersAt>>,
+  exactParts: ReadonlyMap<CellPartSlot, CellPart>,
+): NonNullable<ReturnType<typeof authoredGrassFringeLayersAt>> {
+  const replaced = new Set(TERRAIN_SURFACE_FAMILY_IDS
+    .filter((familyId) => exactParts.get(`fringe:${familyId}`)?.exact !== undefined)
+    .flatMap((familyId) => [TERRAIN_SURFACE_FAMILIES[familyId].assetId, TERRAIN_SURFACE_FAMILIES[familyId].sheetAssetId]));
+  return replaced.size === 0 ? layers : layers.filter(({ assetId }) => !replaced.has(assetId));
 }
 
 function drawAuthoredGrassFringe(context:CanvasRenderingContext2D,art:OverworldArt,layers:NonNullable<ReturnType<typeof authoredGrassFringeLayersAt>>,localX:number,localY:number):void {
@@ -947,21 +1025,37 @@ export class GroundChunkCache {
               : biome === "desert_shore"
                 ? desertShoreFrameIndexAt(terrain, tileX, tileY)
                 : 0);
-        drawGroundAsset(context, base, localX, localY, baseFrame);
+        const exactParts = exactGroundPartsAt(terrain, tileX, tileY);
+        const drawnExact = exactParts === null ? null : new Set<CellPartSlot>();
+        /** Draws the part for `slot` in place of its smart layer; true when
+         * an authored exact part owns this slot on this cell. */
+        const exactSlot = (slot: CellPartSlot, fallback?: LoadedAsset): boolean => {
+          if (exactParts === null || drawnExact === null) return false;
+          const part = exactParts.get(slot);
+          if (part?.exact === undefined) return false;
+          if (!drawnExact.has(slot)) {
+            drawExactGroundAsset(context, exactPartAsset(art, part) ?? fallback, localX, localY, part.exact);
+            drawnExact.add(slot);
+          }
+          return true;
+        };
+        if (!exactSlot('surface', base)) drawGroundAsset(context, base, localX, localY, baseFrame);
         if (interiorFloor) continue;
 
-        for (const shorelineInsetFrame of shorelineInsetFrameIndicesAt(
-          terrain,
-          tileX,
-          tileY,
-        )) {
-          drawGroundAsset(
-            context,
-            biome === "beach" ? art.beachInset : art.desertShoreInset,
-            localX,
-            localY,
-            shorelineInsetFrame,
-          );
+        if (!exactSlot(biome === "beach" ? 'fringe:beach_inset' : 'fringe:desert_shore_inset')) {
+          for (const shorelineInsetFrame of shorelineInsetFrameIndicesAt(
+            terrain,
+            tileX,
+            tileY,
+          )) {
+            drawGroundAsset(
+              context,
+              biome === "beach" ? art.beachInset : art.desertShoreInset,
+              localX,
+              localY,
+              shorelineInsetFrame,
+            );
+          }
         }
 
         const grassSandFrame = grassSandTransitionFrameIndexAt(
@@ -970,8 +1064,11 @@ export class GroundChunkCache {
           tileY,
         );
         const authoredFringe=authoredGrassFringeLayersAt(terrain,tileX,tileY);
-        if(authoredFringe!==null)drawAuthoredGrassFringe(context,art,authoredFringe,localX,localY);
-        if (authoredFringe===null && grassSandFrame !== null)
+        if(authoredFringe!==null)drawAuthoredGrassFringe(context,art,exactParts===null?authoredFringe
+          :withoutExactFringeFamilies(authoredFringe,exactParts),localX,localY);
+        for(const familyId of TERRAIN_SURFACE_FAMILY_IDS)exactSlot(`fringe:${familyId}`);
+        const exactFarmlandInset = exactSlot('fringe:farmland_grass_inset');
+        if (!exactFarmlandInset && authoredFringe===null && grassSandFrame !== null)
           drawGrassSandTransition(
             context,
             art.farmlandGrassInset,
@@ -981,14 +1078,14 @@ export class GroundChunkCache {
           );
 
         const pavingGrassFrame=pavingGrassTransitionFrameIndexAt(terrain,tileX,tileY);
-        if(authoredFringe===null && pavingGrassFrame!==null)drawGrassSandTransition(context,art.farmlandGrassInset,localX,localY,pavingGrassFrame);
+        if(!exactFarmlandInset && authoredFringe===null && pavingGrassFrame!==null)drawGrassSandTransition(context,art.farmlandGrassInset,localX,localY,pavingGrassFrame);
 
         const savannaGrassFrame = savannaGrassTransitionFrameIndexAt(
           terrain,
           tileX,
           tileY,
         );
-        if (savannaGrassFrame !== null)
+        if (!exactSlot('fringe:savanna_grass_inset') && savannaGrassFrame !== null)
           drawGrassSandTransition(
             context,
             art.savannaGrassInset,
@@ -1002,7 +1099,7 @@ export class GroundChunkCache {
           tileX,
           tileY,
         );
-        if (desertGrassFrame !== null)
+        if (!exactSlot('fringe:desert_grass_edge') && desertGrassFrame !== null)
           drawGroundAsset(
             context,
             art.desertGrassEdge,
@@ -1010,7 +1107,7 @@ export class GroundChunkCache {
             localY,
             desertGrassFrame,
           );
-        for (const desertGrassInsetFrame of desertGrassInsetFrameIndicesAt(
+        for (const desertGrassInsetFrame of exactSlot('fringe:desert_grass_inset') ? [] : desertGrassInsetFrameIndicesAt(
           terrain,
           tileX,
           tileY,
@@ -1024,7 +1121,7 @@ export class GroundChunkCache {
           );
         }
 
-        if (biome === "freshwater")
+        if (!exactSlot('water') && biome === "freshwater")
           drawGroundAsset(
             context,
             art.freshwater,
@@ -1032,7 +1129,7 @@ export class GroundChunkCache {
             localY,
             freshwaterFrameIndexAt(terrain, tileX, tileY),
           );
-        if (biome === "freshwater") {
+        if (!exactSlot('fringe:freshwater_inset') && biome === "freshwater") {
           for (const insetFrame of freshwaterInsetFrameIndicesAt(
             terrain,
             tileX,
@@ -1062,8 +1159,14 @@ export class GroundChunkCache {
             waterfallFrame,
           );
 
-        const dirtTerraceFrame = dirtTerraceFrameIndexAt(terrain, tileX, tileY);
-        if (dirtTerraceFrame !== null && biome !== 'paving') {
+        const exactPath = exactParts?.get('path')?.exact;
+        const dirtTerraceFrame = exactPath?.frame ?? dirtTerraceFrameIndexAt(terrain, tileX, tileY);
+        if (exactPath !== undefined) {
+          // The path part is the same two-layer composition as smart paths:
+          // dirt body plus its grass lip, both at the authored frame.
+          drawExactGroundAsset(context, art.dirtTerrace, localX, localY, exactPath);
+          drawExactGroundAsset(context, art.dirtCliffEdge, localX, localY, exactPath);
+        } else if (dirtTerraceFrame !== null && biome !== 'paving') {
           drawGroundAsset(
             context,
             art.dirtTerrace,
@@ -1093,7 +1196,9 @@ export class GroundChunkCache {
             dirtRampFrame,
           );
 
+        const exactFarmland = exactSlot('farmland');
         for (const layer of authoredFarmlandGroundLayersAt(terrain, tileX, tileY)) {
+          if (layer.asset === 'tile_cf_farmland' ? exactFarmland : exactFarmlandInset) continue;
           drawGroundAsset(
             context,
             layer.asset === 'tile_cf_farmland' ? art.farmland : art.farmlandGrassInset,
@@ -1102,6 +1207,9 @@ export class GroundChunkCache {
             layer.frame,
           );
         }
+        // Parts whose smart position was not reached on this cell (for
+        // example a shore inset on a non-shore biome) still draw, in order.
+        for (const slot of exactParts?.keys() ?? []) if (slot !== 'path') exactSlot(slot);
 
         const hash = terrainDecorationHash(tileX, tileY);
         if (

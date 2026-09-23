@@ -21,6 +21,13 @@ import {
   type ResolvedMapCell,
   type TerrainOverride,
 } from './map-document.js';
+import {
+  cellPartExactAssetName,
+  contourOverrideFromCellParts,
+  exactAppearanceParts,
+  parseCellParts,
+  type CellPart,
+} from './map-cell-parts.js';
 import type { MapPoint } from './map-editing.js';
 import {
   resolveRaisedTerrainContoursAt,
@@ -68,6 +75,11 @@ export interface CompiledMapDocument {
   readonly cliffFamilies: Uint8Array;
   readonly surfaceFamilies: Uint8Array;
   readonly terrainOverrides: readonly (TerrainOverride | null)[];
+  /** Sparse authored part stacks keyed by `tileY * width + tileX`. Present
+   * only when at least one cell stores `parts`, so pre-parts maps compile to
+   * the exact historical shape. Contour parts are also folded into
+   * `terrainOverrides`; renderers read non-contour exact parts from here. */
+  readonly cellParts?: ReadonlyMap<number, readonly CellPart[]>;
   readonly ledges: Uint8Array;
   readonly surfaces: readonly MapSurfaceKind[];
   readonly features: readonly MapFeatureKind[];
@@ -86,7 +98,7 @@ export interface MapValidationIssue {
 export interface SemanticTerrainLayer {
   readonly role: MapTerrainRole | `contour.edge.${string}` | `contour.inset.${string}`
     | `contour.face.${string}.${RaisedTerrainFaceJoin}` | `crossing.${RaisedTerrainRampRole}`
-    | `contour.override.${string}`;
+    | `contour.override.${string}` | `part.${string}`;
   readonly contourLevel: number;
   readonly blocksMovement: boolean;
   readonly blocksLight: boolean;
@@ -137,6 +149,8 @@ export function compileMapDocument(document: MapDocumentV2, tilesets?: RuntimeTi
   const cliffFamilyIds = [...new Set([defaultCliffFamily, ...Object.values(document.cells).flatMap((cell) => [
     ...(cell.cliffFamily === undefined ? [] : [cell.cliffFamily]),
     ...(cell.terrainOverride?.family === undefined ? [] : [cell.terrainOverride.family]),
+    ...(contourOverrideFromCellParts(cell.parts)?.family === undefined
+      ? [] : [contourOverrideFromCellParts(cell.parts)!.family!]),
   ])])];
   if (cliffFamilyIds.length > 255) throw new Error('Map uses more than 255 cliff families');
   for (let tileY = 0; tileY < document.height; tileY += 1) {
@@ -160,6 +174,7 @@ export function compileMapDocument(document: MapDocumentV2, tilesets?: RuntimeTi
     ...document.transitions,
     ...(document.stairRuns ?? []).flatMap((run) => stairRunValid(run) ? expandStairRun(run) : []),
   ];
+  const cellParts = compiledCellParts(document);
   const compiled = {
     id: document.id,
     width: document.width,
@@ -173,6 +188,7 @@ export function compileMapDocument(document: MapDocumentV2, tilesets?: RuntimeTi
     cliffFamilies,
     surfaceFamilies,
     terrainOverrides,
+    ...(cellParts === null ? {} : { cellParts }),
     ledges,
     surfaces,
     features,
@@ -181,6 +197,20 @@ export function compileMapDocument(document: MapDocumentV2, tilesets?: RuntimeTi
   };
   compiledElevationRangeCache.set(compiled, compiledElevationRange(compiled));
   return compiled;
+}
+
+function compiledCellParts(document: MapDocumentV2): ReadonlyMap<number, readonly CellPart[]> | null {
+  let parts: Map<number, readonly CellPart[]> | null = null;
+  for (const [key, cell] of Object.entries(document.cells)) {
+    if (cell.parts === undefined || cell.parts.length === 0) continue;
+    const separator = key.indexOf(',');
+    const tileX = Number(key.slice(0, separator));
+    const tileY = Number(key.slice(separator + 1));
+    if (!mapCoordinateInBounds(document, tileX, tileY)) continue;
+    parts ??= new Map();
+    parts.set(tileY * document.width + tileX, cell.parts);
+  }
+  return parts;
 }
 
 export function compiledMapElevationAt(map: CompiledMapDocument, tileX: number, tileY: number): number {
@@ -286,6 +316,17 @@ export function semanticTerrainTraceAt(
       reason: `explicit level ${contourLevel} transition selected ${plan.rampRole}`,
       ...(plan.rampFrame === null ? {} : { frameIndex: plan.rampFrame }),
       family,
+    });
+  }
+  if (applyTerrainOverride) {
+    for (const part of exactAppearanceParts(cell.parts)) layers.push({
+      role: `part.${part.slot}`,
+      contourLevel: cell.elevation,
+      blocksMovement: false,
+      blocksLight: false,
+      reason: `authored exact ${part.slot} part replaces the smart ${part.slot} frame`,
+      frameIndex: part.exact!.frame,
+      family: part.family ?? family,
     });
   }
   const terrainOverride = cell.terrainOverride;
@@ -687,7 +728,32 @@ export function validateMapDocument(
       ?? terrainCliffTileSet(cell.cliffFamily)) === null) {
       issues.push({ severity: 'error', code: 'cliff_family_unavailable', message: `Cliff family ${cell.cliffFamily} has no source art`, tileX, tileY });
     }
-    const rawTerrainOverride: unknown = cell.terrainOverride;
+    const parts = cell.parts === undefined ? null : parseCellParts(cell.parts);
+    if (cell.parts !== undefined && parts === null) {
+      issues.push({
+        severity: 'error', code: 'cell_parts_invalid',
+        message: 'Cell parts must be a bounded list of unique, well-formed parts', tileX, tileY,
+      });
+    }
+    const contourPart = contourOverrideFromCellParts(parts ?? undefined);
+    if (cell.terrainOverride !== undefined && contourPart !== null) {
+      issues.push({
+        severity: 'error', code: 'cell_parts_contour_conflict',
+        message: 'A cell cannot store both a terrain override and a contour part', tileX, tileY,
+      });
+    }
+    for (const part of exactAppearanceParts(parts ?? undefined)) {
+      if (part.slot === 'surface' && part.family === undefined) continue;
+      if (cellPartExactAssetName(part) !== null) continue;
+      issues.push({
+        severity: 'warning', code: 'cell_part_exact_unsupported',
+        message: `Exact ${part.slot} part has no source atlas and is not drawn`, tileX, tileY,
+      });
+    }
+    // Dual-read: the legacy field wins; otherwise the contour part is
+    // validated exactly as the equivalent legacy override would be.
+    const rawTerrainOverride: unknown = cell.terrainOverride !== undefined
+      ? cell.terrainOverride : contourPart ?? undefined;
     if (rawTerrainOverride !== undefined
       && (typeof rawTerrainOverride !== 'object' || rawTerrainOverride === null
         || Array.isArray(rawTerrainOverride))) {
