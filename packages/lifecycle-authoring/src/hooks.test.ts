@@ -42,7 +42,7 @@ describe('v2 lifecycle compiler', () => {
     expect(() => compileLifecycleHookBundle(parseLifecycleHookBundle(bundle('const x = context.event.questId;')))).toThrow('type error');
   });
   it('rejects string doubling and bigint shifts that defeat AST bounds', () => {
-    for (const source of ['const a = \"x\"; const b = a + a;', 'const a = 1n << context.snapshot.tick;']) {
+    for (const source of ['const a = "x"; const b = a + a;', 'const a = 1n << context.snapshot.tick;']) {
       expect(() => compileLifecycleHookBundle(parseLifecycleHookBundle(bundle(source)))).toThrow('expansion');
     }
   });
