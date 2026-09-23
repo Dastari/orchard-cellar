@@ -197,6 +197,13 @@ export * from './smart-object-prefabs.js';
 export * from './map-entity-state.js';
 
 export * from './rule-catalogue.js';
+export * from './space-registry.js';
+export * from './progression.js';
+export * from './content/progression-definition.js';
+export * from './content/balance-fields.js';
+export * from './behaviour/authored-hooks.js';
+
+export * from './terrain-rule-catalogue.js';
 
 export * from './traversal.js';
 export * from './traversal-medium.js';

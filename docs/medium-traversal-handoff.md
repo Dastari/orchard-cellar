@@ -67,3 +67,19 @@ owns resolved solidity and never grants abilities. GoldCondor owns merging and
 release decisions. CopperMaple owns rule role/layer resolution. Read doc64 for
 policy bounds and death/recovery semantics. Explicit push refspec required:
 `git push origin HEAD:feat/medium-traversal-runtime`.
+
+
+## Coordinated source integration
+
+GoldCondor authorized source propagation after runtime rehearsal PR88 passed full
+check on `b6e37eb3` (6,389 coverage tests plus 101 exhaustive). SageIsland's bounded
+source-owner review/consent is Agent Mail #431; coordinator sequence is #434.
+This source refresh merges main `df509125` and reproduces the reviewed #80 prefix
+`7f267128`, with only the bootstrap JSON-file count corrected to 27. It excludes
+later object lifecycle #81 and chunk shadow #83 features. Progression and
+world_rules kinds/scopes/exports coexist; combined content is 921 definitions,
+hash dac96752, 620,770 runtime bytes within the measured 607 KiB guard.
+
+Source-prefix checks passed: 39 focused tests / nine files, checked world build,
+all workspace types, lint, assets build and guarded Studio production build. Final source #83 must reproduce the full tested runtime
+production tree. No merge, deployment, publication or shadow activation here.

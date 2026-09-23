@@ -1,0 +1,8 @@
+{
+  "format": "orchard-lifecycle-hook-metadata-v2",
+  "bundleId": "world-hooks",
+  "revision": 1,
+  "engineApiVersion": 2,
+  "bundleSha256": "9cf6aa213d7345314fbf9cb400699f51726ba681cd2956334186932c3d5fa395",
+  "handlers": []
+}

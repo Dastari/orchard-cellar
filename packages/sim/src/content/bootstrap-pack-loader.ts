@@ -1,3 +1,4 @@
+import progressionJson from '../../../assets/content/progression.json' with { type: 'json' };
 import worldRulesJson from '../../../assets/content/world-rules.json' with { type: 'json' };
 import balanceGroupsJson from '../../../assets/content/balance-groups.json' with { type: 'json' };
 import balanceJson from '../../../assets/content/balance.json' with { type: 'json' };
@@ -32,7 +33,7 @@ import {
 } from './definitions.js';
 
 const BOOTSTRAP_PACK_FILES: readonly unknown[] = Object.freeze([
-  balanceGroupsJson, balanceJson, creaturesJson, cropsJson, dialoguesJson,
+  progressionJson, balanceGroupsJson, balanceJson, creaturesJson, cropsJson, dialoguesJson,
   effectsJson, enemiesJson, encountersJson, framesJson, itemsJson, lootJson, loadoutsJson, npcsJson, processesJson,
   objectsJson,
   questsJson, recipesJson, resourcesJson, shopsJson, skillTreesJson, spacesJson, spawnsJson,

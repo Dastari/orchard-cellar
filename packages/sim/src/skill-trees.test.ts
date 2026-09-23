@@ -32,7 +32,7 @@ describe('36§3 skill track progression', () => {
   });
 
   it('uses a bounded escalating respec ladder with a free first reset', () => {
-    expect([0, 1, 2, 3, 4, 99].map(skillRespecCostBronze)).toEqual([
+    expect([0, 1, 2, 3, 4, 99].map(count => skillRespecCostBronze(count))).toEqual([
       0n, 100n, 500n, 2_500n, 10_000n, 10_000n,
     ]);
   });

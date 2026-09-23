@@ -54,6 +54,8 @@ const EVENT_TYPE_BY_VERB = {
   tick: 'tick',
   break: 'break',
   timer: 'timer',
+  spawn: 'spawn', despawn: 'despawn', stateEnter: 'stateEnter', stateExit: 'stateExit',
+  dialogueChoice: 'dialogueChoice', questState: 'questState', questObjective: 'questObjective',
 } as const satisfies Readonly<Record<InteractionDefinition['verb'], LifecycleEventType>>;
 
 function targetTile(target: BehaviourTargetSnapshot | undefined): BehaviourTileSnapshot | undefined {

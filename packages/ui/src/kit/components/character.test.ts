@@ -12,3 +12,12 @@ it('keeps appearance preview across authority updates, displays all equipment an
  frame.updateCharacter({...model,health:9000});root.arrange();expect(nodes().some(n=>n.label==='BLACK')).toBe(true);expect(root.focus.current).toBe(next);
  const stats=nodes().find(n=>n.label==='STATISTICS')!;root.focus.set(stats,'keyboard');root.key({key:'Enter'});expect(navigate).toHaveBeenCalledWith('statistics');root.dispose();
 });
+
+it('renders live authored progression instead of a fixed level fifty cap',async()=>{
+ const {BOOTSTRAP_PROGRESSION}=await import('@orchard/sim');
+ const root=new UiRoot({scale:1});root.resize(640,600);
+ const frame=uiCharacter({model:{...model,progression:{...BOOTSTRAP_PROGRESSION,levelCap:3,xpCurve:{scale:10,exponent:1}},tracks:[{track:'farming',experience:30n}]},onAppearance:vi.fn()});
+ root.mount(frame);root.arrange();
+ expect(root.entries().some(entry=>entry.element.label==='FARMING LV 3 · MAX')).toBe(true);
+ root.dispose();
+});

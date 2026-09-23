@@ -1,0 +1,271 @@
+{
+ "name": "piece_lantern",
+ "kind": "piece",
+ "bpm": 72,
+ "swing": 0.02,
+ "key": "G",
+ "mode": "major",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 16,
+ "masterGainDb": 0,
+ "quotesMotif": {
+  "id": "orchard_home",
+  "channel": "bells",
+  "pattern": "Motif",
+  "exactPitch": false
+ },
+ "loop": false,
+ "fx": {
+  "reverb": 1.1,
+  "delayBeats": 1.5,
+  "delayFeedback": 0.35
+ },
+ "iterationNotes": [
+  "Pass 1: sparse adaptive-director piece (docs/12 \u00a72.5); quotes the orchard_home motif. Owner listening pass pending."
+ ],
+ "channels": [
+  {
+   "patch": "bells",
+   "vol": 0.34,
+   "pan": -0.2,
+   "patterns": [
+    "Motif",
+    "Rest",
+    "Answer",
+    "Home"
+   ]
+  },
+  {
+   "patch": "pluck",
+   "vol": 0.22,
+   "pan": 0.4,
+   "patterns": [
+    "ArpA",
+    "ArpB",
+    "ArpA",
+    "ArpEnd"
+   ]
+  },
+  {
+   "patch": "strings",
+   "vol": 0.12,
+   "pan": -0.3,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Rest",
+    "Breath"
+   ]
+  }
+ ],
+ "patterns": {
+  "Rest": {
+   "steps": 64,
+   "notes": []
+  },
+  "Motif": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G5",
+     8,
+     0.75
+    ],
+    [
+     16,
+     "B5",
+     8,
+     0.8
+    ],
+    [
+     32,
+     "D6",
+     14,
+     0.85
+    ]
+   ]
+  },
+  "Answer": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "A5",
+     8,
+     0.75
+    ],
+    [
+     16,
+     "B5",
+     8,
+     0.75
+    ],
+    [
+     32,
+     "G5",
+     16,
+     0.7
+    ]
+   ]
+  },
+  "Home": {
+   "steps": 64,
+   "notes": [
+    [
+     8,
+     "D5",
+     8,
+     0.7
+    ],
+    [
+     32,
+     "G5",
+     16,
+     0.65
+    ]
+   ]
+  },
+  "ArpA": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     6,
+     0.5
+    ],
+    [
+     8,
+     "B3",
+     6,
+     0.4
+    ],
+    [
+     16,
+     "G4",
+     8,
+     0.45
+    ],
+    [
+     32,
+     "C4",
+     6,
+     0.5
+    ],
+    [
+     40,
+     "G4",
+     6,
+     0.4
+    ],
+    [
+     48,
+     "E4",
+     8,
+     0.45
+    ]
+   ]
+  },
+  "ArpB": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     6,
+     0.5
+    ],
+    [
+     8,
+     "D4",
+     6,
+     0.4
+    ],
+    [
+     16,
+     "B4",
+     8,
+     0.45
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.5
+    ],
+    [
+     40,
+     "A3",
+     6,
+     0.4
+    ],
+    [
+     48,
+     "F#4",
+     8,
+     0.45
+    ]
+   ]
+  },
+  "ArpEnd": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.5
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.4
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.45
+    ],
+    [
+     32,
+     "G3",
+     8,
+     0.5
+    ],
+    [
+     40,
+     "D4",
+     8,
+     0.45
+    ],
+    [
+     48,
+     "B4",
+     16,
+     0.45
+    ]
+   ]
+  },
+  "Breath": {
+   "steps": 64,
+   "notes": [
+    [
+     16,
+     "G3",
+     40,
+     0.5
+    ],
+    [
+     16,
+     "D4",
+     40,
+     0.45
+    ]
+   ]
+  }
+ }
+}

@@ -11,6 +11,7 @@ import {
   type RaisedTerrainStairFrames,
 } from '@orchard/sim';
 import { assetsRoot, loadAssets, loadPalette, readJson } from './assets/load.js';
+import { validateAudioAssignment } from '@orchard/engine/audio/music-director';
 import { frameKind, variantTopology } from './assets/frame-kind.js';
 import { compileBakedShadow } from './assets/baked-shadow.js';
 import { sourcePaletteErrors } from './assets/source-palette.js';
@@ -46,7 +47,14 @@ function validateSongs(songs: readonly unknown[], errors: string[]): void {
     const name = value['name'];
     if (typeof value['bpm'] !== 'number' || value['bpm'] < 72 || value['bpm'] > 96) errors.push(`${name}: bpm must be 72-96`);
     if (typeof value['swing'] !== 'number' || value['swing'] < 0 || value['swing'] > 0.12) errors.push(`${name}: swing must be 0-0.12`);
-    if (value['loopBars'] !== 48 && value['loopBars'] !== 64 && value['loopBars'] !== 96) errors.push(`${name}: theme loop must be 48, 64, or 96 bars`);
+    const kind = value['kind'] ?? 'theme';
+    const bars = value['loopBars'];
+    if (!['theme', 'piece', 'combat', 'sting'].includes(kind as string)) errors.push(`${name}: kind must be theme, piece, combat or sting`);
+    else if (typeof bars !== 'number' || !Number.isInteger(bars)) errors.push(`${name}: loopBars must be a whole number`);
+    else if (kind === 'theme' && bars !== 48 && bars !== 64 && bars !== 96) errors.push(`${name}: theme loop must be 48, 64, or 96 bars`);
+    else if (kind === 'piece' && (bars < 8 || bars > 96)) errors.push(`${name}: pieces must be 8-96 bars`);
+    else if (kind === 'combat' && (bars < 4 || bars > 32)) errors.push(`${name}: combat loops must be 4-32 bars`);
+    else if (kind === 'sting' && (bars < 1 || bars > 8 || value['loop'] !== false)) errors.push(`${name}: stings must be 1-8 bars with loop false`);
     if (!Array.isArray(value['channels']) || !isRecord(value['patterns'])) { errors.push(`${name}: channels/patterns missing`); continue; }
     for (const channel of value['channels']) {
       if (!isRecord(channel) || typeof channel['patch'] !== 'string' || !audioPatches.has(channel['patch'])) errors.push(`${name}: channel uses a patch outside the closed set`);
@@ -557,6 +565,9 @@ export async function validateAssetSources(): Promise<void> {
     }
   }
   validateSongs(songs, errors);
+  const assignment = await readJson(new URL('music/audio-assignment.json', assetsRoot));
+  const songNames = new Set(songs.flatMap((song) => isRecord(song) && typeof song['name'] === 'string' ? [song['name']] : []));
+  errors.push(...validateAudioAssignment(assignment, songNames).map((error) => `audio-assignment.json: ${error}`));
   validateSfx(sfx, errors);
   if (errors.length > 0) throw new Error(`Asset validation failed:\n${errors.join('\n')}`);
   console.log(`Validated ${assets.length} art assets, ${songs.length} songs, ${sfx.length} SFX, 55 palette colors, and four seasonal remaps.`);

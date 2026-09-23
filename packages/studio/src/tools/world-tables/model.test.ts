@@ -80,6 +80,8 @@ describe('WorldAuthoringModel', () => {
 
   it('browses and edits first-class resource definitions through the generic model', () => {
     expect(WORLD_TABLE_KINDS).toContain('resource');
+    expect(WORLD_TABLE_KINDS).toContain('balance');
+    expect(WORLD_TABLE_KINDS).toContain('progression');
     const model = createWorldAuthoringModel({ access: 'write' });
     const entry = model.browser('resource')[0];
     expect(entry).toMatchObject({ kind: 'resource', retired: false });

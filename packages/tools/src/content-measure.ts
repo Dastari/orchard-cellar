@@ -5,9 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// D6 authored policy + capabilities: 920 definitions, 585,179 runtime bytes (a69b62bf).
-// Adds 2,461 bytes (+0.42%) over 582,718; retain the next-whole-KiB guard.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 572 * 1024;
+// Combined wave2 + D6 content: 921 definitions, 620,770 runtime bytes.
+// Retain the measured next-whole-KiB regression envelope.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 607 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

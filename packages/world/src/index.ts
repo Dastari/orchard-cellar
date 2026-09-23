@@ -1,5 +1,8 @@
 import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
+import { buildSpaceRegistry } from '@orchard/sim';
+import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
+import { runtimeActivityExperience, runtimeProgression } from '@orchard/sim';
 import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
@@ -282,8 +285,6 @@ import {
   FISH_POOL_RESOURCE_ID_BASE,
   FISH_POOL_MIN_SPACING_TILES,
   FISHING_CAST_TICKS,
-  FISHING_CATCH_FARMING_XP,
-  FISHING_POOL_DEPLETION_FARMING_XP,
   miningWorkPerHit,
   resolveMiningLoot,
   resolveMiningRockBonus,
@@ -420,6 +421,8 @@ import {
 } from '@orchard/sim';
 import { runtimeResourceObstacle, runtimeSpaceSurfaceDefinition, runtimeSpaceSurfaceObstacle } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, firstHarvestOfDay, runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim';
+import { authoredHookApproved, authoredHookRegistrations, objectTransitionHookRegistrations, objectStateEvents, type AuthoredHookAuthority } from '@orchard/sim';
+import { AUTHORED_HOOK_BUNDLE_SHA256, AUTHORED_LIFECYCLE_HOOKS } from '@orchard/lifecycle-authoring/hooks';
 import { AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS } from '@orchard/lifecycle-authoring/generated';
 import { Identity } from 'spacetimedb';
 import {
@@ -2076,7 +2079,8 @@ const world_surface = table(
   {
     name: 'world_surface',
     public: true,
-    indexes: [{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] }],
+    indexes: [{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] }],
   },
   {
     id: t.u64().primaryKey(), kind: t.string(), tileX: t.i16(), tileY: t.i16(),
@@ -2220,6 +2224,7 @@ const world_resource = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_depleted', algorithm: 'btree', columns: ['depleted'] },
       { accessor: 'by_regrowth_progress', algorithm: 'btree', columns: ['regrowthProgress'] },
     ],
@@ -2316,6 +2321,7 @@ const world_crop = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
     ],
   },
   {
@@ -2340,6 +2346,7 @@ const world_item = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
@@ -2450,6 +2457,7 @@ const world_chest = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
       { accessor: 'by_migration_order', algorithm: 'btree', columns: ['id', 'spaceId'] },
     ],
@@ -2555,6 +2563,7 @@ const world_placeable = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
       { accessor: 'by_placer', algorithm: 'btree', columns: ['placedBy'] },
     ],
@@ -2677,6 +2686,7 @@ const world_npc = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_rider', algorithm: 'hash', columns: ['rider'] },
     ],
   },
@@ -5251,10 +5261,6 @@ function acceptQuest(
     id, identity: ctx.sender, questId: definition.id, state: 'active',
     acceptedTick: authorityTick, completedTick: undefined, turnedInTick: undefined, pinned: true,
   });
-  raiseSenderBehaviourEvent(ctx, {
-    type: 'questState', actor: { entityType: 'player', id: identityHex },
-    questId: definition.id, from: 'available', to: 'active',
-  });
   for (const objective of definition.objectives) {
     ctx.db.player_quest_baseline.insert({
       id: playerQuestBaselineId(identityHex, definition.id, objective.id),
@@ -5281,6 +5287,10 @@ function acceptQuest(
       itemKind: item.itemKind,
     });
   }
+  raiseSenderBehaviourEvent(ctx, {
+    type: 'questState', actor: { entityType: 'player', id: identityHex },
+    questId: definition.id, from: 'available', to: 'active',
+  });
   recordPlayerStatistic(ctx, ctx.sender, 'quests_accepted', 1n, authorityTick, definition.id);
 }
 
@@ -8180,6 +8190,87 @@ export const adminMissingContainerRecovery = spacetimedb.procedure(
   }),
 );
 
+/** Every iterator seeks directly within one requested chunk; excluded keys resume dense chunks. */
+function* adminAreaIndexRows(tx: AdminProcedureTx, source: number, spaceId: number,
+  chunkX: number, chunkY: number, after: string | null): Generator<AdminAreaRow> {
+  if (source === 0) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_placeable.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      if (genericChest(tx, row) && !chestMigrationReadsUsePlaceables(tx) && tx.db.chest_migration_mapping.placeableId.find(row.id) !== null) { yield { key: row.id.toString(), entity: null }; continue; }
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: genericChest(tx, row) ? 'chest' : 'placeable', definitionId: row.definitionId || row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { open: row.open, lit: row.lit, stateJson: row.stateJson } } };
+    }
+  }
+  if (source === 1) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_chest.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      if (chestMigrationReadsUsePlaceables(tx) && tx.db.chest_migration_mapping.chestId.find(row.id) !== null) { yield { key: row.id.toString(), entity: null }; continue; }
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'chest', definitionId: 'chest',
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { carried: row.carriedBy !== undefined } } };
+    }
+  }
+  if (source === 2) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_npc.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'npc', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { displayName: row.displayName, facing: row.facing, health: row.health } } };
+    }
+  }
+  if (source === 3) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_item.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'item', definitionId: row.itemKind,
+        spaceId: String(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { quantity: row.quantity, durability: row.durability } } };
+    }
+  }
+  if (source === 4) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_resource.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'resource', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { health: row.health, depleted: row.depleted } } };
+    }
+  }
+  if (source === 5) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_surface.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'surface', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { capacity: row.capacity } } };
+    }
+  }
+  if (source === 6) {
+    const range = after === null ? new Range<string>() : new Range({ tag: 'excluded', value: after });
+    for (const row of tx.db.world_crop.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'crop', definitionId: row.cropKind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { ownerIdentity: row.owner.toHexString(), growthTicks: row.growthTicks.toString(), plantedAtTick: row.plantedAtTick.toString(), composted: row.composted } } };
+    }
+  }
+}
+
+export const adminEntitiesInAreaPage = spacetimedb.procedure(
+  { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32(),
+    cursor: t.option(t.string()), limit: t.u32(), kinds: t.array(t.string()), text: t.string() },
+  t.string(),
+  (ctx, request) => ctx.withTx((tx) => {
+    requireAdminProcedure(tx, 'operate.world');
+    return stringifyAdminProcedureResult(buildAdminAreaPage({ ...request,
+      ...(request.cursor === undefined ? {} : { cursor: request.cursor }) },
+    (source, space, x, y, after) => adminAreaIndexRows(tx, source, space, x, y, after)));
+  }),
+);
+
+/** Only geometry and ownership leave the private run table, after the admin gate. */
+export const adminSpaceRegistry = spacetimedb.procedure({}, t.string(), (ctx) => ctx.withTx((tx) => {
+  requireAdminProcedure(tx, 'operate.world');
+  const homes = [...tx.db.homestead.iter()].map((home) => ({ ...home, ownerIdentity: home.owner.toHexString() }));
+  const runs = [...tx.db.rogue_run.iter()].map((run) => ({
+    spaceId: run.spaceId, instanceKind: run.instanceKind, seed: run.seed,
+    roomNumber: run.roomNumber, roomKind: run.roomKind, theme: run.theme,
+    ownerIdentity: run.owner.toHexString(), ownerName: tx.db.player_public.identity.find(run.owner)?.displayName,
+  }));
+  return stringifyAdminProcedureResult(buildSpaceRegistry(contentRegistry(tx).compiled.spaces, [...homes, ...runs],
+    [...tx.db.space_portal.iter()].map((portal) => ({ ...portal, id: String(portal.id) }))));
+}));
+
 export const adminEntitiesInArea = spacetimedb.procedure(
   { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32() },
   t.string(),
@@ -8188,41 +8279,17 @@ export const adminEntitiesInArea = spacetimedb.procedure(
     const spaceId = Number(bounds.spaceId);
     if (!Number.isInteger(spaceId) || spaceId < 0 || spaceId > 65_535) throw new SenderError('admin_payload_invalid');
     const rows = function* (): Generator<AdminEntitySummary> {
-      for (const row of tx.db.world_placeable.by_chunk.filter(spaceId)) {
-        if (genericChest(tx, row) && !chestMigrationReadsUsePlaceables(tx)
-          && tx.db.chest_migration_mapping.placeableId.find(row.id) !== null) continue;
-        yield {
-          entityId: row.id.toString(), kind: genericChest(tx, row) ? 'chest' : 'placeable',
-          definitionId: row.definitionId || row.kind,
-          spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY,
-          state: { open: row.open, lit: row.lit, stateJson: row.stateJson },
-        };
+      const minX = Math.floor(Math.min(bounds.x0, bounds.x1) / SURVIVAL_CHUNK_TILES);
+      const maxX = Math.floor(Math.max(bounds.x0, bounds.x1) / SURVIVAL_CHUNK_TILES);
+      const minY = Math.floor(Math.min(bounds.y0, bounds.y1) / SURVIVAL_CHUNK_TILES);
+      const maxY = Math.floor(Math.max(bounds.y0, bounds.y1) / SURVIVAL_CHUNK_TILES);
+      for (let source = 0; source < 7; source += 1) {
+        for (let x = minX; x <= maxX; x += 1) for (let y = minY; y <= maxY; y += 1) {
+          for (const row of adminAreaIndexRows(tx, source, spaceId, x, y, null)) {
+            if (row.entity !== null) yield row.entity;
+          }
+        }
       }
-      for (const row of tx.db.world_chest.by_chunk.filter(spaceId)) {
-        if (chestMigrationReadsUsePlaceables(tx)
-          && tx.db.chest_migration_mapping.chestId.find(row.id) !== null) continue;
-        yield {
-          entityId: row.id.toString(), kind: 'chest', definitionId: 'chest', spaceId: String(row.spaceId),
-          tileX: row.tileX, tileY: row.tileY, state: { carried: row.carriedBy !== undefined },
-        };
-      }
-      for (const row of tx.db.world_npc.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'npc', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED),
-        state: { displayName: row.displayName, facing: row.facing, health: row.health },
-      };
-      for (const row of tx.db.world_item.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'item', definitionId: row.itemKind, spaceId: String(row.spaceId),
-        tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { quantity: row.quantity, durability: row.durability },
-      };
-      for (const row of tx.db.world_resource.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'resource', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: row.tileX, tileY: row.tileY, state: { health: row.health, depleted: row.depleted },
-      };
-      for (const row of tx.db.world_surface.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'surface', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: row.tileX, tileY: row.tileY, state: { capacity: row.capacity },
-      };
     };
     return adminProcedureJson(buildAdminEntitiesInArea(rows(), bounds));
   }),
@@ -9922,6 +9989,29 @@ const worldBehaviourHandlers: BehaviourHandlerRegistry = registerPlaceableHandle
   createHandlerRegistry(AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS),
 );
 
+const authoredHookInvocations = new WeakMap<WorldReducerContext, number>();
+function authoredHookAuthority(ctx: WorldReducerContext): AuthoredHookAuthority {
+  return {
+    approved: () => {
+      const review = ctx.db.studio_script_review.artifactHash.find(AUTHORED_HOOK_BUNDLE_SHA256);
+      return authoredHookApproved(AUTHORED_HOOK_BUNDLE_SHA256, review === null ? null : {
+        artifactHash: review.artifactHash, author: review.author.toHexString(),
+        ...(review.approvedBy === undefined ? {} : { approvedBy: review.approvedBy.toHexString() }),
+        approved: review.approvedAt !== undefined,
+      });
+    },
+    consume: () => {
+      const calls = (authoredHookInvocations.get(ctx) ?? 0) + 1;
+      authoredHookInvocations.set(ctx, calls);
+      return calls <= 32;
+    },
+    audit: (id, event, effects) => {
+      insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'authored_lifecycle_hook',
+        value: JSON.stringify({ hash: AUTHORED_HOOK_BUNDLE_SHA256, id, event, effects }), occurredAt: ctx.timestamp });
+    },
+  };
+}
+
 function currentWorldBehaviourHandlers(ctx: WorldReducerContext): BehaviourHandlerRegistry {
   const head = ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID);
   const content = cachedContentRegistry(ctx);
@@ -9935,7 +10025,10 @@ function currentWorldBehaviourHandlers(ctx: WorldReducerContext): BehaviourHandl
     ),
   ));
   return objectGraphRegistryForContent(
-    createHandlerRegistry([...handlers.registrations, ...frameActionHandlerRegistrations(content.registry.frames.values())]),
+    createHandlerRegistry([...handlers.registrations, ...frameActionHandlerRegistrations(content.registry.frames.values()),
+      ...authoredHookRegistrations(AUTHORED_LIFECYCLE_HOOKS, authoredHookAuthority(ctx)),
+      ...objectTransitionHookRegistrations(content.registry.objects.values(), AUTHORED_LIFECYCLE_HOOKS,
+        authoredHookAuthority(ctx), head?.engineVersion ?? CONTENT_ENGINE_VERSION)]),
     content,
     head?.engineVersion ?? CONTENT_ENGINE_VERSION,
   );
@@ -11615,7 +11708,7 @@ function worldBehaviourEffectWriter(
         });
         const soilId = worldSoilId(planned.spaceId, planned.tileX, planned.tileY);
         if (ctx.db.world_soil.id.find(soilId) !== null) ctx.db.world_soil.id.delete(soilId);
-        grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+        grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'plant_fruit_seed'));
         return;
       }
       const definition = runtimeCropDefinitionForSeed(contentRegistry(ctx), planned.seedItemKind);
@@ -11639,7 +11732,7 @@ function worldBehaviourEffectWriter(
       recordPlayerStatistic(
         ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, definition.harvestItemKind,
       );
-      grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+      grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'plant_seed'));
     },
     farmTool: ({ action, at }) => {
       const planned = plannedFarmTool;
@@ -11988,14 +12081,18 @@ function worldBehaviourEffectWriter(
       }
       const row = targetPlaceable();
       const plan = planPlaceableStateEffect(contentRegistry(ctx), row, { toggleState: state });
-      ctx.db.world_placeable.id.update({ ...row, ...plan });
+      const updated = { ...row, ...plan };
+      ctx.db.world_placeable.id.update(updated);
+      raisePlaceableStateEvents(ctx, row, updated, actorIsSender);
     },
     setState: (state) => {
       const row = targetPlaceable();
       const plan = planPlaceableStateEffect(contentRegistry(ctx), row, { setState: state });
       const lampState=row.definitionId===STREETLAMP_DEFINITION
         ?streetlampState(plan.stateJson,ctx.db.world_environment.id.find(0)?.calendarTick??ctx.db.world_clock.id.find(0)?.authorityTick??0n):{};
-      ctx.db.world_placeable.id.update({ ...row, ...plan, ...lampState });
+      const updated = { ...row, ...plan, ...lampState };
+      ctx.db.world_placeable.id.update(updated);
+      raisePlaceableStateEvents(ctx, row, updated, actorIsSender);
     },
     setLight: (light) => {
       if (target === undefined) {
@@ -12081,6 +12178,10 @@ function worldBehaviourEffectWriter(
           authorityTick,
           objective.actionKind,
         );
+        raiseSenderBehaviourEvent(ctx, { type: 'questObjective',
+          actor: { entityType: 'player', id: ctx.sender.toHexString() },
+          questId: definition.id, objectiveId: objective.id, amount: action.amount,
+        });
       }
       // Statistic and location objectives remain derived from canonical rows.
       // Explicit progress is confined to a matching active action objective and
@@ -12203,6 +12304,18 @@ function raisePlaceableSlotChangedEvent(
 /** Raises player lifecycle notifications through the same compiled registry as
  * interactions. Non-sender/system mutations retain the legacy quest authority
  * path because their immutable actor snapshot is not available in this reducer. */
+function raisePlaceableStateEvents(ctx: WorldReducerContext, before: WorldPlaceableRow, after: WorldPlaceableRow, actorIsSender: boolean): void {
+  const from = behaviourObjectSnapshot(ctx, before);
+  const to = behaviourObjectSnapshot(ctx, after);
+  const target = resolvedBehaviourTarget(ctx, 'placeable', after.id);
+  if (target === null) throw new SenderError('behaviour_target_missing');
+  for (const event of objectStateEvents({ entityType: 'object', id: to.id, definitionId: to.definitionId }, from.state, to.state)) {
+    const result = raiseEvent(currentWorldBehaviourHandlers(ctx), event, actorIsSender ? authorityBehaviourSnapshot(ctx, to) : timerBehaviourSnapshot(ctx, to));
+    if (isBlockedHandlerResult(result)) throw new SenderError(result.blocked);
+    applyWorldBehaviourEffects(ctx, result.effects, target, actorIsSender);
+  }
+}
+
 function raiseSenderBehaviourEvent(ctx: WorldReducerContext, event: LifecycleEvent): void {
   const actor = 'actor' in event ? event.actor : undefined;
   if (actor === undefined || actor.entityType !== 'player'
@@ -17716,7 +17829,7 @@ export const resetSkillTree = spacetimedb.reducer(
     if (!isSkillTrack(track)) throw new SenderError('invalid_skill_track');
     const progress = ensurePlayerSkillTrack(ctx, ctx.sender, track);
     if (progress.spentPoints === 0) throw new SenderError('skill_tree_empty');
-    const cost = skillRespecCostBronze(progress.respecCount);
+    const cost = skillRespecCostBronze(progress.respecCount, runtimeProgression(contentRegistry(ctx)));
     const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
     if (wallet === null) throw new SenderError('wallet_not_ready');
     if (wallet.balanceBronze < cost) throw new SenderError('insufficient_funds');
@@ -19363,7 +19476,7 @@ export const purchaseHomesteadUpgrade = spacetimedb.reducer(
     recordPlayerStatistic(
       ctx, ctx.sender, 'homestead_upgrades_purchased', 1n, clock.authorityTick, upgradeKind,
     );
-    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(20 * quote.nextRank));
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'homestead_upgrade', quote.nextRank));
   },
 );
 
@@ -19533,6 +19646,7 @@ function raiseDialogueChoiceEvent(
     npc: target.ref as NpcRef,
     nodeId,
     choiceId,
+    dialogueId: ctx.db.active_dialogue.identity.find(ctx.sender)?.dialogueId ?? '',
   }, authorityBehaviourSnapshot(ctx, target.snapshot));
   if (isBlockedHandlerResult(result)) throw new SenderError(result.blocked);
   applyWorldBehaviourEffects(ctx, result.effects, target, true);
@@ -21257,7 +21371,7 @@ function pickOrchardFruit(
   ctx.db.player_position.identity.update({ ...position, actionKind: 'pickup',
     actionStartedTick: nextActionStartedTick(position.actionStartedTick, authorityTick) });
   recordPlayerStatistic(ctx, ctx.sender, 'resources_gathered', 1n, authorityTick, resource.kind);
-  grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(harvest.quantity * 2));
+  grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'orchard_harvest', harvest.quantity));
 }
 
 export const gatherWorldResource = spacetimedb.reducer(
@@ -23106,13 +23220,13 @@ function applyHarvestResourceLifecycle(
         horizontalSpacing: 4 * FIXED_UNITS_PER_PIXEL,
         recordItemsObtained: true,
       }, lootAuthorityDependencies);
-      const payoutExperience = nodeClass === 'rock' ? 2n
-        : nodeClass === 'mixed' ? (resolved.producedOre ? 6n : 3n) : 10n;
+      const payoutExperience = runtimeActivityExperience(contentRegistry(ctx), nodeClass === 'rock' ? 'mine_rock'
+        : nodeClass === 'mixed' ? (resolved.producedOre ? 'mine_mixed_ore' : 'mine_mixed_stone') : 'mine_ore');
       grantSkillExperience(
         ctx,
         ctx.sender,
         'farming',
-        payoutExperience + (depleted ? BigInt(maximumRichness) : 0n),
+        payoutExperience + (depleted ? runtimeActivityExperience(contentRegistry(ctx), 'mine_depletion', maximumRichness) : 0n),
       );
       return;
     }
@@ -23229,7 +23343,7 @@ function applyHarvestResourceLifecycle(
     }, lootAuthorityDependencies);
     for (const drop of drops) {
       if (runtimeItemHasTag(contentRegistry(ctx), drop.itemKind, 'crop.fruit')) {
-        grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(drop.quantity * 2));
+        grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'resource_fruit_harvest', drop.quantity));
       }
     }
 }
@@ -23422,7 +23536,7 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
     );
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
     wearInventoryTool(ctx, selected);
-    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_catch'));
     ctx.db.player_position.identity.update({
       ...position,
       actionKind: 'fish_reel',
@@ -23497,9 +23611,9 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
       ])
       : 0n,
   });
-  grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
+  grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_catch'));
   if (depleted) {
-    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_POOL_DEPLETION_FARMING_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_depletion'));
     recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, pool.kind);
   }
   ctx.db.player_position.identity.update({
@@ -24062,7 +24176,7 @@ function applyFarmToolUse(
         1n,
         clock.authorityTick,
       );
-      grantSkillExperience(ctx, ctx.sender, 'farming', farmMode === 'cultivate' ? 2n : 1n);
+      grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), farmMode === 'cultivate' ? 'cultivate' : 'water'));
     }
 }
 
@@ -24253,7 +24367,7 @@ export const harvestCropTile = spacetimedb.reducer(
       clock.authorityTick,
       definition.harvestItemKind,
     );
-    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(8 + harvestQuantity));
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'crop_harvest', harvestQuantity));
   },
 );
 

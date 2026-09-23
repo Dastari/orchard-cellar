@@ -80,7 +80,7 @@ describe('connected Studio admin services', () => {
     const invalid = async () => '{}';
     const connection = { procedures: {
       adminFindPlayers: invalid, adminPlayerSnapshot: invalid, adminPlayerInventory: invalid,
-      adminConnectionsPage: invalid, adminAuditPage: invalid, adminEntitiesInArea: invalid,
+      adminConnectionsPage: invalid, adminAuditPage: invalid, adminEntitiesInAreaPage: invalid,
       adminContainerContents: invalid, adminTelemetry: invalid, adminValidateWorld: invalid,
       adminClientErrors: invalid, adminMissingContainerRecovery: invalid,
     } } as unknown as DbConnection;

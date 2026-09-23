@@ -41,3 +41,30 @@ Stateful-object support in Studio 0.12.0 also changes the shared game renderer a
 world map commit handler. Deploy this feature with the matching game/world code;
 it is not a standalone editor release. The full database schema and generated
 public bindings remain unchanged. See [the verification and release handoff](../../docs/studio-smart-placement-handoff.md).
+
+## Multi-space data boundary (F4)
+
+`StudioLiveAdapter.spaceRegistry()` returns admin-authorized static, homestead,
+residence, cellar and active rogue metadata. `setMapViewport` accepts every u16
+space id; player presence stays subscribed across spaces as viewports change.
+`studioSpaceRef` separates `/build/map/space/<id>` from editable documents. These
+routes show read-only metadata in this backend increment. The later World Map
+canvas consumes `studioRuntimeSpaceTerrain` with verified live content and world
+seed/version; this returns generator terrain, never a publishable map document.
+
+`studioLivePickerSources` supplies spaces, paged players/entities and container
+inspection through the existing shell connection. Entity queries accept inclusive
+nonnegative tile bounds up to 16,384 tiles, limit 1–100, kind/text filters and an
+opaque cursor. Keep fetching while `nextCursor` is non-null even if a filtered
+page is empty; at most 2,048 source rows are read per request. The cursor binds to
+the bounds and filters, so reset it whenever they change. Pages reflect live
+state rather than a multi-call snapshot. Object Manager's `setQuery` lets the
+visual lane provide the current area instead of a hard-coded negative box.
+
+For container slot editing, use `ContainerManagerModel.inspect`, `setReason`,
+`preview({ operation: 'set_container_slot', slot, stack })`, then `commit()`. This
+uses the existing server dry-run/version/fingerprint authority; the picker does
+not bypass it. The area-page and registry procedures require a world module
+release before this Studio version is deployed. Generated bindings must be
+regenerated after integrating other world procedure changes. Retired private
+`farm_parcel` rows stay retired: active farms come from the homestead registry.

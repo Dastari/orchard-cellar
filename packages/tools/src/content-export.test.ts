@@ -13,7 +13,7 @@ describe('bootstrap content export', () => {
     expect(second).toEqual(first);
     expect(first.map(({ fileName }) => fileName)).toEqual([
       'items.json', 'recipes.json', 'processes.json', 'shops.json', 'tilesets.json', 'frames.json',
-      'loot.json', 'npcs.json', 'dialogues.json', 'quests.json', 'balance.json',
+      'loot.json', 'npcs.json', 'dialogues.json', 'quests.json', 'balance.json', 'progression.json',
       'crops.json', 'creatures.json', 'spawns.json', 'spaces.json', 'skill-trees.json',
       'effects.json', 'statistics.json', 'upgrades.json', 'balance-groups.json',
       'objects.json', 'resources.json', 'loadouts.json',
