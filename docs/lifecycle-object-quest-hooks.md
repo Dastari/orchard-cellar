@@ -65,3 +65,13 @@ The complete coverage test run finished in 984 seconds: **974 files passed / 3 f
 Local logs: `/tmp/orchard-f3-full-test-final.log`, `/tmp/orchard-f3-art-rerun-fixed.log`, `/tmp/orchard-f3-premium-rerun-fixed.log`, `/tmp/orchard-f3-exhaustive.log`. Other passed gates: workspace types, lint, world build, guarded Studio production build, content/assets validation, lifecycle integrity and field-schema regeneration. Latest production bridge tests: three passed, with world typecheck repeated. The full test process has exited; no background validation session is required for handoff.
 
 GoldCondor owns coordination per Agent Mail #254. Object-state runtime is a separate queued lane; integrate its durable timed/growth firings through the typed callback bridge, preserving source-hash approval and shared invocation caps. F2/F4 own disjoint world hunks. No schema or binding regeneration is required for this F3 change.
+
+## Reviewed source integration
+
+The refreshed source includes final wave1 and preceding PR75/74/76. Combined F1
+schemas are regenerated from the authored types, additive exports retained and
+package versions/lockfile reconciled. No lifecycle semantic change is introduced:
+v1 artifacts, exact-digest approval, separate author/approver, shared invocation
+and effect budgets remain intact. PR87's complete combined rehearsal passed
+6,310 coverage + 101 exhaustive tests. Prefix lifecycle/schema/build checks and
+fresh exact-source CI are recorded in the PR. No merge or deployment.
