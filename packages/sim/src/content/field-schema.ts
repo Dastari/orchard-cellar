@@ -70,7 +70,7 @@ export function contentFieldVariant(graph: ContentFieldSchemaGraph, options: rea
     if (discriminant) return discriminant;
     const shape = options.map(id => {
       const schema = graph.nodes[id];
-      return { id, score: schema?.type === 'object' ? Object.keys(schema.fields).filter(key => !['id', 'kind', 'schemaVersion'].includes(key) && Object.hasOwn(record, key)).length : -1 };
+      return { id, score: schema?.type === 'object' ? Object.keys(schema.fields).filter(key => !['id', 'kind', 'schemaVersion'].includes(key) && Object.prototype.hasOwnProperty.call(record, key)).length : -1 };
     }).sort((a, b) => b.score - a.score)[0];
     if (shape && shape.score > 0) return shape.id;
   }
