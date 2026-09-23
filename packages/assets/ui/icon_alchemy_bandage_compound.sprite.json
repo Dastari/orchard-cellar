@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_bandage_compound",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...........zz...",
+        "..........zCCz..",
+        "....aa...zzCCz..",
+        "...abb..zCCzz...",
+        "...abb.zzCzz....",
+        "....aazzAAz.....",
+        "...yyIIKKyyyy...",
+        "..yBBIIIIKKAAy..",
+        "..yBBJJKKzzzzy..",
+        "...yyAAAzzzyy...",
+        "....yAAzzzzy....",
+        ".....SSSSSS.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}

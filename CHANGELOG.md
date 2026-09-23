@@ -1,5 +1,11 @@
 # Changelog
 
+## Food/alchemy semantic artwork — assets 0.19.5 — 2026-09-23
+
+- Add nine reviewed native 16×16 replacements for held butter, curd, sugar, salt, bandage compound, salve, animal feed, pumpkin pie and roast potato source mappings from approved doc 63.
+- Preserve the exact planned icon keys, closed Orchard palette and existing gameplay data. Record shape/material review in [the correction art handoff](docs/food-alchemy-correction-art/README.md).
+- No licensed source pixels, generated PNGs, gameplay references or deployment are included; the client asset bundle must precede later content activation.
+
 ## 0.25.2 — reviewed source integration
 
 - Combine sparse music, multi-space reads, authored progression, reviewed lifecycle hooks and blob47 rules.

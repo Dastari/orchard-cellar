@@ -1,0 +1,35 @@
+{
+  "name": "icon_food_sugar",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "......KKKK......",
+        ".....KIIIIK.....",
+        ".....KIIIJK.....",
+        ".....KIIIJK.....",
+        "...KKKKKKJKK....",
+        "..KIIIIKKIIIK...",
+        "..KIIIIKKIIJK...",
+        "..KIIIJKKIIJK...",
+        "..KJJJJKKJJJK...",
+        "...KKKKKKKKKK...",
+        "....SSSSSSSS....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}
