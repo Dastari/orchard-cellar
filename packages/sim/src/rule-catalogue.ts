@@ -98,6 +98,17 @@ export function parseRuleCatalogue(value: unknown): RuleCatalogue {
   const families = list(r.families, '$.families').map((v, i) => family(v, `$.families[${i}]`));
   const ids = new Set(families.map(f => f.id)); if (ids.size !== families.length) invalid('$.families', 'duplicate family');
   for (const f of families) if (!('unavailable' in f)) for (const id of f.compatibleFamilies) if (!ids.has(id)) invalid('$.families', `unknown compatible family ${id}`);
+  // Exact identities must not change family when content rows are reordered.
+  for (const key of ['definitionIds', 'assetIds'] as const) {
+    const owners = new Map<string, string>();
+    for (const f of families) if (f.kind === 'connect4' && !('unavailable' in f)) {
+      for (const member of f.members[key]) {
+        const previous = owners.get(member);
+        if (previous !== undefined) invalid('$.families', `ambiguous ${key} member ${member}: ${previous}, ${f.id}`);
+        owners.set(member, f.id);
+      }
+    }
+  }
   return { schemaVersion: 1, families };
 }
 export interface ResolvedRuleFrame extends RuleFrame { readonly role: string; readonly blocksMovement: boolean; readonly blocksLight: boolean }

@@ -20,6 +20,10 @@ describe('versioned rule catalogue', () => {
     expect(connectedObjectCatalogue(new Map())).toEqual(parsed.ruleCatalogue);
     expect(connectedObjectCatalogue(new Map([[parsed.id,{...parsed,ruleCatalogue:{schemaVersion:1,families:[]}}]]))).toEqual({schemaVersion:1,families:[]});
   });
+  it('rejects ambiguous exact membership instead of depending on content row order', () => {
+    const f=family();
+    expect(()=>parseRuleCatalogue({schemaVersion:1,families:[f,{...f,id:'duplicate_members'}]})).toThrow(/ambiguous/);
+  });
   it('supports every family kind and explicit unavailable families', () => {
     for(const kind of ['raised','transition','shore','blob47','lane','patch','connect4']) {
       expect(parseRuleCatalogue({schemaVersion:1,families:[{...family(),kind}]}).families[0]?.kind).toBe(kind);
@@ -78,7 +82,7 @@ describe('definition membership and neighbour contracts', () => {
     expect(connectedObjectIndex([c,{...neighbor,space:1}])(c)).toBe(0);
   });
   it('supports authored compatible families and new definitions without code changes', () => {
-    const f=family(); const other={...f,id:'new_fence',members:{...f.members,definitionIds:['object:new_fence'],tags:[]},compatibleFamilies:['wood_fence']};
+    const f=family(); const other={...f,id:'new_fence',members:{...f.members,definitionIds:['object:new_fence'],assetIds:[],exactAssetIds:[],tags:[]},compatibleFamilies:['wood_fence']};
     const c=parseRuleCatalogue({schemaVersion:1,families:[{...f,compatibleFamilies:['new_fence']},other]});
     const def=parseObjectDefinition({...fence(),id:'object:new_fence'});
     expect(connectedObjectDefinitionFamily(def,c)).toBe('new_fence');

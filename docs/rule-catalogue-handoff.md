@@ -1,6 +1,7 @@
 # Rule catalogue groundwork handoff
 
-Branch `feat/rule-catalogue-groundwork`, isolated worktree
+PR [#73](https://github.com/Dastari/orchard-cellar/pull/73), branch
+`feat/rule-catalogue-groundwork`, isolated worktree
 `/home/toby/projects/orchard-rule-catalogue`, base `origin/main` 2e1d9a4f.
 Implements BrownHorizon's assignment #115 from doc 61 §4 / PR #63.
 
@@ -22,7 +23,7 @@ Integration:
   remains separate. Current bootstrap map-prefab joins preserve the existing
   authored-map runtime, while live objects consume published catalogues.
 
-Validation results and PR URL are recorded on the PR when opened. No merge or
+Validation results are recorded on the PR. No merge or
 release authorization is implied.
 
 Checks completed before PR:
