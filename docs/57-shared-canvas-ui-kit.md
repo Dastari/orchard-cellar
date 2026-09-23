@@ -609,3 +609,7 @@ while component lanes add their own specimen files under `kit/lab/specimens/`.
 - Update docs 13, 23, 55 §7, and 56 §4.1 to reference this document once Phase 2
   lands; mark `design-system/README.md` superseded at Phase 6.
 - Track phase status at the top of this document with dates, as docs 55/56 do.
+
+Integration follow-up: ownership/live-marker colours now live in
+`spatial-colours.ts`; the temporary `editor-controller.ts` colour exception is
+removed. P0/P1 controller behavior remains subject to the same gate.

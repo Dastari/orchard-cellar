@@ -3,6 +3,16 @@
  * tones, never from here. Colour literals are allowed only in token and
  * content files (see `eslint.config.js`, orchard-ui-kit/no-colour-literals). */
 export const MAP_SPATIAL_COLOURS = Object.freeze({
+  livePlaceable: '#df9bc7',
+  liveChest: '#d7a668',
+  liveHomestead: '#f0c777',
+  liveResource: '#72c77a',
+  liveEnemy: '#dc7777',
+  liveWildlife: '#a7a7d9',
+  liveNpc: '#f1b34b',
+  offlinePlayer: '#77838d',
+  onlinePlayer: '#64b7e8',
+
   resizeCrop: 'rgba(154, 49, 42, 0.48)',
   targetWaiting: 'rgba(239, 188, 83, 0.28)',
   targetReady: 'rgba(104, 187, 114, 0.34)',

@@ -1,5 +1,10 @@
 # Changelog
 
+## Studio 0.13.3 — ownership marker token integration
+
+- Preserve P0 ownership and P1 exact terrain parts under the kit gate; move all
+  live-marker colours to spatial tokens and remove the temporary controller exception.
+
 ## 0.23.2 — 2026-09-22
 
 - Correct desert, shroomland and volcanic cliff courses; restore native shroomland inverse corners and per-family cap/floor references (sim 0.21.1).

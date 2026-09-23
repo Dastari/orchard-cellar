@@ -35,9 +35,6 @@ export const STUDIO_UI_KIT_POLICY = Object.freeze({
     'packages/studio/src/tools/character/model.ts',
     'packages/studio/src/tools/map/map-object-catalog.ts',
     'packages/studio/src/tools/map/content-object-catalog.ts',
-    // TEMPORARY: live-marker colours, pending the P0/P1 lanes that own this
-    // file. Move them to spatial-colours.ts after those merge.
-    'packages/studio/src/tools/map/editor-controller.ts',
   ]),
 });
 
