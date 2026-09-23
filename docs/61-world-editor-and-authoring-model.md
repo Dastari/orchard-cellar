@@ -1,6 +1,6 @@
 # 61 — World Editor Model, Object Archetypes, Rule Catalogue, and UI-Kit Enforcement
 
-Plan, **2026-09-23**. Status: **proposed; owner decisions D1–D5 settled 2026-09-23 (§9)**. No
+Plan, **2026-09-23**. Status: **proposed; owner decisions D1–D6 settled 2026-09-23 (§9)**. No
 code changes accompany this document.
 
 **Relationship to other plans**
@@ -292,6 +292,35 @@ migrated once, not twice.
      `scripts/check-client-build-chunks.ts` enforces this.
   6. Retire the `documentJson` row once Studio reads and writes chunks.
 
+### 2.5.3 Traversal by medium and ability (owner decision D6)
+
+Whether a cell blocks depends on **who** is moving, not on the cell alone.
+
+- **Cells declare a medium.** Examples: `land`, `shallow_water`, `deep_water`,
+  `lava`, `shroom_water` (purple shroomland water), `void`, plus solid blockers
+  (walls, cliffs, objects). The tileset rule catalogue (§4) declares each role's
+  medium, so the art and the rule stay together.
+- **Actors have traversal abilities.** Examples: `walk`, `boat`,
+  `water_walk`, `lava_immune`, `toxin_immune`.
+  - Boats and mounts grant abilities while in use.
+  - Potions, spells and status effects grant them for their duration (doc 55
+    effects).
+  - NPC, creature and enemy definitions declare their own abilities (fish in
+    water, fire creatures on lava).
+- **One pure function decides.** `canTraverse(medium, abilities)` in
+  `packages/sim`. Client prediction, server authority, pathfinding, NPC AI,
+  projectiles and Smart Placement all use it. Mediums, abilities and hazard
+  effects (damage over time on lava or shroom water when not immune) are
+  authored data, not code.
+- **This replaces the fixed planes.** Today there is a walking layer and a
+  boat layer (`sim/boats.ts:22-28`). The medium grid supersedes both.
+  Chunks (§2.5.2) store the medium per cell. Until the runtime switches over,
+  they also keep the legacy planes so parity can be checked.
+- **Known discrepancy.** At x414–416, y357–361, the client marks water cells
+  boat-blocked and the server does not (found by PR #71). Resolve it by the
+  medium those cells actually are, once D6 is implemented. It is not patched
+  separately.
+
 ### 2.6 Shared placement function
 
 `packages/sim` exports one deterministic function:
@@ -534,6 +563,9 @@ hoeing next to the path.
 - **D4 Object hooks: both data graphs and TypeScript lifecycle callbacks.**
   Transitions and hooks reference either one. Callback scripting extends to
   quests and conversations (see doc 62).
+- **D6 Traversal by medium and ability** (§2.5.3). Water, lava and shroomland
+  water block unless the actor has the matching ability: boat, water-walking
+  potion or spell, immunity, or creature definition.
 - **D5 Studio deployment during parallel lanes: deploy only from `main` after
   merge.** Concurrent branch builds must not overwrite each other in
   `packages/studio/dist`.
