@@ -68,7 +68,7 @@ Astra must deliver alchemy bench, copper still, kitchen cauldron, oven, varietal
 
 All bespoke icons: 16×16, anchor (8,15), transparent, closed Orchard palette, no labels or glyphs; warm top-left lighting, readable at 1× and reviewed at 8×. Existing sources are reference-only for the missing set. No copied vendor PNGs or generated atlases in Git.
 
-Core art delivered in PR #91 (AzureOx), collections in PR #92 (CloudyOrchid), and station art visually reviewed (AmberBirch). AzureOx owns nine further semantic corrections. P0 native intake and missing-art completion are separate gates.
+Core art delivered in PR #91 (AzureOx), collections in PR #92 (CloudyOrchid), and station art delivered in PR #94 (AmberBirch). Nine further semantic corrections are delivered in PR #95 (AzureOx). All sets passed independent native-size visual review; integration/full-suite checks remain pending. P0 native intake and missing-art completion are separate gates.
 
 ## Reviewed native source corrections
 

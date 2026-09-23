@@ -57,9 +57,11 @@ both changelog entries and any higher versions/dependencies from other lanes.
 ## Continuation state
 
 Implementation identity OrangeCastle; planning identity BeigeCoast. GoldCondor received
-full-plan/A1 approvals and the bounded P0 lane. Core art is delivered in PR #91; collection art in PR #92. Station art is visually reviewed and awaiting its PR; nine semantic corrections are assigned to AzureOx. Milk/egg source cells are corrected in this intake and the plan together. P0 remains incomplete until art gates are delivered and reviewed.
+full-plan/A1 approvals and the bounded P0 lane. Core art is delivered in PR #91; collection art in PR #92. Station art is delivered in PR #94; nine semantic corrections in PR #95. Milk/egg source cells are corrected in this intake and the plan together. All artwork is delivered and visually reviewed; full-suite and combined integration gates remain outstanding.
 GoldCondor confirmed main advanced to df509125 after balance/progression #76 and other merges. P1 shared effects/schema work explicitly waits for the combined runtime/timer baseline (Agent Mail 429/434/435). Reuse the existing traversalAbilities bridge and keep private object lifecycle authority untouched.
 Do not silently activate incomplete effects or missing-art content. Continue following
 `/home/toby/projects/briefs/food-alchemy-implementation-prompt.md` with separate phase PRs.
 
 Milk and egg now use Farming #168/#169 after direct native visual review. Their original crop/vendor selection remains in the manifest for traceability. Held-source tests permit independently reviewed replacement artwork under the stable key, while rejecting the original incorrect source/crop.
+
+Delivered art inventory: #90 imports 205 native icons; #91 supplies 18 core icons; #92 supplies 11 collection icons; #94 supplies seven station icons plus eight world sprites (48 state frames); #95 supplies nine semantic corrections. Total: 250 inventory icons and eight world sprites. Review links are indexed by the plan companion. No gameplay activation is implied.
