@@ -75,8 +75,8 @@ describe('revisioned construction materials',()=>{
     const profile=[...registry.balances.values()].find((definition):definition is ResidenceConstructionBalanceContentDefinition=>(
       'profile' in definition&&definition.profile==='residence_construction'))!;
     const balances=new Map(registry.balances),items=new Map(registry.items);
-    const renamedValues=([1,'item:timber','item:masonry','item:metal_piece',...profile.values.slice(4)] as unknown) as ResidenceConstructionBalanceContentDefinition['values'];
-    balances.set(profile.id,{...profile,values:renamedValues});
+    const renamedFields={...profile.fields,wood:'item:timber' as const,stone:'item:masonry' as const,copper:'item:metal_piece' as const};
+    balances.set(profile.id,{...profile,fields:renamedFields});
     for(const [from,to] of [['item:wood','item:timber'],['item:stone','item:masonry'],['item:copper_piece','item:metal_piece']] as const){
       const item=items.get(from)!;items.delete(from);items.set(to,{...item,id:to});
     }
@@ -94,8 +94,8 @@ describe('revisioned construction materials',()=>{
       {...registry,balances:without},
       {...registry,balances:new Map(registry.balances).set(profile.id,{...profile,retired:true})},
       {...registry,balances:new Map(registry.balances).set('balance:duplicate_recipe',{...profile,id:'balance:duplicate_recipe'})},
-      {...registry,balances:new Map(registry.balances).set(profile.id,{...profile,values:[...profile.values.slice(0,4),0,...profile.values.slice(5)] as unknown as typeof profile.values})},
-      {...registry,items:new Map([...registry.items].filter(([id])=>id!==profile.values[1]))},
+      {...registry,balances:new Map(registry.balances).set(profile.id,{...profile,fields:{...profile.fields,rusticWood:0}})},
+      {...registry,items:new Map([...registry.items].filter(([id])=>id!==profile.fields.wood))},
     ];
     for(const content of cases){
       expect(runtimeResidenceConstructionMaterials(content,1)).toBeNull();

@@ -453,6 +453,8 @@ export interface StatefulLifecycle {
   readonly enteredAt: Readonly<Record<string, bigint>>;
   readonly growthProgress: number;
   readonly growthAnchorTick: bigint;
+  /** Fractional progress credit retained when an environmental epoch ends. */
+  readonly growthRemainderBps?: number;
 }
 
 export interface StateTransitionFiring {
@@ -509,9 +511,26 @@ function progressAt(growth: GrowthComponent, state: StatefulLifecycle, tick: big
   const start = Math.min(growth.maxProgress, state.growthProgress);
   if (!growthActive(growth, state.values) || tick <= state.growthAnchorTick || rateBps <= 0) return start;
   const sweeps = (tick - state.growthAnchorTick) / BigInt(growth.sweepTicks);
-  const gained = sweeps * BigInt(rateBps) / BigInt(GROWTH_RATE_BASIS_POINTS);
+  const gained = (sweeps * BigInt(rateBps) + BigInt(state.growthRemainderBps ?? 0)) / BigInt(GROWTH_RATE_BASIS_POINTS);
   const total = BigInt(start) + gained;
   return total >= BigInt(growth.maxProgress) ? growth.maxProgress : Number(total);
+}
+
+/** Finish an environmental epoch without losing fractional progress or the
+ * unfinished sweep. A sweep samples the environment in which it completes. */
+export function anchorStatefulGrowth(
+  set: StatefulComponentSet, state: StatefulLifecycle, tick: bigint, environment?: GrowthEnvironment,
+): StatefulLifecycle {
+  const growth = set.growth;
+  if (growth === undefined || tick <= state.growthAnchorTick) return state;
+  const sweeps = (tick - state.growthAnchorTick) / BigInt(growth.sweepTicks);
+  if (sweeps === 0n) return state;
+  const rate = growthActive(growth, state.values) ? rateFor(set, environment) : 0;
+  const credit = BigInt(state.growthRemainderBps ?? 0) + sweeps * BigInt(rate);
+  const progress = Math.min(growth.maxProgress, state.growthProgress + Number(credit / BigInt(GROWTH_RATE_BASIS_POINTS)));
+  return { ...state, growthProgress: progress,
+    growthAnchorTick: state.growthAnchorTick + sweeps * BigInt(growth.sweepTicks),
+    growthRemainderBps: progress >= growth.maxProgress ? 0 : Number(credit % BigInt(GROWTH_RATE_BASIS_POINTS)) };
 }
 
 /** Earliest tick at which anchored progress reaches `target`, or null. */
@@ -520,7 +539,7 @@ function tickForProgress(growth: GrowthComponent, state: StatefulLifecycle, targ
   if (need <= 0) return state.growthAnchorTick;
   if (!growthActive(growth, state.values) || rateBps <= 0) return null;
   const rate = BigInt(rateBps);
-  const sweeps = (BigInt(need) * BigInt(GROWTH_RATE_BASIS_POINTS) + rate - 1n) / rate;
+  const sweeps = (BigInt(need) * BigInt(GROWTH_RATE_BASIS_POINTS) - BigInt(state.growthRemainderBps ?? 0) + rate - 1n) / rate;
   return state.growthAnchorTick + sweeps * BigInt(growth.sweepTicks);
 }
 
@@ -592,12 +611,18 @@ function enterState(
 
   let growthProgress = state.growthProgress;
   let growthAnchorTick = state.growthAnchorTick;
+  let growthRemainderBps = state.growthRemainderBps;
   if (set.growth !== undefined) {
     if (transition.resetGrowth === true) {
       growthProgress = 0;
+      growthRemainderBps = undefined;
       growthAnchorTick = tick;
     } else if (growthActive(set.growth, from) !== growthActive(set.growth, to)) {
       growthProgress = progressAt(set.growth, state, tick, context.rateBps);
+      if (growthActive(set.growth, from)) {
+        const sweeps = tick > state.growthAnchorTick ? (tick - state.growthAnchorTick) / BigInt(set.growth.sweepTicks) : 0n;
+        growthRemainderBps = Number((BigInt(state.growthRemainderBps ?? 0) + sweeps * BigInt(context.rateBps)) % BigInt(GROWTH_RATE_BASIS_POINTS));
+      }
       growthAnchorTick = tick;
     }
   }
@@ -606,6 +631,7 @@ function enterState(
     enteredAt: Object.freeze({ ...state.enteredAt, ...Object.fromEntries(changed.map((name) => [name, tick])) }),
     growthProgress,
     growthAnchorTick,
+    ...(growthRemainderBps === undefined ? {} : { growthRemainderBps }),
   });
 
   for (const hook of set.transitions ?? []) {

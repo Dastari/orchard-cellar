@@ -1857,6 +1857,3059 @@
             ]
           },
           "compatibleFamilies": []
+        },
+        {
+          "id": "farmland_blob47",
+          "kind": "blob47",
+          "topology": "eight-way",
+          "neighbourPredicate": "same-family",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "tile_cf_farmland",
+              "tile_cf_farmland_grass_inset"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "matchMask": 15,
+              "roles": [
+                "fill_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "matchMask": 15,
+              "roles": [
+                "fill_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "matchMask": 15,
+              "roles": [
+                "fill_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "matchMask": 31,
+              "roles": [
+                "fill_3"
+              ]
+            },
+            {
+              "mask": 19,
+              "matchMask": 31,
+              "roles": [
+                "fill_4"
+              ]
+            },
+            {
+              "mask": 4,
+              "matchMask": 15,
+              "roles": [
+                "fill_5"
+              ]
+            },
+            {
+              "mask": 5,
+              "matchMask": 15,
+              "roles": [
+                "fill_6"
+              ]
+            },
+            {
+              "mask": 6,
+              "matchMask": 47,
+              "roles": [
+                "fill_7"
+              ]
+            },
+            {
+              "mask": 38,
+              "matchMask": 47,
+              "roles": [
+                "fill_8"
+              ]
+            },
+            {
+              "mask": 7,
+              "matchMask": 63,
+              "roles": [
+                "fill_9"
+              ]
+            },
+            {
+              "mask": 23,
+              "matchMask": 63,
+              "roles": [
+                "fill_10"
+              ]
+            },
+            {
+              "mask": 39,
+              "matchMask": 63,
+              "roles": [
+                "fill_11"
+              ]
+            },
+            {
+              "mask": 55,
+              "matchMask": 63,
+              "roles": [
+                "fill_12"
+              ]
+            },
+            {
+              "mask": 8,
+              "matchMask": 15,
+              "roles": [
+                "fill_13"
+              ]
+            },
+            {
+              "mask": 9,
+              "matchMask": 143,
+              "roles": [
+                "fill_14"
+              ]
+            },
+            {
+              "mask": 137,
+              "matchMask": 143,
+              "roles": [
+                "fill_15"
+              ]
+            },
+            {
+              "mask": 10,
+              "matchMask": 15,
+              "roles": [
+                "fill_16"
+              ]
+            },
+            {
+              "mask": 11,
+              "matchMask": 159,
+              "roles": [
+                "fill_17"
+              ]
+            },
+            {
+              "mask": 27,
+              "matchMask": 159,
+              "roles": [
+                "fill_18"
+              ]
+            },
+            {
+              "mask": 139,
+              "matchMask": 159,
+              "roles": [
+                "fill_19"
+              ]
+            },
+            {
+              "mask": 155,
+              "matchMask": 159,
+              "roles": [
+                "fill_20"
+              ]
+            },
+            {
+              "mask": 12,
+              "matchMask": 79,
+              "roles": [
+                "fill_21"
+              ]
+            },
+            {
+              "mask": 76,
+              "matchMask": 79,
+              "roles": [
+                "fill_22"
+              ]
+            },
+            {
+              "mask": 13,
+              "matchMask": 207,
+              "roles": [
+                "fill_23"
+              ]
+            },
+            {
+              "mask": 77,
+              "matchMask": 207,
+              "roles": [
+                "fill_24"
+              ]
+            },
+            {
+              "mask": 141,
+              "matchMask": 207,
+              "roles": [
+                "fill_25"
+              ]
+            },
+            {
+              "mask": 205,
+              "matchMask": 207,
+              "roles": [
+                "fill_26"
+              ]
+            },
+            {
+              "mask": 14,
+              "matchMask": 111,
+              "roles": [
+                "fill_27"
+              ]
+            },
+            {
+              "mask": 46,
+              "matchMask": 111,
+              "roles": [
+                "fill_28"
+              ]
+            },
+            {
+              "mask": 78,
+              "matchMask": 111,
+              "roles": [
+                "fill_29"
+              ]
+            },
+            {
+              "mask": 110,
+              "matchMask": 111,
+              "roles": [
+                "fill_30"
+              ]
+            },
+            {
+              "mask": 15,
+              "matchMask": 255,
+              "roles": [
+                "fill_31"
+              ]
+            },
+            {
+              "mask": 31,
+              "matchMask": 255,
+              "roles": [
+                "fill_32"
+              ]
+            },
+            {
+              "mask": 47,
+              "matchMask": 255,
+              "roles": [
+                "fill_33"
+              ]
+            },
+            {
+              "mask": 63,
+              "matchMask": 255,
+              "roles": [
+                "fill_34"
+              ]
+            },
+            {
+              "mask": 79,
+              "matchMask": 255,
+              "roles": [
+                "fill_35"
+              ]
+            },
+            {
+              "mask": 95,
+              "matchMask": 255,
+              "roles": [
+                "fill_36"
+              ]
+            },
+            {
+              "mask": 111,
+              "matchMask": 255,
+              "roles": [
+                "fill_37"
+              ]
+            },
+            {
+              "mask": 127,
+              "matchMask": 255,
+              "roles": [
+                "fill_38"
+              ]
+            },
+            {
+              "mask": 143,
+              "matchMask": 255,
+              "roles": [
+                "fill_39"
+              ]
+            },
+            {
+              "mask": 159,
+              "matchMask": 255,
+              "roles": [
+                "fill_40"
+              ]
+            },
+            {
+              "mask": 175,
+              "matchMask": 255,
+              "roles": [
+                "fill_41"
+              ]
+            },
+            {
+              "mask": 191,
+              "matchMask": 255,
+              "roles": [
+                "fill_42"
+              ]
+            },
+            {
+              "mask": 207,
+              "matchMask": 255,
+              "roles": [
+                "fill_43"
+              ]
+            },
+            {
+              "mask": 223,
+              "matchMask": 255,
+              "roles": [
+                "fill_44"
+              ]
+            },
+            {
+              "mask": 239,
+              "matchMask": 255,
+              "roles": [
+                "fill_45"
+              ]
+            },
+            {
+              "mask": 255,
+              "matchMask": 255,
+              "roles": [
+                "fill_46"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "fill_0": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_1": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 1
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_1": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 1
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_2": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 2
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_2": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 2
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_3": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 3
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_3": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 3
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_4": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 4
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_4": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 4
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_5": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 5
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_5": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 5
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_6": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 6
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_6": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 6
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_7": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 7
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_7": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 7
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_8": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 8
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_8": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 8
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_9": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 9
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_9": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 9
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_10": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 10
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_10": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 10
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_11": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 11
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_11": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 11
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_12": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 12
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_12": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 12
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_13": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 13
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_13": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 13
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_14": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 14
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_14": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 14
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_15": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 15
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_15": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 15
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_16": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 16
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_16": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 16
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_17": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 17
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_17": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 17
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_18": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 18
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_18": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 18
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_19": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 19
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_19": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 19
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_20": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 20
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_20": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 20
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_21": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 21
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_21": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 21
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_22": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 22
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_22": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 22
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_23": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 23
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_23": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 23
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_24": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 24
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_24": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 24
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_25": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 25
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_25": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 25
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_26": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 26
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_26": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 26
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_27": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 27
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_27": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 27
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_28": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 28
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_28": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 28
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_29": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 29
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_29": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 29
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_30": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 30
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_30": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 30
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_31": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 31
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_31": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 31
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_32": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 32
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_32": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 32
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_33": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 33
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_33": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 33
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_34": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 34
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_34": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 34
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_35": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 35
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_35": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 35
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_36": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 36
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_36": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 36
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_37": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 37
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_37": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 37
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_38": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 38
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_38": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 38
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_39": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 39
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_39": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 39
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_40": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 40
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_40": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 40
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_41": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 41
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_41": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 41
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_42": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 42
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_42": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 42
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_43": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 43
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_43": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 43
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_44": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 44
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_44": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 44
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_45": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 45
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_45": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 45
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill_46": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland",
+                "frame": 46
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "inset_46": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_farmland_grass_inset",
+                "frame": 46
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "layers": [
+            {
+              "masks": [
+                {
+                  "mask": 1,
+                  "matchMask": 15,
+                  "roles": [
+                    "inset_1"
+                  ]
+                },
+                {
+                  "mask": 2,
+                  "matchMask": 15,
+                  "roles": [
+                    "inset_2"
+                  ]
+                },
+                {
+                  "mask": 3,
+                  "matchMask": 31,
+                  "roles": [
+                    "inset_3"
+                  ]
+                },
+                {
+                  "mask": 19,
+                  "matchMask": 31,
+                  "roles": [
+                    "inset_4"
+                  ]
+                },
+                {
+                  "mask": 4,
+                  "matchMask": 15,
+                  "roles": [
+                    "inset_5"
+                  ]
+                },
+                {
+                  "mask": 5,
+                  "matchMask": 15,
+                  "roles": [
+                    "inset_6"
+                  ]
+                },
+                {
+                  "mask": 6,
+                  "matchMask": 47,
+                  "roles": [
+                    "inset_7"
+                  ]
+                },
+                {
+                  "mask": 38,
+                  "matchMask": 47,
+                  "roles": [
+                    "inset_8"
+                  ]
+                },
+                {
+                  "mask": 7,
+                  "matchMask": 63,
+                  "roles": [
+                    "inset_9"
+                  ]
+                },
+                {
+                  "mask": 23,
+                  "matchMask": 63,
+                  "roles": [
+                    "inset_10"
+                  ]
+                },
+                {
+                  "mask": 39,
+                  "matchMask": 63,
+                  "roles": [
+                    "inset_11"
+                  ]
+                },
+                {
+                  "mask": 55,
+                  "matchMask": 63,
+                  "roles": [
+                    "inset_12"
+                  ]
+                },
+                {
+                  "mask": 8,
+                  "matchMask": 15,
+                  "roles": [
+                    "inset_13"
+                  ]
+                },
+                {
+                  "mask": 9,
+                  "matchMask": 143,
+                  "roles": [
+                    "inset_14"
+                  ]
+                },
+                {
+                  "mask": 137,
+                  "matchMask": 143,
+                  "roles": [
+                    "inset_15"
+                  ]
+                },
+                {
+                  "mask": 10,
+                  "matchMask": 15,
+                  "roles": [
+                    "inset_16"
+                  ]
+                },
+                {
+                  "mask": 11,
+                  "matchMask": 159,
+                  "roles": [
+                    "inset_17"
+                  ]
+                },
+                {
+                  "mask": 27,
+                  "matchMask": 159,
+                  "roles": [
+                    "inset_18"
+                  ]
+                },
+                {
+                  "mask": 139,
+                  "matchMask": 159,
+                  "roles": [
+                    "inset_19"
+                  ]
+                },
+                {
+                  "mask": 155,
+                  "matchMask": 159,
+                  "roles": [
+                    "inset_20"
+                  ]
+                },
+                {
+                  "mask": 12,
+                  "matchMask": 79,
+                  "roles": [
+                    "inset_21"
+                  ]
+                },
+                {
+                  "mask": 76,
+                  "matchMask": 79,
+                  "roles": [
+                    "inset_22"
+                  ]
+                },
+                {
+                  "mask": 13,
+                  "matchMask": 207,
+                  "roles": [
+                    "inset_23"
+                  ]
+                },
+                {
+                  "mask": 77,
+                  "matchMask": 207,
+                  "roles": [
+                    "inset_24"
+                  ]
+                },
+                {
+                  "mask": 141,
+                  "matchMask": 207,
+                  "roles": [
+                    "inset_25"
+                  ]
+                },
+                {
+                  "mask": 205,
+                  "matchMask": 207,
+                  "roles": [
+                    "inset_26"
+                  ]
+                },
+                {
+                  "mask": 14,
+                  "matchMask": 111,
+                  "roles": [
+                    "inset_27"
+                  ]
+                },
+                {
+                  "mask": 46,
+                  "matchMask": 111,
+                  "roles": [
+                    "inset_28"
+                  ]
+                },
+                {
+                  "mask": 78,
+                  "matchMask": 111,
+                  "roles": [
+                    "inset_29"
+                  ]
+                },
+                {
+                  "mask": 110,
+                  "matchMask": 111,
+                  "roles": [
+                    "inset_30"
+                  ]
+                },
+                {
+                  "mask": 15,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_31"
+                  ]
+                },
+                {
+                  "mask": 31,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_32"
+                  ]
+                },
+                {
+                  "mask": 47,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_33"
+                  ]
+                },
+                {
+                  "mask": 63,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_34"
+                  ]
+                },
+                {
+                  "mask": 79,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_35"
+                  ]
+                },
+                {
+                  "mask": 95,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_36"
+                  ]
+                },
+                {
+                  "mask": 111,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_37"
+                  ]
+                },
+                {
+                  "mask": 127,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_38"
+                  ]
+                },
+                {
+                  "mask": 143,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_39"
+                  ]
+                },
+                {
+                  "mask": 159,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_40"
+                  ]
+                },
+                {
+                  "mask": 175,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_41"
+                  ]
+                },
+                {
+                  "mask": 191,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_42"
+                  ]
+                },
+                {
+                  "mask": 207,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_43"
+                  ]
+                },
+                {
+                  "mask": 223,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_44"
+                  ]
+                },
+                {
+                  "mask": 239,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_45"
+                  ]
+                },
+                {
+                  "mask": 255,
+                  "matchMask": 255,
+                  "roles": [
+                    "inset_46"
+                  ]
+                }
+              ],
+              "fallback": []
+            }
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "single",
+              "row",
+              "block"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "grass_1_fringe",
+          "kind": "transition",
+          "topology": "eight-way",
+          "neighbourPredicate": "same-family",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "tile_cf_grass_1_middle",
+              "tile_cf_grass_1_sheet"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "matchMask": 15,
+              "roles": []
+            },
+            {
+              "mask": 1,
+              "matchMask": 15,
+              "roles": [
+                "edge_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "matchMask": 15,
+              "roles": [
+                "edge_18"
+              ]
+            },
+            {
+              "mask": 3,
+              "matchMask": 15,
+              "roles": [
+                "edge_2"
+              ]
+            },
+            {
+              "mask": 4,
+              "matchMask": 15,
+              "roles": [
+                "edge_33"
+              ]
+            },
+            {
+              "mask": 5,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 6,
+              "matchMask": 15,
+              "roles": [
+                "edge_34"
+              ]
+            },
+            {
+              "mask": 7,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 8,
+              "matchMask": 15,
+              "roles": [
+                "edge_16"
+              ]
+            },
+            {
+              "mask": 9,
+              "matchMask": 15,
+              "roles": [
+                "edge_0"
+              ]
+            },
+            {
+              "mask": 10,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 11,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 12,
+              "matchMask": 15,
+              "roles": [
+                "edge_32"
+              ]
+            },
+            {
+              "mask": 13,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 14,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 15,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "edge_1": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 1
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_18": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 18
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_2": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 2
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_33": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 33
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_middle",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_34": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 34
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_16": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 16
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_0": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_32": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 32
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_65": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 65
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_64": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 64
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_49": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 49
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_48": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_1_sheet",
+                "frame": 48
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "layers": [
+            {
+              "masks": [
+                {
+                  "mask": 128,
+                  "matchMask": 137,
+                  "roles": [
+                    "corner_65"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 16,
+                  "matchMask": 19,
+                  "roles": [
+                    "corner_64"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 64,
+                  "matchMask": 76,
+                  "roles": [
+                    "corner_49"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 32,
+                  "matchMask": 38,
+                  "roles": [
+                    "corner_48"
+                  ]
+                }
+              ],
+              "fallback": []
+            }
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "single",
+              "row",
+              "block"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "grass_2_fringe",
+          "kind": "transition",
+          "topology": "eight-way",
+          "neighbourPredicate": "same-family",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "tile_cf_grass_2_middle",
+              "tile_cf_grass_2_sheet"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "matchMask": 15,
+              "roles": []
+            },
+            {
+              "mask": 1,
+              "matchMask": 15,
+              "roles": [
+                "edge_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "matchMask": 15,
+              "roles": [
+                "edge_18"
+              ]
+            },
+            {
+              "mask": 3,
+              "matchMask": 15,
+              "roles": [
+                "edge_2"
+              ]
+            },
+            {
+              "mask": 4,
+              "matchMask": 15,
+              "roles": [
+                "edge_33"
+              ]
+            },
+            {
+              "mask": 5,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 6,
+              "matchMask": 15,
+              "roles": [
+                "edge_34"
+              ]
+            },
+            {
+              "mask": 7,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 8,
+              "matchMask": 15,
+              "roles": [
+                "edge_16"
+              ]
+            },
+            {
+              "mask": 9,
+              "matchMask": 15,
+              "roles": [
+                "edge_0"
+              ]
+            },
+            {
+              "mask": 10,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 11,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 12,
+              "matchMask": 15,
+              "roles": [
+                "edge_32"
+              ]
+            },
+            {
+              "mask": 13,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 14,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 15,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "edge_1": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 1
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_18": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 18
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_2": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 2
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_33": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 33
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_middle",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_34": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 34
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_16": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 16
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_0": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_32": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 32
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_65": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 65
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_64": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 64
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_49": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 49
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_48": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_2_sheet",
+                "frame": 48
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "layers": [
+            {
+              "masks": [
+                {
+                  "mask": 128,
+                  "matchMask": 137,
+                  "roles": [
+                    "corner_65"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 16,
+                  "matchMask": 19,
+                  "roles": [
+                    "corner_64"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 64,
+                  "matchMask": 76,
+                  "roles": [
+                    "corner_49"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 32,
+                  "matchMask": 38,
+                  "roles": [
+                    "corner_48"
+                  ]
+                }
+              ],
+              "fallback": []
+            }
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "single",
+              "row",
+              "block"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "grass_3_fringe",
+          "kind": "transition",
+          "topology": "eight-way",
+          "neighbourPredicate": "same-family",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "tile_cf_grass_3_middle",
+              "tile_cf_grass_3_sheet"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "matchMask": 15,
+              "roles": []
+            },
+            {
+              "mask": 1,
+              "matchMask": 15,
+              "roles": [
+                "edge_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "matchMask": 15,
+              "roles": [
+                "edge_18"
+              ]
+            },
+            {
+              "mask": 3,
+              "matchMask": 15,
+              "roles": [
+                "edge_2"
+              ]
+            },
+            {
+              "mask": 4,
+              "matchMask": 15,
+              "roles": [
+                "edge_33"
+              ]
+            },
+            {
+              "mask": 5,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 6,
+              "matchMask": 15,
+              "roles": [
+                "edge_34"
+              ]
+            },
+            {
+              "mask": 7,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 8,
+              "matchMask": 15,
+              "roles": [
+                "edge_16"
+              ]
+            },
+            {
+              "mask": 9,
+              "matchMask": 15,
+              "roles": [
+                "edge_0"
+              ]
+            },
+            {
+              "mask": 10,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 11,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 12,
+              "matchMask": 15,
+              "roles": [
+                "edge_32"
+              ]
+            },
+            {
+              "mask": 13,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 14,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 15,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "edge_1": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 1
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_18": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 18
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_2": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 2
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_33": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 33
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_middle",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_34": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 34
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_16": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 16
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_0": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_32": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 32
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_65": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 65
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_64": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 64
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_49": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 49
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_48": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_3_sheet",
+                "frame": 48
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "layers": [
+            {
+              "masks": [
+                {
+                  "mask": 128,
+                  "matchMask": 137,
+                  "roles": [
+                    "corner_65"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 16,
+                  "matchMask": 19,
+                  "roles": [
+                    "corner_64"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 64,
+                  "matchMask": 76,
+                  "roles": [
+                    "corner_49"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 32,
+                  "matchMask": 38,
+                  "roles": [
+                    "corner_48"
+                  ]
+                }
+              ],
+              "fallback": []
+            }
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "single",
+              "row",
+              "block"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "grass_4_fringe",
+          "kind": "transition",
+          "topology": "eight-way",
+          "neighbourPredicate": "same-family",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "tile_cf_grass_4_middle",
+              "tile_cf_grass_4_sheet"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "matchMask": 15,
+              "roles": []
+            },
+            {
+              "mask": 1,
+              "matchMask": 15,
+              "roles": [
+                "edge_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "matchMask": 15,
+              "roles": [
+                "edge_18"
+              ]
+            },
+            {
+              "mask": 3,
+              "matchMask": 15,
+              "roles": [
+                "edge_2"
+              ]
+            },
+            {
+              "mask": 4,
+              "matchMask": 15,
+              "roles": [
+                "edge_33"
+              ]
+            },
+            {
+              "mask": 5,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 6,
+              "matchMask": 15,
+              "roles": [
+                "edge_34"
+              ]
+            },
+            {
+              "mask": 7,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 8,
+              "matchMask": 15,
+              "roles": [
+                "edge_16"
+              ]
+            },
+            {
+              "mask": 9,
+              "matchMask": 15,
+              "roles": [
+                "edge_0"
+              ]
+            },
+            {
+              "mask": 10,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 11,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 12,
+              "matchMask": 15,
+              "roles": [
+                "edge_32"
+              ]
+            },
+            {
+              "mask": 13,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 14,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            },
+            {
+              "mask": 15,
+              "matchMask": 15,
+              "roles": [
+                "fill"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "edge_1": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 1
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_18": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 18
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_2": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 2
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_33": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 33
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "fill": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_middle",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_34": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 34
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_16": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 16
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_0": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 0
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "edge_32": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 32
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_65": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 65
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_64": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 64
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_49": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 49
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "corner_48": {
+              "medium": "land",
+              "frame": {
+                "assetId": "tile_cf_grass_4_sheet",
+                "frame": 48
+              },
+              "blocksMovement": false,
+              "blocksLight": false,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "layers": [
+            {
+              "masks": [
+                {
+                  "mask": 128,
+                  "matchMask": 137,
+                  "roles": [
+                    "corner_65"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 16,
+                  "matchMask": 19,
+                  "roles": [
+                    "corner_64"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 64,
+                  "matchMask": 76,
+                  "roles": [
+                    "corner_49"
+                  ]
+                }
+              ],
+              "fallback": []
+            },
+            {
+              "masks": [
+                {
+                  "mask": 32,
+                  "matchMask": 38,
+                  "roles": [
+                    "corner_48"
+                  ]
+                }
+              ],
+              "fallback": []
+            }
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "single",
+              "row",
+              "block"
+            ]
+          },
+          "compatibleFamilies": []
         }
       ]
     },

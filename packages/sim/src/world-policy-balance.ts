@@ -1,3 +1,4 @@
+import { balanceFieldsTuple, balanceTupleFields } from './content/balance-fields.js';
 import balanceJson from '../../assets/content/balance.json' with { type: 'json' };
 import type {
   WorldPolicyBalanceContentDefinition,
@@ -40,7 +41,7 @@ export function runtimeWorldPolicyBalance(
       definition.retired !== true && 'profile' in definition && definition.profile === 'world_policy'
     ),
   );
-  return matches.length === 1 ? worldPolicyBalanceFromTuple(matches[0]!.values) : null;
+  return matches.length === 1 ? Object.freeze({ ...matches[0]!.fields }) : null;
 }
 
 function bootstrapDefinition(): WorldPolicyBalanceContentDefinition {
@@ -49,17 +50,17 @@ function bootstrapDefinition(): WorldPolicyBalanceContentDefinition {
   ));
   if (matches.length !== 1) throw new Error('bootstrap_world_policy_balance_unavailable');
   const definition = matches[0]!;
-  const values = definition.values;
+  const values = definition.values ?? balanceFieldsTuple('world_policy', definition.fields as object);
   if (!Array.isArray(values) || values.length !== 11
     || values.some((value) => !Number.isSafeInteger(value) || Number(value) <= 0)) {
     throw new Error('bootstrap_world_policy_balance_invalid');
   }
-  return definition as unknown as WorldPolicyBalanceContentDefinition;
+  return { ...definition, fields: balanceTupleFields('world_policy', values) } as unknown as WorldPolicyBalanceContentDefinition;
 }
 
 /** Explicit compatibility for deterministic generators and isolated tooling. */
 export const BOOTSTRAP_WORLD_POLICY_BALANCE = worldPolicyBalanceFromTuple(
-  bootstrapDefinition().values,
+  balanceFieldsTuple('world_policy', bootstrapDefinition().fields) as WorldPolicyBalanceTuple,
 );
 
 export const FIBER_TILL_DROP_PERCENT = BOOTSTRAP_WORLD_POLICY_BALANCE.fiberTillDropPercent;

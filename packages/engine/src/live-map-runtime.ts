@@ -1,4 +1,5 @@
-import {resolveObjectAppearance} from '@orchard/sim';
+import { mapDocumentTraversalChannels, mapTraversalChannels, runtimeTraversalPolicy } from '@orchard/sim';
+import {NATURAL_OBJECT_ASSET_ALIASES, resolveObjectDefinitionAppearance, type ObjectContentDefinition, type ResolvedObjectAppearance, type StateValues, resolveObjectAppearance} from '@orchard/sim';
 import { mapObjectConnectionMasks } from '@orchard/sim';
 import { drawConnectedObject, preloadConnectedObjectArt } from './connected-objects.js';
 import {streetlampState} from '@orchard/sim';
@@ -155,10 +156,14 @@ export function liveIslandTerrain(
       const seed = source.document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;
       const generatorVersion = source.document.provenance.generatorVersion ?? SURVIVAL_WORLD_VERSION;
       const generated = terrainForWorld(seed, generatorVersion);
+      const traversalChannels = registry !== undefined && runtimeTraversalPolicy(registry) !== null
+        ? mapDocumentTraversalChannels(source.document)
+        : undefined;
       cachedTerrain = {
         key,
         terrain: {
           ...generated,
+          ...(traversalChannels === undefined ? {} : { traversalChannels }),
           version: row.revision,
           defaultCliffFamily: source.document.defaultCliffFamily,
           defaultSurfaceFamily: source.document.defaultSurfaceFamily,
@@ -170,14 +175,18 @@ export function liveIslandTerrain(
       return cachedTerrain.terrain;
     }
     const terrainDocument = terrainDocumentForMapV3(source.document);
+    const compiled = compileMapDocument(terrainDocument, resolver);
     const terrain = terrainArrayForMapDocument(
       terrainDocument,
-      compileMapDocument(terrainDocument, resolver),
+      compiled,
       source.document,
     );
     cachedTerrain = {
       key,
-      terrain: { ...terrain, spaceId: TOPSIDE_SPACE_ID, version: row.revision },
+      terrain: { ...terrain, spaceId: TOPSIDE_SPACE_ID, version: row.revision,
+        ...(registry !== undefined && runtimeTraversalPolicy(registry) !== null
+          ? { traversalChannels: mapTraversalChannels(source.document, compiled) } : {}),
+      },
     };
   } catch (error) {
     cachedTerrain = { key, terrain: null };
@@ -307,6 +316,7 @@ function transformedDelta(
 }
 
 export interface LiveMapObjectRenderOptions {
+  readonly contentRegistry?: ContentRegistry;
   /** Full topology source when the caller culls visible objects. */
   readonly connectionDocument?: MapDocumentV3;
   /** Gameplay draws authoritative placeables; editor/offline previews use auto. */
@@ -374,7 +384,9 @@ export function enqueueLiveMapObjects(
             const [a,b]=vector(1,0),[c,d]=vector(0,1),[left,top]=vector(-asset.anchor[0],-asset.anchor[1]);
             groundTransform=original=>groundSpriteSource(options.context,original,worldX+left,worldFootY+top,{a,b,c,d});
           }
-          const source = worldAssetFrameSource(options.context, asset, frame,groundTransform)!;
+          const receivesGlobal = options.contentRegistry === undefined ? true
+            : boundMapAppearance(options.contentRegistry, placement.assetName, placement.visual.name, object.state)?.appearance.lighting.receivesGlobal ?? true;
+          const source = worldAssetFrameSource(options.context, asset, frame, receivesGlobal ? groundTransform : undefined, receivesGlobal)!;
           options.context.drawImage(
             source.image,
             source.x,
@@ -395,21 +407,42 @@ export function enqueueLiveMapObjects(
   return count;
 }
 
-/** Explicit native visual/component pairs: an unlit frame must not emit light. */
-const MAP_LIGHT_VISUALS:Readonly<Record<string,{objectId:string;visual:string}>>={
-  prop_cf_hearth_streetlamp:{objectId:'object:hearth_streetlamp',visual:'base'},
-  prop_cf_standing_torch:{objectId:'object:standing_torch',visual:'burn'},
-  prop_cf_furniture_rustic_standing_lamp:{objectId:'object:furniture_rustic_standing_lamp',visual:'base'},
-  prop_cf_furniture_townhouse_floor_lamp:{objectId:'object:furniture_townhouse_floor_lamp',visual:'base'},
-  prop_cf_furniture_townhouse_table_lamp:{objectId:'object:furniture_townhouse_table_lamp',visual:'base'},
-};
-function boundMapLightDefinition(registry:ContentRegistry,assetName:string,visualName:string){
-  const binding=MAP_LIGHT_VISUALS[assetName];
-  if(!binding||binding.visual!==visualName)return null;
-  const definition=registry.objects.get(binding.objectId);
-  if(!definition?.components.light||definition.retired===true||definition.components.sprite?.asset!==assetName)return null;
-  const defaultVisual=definition.components.sprite.animationByState?.['default'];
-  return defaultVisual===undefined||defaultVisual===binding.visual?definition:null;
+/** Bind native map art to authored object semantics. Revisions own this cache;
+ * animation choice is part of identity, so an unlit frame never borrows a lit
+ * frame's emitter. Ambiguous matches remain unbound. */
+interface BoundMapAppearance { readonly definition: ObjectContentDefinition; readonly appearance: ResolvedObjectAppearance; readonly state: StateValues }
+const mapAppearanceBindings = new WeakMap<ContentRegistry, ReadonlyMap<string, BoundMapAppearance>>();
+function boundMapAppearance(registry: ContentRegistry, assetName: string, visualName: string, state?: StateValues) {
+  let bindings = mapAppearanceBindings.get(registry);
+  if (bindings === undefined) {
+    const candidates = new Map<string, BoundMapAppearance>();
+    const ambiguous = new Set<string>();
+    for (const definition of registry.objects.values()) {
+      if (definition.retired === true) continue;
+      const states = [definition.components.states?.lit?.type === 'bool' ? { lit: true } : {},
+        ...(definition.components.overrides ?? []).map(o => o.when)];
+      for (const [index, state] of states.entries()) {
+        const appearance = resolveObjectDefinitionAppearance(definition, state);
+        if (appearance.sprite === null) continue;
+        const visual = index === 0 ? definition.components.sprite?.animationByState?.default ?? 'base' : appearance.sprite.animation;
+        const assets = [appearance.sprite.asset, NATURAL_OBJECT_ASSET_ALIASES[appearance.sprite.asset]].filter((name): name is string => name !== undefined);
+        for (const asset of assets) {
+          const key = `${asset}/${visual}`;
+          const previous = candidates.get(key);
+          if (previous !== undefined && previous.definition.id !== definition.id
+            && JSON.stringify(previous.appearance) !== JSON.stringify(appearance)) ambiguous.add(key);
+          else if (previous === undefined) candidates.set(key, { definition, appearance, state });
+        }
+      }
+    }
+    for (const key of ambiguous) candidates.delete(key);
+    bindings = candidates;
+    mapAppearanceBindings.set(registry, bindings);
+  }
+  const binding = bindings.get(`${assetName}/${visualName}`) ?? null;
+  if (binding === null || state === undefined) return binding;
+  const declared = Object.fromEntries(Object.entries(state).filter(([key]) => binding.definition.components.states?.[key] !== undefined));
+  return { ...binding, appearance: resolveObjectDefinitionAppearance(binding.definition, { ...binding.state, ...declared }) };
 }
 /** Lights follow the same loaded native placements as the map renderer. */
 export interface MapObjectPointLight extends PointLight {readonly terrainContactX:number}
@@ -420,10 +453,11 @@ export function liveMapObjectPointLights(document:MapDocumentV3|null,registry:Co
     if(!object.enabled)continue;
     const prefab=mapObjectPrefab(document,object);
     if(!prefab)continue;
-    for(const placement of prefab.placements){
-      const binding=MAP_LIGHT_VISUALS[placement.assetName];
-      if(!binding||placement.visual.name!==binding.visual)continue;
-      const definition=boundMapLightDefinition(registry,placement.assetName,placement.visual.name),component=definition?.components.light;
+    for(const originalPlacement of prefab.placements){
+      const mapAppearance=resolveObjectAppearance(originalPlacement,prefab.presentation,object.state);
+      const placement=mapAppearance.placement;
+      const binding=boundMapAppearance(registry,placement.assetName,placement.visual.name,object.state);
+      const component=binding?.appearance.light;
       if(!component)continue;
       const asset=loadedAsset(placement.assetName);
       if(!asset||!visualFrame(asset,placement.visual,0))continue;
@@ -434,13 +468,13 @@ export function liveMapObjectPointLights(document:MapDocumentV3|null,registry:Co
       const authored=resolveObjectLight(component,{lit});
       let seed=0n;
       for(const character of `${object.id}/${placement.id}`)seed=(seed*31n+BigInt(character.charCodeAt(0)))&0xffffffffffffffffn;
-      const light=placeablePointLight({id:seed,kind:binding.objectId,tileX:0,tileY:0},authorityTick,authored);
+      const light=placeablePointLight({id:seed,kind:binding!.definition.id,tileX:0,tileY:0},authorityTick,authored);
       if(!light)continue;
       const delta=transformedDelta(placement.tileX,placement.tileY,prefab,object);
       const x=(object.tileX+delta.tileX)*16+8,y=(object.tileY+delta.tileY+1)*16;
       const rotate=(x:number,y:number,turns:number):readonly[number,number]=>turns===0?[x,y]:turns===1?[-y,x]:turns===2?[-x,-y]:[y,-x];
       const [px,py]=rotate(0,authored.offsetY??0,placement.quarterTurns);
-      const scale=object.scale??1;
+      const scale=(object.scale??1)*mapAppearance.scalePermille/1000;
       const [dx,dy]=rotate(px*(object.flipX?-scale:scale),py*scale,object.quarterTurns);
       lights.push({...light,worldX:x+dx,worldY:y+dy,receiverDirectionWorldY:y,terrainContactX:x});
     }
@@ -481,7 +515,7 @@ export function liveMapObjectLightOccluders(document:MapDocumentV3|null,terrain:
     if(!object.enabled||object.layer==='ground')continue;
     const prefab=mapObjectPrefab(document,object);
     if(!prefab)continue;
-    const frameKey=prefab.placements.filter(p=>p.visual.kind==='animation').map(p=>{
+    const frameKey=prefab.placements.map(p=>resolveObjectAppearance(p,prefab.presentation,object.state).placement).filter(p=>p.visual.kind==='animation').map(p=>{
       const asset=loadedAsset(p.assetName),frame=asset?visualFrame(asset,p.visual,timeMs):null;
       return frame?`${frame.x},${frame.y},${frame.width},${frame.height}`:'missing';
     }).join(':');
@@ -489,11 +523,16 @@ export function liveMapObjectLightOccluders(document:MapDocumentV3|null,terrain:
     if(previous?.frameKey===frameKey){result.push(...previous.casters);continue;}
     const objectStart=result.length;
     const visuals=[];
-    for(const placement of prefab.placements){
+    for(const originalPlacement of prefab.placements){
+      const mapAppearance=resolveObjectAppearance(originalPlacement,prefab.presentation,object.state);
+      const placement=mapAppearance.placement;
       if(placement.layer==='ground')continue;
       // Luminous bodies must not terminate their own light seed.
-      const emitter=boundMapLightDefinition(registry,placement.assetName,placement.visual.name);
-      if(emitter?.components.collision?.occludesLight===false)continue;
+      const binding=boundMapAppearance(registry,placement.assetName,placement.visual.name,object.state);
+      const appearance=binding?.appearance;
+      const explicitLighting=binding?.definition.components.lighting!==undefined||binding?.definition.components.overrides?.some(o=>o.lighting!==undefined)===true;
+      if(explicitLighting ? appearance?.lighting.castsShadow==='none'&&!appearance.lighting.occludesLight
+        : appearance?.light != null && !appearance.lighting.occludesLight)continue;
       const asset=loadedAsset(placement.assetName);
       if(!asset)continue;
       const frame=visualFrame(asset,placement.visual,timeMs);
@@ -504,13 +543,13 @@ export function liveMapObjectLightOccluders(document:MapDocumentV3|null,terrain:
       const x=(object.tileX+delta.tileX)*16+8,y=(object.tileY+delta.tileY+1)*16;
       const rotate=(x:number,y:number,t:number):readonly[number,number]=>t===0?[x,y]:t===1?[-y,x]:t===2?[-x,-y]:[y,-x];
       const vector=(x:number,y:number):readonly[number,number]=>{
-        const [px,py]=rotate(placement.flipX?-x:x,y,placement.quarterTurns),scale=object.scale??1;
+        const [px,py]=rotate(placement.flipX?-x:x,y,placement.quarterTurns),scale=(object.scale??1)*mapAppearance.scalePermille/1000;
         return rotate(px*(object.flipX?-scale:scale),py*scale,object.quarterTurns);
       };
       const [a,b]=vector(1,0),[c,d]=vector(0,1);
       const mask=mapShadowMaskCache.transform(native,{a,b,c,d},x,y);
       const level=terrainElevationAtWorldFoot(terrain,x,y);
-      visuals.push({placement,x,y,mask,level,tie:authoredMapContentPainterTie(document,object.layer,'object',object.id,placement.id)});
+      visuals.push({placement,appearance,explicitLighting,x,y,mask,level,tie:authoredMapContentPainterTie(document,object.layer,'object',object.id,placement.id)});
     }
     // Contact allocation uses physical terrain planes, just like visible art.
     const contacts=mapShadowContacts(mapObjectCollisionCells(document,object).map(cell=>({...cell,
@@ -519,13 +558,14 @@ export function liveMapObjectLightOccluders(document:MapDocumentV3|null,terrain:
     for(const visual of visuals){
       const {x,y,mask,level,tie,placement}=visual;
       const contact=contacts.get(placement.id);
-      const column=placement.assetName.startsWith('tree_')&&contact?.rectangularBase!=null;
+      const column=visual.appearance?.lighting.castsShadow==='column'&&contact?.rectangularBase!=null;
       const base=(column?contact!.rectangularBase:contact?.contact)??{left:x*FIXED_UNITS_PER_PIXEL,right:x*FIXED_UNITS_PER_PIXEL,top:y*FIXED_UNITS_PER_PIXEL,bottom:y*FIXED_UNITS_PER_PIXEL};
       const projection=terrainProjectedDepthAtFoot(terrain,x,y),sortElevation=terrainProjectedElevationAtFoot(terrain,x,y);
       result.push({footX:x,footY:y-projection,elevationLayer:level,
         receiver:{...mask,top:mask.top-projection,elevationLayer:level},
         obstacle:{...base,top:base.top-projection*FIXED_UNITS_PER_PIXEL,bottom:base.bottom-projection*FIXED_UNITS_PER_PIXEL},
-        contactEnabled:contact!==undefined,receiverFacing:'south',shadowMode:column?'column':'silhouette',
+        contactEnabled:contact!==undefined,receiverFacing:'south',shadowMode:visual.appearance?.lighting.castsShadow==='none'?'none':column?'column':'silhouette',
+        occludesLocalLight:visual.explicitLighting?visual.appearance?.lighting.occludesLight??true:true,
         painterOrder:{footY:y-projection,depthOffset:terrainProjectedSortOffset(sortElevation),
           elevationLayer:Math.ceil(Math.max(0,sortElevation-.001)),depthPhase:'entity',tie}});
     }
@@ -543,8 +583,14 @@ export function liveMapObjectLightFrameKey(document:MapDocumentV3|null,registry:
     if(!object.enabled||object.layer==='ground')continue;
     const prefab=mapObjectPrefab(document,object);
     if(!prefab)continue;
-    for(const placement of prefab.placements){
-      if(placement.layer==='ground'||boundMapLightDefinition(registry,placement.assetName,placement.visual.name)?.components.collision?.occludesLight===false)continue;
+    for(const originalPlacement of prefab.placements){
+      const mapAppearance=resolveObjectAppearance(originalPlacement,prefab.presentation,object.state);
+      const placement=mapAppearance.placement;
+      const binding=boundMapAppearance(registry,placement.assetName,placement.visual.name,object.state);
+      const appearance=binding?.appearance;
+      const explicitLighting=binding?.definition.components.lighting!==undefined||binding?.definition.components.overrides?.some(o=>o.lighting!==undefined)===true;
+      if(placement.layer==='ground'||(explicitLighting ? appearance?.lighting.castsShadow==='none'&&!appearance.lighting.occludesLight
+        : appearance?.light != null && !appearance.lighting.occludesLight))continue;
       const asset=loadedAsset(placement.assetName);
       if(!asset||placement.visual.kind!=='animation')continue;
       const frame=visualFrame(asset,placement.visual,timeMs);

@@ -1,3 +1,4 @@
+import { isNaturalObjectProjection } from './content/natural-object.js';
 import {bootstrapContentRegistry} from './content/bootstrap-registry.js';
 import {BOOTSTRAP_SPACE_DEFINITIONS} from './content/bootstrap-spaces.js';
 import type {ContentRegistry} from './content/registry.js';
@@ -31,7 +32,7 @@ const artFingerprint=(asset:string)=>{
   return ((hash>>>4)%1296).toString(36).padStart(2,'0');
 };
 const objectForArt=(registry:ContentRegistry,fingerprint:string,presentation?:string)=>{
-  const matches=[...registry.objects.values()].filter(object=>object.retired!==true
+  const matches=[...registry.objects.values()].filter(object=>object.retired!==true&&!isNaturalObjectProjection(object)
     &&object.components.sprite!==undefined&&artFingerprint(object.components.sprite.asset)===fingerprint);
   if(matches.length===1)return matches[0]!;
   const exact=presentation===undefined?[]:matches.filter(object=>object.components.sprite?.asset===`prop_cf_${presentation}`);

@@ -3,7 +3,7 @@ import { projectTiming, type CropTimingSource } from './timing.js';
 import { CROP_DEFINITIONS, cropGrowthAt } from './crops.js';
 import { AUTHORITY_TICKS_PER_DAY, DAYS_PER_SEASON } from './time.js';
 import { TREE_REGROWTH_SWEEP_TICKS, treeRegrowthProgressAtSweep } from './tree-regrowth.js';
-import { createStatefulLifecycle, settleStatefulTransitions, type StatefulComponentSet } from './content/stateful-components.js';
+import { anchorStatefulGrowth, createStatefulLifecycle, settleStatefulTransitions, type StatefulComponentSet } from './content/stateful-components.js';
 
 const crop: CropTimingSource = { kind: 'crop', definition: { ...CROP_DEFINITIONS[0]!, growthTicks: 1_200n, wateringTicks: 2_000n },
   storedGrowthTicks: 0n, growthUpdatedAtTick: 100n, wateredAtTick: 100n, watered: true,
@@ -51,6 +51,18 @@ describe('shared growth projection', () => {
     expect(projectTiming(source, 120n)).toMatchObject({ status: 'running', reason: 'ripening', remainingActiveTicks: 1_180n, nextTransitionTick: 1_300n });
     expect(projectTiming(source, 1_300n)).toMatchObject({ status: 'ready', reason: 'harvest' });
     expect(projectTiming({ ...source, resource: { ...source.resource, growthStage: 1 } }, 120n)).toMatchObject({ status: 'blocked', remainingActiveTicks: null });
+  });
+  it('preserves runtime fractional credit in a supplied settled timing checkpoint', () => {
+    const components: StatefulComponentSet = { growth: { maxProgress: 5, sweepTicks: 10,
+      stageThresholds: [0, 5], modifiers: { rainBps: 2500 } } };
+    const lifecycle = anchorStatefulGrowth(components, createStatefulLifecycle(components, 0n), 30n, { raining: true });
+    expect(lifecycle).toMatchObject({ growthProgress: 3, growthRemainderBps: 7500 });
+    const timing = projectTiming({ kind: 'stateful', components, lifecycle,
+      checkpoint: { authorityTick: 30n, caughtUp: true }, environment: { raining: true } }, 30n);
+    expect(timing).toMatchObject({ remainingActiveTicks: 10n, nextTransitionTick: 40n, confidence: 'estimated' });
+    expect(settleStatefulTransitions(components, lifecycle, { nowTick: 39n, environment: { raining: true } }).growthProgress).toBe(3);
+    expect(settleStatefulTransitions(components, lifecycle, { nowTick: 40n, environment: { raining: true } }).growthProgress).toBe(5);
+    expect(lifecycle).toMatchObject({ growthProgress: 3, growthRemainderBps: 7500 });
   });
   it('shares generic transition mathematics and never invents private anchors', () => {
     const components: StatefulComponentSet = { states: { ripe: { type: 'bool', default: false }, dry: { type: 'bool', default: false } },

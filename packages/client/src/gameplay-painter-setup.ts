@@ -126,6 +126,7 @@ function buildPrepareGameplayPainter(input: Inputs) {
       scale,
       timeMs: weatherVisualTick * AUTHORITY_TICK_MS,
       materializedStreetlamps: true,
+      contentRegistry: snapshot.content.registry,
       visible: (worldX, worldY) => worldPointVisible(worldX, worldY, visible),
       enqueue: (worldX, worldFootY, item) => enqueueWorldDepth(worldX, worldFootY, item),
     });

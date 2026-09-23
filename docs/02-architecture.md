@@ -430,6 +430,35 @@ refreshes. Open popovers defer shell replacement, and stable hover dwell survive
 replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
 
+## Static world chunk materialization (pre-runtime migration)
+
+`@orchard/sim/world-chunk` defines the versioned binary envelope, SHA-256 integrity,
+64×64 core plus 1-cell halo, typed channels, and stable anchored records. The
+engine's `ChunkTerrainStore` reconstructs today's `TerrainArray` contract without
+calling generators. `scripts/materialize-world-chunks.ts` runs the existing client
+path offline and audits the actual server collision functions in a VM with a
+read-only fixture context. Client and server snapshots remain distinct where the
+existing implementations disagree. This is additive tooling; the live server and
+client continue to use their current map-document path. See
+[world chunk materialization](world-chunk-materialization.md) for the format,
+validation, and streaming follow-up boundary.
+
+The additive D6 medium extension stores one versioned material ID per cell plus
+solid blockers, independent of the retained walking/boat oracle channels.
+Outside/unloaded cells are void; runtime ability-based traversal remains a later
+lane. See the materialization procedure for fallback categories and rule metadata.
+
+## Content-addressed atlas delivery (2026-09-23)
+
+The default category atlas keeps today's eager startup request count. Both category
+and semantic pack PNGs are SHA-256 addressed; a release-independent worker cache
+bounds immutable atlas storage to 64 MiB/512 entries. The additional
+`atlas.packs.json` maps semantic asset IDs to immutable pack metadata. Pack loading
+is explicitly opt-in (`?atlasPacks=1`) until chunk-visible art ownership lands.
+See [the pack contract](asset-packs-spec.md), [measurements and handoff](asset-packs-handoff.md),
+and [UI loader API](../packages/ui/README.md). This prerequisite does not change
+collision, world content, gameplay art ownership, or the first playable frame gate.
+
 
 ### Authored tile rule catalogue
 
@@ -441,8 +470,13 @@ legacy map prefabs use explicit asset membership. Studio and client pass active
 registry catalogues to the same index and engine renderer. The renderer caches
 by asset identity so content changes cannot reuse stale family art. Existing
 content without an envelope reads the bootstrap catalogue; an explicit empty
-envelope disables connections. Other terrain resolvers remain unchanged and
-are pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
+envelope disables connections. Blob47 farmland and the four native grass fringes now resolve committed catalogue
+frames through `sim/terrain-rule-catalogue.ts`. Its fixed mask lookup tables keep
+per-cell work bounded. Optional family layers compose independently; `matchMask`
+selects relevant neighbour bits without encoding art rules in the engine. Hoed
+and authored farmland share frame selection; native fringes retain separate
+transition entries and engine family/height classification. Other terrain resolvers
+remain pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
 
 ### Schema-driven Studio forms (F1)
 
@@ -458,6 +492,21 @@ Items, Narrative and World Tables share the form adapter. Reference navigation
 selects a concrete target; kinds without a specialized selector use the generic
 World Tables form. The reverse-reference index follows declared reference fields
 rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).
+
+## Chunk runtime shadow boundary
+
+The shadow phase adds public `world_chunk_shadow` and `world_chunk_head` metadata and private `world_chunk_blob` bytes. Owner-only staging verifies the existing immutable codec and compares map/content revisions before atomically replacing heads. The client uses a separate bounded chunk-native store with view/ring pins, a two-request loader and hash-key IndexedDB retention. It compares diagnostics without replacing legacy terrain or movement. An owner-only procedure samples private chunk collision without a whole-world reconstruction. Static preparation is offline and publication remains separately gated. See [chunk runtime shadow](chunk-runtime-shadow.md) for interfaces, limits and activation gates.
+## Studio multi-space backend
+
+F4 shares `sim/space-registry.ts` between runtime authority and Studio, resolving
+revision-bound static geometry plus persisted homestead and rogue instances.
+`adminSpaceRegistry` projects only geometry and ownership from private runs after
+the admin gate. `adminEntitiesInAreaPage` uses `(spaceId, chunkX, chunkY, id)`
+indexes and request-bound keyset cursors; scan budgets remain bounded even in
+dense chunks or when filters return no matches. Studio uses per-space viewport
+subscriptions while player presence remains global. Runtime-space route references
+are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
+and [decision](adr/ADR-studio-multi-space.md).
 
 ### Gameplay timing clock domains
 

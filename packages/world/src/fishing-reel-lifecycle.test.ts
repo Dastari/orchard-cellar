@@ -10,7 +10,7 @@ import {
   runtimeTaggedLootTotals,
   runtimeToolDefinition,
   runtimeToolSpecialization,
-  FISHING_CATCH_FARMING_XP, FISHING_POOL_DEPLETION_FARMING_XP,
+  runtimeActivityExperience,
   type ContentRegistry,
   type LootDrop,
 } from '@orchard/sim';
@@ -93,7 +93,7 @@ function fixture(options: {
     },
     wearInventoryTool: () => { writes.push('wear'); },
     grantSkillExperience: (_ctx: unknown, _identity: unknown, track: string, amount: bigint) => { experience.push({track, amount}); writes.push('experience'); },
-    FISHING_CATCH_FARMING_XP, FISHING_POOL_DEPLETION_FARMING_XP, fishingRespawnDelayTicks: () => 3600n,
+    runtimeActivityExperience, fishingRespawnDelayTicks: () => 3600n,
   };
   const reel = new Function(...Object.keys(dependencies), `${javascript}; return applyFishingReelLifecycle;`)(
     ...Object.values(dependencies),
@@ -103,6 +103,7 @@ function fixture(options: {
     fish: () => fish,
     cast: () => cast,
     startNewCast: () => { cast = { poolId: 7n, startedTick: clock.authorityTick, targetTileX: 3, targetTileY: 4 }; },
+    preflight: () => reel(ctx, false),
     complete: () => { reel(ctx, false); reel(ctx); },
   };
 }
@@ -205,4 +206,16 @@ describe('fishing reel terminal completion', () => {
     expect(() => test.complete()).toThrow('mounted_action_forbidden');
     expect(test.fish()).toBe(1);
   });
+});
+
+it.each([false,true])('uses changed authored catch/depletion XP in actual authority (personal=%s)', personal => {
+  const base=bootstrapContentRegistry();
+  const original=[...base.progressions.values()][0]!;
+  const changed={...original,awards:{...original.awards,fish_catch:{base:17,perUnit:0},fish_depletion:{base:23,perUnit:0}}};
+  const test=fixture({personal,registry:{...base,progressions:new Map([[changed.id,changed]])}});
+  test.pool.richness=1;
+  test.preflight();
+  expect(test.experience).toEqual([]);
+  test.complete();
+  expect(test.experience).toEqual(personal?[{track:'farming',amount:17n}]:[{track:'farming',amount:17n},{track:'farming',amount:23n}]);
 });

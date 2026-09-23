@@ -1,3 +1,4 @@
+import { resolveObjectDefinitionAppearance } from '../content/object-archetype.js';
 import { TILE_INTERACTION_REACH_TILES } from '../tile-targeting.js';
 import type { ObjectContentDefinition, ObjectLightComponent } from '../content/object-definition.js';
 import type { ItemContentDefinition } from '../content/definitions.js';
@@ -54,6 +55,8 @@ const EVENT_TYPE_BY_VERB = {
   tick: 'tick',
   break: 'break',
   timer: 'timer',
+  spawn: 'spawn', despawn: 'despawn', stateEnter: 'stateEnter', stateExit: 'stateExit',
+  dialogueChoice: 'dialogueChoice', questState: 'questState', questObjective: 'questObjective',
 } as const satisfies Readonly<Record<InteractionDefinition['verb'], LifecycleEventType>>;
 
 function targetTile(target: BehaviourTargetSnapshot | undefined): BehaviourTileSnapshot | undefined {
@@ -251,9 +254,16 @@ export function compileObjectDataGraph(
   definition: ObjectContentDefinition,
   engineVersion: number,
 ): readonly AnyHandlerRegistration[] {
-  const interactions = (definition.components.interactions ?? []).map((interaction) => (
-    compileDataGraphInteraction(definition.id, interaction, engineVersion)
-  ));
+  const transitionGraphs = new Set((definition.components.transitions ?? []).flatMap(transition =>
+    transition.on !== undefined && transition.run !== undefined && 'graph' in transition.run ? [`${transition.run.graph}\0${transition.on}`] : []));
+  const interactions = (definition.components.interactions ?? []).filter(interaction => !transitionGraphs.has(`${interaction.id}\0${interaction.verb}`)).map(interaction => {
+    const compiled = compileDataGraphInteraction(definition.id, interaction, engineVersion);
+    return { ...compiled, handler: ((event: LifecycleEvent, view: ReadOnlySnapshot) => {
+      const state = view.target !== undefined && 'state' in view.target ? view.target.state : {};
+      if (!resolveObjectDefinitionAppearance(definition, state).interactions.includes(interaction.id)) return effectsResult([], { continue: true });
+      return (compiled.handler as Handler)(event, view);
+    }) as Handler } as AnyHandlerRegistration;
+  });
   const carry = definition.components.carry;
   const emptyContainerPickup = carry?.mode === 'preserve_entity_or_item_when_empty'
     ? [{
@@ -289,8 +299,9 @@ export function objectInteractionMetadata(
   verb: InteractionDefinition['verb'],
   state: Readonly<Record<string, StateValue>>,
 ): ObjectInteractionMetadata | null {
+  const available = resolveObjectDefinitionAppearance(definition, state).interactions;
   const interaction = [...definition.components.interactions ?? []]
-    .filter((candidate) => candidate.verb === verb
+    .filter((candidate) => available.includes(candidate.id) && candidate.verb === verb
       && candidate.conditions.every((condition) => !('state' in condition)
         || state[condition.state] === condition.equals))
     .sort((left, right) => (right.priority ?? 0) - (left.priority ?? 0)

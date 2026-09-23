@@ -1,4 +1,11 @@
 import { dayProgressAtClockTime, type Season } from '@orchard/sim';
+import {
+  DEFAULT_MUSIC_CONTEXT,
+  MusicDirector,
+  type AudioAssignment,
+  type MusicCommand,
+  type MusicContext,
+} from './music-director.js';
 import { MusicMixer, type MusicDeck } from './music-synth.js';
 import { compileSong, Sequencer, type CompiledSong } from './sequencer.js';
 import { playSynthSfx } from './sfx.js';
@@ -6,33 +13,15 @@ import type { AmbienceTime, SfxSource, SongSource } from './types.js';
 
 const AUDIO_SETTINGS_KEY = 'orchard-cellar.audio';
 const MUSIC_PLAYBACK_KEY = 'orchard-cellar.music-playback';
+const AUDIO_ASSIGNMENT_URL = '/generated/music/audio-assignment.json';
 const AMBIENCE_NAMES = ['bird_chirp_1', 'bird_chirp_2', 'bird_chirp_3', 'wind_gust'] as const;
-const MUSIC_CROSSFADE_SECONDS = 8;
 const MUSIC_FIRST_FADE_SECONDS = 2.5;
-const MUSIC_END_FADE_SECONDS = 8;
 const MUSIC_NAVIGATION_FADE_SECONDS = 0.65;
 const MUSIC_STOP_FADE_SECONDS = 1;
+const MUSIC_TAIL_SECONDS = 4;
 const MUSIC_START_LATENCY_SECONDS = 0.1;
+const MUSIC_DIRECTOR_TICK_MS = 1_000;
 const SONG_NAME_PATTERN = /^[a-z][a-z0-9_]{0,63}$/u;
-
-export interface MusicCueDefinition {
-  /** Loop the tracker song forever (title) or play one pass then fall silent (world). */
-  readonly continuous: boolean;
-  /** Randomised quiet interval between passes of a non-continuous cue. */
-  readonly silenceSeconds: readonly [number, number];
-}
-
-/** Runtime cues. Each name is a tracker song at `packages/assets/music/<name>.song.json`. */
-export const MUSIC_CUES = {
-  theme_title: { continuous: true, silenceSeconds: [0, 0] },
-  theme_spring: { continuous: false, silenceSeconds: [55, 140] },
-  theme_night: { continuous: false, silenceSeconds: [40, 105] },
-} as const satisfies Readonly<Record<string, MusicCueDefinition>>;
-
-/** Cue behaviour for any song name; unlisted songs (Studio auditions) loop continuously. */
-export function musicCueFor(name: string): MusicCueDefinition {
-  return (MUSIC_CUES as Readonly<Record<string, MusicCueDefinition>>)[name] ?? { continuous: true, silenceSeconds: [0, 0] };
-}
 
 export function songUrl(name: string): string {
   if (!SONG_NAME_PATTERN.test(name)) throw new Error(`Invalid song name ${name}`);
@@ -40,16 +29,20 @@ export function songUrl(name: string): string {
 }
 
 /**
- * Version 2 checkpoints record the tracker position in steps (tempo-independent).
- * Version 1 checkpoints came from the retired streamed recordings; their positions
- * are seconds into an MP3 and are deliberately ignored.
+ * Version 2 checkpoints record the director rule, the tracker position in steps
+ * (tempo-independent) or the remaining silence. Version 1 checkpoints came from the
+ * retired streamed recordings; their positions are seconds into an MP3 and are
+ * deliberately ignored.
  */
 export interface PersistedMusicPlayback {
   readonly version: 2;
+  /** Playing song; empty while in a silence gap. */
   readonly song: string;
   readonly phase: 'playing' | 'gap';
   readonly positionSteps: number;
   readonly gapRemainingSeconds: number;
+  /** Director rule the checkpoint belongs to. */
+  readonly rule?: string;
 }
 
 export function parsePersistedMusicPlayback(value: string | null): PersistedMusicPlayback | null {
@@ -57,18 +50,21 @@ export function parsePersistedMusicPlayback(value: string | null): PersistedMusi
   try {
     const parsed = JSON.parse(value) as Partial<PersistedMusicPlayback> | null;
     if (parsed === null || typeof parsed !== 'object' || parsed.version !== 2
-      || typeof parsed.song !== 'string' || !(parsed.song in MUSIC_CUES)
       || (parsed.phase !== 'playing' && parsed.phase !== 'gap')
+      || typeof parsed.song !== 'string'
+      || !(SONG_NAME_PATTERN.test(parsed.song) || (parsed.phase === 'gap' && parsed.song === ''))
       || typeof parsed.positionSteps !== 'number' || !Number.isFinite(parsed.positionSteps)
       || parsed.positionSteps < 0
       || typeof parsed.gapRemainingSeconds !== 'number' || !Number.isFinite(parsed.gapRemainingSeconds)
-      || parsed.gapRemainingSeconds < 0) return null;
+      || parsed.gapRemainingSeconds < 0
+      || (parsed.rule !== undefined && (typeof parsed.rule !== 'string' || !SONG_NAME_PATTERN.test(parsed.rule)))) return null;
     return {
       version: 2,
       song: parsed.song,
       phase: parsed.phase,
       positionSteps: parsed.positionSteps,
       gapRemainingSeconds: parsed.gapRemainingSeconds,
+      ...(parsed.rule === undefined ? {} : { rule: parsed.rule }),
     };
   } catch {
     return null;
@@ -93,6 +89,8 @@ class SongPlayback {
     mixer: MusicMixer,
     readonly song: string,
     compiled: CompiledSong,
+    readonly loop: boolean,
+    readonly rule: string | null,
   ) {
     this.deck = mixer.createDeck(compiled);
     this.sequencer = new Sequencer({
@@ -104,15 +102,9 @@ class SongPlayback {
   }
 
   start(fromStep: number, fadeSeconds: number, onEnded: () => void): void {
-    const cue = musicCueFor(this.song);
     const at = this.context.currentTime + MUSIC_START_LATENCY_SECONDS;
     this.deck.fadeTo(1, fadeSeconds, at, 0);
-    this.sequencer.start(this.deck.song, { at, fromStep, loop: cue.continuous, onEnded });
-    if (!cue.continuous) {
-      const remaining = this.sequencer.remainingSeconds(at);
-      const fadeStart = Math.max(at + fadeSeconds, at + remaining - MUSIC_END_FADE_SECONDS);
-      this.deck.fadeTo(0, Math.max(0.05, at + remaining - fadeStart), fadeStart, 1);
-    }
+    this.sequencer.start(this.deck.song, { at, fromStep, loop: this.loop, onEnded });
   }
 
   positionSteps(): number { return this.sequencer.positionSteps(); }
@@ -129,6 +121,8 @@ export interface AudioStatus {
   readonly unlocked: boolean;
   readonly state: AudioContextState | 'unavailable';
   readonly song: string | null;
+  /** Director rule currently in charge, or null for manual auditions. */
+  readonly rule: string | null;
   readonly meter: number;
   readonly ambience: AmbienceContext;
 }
@@ -139,10 +133,16 @@ export interface AmbienceContext {
   readonly location: 'estate' | 'cellar';
 }
 
+/** Context fields the game can update; see MusicContext in music-director.ts. */
+export type MusicContextUpdate = Partial<MusicContext>;
+
 export interface GameAudio {
   unlock(): Promise<void>;
   setSeason(season: Season): Promise<void>;
   setAmbienceContext(season: Season, dayProgress: number, location: 'estate' | 'cellar'): void;
+  /** Feed the music director (scene, zone, biome, weather, combat, mood tags). */
+  setMusicContext(update: MusicContextUpdate): void;
+  /** Audition one song directly, bypassing the director (Studio). */
   playSong(name: string): Promise<void>;
   playSfx(name: string): Promise<void>;
   playFootstep(surface: 'grass' | 'path' | 'cellar'): Promise<void>;
@@ -225,10 +225,11 @@ export function isAmbienceEligible(source: SfxSource, context: AmbienceContext):
   return timeMatches && seasonMatches;
 }
 
-export function songForAmbience(context: AmbienceContext): string {
-  if (context.location === 'cellar') return 'theme_spring';
-  if (context.time === 'dusk' || context.time === 'night') return 'theme_night';
-  return 'theme_spring';
+function sameMusicContext(left: MusicContext, right: MusicContext): boolean {
+  return left.scene === right.scene && left.season === right.season && left.time === right.time
+    && left.zone === right.zone && left.biome === right.biome && left.weather === right.weather
+    && left.combat === right.combat && left.tags.length === right.tags.length
+    && left.tags.every((tag, index) => right.tags[index] === tag);
 }
 
 export class AudioBus implements GameAudio {
@@ -243,20 +244,22 @@ export class AudioBus implements GameAudio {
   private activePlayback: SongPlayback | null = null;
   private readonly retiringPlaybacks = new Set<SongPlayback>();
   private readonly songCache = new Map<string, Promise<CompiledSong>>();
-  private desiredSong: string | null = null;
+  private assignment: Promise<AudioAssignment> | null = null;
+  private director: MusicDirector | null = null;
+  private directorStart: Promise<void> | null = null;
+  private directorTimer: number | null = null;
+  private musicContext: MusicContext = DEFAULT_MUSIC_CONTEXT;
+  private musicContextSet = false;
+  private manualSong: string | null = null;
   private persistedPlayback = loadMusicPlayback();
-  private musicInitialized = false;
-  private musicInitialization: Promise<void> | null = null;
-  private musicGapTimer: number | null = null;
-  private musicGapEndsAtMs: number | null = null;
-  private backgroundMusicGap: { readonly song: string; readonly remainingSeconds: number } | null = null;
-  private pausedMusic: { readonly song: string; readonly positionSteps: number } | null = null;
-  private musicChangeDeferredForBackground = false;
+  /** Music clock excludes time spent paused in the background, so silences keep their length. */
+  private pausedAtMs: number | null = null;
+  private pausedTotalMs = 0;
+  private pausedMusic: { readonly song: string; readonly positionSteps: number; readonly loop: boolean; readonly rule: string | null } | null = null;
   private contextSuspendedForBackground = false;
   private backgroundSuspendPromise: Promise<void> | null = null;
   private musicCheckpointTimer: number | null = null;
   private musicTransitionGeneration = 0;
-  private song: string | null = null;
   private ambienceContext: AmbienceContext = { season: 'spring', time: 'dawn', location: 'estate' };
   private ambienceTimer: number | null = null;
   private readonly sfxCache = new Map<string, Promise<SfxSource>>();
@@ -271,44 +274,46 @@ export class AudioBus implements GameAudio {
     if (!this.context) this.createGraph();
     if (!this.context) return;
     if (this.context.state !== 'running') await this.context.resume();
-    if (!this.musicInitialized) {
-      this.musicInitialization ??= this.initializeMusic();
-      try {
-        await this.musicInitialization;
-      } finally {
-        this.musicInitialization = null;
-      }
-    } else {
-      await this.playSong(this.desiredSong ?? songForAmbience(this.ambienceContext));
-    }
+    await this.startMusic();
     if (this.ambienceEnabled) this.startAmbience();
   }
 
   async setSeason(season: Season): Promise<void> {
     this.ambienceContext = { ...this.ambienceContext, season };
-    await this.playSong(songForAmbience(this.ambienceContext));
+    this.setMusicContext({ season });
   }
 
   setAmbienceContext(season: Season, dayProgress: number, location: 'estate' | 'cellar'): void {
     const time = ambienceTimeAtProgress(dayProgress);
-    if (season === this.ambienceContext.season
-      && time === this.ambienceContext.time
-      && location === this.ambienceContext.location) return;
-    const next = { season, time, location } as const;
-    this.ambienceContext = next;
-    void this.playSong(songForAmbience(next)).catch(() => undefined);
+    if (season !== this.ambienceContext.season || time !== this.ambienceContext.time
+      || location !== this.ambienceContext.location) this.ambienceContext = { season, time, location };
+    this.setMusicContext({ season, time });
+  }
+
+  setMusicContext(update: MusicContextUpdate): void {
+    const next: MusicContext = { ...this.musicContext, ...update };
+    const firstContext = !this.musicContextSet;
+    const changed = !sameMusicContext(next, this.musicContext);
+    if (!changed && !firstContext) return;
+    this.musicContext = next;
+    this.musicContextSet = true;
+    if (firstContext) {
+      // The director owns music from the first context onward (auditions end here).
+      this.manualSong = null;
+      void this.startMusic().catch(() => undefined);
+      return;
+    }
+    this.runDirector();
   }
 
   async playSong(name: string): Promise<void> {
     songUrl(name);
-    if (this.desiredSong === name && (this.song === name || this.musicGapTimer !== null)) return;
-    this.desiredSong = name;
-    if (!this.context || !this.mixer || !this.musicInitialized) return;
-    if (document.hidden && !this.settings.musicInBackground) {
-      this.musicChangeDeferredForBackground = true;
-      return;
-    }
-    await this.transitionToSong(name);
+    if (this.manualSong === name && this.activePlayback?.song === name) return;
+    this.manualSong = name;
+    if (!this.context || !this.mixer) return;
+    const compiled = await this.loadSong(name);
+    if (this.manualSong !== name) return;
+    await this.transitionToSong(name, 0, this.activePlayback === null ? MUSIC_FIRST_FADE_SECONDS : 2, compiled.source.loop !== false, null);
   }
 
   async playSfx(name: string): Promise<void> {
@@ -334,15 +339,17 @@ export class AudioBus implements GameAudio {
 
   stop(): void {
     this.musicTransitionGeneration += 1;
-    this.clearMusicGap();
     this.persistedPlayback = null;
     this.pausedMusic = null;
-    this.backgroundMusicGap = null;
+    this.manualSong = null;
+    this.director = null;
+    this.directorStart = null;
+    this.musicContextSet = false;
+    if (this.directorTimer !== null) window.clearInterval(this.directorTimer);
+    this.directorTimer = null;
     try { localStorage.removeItem(MUSIC_PLAYBACK_KEY); } catch { /* Storage can be disabled. */ }
     if (this.activePlayback) this.retirePlayback(this.activePlayback, MUSIC_STOP_FADE_SECONDS);
     this.activePlayback = null;
-    this.desiredSong = null;
-    this.song = null;
   }
 
   getStatus(): AudioStatus {
@@ -355,7 +362,8 @@ export class AudioBus implements GameAudio {
     return {
       unlocked: this.context !== null,
       state: this.context?.state ?? 'unavailable',
-      song: this.song,
+      song: this.activePlayback?.song ?? null,
+      rule: this.manualSong === null ? this.director?.state(this.musicNow()).rule ?? null : null,
       meter,
       ambience: this.ambienceContext,
     };
@@ -420,6 +428,12 @@ export class AudioBus implements GameAudio {
     this.musicCheckpointTimer = window.setInterval(() => this.saveMusicPlayback(), 1_000);
   }
 
+  private musicNow(): number {
+    const now = performance.now();
+    const paused = this.pausedAtMs === null ? 0 : now - this.pausedAtMs;
+    return (now - this.pausedTotalMs - paused) / 1000;
+  }
+
   private loadSong(name: string): Promise<CompiledSong> {
     let promise = this.songCache.get(name);
     if (!promise) {
@@ -430,38 +444,94 @@ export class AudioBus implements GameAudio {
     return promise;
   }
 
-  private async initializeMusic(): Promise<void> {
-    const requested = this.desiredSong ?? songForAmbience(this.ambienceContext);
-    this.desiredSong = requested;
-    const restored = this.persistedPlayback;
-    if (restored !== null && restored.phase === 'gap' && restored.song === requested) {
-      this.scheduleMusicGap(restored.song, restored.gapRemainingSeconds);
-    } else if (restored !== null && restored.phase === 'playing') {
-      this.desiredSong = restored.song;
-      await this.transitionToSong(restored.song, restored.positionSteps);
-      const destination = this.desiredSong === restored.song ? requested : this.desiredSong;
-      this.desiredSong = destination;
-      if (destination !== restored.song) await this.transitionToSong(destination);
-    } else {
-      await this.transitionToSong(requested);
+  private loadAssignment(): Promise<AudioAssignment> {
+    if (this.assignment === null) {
+      this.assignment = loadJson<AudioAssignment>(AUDIO_ASSIGNMENT_URL);
+      this.assignment.catch(() => { this.assignment = null; });
     }
+    return this.assignment;
+  }
+
+  /** Start whatever owns the music: a manual audition, or the director once a context exists. */
+  private async startMusic(): Promise<void> {
+    if (!this.context || !this.mixer) return;
+    if (this.manualSong !== null) {
+      const song = this.manualSong;
+      this.manualSong = null;
+      await this.playSong(song);
+      return;
+    }
+    if (!this.musicContextSet) return;
+    if (this.director !== null) { this.runDirector(); return; }
+    this.directorStart ??= this.startDirector().finally(() => { this.directorStart = null; });
+    await this.directorStart;
+  }
+
+  private async startDirector(): Promise<void> {
+    const assignment = await this.loadAssignment();
+    if (this.director !== null || !this.context || this.manualSong !== null || !this.musicContextSet) return;
+    const director = new MusicDirector(assignment);
+    this.director = director;
+    const restored = this.persistedPlayback;
     this.persistedPlayback = null;
-    this.musicInitialized = true;
+    const now = this.musicNow();
+    if (restored !== null && restored.rule !== undefined) {
+      director.restore({
+        rule: restored.rule,
+        phase: restored.phase,
+        song: restored.phase === 'playing' ? restored.song : null,
+        gapRemainingSeconds: restored.gapRemainingSeconds,
+      }, now);
+      const state = director.state(now);
+      if (state.phase === 'playing' && state.song !== null) {
+        try {
+          await this.transitionToSong(state.song, restored.positionSteps, MUSIC_FIRST_FADE_SECONDS, director.loops(state.rule), state.rule);
+        } catch { /* The director picks something else below. */ }
+      }
+    }
+    this.runDirector();
+    this.directorTimer ??= window.setInterval(() => this.runDirector(), MUSIC_DIRECTOR_TICK_MS);
     this.saveMusicPlayback();
   }
 
-  private async transitionToSong(song: string, positionSteps = 0, fadeOverride?: number): Promise<void> {
+  private runDirector(): void {
+    if (this.director === null || this.manualSong !== null || this.pausedAtMs !== null || !this.context) return;
+    this.execute(this.director.update(this.musicContext, this.musicNow()));
+  }
+
+  private execute(commands: readonly MusicCommand[]): void {
+    for (const command of commands) {
+      if (command.type === 'play') {
+        void this.transitionToSong(command.song, 0, command.fadeSeconds, command.loop, command.rule).catch(() => undefined);
+      } else if (command.type === 'stop') {
+        this.musicTransitionGeneration += 1;
+        if (this.activePlayback) this.retirePlayback(this.activePlayback, command.fadeSeconds);
+        this.activePlayback = null;
+      } else {
+        void this.playSting(command.song).catch(() => undefined);
+      }
+    }
+    if (commands.length > 0) this.saveMusicPlayback();
+  }
+
+  private async playSting(song: string): Promise<void> {
     if (!this.context || !this.mixer) return;
-    this.clearMusicGap();
+    const compiled = await this.loadSong(song);
+    if (!this.context || !this.mixer) return;
+    const sting = new SongPlayback(this.context, this.mixer, song, compiled, false, null);
+    sting.start(0, 0.02, () => this.retirePlayback(sting, MUSIC_TAIL_SECONDS));
+    this.retiringPlaybacks.add(sting);
+  }
+
+  private async transitionToSong(song: string, positionSteps: number, fadeSeconds: number, loop: boolean, rule: string | null): Promise<void> {
+    if (!this.context || !this.mixer) return;
     this.pausedMusic = null;
     const generation = ++this.musicTransitionGeneration;
     const compiled = await this.loadSong(song);
     if (generation !== this.musicTransitionGeneration || !this.context || !this.mixer) return;
     const previous = this.activePlayback;
-    const fadeSeconds = fadeOverride ?? (previous === null ? MUSIC_FIRST_FADE_SECONDS : MUSIC_CROSSFADE_SECONDS);
-    const playback = new SongPlayback(this.context, this.mixer, song, compiled);
+    const playback = new SongPlayback(this.context, this.mixer, song, compiled, loop, rule);
     this.activePlayback = playback;
-    this.song = song;
     if (previous !== null) this.retirePlayback(previous, fadeSeconds);
     playback.start(positionSteps, fadeSeconds, () => this.onMusicEnded(playback));
     this.saveMusicPlayback();
@@ -479,56 +549,27 @@ export class AudioBus implements GameAudio {
 
   private onMusicEnded(playback: SongPlayback): void {
     if (this.activePlayback !== playback) return;
-    const song = playback.song;
     this.activePlayback = null;
-    this.song = null;
-    this.retirePlayback(playback, 0.05);
-    if (song !== this.desiredSong) return;
-    const [minimum, maximum] = musicCueFor(song).silenceSeconds;
-    const delaySeconds = minimum + Math.random() * (maximum - minimum);
-    this.scheduleMusicGap(song, delaySeconds);
-  }
-
-  private scheduleMusicGap(song: string, delaySeconds: number): void {
-    this.clearMusicGap();
-    this.song = null;
-    this.desiredSong = song;
-    this.musicGapEndsAtMs = performance.now() + delaySeconds * 1000;
-    this.musicGapTimer = window.setTimeout(() => {
-      this.musicGapTimer = null;
-      this.musicGapEndsAtMs = null;
-      if (this.desiredSong === song) void this.transitionToSong(song).catch(() => undefined);
-    }, delaySeconds * 1000);
+    // Let the last notes and reverb ring out naturally.
+    this.retirePlayback(playback, MUSIC_TAIL_SECONDS);
+    if (playback.rule !== null) this.director?.pieceEnded(this.musicNow());
     this.saveMusicPlayback();
   }
 
-  private clearMusicGap(): void {
-    if (this.musicGapTimer === null) return;
-    window.clearTimeout(this.musicGapTimer);
-    this.musicGapTimer = null;
-    this.musicGapEndsAtMs = null;
-  }
-
   private saveMusicPlayback(): void {
-    const song = this.desiredSong;
-    if (song === null || !(song in MUSIC_CUES)) return;
+    if (this.director === null || this.manualSong !== null) return;
+    const now = this.musicNow();
+    const state = this.director.state(now);
+    if (state.rule === null || state.phase === 'idle') return;
+    const paused = this.pausedMusic;
+    const active = this.activePlayback;
     let playback: PersistedMusicPlayback;
-    if (this.musicGapTimer !== null || this.backgroundMusicGap !== null) {
-      const backgroundGap = this.backgroundMusicGap;
-      playback = {
-        version: 2,
-        song,
-        phase: 'gap',
-        positionSteps: 0,
-        gapRemainingSeconds: backgroundGap?.remainingSeconds
-          ?? Math.max(0, ((this.musicGapEndsAtMs ?? performance.now()) - performance.now()) / 1000),
-      };
+    if (state.phase === 'playing' && state.song !== null) {
+      const positionSteps = paused?.song === state.song ? paused.positionSteps
+        : active?.song === state.song ? active.positionSteps() : 0;
+      playback = { version: 2, song: state.song, phase: 'playing', positionSteps, gapRemainingSeconds: 0, rule: state.rule };
     } else {
-      const active = this.activePlayback;
-      const paused = this.pausedMusic;
-      const positionSteps = paused?.song === song ? paused.positionSteps
-        : active?.song === song ? active.positionSteps() : 0;
-      playback = { version: 2, song, phase: 'playing', positionSteps, gapRemainingSeconds: 0 };
+      playback = { version: 2, song: '', phase: 'gap', positionSteps: 0, gapRemainingSeconds: state.gapRemainingSeconds, rule: state.rule };
     }
     try { localStorage.setItem(MUSIC_PLAYBACK_KEY, JSON.stringify(playback)); } catch { /* Storage can be disabled. */ }
   }
@@ -579,20 +620,13 @@ export class AudioBus implements GameAudio {
   }
 
   private pauseMusicForBackground(): void {
-    if (this.musicGapTimer !== null && this.desiredSong !== null) {
-      this.backgroundMusicGap = {
-        song: this.desiredSong,
-        remainingSeconds: Math.max(0, ((this.musicGapEndsAtMs ?? performance.now()) - performance.now()) / 1000),
-      };
-      window.clearTimeout(this.musicGapTimer);
-      this.musicGapTimer = null;
-      this.musicGapEndsAtMs = null;
-    }
+    if (this.pausedAtMs !== null) return;
+    this.pausedAtMs = performance.now();
     const active = this.activePlayback;
     if (active !== null) {
       // Tracker playback has no media element to pause: remember the position,
       // silence the deck, and re-enter from the same step when visible again.
-      this.pausedMusic = { song: active.song, positionSteps: active.positionSteps() };
+      this.pausedMusic = { song: active.song, positionSteps: active.positionSteps(), loop: active.loop, rule: active.rule };
       this.musicTransitionGeneration += 1;
       this.activePlayback = null;
       active.dispose();
@@ -615,29 +649,16 @@ export class AudioBus implements GameAudio {
       this.master.gain.setValueAtTime(0.0001, now);
       this.master.gain.linearRampToValueAtTime(this.settings.master, now + 1);
     }
+    if (this.pausedAtMs !== null) {
+      this.pausedTotalMs += performance.now() - this.pausedAtMs;
+      this.pausedAtMs = null;
+    }
     const paused = this.pausedMusic;
-    if (this.musicChangeDeferredForBackground && this.desiredSong !== null) {
-      this.musicChangeDeferredForBackground = false;
-      this.backgroundMusicGap = null;
-      this.pausedMusic = null;
-      await this.transitionToSong(this.desiredSong);
-      return;
-    }
-    const pausedGap = this.backgroundMusicGap;
-    this.backgroundMusicGap = null;
-    if (pausedGap !== null) {
-      this.scheduleMusicGap(pausedGap.song, pausedGap.remainingSeconds);
-      return;
-    }
     try {
-      if (paused !== null) {
-        await this.transitionToSong(paused.song, paused.positionSteps, 1);
-      } else if (this.musicInitialized && this.desiredSong !== null && this.activePlayback === null
-        && this.musicGapTimer === null && !this.settings.musicInBackground) {
-        // A cue that was still loading when the tab was hidden was cancelled; start it now.
-        await this.transitionToSong(this.desiredSong, 0, 1);
-      }
+      if (paused !== null) await this.transitionToSong(paused.song, paused.positionSteps, 1, paused.loop, paused.rule);
     } catch { /* A later unlock gesture retries playback. */ }
+    // Context changes while hidden (e.g. night fell) are applied now.
+    this.runDirector();
   }
 
   private setSoundBusGains(sfxGain: number): void {
@@ -652,12 +673,13 @@ export class NullAudioBus implements GameAudio {
   async unlock(): Promise<void> {}
   async setSeason(): Promise<void> {}
   setAmbienceContext(): void {}
+  setMusicContext(): void {}
   async playSong(): Promise<void> {}
   async playSfx(): Promise<void> {}
   async playFootstep(): Promise<void> {}
   async fadeOutForNavigation(): Promise<void> {}
   stop(): void {}
-  getStatus(): AudioStatus { return { unlocked: false, state: 'unavailable', song: null, meter: 0, ambience: { season: 'spring', time: 'dawn', location: 'estate' } }; }
+  getStatus(): AudioStatus { return { unlocked: false, state: 'unavailable', song: null, rule: null, meter: 0, ambience: { season: 'spring', time: 'dawn', location: 'estate' } }; }
   getSettings(): AudioSettings { return DEFAULT_AUDIO_SETTINGS; }
   setVolume(): void {}
   setBackgroundPlayback(): void {}

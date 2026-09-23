@@ -1,6 +1,7 @@
 import {
   resolveObjectLight,
-  resolveObjectCollision,
+  resolveObjectDefinitionAppearance,
+  type ResolvedObjectAppearance,
   runtimePlaceableBlocksMovement,
   placeableObjectDefinition,
   hearthFurnitureShapeForPlaceable, hearthFurniturePersistentId, HEARTH_FURNITURE_SUPPORT_STATE_KEY,
@@ -14,7 +15,7 @@ import { loadGeneratedAsset, type LoadedAsset } from '@orchard/ui';
 import type { LiveContentState } from './live-content.js';
 
 export interface ObjectPresentationRow {
-  readonly id: bigint;
+  readonly id: bigint | string;
   readonly kind: string;
   readonly open: boolean;
   readonly lit: boolean;
@@ -37,6 +38,8 @@ export interface ObjectPresentation {
   readonly stateJsonValid: boolean;
   readonly state: Readonly<Record<string, StateValue>>;
   readonly sprite: AuthoredObjectSprite | null;
+  readonly appearance?: ResolvedObjectAppearance;
+  readonly lightingAuthored?: boolean;
   readonly light: ResolvedObjectLight | null;
   readonly collision: {
     readonly blocksMovement: boolean;
@@ -104,22 +107,6 @@ function resolvedState(
   return { valid: true, state: Object.freeze({ open: row.open, lit: row.lit, ...state }) };
 }
 
-function animationFor(
-  definition: ObjectContentDefinition,
-  state: Readonly<Record<string, StateValue>>,
-): string {
-  const animations = definition.components.sprite?.animationByState;
-  if (animations === undefined) return 'base';
-  for (const [name, value] of Object.entries(state).sort(([left], [right]) => left.localeCompare(right))) {
-    if (value === true && animations[name] !== undefined) return animations[name]!;
-    if (typeof value === 'string') {
-      if (animations[`${name}.${value}`] !== undefined) return animations[`${name}.${value}`]!;
-      if (animations[value] !== undefined) return animations[value]!;
-    }
-  }
-  return animations.default ?? 'base';
-}
-
 function contentKey(content: LiveContentState): string {
   const head = content.head;
   return head === null
@@ -177,27 +164,33 @@ export class LiveObjectPresentationCache {
       this.#presentations.set(key, fallback);
       return fallback;
     }
-    const spriteDefinition = definition.components.sprite;
-    if (spriteDefinition !== undefined) this.#ensureAsset(spriteDefinition.asset);
+    const appearance = resolveObjectDefinitionAppearance(definition, resolved.state);
+    const spriteDefinition = appearance.sprite;
+    if (spriteDefinition !== null) this.#ensureAsset(spriteDefinition.asset);
     const presentation = Object.freeze({
       definitionId: definition.id,
       authored: true,
       stateJsonValid: true,
       state: resolved.state,
-      sprite: spriteDefinition === undefined ? null : Object.freeze({
+      appearance,
+      lightingAuthored: definition.components.lighting !== undefined || definition.components.overrides?.some(o => o.lighting !== undefined) === true,
+      sprite: spriteDefinition === null ? null : Object.freeze({
         assetName: spriteDefinition.asset,
         asset: this.#assets.get(spriteDefinition.asset) ?? null,
-        animation: animationFor(definition, resolved.state),
-        scale: spriteDefinition.scale ?? 1,
+        animation: spriteDefinition.animation,
+        scale: spriteDefinition.scale,
       }),
-      light: definition.components.light === undefined
-        ? spriteDefinition === undefined ? null : emissiveSpriteLight(
-          this.#assets.get(spriteDefinition.asset) ?? null,
-          animationFor(definition, resolved.state), spriteDefinition.scale ?? 1,
-        ) : resolveObjectLight(definition.components.light, resolved.state),
-      collision: definition.components.collision === undefined ? null : Object.freeze({
-        blocksMovement: resolveObjectCollision(definition, resolved.state).blocksMovement,
-        occludesLight: definition.components.collision.occludesLight ?? false,
+      light: appearance.light === null
+        ? definition.components.light !== undefined
+          ? { ...resolveObjectLight(definition.components.light, resolved.state), enabled: false }
+          : definition.components.overrides?.some(o => o.light !== undefined) ? null
+          : spriteDefinition === null ? null : emissiveSpriteLight(
+            this.#assets.get(spriteDefinition.asset) ?? null, spriteDefinition.animation, spriteDefinition.scale,
+          )
+        : resolveObjectLight(appearance.light, resolved.state),
+      collision: appearance.collision === null ? null : Object.freeze({
+        blocksMovement: appearance.collision.blocksMovement,
+        occludesLight: appearance.lighting.occludesLight,
       }),
     });
     this.#presentations.set(key, presentation);

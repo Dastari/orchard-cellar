@@ -79,6 +79,17 @@ Crop growth uses raw authority plus a separate seasonal offset already. Fishing,
 effects, fruit ripening and combat expiry paths use raw authority already.
 VisualTickClock remains cosmetic and no longer supplies processor completion time.
 
+## Coordinated clock source refresh
+
+Source #84 integrates fixed runtime source #83 `53a2b19c`, retaining its reviewed
+cell-part parity test optimization. This prefix adds clock-domain correction only;
+processor/growth projection features remain in #85/#86. Ten focused tests across
+three files, workspace types/lint, world build, asset generation and guarded
+Studio production build pass. The combined runtime/timer candidate #93 passed
+6,425 coverage tests plus 101 exhaustive tests at `0e9d5515`; its subsequent
+`29b20dd2` test/docs-only refresh preserves production and passes both parity tests.
+Source hosted checks and coordinator merge approval remain separate. No deployment.
+
 ## Processor delivery (PR B)
 
 The shared `TimingProjection` exposes status/reason/stage/progress, remaining

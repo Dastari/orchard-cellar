@@ -1,3 +1,4 @@
+import { balanceFieldsTuple } from './balance-fields.js';
 import { describe, expect, it } from 'vitest';
 import { runtimeWorldPolicyBalance } from '../world-policy-balance.js';
 import type { WorldPolicyBalanceContentDefinition } from './balance-definition.js';
@@ -52,10 +53,10 @@ describe('world policy balance content', () => {
       code: 'ambiguous_interaction', path: 'profile',
     }));
     expect(() => parseContentDefinition('balance', {
-      ...original, values: original.values.slice(0, -1),
+      ...original, fields: undefined, values: balanceFieldsTuple(original.profile, original.fields).slice(0, -1),
     })).toThrow('world_policy profile requires 11 positive integers');
     expect(() => parseContentDefinition('balance', {
-      ...original, values: [101, ...original.values.slice(1)],
+      ...original, fields: undefined, values: [101, ...balanceFieldsTuple(original.profile, original.fields).slice(1)],
     })).toThrow('world policy value exceeds its supported bound');
   });
 });

@@ -32,6 +32,17 @@ were regenerated for the five authored frame changes. Fixture verification:
 The first full run also needed generated Studio public assets in the isolated
 worktree; `npm run ui:assets -w @orchard/tools -- studio` supplies them.
 
+## Coordinated processor source refresh
+
+Source #85 consumes refreshed clock prefix `1cffdcb8` and fixed runtime source
+#83 `53a2b19c`. It preserves runtime traversal, private lifecycle/checkpoint storage
+and chunk shadow behavior; growth timing from #86 is absent. Combined contracts
+are regenerated: 921 definitions / 27 kinds, `0e741b0f`, 620,844 runtime bytes
+within 607 KiB. Thirty-eight focused tests across nine files, complete workspace
+types/lint, world build, default client build and guarded Studio production build
+pass. The complete candidate's earlier full check is independent evidence; fresh
+source CI and coordinator merge remain separate gates. No deployment.
+
 ## C implementation
 
 `feat/shared-growth-timing` stacks on B. Crop/tree/fruit and authorized stateful
@@ -77,3 +88,20 @@ no merge or production deployment occurred in this lane.
 Final checkpoint follow-up verification: 29 focused tests passed; full workspace
 typecheck/lint and game/world builds passed again. CI remains the integration
 gate on the pushed PR heads. Leases are released at handoff.
+
+## Coordinated final timer source refresh
+
+Source #86 consumes processor prefix `a4af434f` and preserves runtime source83
+`53a2b19c`, including the reviewed test-only chunk parity optimization. Its final
+production, tests, versions and configuration exactly match combined candidate93
+`29b20dd2`; the comparison excludes only `docs/**` and `CHANGELOG.md`. The original
+combined production passed full local check (6,425 coverage tests + 101 exhaustive)
+and both hosted checks at `0e9d5515`; `29b20dd2` changes only the parity test and
+documentation, with both parity tests passing in 30.53 seconds.
+
+This source prefix passes 81 focused tests across 17 files, complete workspace
+types/lint, world build, guarded Studio production build and explicit shadow client
+build. The fractional-credit timing regression from the combined rehearsal is
+retained. No private anchor exposure, lifecycle arithmetic, runtime policy or
+checkpoint semantics changed. Rehearsal-only documents are excluded. Fresh source
+hosted checks and GoldCondor's merge decision remain separate; no deployment.

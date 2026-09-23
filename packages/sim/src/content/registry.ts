@@ -1,3 +1,6 @@
+import type { ProgressionContentDefinition } from './progression-definition.js';
+import type { WorldRulesContentDefinition } from './world-rules-definition.js';
+import { naturalObjectProjections } from './natural-object.js';
 import { contentDefinitionsHash, contentDefinitionRowIdentityHash } from './payload-hash.js';
 export { contentDefinitionsHash, contentDefinitionRowIdentityHash, contentDefinitionRowsHash } from './payload-hash.js';
 import { compiledProjection, type CompiledContentProjection } from './compiled-projection.js';
@@ -77,6 +80,7 @@ export interface ContentRegistry {
   readonly npcs: ReadonlyMap<string, NpcContentDefinition>;
   readonly dialogues: ReadonlyMap<string, DialogueContentDefinition>;
   readonly quests: ReadonlyMap<string, QuestContentDefinition>;
+  readonly progressions: ReadonlyMap<string, ProgressionContentDefinition>;
   readonly balances: ReadonlyMap<string, BalanceContentDefinition>;
   readonly crops: ReadonlyMap<string, CropContentDefinition>;
   readonly creatures: ReadonlyMap<string, CreatureContentDefinition>;
@@ -91,6 +95,7 @@ export interface ContentRegistry {
   readonly loadouts: ReadonlyMap<string, LoadoutContentDefinition>;
   readonly enemies: ReadonlyMap<string, EnemyContentDefinition>;
   readonly encounters: ReadonlyMap<string, EncounterContentDefinition>;
+  readonly worldRules: ReadonlyMap<string, WorldRulesContentDefinition>;
   readonly contentHash: string;
   /** Temporary Phase-0 parity view. Runtime consumers can migrate one table at
    * a time without maintaining a second authored source. */
@@ -172,6 +177,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
   const npcs = sorted.filter((definition): definition is NpcContentDefinition => definition.kind === 'npc');
   const dialogues = sorted.filter((definition): definition is DialogueContentDefinition => definition.kind === 'dialogue');
   const quests = sorted.filter((definition): definition is QuestContentDefinition => definition.kind === 'quest');
+  const progressions = sorted.filter((definition): definition is ProgressionContentDefinition => definition.kind === 'progression');
   const balances = sorted.filter((definition): definition is BalanceContentDefinition => definition.kind === 'balance');
   const crops = sorted.filter((definition): definition is CropContentDefinition => definition.kind === 'crop');
   const creatures = sorted.filter((definition): definition is CreatureContentDefinition => definition.kind === 'creature');
@@ -186,6 +192,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
   const loadouts = sorted.filter((definition): definition is LoadoutContentDefinition => definition.kind === 'loadout');
   const enemies = sorted.filter((definition): definition is EnemyContentDefinition => definition.kind === 'enemy');
   const encounters = sorted.filter((definition): definition is EncounterContentDefinition => definition.kind === 'encounter');
+  const worldRules = sorted.filter((definition): definition is WorldRulesContentDefinition => definition.kind === 'world_rules');
   const registry: ContentRegistry = Object.freeze({
     definitions: new ImmutableMap(sorted.map((definition) => [definition.id, definition] as const)),
     items: new ImmutableMap(items.map((definition) => [definition.id, definition] as const)),
@@ -193,12 +200,13 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
     processes: new ImmutableMap(processes.map((definition) => [definition.id, definition] as const)),
     shops: new ImmutableMap(shops.map((definition) => [definition.id, definition] as const)),
     tilesets: new ImmutableMap(tilesets.map((definition) => [definition.id, definition] as const)),
-    objects: new ImmutableMap(objects.map((definition) => [definition.id, definition] as const)),
+    objects: new ImmutableMap(naturalObjectProjections(resources, crops, objects).map((definition) => [definition.id, deepFreeze(definition)] as const)),
     frames: new ImmutableMap(frames.map((definition) => [definition.id, definition] as const)),
     loots: new ImmutableMap(loots.map((definition) => [definition.id, definition] as const)),
     npcs: new ImmutableMap(npcs.map((definition) => [definition.id, definition] as const)),
     dialogues: new ImmutableMap(dialogues.map((definition) => [definition.id, definition] as const)),
     quests: new ImmutableMap(quests.map((definition) => [definition.id, definition] as const)),
+    progressions: new ImmutableMap(progressions.map((definition) => [definition.id, definition] as const)),
     balances: new ImmutableMap(balances.map((definition) => [definition.id, definition] as const)),
     crops: new ImmutableMap(crops.map((definition) => [definition.id, definition] as const)),
     creatures: new ImmutableMap(creatures.map((definition) => [definition.id, definition] as const)),
@@ -213,6 +221,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
     loadouts: new ImmutableMap(loadouts.map((definition) => [definition.id, definition] as const)),
     enemies: new ImmutableMap(enemies.map((definition) => [definition.id, definition] as const)),
     encounters: new ImmutableMap(encounters.map((definition) => [definition.id, definition] as const)),
+    worldRules: new ImmutableMap(worldRules.map(definition => [definition.id, definition] as const)),
     contentHash: contentDefinitionsHash(sorted),
     compiled: compiledProjection(items, recipes, processes, shops, crops, creatures, spawns, spaces,
       skillTrees, effects, statistics, upgrades),

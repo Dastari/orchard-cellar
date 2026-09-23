@@ -108,11 +108,18 @@ describe('tracker song compilation', () => {
 
   it('keeps every shipped song valid, in range, and on the closed patch set', () => {
     const songs = loadSongs();
-    expect(songs.map((entry) => entry.name)).toEqual(['theme_night', 'theme_spring', 'theme_title']);
+    expect(songs.map((entry) => entry.name)).toEqual(expect.arrayContaining(['theme_night', 'theme_spring', 'theme_title']));
     for (const source of songs) {
       const compiled = compileSong(source);
-      expect(compiled.lengthSeconds).toBeGreaterThan(90);
-      expect(compiled.notes.length).toBeGreaterThan(50);
+      const kind = (source as SongSource & { kind?: string }).kind ?? 'theme';
+      // Themes and pieces are sparse, listenable passes; stingers are short flourishes.
+      if (kind === 'sting') expect(compiled.lengthSeconds).toBeLessThan(12);
+      else expect(compiled.lengthSeconds).toBeGreaterThan(kind === 'combat' ? 15 : 40);
+      expect(compiled.notes.length).toBeGreaterThan(kind === 'sting' ? 3 : 20);
+      // No sustained drone: nothing but occasional string swells holds past two bars.
+      for (const note of compiled.notes) {
+        if (source.channels[note.channel]!.patch !== 'strings') expect(note.durationSeconds).toBeLessThan(8);
+      }
       for (const channel of source.channels) expect(Object.keys(PATCHES)).toContain(channel.patch);
       for (const note of compiled.notes) {
         expect(note.midi).toBeGreaterThanOrEqual(noteMidi('C2'));

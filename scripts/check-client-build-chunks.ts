@@ -85,3 +85,9 @@ if (!staticImports(readFileSync(resolve(assetsDirectory, backendEntry), 'utf8'))
 }
 
 console.log(`Client chunk boundaries verified: ${stableChunks.join(', ')}; diagnostics and experimental WebGL remain lazy.`);
+
+// Explicit future retirement gate; shadow builds intentionally retain the generator.
+if (process.env['ORCHARD_REQUIRE_GENERATOR_FREE'] === '1') {
+  const audit = JSON.parse(readFileSync(resolve('packages/client/dist/chunk-runtime-audit.json'), 'utf8')) as {legacyModules?:unknown};
+  if (!Array.isArray(audit.legacyModules) || audit.legacyModules.length !== 0) throw new Error('Chunk generator retirement gate failed; legacy runtime modules remain');
+}

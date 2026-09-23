@@ -43,7 +43,7 @@ describe('authoritative character progression', () => {
   it('resets only caller-owned ranks and charges the server-derived ladder cost', () => {
     const reducer = sourceBetween('export const resetSkillTree =', 'export const heartbeat =');
     expect(reducer).toContain('isSkillTrack(track)');
-    expect(reducer).toContain('skillRespecCostBronze(progress.respecCount)');
+    expect(reducer).toContain('skillRespecCostBronze(progress.respecCount, runtimeProgression(contentRegistry(ctx)))');
     expect(reducer).toContain('wallet.balanceBronze < cost');
     expect(reducer).toContain('player_skill_node.by_identity.filter(ctx.sender)');
     expect(reducer).toContain('row.track === track');
