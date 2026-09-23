@@ -458,3 +458,12 @@ Items, Narrative and World Tables share the form adapter. Reference navigation
 selects a concrete target; kinds without a specialized selector use the generic
 World Tables form. The reverse-reference index follows declared reference fields
 rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).
+
+### Gameplay timing clock domains
+
+The client `content/timing-clock.ts` separates simulation authority from calendar
+time. Processor and private-job progress consume `world_clock.authorityTick`;
+calendar offsets only feed seasonal policy and calendar/weather/lighting displays.
+Cosmetic clocks cannot confirm production completion. See
+[shared timing specification](timing-system-spec.md) for the staged frame/hover
+projection work and [decision](adr/ADR-shared-timing.md).
