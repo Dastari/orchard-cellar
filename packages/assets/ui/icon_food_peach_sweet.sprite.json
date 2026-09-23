@@ -1,0 +1,66 @@
+{
+  "name": "icon_food_peach_sweet",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........00....",
+        ".........0110...",
+        "......00001200..",
+        ".....0222304210.",
+        "....02222230430.",
+        "...05552223300..",
+        "...0255562340...",
+        "...0222666640...",
+        "..00322226110...",
+        ".01103333340....",
+        ".0124034440.....",
+        "..00240000......",
+        "...0130.........",
+        "....00..........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffc825",
+    "2": "#ffa214",
+    "3": "#ed7614",
+    "4": "#c64524",
+    "5": "#fff7b8",
+    "6": "#ffeb57"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    144,
+    64,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

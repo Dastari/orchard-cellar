@@ -1,0 +1,64 @@
+{
+  "name": "icon_food_cooked_fish_roll",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....0000........",
+        "...011220.......",
+        "..01200320......",
+        "..020..030......",
+        ".0230...0000....",
+        ".020...011220...",
+        ".030..01200320..",
+        ".03400020..030..",
+        "..0344020..0430.",
+        "...000030...030.",
+        "......0430..040.",
+        ".......04300340.",
+        "........044440..",
+        ".........0000...",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ebcd7a",
+    "2": "#edab50",
+    "3": "#e07438",
+    "4": "#c64524"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    144,
+    208,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

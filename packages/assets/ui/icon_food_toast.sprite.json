@@ -1,0 +1,65 @@
+{
+  "name": "icon_food_toast",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "...00000..000...",
+        "..011222002230..",
+        ".01334413344130.",
+        ".01141111411110.",
+        ".01211221113110.",
+        ".02211231111110.",
+        ".02211111112210.",
+        ".03213111213210.",
+        ".03311111111110.",
+        ".03511123112110.",
+        ".05511122111110.",
+        ".05521111111130.",
+        "..055222222230..",
+        "...0000000000...",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f6ca9f",
+    "2": "#e69c69",
+    "3": "#bf6f4a",
+    "4": "#f9e6cf",
+    "5": "#8a4836"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    32,
+    16,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

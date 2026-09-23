@@ -1,0 +1,75 @@
+{
+  "name": "icon_food_peach_jam",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....000000.....",
+        "....01111220....",
+        "...0111112220...",
+        "...0311122210...",
+        "...0233331140...",
+        "..033245544110..",
+        "..012032410420..",
+        "...0012004100...",
+        "...0600780090...",
+        "...0a78bb7bc0...",
+        "...0aa7db7760...",
+        "...0ea877d7c0...",
+        "....0eeff6c0....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e6cf",
+    "2": "#f6ca9f",
+    "3": "#ffffff",
+    "4": "#e69c69",
+    "5": "#bf6f4a",
+    "6": "#66b0b3",
+    "7": "#00396d",
+    "8": "#0069aa",
+    "9": "#38616d",
+    "a": "#e4f1f2",
+    "b": "#0098dc",
+    "c": "#528e9c",
+    "d": "#00cdf9",
+    "e": "#aad3d5",
+    "f": "#84c0c2"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    144,
+    48,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

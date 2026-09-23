@@ -1,5 +1,10 @@
 # Changelog
 
+## Food/alchemy P0 — assets 0.19.1, tools 0.21.2 (unreleased)
+
+- Add 203 reviewed exact native icons from owner-approved doc 63; retain 12 additional mapping defects in the manifest only, held for correction before import or gameplay use.
+- Add reproducible imports, pixel parity tests and a 35-item missing-art manifest; no gameplay definitions or deployment.
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue

@@ -1,0 +1,66 @@
+{
+  "name": "icon_food_grape_sweet",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........00....",
+        ".........0110...",
+        "......00001200..",
+        ".....0222304210.",
+        "....02222230430.",
+        "...05552223300..",
+        "...0255562340...",
+        "...0222666640...",
+        "..00322226110...",
+        ".01103333340....",
+        ".0124034440.....",
+        "..00240000......",
+        "...0130.........",
+        "....00..........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#d957e0",
+    "2": "#a028bd",
+    "3": "#591d87",
+    "4": "#2b1669",
+    "5": "#f4c3ec",
+    "6": "#eb93dd"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    16,
+    80,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

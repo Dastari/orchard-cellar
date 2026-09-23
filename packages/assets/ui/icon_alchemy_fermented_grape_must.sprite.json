@@ -1,0 +1,71 @@
+{
+  "name": "icon_alchemy_fermented_grape_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".............00.",
+        "............0120",
+        "...........03230",
+        "..........03450.",
+        ".......0006750..",
+        ".....008967a0...",
+        "....079977a0....",
+        "...039687aa0....",
+        "..031687bba0....",
+        ".071117aab0.....",
+        "0789123aba0.....",
+        "0888732430......",
+        "0887ba430.......",
+        ".08abba0........",
+        "..0aaa0.........",
+        "...000.........."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffeb57",
+    "2": "#ffc825",
+    "3": "#ffa214",
+    "4": "#ed7614",
+    "5": "#ff5000",
+    "6": "#fdd2ed",
+    "7": "#7a09fa",
+    "8": "#db3ffd",
+    "9": "#f389f5",
+    "a": "#3003d9",
+    "b": "#0c0293"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    32,
+    208,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.fruit",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

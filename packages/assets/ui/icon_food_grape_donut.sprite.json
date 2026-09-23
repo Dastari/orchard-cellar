@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_grape_donut",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0012232200...",
+        "..011112222220..",
+        ".01121445523220.",
+        ".01114666652210.",
+        ".01226666661110.",
+        ".02232666612110.",
+        ".01222222111140.",
+        ".07112231114480.",
+        "..079115544a80..",
+        "...0099aaaa00...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e7c6e4",
+    "2": "#fbeaf9",
+    "3": "#ffffff",
+    "4": "#af8eac",
+    "5": "#cfabcc",
+    "6": "#796778",
+    "7": "#bf6f4a",
+    "8": "#391f21",
+    "9": "#8a4836",
+    "a": "#5d2c28"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    128,
+    16,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_peach_donut",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0012232200...",
+        "..011112222220..",
+        ".01121445523220.",
+        ".01114666652210.",
+        ".01226666661110.",
+        ".02232666612110.",
+        ".01222222111140.",
+        ".07112231114480.",
+        "..079115544a80..",
+        "...0099aaaa00...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffc825",
+    "2": "#ffeb57",
+    "3": "#fffdf0",
+    "4": "#ed7614",
+    "5": "#ffa214",
+    "6": "#c64524",
+    "7": "#f6ca9f",
+    "8": "#8a4836",
+    "9": "#e69c69",
+    "a": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    144,
+    16,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

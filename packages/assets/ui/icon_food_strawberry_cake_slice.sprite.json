@@ -1,0 +1,72 @@
+{
+  "name": "icon_food_strawberry_cake_slice",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........00......",
+        ".......01100....",
+        "......01221300..",
+        ".....0133322130.",
+        "....01311333220.",
+        "...013331133340.",
+        "..0131133334550.",
+        ".03333224446660.",
+        ".02222788668660.",
+        ".09777778886660.",
+        ".0977788866abb0.",
+        ".07888aaabb000..",
+        ".0ccca00000.....",
+        "..0000..........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f5c2c5",
+    "2": "#c62a37",
+    "3": "#ef5252",
+    "4": "#971741",
+    "5": "#731144",
+    "6": "#e69c69",
+    "7": "#f9e6cf",
+    "8": "#f6ca9f",
+    "9": "#ffffff",
+    "a": "#8a4836",
+    "b": "#5d2c28",
+    "c": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    112,
+    144,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

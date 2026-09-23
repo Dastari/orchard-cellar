@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_honey_cupcake",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        "....00122300....",
+        "...0123321340...",
+        "..012234111340..",
+        ".01132211443340.",
+        ".03111111453340.",
+        ".04311413333450.",
+        "..043333354450..",
+        "..064433445570..",
+        "..086845559960..",
+        "...0aa9667660...",
+        "...0aa6a89860...",
+        "....0a6a8980....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#edab50",
+    "2": "#ebcd7a",
+    "3": "#e07438",
+    "4": "#c64524",
+    "5": "#8e251d",
+    "6": "#e69c69",
+    "7": "#8a4836",
+    "8": "#f6ca9f",
+    "9": "#bf6f4a",
+    "a": "#f9e6cf"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    64,
+    160,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

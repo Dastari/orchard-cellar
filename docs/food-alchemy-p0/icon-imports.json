@@ -1,0 +1,3702 @@
+{
+  "planCommit": "515f114e",
+  "planPR": 82,
+  "ownerApproval": "2026-09-23",
+  "imports": [
+    {
+      "item": "item:milk",
+      "asset": "icon_food_milk",
+      "group": "dairy",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "crop": [
+        96,
+        256,
+        16,
+        16
+      ],
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "vendorNumber": 167,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Orange liquid flask does not read as milk"
+    },
+    {
+      "item": "item:egg",
+      "asset": "icon_animal_egg",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "crop": [
+        112,
+        256,
+        16,
+        16
+      ],
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "vendorNumber": 168,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Corked liquid flask does not read as an egg"
+    },
+    {
+      "item": "item:honey",
+      "asset": "icon_animal_honey",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        48,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 40,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:sugar",
+      "asset": "icon_food_sugar",
+      "group": "grain",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        0,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 881,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Grey mineral powder does not read as sugar"
+    },
+    {
+      "item": "item:cocoa",
+      "asset": "icon_food_cocoa",
+      "group": "grain",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "vendorNumber": 83,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:rice",
+      "asset": "icon_food_rice",
+      "group": "grain",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        224,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 142,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:seaweed",
+      "asset": "icon_food_seaweed",
+      "group": "fish",
+      "status": "proposed",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "crop": [
+        160,
+        0,
+        16,
+        16
+      ],
+      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:brown_mushroom",
+      "asset": "icon_alchemy_brown_mushroom",
+      "group": "mushroom",
+      "status": "proposed",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "crop": [
+        112,
+        64,
+        16,
+        16
+      ],
+      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:shroom_spore",
+      "asset": "icon_alchemy_shroom_spore",
+      "group": "mushroom",
+      "status": "proposed",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "crop": [
+        112,
+        176,
+        16,
+        16
+      ],
+      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:moonleaf",
+      "asset": "icon_alchemy_moonleaf",
+      "group": "herb",
+      "status": "proposed",
+      "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+      "crop": [
+        16,
+        256,
+        16,
+        16
+      ],
+      "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2",
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:feather",
+      "asset": "icon_animal_feather",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "crop": [
+        0,
+        32,
+        16,
+        16
+      ],
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "vendorNumber": 21,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:animal_fat",
+      "asset": "icon_animal_animal_fat",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "crop": [
+        80,
+        256,
+        16,
+        16
+      ],
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "vendorNumber": 166,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:bone",
+      "asset": "icon_animal_bone",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "crop": [
+        80,
+        144,
+        16,
+        16
+      ],
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "vendorNumber": 96,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:chitin",
+      "asset": "icon_animal_chitin",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "crop": [
+        80,
+        240,
+        16,
+        16
+      ],
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "vendorNumber": 156,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:pond_slime",
+      "asset": "icon_animal_pond_slime",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "crop": [
+        16,
+        208,
+        16,
+        16
+      ],
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "vendorNumber": 132,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:shell",
+      "asset": "icon_animal_shell",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "crop": [
+        96,
+        240,
+        16,
+        16
+      ],
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "vendorNumber": 157,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:empty_vial",
+      "asset": "icon_alchemy_empty_vial",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        32,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 27,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:salt",
+      "asset": "icon_alchemy_salt",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        0,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 881,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Grey mineral powder needs salt-specific silhouette"
+    },
+    {
+      "item": "item:raw_game",
+      "asset": "icon_animal_raw_game",
+      "group": "animal",
+      "status": "proposed hunting expansion",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "crop": [
+        112,
+        224,
+        16,
+        16
+      ],
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "vendorNumber": 148,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Narrative \u00a78 explicitly requires new raw/cooked game art despite catalogue selection"
+    },
+    {
+      "item": "item:flour",
+      "asset": "icon_food_flour",
+      "group": "grain",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        16,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 882,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:dough",
+      "asset": "icon_food_dough",
+      "group": "grain",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 13,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cream",
+      "asset": "icon_food_cream",
+      "group": "dairy",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        176,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 116,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:butter",
+      "asset": "icon_food_butter",
+      "group": "dairy",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "crop": [
+        64,
+        256,
+        16,
+        16
+      ],
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "vendorNumber": 165,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Dark segmented lump reads as charcoal"
+    },
+    {
+      "item": "item:curd",
+      "asset": "icon_food_curd",
+      "group": "dairy",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        0,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 881,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Grey powder/lump does not read as curd"
+    },
+    {
+      "item": "item:cheese",
+      "asset": "icon_food_cheese",
+      "group": "dairy",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        80,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 57,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:bowl",
+      "asset": "icon_food_bowl",
+      "group": "grain",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "crop": [
+        32,
+        720,
+        16,
+        16
+      ],
+      "sha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "vendorNumber": 453,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fish_oil",
+      "asset": "icon_food_fish_oil",
+      "group": "fish",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 80,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:herbal_extract",
+      "asset": "icon_alchemy_herbal_extract",
+      "group": "herb",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 106,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:bandage_compound",
+      "asset": "icon_alchemy_bandage_compound",
+      "group": "herb",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        0,
+        1392,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 871,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Stone/ingot silhouette does not read as bandage compound"
+    },
+    {
+      "item": "item:salve",
+      "asset": "icon_alchemy_salve",
+      "group": "herb",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 91,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Red jelly dessert does not read as medicine"
+    },
+    {
+      "item": "item:bandage",
+      "asset": "icon_alchemy_bandage",
+      "group": "herb",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        0,
+        1376,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 861,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:animal_feed",
+      "asset": "icon_animal_animal_feed",
+      "group": "animal",
+      "status": "conditional A6 feed interaction",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        32,
+        1424,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 893,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Goblet silhouette does not read as feed"
+    },
+    {
+      "item": "item:ruby_dust",
+      "asset": "icon_alchemy_ruby_dust",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        112,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 888,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:sapphire_dust",
+      "asset": "icon_alchemy_sapphire_dust",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        64,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 885,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:emerald_dust",
+      "asset": "icon_alchemy_emerald_dust",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        48,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 884,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:amethyst_dust",
+      "asset": "icon_alchemy_amethyst_dust",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        96,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 887,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:topaz_dust",
+      "asset": "icon_alchemy_topaz_dust",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        32,
+        1408,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 883,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:refined_catalyst",
+      "asset": "icon_alchemy_refined_catalyst",
+      "group": "mineral",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        752,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 613,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:herbal_concentrate",
+      "asset": "icon_alchemy_herbal_concentrate",
+      "group": "herb",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        64,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 109,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:washed_feather",
+      "asset": "icon_animal_washed_feather",
+      "group": "animal",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "crop": [
+        64,
+        32,
+        16,
+        16
+      ],
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "vendorNumber": 25,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:buoyant_extract",
+      "asset": "icon_animal_buoyant_extract",
+      "group": "animal",
+      "status": "conditional A3 flight",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        176,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 142,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:flight_reagent",
+      "asset": "icon_animal_flight_reagent",
+      "group": "animal",
+      "status": "conditional A3 flight",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        192,
+        480,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 403,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_apple_must",
+      "asset": "icon_alchemy_fermented_apple_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 125,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_apple_essence",
+      "asset": "icon_alchemy_distilled_apple_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_apple_base",
+      "asset": "icon_alchemy_stabilized_apple_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_cherry_must",
+      "asset": "icon_alchemy_fermented_cherry_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 127,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_cherry_essence",
+      "asset": "icon_alchemy_distilled_cherry_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 55,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_cherry_base",
+      "asset": "icon_alchemy_stabilized_cherry_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 55,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_pear_must",
+      "asset": "icon_alchemy_fermented_pear_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 129,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_pear_essence",
+      "asset": "icon_alchemy_distilled_pear_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 133,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_pear_base",
+      "asset": "icon_alchemy_stabilized_pear_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 133,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_peach_must",
+      "asset": "icon_alchemy_fermented_peach_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        208,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 136,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_peach_essence",
+      "asset": "icon_alchemy_distilled_peach_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        64,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 83,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_peach_base",
+      "asset": "icon_alchemy_stabilized_peach_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        64,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 83,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_grape_must",
+      "asset": "icon_alchemy_fermented_grape_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        208,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 133,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_grape_essence",
+      "asset": "icon_alchemy_distilled_grape_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 185,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_grape_base",
+      "asset": "icon_alchemy_stabilized_grape_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 185,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_strawberry_must",
+      "asset": "icon_alchemy_fermented_strawberry_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        208,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 131,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_strawberry_essence",
+      "asset": "icon_alchemy_distilled_strawberry_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 54,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_strawberry_base",
+      "asset": "icon_alchemy_stabilized_strawberry_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 54,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fermented_watermelon_must",
+      "asset": "icon_alchemy_fermented_watermelon_must",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        208,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 138,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:distilled_watermelon_essence",
+      "asset": "icon_alchemy_distilled_watermelon_essence",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:stabilized_watermelon_base",
+      "asset": "icon_alchemy_stabilized_watermelon_base",
+      "group": "fruit",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:bread",
+      "asset": "icon_food_bread",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 14,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:toast",
+      "asset": "icon_food_toast",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 13,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:bread_roll",
+      "asset": "icon_food_bread_roll",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 15,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:porridge",
+      "asset": "icon_food_porridge",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 7,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:vegetable_soup",
+      "asset": "icon_food_vegetable_soup",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 6,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:mushroom_stew",
+      "asset": "icon_food_mushroom_stew",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 10,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:beetroot_soup",
+      "asset": "icon_food_beetroot_soup",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 9,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fish_chowder",
+      "asset": "icon_food_fish_chowder",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 8,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:hearty_stew",
+      "asset": "icon_food_hearty_stew",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 11,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:honey_bread",
+      "asset": "icon_food_honey_bread",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 1,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cheese_bread",
+      "asset": "icon_food_cheese_bread",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 2,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cocoa_bread",
+      "asset": "icon_food_cocoa_bread",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        0,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 4,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cookie",
+      "asset": "icon_food_cookie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 24,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:pancake",
+      "asset": "icon_food_pancake",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 25,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fried_egg",
+      "asset": "icon_food_fried_egg",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        48,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 31,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:omelette",
+      "asset": "icon_food_omelette",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        48,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 32,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cake",
+      "asset": "icon_food_cake",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        128,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cheesecake",
+      "asset": "icon_food_cheesecake",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        80,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 57,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fruit_tart",
+      "asset": "icon_food_fruit_tart",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        80,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 56,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:pumpkin_pie",
+      "asset": "icon_food_pumpkin_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        224,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 147,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Red berry tart conflicts with pumpkin identity"
+    },
+    {
+      "item": "item:apple_pie",
+      "asset": "icon_food_apple_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        224,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 148,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:berry_pie",
+      "asset": "icon_food_berry_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        240,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 153,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:custard_pie",
+      "asset": "icon_food_custard_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        240,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 154,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:vegetable_pie",
+      "asset": "icon_food_vegetable_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        240,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 157,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:meat_pie",
+      "asset": "icon_food_meat_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        240,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 158,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fish_pie",
+      "asset": "icon_food_fish_pie",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        256,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 161,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:pumpkin_tart",
+      "asset": "icon_food_pumpkin_tart",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        256,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 164,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cheese_flatbread",
+      "asset": "icon_food_cheese_flatbread",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        80,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 58,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cheese_slice",
+      "asset": "icon_food_cheese_slice",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        96,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 61,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fruit_sandwich",
+      "asset": "icon_food_fruit_sandwich",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        160,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:honey_stack",
+      "asset": "icon_food_honey_stack",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        160,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 106,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cocoa_bar",
+      "asset": "icon_food_cocoa_bar",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        256,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 168,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fish_rice_plate",
+      "asset": "icon_food_fish_rice_plate",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        224,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 146,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cooked_fish_roll",
+      "asset": "icon_food_cooked_fish_roll",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        208,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 140,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:vegetable_roll",
+      "asset": "icon_food_vegetable_roll",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        256,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 169,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:egg_rice_bite",
+      "asset": "icon_food_egg_rice_bite",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        288,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 184,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:fish_rice_bite",
+      "asset": "icon_food_fish_rice_bite",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        288,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 185,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:roast_wrap",
+      "asset": "icon_food_roast_wrap",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        208,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 139,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:roast_potato",
+      "asset": "icon_food_roast_potato",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        224,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 141,
+      "reviewStatus": "needs_art_correction",
+      "reviewNote": "Packaged fries conflict with roast potato and calm-farm brief"
+    },
+    {
+      "item": "item:garden_salad",
+      "asset": "icon_food_garden_salad",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 143,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cocoa_cupcake",
+      "asset": "icon_food_cocoa_cupcake",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        160,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 104,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:honey_cupcake",
+      "asset": "icon_food_honey_cupcake",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        160,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 105,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:rice_cake",
+      "asset": "icon_food_rice_cake",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        304,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 194,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_donut",
+      "asset": "icon_food_strawberry_donut",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 18,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_frozen_cream",
+      "asset": "icon_food_strawberry_frozen_cream",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 26,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_jam",
+      "asset": "icon_food_strawberry_jam",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        48,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 38,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_lollipop",
+      "asset": "icon_food_strawberry_lollipop",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 44,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_sweet",
+      "asset": "icon_food_strawberry_sweet",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 49,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_macaron",
+      "asset": "icon_food_strawberry_macaron",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        128,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 84,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_jelly",
+      "asset": "icon_food_strawberry_jelly",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 91,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_cake_slice",
+      "asset": "icon_food_strawberry_cake_slice",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        112,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 98,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:strawberry_cream_drink",
+      "asset": "icon_food_strawberry_cream_drink",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 123,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_donut",
+      "asset": "icon_food_grape_donut",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 19,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_frozen_cream",
+      "asset": "icon_food_grape_frozen_cream",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 29,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_jam",
+      "asset": "icon_food_grape_jam",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 41,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_lollipop",
+      "asset": "icon_food_grape_lollipop",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 47,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_sweet",
+      "asset": "icon_food_grape_sweet",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        80,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 52,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_macaron",
+      "asset": "icon_food_grape_macaron",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        128,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 86,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_jelly",
+      "asset": "icon_food_grape_jelly",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 93,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_cake_slice",
+      "asset": "icon_food_grape_cake_slice",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        160,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 101,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:grape_cream_drink",
+      "asset": "icon_food_grape_cream_drink",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 122,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_donut",
+      "asset": "icon_food_peach_donut",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        16,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 20,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_frozen_cream",
+      "asset": "icon_food_peach_frozen_cream",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 27,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_jam",
+      "asset": "icon_food_peach_jam",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        48,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 40,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_lollipop",
+      "asset": "icon_food_peach_lollipop",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 46,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_sweet",
+      "asset": "icon_food_peach_sweet",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 50,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_macaron",
+      "asset": "icon_food_peach_macaron",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        128,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 87,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_jelly",
+      "asset": "icon_food_peach_jelly",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 94,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_cake_slice",
+      "asset": "icon_food_peach_cake_slice",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 99,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:peach_cream_drink",
+      "asset": "icon_food_peach_cream_drink",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        176,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 120,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_donut",
+      "asset": "icon_food_apple_donut",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 23,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_frozen_cream",
+      "asset": "icon_food_apple_frozen_cream",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 30,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_jam",
+      "asset": "icon_food_apple_jam",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 42,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_lollipop",
+      "asset": "icon_food_apple_lollipop",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 45,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_sweet",
+      "asset": "icon_food_apple_sweet",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        80,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 53,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_macaron",
+      "asset": "icon_food_apple_macaron",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        64,
+        128,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 85,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_jelly",
+      "asset": "icon_food_apple_jelly",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        16,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 92,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_cake_slice",
+      "asset": "icon_food_apple_cake_slice",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        96,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 97,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:apple_cream_drink",
+      "asset": "icon_food_apple_cream_drink",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 124,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_donut",
+      "asset": "icon_food_cherry_donut",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 21,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_frozen_cream",
+      "asset": "icon_food_cherry_frozen_cream",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        80,
+        32,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 26,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_jam",
+      "asset": "icon_food_cherry_jam",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        32,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 43,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_lollipop",
+      "asset": "icon_food_cherry_lollipop",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 44,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_sweet",
+      "asset": "icon_food_cherry_sweet",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        128,
+        64,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 49,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_macaron",
+      "asset": "icon_food_cherry_macaron",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        48,
+        128,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 84,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_jelly",
+      "asset": "icon_food_cherry_jelly",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 91,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_cake_slice",
+      "asset": "icon_food_cherry_cake_slice",
+      "group": "food",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        144,
+        144,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 100,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:cherry_cream_drink",
+      "asset": "icon_food_cherry_cream_drink",
+      "group": "food",
+      "status": "conditional A5 expanded confectionery",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "crop": [
+        0,
+        192,
+        16,
+        16
+      ],
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "vendorNumber": 121,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_healing_minor",
+      "asset": "icon_alchemy_potion_healing_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 53,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_healing_standard",
+      "asset": "icon_alchemy_potion_healing_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 54,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_healing_greater",
+      "asset": "icon_alchemy_potion_healing_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 55,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_vigour_minor",
+      "asset": "icon_alchemy_potion_vigour_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 79,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_vigour_standard",
+      "asset": "icon_alchemy_potion_vigour_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 80,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_vigour_greater",
+      "asset": "icon_alchemy_potion_vigour_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mana_minor",
+      "asset": "icon_alchemy_potion_mana_minor",
+      "group": "potion",
+      "status": "conditional A1 (mana use case)",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 131,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mana_standard",
+      "asset": "icon_alchemy_potion_mana_standard",
+      "group": "potion",
+      "status": "conditional A1 (mana use case)",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 132,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mana_greater",
+      "asset": "icon_alchemy_potion_mana_greater",
+      "group": "potion",
+      "status": "conditional A1 (mana use case)",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 133,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_hunger_minor",
+      "asset": "icon_alchemy_potion_hunger_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 105,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_hunger_standard",
+      "asset": "icon_alchemy_potion_hunger_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 106,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_hunger_greater",
+      "asset": "icon_alchemy_potion_hunger_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_regeneration_minor",
+      "asset": "icon_alchemy_potion_regeneration_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        192,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 157,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_regeneration_standard",
+      "asset": "icon_alchemy_potion_regeneration_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        192,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 158,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_regeneration_greater",
+      "asset": "icon_alchemy_potion_regeneration_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        192,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 159,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mana_flow_minor",
+      "asset": "icon_alchemy_potion_mana_flow_minor",
+      "group": "potion",
+      "status": "conditional A1 (mana use case)",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 183,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mana_flow_standard",
+      "asset": "icon_alchemy_potion_mana_flow_standard",
+      "group": "potion",
+      "status": "conditional A1 (mana use case)",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 184,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mana_flow_greater",
+      "asset": "icon_alchemy_potion_mana_flow_greater",
+      "group": "potion",
+      "status": "conditional A1 (mana use case)",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 185,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_vigour_flow_minor",
+      "asset": "icon_alchemy_potion_vigour_flow_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 79,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_vigour_flow_standard",
+      "asset": "icon_alchemy_potion_vigour_flow_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 80,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_vigour_flow_greater",
+      "asset": "icon_alchemy_potion_vigour_flow_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_combat_minor",
+      "asset": "icon_alchemy_potion_combat_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 53,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_combat_standard",
+      "asset": "icon_alchemy_potion_combat_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 54,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_combat_greater",
+      "asset": "icon_alchemy_potion_combat_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 55,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_defence_minor",
+      "asset": "icon_alchemy_potion_defence_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        288,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 235,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_defence_standard",
+      "asset": "icon_alchemy_potion_defence_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        288,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 236,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_defence_greater",
+      "asset": "icon_alchemy_potion_defence_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        288,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 237,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_farming_minor",
+      "asset": "icon_alchemy_potion_farming_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 105,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_farming_standard",
+      "asset": "icon_alchemy_potion_farming_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 106,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_farming_greater",
+      "asset": "icon_alchemy_potion_farming_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mining_minor",
+      "asset": "icon_alchemy_potion_mining_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        256,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 209,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mining_standard",
+      "asset": "icon_alchemy_potion_mining_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        256,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 210,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_mining_greater",
+      "asset": "icon_alchemy_potion_mining_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        256,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 211,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_fishing_minor",
+      "asset": "icon_alchemy_potion_fishing_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 131,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_fishing_standard",
+      "asset": "icon_alchemy_potion_fishing_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 132,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_fishing_greater",
+      "asset": "icon_alchemy_potion_fishing_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 133,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_woodcutting_minor",
+      "asset": "icon_alchemy_potion_woodcutting_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 105,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_woodcutting_standard",
+      "asset": "icon_alchemy_potion_woodcutting_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 106,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_woodcutting_greater",
+      "asset": "icon_alchemy_potion_woodcutting_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_crafting_minor",
+      "asset": "icon_alchemy_potion_crafting_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 183,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_crafting_standard",
+      "asset": "icon_alchemy_potion_crafting_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 184,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_crafting_greater",
+      "asset": "icon_alchemy_potion_crafting_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 185,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_speed_minor",
+      "asset": "icon_alchemy_potion_speed_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 79,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_speed_standard",
+      "asset": "icon_alchemy_potion_speed_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 80,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_speed_greater",
+      "asset": "icon_alchemy_potion_speed_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_water_walk_minor",
+      "asset": "icon_alchemy_potion_water_walk_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 131,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_water_walk_standard",
+      "asset": "icon_alchemy_potion_water_walk_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 132,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_water_walk_greater",
+      "asset": "icon_alchemy_potion_water_walk_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        160,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 133,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_lava_immune_minor",
+      "asset": "icon_alchemy_potion_lava_immune_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 53,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_lava_immune_standard",
+      "asset": "icon_alchemy_potion_lava_immune_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 54,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_lava_immune_greater",
+      "asset": "icon_alchemy_potion_lava_immune_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        64,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 55,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_toxin_immune_minor",
+      "asset": "icon_alchemy_potion_toxin_immune_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 105,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_toxin_immune_standard",
+      "asset": "icon_alchemy_potion_toxin_immune_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 106,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_toxin_immune_greater",
+      "asset": "icon_alchemy_potion_toxin_immune_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 107,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_night_vision_minor",
+      "asset": "icon_alchemy_potion_night_vision_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 183,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_night_vision_standard",
+      "asset": "icon_alchemy_potion_night_vision_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 184,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_night_vision_greater",
+      "asset": "icon_alchemy_potion_night_vision_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 185,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_luck_minor",
+      "asset": "icon_alchemy_potion_luck_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 79,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_luck_standard",
+      "asset": "icon_alchemy_potion_luck_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 80,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_luck_greater",
+      "asset": "icon_alchemy_potion_luck_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        96,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 81,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_fortitude_minor",
+      "asset": "icon_alchemy_potion_fortitude_minor",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        0,
+        288,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 235,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_fortitude_standard",
+      "asset": "icon_alchemy_potion_fortitude_standard",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        16,
+        288,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 236,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_fortitude_greater",
+      "asset": "icon_alchemy_potion_fortitude_greater",
+      "group": "potion",
+      "status": "proposed",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        32,
+        288,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 237,
+      "reviewStatus": "native_import_reviewed"
+    },
+    {
+      "item": "item:potion_flight_greater",
+      "asset": "icon_alchemy_potion_flight_greater",
+      "group": "potion",
+      "status": "conditional A3",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "crop": [
+        192,
+        480,
+        16,
+        16
+      ],
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "vendorNumber": 403,
+      "reviewStatus": "native_import_reviewed"
+    }
+  ],
+  "artNeeded": [
+    {
+      "id": "item:wool",
+      "name": "Wool",
+      "group": "animal",
+      "art": "ART NEEDED: wool tuft; shown powder icon is reference only",
+      "source": "New sheep loot (\u00a77); proposed shop:willow_storekeeper"
+    },
+    {
+      "id": "item:wing_dust",
+      "name": "Wing Dust",
+      "group": "animal",
+      "art": "ART NEEDED: wing dust pouch; shown powder icon is reference only",
+      "source": "Nonlethal butterfly habitat residue, once per specimen identity (\u00a77.1); storekeeper offer"
+    },
+    {
+      "id": "item:apple_must",
+      "name": "Apple Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:apple_pomace",
+      "name": "Apple Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:apple_must"
+    },
+    {
+      "id": "item:cherry_must",
+      "name": "Cherry Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:cherry_pomace",
+      "name": "Cherry Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:cherry_must"
+    },
+    {
+      "id": "item:pear_must",
+      "name": "Pear Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:pear_pomace",
+      "name": "Pear Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:pear_must"
+    },
+    {
+      "id": "item:peach_must",
+      "name": "Peach Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:peach_pomace",
+      "name": "Peach Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:peach_must"
+    },
+    {
+      "id": "item:grape_must",
+      "name": "Grape Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:grape_pomace",
+      "name": "Grape Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:grape_must"
+    },
+    {
+      "id": "item:strawberry_must",
+      "name": "Strawberry Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:strawberry_pomace",
+      "name": "Strawberry Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:strawberry_must"
+    },
+    {
+      "id": "item:watermelon_must",
+      "name": "Watermelon Must",
+      "group": "fruit",
+      "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:watermelon_pomace",
+      "name": "Watermelon Pomace",
+      "group": "fruit",
+      "art": "ART NEEDED: fruit-marked pomace; generic reference only",
+      "source": "Coproduct of process:watermelon_must"
+    },
+    {
+      "id": "item:varietal_press",
+      "name": "Varietal Press",
+      "group": "station",
+      "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:alchemy_cask",
+      "name": "Alchemy Cask",
+      "group": "station",
+      "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:cauldron",
+      "name": "Kitchen Cauldron",
+      "group": "station",
+      "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:oven",
+      "name": "Bread Oven",
+      "group": "station",
+      "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:alchemy",
+      "name": "Alchemy Station",
+      "group": "station",
+      "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:still",
+      "name": "Copper Still",
+      "group": "station",
+      "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:cooked_game",
+      "name": "Roast Game",
+      "group": "food",
+      "art": "ART NEEDED: cooked species silhouette; existing cooked-meat icon is reference only",
+      "source": "Crafted"
+    },
+    {
+      "id": "item:captured_bee",
+      "name": "Captured Bee",
+      "group": "collection",
+      "art": "ART NEEDED: recognizable live bee in ventilated jar; reference only",
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+    },
+    {
+      "id": "item:captured_butterfly",
+      "name": "Captured Butterfly",
+      "group": "collection",
+      "art": "ART NEEDED: recognizable live butterfly in ventilated jar; reference only",
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+    },
+    {
+      "id": "item:captured_frog",
+      "name": "Captured Frog",
+      "group": "collection",
+      "art": "ART NEEDED: recognizable live frog in ventilated jar; reference only",
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+    },
+    {
+      "id": "item:captured_mouse",
+      "name": "Captured Mouse",
+      "group": "collection",
+      "art": "ART NEEDED: recognizable live mouse in ventilated jar; reference only",
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+    },
+    {
+      "id": "item:captured_scarab",
+      "name": "Captured Scarab",
+      "group": "collection",
+      "art": "ART NEEDED: recognizable live scarab in ventilated jar; reference only",
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+    },
+    {
+      "id": "item:captured_snail",
+      "name": "Captured Snail",
+      "group": "collection",
+      "art": "ART NEEDED: recognizable live snail in ventilated jar; reference only",
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+    },
+    {
+      "id": "item:capture_net",
+      "name": "Capture Net",
+      "group": "tool",
+      "art": "ART NEEDED: Capture Net native pixel icon; reference only",
+      "source": "Hand crafting; \u00a77.1\u20137.2"
+    },
+    {
+      "id": "item:specimen_jar",
+      "name": "Ventilated Specimen Jar",
+      "group": "tool",
+      "art": "ART NEEDED: Ventilated Specimen Jar native pixel icon; reference only",
+      "source": "Hand crafting; \u00a77.1\u20137.2"
+    },
+    {
+      "id": "item:apiary_frame",
+      "name": "Apiary Frame",
+      "group": "ingredient",
+      "art": "ART NEEDED: Apiary Frame native pixel icon; reference only",
+      "source": "Hand crafting; \u00a77.1\u20137.2"
+    },
+    {
+      "id": "item:apiary",
+      "name": "Apiary",
+      "group": "station",
+      "art": "ART NEEDED: Apiary native pixel icon; reference only",
+      "source": "Hand crafting; \u00a77.1\u20137.2"
+    },
+    {
+      "id": "item:honeycomb",
+      "name": "Honeycomb",
+      "group": "animal",
+      "art": "ART NEEDED: hexagonal comb; jar is reference only",
+      "source": "Active apiary: 1 frame + 600s with flowering habitat and installed colony; \u00a77.2"
+    },
+    {
+      "id": "item:beeswax",
+      "name": "Beeswax",
+      "group": "animal",
+      "art": "ART NEEDED: pale wax lump; mineral references only",
+      "source": "Honeycomb extraction co-product; \u00a77.2"
+    }
+  ]
+}

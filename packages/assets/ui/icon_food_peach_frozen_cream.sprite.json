@@ -1,0 +1,72 @@
+{
+  "name": "icon_food_peach_frozen_cream",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00000....",
+        "....000111220...",
+        "...01133455610..",
+        "..0165444445610.",
+        ".01654465444610.",
+        ".01534656634420.",
+        ".02444463444620.",
+        ".02464444456310.",
+        ".01366444733180.",
+        ".09137647111a80.",
+        ".09b13777a8b80..",
+        "..0b9367c8bb0...",
+        "...0996c8000....",
+        "....00000.......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e6cf",
+    "2": "#f6ca9f",
+    "3": "#ffa214",
+    "4": "#ffc825",
+    "5": "#fff7b8",
+    "6": "#ffeb57",
+    "7": "#ed7614",
+    "8": "#8a4836",
+    "9": "#e69c69",
+    "a": "#5d2c28",
+    "b": "#bf6f4a",
+    "c": "#c64524"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    32,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

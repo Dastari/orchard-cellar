@@ -1,0 +1,64 @@
+{
+  "name": "icon_food_honey_stack",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....000000.....",
+        "....01112210....",
+        "...0122112210...",
+        "..012211111110..",
+        "..012111111210..",
+        "..011111222130..",
+        "..0411222214300.",
+        "...041111443010.",
+        "...004443330130.",
+        "..0040000001430.",
+        "..010411114430..",
+        "..011044433300..",
+        "..041100000030..",
+        "...0411114430...",
+        "....04443330....",
+        ".....000000....."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#edab50",
+    "2": "#ebcd7a",
+    "3": "#c64524",
+    "4": "#e07438"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    80,
+    160,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

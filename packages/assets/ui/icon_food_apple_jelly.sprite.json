@@ -1,0 +1,67 @@
+{
+  "name": "icon_food_apple_jelly",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....000000.....",
+        "....01122330....",
+        "...0144555530...",
+        "..014333333520..",
+        "..013355333320..",
+        "..031335533250..",
+        ".03531111225640.",
+        ".02353335556660.",
+        "0223355554446640",
+        "0223223355544640",
+        "0235322335446470",
+        "0345533444466670",
+        ".04455554677670.",
+        "..044446777670..",
+        "...0044446400...",
+        ".....000000....."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#effed2",
+    "2": "#d3fc7e",
+    "3": "#99e65f",
+    "4": "#33984b",
+    "5": "#5ac54f",
+    "6": "#1e6f50",
+    "7": "#134c4c"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    16,
+    144,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

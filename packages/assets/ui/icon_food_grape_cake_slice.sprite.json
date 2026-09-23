@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_grape_cake_slice",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........00......",
+        ".......01100....",
+        "......01221300..",
+        ".....0133322130.",
+        "....01311333220.",
+        "...013331133340.",
+        "..0131133334550.",
+        ".03333224446660.",
+        ".02222788668660.",
+        ".09777778886660.",
+        ".09777888662440.",
+        ".0a88822244000..",
+        ".0333200000.....",
+        "..0000..........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#8a4836",
+    "3": "#bf6f4a",
+    "4": "#5d2c28",
+    "5": "#391f21",
+    "6": "#731144",
+    "7": "#c62a37",
+    "8": "#971741",
+    "9": "#ea8188",
+    "a": "#ef5252"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    0,
+    160,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

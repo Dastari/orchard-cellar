@@ -1,0 +1,65 @@
+{
+  "name": "icon_alchemy_moonleaf",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....0000........",
+        "...005400000000.",
+        "..0054004433220.",
+        "..0331553344000.",
+        ".003255354500...",
+        ".02244354540....",
+        ".02232445400....",
+        ".0232234420000..",
+        ".01323333001100.",
+        ".01323331011210.",
+        ".00213321112120.",
+        "..0212211110000.",
+        "..0000111000....",
+        ".....00000......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+  "sourceRegion": [
+    16,
+    256,
+    16,
+    16
+  ],
+  "importedFrom": "sheet-16-outline.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#1e193e",
+    "2": "#263b5c",
+    "3": "#3e7789",
+    "4": "#4dc7bd",
+    "5": "#65e6a9"
+  },
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "item.herb",
+    "feature.food_alchemy",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}
