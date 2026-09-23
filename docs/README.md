@@ -15,6 +15,7 @@ only files that tooling or tests read, write or byte-check.
 | [Home](https://wiki.orchard.dastari.net/Home) · [Index](https://wiki.orchard.dastari.net/Index) · [Glossary](https://wiki.orchard.dastari.net/Glossary) | Start here |
 | [Vision](https://wiki.orchard.dastari.net/Vision) | Pitch, pillars, tone, core loop |
 | [Decisions](https://wiki.orchard.dastari.net/Decisions) | The decision register (every owner and ADR decision, with status) and the full [Decision Log](https://wiki.orchard.dastari.net/Decisions/Decision%20Log) |
+| [Bugs](https://wiki.orchard.dastari.net/Bugs) | Known bugs, one page each, and the bug-fix run workflow |
 | [Roadmap](https://wiki.orchard.dastari.net/Roadmap) | Current plans, [Owner Questions](https://wiki.orchard.dastari.net/Roadmap/Owner%20Questions), open pull requests |
 | [Systems](https://wiki.orchard.dastari.net/Systems) | Gameplay systems: farming, orchard, cellar, crafting, combat, economy, audio… |
 | [World](https://wiki.orchard.dastari.net/World) | Map and terrain, tiles and rules, chunks, spaces, regions, traversal |
