@@ -1,6 +1,6 @@
 # Food, wildlife collections and alchemy plan review
 
-Status: **proposed, awaiting owner approval**. Baseline: `52b671b9` on upstream main.
+Status: **owner approved, 23 September 2026**. Baseline: `52b671b9` on upstream main.
 The canonical plan is [doc 63](../63-food-alchemy-content-plan.md); open
 [index.html](index.html) for the searchable icon companion. This directory contains
 review data and documentation tools, not runtime content definitions.
@@ -81,9 +81,9 @@ remain implementation acceptance work; passing this script does not approve the 
 
 Planning lane: Agent Mail **BeigeCoast**; coordinator **GoldCondor** was notified of
 ownership and both scope revisions. Branch `docs/food-alchemy-plan` is docs-only.
-No production content, engine code, source artwork or deployment is authorized by
-this plan. No merge or publish was performed. Record the owner's approval and selected
-A1–A9 options before starting P0–P6. Then read and follow
+Owner approval authorizes implementation through reviewed phase PRs. A1 retains its
+mana-use-case condition; see doc 63 §11. No merge, deployment or world publication is
+authorized. OrangeCastle is starting P0; GoldCondor has been notified. Read and follow
 `/home/toby/projects/briefs/food-alchemy-implementation-prompt.md`, re-audit current main,
 coordinate reservations and recheck the runtime/Studio dependencies. Approval of this
 PR's existence is not approval of the implementation plan.

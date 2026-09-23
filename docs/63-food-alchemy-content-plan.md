@@ -1,9 +1,9 @@
 # 63 — Food, cooking, animal products and fruit alchemy
 
-**Status: PROPOSED, awaiting owner approval.** Author: BeigeCoast. Audit: 2026-09-23,
+**Status: OWNER APPROVED on 2026-09-23.** Author: BeigeCoast. Audit: 2026-09-23,
 `origin/main` **52b671b9**. Branch: `docs/food-alchemy-plan`. This is a documentation
 PR: no gameplay definitions, runtime code, imported art or deployed state change.
-The numbers below are proposed budgets, not measured gameplay or approved balance.
+The numbers below are approved implementation budgets, not measured gameplay outcomes.
 
 [Open the visual companion](food-alchemy/index.html) ·
 [Machine-readable master catalogue](food-alchemy/catalogue.json) ·
@@ -38,8 +38,8 @@ No merge, deployment, world publication or destructive migration is authorized b
 - All selected icons resolve to verified local art or a prominently marked art request.
 - Every proposed item has a source or an acyclic transformation path; top-tier potion
   chains reach depth **5**, with gathered/shop ingredients at depth 0.
-- All 18 creatures have authored hunting policy and meat/resource tables; previously
-  protected wild species can be enabled, while owned/ridden animals remain protected.
+- All 18 creatures have authored interaction policies: twelve hunting defaults and
+  six small-creature capture defaults (§7); owned/ridden animals remain protected.
 - Every potion has exact inputs, duration, magnitude, tier, cooldown and conflict policy.
 - Old inventories, generic must/pomace, estate bottles, placed stations, slots and running
   jobs keep their IDs and behavior. No compensation migration or inventory rewriting.
@@ -681,7 +681,7 @@ Unresolved art, unsupported engine capability, circular/unreachable source, inva
 ownership or an unapproved owner decision is a failed gate. Record the concrete fix
 in the phase PR; do not invent a substitute item or silently bypass the gate.
 
-## 11. Owner decisions — A2/A9 direction recorded; full plan pending
+## 11. Owner decisions — full plan approved 2026-09-23
 
 | ID | Decision requested | Proposed choice / consequence |
 |---|---|---|
@@ -695,10 +695,15 @@ in the phase PR; do not invent a substitute item or silently bypass the gate.
 | A9 — direction recorded | Small-creature collections and apiaries included in this update. | No frog/insect/snail meat; six collection species, capture/release journal, specimen ingredients, bees/hives/honey/apiary loop in §7. Exact numbers and art await plan approval. |
 | A8 | Approve proposed raw mini-buffs and skill effects? | Explicit effects in §§4–6, no new XP tracks; prepared benefit rather than yield/XP multiplication. No Delve use. |
 
-Owner approval must be recorded with date and exact selected options here (or a linked
-review comment copied into this section before implementing dependent content).
-Until full approval every implementation row is proposed. A2/A9 record real scope instructions,
-not authorization to implement or deploy. No other approval is inferred.
+**Approval record — 2026-09-23:** owner explicitly stated “Full content plan approved”
+after separately accepting the visual preview. This authorizes the specified A2–A9
+choices, including bounded flight, confectionery/cooled cream, feed interaction,
+collections and apiaries. A1 retains its explicit use-case condition: six mana rows
+stay dormant unless the owner identifies the intended mana-spending gameplay. A
+clarification was sent; unrelated work can proceed. No new mana sink is inferred.
+All runtime, art, compatibility and validation acceptance gates still apply. The
+implementation brief explicitly prohibits merging, deploying or publishing the world.
+OrangeCastle owns the first bounded P0 asset-import lane, coordinated with GoldCondor.
 
 ## 12. Master item table
 
