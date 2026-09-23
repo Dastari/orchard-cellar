@@ -1,7 +1,6 @@
 import {
   MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH, resolveObjectAppearance, objectPropertyValues, resourceEditableProperties, bootstrapContentRegistry, MAP_BIOME_IDS, type TerrainSurfaceFamilyId, type MapObjectInstance, type ObjectStateDefinition, type ObjectPropertyValue,
   TOPSIDE_SPACE_ID,
-  TILE_SIZE_PIXELS,
   mapCellKey,
   mapDocumentV3Hash,
 
@@ -15,13 +14,13 @@ import {
 } from '@orchard/sim';
 import { mapMaterialChoices, mapObjectCategory, mapPaletteColumns, MAP_OBJECT_FILTERS, type MapObjectFilter } from './material-palette.js';
 import { mapPixelToolIcon, type MapPixelTool } from './pixel-tool-icons.js';
-import { mapPaletteThumbnail } from './terrain-preview.js';
+import { drawMapResizePreview, drawMapTileInspection, drawMapTileTarget, drawPaletteDragGhost, mapTileInspectionHeight } from './workspace-overlays.js';
+import type { StudioPropertyRowModel } from '../../shell/studio-models.js';
 import { studioLibraryDrawer } from '../../shell/workspace-controls.js';
-import { terrainProjectedDepthForElevation, terrainInspectionVisualLayout, type TerrainArray } from '@orchard/engine';
+import { terrainProjectedDepthForElevation, type TerrainArray } from '@orchard/engine';
 import {
-  ui as kit, uiFixed, UiElement, type UiButtonModifiers, type UiTone,
-  CanvasTextEditor, drawUiSkinAsset, uiInventorySelectorRect,
-  STUDIO_SKIN_TOKENS,
+  ui as kit, uiFixed, type UiElement, type UiButtonModifiers, type UiButtonDrag, type UiTone, type UiPoint,
+  CanvasTextEditor,
   loadGeneratedAsset,
   loadGeneratedAssetCatalog,
   selectAtlasFrame,
@@ -29,7 +28,6 @@ import {
   type LoadedAsset,
   type UiIconName,
   type UiRect,
-  type StudioPropertyRowModel,
 } from '@orchard/ui/studio';
 import type {
   StudioCanvasToolContext,
@@ -560,32 +558,6 @@ function confirmMapResize(state: MapCanvasState, context: StudioCanvasToolContex
     reportCanvasError(context, 'Map was not resized', error);
   }
   context.invalidate();
-}
-
-function drawMapResizePreview(
-  context: CanvasRenderingContext2D,
-  impact: MapResizeImpact | null,
-  interaction: ReturnType<MapEditorController['snapshot']>,
-): void {
-  if (impact === null || impact.cropBounds === null) return;
-  const { viewport, camera } = interaction;
-  const crop = impact.cropBounds;
-  const x = viewport.x + (crop.minimumTileX * TILE_SIZE_PIXELS - camera.x) * camera.zoom;
-  const y = viewport.y + (crop.minimumTileY * TILE_SIZE_PIXELS - camera.y) * camera.zoom;
-  const width = (crop.maximumTileX - crop.minimumTileX + 1) * TILE_SIZE_PIXELS * camera.zoom;
-  const height = (crop.maximumTileY - crop.minimumTileY + 1) * TILE_SIZE_PIXELS * camera.zoom;
-  context.save();
-  context.beginPath();
-  context.rect(viewport.x, viewport.y, viewport.width, viewport.height);
-  context.clip();
-  context.fillStyle = 'rgba(154, 49, 42, 0.48)';
-  context.fillRect(x, y, width, height);
-  context.strokeStyle = STUDIO_SKIN_TOKENS.parchmentLight;
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
-  context.strokeRect(x, y, width, height);
-  context.setLineDash([]);
-  context.restore();
 }
 
 function persistSession(state: MapCanvasState): void {
@@ -1430,46 +1402,23 @@ function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolConte
     })),empty:state.catalogLoading?'Loading objects':'No matching objects'};
 }
 
-function paletteReticle(state: MapCanvasState, context: StudioCanvasToolContext): UiElement {
-  const asset = previewAsset(state, context, 'ui_cf_selector_confirm');
-  return new UiElement({kind:'palette-selection-reticle',style:{position:'absolute',inset:{left:0,right:0,top:0,bottom:0}},
-    paintOverlay(element,{context:ctx}) {
-      if (asset) drawUiSkinAsset(ctx,asset,uiInventorySelectorRect({x:element.rect.x+2,y:element.rect.y+2,width:Math.max(0,element.rect.width-4),height:Math.max(0,element.rect.height-4)},1),'idle');
-    }});
-}
-
-function paletteObjectDrag(control: UiElement, choice: MapKitPaletteChoice, state: MapCanvasState,
-  context: StudioCanvasToolContext): UiElement {
-  if (!choice.prefabId) return control;
-  let origin: {x:number;y:number}|undefined;
-  return new UiElement({...control.hooks, children:[...control.children],
-    onPointer(event,element) {
-      if(event.type==='cancel') {origin=undefined;state.paletteDrag=undefined;context.invalidate();return true;}
-      if(event.type==='down' && event.button===0) {
-        origin=event.point;event.capture();state.paletteDrag={prefabId:choice.prefabId!,point:{x:event.point.x*2,y:event.point.y*2},active:false};return true;
+/** Palette objects can be dragged straight onto the map. Points arrive in
+ * logical kit units; the map interaction works in physical canvas pixels. */
+function paletteObjectDrag(prefabId: string, state: MapCanvasState, context: StudioCanvasToolContext): UiButtonDrag {
+  const physical = (point: UiPoint) => ({ x: point.x * 2, y: point.y * 2 });
+  return {
+    onMove(point, active) { state.paletteDrag = { prefabId, point: physical(point), active }; context.invalidate(); },
+    onDrop(logical) {
+      const point = physical(logical), r = context.workspaceBounds;
+      const occluded = (context.occludedBounds ?? [context.controlsBounds, ...(context.inspectorBounds ? [context.inspectorBounds] : [])])
+        .some(bounds => point.x >= bounds.x && point.y >= bounds.y && point.x < bounds.x + bounds.width && point.y < bounds.y + bounds.height);
+      if (!occluded && point.x >= r.x && point.y >= r.y && point.x < r.x + r.width && point.y < r.y + r.height) {
+        state.interaction.selectObjectChoice(prefabId);
+        state.interaction.pointerDown(point, 0); state.interaction.pointerUp();
       }
-      if(!origin)return false;
-      const point={x:event.point.x*2,y:event.point.y*2};
-      const active=state.paletteDrag?.active===true||Math.hypot(event.point.x-origin.x,event.point.y-origin.y)>4;
-      state.paletteDrag={prefabId:choice.prefabId!,point,active};
-      if(event.type==='up') {
-        if(active) {
-          const r=context.workspaceBounds;
-          const occluded=(context.occludedBounds??[context.controlsBounds,...(context.inspectorBounds?[context.inspectorBounds]:[])])
-            .some(bounds=>point.x>=bounds.x&&point.y>=bounds.y&&point.x<bounds.x+bounds.width&&point.y<bounds.y+bounds.height);
-          if(!occluded && point.x>=r.x && point.y>=r.y && point.x<r.x+r.width && point.y<r.y+r.height) {
-            state.interaction.selectObjectChoice(choice.prefabId!);
-            state.interaction.pointerDown(point,0);state.interaction.pointerUp();
-          }
-        } else if(event.point.x>=element.rect.x && event.point.x<element.rect.x+element.rect.width
-          &&event.point.y>=element.rect.y&&event.point.y<element.rect.y+element.rect.height) choice.apply();
-        origin=undefined;state.paletteDrag=undefined;event.release();
-      }
-      context.invalidate();return true;
-    },onKey(event,element) {
-      if(event.key==='Escape'){origin=undefined;state.paletteDrag=undefined;context.invalidate();return true;}
-      return control.hooks.onKey?.(event,element)??false;
-    }});
+    },
+    onEnd() { state.paletteDrag = undefined; context.invalidate(); },
+  };
 }
 
 function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext):UiElement {
@@ -1498,11 +1447,12 @@ function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext):UiE
     onScroll:element=>{state.paletteOffset=element.scroll.y;},
     onArrange:element=>{const next=mapPaletteColumns(element.contentRect.width);if(next!==columns){columns=next;element.setProps({items:rows()},false);}},
     render:row=>kit.grid({columns,columnWidth:uiFixed(46),rowHeight:uiFixed(46),gap:0,width:'grow',height:uiFixed(46)},row.map(choice=>{
-      const control=paletteObjectDrag(kit.button({id:choice.id,label:'',ariaLabel:choice.label,disabled:choice.disabled,size:'md',
+      const control=kit.button({id:choice.id,label:'',ariaLabel:choice.label,disabled:choice.disabled,size:'md',
         layout:{width:uiFixed(40),height:uiFixed(40),padding:4},onPress:choice.apply,
-        children:[mapPaletteThumbnail(choice.label,choice.preview)]}),choice,state,context);
+        ...(choice.prefabId?{drag:paletteObjectDrag(choice.prefabId,state,context)}:{}),
+        children:[kit.deferredImage(()=>choice.preview?.(),{label:choice.label})]});
       return kit.tooltip(choice.label,kit.stack({width:uiFixed(46),height:uiFixed(46),padding:2},[
-        control,...(choice.active?[paletteReticle(state,context)]:[])]),{width:uiFixed(46),height:uiFixed(46)});
+        control,...(choice.active?[kit.selectionReticle({inset:2,outset:1})]:[])]),{width:uiFixed(46),height:uiFixed(46)});
     })),
   });
   children.push(list);
@@ -1532,8 +1482,8 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
   }
   const command=(id:string,label:string,icon:MapPixelTool,onPress:()=>void,active=false)=>kit.tooltip(label,
     kit.stack({width:uiFixed(36),height:uiFixed(36),padding:2},[kit.button({id:`map-${id}`,label:'',ariaLabel:label,onPress,
-      layout:{width:uiFixed(32),height:uiFixed(32),padding:4},children:[mapPixelToolIcon(icon,context.invalidate)]}),
-      ...(active?[paletteReticle(state,context)]:[])]),{width:uiFixed(36),height:uiFixed(36)});
+      layout:{width:uiFixed(32),height:uiFixed(32),padding:4},children:[mapPixelToolIcon(icon)]}),
+      ...(active?[kit.selectionReticle({inset:2,outset:1})]:[])]),{width:uiFixed(36),height:uiFixed(36)});
   const tool=state.interaction.editingTool();
   const choose=(value:NonNullable<ReturnType<MapEditorController['editingTool']>>)=>{
     resetLiveSpawn(state);state.interaction.selectEditingTool(value);state.paletteOffset=0;context.invalidate();
@@ -1626,16 +1576,6 @@ function armLiveSpawn(state: MapCanvasState, context: StudioCanvasToolContext, m
   context.invalidate();
 }
 
-function heightArrow(direction: number): UiElement {
-  return new UiElement({kind:'height-arrow',style:{width:'grow',height:'grow'},paintOverlay(element,{context}) {
-    const x=element.rect.x+element.rect.width/2,y=element.rect.y+element.rect.height/2;
-    context.save();context.strokeStyle='#202536';context.lineWidth=2;context.beginPath();
-    context.moveTo(x,y-direction*5);context.lineTo(x,y+direction*5);
-    context.moveTo(x-4,y+direction);context.lineTo(x,y+direction*5);context.lineTo(x+4,y+direction);
-    context.stroke();context.restore();
-  }});
-}
-
 function mapPublishButton(state:MapCanvasState,context:StudioCanvasToolContext):UiElement {
   const view=context.controller.liveAdapter()?.view();
   const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||view?.publishingMap===true,
@@ -1653,11 +1593,11 @@ function appendWorldOverlayControls(
   const snapshot = state.interaction.snapshot();
   if(snapshot.terrainAuthoringFeedback)parts.kit.overlays?.append(kit.text(snapshot.terrainAuthoringFeedback,{id:'map-tool-feedback',maxLines:3,layout:{position:'absolute',inset:{left:8,bottom:8},width:uiFixed(260)}}));
   parts.kit.overlays?.append(kit.flex({ direction:'row',gap:4,position:'absolute',inset:{left:8,top:8},height:uiFixed(24) },[
-    kit.tooltip('Edit lower height level ([)',kit.button({children:[heightArrow(1)],id:'map-height-down',label:'',ariaLabel:'Lower active height',disabled:snapshot.activeElevation<=-8,
-      layout:{width:uiFixed(24)},onPress:()=>{state.interaction.adjustActiveElevation(-1);context.invalidate();}})),
+    kit.tooltip('Edit lower height level ([)',kit.iconButton({fantasy:'arrow_down_white_medium'},{id:'map-height-down',label:'Lower active height',disabled:snapshot.activeElevation<=-8,
+      onPress:()=>{state.interaction.adjustActiveElevation(-1);context.invalidate();}})),
     kit.text(`Height ${snapshot.activeElevation}`,{id:'map-current-height',layout:{width:uiFixed(64)}}),
-    kit.tooltip('Edit higher height level (])',kit.button({children:[heightArrow(-1)],id:'map-height-up',label:'',ariaLabel:'Raise active height',disabled:snapshot.activeElevation>=8,
-      layout:{width:uiFixed(24)},onPress:()=>{state.interaction.adjustActiveElevation(1);context.invalidate();}})),
+    kit.tooltip('Edit higher height level (])',kit.iconButton({fantasy:'arrow_up_white_medium'},{id:'map-height-up',label:'Raise active height',disabled:snapshot.activeElevation>=8,
+      onPress:()=>{state.interaction.adjustActiveElevation(1);context.invalidate();}})),
     kit.tooltip('Undo',kit.iconButton({fantasy:'arrow_left_white_medium'},{id:'map-undo',label:'Undo',disabled:!state.model.canUndo(),onPress:()=>{state.interaction.undo();context.invalidate();}})),
     kit.tooltip('Redo',kit.iconButton({fantasy:'arrow_right_white_medium'},{id:'map-redo',label:'Redo',disabled:!state.model.canRedo(),onPress:()=>{state.interaction.redo();context.invalidate();}})),
     kit.tooltip('Frame map',kit.iconButton({fantasy:'book_green'},{id:'map-frame-map',label:'Frame map',onPress:()=>{state.interaction.frameMap();context.invalidate();}})),
@@ -1865,87 +1805,22 @@ children.push(mapOverlayAction('publish-conflict-export','Download this conflict
 appendMapOverlayPanel(parts,context,'publish-conflict',children);
 }
 
-function drawLiveSpawnTarget(
-  context: CanvasRenderingContext2D,
-  state: MapCanvasState,
-): void {
-  const target = state.liveSpawnTarget;
-  if (!state.liveSpawnMode || target === null) return;
-  const { viewport, camera } = state.interaction.snapshot();
+function tileTargetProjection(state: MapCanvasState, elevation: number): number {
   const terrain = state.renderer.inspectionTerrain(state.model.terrainIdentity());
-  const projection = terrain === null ? 0
-    : terrainProjectedDepthForElevation(terrain, target.elevation);
-  const x = viewport.x + (target.tileX * TILE_SIZE_PIXELS - camera.x) * camera.zoom;
-  const y = viewport.y + (target.tileY * TILE_SIZE_PIXELS - projection - camera.y) * camera.zoom;
-  const size = Math.max(5, TILE_SIZE_PIXELS * camera.zoom);
-  context.save();
-  context.beginPath();
-  context.rect(viewport.x, viewport.y, viewport.width, viewport.height);
-  context.clip();
-  context.fillStyle = state.liveSpawnModel?.pending() === null
-    ? 'rgba(239, 188, 83, 0.28)' : 'rgba(104, 187, 114, 0.34)';
-  context.fillRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-  context.strokeStyle = state.liveSpawnModel?.pending() === null
-    ? STUDIO_SKIN_TOKENS.amber : STUDIO_SKIN_TOKENS.green;
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
-  context.strokeRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-  context.setLineDash([]);
-  context.restore();
+  return terrain === null ? 0 : terrainProjectedDepthForElevation(terrain, elevation);
 }
 
-function drawRuntimeObjectTarget(
-  context: CanvasRenderingContext2D,
-  state: MapCanvasState,
-): void {
-  const target = state.runtimeObjectTarget;
-  if (state.runtimeObjectMarker === null || target === null) return;
-  const { viewport, camera } = state.interaction.snapshot();
-  const terrain = state.renderer.inspectionTerrain(state.model.terrainIdentity());
-  const projection = terrain === null ? 0
-    : terrainProjectedDepthForElevation(terrain, target.elevation);
-  const x = viewport.x + (target.tileX * TILE_SIZE_PIXELS - camera.x) * camera.zoom;
-  const y = viewport.y + (target.tileY * TILE_SIZE_PIXELS - projection - camera.y) * camera.zoom;
-  const size = Math.max(5, TILE_SIZE_PIXELS * camera.zoom);
-  context.save();
-  context.beginPath();
-  context.rect(viewport.x, viewport.y, viewport.width, viewport.height);
-  context.clip();
-  context.fillStyle = 'rgba(104, 187, 114, 0.34)';
-  context.fillRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-  context.strokeStyle = STUDIO_SKIN_TOKENS.green;
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
-  context.strokeRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-  context.setLineDash([]);
-  context.restore();
-}
-
-function drawNpcLocationTarget(
-  context: CanvasRenderingContext2D,
-  state: MapCanvasState,
-): void {
-  const target = state.npcLocationTarget;
-  if (state.npcLocationMarker === null || target === null) return;
-  const { viewport, camera } = state.interaction.snapshot();
-  const terrain = state.renderer.inspectionTerrain(state.model.terrainIdentity());
-  const projection = terrain === null ? 0
-    : terrainProjectedDepthForElevation(terrain, target.elevation);
-  const x = viewport.x + (target.tileX * TILE_SIZE_PIXELS - camera.x) * camera.zoom;
-  const y = viewport.y + (target.tileY * TILE_SIZE_PIXELS - projection - camera.y) * camera.zoom;
-  const size = Math.max(5, TILE_SIZE_PIXELS * camera.zoom);
-  context.save();
-  context.beginPath();
-  context.rect(viewport.x, viewport.y, viewport.width, viewport.height);
-  context.clip();
-  context.fillStyle = 'rgba(241, 179, 75, 0.34)';
-  context.fillRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-  context.strokeStyle = STUDIO_SKIN_TOKENS.amber;
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
-  context.strokeRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
-  context.setLineDash([]);
-  context.restore();
+function drawMapTargets(drawing: CanvasRenderingContext2D, state: MapCanvasState): void {
+  const interaction = state.interaction.snapshot();
+  const live = state.liveSpawnTarget;
+  if (state.liveSpawnMode && live !== null) drawMapTileTarget(drawing, interaction, live, tileTargetProjection(state, live.elevation),
+    state.liveSpawnModel?.pending() === null ? 'waiting' : 'ready');
+  const runtime = state.runtimeObjectTarget;
+  if (state.runtimeObjectMarker !== null && runtime !== null)
+    drawMapTileTarget(drawing, interaction, runtime, tileTargetProjection(state, runtime.elevation), 'ready');
+  const npc = state.npcLocationTarget;
+  if (state.npcLocationMarker !== null && npc !== null)
+    drawMapTileTarget(drawing, interaction, npc, tileTargetProjection(state, npc.elevation), 'npc');
 }
 
 function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolContext,
@@ -1978,13 +1853,10 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     const preview=marker?state.renderer.liveMarkerPreview(marker):landmark?state.renderer.landmarkPreview(landmark.kind):prefab?prefabPreview(state,context,prefab,selected):inspection.target==='tile'&&terrainPreview
       ?terrainChoicePreview(state,context,terrainPreview):undefined;
     if(inspection.target==='tile') {
-      const composition=inspection.visualComposition,layout=terrainInspectionVisualLayout(composition);
-      children.push(new UiElement({id:'map-tile-composition',kind:'tile-composition',label:'Tile composition',
-        style:{width:'grow',height:uiFixed(Math.ceil(layout.height*Math.min(1,Math.max(1,context.inspectorBounds!.width/2-16)/layout.width))),shrink:0},paint(element,{context:ctx}) {
-          const scale=Math.min(1,element.rect.width/layout.width);
-          ctx.save();ctx.translate(element.rect.x+(element.rect.width-layout.width*scale)/2,element.rect.y);ctx.scale(scale,scale);
-          state.renderer.drawTileInspection(ctx,composition);ctx.restore();
-        }}));
+      const composition=inspection.visualComposition;
+      children.push(kit.viewport({id:'map-tile-composition',label:'Tile composition',
+        layout:{width:'grow',height:uiFixed(mapTileInspectionHeight(composition,context.inspectorBounds!.width/2-16)),shrink:0},
+        render:(drawing,bounds)=>drawMapTileInspection(drawing,state.renderer,composition,bounds)}));
     }
     if(preview&&inspection.target!=='tile')children.push(kit.image(preview.image,preview.frame,{id:'map-selection-preview',label:inspection.entity?.name??'Selected terrain',fit:'contain',quarterTurns:selected?.quarterTurns,flipX:selected?.flipX,
       layout:{width:'grow',height:uiFixed(48),shrink:0}}));
@@ -2104,26 +1976,13 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
     layout:{width:'grow',height:'grow',minHeight:uiFixed(100)},children:[selectionScroll]}));
   const layers=[...state.model.document().layers].sort((a,b)=>b.order-a.order);
   const activeId=state.interaction.snapshot().activeLayer;
-  const eye=previewAsset(state,context,'icon_skill_night_eyes');
-  const eyeFrame=eye&&selectAtlasFrame(eye.metadata,'base',0);
-  const layerRows=layers.map(layer=>{
-    const visible=state.model.isLayerEyeVisible(layer.id);
-    const activate=(id:string,label:string,onPress:()=>void,content:UiElement,width?:number)=>new UiElement({
-      id,kind:'layer-action',label,focusable:true,pointerMode:'capture',style:{display:'flex',direction:'row',align:'center',justify:width?'center':'start',width:width?uiFixed(width):'grow',height:uiFixed(16),padding:0},children:[content],
-      onPointer(event,element){if(event.button!==0)return false;if(event.type==='down')return true;
-        if(event.type==='up'&&event.point.x>=element.rect.x&&event.point.x<element.rect.x+element.rect.width
-          &&event.point.y>=element.rect.y&&event.point.y<element.rect.y+element.rect.height){onPress();return true;}return event.type==='move';},
-      onKey(event){if(event.key==='Enter'||event.key===' '){onPress();return true;}return false;}});
-    return new UiElement({kind:'map-layer-row',props:{selected:activeId===layer.id},style:{display:'flex',direction:'row',width:'grow',height:uiFixed(16),align:'center',gap:2,shrink:0},
-      paint(element,{context:ctx}){if(activeId===layer.id){ctx.fillStyle='#4f8b54';ctx.fillRect(element.rect.x,element.rect.y,element.rect.width,element.rect.height);}},children:[
-      kit.tooltip(`${visible?'Hide':'Show'} ${layer.label}`,activate(`map-layer-visible-${layer.id}`,`${visible?'Hide':'Show'} ${layer.label}`,
-        ()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},new UiElement({kind:'layer-eye',style:{width:uiFixed(12),height:uiFixed(12)},paint(element,{context:ctx}){if(eye&&eyeFrame){ctx.save();ctx.globalAlpha=visible?1:0.3;ctx.drawImage(eye.image,eyeFrame.x+3,eyeFrame.y+5,9,5,element.rect.x+1,element.rect.y+3,10,6);ctx.restore();}}}),12),{width:uiFixed(12),height:uiFixed(16)}),
-      activate(`map-layer-select-${layer.id}`,layer.label,()=>{
-        state.interaction.selectEditingTool(layer.id==='terrain'||layer.id==='generated_base'?'terrain':'objects');
-        state.interaction.selectLayer(layer.id);state.paletteOffset=0;context.invalidate();
-      },kit.text(layer.label,{maxLines:1,layout:{width:'grow',minWidth:uiFixed(0)}})),
-    ]});
-  });
+  const layerRows=layers.map(layer=>kit.layerRow({id:`map-layer-${layer.id}`,label:layer.label,selected:activeId===layer.id,
+    visible:state.model.isLayerEyeVisible(layer.id),visibilityId:`map-layer-visible-${layer.id}`,selectId:`map-layer-select-${layer.id}`,
+    onToggleVisible:()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},
+    onSelect:()=>{
+      state.interaction.selectEditingTool(layer.id==='terrain'||layer.id==='generated_base'?'terrain':'objects');
+      state.interaction.selectLayer(layer.id);state.paletteOffset=0;context.invalidate();
+    }}));
   panels.push(kit.frame({id:'map-layers-panel',style:'thin',header:{title:'Layers'},layout:{width:'grow',height:uiFixed(layers.length*16+52),shrink:0},
     children:[kit.scrollArea({width:'grow',height:'grow'},[kit.flex({width:'grow'},layerRows)])]}));
   parts.kit.inspector=kit.flex({width:'grow',height:'grow',gap:8},panels);
@@ -2281,13 +2140,10 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
     if(state.paletteDrag?.active) {
       const prefab=state.interaction.allObjectChoices().find(value=>value.id===state.paletteDrag!.prefabId);
       const preview=prefab&&prefabPreview(state,context,prefab);
-      if(preview){const f=preview.frame;const scale=Math.min(96/f.width,96/f.height);drawing.save();drawing.globalAlpha=.75;drawing.imageSmoothingEnabled=false;
-        drawing.drawImage(preview.image,f.x,f.y,f.width,f.height,state.paletteDrag.point.x-f.width*scale/2,state.paletteDrag.point.y-f.height*scale,f.width*scale,f.height*scale);drawing.restore();}
+      if(preview)drawPaletteDragGhost(drawing,preview,state.paletteDrag.point);
     }
     drawMapResizePreview(drawing, state.resizeImpact, state.interaction.snapshot());
-    drawLiveSpawnTarget(drawing, state);
-    drawRuntimeObjectTarget(drawing, state);
-    drawNpcLocationTarget(drawing, state);
+    drawMapTargets(drawing, state);
   }, input: {
     spaceDragPan: true,
     pointerDown: (input) => {

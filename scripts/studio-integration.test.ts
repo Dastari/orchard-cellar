@@ -22,6 +22,7 @@ function fixture() {
   };
   for (const path of ['package.json', 'package-lock.json', 'tsconfig.base.json', 'vitest.config.ts', 'eslint.config.js']) put(path, '{}\n');
   put('packages/ui/src/kit/index.ts', 'export {};\n');
+  put('packages/ui/src/studio-entry.ts', "export type * from './kit/index.js';\n");
   put('packages/studio/src/shell/app.ts', 'ui.workbench();\n');
   put('packages/studio/dist/index.html', 'live studio');
   put('packages/client/dist/index.html', 'live game');

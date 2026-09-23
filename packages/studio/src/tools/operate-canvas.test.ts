@@ -62,6 +62,6 @@ describe('Operate and Observe kit tools', () => {
   it('uses kit table and input factories with no DOM or old rendering boundary', () => {
     const source=readFileSync(new URL('./operate-canvas.ts',import.meta.url),'utf8');
     expect(source).not.toMatch(/document\.|createElement|HTMLElement|HTMLInputElement|SVGElement|innerHTML|SurfaceComposer|StudioCanvasShellNode|layoutStudioCanvasTable/u);
-    expect(source).toContain('kit.table<OperateRow>');expect(source).toContain('kit.input(');expect(source).toContain('context.controlsBounds');
+    expect(source).toContain('kit.table<OperateRow>');expect(source).toContain('kit.input(');expect(source).not.toMatch(/layoutUi/u);
   });
 });

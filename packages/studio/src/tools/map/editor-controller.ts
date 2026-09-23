@@ -1,3 +1,4 @@
+import { MAP_SPATIAL_COLOURS } from './spatial-colours.js';
 import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
 import {classifyLiveOwnership,mapStreetlampLiveBindings,type MapEditorLiveOwnership} from './live-ownership.js';
 import {mapMaterialChoices} from './material-palette.js';
@@ -610,7 +611,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: liveMarkerFootprint(registry, row),
       layer: ownership === 'world' ? 'objects' : 'player_owned', ownership,
-      ...(mapMaterialized ? { mapMaterialized } : {}), color: '#df9bc7', facing: liveMarkerFacing(row.facing),
+      ...(mapMaterialized ? { mapMaterialized } : {}), color: MAP_SPATIAL_COLOURS.livePlaceable, facing: liveMarkerFacing(row.facing),
       open: row.open, lit: row.lit,
       animationPhase: Number(row.id % 19n),
       activity: row.processStartTick !== undefined || row.barrelSealedTick !== undefined
@@ -623,7 +624,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       definitionId: row.definitionId, state: row.state,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: ownership === 'world' ? 'objects' : 'player_owned', ownership, color: '#d7a668', facing: liveMarkerFacing(row.facing), open: row.open });
+      layer: ownership === 'world' ? 'objects' : 'player_owned', ownership, color: MAP_SPATIAL_COLOURS.liveChest, facing: liveMarkerFacing(row.facing), open: row.open });
   }
   for (const row of liveRows?.homesteads ?? []) {
     if (row.tileX === undefined || row.tileY === undefined) continue;
@@ -631,7 +632,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.ownerName?.trim() ? `${row.ownerName}'s Homestead` : `Homestead ${row.spaceId}`,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 3, height: 4 }),
-      layer: 'player_owned', ownership: 'player', color: '#f0c777' });
+      layer: 'player_owned', ownership: 'player', color: MAP_SPATIAL_COLOURS.liveHomestead });
   }
   for (const row of liveRows?.resources ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
@@ -640,7 +641,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
     markers.push({ id: row.id.toString(), entityKind: 'resource', kind: row.kind, definitionId: row.definitionId, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: ((row.definitionId&&registry?.resources?.get(row.definitionId)?.visual.kind==='tree')||isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined)) ? 'canopy' : 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
+      layer: ((row.definitionId&&registry?.resources?.get(row.definitionId)?.visual.kind==='tree')||isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined)) ? 'canopy' : 'generated_base', color: MAP_SPATIAL_COLOURS.liveResource, health: row.health, depleted: row.depleted,
       growthStage: row.growthStage, miningClass: row.miningClass, richness: row.richness,
       maxHealth: row.maximumRichness, fixedResourceSite });
   }
@@ -651,7 +652,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: `Target ${row.id}`,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'gameplay', color: '#dc7777', health: row.healthCenti,
+      layer: 'gameplay', color: MAP_SPATIAL_COLOURS.liveEnemy, health: row.healthCenti,
       maxHealth: row.maxHealthCenti });
   }
   for (const row of liveRows.surfaces ?? []) {
@@ -659,7 +660,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
     markers.push({ id: row.id.toString(), entityKind: 'surface', kind: row.kind, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: 'gameplay', color: '#a7a7d9' });
+      layer: 'gameplay', color: MAP_SPATIAL_COLOURS.liveWildlife });
   }
   for (const row of liveRows.npcs) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID || row.x === undefined || row.y === undefined) continue;
@@ -670,7 +671,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.displayName?.trim() || row.kind, spaceId: row.spaceId, tileX, tileY,
       worldX: row.x / FIXED_UNITS_PER_PIXEL, worldY: row.y / FIXED_UNITS_PER_PIXEL,
       elevation: null, footprint: Object.freeze({ width: 1, height: 1 }), layer: 'gameplay',
-      color: '#f1b34b', facing: liveMarkerFacing(row.facing), moving: row.moving,
+      color: MAP_SPATIAL_COLOURS.liveNpc, facing: liveMarkerFacing(row.facing), moving: row.moving,
       activity: row.wanderDirection, health: row.health, variant: row.variant,
       ...(row.homeX === undefined || row.homeY === undefined ? {} : {
         homeTileX: Math.floor(row.homeX / (FIXED_UNITS_PER_PIXEL * TILE_SIZE_PIXELS)),
@@ -689,7 +690,7 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
       label: row.displayName?.trim() || identity.slice(0, 8), spaceId: row.spaceId, tileX, tileY,
       worldX: row.x / FIXED_UNITS_PER_PIXEL, worldY: row.y / FIXED_UNITS_PER_PIXEL,
       elevation: null, footprint: Object.freeze({ width: 1, height: 1 }), layer: 'gameplay',
-      color: row.online === false ? '#77838d' : '#64b7e8', facing: liveMarkerFacing(row.facing),
+      color: row.online === false ? MAP_SPATIAL_COLOURS.offlinePlayer : MAP_SPATIAL_COLOURS.onlinePlayer, facing: liveMarkerFacing(row.facing),
       moving: row.moving, activity: row.equippedKind, appearance: row.appearance,
       online: row.online, animationPhase: identity.length % 19 });
   }
