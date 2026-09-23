@@ -431,6 +431,19 @@ replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
 
 
+### Authored tile rule catalogue
+
+Tileset definitions optionally carry a versioned `ruleCatalogue` envelope.
+`sim/rule-catalogue.ts` owns strict parsing and deterministic mask → ordered
+role fallback → frame/variant selection. `sim/connected-objects.ts` is the first
+consumer: live objects use definition ids/tags and `placement.connectsTo`;
+legacy map prefabs use explicit asset membership. Studio and client pass active
+registry catalogues to the same index and engine renderer. The renderer caches
+by asset identity so content changes cannot reuse stale family art. Existing
+content without an envelope reads the bootstrap catalogue; an explicit empty
+envelope disables connections. Other terrain resolvers remain unchanged and
+are pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
+
 ### Schema-driven Studio forms (F1)
 
 The compiler-generated content schema graph reflects the exported definition types
