@@ -1,7 +1,13 @@
 import type { StudioCanvasToolRegistry } from './canvas-tool-registry.js';
 
 export function registerBuiltinStudioCanvasTools(registry: StudioCanvasToolRegistry): void {
-  registry.register('map', () => import('../tools/map/canvas.js').then(({ buildMapCanvasTool }) => buildMapCanvasTool));
+  registry.register('map', async () => {
+    const [{ buildMapCanvasTool }, { buildRuntimeSpaceTool }] = await Promise.all([
+      import('../tools/map/canvas.js'), import('../tools/map/space-canvas.js'),
+    ]);
+    return (context) => context.route.path.startsWith('/build/map/space/')
+      ? buildRuntimeSpaceTool(context) : buildMapCanvasTool(context);
+  });
   registry.register('object', () => import('../tools/object/canvas.js').then(({ buildObjectCanvasTool }) => buildObjectCanvasTool));
   registry.register('tiles', () => import('../tools/tiles/canvas.js').then(({ buildTilesCanvasTool }) => buildTilesCanvasTool));
   registry.register('character', () => import('../tools/character/canvas.js').then(({ buildCharacterCanvasTool }) => buildCharacterCanvasTool));

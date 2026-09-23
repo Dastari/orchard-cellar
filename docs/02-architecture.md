@@ -487,3 +487,14 @@ Items, Narrative and World Tables share the form adapter. Reference navigation
 selects a concrete target; kinds without a specialized selector use the generic
 World Tables form. The reverse-reference index follows declared reference fields
 rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).
+## Studio multi-space backend
+
+F4 shares `sim/space-registry.ts` between runtime authority and Studio, resolving
+revision-bound static geometry plus persisted homestead and rogue instances.
+`adminSpaceRegistry` projects only geometry and ownership from private runs after
+the admin gate. `adminEntitiesInAreaPage` uses `(spaceId, chunkX, chunkY, id)`
+indexes and request-bound keyset cursors; scan budgets remain bounded even in
+dense chunks or when filters return no matches. Studio uses per-space viewport
+subscriptions while player presence remains global. Runtime-space route references
+are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
+and [decision](adr/ADR-studio-multi-space.md).
