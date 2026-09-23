@@ -20,7 +20,7 @@ import type { ObserveApi } from '../tools/observe/model.js';
 import type { MissingContainerRemedyApi } from '../tools/playbooks/model.js';
 import type { WorldPlaytestAdapter } from '../admin/world-playtest-api.js';
 import { StudioLiveWorldPlaytestAdapter } from '../admin/live-world-playtest.js';
-import { resolveStudioEffectiveRole, studioRoleCan, type StudioRole } from './access.js';
+import { resolveStudioEffectiveRole, resolveStudioScopes, type StudioScope, type StudioRole } from './access.js';
 import {
   StudioConnectionRefreshScheduler,
   studioDynamicRowsEqual,
@@ -90,6 +90,7 @@ export function studioInitialSubscriptionQueries() {
     tables.ownContentRevisions,
     tables.ownContentEditorGrant,
     tables.ownSupportGrant,
+    tables.ownStudioScopeGrants,
   ]);
 }
 
@@ -106,6 +107,8 @@ export interface StudioConnectionView {
   readonly synchronizing: boolean;
   readonly identity: string | null;
   readonly role: StudioRole | null;
+  readonly scopes?: readonly StudioScope[];
+  readonly explicitScopes?: readonly StudioScope[];
   readonly contentRevision: bigint | null;
   readonly contentHead?: ContentHead | null;
   readonly contentDefinitions?: readonly ContentDefinition[];
@@ -539,6 +542,8 @@ export class StudioConnection implements StudioLiveAdapter {
   #synchronizing = false;
   #identity: Identity | null = null;
   #role: StudioRole | null = null;
+  #scopes: readonly StudioScope[] = [];
+  #explicitScopes: readonly StudioScope[] = [];
   #mapRevision: number | null = null;
   #mapDocument: StudioMapHead | null = null;
   #contentHead: ContentHead | null = null;
@@ -582,7 +587,7 @@ export class StudioConnection implements StudioLiveAdapter {
   view(): StudioConnectionView {
     return Object.freeze({
       connected: this.#connected, synchronizing: this.#synchronizing,
-      identity: this.#identity?.toHexString() ?? null, role: this.#role,
+      identity: this.#identity?.toHexString() ?? null, role: this.#role, scopes: this.#scopes, explicitScopes: this.#explicitScopes,
       contentRevision: this.#contentHead?.revision ?? null,
       contentHead: this.#contentHead,
       contentDefinitions: this.#contentDefinitions,
@@ -704,7 +709,7 @@ export class StudioConnection implements StudioLiveAdapter {
   ): Promise<void> {
     const connection = this.#connection;
     if (!this.#connected || connection === null) throw new Error('not_connected');
-    if (!studioRoleCan(this.#role, 'publish_map')) {
+    if (!this.#scopes.includes('map') || (this.#role !== 'owner' && this.#role !== 'admin' && !this.#explicitScopes.includes('map'))) {
       throw new Error('map_publish_role_required');
     }
     if (this.#publishingMap) throw new Error('publish_in_progress');
@@ -756,7 +761,7 @@ export class StudioConnection implements StudioLiveAdapter {
   }): Promise<void> {
     const connection = this.#connection;
     if (!this.#connected || connection === null) throw new Error('not_connected');
-    if (!studioRoleCan(this.#role, 'publish_content')) {
+    if (!this.#scopes.some(scope => !scope.startsWith('operate.') && scope !== 'observe')) {
       throw new Error('content_editor_required');
     }
     await connection.reducers.publishContentChangeSet(request);
@@ -768,7 +773,7 @@ export class StudioConnection implements StudioLiveAdapter {
   }): Promise<void> {
     const connection = this.#connection;
     if (!this.#connected || connection === null) throw new Error('not_connected');
-    if (!studioRoleCan(this.#role, 'publish_content')) {
+    if (!this.#scopes.some(scope => !scope.startsWith('operate.') && scope !== 'observe')) {
       throw new Error('content_editor_required');
     }
     await connection.reducers.restoreContentRevision(request);
@@ -784,6 +789,7 @@ export class StudioConnection implements StudioLiveAdapter {
       connection.db.contentHead, connection.db.contentDefinition,
       connection.db.ownContentRevisions, connection.db.ownContentEditorGrant,
       connection.db.ownSupportGrant,
+      connection.db.ownStudioScopeGrants,
     ]) {
       const listener = refresh('control');
       table.onInsert(listener);
@@ -841,7 +847,11 @@ export class StudioConnection implements StudioLiveAdapter {
     const membership = [...connection.db.ownMembership.iter()][0] ?? null;
     this.#contentEditorGrant = [...connection.db.ownContentEditorGrant.iter()][0] ?? null;
     this.#supportGrant = [...connection.db.ownSupportGrant.iter()][0] ?? null;
-    this.#role = resolveStudioEffectiveRole(membership, this.#contentEditorGrant, this.#supportGrant);
+    const overrides = [...connection.db.ownStudioScopeGrants.iter()];
+    this.#scopes = resolveStudioScopes(membership, this.#contentEditorGrant, this.#supportGrant, overrides);
+    this.#explicitScopes = this.#scopes.filter(scope => overrides.some(row => row.scope === scope && row.revokedAt === undefined));
+    this.#role = this.#scopes.length === 0 ? null
+      : resolveStudioEffectiveRole(membership, this.#contentEditorGrant, this.#supportGrant) ?? 'content_editor';
     const mapDocument = connection.db.liveMapDocument.mapId.find(LIVE_MAP_ID);
     this.#mapRevision = mapDocument?.revision ?? null;
     if (mapDocument === undefined || mapDocument === null) this.#mapDocument = null;
@@ -891,6 +901,8 @@ export class StudioConnection implements StudioLiveAdapter {
     this.#synchronizing = false;
     this.#identity = null;
     this.#role = null;
+    this.#scopes = [];
+    this.#explicitScopes = [];
     this.#mapRevision = null;
     this.#mapDocument = null;
     this.#contentHead = null;

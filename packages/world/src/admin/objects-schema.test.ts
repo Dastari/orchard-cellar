@@ -37,7 +37,7 @@ describe('W4 object/container reducer registration', () => {
   it('restores missing containers only from an authorized audited preview', () => {
     const procedure = between('export const adminMissingContainerRecovery = spacetimedb.procedure(',
       'export const adminEntitiesInArea = spacetimedb.procedure(');
-    expect(procedure).toContain('requireAdminProcedure(tx)');
+    expect(procedure).toContain("requireAdminProcedure(tx, 'operate.players')");
     expect(procedure).toContain('latestMissingContainerAuditSource(tx, entityId, targetIdentity)');
     const reducer = between('export const adminRestoreMissingContainer = spacetimedb.reducer(',
       '// --- end docs/56 lane 56-W4');

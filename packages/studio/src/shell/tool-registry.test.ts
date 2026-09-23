@@ -30,3 +30,12 @@ describe('registerStudioTool', () => {
     }
   });
 });
+
+it('keeps the live map read-only for legacy content grants until explicit map delegation', () => {
+  const registry = new StudioToolRegistry();
+  registerBuiltinStudioTools(registry);
+  registry.setScopes(['map'], false);
+  expect(registry.resolve('/build/map', 'content_editor')?.access).toBe('read_only');
+  registry.setScopes(['map'], true);
+  expect(registry.resolve('/build/map', 'content_editor')?.access).toBe('write');
+});

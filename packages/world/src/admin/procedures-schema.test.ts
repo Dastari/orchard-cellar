@@ -20,7 +20,7 @@ describe('W1 administration procedure schema', () => {
     for (const name of ADMIN_READ_PROCEDURES) {
       const registration = exportedProcedure(name);
       expect(registration).toContain('ctx.withTx((tx) =>');
-      expect(registration).toContain('requireAdminProcedure(tx);');
+      expect(registration).toMatch(/requireAdminProcedure\(tx(?:, '(?:operate\.players|operate\.world)')?\);/u);
       expect(registration).not.toContain('.iter()');
     }
   });

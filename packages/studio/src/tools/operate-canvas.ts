@@ -1,8 +1,9 @@
+import { STUDIO_SCOPES, type StudioScope } from '../../../sim/src/studio-scopes.js';
 import { studioInventoryPreview } from '../shell/inventory-preview.js';
 import { ui as kit, uiFixed, CanvasTextEditor, type UiElement, type UiTableState, type UiRect } from '@orchard/ui/studio';
 import { createMockAdminApi } from '../admin/api.js';
 import { studioAdminServiceKey } from '../admin/service-key.js';
-import { isStudioRole, type StudioRole } from '../shell/access.js';
+import { isStudioRole, studioScopedOperateRole, type StudioRole } from '../shell/access.js';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../shell/canvas-tool.js';
 import { ContainerManagerModel } from './containers/model.js';
 import { MembershipManagerModel, MockMembershipApi } from './membership/model.js';
@@ -164,7 +165,7 @@ function retainedTable(
 
 function roleFor(context: StudioCanvasToolContext): StudioRole | null {
   const role = context.controller.session.snapshot().role;
-  return isStudioRole(role) ? role : null;
+  return studioScopedOperateRole(isStudioRole(role) ? role : null, context.controller.liveAdapter()?.view().explicitScopes ?? [], context.route.tool.id);
 }
 
 function editor(context: StudioCanvasToolContext, key: string, value = '', maxLength = 500): CanvasTextEditor {
@@ -535,8 +536,12 @@ function membership(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const api = sandbox ? context.controller.toolState('membership:mock-api', () => new MockMembershipApi())
     : context.controller.liveAdapter()?.membershipApi ?? null;
   if (api === null) return unavailable(context, 'Connect the authenticated membership authority to manage access.');
-  const retained = context.controller.toolState<StartedModel<MembershipManagerModel>>(`membership-canvas:${studioAdminServiceKey(api)}:${role ?? 'anonymous'}`,
-    () => ({ model: new MembershipManagerModel(api, role), started: false }));
+  const authority = context.controller.liveAdapter()?.view();
+  const scopes = role === 'moderator' && !authority?.explicitScopes?.includes('operate.membership')
+    ? [] : authority?.scopes ?? [];
+  const scopeSelection = context.controller.toolState<{ scope: StudioScope }>('membership-scope-selection', () => ({ scope: 'map' }));
+  const retained = context.controller.toolState<StartedModel<MembershipManagerModel>>(`membership-canvas:${studioAdminServiceKey(api)}:${role ?? 'anonymous'}:${scopes.join(',')}`,
+    () => ({ model: new MembershipManagerModel(api, role, () => crypto.randomUUID(), scopes), started: false }));
   const query = editor(context, 'membership-query'); const reason = editor(context, 'membership-reason');
   if (!retained.started) { retained.started = true; run(context, 'Membership search failed', () => retained.model.search('')); }
   const state = retained.model.snapshot(); const ui = new StudioToolForm(context);
@@ -563,11 +568,23 @@ function membership(context: StudioCanvasToolContext): StudioCanvasToolSurface {
     const mutation = operation === 'set_blocked' ? { operation, blocked: true } as const : { operation } as const;
     run(context, 'Membership preview failed', () => retained.model.preview(mutation));
   };
+  const scopeWritable = context.route.access === 'write' && retained.model.canWriteScopes() && state.selectedIdentity !== null;
+  const selected = state.rows.find(row => row.identity === state.selectedIdentity);
+  ui.label('membership-current-scopes', `SCOPES: ${selected?.scopes?.join(', ') || 'None'}`, 48);
+  ui.tabs('membership-scope', STUDIO_SCOPES, scopeSelection.scope, value => {
+    scopeSelection.scope = value as StudioScope; context.invalidate();
+  });
+  const previewScope = (granted: boolean): void => {
+    retained.model.setReason(reason.snapshot().value);
+    run(context, 'Scope preview failed', () => retained.model.preview({ operation: 'set_scope', scope: scopeSelection.scope, granted }));
+  };
+  ui.button('membership-grant-scope', 'Preview scope grant', () => previewScope(true), { disabled: !scopeWritable });
+  ui.button('membership-revoke-scope', 'Preview scope revocation', () => previewScope(false), { disabled: !scopeWritable, tone: 'danger' });
   ui.button('membership-grant-content', 'PREVIEW CONTENT EDITOR GRANT', () => preview('grant_content_editor'), { disabled: !writable });
   ui.button('membership-grant-support', 'PREVIEW SUPPORT GRANT', () => preview('grant_support'), { disabled: !writable });
   ui.button('membership-block', 'PREVIEW BLOCK', () => preview('set_blocked'), { disabled: !writable, tone: 'danger' });
   outcome.label('membership-preview', state.pending === null ? '' : `PREVIEW ${state.pending.preview.changes.length} CHANGE(S) · BASE ${state.pending.baseVersion}`, 36);
-  ui.button('membership-commit', 'COMMIT AUDITED MEMBERSHIP CHANGE', () => run(context, 'Membership commit failed', () => retained.model.commit()), { disabled: !writable || state.pending === null, tone: 'danger' });
+  ui.button('membership-commit', 'COMMIT AUDITED MEMBERSHIP CHANGE', () => run(context, 'Membership commit failed', () => retained.model.commit()), { disabled: !(state.pending?.mutation.operation === 'set_scope' ? scopeWritable : writable) || state.pending === null, tone: 'danger' });
   if(state.selectedIdentity===null)ui.selectionChildren.length=0;
   return mergeSurfaces(ui.surface(), header.surface(), memberTable, outcome.surface());
 }
