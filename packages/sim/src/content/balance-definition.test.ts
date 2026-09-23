@@ -1,3 +1,4 @@
+import { balanceFieldsTuple } from './balance-fields.js';
 import { describe, expect, it } from 'vitest';
 import { parseContentDefinition } from './definitions.js';
 import { buildContentRegistry } from './registry.js';
@@ -96,12 +97,12 @@ describe('balance content definitions', () => {
       ),
     )!;
     expect(() => parseContentDefinition('balance', {
-      ...original,
-      values: original.values.slice(0, -1),
+      ...original, fields: undefined,
+      values: balanceFieldsTuple(original.profile, original.fields).slice(0, -1),
     })).toThrow('requires 18 positive integers');
     expect(() => parseContentDefinition('balance', {
-      ...original,
-      values: [10, 20, 5, ...original.values.slice(3)],
+      ...original, fields: undefined,
+      values: [10, 20, 5, ...balanceFieldsTuple(original.profile, original.fields).slice(3)],
     })).toThrow('attribute minimum, base, and maximum are inconsistent');
   });
 
@@ -110,9 +111,9 @@ describe('balance content definitions', () => {
     const profile=definitions.find((definition):definition is ResidenceConstructionBalanceContentDefinition=>(
       definition.kind==='balance'&&'profile' in definition&&definition.profile==='residence_construction'))!;
     expect(parseContentDefinition('balance',profile)).toEqual(profile);
-    expect(()=>parseContentDefinition('balance',{...profile,values:profile.values.slice(0,-1)}))
+    expect(()=>parseContentDefinition('balance',{...profile,fields:undefined,values:balanceFieldsTuple(profile.profile, profile.fields).slice(0,-1)}))
       .toThrow('requires 12 values');
-    expect(()=>parseContentDefinition('balance',{...profile,values:[1,profile.values[1],profile.values[1],...profile.values.slice(3)]}))
+    expect(()=>parseContentDefinition('balance',{...profile,fields:undefined,values:[1,balanceFieldsTuple(profile.profile, profile.fields)[1],balanceFieldsTuple(profile.profile, profile.fields)[1],...balanceFieldsTuple(profile.profile, profile.fields).slice(3)]}))
       .toThrow('material items must be distinct');
     const duplicate={...profile,id:'balance:renamed_residence_recipe' as const};
     expect(validateContentDefinitions([...definitions,duplicate]).errors).toContainEqual(expect.objectContaining({

@@ -26,6 +26,7 @@ const FILE_BY_KIND = {
   dialogue: 'dialogues.json',
   quest: 'quests.json',
   balance: 'balance.json',
+  progression: 'progression.json',
   crop: 'crops.json',
   creature: 'creatures.json',
   spawn: 'spawns.json',

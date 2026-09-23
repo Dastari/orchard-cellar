@@ -1,3 +1,4 @@
+import { BOOTSTRAP_PROGRESSION } from '@orchard/sim';
 import { paintUiCharacterPortrait } from './character-portrait.js';
 import type { LoadedAsset } from '../../assets.js';
 import { ATTRIBUTE_IDS, skillLevelForExperience, skillExperienceForLevel, type Direction, type PlayerAppearanceSelection } from '@orchard/sim';
@@ -53,7 +54,7 @@ export function uiCharacter(options:UiCharacterOptions):UiCharacterElement {
     const names={str:'STRENGTH',dex:'DEXTERITY',con:'CONSTITUTION',int:'INTELLIGENCE',wis:'WISDOM',cha:'CHARISMA'};
     for(const id of ATTRIBUTE_IDS){const base=next.baseAttributes[id],resolved=next.resolvedAttributes[id];details.append(uiText(`${names[id]} ${base===resolved?base:`${base} > ${resolved}`}`));}
     details.append(uiText('EXPERIENCE',{role:'header'}));
-    for(const track of ['combat','explorer','farming']as const){const xp=next.tracks.find(entry=>entry.track===track)?.experience??0n,level=skillLevelForExperience(xp),start=skillExperienceForLevel(level),end=skillExperienceForLevel(Math.min(50,level+1));details.append(uiText(`${track.toUpperCase()} LV ${level} · ${level>=50?'MAX':`${xp-start} XP`}`)).append(uiMeter({label:track,value:level>=50?1:Number(xp-start)/Number(end-start),tone:'success'}));}
+    for(const track of ['combat','explorer','farming']as const){const xp=next.tracks.find(entry=>entry.track===track)?.experience??0n,level=skillLevelForExperience(xp, next.progression),start=skillExperienceForLevel(level, next.progression),end=skillExperienceForLevel(level + 1, next.progression);details.append(uiText(`${track.toUpperCase()} LV ${level} · ${level >= (next.progression ?? BOOTSTRAP_PROGRESSION).levelCap?'MAX':`${xp-start} XP`}`)).append(uiMeter({label:track,value:level >= (next.progression ?? BOOTSTRAP_PROGRESSION).levelCap?1:Number(xp-start)/Number(end-start),tone:'success'}));}
     details.append(uiText(`EFFECTS ${next.effects.length?next.effects.join(', ').toUpperCase():'NONE'}`,{wrap:true}));
   };updateCharacter(model);return Object.assign(frame,{updateCharacter});
 }

@@ -1,0 +1,86 @@
+[
+  {
+    "id": "progression:character",
+    "kind": "progression",
+    "schemaVersion": 1,
+    "description": "Character progression and activity XP; existing authored process, quest, enemy and encounter rewards retain their own definitions.",
+    "levelCap": 50,
+    "xpCurve": {
+      "scale": 100,
+      "exponent": 1.7
+    },
+    "respecCostsBronze": [
+      0,
+      100,
+      500,
+      2500,
+      10000
+    ],
+    "awards": {
+      "plant_seed": {
+        "base": 2,
+        "perUnit": 0
+      },
+      "plant_fruit_seed": {
+        "base": 2,
+        "perUnit": 0
+      },
+      "homestead_upgrade": {
+        "base": 0,
+        "perUnit": 20
+      },
+      "orchard_harvest": {
+        "base": 0,
+        "perUnit": 2
+      },
+      "mine_rock": {
+        "base": 2,
+        "perUnit": 0
+      },
+      "mine_mixed_stone": {
+        "base": 3,
+        "perUnit": 0
+      },
+      "mine_mixed_ore": {
+        "base": 6,
+        "perUnit": 0
+      },
+      "mine_ore": {
+        "base": 10,
+        "perUnit": 0
+      },
+      "mine_depletion": {
+        "base": 0,
+        "perUnit": 1
+      },
+      "resource_fruit_harvest": {
+        "base": 0,
+        "perUnit": 2
+      },
+      "fish_catch": {
+        "base": 5,
+        "perUnit": 0
+      },
+      "fish_depletion": {
+        "base": 10,
+        "perUnit": 0
+      },
+      "cultivate": {
+        "base": 2,
+        "perUnit": 0
+      },
+      "water": {
+        "base": 1,
+        "perUnit": 0
+      },
+      "crop_harvest": {
+        "base": 8,
+        "perUnit": 1
+      },
+      "seal_barrel": {
+        "base": 5,
+        "perUnit": 0
+      }
+    }
+  }
+]

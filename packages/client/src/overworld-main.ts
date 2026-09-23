@@ -1,3 +1,4 @@
+import { runtimeProgression } from '@orchard/sim';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
@@ -449,7 +450,7 @@ function updateSkillPointNotice(snapshot: OverworldView): void {
     dismissSkillPointNotice();
   }
   if (snapshot.identityHex !== null) {
-    for (const notice of skillPointNoticeTracker.observe(snapshot.skillTracks)) {
+    for (const notice of skillPointNoticeTracker.observe(snapshot.skillTracks, runtimeProgression(snapshot.content.registry))) {
       if (skillPointNotice?.track === notice.track) {
         skillPointNotice = { track: notice.track, points: skillPointNotice.points + notice.points };
         skillPointNoticeTicks = SKILL_POINT_NOTICE_TICKS;
@@ -5306,6 +5307,7 @@ function renderFrame(alpha = 1): void {
     minimapTrackingEnabled: skillCapabilities.minimapPlayerTracking,
     contentRegistry: snapshot.content.registry,
     skills: {
+      progression: runtimeProgression(snapshot.content.registry),
       skillPriority:snapshot.equipmentSkillPriority??[],
       nodes: snapshot.content.registry.compiled.skillNodes,
       tracks: skillTracks,
@@ -5324,6 +5326,7 @@ function renderFrame(alpha = 1): void {
     },
     quests,
     ...(playerVitals === null || snapshot.stats === null || appearance === null || appearanceCatalog === null ? {} : { character: {
+      progression: runtimeProgression(snapshot.content.registry),
       playerId: snapshot.identityHex ?? 'local',
       displayName: ownProfile?.displayName ?? 'Farmer',
       appearance,
