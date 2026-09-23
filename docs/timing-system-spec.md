@@ -78,3 +78,15 @@ Run typecheck, lint, content validation, world build, relevant tests and full
 Crop growth uses raw authority plus a separate seasonal offset already. Fishing,
 effects, fruit ripening and combat expiry paths use raw authority already.
 VisualTickClock remains cosmetic and no longer supplies processor completion time.
+
+## Processor delivery (PR B)
+
+The shared `TimingProjection` exposes status/reason/stage/progress, remaining
+active ticks, next transition and confidence. Process settlement is reused for
+known slots; public closed anchors are explicitly estimated. A weak projection
+cache invalidates on immutable row/slot changes, authority tick, upgrade ranks
+and registry identity. Label strings cache at displayed seconds (64 entries).
+Spatial buckets respect authored target rectangles or placement footprints and
+terrain projection independently of action reach. All five authored frames bind
+the shared kit timing pane. A small canvas bridge keeps retained Studio modules
+out of the independent game build. No authority schema or scheduled writes change.

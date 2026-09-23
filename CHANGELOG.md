@@ -31,6 +31,12 @@
 - Reject type assertions, interpolated string expansion and bigint operations that could evade the callback AST budget.
 - Validate v2 source, generated code, metadata and provenance in lifecycle build/integrity gates. New checked-in bundle is empty; release remains separately reviewed. See [F3 specification and handoff](docs/lifecycle-object-quest-hooks.md).
 
+## 0.25.0 — 2026-09-23
+
+- Restore authored countdown/status panes for furnaces, cooking fires, presses, fermentation vessels and barrels using one read-only timing projection. Closed station completion is estimated until settlement confirms output.
+- Inspect processor timers across their authored target/footprint without action-reach restrictions. Cache definition metadata, projections and formatted labels without per-object intervals or timer writes.
+- Share kit timing presentation between game frames and hover while preserving the independent Studio bundle boundary. Client 0.21.0, sim 0.23.0, UI 0.22.0.
+
 ## 0.24.1 — 2026-09-23
 
 - Fix workstation and private-job progress using calendar offsets: elapsed time now uses the authoritative simulation clock exclusively, while date/weather/moon displays retain calendar time. Client 0.20.2.

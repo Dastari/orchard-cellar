@@ -513,3 +513,17 @@ calendar offsets only feed seasonal policy and calendar/weather/lighting display
 Cosmetic clocks cannot confirm production completion. See
 [shared timing specification](timing-system-spec.md) for the staged frame/hover
 projection work and [decision](adr/ADR-shared-timing.md).
+
+### Shared workstation timing projection
+
+`projectTiming` in sim derives statuses, confidence, progress and deadlines from
+existing process anchors and the same `settleProcess` mathematics as authority.
+It never writes inventory or claims hypothetical output. Unknown private slots
+produce estimates; expired public anchors require settlement confirmation.
+Authored frame `{ timing: "process" }` text panes and spatial hover share the kit
+timing canvas bridge. Retained `ui.timing` uses the same bounded label cache.
+Processor metadata is cached per immutable content registry, projections per
+row/tick/slot snapshot, and hover buckets per entity/map/content revision. Only
+the open or hovered station is projected; no per-object interval is introduced.
+The game build admits the small timing bridge and contrast modules only; retained
+Studio components remain outside its dependency boundary.
