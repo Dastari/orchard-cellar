@@ -17,6 +17,23 @@ import type {
   RecipeDefinitionId,
 } from './definitions.js';
 import type { LootDefinitionId } from './loot-definition.js';
+import {
+  parseObjectLightingComponent,
+  parseObjectOverrides,
+  parseObjectTargetComponent,
+  type ObjectLightingComponent,
+  type ObjectOverridePatch,
+  type ObjectStateOverride,
+  type ObjectTargetComponent,
+} from './object-archetype.js';
+import {
+  parseGrowthComponent,
+  parseStateTransitions,
+  type GrowthComponent,
+  type StateDeclaration,
+  type StatefulComponentSet,
+  type StateTransitionDefinition,
+} from './stateful-components.js';
 
 export type ObjectDefinitionId = `object:${string}`;
 export type FrameDefinitionId = `frame:${string}`;
@@ -70,10 +87,8 @@ export interface ObjectPlacementComponent {
   readonly connectsTo?: readonly string[];
 }
 
-export type ObjectStateDefinition =
-  | { readonly type: 'bool'; readonly default: boolean }
-  | { readonly type: 'enum'; readonly default: string; readonly values: readonly string[] }
-  | { readonly type: 'counter'; readonly default: number; readonly min?: number; readonly max?: number };
+/** Shared with every kind embedding the stateful component contract. */
+export type ObjectStateDefinition = StateDeclaration;
 
 export interface ObjectLightComponent {
   /** Radiance multiplier; independent of propagation radius. Default 1000. */
@@ -188,7 +203,9 @@ export type ObjectCarryComponent =
     readonly item: ItemDefinitionId;
   };
 
-export interface ObjectContentComponents {
+/** Objects embed the reusable stateful contract (states, overrides,
+ * transitions, growth) with the object override patch shape. */
+export interface ObjectContentComponents extends StatefulComponentSet<ObjectOverridePatch> {
   readonly identity?: ObjectIdentityComponent;
   readonly sprite?: ObjectSpriteComponent;
   readonly collision?: ObjectCollisionComponent;
@@ -203,6 +220,16 @@ export interface ObjectContentComponents {
   readonly damageable?: ObjectDamageableComponent;
   readonly carry?: ObjectCarryComponent;
   readonly furniture?: ObjectFurnitureComponent;
+  /** Doc 61 §3: global lighting, shadow, and occlusion participation. */
+  readonly lighting?: ObjectLightingComponent;
+  /** Pixel interaction target rectangle relative to the anchor. */
+  readonly target?: ObjectTargetComponent;
+  /** Ordered per-state overrides applied over the base components. */
+  readonly overrides?: readonly ObjectStateOverride[];
+  /** Declared state machine: timed and event-triggered transitions. */
+  readonly transitions?: readonly StateTransitionDefinition[];
+  /** Data-authored growth profile feeding `growth.ts`. */
+  readonly growth?: GrowthComponent;
 }
 
 export interface ObjectContentDefinition {
@@ -816,6 +843,7 @@ export function parseObjectDefinition(value: string | unknown): ObjectContentDef
     'identity', 'sprite', 'collision', 'placement', 'states', 'light',
     'container', 'processor', 'interactions', 'frame', 'farming',
     'damageable', 'carry', 'furniture',
+    'lighting', 'target', 'overrides', 'transitions', 'growth',
   ]);
   const unknownComponent = Object.keys(components).find((key) => !supportedComponents.has(key));
   if (unknownComponent !== undefined) {
@@ -1158,6 +1186,21 @@ export function parseObjectDefinition(value: string | unknown): ObjectContentDef
           ...rewards,
         };
       })() }),
+      ...(components.lighting === undefined ? {} : {
+        lighting: parseObjectLightingComponent(components.lighting, '$.components.lighting'),
+      }),
+      ...(components.target === undefined ? {} : {
+        target: parseObjectTargetComponent(components.target, '$.components.target'),
+      }),
+      ...(components.overrides === undefined ? {} : {
+        overrides: parseObjectOverrides(components.overrides, '$.components.overrides'),
+      }),
+      ...(components.transitions === undefined ? {} : {
+        transitions: parseStateTransitions(components.transitions, '$.components.transitions'),
+      }),
+      ...(components.growth === undefined ? {} : {
+        growth: parseGrowthComponent(components.growth, '$.components.growth'),
+      }),
       ...(carry === undefined ? {} : { carry: carry.mode === 'preserve_entity'
         ? { mode: 'preserve_entity' as const }
         : {

@@ -1,3 +1,4 @@
+import { STUDIO_SCOPES, type StudioScope } from '../../../../sim/src/studio-scopes.js';
 import { diffAdminValues, type AdminChangePreview } from '@orchard/sim';
 import { normalizeAdminReason } from '../../admin/api.js';
 import type { StudioRole } from '../../shell/access.js';
@@ -14,6 +15,7 @@ export interface MembershipAdminRow {
   readonly displayName: string;
   readonly role: 'owner' | 'admin' | 'moderator' | 'friend';
   readonly grants: readonly ('content_editor' | 'support')[];
+  readonly scopes?: readonly StudioScope[];
   readonly blocked: boolean;
   readonly revoked: boolean;
   readonly lastActiveOwner: boolean;
@@ -21,6 +23,7 @@ export interface MembershipAdminRow {
 }
 
 export type MembershipMutationDraft =
+  | { readonly operation: 'set_scope'; readonly scope: StudioScope; readonly granted: boolean }
   | { readonly operation: 'approve'; readonly role: MembershipAdminRow['role'] }
   | { readonly operation: 'set_role'; readonly role: MembershipAdminRow['role'] }
   | { readonly operation: 'revoke' }
@@ -34,6 +37,7 @@ export interface MembershipPreview {
   readonly mutation: MembershipMutationDraft;
   readonly preview: AdminChangePreview;
   readonly warnings: readonly string[];
+  readonly scopeVersion?: string;
 }
 
 export interface MembershipCommitResult {
@@ -67,10 +71,11 @@ export class MembershipManagerModel {
   #loading = false;
   #error: string | null = null;
 
-  constructor(private readonly api: MembershipApi, private readonly role: StudioRole | null, private readonly createMutationId: () => string = () => crypto.randomUUID()) {}
+  constructor(private readonly api: MembershipApi, private readonly role: StudioRole | null, private readonly createMutationId: () => string = () => crypto.randomUUID(), private readonly scopes: readonly StudioScope[] = []) {}
 
   snapshot(): MembershipManagerSnapshot { return Object.freeze({ rows: this.#rows, selectedIdentity: this.#selectedIdentity, reason: this.#reason, pending: this.#pending, lastAuditId: this.#lastAuditId, loading: this.#loading, error: this.#error }); }
   canWrite(): boolean { return this.role === 'owner'; }
+  canWriteScopes(): boolean { return this.role === 'owner' || this.scopes.includes('operate.membership'); }
   setReason(value: string): void { this.#reason = value; this.#pending = null; }
   select(identity: string): void { this.#selectedIdentity = identity; this.#pending = null; }
 
@@ -82,7 +87,7 @@ export class MembershipManagerModel {
   }
 
   async preview(mutation: MembershipMutationDraft): Promise<MembershipPreview> {
-    if (!this.canWrite()) throw new Error('membership_owner_required');
+    if (!(mutation.operation === 'set_scope' ? this.canWriteScopes() : this.canWrite())) throw new Error('membership_owner_required');
     const identity = this.#selectedIdentity;
     const row = this.#rows.find((candidate) => candidate.identity === identity);
     if (identity === null || row === undefined) throw new Error('membership_target_required');
@@ -122,7 +127,7 @@ export class MockMembershipApi implements MembershipApi {
     const after = this.apply(row, mutation, row.version);
     const json = (value: MembershipAdminRow) => ({
       identity: value.identity, displayName: value.displayName, role: value.role,
-      grants: value.grants, blocked: value.blocked, revoked: value.revoked,
+      grants: value.grants, scopes: value.scopes ?? [], blocked: value.blocked, revoked: value.revoked,
       lastActiveOwner: value.lastActiveOwner, version: value.version,
     });
     const preview = Object.freeze({ token: clientMutationId, targetIdentity, baseVersion: expectedVersion, mutation, preview: diffAdminValues(json(row), json(after)), warnings: Object.freeze(row.lastActiveOwner ? ['Last-owner protection is active.'] : []) });
@@ -151,11 +156,14 @@ export class MockMembershipApi implements MembershipApi {
       ...(mutation.operation === 'revoke' ? { revoked: true } : {}),
       ...(mutation.operation === 'set_blocked' ? { blocked: mutation.blocked } : {}),
       grants: Object.freeze([...grants].sort()),
+      ...(mutation.operation === 'set_scope' ? { scopes: STUDIO_SCOPES.filter(scope =>
+        scope === mutation.scope ? mutation.granted : (row.scopes ?? []).includes(scope)) } : {}),
     });
   }
 
   private inverse(row: MembershipAdminRow, mutation: MembershipMutationDraft): MembershipMutationDraft | null {
     switch (mutation.operation) {
+      case 'set_scope': return { operation: 'set_scope', scope: mutation.scope, granted: (row.scopes ?? []).includes(mutation.scope) };
       case 'set_role': case 'approve': return { operation: 'set_role', role: row.role };
       case 'set_blocked': return { operation: 'set_blocked', blocked: row.blocked };
       case 'grant_content_editor': return { operation: 'revoke_content_editor' };

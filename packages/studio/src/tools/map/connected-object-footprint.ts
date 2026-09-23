@@ -1,5 +1,6 @@
 import {
-  MANUAL_OBJECT_CONNECTION_TAG, mapObjectConnectionFamily, mapObjectOccupiedCells,
+  MANUAL_OBJECT_CONNECTION_TAG, mapObjectConnectionFamily, mapObjectIsGroundDecal,
+  mapObjectOccupiedCells, mapObjectOverlapAllowed,
   mapObjectPrefab, smartConnectedObjectPrefabs,
   type MapDocumentV3, type MapObjectInstance, type MapPrefabDocumentV2,
 } from '@orchard/sim';
@@ -27,8 +28,11 @@ export function mapEditorObjectPlacementConflict(document: MapDocumentV3, object
   if (cells.some(cell => cell.tileX < 0 || cell.tileY < 0 || cell.tileX >= document.width || cell.tileY >= document.height)) return 'outside-map';
   for (const other of document.objects) {
     if (other.id !== object.id && other.enabled && other.layer === object.layer
+      && !mapObjectOverlapAllowed(document, object, other)
       && mapEditorObjectOccupiedCells(document, other).some(cell => keys.has(`${cell.tileX},${cell.tileY},${cell.elevation}`))) return other.id;
   }
+  // A flat ground decal never blocks movement, so it may sit on any cell of its band.
+  if (mapObjectIsGroundDecal(document, object)) return null;
   for (const other of document.landmarks) {
     if (other.id !== object.id && other.enabled && other.layer === object.layer
       && keys.has(`${other.tileX},${other.tileY},${other.elevation}`)) return other.id;

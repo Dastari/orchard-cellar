@@ -1,3 +1,4 @@
+import { consumeStudioDefinition } from '../../shell/content-navigation.js';
 import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { studioSelectionEditor } from '../../shell/selection-editor.js';
 import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
@@ -138,6 +139,8 @@ export function buildNarrativeCanvasTool(context: StudioCanvasToolContext): Stud
   state.model.receiveHistory(view === undefined ? [] : itemsHistoryFromConnection(view));
 
   const kind = routeKind(context.route.path);
+  const requested = consumeStudioDefinition(context.controller, requestedKind => requestedKind === kind);
+  if (requested) { state.selectedId = requested; state.syncedId = null; state.query.setValue(''); state.includeRetired = true; }
   const entries = state.model.browser(kind, state.query.snapshot().value, state.includeRetired);
   if (state.selectedId === null || !entries.some(({ id }) => id === state.selectedId)) {
     state.selectedId = entries[0]?.id ?? null;
@@ -246,7 +249,7 @@ export function buildNarrativeCanvasTool(context: StudioCanvasToolContext): Stud
     ...snapshot.validation.warnings.map((issue,index)=>({id:`narrative:warning:${index}`,severity:'warning' as const,message:issue.message})),
   ]);
   const inspector=studioSelectionEditor({id:id('tabs'),label:'Narrative editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
-    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,readOnly:access==='read_only',apply:()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));}})},
+    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,definitions:snapshot.definitions,readOnly:access==='read_only',apply:()=>{state.model.upsertDefinition(JSON.parse(state.definition.snapshot().value));}})},
     {id:'editor',label:'JSON',content:editor},
     {id:'history',label:'History',content:kit.scrollArea({width:'grow',height:'grow',gap:8},[controls.children[8]!,controls.children[9]!])},
     ...(testing.length ? [{id:'testing',label:kind==='dialogue'?'Nodes & testing':'Testing',content:kit.scrollArea({width:'grow',height:'grow',gap:8},testing)}] : []),

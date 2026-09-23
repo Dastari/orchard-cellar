@@ -1,4 +1,4 @@
-import { containsPoint } from '../../geometry.js';
+import { containsPoint, type UiPoint } from '../../geometry.js';
 import { drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -12,10 +12,23 @@ export interface UiButtonOptions {
   readonly leading?: UiElement; readonly trailing?: UiElement; readonly layout?: UiStyle;
   readonly activateOn?: 'down' | 'up';
   readonly onPress?: (event: UiButtonModifiers) => void; readonly children?: readonly UiElement[];
+  /** Press-and-drag source. A release before the threshold still presses. */
+  readonly drag?: UiButtonDrag;
+}
+/** Points are arranged logical coordinates, the same space as pointer events. */
+export interface UiButtonDrag {
+  /** Logical pixels the pointer must travel before the drag becomes active. Default 4. */
+  readonly threshold?: number;
+  readonly onMove?: (point: UiPoint, active: boolean) => void;
+  readonly onDrop?: (point: UiPoint) => void;
+  /** Called once after every drop, press, cancel or Escape. */
+  readonly onEnd?: () => void;
 }
 export function uiButton(options: UiButtonOptions): UiElement {
   const tone = options.tone ?? 'neutral', size = options.size ?? 'md', shape = options.shape ?? 'chamfered';
   const metrics = UI_SIZE_METRICS[size]; let pressed = false;
+  let origin: UiPoint | undefined, dragging = false;
+  const endDrag = () => { if (!origin) return; origin = undefined; dragging = false; options.drag?.onEnd?.(); };
   const activate = (element: UiElement, event: UiButtonModifiers = {}) => { if (!element.disabled && !options.loading) options.onPress?.(event); };
   const leading = options.loading ? new UiElement({ kind: 'button-spinner', animated: true, style: { width: uiFixed(16), height: uiFixed(16) },
     paint(element, { context, art, now, reducedMotion }) { if (art) paintUiSkin(context, art.skin.cursor, `kit_loading_spinner.idle.${reducedMotion ? 0 : Math.floor(now * 12 / 1000) % 8}`, element.rect); } }) : options.leading;
@@ -29,15 +42,27 @@ export function uiButton(options: UiButtonOptions): UiElement {
       return { min: { width: metrics.controlHeight, height: metrics.controlHeight }, preferred: { width, height: metrics.controlHeight } };
     },
     onPointer(event, element) {
-      if (event.type === 'down' && event.button === 0) { pressed = true; element.setProps({ pressed: true }, false); event.capture(); element.invalidateRoot?.(false); if (options.activateOn === 'down') activate(element, event); return true; }
+      const drag = options.drag;
+      if (event.type === 'down' && event.button === 0) {
+        pressed = true; element.setProps({ pressed: true }, false); event.capture(); element.invalidateRoot?.(false);
+        if (drag && !element.disabled) { origin = event.point; dragging = false; drag.onMove?.(event.point, false); }
+        if (options.activateOn === 'down') activate(element, event); return true;
+      }
+      if (event.type === 'move' && pressed && drag && origin) {
+        dragging ||= Math.hypot(event.point.x - origin.x, event.point.y - origin.y) > (drag.threshold ?? 4);
+        drag.onMove?.(event.point, dragging); return true;
+      }
       if (event.type === 'up' && pressed) {
         pressed = false; element.setProps({ pressed: false }, false); event.release(); element.invalidateRoot?.(false);
-        if (options.activateOn !== 'down' && containsPoint(element.clip, event.point)) activate(element, event); return true;
+        if (drag && dragging) drag.onDrop?.(event.point);
+        else if (options.activateOn !== 'down' && containsPoint(element.clip, event.point)) activate(element, event);
+        endDrag(); return true;
       }
-      if (event.type === 'cancel') { pressed = false; element.setProps({ pressed: false }, false); event.release(); element.invalidateRoot?.(false); return true; }
+      if (event.type === 'cancel') { pressed = false; element.setProps({ pressed: false }, false); event.release(); element.invalidateRoot?.(false); endDrag(); return true; }
       return pressed;
     },
     onKey(event, element) {
+      if (event.key === 'Escape' && origin) { pressed = false; element.setProps({ pressed: false }, false); endDrag(); return true; }
       if (event.key === 'Enter' || event.key === ' ') { activate(element, event); return true; } return false;
     },
     paint(element, { context, art, focused, hovered }) {

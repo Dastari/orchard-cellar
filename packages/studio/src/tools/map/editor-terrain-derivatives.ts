@@ -106,7 +106,10 @@ function terrainVisualCellDiffers(
     || !terrainOverrideEqual(
       combined.terrainOverrides?.[index],
       generatedBase.terrainOverrides?.[index],
-    );
+    )
+    || ((combined.cellParts !== undefined || generatedBase.cellParts !== undefined)
+      && JSON.stringify(combined.cellParts?.get(index) ?? null)
+        !== JSON.stringify(generatedBase.cellParts?.get(index) ?? null));
 }
 
 /**
