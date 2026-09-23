@@ -36,3 +36,12 @@ from the prior same-base rebuild. No tracked art or production files changed.
 Next coordinator action: obtain clean broad validation after repaired worktree
 setup or review final-head CI before changing readiness. No merge or deployment
 is authorized for this wave-2 PR. File reservations have been released.
+
+## Reviewed wave1 integration
+
+The source now includes final wave1 main and preceding PR75. Both new spatial
+reads explicitly require `operate.world`, preserving the scoped main helper and
+private projection checks. Public bindings are regenerated from the combined
+module; higher versions and the world-chunk export are retained. Integration
+behavior passed the full combined PR87 rehearsal (6,310 coverage + 101 exhaustive
+tests). Prefix checks and fresh source CI are recorded in the PR. No deployment.
