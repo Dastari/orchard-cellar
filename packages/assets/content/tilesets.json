@@ -3,6 +3,1863 @@
     "id": "tileset:basic",
     "kind": "tileset",
     "schemaVersion": 1,
+    "ruleCatalogue": {
+      "schemaVersion": 1,
+      "families": [
+        {
+          "id": "wood_fence",
+          "kind": "connect4",
+          "topology": "cardinal",
+          "neighbourPredicate": "connects-to",
+          "members": {
+            "definitionIds": [
+              "object:fence",
+              "object:fence_gate"
+            ],
+            "assetIds": [
+              "prop_cf_fence_corner",
+              "prop_cf_fence_gate",
+              "prop_cf_fence_horizontal",
+              "prop_cf_fence_left_end",
+              "prop_cf_fence_vertical",
+              "prop_cf_join_wood_fence",
+              "prop_cf_willow_boundary_wood_large_0",
+              "prop_cf_willow_boundary_wood_large_1",
+              "prop_cf_willow_boundary_wood_large_10",
+              "prop_cf_willow_boundary_wood_large_11",
+              "prop_cf_willow_boundary_wood_large_12",
+              "prop_cf_willow_boundary_wood_large_13",
+              "prop_cf_willow_boundary_wood_large_14",
+              "prop_cf_willow_boundary_wood_large_15",
+              "prop_cf_willow_boundary_wood_large_2",
+              "prop_cf_willow_boundary_wood_large_3",
+              "prop_cf_willow_boundary_wood_large_4",
+              "prop_cf_willow_boundary_wood_large_5",
+              "prop_cf_willow_boundary_wood_large_6",
+              "prop_cf_willow_boundary_wood_large_7",
+              "prop_cf_willow_boundary_wood_large_8",
+              "prop_cf_willow_boundary_wood_large_9",
+              "prop_cf_willow_boundary_wood_large_connected"
+            ],
+            "tags": [
+              "build.fence"
+            ],
+            "exactAssetIds": [
+              "prop_cf_fence_gate"
+            ]
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "roles": [
+                "mask_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "roles": [
+                "mask_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "roles": [
+                "mask_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "roles": [
+                "mask_3"
+              ]
+            },
+            {
+              "mask": 4,
+              "roles": [
+                "mask_4"
+              ]
+            },
+            {
+              "mask": 5,
+              "roles": [
+                "mask_5"
+              ]
+            },
+            {
+              "mask": 6,
+              "roles": [
+                "mask_6"
+              ]
+            },
+            {
+              "mask": 7,
+              "roles": [
+                "mask_7"
+              ]
+            },
+            {
+              "mask": 8,
+              "roles": [
+                "mask_8"
+              ]
+            },
+            {
+              "mask": 9,
+              "roles": [
+                "mask_9"
+              ]
+            },
+            {
+              "mask": 10,
+              "roles": [
+                "mask_10"
+              ]
+            },
+            {
+              "mask": 11,
+              "roles": [
+                "mask_11"
+              ]
+            },
+            {
+              "mask": 12,
+              "roles": [
+                "mask_12"
+              ]
+            },
+            {
+              "mask": 13,
+              "roles": [
+                "mask_13"
+              ]
+            },
+            {
+              "mask": 14,
+              "roles": [
+                "mask_14"
+              ]
+            },
+            {
+              "mask": 15,
+              "roles": [
+                "mask_15"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "mask_0": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 12
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_1": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 8
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_2": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 1
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_3": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 13
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_4": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 0
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_5": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 4
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_6": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 5
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_7": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 9
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_8": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 3
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_9": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 15
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_10": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 2
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_11": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 14
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_12": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 7
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_13": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 11
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_14": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 6
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_15": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_fence",
+                "frame": 10
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "isolated",
+              "line",
+              "corner",
+              "tee",
+              "cross"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "white_fence",
+          "kind": "connect4",
+          "topology": "cardinal",
+          "neighbourPredicate": "connects-to",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "prop_cf_fence_white_horizontal",
+              "prop_cf_join_white_fence",
+              "prop_cf_willow_boundary_picket_0",
+              "prop_cf_willow_boundary_picket_1",
+              "prop_cf_willow_boundary_picket_10",
+              "prop_cf_willow_boundary_picket_11",
+              "prop_cf_willow_boundary_picket_12",
+              "prop_cf_willow_boundary_picket_13",
+              "prop_cf_willow_boundary_picket_14",
+              "prop_cf_willow_boundary_picket_15",
+              "prop_cf_willow_boundary_picket_2",
+              "prop_cf_willow_boundary_picket_3",
+              "prop_cf_willow_boundary_picket_4",
+              "prop_cf_willow_boundary_picket_5",
+              "prop_cf_willow_boundary_picket_6",
+              "prop_cf_willow_boundary_picket_7",
+              "prop_cf_willow_boundary_picket_8",
+              "prop_cf_willow_boundary_picket_9",
+              "prop_cf_willow_picket",
+              "prop_cf_willow_picket_left",
+              "prop_cf_willow_picket_right",
+              "prop_cf_willow_picket_vertical"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "roles": [
+                "mask_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "roles": [
+                "mask_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "roles": [
+                "mask_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "roles": [
+                "mask_3"
+              ]
+            },
+            {
+              "mask": 4,
+              "roles": [
+                "mask_4"
+              ]
+            },
+            {
+              "mask": 5,
+              "roles": [
+                "mask_5"
+              ]
+            },
+            {
+              "mask": 6,
+              "roles": [
+                "mask_6"
+              ]
+            },
+            {
+              "mask": 7,
+              "roles": [
+                "mask_7"
+              ]
+            },
+            {
+              "mask": 8,
+              "roles": [
+                "mask_8"
+              ]
+            },
+            {
+              "mask": 9,
+              "roles": [
+                "mask_9"
+              ]
+            },
+            {
+              "mask": 10,
+              "roles": [
+                "mask_10"
+              ]
+            },
+            {
+              "mask": 11,
+              "roles": [
+                "mask_11"
+              ]
+            },
+            {
+              "mask": 12,
+              "roles": [
+                "mask_12"
+              ]
+            },
+            {
+              "mask": 13,
+              "roles": [
+                "mask_13"
+              ]
+            },
+            {
+              "mask": 14,
+              "roles": [
+                "mask_14"
+              ]
+            },
+            {
+              "mask": 15,
+              "roles": [
+                "mask_15"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "mask_0": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 12
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_1": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 8
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_2": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 1
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_3": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 13
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_4": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 0
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_5": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 4
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_6": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 5
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_7": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 9
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_8": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 3
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_9": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 15
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_10": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 2
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_11": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 14
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_12": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 7
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_13": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 11
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_14": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 6
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_15": {
+              "frame": {
+                "assetId": "prop_cf_join_white_fence",
+                "frame": 10
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "isolated",
+              "line",
+              "corner",
+              "tee",
+              "cross"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "hedge",
+          "kind": "connect4",
+          "topology": "cardinal",
+          "neighbourPredicate": "connects-to",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "prop_cf_hearth_hedge_horizontal",
+              "prop_cf_hearth_hedge_vertical",
+              "prop_cf_join_hedge",
+              "prop_cf_willow_boundary_hedge_1",
+              "prop_cf_willow_boundary_hedge_10",
+              "prop_cf_willow_boundary_hedge_12",
+              "prop_cf_willow_boundary_hedge_2",
+              "prop_cf_willow_boundary_hedge_3",
+              "prop_cf_willow_boundary_hedge_4",
+              "prop_cf_willow_boundary_hedge_5",
+              "prop_cf_willow_boundary_hedge_6",
+              "prop_cf_willow_boundary_hedge_8",
+              "prop_cf_willow_boundary_hedge_9",
+              "prop_cf_willow_hedge_end_bottom",
+              "prop_cf_willow_hedge_end_left",
+              "prop_cf_willow_hedge_end_right",
+              "prop_cf_willow_hedge_end_top",
+              "prop_cf_willow_hedge_ne",
+              "prop_cf_willow_hedge_nw",
+              "prop_cf_willow_hedge_se",
+              "prop_cf_willow_hedge_sw"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "roles": [
+                "mask_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "roles": [
+                "mask_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "roles": [
+                "mask_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "roles": [
+                "mask_3"
+              ]
+            },
+            {
+              "mask": 4,
+              "roles": [
+                "mask_4"
+              ]
+            },
+            {
+              "mask": 5,
+              "roles": [
+                "mask_5"
+              ]
+            },
+            {
+              "mask": 6,
+              "roles": [
+                "mask_6"
+              ]
+            },
+            {
+              "mask": 7,
+              "roles": [
+                "mask_7"
+              ]
+            },
+            {
+              "mask": 8,
+              "roles": [
+                "mask_8"
+              ]
+            },
+            {
+              "mask": 9,
+              "roles": [
+                "mask_9"
+              ]
+            },
+            {
+              "mask": 10,
+              "roles": [
+                "mask_10"
+              ]
+            },
+            {
+              "mask": 11,
+              "roles": [
+                "mask_11"
+              ]
+            },
+            {
+              "mask": 12,
+              "roles": [
+                "mask_12"
+              ]
+            },
+            {
+              "mask": 13,
+              "roles": [
+                "mask_13"
+              ]
+            },
+            {
+              "mask": 14,
+              "roles": [
+                "mask_14"
+              ]
+            },
+            {
+              "mask": 15,
+              "roles": [
+                "mask_15"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "mask_0": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 12
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_1": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 8
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_2": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 1
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_3": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 13
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_4": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 0
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_5": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 4
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_6": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 5
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_7": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 9
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_8": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 3
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_9": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 15
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_10": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 2
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_11": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 14
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_12": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 7
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_13": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 11
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_14": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 6
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_15": {
+              "frame": {
+                "assetId": "prop_cf_join_hedge",
+                "frame": 10
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "isolated",
+              "line",
+              "corner",
+              "tee",
+              "cross"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "wood_small_fence",
+          "kind": "connect4",
+          "topology": "cardinal",
+          "neighbourPredicate": "connects-to",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "prop_cf_join_wood_small_fence",
+              "prop_cf_willow_boundary_wood_0",
+              "prop_cf_willow_boundary_wood_1",
+              "prop_cf_willow_boundary_wood_10",
+              "prop_cf_willow_boundary_wood_11",
+              "prop_cf_willow_boundary_wood_12",
+              "prop_cf_willow_boundary_wood_13",
+              "prop_cf_willow_boundary_wood_14",
+              "prop_cf_willow_boundary_wood_15",
+              "prop_cf_willow_boundary_wood_2",
+              "prop_cf_willow_boundary_wood_3",
+              "prop_cf_willow_boundary_wood_4",
+              "prop_cf_willow_boundary_wood_5",
+              "prop_cf_willow_boundary_wood_6",
+              "prop_cf_willow_boundary_wood_7",
+              "prop_cf_willow_boundary_wood_8",
+              "prop_cf_willow_boundary_wood_9"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "roles": [
+                "mask_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "roles": [
+                "mask_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "roles": [
+                "mask_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "roles": [
+                "mask_3"
+              ]
+            },
+            {
+              "mask": 4,
+              "roles": [
+                "mask_4"
+              ]
+            },
+            {
+              "mask": 5,
+              "roles": [
+                "mask_5"
+              ]
+            },
+            {
+              "mask": 6,
+              "roles": [
+                "mask_6"
+              ]
+            },
+            {
+              "mask": 7,
+              "roles": [
+                "mask_7"
+              ]
+            },
+            {
+              "mask": 8,
+              "roles": [
+                "mask_8"
+              ]
+            },
+            {
+              "mask": 9,
+              "roles": [
+                "mask_9"
+              ]
+            },
+            {
+              "mask": 10,
+              "roles": [
+                "mask_10"
+              ]
+            },
+            {
+              "mask": 11,
+              "roles": [
+                "mask_11"
+              ]
+            },
+            {
+              "mask": 12,
+              "roles": [
+                "mask_12"
+              ]
+            },
+            {
+              "mask": 13,
+              "roles": [
+                "mask_13"
+              ]
+            },
+            {
+              "mask": 14,
+              "roles": [
+                "mask_14"
+              ]
+            },
+            {
+              "mask": 15,
+              "roles": [
+                "mask_15"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "mask_0": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 12
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_1": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 8
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_2": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 1
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_3": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 13
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_4": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 0
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_5": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 4
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_6": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 5
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_7": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 9
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_8": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 3
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_9": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 15
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_10": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 2
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_11": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 14
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_12": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 7
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_13": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 11
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_14": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 6
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_15": {
+              "frame": {
+                "assetId": "prop_cf_join_wood_small_fence",
+                "frame": 10
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "isolated",
+              "line",
+              "corner",
+              "tee",
+              "cross"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "stone_fence",
+          "kind": "connect4",
+          "topology": "cardinal",
+          "neighbourPredicate": "connects-to",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "prop_cf_join_stone_fence",
+              "prop_cf_willow_boundary_stone_0",
+              "prop_cf_willow_boundary_stone_1",
+              "prop_cf_willow_boundary_stone_10",
+              "prop_cf_willow_boundary_stone_11",
+              "prop_cf_willow_boundary_stone_12",
+              "prop_cf_willow_boundary_stone_13",
+              "prop_cf_willow_boundary_stone_14",
+              "prop_cf_willow_boundary_stone_15",
+              "prop_cf_willow_boundary_stone_2",
+              "prop_cf_willow_boundary_stone_3",
+              "prop_cf_willow_boundary_stone_4",
+              "prop_cf_willow_boundary_stone_5",
+              "prop_cf_willow_boundary_stone_6",
+              "prop_cf_willow_boundary_stone_7",
+              "prop_cf_willow_boundary_stone_8",
+              "prop_cf_willow_boundary_stone_9"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "roles": [
+                "mask_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "roles": [
+                "mask_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "roles": [
+                "mask_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "roles": [
+                "mask_3"
+              ]
+            },
+            {
+              "mask": 4,
+              "roles": [
+                "mask_4"
+              ]
+            },
+            {
+              "mask": 5,
+              "roles": [
+                "mask_5"
+              ]
+            },
+            {
+              "mask": 6,
+              "roles": [
+                "mask_6"
+              ]
+            },
+            {
+              "mask": 7,
+              "roles": [
+                "mask_7"
+              ]
+            },
+            {
+              "mask": 8,
+              "roles": [
+                "mask_8"
+              ]
+            },
+            {
+              "mask": 9,
+              "roles": [
+                "mask_9"
+              ]
+            },
+            {
+              "mask": 10,
+              "roles": [
+                "mask_10"
+              ]
+            },
+            {
+              "mask": 11,
+              "roles": [
+                "mask_11"
+              ]
+            },
+            {
+              "mask": 12,
+              "roles": [
+                "mask_12"
+              ]
+            },
+            {
+              "mask": 13,
+              "roles": [
+                "mask_13"
+              ]
+            },
+            {
+              "mask": 14,
+              "roles": [
+                "mask_14"
+              ]
+            },
+            {
+              "mask": 15,
+              "roles": [
+                "mask_15"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "mask_0": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 12
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_1": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 8
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_2": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 1
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_3": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 13
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_4": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 0
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_5": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 4
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_6": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 5
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_7": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 9
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_8": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 3
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_9": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 15
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_10": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 2
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_11": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 14
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_12": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 7
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_13": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 11
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_14": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 6
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_15": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_fence",
+                "frame": 10
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "isolated",
+              "line",
+              "corner",
+              "tee",
+              "cross"
+            ]
+          },
+          "compatibleFamilies": []
+        },
+        {
+          "id": "stone_large_fence",
+          "kind": "connect4",
+          "topology": "cardinal",
+          "neighbourPredicate": "connects-to",
+          "members": {
+            "definitionIds": [],
+            "assetIds": [
+              "prop_cf_join_stone_large_fence",
+              "prop_cf_willow_boundary_stone_large_0",
+              "prop_cf_willow_boundary_stone_large_1",
+              "prop_cf_willow_boundary_stone_large_10",
+              "prop_cf_willow_boundary_stone_large_11",
+              "prop_cf_willow_boundary_stone_large_12",
+              "prop_cf_willow_boundary_stone_large_13",
+              "prop_cf_willow_boundary_stone_large_14",
+              "prop_cf_willow_boundary_stone_large_15",
+              "prop_cf_willow_boundary_stone_large_2",
+              "prop_cf_willow_boundary_stone_large_3",
+              "prop_cf_willow_boundary_stone_large_4",
+              "prop_cf_willow_boundary_stone_large_5",
+              "prop_cf_willow_boundary_stone_large_6",
+              "prop_cf_willow_boundary_stone_large_7",
+              "prop_cf_willow_boundary_stone_large_8",
+              "prop_cf_willow_boundary_stone_large_9"
+            ],
+            "tags": [],
+            "exactAssetIds": []
+          },
+          "masks": [
+            {
+              "mask": 0,
+              "roles": [
+                "mask_0"
+              ]
+            },
+            {
+              "mask": 1,
+              "roles": [
+                "mask_1"
+              ]
+            },
+            {
+              "mask": 2,
+              "roles": [
+                "mask_2"
+              ]
+            },
+            {
+              "mask": 3,
+              "roles": [
+                "mask_3"
+              ]
+            },
+            {
+              "mask": 4,
+              "roles": [
+                "mask_4"
+              ]
+            },
+            {
+              "mask": 5,
+              "roles": [
+                "mask_5"
+              ]
+            },
+            {
+              "mask": 6,
+              "roles": [
+                "mask_6"
+              ]
+            },
+            {
+              "mask": 7,
+              "roles": [
+                "mask_7"
+              ]
+            },
+            {
+              "mask": 8,
+              "roles": [
+                "mask_8"
+              ]
+            },
+            {
+              "mask": 9,
+              "roles": [
+                "mask_9"
+              ]
+            },
+            {
+              "mask": 10,
+              "roles": [
+                "mask_10"
+              ]
+            },
+            {
+              "mask": 11,
+              "roles": [
+                "mask_11"
+              ]
+            },
+            {
+              "mask": 12,
+              "roles": [
+                "mask_12"
+              ]
+            },
+            {
+              "mask": 13,
+              "roles": [
+                "mask_13"
+              ]
+            },
+            {
+              "mask": 14,
+              "roles": [
+                "mask_14"
+              ]
+            },
+            {
+              "mask": 15,
+              "roles": [
+                "mask_15"
+              ]
+            }
+          ],
+          "fallback": [],
+          "roles": {
+            "mask_0": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 12
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_1": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 8
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_2": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 1
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_3": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 13
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_4": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 0
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_5": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 4
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_6": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 5
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_7": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 9
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_8": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 3
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_9": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 15
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_10": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 2
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_11": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 14
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_12": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 7
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_13": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 11
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_14": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 6
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            },
+            "mask_15": {
+              "frame": {
+                "assetId": "prop_cf_join_stone_large_fence",
+                "frame": 10
+              },
+              "blocksMovement": true,
+              "blocksLight": true,
+              "variants": [],
+              "seasonalRemaps": {}
+            }
+          },
+          "transforms": [
+            0
+          ],
+          "smart": {
+            "halo": 1,
+            "formations": [
+              "isolated",
+              "line",
+              "corner",
+              "tee",
+              "cross"
+            ]
+          },
+          "compatibleFamilies": []
+        }
+      ]
+    },
     "engineVersion": 1,
     "familyId": "basic",
     "projectionStyle": "raised",
