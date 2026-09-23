@@ -332,7 +332,7 @@ export class StudioShellApp {
   };
   private openPalette():void {
     this.#palette?.dispose();const results=ui.flex({gap:4,width:'grow'});
-    const search=(query:string)=>this.replace(results,this.controller.palette.search(query).slice(0,12).map(result=>ui.button({label:result.label,onPress:()=>{const path=this.controller.routeForCommand(result.id);this.#palette?.close();if(path)this.navigate(path);}})));
+    const search=(query:string)=>this.replace(results,this.controller.palette.search(query).slice(0,12).map(result=>ui.button({label:result.label,onPress:()=>{const path=this.controller.routeForCommand(result.id);if(path)this.controller.queueAuthorCommand(result.id);this.#palette?.close();if(path)this.navigate(path);}})));
     const query=ui.input({label:'Command search',onChange:search});search('');
     this.#palette=ui.dialog({title:'Command palette',children:[ui.flex({gap:8,width:'grow',height:'grow'},[query,ui.scrollArea({width:'grow',height:'grow'},[results])])]});
     this.#root.mount(this.#palette);this.#palette.open(this.#root.focus.current??undefined);query.requestFocus();this.schedule();

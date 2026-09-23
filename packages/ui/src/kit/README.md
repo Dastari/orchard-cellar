@@ -345,3 +345,24 @@ breaks, bookmarks, links, and embed rectangles into one immutable pagination
 result. The first physical page opens on the right; later spreads pair even and
 odd pages. The kit book consumes this result for its controls, bookmarks, links, and
 allowlisted embeds; callers do not supply bespoke screen painters.
+
+## Schema-driven content forms (F1)
+
+[Schema forms](http://localhost:5175/author/ui-lab?specimen=schema-forms) demonstrates
+empty recipe inputs, variants, optional fields, typed reference search and used-by
+navigation. Use `ui.schemaForm({ graph, schema, state, references, onApply })` and
+retain a `UiSchemaFormState` across host redraws. Its draft and editors keep partial
+numeric input until Apply. Read-only mode disables mutations while references and
+collapsible groups remain navigable. Hosts must still run their domain parser.
+
+`ui.arrayEditor` provides controlled add/remove/reorder; `ui.referencePicker`
+filters choices by kind, accepts an optional preview factory, and opens the selected
+definition through `onOpen`. `ui.usedBy` consumes the sim `contentReferenceIndex`.
+Reference preview artwork is supplied by the host rather than loaded by the form.
+
+The sim `CONTENT_FIELD_SCHEMAS` graph covers all content kinds and derives from
+existing definition types. After a type change, run
+`npx tsx scripts/generate-content-field-schemas.ts`; the drift test fails when the
+catalogue is stale. Schemas describe structure and authoring metadata, while parser
+bounds and registry validation remain authoritative. JSON cannot represent bigint;
+number/bigint runtime unions expose their JSON number alternative.

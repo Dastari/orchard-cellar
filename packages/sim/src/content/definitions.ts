@@ -1276,3 +1276,6 @@ export {
   type UpgradeDefinitionId,
   type WorldContentDefinition,
 } from './world-definition.js';
+
+// Authoring schemas derive from the types parsed by this module.
+export * from './field-schema.js';

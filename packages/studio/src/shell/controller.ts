@@ -36,6 +36,15 @@ export class StudioShellController {
   #adapter: StudioLiveAdapter | null = null;
   #activePath = '/build/map';
   #gridVisible = true;
+  #pendingAuthorCommand: 'item.new' | 'recipe.new' | null = null;
+
+  queueAuthorCommand(id: string): void {
+    if (id === 'item.new' || id === 'recipe.new') this.#pendingAuthorCommand = id;
+  }
+
+  consumeAuthorCommand(): 'item.new' | 'recipe.new' | null {
+    const command = this.#pendingAuthorCommand; this.#pendingAuthorCommand = null; return command;
+  }
 
   constructor(
     private readonly createConnection: StudioConnectionFactory,
