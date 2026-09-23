@@ -1,5 +1,11 @@
 # Changelog
 
+## Food and alchemy station artwork — assets 0.19.4 — 2026-09-23
+
+- Add eight native station/habitat sprites and seven inventory icons from doc 63, with stable state groups, anchors and four-frame working loops at 5 fps.
+- Add reproducible contact sheets and complete state-filmstrip review in `docs/food-alchemy-station-art`; existing station art and content definitions are unchanged.
+- Asset-only preparation: no world publication, deployment or gameplay activation.
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue
