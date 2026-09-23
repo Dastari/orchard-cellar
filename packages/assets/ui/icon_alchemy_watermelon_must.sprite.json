@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_watermelon_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....DDDD.......",
+        "....DDDFDD......",
+        ".....DFFD.......",
+        "....DHHFFD.DD...",
+        "...DDHHFFDDEED..",
+        "..DHnnnnnnD..D..",
+        "..DHmmjjmmD..D..",
+        "..DHJmmjjJDEED..",
+        "..DDJeeddJDDD...",
+        "..DDJJaaJJD.....",
+        "...DJJaaJJD.....",
+        "....SSSSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}

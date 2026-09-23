@@ -1,0 +1,35 @@
+{
+  "name": "icon_animal_wool",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......KK........",
+        "....KKIIKK......",
+        "...KIIIIIIK.....",
+        "...KIIIIIIKKK...",
+        "..KIIIIJJJIIJK..",
+        "..KIIIJJJIIIJK..",
+        "...KJJJIIIIJJK..",
+        "..KKIIJIJJJJJK..",
+        "..KIIIJJJKKKK...",
+        "...KKJJJKKKK....",
+        "....KKKKKKK.....",
+        "......SSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}

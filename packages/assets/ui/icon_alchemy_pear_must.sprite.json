@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_pear_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....DDDD.......",
+        "....DDDFDD......",
+        ".....DFFD.......",
+        "....DHHFFD.DD...",
+        "...DDHHFFDDEED..",
+        "..DHJJaaJJD..D..",
+        "..DHJJqqJJD..D..",
+        "..DHJJqqJJDEED..",
+        "..DDJrrqpJDDD...",
+        "..DDrrqqppD.....",
+        "...DDoooooD.....",
+        "....SSSSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}

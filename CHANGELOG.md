@@ -38,6 +38,11 @@
 
 - Add 205 reviewed exact native icons from owner-approved doc 63; retain 10 additional mapping defects in the manifest only, held for correction before import or gameplay use.
 - Add reproducible imports, pixel parity tests and a 35-item missing-art manifest; no gameplay definitions or deployment.
+## Food/alchemy core artwork — assets 0.19.2 — 2026-09-23
+
+- Add 18 reviewed bespoke 16×16 icons: seven fruit-specific must jugs and pomace baskets, wool, wing dust, raw game and roast game, following approved doc 63 §§3/8.
+- Preserve the closed Orchard palette, (8,15) anchors, existing asset IDs and gameplay data; no source PNGs or generated atlases are committed.
+- Record native-size, dark-background, silhouette and neighbor review evidence in [the core art handoff](docs/food-alchemy-core-art/README.md). Client asset publication precedes future gameplay references; no world publish is needed for this art-only change.
 
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 

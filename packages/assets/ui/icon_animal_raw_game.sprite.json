@@ -1,0 +1,35 @@
+{
+  "name": "icon_animal_raw_game",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...........KK...",
+        ".........KKIIK..",
+        ".........KIIIK..",
+        ".....jjj.KJKK...",
+        "....jnnnjjJK....",
+        "...jjnnmmjj.....",
+        "..jnnmmmmllj....",
+        "..jnnmmmmmljj...",
+        "..jmmmmmmlllj...",
+        "...jjmmllljj....",
+        "....jlllllj.....",
+        ".....SSSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}
