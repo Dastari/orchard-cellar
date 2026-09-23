@@ -2,6 +2,10 @@
 
 Asset-only implementation of the owner-approved [doc 63, §§7.2 and 8](https://github.com/Dastari/orchard-cellar/blob/docs/food-alchemy-plan/docs/63-food-alchemy-content-plan.md), based on `origin/main` at `5578b49c`. Assets package **0.19.4** is coordinated with the other food/alchemy art lanes. No item, object, frame, process, ownership or runtime definitions are changed here.
 
+[Open the full visual review sheet](review.svg) — every state and all seven icons, viewable directly on GitHub. This SVG embeds only the new bespoke grids.
+
+![Food and alchemy station state review](review.svg)
+
 ## Asset contract
 
 All sprites are bespoke native text grids in the closed 55-colour Orchard palette, with binary transparency. No source PNG, generated PNG, new palette colour, imported-source claim or orphan-pixel exemption is included. Inventory icons are drawn independently inside a 12×12 area of a 16×16 canvas, anchored at `(8,15)`.
@@ -29,6 +33,8 @@ From this worktree, with workspace dependencies installed:
 
 ```sh
 node docs/food-alchemy-station-art/render-review.mjs
+# Verify the committed, portable SVG reproduces exactly:
+cmp output/food-alchemy-station-art/review.svg docs/food-alchemy-station-art/review.svg
 npm run assets:render prop_alchemy_bench
 npm run assets:validate
 npm run assets:build
@@ -36,7 +42,7 @@ npm run assets:build
 
 The script writes `output/food-alchemy-station-art/contact.png` and eight `prop_*.png` sheets. Each world sheet contains the 8× idle/empty sprite, a native 1× inset, a dark-background comparison, complete labelled state filmstrips at 4×, and the approved `prop_basket_press`, `prop_oak_barrel`, `prop_cf_furnace` neighbours. The contact sheet includes all seven inventory icons at 8× and 1×. `npm run assets:render <name>` also produces each asset's standard checkerboard review with three approved category neighbours under `build/review/`.
 
-The dark background checks silhouette contrast; it is not a production night-lighting or interaction playtest. PNGs are local review outputs, never committed assets. The committed JSON grids and renderer reproduce the final evidence.
+The dark background checks silhouette contrast; it is not a production night-lighting or interaction playtest. PNGs are local review outputs, never committed assets. The portable `review.svg` is committed for direct visual review and contains only the new bespoke artwork; it contains no licensed neighbour pixels. The committed JSON grids and renderer reproduce the final evidence.
 
 ## Art review record — 2026-09-23
 

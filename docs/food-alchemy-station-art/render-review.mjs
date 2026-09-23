@@ -61,4 +61,56 @@ for (const name of world) {
   });
   await writeFile(path.join(output, `${name}.png`), sheet.toBuffer('image/png'));
 }
-console.log(`Rendered contact and eight complete state reviews to ${output}`);
+// Portable GitHub review: only new bespoke grids, never licensed neighbours.
+function svgPixels(a, frame, comparison) {
+  const parts = [];
+  for (let y = 0; y < a.size[1]; y++) {
+    for (let x = 0; x < a.size[0];) {
+      const c = frame[y][x];
+      if (c === '.' || comparison?.[y][x] === c) { x++; continue; }
+      let end = x + 1;
+      while (end < a.size[0] && frame[y][end] === c && comparison?.[y][end] !== c) end++;
+      parts.push(`<rect x="${x}" y="${y}" width="${end - x}" height="1" fill="${palette[c]}"/>`);
+      x = end;
+    }
+  }
+  return parts.join('');
+}
+const defs = [], rows = [];
+let rowY = 50;
+for (const name of world) {
+  const a = assets[name], base = Object.values(a.frames)[0][0];
+  defs.push(`<g id="${name}">${svgPixels(a, base)}</g>`);
+  rows.push(`<text x="16" y="${rowY}">${name.replaceAll('_', ' ')}</text>`);
+  rows.push(`<text x="1005" y="${rowY}" font-size="12">native 1×</text><use xlink:href="#${name}" x="1060" y="${rowY + 4}"/>`);
+  let column = 0;
+  for (const [state, frames] of Object.entries(a.frames)) {
+    for (let index = 0; index < frames.length; index++) {
+      const frame = frames[index], x = 16 + column * Math.max(104, a.size[0] * 4 + 12);
+      const id = `${name}-${state}-${index}`;
+      // State artwork only adds or recolours pixels over the static base.
+      for (let y = 0; y < a.size[1]; y++) for (let px = 0; px < a.size[0]; px++) {
+        if (base[y][px] !== '.' && frame[y][px] === '.') throw new Error(`${id}: SVG diff needs an explicit erase mask`);
+      }
+      defs.push(`<g id="${id}"><use xlink:href="#${name}"/>${svgPixels(a, frame, base)}</g>`);
+      rows.push(`<text x="${x}" y="${rowY + 22}" font-size="11">${state} ${index + 1}</text><use xlink:href="#${id}" transform="translate(${x} ${rowY + 30}) scale(4)"/>`);
+      column++;
+    }
+  }
+  rowY += a.size[1] * 4 + 65;
+}
+rows.push(`<text x="16" y="${rowY}">Inventory icons — independently drawn, 8× and native 1×</text>`);
+for (let i = 0; i < icons.length; i++) {
+  const a = assets[icons[i]], x = 16 + i * 158;
+  defs.push(`<g id="${a.name}">${svgPixels(a, a.frames.base[0])}</g>`);
+  rows.push(`<text x="${x}" y="${rowY + 24}" font-size="11">${a.name.replace('icon_alchemy_', '')}</text><use xlink:href="#${a.name}" transform="translate(${x} ${rowY + 34}) scale(8)"/><use xlink:href="#${a.name}" x="${x}" y="${rowY + 178}"/>`);
+}
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1120" height="${rowY + 230}" viewBox="0 0 1120 ${rowY + 230}" shape-rendering="crispEdges" role="img" aria-labelledby="title desc">
+<title id="title">Doc 63 — food and alchemy station artwork</title>
+<desc id="desc">All eight native station and habitat sprite state sets at four-times scale, native-size insets and seven independently drawn inventory icons. Working animations contain four frames at five frames per second. Only new bespoke artwork is embedded.</desc>
+<rect width="1120" height="100%" fill="#f2e3c2"/>
+<defs>${defs.join('')}</defs>
+<g font-family="monospace" font-size="15" fill="#2b1d0e"><text x="16" y="24">Food and alchemy station review — all state frames · 4-frame loops at 5 fps</text>${rows.join('')}</g>
+</svg>\n`;
+await writeFile(path.join(output, 'review.svg'), svg);
+console.log(`Rendered contact, eight complete state reviews and portable SVG to ${output}`);

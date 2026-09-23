@@ -12,6 +12,7 @@ Review target: fifteen native assets, eight complete world-state sets, assets pa
 - [x] Full state filmstrips and the three required approved neighbours rendered and inspected.
 - [x] Four-frame working loops at 5 fps and static idle/finished states.
 - [x] No generated/source PNGs, gameplay definitions or shared-kit UI changes.
+- [x] Portable SVG contains all new state frames/icons and reproduces exactly from the native grids; no licensed neighbour pixels are embedded.
 
 ## Checks
 
@@ -23,7 +24,7 @@ Review target: fifteen native assets, eight complete world-state sets, assets pa
 | `npm run lint` | Pass. |
 | `npx vitest run packages/tools/src/assets/pipeline.test.ts packages/tools/src/assets/frame-kind.test.ts packages/tools/src/assets/source-palette.test.ts packages/tools/src/assets/atlas-pages.test.ts --no-file-parallelism` | Pass: four files, 29 tests. |
 | `npm run typecheck` | Pass across all workspaces after a clean isolated install. The initial 148 TS2591 diagnostics came from linked dependencies, not a repository defect. |
-| `npm test` | Clean-install coverage run is pending at PR creation; no full-suite pass claimed. The initial linked-dependency run was stopped intentionally before replacing dependencies. |
+| `npm test` | Clean-install run exited 143 during coverage, before a test summary; the chained exhaustive stage did not run. No full-suite pass or test-failure result is claimed. The earlier linked-dependency run was intentionally stopped before reinstalling. No additional broad rerun was started. |
 | `git diff --check` | Pass. |
 
 World-module build is not applicable: this PR changes no world code or content definitions. Initial dependency links caused inconsistent compiler resolution; final checks use a clean `npm ci --ignore-scripts` install, with results recorded only after that verification.
