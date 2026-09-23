@@ -26,6 +26,11 @@
 - Add a bounded cached collision projection with explicit legacy/shadow/active results and immutable shadow differences for integration. No gameplay call site switches in this groundwork.
 - Keep the bootstrap policy collection empty pending owner hazard balance/access decisions. D6 runtime integration, terrain-role coverage and live activation remain incomplete; see `docs/medium-traversal-handoff.md`.
 - Sim 0.23.0; tools 0.21.0. Existing definitions and saved rows retain compatibility.
+## Food/alchemy semantic artwork — assets 0.19.5 — 2026-09-23
+
+- Add nine reviewed native 16×16 replacements for held butter, curd, sugar, salt, bandage compound, salve, animal feed, pumpkin pie and roast potato source mappings from approved doc 63.
+- Preserve the exact planned icon keys, closed Orchard palette and existing gameplay data. Record shape/material review in [the correction art handoff](docs/food-alchemy-correction-art/README.md).
+- No licensed source pixels, generated PNGs, gameplay references or deployment are included; the client asset bundle must precede later content activation.
 
 ## 0.25.2 — reviewed source integration
 

@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_salt",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......yyyy......",
+        ".....yCCACy.....",
+        ".....yCCACy.....",
+        ".....yBBBBy.....",
+        ".....yyyyyy.....",
+        "....yIIIIIIy....",
+        "....yIIIIJJy....",
+        "....yIIIJJJy....",
+        "....yIIIJJJy....",
+        "....yIJJJKKy....",
+        "....yJJJKKKy....",
+        ".....SSSSSS.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}

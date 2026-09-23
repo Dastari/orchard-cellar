@@ -1,0 +1,35 @@
+{
+  "name": "icon_food_butter",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "....oooo........",
+        "...osssso.......",
+        "...osrrroooo....",
+        "...orroosssso...",
+        "....oooorrrqo...",
+        ".....oorrrqqpo..",
+        ".....orrrqqppo..",
+        "....KJooooooKK..",
+        "...KKJJJKKKKK...",
+        "....SSSSSSSS....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}
