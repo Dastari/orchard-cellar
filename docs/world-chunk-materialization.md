@@ -143,3 +143,26 @@ its content's tileset resolver, call `install(bytes)` in any order, inspect
 `hasTile`/`complete`, and request `collision('clientGround'|'clientWater')` only
 once complete. Audit manifests additionally support the two server collision
 views. `chunkAt` retains the halo and optional cell-part payload for later consumers.
+
+The 15 pre-existing water-mask discrepancies are exactly:
+
+```text
+(414,357) (415,357) (416,357)
+(414,358) (415,358) (416,358)
+(414,359) (415,359) (416,359)
+(414,360) (415,360) (416,360)
+(414,361) (415,361) (416,361)
+```
+
+Every listed cell is blocked in the client water map and walkable in the server
+water map. The server's optional water horse-jump mask contains 692,224 false
+entries; the client has no such field. An owner/engine decision is required
+before unifying these behaviors in a runtime migration.
+
+PR: [#71](https://github.com/Dastari/orchard-cellar/pull/71), branch
+`feat/world-chunk-materialization`. Validation: repository typecheck/lint,
+independent sim/engine builds, offline-tool typecheck, 10 new focused tests and
+22 existing live-terrain/collision tests pass. The broad run initially encountered
+stale generated-atlas and absent ignored premium-source fixtures; the isolated
+atlas was rebuilt and all seven affected map-export tests pass. See the PR for
+the final broad-test and CI status. No deployment or world publication occurred.
