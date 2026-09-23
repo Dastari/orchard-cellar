@@ -57,7 +57,8 @@ import { uiFlex, uiGrid, uiStack, uiWindowStack, uiSpacer, uiSeparator, uiScroll
 import { uiText, uiRichText } from './text.js';
 import { uiFrame } from './frame.js';
 import { uiButton } from './button.js';
-import { uiImage, uiSprite, uiIcon, uiIconButton } from './media.js';
+import { uiImage, uiSprite, uiIcon, uiIconButton, uiDeferredImage, uiImageUrl, uiSelectionReticle } from './media.js';
+import { uiLayerRow } from './layer-row.js';
 import { uiProgress } from './preview-data.js';
 import { uiSlot, uiInventoryGrid, uiHotbar, uiPaperDoll } from './inventory.js';
 import { uiTooltip } from './tooltip.js';
@@ -65,7 +66,7 @@ export const ui = Object.freeze({ schemaForm: uiSchemaForm, arrayEditor: uiArray
   select: uiSelect, combobox: uiCombobox, list: uiList, table: uiTable, tree: uiTree, tabs: uiTabs, pagination: uiPagination,
   popover: uiPopover, menu: uiMenu, contextMenu: uiContextMenu, dialog: uiDialog, confirm: uiConfirm, prompt: uiPrompt, toast: uiToast, meter: uiMeter, progressBar: uiProgressBar, progress: uiProgress, inventoryGrid: uiInventoryGrid, frame: uiFrame, text: uiText, richText: uiRichText, button: uiButton,
   flex: uiFlex, grid: uiGrid, stack: uiStack, windowStack: uiWindowStack, spacer: uiSpacer, separator: uiSeparator, scrollArea: uiScrollArea,
-  image: uiImage, sprite: uiSprite, icon: uiIcon, iconButton: uiIconButton, tooltip: uiTooltip, inventoryPanel: uiInventoryPanel });
+  image: uiImage, sprite: uiSprite, icon: uiIcon, iconButton: uiIconButton, deferredImage: uiDeferredImage, imageUrl: uiImageUrl, selectionReticle: uiSelectionReticle, layerRow: uiLayerRow, tooltip: uiTooltip, inventoryPanel: uiInventoryPanel });
 export type UiFactory = typeof ui;
 export * from './art.js';
 export * from './layout.js';
@@ -182,3 +183,5 @@ export * from './layer-inspector.js';
 
 export * from './schema-form.js';
 export * from './reference-picker.js';
+
+export * from './layer-row.js';

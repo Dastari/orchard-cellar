@@ -17,6 +17,15 @@ import {
   survivalTerrainHeightAt,
   type SurvivalBiome,
 } from './survival-world.js';
+import {
+  canonicalCellParts,
+  cellPartContourLevel,
+  contourOverrideFromCellParts,
+  parseCellParts,
+  type CellPart,
+} from './map-cell-parts.js';
+
+export * from './map-cell-parts.js';
 
 export const MAP_DOCUMENT_SCHEMA_VERSION = 2 as const;
 export const MAP_SURFACE_KINDS = [
@@ -46,7 +55,11 @@ export interface MapCellOverride {
   readonly collisionReason?: string;
   readonly cliffFamily?: string;
   readonly surfaceFamily?: TerrainSurfaceFamilyId;
+  /** Legacy single contour override. Dual-read with `parts`: it is the
+   * lossless equivalent of one `contour:N` part and is not yet retired. */
   readonly terrainOverride?: TerrainOverride;
+  /** Ordered cell part stack (doc 61 §2.2). Absent on every pre-parts map. */
+  readonly parts?: readonly CellPart[];
   /** Zero-height lip/barrier overlay. This never changes logical elevation. */
   readonly ledge?: boolean;
 }
@@ -159,7 +172,10 @@ export interface ResolvedMapCell {
   readonly collisionReason: string | null;
   readonly cliffFamily: string;
   readonly surfaceFamily: TerrainSurfaceFamilyId;
+  /** Effective contour override: the legacy field, else the contour part. */
   readonly terrainOverride: TerrainOverride | null;
+  /** Authored part stack exactly as stored (legacy override not merged). */
+  readonly parts: readonly CellPart[];
   readonly ledge: boolean;
 }
 
@@ -233,6 +249,8 @@ export function mapCoordinateInBounds(document: MapDocumentV2, tileX: number, ti
     && tileX >= 0 && tileY >= 0 && tileX < document.width && tileY < document.height;
 }
 
+const NO_CELL_PARTS: readonly CellPart[] = Object.freeze([]);
+
 export function resolvedMapCellAt(document: MapDocumentV2, tileX: number, tileY: number): ResolvedMapCell {
   const cell = document.cells[mapCellKey(tileX, tileY)];
   const generated = generatedBaseCellAt(document, tileX, tileY);
@@ -246,7 +264,8 @@ export function resolvedMapCellAt(document: MapDocumentV2, tileX: number, tileY:
       ?? null,
     cliffFamily: cell?.cliffFamily ?? document.defaultCliffFamily ?? 'stone_1',
     surfaceFamily: cell?.surfaceFamily ?? document.defaultSurfaceFamily ?? 'grass_1',
-    terrainOverride: cell?.terrainOverride ?? null,
+    terrainOverride: cell?.terrainOverride ?? contourOverrideFromCellParts(cell?.parts),
+    parts: cell?.parts ?? NO_CELL_PARTS,
     ledge: cell?.ledge ?? false,
   };
 }
@@ -298,8 +317,29 @@ function canonicalCell(cell: MapCellOverride): MapCellOverride {
     ...(cell.cliffFamily === undefined ? {} : { cliffFamily: cell.cliffFamily }),
     ...(cell.surfaceFamily === undefined ? {} : { surfaceFamily: cell.surfaceFamily }),
     ...(cell.terrainOverride === undefined ? {} : { terrainOverride: cell.terrainOverride }),
+    ...partsField(cell.parts),
     ...(cell.ledge === true ? { ledge: true } : {}),
   };
+}
+
+function partsField(parts: readonly CellPart[] | undefined): { readonly parts?: readonly CellPart[] } {
+  const canonical = canonicalCellParts(parts);
+  return canonical === undefined ? {} : { parts: canonical };
+}
+
+/** Strict validation for the new part stack only. Legacy fields keep their
+ * historical lenient load path so existing maps are never refused. */
+function assertCellPartsValid(cells: Readonly<Record<string, unknown>>): void {
+  for (const value of Object.values(cells)) {
+    if (typeof value !== 'object' || value === null || !('parts' in value)) continue;
+    const cell = value as { readonly parts?: unknown; readonly terrainOverride?: unknown };
+    const parts = parseCellParts(cell.parts);
+    if (parts === null) throw new Error('Map cell parts are invalid');
+    if (cell.terrainOverride !== undefined
+      && parts.some(({ slot }) => cellPartContourLevel(slot) !== null)) {
+      throw new Error('Map cell has both a terrain override and a contour part');
+    }
+  }
 }
 
 function cellIsEmpty(cell: MapCellOverride): boolean {
@@ -379,6 +419,7 @@ export function parseMapDocument(source: string): MapDocumentV2 {
     || new Set(anchors.map((anchor) => anchor!.id)).size !== anchors.length) {
     throw new Error('Map gameplay anchor is invalid');
   }
+  assertCellPartsValid(candidate.cells as Readonly<Record<string, unknown>>);
   const reconstructed = normalizeMapDocument({
     ...(candidate as MapDocumentV2),
     anchors: anchors as MapGameplayAnchor[],

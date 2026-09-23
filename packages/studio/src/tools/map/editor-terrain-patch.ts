@@ -2,7 +2,7 @@ import {
   SURVIVAL_BIOMES, TERRAIN_MATERIAL_DEFINITIONS, resolvedMapCellAt, terrainDocumentForMapV3,
   mapDocumentUsesSurvivalIslandBase, survivalBiomeAt, survivalBiomeAllowsHorseJump,
   survivalDirtTerraceAt, survivalDirtCliffRoleAt, SURVIVAL_DIRT_CLIFF_ROLES, surfaceFamilyIndex,
-  type MapDocumentV3, type MapSurfaceKind, type SurvivalBiome,
+  type CellPart, type MapDocumentV3, type MapSurfaceKind, type SurvivalBiome,
 } from '@orchard/sim';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { mapGeneratedBaseTerrainKey } from './editor-terrain-derivatives.js';
@@ -37,6 +37,7 @@ export function patchMapEditorTerrain(previous: TerrainArray, before: MapDocumen
       :biome==='dirt_terrace'||biome==='dirt_ridge'?'dirt':'grass') as MapSurfaceKind;
   });
   let authoredFarmland=previous.authoredFarmland?.slice();
+  let cellParts:Map<number,readonly CellPart[]>|undefined=previous.cellParts===undefined?undefined:new Map(previous.cellParts);
   const generated=mapDocumentUsesSurvivalIslandBase(after);
   for(const {tileX,tileY} of changed) {
     const index=tileY*previous.width+tileX,key=`${tileX},${tileY}`,cell=resolvedMapCellAt(doc,tileX,tileY);
@@ -51,6 +52,7 @@ export function patchMapEditorTerrain(previous: TerrainArray, before: MapDocumen
     if(familyIds.length>255)return null;
     cliffFamilies[index]=familyIds.indexOf(cell.cliffFamily)+1;surfaceFamilies[index]=surfaceFamilyIndex(cell.surfaceFamily);
     terrainOverrides[index]=cell.terrainOverride;ledges[index]=Number(cell.ledge);
+    if(cell.parts.length>0)(cellParts??=new Map()).set(index,cell.parts);else cellParts?.delete(index);
     if(authoredSurfaces)authoredSurfaces[index]=cell.surface;
     if(cell.feature==='farmland')authoredFarmland??=new Uint8Array(length);
     if(authoredFarmland)authoredFarmland[index]=Number(cell.feature==='farmland');
@@ -61,5 +63,5 @@ export function patchMapEditorTerrain(previous: TerrainArray, before: MapDocumen
   }
   return {changed,terrain:{...previous,version:after.revision,elevations,biomes,blocked,horseJumpableTerrain,dirtTerraces,dirtCliffRoles,
     cliffFamilies,cliffFamilyIds:familyIds,surfaceFamilies,terrainOverrides,ledges,
-    ...(authoredSurfaces?{authoredSurfaces}:{}),...(authoredFarmland?{authoredFarmland}:{}),raisedTerrainCollisionClassified:true}};
+    ...(authoredSurfaces?{authoredSurfaces}:{}),...(authoredFarmland?{authoredFarmland}:{}),...(cellParts?{cellParts}:{}),raisedTerrainCollisionClassified:true}};
 }

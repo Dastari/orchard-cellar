@@ -127,6 +127,7 @@ export function terrainArrayForMapDocument(
     surfaceFamilies: compiled.surfaceFamilies,
     authoredSurfaces: compiled.surfaces,
     terrainOverrides: compiled.terrainOverrides,
+    ...(compiled.cellParts === undefined ? {} : { cellParts: compiled.cellParts }),
     ...(authoredFarmland === undefined ? {} : { authoredFarmland }),
     ledges: compiled.ledges,
     terrainTransitions: compiled.transitions,
