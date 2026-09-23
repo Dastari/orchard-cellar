@@ -45,7 +45,7 @@ Requests follow [doc 63](https://github.com/Dastari/orchard-cellar/blob/docs/foo
 
 ## Source-mapping corrections discovered during import
 
-These 12 exact planned crops are retained only in the documentation manifest, excluded from the atlas. They must not be referenced by new gameplay content until corrected and reviewed. The plan and imports preserve the original selection so this discrepancy is explicit. Proposed fix: Astra supplies the matching 16×16 native semantic silhouette, then update plan/manifest together; no silent icon substitution.
+These 12 original planned crops were initially held outside the atlas. Milk and egg are now corrected and reviewed; the remaining 10 held crops are excluded from the atlas. They must not be referenced by new gameplay content until corrected and reviewed. The plan and imports preserve the original selection so this discrepancy is explicit. Proposed fix: Astra supplies the matching 16×16 native semantic silhouette, then update plan/manifest together; no silent icon substitution.
 
 | Item | Observed defect |
 |---|---|
@@ -68,10 +68,10 @@ Astra must deliver alchemy bench, copper still, kitchen cauldron, oven, varietal
 
 All bespoke icons: 16×16, anchor (8,15), transparent, closed Orchard palette, no labels or glyphs; warm top-left lighting, readable at 1× and reviewed at 8×. Existing sources are reference-only for the missing set. No copied vendor PNGs or generated atlases in Git.
 
-Handoff requested from GoldCondor on Agent Mail (messages 400/408); current art owner pending. P0 native intake and missing-art completion are separate gates.
+Core art delivered in PR #91 (AzureOx), collections in PR #92 (CloudyOrchid), and station art visually reviewed (AmberBirch). AzureOx owns nine further semantic corrections. P0 native intake and missing-art completion are separate gates.
 
-## Located correction candidates (not imported in PR90)
+## Reviewed native source corrections
 
-The full Farming sheet review locates a milk flask at vendor #168 and an egg at #169. The plan accidentally assigned #167 to milk (orange liquid) and #168 to egg (milk flask). Use the committed premium index to resolve these exact crops, render them beside the intended items, and update the plan and import manifest together in the correction PR. This is a concrete proposed correction, not permission to silently remap the already-published plan. Other held silhouettes still need bespoke art or a better source match.
+The full Farming sheet review locates a milk flask at vendor #168 and an egg at #169. The plan accidentally assigned #167 to milk (orange liquid) and #168 to egg (milk flask). The committed premium index resolves these exact crops. Both are now imported and visually reviewed beside approved neighbours, with plan and import manifest updated together in PR #82/#90 and original selections retained as provenance. Other held silhouettes still need bespoke art or a better source match.
 
 P0 source-contract correction: Raven ingredient cells now use `sheet-16-without-outline.png`, as existing plain-icon tests require. The same four cells were re-rendered beside neighbours and their native RGBA pixels verified. Source hashes and doc63 companion were updated together; no global palette snapping.

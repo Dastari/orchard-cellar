@@ -18,9 +18,15 @@ describe('approved food/alchemy P0 intake', () => {
     expect(new Set(manifest.imports.map(e => e.asset)).size).toBe(215);
     expect(new Set(manifest.imports.map(e => e.item)).size).toBe(215);
     expect(manifest.artNeeded).toHaveLength(35);
-    expect(ready).toHaveLength(203);
+    expect(ready).toHaveLength(205);
     for (const entry of manifest.imports.filter(e => e.reviewStatus !== 'native_import_reviewed')) {
-      expect(existsSync(new URL(`packages/assets/ui/${entry.asset}.sprite.json`, workspaceRoot))).toBe(false);
+      const path = new URL(`packages/assets/ui/${entry.asset}.sprite.json`, workspaceRoot);
+      // Separate art PRs may supply reviewed replacements under the stable key.
+      if (existsSync(path)) {
+        const replacement = readAsset(entry);
+        expect(replacement.approved).toBe(true);
+        expect(replacement.sourcePath === entry.source && JSON.stringify(replacement.sourceRegion) === JSON.stringify(entry.crop)).toBe(false);
+      }
     }
     const missing = new Set(manifest.artNeeded.map(e => e.id));
     for (const entry of manifest.imports) expect(missing.has(entry.item)).toBe(false);

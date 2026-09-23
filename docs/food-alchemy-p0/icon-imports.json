@@ -1,5 +1,5 @@
 {
-  "planCommit": "515f114e",
+  "planCommit": "ef6554b3",
   "planPR": 82,
   "ownerApproval": "2026-09-23",
   "imports": [
@@ -10,15 +10,22 @@
       "status": "proposed",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
       "crop": [
-        96,
+        112,
         256,
         16,
         16
       ],
       "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
-      "vendorNumber": 167,
-      "reviewStatus": "needs_art_correction",
-      "reviewNote": "Orange liquid flask does not read as milk"
+      "vendorNumber": 168,
+      "reviewStatus": "native_import_reviewed",
+      "plannedCrop": [
+        96,
+        256,
+        16,
+        16
+      ],
+      "plannedVendorNumber": 167,
+      "sourceCorrection": "Farming sheet selection was one cell early; corrected to the matching milk flask / egg silhouette."
     },
     {
       "item": "item:egg",
@@ -27,15 +34,22 @@
       "status": "proposed",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
       "crop": [
-        112,
+        128,
         256,
         16,
         16
       ],
       "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
-      "vendorNumber": 168,
-      "reviewStatus": "needs_art_correction",
-      "reviewNote": "Corked liquid flask does not read as an egg"
+      "vendorNumber": 169,
+      "reviewStatus": "native_import_reviewed",
+      "plannedCrop": [
+        112,
+        256,
+        16,
+        16
+      ],
+      "plannedVendorNumber": 168,
+      "sourceCorrection": "Farming sheet selection was one cell early; corrected to the matching milk flask / egg silhouette."
     },
     {
       "item": "item:honey",
