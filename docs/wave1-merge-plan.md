@@ -1,6 +1,6 @@
 # Wave 1 integration rehearsal
 
-Status: every per-stage gate and final combined build/check passed, 2026-09-23. Owner coordinator BrownHorizon will perform
+Status: every per-stage gate and final combined build/check passed, 2026-09-23. Owner-confirmed coordinator GoldCondor will perform
 GitHub merges only after every source PR is ready and its CI is green. This
 throwaway branch must never be merged into main or deployed.
 
@@ -40,7 +40,7 @@ source branches, with comments and coordinator notification.
 
 ## Release order
 
-No rehearsal artifacts may be deployed. Once BrownHorizon merges approved source
+No rehearsal artifacts may be deployed. Once GoldCondor merges approved source
 PRs and verifies main, the publishing agent must follow
 `ops/orchard-runtime/PUBLISHING.md`: world module first for #66’s parser and #68’s additive private schema,
 then guarded Studio/game builds from reviewed main, matching content/assets and
@@ -89,7 +89,23 @@ only merge commits and this evidence document beyond those source changes.
 - CI: source #62/#64/#65/#69 green at the latest scan; changed source heads
   rerunning/queued. #73’s integrated full-validation gate is now satisfied;
   GoldCondor owns its readiness change and CopperMaple follow-on. Latest source
-  CI must still pass before BrownHorizon merges. PR #77 remains DO NOT MERGE.
+  CI must still pass before GoldCondor merges. PR #77 remains DO NOT MERGE.
 - Merge order remains the requested order above. Source branches carry their
   predecessors where conflicts needed resolution; merge earlier PRs first so
   later diffs narrow to their own feature. Do not merge the rehearsal PR.
+
+## Coordinator transfer (2026-09-23)
+
+The owner confirmed GoldCondor as coordinator; Agent Mail handoff #254 is
+acknowledged. Merge authorization covers only #62–#73, one at a time after all
+are non-draft and CI-green, rechecking mergeability/checks after each merge. Stop
+and report any conflict or failure. #73 is now ready for review. #75 and all
+other second-round PRs require separate owner merge approval. Immediately before
+the world publish, obtain the owner’s go-ahead and private credential handoff.
+Deployment order is world, Studio, then game.
+
+Active next lanes: ChartreuseDuck owns object-state runtime; SageIsland owns D6
+traversal; CopperMaple owns blob47 farmland/fringe. Each uses a separate PR and
+leaves wave-one source heads frozen. DustyCompass is next for visual World Map
+after capacity frees. Plans and remaining priority queue remain in docs 61–62
+and handoff #254; no second-round deployment is implied.
