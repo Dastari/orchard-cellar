@@ -1,3 +1,4 @@
+import { schemaFormsSpecimen } from './specimens/schema-forms.js';
 import { diagnosticsSpecimen } from './specimens/diagnostics.js';
 import { workbenchSpecimen } from './specimens/workbench.js';
 import { editorPrimitivesSpecimen } from './specimens/editor-primitives.js';
@@ -39,7 +40,7 @@ export interface UiLabSpecimen {
   readonly closable?: boolean; readonly matrix?: Readonly<Record<string, readonly unknown[]>>;
   readonly build: (ui: UiFactory, props: Readonly<Record<string, unknown>>, mock: UiLabMocks) => UiElement;
 }
-export const UI_LAB_SPECIMENS: readonly UiLabSpecimen[] = [foundationsSpecimen, framesSpecimen, controlsSpecimen, furnaceSpecimen, actorsSpecimen, formsSpecimen, fieldsSpecimen, dataSpecimen, patternsSpecimen, compositionPatternsSpecimen, workbenchSpecimen, editorPrimitivesSpecimen, feedbackSpecimen, inventorySpecimen, booksSpecimen, anchorsSpecimen, touchSpecimen, authoredSpecimen, frameDesignerSpecimen, ...migrationSpecimens, diagnosticsSpecimen];
+export const UI_LAB_SPECIMENS: readonly UiLabSpecimen[] = [foundationsSpecimen, framesSpecimen, controlsSpecimen, furnaceSpecimen, actorsSpecimen, formsSpecimen, fieldsSpecimen, dataSpecimen, schemaFormsSpecimen, patternsSpecimen, compositionPatternsSpecimen, workbenchSpecimen, editorPrimitivesSpecimen, feedbackSpecimen, inventorySpecimen, booksSpecimen, anchorsSpecimen, touchSpecimen, authoredSpecimen, frameDesignerSpecimen, ...migrationSpecimens, diagnosticsSpecimen];
 export function uiLabVariants(specimen: UiLabSpecimen): Readonly<Record<string, unknown>>[] {
   let variants: Readonly<Record<string, unknown>>[] = [{}];
   for (const [key, values] of Object.entries(specimen.matrix ?? {})) variants = variants.flatMap(props => values.map(value => ({ ...props, [key]: value })));
