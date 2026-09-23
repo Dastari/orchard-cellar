@@ -53,8 +53,9 @@ still clips to the viewport. `animate` schedules root-owned timed state. Hidden
 canvases pause scheduling; decorative animation finishes under reduced motion.
 
 Layout fixture provenance and supported CSS differences are documented in
-`layout/fixtures/README.md`. Browser lifecycle and acceptance evidence is in
-[Phase 1 review](../../../../docs/57-phase-1-runtime-review.md).
+`layout/fixtures/README.md`. Phase 1 scope and acceptance criteria are in
+[docs/57 §10](../../../../docs/57-shared-canvas-ui-kit.md) (Phase 1 — layout engine
+and element runtime).
 
 ## Core composition (Phase 2)
 
@@ -206,10 +207,50 @@ Tool models can retain a `CanvasTextEditor` across rebuilds with
 its value and limits; omit `value` and `maxLength` when supplying it. Pointer
 focus does not pin rail tooltips after the pointer leaves.
 
+### Editor primitives
+
+[Editor primitives specimen](http://localhost:5175/author/ui-lab?specimen=editor-primitives)
+covers the pieces map and object editors need beyond the core controls:
+
+- `ui.layerRow({ id, label, visible, selected, onSelect, onToggleVisible })` is a
+  16-pixel layer entry with a visibility toggle and a selectable name. Add
+  `locked` plus `onToggleLock` for a lock toggle. `visibilityId`, `lockId` and
+  `selectId` keep host control ids stable.
+- `ui.button({ ..., drag: { threshold, onMove, onDrop, onEnd } })` turns a
+  button into a drag source. A release below the threshold still presses.
+  Points are logical kit coordinates.
+- `ui.deferredImage(resolve, { label, fallback })` paints artwork that arrives
+  after the tree is built, without rebuilding the tree. `ui.imageUrl(url, options)`
+  loads and caches a standalone PNG, for example `packages/ui/public/studio-icons`.
+  `fallback: null` leaves the cell empty until the image loads.
+- `ui.selectionReticle({ inset, outset })` overlays the authored confirm selector
+  on a picked cell and crops it to the cell's own rectangle.
+- `ui.flex/grid/stack/scrollArea` accept `onArrange` to observe arranged bounds,
+  for example to size host spatial content.
+
+### UI-kit gate (Studio)
+
+Studio composes kit factories only (doc 61 §5). `@orchard/ui/studio` exports kit
+values explicitly and kit types type-only, so `UiElement` can be named but not
+constructed. It does not expose engine painters (`draw*`), hand layout
+(`layoutUi*`) or the retired Studio shell models. Three checks enforce the
+boundary:
+
+- the `orchard-ui-kit/*` ESLint rules (`scripts/eslint/orchard-ui-kit.mjs`);
+- the dependency-free prebuild check `packages/studio/scripts/verify-ui-kit.mjs`;
+- `packages/studio/src/ui-kit-gate.test.ts`, which mounts every Studio route and
+  fails on any element kind the kit does not produce.
+
+Raw canvas drawing is allowed only in the viewport renderers listed in
+`STUDIO_UI_KIT_POLICY.rawDrawAllowlist`. Colour literals are allowed only in the
+token and content files in `colourAllowlist`. Keep both lists short. When Studio
+needs something new, add it here with a specimen.
+
 Studio now mounts the workbench, with a Layout menu and retained spatial tool
 lifecycles. Operate/observe forms and tables, map selection, and world/live/layer
 trees, palettes, editors, previews and map confirmation panels use kit components.
-The descriptor adapter and old Studio shell/table renderers have been deleted.
+The descriptor adapter, the old Studio shell/table renderers and the retired
+`packages/ui/src/studio` rail, dock, table and inspector models have been deleted.
 The Phase 5 Studio migration is complete.
 
 `ui.tree` accepts `expanded`, `activeId`, `selected`, `initialScrollY`, and matching

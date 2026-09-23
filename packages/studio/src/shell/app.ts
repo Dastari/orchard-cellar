@@ -2,7 +2,7 @@ import { studioLiveMapReadiness } from '../tools/map/verified-live-map.js';
 import type { UiWorkbenchNavigation } from '@orchard/ui/studio';
 import { bootstrapContentDefinitions, type FrameContentDefinition } from '@orchard/sim';
 import { CUTE_FANTASY_ACTOR_CATALOG } from '@orchard/engine';
-import { ui, uiFixed, UiRoot, UiElement, UiTextBridge, UiLabWorld, CanvasTextEditor, inspectUiElements, UI_ICON_CATALOG,
+import { ui, uiFixed, UiRoot, type UiElement, UiTextBridge, UiLabWorld, CanvasTextEditor, inspectUiElements, UI_ICON_CATALOG,
   loadUiKitArt, loadStudioSpatialArt, createUiFrameDesignerModel, studioToolIcon,
   type UiPoint, type UiRect, type UiKitArt, type UiWorkbenchRegion, type StudioSpatialArt } from '@orchard/ui/studio';
 import { StudioShellController } from './controller.js';
@@ -223,11 +223,11 @@ export class StudioShellApp {
       return;
     }
     const route = this.controller.activeRoute();
-    const observe = (node: UiElement, side: 'primary' | 'secondary') => new UiElement({ kind: 'studio-workspace', style: { width: 'grow', height: 'grow', display: 'stack' }, children: [node], onArrange: element => {
+    const observe = (node: UiElement, side: 'primary' | 'secondary') => ui.stack({ id: `studio-workspace-${side}`, width: 'grow', height: 'grow', onArrange: element => {
       const rect = physical(element.rect), previous = side === 'primary' ? this.#primaryBounds : this.#secondaryBounds;
       if (side === 'primary') this.#primaryBounds = rect; else this.#secondaryBounds = rect;
       if (!previous || !sameBounds(rect,previous)) this.#dirtyTools = true;
-    } });
+    } }, [node]);
     const primary = observe(this.#workspace,'primary'), secondary = observe(this.#secondary,'secondary');
     const workspace = this.#layoutState.splitOpen ? ui.splitPane({ id: 'workspace-split', label: 'Workspace split', first: primary,
       second: ui.flex({ height:'grow', width:'grow', gap:4 }, [ui.flex({direction:'row',gap:4},[

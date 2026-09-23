@@ -1,4 +1,4 @@
-import { studioInspectorGroups } from '@orchard/ui/studio';
+import { studioInspectorGroups } from '../../shell/studio-models.js';
 import { describe, expect, it } from 'vitest';
 import { buildLiveOutliner, buildWorldOutliner } from '../../shell/outliners.js';
 import { mapCanvasInspectorRows, mapCanvasOutlinerRows } from './canvas-dock-projections.js';

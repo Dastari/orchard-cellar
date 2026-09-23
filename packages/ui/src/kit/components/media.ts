@@ -8,6 +8,7 @@ import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { UI_ICON_BY_NAME, type UiFantasyIconName } from '../skin/icon-catalog.js';
 import { uiButton, type UiButtonOptions } from './button.js';
+import { uiInventorySelectorRect } from '../../design-system/inventory.js';
 export interface UiImageOptions {
   readonly id?: string; readonly label: string; readonly layout?: UiStyle;
   readonly integerScale?: number | boolean; readonly fit?: 'contain' | 'cover' | 'none' | 'tile';
@@ -108,4 +109,87 @@ export function uiIcon(source: UiIconSource, options: Omit<UiImageOptions, 'labe
 export function uiIconButton(source: UiIconSource, options: UiButtonOptions): UiElement {
   const button = uiButton({ ...options, label: '', layout: { width: uiFixed(24), ...options.layout }, children: [uiIcon(source, { layout: { width: 'grow', height: 'grow' } })] });
   button.label = options.label; return button;
+}
+export interface UiDeferredImageSource {
+  readonly image: CanvasImageSource;
+  readonly frame: { readonly width: number; readonly height: number; readonly x?: number; readonly y?: number };
+}
+export interface UiDeferredImageOptions extends UiImageOptions {
+  /** Painted until the source resolves. Defaults to the Cute Fantasy gift
+   * symbol; `null` leaves the cell empty until the pixels arrive. */
+  readonly fallback?: UiIconSource | null;
+}
+/** An image whose pixels arrive after the tree is built. The resolver runs at
+ * paint time, so a completed load repaints without rebuilding the host tree,
+ * losing scroll position or dismissing an open popover. */
+export function uiDeferredImage(resolve: () => UiDeferredImageSource | undefined, options: UiDeferredImageOptions): UiElement {
+  const fallback = options.fallback === null ? undefined : uiIcon(options.fallback ?? { cf: 'gift' }, { layout: { width: 'grow', height: 'grow' } });
+  const { layout, id, label, integerScale, fit, quarterTurns, flipX } = options;
+  const imageOptions = { label, integerScale, fit, quarterTurns, flipX };
+  let previous: UiDeferredImageSource | undefined, picture: UiElement | undefined;
+  resolve(); // Start loading as soon as the node exists.
+  return new UiElement({ id, kind: 'deferred-image', label: options.label, style: { width: 'grow', height: 'grow', ...layout },
+    paint(element, paint) {
+      const ready = resolve();
+      if (ready === undefined) { fallback?.hooks.paint?.(element, paint); return; }
+      if (picture === undefined || ready.image !== previous?.image || ready.frame !== previous?.frame) {
+        picture?.dispose();
+        picture = uiImage(ready.image, ready.frame, { ...imageOptions, fit: fit ?? 'contain' });
+        previous = ready;
+      }
+      picture.hooks.paint?.(element, paint);
+    },
+    onDispose() { fallback?.dispose(); picture?.dispose(); },
+  });
+}
+const urlImages = new Map<string, HTMLImageElement>();
+/** A standalone bitmap (for example a reviewed PNG tool icon under `public/`).
+ * The kit owns loading and caching; hosts never create `Image` objects. */
+export function uiImageUrl(url: string, options: UiDeferredImageOptions): UiElement {
+  const resolve = (): UiDeferredImageSource | undefined => {
+    let image = urlImages.get(url);
+    if (!image) {
+      if (typeof Image === 'undefined') return undefined;
+      image = new Image(); urlImages.set(url, image); image.src = url;
+    }
+    if (image.complete && image.naturalWidth > 0) return { image, frame: { width: image.naturalWidth, height: image.naturalHeight } };
+    const pending = image;
+    pending.addEventListener('load', () => element.invalidateRoot?.(false), { once: true });
+    pending.addEventListener('error', () => { if (urlImages.get(url) === pending) urlImages.delete(url); }, { once: true });
+    return undefined;
+  };
+  const element: UiElement = uiDeferredImage(resolve, options);
+  element.setProps({ url }, false);
+  return element;
+}
+/** The authored confirm selector around a picked cell. It never takes input,
+ * and it paints only inside its own rectangle. */
+export interface UiSelectionReticleOptions {
+  readonly id?: string; readonly layout?: UiStyle;
+  /** Logical pixels between the reticle rectangle and the selected content. */
+  readonly inset?: number;
+  /** Logical pixels the selector's visible corners sit outside that content. */
+  readonly outset?: number;
+}
+export function uiSelectionReticle(options: UiSelectionReticleOptions = {}): UiElement {
+  const inset = Math.max(0, options.inset ?? 0), outset = options.outset ?? 3;
+  return new UiElement({ id: options.id, kind: 'selection-reticle', label: 'Selected', pointerMode: 'passthrough',
+    style: { position: 'absolute', inset: { left: 0, right: 0, top: 0, bottom: 0 }, ...options.layout },
+    paintOverlay(element, { context, art }) {
+      const entry = art?.skin.selector['selector_confirm.idle.0'];
+      const source = entry && selectAtlasFrame(entry.asset.metadata, entry.entry.group, entry.entry.index);
+      if (!entry || !source || art?.missingArt) return;
+      const r = element.rect;
+      const target = uiInventorySelectorRect({ x: r.x + inset, y: r.y + inset,
+        width: Math.max(0, r.width - inset * 2), height: Math.max(0, r.height - inset * 2) }, outset);
+      // Crop the authored cell to the element so no pixels land outside its clip.
+      const left = Math.max(target.x, r.x), top = Math.max(target.y, r.y);
+      const right = Math.min(target.x + target.width, r.x + r.width), bottom = Math.min(target.y + target.height, r.y + r.height);
+      if (right <= left || bottom <= top) return;
+      const sx = source.width / target.width, sy = source.height / target.height;
+      context.imageSmoothingEnabled = false;
+      context.drawImage(entry.asset.image, source.x + (left - target.x) * sx, source.y + (top - target.y) * sy,
+        (right - left) * sx, (bottom - top) * sy, left, top, right - left, bottom - top);
+    },
+  });
 }
