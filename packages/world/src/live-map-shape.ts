@@ -1,6 +1,6 @@
 import {
  MAP_SURFACE_KINDS, MAP_FEATURE_KINDS, MAP_COLLISION_OVERRIDES, TERRAIN_SURFACE_FAMILY_IDS,
- type MapDocumentV3,
+ cellPartContourLevel, parseCellParts, type MapDocumentV3,
 } from '@orchard/sim';
 
 const height = (value: unknown): boolean => Number.isInteger(value) && Number(value) >= -32 && Number(value) <= 32;
@@ -25,5 +25,11 @@ export function validateLiveMapShape(document: MapDocumentV3): void {
    || !height(override.contourLevel)
    || (override.family !== undefined && !family(override.family))
    || (override.frameIndex !== undefined && (!Number.isInteger(override.frameIndex) || override.frameIndex < 0)))) throw new Error('map_override_invalid');
+  // Cell part stack: bounded shape only. Frames are not matched to topology.
+  if (cell.parts !== undefined) {
+   const parts = parseCellParts(cell.parts);
+   if (parts === null || (override !== undefined
+    && parts.some(({slot}) => cellPartContourLevel(slot) !== null))) throw new Error('map_parts_invalid');
+  }
  }
 }

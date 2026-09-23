@@ -1,6 +1,6 @@
 import { STUDIO_SCOPES, type StudioScope } from '../../../sim/src/studio-scopes.js';
 import { studioInventoryPreview } from '../shell/inventory-preview.js';
-import { ui as kit, uiFixed, CanvasTextEditor, layoutUiFlex, type UiElement, type UiTableState, type FantasyButtonGlyph, type UiRect } from '@orchard/ui/studio';
+import { ui as kit, uiFixed, CanvasTextEditor, type UiElement, type UiTableState, type UiRect } from '@orchard/ui/studio';
 import { createMockAdminApi } from '../admin/api.js';
 import { studioAdminServiceKey } from '../admin/service-key.js';
 import { isStudioRole, studioScopedOperateRole, type StudioRole } from '../shell/access.js';
@@ -80,9 +80,10 @@ class StudioToolForm {
   readonly selectionChildren: UiElement[] = [];
   selection = false;
   get children(): UiElement[] { return this.selection ? this.selectionChildren : this.primaryChildren; }
-  constructor(readonly context: StudioCanvasToolContext, readonly bounds: UiRect = controlBounds(context)) {}
+  /** A null region places the form in the controls drawer. */
+  constructor(readonly context: StudioCanvasToolContext, readonly region: OperateRegion | null = null) {}
   heading(id: string, label: string): void {
-    if (this.bounds === controlBounds(this.context)) return;
+    if (this.region === null) return;
     const [title, ...summary] = label.split(' · ');
     this.children.push(kit.text(title ?? label, { id, role: 'header', wrap: false, layout: { width: 'grow' } }));
     if (summary.length) this.children.push(kit.text(summary.join(' · '), { layout: { width: 'grow' } }));
@@ -94,7 +95,7 @@ class StudioToolForm {
   }
   button(id: string, label: string, activate: () => void, options: {
     readonly disabled?: boolean; readonly active?: boolean; readonly tone?: 'normal' | 'danger' | 'success';
-    readonly tab?: boolean; readonly glyph?: FantasyButtonGlyph; readonly iconOnly?: boolean;
+    readonly tab?: boolean; readonly iconOnly?: boolean;
   } = {}): void {
     this.children.push(kit.tooltip(label, kit.button({ id, label:ACTION_CAPTIONS[label]??(/^PREVIEW REPAIR \d+ SELECTED$/u.test(label)?'Preview repair':/^PREVIEW SAFE DESPAWN \d+ SELECTED$/u.test(label)?'Preview despawn':label), disabled: options.disabled,
       tone: options.tone === 'danger' ? 'danger' : options.tone === 'success' || options.active ? 'success' : 'primary',
@@ -105,16 +106,12 @@ class StudioToolForm {
       options: values.map(value => ({ value, label: value.replaceAll('_', ' ').replace(/^./u,char=>char.toUpperCase()) })), onChange: choose }));
   }
   surface(): StudioCanvasToolSurface {
-    const controls = this.bounds === controlBounds(this.context);
+    const controls = this.region === null;
     const content = kit.flex({ width: 'grow', gap: 4, ...(controls ? {} : { shrink: 0 }) }, this.primaryChildren);
     return { kit: { ...(controls ? { controls: content } : { workspace: content }),
       ...(this.selectionChildren.length ? { inspector: kit.flex({width:'grow',gap:4},this.selectionChildren) } : {}),
     } };
   }
-}
-
-function controlBounds(context: StudioCanvasToolContext): UiRect {
-  return context.controlsBounds ?? context.bounds;
 }
 
 function workspaceBounds(context: StudioCanvasToolContext): UiRect {
@@ -133,16 +130,19 @@ function mergeSurfaces(...surfaces: readonly StudioCanvasToolSurface[]): StudioC
   } };
 }
 
-function columnRegions(bounds: UiRect, sizes: readonly ({ readonly fixed: number } | { readonly grow: number })[]): readonly UiRect[] {
-  return layoutUiFlex(bounds, sizes.map((size) => ({ minSize: { width: 44, height: 'fixed' in size ? size.fixed : 80 },
-    main: 'fixed' in size ? { mode: 'fixed' as const, size: size.fixed }
-      : { mode: 'grow' as const, min: 80, weight: size.grow } })), {
-    direction: 'column', gap: 6, align: 'stretch', padding: 4,
-  });
+/** Operate workspaces stack fixed header/outcome rows around growing table
+ * rows inside a kit scroll area. The kit arranges them; this only budgets the
+ * logical height each virtual table may claim (4px padding, 6px gaps). */
+interface OperateRegion { readonly height: number }
+function columnRegions(bounds: UiRect, sizes: readonly ({ readonly fixed: number } | { readonly grow: number })[]): readonly OperateRegion[] {
+  const fixed = sizes.reduce((sum, size) => sum + ('fixed' in size ? size.fixed : 0), 0);
+  const weight = sizes.reduce((sum, size) => sum + ('grow' in size ? size.grow : 0), 0);
+  const free = Math.max(0, bounds.height - 8 - 6 * Math.max(0, sizes.length - 1) - fixed);
+  return sizes.map(size => ({ height: 'fixed' in size ? size.fixed : Math.max(80, free * size.grow / Math.max(1, weight)) }));
 }
 
 function retainedTable(
-  context: StudioCanvasToolContext, id: string, bounds: UiRect,
+  context: StudioCanvasToolContext, id: string, region: OperateRegion,
   columns: readonly OperateColumn[], rows: readonly OperateRow[],
   selectRow?: (rowId: string, rowIndex: number) => void, emptyLabel = 'No rows',
 ): StudioCanvasToolSurface {
@@ -155,7 +155,7 @@ function retainedTable(
         value: row => row.cells[index] ?? '', render: row => kit.tooltip(row.cells[index]??'',kit.text(row.cells[index]??'',{wrap:false,layout:{width:'grow'}}),{width:'grow',height:'grow'}) };
     }),
     selected: rows.filter(row => row.selected).map(row => row.id),
-    layout: { width: 'grow', height: uiFixed(Math.max(64, Math.min(bounds.height / 2, 32 + rows.length * 24))), shrink: 0 },
+    layout: { width: 'grow', height: uiFixed(Math.max(64, Math.min(region.height / 2, 32 + rows.length * 24))), shrink: 0 },
     onSelect: keys => { const key = keys.at(-1), index = rows.findIndex(row => row.id === key), row = rows[index];
       if (row && !row.disabled) { selectRow?.(row.id,index); context.invalidate(); }
     },
@@ -199,11 +199,11 @@ function players(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const query = editor(context, 'players-query');
   const reason = editor(context, 'players-reason', model.snapshot().reason);
   const notice = editor(context, 'players-notice');
-  const ui = new StudioToolForm(context, controlBounds(context));
+  const ui = new StudioToolForm(context);
   const state = model.snapshot();
   ui.heading('players-title', 'PLAYER SEARCH & GUARDED REMEDIES');
   ui.field('players-query', 'Name or identity', query);
-  ui.button('players-find', state.loading ? 'Searching' : 'Find players', () => run(context, 'Player search failed', () => model.search(query.snapshot().value)), { disabled: state.loading, glyph: 'pointer', iconOnly: true });
+  ui.button('players-find', state.loading ? 'Searching' : 'Find players', () => run(context, 'Player search failed', () => model.search(query.snapshot().value)), { disabled: state.loading, iconOnly: true });
   if (state.nextCursor !== null) ui.button('players-more', 'MORE PLAYERS', () => run(context, 'Player page failed', () => model.loadMore()));
   const playerRegions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { grow: 1 }, { fixed: state.player === null ? 52 : 278 }]);
   const playerHeader = new StudioToolForm(context, playerRegions[0]!);
@@ -238,7 +238,7 @@ function players(context: StudioCanvasToolContext): StudioCanvasToolSurface {
         const draft = playerActionDraft(action.draft, Object.fromEntries(Object.entries(actionInputs).map(([key, field]) => [key, field.editor.snapshot().value])));
         return model.preview(draft);
       });
-    }, { disabled: !write || !access.enabled, glyph: 'flask',
+    }, { disabled: !write || !access.enabled,
       tone: action.draft.operation === 'kick' ? 'danger' : 'normal' });
   }
   playerDetail.label('players-preview', state.pendingPreview === null ? ''
@@ -361,10 +361,10 @@ function containers(context: StudioCanvasToolContext): StudioCanvasToolSurface {
     () => new ContainerManagerModel(api, role));
   const entityId = editor(context, 'containers-entity', '10');
   const reason = editor(context, 'containers-reason', model.snapshot().reason);
-  const state = model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = model.snapshot(); const ui = new StudioToolForm(context);
   ui.heading('containers-title', 'CONTAINER CUSTODY INSPECTOR');
   ui.field('containers-entity', 'Entity id', entityId);
-  ui.button('containers-inspect', 'Inspect exact custody', () => run(context, 'Container inspection failed', () => model.inspect(entityId.snapshot().value)), { glyph: 'pointer', iconOnly: true });
+  ui.button('containers-inspect', 'Inspect exact custody', () => run(context, 'Container inspection failed', () => model.inspect(entityId.snapshot().value)), { iconOnly: true });
   ui.field('containers-reason', 'Audited reason', reason);
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { fixed: 42 }, { grow: 1 }, { fixed: 36 }]);
   const summary = new StudioToolForm(context, regions[0]!);
@@ -394,9 +394,9 @@ function objects(context: StudioCanvasToolContext): StudioCanvasToolSurface {
     () => ({ model: new ObjectManagerModel(api, role), started: false }));
   const reason = editor(context, 'objects-reason', model.model.snapshot().reason);
   if (!model.started) { model.started = true; run(context, 'Object query failed', () => model.model.load()); }
-  const state = model.model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = model.model.snapshot(); const ui = new StudioToolForm(context);
   ui.heading('objects-title', `LIVE OBJECT QUERY · ${state.rows.length} ROW(S) · SCANNED ${state.rowsScanned}`);
-  ui.button('objects-refresh', state.loading ? 'Loading objects' : 'Refresh bounded area', () => run(context, 'Object query failed', () => model.model.load()), { disabled: state.loading, glyph: 'return', iconOnly: true });
+  ui.button('objects-refresh', state.loading ? 'Loading objects' : 'Refresh bounded area', () => run(context, 'Object query failed', () => model.model.load()), { disabled: state.loading, iconOnly: true });
   ui.field('objects-reason', 'Audited reason', reason);
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { grow: 1 }, { fixed: 36 }]);
   const header = new StudioToolForm(context, regions[0]!);
@@ -440,10 +440,10 @@ function npcs(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const filter = editor(context, 'npcs-filter'); const reason = editor(context, 'npcs-reason');
   const x = editor(context, 'npcs-x', '0', 12); const y = editor(context, 'npcs-y', '0', 12);
   if (!retained.started) { retained.started = true; run(context, 'NPC query failed', () => retained.model.load()); }
-  const state = retained.model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = retained.model.snapshot(); const ui = new StudioToolForm(context);
   ui.heading('npcs-title', `NPC MANAGER · ${state.rows.length} LIVE ACTOR(S)`);
   ui.field('npcs-filter', 'Definition or id filter', filter);
-  ui.button('npcs-refresh', 'Refresh NPCs', () => { retained.model.setFilter(filter.snapshot().value); run(context, 'NPC query failed', () => retained.model.load()); }, { glyph: 'return', iconOnly: true });
+  ui.button('npcs-refresh', 'Refresh NPCs', () => { retained.model.setFilter(filter.snapshot().value); run(context, 'NPC query failed', () => retained.model.load()); }, { iconOnly: true });
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { grow: 1 }, { fixed: 36 }]);
   const header = new StudioToolForm(context, regions[0]!);
   const outcome = new StudioToolForm(context, regions[2]!);
@@ -485,11 +485,11 @@ function world(context: StudioCanvasToolContext): StudioCanvasToolSurface {
     () => ({ model: new WorldControlModel(api, role), started: false }));
   const reason = editor(context, 'world-reason');
   if (!retained.started) { retained.started = true; run(context, 'World load failed', () => retained.model.load()); }
-  const state = retained.model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = retained.model.snapshot(); const ui = new StudioToolForm(context);
   const selectedSpace = context.controller.toolState<{ id: string | null }>('world-canvas-selected-space', () => ({ id: null }));
   ui.heading('world-title', 'WORLD CONTROL · EXACT PREVIEW + AUDIT');
-  ui.button('world-refresh', state.loading ? 'Loading world' : 'Refresh world', () => run(context, 'World load failed', () => retained.model.load()), { disabled: state.loading, glyph: 'return', iconOnly: true });
-  ui.button('world-validate', 'Validate world', () => run(context, 'World validation failed', () => retained.model.validate()), { glyph: 'alert', iconOnly: true });
+  ui.button('world-refresh', state.loading ? 'Loading world' : 'Refresh world', () => run(context, 'World load failed', () => retained.model.load()), { disabled: state.loading, iconOnly: true });
+  ui.button('world-validate', 'Validate world', () => run(context, 'World validation failed', () => retained.model.validate()), { iconOnly: true });
   ui.field('world-reason', 'Audited reason', reason);
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 42 }, { grow: 1 }, { grow: 1 }, { fixed: 36 }]);
   const environment = new StudioToolForm(context, regions[0]!);
@@ -544,10 +544,10 @@ function membership(context: StudioCanvasToolContext): StudioCanvasToolSurface {
     () => ({ model: new MembershipManagerModel(api, role, () => crypto.randomUUID(), scopes), started: false }));
   const query = editor(context, 'membership-query'); const reason = editor(context, 'membership-reason');
   if (!retained.started) { retained.started = true; run(context, 'Membership search failed', () => retained.model.search('')); }
-  const state = retained.model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = retained.model.snapshot(); const ui = new StudioToolForm(context);
   ui.heading('membership-title', 'MEMBERSHIP & STUDIO GRANTS');
   ui.field('membership-query', 'Name or identity', query);
-  ui.button('membership-find', state.loading ? 'Searching members' : 'Find members', () => run(context, 'Membership search failed', () => retained.model.search(query.snapshot().value)), { disabled: state.loading, glyph: 'pointer', iconOnly: true });
+  ui.button('membership-find', state.loading ? 'Searching members' : 'Find members', () => run(context, 'Membership search failed', () => retained.model.search(query.snapshot().value)), { disabled: state.loading, iconOnly: true });
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { grow: 1 }, { fixed: 36 }]);
   const header = new StudioToolForm(context, regions[0]!);
   const outcome = new StudioToolForm(context, regions[2]!);
@@ -597,10 +597,10 @@ function observe(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const retained = context.controller.toolState<StartedModel<ObserveModel>>(`observe-canvas:${studioAdminServiceKey(api)}`,
     () => ({ model: new ObserveModel(api), started: false }));
   if (!retained.started) { retained.started = true; run(context, 'Observe refresh failed', () => retained.model.refresh()); }
-  const state = retained.model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = retained.model.snapshot(); const ui = new StudioToolForm(context);
   ui.heading('observe-title', 'WORLD OBSERVE · READ ONLY');
   ui.tabs('observe-tab', OBSERVE_TABS, state.tab, (tab) => { retained.model.selectTab(tab as ObserveTab); context.invalidate(); });
-  ui.button('observe-refresh', state.loading ? 'Refreshing observations' : 'Refresh all bounded snapshots', () => run(context, 'Observe refresh failed', () => retained.model.refresh()), { disabled: state.loading, glyph: 'return', iconOnly: true });
+  ui.button('observe-refresh', state.loading ? 'Refreshing observations' : 'Refresh all bounded snapshots', () => run(context, 'Observe refresh failed', () => retained.model.refresh()), { disabled: state.loading, iconOnly: true });
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { grow: 1 }, { fixed: 36 }]);
   const header = new StudioToolForm(context, regions[0]!);
   const status = new StudioToolForm(context, regions[2]!);
@@ -641,7 +641,7 @@ function playbooks(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const identity = editor(context, 'playbooks-identity', 'identity-bea');
   const entityId = editor(context, 'playbooks-entity', '10');
   const reason = editor(context, 'playbooks-reason', 'Investigating reported game-state problem');
-  const state = model.snapshot(); const ui = new StudioToolForm(context, controlBounds(context));
+  const state = model.snapshot(); const ui = new StudioToolForm(context);
   const selectedStep = context.controller.toolState<{ index: number | null }>('playbooks-canvas-selected-step', () => ({ index: null }));
   ui.heading('playbooks-title', 'GUIDED REMEDIES · INSPECT → PREVIEW → COMMIT → VERIFY');
   const regions = columnRegions(workspaceBounds(context), [{ fixed: 38 }, { fixed: 48 }, { grow: 1 }, { fixed: 36 }]);

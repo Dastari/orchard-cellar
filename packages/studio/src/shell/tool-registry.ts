@@ -1,4 +1,4 @@
-import type { StudioDockId, StudioMode } from '@orchard/ui/studio';
+import type { StudioDockId, StudioMode } from './studio-models.js';
 import { AUDIO_TOOL_REGISTRATION } from '../tools/audio/model.js';
 import { CHARACTER_TOOL_REGISTRATION } from '../tools/character/model.js';
 import { ITEMS_TOOL_REGISTRATION } from '../tools/items/contracts.js';

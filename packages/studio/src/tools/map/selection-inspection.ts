@@ -333,6 +333,7 @@ function compiledFacadeForTerrain(
     cliffFamilies: terrain.cliffFamilies ?? new Uint8Array(0),
     surfaceFamilies: terrain.surfaceFamilies ?? new Uint8Array(0),
     terrainOverrides: terrain.terrainOverrides ?? [],
+    ...(terrain.cellParts === undefined ? {} : { cellParts: terrain.cellParts }),
     ledges: terrain.ledges ?? new Uint8Array(0),
     surfaces: [],
     features: [],
@@ -369,6 +370,7 @@ function generatedInspectionContext(
     cliffFamily: document.defaultCliffFamily ?? 'stone_1',
     surfaceFamily: document.defaultSurfaceFamily ?? 'grass_1',
     terrainOverride: null,
+    parts: [],
     ledge: false,
   };
   return { terrainDocument, compiled: compiledFacadeForTerrain(document, terrain), biome, cell };

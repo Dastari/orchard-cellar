@@ -179,6 +179,8 @@ interface PlaceableProjectionSource {
   readonly id: bigint; readonly kind: string; readonly tileX: number; readonly tileY: number;
   readonly spaceId: number; readonly facing: string; readonly open: boolean; readonly lit: boolean;
   readonly carriedBy?: unknown; readonly definitionId: string;
+  /** Hex identity of the placer; the module's own identity marks world rows. */
+  readonly placedBy?: IdentityProjection;
   readonly stateJson: string;
   readonly smeltStartTick?: bigint; readonly processStartTick?: bigint;
   readonly barrelSealedTick?: bigint; readonly cookStartTick?: bigint;
@@ -288,6 +290,7 @@ function sameProjectedRows<Row>(
 const samePlaceable = (left: StudioLiveRows['placeables'][number], right: StudioLiveRows['placeables'][number]): boolean => (
   left.id === right.id && left.spaceId === right.spaceId && left.kind === right.kind
   && left.definitionId === right.definitionId && JSON.stringify(left.state) === JSON.stringify(right.state)
+  && left.ownerIdentity === right.ownerIdentity
   && left.tileX === right.tileX && left.tileY === right.tileY && left.facing === right.facing
   && left.open === right.open && left.lit === right.lit
   && left.smeltStartTick === right.smeltStartTick && left.processStartTick === right.processStartTick
@@ -298,6 +301,7 @@ const sameChest = (left: NonNullable<StudioLiveRows['chests']>[number], right: N
   left.id === right.id && left.spaceId === right.spaceId && left.tileX === right.tileX
   && left.tileY === right.tileY && left.open === right.open && left.facing === right.facing
   && left.definitionId === right.definitionId && JSON.stringify(left.state) === JSON.stringify(right.state)
+  && left.ownerIdentity === right.ownerIdentity
 );
 
 const sameCombatTarget = (
@@ -410,6 +414,7 @@ export class StudioRowsProjection {
         && row.kind !== 'chest').map((row) => ({
         id: row.id, spaceId: row.spaceId, kind: row.kind, tileX: row.tileX, tileY: row.tileY,
         definitionId: row.definitionId,
+        ...(row.placedBy === undefined ? {} : { ownerIdentity: row.placedBy.toHexString() }),
         state: projectedPlaceableState(row), facing: row.facing, open: row.open, lit: row.lit,
         smeltStartTick: row.smeltStartTick, processStartTick: row.processStartTick,
         barrelSealedTick: row.barrelSealedTick, cookStartTick: row.cookStartTick,
@@ -418,6 +423,7 @@ export class StudioRowsProjection {
         || row.kind === 'chest').map((row) => ({
         id: row.id, spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY,
         definitionId: row.definitionId, state: projectedPlaceableState(row),
+        ...(row.placedBy === undefined ? {} : { ownerIdentity: row.placedBy.toHexString() }),
         open: row.open, facing: row.facing,
       })));
       if (!sameProjectedRows(placeables, nextPlaceables, samePlaceable)) {

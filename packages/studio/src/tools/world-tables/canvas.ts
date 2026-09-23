@@ -1,3 +1,4 @@
+import { consumeStudioDefinition } from '../../shell/content-navigation.js';
 import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { studioSelectionEditor } from '../../shell/selection-editor.js';
 import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
@@ -118,6 +119,8 @@ export function buildWorldAuthoringCanvasTool(context: StudioCanvasToolContext):
   state.model.receiveHistory(view === undefined ? [] : itemsHistoryFromConnection(view));
 
   const snapshot = state.model.snapshot();
+  const requested = consumeStudioDefinition(context.controller, kind => (WORLD_TABLE_KINDS as readonly string[]).includes(kind));
+  if (requested) { state.kind = requested.split(':')[0] as WorldTableKind; state.selectedId = requested; state.syncedId = null; state.query.setValue(''); }
   const entries = state.model.browser(state.kind, state.query.snapshot().value);
   if (state.selectedId === null || !entries.some(({ id }) => id === state.selectedId)) {
     state.selectedId = entries[0]?.id ?? null;
@@ -220,7 +223,7 @@ export function buildWorldAuthoringCanvasTool(context: StudioCanvasToolContext):
     ...snapshot.validation.warnings.map((issue, index) => ({ id: `world:warning:${index}`, severity: 'warning' as const, message: issue.message })),
   ]);
   const inspector=studioSelectionEditor({id:id('tabs'),label:'World content editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
-    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,readOnly:access==='read_only',apply:()=>{state.model.upsert(JSON.parse(state.definition.snapshot().value));}})},
+    {id:'fields',label:'Details',content:studioDefinitionFields(context,{id:id('field'),draft:state.definition,definitions:snapshot.definitions,readOnly:access==='read_only',apply:()=>{state.model.upsert(JSON.parse(state.definition.snapshot().value));}})},
     {id:'editor',label:'JSON',content:editor},
     ...(packMode?[{id:'pack',label:'Pack',content:kit.text('Import or export the content pack in the workspace.',{wrap:true})}]:[]),
     {id:'preview',label:'Changes',content:kit.text('Review draft changes in the workspace.',{wrap:true})},

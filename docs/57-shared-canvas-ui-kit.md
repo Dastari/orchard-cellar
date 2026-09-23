@@ -1,6 +1,12 @@
 # 57 — Orchard UI Kit: One Canvas UI System for Game and Studio
 
-Plan, **2026-09-05**. Status: **proposed, not started**. Companion to
+Plan, **2026-09-05**. Status (2026-09-23): **Phases 0–5 shipped; Phase 6 (game
+migration) not started.** The kit runtime, core, form/data, game and Studio
+workbench components are live, and Studio mounts only kit compositions. Studio
+compliance is enforced by the UI-kit gate in [61](61-world-editor-and-authoring-model.md)
+§5: the `orchard-ui-kit/*` ESLint rules, the `packages/studio/scripts/verify-ui-kit.mjs`
+prebuild check and the route-mounting test `packages/studio/src/ui-kit-gate.test.ts`.
+The game client still uses its hand-drawn screens. Companion to
 [23](23-ui-system.md) (widget/window/container contracts, art extraction rules),
 [55](55-game-authoring-suite.md) §7 (Frame Designer output is the presentation
 contract), and [56](56-orchard-studio.md) §4.1 (Studio visual language, sole-canvas
@@ -355,6 +361,9 @@ done when its live renderer is the lab composition.
 9. Dialogs come from `patterns/dialog.ts` (`confirm`, `danger`, `prompt`,
    `form`). Never build a modal from a raw `Frame`.
 10. Add a lab specimen for every new composition before wiring it live.
+11. An application never builds its own component. If the kit lacks something
+    (a layer row, a URL icon, a selection reticle), add it to the kit with a
+    specimen. In Studio the UI-kit gate enforces this (doc 61 §5).
 
 The README carries a cookbook: window with header and three columns, settings
 form, master/detail with table, chest with resize, speech bubble with choices,
@@ -600,3 +609,7 @@ while component lanes add their own specimen files under `kit/lab/specimens/`.
 - Update docs 13, 23, 55 §7, and 56 §4.1 to reference this document once Phase 2
   lands; mark `design-system/README.md` superseded at Phase 6.
 - Track phase status at the top of this document with dates, as docs 55/56 do.
+
+Integration follow-up: ownership/live-marker colours now live in
+`spatial-colours.ts`; the temporary `editor-controller.ts` colour exception is
+removed. P0/P1 controller behavior remains subject to the same gate.

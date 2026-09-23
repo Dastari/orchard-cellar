@@ -107,6 +107,18 @@ describe('StudioRowsProjection', () => {
     expect(projection.scanCounts()).toMatchObject({ resources: 1, placeables: 2 });
   });
 
+  it('projects the placer identity so Studio can classify live ownership', () => {
+    const { data, source } = fixture();
+    data.placeables = data.placeables.map((row) => ({ ...row, placedBy: identity('module') }));
+    const projection = new StudioRowsProjection();
+    projection.refresh(source);
+    expect(projection.rows().placeables[0]).toMatchObject({ ownerIdentity: 'module' });
+    data.placeables = data.placeables.map((row) => ({ ...row, placedBy: identity('player-1') }));
+    projection.mark('placeables');
+    expect(projection.refresh(source)).toBe(true);
+    expect(projection.rows().placeables[0]).toMatchObject({ ownerIdentity: 'player-1' });
+  });
+
   it('fails malformed authored state soft and still projects exact core state fields', () => {
     const { data, source } = fixture();
     data.placeables = data.placeables.map((row) => ({ ...row, stateJson: 'not json' }));

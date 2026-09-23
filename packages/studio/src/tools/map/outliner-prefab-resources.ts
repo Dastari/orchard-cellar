@@ -1,5 +1,5 @@
 import type { MapDocumentV3, MapPrefabDocumentV2 } from '@orchard/sim';
-import type { StudioPropertyInput } from '@orchard/ui/studio';
+import type { StudioPropertyInput } from '../../shell/studio-models.js';
 import type { StudioLiveRows } from '../../shell/outliners.js';
 import type { StudioSelection } from '../../shell/selection.js';
 
