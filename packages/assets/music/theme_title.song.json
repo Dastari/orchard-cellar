@@ -7,7 +7,7 @@
  "stepsPerBeat": 4,
  "beatsPerBar": 4,
  "loopBars": 48,
- "masterGainDb": -10,
+ "masterGainDb": -5,
  "signatureMotif": {
   "id": "orchard_home",
   "steps": 64,
@@ -46,24 +46,6 @@
  },
  "channels": [
   {
-   "patch": "pad",
-   "vol": 0.44,
-   "patterns": [
-    "Pad_GC",
-    "Pad_EmD",
-    "Pad_GC",
-    "Pad_DG",
-    "Pad_GC",
-    "Pad_EmD",
-    "Pad_CD",
-    "Pad_DG",
-    "Pad_GC",
-    "Pad_EmD",
-    "Pad_CD",
-    "Pad_GG"
-   ]
-  },
-  {
    "patch": "flute",
    "vol": 0.66,
    "patterns": [
@@ -79,11 +61,12 @@
     "Rest",
     "MotifReturn",
     "Rest"
-   ]
+   ],
+   "pan": 0.1
   },
   {
    "patch": "bells",
-   "vol": 0.28,
+   "vol": 0.34,
    "patterns": [
     "Rest",
     "Rest",
@@ -97,24 +80,25 @@
     "BellDew",
     "Rest",
     "BellHome"
-   ]
+   ],
+   "pan": -0.4
   },
   {
    "patch": "bass",
-   "vol": 0.36,
+   "vol": 0.3,
    "patterns": [
-    "Bass_GC",
-    "Bass_EmD",
-    "Bass_GC",
-    "Bass_DG",
-    "Bass_GC",
-    "Bass_EmD",
-    "Bass_CD",
-    "Bass_DG",
-    "Bass_GC",
-    "Bass_EmD",
-    "Bass_CD",
-    "Bass_GG"
+    "Rest",
+    "Rest",
+    "SB_GC",
+    "SB_DG",
+    "SB_GC",
+    "SB_EmD",
+    "SB_CD",
+    "SB_DG",
+    "SB_GC",
+    "SB_EmD",
+    "SB_CD",
+    "Rest"
    ]
   },
   {
@@ -133,25 +117,27 @@
     "Str_EmD",
     "Str_CD",
     "Str_GG"
-   ]
+   ],
+   "pan": -0.3
   },
   {
    "patch": "pluck",
    "vol": 0.3,
    "patterns": [
-    "Rest",
-    "Rest",
-    "Rest",
-    "Rest",
-    "Rest",
-    "Rest",
+    "Soft_GC",
+    "Soft_EmD",
+    "Soft_GC",
+    "Soft_DG",
+    "Soft_GC",
+    "Soft_EmD",
     "Pk_DG",
     "Rest",
     "Pk_GC",
     "Pk_EmD",
     "Pk_DG",
     "Pk_GG"
-   ]
+   ],
+   "pan": 0.35
   }
  ],
  "patterns": {
@@ -165,32 +151,38 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "D5",
-     8
+     8,
+     0.9
     ],
     [
      32,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      40,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      48,
      "G4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -200,32 +192,38 @@
     [
      0,
      "D4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "B4",
-     8
+     8,
+     0.9
     ],
     [
      32,
      "F#4",
-     4
+     4,
+     0.8
     ],
     [
      40,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      48,
      "G4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -235,22 +233,26 @@
     [
      4,
      "E4",
-     6
+     6,
+     0.8
     ],
     [
      28,
      "A4",
-     8
+     8,
+     0.9
     ],
     [
      44,
      "F#4",
-     4
+     4,
+     0.8
     ],
     [
      52,
      "D4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -260,22 +262,26 @@
     [
      0,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      12,
      "D5",
-     6
+     6,
+     0.9
     ],
     [
      40,
      "D5",
-     6
+     6,
+     0.9
     ],
     [
      52,
      "A4",
-     8
+     8,
+     0.7
     ]
    ]
   },
@@ -285,32 +291,38 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.8
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      16,
      "D5",
-     8
+     8,
+     0.9
     ],
     [
      36,
      "A4",
-     4
+     4,
+     0.8
     ],
     [
      44,
      "B4",
-     4
+     4,
+     0.8
     ],
     [
      52,
      "G4",
-     10
+     10,
+     0.7
     ]
    ]
   },
@@ -371,241 +383,6 @@
      52,
      "G5",
      10
-    ]
-   ]
-  },
-  "Pad_GC": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "G3",
-     28
-    ],
-    [
-     0,
-     "B3",
-     28
-    ],
-    [
-     0,
-     "D4",
-     28
-    ],
-    [
-     32,
-     "C3",
-     28
-    ],
-    [
-     32,
-     "E3",
-     28
-    ],
-    [
-     32,
-     "G3",
-     28
-    ]
-   ]
-  },
-  "Pad_EmD": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "E3",
-     28
-    ],
-    [
-     0,
-     "G3",
-     28
-    ],
-    [
-     0,
-     "B3",
-     28
-    ],
-    [
-     32,
-     "D3",
-     28
-    ],
-    [
-     32,
-     "F#3",
-     28
-    ],
-    [
-     32,
-     "A3",
-     28
-    ]
-   ]
-  },
-  "Pad_DG": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "D3",
-     28
-    ],
-    [
-     0,
-     "F#3",
-     28
-    ],
-    [
-     0,
-     "A3",
-     28
-    ],
-    [
-     32,
-     "G3",
-     28
-    ],
-    [
-     32,
-     "B3",
-     28
-    ],
-    [
-     32,
-     "D4",
-     28
-    ]
-   ]
-  },
-  "Pad_CD": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "C3",
-     28
-    ],
-    [
-     0,
-     "E3",
-     28
-    ],
-    [
-     0,
-     "G3",
-     28
-    ],
-    [
-     32,
-     "D3",
-     28
-    ],
-    [
-     32,
-     "F#3",
-     28
-    ],
-    [
-     32,
-     "A3",
-     28
-    ]
-   ]
-  },
-  "Pad_GG": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "G3",
-     60
-    ],
-    [
-     0,
-     "B3",
-     60
-    ],
-    [
-     0,
-     "D4",
-     60
-    ]
-   ]
-  },
-  "Bass_GC": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "G2",
-     20
-    ],
-    [
-     32,
-     "C3",
-     20
-    ]
-   ]
-  },
-  "Bass_EmD": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "E2",
-     20
-    ],
-    [
-     32,
-     "D2",
-     20
-    ]
-   ]
-  },
-  "Bass_DG": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "D2",
-     20
-    ],
-    [
-     32,
-     "G2",
-     20
-    ]
-   ]
-  },
-  "Bass_CD": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "C3",
-     20
-    ],
-    [
-     32,
-     "D2",
-     20
-    ]
-   ]
-  },
-  "Bass_GG": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "G2",
-     28
-    ],
-    [
-     32,
-     "G2",
-     24
     ]
    ]
   },
@@ -705,42 +482,50 @@
     [
      0,
      "G4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "D5",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "C5",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "G4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -750,42 +535,50 @@
     [
      0,
      "E4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "B4",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "G4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "F#4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -795,42 +588,50 @@
     [
      0,
      "D4",
-     4
+     4,
+     0.85
     ],
     [
      8,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      16,
      "A4",
-     4
+     4,
+     0.85
     ],
     [
      24,
      "F#4",
-     4
+     4,
+     0.62
     ],
     [
      32,
      "G4",
-     4
+     4,
+     0.85
     ],
     [
      40,
      "B4",
-     4
+     4,
+     0.62
     ],
     [
      48,
      "D5",
-     4
+     4,
+     0.85
     ],
     [
      56,
      "B4",
-     4
+     4,
+     0.62
     ]
    ]
   },
@@ -840,22 +641,217 @@
     [
      0,
      "G4",
-     6
+     6,
+     0.85
     ],
     [
      16,
      "B4",
-     6
+     6,
+     0.85
     ],
     [
      32,
      "D5",
-     6
+     6,
+     0.85
     ],
     [
      48,
      "G5",
-     8
+     8,
+     0.85
+    ]
+   ]
+  },
+  "SB_GC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G2",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "C3",
+     6,
+     0.7
+    ]
+   ]
+  },
+  "SB_DG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D3",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "G2",
+     6,
+     0.7
+    ]
+   ]
+  },
+  "SB_EmD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E2",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.7
+    ]
+   ]
+  },
+  "SB_CD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C3",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.7
+    ]
+   ]
+  },
+  "Soft_GC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "B4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "E4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "Soft_EmD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "B3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "G4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "F#4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "Soft_DG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "F#4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "B4",
+     8,
+     0.5
     ]
    ]
   }
@@ -863,6 +859,13 @@
  "loop": true,
  "iterationNotes": [
   "Pass 2: removed two mid-phrase flute notes to preserve breathing room; listening pass pending audio preview.",
-  "Pass 3: arranged an arc \u2014 strings swells enter at slot 5, pluck arpeggios at slot 7, both resolve on the final G. Chord tones only; listening pass pending shared-browser audio preview."
- ]
+  "Pass 3: arranged an arc \u2014 strings swells enter at slot 5, pluck arpeggios at slot 7, both resolve on the final G. Chord tones only; listening pass pending shared-browser audio preview.",
+  "Pass 4 (synth v2): mix retuned for the new instrument voices from offline stem renders \u2014 bass trimmed, bells/strings/shaker lifted, channel pans and phrase-shaped velocities added; notes unchanged. Owner listening pass pending.",
+  "Pass 5 (adaptive/sparse): removed the sustained pad drone, turned the bass into short plucked roots that rest in the opening and closing slots, and carried the harmony with soft broken chords instead. Melody unchanged. Owner listening pass pending."
+ ],
+ "fx": {
+  "reverb": 0.9,
+  "delayBeats": 0.75,
+  "delayFeedback": 0.3
+ }
 }

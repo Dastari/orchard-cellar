@@ -1,6 +1,10 @@
+import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
+import { buildSpaceRegistry } from '@orchard/sim';
+import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
+import { runtimeActivityExperience, runtimeProgression } from '@orchard/sim';
 import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
@@ -283,8 +287,6 @@ import {
   FISH_POOL_RESOURCE_ID_BASE,
   FISH_POOL_MIN_SPACING_TILES,
   FISHING_CAST_TICKS,
-  FISHING_CATCH_FARMING_XP,
-  FISHING_POOL_DEPLETION_FARMING_XP,
   miningWorkPerHit,
   resolveMiningLoot,
   resolveMiningRockBonus,
@@ -1201,6 +1203,14 @@ const player_stats = table(
   },
 );
 
+/** Private fractional environmental damage, never an actor permission source.
+ * Rows exist only during exposure or a pending fraction, and expire on inactivity. */
+const traversal_hazard_state = table(
+  { name: 'traversal_hazard_state', indexes: [{ accessor: 'by_actor', algorithm: 'btree', columns: ['actor'] }] },
+  { id: t.string().primaryKey(), actor: t.string(), policy: t.string(), spaceId: t.u16(),
+    numerator: t.u64(), elapsedTicks: t.u32(), lastTick: t.u64() },
+);
+
 /** Coin balances are character state, never inventory stacks. The canonical
  * balance uses the smallest denomination; clients derive gold/silver/bronze. */
 const player_wallet = table(
@@ -2071,7 +2081,8 @@ const world_surface = table(
   {
     name: 'world_surface',
     public: true,
-    indexes: [{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] }],
+    indexes: [{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] }],
   },
   {
     id: t.u64().primaryKey(), kind: t.string(), tileX: t.i16(), tileY: t.i16(),
@@ -2215,6 +2226,7 @@ const world_resource = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_depleted', algorithm: 'btree', columns: ['depleted'] },
       { accessor: 'by_regrowth_progress', algorithm: 'btree', columns: ['regrowthProgress'] },
     ],
@@ -2311,6 +2323,7 @@ const world_crop = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
     ],
   },
   {
@@ -2335,6 +2348,7 @@ const world_item = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
@@ -2445,6 +2459,7 @@ const world_chest = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
       { accessor: 'by_migration_order', algorithm: 'btree', columns: ['id', 'spaceId'] },
     ],
@@ -2550,6 +2565,7 @@ const world_placeable = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
       { accessor: 'by_placer', algorithm: 'btree', columns: ['placedBy'] },
     ],
@@ -2672,6 +2688,7 @@ const world_npc = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_rider', algorithm: 'hash', columns: ['rider'] },
     ],
   },
@@ -2987,6 +3004,7 @@ const spacetimedb = schema({
   player_process_job_receipt,
   player_spawn,
   player_stats,
+  traversal_hazard_state,
   player_wallet,
   player_trade_session,
   player_trade_offer,
@@ -4032,10 +4050,8 @@ function collisionForSpace(
       });
     }
   }
-  return collisionWithinChunkScope(
-    { ...collision, obstacles },
-    prefetchedRows?.chunkScope,
-  );
+  const scoped = collisionWithinChunkScope({ ...collision, obstacles }, prefetchedRows?.chunkScope);
+  return runtimeActorCollision(contentRegistry(ctx), scoped, { kind: 'placement', medium: 'ground' }, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
 }
 
 function waterCollisionForSpace(
@@ -4043,13 +4059,18 @@ function waterCollisionForSpace(
   spaceId: number,
   prefetchedLiveMapRuntime?: LiveIslandRuntime | null,
   chunkScope?: ReadonlySet<string>,
+  groundGeometry?: CollisionMap,
 ) {
-  return collisionWithinChunkScope(
+  const scoped = collisionWithinChunkScope(
     liveMapCollisionForSpace(ctx, spaceId, 'water', createAuthoritySpaceCollisionMap(
       contentRegistry(ctx), spaceId, [], [], 'water', [], instanceForSpace(ctx, spaceId),
     ), prefetchedLiveMapRuntime),
     chunkScope,
   );
+  const registry = contentRegistry(ctx);
+  const geometry = runtimeTraversalPolicy(registry) === null ? scoped
+    : traversalSolidGeometry(groundGeometry ?? collisionForSpace(ctx, spaceId), scoped);
+  return runtimeActorCollision(registry, scoped, { kind: 'placement', medium: 'water' }, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n, geometry);
 }
 
 function nextBoatNpcId(ctx: WorldReducerContext): bigint {
@@ -4100,7 +4121,9 @@ function sinkBoat(
       const landing = findBoatDismountPosition(
         { x: boat.x, y: boat.y },
         boatFacingForDirection(parseDirection(boat.facing) ?? 'right'),
-        ground,
+        runtimeActorCollision(contentRegistry(ctx), ground, { kind: 'player',
+          effects: [...ctx.db.player_effect.by_identity.filter(rider.identity)] }, authorityTick,
+          traversalSolidGeometry(ground, waterCollisionForSpace(ctx, rider.spaceId))),
       ) ?? { x: boat.homeX, y: boat.homeY };
       ctx.db.player_position.identity.update({
         ...rider,
@@ -8183,6 +8206,87 @@ export const adminMissingContainerRecovery = spacetimedb.procedure(
   }),
 );
 
+/** Every iterator seeks directly within one requested chunk; excluded keys resume dense chunks. */
+function* adminAreaIndexRows(tx: AdminProcedureTx, source: number, spaceId: number,
+  chunkX: number, chunkY: number, after: string | null): Generator<AdminAreaRow> {
+  if (source === 0) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_placeable.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      if (genericChest(tx, row) && !chestMigrationReadsUsePlaceables(tx) && tx.db.chest_migration_mapping.placeableId.find(row.id) !== null) { yield { key: row.id.toString(), entity: null }; continue; }
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: genericChest(tx, row) ? 'chest' : 'placeable', definitionId: row.definitionId || row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { open: row.open, lit: row.lit, stateJson: row.stateJson } } };
+    }
+  }
+  if (source === 1) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_chest.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      if (chestMigrationReadsUsePlaceables(tx) && tx.db.chest_migration_mapping.chestId.find(row.id) !== null) { yield { key: row.id.toString(), entity: null }; continue; }
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'chest', definitionId: 'chest',
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { carried: row.carriedBy !== undefined } } };
+    }
+  }
+  if (source === 2) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_npc.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'npc', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { displayName: row.displayName, facing: row.facing, health: row.health } } };
+    }
+  }
+  if (source === 3) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_item.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'item', definitionId: row.itemKind,
+        spaceId: String(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { quantity: row.quantity, durability: row.durability } } };
+    }
+  }
+  if (source === 4) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_resource.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'resource', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { health: row.health, depleted: row.depleted } } };
+    }
+  }
+  if (source === 5) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_surface.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'surface', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { capacity: row.capacity } } };
+    }
+  }
+  if (source === 6) {
+    const range = after === null ? new Range<string>() : new Range({ tag: 'excluded', value: after });
+    for (const row of tx.db.world_crop.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'crop', definitionId: row.cropKind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { ownerIdentity: row.owner.toHexString(), growthTicks: row.growthTicks.toString(), plantedAtTick: row.plantedAtTick.toString(), composted: row.composted } } };
+    }
+  }
+}
+
+export const adminEntitiesInAreaPage = spacetimedb.procedure(
+  { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32(),
+    cursor: t.option(t.string()), limit: t.u32(), kinds: t.array(t.string()), text: t.string() },
+  t.string(),
+  (ctx, request) => ctx.withTx((tx) => {
+    requireAdminProcedure(tx, 'operate.world');
+    return stringifyAdminProcedureResult(buildAdminAreaPage({ ...request,
+      ...(request.cursor === undefined ? {} : { cursor: request.cursor }) },
+    (source, space, x, y, after) => adminAreaIndexRows(tx, source, space, x, y, after)));
+  }),
+);
+
+/** Only geometry and ownership leave the private run table, after the admin gate. */
+export const adminSpaceRegistry = spacetimedb.procedure({}, t.string(), (ctx) => ctx.withTx((tx) => {
+  requireAdminProcedure(tx, 'operate.world');
+  const homes = [...tx.db.homestead.iter()].map((home) => ({ ...home, ownerIdentity: home.owner.toHexString() }));
+  const runs = [...tx.db.rogue_run.iter()].map((run) => ({
+    spaceId: run.spaceId, instanceKind: run.instanceKind, seed: run.seed,
+    roomNumber: run.roomNumber, roomKind: run.roomKind, theme: run.theme,
+    ownerIdentity: run.owner.toHexString(), ownerName: tx.db.player_public.identity.find(run.owner)?.displayName,
+  }));
+  return stringifyAdminProcedureResult(buildSpaceRegistry(contentRegistry(tx).compiled.spaces, [...homes, ...runs],
+    [...tx.db.space_portal.iter()].map((portal) => ({ ...portal, id: String(portal.id) }))));
+}));
+
 export const adminEntitiesInArea = spacetimedb.procedure(
   { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32() },
   t.string(),
@@ -8191,41 +8295,17 @@ export const adminEntitiesInArea = spacetimedb.procedure(
     const spaceId = Number(bounds.spaceId);
     if (!Number.isInteger(spaceId) || spaceId < 0 || spaceId > 65_535) throw new SenderError('admin_payload_invalid');
     const rows = function* (): Generator<AdminEntitySummary> {
-      for (const row of tx.db.world_placeable.by_chunk.filter(spaceId)) {
-        if (genericChest(tx, row) && !chestMigrationReadsUsePlaceables(tx)
-          && tx.db.chest_migration_mapping.placeableId.find(row.id) !== null) continue;
-        yield {
-          entityId: row.id.toString(), kind: genericChest(tx, row) ? 'chest' : 'placeable',
-          definitionId: row.definitionId || row.kind,
-          spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY,
-          state: { open: row.open, lit: row.lit, stateJson: row.stateJson },
-        };
+      const minX = Math.floor(Math.min(bounds.x0, bounds.x1) / SURVIVAL_CHUNK_TILES);
+      const maxX = Math.floor(Math.max(bounds.x0, bounds.x1) / SURVIVAL_CHUNK_TILES);
+      const minY = Math.floor(Math.min(bounds.y0, bounds.y1) / SURVIVAL_CHUNK_TILES);
+      const maxY = Math.floor(Math.max(bounds.y0, bounds.y1) / SURVIVAL_CHUNK_TILES);
+      for (let source = 0; source < 7; source += 1) {
+        for (let x = minX; x <= maxX; x += 1) for (let y = minY; y <= maxY; y += 1) {
+          for (const row of adminAreaIndexRows(tx, source, spaceId, x, y, null)) {
+            if (row.entity !== null) yield row.entity;
+          }
+        }
       }
-      for (const row of tx.db.world_chest.by_chunk.filter(spaceId)) {
-        if (chestMigrationReadsUsePlaceables(tx)
-          && tx.db.chest_migration_mapping.chestId.find(row.id) !== null) continue;
-        yield {
-          entityId: row.id.toString(), kind: 'chest', definitionId: 'chest', spaceId: String(row.spaceId),
-          tileX: row.tileX, tileY: row.tileY, state: { carried: row.carriedBy !== undefined },
-        };
-      }
-      for (const row of tx.db.world_npc.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'npc', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED),
-        state: { displayName: row.displayName, facing: row.facing, health: row.health },
-      };
-      for (const row of tx.db.world_item.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'item', definitionId: row.itemKind, spaceId: String(row.spaceId),
-        tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { quantity: row.quantity, durability: row.durability },
-      };
-      for (const row of tx.db.world_resource.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'resource', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: row.tileX, tileY: row.tileY, state: { health: row.health, depleted: row.depleted },
-      };
-      for (const row of tx.db.world_surface.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'surface', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: row.tileX, tileY: row.tileY, state: { capacity: row.capacity },
-      };
     };
     return adminProcedureJson(buildAdminEntitiesInArea(rows(), bounds));
   }),
@@ -11748,7 +11828,7 @@ function worldBehaviourEffectWriter(
         });
         const soilId = worldSoilId(planned.spaceId, planned.tileX, planned.tileY);
         if (ctx.db.world_soil.id.find(soilId) !== null) ctx.db.world_soil.id.delete(soilId);
-        grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+        grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'plant_fruit_seed'));
         return;
       }
       const definition = runtimeCropDefinitionForSeed(contentRegistry(ctx), planned.seedItemKind);
@@ -11772,7 +11852,7 @@ function worldBehaviourEffectWriter(
       recordPlayerStatistic(
         ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, definition.harvestItemKind,
       );
-      grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+      grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'plant_seed'));
     },
     farmTool: ({ action, at }) => {
       const planned = plannedFarmTool;
@@ -12738,6 +12818,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     terrainDocumentForMapV3(document),
     runtimeTilesetResolver(registry.tilesets),
   );
+  const traversalChannels = runtimeTraversalPolicy(registry) === null ? undefined : mapTraversalChannels(document, compiled);
   const length = compiled.width * compiled.height;
   const horseJumpableTerrain = Array.from({ length }, (_, index) => (
     survivalBiomeAllowsHorseJump(resolvedMapBiomeAt(
@@ -12752,6 +12833,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     registry, TOPSIDE_SPACE_ID, document.landmarks,
   ).map(({tileX,tileY})=>`${tileX}:${tileY}`));
   const ground: CollisionMap = {
+    ...(traversalChannels === undefined ? {} : { traversalChannels }),
     width: compiled.width,
     height: compiled.height,
     blocked: compiled.blocked.map((blocked, index) => (
@@ -12767,6 +12849,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     obstacles: authoredMapCollisionObstacles(document, 'ground', registry),
   };
   const water: CollisionMap = {
+    ...(traversalChannels === undefined ? {} : { traversalChannels }),
     width: compiled.width,
     height: compiled.height,
     blocked: compiled.surfaces.map((surface) => surface !== 'water'),
@@ -17886,7 +17969,7 @@ export const resetSkillTree = spacetimedb.reducer(
     if (!isSkillTrack(track)) throw new SenderError('invalid_skill_track');
     const progress = ensurePlayerSkillTrack(ctx, ctx.sender, track);
     if (progress.spentPoints === 0) throw new SenderError('skill_tree_empty');
-    const cost = skillRespecCostBronze(progress.respecCount);
+    const cost = skillRespecCostBronze(progress.respecCount, runtimeProgression(contentRegistry(ctx)));
     const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
     if (wallet === null) throw new SenderError('wallet_not_ready');
     if (wallet.balanceBronze < cost) throw new SenderError('insufficient_funds');
@@ -19534,7 +19617,7 @@ export const purchaseHomesteadUpgrade = spacetimedb.reducer(
     recordPlayerStatistic(
       ctx, ctx.sender, 'homestead_upgrades_purchased', 1n, clock.authorityTick, upgradeKind,
     );
-    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(20 * quote.nextRank));
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'homestead_upgrade', quote.nextRank));
   },
 );
 
@@ -21067,7 +21150,10 @@ function applyMountLifecycle(
     if (currentMount?.id !== npc.id || npc.rider?.isEqual(ctx.sender) !== true) {
       throw new SenderError('mount_not_owned');
     }
-    const collision = collisionForSpace(ctx, position.spaceId);
+    const ground = collisionForSpace(ctx, position.spaceId);
+    const collision = runtimeActorCollision(registry, ground, { kind: 'player',
+      effects: [...ctx.db.player_effect.by_identity.filter(position.identity)] }, clock.authorityTick,
+      traversalSolidGeometry(ground, waterCollisionForSpace(ctx, position.spaceId)));
     landing = mount.adapter === 'boat'
       ? findBoatDismountPosition(npc, boatFacingForDirection(parseDirection(npc.facing) ?? 'right'), collision)
       : findHorseDismountPosition(npc, parseNpcFacing(npc.facing), collision, mount);
@@ -21426,7 +21512,7 @@ function pickOrchardFruit(
   ctx.db.player_position.identity.update({ ...position, actionKind: 'pickup',
     actionStartedTick: nextActionStartedTick(position.actionStartedTick, authorityTick) });
   recordPlayerStatistic(ctx, ctx.sender, 'resources_gathered', 1n, authorityTick, resource.kind);
-  grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(harvest.quantity * 2));
+  grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'orchard_harvest', harvest.quantity));
 }
 
 export const gatherWorldResource = spacetimedb.reducer(
@@ -21720,6 +21806,20 @@ function applyDigCellarTileLifecycle(
     recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
 }
 
+function npcTraversalActor(ctx: WorldReducerContext, npc: WorldNpcRow): RuntimeTraversalActor {
+  const registry = contentRegistry(ctx);
+  const wildlife = ctx.db.world_wildlife_profile.npcId.find(npc.id);
+  if (wildlife !== null) return { kind: 'definition', definitionId: runtimeCreatureDefinition(registry, wildlife.species)?.id ?? '' };
+  const outdoor = ctx.db.outdoor_enemy_profile.npcId.find(npc.id);
+  if (outdoor !== null) return { kind: 'definition', definitionId: runtimeHearthEnemyDefinition(registry, outdoor.enemyKind)?.definitionId ?? '' };
+  const authored = runtimeNpcDefinition(registry, npc);
+  if (authored !== null) return { kind: 'definition', definitionId: authored.id };
+  const enemies = [...registry.enemies.values()].filter(row => row.retired !== true
+    && (row.npcKind === npc.kind || row.aliases?.includes(npc.kind)));
+  const signatures = new Set(enemies.map(row => JSON.stringify([...(row.traversalAbilities ?? [])].sort())));
+  return { kind: 'definition', definitionId: signatures.size === 1 ? enemies[0]?.id ?? '' : '' };
+}
+
 function collisionForWildlife(
   ctx: WorldReducerContext,
   npc: Pick<WorldNpcRow, 'spaceId'>,
@@ -21727,17 +21827,13 @@ function collisionForWildlife(
 ) {
   const medium = runtimeWildlifeMovementMedium(contentRegistry(ctx), species);
   if (medium === null) return null;
-  return medium === 'ground'
-    ? collisionForSpace(ctx, npc.spaceId)
-    : createAuthoritySpaceCollisionMap(
-      contentRegistry(ctx),
-      npc.spaceId,
-      [],
-      [],
-      medium,
-      [],
-      homesteadForSpace(ctx, npc.spaceId),
-    );
+  const ground = collisionForSpace(ctx, npc.spaceId);
+  const water = waterCollisionForSpace(ctx, npc.spaceId);
+  const legacy = medium === 'ground' ? ground : medium === 'water' ? water
+    : createAuthoritySpaceCollisionMap(contentRegistry(ctx), npc.spaceId, [], [], medium, [], homesteadForSpace(ctx, npc.spaceId));
+  return runtimeActorCollision(contentRegistry(ctx), legacy,
+    { kind: 'definition', definitionId: runtimeCreatureDefinition(contentRegistry(ctx), species)?.id ?? '' },
+    ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n, traversalSolidGeometry(ground, water));
 }
 
 function panicNearbyWildlife(
@@ -22214,9 +22310,11 @@ function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers
       for(const {npc,profile} of members.filter(member=>member.profile.role!=='add')) {
         ctx.db.enemy_attack.npcId.delete(profile.npcId);
         if(npc!.health>0) {
-          const waypoint=outdoorReturnWaypoint(npc!,definition,policy,collision);
+          const actorCollision=runtimeActorCollision(registry,collision,npcTraversalActor(ctx,npc!),tick,
+            traversalSolidGeometry(collision,waterCollisionForSpace(ctx,npc!.spaceId)));
+          const waypoint=outdoorReturnWaypoint(npc!,definition,policy,actorCollision);
           if(waypoint===null){disableOutdoorEncounter(ctx,definition.id,'return_path_blocked',tick);break;}
-          moveOutdoorNpc(ctx,npc!,waypoint,definition,policy,collision,tick,'returning');
+          moveOutdoorNpc(ctx,npc!,waypoint,definition,policy,actorCollision,tick,'returning');
         }
       }
       const home=members.filter(member=>member.profile.role!=='add').every(({npc})=>npc!.health===0||(npc!.x-npc!.homeX)**2+(npc!.y-npc!.homeY)**2<=(TILE_SIZE_FIXED*.15)**2);
@@ -22231,11 +22329,13 @@ function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers
       const npc=ctx.db.world_npc.id.find(originalProfile.npcId);
       if(profile===null||npc===null||ctx.db.outdoor_encounter.id.find(definition.id)?.phase!=='active')continue;
       if(npc!.health===0||profile.role==='add'&&tick<profile.phaseCueUntilTick)continue;
+      const actorCollision=runtimeActorCollision(registry,collision,npcTraversalActor(ctx,npc),tick,
+        traversalSolidGeometry(collision,waterCollisionForSpace(ctx,npc.spaceId)));
       const attack=ctx.db.enemy_attack.npcId.find(profile.npcId);
       if(attack!==null) {
         const target=targets.find(player=>player.identity.isEqual(attack.targetIdentity));
         if(target===undefined||!outdoorHostileSegment(policy,npc!,target))ctx.db.enemy_attack.npcId.delete(npc!.id);
-        else if(stepCommittedRogueAttack(ctx,npc!,attack,tick,collision,{players,policy,definition}))continue;
+        else if(stepCommittedRogueAttack(ctx,npc!,attack,tick,actorCollision,{players,policy,definition}))continue;
       }
       const target=reachable.slice().sort((a,b)=>(a.x-npc!.x)**2+(a.y-npc!.y)**2-((b.x-npc!.x)**2+(b.y-npc!.y)**2))[0];
       if(target===undefined)continue;
@@ -22259,7 +22359,7 @@ function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers
       if(npc!.wanderDirection==='recovery'&&tick<profile.nextAttackTick&&authored.behavior.engine!=='orbit')continue;
       if(distanceSquared<=range*range&&distanceSquared>=attackProfile.minimumRange**2&&tick>=profile.nextAttackTick
         &&[...ctx.db.enemy_attack.by_target.filter(target.identity)].length<MAX_COMMITTED_ATTACKERS
-        &&outdoorHostileSegment(policy,npc!,target)&&!combatSegmentObstructed(npc!,target,collision)) {
+        &&outdoorHostileSegment(policy,npc!,target)&&!combatSegmentObstructed(npc!,target,actorCollision)) {
         const baseCommitment=commitEnemyAttack(attackProfile.pattern,tick,tick,npc!,target,range);
         const timing=authored.behavior.engine==='warden'?hearthWardenAttack(profile.wardenPhase as HearthWardenPhase,profile.attackCycle):baseCommitment;
         const commitment={...baseCommitment,tellTicks:timing.tellTicks,activeTicks:timing.activeTicks,recoveryTicks:timing.recoveryTicks};
@@ -22274,7 +22374,7 @@ function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers
         updateWorldNpc(ctx,{...npc!,facing:npcFacingTowardPoint(npc!,target,parseNpcFacing(npc!.facing)),moving:false,wanderDirection:'tell',authorityTick:tick});
       }else {
         const movement=hearthEnemyMovement(authored,npc!,target,npc!.id%2n===0n);
-        if(movement.moving)moveOutdoorNpc(ctx,npc!,movement.target,definition,policy,collision,tick,movement.activity,authored.speedPermille);
+        if(movement.moving)moveOutdoorNpc(ctx,npc!,movement.target,definition,policy,actorCollision,tick,movement.activity,authored.speedPermille);
         else if(npc!.moving||npc!.wanderDirection!==movement.activity)updateWorldNpc(ctx,{...npc!,moving:false,
           facing:npcFacingTowardPoint(npc!,target,parseNpcFacing(npc!.facing)),wanderDirection:movement.activity,authorityTick:tick});
       }
@@ -22354,7 +22454,7 @@ function damageOutdoorEnemy(ctx:WorldReducerContext,npc:WorldNpcRow,attacker:Wor
   return applied;
 }
 
-function persistOutdoorEncounterDamage(ctx:WorldReducerContext,encounterId:string,attacker:WorldReducerContext['sender'],
+function persistOutdoorEncounterDamage(ctx:WorldReducerContext,encounterId:string,attacker:WorldReducerContext['sender']|null,
   appliedDamageCenti:number,tick:bigint):number {
   const encounter=ctx.db.outdoor_encounter.id.find(encounterId);
   if(encounter===null||encounter.phase!=='active')return 0;
@@ -22377,7 +22477,7 @@ function persistOutdoorEncounterDamage(ctx:WorldReducerContext,encounterId:strin
     contributions:contributions.filter(row=>row.generation===encounter.generation).map(row=>({
       identity:row.identity.toHexString(),damageCenti:row.damageCenti,supportCenti:row.supportCenti,lastUsefulTick:row.lastUsefulTick,
     }))};
-  const result=damageOutdoorEncounter(state,attacker.toHexString(),appliedDamageCenti,tick,encounter.respawnDelayTicks);
+  const result=damageOutdoorEncounter(state,attacker?.toHexString()??null,appliedDamageCenti,tick,encounter.respawnDelayTicks);
   if(result.appliedDamageCenti===0)return 0;
   const retained=new Set(result.state.contributions.map(row=>row.identity));
   for(const row of contributions)if(row.generation!==encounter.generation||!retained.has(row.identity.toHexString()))ctx.db.outdoor_encounter_contribution.id.delete(row.id);
@@ -22469,7 +22569,10 @@ function damageRogueEnemy(
     x: npc.x + Math.round(dx / length * knockbackFixed),
     y: npc.y + Math.round(dy / length * knockbackFixed),
   };
-  const knocked = positionCollides(candidate, collisionForSpace(ctx, npc.spaceId))
+  const ground = collisionForSpace(ctx, npc.spaceId);
+  const actorCollision = runtimeActorCollision(contentRegistry(ctx), ground, npcTraversalActor(ctx, npc), authorityTick,
+    traversalSolidGeometry(ground, waterCollisionForSpace(ctx, npc.spaceId)));
+  const knocked = positionCollides(candidate, actorCollision)
     ? { x: npc.x, y: npc.y }
     : candidate;
   updateWorldNpc(ctx, {
@@ -22493,6 +22596,125 @@ function damageRogueEnemy(
     completeRogueEnemyDefeat(ctx, rewarded, authorityTick);
   }
   return applied;
+}
+
+function clearTraversalHazards(ctx: WorldReducerContext, actor: string): void {
+  for (const row of ctx.db.traversal_hazard_state.by_actor.filter(actor)) ctx.db.traversal_hazard_state.id.delete(row.id);
+}
+/** One observed authority tick; skipped/offline time never becomes exposure. */
+function traversalHazardDamage(ctx: WorldReducerContext, actorKey: string, actor: RuntimeTraversalActor,
+  position: {spaceId:number;x:number;y:number}, maximumHealth: number, tick: bigint, cachedCollision?: CollisionMap): number {
+  const registry = contentRegistry(ctx), policy = runtimeTraversalPolicy(registry);
+  if (policy?.mode !== 'active' || maximumHealth <= 0) return 0;
+  const abilities = runtimeTraversalAbilities(registry, policy, actor, tick);
+  if (abilities === null) return 0;
+  const collision = cachedCollision ?? collisionForSpace(ctx, position.spaceId), channels = collision.traversalChannels;
+  if (channels === undefined) return 0;
+  const x = Math.floor(position.x / TILE_SIZE_FIXED), y = Math.floor(position.y / TILE_SIZE_FIXED);
+  const medium = x < 0 || y < 0 || x >= channels.width || y >= channels.height ? 'void'
+    : RULE_MEDIA[channels.medium[y * channels.width + x]!] ?? 'void';
+  let damage = 0;
+  const retained = new Set<string>();
+  for (const source of RULE_MEDIA) for (const hazard of policy.media[source].hazards) {
+    const id = `${actorKey}:${source}:${hazard.id}`;
+    const stored = ctx.db.traversal_hazard_state.id.find(id);
+    const immune = hazard.immunityAbilities.some(ability => abilities.has(ability));
+    const exposed = source === medium;
+    if (immune || (!exposed && (stored === null || stored.numerator === 0n))) {
+      if (stored !== null) ctx.db.traversal_hazard_state.id.delete(id);
+      continue;
+    }
+    retained.add(id);
+    if (stored?.lastTick === tick) continue;
+    const signature = JSON.stringify([policy.id, hazard]);
+    const previous = stored !== null && stored.spaceId === position.spaceId && stored.policy === signature
+      && stored.lastTick + 1n === tick ? stored : { numerator: 0n, elapsedTicks: 0 };
+    const step = advanceHazardDamage(previous, hazard, maximumHealth, 1, AUTHORITY_HZ, exposed, false);
+    damage += step.damage;
+    const row = { id, actor: actorKey, policy: signature, spaceId: position.spaceId, ...step.state, lastTick: tick };
+    if (stored === null) ctx.db.traversal_hazard_state.insert(row);
+    else ctx.db.traversal_hazard_state.id.update(row);
+  }
+  for (const row of ctx.db.traversal_hazard_state.by_actor.filter(actorKey)) {
+    if (!retained.has(row.id)) ctx.db.traversal_hazard_state.id.delete(row.id);
+  }
+  return damage;
+}
+function stepTraversalHazards(ctx: WorldReducerContext, tick: bigint,
+  players: readonly PlayerPositionRow[], npcs: readonly WorldNpcRow[], collisions?: ReadonlyMap<number, CollisionMap>): void {
+  const registry = contentRegistry(ctx), policy = runtimeTraversalPolicy(registry);
+  // Disabling/replacing policy must not retain debt for a later activation.
+  for (const row of ctx.db.traversal_hazard_state.iter()) {
+    if (policy?.mode !== 'active' || row.lastTick + 1n < tick) ctx.db.traversal_hazard_state.id.delete(row.id);
+  }
+  if (policy?.mode !== 'active') return;
+  for (const snapshot of players) {
+    const player = ctx.db.player_position.identity.find(snapshot.identity);
+    if (player === null) continue;
+    const key = `player:${player.identity.toHexString()}`;
+    const stats = advancePlayerStats(ctx, player.identity, tick);
+    if (stats.healthCenti === 0) { clearTraversalHazards(ctx, key); continue; }
+    const maximum = resolvedStatsForRow(ctx, stats, player.identity, tick).maxHealthCenti;
+    const damage = traversalHazardDamage(ctx, key, { kind: 'player', mount: mountedNpcFor(ctx, player.identity),
+      effects: [...ctx.db.player_effect.by_identity.filter(player.identity)] }, player, maximum, tick, collisions?.get(player.spaceId));
+    if (damage === 0) continue;
+    const nextHealth = Math.max(0, stats.healthCenti - damage);
+    const member = ctx.db.rogue_run_member.identity.find(player.identity);
+    const run = member === null ? null : ctx.db.rogue_run.id.find(member.runId);
+    const combat = compiledLiveIslandRuntime(ctx)?.combatPolicy;
+    const recoveryCollision = collisionForSpace(ctx, TOPSIDE_SPACE_ID);
+    // Same recovery preflight as combat: never strand a zero-health character
+    // when authored arrival content has no safe recovery point.
+    if (nextHealth === 0 && run === null && (combat === undefined || outdoorRecoveryPosition(ctx, combat, recoveryCollision) === null)) continue;
+    cancelFishingCastFor(ctx, player.identity, tick);
+    ctx.db.player_stats.identity.update({ ...stats, healthCenti: nextHealth, healthRemainder: 0, regenTick: tick });
+    if (nextHealth === 0) {
+      clearTraversalHazards(ctx, key);
+      if (run !== null) finishRogueRun(ctx, run);
+      else recoverOutdoorKnockout(ctx, player, tick, combat!, recoveryCollision);
+    }
+  }
+  for (const snapshot of npcs) {
+    const npc = ctx.db.world_npc.id.find(snapshot.id);
+    const key = `npc:${snapshot.id}`;
+    if (npc === null || npc.health === 0) { clearTraversalHazards(ctx, key); continue; }
+    const wildlife = ctx.db.world_wildlife_profile.npcId.find(npc.id);
+    const rogue = ctx.db.rogue_enemy_profile.npcId.find(npc.id);
+    const outdoor = ctx.db.outdoor_enemy_profile.npcId.find(npc.id);
+    const maximum = rogue?.maxHealth ?? outdoor?.maximumHealth ?? (wildlife === null
+      ? runtimeNpcDefinition(registry, npc)?.health
+      : Math.ceil((runtimeResolveCreatureStats(registry, wildlife.species)?.maxHealthCenti ?? 0) / 100));
+    if (maximum === undefined || maximum <= 0) continue;
+    let damage = Math.min(npc.health, traversalHazardDamage(ctx, key, npcTraversalActor(ctx, npc), npc, maximum, tick, collisions?.get(npc.spaceId)));
+    if (damage === 0) continue;
+    if (outdoor !== null && outdoor.role !== 'add') damage = Math.floor(persistOutdoorEncounterDamage(ctx, outdoor.encounterId, null, damage * 100, tick) / 100);
+    if (damage === 0) continue;
+    const health = npc.health - damage;
+    if (health === 0 && runtimeNpcMount(registry, npc)?.adapter === 'boat') {
+      clearTraversalHazards(ctx, key);
+      sinkBoat(ctx, npc, tick, collisionForSpace(ctx, npc.spaceId));
+      continue;
+    }
+    updateWorldNpc(ctx, { ...npc, health, lastHitCritical: false, authorityTick: tick,
+      ...(health === 0 ? { rider: undefined, moving: false, wanderDirection: 'defeated', nextDecisionTick: tick + (wildlife === null
+        ? ROGUE_ENEMY_DEFEAT_RETENTION_TICKS : BigInt(runtimeCreatureRespawnTicks(registry, wildlife.species) ?? 0)) } : {}) });
+    if (health === 0) {
+      clearTraversalHazards(ctx, key);
+      ctx.db.enemy_attack.npcId.delete(npc.id);
+      if (outdoor?.role === 'add') ctx.db.outdoor_enemy_profile.npcId.update({ ...outdoor, summonState: 'dead' });
+      else if (outdoor !== null && ctx.db.outdoor_encounter.id.find(outdoor.encounterId)?.phase === 'completed') {
+        clearOutdoorAdds(ctx, outdoor.encounterId);
+      }
+      if (rogue !== null) {
+        const run = ctx.db.rogue_run.id.find(rogue.runId);
+        if (run !== null && run.phase === 'combat') {
+          const rewarded = { ...run, currency: Math.min(65_535, run.currency + rogue.rewardCurrency), updatedTick: tick };
+          ctx.db.rogue_run.id.update(rewarded);
+          completeRogueEnemyDefeat(ctx, rewarded, tick);
+        }
+      }
+    }
+  }
 }
 
 function combatElevationAt(collision: CollisionMap, x:number, y:number): number {
@@ -23139,13 +23361,13 @@ function applyHarvestResourceLifecycle(
         horizontalSpacing: 4 * FIXED_UNITS_PER_PIXEL,
         recordItemsObtained: true,
       }, lootAuthorityDependencies);
-      const payoutExperience = nodeClass === 'rock' ? 2n
-        : nodeClass === 'mixed' ? (resolved.producedOre ? 6n : 3n) : 10n;
+      const payoutExperience = runtimeActivityExperience(contentRegistry(ctx), nodeClass === 'rock' ? 'mine_rock'
+        : nodeClass === 'mixed' ? (resolved.producedOre ? 'mine_mixed_ore' : 'mine_mixed_stone') : 'mine_ore');
       grantSkillExperience(
         ctx,
         ctx.sender,
         'farming',
-        payoutExperience + (depleted ? BigInt(maximumRichness) : 0n),
+        payoutExperience + (depleted ? runtimeActivityExperience(contentRegistry(ctx), 'mine_depletion', maximumRichness) : 0n),
       );
       return;
     }
@@ -23262,7 +23484,7 @@ function applyHarvestResourceLifecycle(
     }, lootAuthorityDependencies);
     for (const drop of drops) {
       if (runtimeItemHasTag(contentRegistry(ctx), drop.itemKind, 'crop.fruit')) {
-        grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(drop.quantity * 2));
+        grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'resource_fruit_harvest', drop.quantity));
       }
     }
 }
@@ -23455,7 +23677,7 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
     );
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
     wearInventoryTool(ctx, selected);
-    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_catch'));
     ctx.db.player_position.identity.update({
       ...position,
       actionKind: 'fish_reel',
@@ -23530,9 +23752,9 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
       ])
       : 0n,
   });
-  grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
+  grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_catch'));
   if (depleted) {
-    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_POOL_DEPLETION_FARMING_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_depletion'));
     recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, pool.kind);
   }
   ctx.db.player_position.identity.update({
@@ -24095,7 +24317,7 @@ function applyFarmToolUse(
         1n,
         clock.authorityTick,
       );
-      grantSkillExperience(ctx, ctx.sender, 'farming', farmMode === 'cultivate' ? 2n : 1n);
+      grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), farmMode === 'cultivate' ? 'cultivate' : 'water'));
     }
 }
 
@@ -24286,7 +24508,7 @@ export const harvestCropTile = spacetimedb.reducer(
       clock.authorityTick,
       definition.harvestItemKind,
     );
-    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(8 + harvestQuantity));
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'crop_harvest', harvestQuantity));
   },
 );
 
@@ -24899,6 +25121,7 @@ export const stepWorld = spacetimedb.reducer(
         spaceId,
         liveMapRuntime,
         new Set(chunkScope.keys()),
+        collision,
       );
       waterCollisionBySpace.set(spaceId, waterCollision);
       obstacleCount += collision.obstacles?.length ?? 0;
@@ -24914,13 +25137,15 @@ export const stepWorld = spacetimedb.reducer(
       if(ctx.db.player_seat.identity.find(row.identity)!==null)continue;
       const collision = collisionBySpace.get(row.spaceId);
       if (collision === undefined) continue;
-      const defended = stepPlayerDefense(ctx, row, authorityTick, collision);
       const input = ctx.db.player_input.identity.find(row.identity);
       const mount = mountedNpcFor(ctx, row.identity);
       const mounted = mount !== null;
-      const movementCollision = runtimeNpcMount(contentRegistry(ctx), mount)?.adapter === 'boat'
+      const legacyMovementCollision = runtimeNpcMount(contentRegistry(ctx), mount)?.adapter === 'boat'
         ? waterCollisionBySpace.get(row.spaceId) ?? collision
         : collision;
+      const movementCollision = runtimeActorCollision(contentRegistry(ctx), legacyMovementCollision,
+        { kind: 'player', mount, effects: [...ctx.db.player_effect.by_identity.filter(row.identity)] }, authorityTick, traversalSolidGeometry(collision, waterCollisionBySpace.get(row.spaceId) ?? collision));
+      const defended = stepPlayerDefense(ctx, row, authorityTick, movementCollision);
       const stale = input === null || inputIsStale(
         input.updatedAtMicros,
         ctx.timestamp.microsSinceUnixEpoch,
@@ -25172,7 +25397,8 @@ export const stepWorld = spacetimedb.reducer(
         const groundCollision = collisionBySpace.get(projectile.spaceId);
         const waterCollision = waterCollisionBySpace.get(projectile.spaceId);
         if (groundCollision === undefined || waterCollision === undefined) continue;
-        collision = projectileTraversalCollision(groundCollision, waterCollision);
+        collision = runtimeActorCollision(contentRegistry(ctx), projectileTraversalCollision(groundCollision, waterCollision),
+          { kind: 'projectile' }, authorityTick, traversalSolidGeometry(groundCollision, waterCollision));
         projectileCollisionBySpace.set(projectile.spaceId, collision);
       }
       if (projectile.expiresTick <= authorityTick) {
@@ -25426,11 +25652,17 @@ export const stepWorld = spacetimedb.reducer(
       const npc = ctx.db.world_npc.id.find(snapshotNpc.id);
       if (npc === null) continue;
       if (ctx.db.outdoor_enemy_profile.npcId.find(npc.id) !== null) continue;
-      const collision = collisionBySpace.get(npc.spaceId);
-      const waterCollision = waterCollisionBySpace.get(npc.spaceId);
-      if (collision === undefined || waterCollision === undefined) continue;
+      const groundCollision = collisionBySpace.get(npc.spaceId);
+      const legacyWaterCollision = waterCollisionBySpace.get(npc.spaceId);
+      if (groundCollision === undefined || legacyWaterCollision === undefined) continue;
+      const actor = npcTraversalActor(ctx, npc);
+      const solidGeometry = traversalSolidGeometry(groundCollision, legacyWaterCollision);
+      const collision = runtimeActorCollision(activeContentRegistry, groundCollision, actor, authorityTick, solidGeometry);
+      const waterCollision = runtimeActorCollision(activeContentRegistry, legacyWaterCollision, actor, authorityTick, solidGeometry);
       const npcMount = runtimeNpcMount(activeContentRegistry, npc);
       const wildlifeProfile = ctx.db.world_wildlife_profile.npcId.find(npc.id) ?? undefined;
+      if (runtimeTraversalPolicy(activeContentRegistry)?.mode === 'active' && npc.health === 0
+        && wildlifeProfile === undefined && ctx.db.rogue_enemy_profile.npcId.find(npc.id) === null) continue;
       // A named fixed-wildlife row is retained state. If its unique authored
       // horse definition is unavailable, no compatibility behavior may move,
       // rename, heal, dismount or otherwise rewrite it.
@@ -25792,6 +26024,7 @@ export const stepWorld = spacetimedb.reducer(
       if (npcUpdated) updateCounters.nonWildlifeNpcUpdates += 1;
       else updateCounters.nonWildlifeNpcNoopSkips += 1;
     }
+    stepTraversalHazards(ctx, authorityTick, onlinePlayers, occupiedNpcs, collisionBySpace);
     tickStageTiming(telemetryTimingSample, 'npc', true);
     finishTickTelemetry(authorityTick, updateCounters, obstacleCount);
   },

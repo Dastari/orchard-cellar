@@ -7,7 +7,7 @@
  "stepsPerBeat": 4,
  "beatsPerBar": 4,
  "loopBars": 48,
- "masterGainDb": -13,
+ "masterGainDb": 2,
  "quotesMotif": {
   "id": "orchard_home",
   "channel": "bells",
@@ -16,27 +16,11 @@
  },
  "loop": true,
  "iterationNotes": [
-  "Pass 1: sparse night arrangement per docs/12 \u2014 pads centered on Em/C with the motif quoted in bells at half speed, strings only breathing at phrase ends, lone pluck notes after midnight of the loop. Listening pass pending shared-browser audio preview."
+  "Pass 1: sparse night arrangement per docs/12 \u2014 pads centered on Em/C with the motif quoted in bells at half speed, strings only breathing at phrase ends, lone pluck notes after midnight of the loop. Listening pass pending shared-browser audio preview.",
+  "Pass 4 (synth v2): mix retuned for the new instrument voices from offline stem renders \u2014 bass trimmed, bells/strings/shaker lifted, channel pans and phrase-shaped velocities added; notes unchanged. Owner listening pass pending.",
+  "Pass 5 (adaptive/sparse): removed the sustained pad drone, turned the bass into short plucked roots that rest in the opening and closing slots, and carried the harmony with soft broken chords instead. Melody unchanged. Owner listening pass pending."
  ],
  "channels": [
-  {
-   "patch": "pad",
-   "vol": 0.36,
-   "patterns": [
-    "NPad_EmC",
-    "NPad_GD",
-    "NPad_EmC",
-    "NPad_CG",
-    "NPad_EmC",
-    "NPad_GD",
-    "NPad_CG",
-    "NPad_EmC",
-    "NPad_EmC",
-    "NPad_GD",
-    "NPad_CG",
-    "NPad_GG"
-   ]
-  },
   {
    "patch": "bells",
    "vol": 0.3,
@@ -53,11 +37,12 @@
     "NightAnswer",
     "Rest",
     "NightHome"
-   ]
+   ],
+   "pan": -0.2
   },
   {
    "patch": "strings",
-   "vol": 0.14,
+   "vol": 0.12,
    "patterns": [
     "Rest",
     "Rest",
@@ -75,38 +60,39 @@
   },
   {
    "patch": "pluck",
+   "vol": 0.2,
+   "patterns": [
+    "Soft_EmC",
+    "Soft_GD",
+    "Soft_EmC",
+    "Soft_CG",
+    "Soft_EmC",
+    "Soft_GD",
+    "NPk_A_CG",
+    "Soft_EmC",
+    "NPk_B_EmC",
+    "Soft_GD",
+    "NPk_A_CG",
+    "Soft_GG"
+   ],
+   "pan": 0.4
+  },
+  {
+   "patch": "bass",
    "vol": 0.18,
    "patterns": [
     "Rest",
     "Rest",
     "Rest",
+    "SB_CG",
+    "SB_EmC",
+    "SB_GD",
+    "SB_CG",
     "Rest",
-    "Rest",
-    "Rest",
-    "NPk_A",
-    "Rest",
-    "NPk_B",
-    "Rest",
-    "NPk_A",
+    "SB_EmC",
+    "SB_GD",
+    "SB_CG",
     "Rest"
-   ]
-  },
-  {
-   "patch": "bass",
-   "vol": 0.3,
-   "patterns": [
-    "NBass_EmC",
-    "NBass_GD",
-    "NBass_EmC",
-    "NBass_CG",
-    "NBass_EmC",
-    "NBass_GD",
-    "NBass_CG",
-    "NBass_EmC",
-    "NBass_EmC",
-    "NBass_GD",
-    "NBass_CG",
-    "NBass_GG"
    ]
   }
  ],
@@ -115,148 +101,26 @@
    "steps": 64,
    "notes": []
   },
-  "NPad_EmC": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "E3",
-     30
-    ],
-    [
-     0,
-     "G3",
-     30
-    ],
-    [
-     0,
-     "B3",
-     30
-    ],
-    [
-     32,
-     "C4",
-     30
-    ],
-    [
-     32,
-     "E4",
-     30
-    ],
-    [
-     32,
-     "G4",
-     30
-    ]
-   ]
-  },
-  "NPad_GD": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "G3",
-     30
-    ],
-    [
-     0,
-     "B3",
-     30
-    ],
-    [
-     0,
-     "D4",
-     30
-    ],
-    [
-     32,
-     "D4",
-     30
-    ],
-    [
-     32,
-     "F#4",
-     30
-    ],
-    [
-     32,
-     "A4",
-     30
-    ]
-   ]
-  },
-  "NPad_CG": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "C4",
-     30
-    ],
-    [
-     0,
-     "E4",
-     30
-    ],
-    [
-     0,
-     "G4",
-     30
-    ],
-    [
-     32,
-     "G3",
-     30
-    ],
-    [
-     32,
-     "B3",
-     30
-    ],
-    [
-     32,
-     "D4",
-     30
-    ]
-   ]
-  },
-  "NPad_GG": {
-   "steps": 64,
-   "notes": [
-    [
-     0,
-     "G3",
-     60
-    ],
-    [
-     0,
-     "B3",
-     60
-    ],
-    [
-     0,
-     "D4",
-     60
-    ]
-   ]
-  },
   "NightMotif": {
    "steps": 64,
    "notes": [
     [
      0,
      "G4",
-     8
+     8,
+     0.8
     ],
     [
      16,
      "B4",
-     8
+     8,
+     0.8
     ],
     [
      32,
      "D5",
-     14
+     14,
+     0.7
     ]
    ]
   },
@@ -266,17 +130,20 @@
     [
      0,
      "A4",
-     8
+     8,
+     0.8
     ],
     [
      16,
      "B4",
-     8
+     8,
+     0.9
     ],
     [
      32,
      "G4",
-     16
+     16,
+     0.7
     ]
    ]
   },
@@ -286,17 +153,20 @@
     [
      0,
      "D5",
-     10
+     10,
+     0.9
     ],
     [
      24,
      "B4",
-     10
+     10,
+     0.8
     ],
     [
      48,
      "G4",
-     14
+     14,
+     0.7
     ]
    ]
   },
@@ -345,90 +215,331 @@
     ]
    ]
   },
-  "NPk_A": {
+  "SB_CG": {
    "steps": 64,
    "notes": [
     [
-     8,
-     "B4",
-     6
+     0,
+     "C3",
+     6,
+     0.7
     ],
     [
-     40,
-     "E4",
-     6
+     32,
+     "G2",
+     6,
+     0.7
     ]
    ]
   },
-  "NPk_B": {
-   "steps": 64,
-   "notes": [
-    [
-     12,
-     "D5",
-     6
-    ],
-    [
-     44,
-     "G4",
-     6
-    ]
-   ]
-  },
-  "NBass_EmC": {
+  "SB_EmC": {
    "steps": 64,
    "notes": [
     [
      0,
      "E2",
-     30
+     6,
+     0.7
     ],
     [
      32,
      "C3",
-     30
+     6,
+     0.7
     ]
    ]
   },
-  "NBass_GD": {
+  "SB_GD": {
    "steps": 64,
    "notes": [
     [
      0,
      "G2",
-     30
+     6,
+     0.7
     ],
     [
      32,
      "D3",
-     30
+     6,
+     0.7
     ]
    ]
   },
-  "NBass_CG": {
+  "Soft_EmC": {
    "steps": 64,
    "notes": [
     [
      0,
-     "C3",
-     30
+     "E3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "B3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "G4",
+     8,
+     0.5
     ],
     [
      32,
-     "G2",
-     30
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "E4",
+     8,
+     0.5
     ]
    ]
   },
-  "NBass_GG": {
+  "Soft_GD": {
    "steps": 64,
    "notes": [
     [
      0,
-     "G2",
-     60
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "B4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "F#4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "Soft_CG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "B4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "Soft_GG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "B4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "B4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "NPk_A_CG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.5
+    ],
+    [
+     8,
+     "B4",
+     6,
+     0.7
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.4
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.45
+    ],
+    [
+     32,
+     "G3",
+     6,
+     0.5
+    ],
+    [
+     40,
+     "D4",
+     6,
+     0.4
+    ],
+    [
+     40,
+     "E4",
+     6,
+     0.7
+    ],
+    [
+     48,
+     "B4",
+     8,
+     0.45
+    ]
+   ]
+  },
+  "NPk_B_EmC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     6,
+     0.5
+    ],
+    [
+     8,
+     "B3",
+     6,
+     0.4
+    ],
+    [
+     12,
+     "D5",
+     6,
+     0.7
+    ],
+    [
+     16,
+     "G4",
+     8,
+     0.45
+    ],
+    [
+     32,
+     "C4",
+     6,
+     0.5
+    ],
+    [
+     40,
+     "G4",
+     6,
+     0.4
+    ],
+    [
+     44,
+     "G4",
+     6,
+     0.7
+    ],
+    [
+     48,
+     "E4",
+     8,
+     0.45
     ]
    ]
   }
+ },
+ "fx": {
+  "reverb": 1.1,
+  "delayBeats": 1.5,
+  "delayFeedback": 0.35
  }
 }

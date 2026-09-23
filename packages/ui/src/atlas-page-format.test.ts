@@ -10,7 +10,7 @@ describe('bounded-page migration readers', () => {
     expect(() => atlasPageKey({ category: 'characters', pageId: 'characters:p../x' }, 'summer')).toThrow('identity');
   });
   it('retains legacy index/category/marker/registry versions before writers change', () => {
-    for (const [kind, maximum] of [['index', 4], ['category', 3], ['markers', 2], ['registry', 4]] as const) {
+    for (const [kind, maximum] of [['index', 5], ['category', 3], ['markers', 2], ['registry', 4]] as const) {
       for (let version = 1; version <= maximum; version++) expect(() => assertAtlasSchema(kind, version)).not.toThrow();
       for (const version of [0, maximum + 1, 1.5, '1', null]) expect(() => assertAtlasSchema(kind, version)).toThrow();
     }

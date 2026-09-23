@@ -140,7 +140,7 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(collisionSetup).toContain('world_projectile.by_chunk.filter(spaceId)');
     expect(projectileStage).toContain('const occupiedProjectiles = [...projectilesBySpace.values()].flat()');
     expect(projectileStage).toContain('let collision = projectileCollisionBySpace.get(projectile.spaceId)');
-    expect(projectileStage).toContain('collision = projectileTraversalCollision(groundCollision, waterCollision)');
+    expect(projectileStage).toContain('collision = runtimeActorCollision(contentRegistry(ctx), projectileTraversalCollision(groundCollision, waterCollision)');
     expect(projectileStage).toContain('projectileCollisionBySpace.set(projectile.spaceId, collision)');
     expect(projectileStage.match(/projectileTraversalCollision\(/gu)).toHaveLength(1);
     expect(projectileStage.indexOf('projectileTraversalCollision(groundCollision, waterCollision)'))

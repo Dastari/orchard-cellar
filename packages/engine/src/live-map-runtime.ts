@@ -1,3 +1,4 @@
+import { mapDocumentTraversalChannels, mapTraversalChannels, runtimeTraversalPolicy } from '@orchard/sim';
 import {NATURAL_OBJECT_ASSET_ALIASES, resolveObjectDefinitionAppearance, type ObjectContentDefinition, type ResolvedObjectAppearance, type StateValues, resolveObjectAppearance} from '@orchard/sim';
 import { mapObjectConnectionMasks } from '@orchard/sim';
 import { drawConnectedObject, preloadConnectedObjectArt } from './connected-objects.js';
@@ -155,10 +156,14 @@ export function liveIslandTerrain(
       const seed = source.document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;
       const generatorVersion = source.document.provenance.generatorVersion ?? SURVIVAL_WORLD_VERSION;
       const generated = terrainForWorld(seed, generatorVersion);
+      const traversalChannels = registry !== undefined && runtimeTraversalPolicy(registry) !== null
+        ? mapDocumentTraversalChannels(source.document)
+        : undefined;
       cachedTerrain = {
         key,
         terrain: {
           ...generated,
+          ...(traversalChannels === undefined ? {} : { traversalChannels }),
           version: row.revision,
           defaultCliffFamily: source.document.defaultCliffFamily,
           defaultSurfaceFamily: source.document.defaultSurfaceFamily,
@@ -170,14 +175,18 @@ export function liveIslandTerrain(
       return cachedTerrain.terrain;
     }
     const terrainDocument = terrainDocumentForMapV3(source.document);
+    const compiled = compileMapDocument(terrainDocument, resolver);
     const terrain = terrainArrayForMapDocument(
       terrainDocument,
-      compileMapDocument(terrainDocument, resolver),
+      compiled,
       source.document,
     );
     cachedTerrain = {
       key,
-      terrain: { ...terrain, spaceId: TOPSIDE_SPACE_ID, version: row.revision },
+      terrain: { ...terrain, spaceId: TOPSIDE_SPACE_ID, version: row.revision,
+        ...(registry !== undefined && runtimeTraversalPolicy(registry) !== null
+          ? { traversalChannels: mapTraversalChannels(source.document, compiled) } : {}),
+      },
     };
   } catch (error) {
     cachedTerrain = { key, terrain: null };

@@ -37,7 +37,7 @@ export interface ObjectManagerSnapshot {
 }
 
 const DEFAULT_QUERY: AdminEntityQuery = Object.freeze({
-  kinds: ['placeable', 'chest'] as const, spaceId: '0', x0: -64, y0: -64, x1: 63, y1: 63,
+  kinds: ['placeable', 'chest'] as const, spaceId: '0', x0: 0, y0: 0, x1: 127, y1: 127,
   text: '', cursor: null, limit: 50,
 });
 

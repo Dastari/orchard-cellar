@@ -42,3 +42,17 @@ Worktree: `/home/toby/projects/orchard-object-state-runtime`; branch: `feat/obje
 Read this document, `AGENTS.md`, docs 61–62 on `origin/docs/world-editor-model`, then verify branch/PR state and pending checks. The implementation has no live publication or destructive migration. Existing resources/crops remain in their legacy authoritative stores; do not describe this compatibility stage as completed table retirement. Review any future migration against preserved ids, loot/collision/growth parity and an explicit backfill/verify/retire plan. Environment epochs are retained because older object anchors can still need them; do not prune without proving the minimum live anchor.
 
 Next milestone: GoldCondor reviews PR 81, verifies hosted CI and reconciles its stacked base with the complete predecessor batch. The final follow-up commit updates only this validation record; production source was tested at `7ab7eec5`. Any merge or deployment is coordinator-owned and separately gated.
+
+
+## Coordinated source integration
+
+This refresh consumes reviewed traversal source #80 `47583aee`, which includes
+main `df509125`, under coordinator Agent Mail #434. It reproduces reviewed #81
+prefix `b8bf8344` with the combined structural seam and corrected 27-file fixture.
+Later chunk shadow #83 is excluded. Private object anchors/epochs/remainders and
+D6 hazard state remain separate; no lifecycle policy or callback changes occurred.
+Combined full runtime rehearsal #88 passed on `b6e37eb3`: 6,389 coverage tests plus
+101 exhaustive tests. This intermediate prefix passed 55 focused authority/renderer tests across ten
+files, generated bindings, checked world build, types, lint and guarded Studio
+production build. Fresh hosted CI and
+GoldCondor's merge decision remain separate; no deployment or activation occurred.

@@ -384,7 +384,9 @@ describe('canvas-native Build and asset tools', () => {
     expect(kitElements(surface).find(node=>node.kind==='text'&&String(node.props['text']).startsWith('Datum '))?.props['text']).not.toBe(initial);
     pressKit(surface,'tiles-tabs:tab:json');surface=buildTilesCanvasTool(toolContext);
     const draft=kitElement(surface,'tiles-json')!.props['editor'] as CanvasTextEditor;
-    const value=JSON.parse(draft.snapshot().value) as {baseDatum:number};
+    const value=JSON.parse(draft.snapshot().value) as {baseDatum:number;ruleCatalogue:{families:unknown[]}};
+    expect(draft.snapshot().value.length).toBeGreaterThan(32_000);
+    expect(value.ruleCatalogue.families).toHaveLength(11);
     draft.setValue(JSON.stringify({...value,baseDatum:value.baseDatum+2}));
     pressKit(surface,'tiles-apply');surface=buildTilesCanvasTool(toolContext);
     expect(kitElements(surface).some(node=>node.props['text']===`Datum ${value.baseDatum+2}`)).toBe(true);

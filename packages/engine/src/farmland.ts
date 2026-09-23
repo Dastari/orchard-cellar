@@ -1,7 +1,7 @@
+import { farmlandRuleLayers, type ResolvedRuleFrame } from '@orchard/sim';
 import { worldAssetFrameSource } from './world-asset-presentation.js';
 import type { LoadedAsset } from '@orchard/ui';
 import { selectAtlasFrame } from '@orchard/ui';
-import { blob47FrameIndexFor } from './tilemap.js';
 
 export interface FarmSoilTile {
   readonly tileX: number;
@@ -22,9 +22,13 @@ export function farmSoilFrameIndex(
   tile: Pick<FarmSoilTile, 'tileX' | 'tileY'>,
   occupied: ReadonlySet<string>,
 ): number {
-  return blob47FrameIndexFor((offsetX, offsetY) => (
-    occupied.has(farmSoilKey(tile.tileX + offsetX, tile.tileY + offsetY))
-  ));
+  const base=soilLayers(tile,occupied)[0];
+  if(!base)throw new Error('farmland_rule_base_missing');
+  return base.frame;
+}
+
+function soilLayers(tile:Pick<FarmSoilTile,'tileX'|'tileY'>,occupied:ReadonlySet<string>):readonly ResolvedRuleFrame[] {
+  return farmlandRuleLayers((x,y)=>occupied.has(farmSoilKey(tile.tileX+x,tile.tileY+y)));
 }
 
 function drawSoilFrame(
@@ -52,19 +56,12 @@ function drawSoilFrame(
   return true;
 }
 
-/** The grass blend sheet's topology zero is an empty-grass cell, not an
- * isolated inset. The farmland/path fill already owns its complete isolated
- * block, so drawing that overlay would hide it behind a small cross. */
+/** The catalogue omits the isolated inset; overlays retain authored order. */
 function drawGrassBlend(
-  context: CanvasRenderingContext2D,
-  asset: LoadedAsset,
-  frameIndex: number,
-  destinationX: number,
-  destinationY: number,
-  scale: number,
-): number {
-  if (frameIndex === 0) return 0;
-  return Number(drawSoilFrame(context, asset, frameIndex, destinationX, destinationY, scale));
+  context:CanvasRenderingContext2D, asset:LoadedAsset,
+  layers:readonly ResolvedRuleFrame[], destinationX:number,destinationY:number,scale:number,
+):number {
+  return layers.slice(1).reduce((draws,layer)=>draws+Number(drawSoilFrame(context,asset,layer.frame,destinationX,destinationY,scale)),0);
 }
 
 /** Draws any authored ground mask with the same blob47 topology and inset
@@ -91,12 +88,14 @@ export function drawInsetGround(
   context.imageSmoothingEnabled = false;
   for (const tile of rows) {
     if (tile.tileX < minimumX || tile.tileY < minimumY || tile.tileX > maximumX || tile.tileY > maximumY) continue;
-    const frameIndex = farmSoilFrameIndex(tile, occupied);
+    const layers = soilLayers(tile, occupied);
+    const frameIndex = layers[0]?.frame;
+    if(frameIndex===undefined)continue;
     const destinationX = Math.round((tile.tileX * 16 - cameraX) * scale);
     const destinationY = Math.round((tile.tileY * 16 - cameraY) * scale);
     if (!drawSoilFrame(context, fill, frameIndex, destinationX, destinationY, scale)) continue;
     draws += 1;
-    draws += drawGrassBlend(context, grassBlend, frameIndex, destinationX, destinationY, scale);
+    draws += drawGrassBlend(context, grassBlend, layers, destinationX, destinationY, scale);
   }
   return draws;
 }
@@ -128,7 +127,9 @@ export function drawFarmSoil(
   context.imageSmoothingEnabled = false;
   for (const tile of rows) {
     if (tile.tileX < minimumX || tile.tileY < minimumY || tile.tileX > maximumX || tile.tileY > maximumY) continue;
-    const frameIndex = farmSoilFrameIndex(tile, occupied);
+    const layers = soilLayers(tile, occupied);
+    const frameIndex = layers[0]?.frame;
+    if(frameIndex===undefined)continue;
     const destinationX = Math.round((tile.tileX * 16 - cameraX) * scale);
     const destinationY = Math.round((tile.tileY * 16 - cameraY) * scale);
     if (!drawSoilFrame(context, dry, frameIndex, destinationX, destinationY, scale)) continue;
@@ -137,7 +138,7 @@ export function drawFarmSoil(
       const wetFrameIndex = farmSoilFrameIndex(tile, watered);
       draws += Number(drawSoilFrame(context, wet, wetFrameIndex, destinationX, destinationY, scale));
     }
-    draws += drawGrassBlend(context, grassBlend, frameIndex, destinationX, destinationY, scale);
+    draws += drawGrassBlend(context, grassBlend, layers, destinationX, destinationY, scale);
   }
   return draws;
 }

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bootstrapContentRows, buildContentRegistry, isSkillTrack,
   runtimeResourcePerception, runtimeSkillNodeDefinition, runtimeSkillPurchaseRejection,
-  skillExperienceForLevel, skillRespecCostBronze,
+  skillExperienceForLevel, skillRespecCostBronze, runtimeProgression,
 } from '@orchard/sim';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -87,7 +87,7 @@ function fixture(initialRanks: Readonly<Record<string, number>> = {}) {
     playerSkillRanks: playerRanks,
     playerSkillNodeId: (identity: string, nodeId: string) => `${identity}:${nodeId}`,
     recordPlayerStatistic: () => { writes.push('statistic'); },
-    isSkillTrack, skillRespecCostBronze,
+    isSkillTrack, skillRespecCostBronze, runtimeProgression,
   };
   function run(name: string, request: object): void {
     const reducer = new Function(...Object.keys(dependencies), `return ${callback(name)}`)(...Object.values(dependencies)) as (context: typeof ctx, request: object) => void;

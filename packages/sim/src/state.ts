@@ -45,6 +45,8 @@ export interface PlayerState {
 export type MovementMedium = 'ground' | 'water' | 'air';
 
 export interface CollisionMap {
+  /** Additive D6 semantic channels. Absent on legacy/unbackfilled geometry. */
+  readonly traversalChannels?: import('./traversal.js').MediumCollisionChannels;
   readonly width: number;
   readonly height: number;
   readonly blocked: readonly boolean[];

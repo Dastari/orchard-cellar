@@ -32,7 +32,7 @@ describe('authored seed lifecycle authority', () => {
     expect(writer).toContain('cropStoredKindForSeed(planned.seedItemKind, definition)');
     expect(writer).toContain("definition.harvestItemKind");
     expect(writer).toContain("'crops_planted', 1n");
-    expect(writer).toContain("grantSkillExperience(ctx, ctx.sender, 'farming', 2n)");
+    expect(writer).toContain("runtimeActivityExperience(contentRegistry(ctx), 'plant_seed')");
   });
 
   it('retires the mixed plant/harvest reducer while preserving harvest as its own action', () => {

@@ -4,7 +4,10 @@ import { createClientCollisionMap } from './collision.js';
 import type { TerrainArray } from './terrain.js';
 
 it('blocks both workbench tiles and removes both obstacles while carried', () => {
-  const terrain = { spaceId: 10, width: 20, height: 20, blocked: new Array(400).fill(false) } as unknown as TerrainArray;
+  const terrain: TerrainArray = { spaceId: 10, seed: 1, version: 1, width: 20, height: 20,
+    blocked: new Array<boolean>(400).fill(false), horseJumpableTerrain: new Array<boolean>(400).fill(false),
+    biomes: new Uint8Array(400).fill(1), elevations: new Int16Array(400),
+    dirtCliffRoles: new Uint8Array(400), dirtTerraces: new Uint8Array(400) };
   const prepared = { width: 20, height: 20, blocked: terrain.blocked };
   const bench = { kind: 'workbench', tileX: 10, tileY: 10, open: false };
   const collision = createClientCollisionMap(terrain, [], [], 'ground', [bench], new Set(), undefined, bootstrapContentRegistry(), prepared);

@@ -1,6 +1,7 @@
 import { StudioAssetPreview } from '../../shell/asset-preview.js';
 import {
   bootstrapContentDefinitions,
+  MAX_CONTENT_DEFINITION_BYTES,
   type SupportedContentDefinition,
   type TilesetContentDefinition,
 } from '@orchard/sim';
@@ -53,7 +54,12 @@ function createState(context: StudioCanvasToolContext): TilesCanvasState {
   const tilesets = definitions.filter((entry): entry is TilesetContentDefinition => entry.kind === 'tileset');
   if (tilesets.length === 0) throw new Error('tile_editor_no_tilesets');
   const model = modelFor(context, tilesets[0]!, definitions);
-  return { model, definitions, tilesets, json: new CanvasTextEditor({ maxLength: 32_000, multiline: true }),
+  return { model, definitions, tilesets, json: new CanvasTextEditor({
+      // The wire limit applies to compact JSON; the editor shows indented JSON.
+      // Always retain complete existing definitions, with room for author edits.
+      maxLength: Math.max(MAX_CONTENT_DEFINITION_BYTES * 4, ...tilesets.map(definition => JSON.stringify(definition, null, 2).length)),
+      multiline: true,
+    }),
     selectedAudition: null, selectedFixture: null, mutationSequence: 0, tab: 'fixtures', art:new StudioAssetPreview(context.invalidate) };
 }
 

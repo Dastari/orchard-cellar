@@ -214,6 +214,7 @@ import * as AdminClientErrorsProcedure from "./admin_client_errors_procedure";
 import * as AdminConnectionsPageProcedure from "./admin_connections_page_procedure";
 import * as AdminContainerContentsProcedure from "./admin_container_contents_procedure";
 import * as AdminEntitiesInAreaProcedure from "./admin_entities_in_area_procedure";
+import * as AdminEntitiesInAreaPageProcedure from "./admin_entities_in_area_page_procedure";
 import * as AdminFindPlayersProcedure from "./admin_find_players_procedure";
 import * as AdminHomesteadProcedure from "./admin_homestead_procedure";
 import * as AdminLegacyFarmRetirementStatusProcedure from "./admin_legacy_farm_retirement_status_procedure";
@@ -221,6 +222,7 @@ import * as AdminMissingContainerRecoveryProcedure from "./admin_missing_contain
 import * as AdminPlayerInventoryProcedure from "./admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "./admin_player_mutation_result_procedure";
 import * as AdminPlayerSnapshotProcedure from "./admin_player_snapshot_procedure";
+import * as AdminSpaceRegistryProcedure from "./admin_space_registry_procedure";
 import * as AdminStudioMembersProcedure from "./admin_studio_members_procedure";
 import * as AdminStudioScopesProcedure from "./admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
@@ -604,6 +606,12 @@ const tablesSchema = __schema({
         'id',
         'spaceId',
       ] },
+      { accessor: 'by_admin_area', name: 'world_chest_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
+      ] },
       { accessor: 'by_chunk', name: 'world_chest_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
         'chunkX',
@@ -648,6 +656,12 @@ const tablesSchema = __schema({
     name: 'world_crop',
     indexes: [
       { accessor: 'id', name: 'world_crop_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_crop_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
         'id',
       ] },
       { accessor: 'by_chunk', name: 'world_crop_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
@@ -696,6 +710,12 @@ const tablesSchema = __schema({
       { accessor: 'id', name: 'world_item_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
+      { accessor: 'by_admin_area', name: 'world_item_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
+      ] },
       { accessor: 'by_chunk', name: 'world_item_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
         'chunkX',
@@ -726,6 +746,12 @@ const tablesSchema = __schema({
       { accessor: 'by_rider', name: 'world_npc_rider_idx_hash', algorithm: 'btree', columns: [
         'rider',
       ] },
+      { accessor: 'by_admin_area', name: 'world_npc_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
+      ] },
       { accessor: 'by_chunk', name: 'world_npc_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
         'chunkX',
@@ -747,6 +773,12 @@ const tablesSchema = __schema({
       ] },
       { accessor: 'by_placer', name: 'world_placeable_placed_by_idx_btree', algorithm: 'btree', columns: [
         'placedBy',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_placeable_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
       ] },
       { accessor: 'by_chunk', name: 'world_placeable_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
@@ -785,6 +817,12 @@ const tablesSchema = __schema({
       ] },
       { accessor: 'by_regrowth_progress', name: 'world_resource_regrowth_progress_idx_btree', algorithm: 'btree', columns: [
         'regrowthProgress',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_resource_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
       ] },
       { accessor: 'by_chunk', name: 'world_resource_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
@@ -827,6 +865,12 @@ const tablesSchema = __schema({
     name: 'world_surface',
     indexes: [
       { accessor: 'id', name: 'world_surface_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_surface_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
         'id',
       ] },
       { accessor: 'by_chunk', name: 'world_surface_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
@@ -1502,6 +1546,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_connections_page", AdminConnectionsPageProcedure.params, AdminConnectionsPageProcedure.returnType),
   __procedureSchema("admin_container_contents", AdminContainerContentsProcedure.params, AdminContainerContentsProcedure.returnType),
   __procedureSchema("admin_entities_in_area", AdminEntitiesInAreaProcedure.params, AdminEntitiesInAreaProcedure.returnType),
+  __procedureSchema("admin_entities_in_area_page", AdminEntitiesInAreaPageProcedure.params, AdminEntitiesInAreaPageProcedure.returnType),
   __procedureSchema("admin_find_players", AdminFindPlayersProcedure.params, AdminFindPlayersProcedure.returnType),
   __procedureSchema("admin_homestead", AdminHomesteadProcedure.params, AdminHomesteadProcedure.returnType),
   __procedureSchema("admin_legacy_farm_retirement_status", AdminLegacyFarmRetirementStatusProcedure.params, AdminLegacyFarmRetirementStatusProcedure.returnType),
@@ -1509,6 +1554,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_player_inventory", AdminPlayerInventoryProcedure.params, AdminPlayerInventoryProcedure.returnType),
   __procedureSchema("admin_player_mutation_result", AdminPlayerMutationResultProcedure.params, AdminPlayerMutationResultProcedure.returnType),
   __procedureSchema("admin_player_snapshot", AdminPlayerSnapshotProcedure.params, AdminPlayerSnapshotProcedure.returnType),
+  __procedureSchema("admin_space_registry", AdminSpaceRegistryProcedure.params, AdminSpaceRegistryProcedure.returnType),
   __procedureSchema("admin_studio_members", AdminStudioMembersProcedure.params, AdminStudioMembersProcedure.returnType),
   __procedureSchema("admin_studio_scopes", AdminStudioScopesProcedure.params, AdminStudioScopesProcedure.returnType),
   __procedureSchema("admin_telemetry", AdminTelemetryProcedure.params, AdminTelemetryProcedure.returnType),

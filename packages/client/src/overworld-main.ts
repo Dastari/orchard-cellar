@@ -1,3 +1,5 @@
+import { runtimeProgression } from '@orchard/sim';
+import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
@@ -86,7 +88,7 @@ import {
 
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, processDurationTicks, processProgressAt, processRemainingTicksAt, barrelCellarCureTicks, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, processDurationTicks, processProgressAt, processRemainingTicksAt, barrelCellarCureTicks, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -125,6 +127,7 @@ import {
   type FullscreenControl,
 } from './fullscreen.js';
 import { AudioBus } from '@orchard/engine/audio/audio-bus';
+import { CombatMusicSignal, hostileWithin, worldMusicContext } from './music-context.js';
 import { localProfilesEnabled, readOidcSession } from '@orchard/auth';
 import type { ChatMessage, PlayerPosition, QuestWorldItem, RogueRoomExit, SpacePortal, WorldChest, WorldCombatTarget, WorldCrop, WorldItem, WorldNpc, WorldPlaceable, WorldProjectile, WorldResource } from '@orchard/world-bindings/types';
 import {
@@ -448,7 +451,7 @@ function updateSkillPointNotice(snapshot: OverworldView): void {
     dismissSkillPointNotice();
   }
   if (snapshot.identityHex !== null) {
-    for (const notice of skillPointNoticeTracker.observe(snapshot.skillTracks)) {
+    for (const notice of skillPointNoticeTracker.observe(snapshot.skillTracks, runtimeProgression(snapshot.content.registry))) {
       if (skillPointNotice?.track === notice.track) {
         skillPointNotice = { track: notice.track, points: skillPointNotice.points + notice.points };
         skillPointNoticeTicks = SKILL_POINT_NOTICE_TICKS;
@@ -1413,6 +1416,42 @@ function activeTopsideLandmarks(snapshot: OverworldView) {
   return activeSurvivalLandmarks(snapshot.content.registry, TOPSIDE_SPACE_ID);
 }
 
+const musicCombat = new CombatMusicSignal();
+const MUSIC_COMBAT_RADIUS_FIXED = 6 * TILE_SIZE_FIXED;
+let musicStruckEnemy = false;
+let musicBiomeTile = '';
+let musicBiome: string | null = null;
+
+/** Feed the music director: zone, biome underfoot, rain and combat (docs/12 §2.5). */
+function updateMusicContext(snapshot: OverworldView, raining: boolean): void {
+  const player = predicted?.position ?? null;
+  let biome: string | null = null;
+  if (player !== null && activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    const tileX = Math.floor(player.x / TILE_SIZE_FIXED), tileY = Math.floor(player.y / TILE_SIZE_FIXED);
+    const key = `${tileX}:${tileY}`;
+    if (key !== musicBiomeTile) {
+      musicBiomeTile = key;
+      const document = liveIslandDocumentFor(snapshot);
+      musicBiome = document === null
+        ? survivalBiomeAt(snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED, tileX, tileY)
+        : resolvedMapBiomeAt(document, tileX, tileY);
+    }
+    biome = musicBiome;
+  }
+  function* enemies() {
+    for (const npc of snapshot.npcs) {
+      if ((snapshot.rogueEnemyProfiles.get(npc.id) ?? snapshot.outdoorEnemyProfiles?.get(npc.id)) !== undefined) yield npc;
+    }
+  }
+  const combat = musicCombat.observe({
+    nowMs: performance.now(),
+    hostileNearby: player !== null && hostileWithin(enemies(), player, activeSpaceDefinition.spaceId, MUSIC_COMBAT_RADIUS_FIXED),
+    struckEnemy: musicStruckEnemy,
+  });
+  musicStruckEnemy = false;
+  audio.setMusicContext(worldMusicContext({ space: activeSpaceDefinition, biome, raining, combat }));
+}
+
 function liveIslandDocumentFor(snapshot: OverworldView): MapDocumentV3 | null {
   return liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry);
 }
@@ -1959,7 +1998,11 @@ function refreshCollision(snapshot: OverworldView): void {
         ],
       }
     : baseBoatCollision;
-  projectileCollision = worldStaticProjection.projectile(worldCollision, boatCollision);
+  const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
+  worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  projectileCollision = runtimeActorCollision(snapshot.content.registry, worldStaticProjection.projectile(worldCollision, boatCollision),
+    { kind: 'projectile' }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
   baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
     terrain,
     [],
@@ -2101,6 +2144,7 @@ function update(): void {
     renderer.cssHeight,
     worldZoom,
   );
+  updateMusicContext(snapshot, weather.raining);
   if (observedResourceRevision !== network.resourceRevision) {
     observedResourceRevision = network.resourceRevision;
     const visibleResourceIds = new Set<bigint>();
@@ -2151,7 +2195,9 @@ function update(): void {
   const direction = defending || snapshot.rogueRun?.phase === 'reward' ? 'idle' : directionFromKeys();
   const mount = localMount(snapshot);
   const mounted = mount !== null;
-  const movementCollision = runtimeNpcMount(snapshot.content.registry, mount)?.adapter === 'boat' ? boatCollision : worldCollision;
+  const legacyMovementCollision = runtimeNpcMount(snapshot.content.registry, mount)?.adapter === 'boat' ? boatCollision : worldCollision;
+  const movementCollision = runtimeActorCollision(snapshot.content.registry, legacyMovementCollision,
+    { kind: 'player', mount, effects: [...snapshot.effects] }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
   const sprintRequested = direction !== 'idle'
     && !mounted
     && (keys.has('ShiftLeft') || keys.has('ShiftRight'));
@@ -2271,6 +2317,7 @@ function update(): void {
   network.drainCombatTextCommits((commit) => {
     floatingCombatTexts.push({ ...commit, startedAtMs: combatTextNow });
     if (commit.targetKind === 'npc') npcHitFeedback.set(commit.targetId, combatTextNow);
+    if (commit.targetKind === 'npc' && (snapshot.rogueEnemyProfiles.get(commit.targetId) ?? snapshot.outdoorEnemyProfiles?.get(commit.targetId)) !== undefined) musicStruckEnemy = true;
     if (floatingCombatTexts.length > 32) floatingCombatTexts.shift();
   });
   for (let index = floatingCombatTexts.length - 1; index >= 0; index -= 1) {
@@ -2292,7 +2339,11 @@ function update(): void {
   );
   for (const [id, buffer] of remoteBuffers) {
     const remoteMount = snapshot.npcs.find((npc) => npc.rider?.toHexString() === id);
-    const sample = buffer.sample(renderTick, runtimeNpcMount(snapshot.content.registry, remoteMount)?.adapter === 'boat' ? boatCollision : worldCollision);
+    // Remote effects are private. Active traversal uses authority positions rather
+    // than inventing the remote actor's grants during presentation extrapolation.
+    const remoteCollision = runtimeTraversalPolicy(snapshot.content.registry)?.mode === 'active' ? undefined
+      : runtimeNpcMount(snapshot.content.registry, remoteMount)?.adapter === 'boat' ? boatCollision : worldCollision;
+    const sample = buffer.sample(renderTick, remoteCollision);
     if (sample !== null) {
       const current = remoteDisplay.get(id);
       if (current !== undefined) previousRemoteDisplay.set(id, current);
@@ -5274,6 +5325,7 @@ function renderFrame(alpha = 1): void {
     minimapTrackingEnabled: skillCapabilities.minimapPlayerTracking,
     contentRegistry: snapshot.content.registry,
     skills: {
+      progression: runtimeProgression(snapshot.content.registry),
       skillPriority:snapshot.equipmentSkillPriority??[],
       nodes: snapshot.content.registry.compiled.skillNodes,
       tracks: skillTracks,
@@ -5292,6 +5344,7 @@ function renderFrame(alpha = 1): void {
     },
     quests,
     ...(playerVitals === null || snapshot.stats === null || appearance === null || appearanceCatalog === null ? {} : { character: {
+      progression: runtimeProgression(snapshot.content.registry),
       playerId: snapshot.identityHex ?? 'local',
       displayName: ownProfile?.displayName ?? 'Farmer',
       appearance,

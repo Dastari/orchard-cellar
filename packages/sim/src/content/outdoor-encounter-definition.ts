@@ -1,3 +1,4 @@
+import { parseTraversalAbilities } from './traversal-definition.js';
 import type { EnemyAttackPattern } from '../combat-actions.js';
 import { CONTENT_SCHEMA_VERSION, ContentParseError } from './parse-contract.js';
 
@@ -32,6 +33,7 @@ export type EnemyDelvePool = readonly [
  * remains stable across authoring-id renames because existing profile rows
  * persist it. */
 export interface EnemyContentDefinition extends OutdoorDefinitionBase<'enemy', EnemyDefinitionId> {
+  readonly traversalAbilities?: readonly string[];
   readonly runtimeKind: string;
   readonly displayName: string;
   readonly npcKind: string;
@@ -235,6 +237,7 @@ export function parseEnemyDefinition(value: string | unknown): EnemyContentDefin
   }
   return Object.freeze({
     ...base(source, 'enemy'),
+    ...(source.traversalAbilities === undefined ? {} : { traversalAbilities: parseTraversalAbilities(source.traversalAbilities) }),
     runtimeKind: string(source.runtimeKind, '$.runtimeKind'),
     displayName: string(source.displayName, '$.displayName'),
     npcKind: string(source.npcKind, '$.npcKind'),

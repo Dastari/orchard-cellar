@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "engineVersion": 1,
-  "contentHash": "0f06c798",
-  "definitionCount": 919,
+  "contentHash": "dac96752",
+  "definitionCount": 921,
   "kindCounts": {
     "item": 340,
     "recipe": 142,
@@ -16,6 +16,7 @@
     "dialogue": 16,
     "quest": 10,
     "balance": 9,
+    "progression": 1,
     "crop": 23,
     "creature": 18,
     "spawn": 16,
@@ -28,6 +29,7 @@
     "resource": 27,
     "loadout": 1,
     "enemy": 6,
-    "encounter": 5
+    "encounter": 5,
+    "world_rules": 1
   }
 }

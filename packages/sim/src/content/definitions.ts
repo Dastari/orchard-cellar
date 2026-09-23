@@ -1,3 +1,7 @@
+import { parseWorldRulesDefinition, type WorldRulesContentDefinition, type WorldRulesDefinitionId } from './world-rules-definition.js';
+import { parseRuleCatalogue, type RuleCatalogue } from '../rule-catalogue.js';
+import { BALANCE_FIELD_METADATA, balanceTupleFields } from './balance-fields.js';
+import { parseProgressionDefinition, type ProgressionContentDefinition, type ProgressionDefinitionId } from './progression-definition.js';
 import { CONTENT_DEFINITION_ID_PATTERN as ID_PATTERN } from './definition-id.js';
 export { definitionSlug } from './definition-id.js';
 import type { Modifier } from '../modifiers.js';
@@ -34,10 +38,8 @@ import type {
   BalanceContentDefinition,
   BalanceDefinitionId,
   BalanceUnit,
-  CharacterCombatBalanceTuple,
   ResidenceConstructionBalanceTuple,
   SupportCapCapability,
-  WorldPolicyBalanceTuple,
 } from './balance-definition.js';
 import {
   parseBalanceGroupDefinition,
@@ -93,10 +95,10 @@ export { CONTENT_SCHEMA_VERSION, ContentParseError, type ContentParseErrorCode }
 
 export const SUPPORTED_CONTENT_KINDS = [
   'item', 'recipe', 'process', 'shop', 'tileset', 'object', 'frame', 'loot',
-  'npc', 'dialogue', 'quest', 'balance',
+  'npc', 'dialogue', 'quest', 'balance', 'progression',
   'crop', 'creature', 'spawn', 'space', 'skill_tree', 'effect', 'statistic',
   'upgrade', 'balance_group', 'resource',
-  'loadout', 'enemy', 'encounter',
+  'loadout', 'enemy', 'encounter', 'world_rules',
 ] as const;
 export type SupportedContentKind = typeof SUPPORTED_CONTENT_KINDS[number];
 
@@ -117,6 +119,7 @@ export type ContentDefinitionId =
   | NpcDefinitionId
   | DialogueDefinitionId
   | QuestDefinitionId
+  | ProgressionDefinitionId
   | BalanceDefinitionId
   | CropDefinitionId
   | CreatureDefinitionId
@@ -130,7 +133,8 @@ export type ContentDefinitionId =
   | ResourceDefinitionId
   | LoadoutDefinitionId
   | EnemyDefinitionId
-  | EncounterDefinitionId;
+  | EncounterDefinitionId
+  | WorldRulesDefinitionId;
 
 export interface ContentDefinitionRow {
   readonly id: string;
@@ -357,6 +361,7 @@ export type TilesetTransitionDefinition =
   | UnavailableTilesetTransitionDefinition;
 
 export interface TilesetContentDefinition extends DefinitionBase<'tileset', TilesetDefinitionId> {
+  readonly ruleCatalogue?: RuleCatalogue;
   readonly engineVersion: number;
   /** Stable runtime terrain-family reference; v1 requires it to equal the id slug. */
   readonly familyId: string;
@@ -386,6 +391,7 @@ export type SupportedContentDefinition =
   | NpcContentDefinition
   | DialogueContentDefinition
   | QuestContentDefinition
+  | ProgressionContentDefinition
   | BalanceContentDefinition
   | CropContentDefinition
   | CreatureContentDefinition
@@ -399,7 +405,8 @@ export type SupportedContentDefinition =
   | ResourceContentDefinition
   | LoadoutContentDefinition
   | EnemyContentDefinition
-  | EncounterContentDefinition;
+  | EncounterContentDefinition
+  | WorldRulesContentDefinition;
 
 /** Canonical durable/wire shape. Parser defaults remain enumerable in the
  * runtime model; only redundant default-equal source bytes are omitted. */
@@ -836,48 +843,60 @@ export function parseBalanceDefinition(json: string | unknown): BalanceContentDe
     if (profile !== 'character_combat' && profile !== 'world_policy' && profile !== 'residence_construction') {
       fail('invalid_type', '$.profile', `unknown balance profile ${profile}`);
     }
-    const rawValues = array(source.values, '$.values');
+    if (source.fields !== undefined && source.values !== undefined) {
+      fail('invalid_type', '$.fields', 'provide named fields or legacy values, never both');
+    }
+    const fieldNames: readonly string[] = BALANCE_FIELD_METADATA[profile].map(({ name }) => name);
+    const fields = source.fields === undefined ? undefined : record(source.fields, '$.fields');
+    if (fields !== undefined && Object.keys(fields).some((key) => !fieldNames.includes(key))) {
+      fail('invalid_type', '$.fields', 'unknown balance field');
+    }
+    const rawValues = fields === undefined ? array(source.values, '$.values')
+      : fieldNames.map((name) => fields[name]);
+    const profilePath = fields === undefined ? '$.values' : '$.fields';
+    const valuePath = (index: number) => fields === undefined ? `$.values[${index}]` : `$.fields.${fieldNames[index]}`;
     if (profile === 'residence_construction') {
       if (rawValues.length !== 12) {
-        fail('invalid_type', '$.values', 'residence_construction profile requires 12 values');
+        fail('invalid_type', profilePath, 'residence_construction profile requires 12 values');
       }
       const values = [
-        integer(rawValues[0], '$.values[0]', 1, 65_535),
-        itemId(rawValues[1], '$.values[1]'), itemId(rawValues[2], '$.values[2]'),
-        itemId(rawValues[3], '$.values[3]'),
-        ...rawValues.slice(4).map((value, index) => integer(value, `$.values[${index + 4}]`, 1, 8_192)),
+        integer(rawValues[0], valuePath(0), 1, 65_535),
+        itemId(rawValues[1], valuePath(1)), itemId(rawValues[2], valuePath(2)),
+        itemId(rawValues[3], valuePath(3)),
+        ...rawValues.slice(4).map((value, index) => integer(value, valuePath(index + 4), 1, 8_192)),
       ] as unknown as ResidenceConstructionBalanceTuple;
       if (new Set(values.slice(1, 4)).size !== 3) {
-        fail('invalid_type', '$.values', 'residence construction material items must be distinct');
+        fail('invalid_type', profilePath, 'residence construction material items must be distinct');
       }
       return Object.freeze({
-        ...base(source, 'balance'), group, description, profile, values,
-      });
+        ...base(source, 'balance'), group, description, profile,
+        fields: balanceTupleFields(profile, values),
+      }) as unknown as BalanceContentDefinition;
     }
     const values = rawValues.map((value, index) => (
-      integer(value, `$.values[${index}]`)
+      integer(value, valuePath(index))
     ));
     const expectedLength = profile === 'character_combat' ? 18 : 11;
     if (values.length !== expectedLength || values.some((value) => value <= 0)) {
-      fail('invalid_type', '$.values', `${profile} profile requires ${expectedLength} positive integers`);
+      fail('invalid_type', profilePath, `${profile} profile requires ${expectedLength} positive integers`);
     }
     if (profile === 'world_policy') {
       const maximums = [100, 64, 10_000_000, 32_000, 1_024, 1_000_000,
         1_024, 1_024, 255, 255, 1_000_000] as const;
       if (values.some((value, index) => value > maximums[index]!)) {
-        fail('invalid_type', '$.values', 'world policy value exceeds its supported bound');
+        fail('invalid_type', profilePath, 'world policy value exceeds its supported bound');
       }
       if (values[5]! % values[4]! !== 0 || values[7]! > values[6]!) {
-        fail('invalid_type', '$.values', 'world policy extent or generation radii are inconsistent');
+        fail('invalid_type', profilePath, 'world policy extent or generation radii are inconsistent');
       }
     }
     if (profile === 'character_combat' && (values[1]! > values[0]! || values[0]! > values[2]!)) {
-      fail('invalid_type', '$.values', 'attribute minimum, base, and maximum are inconsistent');
+      fail('invalid_type', profilePath, 'attribute minimum, base, and maximum are inconsistent');
     }
     return Object.freeze({
       ...base(source, 'balance'), group, description, profile,
-      values: values as unknown as CharacterCombatBalanceTuple | WorldPolicyBalanceTuple,
-    }) as BalanceContentDefinition;
+      fields: balanceTupleFields(profile, values),
+    }) as unknown as BalanceContentDefinition;
   }
   const unit = stringValue(source.unit, '$.unit');
   if (unit !== 'count' && unit !== 'bronze' && unit !== 'tiles') {
@@ -1111,6 +1130,7 @@ export function parseTilesetDefinition(json: string | unknown): TilesetContentDe
   }).sort((left, right) => left.id.localeCompare(right.id));
   return Object.freeze({
     ...base(source, 'tileset'),
+    ...(source.ruleCatalogue === undefined ? {} : { ruleCatalogue: parseRuleCatalogue(source.ruleCatalogue) }),
     engineVersion: integer(source.engineVersion, '$.engineVersion', 1),
     familyId: stableReference(source.familyId, '$.familyId'),
     projectionStyle,
@@ -1152,6 +1172,7 @@ export function parseContentDefinition(kind: string, json: string | unknown): Su
     case 'npc': return parseNpcDefinition(json);
     case 'dialogue': return parseDialogueDefinition(json);
     case 'quest': return parseQuestDefinition(json);
+    case 'progression': return parseProgressionDefinition(json);
     case 'balance': return parseBalanceDefinition(json);
     case 'crop': return parseCropDefinition(json);
     case 'creature': return parseCreatureDefinition(json);
@@ -1166,6 +1187,7 @@ export function parseContentDefinition(kind: string, json: string | unknown): Su
     case 'loadout': return parseLoadoutDefinition(json);
     case 'enemy': return parseEnemyDefinition(json);
     case 'encounter': return parseEncounterDefinition(json);
+    case 'world_rules': return parseWorldRulesDefinition(json);
     default: return fail('kind_mismatch', '$.kind', `unsupported definition kind ${kind}`);
   }
 }
