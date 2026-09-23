@@ -107,3 +107,26 @@ differences from the rehearsal base (excluding docs and CHANGELOG). Each source
 prefix must retain its scope; final #83 production must equal the tested snapshot.
 Only GoldCondor merges. P1 effects work waits the separately validated combined
 runtime/timer baseline; PR93 owns that later gate. No live runtime activation.
+
+## Completed source propagation
+
+Approved narrow fixes were propagated in order, with no force-push:
+
+| Source | Final head | Independent prefix checks |
+|---|---|---|
+| #80 | `47583aeef1ddb49dbebd1aa9575c2f3034100615` | 39 focused / nine files; bindings, world, types, lint, assets, guarded Studio |
+| #81 | `1626a476c0f707c2dd1f08e8e9c0ed6da0400693` | 55 focused / ten files; bindings, world, types, lint, guarded Studio |
+| #83 | `6f409068f9c508abde34da2f927626f6cf99f0b2` | 52 focused / eleven files; bindings, world, types, lint, guarded Studio |
+
+Final source #83 has **zero production differences** from `b6e37eb3`, excluding
+only docs/** and CHANGELOG. Each earlier source excludes the later feature's
+production. Source descriptions/handoffs are updated. Fresh hosted CI remains
+pending; GoldCondor owns retargeting and GitHub merges. No deployment, publication
+or activation occurred. Source worktree `/home/toby/projects/orchard-runtime-sources`
+is clean on `integration-fix/runtime-chunks`; source branch pushes used explicit
+HEAD refspecs. Local source-fix branches retain the ordered history for auditing.
+
+Rehearsal PR88 remains draft DO NOT MERGE. Final evidence updates alter docs only.
+Next: coordinator verifies fresh source checks and merges in order, while DustyCompass
+finishes separate combined runtime/timer PR93. Food/alchemy P1 uses only the combined
+baseline designated by GoldCondor; no generic lifecycle anchors become public.
