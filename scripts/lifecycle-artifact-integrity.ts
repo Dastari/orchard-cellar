@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   compileLifecycleBundle,
+  compileLifecycleHookBundle, parseLifecycleHookBundle,
   lifecycleBundleSha256,
   parseLifecycleSourceBundle,
 } from '../packages/lifecycle-authoring/src/index.js';
@@ -91,11 +92,26 @@ export function verifyLifecycleArtifactIntegrity(repository: string): LifecycleA
   });
 }
 
+export function verifyLifecycleHookArtifactIntegrity(repository: string): void {
+  const bundle = parseLifecycleHookBundle(json(resolve(repository, 'packages/lifecycle-authoring/source/hooks/world-hooks.source.json')));
+  const expected = compileLifecycleHookBundle(bundle);
+  for (const [name, value] of [
+    ['lifecycle-hooks.ts', expected.serverTypeScript],
+    ['lifecycle-hook-metadata.json', expected.clientMetadataJson],
+    ['build-provenance.json', expected.provenanceJson],
+  ] as const) {
+    if (readFileSync(resolve(repository, 'packages/lifecycle-authoring/generated/hooks', name), 'utf8') !== value) {
+      throw new Error(`generated lifecycle hook artifact differs from source: ${name}`);
+    }
+  }
+}
+
 const entryPath = process.argv[1] === undefined ? '' : resolve(process.argv[1]);
 if (entryPath === resolve(import.meta.filename)) {
   try {
     const repository = process.argv[2] === undefined ? process.cwd() : resolve(process.argv[2]);
     const result = verifyLifecycleArtifactIntegrity(repository);
+    verifyLifecycleHookArtifactIntegrity(repository);
     process.stdout.write(`${result.bundleSha256} ${result.handlerCount}\n`);
   } catch (error) {
     process.stderr.write(`Lifecycle artifact integrity failed: ${error instanceof Error ? error.message : String(error)}\n`);

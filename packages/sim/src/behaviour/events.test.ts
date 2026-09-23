@@ -9,21 +9,23 @@ import {
 
 describe('behaviour lifecycle event contract', () => {
   it('keeps the Tier-B event set fixed and duplicate-free', () => {
-    expect(LIFECYCLE_EVENT_TYPES).toHaveLength(23);
+    expect(LIFECYCLE_EVENT_TYPES).toHaveLength(27);
     expect(new Set(LIFECYCLE_EVENT_TYPES).size).toBe(LIFECYCLE_EVENT_TYPES.length);
     expect(LIFECYCLE_EVENT_TYPES).toEqual([
       'use', 'frameAction', 'secondary', 'equipmentUse', 'worldItemUse', 'useWith', 'useAt', 'aimedUse', 'place', 'pickup', 'break', 'slotChanged',
       'processComplete', 'timer', 'walkOnto', 'enterSpace', 'leaveSpace', 'spawn',
       'despawn', 'tick', 'dialogueChoice', 'questState', 'statistic',
+      'stateEnter', 'stateExit', 'transition', 'questObjective',
     ]);
   });
 
   it('maps only authored graph events to their persisted verbs', () => {
     expect(DATA_GRAPH_EVENT_TYPES.map((type) => interactionVerbForEventType(type))).toEqual([
       'use', 'secondary', 'use_with', 'place', 'walk_onto', 'tick', 'break', 'timer',
+      'spawn', 'despawn', 'stateEnter', 'stateExit', 'dialogueChoice', 'questState', 'questObjective',
     ]);
     expect(interactionVerbForEventType('slotChanged')).toBeNull();
-    expect(interactionVerbForEventType('dialogueChoice')).toBeNull();
+    expect(interactionVerbForEventType('dialogueChoice')).toBe('dialogueChoice');
   });
 
   it('recognises event names without accepting arbitrary strings', () => {
@@ -65,6 +67,10 @@ describe('behaviour lifecycle event contract', () => {
       { type: 'dialogueChoice', actor, npc, nodeId: 'hello', choiceId: 'shop' },
       { type: 'questState', actor, questId: 'quest:first', from: 'available', to: 'active' },
       { type: 'statistic', actor, kind: 'items_crafted', subject: 'chest', delta: 1n },
+      { type: 'stateEnter', object, from: { open: false }, to: { open: true } },
+      { type: 'stateExit', object, from: { open: false }, to: { open: true } },
+      { type: 'transition', object, from: {}, to: {}, callbackId: 'open', transitionId: 'open' },
+      { type: 'questObjective', actor, questId: 'quest:first', objectiveId: 'talk', amount: 1 },
     ] as const satisfies readonly LifecycleEvent[];
 
     expect(events.map((event) => event.type)).toEqual(LIFECYCLE_EVENT_TYPES);

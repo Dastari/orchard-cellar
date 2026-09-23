@@ -72,6 +72,7 @@ const expectedProduction: Readonly<Record<LifecycleEventType, RaiseCoverage['pro
   dialogueChoice: 'raised',
   questState: 'raised',
   statistic: 'raised',
+  stateEnter: 'raised', stateExit: 'raised', transition: 'raised', questObjective: 'raised',
 };
 
 describe('lifecycle registration versus production raise coverage', () => {
@@ -118,6 +119,10 @@ describe('lifecycle registration versus production raise coverage', () => {
       dialogueChoice: { registrations: 16, production: 'raised' },
       questState: { registrations: 0, production: 'raised' },
       statistic: { registrations: 0, production: 'raised' },
+      stateEnter: { registrations: 0, production: 'raised' },
+      stateExit: { registrations: 0, production: 'raised' },
+      transition: { registrations: 0, production: 'raised' },
+      questObjective: { registrations: 0, production: 'raised' },
     });
   });
 
