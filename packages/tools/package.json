@@ -1,6 +1,6 @@
 {
   "name": "@orchard/tools",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -48,6 +48,7 @@
     "document:references": "npm run document:cute-fantasy && npm run document:clockwork-raven && npm run document:reference-library",
     "check:references": "tsx src/document-reference-library.ts --check",
     "preview": "tsx src/preview.ts",
+    "music:render": "tsx src/render-music.ts",
     "import": "tsx src/import-image.ts",
     "restore-native": "tsx src/restore-native-palettes.ts",
     "extract:premium-icons": "tsx src/extract-premium-icons.ts",

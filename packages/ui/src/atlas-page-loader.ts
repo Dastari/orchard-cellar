@@ -5,7 +5,9 @@ import { assertAtlasPageDescriptor, assertAtlasPageImage, type AtlasPageDescript
 const imagePromises = new Map<string, Promise<HTMLImageElement>>();
 const pages = new Map<string, { readonly width: number; readonly height: number; readonly readyMs: number }>();
 export function atlasImageUrl(filename: string, revision: string): string {
-  return `/generated/${filename}?rev=${encodeURIComponent(revision)}`;
+  return /^atlas-[a-f0-9]{64}\.png$/.test(filename)
+    ? `/generated/${filename}`
+    : `/generated/${filename}?rev=${encodeURIComponent(revision)}`;
 }
 export function atlasPageDiagnostics() {
   const loaded = [...pages].map(([url, value]) => ({ url, ...value, decodedBytes: value.width * value.height * 4 }));

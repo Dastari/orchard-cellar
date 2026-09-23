@@ -48,3 +48,28 @@ provenance and stable IDs so audit findings cannot break saved maps. Success mea
 all assets and source sheets are accounted for, paving variants are accessible,
 and every identified terrain family has a source-linked visual/rule entry or an
 explicit, evidence-backed missing-art/missing-rule entry.
+
+## Visual correction acceptance — 2026-09-22
+
+The first gallery's generic logical-course assembly is not an acceptable design
+preview: desert, shroomland and volcanic caps/faces detach, stone centres use the
+wrong grass, and diagonal examples require incompatible inset pieces in one cell.
+
+- Reconcile every available cliff family's source sheet, fill, cap, repeated wall,
+  foot/shadow and inset roles against native examples. Distinguish a bad preview
+  composition from bad shared mappings before editing either.
+- Render joined examples with the matching native substrate and continuous cliff
+  courses. Stone 1–4 use corresponding grass, desert uses desert, and shroomland,
+  volcanic and interior families use their own ground. Preserve transparent art.
+- Smart Placement repairs a diagonal conflict only within the placed patch and
+  immediate neighbouring cells; its accepted result may not require two inset
+  blocks on the same cell/layer. Exact Placement and previously authored invalid
+  geometry remain legal. Never load, validate or regenerate an entire live map to
+  enforce this rule.
+- Show the input diagonal and the corrected local result explicitly; raw resolver
+  masks that remain unsupported must be labelled, not sold as valid formations.
+- An independent agent visually reviews all cliff and flat joining examples and
+  records per-family results, remaining missing art/rules, and reference evidence.
+- Validate meaningful native pixel continuity, family fill identity, local edit
+  bounds and rotation/reflection diagonal cases. Regenerate deterministic gallery
+  artifacts, verify the served guide, and deliver the corrections through a PR.

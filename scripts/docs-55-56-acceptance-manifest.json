@@ -339,13 +339,13 @@
       "classification": "browser_verified",
       "evidence": [
         "packages/studio/index.html",
-        "packages/ui/src/studio/canvas-shell.ts",
-        "packages/ui/src/studio/canvas-focus.ts",
+        "packages/ui/src/kit/components/workbench.ts",
+        "packages/ui/src/kit/runtime/focus.ts",
         "packages/ui/src/studio/canvas-text-editor.ts",
-        "packages/ui/src/studio/canvas-table.ts",
+        "packages/ui/src/kit/components/collections.ts",
         "packages/studio/src/shell/app.ts",
         "packages/studio/src/shell/canvas-tool-registry.ts",
-        "packages/studio/src/shell/canvas-shell-layout.test.ts",
+        "packages/studio/src/ui-kit-gate.test.ts",
         "packages/studio/src/shell/canvas-shell-policy.test.ts",
         "scripts/studio-canvas-browser-evidence.json"
       ],

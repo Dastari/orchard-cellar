@@ -51,13 +51,21 @@ function validateSongs(songs: readonly unknown[], errors: string[]): void {
     for (const channel of value['channels']) {
       if (!isRecord(channel) || typeof channel['patch'] !== 'string' || !audioPatches.has(channel['patch'])) errors.push(`${name}: channel uses a patch outside the closed set`);
       if (!isRecord(channel) || !Array.isArray(channel['patterns'])) continue;
+      if (channel['pan'] !== undefined && (typeof channel['pan'] !== 'number' || channel['pan'] < -1 || channel['pan'] > 1)) errors.push(`${name}: channel pan must be -1 to 1`);
+      if (channel['sends'] !== undefined && (!isRecord(channel['sends'])
+        || Object.entries(channel['sends']).some(([key, level]) => !['reverb', 'chorus', 'delay'].includes(key) || typeof level !== 'number' || level < 0 || level > 1.5))) {
+        errors.push(`${name}: channel sends must be reverb/chorus/delay levels 0-1.5`);
+      }
+      if (channel['instrument'] !== undefined && !isRecord(channel['instrument'])) errors.push(`${name}: channel instrument overrides must be an object`);
       for (const patternName of channel['patterns']) if (typeof patternName !== 'string' || !value['patterns'][patternName]) errors.push(`${name}: missing pattern ${String(patternName)}`);
     }
     for (const [patternName, patternValue] of Object.entries(value['patterns'])) {
       if (!isRecord(patternValue) || typeof patternValue['steps'] !== 'number' || !Array.isArray(patternValue['notes'])) { errors.push(`${name}:${patternName} invalid pattern`); continue; }
       for (const note of patternValue['notes']) {
-        if (!Array.isArray(note) || note.length !== 3 || typeof note[0] !== 'number' || typeof note[1] !== 'string' || typeof note[2] !== 'number'
-          || note[0] < 0 || note[2] <= 0 || note[0] + note[2] > patternValue['steps']) errors.push(`${name}:${patternName} invalid note`);
+        if (!Array.isArray(note) || (note.length !== 3 && note.length !== 4) || typeof note[0] !== 'number' || typeof note[1] !== 'string' || typeof note[2] !== 'number'
+          || note[0] < 0 || note[2] <= 0 || note[0] + note[2] > patternValue['steps']
+          || !/^[A-G](?:#|b)?-?\d$/u.test(note[1])
+          || (note.length === 4 && (typeof note[3] !== 'number' || note[3] < 0 || note[3] > 1))) errors.push(`${name}:${patternName} invalid note`);
       }
     }
   }

@@ -814,6 +814,9 @@ export type OwnSessionChatNotices = __Infer<typeof OwnSessionChatNotices>;
 export const OwnStats = __t.object("OwnStats", {});
 export type OwnStats = __Infer<typeof OwnStats>;
 
+export const OwnStudioScopeGrants = __t.object("OwnStudioScopeGrants", {});
+export type OwnStudioScopeGrants = __Infer<typeof OwnStudioScopeGrants>;
+
 export const OwnSupportGrant = __t.object("OwnSupportGrant", {});
 export type OwnSupportGrant = __Infer<typeof OwnSupportGrant>;
 
@@ -1375,6 +1378,39 @@ export const StatsMigration = __t.object("StatsMigration", {
   creatureHealthVersion: __t.u8(),
 });
 export type StatsMigration = __Infer<typeof StatsMigration>;
+
+export const StudioScopeChange = __t.object("StudioScopeChange", {
+  id: __t.string(),
+  actor: __t.identity(),
+  target: __t.identity(),
+  scope: __t.string(),
+  granted: __t.bool(),
+  reason: __t.string(),
+  expectedVersion: __t.string(),
+  auditId: __t.u64(),
+});
+export type StudioScopeChange = __Infer<typeof StudioScopeChange>;
+
+export const StudioScopeGrant = __t.object("StudioScopeGrant", {
+  id: __t.string(),
+  identity: __t.identity(),
+  scope: __t.string(),
+  grantedBy: __t.identity(),
+  grantedAt: __t.timestamp(),
+  revokedAt: __t.option(__t.timestamp()),
+  reason: __t.string(),
+});
+export type StudioScopeGrant = __Infer<typeof StudioScopeGrant>;
+
+export const StudioScriptReview = __t.object("StudioScriptReview", {
+  artifactHash: __t.string(),
+  author: __t.identity(),
+  submittedAt: __t.timestamp(),
+  approvedBy: __t.option(__t.identity()),
+  approvedAt: __t.option(__t.timestamp()),
+  reason: __t.string(),
+});
+export type StudioScriptReview = __Infer<typeof StudioScriptReview>;
 
 export const SupportGrant = __t.object("SupportGrant", {
   identity: __t.identity(),

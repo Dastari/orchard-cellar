@@ -22,12 +22,13 @@ function fixture() {
   };
   for (const path of ['package.json', 'package-lock.json', 'tsconfig.base.json', 'vitest.config.ts', 'eslint.config.js']) put(path, '{}\n');
   put('packages/ui/src/kit/index.ts', 'export {};\n');
+  put('packages/ui/src/studio-entry.ts', "export type * from './kit/index.js';\n");
   put('packages/studio/src/shell/app.ts', 'ui.workbench();\n');
   put('packages/studio/dist/index.html', 'live studio');
   put('packages/client/dist/index.html', 'live game');
   put('packages/assets/generated/atlas.json', '{"current":"shared atlas"}\n');
   put('packages/sim/src/index.ts', 'current simulation');
-  put('packages/client/public/music/track.ogg', 'shared music');
+  put('packages/client/public/placeholder', '');
   put('packages/studio/public/placeholder', '');
   put('ui/theme.json', '{}\n');
   put('ops/README.md', 'operations');
@@ -37,7 +38,6 @@ function fixture() {
     copyFileSync(new URL(`../${path}`, import.meta.url), join(repository, path));
   }
   for (const app of ['client', 'studio']) symlinkSync('../../assets/generated', join(repository, `packages/${app}/public/generated`));
-  symlinkSync('../../client/public/music', join(repository, 'packages/studio/public/music'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
   writeFileSync(join(bin, 'npm'), `#!/usr/bin/env bash
@@ -72,7 +72,6 @@ describe('integrated Studio release staging', () => {
       expect(readFileSync(join(f.work, `packages/${app}/public/generated/atlas.json`), 'utf8')).toContain('shared atlas');
       expect(existsSync(join(f.work, `packages/${app}/dist`))).toBe(false);
     }
-    expect(readFileSync(join(f.work, 'packages/studio/public/music/track.ogg'), 'utf8')).toBe('shared music');
     expect(statSync(join(f.work, '.env.studio-production.local')).mode & 0o777).toBe(0o600);
     expect(readFileSync(join(f.work, 'package-lock.json'), 'utf8')).toBe(readFileSync(join(f.repository, 'package-lock.json'), 'utf8'));
     expect(readFileSync(join(f.work, 'npm-calls.log'), 'utf8').trim().split('\n')).toEqual([

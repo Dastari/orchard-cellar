@@ -447,3 +447,43 @@ The additive D6 medium extension stores one versioned material ID per cell plus
 solid blockers, independent of the retained walking/boat oracle channels.
 Outside/unloaded cells are void; runtime ability-based traversal remains a later
 lane. See the materialization procedure for fallback categories and rule metadata.
+
+## Content-addressed atlas delivery (2026-09-23)
+
+The default category atlas keeps today's eager startup request count. Both category
+and semantic pack PNGs are SHA-256 addressed; a release-independent worker cache
+bounds immutable atlas storage to 64 MiB/512 entries. The additional
+`atlas.packs.json` maps semantic asset IDs to immutable pack metadata. Pack loading
+is explicitly opt-in (`?atlasPacks=1`) until chunk-visible art ownership lands.
+See [the pack contract](asset-packs-spec.md), [measurements and handoff](asset-packs-handoff.md),
+and [UI loader API](../packages/ui/README.md). This prerequisite does not change
+collision, world content, gameplay art ownership, or the first playable frame gate.
+
+
+### Authored tile rule catalogue
+
+Tileset definitions optionally carry a versioned `ruleCatalogue` envelope.
+`sim/rule-catalogue.ts` owns strict parsing and deterministic mask → ordered
+role fallback → frame/variant selection. `sim/connected-objects.ts` is the first
+consumer: live objects use definition ids/tags and `placement.connectsTo`;
+legacy map prefabs use explicit asset membership. Studio and client pass active
+registry catalogues to the same index and engine renderer. The renderer caches
+by asset identity so content changes cannot reuse stale family art. Existing
+content without an envelope reads the bootstrap catalogue; an explicit empty
+envelope disables connections. Other terrain resolvers remain unchanged and
+are pinned by compact golden hashes. See [schema contract](rule-catalogue-spec.md).
+
+### Schema-driven Studio forms (F1)
+
+The compiler-generated content schema graph reflects the exported definition types
+in `packages/sim/src/content`. The graph describes literals/enums, optional fields,
+arrays, fixed/optional/rest tuples, recursive variants and typed references. The
+Studio kit consumes this graph through `uiSchemaForm` and `UiSchemaFormState`;
+`uiArrayEditor`, `uiReferencePicker` and `uiUsedBy` are reusable compositions.
+Domain parsers and the existing revision-checked publish models remain authoritative.
+The generator drift test and bootstrap parser/schema parity test protect the boundary.
+
+Items, Narrative and World Tables share the form adapter. Reference navigation
+selects a concrete target; kinds without a specialized selector use the generic
+World Tables form. The reverse-reference index follows declared reference fields
+rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).

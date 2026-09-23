@@ -2,7 +2,7 @@ import { studioLiveMapReadiness } from '../tools/map/verified-live-map.js';
 import type { UiWorkbenchNavigation } from '@orchard/ui/studio';
 import { bootstrapContentDefinitions, type FrameContentDefinition } from '@orchard/sim';
 import { CUTE_FANTASY_ACTOR_CATALOG } from '@orchard/engine';
-import { ui, uiFixed, UiRoot, UiElement, UiTextBridge, UiLabWorld, CanvasTextEditor, inspectUiElements, UI_ICON_CATALOG,
+import { ui, uiFixed, UiRoot, type UiElement, UiTextBridge, UiLabWorld, CanvasTextEditor, inspectUiElements, UI_ICON_CATALOG,
   loadUiKitArt, loadStudioSpatialArt, createUiFrameDesignerModel, studioToolIcon,
   type UiPoint, type UiRect, type UiKitArt, type UiWorkbenchRegion, type StudioSpatialArt } from '@orchard/ui/studio';
 import { StudioShellController } from './controller.js';
@@ -223,11 +223,11 @@ export class StudioShellApp {
       return;
     }
     const route = this.controller.activeRoute();
-    const observe = (node: UiElement, side: 'primary' | 'secondary') => new UiElement({ kind: 'studio-workspace', style: { width: 'grow', height: 'grow', display: 'stack' }, children: [node], onArrange: element => {
+    const observe = (node: UiElement, side: 'primary' | 'secondary') => ui.stack({ id: `studio-workspace-${side}`, width: 'grow', height: 'grow', onArrange: element => {
       const rect = physical(element.rect), previous = side === 'primary' ? this.#primaryBounds : this.#secondaryBounds;
       if (side === 'primary') this.#primaryBounds = rect; else this.#secondaryBounds = rect;
       if (!previous || !sameBounds(rect,previous)) this.#dirtyTools = true;
-    } });
+    } }, [node]);
     const primary = observe(this.#workspace,'primary'), secondary = observe(this.#secondary,'secondary');
     const workspace = this.#layoutState.splitOpen ? ui.splitPane({ id: 'workspace-split', label: 'Workspace split', first: primary,
       second: ui.flex({ height:'grow', width:'grow', gap:4 }, [ui.flex({direction:'row',gap:4},[
@@ -332,7 +332,7 @@ export class StudioShellApp {
   };
   private openPalette():void {
     this.#palette?.dispose();const results=ui.flex({gap:4,width:'grow'});
-    const search=(query:string)=>this.replace(results,this.controller.palette.search(query).slice(0,12).map(result=>ui.button({label:result.label,onPress:()=>{const path=this.controller.routeForCommand(result.id);this.#palette?.close();if(path)this.navigate(path);}})));
+    const search=(query:string)=>this.replace(results,this.controller.palette.search(query).slice(0,12).map(result=>ui.button({label:result.label,onPress:()=>{const path=this.controller.routeForCommand(result.id);if(path)this.controller.queueAuthorCommand(result.id);this.#palette?.close();if(path)this.navigate(path);}})));
     const query=ui.input({label:'Command search',onChange:search});search('');
     this.#palette=ui.dialog({title:'Command palette',children:[ui.flex({gap:8,width:'grow',height:'grow'},[query,ui.scrollArea({width:'grow',height:'grow'},[results])])]});
     this.#root.mount(this.#palette);this.#palette.open(this.#root.focus.current??undefined);query.requestFocus();this.schedule();

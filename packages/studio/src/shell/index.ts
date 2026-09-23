@@ -11,7 +11,7 @@ export * from './notifications.js';
 export * from './outliners.js';
 export * from './selection.js';
 export * from './session.js';
-export * from './studio-canvas.js';
+export * from './studio-models.js';
 export type { StudioConnectionView, StudioLiveAdapter } from './studio-connection.js';
 export type { StudioMapViewport } from './studio-map-region.js';
 export * from './tool-registry.js';

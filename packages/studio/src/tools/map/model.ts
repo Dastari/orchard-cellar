@@ -16,6 +16,7 @@ import {
   terrainDocumentForMapV3,
   validateMapDocument,
   type MapBiomeId,
+  type AppliedMapDocumentV3Edit,
   type MapCellPatch,
   type MapContentLayerId,
   type MapDocumentV3,
@@ -409,9 +410,10 @@ export class MapEditorModel {
     return plan;
   }
 
-  apply(command: MapDocumentV3EditCommand): void {
-    const next = applyMapDocumentV3Edit(this.#document, command).document;
-    this.acceptDocument(next, command.kind === 'terrain' || command.kind === 'paint_biome', command.kind === 'terrain');
+  apply(command: MapDocumentV3EditCommand): AppliedMapDocumentV3Edit {
+    const result = applyMapDocumentV3Edit(this.#document, command);
+    this.acceptDocument(result.document, command.kind === 'terrain' || command.kind === 'paint_biome', command.kind === 'terrain');
+    return result;
   }
 
   private acceptDocument(next: MapDocumentV3, terrainChanged = false, terrainValidationChanged = false): void {
@@ -520,7 +522,7 @@ export class MapEditorModel {
   setDefaultSurfaceFamily(family: TerrainSurfaceFamilyId): void {
     this.editTerrain({ kind: 'set_default_surface_family', family });
   }
-  editTerrain(command: MapEditCommand, biome?: MapBiomeId, automaticSurround = false): void { this.apply({ kind: 'terrain', command, automaticSurround, ...(biome === undefined ? {} : {biome}) }); }
+  editTerrain(command: MapEditCommand, biome?: MapBiomeId, automaticSurround = false): AppliedMapDocumentV3Edit { return this.apply({ kind: 'terrain', command, automaticSurround, ...(biome === undefined ? {} : {biome}) }); }
   suppressGenerated(generatedId: string, suppressed = true): void {
     this.apply({ kind: 'suppress_generated_object', generatedId, suppressed });
   }

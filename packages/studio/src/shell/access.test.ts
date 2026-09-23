@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { StudioMode } from '@orchard/ui/studio';
+import type { StudioMode } from './studio-models.js';
 import { resolveStudioEffectiveRole, studioModeAccess, studioRoleCan } from './access.js';
 
 const MODES = ['build', 'author', 'operate', 'observe'] as const satisfies readonly StudioMode[];
@@ -44,5 +44,17 @@ describe('Studio role routing', () => {
     expect(resolveStudioEffectiveRole({ ...active, revokedAt: 1 }, grant, grant)).toBeNull();
     expect(resolveStudioEffectiveRole(active, { revokedAt: 1 }, { revokedAt: 1 })).toBeNull();
     expect(resolveStudioEffectiveRole(null, grant, grant)).toBeNull();
+  });
+});
+
+import { studioScopedToolAccess } from './access.js';
+describe('scoped Studio tool routes', () => {
+  it('gives a domain editor write access only to matching tools', () => {
+    expect(studioScopedToolAccess(['objects'], 'object')).toBe('write');
+    expect(studioScopedToolAccess(['objects'], 'items')).toBe('hidden');
+    expect(studioScopedToolAccess(['narrative'], 'dialogue-graph')).toBe('write');
+    expect(studioScopedToolAccess(['actors'], 'npc-studio')).toBe('write');
+    expect(studioScopedToolAccess(['observe'], 'items')).toBe('read_only');
+    expect(studioScopedToolAccess([], 'membership')).toBe('hidden');
   });
 });

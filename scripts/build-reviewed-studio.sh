@@ -41,12 +41,6 @@ for app in client studio; do
     cp -a "$work/packages/assets/generated" "$generated"
   fi
 done
-music="$work/packages/studio/public/music"
-if [[ -L "$music" ]]; then
-  [[ "$(realpath "$music")" = "$work/packages/client/public/music" ]] || exit 65
-  rm -- "$music"
-  cp -a "$work/packages/client/public/music" "$music"
-fi
 install -m 0600 "$repository/.env.studio-production.local" "$work/.env.studio-production.local"
 (
   cd -- "$work"

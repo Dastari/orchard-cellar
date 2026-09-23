@@ -1,7 +1,6 @@
-import { buildStudioRailModel, type StudioRailModel } from '@orchard/ui/studio';
 import { firstAccessibleStudioMode, studioModeAccess } from './access.js';
 import { StudioLayoutManager } from './layouts.js';
-import { StudioBottomDock, StudioCommandPalette, StudioInspectorKernel, StudioTableKernel, StudioValidationPanel } from './kernels.js';
+import { StudioCommandPalette, StudioInspectorKernel, StudioValidationPanel } from './kernels.js';
 import { StudioNotifications } from './notifications.js';
 import { buildLiveOutliner, buildWorldOutliner, type StudioDraftWorld, type StudioOutlinerNode } from './outliners.js';
 import { StudioSelectionBus } from './selection.js';
@@ -31,14 +30,21 @@ export class StudioShellController {
   readonly notifications = new StudioNotifications();
   readonly validation = new StudioValidationPanel();
   readonly inspector = new StudioInspectorKernel();
-  readonly table = new StudioTableKernel();
-  readonly bottomDock = new StudioBottomDock();
   readonly palette = new StudioCommandPalette();
   #worldOutliner = buildWorldOutliner(EMPTY_DRAFT);
   #worldDraftKey = 'shell-default';
   #adapter: StudioLiveAdapter | null = null;
   #activePath = '/build/map';
   #gridVisible = true;
+  #pendingAuthorCommand: 'item.new' | 'recipe.new' | null = null;
+
+  queueAuthorCommand(id: string): void {
+    if (id === 'item.new' || id === 'recipe.new') this.#pendingAuthorCommand = id;
+  }
+
+  consumeAuthorCommand(): 'item.new' | 'recipe.new' | null {
+    const command = this.#pendingAuthorCommand; this.#pendingAuthorCommand = null; return command;
+  }
 
   constructor(
     private readonly createConnection: StudioConnectionFactory,
@@ -54,7 +60,9 @@ export class StudioShellController {
   activeRoute(): StudioToolRoute {
     const role = this.session.snapshot().role;
     return this.tools.resolve(this.#activePath, role)
-      ?? this.tools.routes(role).find(({ tool }) => tool.mode === firstAccessibleStudioMode(role))!;
+      ?? this.tools.routes(role).find(({ tool }) => tool.mode === firstAccessibleStudioMode(role))
+      ?? this.tools.routes(role)[0]
+      ?? { path: '/build/map', tool: this.tools.tools().find(tool => tool.id === 'map')!, access: 'read_only' };
   }
 
   navigate(path: string): boolean {
@@ -95,6 +103,7 @@ export class StudioShellController {
   disconnect(): void {
     this.#adapter?.disconnect();
     this.#adapter = null;
+    this.tools.setScopes(undefined);
     this.session.disconnected();
     if (studioModeAccess(null, this.activeRoute().tool.mode) === 'hidden') this.navigate('/build/map');
     this.onChanged();
@@ -136,31 +145,14 @@ export class StudioShellController {
     return this.#toolState.delete(id);
   }
 
-  rail(expanded = true): StudioRailModel {
-    const session = this.session.snapshot();
-    return buildStudioRailModel({
-      expanded, activeMode: session.activeMode,
-      session: {
-        environment: session.phase === 'connected' && session.environment !== 'sandbox'
-          ? session.environment : 'anonymous',
-        identity: session.identity, role: session.role,
-        contentRevision: session.contentRevision, mapRevision: session.mapRevision,
-        connected: session.phase === 'connected',
-      },
-      modeBadges: {
-        build: this.validation.errorCount() > 0 ? ['validation'] : ['draft'],
-        ...(session.phase === 'connecting' ? { operate: ['sync'] as const } : {}),
-        ...(session.error === null ? {} : { observe: ['conflict'] as const }),
-      },
-    });
-  }
-
-
   private reconcileConnection(): void {
     const view = this.#adapter?.view();
+    this.tools.setScopes(view?.connected ? view.scopes : undefined,
+      view?.role === 'owner' || view?.role === 'admin' || view?.explicitScopes?.includes('map') === true);
     if (view === undefined) return;
     if (view.connected && view.identity !== null && view.role !== null) {
       this.session.connected({ identity: view.identity, role: view.role, contentRevision: view.contentRevision, mapRevision: view.mapRevision });
+      this.session.setMode(this.activeRoute().tool.mode);
     } else if (!view.connected && this.session.snapshot().phase === 'connected') this.session.failed(view.error ?? 'Connection lost. Reconnect to continue editing the live map.');
     else if (view.error !== null) this.session.failed(view.error);
     else if (view.connected && !view.synchronizing && view.identity !== null) this.session.failed('studio_role_required');

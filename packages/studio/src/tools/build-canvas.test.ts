@@ -59,7 +59,7 @@ describe('canvas-native Build and asset tools', () => {
     const tools=['objects','terrain','raise','lower','fill'].map(name=>kitElement(s,'map-tool-'+name)!);
     tools.push(kitElement(s,'map-eyedropper')!);
     expect(new Set(tools.map(tool=>tool.rect.y)).size).toBe(1);
-    expect(tools.every(tool=>tool.children.some(child=>child.kind==='map-pixel-tool-icon'))).toBe(true);
+    expect(tools.every(tool=>tool.children.some(child=>child.kind==='deferred-image'&&typeof child.props['url']==='string'))).toBe(true);
     for(const id of ['map-auto-generation','map-publish']){
       const button=kitElement(s,id)!;expect(button.rect.width).toBeLessThanOrEqual(192);
       expect(button.clip.width).toBe(button.rect.width);expect(button.clip.height).toBe(button.rect.height);
@@ -373,7 +373,7 @@ describe('canvas-native Build and asset tools', () => {
  (kitElement(s,'map-object-search')!.props['editor'] as CanvasTextEditor).setValue('grass');buildMapCanvasTool(c);
  const next=buildMapCanvasTool(context('/build/map'));expect(kitElement(next,'map-layer-visible-canopy')?.label).toContain('Show');
  expect((kitElement(next,'map-object-search')!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('grass');
- expect(kitElement(next,'map-tool-terrain')?.parent?.children.some(child=>child.kind==='palette-selection-reticle')).toBe(true);}finally{vi.unstubAllGlobals();}
+ expect(kitElement(next,'map-tool-terrain')?.parent?.children.some(child=>child.kind==='selection-reticle')).toBe(true);}finally{vi.unstubAllGlobals();}
 });
 
   it('uses kit tileset editors and preserves datum edits and JSON drafts', () => {
@@ -384,7 +384,9 @@ describe('canvas-native Build and asset tools', () => {
     expect(kitElements(surface).find(node=>node.kind==='text'&&String(node.props['text']).startsWith('Datum '))?.props['text']).not.toBe(initial);
     pressKit(surface,'tiles-tabs:tab:json');surface=buildTilesCanvasTool(toolContext);
     const draft=kitElement(surface,'tiles-json')!.props['editor'] as CanvasTextEditor;
-    const value=JSON.parse(draft.snapshot().value) as {baseDatum:number};
+    const value=JSON.parse(draft.snapshot().value) as {baseDatum:number;ruleCatalogue:{families:unknown[]}};
+    expect(draft.snapshot().value.length).toBeGreaterThan(32_000);
+    expect(value.ruleCatalogue.families).toHaveLength(6);
     draft.setValue(JSON.stringify({...value,baseDatum:value.baseDatum+2}));
     pressKit(surface,'tiles-apply');surface=buildTilesCanvasTool(toolContext);
     expect(kitElements(surface).some(node=>node.props['text']===`Datum ${value.baseDatum+2}`)).toBe(true);

@@ -1,3 +1,4 @@
+import { parseRuleCatalogue, type RuleCatalogue } from '../rule-catalogue.js';
 import { CONTENT_DEFINITION_ID_PATTERN as ID_PATTERN } from './definition-id.js';
 export { definitionSlug } from './definition-id.js';
 import type { Modifier } from '../modifiers.js';
@@ -357,6 +358,7 @@ export type TilesetTransitionDefinition =
   | UnavailableTilesetTransitionDefinition;
 
 export interface TilesetContentDefinition extends DefinitionBase<'tileset', TilesetDefinitionId> {
+  readonly ruleCatalogue?: RuleCatalogue;
   readonly engineVersion: number;
   /** Stable runtime terrain-family reference; v1 requires it to equal the id slug. */
   readonly familyId: string;
@@ -1111,6 +1113,7 @@ export function parseTilesetDefinition(json: string | unknown): TilesetContentDe
   }).sort((left, right) => left.id.localeCompare(right.id));
   return Object.freeze({
     ...base(source, 'tileset'),
+    ...(source.ruleCatalogue === undefined ? {} : { ruleCatalogue: parseRuleCatalogue(source.ruleCatalogue) }),
     engineVersion: integer(source.engineVersion, '$.engineVersion', 1),
     familyId: stableReference(source.familyId, '$.familyId'),
     projectionStyle,
@@ -1276,3 +1279,6 @@ export {
   type UpgradeDefinitionId,
   type WorldContentDefinition,
 } from './world-definition.js';
+
+// Authoring schemas derive from the types parsed by this module.
+export * from './field-schema.js';

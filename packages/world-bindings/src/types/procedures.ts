@@ -19,8 +19,13 @@ import * as AdminMissingContainerRecoveryProcedure from "../admin_missing_contai
 import * as AdminPlayerInventoryProcedure from "../admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "../admin_player_mutation_result_procedure";
 import * as AdminPlayerSnapshotProcedure from "../admin_player_snapshot_procedure";
+import * as AdminStudioMembersProcedure from "../admin_studio_members_procedure";
+import * as AdminStudioScopesProcedure from "../admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "../admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "../admin_validate_world_procedure";
+import * as PreviewStudioScopeProcedure from "../preview_studio_scope_procedure";
+import * as StudioScopeReceiptProcedure from "../studio_scope_receipt_procedure";
+import * as StudioScriptReviewProcedure from "../studio_script_review_procedure";
 
 export type AdminAuditPageArgs = __Infer<typeof AdminAuditPageProcedure.params>;
 export type AdminAuditPageResult = __Infer<typeof AdminAuditPageProcedure.returnType>;
@@ -48,8 +53,18 @@ export type AdminPlayerMutationResultArgs = __Infer<typeof AdminPlayerMutationRe
 export type AdminPlayerMutationResultResult = __Infer<typeof AdminPlayerMutationResultProcedure.returnType>;
 export type AdminPlayerSnapshotArgs = __Infer<typeof AdminPlayerSnapshotProcedure.params>;
 export type AdminPlayerSnapshotResult = __Infer<typeof AdminPlayerSnapshotProcedure.returnType>;
+export type AdminStudioMembersArgs = __Infer<typeof AdminStudioMembersProcedure.params>;
+export type AdminStudioMembersResult = __Infer<typeof AdminStudioMembersProcedure.returnType>;
+export type AdminStudioScopesArgs = __Infer<typeof AdminStudioScopesProcedure.params>;
+export type AdminStudioScopesResult = __Infer<typeof AdminStudioScopesProcedure.returnType>;
 export type AdminTelemetryArgs = __Infer<typeof AdminTelemetryProcedure.params>;
 export type AdminTelemetryResult = __Infer<typeof AdminTelemetryProcedure.returnType>;
 export type AdminValidateWorldArgs = __Infer<typeof AdminValidateWorldProcedure.params>;
 export type AdminValidateWorldResult = __Infer<typeof AdminValidateWorldProcedure.returnType>;
+export type PreviewStudioScopeArgs = __Infer<typeof PreviewStudioScopeProcedure.params>;
+export type PreviewStudioScopeResult = __Infer<typeof PreviewStudioScopeProcedure.returnType>;
+export type StudioScopeReceiptArgs = __Infer<typeof StudioScopeReceiptProcedure.params>;
+export type StudioScopeReceiptResult = __Infer<typeof StudioScopeReceiptProcedure.returnType>;
+export type StudioScriptReviewArgs = __Infer<typeof StudioScriptReviewProcedure.params>;
+export type StudioScriptReviewResult = __Infer<typeof StudioScriptReviewProcedure.returnType>;
 

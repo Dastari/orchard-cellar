@@ -114,6 +114,29 @@ describe('routine same-schema release', () => {
     await expect(retainStaticAssets(old, staged)).rejects.toThrow('routine_immutable_asset_collision');
   });
 
+  it('retains unseen immutable atlas dependencies while preserving the new release index', async () => {
+    const root = await temporary(); const old = join(root, 'old'); const staged = join(root, 'staged');
+    for (const path of [old, staged]) {
+      await mkdir(join(path, 'assets'), { recursive: true });
+      await mkdir(join(path, 'generated'), { recursive: true });
+      await writeFile(join(path, 'index.html'), 'shell');
+    }
+    const png = `generated/atlas-${'a'.repeat(64)}.png`;
+    const pack = `generated/pack-${'b'.repeat(64)}.json`;
+    await writeFile(join(old, 'generated/atlas_characters_p000_summer.png'), 'migration pixels');
+    await writeFile(join(old, png), 'old pixels');
+    await writeFile(join(old, pack), 'old metadata');
+    await writeFile(join(old, 'generated/atlas.packs.json'), 'old pointer');
+    await writeFile(join(staged, 'generated/atlas.packs.json'), 'new pointer');
+    await retainStaticAssets(old, staged);
+    expect(await readFile(join(staged, 'generated/atlas_characters_p000_summer.png'), 'utf8')).toBe('migration pixels');
+    expect(await readFile(join(staged, png), 'utf8')).toBe('old pixels');
+    expect(await readFile(join(staged, pack), 'utf8')).toBe('old metadata');
+    expect(await readFile(join(staged, 'generated/atlas.packs.json'), 'utf8')).toBe('new pointer');
+    await writeFile(join(staged, png), 'corrupt replacement');
+    await expect(retainStaticAssets(old, staged)).rejects.toThrow('routine_immutable_asset_collision');
+  });
+
   it('orders schema, source, live identity/CAS, rollback and parity gates around a single no-delete publish', async () => {
     const source = await readFile(new URL('./world-release-routine.sh', import.meta.url), 'utf8');
     expect(spawnSync('bash', ['-n', 'scripts/world-release-routine.sh']).status).toBe(0);
