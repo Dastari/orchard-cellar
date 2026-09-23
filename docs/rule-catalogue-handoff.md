@@ -59,3 +59,8 @@ comparing every integrated baseline output to reviewed PR62 head `98732c7e`;
 all outputs match that reference. Other golden hashes are unchanged.
 Regenerated F1 field schemas for catalogue roles including optional medium.
 Higher package versions and all documentation/exports are preserved.
+
+Measured integrated bootstrap: 919 definitions / 25 kinds; runtime payload
+582,718 bytes, authoring row envelope 732,476 bytes, hash `b3f30168`. Catalogue
+adds 23,186 bytes (+4.14%) over the prior 559,532-byte runtime payload. The
+measured next-KiB regression guard is 570 KiB (583,680 bytes), not a wire cap.

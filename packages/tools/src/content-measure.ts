@@ -5,9 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Combined gameplay and Willowharbour content: 919 definitions, 559,532 runtime
-// bytes. Retain the next-whole-KiB subscription guard for this reviewed merge.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 547 * 1024;
+// Reviewed tile catalogue: 919 definitions, 582,718 runtime bytes (hash b3f30168).
+// Adds 23,186 bytes (+4.14%) over 559,532; retain the next-whole-KiB guard.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 570 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;
