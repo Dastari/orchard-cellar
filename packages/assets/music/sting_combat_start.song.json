@@ -1,0 +1,100 @@
+{
+ "name": "sting_combat_start",
+ "kind": "sting",
+ "bpm": 96,
+ "swing": 0.0,
+ "key": "E",
+ "mode": "dorian",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 1,
+ "masterGainDb": -2,
+ "loop": false,
+ "iterationNotes": [
+  "Pass 1: sparse adaptive-director piece (docs/12 \u00a72.5); quotes the orchard_home motif. Owner listening pass pending."
+ ],
+ "channels": [
+  {
+   "patch": "pluck",
+   "vol": 0.34,
+   "pan": 0.2,
+   "patterns": [
+    "Up"
+   ]
+  },
+  {
+   "patch": "woodblock",
+   "vol": 0.16,
+   "patterns": [
+    "Hit"
+   ]
+  },
+  {
+   "patch": "bells",
+   "vol": 0.26,
+   "pan": -0.3,
+   "patterns": [
+    "Ring"
+   ]
+  }
+ ],
+ "patterns": {
+  "Up": {
+   "steps": 16,
+   "notes": [
+    [
+     0,
+     "E4",
+     2,
+     0.7
+    ],
+    [
+     2,
+     "G4",
+     2,
+     0.75
+    ],
+    [
+     4,
+     "B4",
+     2,
+     0.8
+    ],
+    [
+     6,
+     "E5",
+     6,
+     0.85
+    ]
+   ]
+  },
+  "Hit": {
+   "steps": 16,
+   "notes": [
+    [
+     0,
+     "A5",
+     1,
+     0.6
+    ],
+    [
+     6,
+     "A5",
+     1,
+     0.7
+    ]
+   ]
+  },
+  "Ring": {
+   "steps": 16,
+   "notes": [
+    [
+     6,
+     "B5",
+     6,
+     0.7
+    ]
+   ]
+  }
+ }
+}

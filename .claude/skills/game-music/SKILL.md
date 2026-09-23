@@ -26,9 +26,15 @@ pastoral — Stardew spring themes, A Short Hike. Never harsh, never urgent.
   every seasonal theme — it's what makes the soundtrack one work. Write the motif
   first if `theme_title` doesn't exist yet.
 - Space is the instrument: rests between phrases; melody density low (a note every
-  1–2 beats, not streams of 16ths); pads sustain under everything.
-- Loop lengths 48–96 bars for themes (short loops fatigue); stings 2–8 bars,
-  non-looping.
+  1–2 beats, not streams of 16ths). **No drones or beds** (owner, 2026-09-23): no
+  sustained pad chords, no held bass — harmony comes from soft broken chords, short
+  plucked bass roots and occasional string swells. Silence between pieces is part of
+  the design (Minecraft-like).
+- Song `kind`: `theme` 48/64/96 bars; `piece` 8–96 bars (usually 16) played once by
+  the director; `combat` 4–32-bar loops; `sting` 1–8 bars, `"loop": false`.
+- To make music play in the game, add the song as a cue in
+  `packages/assets/music/audio-assignment.json` (the music director's context rules:
+  zone, time, weather, biome, combat, mood tags — docs/12 §2.5).
 - Structure per season: same motif, different arrangement — Spring = flute lead +
   bells; Summer = accordion + shaker warmth; Autumn = pluck-forward, busier;
   Winter = sparse pads + bells, half-time feel.
