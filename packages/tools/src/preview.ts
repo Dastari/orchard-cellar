@@ -37,7 +37,7 @@ createServer((request, response) => {
     createReadStream(fileURLToPath(new URL(`build/review/${match[1]}.png`, workspaceRoot))).pipe(response);
     return;
   }
-  const generated = /^\/generated\/([a-z0-9_.]+)$/.exec(request.url ?? '');
+  const generated = /^\/generated\/([a-z0-9_.-]+)$/.exec(request.url ?? '');
   if (generated?.[1]) {
     response.writeHead(200, { 'content-type': generated[1].endsWith('.json') ? 'application/json' : 'image/png', 'cache-control': 'no-store' });
     createReadStream(fileURLToPath(new URL(`packages/assets/generated/${generated[1]}`, workspaceRoot))).pipe(response);

@@ -430,6 +430,35 @@ refreshes. Open popovers defer shell replacement, and stable hover dwell survive
 replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
 
+## Static world chunk materialization (pre-runtime migration)
+
+`@orchard/sim/world-chunk` defines the versioned binary envelope, SHA-256 integrity,
+64×64 core plus 1-cell halo, typed channels, and stable anchored records. The
+engine's `ChunkTerrainStore` reconstructs today's `TerrainArray` contract without
+calling generators. `scripts/materialize-world-chunks.ts` runs the existing client
+path offline and audits the actual server collision functions in a VM with a
+read-only fixture context. Client and server snapshots remain distinct where the
+existing implementations disagree. This is additive tooling; the live server and
+client continue to use their current map-document path. See
+[world chunk materialization](world-chunk-materialization.md) for the format,
+validation, and streaming follow-up boundary.
+
+The additive D6 medium extension stores one versioned material ID per cell plus
+solid blockers, independent of the retained walking/boat oracle channels.
+Outside/unloaded cells are void; runtime ability-based traversal remains a later
+lane. See the materialization procedure for fallback categories and rule metadata.
+
+## Content-addressed atlas delivery (2026-09-23)
+
+The default category atlas keeps today's eager startup request count. Both category
+and semantic pack PNGs are SHA-256 addressed; a release-independent worker cache
+bounds immutable atlas storage to 64 MiB/512 entries. The additional
+`atlas.packs.json` maps semantic asset IDs to immutable pack metadata. Pack loading
+is explicitly opt-in (`?atlasPacks=1`) until chunk-visible art ownership lands.
+See [the pack contract](asset-packs-spec.md), [measurements and handoff](asset-packs-handoff.md),
+and [UI loader API](../packages/ui/README.md). This prerequisite does not change
+collision, world content, gameplay art ownership, or the first playable frame gate.
+
 
 ### Authored tile rule catalogue
 

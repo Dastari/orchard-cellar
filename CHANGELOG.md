@@ -1,5 +1,28 @@
 # Changelog
 
+## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
+
+- Integrate typed sparse cell-part reconstruction and reuse the catalogue
+  medium contract; retain generated-world and authored-part round-trip parity.
+- Add versioned per-cell medium and independent solid blockers for D6; retain
+  unchanged walking/boat parity channels until the later ability-based runtime.
+- Add SHA-256-addressed 64×64 static world chunks with one-cell halos, signed
+  elevations, ordered authored/generated records, exact generated resource IDs,
+  and an optional cell-part section.
+- Add an offline materializer and actual-server parity oracle, plus a compatible
+  `ChunkTerrainStore`. Runtime subscriptions and world schema are unchanged.
+- Preserve independently captured client/server collision channels; validate
+  bootstrap goldens and the local authored-map snapshot before runtime migration.
+- See [materialization procedure](docs/world-chunk-materialization.md) for commands,
+  format details, asset-index integration, and the subsequent streaming boundary.
+
+
+## 0.24.0 — 2026-09-23
+
+- Build content-addressed atlas pages, deduplicate identical seasonal/shadow variants, and retain unchanged atlas files across worker releases in a bounded immutable cache.
+- Add opt-in semantic asset packs, lazy per-pack metadata, and chunk-prefetch APIs. Keep consolidated gameplay/Studio loading as the default pending the separate spawn-dependency/runtime migration.
+- Tools 0.20.0, UI 0.21.0, client 0.21.0; full sprite/season/shadow-omit pixel parity verified.
+
 - Integration: sim 0.22.2 includes catalogue field schemas; 14 reviewed cliff
   golden hashes now track PR62 while every other resolver hash stays unchanged.
 

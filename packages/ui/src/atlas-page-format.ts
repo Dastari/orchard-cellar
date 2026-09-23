@@ -1,15 +1,15 @@
 /** Migration readers land before the bounded-page writers. Keep supplied
  * legacy versions through the separate doc 47 retirement gate. */
 export function assertAtlasSchema(kind: 'index' | 'category' | 'markers' | 'registry', version: unknown): void {
-  const maximum = kind === 'category' ? 3 : kind === 'markers' ? 2 : 4;
+  const maximum = kind === 'category' ? 3 : kind === 'markers' ? 2 : kind === 'index' ? 5 : 4;
   if (!Number.isInteger(version) || (version as number) < 1 || (version as number) > maximum) {
     throw new Error(`Unsupported atlas ${kind} schema: ${String(version)}`);
   }
 }
 export function atlasPageKey(record: { readonly category: string; readonly pageId?: string }, season: string): string {
   if (record.pageId !== undefined) {
-    const prefix = `${record.category}:p`;
-    if (!record.pageId.startsWith(prefix) || !/^\d{3,}$/.test(record.pageId.slice(prefix.length))) {
+    const prefix = `${record.category}:`;
+    if (!record.pageId.startsWith(prefix) || !/^(?:[a-z0-9-]+:)?p\d{3,}$/.test(record.pageId.slice(prefix.length))) {
       throw new Error(`Invalid atlas page identity: ${record.pageId}`);
     }
   }
