@@ -1,4 +1,5 @@
 export interface ReadonlyKeyedStore<K, V> extends Iterable<V> {
+  readonly revision?: number;
   readonly size: number;
   readonly length: number;
   get(key: K): V | undefined;
@@ -7,12 +8,14 @@ export interface ReadonlyKeyedStore<K, V> extends Iterable<V> {
 
 export class KeyedStore<K, V> implements ReadonlyKeyedStore<K, V> {
   private readonly rows = new Map<K, V>();
+  private mutationRevision = 0;
+  get revision(): number { return this.mutationRevision; }
   get size(): number { return this.rows.size; }
   get length(): number { return this.rows.size; }
   get(key: K): V | undefined { return this.rows.get(key); }
-  set(key: K, value: V): void { this.rows.set(key, value); }
-  delete(key: K): boolean { return this.rows.delete(key); }
-  clear(): void { this.rows.clear(); }
+  set(key: K, value: V): void { if (this.rows.get(key) !== value || !this.rows.has(key)) { this.rows.set(key, value); this.mutationRevision++; } }
+  delete(key: K): boolean { const deleted = this.rows.delete(key); if (deleted) this.mutationRevision++; return deleted; }
+  clear(): void { if (this.rows.size > 0) { this.rows.clear(); this.mutationRevision++; } }
   find(predicate: (value: V) => boolean): V | undefined {
     for (const value of this.rows.values()) if (predicate(value)) return value;
     return undefined;
