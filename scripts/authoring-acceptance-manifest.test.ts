@@ -1,20 +1,28 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import manifestJson from './docs-55-56-acceptance-manifest.json';
+import manifestJson from './authoring-acceptance-manifest.json';
 
+// Machine-checked acceptance map for the authoring suite (plan 55) and Cellar
+// Studio (plan 56). The human-readable status lives on the wiki page named in
+// `wikiPage` (wiki: Studio/Acceptance); update both in the same change.
 type Classification = 'repository_verified' | 'browser_verified' | 'external_required' | 'repository_open';
 interface Entry {
   readonly id: string;
-  readonly source: string;
-  readonly sourceAnchors: readonly string[];
+  readonly planSection: string;
   readonly statement: string;
   readonly classification: Classification;
   readonly evidence: readonly string[];
   readonly externalPrerequisites?: readonly string[];
+  readonly wikiRecords?: readonly string[];
+  readonly decision?: string;
 }
 
-const manifest = manifestJson as { readonly schemaVersion: number; readonly entries: readonly Entry[] };
+const manifest = manifestJson as {
+  readonly schemaVersion: number;
+  readonly wikiPage: string;
+  readonly entries: readonly Entry[];
+};
 const repository = resolve(import.meta.dirname, '..');
 const EXPECTED_CLASSIFICATIONS: Readonly<Record<Classification, number>> = Object.freeze({
   repository_verified: 26,
@@ -22,15 +30,19 @@ const EXPECTED_CLASSIFICATIONS: Readonly<Record<Classification, number>> = Objec
   external_required: 18,
   repository_open: 1,
 });
+const WIKI_PAGE = /^[A-Z][A-Za-z&' -]*(?:\/[A-Z0-9][A-Za-z0-9&' .-]*)+$/u;
 
-describe('docs 55/56 acceptance manifest', () => {
+describe('authoring and Studio acceptance manifest (wiki: Studio/Acceptance)', () => {
   it('has unique, sourced entries with honest external prerequisites', () => {
-    expect(manifest.schemaVersion).toBe(1);
+    expect(manifest.schemaVersion).toBe(2);
+    expect(manifest.wikiPage).toBe('Studio/Acceptance');
     expect(manifest.entries.length).toBeGreaterThanOrEqual(25);
     expect(new Set(manifest.entries.map(({ id }) => id)).size).toBe(manifest.entries.length);
     for (const entry of manifest.entries) {
-      expect(entry.source).toMatch(/^docs\/(?:55-game-authoring-suite|56-orchard-studio)\.md:\d/u);
+      expect(entry.id.slice(0, 3), entry.id).toBe(entry.planSection.slice(0, 2) + '-');
+      expect(entry.planSection, entry.id).toMatch(/^5[56] (?:Phase|§)/u);
       expect(entry.statement.length).toBeGreaterThan(20);
+      for (const page of entry.wikiRecords ?? []) expect(page, entry.id).toMatch(WIKI_PAGE);
       if (entry.classification === 'external_required') {
         expect(entry.externalPrerequisites?.length).toBeGreaterThan(0);
       } else {
@@ -39,18 +51,11 @@ describe('docs 55/56 acceptance manifest', () => {
     }
   });
 
-  it('keeps evidence paths real and source lines pinned to their matching acceptance paragraphs', () => {
+  it('keeps every evidence path real and inside the repository', () => {
     for (const entry of manifest.entries) {
-      for (const evidence of entry.evidence) expect(existsSync(resolve(repository, evidence)), evidence).toBe(true);
-      const [document, lineText] = entry.source.split(':');
-      const referencedLines = lineText?.split(',').map(Number) ?? [];
-      const sourceLines = readFileSync(resolve(repository, document ?? ''), 'utf8').split('\n');
-      expect(referencedLines.length, entry.id).toBeGreaterThan(0);
-      expect(entry.sourceAnchors.length, entry.id).toBe(referencedLines.length);
-      for (const [index, referencedLine] of referencedLines.entries()) {
-        expect(sourceLines.length).toBeGreaterThanOrEqual(referencedLine);
-        expect(sourceLines[referencedLine - 1]?.trim().length, entry.id).toBeGreaterThan(10);
-        expect(sourceLines[referencedLine - 1], entry.id).toBe(entry.sourceAnchors[index]);
+      for (const evidence of entry.evidence) {
+        expect(evidence, entry.id).not.toMatch(/^(?:\/|\.\.)/u);
+        expect(existsSync(resolve(repository, evidence)), `${entry.id}: ${evidence}`).toBe(true);
       }
     }
   });
@@ -84,10 +89,11 @@ describe('docs 55/56 acceptance manifest', () => {
     const release = manifest.entries.find(({ id }) => id === '56-phase-4-chat-approved-release');
     expect(policy?.classification).toBe('repository_verified');
     expect(release?.classification).toBe('external_required');
+    // The owner decision itself lives in the wiki Decisions register.
+    expect(policy?.decision).toBe('Decisions/55-Owner Chat Approval for Tier B');
+    expect(release?.decision).toBe(policy?.decision);
+    expect(policy?.statement).toContain('Owner chat approval remains a separate per-release requirement');
     expect(release?.externalPrerequisites?.join(' ')).toContain('an agent cannot infer confirmation');
-    const decisions = readFileSync(resolve(repository, 'DECISIONS.md'), 'utf8');
-    expect(decisions).toContain('Tier-B releases are approved by the owner verbally in chat');
-    expect(decisions).toContain('revisit if a second person ever joins');
     expect(release?.externalPrerequisites?.join(' ')).toContain('specific release');
     expect(release?.externalPrerequisites?.join(' ')).toContain('does not waive');
   });
