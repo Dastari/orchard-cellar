@@ -1,53 +1,75 @@
 import { dayProgressAtClockTime, type Season } from '@orchard/sim';
+import { MusicMixer, type MusicDeck } from './music-synth.js';
+import { compileSong, Sequencer, type CompiledSong } from './sequencer.js';
 import { playSynthSfx } from './sfx.js';
-import type { AmbienceTime, SfxSource } from './types.js';
+import type { AmbienceTime, SfxSource, SongSource } from './types.js';
 
 const AUDIO_SETTINGS_KEY = 'orchard-cellar.audio';
 const MUSIC_PLAYBACK_KEY = 'orchard-cellar.music-playback';
 const AMBIENCE_NAMES = ['bird_chirp_1', 'bird_chirp_2', 'bird_chirp_3', 'wind_gust'] as const;
 const MUSIC_CROSSFADE_SECONDS = 8;
+const MUSIC_FIRST_FADE_SECONDS = 2.5;
 const MUSIC_END_FADE_SECONDS = 8;
 const MUSIC_NAVIGATION_FADE_SECONDS = 0.65;
+const MUSIC_STOP_FADE_SECONDS = 1;
+const MUSIC_START_LATENCY_SECONDS = 0.1;
+const SONG_NAME_PATTERN = /^[a-z][a-z0-9_]{0,63}$/u;
 
-interface StreamedMusicDefinition {
-  readonly url: string;
+export interface MusicCueDefinition {
+  /** Loop the tracker song forever (title) or play one pass then fall silent (world). */
   readonly continuous: boolean;
+  /** Randomised quiet interval between passes of a non-continuous cue. */
   readonly silenceSeconds: readonly [number, number];
 }
 
-export const STREAMED_MUSIC = {
-  theme_title: {
-    url: '/music/orchard-title.mp3', continuous: true, silenceSeconds: [0, 0],
-  },
-  theme_spring: {
-    url: '/music/orchard-day.mp3', continuous: false, silenceSeconds: [55, 140],
-  },
-  theme_night: {
-    url: '/music/orchard-night.mp3', continuous: false, silenceSeconds: [40, 105],
-  },
-} as const satisfies Readonly<Record<string, StreamedMusicDefinition>>;
+/** Runtime cues. Each name is a tracker song at `packages/assets/music/<name>.song.json`. */
+export const MUSIC_CUES = {
+  theme_title: { continuous: true, silenceSeconds: [0, 0] },
+  theme_spring: { continuous: false, silenceSeconds: [55, 140] },
+  theme_night: { continuous: false, silenceSeconds: [40, 105] },
+} as const satisfies Readonly<Record<string, MusicCueDefinition>>;
 
-type StreamedSongName = keyof typeof STREAMED_MUSIC;
+/** Cue behaviour for any song name; unlisted songs (Studio auditions) loop continuously. */
+export function musicCueFor(name: string): MusicCueDefinition {
+  return (MUSIC_CUES as Readonly<Record<string, MusicCueDefinition>>)[name] ?? { continuous: true, silenceSeconds: [0, 0] };
+}
 
+export function songUrl(name: string): string {
+  if (!SONG_NAME_PATTERN.test(name)) throw new Error(`Invalid song name ${name}`);
+  return `/generated/music/${name}.song.json`;
+}
+
+/**
+ * Version 2 checkpoints record the tracker position in steps (tempo-independent).
+ * Version 1 checkpoints came from the retired streamed recordings; their positions
+ * are seconds into an MP3 and are deliberately ignored.
+ */
 export interface PersistedMusicPlayback {
-  readonly version: 1;
-  readonly song: StreamedSongName;
+  readonly version: 2;
+  readonly song: string;
   readonly phase: 'playing' | 'gap';
-  readonly positionSeconds: number;
+  readonly positionSteps: number;
   readonly gapRemainingSeconds: number;
 }
 
 export function parsePersistedMusicPlayback(value: string | null): PersistedMusicPlayback | null {
   if (value === null) return null;
   try {
-    const parsed = JSON.parse(value) as Partial<PersistedMusicPlayback>;
-    if (parsed.version !== 1 || typeof parsed.song !== 'string' || !(parsed.song in STREAMED_MUSIC)
+    const parsed = JSON.parse(value) as Partial<PersistedMusicPlayback> | null;
+    if (parsed === null || typeof parsed !== 'object' || parsed.version !== 2
+      || typeof parsed.song !== 'string' || !(parsed.song in MUSIC_CUES)
       || (parsed.phase !== 'playing' && parsed.phase !== 'gap')
-      || typeof parsed.positionSeconds !== 'number' || !Number.isFinite(parsed.positionSeconds)
-      || parsed.positionSeconds < 0
+      || typeof parsed.positionSteps !== 'number' || !Number.isFinite(parsed.positionSteps)
+      || parsed.positionSteps < 0
       || typeof parsed.gapRemainingSeconds !== 'number' || !Number.isFinite(parsed.gapRemainingSeconds)
       || parsed.gapRemainingSeconds < 0) return null;
-    return parsed as PersistedMusicPlayback;
+    return {
+      version: 2,
+      song: parsed.song,
+      phase: parsed.phase,
+      positionSteps: parsed.positionSteps,
+      gapRemainingSeconds: parsed.gapRemainingSeconds,
+    };
   } catch {
     return null;
   }
@@ -61,11 +83,46 @@ function loadMusicPlayback(): PersistedMusicPlayback | null {
   }
 }
 
-interface MusicDeck {
-  readonly element: HTMLAudioElement;
-  readonly gain: GainNode;
-  song: StreamedSongName | null;
-  endingFadeScheduled: boolean;
+/** One tracker song playing on its own deck (so two can cross-fade). */
+class SongPlayback {
+  readonly deck: MusicDeck;
+  readonly sequencer: Sequencer;
+
+  constructor(
+    private readonly context: AudioContext,
+    mixer: MusicMixer,
+    readonly song: string,
+    compiled: CompiledSong,
+  ) {
+    this.deck = mixer.createDeck(compiled);
+    this.sequencer = new Sequencer({
+      currentTime: () => context.currentTime,
+      playVoice: (voice) => this.deck.playVoice(voice),
+      setInterval: (callback, milliseconds) => window.setInterval(callback, milliseconds),
+      clearInterval: (handle) => window.clearInterval(handle as number),
+    });
+  }
+
+  start(fromStep: number, fadeSeconds: number, onEnded: () => void): void {
+    const cue = musicCueFor(this.song);
+    const at = this.context.currentTime + MUSIC_START_LATENCY_SECONDS;
+    this.deck.fadeTo(1, fadeSeconds, at, 0);
+    this.sequencer.start(this.deck.song, { at, fromStep, loop: cue.continuous, onEnded });
+    if (!cue.continuous) {
+      const remaining = this.sequencer.remainingSeconds(at);
+      const fadeStart = Math.max(at + fadeSeconds, at + remaining - MUSIC_END_FADE_SECONDS);
+      this.deck.fadeTo(0, Math.max(0.05, at + remaining - fadeStart), fadeStart, 1);
+    }
+  }
+
+  positionSteps(): number { return this.sequencer.positionSteps(); }
+
+  fadeOut(seconds: number): void { this.deck.fadeTo(0, seconds); }
+
+  dispose(): void {
+    this.sequencer.stop();
+    this.deck.dispose();
+  }
 }
 
 export interface AudioStatus {
@@ -182,16 +239,18 @@ export class AudioBus implements GameAudio {
   private ambience: GainNode | null = null;
   private reverb: ConvolverNode | null = null;
   private analyser: AnalyserNode | null = null;
-  private musicDecks: readonly [MusicDeck, MusicDeck] | null = null;
-  private activeMusicDeck: 0 | 1 | null = null;
-  private desiredSong: StreamedSongName | null = null;
+  private mixer: MusicMixer | null = null;
+  private activePlayback: SongPlayback | null = null;
+  private readonly retiringPlaybacks = new Set<SongPlayback>();
+  private readonly songCache = new Map<string, Promise<CompiledSong>>();
+  private desiredSong: string | null = null;
   private persistedPlayback = loadMusicPlayback();
   private musicInitialized = false;
   private musicInitialization: Promise<void> | null = null;
   private musicGapTimer: number | null = null;
   private musicGapEndsAtMs: number | null = null;
-  private backgroundMusicGap: { readonly song: StreamedSongName; readonly remainingSeconds: number } | null = null;
-  private musicPausedForBackground = false;
+  private backgroundMusicGap: { readonly song: string; readonly remainingSeconds: number } | null = null;
+  private pausedMusic: { readonly song: string; readonly positionSteps: number } | null = null;
   private musicChangeDeferredForBackground = false;
   private contextSuspendedForBackground = false;
   private backgroundSuspendPromise: Promise<void> | null = null;
@@ -241,16 +300,15 @@ export class AudioBus implements GameAudio {
   }
 
   async playSong(name: string): Promise<void> {
-    if (!(name in STREAMED_MUSIC)) throw new Error(`Unknown streamed song ${name}`);
-    const song = name as StreamedSongName;
-    if (this.desiredSong === song && (this.song === song || this.musicGapTimer !== null)) return;
-    this.desiredSong = song;
-    if (!this.context || !this.musicDecks || !this.musicInitialized) return;
+    songUrl(name);
+    if (this.desiredSong === name && (this.song === name || this.musicGapTimer !== null)) return;
+    this.desiredSong = name;
+    if (!this.context || !this.mixer || !this.musicInitialized) return;
     if (document.hidden && !this.settings.musicInBackground) {
       this.musicChangeDeferredForBackground = true;
       return;
     }
-    await this.transitionToSong(song);
+    await this.transitionToSong(name);
   }
 
   async playSfx(name: string): Promise<void> {
@@ -268,14 +326,8 @@ export class AudioBus implements GameAudio {
 
   async fadeOutForNavigation(): Promise<void> {
     this.saveMusicPlayback();
-    if (!this.context || !this.musicDecks || this.activeMusicDeck === null) return;
-    const now = this.context.currentTime;
-    for (const deck of this.musicDecks) {
-      if (deck.element.paused) continue;
-      deck.gain.gain.cancelScheduledValues(now);
-      deck.gain.gain.setValueAtTime(deck.gain.gain.value, now);
-      deck.gain.gain.linearRampToValueAtTime(0, now + MUSIC_NAVIGATION_FADE_SECONDS);
-    }
+    if (!this.context || this.activePlayback === null) return;
+    for (const playback of [this.activePlayback, ...this.retiringPlaybacks]) playback.fadeOut(MUSIC_NAVIGATION_FADE_SECONDS);
     await new Promise<void>((resolve) => window.setTimeout(resolve, MUSIC_NAVIGATION_FADE_SECONDS * 1000));
     this.saveMusicPlayback();
   }
@@ -284,22 +336,11 @@ export class AudioBus implements GameAudio {
     this.musicTransitionGeneration += 1;
     this.clearMusicGap();
     this.persistedPlayback = null;
+    this.pausedMusic = null;
+    this.backgroundMusicGap = null;
     try { localStorage.removeItem(MUSIC_PLAYBACK_KEY); } catch { /* Storage can be disabled. */ }
-    const generation = this.musicTransitionGeneration;
-    const now = this.context?.currentTime ?? 0;
-    for (const deck of this.musicDecks ?? []) {
-      deck.gain.gain.cancelScheduledValues(now);
-      deck.gain.gain.setValueAtTime(deck.gain.gain.value, now);
-      deck.gain.gain.linearRampToValueAtTime(0, now + 1);
-      window.setTimeout(() => {
-        if (generation !== this.musicTransitionGeneration) return;
-        deck.element.pause();
-        deck.element.removeAttribute('src');
-        deck.element.load();
-        deck.song = null;
-      }, 1_050);
-    }
-    this.activeMusicDeck = null;
+    if (this.activePlayback) this.retirePlayback(this.activePlayback, MUSIC_STOP_FADE_SECONDS);
+    this.activePlayback = null;
     this.desiredSong = null;
     this.song = null;
   }
@@ -325,7 +366,7 @@ export class AudioBus implements GameAudio {
   setVolume(bus: AudioVolumeBus, value: number): void {
     const next = Math.max(0, Math.min(1, value));
     this.settings = { ...this.settings, [bus]: next };
-    localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(this.settings));
+    try { localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* Storage can be disabled. */ }
     if (bus === 'master' && this.master) this.master.gain.value = next;
     if (bus === 'music' && this.music) this.music.gain.value = next;
     if (bus === 'sfx') {
@@ -375,31 +416,29 @@ export class AudioBus implements GameAudio {
     this.ambience = ambience;
     this.reverb = reverb;
     this.analyser = analyser;
-    this.musicDecks = [this.createMusicDeck(context, music, 0), this.createMusicDeck(context, music, 1)];
+    this.mixer = new MusicMixer(context, music);
     this.musicCheckpointTimer = window.setInterval(() => this.saveMusicPlayback(), 1_000);
   }
 
-  private createMusicDeck(context: AudioContext, destination: AudioNode, index: 0 | 1): MusicDeck {
-    const element = new Audio();
-    element.preload = 'metadata';
-    const gain = context.createGain();
-    gain.gain.value = 0;
-    context.createMediaElementSource(element).connect(gain).connect(destination);
-    const deck: MusicDeck = { element, gain, song: null, endingFadeScheduled: false };
-    element.addEventListener('ended', () => this.onMusicEnded(index));
-    element.addEventListener('timeupdate', () => this.onMusicTimeUpdate(index));
-    return deck;
+  private loadSong(name: string): Promise<CompiledSong> {
+    let promise = this.songCache.get(name);
+    if (!promise) {
+      promise = loadJson<SongSource>(songUrl(name)).then(compileSong);
+      promise.catch(() => this.songCache.delete(name));
+      this.songCache.set(name, promise);
+    }
+    return promise;
   }
 
   private async initializeMusic(): Promise<void> {
-    const requested = this.desiredSong ?? songForAmbience(this.ambienceContext) as StreamedSongName;
+    const requested = this.desiredSong ?? songForAmbience(this.ambienceContext);
     this.desiredSong = requested;
     const restored = this.persistedPlayback;
     if (restored !== null && restored.phase === 'gap' && restored.song === requested) {
       this.scheduleMusicGap(restored.song, restored.gapRemainingSeconds);
     } else if (restored !== null && restored.phase === 'playing') {
       this.desiredSong = restored.song;
-      await this.transitionToSong(restored.song, restored.positionSeconds);
+      await this.transitionToSong(restored.song, restored.positionSteps);
       const destination = this.desiredSong === restored.song ? requested : this.desiredSong;
       this.desiredSong = destination;
       if (destination !== restored.song) await this.transitionToSong(destination);
@@ -411,73 +450,46 @@ export class AudioBus implements GameAudio {
     this.saveMusicPlayback();
   }
 
-  private async transitionToSong(song: StreamedSongName, positionSeconds = 0): Promise<void> {
-    if (!this.context || !this.musicDecks) return;
+  private async transitionToSong(song: string, positionSteps = 0, fadeOverride?: number): Promise<void> {
+    if (!this.context || !this.mixer) return;
     this.clearMusicGap();
+    this.pausedMusic = null;
     const generation = ++this.musicTransitionGeneration;
-    const previousIndex = this.activeMusicDeck;
-    const previous = previousIndex === null ? null : this.musicDecks[previousIndex];
-    const reusePausedDeck = previous !== null && this.song === null && previous.song === song;
-    const incomingIndex: 0 | 1 = reusePausedDeck ? previousIndex! : previousIndex === 0 ? 1 : 0;
-    const incoming = this.musicDecks[incomingIndex];
-    const definition = STREAMED_MUSIC[song];
-    if (incoming.song !== song) {
-      incoming.element.src = definition.url;
-      incoming.song = song;
-    }
-    incoming.element.loop = definition.continuous;
-    incoming.endingFadeScheduled = false;
-    try { incoming.element.currentTime = Math.max(0, positionSeconds); } catch { /* Seek retries after metadata. */ }
-    const now = this.context.currentTime;
-    incoming.gain.gain.cancelScheduledValues(now);
-    incoming.gain.gain.setValueAtTime(0, now);
-    await incoming.element.play();
-    if (generation !== this.musicTransitionGeneration) {
-      incoming.element.pause();
-      return;
-    }
-    const fadeSeconds = previous === null || reusePausedDeck ? 2.5 : MUSIC_CROSSFADE_SECONDS;
-    incoming.gain.gain.linearRampToValueAtTime(1, now + fadeSeconds);
-    if (previous !== null && previous !== incoming) {
-      previous.gain.gain.cancelScheduledValues(now);
-      previous.gain.gain.setValueAtTime(previous.gain.gain.value, now);
-      previous.gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
-      window.setTimeout(() => {
-        if (generation === this.musicTransitionGeneration) previous.element.pause();
-      }, fadeSeconds * 1000 + 50);
-    }
-    this.activeMusicDeck = incomingIndex;
+    const compiled = await this.loadSong(song);
+    if (generation !== this.musicTransitionGeneration || !this.context || !this.mixer) return;
+    const previous = this.activePlayback;
+    const fadeSeconds = fadeOverride ?? (previous === null ? MUSIC_FIRST_FADE_SECONDS : MUSIC_CROSSFADE_SECONDS);
+    const playback = new SongPlayback(this.context, this.mixer, song, compiled);
+    this.activePlayback = playback;
     this.song = song;
+    if (previous !== null) this.retirePlayback(previous, fadeSeconds);
+    playback.start(positionSteps, fadeSeconds, () => this.onMusicEnded(playback));
     this.saveMusicPlayback();
   }
 
-  private onMusicTimeUpdate(index: 0 | 1): void {
-    if (this.activeMusicDeck !== index || !this.context || !this.musicDecks) return;
-    const deck = this.musicDecks[index];
-    const song = deck.song;
-    if (song === null || STREAMED_MUSIC[song].continuous || deck.endingFadeScheduled) return;
-    const remaining = deck.element.duration - deck.element.currentTime;
-    if (!Number.isFinite(remaining) || remaining <= 0 || remaining > MUSIC_END_FADE_SECONDS) return;
-    deck.endingFadeScheduled = true;
-    const now = this.context.currentTime;
-    deck.gain.gain.cancelScheduledValues(now);
-    deck.gain.gain.setValueAtTime(deck.gain.gain.value, now);
-    deck.gain.gain.linearRampToValueAtTime(0, now + remaining);
+  /** Fade a deck out and release its voices once silent. */
+  private retirePlayback(playback: SongPlayback, fadeSeconds: number): void {
+    playback.fadeOut(fadeSeconds);
+    this.retiringPlaybacks.add(playback);
+    window.setTimeout(() => {
+      this.retiringPlaybacks.delete(playback);
+      playback.dispose();
+    }, fadeSeconds * 1000 + 100);
   }
 
-  private onMusicEnded(index: 0 | 1): void {
-    if (this.activeMusicDeck !== index || !this.context || !this.musicDecks) return;
-    const deck = this.musicDecks[index];
-    const song = deck.song;
-    if (song === null || song !== this.desiredSong) return;
-    deck.gain.gain.setValueAtTime(0, this.context.currentTime);
+  private onMusicEnded(playback: SongPlayback): void {
+    if (this.activePlayback !== playback) return;
+    const song = playback.song;
+    this.activePlayback = null;
     this.song = null;
-    const [minimum, maximum] = STREAMED_MUSIC[song].silenceSeconds;
+    this.retirePlayback(playback, 0.05);
+    if (song !== this.desiredSong) return;
+    const [minimum, maximum] = musicCueFor(song).silenceSeconds;
     const delaySeconds = minimum + Math.random() * (maximum - minimum);
     this.scheduleMusicGap(song, delaySeconds);
   }
 
-  private scheduleMusicGap(song: StreamedSongName, delaySeconds: number): void {
+  private scheduleMusicGap(song: string, delaySeconds: number): void {
     this.clearMusicGap();
     this.song = null;
     this.desiredSong = song;
@@ -499,29 +511,24 @@ export class AudioBus implements GameAudio {
 
   private saveMusicPlayback(): void {
     const song = this.desiredSong;
-    if (song === null) return;
+    if (song === null || !(song in MUSIC_CUES)) return;
     let playback: PersistedMusicPlayback;
     if (this.musicGapTimer !== null || this.backgroundMusicGap !== null) {
       const backgroundGap = this.backgroundMusicGap;
       playback = {
-        version: 1,
+        version: 2,
         song,
         phase: 'gap',
-        positionSeconds: 0,
+        positionSteps: 0,
         gapRemainingSeconds: backgroundGap?.remainingSeconds
           ?? Math.max(0, ((this.musicGapEndsAtMs ?? performance.now()) - performance.now()) / 1000),
       };
     } else {
-      const deck = this.activeMusicDeck === null ? null : this.musicDecks?.[this.activeMusicDeck] ?? null;
-      playback = {
-        version: 1,
-        song,
-        phase: 'playing',
-        positionSeconds: deck?.song === song && Number.isFinite(deck.element.currentTime)
-          ? Math.max(0, deck.element.currentTime)
-          : 0,
-        gapRemainingSeconds: 0,
-      };
+      const active = this.activePlayback;
+      const paused = this.pausedMusic;
+      const positionSteps = paused?.song === song ? paused.positionSteps
+        : active?.song === song ? active.positionSteps() : 0;
+      playback = { version: 2, song, phase: 'playing', positionSteps, gapRemainingSeconds: 0 };
     }
     try { localStorage.setItem(MUSIC_PLAYBACK_KEY, JSON.stringify(playback)); } catch { /* Storage can be disabled. */ }
   }
@@ -581,11 +588,17 @@ export class AudioBus implements GameAudio {
       this.musicGapTimer = null;
       this.musicGapEndsAtMs = null;
     }
-    for (const deck of this.musicDecks ?? []) {
-      if (deck.element.paused) continue;
-      deck.element.pause();
-      this.musicPausedForBackground = true;
+    const active = this.activePlayback;
+    if (active !== null) {
+      // Tracker playback has no media element to pause: remember the position,
+      // silence the deck, and re-enter from the same step when visible again.
+      this.pausedMusic = { song: active.song, positionSteps: active.positionSteps() };
+      this.musicTransitionGeneration += 1;
+      this.activePlayback = null;
+      active.dispose();
     }
+    for (const playback of this.retiringPlaybacks) playback.dispose();
+    this.retiringPlaybacks.clear();
   }
 
   private async restoreForegroundPlayback(): Promise<void> {
@@ -602,10 +615,11 @@ export class AudioBus implements GameAudio {
       this.master.gain.setValueAtTime(0.0001, now);
       this.master.gain.linearRampToValueAtTime(this.settings.master, now + 1);
     }
+    const paused = this.pausedMusic;
     if (this.musicChangeDeferredForBackground && this.desiredSong !== null) {
       this.musicChangeDeferredForBackground = false;
       this.backgroundMusicGap = null;
-      this.musicPausedForBackground = false;
+      this.pausedMusic = null;
       await this.transitionToSong(this.desiredSong);
       return;
     }
@@ -615,16 +629,15 @@ export class AudioBus implements GameAudio {
       this.scheduleMusicGap(pausedGap.song, pausedGap.remainingSeconds);
       return;
     }
-    if (!this.musicPausedForBackground || !this.musicDecks || this.activeMusicDeck === null) return;
-    this.musicPausedForBackground = false;
-    const deck = this.musicDecks[this.activeMusicDeck];
-    const now = this.context.currentTime;
-    deck.gain.gain.cancelScheduledValues(now);
-    deck.gain.gain.setValueAtTime(0, now);
     try {
-      await deck.element.play();
-      deck.gain.gain.linearRampToValueAtTime(1, now + 1);
-    } catch { /* Browser autoplay policy will retry after the next unlock gesture. */ }
+      if (paused !== null) {
+        await this.transitionToSong(paused.song, paused.positionSteps, 1);
+      } else if (this.musicInitialized && this.desiredSong !== null && this.activePlayback === null
+        && this.musicGapTimer === null && !this.settings.musicInBackground) {
+        // A cue that was still loading when the tab was hidden was cancelled; start it now.
+        await this.transitionToSong(this.desiredSong, 0, 1);
+      }
+    } catch { /* A later unlock gesture retries playback. */ }
   }
 
   private setSoundBusGains(sfxGain: number): void {
