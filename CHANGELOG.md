@@ -2,6 +2,7 @@
 
 ## 0.24.0 — 2026-09-23
 
+- Add optional per-role traversal medium metadata (D6), with no runtime movement switch.
 - Add the versioned, validated tileset rule catalogue and deterministic mask/role interpreter. Existing cliff content stays unchanged.
 - Fence/hedge compatibility assets and frames are authored data; live Studio and game objects join by definition membership and `connectsTo` IDs/tags. Runtime content can replace join art without changing code.
 - Keep complete formatted catalogue definitions in the Tiles JSON editor instead of clipping them at 32 KB.

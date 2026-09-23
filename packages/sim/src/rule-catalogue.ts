@@ -3,16 +3,20 @@ import { ContentParseError } from './content/parse-contract.js';
 /** Authored rule schema. No content/bootstrap imports: safe at parser boundaries. */
 export const RULE_KINDS = ['raised', 'transition', 'shore', 'blob47', 'lane', 'patch', 'connect4'] as const;
 export type RuleKind = typeof RULE_KINDS[number];
+/** D6 authored traversal medium; capability checks remain a separate runtime lane. */
+export const RULE_MEDIA = ['land', 'shallow_water', 'deep_water', 'lava', 'shroom_water', 'void'] as const;
+export type RuleMedium = typeof RULE_MEDIA[number];
 export type RuleTransform = 0 | 1 | 2 | 3 | 'flipX';
 export interface RuleFrame {
   readonly assetId: string;
   readonly frame: number;
   readonly transform?: RuleTransform;
 }
-export type RuleRole = { readonly unavailable: string } | {
+export type RuleRole = { readonly unavailable: string; readonly medium?: RuleMedium } | {
   readonly frame: RuleFrame;
   readonly blocksMovement: boolean;
   readonly blocksLight: boolean;
+  readonly medium?: RuleMedium;
   readonly variants: readonly (RuleFrame & { readonly weight: number })[];
   readonly seasonalRemaps: Readonly<Record<string, RuleFrame>>;
 };
@@ -63,10 +67,10 @@ function frame(v: unknown, path: string, weighted = false): RuleFrame & { weight
 }
 function role(v: unknown, path: string): RuleRole {
   const r = record(v, path);
-  if ('unavailable' in r) { keys(r, ['unavailable'], path); return { unavailable: text(r.unavailable, `${path}.unavailable`) }; }
-  keys(r, ['frame', 'blocksMovement', 'blocksLight', 'variants', 'seasonalRemaps'], path);
+  if ('unavailable' in r) { keys(r, ['unavailable', 'medium'], path); return { unavailable: text(r.unavailable, `${path}.unavailable`), ...(r.medium === undefined ? {} : { medium: choice(r.medium, RULE_MEDIA, `${path}.medium`) }) }; }
+  keys(r, ['frame', 'blocksMovement', 'blocksLight', 'medium', 'variants', 'seasonalRemaps'], path);
   const seasons = record(r.seasonalRemaps, `${path}.seasonalRemaps`);
-  return { frame: frame(r.frame, `${path}.frame`), blocksMovement: bool(r.blocksMovement, `${path}.blocksMovement`), blocksLight: bool(r.blocksLight, `${path}.blocksLight`),
+  return { ...(r.medium === undefined ? {} : { medium: choice(r.medium, RULE_MEDIA, `${path}.medium`) }), frame: frame(r.frame, `${path}.frame`), blocksMovement: bool(r.blocksMovement, `${path}.blocksMovement`), blocksLight: bool(r.blocksLight, `${path}.blocksLight`),
     variants: list(r.variants, `${path}.variants`).map((v, i) => frame(v, `${path}.variants[${i}]`, true) as RuleFrame & { weight: number }),
     seasonalRemaps: Object.fromEntries(Object.entries(seasons).map(([key, v]) => [key, frame(v, `${path}.seasonalRemaps.${key}`)])) };
 }

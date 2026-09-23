@@ -78,3 +78,15 @@ PR #62 changes cliff output intentionally: integrate its reviewed mappings and
 refresh only affected expectations with the review evidence, never auto-accept
 all hashes. This groundwork does not regenerate the terrain guide or replace
 non-connect4 interpreters; those are subsequent P4 family migrations.
+
+## D6 traversal medium metadata
+
+Every role (including explicit unavailable artwork) may declare `medium` from
+`RULE_MEDIA`: `land`, `shallow_water`, `deep_water`, `lava`, `shroom_water`, `void`.
+`RuleMedium` is the exported string union. The field is optional: missing legacy
+values stay missing, and the parser never infers a medium from art or role names.
+Unknown or malformed values are rejected. This is authored metadata only;
+`resolveRuleFrame` and existing collision/light/traversal behavior are unchanged.
+The chunk-format lane uses the same names. A future capability-aware traversal
+resolver consumes the metadata; boats, water walking and hazard immunity are
+not implemented in this slice.
