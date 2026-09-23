@@ -5,9 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Reviewed blob47/fringe catalogue: 919 definitions, 616,383 runtime bytes.
-// +33,665 bytes from #73; retain the next-whole-KiB regression envelope.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 602 * 1024;
+// Combined wave2 content: 920 definitions, 618,309 runtime bytes.
+// Retain the measured next-whole-KiB regression envelope.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 604 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.2 — second-round integration rehearsal
+
+- Combine sparse music, scoped multi-space reads, authored progression, reviewed lifecycle hooks and blob47 rules without activating later runtime lanes.
+- Require world-operation scope on new spatial reads; map progression to loot/progression authoring scope.
+- Regenerate combined schemas and bindings; pin the historical tuple snapshot and measure the 604 KiB content budget.
+- See [rehearsal evidence](docs/wave2-rehearsal.md). Candidate only; no deployment.
+
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue
