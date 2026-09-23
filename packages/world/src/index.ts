@@ -1,4 +1,6 @@
 import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
+import { planObjectStateSettlement } from './content/object-state-runtime.js';
+import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
 import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
@@ -421,7 +423,7 @@ import {
 } from '@orchard/sim';
 import { runtimeResourceObstacle, runtimeSpaceSurfaceDefinition, runtimeSpaceSurfaceObstacle } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, firstHarvestOfDay, runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim';
-import { authoredHookApproved, authoredHookRegistrations, objectTransitionHookRegistrations, objectStateEvents, type AuthoredHookAuthority } from '@orchard/sim';
+import { authoredHookApproved, authoredHookRegistrations, type AuthoredHookAuthority } from '@orchard/sim';
 import { AUTHORED_HOOK_BUNDLE_SHA256, AUTHORED_LIFECYCLE_HOOKS } from '@orchard/lifecycle-authoring/hooks';
 import { AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS } from '@orchard/lifecycle-authoring/generated';
 import { Identity } from 'spacetimedb';
@@ -2970,7 +2972,21 @@ const entity_timer = table(
   },
 );
 
+const object_lifecycle_state = table({ name: 'object_lifecycle_state', public: false }, {
+  placeableId: t.u64().primaryKey(), definitionId: t.string(), lifecycleJson: t.string(), settledAtTick: t.u64(),
+});
+
+const object_environment_epoch = table({ name: 'object_environment_epoch', public: false }, {
+  atTick: t.u64().primaryKey(), calendarOffset: t.i64(), weatherMode: t.string(),
+});
+const object_environment_head = table({ name: 'object_environment_head', public: false }, {
+  id: t.u8().primaryKey(), atTick: t.u64(), calendarOffset: t.i64(), weatherMode: t.string(),
+});
+
 const spacetimedb = schema({
+  object_environment_epoch,
+  object_environment_head,
+  object_lifecycle_state,
   player_public,
   character_profile,
   player_appearance,
@@ -10027,11 +10043,114 @@ function currentWorldBehaviourHandlers(ctx: WorldReducerContext): BehaviourHandl
   return objectGraphRegistryForContent(
     createHandlerRegistry([...handlers.registrations, ...frameActionHandlerRegistrations(content.registry.frames.values()),
       ...authoredHookRegistrations(AUTHORED_LIFECYCLE_HOOKS, authoredHookAuthority(ctx)),
-      ...objectTransitionHookRegistrations(content.registry.objects.values(), AUTHORED_LIFECYCLE_HOOKS,
-        authoredHookAuthority(ctx), head?.engineVersion ?? CONTENT_ENGINE_VERSION)]),
+      ...persistentObjectStateHandlers(ctx)]),
     content,
     head?.engineVersion ?? CONTENT_ENGINE_VERSION,
   );
+}
+
+/** Journal policy changes, not every calendar tick. Old epochs remain durable
+ * until every object has advanced beyond them; no lossy retention is applied. */
+function recordObjectEnvironment(ctx: WorldReducerContext): ObjectEnvironmentEpoch {
+  const now = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  const weather = ctx.db.world_environment.id.find(0)?.weatherMode ?? 'auto';
+  const current = { atTick: now, calendarOffset: cropCalendarOffset(ctx), weatherMode: isWeatherMode(weather) ? weather : 'auto' as const };
+  const head = ctx.db.object_environment_head.id.find(0);
+  if (head !== null && head.calendarOffset === current.calendarOffset && head.weatherMode === current.weatherMode) return {
+    atTick: head.atTick, calendarOffset: head.calendarOffset, weatherMode: current.weatherMode,
+  };
+  if (ctx.db.object_environment_epoch.atTick.find(now) === null) ctx.db.object_environment_epoch.insert(current);
+  else ctx.db.object_environment_epoch.atTick.update(current);
+  if (head === null) ctx.db.object_environment_head.insert({ id: 0, ...current });
+  else ctx.db.object_environment_head.id.update({ id: 0, ...current });
+  return current;
+}
+
+function objectGrowthTimeline(ctx: WorldReducerContext, definition: import('@orchard/sim').ObjectContentDefinition,
+  from: bigint | undefined, now: bigint, state: Readonly<Record<string, import('@orchard/sim').StateValue>>, row: WorldPlaceableRow) {
+  if (from !== undefined && from > now) throw new SenderError('object_lifecycle_future_tick');
+  if (definition.components.growth === undefined) return {};
+  const current = recordObjectEnvironment(ctx);
+  const document = row.spaceId === TOPSIDE_SPACE_ID && definition.components.growth.modifiers?.preferredBiomes !== undefined
+    ? compiledLiveIslandRuntime(ctx)?.document : undefined;
+  const local = { watered: state.watered === true, fertilised: state.fertilised === true,
+    ...(document === undefined ? {} : { biome: resolvedMapBiomeAt(document, row.tileX, row.tileY) }) };
+  const epochs = from === undefined ? [current] : [...ctx.db.object_environment_epoch.iter()].map(epoch => {
+    if (!isWeatherMode(epoch.weatherMode)) throw new SenderError('object_environment_invalid');
+    return { ...epoch, weatherMode: epoch.weatherMode };
+  });
+  return { intervals: objectEnvironmentIntervals(epochs, from ?? now, now, local),
+    environment: { ...local, season: calendarAtTick(Number(now + current.calendarOffset)).season,
+      raining: rainForWeatherMode(current.weatherMode, now + current.calendarOffset) } };
+}
+
+/** Only the authority owns lifecycle anchors. Existing subscribed stateJson
+ * carries the settled visual state; no client can supply clock anchors. */
+function settlePlaceableObjectState(ctx: WorldReducerContext, id: bigint,
+  view?: ReadOnlySnapshot, event?: LifecycleEvent): readonly Effect[] {
+  const row = ctx.db.world_placeable.id.find(id);
+  if (row === null) return [];
+  const resolved = resolvePlaceableObject(contentRegistry(ctx), row);
+  const definition = resolved.definition;
+  if (definition === null || !resolved.stateJsonValid || (definition.components.transitions?.length ?? 0) === 0) return [];
+  const previous = ctx.db.object_lifecycle_state.placeableId.find(id);
+  const now = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  const plan = planObjectStateSettlement({ definition,
+    stored: previous?.definitionId === definition.id ? previous.lifecycleJson : null,
+    view: view ?? timerBehaviourSnapshot(ctx, behaviourObjectSnapshot(ctx, row)), now,
+    ...objectGrowthTimeline(ctx, definition, previous?.settledAtTick, now, resolved.state, row),
+    ...(event === undefined ? {} : { event: event.type as ExternalStateTransitionEvent, lifecycleEvent: event }),
+    callbacks: AUTHORED_LIFECYCLE_HOOKS, authority: authoredHookAuthority(ctx),
+    engineVersion: ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID)?.engineVersion ?? CONTENT_ENGINE_VERSION });
+  const stored = { placeableId: id, definitionId: definition.id, lifecycleJson: plan.stored, settledAtTick: plan.throughTick };
+  if (previous === null) ctx.db.object_lifecycle_state.insert(stored);
+  else if (previous.lifecycleJson !== stored.lifecycleJson || previous.definitionId !== stored.definitionId || previous.settledAtTick !== stored.settledAtTick) ctx.db.object_lifecycle_state.placeableId.update(stored);
+  const statePlan = planPlaceableStateEffect(contentRegistry(ctx), row, { setState: plan.state.values });
+  if (statePlan.stateJson !== row.stateJson || statePlan.definitionId !== row.definitionId) {
+    ctx.db.world_placeable.id.update({ ...row, ...statePlan });
+  }
+  return plan.effects;
+}
+
+function raisePlacedObjectLifecycle(ctx: WorldReducerContext, row: WorldPlaceableRow): void {
+  for (const type of ['spawn', 'place'] as const) {
+    const target = resolvedBehaviourTarget(ctx, 'placeable', row.id);
+    if (target === null || target.ref.entityType !== 'object') return;
+    const event: LifecycleEvent = type === 'spawn' ? { type, subject: target.ref }
+      : { type, actor: { entityType: 'player', id: ctx.sender.toHexString() }, subject: target.ref,
+        tile: { spaceId: row.spaceId.toString(), x: row.tileX, y: row.tileY } };
+    const result = raiseEvent(currentWorldBehaviourHandlers(ctx), event, authorityBehaviourSnapshot(ctx, target.snapshot));
+    if (isBlockedHandlerResult(result)) throw new SenderError(result.blocked);
+    applyWorldBehaviourEffects(ctx, result.effects, target, true);
+  }
+}
+
+function persistentObjectStateHandlers(ctx: WorldReducerContext): readonly AnyHandlerRegistration[] {
+  return (['use', 'secondary', 'useWith', 'place', 'walkOnto', 'break', 'timer', 'spawn', 'despawn'] as const).map(eventType => ({
+    id: `authority.object-state.${eventType}`, source: 'target', match: { kind: 'any' }, priority: 1200, eventType,
+    handler: (event: LifecycleEvent, view: ReadOnlySnapshot) => {
+      const target = view.target;
+      if (target === undefined || !('entityType' in target) || target.entityType !== 'object'
+        || !/^[0-9]+$/u.test(target.id)) return effectsResult([], { continue: true });
+      const row = ctx.db.world_placeable.id.find(BigInt(target.id));
+      if (row === null || resolvePlaceableObject(contentRegistry(ctx), row).definitionId !== target.definitionId) return effectsResult([], { continue: true });
+      return effectsResult(settlePlaceableObjectState(ctx, row.id, view, event), { continue: true });
+    },
+  } as AnyHandlerRegistration));
+}
+
+function settleActiveObjectRegion(ctx: WorldReducerContext, player: PlayerPositionRow): void {
+  for (let x = player.chunkX - 1; x <= player.chunkX + 1; x += 1) {
+    for (let y = player.chunkY - 1; y <= player.chunkY + 1; y += 1) {
+      for (const row of ctx.db.world_placeable.by_chunk.filter([player.spaceId, x, y])) {
+        const definition = resolvePlaceableObject(contentRegistry(ctx), row).definition;
+        if (definition === null || (definition.components.transitions?.length ?? 0) === 0) continue;
+        if ([...ctx.db.entity_timer.by_entity.filter(row.id)].some(timer => timer.timerId === 'authority.object-state.settle')) continue;
+        ctx.db.entity_timer.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 1n),
+          entityId: row.id, timerId: 'authority.object-state.settle', expectedTick: ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n });
+      }
+    }
+  }
 }
 
 function behaviourItemSnapshot(ctx: WorldReducerContext, row: InventorySlotRow): BehaviourItemSnapshot {
@@ -10406,6 +10525,7 @@ function assertBehaviourTargetReach(
       }
       const cells = runtimeObjectFootprintTiles(contentRegistry(ctx), {
         kind: target.snapshot.definitionId.slice('object:'.length), definitionId: target.snapshot.definitionId,
+        stateJson: JSON.stringify(target.snapshot.state),
         tileX: target.snapshot.tile.x, tileY: target.snapshot.tile.y,
       });
       if (!cells.some(tile => placeableTargetMatchesFacingTile({
@@ -12305,15 +12425,27 @@ function raisePlaceableSlotChangedEvent(
  * interactions. Non-sender/system mutations retain the legacy quest authority
  * path because their immutable actor snapshot is not available in this reducer. */
 function raisePlaceableStateEvents(ctx: WorldReducerContext, before: WorldPlaceableRow, after: WorldPlaceableRow, actorIsSender: boolean): void {
+  const definition = resolvePlaceableObject(contentRegistry(ctx), before).definition;
+  if (definition === null) return;
   const from = behaviourObjectSnapshot(ctx, before);
-  const to = behaviourObjectSnapshot(ctx, after);
+  const to = resolvePlaceableObject(contentRegistry(ctx), after);
+  const mutation = Object.fromEntries(Object.keys(definition.components.states ?? {}).map(key => [key, to.state[key]!]));
+  const previous = ctx.db.object_lifecycle_state.placeableId.find(after.id);
+  const plan = planObjectStateSettlement({ definition, mutation,
+    stored: previous?.definitionId === definition.id ? previous.lifecycleJson : null,
+    view: actorIsSender ? authorityBehaviourSnapshot(ctx, from) : timerBehaviourSnapshot(ctx, from),
+    now: ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+    ...objectGrowthTimeline(ctx, definition, previous?.settledAtTick,
+      ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n, from.state, before),
+    callbacks: AUTHORED_LIFECYCLE_HOOKS, authority: authoredHookAuthority(ctx),
+    engineVersion: ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID)?.engineVersion ?? CONTENT_ENGINE_VERSION });
+  const stored = { placeableId: after.id, definitionId: definition.id, lifecycleJson: plan.stored, settledAtTick: plan.throughTick };
+  if (previous === null) ctx.db.object_lifecycle_state.insert(stored);
+  else ctx.db.object_lifecycle_state.placeableId.update(stored);
+  ctx.db.world_placeable.id.update({ ...after, ...planPlaceableStateEffect(contentRegistry(ctx), after, { setState: plan.state.values }) });
   const target = resolvedBehaviourTarget(ctx, 'placeable', after.id);
   if (target === null) throw new SenderError('behaviour_target_missing');
-  for (const event of objectStateEvents({ entityType: 'object', id: to.id, definitionId: to.definitionId }, from.state, to.state)) {
-    const result = raiseEvent(currentWorldBehaviourHandlers(ctx), event, actorIsSender ? authorityBehaviourSnapshot(ctx, to) : timerBehaviourSnapshot(ctx, to));
-    if (isBlockedHandlerResult(result)) throw new SenderError(result.blocked);
-    applyWorldBehaviourEffects(ctx, result.effects, target, actorIsSender);
-  }
+  applyWorldBehaviourEffects(ctx, plan.effects, target, actorIsSender);
 }
 
 function raiseSenderBehaviourEvent(ctx: WorldReducerContext, event: LifecycleEvent): void {
@@ -12947,7 +13079,7 @@ function commitLiveMapSnapshot(
     const active=new Set(mapStreetlampPlans(canonical).map(plan=>plan.id));
     // Map publication is infrequent; only inspect permanent authority-owned rows.
     for(const lamp of ctx.db.world_placeable.by_placer.filter(ctx.databaseIdentity))
-      if(lamp.definitionId===STREETLAMP_DEFINITION&&!active.has(lamp.id))ctx.db.world_placeable.id.delete(lamp.id);
+      if(lamp.definitionId===STREETLAMP_DEFINITION&&!active.has(lamp.id)){ ctx.db.object_lifecycle_state.placeableId.delete(lamp.id); ctx.db.world_placeable.id.delete(lamp.id); }
     settleTownStreetlamps(ctx,ctx.db.world_environment.id.find(0)?.calendarTick??0n);
   }
   ctx.db.live_map_revision.insert({
@@ -15823,6 +15955,7 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
       entity.slots.forEach((stack, slot) => writeAdminContainerSlot(ctx, { ...entity, entityId: inserted.id.toString() }, slot, stack));
       ctx.db.world_placeable_build.insert({ placeableId: inserted.id, spaceId, placedBy: owner, placedAtTick: authorityTick });
       if (genericChest(ctx, inserted)) syncGenericChestLegacyMirror(ctx, inserted);
+      raisePlacedObjectLifecycle(ctx, inserted);
     }
     return;
   }
@@ -15864,7 +15997,7 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
       for (const slot of ctx.db.world_placeable_slot.by_placeable.filter(id)) ctx.db.world_placeable_slot.id.delete(slot.id);
       if (ctx.db.world_placeable_damage.placeableId.find(id) !== null) ctx.db.world_placeable_damage.placeableId.delete(id);
       if (ctx.db.world_placeable_build.placeableId.find(id) !== null) ctx.db.world_placeable_build.placeableId.delete(id);
-      ctx.db.world_placeable.id.delete(id);
+      { ctx.db.object_lifecycle_state.placeableId.delete(id); ctx.db.world_placeable.id.delete(id); }
     }
     return;
   }
@@ -15912,6 +16045,7 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
       facing: typeof after.state['facing'] === 'string' ? after.state['facing'] : row.facing,
       stateJson: JSON.stringify(after.state) };
     ctx.db.world_placeable.id.update(updated);
+    raisePlaceableStateEvents(ctx, row, updated, true);
     if (genericChest(ctx, updated)) syncGenericChestLegacyMirror(ctx, updated);
   }
   else if (mutation.operation === 'repair_entity') {
@@ -16953,6 +17087,12 @@ export const entityTimerFire = spacetimedb.reducer(
   { scheduledMessage: entity_timer.rowType },
   (ctx, { scheduledMessage }) => {
     if (!ctx.sender.isEqual(ctx.databaseIdentity)) throw new SenderError('scheduled_reducer_only');
+    if (scheduledMessage.timerId === 'authority.object-state.settle') {
+      const effects = settlePlaceableObjectState(ctx, scheduledMessage.entityId);
+      const target = resolvedBehaviourTarget(ctx, 'placeable', scheduledMessage.entityId);
+      if (target !== null) applyWorldBehaviourEffects(ctx, effects, target);
+      return;
+    }
     entityTimerFireBehaviour(ctx, scheduledMessage, entityTimerAuthority);
   },
 );
@@ -18797,7 +18937,8 @@ function insertWorldPlaceable(
     });
   }
   if (isChest) syncGenericChestLegacyMirror(ctx, placed);
-  return placed;
+  raisePlacedObjectLifecycle(ctx, placed);
+  return ctx.db.world_placeable.id.find(placed.id) ?? placed;
 }
 
 function removePlayerCarriedItem(
@@ -19356,7 +19497,7 @@ export const pickupHearthFurniture = spacetimedb.reducer({ placeableId: t.u64() 
   for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
   if (ctx.db.world_placeable_build.placeableId.find(row.id) !== null) ctx.db.world_placeable_build.placeableId.delete(row.id);
   if (ctx.db.world_placeable_damage.placeableId.find(row.id) !== null) ctx.db.world_placeable_damage.placeableId.delete(row.id);
-  ctx.db.world_placeable.id.delete(row.id);
+  { ctx.db.object_lifecycle_state.placeableId.delete(row.id); ctx.db.world_placeable.id.delete(row.id); }
   updateEquippedForIdentity(ctx, ctx.sender);
   refreshResidenceFurnishingQuests(ctx,position.spaceId);
 });
@@ -19535,7 +19676,7 @@ export const removeHomesteadBuildable = spacetimedb.reducer(
     if (ctx.db.world_placeable_damage.placeableId.find(placeable.id) !== null) {
       ctx.db.world_placeable_damage.placeableId.delete(placeable.id);
     }
-    ctx.db.world_placeable.id.delete(placeable.id);
+    { ctx.db.object_lifecycle_state.placeableId.delete(placeable.id); ctx.db.world_placeable.id.delete(placeable.id); }
     for (const stack of refund) {
       if (!insertPlayerCarriedItem(ctx, stack.itemKind, stack.quantity)) {
         stashOverflow(ctx, ctx.sender, stack);
@@ -20667,7 +20808,7 @@ function deletePlaceableChestRows(ctx: WorldReducerContext, chest: WorldPlaceabl
     ctx.db.world_placeable_build.placeableId.delete(chest.id);
   }
   deleteGenericChestLegacyMirror(ctx, chest.id);
-  ctx.db.world_placeable.id.delete(chest.id);
+  { ctx.db.object_lifecycle_state.placeableId.delete(chest.id); ctx.db.world_placeable.id.delete(chest.id); }
 }
 
 function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId: bigint, swing?: ToolSwingContact): void {
@@ -20955,7 +21096,7 @@ function applyHarvestPlaceableLifecycle(
       ctx.db.world_placeable_build.placeableId.delete(fire.id);
     }
     if (damage !== null) ctx.db.world_placeable_damage.placeableId.delete(fire.id);
-    ctx.db.world_placeable.id.delete(fire.id);
+    { ctx.db.object_lifecycle_state.placeableId.delete(fire.id); ctx.db.world_placeable.id.delete(fire.id); }
     recordPlayerStatistic(ctx, ctx.sender, 'placeables_removed', 1n, clock.authorityTick, fire.kind);
 }
 
@@ -24540,6 +24681,7 @@ export const stepWorld = spacetimedb.reducer(
     if (!ctx.sender.isEqual(ctx.databaseIdentity)) throw new SenderError('scheduled_reducer_only');
     const clock = ctx.db.world_clock.id.find(0);
     if (clock === null) return;
+    recordObjectEnvironment(ctx);
     const tickLifecycleHandlers = currentWorldBehaviourHandlers(ctx);
     const tickRegistrySnapshot = behaviourRegistrySnapshot(ctx);
     const telemetryTimingSample = (clock.authorityTick + 1n) % TICK_TELEMETRY_LOG_TICKS === 0n;
@@ -24696,6 +24838,10 @@ export const stepWorld = spacetimedb.reducer(
       statisticSessions.set(presence.identity.toHexString(), presence.identity);
     }
     for (const identity of statisticSessions.values()) {
+      if (authorityTick % BigInt(AUTHORITY_HZ) === 0n) {
+        const position = ctx.db.player_position.identity.find(identity);
+        if (position !== null) settleActiveObjectRegion(ctx, position);
+      }
       flushPlayerStatisticTime(ctx, identity, authorityTick, false);
       // A one-hertz indexed re-derivation closes gaps from legacy inventory
       // reducer paths while keeping quest truth independent of client events.

@@ -211,3 +211,6 @@ export * from './content/world-rules-definition.js';
 export * from './content/runtime-traversal.js';
 export * from './map-traversal.js';
 export * from './traversal-hazards.js';
+export { encodeObjectLifecycle, restoreObjectLifecycle } from './object-lifecycle-storage.js';
+export { isNaturalObjectProjection, NATURAL_OBJECT_ASSET_ALIASES, naturalObjectId, resourceObjectDefinition, cropObjectDefinition, naturalObjectProjections } from './content/natural-object.js';
+export { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, type ObjectEnvironmentInterval } from './object-lifecycle-environment.js';

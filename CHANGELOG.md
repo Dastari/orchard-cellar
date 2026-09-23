@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.26.0 — 2026-09-23
+
+- Persist authored object state and growth anchors with bounded lazy catch-up, historical weather/calendar epochs and isolated scheduled transactions. Route spawn/place, interaction and explicit state mutations through approved lifecycle callbacks and transition graphs.
+- Resolve sprite, footprint, light, shadow, global-light reception and interaction availability from ordered state overrides. Replace map light asset lists and tree-prefix shadow inference with authored object bindings.
+- Add dual-read resource/crop object projections while preserving legacy row identities, harvest/farming authority and stage artwork. Keep all schema changes additive; no deployment or destructive migration.
+- See [object runtime specification and handoff](docs/object-state-runtime.md) for validation, integration and migration boundaries.
 ## 0.26.0 — 2026-09-23 — D6 runtime consumers and percentage hazards
 
 - Wire shared medium admission to prediction, authority movement, NPC AI, projectiles and gameplay placement while preserving independent geometry and explicit legacy/shadow modes. The authored bootstrap policy remains shadow.

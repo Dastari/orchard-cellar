@@ -50,6 +50,7 @@ it('dismantles the workbench after three axe hits and drops four planks exactly 
     player_position: { identity: { find: () => position } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => ({ authorityTick: 10n }) } },
+    object_lifecycle_state: { placeableId: { delete: vi.fn() } },
     world_placeable: { id: { find: () => present ? bench : null, delete: () => { present = false; } } },
     inventory_slot: { id: { find: () => ({ itemKind: 'axe' }) } },
     player_cooking_job: { by_target: { filter: () => [] } },
@@ -74,6 +75,7 @@ it('dismantles the workbench after three axe hits and drops four planks exactly 
   expect(present).toBe(true);
   harvest(ctx, 1n, true, { prepaid: true });
   expect(present).toBe(false);
+  expect(ctx.db.object_lifecycle_state.placeableId.delete).toHaveBeenCalledWith(1n);
   expect(dropped).toHaveBeenCalledOnce();
   expect(dropped.mock.calls[0]?.[1]).toMatchObject({ itemKind: 'plank', quantity: 4 });
   expect(() => harvest(ctx, 1n, true, { prepaid: true })).toThrow('target_not_ready');
