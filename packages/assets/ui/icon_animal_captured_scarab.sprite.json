@@ -1,0 +1,50 @@
+{
+  "name": "icon_animal_captured_scarab",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...2222222222...",
+        "...4S44S44S42...",
+        "...twwwwwwwwt...",
+        "..txxxffxxxxvu..",
+        "..txxffggffxvu..",
+        "..txfgihghgfvu..",
+        "..txxfihghfxvu..",
+        "..twfghhgggfvu..",
+        "..twxfggggfxvu..",
+        "..twffxxxxffvu..",
+        "..twwwwwwwwvvu..",
+        "...SSSSSSSSSS...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "collection.specimen"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "approved": true,
+  "lintAllow": [
+    "sparkle"
+  ]
+}

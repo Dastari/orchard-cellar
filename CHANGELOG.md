@@ -1,5 +1,11 @@
 # Changelog
 
+## Collection and apiary inventory art — assets 0.19.3 — 2026-09-23
+
+- Add eleven native-palette inventory icons from approved doc 63: six live specimens in ventilated jars, capture net, empty specimen jar, apiary frame, honeycomb and beeswax.
+- Record native-size/neighbor review and integration mapping in [the art review](docs/food-alchemy-collection-art/README.md). No gameplay data, world artwork or publication changes.
+- Candidate version coordinated after food/alchemy P0 0.19.1 and core art 0.19.2; preserve the higher compatible asset version when integrating parallel PRs.
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue
