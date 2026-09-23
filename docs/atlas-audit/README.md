@@ -1,4 +1,4 @@
-# Atlas and Studio audit — 0.23.1 / Studio 0.13.1
+# Atlas and Studio audit — 0.23.2 / Studio 0.13.2
 
 Start with the [interactive terrain guide](terrain/index.html): actual source
 pixels, assembled examples and neighbour masks, with a searchable source and
@@ -7,7 +7,27 @@ shows complete pixel-sequence matches; [inventory findings](inventory/findings.m
 explain which need semantic review. [Live-map findings](live-map.md) cover the
 reported village lamp overlap and other authored duplicates.
 
-## Corrections delivered
+## Native assembly corrections
+
+The [independent family review](independent-cliff-review.md) records the incorrect
+crests, missing courses/corners and mismatched fills found after the first guide.
+Outdoor examples now use their own substrate, correct desert/shroomland/volcanic
+course banks, and the shared bounded Smart Placement repair for diagonal necks.
+Amber cells expose additions. Stone brushes select the matching grass palette;
+explicit authored cliff surfaces use their native cap artwork.
+
+Unverified interior assembly is withheld rather than rendered with stairs or an
+invented rock fill. Six coloured shroomland grass/tall-grass sheets and associated
+material joins remain identified source/import gaps. Raw masks describe existing
+resolver behavior and explicitly mark unsupported multi-inset designs.
+
+Live tileset roles are content-authoritative. Corrected bootstrap role definitions
+require an approved content release before the live game/Studio use those roles;
+a static editor deployment alone does not publish that data.
+The [correction handoff](cliff-corrections-handoff.md) records the release boundary,
+remaining source gaps and [five-definition role comparison](cliff-role-changes.json).
+
+## Earlier corrections delivered
 
 - Palette artwork updates as it loads even while the placement-mode menu remains open.
 

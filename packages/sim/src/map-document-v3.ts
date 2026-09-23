@@ -1,6 +1,6 @@
 import {parseMapEntityStates,type MapEntityStateEdit} from './map-entity-state.js';
 import {parseObjectPropertyState,type ObjectPropertyState} from './object-presentation.js';
-import {surroundMapMaterial} from './map-material-surround.js';
+import {surroundMapMaterial, surroundMapMaterialGeometry} from './map-material-surround.js';
 import {parseMapResourcePlacements,type MapResourcePlacement} from './map-resource-placement.js';
 export type {MapResourcePlacement} from './map-resource-placement.js';
 import { parseCombatRegions, type CombatRegion } from './combat-regions.js';
@@ -616,6 +616,7 @@ export interface AppliedMapDocumentV3Edit {
   readonly document: MapDocumentV3;
   readonly changed: readonly MapPoint[];
   readonly fullRebuild?: boolean;
+  readonly rejected?: 'terrain_inset_conflict';
 }
 
 function mergeTerrainEdit(document: MapDocumentV3, edit: AppliedMapEdit): MapDocumentV3 {
@@ -664,6 +665,7 @@ export function applyMapDocumentV3Edit(
   if (command.kind === 'terrain') {
     const terrain = terrainDocumentForMapV3(document);
     const edit = applyMapEdit(terrain, command.command);
+    if(edit.rejected)return {document,changed:[],rejected:edit.rejected};
     let next = edit.document === terrain ? document : mergeTerrainEdit(document, edit);
     const changed = new Map(edit.changed.map(point => [mapCellKey(point.tileX, point.tileY), point]));
     if (command.biome !== undefined && command.command.kind === 'paint') {
@@ -683,7 +685,13 @@ export function applyMapDocumentV3Edit(
     }
     if (command.automaticSurround === true && command.command.kind === 'paint'
       && command.command.patch.surface !== undefined) {
-      const updates = surroundMapMaterial(next, command.command.points);
+      const geometry = surroundMapMaterialGeometry(next,command.command.points);
+      if(geometry===null)return {document,changed:[],rejected:'terrain_inset_conflict'};
+      const geometryPoints=Object.keys(geometry).map(key=>{const [tileX,tileY]=key.split(',').map(Number);return {tileX:tileX!,tileY:tileY!};});
+      const updates = {...geometry,...surroundMapMaterial({...next,cells:{...next.cells,...geometry}}, [...command.command.points,...geometryPoints])};
+      const halo=new Set<string>();
+      for(const {tileX,tileY} of command.command.points)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)halo.add(mapCellKey(tileX+dx,tileY+dy));
+      for(const key of Object.keys(updates))if(!halo.has(key))delete updates[key];
       const cells = {...next.cells, ...updates};
       for (const [key, cell] of Object.entries(updates)) {
         if (JSON.stringify(cell) === JSON.stringify(next.cells[key])) continue;

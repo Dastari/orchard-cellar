@@ -32,13 +32,13 @@ The source ledger selects all Cute Fantasy index entries under `/Tiles/`, classi
 
 All 256 neighbour masks are enumerated per rule family using the actual exported resolver. JSON records the bit predicate, frame/layer IDs, full cliff bank definitions, and missing roles. T/cross/diagonal cases may map to repeated native frames through the current precedence rules. Coverage is an audit of implementation, not a claim that every topology is visually supported.
 
-Raised examples show minimum 2×2, rectangle, concave, diagonal, T and cross formations for each available cliff family. They expose native rim, face and foot/shadow courses in logical coordinates; world projection/collision is not simulated. Local authoring assistance may update a placed cell and neighbours; historical invalid maps remain allowed.
+Outdoor examples show minimum 2×2, rectangle, concave, corrected diagonal, T and cross formations with matching native substrate. Tile plans expose the edited input and amber Smart additions. Multi-inset raw masks are not advertised as valid geometry. Unverified interior assemblies are withheld with precise missing-role explanations; native source banks remain visible. Local authoring assistance may update a placed cell and neighbours; historical invalid maps remain allowed.
 
 ## Explicit gaps
 
 - Initial audit found tile_cf_interior_wall imported a transparent gutter at (48,0), and tile_cf_desert_grass was all transparent. The audit corrected these stable IDs with native crops; the contact sheets below show the corrected imports. This historical finding must not be mistaken for an intentional empty joining state.
 - Snow cliff family is explicitly reserved: checked Christmas source has no cliff sheet. Ground overlays are not substitute cliff faces.
-- Shroomlands cliff has no primary inset mapping; its salmon ground quartet is not inverse cliff art. The separate ledge bank has its own roles.
+- Shroomlands primary inverse corners use source frames 3, 4, 12 and 13. Its separate salmon ground quartet is path art, not inverse cliff art; the compact ledge bank also has separate roles.
 - Basic cliff has no authored vertical wall course. No synthetic face or shadow is fabricated.
 - No cliff family supports a dedicated stair painter contract; ladder artwork is not traversable ladder authority. Registered ramps support north/up only, minimum two lanes.
 - Pavement source includes kerbs/rings/stairs as well as fill. Coordinate variants do not prove complete automatic joining roles. Paving-grass mask is a grass fringe only.
@@ -46,4 +46,6 @@ Raised examples show minimum 2×2, rectangle, concave, diagonal, T and cross for
 - Source cells without declared regions remain unresolved even if their sheet has imports. Some transformed/imported frames intentionally lack a direct source rectangle; consult full inventory pixel comparisons.
 - Source table includes indexed terrain sheets and every registered tile source within the Cute Fantasy index. Other source formats/library packs are accounted for by the complete inventory, not silently claimed by this terrain guide.
 - Family waterfallAssetId is source availability, not proof of all animation/course mappings. Only the core waterfall runtime lane resolver is exercised here; biome sheets retain unknown roles where absent.
-- Mask sheets are local rules. Formation images expose logical courses and native alpha shadows before world elevation projection; they are not screenshots or a certification of all map geometry.
+- Smart formations are local native cap/wall/foot assemblies, with family-specific substrate and repaired diagonal necks. Raw multi-inset masks are explicitly unsupported placement designs; old maps and Exact Placement remain legal.
+- Volcanic interior legacy primary frames are staircase art; a complete inverse wall bank is unverified. Its assembled preview is withheld. Cave/dungeon interiors also lack a verified opaque rock-mass fill; no generic green/brown block substitutes for that missing contract.
+- Shroomland ground patches and path transitions are visible in the source sheets, but are not yet registered as complete semantic material families. Cliff source correctness does not establish those missing joining rules.

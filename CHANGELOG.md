@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.2 — 2026-09-22
+
+- Correct desert, shroomland and volcanic cliff courses; restore native shroomland inverse corners and per-family cap/floor references (sim 0.21.1).
+- Studio 0.13.2 repairs conflicting diagonal insets only around Smart Placement strokes; Exact Placement and existing maps remain valid. Stone cliff brushes select matching grass 1–4.
+- Engine 0.20.1 renders explicitly authored desert/shroomland cap materials from the selected native family.
+- Regenerate independently reviewed native examples with corrected diagonals, matching grass/desert/volcanic ground, cyan oasis water, and explicit withheld interior assemblies where source roles remain unverified.
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.
