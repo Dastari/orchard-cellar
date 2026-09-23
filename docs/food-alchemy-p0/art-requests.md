@@ -69,3 +69,7 @@ Astra must deliver alchemy bench, copper still, kitchen cauldron, oven, varietal
 All bespoke icons: 16×16, anchor (8,15), transparent, closed Orchard palette, no labels or glyphs; warm top-left lighting, readable at 1× and reviewed at 8×. Existing sources are reference-only for the missing set. No copied vendor PNGs or generated atlases in Git.
 
 Handoff requested from GoldCondor on Agent Mail (messages 400/408); current art owner pending. P0 native intake and missing-art completion are separate gates.
+
+## Located correction candidates (not imported in PR90)
+
+The full Farming sheet review locates a milk flask at vendor #168 and an egg at #169. The plan accidentally assigned #167 to milk (orange liquid) and #168 to egg (milk flask). Use the committed premium index to resolve these exact crops, render them beside the intended items, and update the plan and import manifest together in the correction PR. This is a concrete proposed correction, not permission to silently remap the already-published plan. Other held silhouettes still need bespoke art or a better source match.
