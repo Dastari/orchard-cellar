@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { activeSurvivalLandmarks, bootstrapContentRegistry, createLiveIslandMapDocument, LIVE_ISLAND_MAP_ID, serializeMapDocumentV3, TOPSIDE_SPACE_ID } from '@orchard/sim';
-import { canonicalChunkJson, decodeWorldChunk, worldChunkHash } from '@orchard/sim/world-chunk';
+import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
+import { canonicalChunkJson, worldChunkHash } from '@orchard/sim/world-chunk';
 import { captureWorldChunkSnapshot, materializeWorldChunks, verifyWorldChunkParity } from './materialize-world-chunks.js';
 
 describe('static island materialization golden parity', () => {
@@ -14,9 +15,15 @@ describe('static island materialization golden parity', () => {
     const snapshot = captureWorldChunkSnapshot(row, registry);
     expect(snapshot.terrain.cellParts?.get(400 * snapshot.terrain.width + 400)).toEqual(parts);
     const result = materializeWorldChunks(snapshot, row, registry);
-    verifyWorldChunkParity(snapshot, result);
-    const chunk = result.blobs.map(bytes => decodeWorldChunk(bytes)).find(chunk => chunk.cx === 6 && chunk.cy === 6)!;
-    expect(chunk.cellParts?.[String(16 * 64 + 16)]).toEqual(parts);
+    // Full-island channels/collision/records are checked by the golden case below.
+    // This regression follows the authored part through the actual target-chunk adapter.
+    const headIndex = result.manifest.chunks.findIndex(head => head.cx === 6 && head.cy === 6);
+    expect(headIndex).toBeGreaterThanOrEqual(0);
+    const store = new ChunkTerrainStore(result.manifest, snapshot.terrain.tilesets);
+    store.install(result.blobs[headIndex]!);
+    expect(store.hasTile(400, 400)).toBe(true);
+    expect(store.cellParts?.get(400 * store.width + 400)).toEqual(parts);
+    expect(store.chunkAt(6, 6)?.cellParts?.[String(16 * 64 + 16)]).toEqual(parts);
   }, 120_000);
   it('reconstructs every seed/bootstrap channel, server collision and ordered record from 13×13 chunks', () => {
     const registry = bootstrapContentRegistry();
