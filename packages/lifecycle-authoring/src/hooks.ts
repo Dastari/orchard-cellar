@@ -63,7 +63,8 @@ function validateHook(handler: LifecycleHookSource): void {
       if (!ts.isIdentifier(node.name) || names.has(node.name.text)) throw new Error(`${handler.id}: shadowed or destructured variables are forbidden`);
       names.add(node.name.text);
     }
-    if (ts.isSpreadElement(node) || ts.isSpreadAssignment(node)
+    if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node) || ts.isTemplateExpression(node)
+      || ts.isSpreadElement(node) || ts.isSpreadAssignment(node)
       || (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AsteriskAsteriskToken)) throw new Error(`${handler.id}: unbounded expansion is forbidden`);
     if (ts.isForOfStatement(node)) loops += 1;
     if (loops > 1 || ts.isTryStatement(node) || ts.isThrowStatement(node)
@@ -109,4 +110,21 @@ function validateHookTypes(source: string): void {
   const program = ts.createProgram([path], options, host);
   const errors = ts.getPreEmitDiagnostics(program).filter(d => d.file?.fileName === path);
   if (errors.length > 0) throw new Error(`hook engine API type error: ${ts.flattenDiagnosticMessageText(errors[0]!.messageText, ' ')}`);
+  const checker = program.getTypeChecker();
+  const contains = (type: ts.Type, flags: ts.TypeFlags): boolean => (type.flags & flags) !== 0
+    || (type.isUnion() && type.types.some(part => contains(part, flags)));
+  const visit = (node: ts.Node): void => {
+    if (ts.isBinaryExpression(node)) {
+      const result = checker.getTypeAtLocation(node);
+      if (contains(result, ts.TypeFlags.StringLike)
+        || (contains(result, ts.TypeFlags.BigIntLike)
+          && node.operatorToken.kind !== ts.SyntaxKind.PlusToken
+          && node.operatorToken.kind !== ts.SyntaxKind.MinusToken)) {
+        throw new Error('hook unbounded string or bigint expansion is forbidden');
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(program.getSourceFile(path)!);
+
 }

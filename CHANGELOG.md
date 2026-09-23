@@ -1,9 +1,10 @@
 # Changelog
 
-## 0.25.0 — 2026-09-23
+## 0.25.1 — 2026-09-23
 
 - Add v2 reviewed object, NPC, dialogue and quest lifecycle callbacks with typed engine capabilities, bounded execution and exact-source hash approval. Preserve v1 item artifacts.
 - Bind object event/state transition callback references to their owning definition; raise state exit/enter and action-objective notifications from existing world authority paths. Add graph event verbs and regenerate form schemas.
+- Reject type assertions, interpolated string expansion and bigint operations that could evade the callback AST budget.
 - Validate v2 source, generated code, metadata and provenance in lifecycle build/integrity gates. New checked-in bundle is empty; release remains separately reviewed. See [F3 specification and handoff](docs/lifecycle-object-quest-hooks.md).
 
 ## 0.24.0 — 2026-09-23

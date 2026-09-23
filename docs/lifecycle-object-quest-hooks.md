@@ -10,7 +10,7 @@ Graphs remain the default. Callback references in object transitions resolve by 
 
 ## Contract and bounds
 
-`orchard-lifecycle-source-v2`, engine API 2: bundle id, positive revision, 0–512 handlers sorted by id. Each handler has id, full definitionId, kind, hook and LF-only source up to 16 KiB. Allowed kind/hook pairs are exhaustive. Generated modules use hook-specific event types and a read-only snapshot; only emit/block/pass capabilities are exposed. AST checks reject unbounded or nested loops, dynamic code/imports, mutation, exception interception and arbitrary calls. Each callback and combined event retain the 64-effect cap; world reducer callback invocations share a 32-call limit. Failures reject and roll back the reducer.
+`orchard-lifecycle-source-v2`, engine API 2: bundle id, positive revision, 0–512 handlers sorted by id. Each handler has id, full definitionId, kind, hook and LF-only source up to 16 KiB. Allowed kind/hook pairs are exhaustive. Generated modules use hook-specific event types and a read-only snapshot; only emit/block/pass capabilities are exposed. AST and type checks reject unbounded or nested loops, dynamic code/imports, mutation, exception interception, arbitrary calls, type assertions, interpolated/concatenated string expansion and bigint operations other than addition/subtraction. Each callback and combined event retain the 64-effect cap; world reducer callback invocations share a 32-call limit. Failures reject and roll back the reducer.
 
 ## Decision record: trusted runtime approval
 
@@ -51,3 +51,5 @@ Object event transitions resolve the first matching external transition in decla
 Validation checkpoint: 399 lifecycle/sim/world tests in 72 files, plus 12 targeted adapter/integrity tests passed. World build and 919-definition content validation passed. Final workspace checks and PR details are recorded below when complete. Nothing has been merged or deployed.
 
 Final local checks: workspace typecheck, lint, world build, guarded Studio production build, lifecycle integrity (v1 + v2), schema regeneration check, 919-definition content validation, 399-test broader lifecycle suite, 26 focused compiler/adapter/schema/integrity tests and 21 follow-up hook/reference tests pass. Full `npm test` is running separately; no completion claim is made until its final summary is available. Build warnings are the existing terrain module cycle and Studio chunk-size notices. An initial local validation run was discarded after correcting a package metadata editing error and generating required local assets; it is not counted as successful evidence.
+
+Review hardening: 16 compiler tests also pass after rejecting string doubling, bigint shifts and type-assertion bypasses. Candidate PR: https://github.com/Dastari/orchard-cellar/pull/78 (stacked on #68).

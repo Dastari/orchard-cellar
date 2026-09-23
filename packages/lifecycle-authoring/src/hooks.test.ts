@@ -32,6 +32,7 @@ describe('v2 lifecycle compiler', () => {
     'const a = [1]; for (const x of a) { for (const y of a) {} }',
     'const a = [...context.snapshot.nearbyObjects];',
     'const a = [1]; { const a = context.snapshot.nearbyObjects; for (const x of a) {} }',
+    'context.emit({madeUp: true} as never);', 'const x = `${context.snapshot.tick}`;',
     'const x = 2n ** 999999999n;', 'context.snapshot.tick = 1n;',
   ])('rejects non-capability or unbounded code: %s', source => {
     expect(() => compileLifecycleHookBundle(parseLifecycleHookBundle(bundle(source)))).toThrow();
@@ -39,6 +40,11 @@ describe('v2 lifecycle compiler', () => {
   it('typechecks event-specific inputs and emitted effects before producing a candidate', () => {
     expect(() => compileLifecycleHookBundle(parseLifecycleHookBundle(bundle('context.emit({ madeUp: 1 });')))).toThrow('type error');
     expect(() => compileLifecycleHookBundle(parseLifecycleHookBundle(bundle('const x = context.event.questId;')))).toThrow('type error');
+  });
+  it('rejects string doubling and bigint shifts that defeat AST bounds', () => {
+    for (const source of ['const a = \"x\"; const b = a + a;', 'const a = 1n << context.snapshot.tick;']) {
+      expect(() => compileLifecycleHookBundle(parseLifecycleHookBundle(bundle(source)))).toThrow('expansion');
+    }
   });
   it('hashes source changes and canonicalises input property order', () => {
     const first = parseLifecycleHookBundle(bundle());
