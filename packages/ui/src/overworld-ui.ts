@@ -1291,6 +1291,7 @@ export class OverworldUi {
   private layout = overworldUiLayout(480, 270);
   private pointer: UiPoint = { x: -100, y: -100 };
   private hoveredSlot: number | null = null;
+  private inventoryTouchStart: UiPoint | null = null;
   private readonly equipmentTooltipDwell = new EquipmentTooltipDwell();
   private cursorPress: {
     readonly origin: ItemSlot;
@@ -1958,6 +1959,10 @@ export class OverworldUi {
   set openWindow(window: OverworldWindow | null) {
     const requestedWindow = window === 'pack' ? 'inventory' : window;
     const nextWindow = requestedWindow === 'developer' && !this.model.canAdministerWorld ? 'system' : requestedWindow;
+    if (nextWindow !== this.openWindowValue) {
+      this.inventoryTouchStart = null;
+      this.inventoryScrollBar.cancelSwipe();
+    }
     if (this.openWindowValue === 'chest' && nextWindow !== 'chest') this.callbacks.closeChest();
     if ((this.openWindowValue === 'content' || this.openWindowValue === 'barrel' || this.openWindowValue === 'furnace' || this.openWindowValue === 'cooking'
       || this.openWindowValue === 'press' || this.openWindowValue === 'fermentation')
@@ -2319,11 +2324,23 @@ export class OverworldUi {
       || this.openWindowValue === 'fermentation')
       && this.inventoryScrollBar.pointerMove(point)) this.syncInventoryBackpackSlots();
     if (this.openWindowValue === 'crafting') this.craftingRecipeScrollBar.pointerMove(point);
+    if (this.inventoryTouchStart !== null) {
+      const dx = point.x - this.inventoryTouchStart.x;
+      const dy = point.y - this.inventoryTouchStart.y;
+      // Resolve horizontal intent before the scrollbar sees a diagonal move.
+      // Once pickup owns this gesture, later vertical movement cannot steal it.
+      if (Math.abs(dx) > Math.abs(dy)
+        && dx * dx + dy * dy >= INVENTORY_DRAG_START_DISTANCE * INVENTORY_DRAG_START_DISTANCE) {
+        this.inventoryTouchStart = null;
+        this.inventoryScrollBar.cancelSwipe();
+      }
+    }
     const onlineSwiped = this.onlinePlayersScrollBar.swipeMove(point, ONLINE_PLAYER_LIST_ROW_HEIGHT);
     const inventorySwiped = this.inventoryScrollBar.swipeMove(point, 31);
     if (inventorySwiped) this.syncInventoryBackpackSlots();
     const recipesSwiped = this.craftingRecipeScrollBar.swipeMove(point, 17);
     if (onlineSwiped || inventorySwiped || recipesSwiped) {
+      this.inventoryTouchStart = null;
       this.pendingTouchRecipeId = null;
       this.cancelQuickCraftPreview();
       this.cursorPress = null;
@@ -2334,6 +2351,10 @@ export class OverworldUi {
     this.hoveredSlot = slotNodes.findIndex((node) => node.contains(point));
     if (this.hoveredSlot < 0) this.hoveredSlot = null;
     if (this.openWindowValue === null && this.weaponShortcutNode.visible && this.weaponShortcutNode.contains(point)) this.hoveredSlot = MAIN_HAND_INVENTORY_SLOT;
+    // Pickup starts at 3 logical pixels, before the scrollbar's 4-pixel swipe
+    // threshold. Keep vertical/tied touch movement pending until scrolling
+    // takes ownership; a release below that threshold remains an ordinary tap.
+    if (this.inventoryTouchStart !== null) return;
     if (this.cursorPress !== null && !this.cursorPress.cursorWasHeld
       && !this.cursorPress.pickedUpDuringDrag && this.cursorPress.origin.item !== null) {
       const dx = point.x - this.cursorPress.startPoint.x;
@@ -2374,6 +2395,8 @@ export class OverworldUi {
     readonly shift?: boolean;
     readonly pointerType?: string;
   } = {}): boolean {
+    this.inventoryTouchStart = null;
+    this.inventoryScrollBar.cancelSwipe();
     const skillPointNotice = this.skillPointNoticeLayout();
     if (!this.blockingUpdatePromptVisible && button === 0
       && skillPointNotice !== null && containsPoint(skillPointNotice.frame, point)) {
@@ -2400,7 +2423,9 @@ export class OverworldUi {
       if (this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
         || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
         || this.openWindowValue === 'fermentation') {
-        this.inventoryScrollBar.beginSwipe(point, this.layout.inventoryBackpackViewport, modifiers.pointerType);
+        if (this.inventoryScrollBar.beginSwipe(point, this.layout.inventoryBackpackViewport, modifiers.pointerType)) {
+          this.inventoryTouchStart = point;
+        }
       }
       if (this.openWindowValue === 'crafting') {
         const first = this.layout.craftingRecipeRows[0];
@@ -2536,6 +2561,7 @@ export class OverworldUi {
   }
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
+    this.inventoryTouchStart = null;
     this.pointer = point;
     if (this.blockingUpdatePromptVisible) {
       this.router.routePointer({ kind: 'pointer_up', point, button });
@@ -2669,6 +2695,7 @@ export class OverworldUi {
   }
 
   pointerLeave(): void {
+    this.inventoryTouchStart = null;
     this.systemCursorLeave();
     this.hoveredSlot = null;
     this.cancelQuickCraftPreview();

@@ -128,7 +128,8 @@ export class UiRoot {
     const pointer = (type: UiRootPointer['type']) => (event: PointerEvent) => {
       if (type === 'down') { canvas.focus(); canvas.setPointerCapture(event.pointerId); }
       if (this.pointer({ type, point: this.clientPoint(event.clientX, event.clientY), pointerId: event.pointerId,
-        button: event.button, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey })) event.preventDefault();
+        button: event.button, pointerType: event.pointerType, isPrimary: event.isPrimary,
+        shiftKey: event.shiftKey, altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey })) event.preventDefault();
       if ((type === 'up' || type === 'cancel') && canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     };
     canvas.addEventListener('pointerdown', pointer('down'), { signal });
