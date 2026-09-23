@@ -11,7 +11,9 @@ delivery links. The ten rejected vendor crops remain rejected: raw game comes fr
 #91 and the other nine replacements from #95. The importer still processes only
 `native_import_reviewed` rows and cannot overwrite these bespoke replacements.
 
-See [combined audit and validation](../food-alchemy-artwork-integration.md).
+Combined corrected full check passed: 6,598 coverage tests plus 101 exhaustive
+tests, all gates and 1,578 asset validation. See
+[combined audit and validation](../food-alchemy-artwork-integration.md).
 Gameplay activation and release are separate; no new gameplay definitions are added.
 
 Owner approved the full content plan on 23 September 2026, then explicitly included

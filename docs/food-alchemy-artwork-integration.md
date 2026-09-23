@@ -60,19 +60,29 @@ committed. Reviewed source PR sheets provide visual evidence; pixels are unchang
   check will rerun both against the frozen candidate.
 - Asset atlas/UI build and validation passed: 1,578 art assets, 12 songs, 10 SFX,
   55 palette colors and four seasonal remaps.
-- Focused asset tests: **235 passed / four files**, including native pixel parity.
+- Final focused asset tests: **238 passed / five files**, including native pixel parity.
 - Full repository build, guarded Studio production build and client chunk gate passed.
 - First complete coverage attempt: 6,597 passed, one skip, one stale assertion
   failure across 1,023 files. The old premium test counted all Kenmi imports as
   exactly 21; the artwork adds 201. Preserve the exact 21 legacy cohort assertion
   while continuing source-RGBA validation for all 222 imports. No pixels changed.
-- Corrected full `npm run check` pending. Earlier source PR interrupted runs are
-  not claimed as combined validation.
+- Corrected full `npm run check` **exit 0** on frozen `b67e7ce6`: **6,598 passing
+  tests / 1,023 coverage files plus one skip**, followed by **101 passing exhaustive
+  tests / seven files**. Coverage: statements 89.16%, branches 84.48%, functions
+  94.64%, lines 93.23%; all thresholds passed. Coverage duration 1,153.64 seconds;
+  exhaustive duration 144.94 seconds.
+- The same run passed lifecycle integrity, all 921 definitions / 27 files, world
+  build, workspace types/lint and final 1,578-asset validation. Full log:
+  `/tmp/copper-art-full-check-final.log`. Earlier interrupted source runs are not
+  used as combined evidence.
+- Final closeout is documentation only. Hosted CI remained pending at closeout.
+  Rehearsal: https://github.com/Dastari/orchard-cellar/pull/96 (draft, DO NOT MERGE).
 
 ## Coordination and boundary
 
 OrangeCastle received the source-head audit, conflict ledger, mapping plan and
-candidate status (Agent Mail #470/#475/#476). Source pushes require ownership
+candidate status (Agent Mail #470/#475/#476/#477). No owner reply had arrived at
+closeout. Source pushes require ownership
 coordination and validated candidate; none have occurred. GoldCondor alone merges
 source PRs. This candidate must remain DO NOT MERGE.
 
