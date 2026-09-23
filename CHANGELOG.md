@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.2 — reviewed source integration
+
+- Combine sparse music, multi-space reads, authored progression, reviewed lifecycle hooks and blob47 rules.
+- Require world-operation scope for spatial reads and loot/progression scope for progression authoring.
+- Regenerate combined contracts, pin the historical migration snapshot, and measure the 604 KiB content budget.
+- Production source matches the passing PR87 rehearsal; no deployment or later runtime activation.
+
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue

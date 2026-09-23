@@ -34,3 +34,19 @@ budget with other content lanes. Preserve #71's sim subpath exports if integrati
 that lane; do not replace its package manifest with this branch's earlier base.
 World parser must precede a later content publish using new fields. No merge,
 deployment or publishing is authorized for this follow-on.
+
+## Reviewed combined source integration
+
+The refreshed source is stacked on #75 → #74 → #76 → #78 after final wave1 main.
+Combined F1 schemas, public bindings, progression scope, historical migration
+fixture, manifest/hash and measured payload guard are retained. Current hash is
+`7dcab09f`, 920 definitions / 26 kinds, 618,309 runtime bytes (604 KiB guard) and
+773,245 authoring-row bytes. The basic tileset is 59,271 bytes, below 65,536.
+
+The entire production tree exactly matches tested PR87 production head `a59d85ad`;
+only source handoff documentation/CHANGELOG differ, and rehearsal-only
+`docs/wave2-rehearsal.md` is absent. That immutable production snapshot passed the
+complete check: 6,310 coverage tests / 1,000 files + one skip and 101 exhaustive
+tests / seven files, all coverage thresholds, world/types/lint/content/assets.
+Fresh prefix checks and hosted CI status are recorded in the PR. No force-push,
+PR merge, deployment or later runtime activation occurred.
