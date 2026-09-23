@@ -23,14 +23,12 @@ It specifies one gameplay item per named dish/flavour, not one item per recolour
 The icon audit gives **every vendor number** a selected, alternate, reference, deferred
 or excluded disposition. Suitable distinct food silhouettes are represented in the
 catalogue. Modern cans and unexplained blue/neon variants are explicitly deferred or
-excluded rather than silently inventing crops and flavours. A5 asks the owner to approve
-that interpretation and the confectionery set.
+excluded rather than silently inventing crops and flavours. A5 records the approved interpretation and confectionery set.
 
-Approval is required for the whole plan and the individually listed choices in §11.
-A conditional row is **not authorized for implementation** by approval of another row.
+The owner approved the full plan and the choices in §11 on 2026-09-23.
+All six mana potions are included by subsequent explicit direction; no mana drain is required.
 The owner requested support for hunting previously protected animals on 2026-09-23;
-that direction is recorded as A2. All numeric/content details still need plan approval. After decisions are recorded here,
-continue with `/home/toby/projects/briefs/food-alchemy-implementation-prompt.md`.
+that direction is recorded as A2. Numeric/content budgets are approved. Continue with `/home/toby/projects/briefs/food-alchemy-implementation-prompt.md`.
 No merge, deployment, world publication or destructive migration is authorized by this PR.
 
 ### Testable outcomes
