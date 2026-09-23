@@ -43,6 +43,11 @@
 - Add 18 reviewed bespoke 16×16 icons: seven fruit-specific must jugs and pomace baskets, wool, wing dust, raw game and roast game, following approved doc 63 §§3/8.
 - Preserve the closed Orchard palette, (8,15) anchors, existing asset IDs and gameplay data; no source PNGs or generated atlases are committed.
 - Record native-size, dark-background, silhouette and neighbor review evidence in [the core art handoff](docs/food-alchemy-core-art/README.md). Client asset publication precedes future gameplay references; no world publish is needed for this art-only change.
+## Collection and apiary inventory art — assets 0.19.3 — 2026-09-23
+
+- Add eleven native-palette inventory icons from approved doc 63: six live specimens in ventilated jars, capture net, empty specimen jar, apiary frame, honeycomb and beeswax.
+- Record native-size/neighbor review and integration mapping in [the art review](docs/food-alchemy-collection-art/README.md). No gameplay data, world artwork or publication changes.
+- Candidate version coordinated after food/alchemy P0 0.19.1 and core art 0.19.2; preserve the higher compatible asset version when integrating parallel PRs.
 
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 

@@ -1,0 +1,50 @@
+{
+  "name": "icon_alchemy_capture_net",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......22222....",
+        "......28KKK82...",
+        ".....28K.K.K82..",
+        ".....2KKKKKK42..",
+        ".....24K.K.K42..",
+        "......224442wt..",
+        "......246tK.wt..",
+        ".....246S.tKwt..",
+        "....246S...tt...",
+        "...246S.........",
+        "..246S..........",
+        "..SSS...........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "item.collection"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "approved": true,
+  "lintAllow": [
+    "sparkle"
+  ]
+}

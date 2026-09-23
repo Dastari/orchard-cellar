@@ -1,0 +1,50 @@
+{
+  "name": "icon_animal_beeswax",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        ".....oooooo.....",
+        "....oIIIIIJo....",
+        "...oIIJJJJJKo...",
+        "..oIJJJKKJJJKo..",
+        "..oIJJJJJJJJKo..",
+        "..oJJJJJJKKKKo..",
+        "..oJKKKKKKKKpo..",
+        "...oKKKKKpppo...",
+        "...Spppppppo....",
+        "....SSSSSSS.....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "item.apiary"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "approved": true,
+  "lintAllow": [
+    "sparkle"
+  ]
+}
