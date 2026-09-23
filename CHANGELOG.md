@@ -69,6 +69,12 @@
 - Add optional masked neighbour matches and ordered independent layers to the generic interpreter, with strict validation and compiled terrain lookups. Regenerate Studio field schemas.
 - Pin complete farmland/fringe layer goldens and update the measured content envelope to 602 KiB (616,383 runtime bytes).
 
+## 0.26.0 — 2026-09-23
+
+- Extend shared timing to crops, tree regrowth, fruit ripening and authorized generic lifecycle snapshots. Dry/dormant crops display paused reasons; conditional growth budgets are distinguished from finish deadlines.
+- Inspect projected crop tiles and authored resource targets independently of action reach, with row-revision spatial caches and unchanged authority settlement. Preserve Soil Whisperer water details.
+- Reuse stateful lifecycle deadline math without exposing private anchors or adding scheduled writes. Client 0.22.0, sim 0.24.0, UI 0.23.0.
+
 ## 0.25.0 — 2026-09-23
 
 - Restore authored countdown/status panes for furnaces, cooking fires, presses, fermentation vessels and barrels using one read-only timing projection. Closed station completion is estimated until settlement confirms output.
