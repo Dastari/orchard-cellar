@@ -69,14 +69,19 @@ legacy document removal, content engine epoch change or live policy activation.
 
 ## Validation
 
-Validation is in progress; source PR results are not combined-candidate evidence.
-Generated world bindings and workspace typecheck completed. First focused run:
-48 passed, one expected structural seam mismatch; the combined seam was reviewed
-and explicitly recaptured. Expanded focused run passed 78 tests across 19 files, including full-island
-traversal/chunk parity. Workspace lint and full repository build passed.
-Full npm run check will run on the stable committed production snapshot.
-Logs use `/tmp/runtime-rehearsal-*.log`. Exact result counts and final source/tree
-identities must be recorded before source propagation or completion is claimed.
+Final clean `npm run check` **exited 0** on
+`b6e37eb382cdb27e826d013339c3c466c76cff57`: lifecycle integrity, 921 content
+definitions, checked world build, all workspace types/lint, **1,022 coverage files /
+6,389 passed / one skip**, then **101 exhaustive tests / seven files**, followed by
+1,320 art assets, 12 songs, 10 SFX, 55 palette colors and four seasonal remaps.
+Coverage: statements 89.16%, branches 84.48%, functions 94.64%, lines 93.23%.
+Durations: coverage 1,420.65s; exhaustive 153.74s. Final log:
+`/tmp/runtime-rehearsal-full-check-final.log`.
+
+Generated bindings, full repository build, guarded Studio production build,
+shadow client build and normal bundle boundary gate passed. Expanded focused
+integration: 78 tests / 19 files; corrected retirement fixture: 11 / one file.
+Hosted CI is separate and pending; no hosted-green claim is made.
 
 
 Diagnostic full check on `d94e73d6` completed with 1,022 files: 6,388 passing,
@@ -84,10 +89,21 @@ one skipped and one failing test. The only failure was the legacy-runtime
 retirement fixture counting 26 bootstrap JSON imports; combined progression and
 world_rules add up to 27. The fixture is corrected to the measured exact count.
 No production behavior changes in this correction. This failed diagnostic is
-not a clean full-check pass; the corrected snapshot requires a fresh full run.
+not a clean full-check pass; the corrected snapshot passed the fresh full run recorded above.
 
 Guarded Studio production, shadow client build and normal client chunk boundary
 check passed. Explicit generator-free validation rejects the retained runtime as
 expected. Six D6 core files, five object-lifecycle core files and seven chunk
 shadow/controller/network files are byte-identical to their exact source heads.
 Initial origin/main audit used `5578b49c96d8131f83bb7d642c7e09d840471b3c`.
+
+
+## Source propagation gate
+
+D6 owner SageIsland approved narrow additive integration in Agent Mail #431;
+GoldCondor authorized ordered #80 → #81 → #83 propagation after final green in
+#434. Current main `df509125ad4afa56c64ebe55b47b337c530dec70` has zero production
+differences from the rehearsal base (excluding docs and CHANGELOG). Each source
+prefix must retain its scope; final #83 production must equal the tested snapshot.
+Only GoldCondor merges. P1 effects work waits the separately validated combined
+runtime/timer baseline; PR93 owns that later gate. No live runtime activation.
