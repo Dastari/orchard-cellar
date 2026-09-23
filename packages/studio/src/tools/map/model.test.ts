@@ -654,6 +654,7 @@ describe('Studio Map Editor model', () => {
     expect([...(storage as MemoryStorage).values.values()][0]).toBe(storedDraft);
     expect(model.baseRevision()).toBe(7);
     expect(model.conflictRevision()).toBe(8);
+    expect(model.publishedDocument()).toEqual(revisionEight);
     expect(model.canUndo()).toBe(true);
     expect(notifications.items().filter(({ kind }) => kind === 'conflict')).toHaveLength(1);
   });
@@ -701,6 +702,36 @@ describe('Studio Map Editor model', () => {
     expect(mapDocumentV3Hash(model.document())).toBe(localHash);
     expect(model.dirty()).toBe(true);
     expect(model.canUndo()).toBe(true);
+    expect(model.publishedDocument()).toEqual(revisionSeven);
+  });
+
+  it('retains the newest verified published association across stale heads and reconnect', () => {
+    const seventh = remoteDocument(7, 'Published seven');
+    let liveView = view({ mapDocument: mapHead(seventh) });
+    const adapter = { view: () => liveView } as StudioLiveAdapter;
+    const { model } = harness(adapter);
+    expect(model.publishedDocument()).toBeNull();
+    model.reconcileLiveHead();
+    model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
+    const draft = model.document();
+    const eighth = remoteDocument(8, 'Published eight');
+    liveView = view({ mapDocument: mapHead(eighth) }); model.reconcileLiveHead();
+    const accepted = model.publishedDocument();
+    expect(accepted).toEqual(eighth);
+    liveView = view({ mapDocument: mapHead(seventh) }); model.reconcileLiveHead();
+    expect(model.publishedDocument()).toBe(accepted);
+    expect(() => model.reloadLatest()).toThrow('live_map_head_stale');
+    liveView = view({ connected: false, mapDocument: null }); model.reconcileLiveHead();
+    expect(model.publishedDocument()).toBe(accepted);
+    liveView = view({ mapDocument: mapHead(remoteDocument(8, 'Conflicting same revision')) }); model.reconcileLiveHead();
+    expect(model.publishedDocument()).toBe(accepted);
+    expect(() => model.reloadLatest()).toThrow('live_map_head_unverified');
+    liveView = view({ mapDocument: mapHead(eighth) }); model.reconcileLiveHead();
+    expect(model.publishedDocument()).toEqual(eighth);
+    expect(model.document()).toBe(draft);
+    expect(model.reloadLatest()).toBe(true);
+    expect(model.publishedDocument()).toBe(model.document());
+    model.dispose();
   });
 
   it('publishes against the checked-out base even if the adapter observes a newer head', async () => {
