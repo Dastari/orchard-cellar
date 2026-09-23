@@ -398,5 +398,13 @@ export function applyObjectTransitionEvent(
   event: ExternalStateTransitionEvent,
   inputs: StatefulSettlementInputs,
 ): StatefulSettlementResult {
-  return applyStatefulTransitionEvent(definition.components, lifecycle, event, inputs);
+  const settled = settleStatefulTransitions(definition.components, lifecycle, inputs);
+  if (settled.truncated) return settled;
+  const available = resolveObjectDefinitionAppearance(definition, settled.state.values).interactions;
+  const components = { ...definition.components, transitions: (definition.components.transitions ?? []).filter(transition =>
+    transition.on !== event || transition.run === undefined || !('graph' in transition.run) || available.includes(transition.run.graph)) };
+  const result = applyStatefulTransitionEvent(components, settled.state, event, {
+    ...inputs, maxFirings: Math.max(0, (inputs.maxFirings ?? 64) - settled.fired.length),
+  });
+  return { ...result, fired: [...settled.fired, ...result.fired] };
 }

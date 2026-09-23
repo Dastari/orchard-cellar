@@ -1,0 +1,7 @@
+{
+  "format": "orchard-lifecycle-source-v2",
+  "bundleId": "world-hooks",
+  "revision": 1,
+  "engineApiVersion": 2,
+  "handlers": []
+}

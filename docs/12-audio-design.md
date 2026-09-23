@@ -32,27 +32,36 @@ Runtime pieces (all in `packages/engine/src/audio/`):
   playing song gets its own deck with four fade gains (dry and each send), so two
   songs cross-fade cleanly including their reverb tails.
 - `patches.ts` — the closed patch set (§2.2).
-- `audio-bus.ts` — cue selection, cross-fades, silence gaps, checkpoints, volume and
-  background policy.
+- `music-director.ts` — the data-driven music director (§2.5): chooses what plays, and
+  when, from `packages/assets/music/audio-assignment.json`.
+- `audio-bus.ts` — carries out the director's commands (cross-fades, stingers),
+  checkpoints, volume and background policy.
 
-| Runtime cue | Song source | Behaviour | Context |
-|---|---|---|---|
-| `theme_title` | `theme_title.song.json` | Loops continuously | Account/title screen |
-| `theme_spring` | `theme_spring.song.json` | One pass, then 55–140 s of silence | Dawn and daytime exterior; cellar |
-| `theme_night` | `theme_night.song.json` | One pass, then 40–105 s of silence | Dusk and night exterior |
+**Owner direction (2026-09-23, after listening to PR #69):** no constant drone or
+bed. Music behaves like Minecraft's: short, sparse pieces arrive now and then, with
+minutes of silence between them, and adapt to context. So:
 
-Title music loops after the first user gesture. World cues play one pass, fade over
-their final eight seconds, and leave a randomised quiet interval before returning, so
-music stays an atmospheric event rather than a constant bed. Changing cue cross-fades
-over eight seconds (2.5 s for the first cue after unlock).
+- **No sustained pad beds.** The `pad` patch still exists, but it is voiced as a slow
+  swell that breathes out (sustain 0.35) and none of the shipped songs uses it. Harmony
+  comes from soft broken chords (pluck), occasional string swells and the bass.
+- **The bass is plucked, not held:** short roots (sustain 0.12). It rests in the
+  opening and closing sections of every theme.
+- A shipped-song test fails if any non-string note holds for more than about eight
+  seconds.
 
-The bus checkpoints cue, tracker position (in steps) and remaining quiet interval
-once per second and on page hide, as version 2 of `orchard-cellar.music-playback`.
-Reloads, browser restarts and account-page transitions resume that checkpoint
-instead of restarting the song; sustained notes that were sounding at the saved
-step are re-entered with a soft attack. Version 1 checkpoints (seconds into the
-retired MP3s) are ignored. Account-page navigation fades for 650 ms; explicit stop
-fades over one second.
+Title music loops. Everything else plays one pass and then falls silent for a
+randomised interval, typically 2½–6 minutes outdoors. A piece is never cut when the
+context changes if it also belongs to the new context. Otherwise it fades out and a
+short entry silence follows.
+
+The bus checkpoints the director's rule, the tracker position (in steps) and the
+remaining silence once per second and on page hide, as version 2 of
+`orchard-cellar.music-playback`. Reloads, browser restarts and account-page
+transitions resume that checkpoint instead of restarting the song. Sustained notes
+that were sounding at the saved step are re-entered with a soft attack. A saved
+fight is never resumed. Version 1 checkpoints (seconds into the retired MP3s) are
+ignored. Account-page navigation fades for 650 ms. The title theme then fades out
+under the world's first silence. Explicit stop fades over one second.
 
 ### 2.1 Song format
 
@@ -60,7 +69,8 @@ fades over one second.
 {
   "name": "theme_summer_day",
   "bpm": 84, "swing": 0.08,             // 72–96 BPM, swing 0–0.12
-  "stepsPerBeat": 4, "beatsPerBar": 4, "loopBars": 48,   // 48, 64 or 96 bars
+  "kind": "theme",                      // theme | piece | combat | sting (default theme)
+  "stepsPerBeat": 4, "beatsPerBar": 4, "loopBars": 48,   // see kinds below
   "masterGainDb": -6,                   // whole-song trim
   "key": "G", "mode": "mixolydian",     // documentation only
   "humanize": 1,                        // optional: 0 = machine-tight, 1 = patch default
@@ -70,7 +80,7 @@ fades over one second.
      "pan": 0.1,                                   // optional, -1 left … 1 right
      "sends": {"reverb": 0.4, "delay": 0.2},       // optional, per-channel send levels
      "instrument": {"amp": {"release": 0.6}}},     // optional patch tweaks (§2.2)
-    {"patch": "pad",  "vol": 0.4, "patterns": ["Pa","Pa","Pb","Pa"]}
+    {"patch": "pluck", "vol": 0.3, "patterns": ["Pa","Pa","Pb","Pa"]}
   ],
   "patterns": {
     // [step, note, lengthInSteps, velocity?]  velocity 0–1, default 0.8
@@ -80,9 +90,16 @@ fades over one second.
 }
 ```
 
-All fields added for the synth (`humanize`, `fx`, `pan`, `sends`, `instrument`, the
-fourth note element) are optional; older songs remain valid. `npm run assets:validate`
+All fields added for the synth (`kind`, `humanize`, `fx`, `pan`, `sends`, `instrument`,
+the fourth note element) are optional; older songs remain valid. `npm run assets:validate`
 checks ranges.
+
+| Kind | Length | Loop | Use |
+|---|---|---|---|
+| `theme` | 48, 64 or 96 bars | director decides | Long signature arrangements (`theme_*`) |
+| `piece` | 8–96 bars | no | Sparse context pieces (`piece_*`), typically 16 bars |
+| `combat` | 4–32 bars | yes | Fight loops (`combat_*`) |
+| `sting` | 1–8 bars | must be `false` | Event flourishes (`sting_*`) |
 
 **Patch set is closed** (the audio analog of the palette): `flute`, `pad`, `pluck`
 (kalimba-ish), `bass`, `bells`, `strings`, `accordion`, `woodblock`, `shaker`.
@@ -115,17 +132,24 @@ key by key, while `oscillators` replaces the whole list.
 | `humanize` | `timingMs` (± random-but-repeatable offset), `velocity` (± fraction) | 6–14 ms; percussion more velocity variation |
 
 Mixing guide: judge balance with `npm run music:render -- <song> --stems` (§2.3).
-In the shipped themes the lead sits highest; pad and bass about 6–8 dB below it
-("loudest 400 ms" column); plucks, bells and strings 8–10 dB below; shaker about
-16 dB below. Aim for whole-song RMS near −21 dBFS for day/title and about −28 dBFS
-for night, with peaks below −6 dBFS.
+The lead sits highest ("loudest 400 ms" column). Plucked bass and soft broken chords
+sit 6–10 dB below it, and the shaker about 16 dB below. Use the "loudest 400 ms"
+figure, not RMS, to match songs: sparse pieces are mostly space, so their RMS is
+naturally low. The shipped songs peak between −16 and −21 dBFS on that measure,
+with peaks below −5 dBFS. Keep night within about 2 dB of day. Keep the low band
+(below 200 Hz) under about half of the energy: the drone-free themes sit at
+27–45 %, where they were 50–64 % with pads.
 
 ### 2.3 Listening and verification
 
 - **Studio:** Author → Audio Preview (`/author/audio` on Cellar Studio) lists every
   `*.song.json` and `*.sfx.json` automatically and plays them through the exact game
   bus, with a live output meter.
-- **Game (local):** `npm run dev`, open the client, and press a key on the title screen.
+- **Studio locally:** `npm run dev -w @orchard/studio -- --port 5184`, then open
+  `http://localhost:5184/author/audio`. Port 5174 belongs to the live service.
+- **Game (local):** `npm run dev`, open the client, and press a key on the title
+  screen. In the world, the director waits for its entry silence before the first
+  piece plays.
 - **Offline renders:** `npm run music:render` renders every song through the same
   synth in headless Chrome's `OfflineAudioContext` and writes WAVs to
   `output/music-renders/` (git-ignored; never commit renders). It prints peak, RMS,
@@ -138,21 +162,70 @@ headless Chrome on a desktop CPU with at most roughly a dozen overlapping voices
 each voice is 1–5 oscillators, one filter and a few gains. Keep melody density low
 (a note every 1–2 beats) — that is both the house style and the CPU budget.
 
-### 2.4 Required soundtrack (launch)
+### 2.4 Shipped soundtrack
 
-| Song | Context | Character |
+| Song | Kind | Director rule(s) | Character |
+|---|---|---|---|
+| `theme_title` | theme | `title` | The signature motif, gently arranged; loops on the title screen |
+| `theme_spring` | theme | `day` | Flute motif, dew bells, plucked chords and a light shaker |
+| `theme_night` | theme | `night` | The motif at half speed in bells over soft E-minor/C broken chords |
+| `piece_dew` | piece | `day` | 16 bars: flute motif and answer over plucked chords |
+| `piece_lantern` | piece | `night`, `rain` | 16 bars: slow bell motif, one string breath |
+| `piece_rain` | piece | `rain` | 16 bars, lydian: soft plucks and a flute answer |
+| `piece_hearth` | piece | `interior` | 16 bars: accordion motif with a light oom-pah |
+| `piece_cellar` | piece | `cellar`, `delve`, `delve_volcanic` | 16 bars, E dorian: low pluck motif, drip bells |
+| `piece_ember` | piece | `volcanic`, `delve_volcanic` | 16 bars, D dorian: distant bell motif, low breaths |
+| `combat_skirmish` | combat | `combat` | 8-bar loop at 96 BPM, E dorian: plucked ostinato, woodblock/shaker pulse, bell quote |
+| `sting_combat_start` | sting | `combat` enter | A one-bar rising pluck and bell |
+| `sting_combat_end` | sting | `combat` exit | Two bars resolving home on G |
+
+Still wanted: seasonal day variants (summer accordion/shaker, autumn pluck-forward,
+winter sparse bells), `sting_vintage` (prestige), `sting_levelup` and a
+visiting-farm variation. Add each one as a cue in the matching rule (§2.5).
+
+Composition rule: every piece quotes the 4–8 note **signature motif**
+(`orchard_home`, G–B–D … A–B–G). It may be transposed or slowed, and pieces
+declare the quote in `quotesMotif`.
+
+### 2.5 Music director and audio assignment
+
+`packages/assets/music/audio-assignment.json` (format
+`orchard-audio-assignment-v1`) is the authored mapping from game context to music.
+It is plain data, so Studio's Audio tool can edit it. It is the seed for the doc 62
+§3.3 `audio_assignment` content kind. `npm run assets:validate` checks it against
+the song files.
+
+**Context.** The game reports these fields each frame. The director only reacts when
+something changes, or on its own one-second timer.
+
+| Field | Values | Source |
 |---|---|---|
-| `theme_title` | Title screen | Warm, nostalgic, slow build, signature motif |
-| `theme_spring` / `summer` / `autumn` / `winter` | Farm by season | Same signature motif re-arranged per season (unifies the score) |
-| `theme_night` | After sundown, any season | Sparse pads + bells, crickets ambience |
-| `theme_cellar` | Cellar interior | Close, woody, slow pluck, heavy reverb |
-| `theme_visiting` | On a friend's farm | Lighter social variation of season theme |
-| `sting_vintage` | Prestige moment | 8-bar celebratory cadence, non-looping |
-| `sting_levelup` | Skill/knowledge gain | 2-bar motif |
+| `scene` | `title`, `world` | Account page, overworld |
+| `season`, `time` | season; `dawn`/`day`/`dusk`/`night` | Game calendar |
+| `zone` | `overworld`, `homestead`, `interior`, `cellar`, `delve` | Active space |
+| `biome` | map biome id under the player (outdoors) | Island map, e.g. `volcanic_ash`, `lava` |
+| `weather` | `clear`, `rain` | Outdoor weather |
+| `combat` | true/false | An awake enemy within 6 tiles, or the player hit an enemy in the last 4 s |
+| `tags` | free-form mood tags | e.g. `delve:volcanic`, `delve:lobby`, `room:boss` |
 
-Composition rule: write the 4–8 note **signature motif** first (title theme), then
-quote it in every seasonal theme. Day music crossfades (8 s) to night; interior music
-ducks exterior entirely.
+**Rules.** Each rule has `id`, `priority`, a `when` block, `mode`, `cues` and optional
+timings. The highest `priority` whose `when` matches wins; ties go to the rule listed
+first. In a `when` block, lists match any listed value, `tags` requires all of its
+tags, `anyTags` requires one, and conditions combine with AND. Cues are song names
+or `{ "song", "weight" }` pairs. The director avoids repeating a rule's previous
+piece when it has alternatives. An empty `cues` list is deliberate silence.
+
+| Mode | Behaviour |
+|---|---|
+| `continuous` | Starts immediately (`fadeInSeconds`) and loops (title). |
+| `sparse` | Waits `entrySilenceSeconds`, plays one piece, then waits `silenceSeconds` before the next. |
+| `combat` | Plays `enterStinger` and cross-fades into a looping cue over `fadeInSeconds` (about 1 s). It holds through lulls shorter than `exitHoldSeconds`. On exit it fades over `fadeOutSeconds` and plays `exitStinger`, then waits `afterSilenceSeconds` before the underlying rule resumes. Stingers are rate-limited by `defaults.stingerCooldownSeconds`. |
+
+Defaults (`defaults`) cover silences, fades and the stinger cooldown. Leaving a
+rule fades its piece over `fadeOutSeconds`, unless the piece is also a cue of the new
+rule. An in-progress silence is shortened, never lengthened, to the new rule's entry
+silence. The director is a pure state machine: time is passed in and randomness is
+seeded, so `music-director.test.ts` can step through scheduling exactly.
 
 ## 3. SFX: parametric synthesis (ZzFX-style)
 
@@ -190,9 +263,13 @@ the background, suspend the complete AudioContext and fade it in for one second 
 resume. All audio code lives behind `AudioBus` so tests can run headless with a null
 implementation.
 
-## 6. Future music director
+## 6. Music director next steps
 
-Expand the current time-of-day selector into a proper atmospheric director: multiple
-cues per biome and season, recent-play avoidance, weather weighting, location stingers,
-and musically aware transition points (e.g. cross-fading on a bar line, since the
-sequencer knows the beat). Preserve randomized silence.
+The director (§2.5) is in place. Next steps are:
+
+- a Studio editor for the audio assignment, with a context simulator for previews;
+- more mood sources (quests, festivals, boss phases);
+- stingers for non-combat events (level-up, vintage);
+- musically aware transitions (entering on a bar line, since the sequencer knows the beat).
+
+Preserve the long, randomised silences.

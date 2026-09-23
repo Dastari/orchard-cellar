@@ -61,6 +61,8 @@ export interface BuiltAtlasManifest {
   readonly assets?: Readonly<Record<string, BuiltAssetRecord>>;
   readonly assetCategories?: Readonly<Record<string, string>>;
   readonly assetsById: Readonly<Record<string, string>>;
+  readonly assetPacks?: Readonly<Record<string, string>>;
+  readonly packs?: Readonly<Record<string, string>>;
 }
 
 interface BuiltAtlasCategoryManifest {
@@ -68,6 +70,67 @@ interface BuiltAtlasCategoryManifest {
   readonly revision: string;
   readonly category: string;
   readonly assets: Readonly<Record<string, BuiltAssetRecord>>;
+}
+
+interface BuiltAtlasPackManifest {
+  readonly schemaVersion: 1;
+  readonly packId: string;
+  readonly assets: Readonly<Record<string, BuiltAssetRecord>>;
+  readonly pages: Readonly<Record<string, AtlasPageDescriptor>>;
+  readonly atlases: Readonly<Record<string, string>>;
+  readonly omitAtlases: Readonly<Record<string, string>>;
+}
+const packPromises = new Map<string, Promise<BuiltAtlasPackManifest>>();
+
+async function loadPackManifest(index: BuiltAtlasManifest, packId: string): Promise<BuiltAtlasPackManifest> {
+  const filename = index.packs?.[packId];
+  if (!filename || !/^pack-[a-f0-9]{64}\.json$/.test(filename)) throw new Error(`Unknown atlas pack: ${packId}`);
+  let pending = packPromises.get(filename);
+  if (!pending) {
+    pending = assetRequestQueue.run(async () => {
+      const response = await fetch(`/generated/${filename}`);
+      if (!response.ok) throw new Error(`Unable to load atlas pack ${packId}: ${response.status}`);
+      const pack = await response.json() as BuiltAtlasPackManifest;
+      if (pack.schemaVersion !== 1 || pack.packId !== packId || !pack.assets || !pack.pages || !pack.atlases || !pack.omitAtlases) {
+        throw new Error(`Invalid atlas pack: ${packId}`);
+      }
+      for (const [name, record] of Object.entries(pack.assets)) {
+        if (index.assetPacks?.[name] !== packId || !record.pageId || !pack.pages[record.pageId]
+          || index.assetsById[String(record.assetId)] !== name) throw new Error(`Atlas pack asset mismatch: ${name}`);
+        atlasPageKey(record, 'summer');
+      }
+      for (const file of [...Object.values(pack.atlases), ...Object.values(pack.omitAtlases)]) {
+        if (!/^atlas-[a-f0-9]{64}\.png$/.test(file)) throw new Error(`Invalid immutable atlas URL: ${file}`);
+      }
+      return { ...pack, assets: validatedShadowRecords(pack.assets) };
+    });
+    packPromises.set(filename, pending);
+  }
+  try { return await pending; }
+  catch (error) { packPromises.delete(filename); throw error; }
+}
+
+/** Stable semantic IDs for authored chunk manifests. Missing assets fail closed. */
+export async function atlasPackIdsForAssets(names: readonly string[]): Promise<readonly string[]> {
+  const index = await loadPackIndex();
+  return [...new Set(names.map((name) => {
+    const packId = index.assetPacks?.[name];
+    if (!packId) throw new Error(`No atlas pack for asset: ${name}`);
+    return packId;
+  }))].sort();
+}
+
+/** Pin/ring chunk hook. Fetch only these packs and this season, with normal queue deduplication. */
+export async function loadAtlasPacks(ids: readonly string[], season = 'summer'): Promise<void> {
+  const index = await loadPackIndex();
+  await Promise.all([...new Set(ids)].map(async (id) => {
+    const pack = await loadPackManifest(index, id);
+    await Promise.all(Object.entries(pack.pages).map(async ([pageId, page]) => {
+      const file = pack.atlases[`${pageId}:${season}`];
+      if (!file) throw new Error(`Atlas pack season unavailable: ${id}:${season}`);
+      await loadAtlasPage(file, index.revision, page);
+    }));
+  }));
 }
 
 export interface LoadedAsset {
@@ -104,11 +167,31 @@ export interface GeneratedAssetCatalog extends GeneratedAssetRegistry {
 }
 
 let manifestPromise: Promise<BuiltAtlasManifest> | null = null;
+let packIndexPromise: Promise<BuiltAtlasManifest> | null = null;
+let manifestUsesPacks: boolean | undefined;
+/** Rollout remains opt-in until visible dependency ownership replaces the
+ * eager gameplay art factory. Studio and existing game startup stay consolidated. */
+function packDeliveryEnabled(): boolean {
+  return typeof location !== 'undefined' && new URLSearchParams(location.search).get('atlasPacks') === '1';
+}
+async function loadPackIndex(): Promise<BuiltAtlasManifest> {
+  packIndexPromise ??= assetRequestQueue.run(async () => {
+    const response = await fetch('/generated/atlas.packs.json');
+    if (!response.ok) throw new Error(`Unable to load atlas pack index: ${response.status}`);
+    const index = await response.json() as BuiltAtlasManifest;
+    if (index.schemaVersion !== 5 || !index.assetPacks || !index.packs) throw new Error('Invalid atlas pack index');
+    return index;
+  });
+  try { return await packIndexPromise; }
+  catch (error) { packIndexPromise = null; throw error; }
+}
 let markerManifestPromise: Promise<AtlasMarkerManifest> | null = null;
 const categoryManifestPromises = new Map<string, Promise<BuiltAtlasCategoryManifest>>();
 const warnedMissingAssets = new Set<string>();
 
 async function loadManifest(): Promise<BuiltAtlasManifest> {
+  manifestUsesPacks ??= packDeliveryEnabled();
+  if (manifestUsesPacks) return await loadPackIndex();
   manifestPromise ??= assetRequestQueue.run(async () => {
     const response = await fetch('/generated/atlas.meta.json');
     if (!response.ok) throw new Error(`Unable to load generated atlas metadata: ${response.status}`);
@@ -201,6 +284,8 @@ async function loadAssetRecord(
 ): Promise<BuiltAssetRecord | undefined> {
   const legacyRecord = manifest.assets?.[name];
   if (legacyRecord !== undefined) return legacyRecord;
+  const packId = manifest.assetPacks?.[name];
+  if (packId !== undefined) return (await loadPackManifest(manifest, packId)).assets[name];
   const category = manifest.assetCategories?.[name];
   if (category === undefined) return undefined;
   return (await loadCategoryManifest(category, manifest.revision)).assets[name];
@@ -215,6 +300,7 @@ export function resolveGeneratedAssetName(manifest: BuiltAtlasManifest, assetId:
 
 export function resolveGeneratedAssetRequestName(manifest: BuiltAtlasManifest, requestedName: string): string {
   if (manifest.assets?.[requestedName] !== undefined
+    || manifest.assetPacks?.[requestedName] !== undefined
     || manifest.assetCategories?.[requestedName] !== undefined) return requestedName;
   return resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
 }
@@ -266,6 +352,11 @@ async function loadRecord(
   season: string,
   markerOverrides: Readonly<Record<string, readonly string[]>>,
 ): Promise<LoadedAsset> {
+  const packId = manifest.assetPacks?.[resolveGeneratedAssetName(manifest, record.assetId)];
+  if (packId !== undefined) {
+    const pack = await loadPackManifest(manifest, packId);
+    manifest = { ...manifest, atlases: pack.atlases, omitAtlases: pack.omitAtlases, pages: pack.pages };
+  }
   const key = atlasPageKey(record, season);
   const filename = manifest.atlases[key];
   if (!filename) throw new Error(`Atlas not found for ${key}`);
@@ -344,8 +435,9 @@ export async function loadGeneratedAssetCatalog(): Promise<GeneratedAssetCatalog
   const assets = manifest.assets ?? Object.assign(
     {},
     ...await Promise.all(
-      [...new Set(Object.values(manifest.assetCategories ?? {}))]
-        .map(async (category) => (await loadCategoryManifest(category, manifest.revision)).assets),
+      manifest.packs ? Object.keys(manifest.packs).map(async (id) => (await loadPackManifest(manifest, id)).assets)
+        : [...new Set(Object.values(manifest.assetCategories ?? {}))]
+          .map(async (category) => (await loadCategoryManifest(category, manifest.revision)).assets),
     ),
   ) as Readonly<Record<string, BuiltAssetRecord>>;
   return {

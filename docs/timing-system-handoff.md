@@ -31,3 +31,14 @@ were regenerated for the five authored frame changes. Fixture verification:
 563 tests passed; final ordinary (non-update) replay includes Studio shell assets.
 The first full run also needed generated Studio public assets in the isolated
 worktree; `npm run ui:assets -w @orchard/tools -- studio` supplies them.
+
+## Coordinated processor source refresh
+
+Source #85 consumes refreshed clock prefix `1cffdcb8` and fixed runtime source
+#83 `53a2b19c`. It preserves runtime traversal, private lifecycle/checkpoint storage
+and chunk shadow behavior; growth timing from #86 is absent. Combined contracts
+are regenerated: 921 definitions / 27 kinds, `0e741b0f`, 620,844 runtime bytes
+within 607 KiB. Thirty-eight focused tests across nine files, complete workspace
+types/lint, world build, default client build and guarded Studio production build
+pass. The complete candidate's earlier full check is independent evidence; fresh
+source CI and coordinator merge remain separate gates. No deployment.

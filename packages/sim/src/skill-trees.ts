@@ -1,3 +1,5 @@
+import { BOOTSTRAP_PROGRESSION, runtimeProgression } from './progression.js';
+import type { ProgressionContentDefinition } from './content/progression-definition.js';
 import { type SkillGearMetadata } from './skill-gear-metadata.js';
 import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import type { SkillNodeCapability, SkillNodePassives } from './content/world-definition.js';
@@ -6,7 +8,7 @@ import type { ContentRegistry } from './content/registry.js';
 export const SKILL_TRACKS = ['combat', 'explorer', 'farming'] as const;
 export type SkillTrack = (typeof SKILL_TRACKS)[number];
 
-export const SKILL_LEVEL_CAP = 50;
+export const SKILL_LEVEL_CAP = BOOTSTRAP_PROGRESSION.levelCap;
 export const SKILL_SPECIALIZATIONS = [
   'farming', 'mining', 'fishing', 'woodcutting', 'animal_husbandry', 'exploration',
 ] as const;
@@ -83,25 +85,25 @@ export function runtimeSpecializationRankTotal(
 }
 
 /** Total XP threshold for reaching `level`. Level zero always starts at zero. */
-export function skillExperienceForLevel(level: number): bigint {
-  const normalized = Math.max(0, Math.min(SKILL_LEVEL_CAP, Math.floor(level)));
-  return BigInt(Math.floor(100 * normalized ** 1.7));
+export function skillExperienceForLevel(level: number, progression: ProgressionContentDefinition = BOOTSTRAP_PROGRESSION): bigint {
+  const normalized = Math.max(0, Math.min(progression.levelCap, Math.floor(level)));
+  return BigInt(Math.floor(progression.xpCurve.scale * normalized ** progression.xpCurve.exponent));
 }
 
-export function skillLevelForExperience(experience: bigint): number {
+export function skillLevelForExperience(experience: bigint, progression: ProgressionContentDefinition = BOOTSTRAP_PROGRESSION): number {
   const normalized = experience < 0n ? 0n : experience;
   let level = 0;
-  while (level < SKILL_LEVEL_CAP && normalized >= skillExperienceForLevel(level + 1)) level += 1;
+  while (level < progression.levelCap && normalized >= skillExperienceForLevel(level + 1, progression)) level += 1;
   return level;
 }
 
-export function availableSkillPoints(experience: bigint, spentPoints: number, bonusPoints = 0): number {
-  return Math.max(0, skillLevelForExperience(experience) + Math.max(0, bonusPoints) - Math.max(0, spentPoints));
+export function availableSkillPoints(experience: bigint, spentPoints: number, bonusPoints = 0, progression: ProgressionContentDefinition = BOOTSTRAP_PROGRESSION): number {
+  return Math.max(0, skillLevelForExperience(experience, progression) + Math.max(0, bonusPoints) - Math.max(0, spentPoints));
 }
 
-export function skillRespecCostBronze(respecCount: number): bigint {
-  const ladder = [0n, 100n, 500n, 2_500n, 10_000n] as const;
-  return ladder[Math.max(0, Math.min(ladder.length - 1, Math.floor(respecCount)))] ?? 10_000n;
+export function skillRespecCostBronze(respecCount: number, progression: ProgressionContentDefinition = BOOTSTRAP_PROGRESSION): bigint {
+  const ladder = progression.respecCostsBronze;
+  return BigInt(ladder[Math.max(0, Math.min(ladder.length - 1, Math.floor(respecCount)))]!);
 }
 
 export interface SkillPurchaseState {
@@ -130,6 +132,7 @@ export function skillPurchaseRejectionForNodes(
   definitions: readonly SkillNodeDefinition[],
   nodeId: string,
   state: SkillPurchaseState,
+  progression: ProgressionContentDefinition = BOOTSTRAP_PROGRESSION,
 ): SkillPurchaseRejection | null {
   const byId = new Map(definitions.map((definition) => [definition.id, definition]));
   const node = byId.get(nodeId) ?? null;
@@ -137,7 +140,7 @@ export function skillPurchaseRejectionForNodes(
   if (node.root === true) return 'skill_root_owned';
   const currentRank = Math.max(0, state.ranks[node.id] ?? 0);
   if (currentRank >= node.maxRank) return 'skill_rank_maxed';
-  if (skillLevelForExperience(state.experience) < (node.requiresLevel ?? 0)) return 'skill_level_required';
+  if (skillLevelForExperience(state.experience, progression) < (node.requiresLevel ?? 0)) return 'skill_level_required';
   const connected = node.connects.some((id) => {
     const neighbour = byId.get(id);
     return neighbour?.root === true || (state.ranks[id] ?? 0) > 0;
@@ -147,7 +150,7 @@ export function skillPurchaseRejectionForNodes(
     const owned = ownedSkillNodesWithPrerequisites(definitions, state.ranks);
     if (!node.prerequisites.every((id) => owned.has(id))) return 'skill_not_connected';
   }
-  if (availableSkillPoints(state.experience, state.spentPoints, state.bonusPoints) < node.pointCost) {
+  if (availableSkillPoints(state.experience, state.spentPoints, state.bonusPoints, progression) < node.pointCost) {
     return 'skill_points_required';
   }
   return null;
@@ -165,7 +168,7 @@ export function runtimeSkillPurchaseRejection(
   nodeId: string,
   state: SkillPurchaseState,
 ): SkillPurchaseRejection | null {
-  return skillPurchaseRejectionForNodes(registry.compiled.skillNodes, nodeId, state);
+  return skillPurchaseRejectionForNodes(registry.compiled.skillNodes, nodeId, state, runtimeProgression(registry));
 }
 
 /** Resolve ownership without depending on node IDs or traversal order. Missing

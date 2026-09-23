@@ -1,0 +1,320 @@
+{
+ "name": "piece_ember",
+ "kind": "piece",
+ "bpm": 76,
+ "swing": 0.0,
+ "key": "D",
+ "mode": "dorian",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 16,
+ "masterGainDb": 0,
+ "quotesMotif": {
+  "id": "orchard_home",
+  "channel": "bells",
+  "pattern": "Motif",
+  "exactPitch": false
+ },
+ "loop": false,
+ "fx": {
+  "reverb": 1.2,
+  "delayBeats": 1.0,
+  "delayFeedback": 0.3
+ },
+ "iterationNotes": [
+  "Pass 1: sparse adaptive-director piece (docs/12 \u00a72.5); quotes the orchard_home motif. Owner listening pass pending."
+ ],
+ "channels": [
+  {
+   "patch": "bells",
+   "vol": 0.3,
+   "pan": -0.3,
+   "patterns": [
+    "Rest",
+    "Motif",
+    "Rest",
+    "Home"
+   ]
+  },
+  {
+   "patch": "strings",
+   "vol": 0.14,
+   "pan": -0.2,
+   "patterns": [
+    "BreathA",
+    "Rest",
+    "BreathB",
+    "Rest"
+   ]
+  },
+  {
+   "patch": "pluck",
+   "vol": 0.26,
+   "pan": 0.35,
+   "patterns": [
+    "Arp",
+    "Arp2",
+    "Arp",
+    "ArpEnd"
+   ],
+   "instrument": {
+    "filter": {
+     "cutoffHz": 1800
+    }
+   }
+  },
+  {
+   "patch": "bass",
+   "vol": 0.22,
+   "patterns": [
+    "Low",
+    "Rest",
+    "Low",
+    "LowEnd"
+   ]
+  }
+ ],
+ "patterns": {
+  "Rest": {
+   "steps": 64,
+   "notes": []
+  },
+  "Motif": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "F5",
+     8,
+     0.75
+    ],
+    [
+     16,
+     "A5",
+     8,
+     0.8
+    ],
+    [
+     32,
+     "C6",
+     14,
+     0.85
+    ]
+   ]
+  },
+  "Home": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G5",
+     8,
+     0.7
+    ],
+    [
+     16,
+     "A5",
+     8,
+     0.7
+    ],
+    [
+     32,
+     "D5",
+     16,
+     0.65
+    ]
+   ]
+  },
+  "BreathA": {
+   "steps": 64,
+   "notes": [
+    [
+     8,
+     "D3",
+     40,
+     0.5
+    ],
+    [
+     8,
+     "A3",
+     40,
+     0.45
+    ]
+   ]
+  },
+  "BreathB": {
+   "steps": 64,
+   "notes": [
+    [
+     8,
+     "C3",
+     40,
+     0.5
+    ],
+    [
+     8,
+     "G3",
+     40,
+     0.45
+    ]
+   ]
+  },
+  "Arp": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "F4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "E4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "Arp2": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "F4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "A3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "E4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "C5",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "ArpEnd": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "D3",
+     8,
+     0.55
+    ],
+    [
+     40,
+     "A3",
+     8,
+     0.5
+    ],
+    [
+     48,
+     "F4",
+     16,
+     0.5
+    ]
+   ]
+  },
+  "Low": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D2",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "C3",
+     6,
+     0.65
+    ]
+   ]
+  },
+  "LowEnd": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C3",
+     6,
+     0.65
+    ],
+    [
+     32,
+     "D2",
+     10,
+     0.6
+    ]
+   ]
+  }
+ }
+}

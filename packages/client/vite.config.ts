@@ -1,4 +1,5 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { chunkRuntimeBuildAudit } from './src/chunk-shadow-build-gate.js';
 import clientPackage from './package.json' with { type: 'json' };
 import { createPwaServiceWorker } from './pwa-service-worker.js';
 
@@ -47,7 +48,9 @@ export function clientStudioBoundary(): Plugin {
   };
 }
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
+  const chunkMode = loadEnv(mode, '../..', 'VITE_').VITE_CHUNK_RUNTIME_MODE ?? 'off';
+  chunkRuntimeBuildAudit(chunkMode, []);
   const pwaBuildId = `${clientPackage.version}-${Date.now().toString(36)}`;
   return ({
   envDir: '../..',
@@ -64,6 +67,10 @@ export default defineConfig(({ command }) => {
   },
   plugins: [
     clientStudioBoundary(),
+    { name: 'orchard-chunk-runtime-audit', apply: 'build', generateBundle(_options, bundle) {
+      const audit = chunkRuntimeBuildAudit(chunkMode, Object.values(bundle).flatMap(output => output.type === 'chunk' ? output.moduleIds : []));
+      this.emitFile({type:'asset',fileName:'chunk-runtime-audit.json',source:JSON.stringify(audit)});
+    } },
     ...(command === 'serve' ? [{
       name: 'orchard-development-csp',
       transformIndexHtml: developmentCsp,

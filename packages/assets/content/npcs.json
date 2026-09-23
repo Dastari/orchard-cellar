@@ -3,6 +3,9 @@
     "id": "npc:boat",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "boat"
+    ],
     "runtimeId": "0",
     "actorAsset": "boat",
     "displayName": "Wooden Boat",
@@ -18,6 +21,16 @@
     "spawnPolicy": "dynamic",
     "mount": {
       "adapter": "boat",
+      "traversalAbilities": [
+        "boat"
+      ],
+      "replacesAbilities": [
+        "walk",
+        "boat",
+        "swim",
+        "fly",
+        "water_walk"
+      ],
       "reachFixed": 512
     },
     "questGiver": [],
@@ -28,6 +41,9 @@
     "id": "npc:delve_quartermaster",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966920",
     "actorAsset": "npc_cf_miner_mike",
     "displayName": "Orrin",
@@ -49,6 +65,9 @@
     "id": "npc:farmer_bob",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "3",
     "actorAsset": "npc_cf_farmer_bob",
     "displayName": "Farmer Bob",
@@ -80,6 +99,9 @@
     "id": "npc:fisherman_fin",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "7",
     "actorAsset": "npc_cf_fisherman_fin",
     "displayName": "Fisherman Fin",
@@ -133,6 +155,9 @@
     "id": "npc:horse",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "1",
     "actorAsset": "horse",
     "displayName": "Nados Mum",
@@ -147,6 +172,16 @@
     },
     "mount": {
       "adapter": "horse",
+      "traversalAbilities": [
+        "walk"
+      ],
+      "replacesAbilities": [
+        "walk",
+        "boat",
+        "swim",
+        "fly",
+        "water_walk"
+      ],
       "requiredSkill": "stable_hand",
       "jumpSkill": "steeplechase",
       "reachFixed": 512,
@@ -178,6 +213,9 @@
     "id": "npc:marlow",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "2",
     "actorAsset": "npc_cf_bartender_bruno",
     "displayName": "Marlow",
@@ -203,6 +241,9 @@
     "id": "npc:willow_archivist",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966936",
     "actorAsset": "npc_cf_witch",
     "displayName": "Iona",
@@ -247,6 +288,9 @@
     "id": "npc:willow_carpenter",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966933",
     "actorAsset": "npc_cf_lumberjack_jack",
     "displayName": "Rowan",
@@ -272,6 +316,9 @@
     "id": "npc:willow_cook",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966931",
     "actorAsset": "npc_cf_chef_chloe",
     "displayName": "Nell",
@@ -322,6 +369,9 @@
     "id": "npc:willow_furnisher",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966934",
     "actorAsset": "npc_cf_desert_person_03",
     "displayName": "Ada",
@@ -344,6 +394,9 @@
     "id": "npc:willow_harbour_guide",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966937",
     "actorAsset": "npc_cf_desert_person_01",
     "displayName": "Pip",
@@ -368,6 +421,9 @@
     "id": "npc:willow_innkeeper",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966930",
     "actorAsset": "npc_cf_bartender_katy",
     "displayName": "Mara",
@@ -402,6 +458,9 @@
     "id": "npc:willow_resident_farmer",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966941",
     "actorAsset": "npc_cf_desert_trader_02",
     "displayName": "Otto",
@@ -423,6 +482,9 @@
     "id": "npc:willow_resident_gardener",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966938",
     "actorAsset": "npc_cf_farmer_buba",
     "displayName": "Fern",
@@ -444,6 +506,9 @@
     "id": "npc:willow_resident_orchard",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966939",
     "actorAsset": "npc_cf_desert_person_02",
     "displayName": "Wren",
@@ -465,6 +530,9 @@
     "id": "npc:willow_resident_reader",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966940",
     "actorAsset": "npc_cf_desert_person_04",
     "displayName": "Ellis",
@@ -486,6 +554,9 @@
     "id": "npc:willow_smith",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966935",
     "actorAsset": "npc_cf_miner_mike",
     "displayName": "Bram",
@@ -510,6 +581,9 @@
     "id": "npc:willow_storekeeper",
     "kind": "npc",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeId": "4294966932",
     "actorAsset": "npc_cf_desert_trader_01",
     "displayName": "Tavi",

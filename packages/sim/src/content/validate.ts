@@ -213,10 +213,10 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
     case 'loadout': return definition.entries.map(({ item }) => item);
     case 'encounter': return definition.reward.drops.map(({ item }) => item);
     case 'balance': return 'profile' in definition && definition.profile === 'residence_construction'
-      ? definition.values.slice(1, 4) as readonly ItemDefinitionId[] : [];
+      ? [definition.fields.wood, definition.fields.stone, definition.fields.copper] as readonly ItemDefinitionId[] : [];
     case 'dialogue': case 'creature': case 'spawn':
     case 'space': case 'skill_tree': case 'effect': case 'statistic': case 'upgrade':
-    case 'balance_group': case 'enemy': return [];
+    case 'balance_group': case 'enemy': case 'progression': return [];
     case 'quest': return [
       ...(definition.acceptItems ?? []).map(({ item }) => item),
       ...definition.objectives.flatMap((objective) => objective.kind === 'collect'
@@ -1536,6 +1536,12 @@ export function validateContentDefinitions(
   const byId = new Map<string, SupportedContentDefinition>();
   let packBytes = 0;
 
+  const traversalPolicies = definitions.filter(definition => definition.kind === 'world_rules'
+    && definition.profile === 'traversal' && definition.retired !== true);
+  if (traversalPolicies.length > 1) for (const definition of traversalPolicies) {
+    errors.push(issue('error', 'invalid_world_definition', 'traversal profile requires one active owner', definition.id, 'profile'));
+  }
+
   if (definitions.length > MAX_CONTENT_DEFINITION_COUNT) {
     errors.push(issue(
       'error',
@@ -1654,6 +1660,10 @@ export function validateContentDefinitions(
     }
   }
 
+  const progressionOwners = definitions.filter(definition => definition.kind === 'progression' && definition.retired !== true);
+  if (progressionOwners.length > 1) errors.push(issue('error', 'ambiguous_interaction',
+    'only one active progression profile is allowed', progressionOwners[1]!.id, 'kind'));
+
   const supportCapOwners = new Map<SupportCapCapability, string>();
   let characterCombatProfileOwner: string | undefined;
   let worldPolicyProfileOwner: string | undefined;
@@ -1677,7 +1687,7 @@ export function validateContentDefinitions(
       else worldPolicyProfileOwner = definition.id;
     }
     if ('profile' in definition && definition.profile === 'residence_construction') {
-      const recipeVersion = definition.values[0];
+      const recipeVersion = definition.fields.recipeVersion;
       const residenceConstructionProfileOwner = residenceConstructionProfileOwners.get(recipeVersion);
       if (residenceConstructionProfileOwner !== undefined) errors.push(issue(
         'error', 'ambiguous_interaction',

@@ -3,6 +3,9 @@
     "id": "creature:bee",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "fly"
+    ],
     "species": "bee",
     "habitat": "hive_air",
     "variants": 1,
@@ -56,6 +59,9 @@
     "id": "creature:butterfly",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "fly"
+    ],
     "species": "butterfly",
     "habitat": "meadow_air",
     "variants": 8,
@@ -104,6 +110,9 @@
     "id": "creature:camel",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "camel",
     "habitat": "desert",
     "variants": 3,
@@ -156,6 +165,9 @@
     "id": "creature:capybara",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "swim"
+    ],
     "species": "capybara",
     "habitat": "freshwater",
     "variants": 2,
@@ -202,6 +214,9 @@
     "id": "creature:chicken",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "chicken",
     "habitat": "farmyard",
     "variants": 18,
@@ -248,6 +263,9 @@
     "id": "creature:cow",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "cow",
     "habitat": "pasture",
     "variants": 9,
@@ -300,6 +318,9 @@
     "id": "creature:duck",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "swim"
+    ],
     "species": "duck",
     "habitat": "freshwater",
     "variants": 5,
@@ -343,6 +364,9 @@
     "id": "creature:frog",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "frog",
     "habitat": "lakeshore",
     "variants": 6,
@@ -385,6 +409,9 @@
     "id": "creature:goose",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "swim"
+    ],
     "species": "goose",
     "habitat": "freshwater",
     "variants": 6,
@@ -432,6 +459,9 @@
     "id": "creature:horse",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "horse",
     "habitat": "pasture",
     "variants": 5,
@@ -484,6 +514,9 @@
     "id": "creature:mouse",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "mouse",
     "habitat": "woodland",
     "variants": 4,
@@ -526,6 +559,9 @@
     "id": "creature:pig",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "pig",
     "habitat": "pasture",
     "variants": 16,
@@ -572,6 +608,9 @@
     "id": "creature:rooster",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "rooster",
     "habitat": "farmyard",
     "variants": 1,
@@ -615,6 +654,9 @@
     "id": "creature:scarab",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "scarab",
     "habitat": "desert",
     "variants": 4,
@@ -661,6 +703,9 @@
     "id": "creature:sheep",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "sheep",
     "habitat": "pasture",
     "variants": 9,
@@ -713,6 +758,9 @@
     "id": "creature:snail",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "species": "snail",
     "habitat": "woodland",
     "variants": 4,
@@ -755,6 +803,9 @@
     "id": "creature:swan",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "swim"
+    ],
     "species": "swan",
     "habitat": "freshwater",
     "variants": 3,
@@ -801,6 +852,9 @@
     "id": "creature:vulture",
     "kind": "creature",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "fly"
+    ],
     "species": "vulture",
     "habitat": "desert",
     "variants": 4,

@@ -52,3 +52,18 @@ it('uses the supplied skill catalog and refreshes it when authored nodes change'
  frame.updateSkills({...model,nodes:[]}); root.arrange(); expect(cells()).toEqual([]);
  root.dispose();
 });
+
+it('uses authored level caps, XP thresholds and respec costs after content changes', async () => {
+ const {BOOTSTRAP_PROGRESSION}=await import('@orchard/sim');
+ const root=new UiRoot({scale:1});root.resize(800,600);
+ const progression={...BOOTSTRAP_PROGRESSION,levelCap:3,xpCurve:{scale:10,exponent:1},respecCostsBronze:[7]};
+ const model:SkillTreeModel={nodes:SKILL_NODE_DEFINITIONS,progression,tracks:[{track:'explorer',experience:30n,spentPoints:1,bonusPoints:0,respecCount:0}],ranks:[],balanceBronze:6n};
+ const frame=uiSkills({model,purchase:vi.fn(),reset:vi.fn()});root.mount(frame);root.arrange();
+ const nodes=()=>root.entries().map(entry=>entry.element);
+ expect(nodes().some(node=>node.label==='EXPLORER LEVEL 3 · 2 UNSPENT POINTS')).toBe(true);
+ expect(nodes().some(node=>node.label==='MAX LEVEL')).toBe(true);
+ expect(nodes().find(node=>node.props['label']==='RESET TREE 0G 0S 7C')?.disabled).toBe(true);
+ frame.updateSkills({...model,balanceBronze:7n});root.arrange();
+ expect(nodes().find(node=>node.props['label']==='RESET TREE 0G 0S 7C')?.disabled).toBe(false);
+ root.dispose();
+});

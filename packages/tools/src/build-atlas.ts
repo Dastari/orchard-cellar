@@ -1,3 +1,4 @@
+import { contentAddressedFilename, semanticAtlasPack } from './assets/semantic-packs.js';
 import { clearDeclaredPagePixels, pageShadowSelections, type DeclaredPageAsset } from './assets/omit-atlas-page.js';
 import { buildBackdropPages } from './build-backdrop-pages.js';
 import { compileEmissiveFrames } from './assets/emissive.js';
@@ -114,7 +115,7 @@ async function copyJsonAssets(folder: 'maps' | 'music' | 'sfx'): Promise<void> {
   }
 }
 
-export async function buildAtlases(): Promise<void> {
+async function buildAtlasMode(mode: 'legacy' | 'packs'): Promise<void> {
   const [assets, palette, seasonSource] = await Promise.all([
     loadAssets(),
     loadPalette(),
@@ -126,7 +127,7 @@ export async function buildAtlases(): Promise<void> {
   const revision = atlasSourceRevision(assets,palette,seasonSource);
   const revisionId = stableAssetId(`atlas:${revision}`);
   const metadata: Record<string, unknown> = {
-    schemaVersion: 4,
+    schemaVersion: mode === 'packs' ? 5 : 4,
     revision,
     revisionId,
     placeholderAssetId: MISSING_ASSET_ID,
@@ -135,6 +136,8 @@ export async function buildAtlases(): Promise<void> {
     pages: {},
     assets: {},
     assetCategories: {},
+    assetPacks: {},
+    packs: {},
     assetsById: {},
   };
   const atlasRecords = metadata['atlases'] as Record<string, string>;
@@ -147,9 +150,13 @@ export async function buildAtlases(): Promise<void> {
   const markerAssetPages: Record<string, string> = {};
   const idOwners = new Map<number, string>([[MISSING_ASSET_ID, MISSING_ASSET_NAME]]);
 
-  for (const category of categories) {
-    const categoryAssets = assets.filter((asset) => asset.category === category).sort((a, b) => a.name.localeCompare(b.name));
-    const pages = packAtlasPages(category, categoryAssets.map((asset) => ({
+  const packIds = mode === 'packs' ? [...new Set(assets.map(semanticAtlasPack))].sort() : categories;
+  const assetPacks = metadata['assetPacks'] as Record<string, string>;
+  const packs = metadata['packs'] as Record<string, string>;
+  for (const packId of packIds) {
+    const categoryAssets = assets.filter((asset) => (mode === 'packs' ? semanticAtlasPack(asset) : asset.category) === packId).sort((a, b) => a.name.localeCompare(b.name));
+    const category = categoryAssets[0]!.category;
+    const pages = packAtlasPages(mode === 'packs' ? `${category}:${packId}` : category, categoryAssets.map((asset) => ({
       name: asset.name, width: asset.size[0], height: asset.size[1],
       frameCount: Object.values(framesForAsset(asset)).reduce((sum, grids) => sum + grids.length, 0),
     })));
@@ -259,6 +266,7 @@ export async function buildAtlases(): Promise<void> {
         },
       };
       assetCategories[asset.name] = category;
+      assetPacks[asset.name] = packId;
       markerAssetPages[asset.name] = packed.pageId;
       if (Object.values(markerLayers).some((frames) => frames.some((pixels) => pixels.length > 0))) {
         markerRecords[asset.name] = markerLayers;
@@ -285,17 +293,38 @@ export async function buildAtlases(): Promise<void> {
             }
           }
         }
-        const filename = `atlas_${page.pageId.replace(':', '_')}_${season}.png`;
-        await writeFile(new URL(filename, outputRoot), encodePng(page.width, page.height, rgba));
+        const png = encodePng(page.width, page.height, rgba);
+        const filename = contentAddressedFilename('atlas', png);
+        await writeFile(new URL(filename, outputRoot), png);
         atlasRecords[`${page.pageId}:${season}`] = filename;
         if (shadowSelections.length > 0) {
           clearDeclaredPagePixels(rgba, page.width, page.height, shadowSelections);
-          const omitFilename = filename.replace(/\.png$/, '.omit.png');
-          await writeFile(new URL(omitFilename, outputRoot), encodePng(page.width, page.height, rgba));
+          const omitPng = encodePng(page.width, page.height, rgba);
+          const omitFilename = contentAddressedFilename('atlas', omitPng);
+          await writeFile(new URL(omitFilename, outputRoot), omitPng);
           omitAtlasRecords[`${page.pageId}:${season}`] = omitFilename;
         }
       }
     }
+    if (mode === 'legacy') continue;
+    const pageIds = new Set(pages.map((page) => page.pageId));
+    const pack = JSON.stringify({
+      schemaVersion: 1, packId,
+      assets: Object.fromEntries(categoryAssets.map((asset) => [asset.name, {
+        ...assetRecords[asset.name] as object,
+        markerLayers: markerRecords[asset.name] ?? {},
+      }])),
+      pages: Object.fromEntries(Object.entries(pageRecords).filter(([id]) => pageIds.has(id))),
+      atlases: Object.fromEntries(Object.entries(atlasRecords).filter(([id]) => pageIds.has(id.slice(0, id.lastIndexOf(':'))))),
+      omitAtlases: Object.fromEntries(Object.entries(omitAtlasRecords).filter(([id]) => pageIds.has(id.slice(0, id.lastIndexOf(':'))))),
+    });
+    const packFile = contentAddressedFilename('pack', pack);
+    await writeFile(new URL(packFile, outputRoot), pack);
+    packs[packId] = packFile;
+  }
+  // Explicit authoring compatibility artifact; gameplay reads immutable packs.
+  for (const category of mode === 'legacy' ? categories : []) {
+    const categoryAssets = assets.filter((asset) => asset.category === category);
     await writeFile(new URL(`atlas_${category}.meta.json`, outputRoot), JSON.stringify({
       schemaVersion: ATLAS_CATEGORY_SCHEMA_VERSION,
       revision,
@@ -307,18 +336,23 @@ export async function buildAtlases(): Promise<void> {
     throw new Error(`Required placeholder asset ${MISSING_ASSET_NAME} is missing`);
   }
   validateAtlasPages(pageRecords, assetRecords as Record<string, BuiltPageAsset>, atlasRecords, seasons);
-  // Runtime metadata is fetched before the first frame, so keep it compact and
-  // move recolouring pixels behind the only feature that consumes them. The
-  // editor still receives the complete asset catalogue from atlas.meta.json;
-  // marker overrides lazily fetch atlas.markers.json when requested.
   const runtimeMetadata = { ...metadata };
   delete runtimeMetadata['assets'];
+  if (mode === 'packs') {
+    await writeFile(new URL('atlas.packs-review.json', outputRoot), JSON.stringify(runtimeMetadata));
+    runtimeMetadata['atlases'] = {};
+    delete runtimeMetadata['omitAtlases'];
+    delete runtimeMetadata['pages'];
+    delete runtimeMetadata['assetCategories'];
+    await writeFile(new URL('atlas.packs.json', outputRoot), JSON.stringify(runtimeMetadata));
+    console.log(`Built ${packIds.length} semantic packs (${Object.keys(pageRecords).length} pages per season).`);
+    return;
+  }
+  delete runtimeMetadata['packs'];
+  delete runtimeMetadata['assetPacks'];
   await writeFile(new URL('atlas.meta.json', outputRoot), JSON.stringify(runtimeMetadata));
   await writeFile(new URL('atlas.markers.json', outputRoot), JSON.stringify({
-    schemaVersion: 2,
-    revision,
-    assetPages: markerAssetPages,
-    assets: markerRecords,
+    schemaVersion: 2, revision, assetPages: markerAssetPages, assets: markerRecords,
   }));
   const registry = {
     schemaVersion: ASSET_REGISTRY_SCHEMA_VERSION,
@@ -333,6 +367,11 @@ export async function buildAtlases(): Promise<void> {
   await Promise.all([copyJsonAssets('maps'), copyJsonAssets('music'), copyJsonAssets('sfx')]);
   await buildBackdropPages();
   console.log(`Built ${assets.length} assets across ${categories.length} atlas categories (${Object.keys(pageRecords).length} pages per season).`);
+}
+
+export async function buildAtlases(): Promise<void> {
+  await buildAtlasMode('legacy');
+  await buildAtlasMode('packs');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await buildAtlases();

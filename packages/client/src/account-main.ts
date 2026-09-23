@@ -51,7 +51,7 @@ if (canvasContext === null) throw new Error('Canvas 2D unavailable');
 const context: CanvasRenderingContext2D = canvasContext;
 context.imageSmoothingEnabled = false;
 const audio = new AudioBus(false);
-void audio.playSong('theme_title');
+audio.setMusicContext({ scene: 'title' });
 void audio.unlock().catch(() => undefined);
 setLoadingScreenStage({
   title: 'OPENING THE ORCHARD', detail: 'LAYING OUT THE ACCOUNT DESK', progress: 55,

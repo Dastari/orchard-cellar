@@ -35,7 +35,7 @@ export const ADMIN_PROCEDURE_SCAN_LIMIT = ADMIN_PROCEDURE_PAGE_SIZE + 1;
 export const ADMIN_READ_PROCEDURES = [
   'adminFindPlayers', 'adminPlayerSnapshot', 'adminPlayerInventory',
   'adminContainerContents', 'adminEntitiesInArea', 'adminHomestead',
-  'adminMissingContainerRecovery',
+  'adminMissingContainerRecovery', 'adminEntitiesInAreaPage', 'adminSpaceRegistry',
   'adminAuditPage', 'adminConnectionsPage', 'adminTelemetry', 'adminValidateWorld',
 ] as const;
 export type AdminReadProcedureName = typeof ADMIN_READ_PROCEDURES[number];

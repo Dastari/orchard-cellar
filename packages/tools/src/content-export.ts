@@ -26,6 +26,7 @@ const FILE_BY_KIND = {
   dialogue: 'dialogues.json',
   quest: 'quests.json',
   balance: 'balance.json',
+  progression: 'progression.json',
   crop: 'crops.json',
   creature: 'creatures.json',
   spawn: 'spawns.json',
@@ -40,6 +41,7 @@ const FILE_BY_KIND = {
   loadout: 'loadouts.json',
   enemy: 'enemies.json',
   encounter: 'encounters.json',
+  world_rules: 'world-rules.json',
 } as const satisfies Readonly<Record<BootstrapContentKind, string>>;
 
 export interface BootstrapContentFile {

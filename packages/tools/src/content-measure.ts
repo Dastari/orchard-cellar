@@ -5,9 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Reviewed tile catalogue: 919 definitions, 582,718 runtime bytes (hash b3f30168).
-// Adds 23,186 bytes (+4.14%) over 559,532; retain the next-whole-KiB guard.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 570 * 1024;
+// Combined wave2, D6 and timing content: 921 definitions, 620,844 runtime bytes.
+// Retain the measured next-whole-KiB regression envelope.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 607 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

@@ -1878,6 +1878,7 @@ function authoredResourceAsset(art: OverworldArt, asset: string): LoadedAsset {
     case 'tree_spruce': return art.treeSpruce;
     case 'tree_acacia': return art.treeAcacia;
     case 'tree_palm': return art.treePalm;
+    case 'tree_cf_fruit_mature': return art.treeMature;
     case 'tree_sapling': return art.treeSapling;
     case 'tree_young': return art.treeYoung;
     case 'tree_oak_sapling': return art.treeOakSapling;
@@ -2526,10 +2527,11 @@ export function drawAuthoredOverworldObject(
   zoom: number,
   assetScale = 1,
   contentsOverlay?: string,
+  receivesGlobal = true,
 ): boolean {
   const selected = frame(asset, animation, frameIndex);
   if (selected === null) return false;
-  const source = worldAssetFrameSource(context, asset, selected);
+  const source = worldAssetFrameSource(context, asset, selected, undefined, receivesGlobal);
   if (source === null) return false;
   const destinationWidth = source.width * zoom * assetScale;
   const destinationHeight = source.height * zoom * assetScale;

@@ -1,6 +1,6 @@
 {
   "name": "@orchard/lifecycle-authoring",
-  "version": "0.15.0",
+  "version": "0.16.1",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,7 +8,8 @@
     "./compiler": "./src/compiler.ts",
     "./generated": "./generated/item-lifecycles.ts",
     "./metadata": "./generated/item-lifecycle-metadata.json",
-    "./source": "./source/bootstrap-item-on-use.source.json"
+    "./source": "./source/bootstrap-item-on-use.source.json",
+    "./hooks": "./generated/hooks/lifecycle-hooks.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

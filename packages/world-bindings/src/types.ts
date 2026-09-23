@@ -595,6 +595,29 @@ export const MovementTimer = __t.object("MovementTimer", {
 });
 export type MovementTimer = __Infer<typeof MovementTimer>;
 
+export const ObjectEnvironmentEpoch = __t.object("ObjectEnvironmentEpoch", {
+  atTick: __t.u64(),
+  calendarOffset: __t.i64(),
+  weatherMode: __t.string(),
+});
+export type ObjectEnvironmentEpoch = __Infer<typeof ObjectEnvironmentEpoch>;
+
+export const ObjectEnvironmentHead = __t.object("ObjectEnvironmentHead", {
+  id: __t.u8(),
+  atTick: __t.u64(),
+  calendarOffset: __t.i64(),
+  weatherMode: __t.string(),
+});
+export type ObjectEnvironmentHead = __Infer<typeof ObjectEnvironmentHead>;
+
+export const ObjectLifecycleState = __t.object("ObjectLifecycleState", {
+  placeableId: __t.u64(),
+  definitionId: __t.string(),
+  lifecycleJson: __t.string(),
+  settledAtTick: __t.u64(),
+});
+export type ObjectLifecycleState = __Infer<typeof ObjectLifecycleState>;
+
 export const OnlinePlayerAppearances = __t.object("OnlinePlayerAppearances", {});
 export type OnlinePlayerAppearances = __Infer<typeof OnlinePlayerAppearances>;
 
@@ -1420,6 +1443,17 @@ export const SupportGrant = __t.object("SupportGrant", {
 });
 export type SupportGrant = __Infer<typeof SupportGrant>;
 
+export const TraversalHazardState = __t.object("TraversalHazardState", {
+  id: __t.string(),
+  actor: __t.string(),
+  policy: __t.string(),
+  spaceId: __t.u16(),
+  numerator: __t.u64(),
+  elapsedTicks: __t.u32(),
+  lastTick: __t.u64(),
+});
+export type TraversalHazardState = __Infer<typeof TraversalHazardState>;
+
 export const VillageOrderQuote = __t.object("VillageOrderQuote", {
   id: __t.string(),
   title: __t.string(),
@@ -1494,6 +1528,32 @@ export const WorldChestSlot = __t.object("WorldChestSlot", {
   lit: __t.bool(),
 });
 export type WorldChestSlot = __Infer<typeof WorldChestSlot>;
+
+export const WorldChunkBlob = __t.object("WorldChunkBlob", {
+  contentHash: __t.string(),
+  bytes: __t.byteArray(),
+});
+export type WorldChunkBlob = __Infer<typeof WorldChunkBlob>;
+
+export const WorldChunkHead = __t.object("WorldChunkHead", {
+  id: __t.string(),
+  spaceId: __t.u64(),
+  cx: __t.i32(),
+  cy: __t.i32(),
+  contentHash: __t.string(),
+  revision: __t.u32(),
+  byteLength: __t.u32(),
+});
+export type WorldChunkHead = __Infer<typeof WorldChunkHead>;
+
+export const WorldChunkShadow = __t.object("WorldChunkShadow", {
+  spaceId: __t.u64(),
+  revision: __t.u32(),
+  mapId: __t.string(),
+  contentHash: __t.string(),
+  manifestJson: __t.string(),
+});
+export type WorldChunkShadow = __Infer<typeof WorldChunkShadow>;
 
 export const WorldClock = __t.object("WorldClock", {
   id: __t.u8(),
