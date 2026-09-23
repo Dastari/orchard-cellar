@@ -126,7 +126,7 @@ function inspectAseprite(source: string, bytes: Buffer): CompanionSource {
     frameDurationsMs: durations,
     layersBackToFront: layers,
     frameTags: tags,
-    notes: 'Composition source for the modular player. Its Aseprite timeline frames are not the 56 semantic animation rows; use the docs/11 row map for extraction.',
+    notes: 'Composition source for the modular player. Its Aseprite timeline frames are not the 56 semantic animation rows; use the modular player row map on the wiki page Art/Sprites for extraction.',
   };
 }
 
@@ -206,7 +206,7 @@ function layoutFor(source: string, width: number, height: number): Layout {
     return grid('tile-grid', width, height, 16, 16, 'verified', '8×5 snow-cover and winter-decoration cells. Review semantic overlay roles individually; this is not a complete standalone terrain family.');
   }
   if (width === 576 && height === 3584) {
-    return grid('modular-animation-grid', width, height, 64, 64, 'verified', 'Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11.');
+    return grid('modular-animation-grid', width, height, 64, 64, 'verified', 'Canonical modular player layer: 9 columns × 56 semantic rows; use the row map on the wiki page Art/Sprites.');
   }
   if (/\/Player\/Player_Mounts\/Horse\//.test(source)) return grid('modular-animation-grid', width, height, 64, 64, 'verified', 'Mounted-player/horse layer using 64×64 cells.');
   if (/\/Player\/(Accessories|Head|Hands|Chest|Legs|Feet|Tools|Player_Base|Player_Mounts)\//.test(source) && width % 64 === 0 && height % 64 === 0) {
@@ -259,7 +259,7 @@ function animationSetsFor(source: string, width: number, height: number): string
   if (/\/Animals\/Vulture\//.test(source)) return ['idle/walk/fly side', 'fly down/up', 'sleep', 'hit'];
   if (/\/shroomlands\/Snails\/Snail_[1-4]\.png$/.test(source)) return ['idle: side/down/up', 'walk: side/down/up'];
   if (/\/Flying_Skull\.png$/.test(source)) return ['idle (6)', 'turn/hit (3)', 'attack or cast (6)', 'death/fall (6); verify state names'];
-  if (/\/Player\//.test(source) && width === 576 && height === 3584) return ['See canonical 56-row modular player map in docs/11-asset-pipeline.md'];
+  if (/\/Player\//.test(source) && width === 576 && height === 3584) return ['See canonical 56-row modular player map on the wiki page Art/Sprites (Player and character sheets)'];
   if (/\/Player\/(Accessories|Head|Hands|Chest|Legs|Feet|Tools|Player_Base|Player_Mounts)\//.test(source)) return ['Modular action/direction rows; align with the matching 64×64 body cells'];
   if (/\/characters\//.test(source) || /\/Cowling/.test(source)) return ['combat actor: idle/walk/attack × down/side/up', 'collapse/hit rows; verify per archetype'];
   if (/Anim|Animation|Animated/i.test(file)) return [humanize(file).replace(/\b(anim|animation|animated)\b/ig, '').trim().toLowerCase()];
@@ -372,7 +372,7 @@ function overview(index: DocumentedIndex): string {
 
 This is the durable discovery index for **every PNG under \`references/art/kenmi/cute-fantasy/\`**. It contains ${index.entryCount} source images across ${packs.length} pack roots at source revision \`${index.sourceRevision}\`. Search this file or [the compact JSON](cute-fantasy-index.json) for ordinary names and aliases such as \`boat\`, \`ship\`, \`sword\`, \`blade\`, \`flying skull\`, \`carrot\`, \`lily pad\`, or \`capybara\`.
 
-The source PNGs are licensed references and must not be committed elsewhere. This index is discovery metadata, not permission to copy a sheet directly into runtime assets. Import a reviewed semantic crop through the text-grid asset pipeline described in [docs/11](../11-asset-pipeline.md).
+The source PNGs are licensed references and must not be committed elsewhere. This index is discovery metadata, not permission to copy a sheet directly into runtime assets. Import a reviewed semantic crop through the text-grid asset pipeline described on the wiki page [Art/Asset Pipeline](https://wiki.orchard.dastari.net/Art/Asset%20Pipeline).
 
 ## Quick lookup
 
@@ -405,7 +405,7 @@ jq -r '.entries[] | select(.tileSet != null) | [.source, .tileSet, .collision] |
 
 ## Known animation-family maps
 
-- Modular player layers at 576×3584 use 9 columns × 56 rows of 64×64 cells. The exact row/direction/frame-count table is authoritative in [docs/11](../11-asset-pipeline.md#cute-fantasy-modular-player-animation-rows); character body crops are centered 32×40, while held tools/effects retain 64×64.
+- Modular player layers at 576×3584 use 9 columns × 56 rows of 64×64 cells. The exact row/direction/frame-count table is authoritative in [wiki Art/Sprites](https://wiki.orchard.dastari.net/Art/Sprites#Player%20and%20character%20sheets); character body crops are centered 32×40, while held tools/effects retain 64×64.
 - Cow, sheep, pig and horse: 15 rows — idle, walk and action in side/down/up; rest, lie and sleep side; hit side/down/up.
 - Chicken/goose/rooster: 16 rows — idle, walk, forage, three actions, sleep, hit; then the same eight alternate-facing rows. Duck/swan: 20 rows — seven land rows, three water rows, then the alternate set.
 - Frog and mouse: four 32×32 rows. Camel: nine 48×32 rows. Vulture: seven 48×48 rows. Scarab: three 16×16 rows. Snail: idle and walk in side/down/up. Capybara actions are separate 32px horizontal strips. Butterfly is eight colour rows of two 8×8 frames—not four 16px sprites.
@@ -413,7 +413,7 @@ jq -r '.entries[] | select(.tileSet != null) | [.source, .tileSet, .collision] |
 
 ## Companion Aseprite composition source
 
-\`${playerSource?.source ?? 'references/authoring/player/player-main-all.aseprite'}\` is the layered source companion for the modular player. It is ${playerSource?.dimensions.join('×') ?? '576×3584'}, contains ${playerSource?.timelineFrames ?? 8} Aseprite timeline frames at ${playerSource?.frameDurationsMs[0] ?? 100} ms, and has ${playerSource?.frameTags.length ?? 0} named frame tags. Its back-to-front layer order is: ${playerSource?.layersBackToFront.map((layer) => `\`${layer}\``).join(', ') ?? '`horse`, `tool_under`, `base`, `shoes`, `pants`, `shirt`, `hair`, `accesory`, `hands`, `tool_top`'}. Preserve the source spelling \`accesory\` when addressing that layer. This file confirms composition order and timing only: the eight Aseprite timeline frames are **not** the 56 semantic animation rows, so docs/11 remains authoritative for row names and per-row frame counts.
+\`${playerSource?.source ?? 'references/authoring/player/player-main-all.aseprite'}\` is the layered source companion for the modular player. It is ${playerSource?.dimensions.join('×') ?? '576×3584'}, contains ${playerSource?.timelineFrames ?? 8} Aseprite timeline frames at ${playerSource?.frameDurationsMs[0] ?? 100} ms, and has ${playerSource?.frameTags.length ?? 0} named frame tags. Its back-to-front layer order is: ${playerSource?.layersBackToFront.map((layer) => `\`${layer}\``).join(', ') ?? '`horse`, `tool_under`, `base`, `shoes`, `pants`, `shirt`, `hair`, `accesory`, `hands`, `tool_top`'}. Preserve the source spelling \`accesory\` when addressing that layer. This file confirms composition order and timing only: the eight Aseprite timeline frames are **not** the 56 semantic animation rows, so the row map on the wiki page Art/Sprites remains authoritative for row names and per-row frame counts.
 
 ## Summary
 
