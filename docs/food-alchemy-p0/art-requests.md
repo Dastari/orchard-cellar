@@ -1,5 +1,19 @@
 # P0 art requests and review holds
 
+## Combined artwork delivery
+
+All 250 planned inventory icons and eight world props (48 state frames) are now
+present in the isolated integration candidate. The original candidate/held-source
+and art-needed records below remain historical provenance. `icon-imports.json`
+now links every delivered file to its reviewed PR/head and SHA-256; held selections
+have explicit bespoke replacement resolutions, and all 35 former art requests have
+delivery links. The ten rejected vendor crops remain rejected: raw game comes from
+#91 and the other nine replacements from #95. The importer still processes only
+`native_import_reviewed` rows and cannot overwrite these bespoke replacements.
+
+See [combined audit and validation](../food-alchemy-artwork-integration.md).
+Gameplay activation and release are separate; no new gameplay definitions are added.
+
 Owner approved the full plan on 23 September 2026, including all 64 potions.
 Requests follow [doc 63](https://github.com/Dastari/orchard-cellar/blob/docs/food-alchemy-plan/docs/63-food-alchemy-content-plan.md) §§7.2/8. No placeholder is authorized for runtime content.
 
