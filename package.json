@@ -20,6 +20,7 @@
     "client:chunks:check": "tsx scripts/check-client-build-chunks.ts",
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
+    "music:render": "npm run music:render -w @orchard/tools --",
     "assets:import": "npm run import -w @orchard/tools --",
     "assets:restore-native": "npm run restore-native -w @orchard/tools",
     "pwa:assets": "npm run pwa:assets -w @orchard/tools",

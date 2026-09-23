@@ -1,4 +1,4 @@
-const STATIC_PATH_PREFIXES = ['/assets/', '/generated/', '/music/', '/pwa/', '/ui/'];
+const STATIC_PATH_PREFIXES = ['/assets/', '/generated/', '/pwa/', '/ui/'];
 
 /** Generate a revisioned worker as part of every production build. Keeping the
  * revision in the emitted source makes the browser discover every deployment,
