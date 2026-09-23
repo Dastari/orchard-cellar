@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { assertAtlasSchema, atlasPageKey, type AtlasPageDescriptor } from './atlas-page-format.js';
 export { atlasPageKey, parseCompactAssetRegistry } from './atlas-page-format.js';
 import { parseBakedShadow, type BuiltBakedShadow } from './baked-shadow.js';
@@ -174,9 +175,18 @@ let manifestUsesPacks: boolean | undefined;
 function packDeliveryEnabled(): boolean {
   return typeof location !== 'undefined' && new URLSearchParams(location.search).get('atlasPacks') === '1';
 }
+/** Old controlling workers cache static requests by full URL, even with no-store.
+ * Tie mutable indexes to the new client build before loading revisioned children.
+ * Studio has no game worker/build ID and keeps its existing request path. */
+function atlasIndexUrl(filename: string): string {
+  const buildId = import.meta.env?.VITE_PWA_BUILD_ID;
+  const path = `/generated/${filename}`;
+  return buildId ? `${path}?build=${encodeURIComponent(buildId)}` : path;
+}
+
 async function loadPackIndex(): Promise<BuiltAtlasManifest> {
   packIndexPromise ??= assetRequestQueue.run(async () => {
-    const response = await fetch('/generated/atlas.packs.json');
+    const response = await fetch(atlasIndexUrl('atlas.packs.json'));
     if (!response.ok) throw new Error(`Unable to load atlas pack index: ${response.status}`);
     const index = await response.json() as BuiltAtlasManifest;
     if (index.schemaVersion !== 5 || !index.assetPacks || !index.packs) throw new Error('Invalid atlas pack index');
@@ -193,7 +203,7 @@ async function loadManifest(): Promise<BuiltAtlasManifest> {
   manifestUsesPacks ??= packDeliveryEnabled();
   if (manifestUsesPacks) return await loadPackIndex();
   manifestPromise ??= assetRequestQueue.run(async () => {
-    const response = await fetch('/generated/atlas.meta.json');
+    const response = await fetch(atlasIndexUrl('atlas.meta.json'));
     if (!response.ok) throw new Error(`Unable to load generated atlas metadata: ${response.status}`);
     const manifest = await response.json() as BuiltAtlasManifest;
     assertAtlasSchema('index', manifest.schemaVersion);
