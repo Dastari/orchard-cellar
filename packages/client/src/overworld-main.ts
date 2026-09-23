@@ -1,5 +1,8 @@
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
+import { drawTimingTooltip } from '@orchard/ui';
+import { TimingHoverIndex } from './content/timing-hover.js';
+import { cachedProcessorRuntime, projectProcessorTiming } from './content/processor-timing.js';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
@@ -7,7 +10,7 @@ import { orchardHarvestPrompt } from './orchard-presentation.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
-import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
+import { farmingSkillEffects, farmingCropDefinition } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
 import { runtimeQuestDefinition } from '@orchard/sim';
 import { runtimeWorldPolicyBalance } from '@orchard/sim';
@@ -18,7 +21,6 @@ import {
   generateSurvivalLandmarkPathTiles,
   runtimeDurabilityDefinition,
   runtimeItemAvatarAction,
-  runtimeItemEconomy,
   survivalLandmarkRoleReservedAt,
 } from '@orchard/sim';
 import { authoredResourceVisual } from '@orchard/engine/overworld-art';
@@ -76,7 +78,6 @@ import {
   runtimeObjectCarry,
   runtimeObjectDamageable,
   runtimeObjectDefinition,
-  runtimeObjectProcessor,
   runtimeResourceDefinition,
   runtimeResourceObstacle,
   runtimeResourcePickupPresentation,
@@ -88,7 +89,7 @@ import {
 
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, processDurationTicks, processProgressAt, processRemainingTicksAt, barrelCellarCureTicks, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -673,6 +674,7 @@ let bowChargeStartedAtMs: number | null = null;
 let bowChargeStartingVigourCenti: number | null = null;
 let bowChargeAuthorityPromise: Promise<void> | null = null;
 let bowChargePointerId: number | null = null;
+const timingHoverIndex = new TimingHoverIndex();
 let hoveredInteractionTile: { readonly tileX: number; readonly tileY: number } | null = null;
 let animatedOpenChestId: bigint | null = null;
 let chestAnimationStartedAtMs = 0;
@@ -2444,7 +2446,7 @@ function liveItemContentDefinition(snapshot: OverworldView, itemKind: string) {
 }
 
 function clientProcessorRuntime(snapshot: OverworldView, placeable: WorldPlaceable) {
-  return runtimeObjectProcessor(snapshot.content.registry, placeable);
+  return cachedProcessorRuntime(snapshot.content.registry, placeable);
 }
 
 function processorInterfaceForAdapter(adapter: ProcessAdapter) {
@@ -2459,48 +2461,13 @@ function processorTiming(
   placeable: WorldPlaceable,
   authorityTick: bigint,
 ) {
-  const runtime = clientProcessorRuntime(snapshot, placeable);
-  if (runtime === null) return null;
-  const inputSlot = runtime.processor.slotRoles.input?.[0];
-  const openInput = snapshot.activePlaceable?.id === placeable.id && inputSlot !== undefined
-    ? (runtime.adapter === 'barrel'
-      ? runtime.processor.slotRoles.input?.map(slot => snapshot.openPlaceableSlots.get(slot))
-        .find(row => row !== undefined && row.itemKind !== 'empty' && row.quantity > 0)
-      : snapshot.openPlaceableSlots.get(inputSlot))?.itemKind
-    : undefined;
-  const inputKind = openInput ?? (runtime.adapter === 'campfire_cooking'
-    ? placeable.cookInputKind
-    : runtime.adapter === 'press' || runtime.adapter === 'fermentation'
-      ? placeable.processInputKind
-      : undefined);
-  let durationTicks = processDurationTicks(
-    runtime.definitions, inputKind, runtime.processor.ticksPerUnit,
-  );
-  if (runtime.adapter === 'barrel') {
-    durationTicks = barrelCellarCureTicks(
-      durationTicks, homesteadUpgradeRank(snapshot, 'barrel'),
-    );
-  } else if (runtime.adapter === 'fermentation') {
-    const outputKind = runtime.definitions[0]?.outputs[0]?.item.slice('item:'.length);
-    const sellPrice = outputKind === undefined
-      ? 0 : runtimeItemEconomy(snapshot.content.registry, outputKind)?.sellPriceBronze ?? 0;
-    durationTicks = estateVintageTier(
-      homesteadUpgradeRank(snapshot, 'vintage'), durationTicks, sellPrice,
-    ).agingTicks;
-  }
-  if (runtime.adapter === 'barrel' || runtime.adapter === 'fermentation') {
-    durationTicks = farmingBarrelTicks(durationTicks, estateFarmingSkills(snapshot).barreling);
-  }
-  const startTick = runtime.adapter === 'smelting' ? placeable.smeltStartTick
-    : runtime.adapter === 'campfire_cooking' ? placeable.cookStartTick
-      : runtime.adapter === 'barrel' ? placeable.barrelSealedTick : placeable.processStartTick;
-  return {
-    ...runtime,
-    inputKind,
-    durationTicks,
-    progress: processProgressAt(startTick, authorityTick, durationTicks),
-    remaining: processRemainingTicksAt(startTick, authorityTick, durationTicks),
-  };
+  return projectProcessorTiming(placeable, authorityTick, {
+    registry: snapshot.content.registry,
+    slots: snapshot.activePlaceable?.id === placeable.id ? snapshot.openPlaceableSlots : undefined,
+    barrelRank: homesteadUpgradeRank(snapshot, 'barrel'),
+    vintageRank: homesteadUpgradeRank(snapshot, 'vintage'),
+    barrelingRank: estateFarmingSkills(snapshot).barreling,
+  });
 }
 
 function selectedAimedUseAction(snapshot: OverworldView) {
@@ -2993,16 +2960,6 @@ function cropTimeLabel(remainingTicks: bigint): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return hours > 0 ? `${hours}H ${String(minutes).padStart(2, '0')}M` : `${minutes}M`;
-}
-
-function processorTimeLabel(remainingTicks: bigint): string {
-  const totalSeconds = Math.max(0, Math.ceil(Number(remainingTicks) / AUTHORITY_HZ));
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    : `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function refreshHoveredInteractionTile(): void {
@@ -5244,6 +5201,7 @@ function renderFrame(alpha = 1): void {
     ...(activeFrameId === null ? {} : {
       activeFrameId,
       activeFrameProgress,
+      activeFrameTiming: activeProcessorTiming?.timing,
       activeFrameState: {
         ...activeObjectFrameState(activeFramePlaceable),
         ...processJobFrameState(snapshot.content.registry, frameJob, authorityTick),
@@ -5706,47 +5664,28 @@ function renderFrame(alpha = 1): void {
           color: prospectorRank > 0 ? '#71532e' : '#836f58',
         });
         }
-      } else {
-        const hoveredProcessor = [...snapshot.placeables].find((placeable) => (
-        placeable.carriedBy === undefined
-        && placeable.spaceId === activeSpaceDefinition.spaceId
-        && placeable.tileX === hoveredInteractionTile!.tileX
-        && placeable.tileY === hoveredInteractionTile!.tileY
-        && clientProcessorRuntime(snapshot, placeable) !== null
-      ));
-        if (hoveredProcessor !== undefined) {
-        const timing = processorTiming(snapshot, hoveredProcessor, authorityTick)!;
-        const processorInterface = processorInterfaceForAdapter(timing.adapter);
-        const { remaining, progress } = timing;
-        const title = timing.object.displayName.toUpperCase();
-        const status = remaining !== null
-          ? `${timing.adapter === 'smelting' ? 'SMELTING'
-            : timing.adapter === 'campfire_cooking' ? 'COOKING'
-              : timing.adapter === 'press' ? 'PRESSING'
-                : timing.adapter === 'fermentation' ? 'FERMENTING' : 'CURING'} - ${processorTimeLabel(remaining)} LEFT`
-          : processorInterface === 'cooking' && !hoveredProcessor.lit
-            ? 'FIRE OUT - PRESS F TO LIGHT'
-            : processorInterface === 'furnace' ? 'ADD ORE + FUEL'
-              : processorInterface === 'cooking' ? 'ADD RAW FOOD'
-                : processorInterface === 'press' ? 'ADD FRUIT' : 'ADD 3 MUST';
-        const width = Math.max(
-          104,
-          measurePixelText(title, 1, art.ui.font) + 31,
-          measurePixelText(status, 1, art.ui.font) + 38,
-        );
-        const worldX = hoveredProcessor.tileX * 16 + 8;
-        const worldY = (hoveredProcessor.tileY + 1) * 16;
-        const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-        const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-        const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-        const panelY = Math.max(2, Math.round(anchorY - 32));
-        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-        drawUiAssetFrame(uiContext, art.cropTimer, Math.min(15, Math.floor(progress * 15)), panelX + 7, panelY + 7, 1);
-        drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 6);
-        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
-          color: remaining !== null ? '#315c35' : '#8a5a2b',
-        });
-        }
+      }
+    }
+  }
+  if (hoveredDetectedOre === null && !interfaceHidden && worldPointer !== null
+    && overworldUi.openWindow === null && !chatOverlay.isOpen) {
+    const hoveredProcessor = timingHoverIndex.pick({
+      registry: snapshot.content.registry,
+      revision: `${network.resourceRevision}:${snapshot.liveMapDocument?.revision ?? 0}`,
+      spaceId: activeSpaceDefinition.spaceId, rows: snapshot.placeables,
+      x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom,
+      projectionAt,
+    });
+    if (hoveredProcessor !== null) {
+      const result = processorTiming(snapshot, hoveredProcessor, authorityTick);
+      if (result !== null) {
+        const x = hoveredProcessor.tileX * 16 + 8, y = (hoveredProcessor.tileY + 1) * 16;
+        const width = Math.min(156, canvasUiWidth - 4);
+        drawTimingTooltip(uiContext, {
+          x: Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round((x - cameraX) * worldZoom / uiScale - width / 2))),
+          y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
+          width, height: 68,
+        }, result.object.displayName, result.timing, { skin: art.uiSkin, fonts: art.ui });
       }
     }
   }

@@ -89,3 +89,15 @@ Studio production build pass. The combined runtime/timer candidate #93 passed
 6,425 coverage tests plus 101 exhaustive tests at `0e9d5515`; its subsequent
 `29b20dd2` test/docs-only refresh preserves production and passes both parity tests.
 Source hosted checks and coordinator merge approval remain separate. No deployment.
+
+## Processor delivery (PR B)
+
+The shared `TimingProjection` exposes status/reason/stage/progress, remaining
+active ticks, next transition and confidence. Process settlement is reused for
+known slots; public closed anchors are explicitly estimated. A weak projection
+cache invalidates on immutable row/slot changes, authority tick, upgrade ranks
+and registry identity. Label strings cache at displayed seconds (64 entries).
+Spatial buckets respect authored target rectangles or placement footprints and
+terrain projection independently of action reach. All five authored frames bind
+the shared kit timing pane. A small canvas bridge keeps retained Studio modules
+out of the independent game build. No authority schema or scheduled writes change.

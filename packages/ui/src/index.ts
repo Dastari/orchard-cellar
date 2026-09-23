@@ -60,3 +60,5 @@ export { renderProtocolAction } from './render-protocol-action.js';
 export * from "./outdoor-rewards.js";
 
 export * from './player-rig-assets.js';
+
+export { drawTimingPane, drawTimingTooltip, timingLabels } from './kit/components/timing-canvas.js';
