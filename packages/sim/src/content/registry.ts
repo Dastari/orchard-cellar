@@ -1,3 +1,4 @@
+import { naturalObjectProjections } from './natural-object.js';
 import { contentDefinitionsHash, contentDefinitionRowIdentityHash } from './payload-hash.js';
 export { contentDefinitionsHash, contentDefinitionRowIdentityHash, contentDefinitionRowsHash } from './payload-hash.js';
 import { compiledProjection, type CompiledContentProjection } from './compiled-projection.js';
@@ -193,7 +194,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
     processes: new ImmutableMap(processes.map((definition) => [definition.id, definition] as const)),
     shops: new ImmutableMap(shops.map((definition) => [definition.id, definition] as const)),
     tilesets: new ImmutableMap(tilesets.map((definition) => [definition.id, definition] as const)),
-    objects: new ImmutableMap(objects.map((definition) => [definition.id, definition] as const)),
+    objects: new ImmutableMap(naturalObjectProjections(resources, crops, objects).map((definition) => [definition.id, deepFreeze(definition)] as const)),
     frames: new ImmutableMap(frames.map((definition) => [definition.id, definition] as const)),
     loots: new ImmutableMap(loots.map((definition) => [definition.id, definition] as const)),
     npcs: new ImmutableMap(npcs.map((definition) => [definition.id, definition] as const)),

@@ -81,8 +81,10 @@ export function runtimePlaceableBlocksMovement(
   const definition = placeableObjectDefinition(registry, reference);
   if (definition === null) return true;
   const collision = definition.components.collision;
-  if (collision?.blocksMovement !== true) return false;
-  if (collision.when === undefined) return true;
+  if (!definition.components.overrides?.some(override => override.collision !== undefined)) {
+    if (collision?.blocksMovement !== true) return false;
+    if (collision.when === undefined) return true;
+  }
   const declarations = definition.components.states ?? {};
   const state: Record<string, StateValue> = Object.fromEntries(
     Object.entries(declarations).map(([name, declaration]) => [name, declaration.default]),

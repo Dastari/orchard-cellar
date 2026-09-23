@@ -1454,6 +1454,8 @@ function elevatedLightOccluders(
     obstacle: CollisionObstacle | null,
     tie: string | undefined,
     painterFootY = worldY,
+    shadowMode: 'column' | 'silhouette' | 'none' = 'silhouette',
+    occludesLocalLight = true,
   ): void => {
     if (asset === undefined || obstacle === null) return;
     const projection = terrainProjectedDepthAtFoot(terrain, worldX, worldY);
@@ -1465,7 +1467,8 @@ function elevatedLightOccluders(
       footX: worldX,
       footY: projectedWorldY,
       receiverFacing: 'south',
-      shadowMode: 'silhouette',
+      shadowMode,
+      occludesLocalLight,
       elevationLayer,
       ...(tie === undefined ? {} : {
         painterOrder: lightCasterPainterOrder(terrain, worldX, worldY, painterFootY, tie),
@@ -1536,8 +1539,9 @@ function elevatedLightOccluders(
     const blocksMovement = presentation.collision?.blocksMovement
       ?? (definition?.blocksMovement === true);
     const occludesLight = presentation.collision?.occludesLight ?? blocksMovement;
-    if (!occludesLight || presentation.state.open === true) continue;
-    if (presentation.light !== null
+    if (presentation.lightingAuthored === true) {
+      if (!occludesLight && presentation.appearance?.lighting.castsShadow === 'none') continue;
+    } else if (!occludesLight || presentation.light?.enabled === true
       || (!presentation.authored && isLightEmitterKind(placeable.kind))) continue;
     const authoredSprite = presentation.authored ? presentation.sprite : null;
     add(
@@ -1550,6 +1554,9 @@ function elevatedLightOccluders(
       // keep their legacy ordering until their receiver collector is migrated.
       hearthFurnitureShapeForPlaceable(snapshot.content.registry, placeable) === null
         ? `placeable:${placeable.id}` : undefined,
+      (placeable.tileY + 1) * 16,
+      presentation.appearance?.lighting.castsShadow ?? 'silhouette',
+      occludesLight,
     );
   }
   return result;

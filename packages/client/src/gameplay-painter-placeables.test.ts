@@ -106,7 +106,7 @@ describe('live placeable rendering authority', () => {
     expect(rendered.resolve).toHaveBeenCalledWith(expect.anything(), row);
     expect(artDraw.authored).toHaveBeenCalledWith(
       expect.anything(), authoredAsset, 'open-burn', expect.any(Number),
-      40, 64, 0, 0, 1, 1.25, undefined,
+      40, 64, 0, 0, 1, 1.25, undefined, true,
     );
     expect(artDraw.legacy).not.toHaveBeenCalled();
   });
@@ -180,7 +180,7 @@ describe('live placeable rendering authority', () => {
       vi.fn(() => runtimeObjectProcessor(registry, press)),
     );
     pressPaint.queue[0]!.draw();
-    expect(artDraw.authored.mock.calls[0]?.at(-1)).toBe('contents_apple');
+    expect(artDraw.authored.mock.calls[0]?.[10]).toBe('contents_apple');
     expect(artDraw.legacy).not.toHaveBeenCalled();
   });
 });

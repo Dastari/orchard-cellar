@@ -208,6 +208,7 @@ export function celestialCastersFromOcclusion(map: LightOcclusionMap | undefined
   left: number, top: number, right: number, bottom: number): DirectionalCaster[] {
   const result: DirectionalCaster[] = [];
   for (const item of map?.trunkOccluders ?? []) {
+    if (item.shadowMode === 'none') continue;
     const mask = item.receiver;
     if (mask === null) continue;
     const level = item.elevationLayer ?? 0;

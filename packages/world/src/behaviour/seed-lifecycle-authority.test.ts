@@ -50,6 +50,6 @@ describe('authored seed lifecycle authority', () => {
       .toBeGreaterThanOrEqual(2);
     expect(clientSource).toContain('network.harvestCropTile(target.crop.tileX, target.crop.tileY)');
     expect(clientSource).toContain(': network.harvestCropTile(farmTarget.tileX, farmTarget.tileY)');
-    expect(clientSource).toContain("definition.assetKey.slice('crop_cf_'.length)");
+    expect(clientSource).toContain("(appearance?.sprite?.asset ?? definition.assetKey).slice('crop_cf_'.length)");
   });
 });

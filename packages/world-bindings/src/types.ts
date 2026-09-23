@@ -595,6 +595,29 @@ export const MovementTimer = __t.object("MovementTimer", {
 });
 export type MovementTimer = __Infer<typeof MovementTimer>;
 
+export const ObjectEnvironmentEpoch = __t.object("ObjectEnvironmentEpoch", {
+  atTick: __t.u64(),
+  calendarOffset: __t.i64(),
+  weatherMode: __t.string(),
+});
+export type ObjectEnvironmentEpoch = __Infer<typeof ObjectEnvironmentEpoch>;
+
+export const ObjectEnvironmentHead = __t.object("ObjectEnvironmentHead", {
+  id: __t.u8(),
+  atTick: __t.u64(),
+  calendarOffset: __t.i64(),
+  weatherMode: __t.string(),
+});
+export type ObjectEnvironmentHead = __Infer<typeof ObjectEnvironmentHead>;
+
+export const ObjectLifecycleState = __t.object("ObjectLifecycleState", {
+  placeableId: __t.u64(),
+  definitionId: __t.string(),
+  lifecycleJson: __t.string(),
+  settledAtTick: __t.u64(),
+});
+export type ObjectLifecycleState = __Infer<typeof ObjectLifecycleState>;
+
 export const OnlinePlayerAppearances = __t.object("OnlinePlayerAppearances", {});
 export type OnlinePlayerAppearances = __Infer<typeof OnlinePlayerAppearances>;
 

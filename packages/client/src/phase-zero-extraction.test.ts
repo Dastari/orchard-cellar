@@ -163,7 +163,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Smart object state resolves growth/appearance through the shared renderer.
 // Review: docs/studio-smart-placement-spec.md; parser, delta and visual regressions.
 // Retain the separately reviewed Update Ready button inset of 21px.
-const STRUCTURAL_SEAM_DIGEST = "73f153d686c0aef899dd46b4a70959e8b775652fe4d8b1a456b6a0b43cb74680";
+// Object runtime review: docs/object-state-runtime.md; map appearance bindings
+// replace asset light lists and prefix shadows; canvas transform/depth tests pass.
+const STRUCTURAL_SEAM_DIGEST = "74e8e0ed742a66a1ec7e6c7ba90880f03a3e43c982c69d5d94741dec4a562691";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
