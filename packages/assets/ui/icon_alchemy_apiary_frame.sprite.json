@@ -1,0 +1,47 @@
+{
+  "name": "icon_alchemy_apiary_frame",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..222222222222..",
+        "..288888888822..",
+        "...26JJJJJJ42...",
+        "...26K..K..42...",
+        "...26K..K..42...",
+        "...26KKKKKK42...",
+        "...26K..K..42...",
+        "...26K..K..42...",
+        "...26KKKKKK42...",
+        "...2644444442...",
+        "...SSSSSSSSSS...",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "item.apiary"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "approved": true
+}
