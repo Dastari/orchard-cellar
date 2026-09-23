@@ -100,6 +100,8 @@ export * from './behaviour/handlers/frame-actions.js';
 export * from './behaviour/handlers/loot.js';
 export * from './behaviour/handlers/npc.js';
 export * from './content/object-definition.js';
+export * from './content/object-archetype.js';
+export * from './content/stateful-components.js';
 export * from './content/object-capabilities.js';
 export * from './content/processor-authority.js';
 export * from './content/loot-definition.js';
