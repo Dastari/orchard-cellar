@@ -10,7 +10,7 @@ const objectModel = readFileSync(new URL('../object/model.ts', import.meta.url),
 const objectCanvas = readFileSync(new URL('../object/canvas.ts', import.meta.url), 'utf8');
 const shellConnection = readFileSync(new URL('../../shell/studio-connection.ts', import.meta.url), 'utf8');
 
-describe('doc42 verification log in Orchard Studio', () => {
+describe('Studio/Map Editor verification log in Orchard Studio', () => {
   it('maps canonical live-island, terrain-lab, procedural, and object routes', () => {
     expect(STUDIO_MAP_PATH).toBe('/build/map');
     expect(STUDIO_TERRAIN_LAB_PATH).toBe('/build/map/terrain-lab');

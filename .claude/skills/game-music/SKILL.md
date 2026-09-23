@@ -5,7 +5,7 @@ description: Compose music (*.song.json tracker files) and sound effects (*.sfx.
 
 # Music & SFX Authoring — Orchard & Cellar
 
-Binding spec: `docs/12-audio-design.md`. Audio is text: tracker songs and synth
+Binding spec: [wiki: Systems/Audio & Music](https://wiki.orchard.dastari.net/Systems/Audio%20%26%20Music). Audio is text: tracker songs and synth
 parameter files rendered at runtime via Web Audio. Music is **tracker songs only**
 (owner decision 2026-09-23) — never add recorded/streamed music files. Target feel: calm, warm,
 pastoral — Stardew spring themes, A Short Hike. Never harsh, never urgent.
@@ -14,11 +14,12 @@ pastoral — Stardew spring themes, A Short Hike. Never harsh, never urgent.
 
 - **Patch set is closed**: flute, pad, pluck, bass, bells, strings, accordion,
   woodblock, shaker (defined in `packages/engine/src/audio/patches.ts`). Compose only
-  with these. New patch = doc change + DECISIONS.md entry.
+  with these. New patch = design change on the wiki page
+  plus a row in the wiki [Decision Log](https://wiki.orchard.dastari.net/Decisions/Decision%20Log).
 - Song format and every instrument parameter (oscillator layers, filter envelope,
   ADSR, vibrato, velocity, pan, reverb/chorus/echo sends, per-channel `instrument`
   overrides, `[step, note, length, velocity]` notes) are documented in
-  `docs/12-audio-design.md` §2.1–2.2. Shape phrases with velocity (peak note ~0.9,
+  [wiki: Systems/Audio & Music](https://wiki.orchard.dastari.net/Systems/Audio%20%26%20Music) (Song format, Instrument parameters). Shape phrases with velocity (peak note ~0.9,
   phrase ending ~0.7) rather than extra notes.
 - Tempo 72–96 BPM, swing 0–0.12. Modes: major, lydian, mixolydian; dorian allowed
   for night/cellar. Avoid minor keys except transient color.
@@ -34,7 +35,7 @@ pastoral — Stardew spring themes, A Short Hike. Never harsh, never urgent.
   the director; `combat` 4–32-bar loops; `sting` 1–8 bars, `"loop": false`.
 - To make music play in the game, add the song as a cue in
   `packages/assets/music/audio-assignment.json` (the music director's context rules:
-  zone, time, weather, biome, combat, mood tags — docs/12 §2.5).
+  zone, time, weather, biome, combat, mood tags — [wiki: Systems/Audio & Music](https://wiki.orchard.dastari.net/Systems/Audio%20%26%20Music), Music director).
 - Structure per season: same motif, different arrangement — Spring = flute lead +
   bells; Summer = accordion + shaker warmth; Autumn = pluck-forward, busier;
   Winter = sparse pads + bells, half-time feel.
@@ -59,7 +60,7 @@ first drafts of generated music are always too busy; the fix is nearly always
 - Character: soft attacks for UI, woody/organic for world (press creaks, cask
   bubbles), marimba-like for errors — never a harsh buzzer.
 - Mix: SFX bus −6 dB under music; footsteps −18 dB; everything through the soft
-  limiter. Respect the 100 ms feedback rule from `docs/13-ui-ux.md`.
+  limiter. Respect the 100 ms feedback rule from [wiki: UI/Style Guide](https://wiki.orchard.dastari.net/UI/Style%20Guide).
 
 ## Ambience beds
 

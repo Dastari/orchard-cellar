@@ -7,7 +7,7 @@ const modifier = (entry: Partial<Modifier> & Pick<Modifier, 'id' | 'layer' | 'va
   ...entry,
 });
 
-describe('25§3 modifier resolution', () => {
+describe('Systems/Stats & Vitals: modifier resolution', () => {
   it('resolves flat, summed additive percent, then id-sorted multiplicative percent', () => {
     const modifiers = [
       modifier({ id: 'flat', layer: 'flat', value: 1_000 }),

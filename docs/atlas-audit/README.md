@@ -1,101 +1,17 @@
-# Atlas and Studio audit — 0.23.2 / Studio 0.13.2
+# Atlas audit outputs
 
-Start with the [interactive terrain guide](terrain/index.html): actual source
-pixels, assembled examples and neighbour masks, with a searchable source and
-asset catalogue. The [duplicate gallery](inventory/duplicate-evidence.html)
-shows complete pixel-sequence matches; [inventory findings](inventory/findings.md)
-explain which need semantic review. [Live-map findings](live-map.md) cover the
-reported village lamp overlap and other authored duplicates.
+Generated evidence only. The audit's method, findings, corrections and known aliases
+are on the wiki page [Art/Asset Pipeline](https://wiki.orchard.dastari.net/Art/Asset%20Pipeline)
+(Atlas audit), and the terrain joining guide is embedded on
+[World/Tiles & Rules](https://wiki.orchard.dastari.net/World/Tiles%20%26%20Rules).
 
-## Native assembly corrections
+| Path | Written by | Notes |
+|---|---|---|
+| `terrain/` (`index.html`, `README.md`, `catalogue.json`, `artifact-manifest.json`, `rules/`, `assets/`) | `npx tsx scripts/render-terrain-catalogue.ts` | Drift gate: `--check`. Start with [the terrain guide](terrain/index.html) |
+| `inventory/` (`README.md`, `inventory.json`, `frames.jsonl.gz`, `duplicate-evidence.html`) | `npx tsx scripts/audit-atlas.ts --source-root /path/to/references` | Needs `npm run assets:build` first |
+| `palette/pavement-source-coverage.json` | `npx tsx packages/tools/src/import-pavement-variants.ts` | Hearth pavement source-cell ledger |
+| `palette/repaired-source-coverage.json` | `npx tsx packages/tools/src/import-empty-terrain.ts` | Desert grass and interior wall repair ledger |
 
-The [independent family review](independent-cliff-review.md) records the incorrect
-crests, missing courses/corners and mismatched fills found after the first guide.
-Outdoor examples now use their own substrate, correct desert/shroomland/volcanic
-course banks, and the shared bounded Smart Placement repair for diagonal necks.
-Amber cells expose additions. Stone brushes select the matching grass palette;
-explicit authored cliff surfaces use their native cap artwork.
-
-Unverified interior assembly is withheld rather than rendered with stairs or an
-invented rock fill. Six coloured shroomland grass/tall-grass sheets and associated
-material joins remain identified source/import gaps. Raw masks describe existing
-resolver behavior and explicitly mark unsupported multi-inset designs.
-
-Live tileset roles are content-authoritative. Corrected bootstrap role definitions
-require an approved content release before the live game/Studio use those roles;
-a static editor deployment alone does not publish that data.
-The [correction handoff](cliff-corrections-handoff.md) records the release boundary,
-remaining source gaps and [five-definition role comparison](cliff-role-changes.json).
-
-## Earlier corrections delivered
-
-- Palette artwork updates as it loads even while the placement-mode menu remains open.
-
-- Hearth Pavement has 38 Exact Placement choices instead of four: the four stable
-  centres, four named curb corners and 30 native source fragments. Every source
-  cell is accounted for in the [paving ledger](palette/pavement-source-coverage.json).
-- Desert grass and interior wall no longer import transparent cells as their
-  base. Their complete painted source grids contain 13 and 54 distinct frames;
-  the original base remains a state so saved visual references still resolve.
-  [Repair ledger](palette/repaired-source-coverage.json).
-- Exact Placement consolidates the proven `tile_path` / `tile_cf_path` alias
-  (94 choices become 47). All persisted asset/prefab IDs and lookup entries remain.
-  Similar-looking growth states, animations and semantically different objects
-  are retained. Group names and frame numbers distinguish remaining variants.
-- Studio renders the ground path outside Marlow's tent using the game's shared
-  path generator and inset renderer. It follows **Generated Base** visibility,
-  not Player-Owned. Verified live content is required; no map cells are rewritten.
-- The legacy joined-fence drag repair from PR #60 is included, preserving its
-  one-cell selection, occupancy and undo behavior in this Studio deployment.
-
-## What the audit establishes
-
-The full atlas reconciliation covers **1,320 assets, 27,161 frames, 108,644 seasonal
-crops, 164 page/season images and 1,233 source files**, with no missing indexed or
-referenced source file and no count/revision errors. The terrain guide covers
-103 tile registrations, 126 source sheets, all 22 runtime biomes, 33 implemented
-rule families × 256 masks, assembled examples for 14 cliff and seven flat
-transition families, and 105 waterfall cases.
-
-This is not a claim that every source tile already has an import or joining rule.
-The full inventory records **552 unimported source files**, 213 partial/unverified
-sources and 13 unsupported source formats. The terrain subset has 63 source-only
-sheets with unverified joins, 37 imported sheets without demonstrated join rules,
-and 26 sheets containing implemented banks. There are 3,553 nonempty terrain
-source cells without declared crop metadata; some can be imported art with
-incomplete provenance. The report distinguishes those cases from proven omissions.
-The 234 visibly different source crops include recolours, masks and composites
-and need per-source review; they are not automatically defects.
-
-All generated diagrams use actual native/registered pixels and the current shared
-resolvers. Invalid existing geometry remains legal. Automatic joining remains a
-local placement aid; this change adds no map-wide runtime validator or repair.
-No live map, player item or database row was removed or altered by this audit.
-
-## Reproduce
-
-Licensed source files and complete source-sheet contact images are owner-local and are not committed. The local guide includes them; regenerate on a licensed checkout to restore them alongside the versioned registered-art diagrams and metadata. From the repository:
-
-```sh
-npx tsx packages/tools/src/import-pavement-variants.ts
-npx tsx packages/tools/src/import-empty-terrain.ts
-npm run assets:build
-npx tsx scripts/audit-atlas.ts --source-root /path/to/references --custom-root /path/to/art
-npx tsx scripts/render-terrain-catalogue.ts
-npx tsx scripts/render-terrain-catalogue.ts --check
-```
-
-The inventory contains compressed, complete per-frame evidence and a checksum;
-its report is not a truncated sample. The terrain manifest checks all 303 generated
-files. See the individual READMEs for source classification and mask predicates.
-Public CI checks reviewed import fingerprints; licensed pixel comparisons run on
-this development host.
-
-## Integration validation and release
-
-Asset build, source-pixel comparisons, atlas reconciliation, focused Studio
-regressions, type checks, lint and the reviewed production build are required.
-The complete repository suite and browser checks passed; see the
-[release handoff](release-handoff.md) for counts and deployment evidence. Studio deploys independently; game/world code, schema and
-live content are unchanged. A future game asset release must retain the existing
-world release approval and guarded procedure.
+Regenerate, never hand-edit. The licensed source corpus stays local (`references/`);
+refresh the wiki copies afterwards (wiki page
+[Operations/Wiki Publishing Jobs](https://wiki.orchard.dastari.net/Operations/Wiki%20Publishing%20Jobs), jobs 1 and 2).

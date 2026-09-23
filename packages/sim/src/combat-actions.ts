@@ -2,7 +2,7 @@ import { firstProjectileTerrainHit } from './ranged.js';
 import type { CollisionMap } from './state.js';
 import { AUTHORITY_HZ } from './net-timing.js';
 
-/** Initial doc60 tuning, expressed in authority ticks (20 Hz). */
+/** Initial Hearth Harbour and Embers tuning (wiki: Systems/Combat), expressed in authority ticks (20 Hz). */
 export const DODGE = Object.freeze({costCenti:1800,moveTicks:6,invulnerableTicks:4,recoveryTicks:8,distanceTiles:1.5});
 export const BLOCK = Object.freeze({drainCentiPerTick:600/AUTHORITY_HZ,hitBaseCostCenti:400,hitCostBasisPoints:8000,
   damageBasisPoints:3500,breakRecoveryTicks:12});

@@ -15,7 +15,7 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
   return source.slice(start, end);
 }
 
-describe('docs/53 T7 consolidated container moves', () => {
+describe('Architecture/World-SpacetimeDB T7 consolidated container moves', () => {
   it('routes drag and distribution through the generic open-menu helpers', () => {
     const helpers = sourceBetween('type MenuMoveRequest =', 'export const throwMenuItem =');
     expect(helpers).toContain('loadOpenMenuInventory(ctx)');

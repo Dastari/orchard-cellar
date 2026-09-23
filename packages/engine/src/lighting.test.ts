@@ -51,7 +51,7 @@ describe('overworld lighting', () => {
     expect(ambientAtProgress(dayProgressAtClockTime(23), 0.18, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
   });
 
-  it('27§7 preserves Full Moon and makes New Moon deliberately dark only at night', () => {
+  it('Systems/Lighting & Seasons: preserves Full Moon and makes New Moon deliberately dark only at night', () => {
     expect(ambientAtProgress(dayProgressAtClockTime(23), 0, 1000)).toEqual(FULL_MOON_NIGHT_AMBIENT);
     expect(ambientAtProgress(dayProgressAtClockTime(23), 0, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
     expect(ambientAtProgress(dayProgressAtClockTime(12), 0, 0)).toEqual({ r: 255, g: 255, b: 255 });
@@ -86,7 +86,7 @@ describe('overworld lighting', () => {
     expect(playerLightPosition(100, 200)).toEqual([100, 188]);
   });
 
-  it('27§3 preserves front light and compensates direct light behind a south-facing sprite', () => {
+  it('Systems/Lighting & Seasons: preserves front light and compensates direct light behind a south-facing sprite', () => {
     const ambient = { r: 20, g: 20, b: 32 };
     const common = {
       worldX: 100,
@@ -107,7 +107,7 @@ describe('overworld lighting', () => {
     expect(front).toBe(1);
   });
 
-  it('27§3 softens side light and classifies carried emitters by their ground foot', () => {
+  it('Systems/Lighting & Seasons: softens side light and classifies carried emitters by their ground foot', () => {
     const ambient = { r: 20, g: 20, b: 32 };
     const side = southFacingReceiverBrightness(100, 100, ambient, [{
       worldX: 84,

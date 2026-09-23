@@ -58,7 +58,7 @@ export interface MapCellOverride {
   /** Legacy single contour override. Dual-read with `parts`: it is the
    * lossless equivalent of one `contour:N` part and is not yet retired. */
   readonly terrainOverride?: TerrainOverride;
-  /** Ordered cell part stack (doc 61 §2.2). Absent on every pre-parts map. */
+  /** Ordered cell part stack (wiki: Studio/Map Editor, Cell parts). Absent on every pre-parts map. */
   readonly parts?: readonly CellPart[];
   /** Zero-height lip/barrier overlay. This never changes logical elevation. */
   readonly ledge?: boolean;

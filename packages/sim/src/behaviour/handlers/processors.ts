@@ -279,7 +279,7 @@ const PROCESSOR_EVENTS = Object.freeze([
   'timer',
 ] as const);
 
-/** Registry-derived migration bridge for docs/55 §11 row 7. */
+/** Registry-derived migration bridge for the authoring parity checklist (wiki: Studio/Authoring Suite) row 7. */
 export function processorHandlerRegistrations(
   objects: Iterable<ObjectContentDefinition>,
 ): readonly AnyHandlerRegistration[] {

@@ -78,7 +78,7 @@ assert max(depths.values()) == 5
 page = (HERE / 'index.html').read_text()
 embedded = page.split('const data=', 1)[1].split(';const audit=', 1)[0]
 assert json.loads(embedded.replace('<\\/', '</')) == plan, 'stale HTML catalogue'
-assert all(f"`{i}`" in (ROOT / 'docs/63-food-alchemy-content-plan.md').read_text() for i in items)
+assert all(f"`{i}`" in (HERE / 'tables.md').read_text() for i in items)
 # Shop-procurement bounds include every co-product in batch sale revenue.
 costs = {i: float(r['buy']) for i, r in items.items() if r['buy'] is not None}
 for _ in range(len(items)):

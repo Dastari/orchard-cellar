@@ -1,5 +1,5 @@
 /** Migration readers land before the bounded-page writers. Keep supplied
- * legacy versions through the separate doc 47 retirement gate. */
+ * legacy versions through the separate legacy-reader retirement gate (wiki: History/Rendering Plan 47, M13). */
 export function assertAtlasSchema(kind: 'index' | 'category' | 'markers' | 'registry', version: unknown): void {
   const maximum = kind === 'category' ? 3 : kind === 'markers' ? 2 : kind === 'index' ? 5 : 4;
   if (!Number.isInteger(version) || (version as number) < 1 || (version as number) > maximum) {

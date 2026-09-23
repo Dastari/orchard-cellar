@@ -1,6 +1,6 @@
 import type { RgbColor } from './lighting.js';
 
-/** Doc 47's shared fixed-height contract. Terrain levels may be signed. */
+/** Shared fixed-height lighting contract (wiki: Systems/Lighting & Seasons). Terrain levels may be signed. */
 export const LIGHT_HEIGHT_SUBUNITS_PER_LEVEL = 4;
 export type LightingReceiverClass = 'flat' | 'south' | 'omni';
 export interface LightingReceiver {

@@ -94,7 +94,7 @@ describe('player movement collision', () => {
     );
   });
 
-  it('30§3 rejects a height step unless a walkable contour transition connects it', () => {
+  it('World/Map & Terrain: rejects a height step unless a walkable contour transition connects it', () => {
     const start = {
       position: { x: TILE_SIZE_FIXED - 1, y: TILE_SIZE_FIXED },
       facing: 'right' as const,
@@ -121,7 +121,7 @@ describe('player movement collision', () => {
     expect(movePlayer(start, 'right', slope).position.x).toBeGreaterThan(start.position.x);
   });
 
-  it('30§5 exposes the same per-height edge guard to every grounded actor', () => {
+  it('World/Map & Terrain: exposes the same per-height edge guard to every grounded actor', () => {
     const from = {
       x: TILE_SIZE_FIXED - 1,
       y: TILE_SIZE_FIXED / 2 + 6 * FIXED_UNITS_PER_PIXEL,
@@ -136,7 +136,7 @@ describe('player movement collision', () => {
     })).toBe(false);
   });
 
-  it('30§5 resolves projected wall and cap blockers only on their owning plane', () => {
+  it('World/Map & Terrain: resolves projected wall and cap blockers only on their owning plane', () => {
     const stride = 4;
     const terrainPlaneBlocked = new Uint8Array(stride * 2);
     terrainPlaneBlocked[1] = 1;
@@ -396,7 +396,7 @@ describe('player movement collision', () => {
     });
   });
 
-  it('30§5 keeps the complete foot width on its plane at walking and sprint speeds', () => {
+  it('World/Map & Terrain: keeps the complete foot width on its plane at walking and sprint speeds', () => {
     const map = {
       width: 2,
       height: 1,
@@ -431,7 +431,7 @@ describe('player movement collision', () => {
     expect(escaped.position.x).toBeLessThan(TILE_SIZE_FIXED - 1);
   });
 
-  it('30§5 derives the terrain plane from coordinates without traversal history', () => {
+  it('World/Map & Terrain: derives the terrain plane from coordinates without traversal history', () => {
     const map = {
       width: 3,
       height: 1,

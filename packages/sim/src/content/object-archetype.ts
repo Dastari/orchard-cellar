@@ -1,5 +1,5 @@
 /**
- * Object archetype (doc 61 §3): the object-specific layer over the reusable
+ * Object archetype (wiki: Content/Objects & Machines): the object-specific layer over the reusable
  * stateful component contract in `stateful-components.ts`. Objects add a
  * `lighting` component, a pixel `target`, and an override patch shape
  * (sprite/animation, collision footprint, light emission, lighting,

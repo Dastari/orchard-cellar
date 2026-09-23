@@ -88,6 +88,6 @@ describe('T12 monolith extraction', () => {
       const body = between(`export const ${reducer} =`, '\n});');
       expect(body, reducer).toContain('requireAuthorizedSender(');
     }
-    expect(source).not.toContain('// docs/53 T8: retained for authenticated CLI administration.');
+    expect(source).not.toContain('// SpacetimeDB plan T8: retained for authenticated CLI administration.');
   });
 });

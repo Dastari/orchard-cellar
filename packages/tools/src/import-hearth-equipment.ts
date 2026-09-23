@@ -1,4 +1,4 @@
-/** Reproducible native Raven crops and the initial fixed Doc 60 equipment pack.
+/** Reproducible native Raven crops and the initial fixed Hearth Harbour and Embers equipment pack (wiki: History/Hearth Harbour and Embers).
  * Content JSON remains the runtime source of truth; no item-name mechanics.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';

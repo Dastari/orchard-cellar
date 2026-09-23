@@ -4,7 +4,7 @@ import type { Instrument, InstrumentOverrides, PatchName } from './types.js';
  * The closed patch set. Each patch is a small subtractive/additive voice:
  * detuned oscillator layers → optional breath/rattle noise → enveloped filter →
  * amplitude ADSR → channel pan → dry + reverb/chorus/echo sends. Parameters are
- * documented for composers in docs/12-audio-design.md §2.2.
+ * documented for composers on wiki: Systems/Audio & Music (Instrument parameters).
  */
 export const PATCHES: Readonly<Record<PatchName, Instrument>> = {
   flute: {

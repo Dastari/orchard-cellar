@@ -16,7 +16,7 @@ describe('placeable world-adapter row-write parity', () => {
 
   it('registers generic placeable handlers once and processors from the active registry', () => {
     const bridge = slice(
-      '// --- docs/55 lane 55-B0: generic behaviour authority bridge ---',
+      '// --- authoring lane 55-B0: generic behaviour authority bridge ---',
       'function behaviourItemSnapshot(',
     );
     expect(bridge).toContain('createHandlerRegistry(AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS)');
@@ -39,8 +39,8 @@ describe('placeable world-adapter row-write parity', () => {
     expect(writer).toContain("target?.kind !== 'combat_target'");
     expect(writer).toContain("target?.kind !== 'world_item'");
     const reducers = slice(
-      '// --- docs/55 lane 55-B0: additive generic behaviour reducers ---',
-      '// --- end docs/55 lane 55-B0 generic behaviour reducers ---',
+      '// --- authoring lane 55-B0: additive generic behaviour reducers ---',
+      '// --- end authoring lane 55-B0 generic behaviour reducers ---',
     );
     expect(reducers).toContain('{ targetKind: t.string(), entityId: t.u64(), verb: t.string() }');
   });

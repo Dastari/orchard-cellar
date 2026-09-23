@@ -229,7 +229,7 @@ export function watchStatusLabel(
 }
 
 /** 0 outside, 1 shadow, 2 illuminated. Waxing grows on the right; waning
- * recedes on the left, matching docs/27 §7. */
+ * recedes on the left, matching wiki: Systems/Lighting & Seasons. */
 export function moonPhasePixel(phase: MoonPhase, x: number, y: number): 0 | 1 | 2 {
   const dx = x - 3;
   const dy = y - 3;

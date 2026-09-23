@@ -39,7 +39,7 @@ export default tseslint.config(
       }],
     },
   },
-  // UI-kit gate (doc 61 §5): Studio composes screens from kit factories only.
+  // UI-kit gate (wiki: Decisions/61-Enforced UI-Kit Gate): Studio composes screens from kit factories only.
   // Keep both allowlists explicit and small. A new entry needs a reason.
   {
     files: ['packages/studio/src/**/*.ts'],

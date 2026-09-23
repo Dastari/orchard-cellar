@@ -61,7 +61,7 @@ function nestedTerrain(): TerrainArray {
   };
 }
 
-describe('30§5 raised-terrain depth entries', () => {
+describe('World/Map & Terrain: raised-terrain depth entries', () => {
   it('routes flat cliff caps and ledges through spatial ground lighting before drawing', () => {
     const terrain = nestedTerrain();
     const ledges = new Uint8Array(49); ledges[8] = ledges[9] = 1;
@@ -248,7 +248,7 @@ describe('30§5 raised-terrain depth entries', () => {
       .toBe('tile_cf_desert_2_ledge');
   });
 
-  it('30§5 separates lower-plane wall faces from upper-plane rims and caps', () => {
+  it('World/Map & Terrain: separates lower-plane wall faces from upper-plane rims and caps', () => {
     const entries = raisedTerrainDepthEntries(nestedTerrain(), 0, 0, 6, 6);
     const face = entries.find(({ plan }) => plan.faceLayers.length > 0);
     const cap = entries.find(({ plan }) => plan.edgeFrame !== null);
@@ -262,7 +262,7 @@ describe('30§5 raised-terrain depth entries', () => {
     });
   });
 
-  it('30§5 keeps mixed corner stacks together without submitting indirect-only columns', () => {
+  it('World/Map & Terrain: keeps mixed corner stacks together without submitting indirect-only columns', () => {
     const base = nestedTerrain();
     const elevations = new Int16Array(base.width * base.height);
     // The left column continues south while the right column ends. Resolving
@@ -290,7 +290,7 @@ describe('30§5 raised-terrain depth entries', () => {
     )).toBe(true);
   });
 
-  it('30§5 submits the cosmetic ground-contact row as a lower-plane underlay', () => {
+  it('World/Map & Terrain: submits the cosmetic ground-contact row as a lower-plane underlay', () => {
     const entries = raisedTerrainDepthEntries(nestedTerrain(), 0, 0, 6, 6);
     const foot = entries.find(({ plan }) => plan.faceLayers.some(
       (face) => face.direct && face.rowId === 'foot',
@@ -311,7 +311,7 @@ describe('30§5 raised-terrain depth entries', () => {
     expect(corner?.plan.edgeSeamUnderlayFrame).toBeUndefined();
   }, 20_000);
 
-  it('43§8 replaces a south-facing cliff crossing with all four waterfall strata', () => {
+  it('World/Map & Terrain: replaces a south-facing cliff crossing with all four waterfall strata', () => {
     const width = 7;
     const height = 9;
     const elevations = new Int16Array(width * height);
@@ -381,7 +381,7 @@ describe('30§5 raised-terrain depth entries', () => {
     expect(frameFor(1, 'foot')).toBe(13);
   });
 
-  it('43§8 keeps the middle column of a repaired diagonal waterfall drawable', () => {
+  it('World/Map & Terrain: keeps the middle column of a repaired diagonal waterfall drawable', () => {
     // This coordinate is the checked-in v6 diagonal-waterfall repair fixture;
     // keep it on that generator contract while v7 changes macro terrain.
     let preview = createProceduralEditorPreview({ seed: 987_654_321, generatorVersion: 6 });
@@ -417,7 +417,7 @@ describe('30§5 raised-terrain depth entries', () => {
     expect(frameAt(crestY + 2, 'face_foot')).toBe(13);
   });
 
-  it('30§5 submits only interior caps, leaving edge transparency to the shaped boundary sheet', () => {
+  it('World/Map & Terrain: submits only interior caps, leaving edge transparency to the shaped boundary sheet', () => {
     const runs = raisedTerrainSurfaceRuns(nestedTerrain(), 0, 0, 6, 6);
     expect(runs).toEqual([]);
 
@@ -435,7 +435,7 @@ describe('30§5 raised-terrain depth entries', () => {
     ]);
   });
 
-  it('30§3 maps every generated semantic crossing to its named contour art', () => {
+  it('World/Map & Terrain: maps every generated semantic crossing to its named contour art', () => {
     const terrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
     for (const ramp of survivalPlateauRamps(SURVIVAL_WORLD_SEED)) {
       const upperLeft = plateauLayerPlansAt(terrain, ramp.tileX, ramp.tileY - 1)

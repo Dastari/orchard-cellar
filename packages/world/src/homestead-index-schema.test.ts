@@ -11,7 +11,7 @@ function functionSource(name: string): string {
   return source.slice(start, next < 0 ? source.length : next);
 }
 
-describe('docs/53 T2 indexed homestead lookups', () => {
+describe('Architecture/World-SpacetimeDB T2 indexed homestead lookups', () => {
   it('uses the primary key and residence index without scanning in homesteadForSpace', () => {
     const lookup = functionSource('homesteadForSpace');
     expect(lookup).toContain('homestead.spaceId.find(spaceId)');

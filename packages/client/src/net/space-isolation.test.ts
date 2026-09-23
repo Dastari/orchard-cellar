@@ -12,7 +12,7 @@ function visibleTo(spaceId: number, rows: readonly SpatialRow[]): readonly strin
   return rows.filter((row) => row.spaceId === spaceId).map((row) => row.id);
 }
 
-describe('26§13 two-client space isolation', () => {
+describe('World/Spaces & Interiors: two-client space isolation', () => {
   it('isolates avatars, speech, and entities, then reunites both clients after transit', () => {
     const avatars = [
       { id: 'alice', spaceId: 65_534, chunkX: 0, chunkY: 0 },

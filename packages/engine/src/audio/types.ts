@@ -74,7 +74,7 @@ export interface InstrumentSends {
   readonly delay: number;
 }
 
-/** Complete synth definition for one patch. See docs/12-audio-design.md §2.2. */
+/** Complete synth definition for one patch. See wiki: Systems/Audio & Music (Instrument parameters). */
 export interface Instrument {
   readonly oscillators: readonly InstrumentOscillator[];
   readonly noise?: InstrumentNoise;

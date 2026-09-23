@@ -180,7 +180,7 @@ Two simultaneous clients observed matching state. The owner confirmed gameplay
 worked. The crafting layout fix was then verified in the live browser. Original
 chest/processor operation, recipe-book use and sustained reducer/CPU health still
 need their separate acceptance evidence. Remaining authority debt in
-`docs/runtime-authority-audit-2026-09-05.md` is unchanged.
+The runtime authority audit (now summarised on [History/Audits](https://wiki.orchard.dastari.net/History/Audits)) is unchanged.
 
 Evidence remains on disk; private snapshot contents and credentials are not copied
 into this document. SHA-256 references:

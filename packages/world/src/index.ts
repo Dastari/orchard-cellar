@@ -1611,7 +1611,11 @@ const client_error_report = table(
   },
 );
 
-// --- docs/55 lane 55-C: additive live-content authority tables ---
+// Section markers name delivery lanes and phases of the authoring suite (55-*) and
+// Cellar Studio (56-*) plans, now on the wiki pages Studio/Authoring Suite and
+// Studio/Acceptance; "SpacetimeDB plan Tn" items are on Architecture/World-SpacetimeDB.
+// Tests locate code by these exact markers, so rename them together.
+// --- authoring lane 55-C: additive live-content authority tables ---
 const content_head = table(
   { name: 'content_head', public: true },
   {
@@ -1694,7 +1698,7 @@ const content_editor_grant = table(
   },
 );
 
-// --- docs/56 lane 56-W3: independently revocable support capability ---
+// --- Studio lane 56-W3: independently revocable support capability ---
 const support_grant = table(
   { name: 'support_grant' },
   {
@@ -1792,7 +1796,7 @@ const admin_world_validation_report = table(
     expiresAtMicros: t.u64(),
   },
 );
-// --- end docs/55 lane 55-C tables ---
+// --- end authoring lane 55-C tables ---
 
 /** The active authored map is one public, versioned snapshot. Clients compile
  * the JSON locally and receive one atomic row update, so terrain and prefab
@@ -2970,7 +2974,7 @@ const soil_decay_timer = table(
   },
 );
 
-// --- docs/55 lane 55-B0: additive bounded behaviour timers ---
+// --- authoring lane 55-B0: additive bounded behaviour timers ---
 const entity_timer = table(
   {
     name: 'entity_timer',
@@ -3050,7 +3054,7 @@ const spacetimedb = schema({
   membership_audit,
   world_admin_audit,
   client_error_report,
-  // docs/55 lane 55-C schema registrations (additive; never reorder/remove).
+  // authoring lane 55-C schema registrations (additive; never reorder/remove).
   content_head,
   content_definition,
   content_revision,
@@ -3142,7 +3146,7 @@ const spacetimedb = schema({
   legacy_farm_retirement_control,
   movement_timer,
   soil_decay_timer,
-  // docs/55 lane 55-B0 registration (additive; preserves every legacy timer).
+  // authoring lane 55-B0 registration (additive; preserves every legacy timer).
   entity_timer,
 });
 
@@ -7988,7 +7992,7 @@ export const ownMembership = spacetimedb.view(
   (ctx) => ctx.db.membership.identity.find(ctx.sender) ?? undefined,
 );
 
-// docs/55 lane 55-C: private editor state is exposed only to its caller.
+// authoring lane 55-C: private editor state is exposed only to its caller.
 export const ownContentEditorGrant = spacetimedb.view(
   { name: 'own_content_editor_grant', public: true },
   t.option(content_editor_grant.rowType),
@@ -9244,7 +9248,7 @@ function requireWorldOwner(
   if (!canAdministerWorld(actor.role)) throw new SenderError('owner_required');
 }
 
-// --- docs/55 Phase 6: staged legacy chest continuity migration ---
+// --- authoring Phase 6: staged legacy chest continuity migration ---
 const CHEST_MIGRATION_CONTROL_ID = 0;
 const CHEST_MIGRATION_VERIFY_MAX = 4_096;
 const CHEST_MIGRATION_PHASES = new Set<ChestMigrationPhase>([
@@ -9681,9 +9685,9 @@ function insertMigratedChest(ctx: WorldReducerContext, chest: WorldChestRow): bi
   return placeable.id;
 }
 
-// --- end docs/55 Phase 6 chest migration helpers ---
+// --- end authoring Phase 6 chest migration helpers ---
 
-// --- docs/55 Phase 6: non-chest legacy farm/storage retirement ---
+// --- authoring Phase 6: non-chest legacy farm/storage retirement ---
 const LEGACY_FARM_RETIREMENT_CONTROL_ID = 0;
 const LEGACY_FARM_RETIREMENT_VERIFY_MAX = 4_096;
 const LEGACY_FARM_RETIREMENT_PHASES = new Set<LegacyFarmRetirementPhase>([
@@ -9755,9 +9759,9 @@ function emptyLegacyFarmRetirementFingerprint(migrationVersion: number): string 
   return inspectLegacyFarmRetirement({ migrationVersion, privateInventory: [],
     playerSurvivalCompatibility: [], farmParcels: [], cropPatches: [], farmActivity: [] }, 1).sourceFingerprint;
 }
-// --- end docs/55 Phase 6 non-chest legacy farm/storage retirement ---
+// --- end authoring Phase 6 non-chest legacy farm/storage retirement ---
 
-// --- docs/55 lane 55-C: bounded content publication kernel ---
+// --- authoring lane 55-C: bounded content publication kernel ---
 type ContentReadContext={readonly db:{
   readonly content_definition:Pick<WorldReducerContext['db']['content_definition'],'iter'>;
   readonly content_head:{readonly packId:Pick<WorldReducerContext['db']['content_head']['packId'],'find'>};
@@ -10012,9 +10016,9 @@ function commitContentPublication(
   const published = contentRegistryForRows(nextHead, plan.definitions);
   materializeAuthoredNpcs(ctx, published.registry.npcs.values());
 }
-// --- end docs/55 lane 55-C publication kernel ---
+// --- end authoring lane 55-C publication kernel ---
 
-// --- docs/55 lane 55-B0: generic behaviour authority bridge ---
+// --- authoring lane 55-B0: generic behaviour authority bridge ---
 const worldBehaviourHandlers: BehaviourHandlerRegistry = registerPlaceableHandlers(
   createHandlerRegistry(AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS),
 );
@@ -12717,7 +12721,7 @@ const entityTimerAuthority: EntityTimerAuthority = {
     resolvedBehaviourTarget(ctx, 'placeable', entityId) ?? undefined,
   ),
 };
-// --- end docs/55 lane 55-B0 behaviour authority bridge ---
+// --- end authoring lane 55-B0 behaviour authority bridge ---
 
 const LIVE_MAP_MAX_PREFABS = 2_048;
 const LIVE_MAP_MAX_OBJECTS = 50_000;
@@ -14125,7 +14129,7 @@ export const sendWorldSpeech = spacetimedb.reducer(
   },
 );
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const approveMember = spacetimedb.reducer(
   { identity: t.identity(), role: t.string() },
   (ctx, { identity, role }) => {
@@ -14160,7 +14164,7 @@ export const approveMember = spacetimedb.reducer(
   },
 );
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const revokeMember = spacetimedb.reducer(
   { identity: t.identity(), blocked: t.bool() },
   (ctx, { identity, blocked }) => {
@@ -14297,7 +14301,7 @@ export const setMessageOfDay = spacetimedb.reducer(
   },
 );
 
-// --- docs/55 lane 55-C: live content reducers ---
+// --- authoring lane 55-C: live content reducers ---
 export const publishContentChangeSet = spacetimedb.reducer(
   {
     packId: t.string(),
@@ -15611,7 +15615,7 @@ export const adminUndoPlayer = spacetimedb.reducer(
   },
 );
 
-// --- docs/56 lane 56-W4: object/container administration authority ---
+// --- Studio lane 56-W4: object/container administration authority ---
 function adminObjectSpaceId(value: string): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 65_535) {
@@ -16262,9 +16266,9 @@ export const adminRestoreMissingContainer = spacetimedb.reducer(
   { ...adminObjectMutationEnvelope, entityId: t.string(), targetIdentity: t.identity(), sourceAuditId: t.u64() },
   (ctx, input) => executeMissingContainerRecovery(ctx, input),
 );
-// --- end docs/56 lane 56-W4 object/container administration authority ---
+// --- end Studio lane 56-W4 object/container administration authority ---
 
-// --- docs/56 lane 56-W5 bounded world validation and safe repair authority ---
+// --- Studio lane 56-W5 bounded world validation and safe repair authority ---
 function parsedAdminWorldReport(
   row: NonNullable<ReturnType<WorldReducerContext['db']['admin_world_validation_report']['id']['find']>>,
 ): AdminWorldValidationPlan {
@@ -16510,9 +16514,9 @@ export const adminRunWorldRepair = spacetimedb.reducer(
     reportId: input.reportId,
   }, input.expectedWorldVersion, input.previewFingerprint, input.reportFingerprint),
 );
-// --- end docs/56 lane 56-W5 bounded world validation and safe repair authority ---
+// --- end Studio lane 56-W5 bounded world validation and safe repair authority ---
 
-// --- docs/56 lane 56-U5 exact live world-control authority ---
+// --- Studio lane 56-U5 exact live world-control authority ---
 function adminWorldControlRevision(
   ctx: WorldReducerContext,
   revisionId: string,
@@ -16798,9 +16802,9 @@ export const adminMoveHomesteadExact = spacetimedb.reducer(
     tileX: input.tileX, tileY: input.tileY,
   }, input.expectedWorldVersion, input.previewFingerprint),
 );
-// --- end docs/56 lane 56-U5 exact live world-control authority ---
+// --- end Studio lane 56-U5 exact live world-control authority ---
 
-// --- docs/55 Phase 5: audited World Tables playtest authority ---
+// --- authoring Phase 5: audited World Tables playtest authority ---
 const PLAYTEST_NPC_ID_BASE = 9_500_000_000_000n;
 
 function playtestNpcId(actor: Identity, clientMutationId: string): bigint {
@@ -17041,7 +17045,7 @@ export const adminPlaytestGrantUpgrade = spacetimedb.reducer(
     definitionId: input.definitionId, targetIdentity: input.identity.toHexString(), rank: input.rank,
   }, input.expectedBaseVersion, input.previewFingerprint),
 );
-// --- end docs/55 Phase 5 audited World Tables playtest authority ---
+// --- end authoring Phase 5 audited World Tables playtest authority ---
 
 export const saveContentDraft = spacetimedb.reducer(
   { baseRevision: t.u64(), upserts: t.string(), deletes: t.string() },
@@ -17074,9 +17078,9 @@ export const clearContentDraft = spacetimedb.reducer((ctx) => {
   requireContentEditor(ctx);
   if (ctx.db.content_draft.identity.find(ctx.sender) !== null) ctx.db.content_draft.identity.delete(ctx.sender);
 });
-// --- end docs/55 lane 55-C live content reducers ---
+// --- end authoring lane 55-C live content reducers ---
 
-// --- docs/55 lane 55-B0: additive generic behaviour reducers ---
+// --- authoring lane 55-B0: additive generic behaviour reducers ---
 export const interactEntity = spacetimedb.reducer(
   { targetKind: t.string(), entityId: t.u64(), verb: t.string() },
   (ctx, request) => {
@@ -17110,7 +17114,7 @@ export const entityTimerFire = spacetimedb.reducer(
     entityTimerFireBehaviour(ctx, scheduledMessage, entityTimerAuthority);
   },
 );
-// --- end docs/55 lane 55-B0 generic behaviour reducers ---
+// --- end authoring lane 55-B0 generic behaviour reducers ---
 
 export const adminChestMigrationStatus = spacetimedb.procedure(
   {},
@@ -18363,7 +18367,7 @@ export const inventoryCursorSwapHotbar = spacetimedb.reducer(
   },
 );
 
-// docs/53 T7: the four uncalled inventory/chest quick-move reducers had no
+// SpacetimeDB plan T7: the four uncalled inventory/chest quick-move reducers had no
 // compatibility window; this menu-aware pair is their sole supported surface.
 export const quickMoveMenuItem = spacetimedb.reducer(
   { fromContainer: t.string(), fromIndex: t.u8(), toContainers: t.array(t.string()) },
@@ -20190,7 +20194,7 @@ function partyInviteId(partyId: bigint, inviteeHex: string): string {
   return JSON.stringify([partyId.toString(), inviteeHex]);
 }
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const createParty = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const clock = ctx.db.world_clock.id.find(0);
@@ -20202,7 +20206,7 @@ export const createParty = spacetimedb.reducer({}, (ctx) => {
   });
 });
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const inviteToParty = spacetimedb.reducer(
   { invitee: t.identity() },
   (ctx, { invitee }) => {
@@ -20229,7 +20233,7 @@ export const inviteToParty = spacetimedb.reducer(
   },
 );
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const acceptPartyInvite = spacetimedb.reducer(
   { partyId: t.u64() },
   (ctx, { partyId }) => {
@@ -20271,13 +20275,13 @@ function leavePlayerParty(ctx: WorldReducerContext, identity: WorldReducerContex
   }
 }
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const leaveParty = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   leavePlayerParty(ctx, ctx.sender);
 });
 
-// docs/53 T8: pending decision
+// SpacetimeDB plan T8: pending decision
 export const removePartyMember = spacetimedb.reducer(
   { memberIdentity: t.identity() },
   (ctx, { memberIdentity }) => {

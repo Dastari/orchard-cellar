@@ -137,7 +137,7 @@ describe('shared raised terrain autotile utility', () => {
     expect(() => raisedTerrainContourGrid(elevationAt, 0.5)).toThrow('integer');
   });
 
-  it('30§3 resolves a cliff inside a cliff at every nested contour', () => {
+  it('World/Map & Terrain: resolves a cliff inside a cliff at every nested contour', () => {
     const elevations = [
       [0, 0, 0, 0, 0],
       [0, 1, 1, 1, 0],
@@ -172,7 +172,7 @@ describe('shared raised terrain autotile utility', () => {
     ).map(({ contourLevel }) => contourLevel)).toEqual([-1, 0, 1]);
   });
 
-  it('30§3 applies an authored opening to only its named contour', () => {
+  it('World/Map & Terrain: applies an authored opening to only its named contour', () => {
     const elevationAt = (tileX: number, tileY: number): number => (
       tileX >= 0 && tileX <= 2 && tileY === 0 ? 2 : 0
     );

@@ -136,7 +136,7 @@ describe('unified renderer zoom math', () => {
     ]);
   });
 
-  it('30§5 composites raised caps above lower actors while wall faces retain foot-Y sorting', () => {
+  it('World/Map & Terrain: composites raised caps above lower actors while wall faces retain foot-Y sorting', () => {
     const items = [
       { footY: 44, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-behind' },
       { footY: 48, elevationLayer: 0, depthPhase: 'boundary' as const, tie: 'lower-wall-face' },
@@ -153,14 +153,14 @@ describe('unified renderer zoom math', () => {
     ]);
   });
 
-  it('30§5 paints a wall before a lower actor once the actor foot is south of the visible wall', () => {
+  it('World/Map & Terrain: paints a wall before a lower actor once the actor foot is south of the visible wall', () => {
     expect(sortWorldDepthItems([
       { footY: 80, elevationLayer: 0, depthPhase: 'boundary' as const, tie: 'visible-wall' },
       { footY: 81, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'player-head-must-survive' },
     ]).map(({ tie }) => tie)).toEqual(['visible-wall', 'player-head-must-survive']);
   });
 
-  it('30§5 keeps plane surfaces and cosmetic cliff trim below actors at every row', () => {
+  it('World/Map & Terrain: keeps plane surfaces and cosmetic cliff trim below actors at every row', () => {
     expect(sortWorldDepthItems([
       { footY: 12, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'actor' },
       { footY: 96, elevationLayer: 0, depthPhase: 'surface' as const, tie: 'cliff-foot-trim' },

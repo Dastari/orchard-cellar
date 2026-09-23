@@ -16,7 +16,7 @@ function visible(rows: readonly PlaceableFixture[], spaceId: number, centerChunk
   return rows.filter((row) => row.spaceId === spaceId && Math.abs(row.chunkX - centerChunk) <= 1);
 }
 
-describe('28§14 deterministic two-client crafting fixture', () => {
+describe('Systems/Crafting: deterministic two-client crafting fixture', () => {
   it('lets B craft at A’s workbench, then rejects the same craft after B picks it up', () => {
     let rows: readonly PlaceableFixture[] = [{ id: 1n, kind: 'workbench', tileX: 11, tileY: 10, chunkX: 0, chunkY: 0, spaceId: 0 }];
     const player = { spaceId: 0, tileX: 10, tileY: 10 };

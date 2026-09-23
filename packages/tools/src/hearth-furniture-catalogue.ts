@@ -1,4 +1,4 @@
-/** Reviewed base catalogue from docs/60-astra-furniture-catalogue-review.md.
+/** Reviewed base catalogue from the Astra furniture catalogue review (wiki: History/Hearth Harbour and Embers).
  * Native crop/placement review is separate; this table supplies names and economy. */
 export const HEARTH_FURNITURE_CATALOGUE = [
   {

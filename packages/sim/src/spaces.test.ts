@@ -15,7 +15,7 @@ import {
   spaceDefinitionFor,
 } from './spaces.js';
 
-describe('26§2 space registry', () => {
+describe('World/Spaces & Interiors: space registry', () => {
   it('resolves static topside and owner-only debug definitions', () => {
     expect(spaceDefinitionFor(TOPSIDE_SPACE_ID)).toMatchObject({ generator: 'island', environment: 'outdoor' });
     expect(spaceDefinitionFor(DEBUG_SPACE_ID)).toMatchObject({

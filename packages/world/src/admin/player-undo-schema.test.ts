@@ -30,7 +30,7 @@ describe('live audited player undo registration', () => {
   });
 
   it('checks reason, role, target, source audit and idempotency before applying an inverse', () => {
-    const reducer = between('export const adminUndoPlayer = spacetimedb.reducer(', '// --- docs/56 lane 56-W4');
+    const reducer = between('export const adminUndoPlayer = spacetimedb.reducer(', '// --- Studio lane 56-W4');
     expect(reducer).toContain('validatedAdminMutationReason(input.reason, input.clientMutationId)');
     expect(reducer).toContain('planAdminPlayerUndoGuard({');
     expect(reducer).toContain('ctx.db.admin_player_mutation_commit.id.find(commitId)');
@@ -41,7 +41,7 @@ describe('live audited player undo registration', () => {
   });
 
   it('atomically restores, audits, marks single-use and notifies online sessions', () => {
-    const reducer = between('export const adminUndoPlayer = spacetimedb.reducer(', '// --- docs/56 lane 56-W4');
+    const reducer = between('export const adminUndoPlayer = spacetimedb.reducer(', '// --- Studio lane 56-W4');
     expect(reducer).toContain('writeAdminInventoryState(ctx, target, loadedInventory, action.state)');
     expect(reducer).toContain('writeAdminProgressionState(ctx, target, action.state');
     expect(reducer).toContain('writeAdminPositionPlan(ctx, target, plan)');
