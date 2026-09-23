@@ -31,6 +31,11 @@
 - Reject type assertions, interpolated string expansion and bigint operations that could evade the callback AST budget.
 - Validate v2 source, generated code, metadata and provenance in lifecycle build/integrity gates. New checked-in bundle is empty; release remains separately reviewed. See [F3 specification and handoff](docs/lifecycle-object-quest-hooks.md).
 
+## 0.24.1 — 2026-09-23
+
+- Fix workstation and private-job progress using calendar offsets: elapsed time now uses the authoritative simulation clock exclusively, while date/weather/moon displays retain calendar time. Client 0.20.2.
+- Document the shared timing delivery plan and add large-offset, reconnect and UI clock-wiring regressions.
+
 ## 0.24.0 — 2026-09-23
 
 - Build content-addressed atlas pages, deduplicate identical seasonal/shadow variants, and retain unchanged atlas files across worker releases in a bounded immutable cache.

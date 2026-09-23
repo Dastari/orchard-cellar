@@ -503,3 +503,13 @@ dense chunks or when filters return no matches. Studio uses per-space viewport
 subscriptions while player presence remains global. Runtime-space route references
 are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
 and [decision](adr/ADR-studio-multi-space.md).
+
+
+### Gameplay timing clock domains
+
+The client `content/timing-clock.ts` separates simulation authority from calendar
+time. Processor and private-job progress consume `world_clock.authorityTick`;
+calendar offsets only feed seasonal policy and calendar/weather/lighting displays.
+Cosmetic clocks cannot confirm production completion. See
+[shared timing specification](timing-system-spec.md) for the staged frame/hover
+projection work and [decision](adr/ADR-shared-timing.md).
