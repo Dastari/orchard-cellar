@@ -1231,6 +1231,7 @@ function validateFrameDefinition(
       || ('process' in pane.bind && pane.kind !== 'bar')) {
       invalid('bar panes require process.progress or state; process.progress requires a bar pane', `${path}.bind`);
     }
+    if ('timing' in pane.bind && pane.kind !== 'text') invalid('timing bindings require a text pane', `${path}.bind`);
     if (pane.restriction !== undefined && pane.kind !== 'slots' && pane.kind !== 'paper_doll') {
       invalid('restrictions are valid only on slot panes', `${path}.restriction`);
     }

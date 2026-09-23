@@ -1,5 +1,7 @@
+import { drawTimingPane } from './kit/components/timing-canvas.js';
 import type {
   FrameContentDefinition,
+  TimingProjection,
   FrameRestrictionRegistry,
   SlotRestriction,
 } from '@orchard/sim';
@@ -62,6 +64,7 @@ export interface ContentFrameLayout {
 
 export interface ContentFrameRenderModel {
   readonly progress?: number;
+  readonly timing?: TimingProjection;
   readonly state?: Readonly<Record<string, boolean | string | number>>;
 }
 
@@ -125,6 +128,7 @@ function storagePane(pane: FramePaneDefinition): StorageFrameSpec['panes'][numbe
     ...(pane.alignment === undefined ? {} : { alignment: pane.alignment }),
     ...(pane.style === undefined ? {} : { style: pane.style }),
     ...(pane.minWidth === undefined ? {} : { minWidth: pane.minWidth }),
+    ...('timing' in pane.bind ? { slotSize: { width: pane.minWidth ?? 100, height: 44 } } : {}),
     ...(verticalProgress ? { slotSize: { width: 16, height: 31 }, rowGap: 0 } : {}),
   };
 }
@@ -225,6 +229,10 @@ export function drawContentFrame(
       width: pane.layout.region.width,
       height: 10,
     }, { color: '#6b4428', overflow: 'ellipsis' });
+    if ('timing' in pane.definition.bind) {
+      if (model.timing) drawTimingPane(context, pane.layout.grid, model.timing, renderer);
+      continue;
+    }
     if (pane.definition.kind === 'bar') {
       const value = 'state' in pane.definition.bind ? state[pane.definition.bind.state] : model.progress;
       const progress = typeof value === 'number' && Number.isFinite(value)

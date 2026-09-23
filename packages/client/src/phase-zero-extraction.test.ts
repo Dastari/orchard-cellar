@@ -163,7 +163,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Smart object state resolves growth/appearance through the shared renderer.
 // Review: docs/studio-smart-placement-spec.md; parser, delta and visual regressions.
 // Retain the separately reviewed Update Ready button inset of 21px.
-const STRUCTURAL_SEAM_DIGEST = "73f153d686c0aef899dd46b4a70959e8b775652fe4d8b1a456b6a0b43cb74680";
+// Shared authored timing pane: optional projection model and game-safe kit bridge exports.
+// Review: docs/timing-system-spec.md; frame, settlement and bundle tests cover the seam.
+const STRUCTURAL_SEAM_DIGEST = "d2d2f0a9da6e169becfb3273e0c754fbc169612b88f37e8d05e4701cb94f94fe";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

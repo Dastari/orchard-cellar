@@ -1,0 +1,26 @@
+# Timing delivery handoff
+
+Owner authorized following BrownHorizon mail 324; GoldCondor coordinates integration.
+Do not merge or deploy from this workstream.
+
+- A: PR #84 (`fix/timing-clock-domain`) separates raw process time and calendar time.
+  Workspace typecheck/lint, content validation, world/client builds pass. Full suite
+  reached 978 passing files with one obsolete source-location assertion, subsequently
+  corrected and verified (9 targeted tests). The cumulative B/C run validates the repair.
+- B: `feat/shared-processor-timing`, stacked on A, adds the shared projection,
+  authored kit panes, hover picking and bounded caches. Game/world builds,
+  typecheck/lint/content validation pass. Focused timing/bundle tests: 25 passed;
+  reviewed structural-seam recapture: 6 passed. Full suite pending.
+- C: growth adapters and honest paused/conditional timing follow B. Private generic
+  lifecycle anchors from #81 must remain private; exact public generic ETAs need
+  an explicit presentation contract. No new authority or epoch system is introduced.
+
+## Local browser evidence
+
+Disposable loopback world on port 3701 and local client 5178; production untouched.
+Temporary fixture uses real processor inputs and a calendar offset of 354191 ticks.
+Furnace shows IN PROGRESS / 0:20 LEFT, then READY with a copper bar and fuel consumed.
+Barrel shows IN PROGRESS / 0:20 LEFT with four raw beets. Captures:
+`/tmp/timing-furnace-running.png`, `/tmp/timing-furnace-panel.png`,
+`/tmp/timing-barrel-running.png`. Closed stale furnace hover reads COLLECT TO CONFIRM
+and ESTIMATED. No inventory tokens or credentials are included in evidence.

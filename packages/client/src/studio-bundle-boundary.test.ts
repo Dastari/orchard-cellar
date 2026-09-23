@@ -29,6 +29,9 @@ describe('independent game bundle', () => {
     await expect(buildFixture([
       'packages/ui/src/kit/skin/lucide.ts',
       'packages/ui/src/kit/runtime/text-editor.ts',
+      'packages/ui/src/kit/components/timing-canvas.ts',
+      'packages/ui/src/kit/skin/contrast.ts',
+      'packages/ui/src/kit/skin/faces.ts',
       'packages/ui/src/overworld-ui.ts',
     ])).resolves.toBeDefined();
   });
