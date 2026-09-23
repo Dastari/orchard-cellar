@@ -1,5 +1,7 @@
 # F2 named balance and progression handoff
 
+PR: https://github.com/Dastari/orchard-cellar/pull/76
+
 Owner-authorized part 1 of doc 62 F2 (Agent Mail #178). Branch
 `feat/content-balance-and-progression`, based on `origin/main` `2e1d9a4f`.
 
@@ -92,3 +94,12 @@ No table schema or generated bindings changed. No merge/deployment performed.
   now-fixed fishing test harness failures. The final affected run includes both
   corrected cases. Do not treat that earlier coverage run as a passing final
   snapshot; final complete coverage remains a CI gate before merge.
+
+## Payload measurement
+
+Standalone F2 pack: 920 definitions / 26 kinds, 561,743 runtime payload bytes
+(excludes protocol/compression), 708,911 authoring row-envelope bytes; hash
+`0cf1057f`. Named fields and progression add 2,211 runtime bytes (+0.40%) over
+559,532. The existing regression guard moves from 547 KiB to the next whole KiB,
+549 KiB (562,176 bytes), leaving only 433 bytes slack. This is not a wire limit.
+Remeasure after wave1 integration; do not choose either branch budget blindly.

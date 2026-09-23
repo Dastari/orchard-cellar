@@ -5,9 +5,10 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Combined gameplay and Willowharbour content: 919 definitions, 559,532 runtime
-// bytes. Retain the next-whole-KiB subscription guard for this reviewed merge.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 547 * 1024;
+// F2 named balance/progression: 920 definitions, 561,743 runtime bytes;
+// +2,211 bytes (+0.40%) from 559,532. Keep the next-whole-KiB regression guard.
+// Remeasure the combined pack after wave1 integration; this is not a wire cap.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 549 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;
