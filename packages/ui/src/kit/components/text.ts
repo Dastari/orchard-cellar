@@ -13,7 +13,8 @@ export interface UiTextOptions {
 }
 export function uiTextLines(value: string, width: number, role: UiTextRole, wrap = true, maxLines = Infinity): string[] {
   const cell = UI_TEXT_METRICS[role].glyphWidth + 1;
-  const columns = Math.max(1, Math.floor((width + 1) / cell));
+  const columns = Math.max(0, Math.floor((width + 1) / cell));
+  if (columns === 0) return [''];
   const lines: string[] = [];
   for (const paragraph of value.split('\n')) {
     if (!wrap) { lines.push(paragraph.length > columns ? `${paragraph.slice(0, Math.max(0, columns - 3))}${'.'.repeat(Math.min(3, columns))}` : paragraph); continue; }
@@ -42,7 +43,7 @@ export function uiText(value: string, options: UiTextOptions = {}): UiElement {
     paint(element, { context, art }) {
       if (!art) return;
       const r = element.rect, lines = linesFor(String(element.props['text']), r.width);
-      const asset = role === 'header' ? art.pixel.headerFont : art.pixel.font;
+      const asset = metrics.font === 'header' ? art.pixel.headerFont : art.pixel.font;
       const color = uiElementTextContrast(element).color;
       lines.forEach((line, index) => {
         const width = measurePixelText(line, 1, asset);
@@ -54,7 +55,8 @@ export function uiText(value: string, options: UiTextOptions = {}): UiElement {
   });
 }
 export function uiRichText(value: string, options: UiTextOptions & { readonly onLink?: (target: UiTextLinkTarget) => void } = {}): UiElement {
-  const runs = parseUiRichText(value), links = runs.flatMap(run => run.link ? [run.link] : []);
+  const metrics = UI_TEXT_METRICS[options.role ?? 'body'];
+  const runs = parseUiRichText(value).map(run => ({ ...run, font: metrics.font })), links = runs.flatMap(run => run.link ? [run.link] : []);
   let selected = 0; let painted: UiRichTextLayout | undefined;
   const plain = uiText(runs.map(run => run.text).join(''), options);
   return new UiElement({ id: options.id, kind: 'rich-text', label: plain.label, style: options.layout,
@@ -63,7 +65,7 @@ export function uiRichText(value: string, options: UiTextOptions & { readonly on
     paint(element, { context, art }) {
       if (!art) return;
       const color = resolveUiTextContrast(uiElementTone(element)).color;
-      const layout = layoutUiRichText(art.pixel, runs, element.rect, { color, linkColor: color, maxLines: options.maxLines });
+      const layout = layoutUiRichText(art.pixel, runs, element.rect, { color, linkColor: color, lineHeight: metrics.lineHeight, maxLines: options.maxLines });
       painted = layout; drawUiRichText(context, art.pixel, layout);
     },
     onPointer(event) {

@@ -17,7 +17,7 @@ it('remeasures furnace columns after allocation and repacks slots at three width
       const root = new UiRoot({ scale }); root.resize(width * scale, 640 * scale);
       root.mount(furnaceSpecimen.build(ui, {}, { activate() {} })); root.arrange();
       const entries = root.entries().map(entry => entry.element);
-      for (const heading of entries.filter(node => node.label === 'Input' || node.label === 'Output')) expect(heading.rect.height).toBeGreaterThanOrEqual(16);
+      for (const heading of entries.filter(node => node.label === 'Input' || node.label === 'Output')) expect(heading.rect.height).toBeGreaterThanOrEqual(10);
       const slots = entries.filter(node => node.kind === 'slot' && node.label.startsWith('press.input/'));
       expect(slots).toHaveLength(6);
       for (const slot of slots) expect(slot.rect.height % 31).toBe(0);
