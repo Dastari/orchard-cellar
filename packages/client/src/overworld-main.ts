@@ -1,4 +1,8 @@
 import { runtimeProgression } from '@orchard/sim';
+
+import { timingLabels } from '@orchard/ui';
+import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
+import { projectTiming, rainForWeatherMode } from '@orchard/sim';
 import { drawTimingTooltip } from '@orchard/ui';
 import { TimingHoverIndex } from './content/timing-hover.js';
 import { cachedProcessorRuntime, projectProcessorTiming } from './content/processor-timing.js';
@@ -118,7 +122,6 @@ import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
-import { cropTooltipIndicator } from './crop-tooltip.js';
 import { drawProgressBar, GREEN_PROGRESS_PALETTE } from '@orchard/ui';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from '@orchard/engine/loading-screen';
 import { isStandaloneWebApp, pwaClient } from './pwa.js';
@@ -674,6 +677,7 @@ let bowChargeStartingVigourCenti: number | null = null;
 let bowChargeAuthorityPromise: Promise<void> | null = null;
 let bowChargePointerId: number | null = null;
 const timingHoverIndex = new TimingHoverIndex();
+const growthTimingHoverIndex = new GrowthTimingHoverIndex();
 let hoveredInteractionTile: { readonly tileX: number; readonly tileY: number } | null = null;
 let animatedOpenChestId: bigint | null = null;
 let chestAnimationStartedAtMs = 0;
@@ -2935,13 +2939,6 @@ function targetCrop(snapshot: OverworldView): WorldCrop | null {
     tile.tileY,
     activeSpaceDefinition.spaceId,
   )) ?? null;
-}
-
-function cropTimeLabel(remainingTicks: bigint): string {
-  const totalMinutes = Math.max(1, Math.ceil(Number(remainingTicks) / AUTHORITY_HZ / 60));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}H ${String(minutes).padStart(2, '0')}M` : `${minutes}M`;
 }
 
 function refreshHoveredInteractionTile(): void {
@@ -5508,152 +5505,91 @@ function renderFrame(alpha = 1): void {
   }
   if (hoveredDetectedOre === null && !interfaceHidden && hoveredInteractionTile !== null && worldPointer !== null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    const hoveredCrop = snapshot.crops.get(farmSoilKey(
-      hoveredInteractionTile.tileX,
-      hoveredInteractionTile.tileY,
-      activeSpaceDefinition.spaceId,
+    const hoveredMiningResource = worldResourcesIncludingPersonalQuest(snapshot).find((resource) => (
+      !resource.depleted
+      && resource.spaceId === activeSpaceDefinition.spaceId
+      && resource.tileX === hoveredInteractionTile!.tileX
+      && resource.tileY === hoveredInteractionTile!.tileY
+      && ['fish', 'mine'].includes(runtimeResourceDefinition(snapshot.content.registry, resource)?.interaction.mode ?? '')
     ));
-    const hoveredSoil = hoveredCrop === undefined ? undefined : snapshot.soil.get(hoveredCrop.id);
-    const definition = cropDefinitionForSnapshot(snapshot, hoveredCrop?.cropKind ?? '');
-    if (hoveredCrop !== undefined && hoveredSoil !== undefined && definition !== null) {
-      const growth = cropGrowthAt(
-        definition,
-        hoveredCrop.growthTicks,
-        hoveredCrop.growthUpdatedAtTick,
-        hoveredSoil.wateredAtTick,
-        renderAuthorityTick,
-        hoveredSoil.watered,
-        cropAutomaticallyWateredForSnapshot(
-          snapshot, hoveredCrop.spaceId, hoveredCrop.tileX, hoveredCrop.tileY,
-        ),
-        cropCalendarOffsetForSnapshot(snapshot),
-        cropGreenhouseProtectedForSnapshot(snapshot, hoveredCrop.spaceId),
-      );
-      const indicator = cropTooltipIndicator(definition, growth);
-      const basicStatus = growth.mature
-        ? 'READY TO HARVEST'
-        : !growth.inSeason
-          ? 'DORMANT UNTIL SPRING'
-          : `${growth.watered ? 'WATERED' : 'NEEDS WATER'} - ${cropTimeLabel(growth.remainingTicks)} LEFT`;
-      const status = personalFarmingSkills.soilWhisperer && !growth.mature
-        ? `${!growth.inSeason ? 'DORMANT - ' : ''}${Math.floor(growth.progress * 100)}% - ${growth.watered ? `${cropTimeLabel(growth.wateredUntilTick - renderAuthorityTick)} WATER` : 'DRY'}`
-        : basicStatus;
-      const width = Math.max(
-        104,
-        measurePixelText(definition.displayName.toUpperCase(), 1, art.ui.font) + 31,
-        measurePixelText(status, 1, art.ui.font) + 38,
-      );
-      const worldX = hoveredCrop.tileX * 16 + 8;
-      const worldY = (hoveredCrop.tileY + 1) * 16;
-      const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-      const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-      const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-      const panelY = Math.max(2, Math.round(anchorY - 32));
-      drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-      if (indicator.kind === 'harvest') {
-        drawUiAsset(
-          uiContext,
-          art.fruitItems[indicator.itemKind]
-            ?? art.itemIcons[indicator.itemKind]
-            ?? art.missingItem,
-          panelX + 7,
-          panelY + 7,
-          1,
-        );
-      } else {
-        drawUiAssetFrame(uiContext, art.cropTimer, indicator.frame, panelX + 7, panelY + 7, 1);
-      }
-      drawPixelText(uiContext, art.ui, definition.displayName.toUpperCase(), panelX + 28, panelY + 6);
-      drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
-        color: growth.mature ? '#8a5a2b' : growth.watered ? '#315c35' : '#9c3b2e',
-      });
-    } else {
-      const hoveredMiningResource = worldResourcesIncludingPersonalQuest(snapshot).find((resource) => (
-        !resource.depleted
-        && resource.spaceId === activeSpaceDefinition.spaceId
-        && resource.tileX === hoveredInteractionTile!.tileX
-        && resource.tileY === hoveredInteractionTile!.tileY
-        && ['fish', 'mine'].includes(runtimeResourceDefinition(snapshot.content.registry, resource)?.interaction.mode ?? '')
-      ));
-      if (hoveredMiningResource !== undefined) {
-        if (runtimeResourceDefinition(snapshot.content.registry, hoveredMiningResource)?.interaction.mode === 'fish') {
-          const catches = hoveredMiningResource.richness;
-          const status = `${catches} CATCH${catches === 1 ? '' : 'ES'} LEFT`;
-          const width = Math.max(
-            112,
-            measurePixelText('FISH POOL', 1, art.ui.font) + 31,
-            measurePixelText(status, 1, art.ui.font) + 38,
-          );
-          const worldX = hoveredMiningResource.tileX * 16 + 8;
-          const worldY = (hoveredMiningResource.tileY + 1) * 16;
-          const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-          const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-          const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-          const panelY = Math.max(2, Math.round(anchorY - 32));
-          drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-          drawUiAsset(uiContext, art.itemIcons.raw_fish ?? art.missingItem, panelX + 7, panelY + 7, 1);
-          drawPixelText(uiContext, art.ui, 'FISH POOL', panelX + 28, panelY + 6);
-          drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, { color: '#315c35' });
-        } else {
-        const nodeClass = miningClassFromWire(
-          hoveredMiningResource.miningClass, hoveredMiningResource.spaceId,
-        );
-        const richness = hoveredMiningResource.richness || hoveredMiningResource.health;
-        const maximumRichness = hoveredMiningResource.maximumRichness || richness;
-        const efficientRank = skillCapabilities.efficientStrikesRank;
-        const prospectorRank = skillCapabilities.miningYieldInspection ? 1 : 0;
-        const oreDressingRank = skillCapabilities.oreDressingRank;
-        const rockhoundRank = skillCapabilities.rockhoundRank;
-        const material = hoveredMiningResource.kind.replace(/^ore_/, '').replaceAll('_', ' ').toUpperCase();
-        const title = isBreakableRockKind(hoveredMiningResource.kind, snapshot.content.registry)
-          ? 'ROCK' : `${material} VEIN`;
-        const classLabel = nodeClass === 'pristine' ? 'PRISTINE SURFACE NODE'
-          : nodeClass === 'pure' ? 'PURE CAVE VEIN'
-            : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
-        const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
-        const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
-        const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
-          : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
-            : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
-              : 'GUARANTEED FULL ORE CHUNK';
+    if (hoveredMiningResource !== undefined) {
+      if (runtimeResourceDefinition(snapshot.content.registry, hoveredMiningResource)?.interaction.mode === 'fish') {
+        const catches = hoveredMiningResource.richness;
+        const status = `${catches} CATCH${catches === 1 ? '' : 'ES'} LEFT`;
         const width = Math.max(
-          144,
-          measurePixelText(title, 1, art.ui.font) + 31,
-          measurePixelText(classLabel, 1, art.ui.font) + 38,
+          112,
+          measurePixelText('FISH POOL', 1, art.ui.font) + 31,
           measurePixelText(status, 1, art.ui.font) + 38,
-          measurePixelText(odds, 1, art.ui.font) + 38,
         );
         const worldX = hoveredMiningResource.tileX * 16 + 8;
         const worldY = (hoveredMiningResource.tileY + 1) * 16;
         const anchorX = (worldX - cameraX) * worldZoom / uiScale;
         const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
         const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-        const panelHeight = 48;
-        const panelY = Math.max(2, Math.round(anchorY - panelHeight - 2));
-        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, panelHeight);
-        drawUiAssetFrame(
-          uiContext,
-          art.cropTimer,
-          Math.min(15, Math.floor(hoveredMiningResource.yieldProgress / 12 * 15)),
-          panelX + 7,
-          panelY + 13,
-          1,
-        );
-        drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 4);
-        drawPixelText(uiContext, art.ui, classLabel, panelX + 29, panelY + 14, { color: '#8a5a2b' });
-        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 24, { color: '#315c35' });
-        drawPixelText(uiContext, art.ui, odds, panelX + 29, panelY + 34, {
-          color: prospectorRank > 0 ? '#71532e' : '#836f58',
-        });
-        }
+        const panelY = Math.max(2, Math.round(anchorY - 32));
+        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
+        drawUiAsset(uiContext, art.itemIcons.raw_fish ?? art.missingItem, panelX + 7, panelY + 7, 1);
+        drawPixelText(uiContext, art.ui, 'FISH POOL', panelX + 28, panelY + 6);
+        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, { color: '#315c35' });
+      } else {
+      const nodeClass = miningClassFromWire(
+        hoveredMiningResource.miningClass, hoveredMiningResource.spaceId,
+      );
+      const richness = hoveredMiningResource.richness || hoveredMiningResource.health;
+      const maximumRichness = hoveredMiningResource.maximumRichness || richness;
+      const efficientRank = skillCapabilities.efficientStrikesRank;
+      const prospectorRank = skillCapabilities.miningYieldInspection ? 1 : 0;
+      const oreDressingRank = skillCapabilities.oreDressingRank;
+      const rockhoundRank = skillCapabilities.rockhoundRank;
+      const material = hoveredMiningResource.kind.replace(/^ore_/, '').replaceAll('_', ' ').toUpperCase();
+      const title = isBreakableRockKind(hoveredMiningResource.kind, snapshot.content.registry)
+        ? 'ROCK' : `${material} VEIN`;
+      const classLabel = nodeClass === 'pristine' ? 'PRISTINE SURFACE NODE'
+        : nodeClass === 'pure' ? 'PURE CAVE VEIN'
+          : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
+      const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
+      const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
+      const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
+        : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
+          : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
+            : 'GUARANTEED FULL ORE CHUNK';
+      const width = Math.max(
+        144,
+        measurePixelText(title, 1, art.ui.font) + 31,
+        measurePixelText(classLabel, 1, art.ui.font) + 38,
+        measurePixelText(status, 1, art.ui.font) + 38,
+        measurePixelText(odds, 1, art.ui.font) + 38,
+      );
+      const worldX = hoveredMiningResource.tileX * 16 + 8;
+      const worldY = (hoveredMiningResource.tileY + 1) * 16;
+      const anchorX = (worldX - cameraX) * worldZoom / uiScale;
+      const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
+      const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
+      const panelHeight = 48;
+      const panelY = Math.max(2, Math.round(anchorY - panelHeight - 2));
+      drawPixelPanel(uiContext, art.ui, panelX, panelY, width, panelHeight);
+      drawUiAssetFrame(
+        uiContext,
+        art.cropTimer,
+        Math.min(15, Math.floor(hoveredMiningResource.yieldProgress / 12 * 15)),
+        panelX + 7,
+        panelY + 13,
+        1,
+      );
+      drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 4);
+      drawPixelText(uiContext, art.ui, classLabel, panelX + 29, panelY + 14, { color: '#8a5a2b' });
+      drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 24, { color: '#315c35' });
+      drawPixelText(uiContext, art.ui, odds, panelX + 29, panelY + 34, {
+        color: prospectorRank > 0 ? '#71532e' : '#836f58',
+      });
       }
     }
   }
-  if (hoveredDetectedOre === null && !interfaceHidden && worldPointer !== null
+  if (hoveredDetectedOre === null && !interfaceHidden && !debugEntitiesHidden && worldPointer !== null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
     const hoveredProcessor = timingHoverIndex.pick({
       registry: snapshot.content.registry,
-      revision: `${network.resourceRevision}:${snapshot.liveMapDocument?.revision ?? 0}`,
+      revision: `${snapshot.placeables.revision ?? network.resourceRevision}:${snapshot.liveMapDocument?.revision ?? 0}`,
       spaceId: activeSpaceDefinition.spaceId, rows: snapshot.placeables,
       x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom,
       projectionAt,
@@ -5668,6 +5604,45 @@ function renderFrame(alpha = 1): void {
           y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
           width, height: 68,
         }, result.object.displayName, result.timing, { skin: art.uiSkin, fonts: art.ui });
+      }
+    } else {
+      const target = growthTimingHoverIndex.pick({ registry: snapshot.content.registry,
+        revision: `${snapshot.resources.revision ?? network.resourceRevision}:${snapshot.crops.revision ?? snapshot.crops.size}:${snapshot.liveMapDocument?.revision ?? 0}`,
+        spaceId: activeSpaceDefinition.spaceId, crops: snapshot.crops, resources: snapshot.resources,
+        resourceVisible: row => !liveMapSuppressesGeneratedResource(snapshot, row.id),
+        x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom, projectionAt });
+      if (target !== null) {
+        const row = target.row;
+        const definition = target.kind === 'crop' ? cropDefinitionForSnapshot(snapshot, target.row.cropKind) : null;
+        const soil = target.kind === 'crop' ? snapshot.soil.get(target.row.id) : undefined;
+        const timing = target.kind === 'resource'
+          ? projectResourceTiming(snapshot.content.registry, target.row, authorityTick, rainForWeatherMode(worldWeatherMode(), calendarTick))
+          : definition === null || soil === undefined ? null
+            : projectTiming({ kind: 'crop', definition, storedGrowthTicks: target.row.growthTicks,
+              growthUpdatedAtTick: target.row.growthUpdatedAtTick, wateredAtTick: soil.wateredAtTick,
+              watered: soil.watered, automaticallyWatered: cropAutomaticallyWateredForSnapshot(snapshot, row.spaceId, row.tileX, row.tileY),
+              calendarOffsetTicks: cropCalendarOffsetForSnapshot(snapshot),
+              greenhouseProtected: cropGreenhouseProtectedForSnapshot(snapshot, row.spaceId) }, authorityTick);
+        if (timing !== null) {
+          const name = definition?.displayName ?? (target.kind === 'resource'
+            ? runtimeResourceDefinition(snapshot.content.registry, target.row)?.displayName : undefined) ?? 'Growth';
+          const x = row.tileX * 16 + 8, y = (row.tileY + 1) * 16, width = Math.min(156, canvasUiWidth - 4);
+          let detail = timing.stage === null ? '' : `STAGE ${timing.stage + 1}`;
+          if (target.kind === 'crop' && definition !== null && soil !== undefined && personalFarmingSkills.soilWhisperer) {
+            const growth = cropGrowthAt(definition, target.row.growthTicks, target.row.growthUpdatedAtTick,
+              soil.wateredAtTick, authorityTick, soil.watered,
+              cropAutomaticallyWateredForSnapshot(snapshot, row.spaceId, row.tileX, row.tileY),
+              cropCalendarOffsetForSnapshot(snapshot), cropGreenhouseProtectedForSnapshot(snapshot, row.spaceId));
+            const water = growth.watered ? timingLabels({ ...timing, status: 'running', reason: null,
+              confidence: 'exact', remainingActiveTicks: growth.wateredUntilTick - authorityTick }).time.replace(' LEFT', ' WATER') : 'DRY';
+            detail = `${Math.floor(timing.progress * 100)}% ${water}`;
+          }
+          drawTimingTooltip(uiContext, {
+            x: Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round((x - cameraX) * worldZoom / uiScale - width / 2))),
+            y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
+            width, height: detail ? 84 : 68,
+          }, name, timing, { skin: art.uiSkin, fonts: art.ui }, detail);
+        }
       }
     }
   }

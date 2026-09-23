@@ -527,3 +527,24 @@ row/tick/slot snapshot, and hover buckets per entity/map/content revision. Only
 the open or hovered station is projected; no per-object interval is introduced.
 The game build admits the small timing bridge and contrast modules only; retained
 Studio components remain outside its dependency boundary.
+
+### Growth timing and inspection
+
+The same `projectTiming` entry point accepts crop, tree, fruit and stateful
+lifecycle sources. Crop projections call `cropGrowthAt` with raw authority time
+and a separate season offset. Existing watering/season coverage determines
+whether remaining active growth is an exact ETA; dry/winter states have no
+finish deadline. Legacy trees retain global sweep authority and use its bounded
+24-step increment helper for weather-conditional estimates. Fruit uses the
+authoritative ripening timestamp and shared harvest eligibility.
+
+`statefulTimingMilestones` reuses lifecycle settlement, transition deadlines and
+growth anchors. Callers must supply an authorized snapshot and its settled
+environment epoch. Private #81 anchors are not inferred from `stateJson`: missing
+anchors yield timing unavailable. The helper introduces no authority storage.
+
+The shared spatial inspection index accepts authored bounds for processors and
+resources, or projected crop tiles. Immutable keyed stores expose a local
+mutation revision to avoid scanning every crop each frame or invalidating these
+buckets for unrelated moving entities. Suppressed resources and hidden entities
+are not inspected. Only hovered resource/crop timing is projected.
