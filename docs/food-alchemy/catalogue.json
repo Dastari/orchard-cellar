@@ -7820,7 +7820,7 @@
       "id": "item:potion_mana_minor",
       "name": "Minor Mana",
       "group": "potion",
-      "status": "conditional A1 (mana use case)",
+      "status": "approved A1 included without mana drain",
       "icon": "Potions:131",
       "alternates": [
         "Potions:134",
@@ -7851,7 +7851,7 @@
       "id": "item:potion_mana_standard",
       "name": "Standard Mana",
       "group": "potion",
-      "status": "conditional A1 (mana use case)",
+      "status": "approved A1 included without mana drain",
       "icon": "Potions:132",
       "alternates": [
         "Potions:134",
@@ -7882,7 +7882,7 @@
       "id": "item:potion_mana_greater",
       "name": "Greater Mana",
       "group": "potion",
-      "status": "conditional A1 (mana use case)",
+      "status": "approved A1 included without mana drain",
       "icon": "Potions:133",
       "alternates": [
         "Potions:134",
@@ -8099,7 +8099,7 @@
       "id": "item:potion_mana_flow_minor",
       "name": "Minor Mana Flow",
       "group": "potion",
-      "status": "conditional A1 (mana use case)",
+      "status": "approved A1 included without mana drain",
       "icon": "Potions:183",
       "alternates": [
         "Potions:186",
@@ -8130,7 +8130,7 @@
       "id": "item:potion_mana_flow_standard",
       "name": "Standard Mana Flow",
       "group": "potion",
-      "status": "conditional A1 (mana use case)",
+      "status": "approved A1 included without mana drain",
       "icon": "Potions:184",
       "alternates": [
         "Potions:186",
@@ -8161,7 +8161,7 @@
       "id": "item:potion_mana_flow_greater",
       "name": "Greater Mana Flow",
       "group": "potion",
-      "status": "conditional A1 (mana use case)",
+      "status": "approved A1 included without mana drain",
       "icon": "Potions:185",
       "alternates": [
         "Potions:186",
