@@ -11,10 +11,15 @@ vi.mock('./light-occlusion.js',async original=>({...await original<typeof import
 vi.mock('./terrain.js',async original=>({...await original<typeof import('./terrain.js')>(),
   terrainElevationAtWorldFoot:()=>2,terrainProjectedDepthAtFoot:()=>32,terrainProjectedElevationAtFoot:()=>2}));
 const terrain={} as TerrainArray;
-const registry=bootstrapContentRegistry();
+const baseRegistry=bootstrapContentRegistry();
+const registry={...baseRegistry,objects:new Map([...baseRegistry.objects, ['object:shadow_fixture', {
+  id:'object:shadow_fixture' as const,kind:'object' as const,schemaVersion:1 as const,displayName:'Authored column',components:{
+    sprite:{asset:'canopy_shadow_fixture'},lighting:{receivesGlobal:true,castsShadow:'column' as const},
+  },
+}]])};
 function fixture(){
   const prefab={...createMapPrefabDocument({id:'shadow-tree',title:'Tree'}),cells:[{id:'base',tileX:0,tileY:0,elevation:0,collisionMask:0x0660}],placements:[{
-    id:'visual',assetId:1,assetName:'tree_shadow_fixture',tileX:0,tileY:0,elevation:0,layer:'canopy' as const,
+    id:'visual',assetId:1,assetName:'canopy_shadow_fixture',tileX:0,tileY:0,elevation:0,layer:'canopy' as const,
     quarterTurns:0 as const,flipX:false,visual:{kind:'state' as const,name:'base',frameIndex:0}}]};
   const object:MapObjectInstance={id:'tree',prefabId:prefab.id,prefabRevision:prefab.revision,tileX:10,tileY:10,elevation:0,
     layer:'canopy',quarterTurns:0,flipX:false,scale:1,enabled:true};

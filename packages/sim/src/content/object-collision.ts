@@ -1,3 +1,4 @@
+import { resolveObjectDefinitionAppearance } from './object-archetype.js';
 import type { StateValue } from '../behaviour/effects.js';
 import type { ObjectContentDefinition } from './object-definition.js';
 
@@ -6,10 +7,9 @@ export function resolveObjectCollision(
   definition: ObjectContentDefinition,
   state: Readonly<Record<string, StateValue>>,
 ): { readonly blocksMovement: boolean; readonly occludesLight: boolean } {
-  const collision = definition.components.collision;
+  const appearance = resolveObjectDefinitionAppearance(definition, state);
   return {
-    blocksMovement: collision?.blocksMovement === true
-      && (collision.when === undefined || state[collision.when.state] === collision.when.equals),
-    occludesLight: collision?.occludesLight ?? false,
+    blocksMovement: appearance.collision?.blocksMovement ?? false,
+    occludesLight: appearance.lighting.occludesLight,
   };
 }

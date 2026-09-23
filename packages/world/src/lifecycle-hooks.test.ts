@@ -1,7 +1,8 @@
+import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { authoredHookApproved, objectStateEvents, authoredHookRegistrations, defineAuthoredLifecycle, createHandlerRegistry, raiseEvent, isBlockedHandlerResult, type AuthoredHookAuthority } from '@orchard/sim';
+import { authoredHookApproved, authoredHookRegistrations, defineAuthoredLifecycle, createHandlerRegistry, raiseEvent, isBlockedHandlerResult, type AuthoredHookAuthority } from '@orchard/sim';
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.ESNext, true);
 function load(names: readonly string[], dependencies: Record<string, unknown>): Record<string, (...args: unknown[]) => unknown> {
   const chunks = names.map(name => source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name)?.getText(source));
@@ -28,24 +29,37 @@ describe('production lifecycle bridge execution', () => {
     expect(audits).toEqual([expect.objectContaining({ action: 'authored_lifecycle_hook', value: JSON.stringify({ hash, id: 'object-open', event: 'stateEnter', effects: 1 }) })]);
     expect((api['authoredHookAuthority']!({ ...ctx }) as AuthoredHookAuthority).consume()).toBe(true);
   });
-  it('raises changed state in exit/enter order, uses system snapshots and propagates blocked callbacks', () => {
+  it('persists changed state in exit/enter order, uses system snapshots and propagates blocked callbacks', () => {
     const raised: string[] = []; const applied: unknown[] = []; let blocked = false;
+    let stored: unknown = null;
+    const definition = { id: 'object:test', kind: 'object', schemaVersion: 1, displayName: 'Test',
+      components: { states: { open: { type: 'bool', default: false } } } };
+    const callbacks = (['onStateExit', 'onStateEnter'] as const).map(hook => defineAuthoredLifecycle({
+      id: hook, definitionId: 'object:test', kind: 'object', hook,
+      run(context) { raised.push(context.event.type); if (blocked) context.block('no'); context.emit({ setLight: { enabled: true } }); },
+    }));
     const api = load(['raisePlaceableStateEvents'], {
       behaviourObjectSnapshot: (_ctx: unknown, row: unknown) => row,
-      resolvedBehaviourTarget: () => ({ kind: 'placeable', id: 1n }), objectStateEvents,
-      currentWorldBehaviourHandlers: () => ({}), SenderError: Error,
+      resolvePlaceableObject: (_registry: unknown, row: { state: unknown }) => ({ definition, state: row.state }),
+      contentRegistry: () => ({}), objectGrowthTimeline: () => ({}), planObjectStateSettlement,
+      AUTHORED_LIFECYCLE_HOOKS: callbacks, LIVE_CONTENT_PACK_ID: 'live', CONTENT_ENGINE_VERSION: 1,
+      authoredHookAuthority: () => ({ approved: () => true, consume: () => true, audit: () => {} }),
+      resolvedBehaviourTarget: () => ({ kind: 'placeable', id: 1n }), SenderError: Error,
       authorityBehaviourSnapshot: () => { throw new Error('must not use a player for system event'); },
       timerBehaviourSnapshot: (_ctx: unknown, target: unknown) => ({ target }),
-      raiseEvent: (_registry: unknown, event: { type: string }) => { raised.push(event.type); return blocked ? { blocked: 'no' } : { effects: [{ setState: { lit: true } }] }; },
-      isBlockedHandlerResult: (value: object) => 'blocked' in value,
+      planPlaceableStateEffect: (_registry: unknown, _row: unknown, effect: { setState: unknown }) => ({ stateJson: JSON.stringify(effect.setState) }),
       applyWorldBehaviourEffects: (...args: unknown[]) => applied.push(args),
     });
+    const ctx = { db: { object_lifecycle_state: { placeableId: { find: () => stored, update: (row: unknown) => { stored = row; } }, insert: (row: unknown) => { stored = row; } },
+      world_clock: { id: { find: () => ({ authorityTick: 10n }) } }, content_head: { packId: { find: () => null } },
+      world_placeable: { id: { update: () => {} } } } };
     const before = { id: '1', definitionId: 'object:test', state: { open: false } };
-    api['raisePlaceableStateEvents']!({}, before, { ...before, state: { open: true } }, false);
-    expect(raised).toEqual(['stateExit', 'stateEnter']); expect(applied).toHaveLength(2);
+    api['raisePlaceableStateEvents']!(ctx, before, { ...before, state: { open: true } }, false);
+    expect(raised).toEqual(['stateExit', 'stateEnter']); expect(applied).toHaveLength(1);
+    expect(stored).toMatchObject({ definitionId: 'object:test', settledAtTick: 10n });
     blocked = true;
-    expect(() => api['raisePlaceableStateEvents']!({}, before, { ...before, state: { open: true } }, false)).toThrow('no');
-    expect(applied).toHaveLength(2);
+    expect(() => api['raisePlaceableStateEvents']!(ctx, before, { ...before, state: { open: true } }, false)).toThrow('no');
+    expect(applied).toHaveLength(1);
   });
   it('routes production dialogue and quest notifications through their real authored registry', () => {
     const dialogue = defineAuthoredLifecycle({ id: 'dialogue', kind: 'dialogue', definitionId: 'dialogue:merchant', hook: 'onDialogueChoice', run(context) { context.block('dialogue-script'); } });

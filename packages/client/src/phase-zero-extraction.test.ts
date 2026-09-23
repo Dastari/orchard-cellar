@@ -165,7 +165,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Retain the separately reviewed Update Ready button inset of 21px.
 // D6 review: docs/64-medium-traversal-runtime.md; additive shared media channels,
 // actor-specific prediction/projectiles and independent solid geometry. Shadow preserves legacy.
-const STRUCTURAL_SEAM_DIGEST = "b4945a4755cc42ad61487cafe74ced2270e2d0d979cc8009eaa5f5a9fedfc88c";
+// Object runtime review: docs/object-state-runtime.md; map appearance bindings
+// replace asset light lists and prefix shadows; canvas transform/depth tests pass.
+const STRUCTURAL_SEAM_DIGEST = "74e8e0ed742a66a1ec7e6c7ba90880f03a3e43c982c69d5d94741dec4a562691";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

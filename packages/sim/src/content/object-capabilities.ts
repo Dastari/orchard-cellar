@@ -1,3 +1,5 @@
+import { resolveObjectDefinitionAppearance } from './object-archetype.js';
+import type { StateValue } from '../behaviour/effects.js';
 import type { ContentRegistry } from './registry.js';
 import type {
   ObjectCarryComponent,
@@ -9,6 +11,9 @@ export interface ObjectContentReference {
   readonly kind: string;
   /** Empty/omitted values identify rows created before authored object identity. */
   readonly definitionId?: string;
+  readonly stateJson?: string;
+  readonly open?: boolean;
+  readonly lit?: boolean;
 }
 
 const OBJECT_ID_PATTERN = /^object:[a-z0-9]+(?:_[a-z0-9]+)*$/u;
@@ -138,7 +143,24 @@ export function runtimeObjectFootprintTiles(
 ): readonly { readonly tileX: number; readonly tileY: number }[] {
   const definition = runtimeObjectDefinition(registry, reference);
   if (definition === null) return [];
-  const footprint = definition.components[component]?.footprint
+  const state: Record<string, StateValue> = {};
+  if (reference.stateJson !== undefined) {
+    try {
+      const decoded: unknown = JSON.parse(reference.stateJson);
+      if (decoded !== null && typeof decoded === 'object' && !Array.isArray(decoded)) {
+        for (const [name, value] of Object.entries(decoded)) {
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') state[name] = value;
+        }
+      }
+    } catch { /* Invalid storage retains the base footprint. */ }
+  }
+  if (!reference.definitionId?.trim()) {
+    if (reference.open !== undefined) state.open = reference.open;
+    if (reference.lit !== undefined) state.lit = reference.lit;
+  }
+  const footprint = (component === 'collision'
+    ? resolveObjectDefinitionAppearance(definition, state).collision?.footprint
+    : definition.components.placement?.footprint)
     ?? definition.components.collision?.footprint ?? [[15]];
   const width = footprint[0]?.length ?? 1;
   const startX = reference.tileX - Math.floor((width - 1) / 2);

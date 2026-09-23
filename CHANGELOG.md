@@ -39,6 +39,12 @@
   bootstrap goldens and the local authored-map snapshot before runtime migration.
 - See [materialization procedure](docs/world-chunk-materialization.md) for commands,
   format details, asset-index integration, and the subsequent streaming boundary.
+## 0.26.0 — 2026-09-23
+
+- Persist authored object state and growth anchors with bounded lazy catch-up, historical weather/calendar epochs and isolated scheduled transactions. Route spawn/place, interaction and explicit state mutations through approved lifecycle callbacks and transition graphs.
+- Resolve sprite, footprint, light, shadow, global-light reception and interaction availability from ordered state overrides. Replace map light asset lists and tree-prefix shadow inference with authored object bindings.
+- Add dual-read resource/crop object projections while preserving legacy row identities, harvest/farming authority and stage artwork. Keep all schema changes additive; no deployment or destructive migration.
+- See [object runtime specification and handoff](docs/object-state-runtime.md) for validation, integration and migration boundaries.
 
 ## 0.25.1 — 2026-09-23
 
