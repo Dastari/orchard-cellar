@@ -48,6 +48,10 @@ export class GameUiRuntime {
     host.root.input.clearHover();
   }
 
+  private clearOtherHover(owner: GameUiHost): void {
+    for (const host of this.hosts.values()) if (host !== owner) host.root.input.clearHover();
+  }
+
   /** Call after model changes, including modal takeover and disconnect. */
   reconcile(): void {
     const allowed = this.eligible();
@@ -66,6 +70,7 @@ export class GameUiRuntime {
     if (owned) {
       owned.event = event;
       owned.host.root.pointer(event);
+      this.clearOtherHover(owned.host);
       if (event.type === 'up' || event.type === 'cancel') this.pointers.delete(event.pointerId);
       return true;
     }
@@ -73,6 +78,7 @@ export class GameUiRuntime {
     if (event.type === 'up' || event.type === 'cancel') return this.eligible().some(host => host.blocking());
     for (const host of this.eligible()) {
       if (host.root.pointer(event) || host.blocking()) {
+        this.clearOtherHover(host);
         if (event.type === 'down') {
           this.pointers.set(event.pointerId, { host, event });
           this.keyboard = host;
@@ -94,6 +100,17 @@ export class GameUiRuntime {
     const eligible = this.eligible();
     return eligible.find(host => host.blocking()) ??
       (this.keyboard && eligible.includes(this.keyboard) ? this.keyboard : undefined);
+  }
+
+  /** Keyboard shortcuts can open a passive panel without a pointer gesture.
+   * Its UiRoot retains control focus; unhandled keys may still reach the game. */
+  focus(id: string): boolean {
+    this.reconcile();
+    const host = this.hosts.get(id);
+    if (!host || !this.eligible().includes(host)) return false;
+    this.keyboard = host;
+    host.root.arrange();
+    return true;
   }
 
   key(event: UiElementKey): boolean {

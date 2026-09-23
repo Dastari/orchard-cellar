@@ -101,4 +101,38 @@ describe('game retained host input ownership', () => {
     expect(f.commands).toBe(0); remove(); runtime.dispose();
     expect(runtime.key({ key: 'Tab' })).toBe(false);
   });
+
+  it('lets a keyboard-opened passive panel own focus without swallowing world keys', () => {
+    const runtime = new GameUiRuntime(), f = fixture(), blocker = fixture(9);
+    runtime.register(f.host);
+    expect(runtime.focus('missing')).toBe(false);
+    expect(runtime.focus(f.host.id)).toBe(true);
+    expect(runtime.key({ key: 'Tab' })).toBe(true);
+    expect(runtime.focusedElement).not.toBeNull();
+    expect(runtime.key({ key: 'Enter' })).toBe(true);
+    expect(f.commands).toBe(1);
+    expect(runtime.key({ key: 'w' })).toBe(false);
+    runtime.pointer(pointer('down', 500));
+    expect(runtime.focusedElement).toBeNull();
+    expect(runtime.key({ key: 'Tab' })).toBe(false);
+    blocker.block(); runtime.register(blocker.host);
+    expect(runtime.focus(f.host.id)).toBe(false);
+    expect(runtime.key({ key: 'w' })).toBe(true);
+    blocker.hide(); f.hide();
+    expect(runtime.focus(f.host.id)).toBe(false);
+  });
+
+  it('clears obscured hover and tooltips when another eligible host consumes the pointer', () => {
+    const runtime = new GameUiRuntime(), lower = fixture(), upper = fixture(2);
+    upper.root.tree.children[0]!.setStyle({ position: 'absolute', inset: { left: uiFixed(100) } });
+    runtime.register(lower.host); runtime.register(upper.host);
+    runtime.pointer(pointer('move', 10));
+    expect(lower.root.input.hovered).not.toBeNull();
+    runtime.pointer(pointer('move', 110));
+    expect(upper.root.input.hovered).not.toBeNull();
+    expect(lower.root.input.hovered).toBeNull();
+    runtime.pointer(pointer('down', 110));
+    runtime.pointer(pointer('move', 10));
+    expect(lower.root.input.hovered).toBeNull();
+  });
 });
