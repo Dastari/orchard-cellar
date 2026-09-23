@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0 — 2026-09-23
+
+- Build content-addressed atlas pages, deduplicate identical seasonal/shadow variants, and retain unchanged atlas files across worker releases in a bounded immutable cache.
+- Add opt-in semantic asset packs, lazy per-pack metadata, and chunk-prefetch APIs. Keep consolidated gameplay/Studio loading as the default pending the separate spawn-dependency/runtime migration.
+- Tools 0.20.0, UI 0.21.0, client 0.21.0; full sprite/season/shadow-omit pixel parity verified.
+
 - Integration: sim 0.22.2 includes catalogue field schemas; 14 reviewed cliff
   golden hashes now track PR62 while every other resolver hash stays unchanged.
 

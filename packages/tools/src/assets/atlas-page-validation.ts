@@ -12,7 +12,7 @@ export function validateAtlasPages(
   const owners = new Map<number, string>();
   for (const [name, asset] of Object.entries(assets)) {
     if (!pages[asset.pageId]) throw new Error(`${name}: missing page ${asset.pageId}`);
-    if (!asset.pageId.startsWith(`${asset.category}:p`) || !/^\d{3,}$/.test(asset.pageId.slice(asset.category.length + 2))) {
+    if (!asset.pageId.startsWith(`${asset.category}:`) || !/^(?:[a-z0-9-]+:)?p\d{3,}$/.test(asset.pageId.slice(asset.category.length + 1))) {
       throw new Error(`${name}: invalid page identity ${asset.pageId}`);
     }
     const expectedId = name === 'system_missing_asset' ? 0 : stableAssetId(name);
@@ -21,7 +21,6 @@ export function validateAtlasPages(
     if (owner) throw new Error(`Stable asset ID collision: ${owner} and ${name}`);
     owners.set(asset.assetId, name);
   }
-  const imageOwners = new Set<string>();
   for (const [pageId, page] of Object.entries(pages)) {
     if (![page.width, page.height].every((value) => Number.isSafeInteger(value) && value > 0)
       || page.width > ATLAS_PAGE_WIDTH || page.height > ATLAS_PAGE_HEIGHT
@@ -31,8 +30,7 @@ export function validateAtlasPages(
     for (const season of seasons) {
       const filename = atlases[`${pageId}:${season}`];
       if (!filename) throw new Error(`${pageId}: missing ${season} image reference`);
-      if (imageOwners.has(filename)) throw new Error(`${pageId}: duplicate image reference ${filename}`);
-      imageOwners.add(filename);
+      // Content-addressed identical seasons/pages deliberately share one image.
     }
     // Only one page's occupancy buffer is retained during validation.
     const occupied = new Uint8Array(page.width * page.height);

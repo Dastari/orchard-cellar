@@ -1,3 +1,5 @@
+import { IMMUTABLE_ASSET_CACHE_SOURCE } from './src/immutable-asset-cache-source.js';
+
 const STATIC_PATH_PREFIXES = ['/assets/', '/generated/', '/pwa/', '/ui/'];
 
 /** Generate a revisioned worker as part of every production build. Keeping the
@@ -7,6 +9,7 @@ export function createPwaServiceWorker(buildId: string): string {
   return `const CACHE_NAME = ${JSON.stringify(`orchard-${buildId}`)};
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/icons/apple-192.png', '/pwa/icons/apple-512.png', '/ui/island-background.png'];
 const STATIC_PATH_PREFIXES = ${JSON.stringify(STATIC_PATH_PREFIXES)};
+${IMMUTABLE_ASSET_CACHE_SOURCE}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -19,7 +22,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const names = await caches.keys();
-    await Promise.all(names.filter((name) => name.startsWith('orchard-') && name !== CACHE_NAME).map((name) => caches.delete(name)));
+    await Promise.all(names.filter((name) => name.startsWith('orchard-') && name !== CACHE_NAME && name !== IMMUTABLE_CACHE).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -87,6 +90,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
     const pending = navigationResponse(request);
+    event.respondWith(pending.response);
+    event.waitUntil(pending.lifetime);
+    return;
+  }
+  if (isImmutableAtlasUrl(url)) {
+    const pending = immutableResponse(request);
     event.respondWith(pending.response);
     event.waitUntil(pending.lifetime);
     return;
