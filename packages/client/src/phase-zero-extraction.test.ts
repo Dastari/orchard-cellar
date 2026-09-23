@@ -168,7 +168,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Object runtime review: docs/object-state-runtime.md; map appearance bindings
 // replace asset light lists and prefix shadows; canvas transform/depth tests pass.
 // Combined runtime review: docs/runtime-rehearsal.md; retain both D6 channels and object appearance.
-const STRUCTURAL_SEAM_DIGEST = "f82cbc9d1835ccb729fb8f4d90893c2c2287aa94c858d4c4a07b8c4282fa3b48";
+const STRUCTURAL_SEAM_DIGEST = "5a22b9b7ab480b79672775596af1f02dd67396e9bee054a39398ff65926c8feb";
+// Shared authored timing pane: optional projection model and game-safe kit bridge exports.
+// Review: docs/timing-system-spec.md; frame, settlement and bundle tests cover the seam.
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
