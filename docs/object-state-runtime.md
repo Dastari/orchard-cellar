@@ -56,3 +56,21 @@ Combined full runtime rehearsal #88 passed on `b6e37eb3`: 6,389 coverage tests p
 files, generated bindings, checked world build, types, lint and guarded Studio
 production build. Fresh hosted CI and
 GoldCondor's merge decision remain separate; no deployment or activation occurred.
+
+## Hosted parity timeout correction
+
+Both hosted checks on `1626a476` failed only the authored cell-part parity case at
+its 120-second limit (runs 35830372865 / 35830374969); 6,207 other tests passed.
+There was no assertion mismatch. The same test took 94.6s in green downstream
+source #83, so a retry alone does not provide a durable margin.
+
+The cell-part case still captures/materializes the actual island, then installs
+its target blob into the real ChunkTerrainStore and checks world/local part
+indices. It no longer repeats full-world channel/collision comparisons and all
+169 extra decodes. The separate full-island/server/record golden test and both
+120-second limits are unchanged; production code and golden hashes are unchanged.
+Exact #81 CI-mode focused coverage: before 101.68s / two passing tests; after
+84.50s / two passing tests (cell parts 35.051s, full golden 47.137s). Focused
+coverage disables aggregate whole-repository thresholds only for that invocation;
+repository configuration is unchanged. Targeted ESLint and diff checks passed.
+Fresh hosted checks are required; this is not a hosted-green claim.
