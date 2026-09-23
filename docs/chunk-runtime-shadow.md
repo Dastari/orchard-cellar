@@ -68,3 +68,11 @@ Studio production build. Fresh hosted CI remains a separate coordinator gate.
 This does not integrate timer PRs #84–86; combined runtime/timer PR93 owns that
 separate gate. All shadow/owner-only/private-schema boundaries remain unchanged.
 No merge, publication, deployment, live activation or generator removal occurred.
+
+Hosted CI follow-up: incorporate source #81 `6caf5d5e` without runtime changes.
+The cell-part parity regression uses the actual target-chunk adapter instead of
+repeating the full-world golden comparison and decoding every blob again. Full
+169-chunk golden coverage, hashes and 120-second limits remain unchanged. See the
+object-state handoff for both hosted failures and measured coverage before/after.
+The propagated source #83 parity file passed both tests; ESLint passed. Fresh
+hosted checks remain pending after this test-only propagation.
