@@ -51,6 +51,9 @@ export function mapRuntimeObjectAvailability(
   if (input.marker.entityKind !== 'placeable' && input.marker.entityKind !== 'chest') {
     return { allowed: false, reason: 'This projected world row is immutable in the Map Editor' };
   }
+  if (input.marker.mapMaterialized === true) {
+    return { allowed: false, reason: 'This lamp follows its authored map object; move that object and publish the map' };
+  }
   return { allowed: true, authority: input.role };
 }
 
@@ -144,7 +147,8 @@ export class MapRuntimeObjectActionModel {
     draft: MapRuntimeObjectDraft,
     reason: string,
   ): Promise<AdminMutationPreview> {
-    if (marker.entityKind !== 'placeable' && marker.entityKind !== 'chest') {
+    if ((marker.entityKind !== 'placeable' && marker.entityKind !== 'chest')
+      || marker.mapMaterialized === true) {
       throw new Error('map_live_entity_immutable');
     }
     const generation = ++this.#generation;
@@ -174,7 +178,9 @@ export class MapRuntimeObjectActionModel {
         to: draft.operation === 'move_entity'
           ? Object.freeze({ spaceId: marker.spaceId, tileX: draft.tileX, tileY: draft.tileY })
           : null,
-        playerOwned: snapshot.ownerIdentity !== null,
+        // World-owned rows carry the module identity as their owner; only a
+        // row classified as player custody requires the owner notice.
+        playerOwned: snapshot.ownerIdentity !== null && marker.ownership !== 'world',
         baseVersion: result.preview.baseVersion,
         previewFingerprint: result.previewFingerprint,
         preview: result.preview,

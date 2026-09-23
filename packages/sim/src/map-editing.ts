@@ -10,6 +10,14 @@ import {
   type TerrainOverride,
 } from './map-document.js';
 import {
+  canonicalCellParts,
+  cellPartContourLevel,
+  revertCellPartExact,
+  upsertCellPart,
+  type CellPart,
+  type CellPartSlot,
+} from './map-cell-parts.js';
+import {
   TERRAIN_ELEVATION_LIMIT,
   stairRunValid,
   terrainTransitionValid,
@@ -20,6 +28,7 @@ import {
   TERRAIN_SURFACE_FAMILY_IDS,
   type TerrainSurfaceFamilyId,
 } from './terrain-tilesets.js';
+import {planLocalTerrainInsets} from './local-terrain-insets.js';
 
 export interface MapPoint {
   readonly tileX: number;
@@ -36,6 +45,12 @@ export interface MapCellPatch {
   readonly cliffFamily?: string | null;
   readonly surfaceFamily?: TerrainSurfaceFamilyId | null;
   readonly terrainOverride?: TerrainOverride | null;
+  /** Replaces the whole part stack; `null` clears it. */
+  readonly parts?: readonly CellPart[] | null;
+  /** Inserts or replaces the part with the same slot (after `parts`). */
+  readonly cellPart?: CellPart;
+  /** "Revert to smart": removes only `exact` from this slot's part. */
+  readonly revertPartExact?: CellPartSlot;
   readonly ledge?: boolean;
 }
 
@@ -54,6 +69,8 @@ export type MapEditCommand =
     readonly points: readonly MapPoint[];
     readonly patch: MapCellPatch;
     readonly enforceMinimumTerrainFootprint?: boolean;
+    /** The Studio height brush already supplies its 2x2 footprint. */
+    readonly enforceSingleTerrainInset?: boolean;
   }
   | { readonly kind: 'line'; readonly from: MapPoint; readonly to: MapPoint; readonly patch: MapCellPatch }
   | { readonly kind: 'fill_surface'; readonly start: MapPoint; readonly surface: MapSurfaceKind }
@@ -93,6 +110,7 @@ export interface AppliedMapEdit {
   readonly changed: readonly MapPoint[];
   /** Dimension changes invalidate coordinate-derived output for the whole map. */
   readonly fullRebuild?: boolean;
+  readonly rejected?: 'terrain_inset_conflict';
 }
 
 export interface MapEditHistory {
@@ -124,7 +142,8 @@ function normalizeTerrainFootprints(
   document: MapDocumentV2,
   cells: Record<string, MapCellOverride>,
   points: readonly MapPoint[],
-): readonly MapPoint[] {
+  enforceMinimum = true,
+): readonly MapPoint[] | null {
   const interim = {...document, cells};
   const affected = new Map<string, MapPoint>();
   for (const point of points) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -141,13 +160,40 @@ function normalizeTerrainFootprints(
     return false;
   };
   const updates: {point:MapPoint;elevation:number}[] = [];
-  for (const point of affected.values()) {
+  for (const point of enforceMinimum?affected.values():[]) {
     const before=height(point.tileX,point.tileY);let elevation=before;
     while(elevation>document.baseElevation&&!supported(point,elevation,false))elevation--;
     while(elevation<document.baseElevation&&!supported(point,elevation,true))elevation++;
     if(elevation!==before)updates.push({point,elevation});
   }
-  return updates.filter(({point,elevation})=>writeResolvedPatch(interim,cells,point,{elevation})).map(({point})=>point);
+  const changed=updates.filter(({point,elevation})=>writeResolvedPatch(interim,cells,point,{elevation})).map(({point})=>point);
+  // Only contours crossed by this edit participate. A higher, historical
+  // malformed cliff nearby is not a reason to repair a different elevation.
+  const levels=new Set<number>();
+  for(const {tileX,tileY} of points){
+    const before=resolvedMapCellAt(document,tileX,tileY).elevation,after=height(tileX,tileY);
+    for(let level=Math.min(before,after);level<=Math.max(before,after);level++){
+      if((level>document.baseElevation&&level>Math.min(before,after))
+        ||(level<document.baseElevation&&level<Math.max(before,after)))levels.add(level);
+    }
+  }
+  const strokeKeys=new Set(points.map(p=>mapCellKey(p.tileX,p.tileY)));
+  for(const level of [...levels].sort((a,b)=>Math.abs(a-document.baseElevation)-Math.abs(b-document.baseElevation))){
+    const excavated=level<document.baseElevation;
+    const occupiedAt=(x:number,y:number):boolean=>mapCoordinateInBounds(document,x,y)
+      &&(excavated?height(x,y)<=level:height(x,y)>=level);
+    const plan=planLocalTerrainInsets({points,occupiedAt,canFillAt:(x,y)=>
+      mapCoordinateInBounds(document,x,y)&&!strokeKeys.has(mapCellKey(x,y))
+      &&height(x,y)===level+(excavated?1:-1)});
+    if(plan.unresolved.length>0)return null;
+    for(const point of plan.added){
+      const donor=[...points,...affected.values()].find(p=>occupiedAt(p.tileX,p.tileY)
+        &&Math.abs(p.tileX-point.tileX)<=1&&Math.abs(p.tileY-point.tileY)<=1);
+      const cliffFamily=donor===undefined?undefined:resolvedMapCellAt(interim,donor.tileX,donor.tileY).cliffFamily;
+      if(writeResolvedPatch(interim,cells,point,{elevation:level,...(cliffFamily===undefined?{}:{cliffFamily})}))changed.push(point);
+    }
+  }
+  return changed;
 }
 
 function canonicalPatch(
@@ -173,8 +219,25 @@ function canonicalPatch(
     ...(patch.terrainOverride === undefined || patch.terrainOverride === null
       || patch.terrainOverride === baseline.terrainOverride
       ? {} : { terrainOverride: patch.terrainOverride }),
+    ...(canonicalCellParts(patch.parts ?? undefined) === undefined
+      ? {} : { parts: canonicalCellParts(patch.parts ?? undefined)! }),
     ...(patch.ledge !== undefined && patch.ledge !== baseline.ledge ? { ledge: patch.ledge } : {}),
   };
+}
+
+/** Part stack after one patch. A contour part and the legacy override are one
+ * slot: writing either form replaces the other, so they never coexist. */
+function patchedParts(
+  existing: readonly CellPart[],
+  patch: MapCellPatch,
+): readonly CellPart[] {
+  let parts = patch.parts === undefined ? existing : patch.parts ?? [];
+  if (patch.terrainOverride !== undefined && patch.terrainOverride !== null) {
+    parts = parts.filter(({ slot }) => cellPartContourLevel(slot) === null);
+  }
+  if (patch.cellPart !== undefined) parts = upsertCellPart(parts, patch.cellPart);
+  if (patch.revertPartExact !== undefined) parts = revertCellPartExact(parts, patch.revertPartExact);
+  return parts;
 }
 
 function writeResolvedPatch(
@@ -186,6 +249,9 @@ function writeResolvedPatch(
   if (!mapCoordinateInBounds(document, point.tileX, point.tileY)) return false;
   const key = mapCellKey(point.tileX, point.tileY);
   const before = resolvedMapCellAt({ ...document, cells }, point.tileX, point.tileY);
+  const parts = patchedParts(cells[key]?.parts ?? [], patch);
+  const partsWriteContour = (patch.parts !== undefined || patch.cellPart !== undefined)
+    && parts.some(({ slot }) => cellPartContourLevel(slot) !== null);
   const resolved: MapCellPatch = {
     elevation: patch.elevation ?? before.elevation,
     surface: patch.surface ?? before.surface,
@@ -195,7 +261,11 @@ function writeResolvedPatch(
       ? {} : { collisionReason: (patch.collisionReason ?? before.collisionReason)! }),
     cliffFamily: patch.cliffFamily === undefined ? before.cliffFamily : patch.cliffFamily,
     surfaceFamily: patch.surfaceFamily === undefined ? before.surfaceFamily : patch.surfaceFamily,
-    terrainOverride: patch.terrainOverride === undefined ? before.terrainOverride : patch.terrainOverride,
+    // Only the stored legacy field is carried; `before.terrainOverride` also
+    // reflects a contour part and must not be copied back into legacy form.
+    terrainOverride: patch.terrainOverride !== undefined ? patch.terrainOverride
+      : partsWriteContour ? null : cells[key]?.terrainOverride ?? null,
+    parts,
     ledge: patch.ledge ?? before.ledge,
   };
   // Resolution reads only this cell. Its inherited baseline needs no copy of
@@ -541,9 +611,12 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
       : patch;
     if (writeResolvedPatch(document, cells, point, pointPatch)) changed.push(point);
   }
-  if ('enforceMinimumTerrainFootprint' in command && command.enforceMinimumTerrainFootprint) {
+  if (('enforceMinimumTerrainFootprint' in command && command.enforceMinimumTerrainFootprint)
+    ||(command.kind==='paint'&&command.enforceSingleTerrainInset)) {
     const changedKeys = new Set(changed.map(({ tileX, tileY }) => mapCellKey(tileX, tileY)));
-    for (const point of normalizeTerrainFootprints(document, cells, changed)) {
+    const assisted=normalizeTerrainFootprints(document, cells, changed,command.enforceMinimumTerrainFootprint===true);
+    if(assisted===null)return {document,changed:[],rejected:'terrain_inset_conflict'};
+    for (const point of assisted) {
       const key = mapCellKey(point.tileX, point.tileY);
       if (changedKeys.has(key)) continue;
       changedKeys.add(key);

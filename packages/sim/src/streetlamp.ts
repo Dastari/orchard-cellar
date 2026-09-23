@@ -2,6 +2,13 @@ import {authorityDayProgress,clockMinutesAtDayProgress} from './time.js';
 import type {MapDocumentV3} from './map-document-v3.js';
 export const STREETLAMP_DEFINITION='object:hearth_streetlamp';
 export type StreetlampMode='auto'|'on'|'off';
+/** Reserved world_placeable identity range for map-materialized town lamps. */
+export const STREETLAMP_ID_BASE=3_400_000_000n;
+const STREETLAMP_GRID=512;
+/** True for the reserved identities `settleTownStreetlamps` inserts under world authority. */
+export function isMaterializedStreetlampId(id:bigint):boolean{
+ return id>=STREETLAMP_ID_BASE&&id<STREETLAMP_ID_BASE+BigInt(STREETLAMP_GRID*STREETLAMP_GRID);
+}
 export function streetlampState(stateJson:string,calendarTick:bigint):{lit:boolean;stateJson:string}{
  const state=JSON.parse(stateJson) as {mode?:unknown};
  const mode=state.mode??'auto';
@@ -26,8 +33,8 @@ export function mapStreetlampPlans(document:MapDocumentV3):readonly StreetlampPl
   const p=prefab.placements[0]!;
   if(p.quarterTurns!==0||p.flipX)throw new Error(`Unsupported streetlamp placement transform: ${object.id}`);
   const tileX=object.tileX+p.tileX-prefab.pivot.tileX,tileY=object.tileY+p.tileY-prefab.pivot.tileY;
-  if(tileX<0||tileY<0||tileX>=512||tileY>=512||!Number.isInteger(tileX)||!Number.isInteger(tileY))throw new Error('Streetlamp outside reserved map grid');
-  plans.push({id:3_400_000_000n+BigInt(tileY*512+tileX),tileX,tileY,objectId:object.id});
+  if(tileX<0||tileY<0||tileX>=STREETLAMP_GRID||tileY>=STREETLAMP_GRID||!Number.isInteger(tileX)||!Number.isInteger(tileY))throw new Error('Streetlamp outside reserved map grid');
+  plans.push({id:STREETLAMP_ID_BASE+BigInt(tileY*STREETLAMP_GRID+tileX),tileX,tileY,objectId:object.id});
  }
  if(new Set(plans.map(p=>p.id)).size!==plans.length)throw new Error('Duplicate streetlamp position');
  plansCache.set(document,plans);return plans;

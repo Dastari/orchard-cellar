@@ -1,4 +1,4 @@
-import { MAP_BIOME_IDS, type MapBiomeId, type MapCellPatch, type MapPrefabDocumentV2 } from '@orchard/sim';
+import { MAP_BIOME_IDS, type TerrainSurfaceFamilyId, type MapBiomeId, type MapCellPatch, type MapPrefabDocumentV2 } from '@orchard/sim';
 import { terrainCliffFamilyChoices, terrainSurfaceFamilyChoices, type TerrainAuthoringPalette, type TerrainPalettePreview } from './terrain-authoring-palette.js';
 
 export interface MapMaterialChoice {
@@ -26,7 +26,7 @@ export function mapMaterialChoices(palette: TerrainAuthoringPalette, query = '')
   );
   for (const choice of terrainCliffFamilyChoices('', palette)) choices.push({
     id:choice.familyId, label:choice.label, preview:choice.preview, biome:choice.familyId.startsWith('desert')?'desert':choice.familyId.startsWith('volcanic')?'volcanic_ash':'highland',
-    patch:{ surface:choice.familyId.startsWith('desert') ? 'sand' : choice.familyId === 'cave' || choice.projectionStyle === 'interior' ? 'cave_floor' : 'stone', feature:'none', cliffFamily:choice.familyId, terrainOverride:null },
+    patch:{ surface:choice.familyId.startsWith('desert') ? 'sand' : choice.familyId === 'cave' || choice.projectionStyle === 'interior' ? 'cave_floor' : 'stone', feature:'none', cliffFamily:choice.familyId, surfaceFamily:choice.familyId.startsWith('stone_')?`grass_${choice.familyId.slice(-1)}` as TerrainSurfaceFamilyId:choice.familyId==='basic'?'grass_1':null, terrainOverride:null },
   });
   const biomePreview: Record<MapBiomeId,string> = {
     water:'tile_cf_water',beach:'tile_cf_beach',freshwater:'tile_cf_freshwater',waterfall:'tile_cf_waterfall',
