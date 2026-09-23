@@ -61,15 +61,22 @@ The shared policy lives in `packages/sim/src/studio-scopes.ts`; the world and
 Studio import that same policy. New content kinds must add a mapping to its
 exhaustive `Record<SupportedContentKind, StudioScope>` before they compile.
 
-## Integration checkpoint (2026-09-23)
+## Validation and integration status (2026-09-23)
 
-Authority, generated bindings, the shared policy, scope-aware routes, and the
-Membership API/model are implemented. The final kit-only Membership controls and
-operation-role presentation are prepared in a local patch but await the existing
-exclusive `operate-canvas.ts` lease. This branch is not ready to merge until those
-controls are integrated and checked.
+Authority, bindings, scoped navigation and kit-only Membership controls are
+implemented. Membership shows effective scopes and supports reasoned grant and
+revocation previews followed by an audited commit. Actual kit-control tests select
+a domain, grant it, verify the displayed state, and revoke it again.
+
+The old UI advertised writable live maps to legacy content editors even though
+the server required owner/admin. Scoped navigation now mirrors the backend:
+legacy content editors see that tool read-only until an explicit map grant is
+issued. This does not remove their ability to publish `space` content definitions.
 
 Passed: repository typechecks, lint, world build, independent Studio production
-build (reviewed UI-kit prebuild retained), and 297 focused regression tests across
-61 files. The full `npm test` coverage/exhaustive run is still in progress. No world
-or Studio deployment was performed.
+build (reviewed UI-kit prebuild retained), and 310 focused regression tests across
+62 files. The full coverage/exhaustive run is additional validation; do not infer a
+pass from a start-only log. CI must pass before merging. No world or Studio
+deployment was performed. The integration coordinator approved the disjoint
+Membership changes; #67 also changes the surrounding kit layout and must be
+preserved when combining the branches.

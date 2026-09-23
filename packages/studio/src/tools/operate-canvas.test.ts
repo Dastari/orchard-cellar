@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { UiRoot, ui, uiFixed, type CanvasTextEditor } from '@orchard/ui/studio';
 import { kitElements, pressKit, chooseKit } from './kit-test-driver.js';
+import { MembershipManagerModel } from './membership/model.js';
 import { PlayerManagerModel } from './players/model.js';
 import { StudioShellController } from '../shell/controller.js';
 import type { StudioToolRoute } from '../shell/tool-registry.js';
@@ -32,6 +33,37 @@ describe('Operate and Observe kit tools', () => {
       preview.mockClear();field('players-action-quantity').setValue('not a number');
       pressKit(surface,'players-preview-give_items');await settle();expect(preview).not.toHaveBeenCalled();
     }finally{preview.mockRestore();}
+  });
+  it('grants and revokes the selected domain through kit Membership controls', async () => {
+    const controller = new StudioShellController(async () => { throw new Error('offline'); });
+    controller.session.connected({ identity: 'test-owner', role: 'owner', contentRevision: null, mapRevision: null });
+    const options = context(controller, 'membership');
+    const settle = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+    buildOperateObserveCanvasTool(options); await settle();
+    let surface = buildOperateObserveCanvasTool(options);
+    const query = kitElements(surface).find(node => node.id === 'membership-query')!.props['editor'] as CanvasTextEditor;
+    query.setValue('bea'); pressKit(surface, 'membership-find'); await settle();
+    surface = buildOperateObserveCanvasTool(options); pressKit(surface, 'membership-results-table:rows');
+    surface = buildOperateObserveCanvasTool(options);
+    const reason = kitElements(surface).find(node => node.id === 'membership-reason')!.props['editor'] as CanvasTextEditor;
+    reason.setValue('Delegate object authoring');
+    chooseKit(surface, 'membership-scope', 'objects');
+    surface = buildOperateObserveCanvasTool(options);
+    const preview = vi.spyOn(MembershipManagerModel.prototype, 'preview');
+    const commit = vi.spyOn(MembershipManagerModel.prototype, 'commit');
+    try {
+      pressKit(surface, 'membership-grant-scope'); await settle();
+      expect(preview).toHaveBeenLastCalledWith({ operation: 'set_scope', scope: 'objects', granted: true });
+      surface = buildOperateObserveCanvasTool(options); pressKit(surface, 'membership-commit'); await settle();
+      expect(commit).toHaveBeenCalledOnce();
+      surface = buildOperateObserveCanvasTool(options);
+      expect(kitElements(surface).find(node => node.id === 'membership-current-scopes')?.label).toContain('objects');
+      pressKit(surface, 'membership-revoke-scope'); await settle();
+      expect(preview).toHaveBeenLastCalledWith({ operation: 'set_scope', scope: 'objects', granted: false });
+      surface = buildOperateObserveCanvasTool(options); pressKit(surface, 'membership-commit'); await settle();
+      surface = buildOperateObserveCanvasTool(options);
+      expect(kitElements(surface).find(node => node.id === 'membership-current-scopes')?.label).toBe('SCOPES: None');
+    } finally { preview.mockRestore(); commit.mockRestore(); }
   });
   it.each(IDS)('%s composes real kit controls and virtual tables without legacy nodes', id => {
     const controller = new StudioShellController(async () => { throw new Error('not_connected'); });

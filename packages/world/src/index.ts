@@ -14113,6 +14113,11 @@ function studioScopeVersion(ctx: AdminProcedureTx, identity: Identity): string {
 export const adminStudioMembers = spacetimedb.procedure(
   { query: t.string() }, t.string(), (ctx, { query }) => ctx.withTx(tx => {
     if (!scopesFor(tx).includes('operate.membership')) throw new SenderError('studio_scope_required:operate.membership');
+    const member = tx.db.membership.identity.find(tx.sender);
+    const grant = tx.db.studio_scope_grant.id.find(`${tx.sender.toHexString()}:operate.membership`);
+    if (member?.role !== 'owner' && member?.role !== 'admin' && (grant === null || grant.revokedAt !== undefined)) {
+      throw new SenderError('studio_scope_required:operate.membership');
+    }
     const term = query.trim().toLowerCase();
     return JSON.stringify([...tx.db.membership.iter()].filter(member => {
       const name = tx.db.player_public.identity.find(member.identity)?.displayName ?? '';
@@ -14132,6 +14137,11 @@ export const adminStudioMembers = spacetimedb.procedure(
 export const adminStudioScopes = spacetimedb.procedure(
   { identity: t.identity() }, t.string(), (ctx, { identity }) => ctx.withTx(tx => {
     if (!scopesFor(tx).includes('operate.membership')) throw new SenderError('studio_scope_required:operate.membership');
+    const member = tx.db.membership.identity.find(tx.sender);
+    const grant = tx.db.studio_scope_grant.id.find(`${tx.sender.toHexString()}:operate.membership`);
+    if (member?.role !== 'owner' && member?.role !== 'admin' && (grant === null || grant.revokedAt !== undefined)) {
+      throw new SenderError('studio_scope_required:operate.membership');
+    }
     return JSON.stringify({ scopes: scopesFor(tx, identity), version: studioScopeVersion(tx, identity) });
   }),
 );

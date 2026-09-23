@@ -161,7 +161,8 @@ export class StudioShellController {
 
   private reconcileConnection(): void {
     const view = this.#adapter?.view();
-    this.tools.setScopes(view?.connected ? view.scopes : undefined);
+    this.tools.setScopes(view?.connected ? view.scopes : undefined,
+      view?.role === 'owner' || view?.role === 'admin' || view?.explicitScopes?.includes('map') === true);
     if (view === undefined) return;
     if (view.connected && view.identity !== null && view.role !== null) {
       this.session.connected({ identity: view.identity, role: view.role, contentRevision: view.contentRevision, mapRevision: view.mapRevision });
