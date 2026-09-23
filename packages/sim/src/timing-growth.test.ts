@@ -58,12 +58,19 @@ describe('shared growth projection', () => {
       transitions: [{ id: 'ripen', from: { ripe: false }, to: { ripe: true }, after: { growthProgress: 10 } }] };
     const lifecycle = createStatefulLifecycle(components, 100n);
     expect(projectTiming({ kind: 'stateful', components }, 120n)).toMatchObject({ status: 'blocked', reason: 'anchor-unavailable' });
-    expect(projectTiming({ kind: 'stateful', components, lifecycle }, 120n)).toMatchObject({ progress: .1, remainingActiveTicks: 180n, nextTransitionTick: 200n });
+    expect(projectTiming({ kind: 'stateful', components, lifecycle, checkpoint: { authorityTick: 120n, caughtUp: true } }, 120n)).toMatchObject({ progress: .1, remainingActiveTicks: 180n, nextTransitionTick: 200n });
+    expect(projectTiming({ kind: 'stateful', components, lifecycle }, 120n))
+      .toMatchObject({ status: 'blocked', reason: 'checkpoint-unavailable', nextTransitionTick: null });
+    expect(projectTiming({ kind: 'stateful', components, lifecycle, checkpoint: { authorityTick: 120n, caughtUp: false } }, 120n))
+      .toMatchObject({ status: 'awaiting-settlement', reason: 'catch-up-pending', remainingActiveTicks: null });
+    expect(projectTiming({ kind: 'stateful', components, lifecycle, checkpoint: { authorityTick: 121n, caughtUp: true } }, 120n))
+      .toMatchObject({ status: 'awaiting-settlement', remainingActiveTicks: null });
+    expect(projectTiming({ kind: 'stateful', components, lifecycle, checkpoint: { authorityTick: 100n, caughtUp: true } }, 120n).confidence).toBe('estimated');
     const settled = settleStatefulTransitions(components, lifecycle, { nowTick: 300n });
     expect(settled.fired[0]?.atTick).toBe(300n);
-    expect(projectTiming({ kind: 'stateful', components, lifecycle }, 300n).status).toBe('awaiting-settlement');
-    expect(projectTiming({ kind: 'stateful', components, lifecycle: settled.state }, 300n).status).toBe('ready');
-    expect(projectTiming({ kind: 'stateful', components, lifecycle: createStatefulLifecycle(components, 100n, { dry: true }) }, 120n))
+    expect(projectTiming({ kind: 'stateful', components, lifecycle, checkpoint: { authorityTick: 300n, caughtUp: true } }, 300n).status).toBe('awaiting-settlement');
+    expect(projectTiming({ kind: 'stateful', components, lifecycle: settled.state, checkpoint: { authorityTick: 300n, caughtUp: true } }, 300n).status).toBe('ready');
+    expect(projectTiming({ kind: 'stateful', components, lifecycle: createStatefulLifecycle(components, 100n, { dry: true }), checkpoint: { authorityTick: 120n, caughtUp: true } }, 120n))
       .toMatchObject({ status: 'paused', nextTransitionTick: null, remainingActiveTicks: null });
   });
 });

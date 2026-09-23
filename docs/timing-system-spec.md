@@ -112,3 +112,10 @@ out of the independent game build. No authority schema or scheduled writes chang
 
 Stage indexes in the timing contract are zero-based; the UI presents them as
 one-based labels. Null means no visible growth stage yet (for example a stump).
+
+Coordinator confirmation (mail 347/352): generic timing requires an authorized
+observation checkpoint with `caughtUp` true. Missing/incomplete/future checkpoints
+produce no ETA; extrapolation beyond the checkpoint is estimated. #81 integration
+must retain `growthRemainderBps`, entered-at/growth anchors and historical
+environment accounting. Current weather cannot reconstruct an unsettled past.
+The public projection/view remains a separate review gate.

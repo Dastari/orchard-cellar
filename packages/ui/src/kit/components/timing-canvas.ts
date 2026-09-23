@@ -13,7 +13,8 @@ const reasons: Readonly<Record<string, string>> = {
   dry: 'PAUSED: NEEDS WATER', dormant: 'DORMANT UNTIL SPRING', harvest: 'READY TO HARVEST',
   'active-growth': 'GROWING', regrowing: 'REGROWING', ripening: 'RIPENING',
   'fully-grown': 'FULLY GROWN', 'growth-paused': 'GROWTH PAUSED',
-  'anchor-unavailable': 'TIMING UNAVAILABLE', 'transition-pending': 'AWAITING UPDATE',
+  'anchor-unavailable': 'TIMING UNAVAILABLE', 'checkpoint-unavailable': 'TIMING UNAVAILABLE',
+  'catch-up-pending': 'AWAITING UPDATE', 'transition-pending': 'AWAITING UPDATE',
   depleted: 'DEPLETED', tree_immature: 'TREE STILL GROWING',
 };
 

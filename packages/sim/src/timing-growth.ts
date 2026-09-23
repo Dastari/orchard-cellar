@@ -23,6 +23,8 @@ export interface FruitTimingSource {
 export interface StatefulTimingSource {
   readonly kind: 'stateful'; readonly components: StatefulComponentSet;
   readonly lifecycle?: StatefulLifecycle;
+  /** Authority observation after historical environment settlement. */
+  readonly checkpoint?: { readonly authorityTick: bigint; readonly caughtUp: boolean };
   /** Environment must belong to the lifecycle's already-settled epoch. */
   readonly environment?: GrowthEnvironment;
 }
@@ -85,6 +87,11 @@ export function projectGrowthTiming(source: GrowthTimingSource, now: bigint): Ti
   }
   if (source.lifecycle === undefined) return { status: 'blocked', reason: 'anchor-unavailable', stage: null,
     progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' };
+  if (source.checkpoint === undefined) return { status: 'blocked', reason: 'checkpoint-unavailable', stage: null,
+    progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' };
+  if (!source.checkpoint.caughtUp || source.checkpoint.authorityTick > now) return {
+    status: 'awaiting-settlement', reason: 'catch-up-pending', stage: null, progress: 0,
+    remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' };
   const milestones = statefulTimingMilestones(source.components, source.lifecycle, { nowTick: now,
     ...(source.environment === undefined ? {} : { environment: source.environment }) });
   const { settled, paused, growthFinish, nextTransitionTick } = milestones;
@@ -97,5 +104,5 @@ export function projectGrowthTiming(source: GrowthTimingSource, now: bigint): Ti
     stage: settled.growthStage, progress: maximum === undefined ? 0 : settled.growthProgress / maximum,
     remainingActiveTicks: growthFinish === null ? nextTransitionTick === null ? null : nextTransitionTick - now
       : growthFinish > now ? growthFinish - now : 0n,
-    nextTransitionTick, confidence: pending || source.components.growth?.modifiers !== undefined ? 'estimated' : 'exact' };
+    nextTransitionTick, confidence: pending || source.checkpoint.authorityTick < now || source.components.growth?.modifiers !== undefined ? 'estimated' : 'exact' };
 }
