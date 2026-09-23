@@ -503,3 +503,7 @@ dense chunks or when filters return no matches. Studio uses per-space viewport
 subscriptions while player presence remains global. Runtime-space route references
 are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
 and [decision](adr/ADR-studio-multi-space.md).
+
+## Chunk runtime shadow boundary
+
+The shadow phase adds public `world_chunk_shadow` and `world_chunk_head` metadata and private `world_chunk_blob` bytes. Owner-only staging verifies the existing immutable codec and compares map/content revisions before atomically replacing heads. The client uses a separate bounded chunk-native store with view/ring pins, a two-request loader and hash-key IndexedDB retention. It compares diagnostics without replacing legacy terrain or movement. An owner-only procedure samples private chunk collision without a whole-world reconstruction. Static preparation is offline and publication remains separately gated. See [chunk runtime shadow](chunk-runtime-shadow.md) for interfaces, limits and activation gates.

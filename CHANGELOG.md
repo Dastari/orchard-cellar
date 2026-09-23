@@ -24,6 +24,13 @@
 - Keep the bootstrap policy collection empty pending owner hazard balance/access decisions. D6 runtime integration, terrain-role coverage and live activation remain incomplete; see `docs/medium-traversal-handoff.md`.
 - Sim 0.23.0; tools 0.21.0. Existing definitions and saved rows retain compatibility.
 
+## 0.27.2 — 2026-09-23
+
+- Add owner-only CAS chunk shadow staging, additive regional heads and verified private collision blobs.
+- Add bounded view/ring chunk loading, IndexedDB caching with connection teardown and revision-pinned diagnostic subscriptions behind a default-off flag.
+- Add offline static bundle preparation compatible with existing eight-character content hashes and a generator retirement build gate; live terrain and movement remain unchanged.
+
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue
