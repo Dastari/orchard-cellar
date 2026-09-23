@@ -1,5 +1,11 @@
 # Changelog
 
+## Food/alchemy core artwork — assets 0.19.2 — 2026-09-23
+
+- Add 18 reviewed bespoke 16×16 icons: seven fruit-specific must jugs and pomace baskets, wool, wing dust, raw game and roast game, following approved doc 63 §§3/8.
+- Preserve the closed Orchard palette, (8,15) anchors, existing asset IDs and gameplay data; no source PNGs or generated atlases are committed.
+- Record native-size, dark-background, silhouette and neighbor review evidence in [the core art handoff](docs/food-alchemy-core-art/README.md). Client asset publication precedes future gameplay references; no world publish is needed for this art-only change.
+
 ## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
 - Integrate typed sparse cell-part reconstruction and reuse the catalogue

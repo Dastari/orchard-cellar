@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_cherry_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....DDDD.......",
+        "....DDDFDD......",
+        ".....DFFD.......",
+        "....DHHFFD.DD...",
+        "...DDHHFFDDEED..",
+        "..DHJJaaJJD..D..",
+        "..DHJaaaaJD..D..",
+        "..DHaaJJaaDEED..",
+        "..DDnnjmmjDDD...",
+        "..DDlljkkjD.....",
+        "...DjjjjjjD.....",
+        "....SSSSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}

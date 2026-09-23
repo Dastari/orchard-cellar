@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_apple_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....DDDD.......",
+        "....DDDFDD......",
+        ".....DFFD.......",
+        "....DHHFFD.DD...",
+        "...DDHHFFDDEED..",
+        "..DHJJaabbD..D..",
+        "..DHJjjjjjD..D..",
+        "..DHjnnlljDEED..",
+        "..DDjmmlljDDD...",
+        "..DDJjlljJD.....",
+        "...DJjjjjJD.....",
+        "....SSSSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}
