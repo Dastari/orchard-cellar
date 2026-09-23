@@ -75,6 +75,20 @@ export async function retainStaticAssets(original: string, staged: string): Prom
     }
   }
   await retain('assets');
+  // Old tabs may request an atlas pack/page they have not seen yet. Retain only
+  // immutable generated dependencies and retired atlas filename aliases; mutable
+  // metadata/release pointers must stay new. Aliases bridge the first migration.
+  const generated = await readdir(join(original, 'generated')).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  });
+  for (const name of generated) {
+    const immutable = /^(?:atlas-[a-f0-9]{64}\.png|pack-[a-f0-9]{64}\.json)$/.test(name);
+    const retiredAtlas = /^atlas_[a-z0-9_]+_(?:spring|summer|autumn|winter)(?:\.omit)?\.png$/.test(name);
+    if (!immutable && !retiredAtlas) continue;
+    await mkdir(join(staged, 'generated'), { recursive: true });
+    await retain(`generated/${name}`);
+  }
 }
 
 /** Preserve the already reviewed Studio release, pinned before any world build. */
