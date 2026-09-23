@@ -507,3 +507,47 @@ dense chunks or when filters return no matches. Studio uses per-space viewport
 subscriptions while player presence remains global. Runtime-space route references
 are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
 and [decision](adr/ADR-studio-multi-space.md).
+
+### Gameplay timing clock domains
+
+The client `content/timing-clock.ts` separates simulation authority from calendar
+time. Processor and private-job progress consume `world_clock.authorityTick`;
+calendar offsets only feed seasonal policy and calendar/weather/lighting displays.
+Cosmetic clocks cannot confirm production completion. See
+[shared timing specification](timing-system-spec.md) for the staged frame/hover
+projection work and [decision](adr/ADR-shared-timing.md).
+
+### Shared workstation timing projection
+
+`projectTiming` in sim derives statuses, confidence, progress and deadlines from
+existing process anchors and the same `settleProcess` mathematics as authority.
+It never writes inventory or claims hypothetical output. Unknown private slots
+produce estimates; expired public anchors require settlement confirmation.
+Authored frame `{ timing: "process" }` text panes and spatial hover share the kit
+timing canvas bridge. Retained `ui.timing` uses the same bounded label cache.
+Processor metadata is cached per immutable content registry, projections per
+row/tick/slot snapshot, and hover buckets per entity/map/content revision. Only
+the open or hovered station is projected; no per-object interval is introduced.
+The game build admits the small timing bridge and contrast modules only; retained
+Studio components remain outside its dependency boundary.
+
+### Growth timing and inspection
+
+The same `projectTiming` entry point accepts crop, tree, fruit and stateful
+lifecycle sources. Crop projections call `cropGrowthAt` with raw authority time
+and a separate season offset. Existing watering/season coverage determines
+whether remaining active growth is an exact ETA; dry/winter states have no
+finish deadline. Legacy trees retain global sweep authority and use its bounded
+24-step increment helper for weather-conditional estimates. Fruit uses the
+authoritative ripening timestamp and shared harvest eligibility.
+
+`statefulTimingMilestones` reuses lifecycle settlement, transition deadlines and
+growth anchors. Callers must supply an authorized snapshot and its settled
+environment epoch. Private #81 anchors are not inferred from `stateJson`: missing
+anchors yield timing unavailable. The helper introduces no authority storage.
+
+The shared spatial inspection index accepts authored bounds for processors and
+resources, or projected crop tiles. Immutable keyed stores expose a local
+mutation revision to avoid scanning every crop each frame or invalidating these
+buckets for unrelated moving entities. Suppressed resources and hidden entities
+are not inspected. Only hovered resource/crop timing is projected.

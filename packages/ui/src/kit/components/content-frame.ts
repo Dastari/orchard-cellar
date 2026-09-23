@@ -1,4 +1,5 @@
-import { HOTBAR_SLOT_COUNT, type FrameContentDefinition, type FrameRestrictionRegistry } from '@orchard/sim';
+import { uiTiming } from './timing.js';
+import { HOTBAR_SLOT_COUNT, type TimingProjection, type FrameContentDefinition, type FrameRestrictionRegistry } from '@orchard/sim';
 import { resolveFramePaneSlots, type FrameContainerAliases } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
 import type { UiElement } from '../runtime/element.js';
@@ -15,6 +16,7 @@ export interface UiContentFrameOptions {
   readonly definition: FrameContentDefinition; readonly aliases: FrameContainerAliases;
   readonly registry: Pick<FrameRestrictionRegistry, 'items' | 'processes'>; readonly controller?: UiInventoryController;
   readonly artwork?: UiSlotOptions['artwork']; readonly state?: Readonly<Record<string, boolean | number | string>>; readonly progress?: number | (() => number);
+  readonly timing?: TimingProjection;
   readonly iconAnimation?: UiSlotOptions['iconAnimation'];
   readonly inventoryControls?: Readonly<Record<string, UiInventoryControls>>;
   readonly status?: { readonly label: string; readonly progress?: number | (() => number); readonly tone?: UiTone };
@@ -24,18 +26,22 @@ export interface UiContentFrameOptions {
 }
 export interface UiContentFrameElement extends UiElement {
   /** Refresh authored state without replacing inventory controls or their editors. */
+  updateTiming(timing: TimingProjection): void;
   updateState(state: NonNullable<UiContentFrameOptions['state']>): void;
 }
 /** Frame definitions remain presentation data; the host retains write authority. */
 export function uiContentFrame(options: UiContentFrameOptions): UiContentFrameElement {
   let state = options.state ?? {};
   const refresh: (() => void)[] = [];
+  const timers: ReturnType<typeof uiTiming>[] = [];
   const definition = options.definition, shown = (value?: { readonly state: string; readonly equals: boolean | number | string }) => !value || state[value.state] === value.equals;
   const panes = definition.panes.map(pane => {
     const bindings = resolveFramePaneSlots(pane, options.aliases, options.registry);
     const custom = options.renderPane?.(pane);
     const controls = bindings.length ? options.inventoryControls?.[bindings[0]!.containerId] : undefined;
-    const content = custom ?? (bindings.length ? (pane.kind === 'paper_doll' ? uiPaperDoll : controls ? uiInventoryPanel : uiInventoryGrid)({ id: `preview.${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: bindings.map(binding => ({ id: String(binding.index), index: binding.index })), columns: pane.columns ?? 'auto', slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, ...controls })
+    const timer = 'timing' in pane.bind ? uiTiming({ timing: options.timing ?? { status: 'idle', reason: null, stage: null, progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' } }) : null;
+    if (timer !== null && custom === undefined) timers.push(timer);
+    const content = custom ?? timer ?? (bindings.length ? (pane.kind === 'paper_doll' ? uiPaperDoll : controls ? uiInventoryPanel : uiInventoryGrid)({ id: `preview.${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: bindings.map(binding => ({ id: String(binding.index), index: binding.index })), columns: pane.columns ?? 'auto', slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, ...controls })
       : pane.kind === 'bar' ? uiMeter({ label: pane.label ?? 'Progress', value: 'state' in pane.bind ? Number(options.state?.[pane.bind.state] ?? 0) : options.progress ?? 0, tone: 'success' })
         : uiText('state' in pane.bind ? String(options.state?.[pane.bind.state] ?? '') : pane.label ?? ''));
     const body = uiFlex({ id: `pane:${pane.id}`, width: 'grow', basis: uiFixed(pane.minWidth ?? Math.max(80, (pane.columns ?? 1) * 36)), gap: 4 }, [
@@ -76,5 +82,5 @@ export function uiContentFrame(options: UiContentFrameOptions): UiContentFrameEl
     state = next; for (const update of refresh) update();
   };
   updateState(state);
-  return Object.assign(frame, { updateState });
+  return Object.assign(frame, { updateState, updateTiming: (timing: TimingProjection) => { for (const timer of timers) timer.updateTiming(timing); } });
 }
