@@ -13,7 +13,7 @@ function between(start: string, end: string): string {
 
 describe('W2a inventory reducer registration', () => {
   it('registers the private bounded preview receipt and caller-filtered view', () => {
-    const schema = between('const admin_mutation_preview = table(', '// --- end docs/55 lane 55-C tables ---');
+    const schema = between('const admin_mutation_preview = table(', '// --- end authoring lane 55-C tables ---');
     expect(schema).toContain("name: 'admin_mutation_preview'");
     expect(schema).toContain("columns: ['actor']");
     expect(schema).toContain('fingerprint: t.string()');

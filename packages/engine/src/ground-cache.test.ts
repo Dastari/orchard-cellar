@@ -138,7 +138,7 @@ describe('chunked ground cache', () => {
     expect(cache.has(2, 0)).toBe(true);
   });
 
-  it('34§6 keeps a 4K minimum-zoom frame resident without evict-then-rebake', () => {
+  it('Architecture/Performance: keeps a 4K minimum-zoom frame resident without evict-then-rebake', () => {
     const viewportWidth = 4096;
     const viewportHeight = 2160;
     const minimumZoom = 1.5;

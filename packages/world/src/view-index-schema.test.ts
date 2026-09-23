@@ -12,7 +12,7 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
   return source.slice(start, end);
 }
 
-describe('docs/53 T4 indexed caller views', () => {
+describe('Architecture/World-SpacetimeDB T4 indexed caller views', () => {
   it('indexes online, trade, homestead, chat, and speech view candidates', () => {
     const online = sourceBetween('export const onlinePlayerPublic =', 'export const ownStats =');
     expect(online.match(/player_public\.by_online\.filter\(true\)/g)).toHaveLength(2);

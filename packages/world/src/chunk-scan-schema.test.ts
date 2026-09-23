@@ -12,7 +12,7 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
   return source.slice(start, end);
 }
 
-describe('docs/53 T5 chunk-bounded action scans', () => {
+describe('Architecture/World-SpacetimeDB T5 chunk-bounded action scans', () => {
   it('uses exact world-item chunk keys for merge and multi-pickup candidates', () => {
     const helper = sourceBetween(
       'function worldItemsInChunkNeighborhood(',

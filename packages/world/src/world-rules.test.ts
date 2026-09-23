@@ -70,7 +70,7 @@ const resourceHarvestResult = (
 );
 
 describe('overworld authority rules', () => {
-  it('26§13 accepts nearby portal use and rejects range, space, and mounted paths', () => {
+  it('World/Spaces & Interiors: accepts nearby portal use and rejects range, space, and mounted paths', () => {
     const portal = { fromSpace: 0, fromTileX: 10, fromTileY: 12 };
     const nearby = {
       spaceId: 0,
@@ -84,7 +84,7 @@ describe('overworld authority rules', () => {
     expect(portalUseResult(nearby, portal, true)).toBe('no_horses_underground');
     expect(portalUseResult(nearby, portal, true, true)).toBe('ok');
   });
-  it('26§13 climbs a cellar ladder only from the tile at its foot, facing it', () => {
+  it('World/Spaces & Interiors: climbs a cellar ladder only from the tile at its foot, facing it', () => {
     const ladder = { kind: 'cellar_exit:toby', fromSpace: 0, fromTileX: 10, fromTileY: 12 };
     const standing = (tileX: number, tileY: number, facing = 'up') => ({
       spaceId: 0,
@@ -106,7 +106,7 @@ describe('overworld authority rules', () => {
     // Trapdoors and doors keep the generous three-by-three threshold.
     expect(portalUseResult(standing(11, 12, 'down'), { ...ladder, kind: 'cellar_enter:toby' }, false)).toBe('ok');
   });
-  it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
+  it('Systems/Stats & Vitals: commits exact tool costs and leaves rejected spends unchanged', () => {
     expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({
       ok: true, costCenti: 1_500, vigourCenti: 8_500, lastSwingTick: 100n,
     });
@@ -279,7 +279,7 @@ describe('overworld authority rules', () => {
     expect(collision.blocked[16 * collision.width + 24]).toBe(false);
   });
 
-  it('26§13 keeps collision dimensions and mutable obstacles local to each space', () => {
+  it('World/Spaces & Interiors: keeps collision dimensions and mutable obstacles local to each space', () => {
     const debug = createAuthoritySpaceCollisionMap(contentRegistry, DEBUG_SPACE_ID, [{
       kind: 'tree_oak', definitionId: 'resource:tree_oak', tileX: 5, tileY: 5, depleted: false,
     }]);
@@ -403,7 +403,7 @@ describe('overworld authority rules', () => {
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
   }, 20_000);
 
-  it('28§14 blocks closed placeables but lets open gates and standing lights pass', () => {
+  it('Systems/Crafting: blocks closed placeables but lets open gates and standing lights pass', () => {
     const collision = createAuthoritySurvivalCollisionMap(contentRegistry, [], [], 'ground', [
       { tileX: 20, tileY: 20, blocksMovement: true },
       { tileX: 21, tileY: 20, blocksMovement: false },

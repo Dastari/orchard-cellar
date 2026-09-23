@@ -1,5 +1,5 @@
 /**
- * Orchard UI-kit gate (doc 61 §5). Studio (and later the game client) must
+ * Orchard UI-kit gate (wiki: Decisions/61-Enforced UI-Kit Gate). Studio (and later the game client) must
  * compose screens only from `@orchard/ui/studio` kit factories. Anything the
  * kit lacks gets added to the kit with a UI Lab specimen, never hand-built in
  * the application.

@@ -3,7 +3,7 @@ import type { RaisedTerrainRole } from './raised-terrain-autotile.js';
 import { TERRAIN_SURFACE_FAMILIES, TERRAIN_SURFACE_FAMILY_IDS } from './terrain-tilesets.js';
 
 /**
- * Cell part stack (doc 61 §2.2). A cell's terrain is an ordered list of
+ * Cell part stack (wiki: Studio/Map Editor, Cell parts). A cell's terrain is an ordered list of
  * semantic parts; each part may carry an exact appearance override. Smart
  * resolution stays the default: a part without `exact` does not change the
  * resolved frame. The shape is intentionally cell-local (no map dimensions or

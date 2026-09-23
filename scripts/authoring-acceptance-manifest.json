@@ -231,7 +231,7 @@
     {
       "id": "56-phase-1-authenticated-deployment",
       "planSection": "56 Phase 1",
-      "statement": "All doc 42 scenarios pass through authenticated Studio at cellar.dastari.net.",
+      "statement": "All map-editor (plan 42) scenarios pass through authenticated Studio at cellar.dastari.net.",
       "classification": "external_required",
       "evidence": [
         "packages/studio/src/tools/map/doc42-scenarios.test.ts"
@@ -474,7 +474,7 @@
     {
       "id": "56-phase-4-authoring",
       "planSection": "56 Phase 4",
-      "statement": "Every doc55 Studio route is mounted and a new tileset family is published and used by a map without rebuild.",
+      "statement": "Every authoring-suite (plan 55) Studio route is mounted and a new tileset family is published and used by a map without rebuild.",
       "classification": "external_required",
       "evidence": [
         "packages/studio/src/shell/tool-registry.test.ts",

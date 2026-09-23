@@ -220,7 +220,7 @@ export interface ObjectContentComponents extends StatefulComponentSet<ObjectOver
   readonly damageable?: ObjectDamageableComponent;
   readonly carry?: ObjectCarryComponent;
   readonly furniture?: ObjectFurnitureComponent;
-  /** Doc 61 §3: global lighting, shadow, and occlusion participation. */
+  /** Global lighting, shadow, and occlusion participation. */
   readonly lighting?: ObjectLightingComponent;
   /** Pixel interaction target rectangle relative to the anchor. */
   readonly target?: ObjectTargetComponent;

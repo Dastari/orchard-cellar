@@ -106,7 +106,7 @@ for (let i = 0; i < icons.length; i++) {
   rows.push(`<text x="${x}" y="${rowY + 24}" font-size="11">${a.name.replace('icon_alchemy_', '')}</text><use xlink:href="#${a.name}" transform="translate(${x} ${rowY + 34}) scale(8)"/><use xlink:href="#${a.name}" x="${x}" y="${rowY + 178}"/>`);
 }
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1120" height="${rowY + 230}" viewBox="0 0 1120 ${rowY + 230}" shape-rendering="crispEdges" role="img" aria-labelledby="title desc">
-<title id="title">Doc 63 — food and alchemy station artwork</title>
+<title id="title">Food and alchemy station artwork</title>
 <desc id="desc">All eight native station and habitat sprite state sets at four-times scale, native-size insets and seven independently drawn inventory icons. Working animations contain four frames at five frames per second. Only new bespoke artwork is embedded.</desc>
 <rect width="1120" height="100%" fill="#f2e3c2"/>
 <defs>${defs.join('')}</defs>

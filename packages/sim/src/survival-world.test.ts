@@ -383,7 +383,7 @@ describe('deterministic survival island', () => {
     expect(counts.get('oasis')).toBeGreaterThan(100);
   });
 
-  it('30§3 builds connected organic plateaus with a height-aware crossing per contour component', () => {
+  it('World/Map & Terrain: builds connected organic plateaus with a height-aware crossing per contour component', () => {
     const roleCounts = new Map<string, number>();
     const plateauMask = new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE);
     let plateauTiles = 0;
@@ -580,7 +580,7 @@ describe('deterministic survival island', () => {
     }
   }, 30_000);
 
-  it('30§3 reaches every live-seed contour component from the spawn ground plane', () => {
+  it('World/Map & Terrain: reaches every live-seed contour component from the spawn ground plane', () => {
     const elevations = survivalElevationBytes(SURVIVAL_WORLD_SEED);
     const biomes = survivalTerrainBytes(SURVIVAL_WORLD_SEED);
     const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
@@ -645,7 +645,7 @@ describe('deterministic survival island', () => {
     }
   }, 30_000);
 
-  it('30§3 climbs one slope and a three-level stair while unconnected contours stay solid', () => {
+  it('World/Map & Terrain: climbs one slope and a three-level stair while unconnected contours stay solid', () => {
     const ramp = survivalPlateauRamps(SURVIVAL_WORLD_SEED)
       .find(({ contourLevel }) => contourLevel === SURVIVAL_MAX_TERRAIN_ELEVATION);
     expect(ramp).toBeDefined();
@@ -731,7 +731,7 @@ describe('deterministic survival island', () => {
     expect(solidStart.position.y - blocked.position.y).toBeLessThan(24 * FIXED_UNITS_PER_PIXEL);
   });
 
-  it('30§5 projects one lower-plane wall blocker, leaves trim open, and guards the upper cap', () => {
+  it('World/Map & Terrain: projects one lower-plane wall blocker, leaves trim open, and guards the upper cap', () => {
     const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
     let southFace: { readonly tileX: number; readonly tileY: number; readonly contourLevel: number } | null = null;
     for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 4 && southFace === null; tileY += 1) {

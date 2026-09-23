@@ -17,13 +17,13 @@ describe('overworld regional subscriptions', () => {
       (MAX_VIEW_RADIUS+1)*SURVIVAL_CHUNK_TILES+REGION_CENTER_DEADBAND_TILES+8,
     );
   });
-  it('34§4 caps an ultrawide viewport with rectangular per-axis radii', () => {
+  it('Architecture/Netcode: caps an ultrawide viewport with rectangular per-axis radii', () => {
     const radius = viewRadiusForViewport(3840, 2160, 1);
     expect(radius).toEqual({ x: 9, y: 6 });
     expect(subscriptionChunkBounds(12, 12, radius)).toEqual({ minX: 3, minY: 6, maxX: 21, maxY: 18 });
   });
 
-  it('34§4 clamps each axis to the world and the hard budget at every zoom', () => {
+  it('Architecture/Netcode: clamps each axis to the world and the hard budget at every zoom', () => {
     const finalChunk = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILES) - 1;
     expect([1, 2, 3].map((zoom) => viewRadiusForViewport(1920, 1080, zoom))).toEqual([
       { x: 5, y: 4 }, { x: 3, y: 3 }, { x: 3, y: 2 },
@@ -49,7 +49,7 @@ describe('overworld regional subscriptions', () => {
     expect(bounds.maxX).toBeGreaterThanOrEqual(8);
   });
 
-  it('34§5 uses one indexed query per regional table', () => {
+  it('Architecture/Netcode: uses one indexed query per regional table', () => {
     expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(19);
     expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(19);
     expect(regionSubscriptionQueryCount(
@@ -59,14 +59,14 @@ describe('overworld regional subscriptions', () => {
     )).toBe(18);
   });
 
-  it('26§13 bounds an instance space and budgets every space-aware table', () => {
+  it('World/Spaces & Interiors: bounds an instance space and budgets every space-aware table', () => {
     const bounds = subscriptionChunkBounds(1, 1, { x: 9, y: 9 }, 32);
     expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 1 });
     expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(17);
     expect(regionSubscriptionQueryCount(bounds, 50_000, 'roguelike')).toBe(6);
   });
 
-  it('34§4 does not churn a boundary crossing and return inside the deadband', () => {
+  it('Architecture/Netcode: does not churn a boundary crossing and return inside the deadband', () => {
     const center = [15, 8] as const;
     expect(outsideRegionCenterDeadband(center, 16, 8)).toBe(false);
     expect(outsideRegionCenterDeadband(center, 15, 8)).toBe(false);
@@ -187,7 +187,7 @@ describe('overworld regional subscriptions', () => {
       .toBeLessThan(globals.indexOf('this.subscribeSelf(connection, identity)'));
   });
 
-  it('34§6 reduces settled 1080p query count from the stage-1 baseline', () => {
+  it('Architecture/Netcode: reduces settled 1080p query count from the stage-1 baseline', () => {
     const stage1Baseline = 8 + 15 + 11 * 11 * 8;
     const bounds = subscriptionChunkBounds(20, 20, viewRadiusForViewport(1920, 1080, 1));
     const stage2Settled = 2 + 5 + 28 + regionSubscriptionQueryCount(bounds);

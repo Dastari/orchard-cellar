@@ -18,7 +18,7 @@ function effectTile(tile: { readonly spaceId: string; readonly x: number; readon
   return { spaceId: tile.spaceId, x: tile.x, y: tile.y };
 }
 
-/** Compiled migration bridge for docs/55 §11 placeable rows owned by 55-B1. */
+/** Compiled migration bridge for the authoring parity checklist (wiki: Studio/Authoring Suite) placeable rows owned by 55-B1. */
 export const PLACEABLE_HANDLER_REGISTRATIONS = Object.freeze([
   {
     id: 'placeable.place-carried',

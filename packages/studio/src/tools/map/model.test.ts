@@ -149,7 +149,7 @@ describe('Studio Map Editor model', () => {
     model.dispose();
   });
 
-  it('exposes all doc42 workspaces, Photoshop-style layers, selection, and validation kernels', () => {
+  it('exposes all map-editor workspaces, Photoshop-style layers, selection, and validation kernels', () => {
     const { model, selection, inspector, validation } = harness();
     expect(MAP_EDITOR_WORKSPACES).toEqual(['terrain', 'objects', 'biomes', 'scatter']);
     for (const workspace of MAP_EDITOR_WORKSPACES) { model.selectWorkspace(workspace); expect(model.workspace()).toBe(workspace); }

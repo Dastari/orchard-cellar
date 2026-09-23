@@ -1,5 +1,5 @@
 /**
- * Editor entry: the reviewed UI kit surface and nothing else (doc 61 §5).
+ * Editor entry: the reviewed UI kit surface and nothing else (wiki: Decisions/61-Enforced UI-Kit Gate).
  *
  * Studio composes screens from `ui` factories. Kit types are exported as
  * types only, so `UiElement` can be named but not constructed here. Engine

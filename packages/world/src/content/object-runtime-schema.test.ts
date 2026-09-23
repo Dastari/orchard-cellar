@@ -21,8 +21,8 @@ describe('authored object runtime integration', () => {
 
   it('resolves snapshots and handlers from the exact durable content head', () => {
     const bridge = between(
-      '// --- docs/55 lane 55-B0: generic behaviour authority bridge ---',
-      '// --- end docs/55 lane 55-B0 behaviour authority bridge ---',
+      '// --- authoring lane 55-B0: generic behaviour authority bridge ---',
+      '// --- end authoring lane 55-B0 behaviour authority bridge ---',
     );
     expect(source).toContain("from './content/object-runtime.js'");
     expect(bridge).toContain('objectGraphRegistryForContent(');
@@ -39,8 +39,8 @@ describe('authored object runtime integration', () => {
 
   it('preflights and applies typed state/light plans while retaining compatibility mirrors', () => {
     const bridge = between(
-      '// --- docs/55 lane 55-B0: generic behaviour authority bridge ---',
-      '// --- end docs/55 lane 55-B0 behaviour authority bridge ---',
+      '// --- authoring lane 55-B0: generic behaviour authority bridge ---',
+      '// --- end authoring lane 55-B0 behaviour authority bridge ---',
     );
     expect(bridge.match(/planPlaceableStateEffect\(/gu)?.length).toBeGreaterThanOrEqual(4);
     expect(bridge.match(/planPlaceableLightEffect\(/gu)?.length).toBeGreaterThanOrEqual(2);

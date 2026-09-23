@@ -1,6 +1,6 @@
 {
  "format": "orchard-audio-assignment-v1",
- "description": "Context → music rules for the music director (docs/12 §2.5). Future Studio Audio tool content kind: audio_assignment (doc 62 §3.3).",
+ "description": "Context → music rules for the music director (wiki: Systems/Audio & Music, Music director). Future Studio Audio tool content kind: audio_assignment (wiki: Roadmap/Studio Tool Coverage).",
  "defaults": {
   "silenceSeconds": [150, 360],
   "entrySilenceSeconds": [20, 60],

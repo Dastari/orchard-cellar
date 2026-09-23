@@ -13,7 +13,7 @@ import { StudioCanvasToolRegistry } from './shell/canvas-tool-registry.js';
 import { registerBuiltinStudioCanvasTools } from './shell/builtin-canvas-tools.js';
 import type { StudioCanvasToolContext } from './shell/canvas-tool.js';
 
-/** Doc 61 §5: Studio composes only kit factories. The lint rules catch the
+/** wiki: Decisions/61-Enforced UI-Kit Gate: Studio composes only kit factories. The lint rules catch the
  * source patterns; this runtime check catches anything that slips past them
  * by mounting every Studio route and checking each element kind against the
  * kinds the kit itself creates. */

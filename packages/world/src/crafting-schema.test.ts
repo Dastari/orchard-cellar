@@ -32,7 +32,7 @@ function handsAuthoritySource(): string {
   return source.slice(source.indexOf('function worldBehaviourEffectWriter('), source.indexOf('function applyWorldBehaviourEffects('));
 }
 
-describe('28§14 phase 3 authority contracts', () => {
+describe('Systems/Crafting: phase 3 authority contracts', () => {
   it('declares additive, space-born placeable and private slot authorities', () => {
     const placeable = source.slice(source.indexOf('const world_placeable = table('), source.indexOf('const world_placeable_slot = table('));
     expect(placeable).toContain("name: 'world_placeable'");

@@ -36,7 +36,7 @@ const rows = (placeables: StudioLiveRows['placeables'], chests: StudioLiveRows['
 const lampRow = { id: lampId(20, 24), spaceId: 0, kind: 'hearth_streetlamp', definitionId: STREETLAMP_DEFINITION,
   ownerIdentity: WORLD, tileX: 20, tileY: 24, lit: true };
 
-describe('ownership-aware live markers (doc 61 §1.3)', () => {
+describe('ownership-aware live markers (Studio/Map Editor)', () => {
   it('classifies rows by their owner, learning the world identity from reserved rows', () => {
     const worldBench = { id: 900n, spaceId: 0, kind: 'bench', definitionId: 'object:bench', ownerIdentity: WORLD };
     const playerBench = { id: 901n, spaceId: 0, kind: 'bench', definitionId: 'object:bench', ownerIdentity: PLAYER };

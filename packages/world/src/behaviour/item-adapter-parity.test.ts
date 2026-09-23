@@ -16,7 +16,7 @@ describe('item world-adapter row-write parity', () => {
 
   it('registers item and placeable handlers once in deterministic composition', () => {
     const bridge = slice(
-      '// --- docs/55 lane 55-B0: generic behaviour authority bridge ---',
+      '// --- authoring lane 55-B0: generic behaviour authority bridge ---',
       'function behaviourItemSnapshot(',
     );
     expect(bridge).toContain('createHandlerRegistry(AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS)');

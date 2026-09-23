@@ -58,7 +58,7 @@ const canvasEvidence = canvasEvidenceJson as {
   readonly screenshots: readonly string[];
 };
 
-describe('docs 55/56 Studio acceptance surface', () => {
+describe('Studio/Acceptance surface (authoring and Studio plans)', () => {
   it('keeps the checked browser route evidence synchronized with the registry', () => {
     const registry = new StudioToolRegistry();
     registerBuiltinStudioTools(registry);
