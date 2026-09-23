@@ -1,3 +1,4 @@
+import { parseTraversalAbilities } from './traversal-definition.js';
 import { parseSkillGearMetadata, type SkillGearMetadata } from '../skill-gear-metadata.js';
 import type { SpaceRunEntrance } from '../spaces.js';
 import type { Modifier } from '../modifiers.js';
@@ -128,6 +129,7 @@ export interface CropContentDefinition extends WorldDefinitionBase<'crop', CropD
 }
 
 export interface CreatureContentDefinition extends WorldDefinitionBase<'creature', CreatureDefinitionId> {
+  readonly traversalAbilities?: readonly string[];
   /** Parser-only marker for exact pre-authority production packs. Validation
    * rejects this shape unless the raw Stage-A payload fingerprint matches. */
   readonly legacyCompatibility?: true;
@@ -422,6 +424,7 @@ export interface SkillTreeContentDefinition extends WorldDefinitionBase<'skill_t
 }
 
 export interface EffectContentDefinition extends WorldDefinitionBase<'effect', EffectContentDefinitionId> {
+  readonly traversalAbilities?: readonly string[];
   readonly name: string;
   readonly maxStacks: number;
   readonly durationTicks: number;
@@ -712,6 +715,7 @@ export function parseCreatureDefinition(value: string | unknown): CreatureConten
   const presentation = legacy?.presentation??parseCreaturePresentation(source.presentation, '$.presentation');
   return Object.freeze({
     ...base(source, 'creature'),
+    ...(source.traversalAbilities === undefined ? {} : { traversalAbilities: parseTraversalAbilities(source.traversalAbilities) }),
     species,
     habitat: string(source.habitat, '$.habitat') as CreatureContentDefinition['habitat'],
     variants: integer(source.variants, '$.variants', 1),
@@ -1154,7 +1158,7 @@ export function parseSkillTreeDefinition(value: string | unknown): SkillTreeCont
 
 export function parseEffectContentDefinition(value: string | unknown): EffectContentDefinition {
   const source = sourceFor(value, 'effect');
-  return Object.freeze({ ...base(source, 'effect'), name: string(source.name, '$.name'), maxStacks: integer(source.maxStacks, '$.maxStacks', 1), durationTicks: integer(source.durationTicks, '$.durationTicks', 1), modifiers: array(source.modifiers, '$.modifiers').map((entry, index) => modifier(entry, `$.modifiers[${index}]`)), ...(source.family === undefined ? {} : { family: string(source.family, '$.family') }), ...(source.scaleModifiersWithStacks === undefined ? {} : { scaleModifiersWithStacks: boolean(source.scaleModifiersWithStacks, '$.scaleModifiersWithStacks') }) });
+  return Object.freeze({ ...base(source, 'effect'), ...(source.traversalAbilities === undefined ? {} : { traversalAbilities: parseTraversalAbilities(source.traversalAbilities) }), name: string(source.name, '$.name'), maxStacks: integer(source.maxStacks, '$.maxStacks', 1), durationTicks: integer(source.durationTicks, '$.durationTicks', 1), modifiers: array(source.modifiers, '$.modifiers').map((entry, index) => modifier(entry, `$.modifiers[${index}]`)), ...(source.family === undefined ? {} : { family: string(source.family, '$.family') }), ...(source.scaleModifiersWithStacks === undefined ? {} : { scaleModifiersWithStacks: boolean(source.scaleModifiersWithStacks, '$.scaleModifiersWithStacks') }) });
 }
 
 export function parseStatisticDefinition(value: string | unknown): StatisticContentDefinition {

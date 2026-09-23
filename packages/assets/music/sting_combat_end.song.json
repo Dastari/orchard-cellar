@@ -1,0 +1,82 @@
+{
+ "name": "sting_combat_end",
+ "kind": "sting",
+ "bpm": 84,
+ "swing": 0.03,
+ "key": "G",
+ "mode": "major",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 2,
+ "masterGainDb": -2,
+ "loop": false,
+ "iterationNotes": [
+  "Pass 1: sparse adaptive-director piece (docs/12 \u00a72.5); quotes the orchard_home motif. Owner listening pass pending."
+ ],
+ "channels": [
+  {
+   "patch": "bells",
+   "vol": 0.3,
+   "pan": -0.3,
+   "patterns": [
+    "Home"
+   ]
+  },
+  {
+   "patch": "pluck",
+   "vol": 0.28,
+   "pan": 0.3,
+   "patterns": [
+    "Chord"
+   ]
+  }
+ ],
+ "patterns": {
+  "Home": {
+   "steps": 32,
+   "notes": [
+    [
+     0,
+     "G5",
+     4,
+     0.7
+    ],
+    [
+     4,
+     "B5",
+     4,
+     0.7
+    ],
+    [
+     8,
+     "D6",
+     12,
+     0.75
+    ]
+   ]
+  },
+  "Chord": {
+   "steps": 32,
+   "notes": [
+    [
+     8,
+     "G3",
+     12,
+     0.6
+    ],
+    [
+     9,
+     "D4",
+     12,
+     0.55
+    ],
+    [
+     10,
+     "B4",
+     12,
+     0.55
+    ]
+   ]
+  }
+ }
+}

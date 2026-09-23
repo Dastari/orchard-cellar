@@ -3,6 +3,9 @@
     "id": "enemy:caldera_warden",
     "kind": "enemy",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeKind": "caldera_warden",
     "displayName": "Caldera Warden",
     "npcKind": "cowling",
@@ -119,6 +122,9 @@
     "id": "enemy:cinder_skull",
     "kind": "enemy",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeKind": "cinder_skull",
     "displayName": "Cinder Skull",
     "npcKind": "flying_skull",
@@ -140,6 +146,9 @@
     "id": "enemy:cowling_pyromancer",
     "kind": "enemy",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeKind": "cowling_pyromancer",
     "displayName": "Cowling Pyromancer",
     "npcKind": "cowling_mage",
@@ -171,6 +180,9 @@
     "id": "enemy:ember_cowling",
     "kind": "enemy",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeKind": "ember_cowling",
     "displayName": "Ember Cowling",
     "npcKind": "cowling",
@@ -190,6 +202,9 @@
     "id": "enemy:ember_slime",
     "kind": "enemy",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeKind": "ember_slime",
     "displayName": "Ember Slime",
     "npcKind": "slime_small_red",
@@ -213,6 +228,9 @@
     "id": "enemy:rogue_skeleton",
     "kind": "enemy",
     "schemaVersion": 1,
+    "traversalAbilities": [
+      "walk"
+    ],
     "runtimeKind": "rogue_skeleton",
     "displayName": "Rogue Skeleton",
     "npcKind": "skeleton",

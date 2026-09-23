@@ -1,0 +1,113 @@
+{
+ "format": "orchard-audio-assignment-v1",
+ "description": "Context → music rules for the music director (docs/12 §2.5). Future Studio Audio tool content kind: audio_assignment (doc 62 §3.3).",
+ "defaults": {
+  "silenceSeconds": [150, 360],
+  "entrySilenceSeconds": [20, 60],
+  "fadeInSeconds": 3,
+  "fadeOutSeconds": 6,
+  "stingerCooldownSeconds": 25
+ },
+ "rules": [
+  {
+   "id": "title",
+   "description": "Account and title screens: the signature theme loops.",
+   "priority": 1000,
+   "when": { "scene": ["title"] },
+   "mode": "continuous",
+   "cues": ["theme_title"],
+   "fadeInSeconds": 2.5
+  },
+  {
+   "id": "combat",
+   "description": "An awake enemy is close or the player is trading blows. Enters fast, leaves smoothly.",
+   "priority": 900,
+   "when": { "scene": ["world"], "combat": true },
+   "mode": "combat",
+   "cues": ["combat_skirmish"],
+   "fadeInSeconds": 1.2,
+   "fadeOutSeconds": 3,
+   "exitHoldSeconds": 7,
+   "enterStinger": "sting_combat_start",
+   "exitStinger": "sting_combat_end",
+   "afterSilenceSeconds": [30, 90]
+  },
+  {
+   "id": "delve_volcanic",
+   "description": "Volcanic Delve rooms.",
+   "priority": 600,
+   "when": { "scene": ["world"], "zone": ["delve"], "tags": ["delve:volcanic"] },
+   "mode": "sparse",
+   "cues": ["piece_ember", "piece_cellar"],
+   "silenceSeconds": [60, 180],
+   "entrySilenceSeconds": [8, 30]
+  },
+  {
+   "id": "delve",
+   "description": "Delve lobby and cave/dungeon rooms.",
+   "priority": 500,
+   "when": { "scene": ["world"], "zone": ["delve"] },
+   "mode": "sparse",
+   "cues": ["piece_cellar"],
+   "silenceSeconds": [60, 180],
+   "entrySilenceSeconds": [8, 30]
+  },
+  {
+   "id": "volcanic",
+   "description": "Outdoors on volcanic ash or near lava.",
+   "priority": 450,
+   "when": { "scene": ["world"], "biome": ["volcanic_ash", "lava"] },
+   "mode": "sparse",
+   "cues": ["piece_ember"],
+   "silenceSeconds": [90, 240],
+   "entrySilenceSeconds": [10, 40]
+  },
+  {
+   "id": "cellar",
+   "description": "Homestead cellars.",
+   "priority": 400,
+   "when": { "scene": ["world"], "zone": ["cellar"] },
+   "mode": "sparse",
+   "cues": ["piece_cellar"],
+   "silenceSeconds": [120, 300],
+   "entrySilenceSeconds": [10, 40]
+  },
+  {
+   "id": "interior",
+   "description": "Village buildings, tents and homes.",
+   "priority": 400,
+   "when": { "scene": ["world"], "zone": ["interior"] },
+   "mode": "sparse",
+   "cues": ["piece_hearth"],
+   "silenceSeconds": [120, 300],
+   "entrySilenceSeconds": [10, 40]
+  },
+  {
+   "id": "rain",
+   "description": "Rain outdoors, any time of day.",
+   "priority": 300,
+   "when": { "scene": ["world"], "zone": ["overworld", "homestead"], "weather": ["rain"] },
+   "mode": "sparse",
+   "cues": ["piece_rain", { "song": "piece_lantern", "weight": 0.5 }],
+   "silenceSeconds": [150, 360]
+  },
+  {
+   "id": "night",
+   "description": "Dusk and night outdoors.",
+   "priority": 200,
+   "when": { "scene": ["world"], "time": ["dusk", "night"] },
+   "mode": "sparse",
+   "cues": ["piece_lantern", "theme_night"],
+   "silenceSeconds": [150, 360]
+  },
+  {
+   "id": "day",
+   "description": "Dawn and daytime outdoors; also the fallback for anything unmatched.",
+   "priority": 100,
+   "when": { "scene": ["world"] },
+   "mode": "sparse",
+   "cues": [{ "song": "piece_dew", "weight": 2 }, "theme_spring"],
+   "silenceSeconds": [150, 360]
+  }
+ ]
+}

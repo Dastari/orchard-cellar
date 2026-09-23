@@ -66,26 +66,26 @@
     "group": "gameplay.core",
     "description": "Foundational character vitals, modifier, combat, and archery-target tuning.",
     "profile": "character_combat",
-    "values": [
-      10,
-      1,
-      30,
-      10000,
-      100,
-      1000,
-      1000,
-      1000,
-      20,
-      10,
-      120,
-      10,
-      1400,
-      1800,
-      100,
-      10000,
-      100,
-      20
-    ]
+    "fields": {
+      "baseAttribute": 10,
+      "minimumAttribute": 1,
+      "maximumAttribute": 30,
+      "basisPoints": 10000,
+      "centiUnitsPerDisplayUnit": 100,
+      "healthCentiPerStrength": 1000,
+      "manaCentiPerIntelligence": 1000,
+      "vigourCentiPerConstitution": 1000,
+      "healthRegenCentiPerSecond": 20,
+      "manaRegenCentiPerWisdom": 10,
+      "vigourRegenCentiPerConstitution": 120,
+      "regenSweepTicks": 10,
+      "bowBaseDamageCenti": 1400,
+      "swordBaseDamageCenti": 1800,
+      "combatMinimumDamageCenti": 100,
+      "archeryTargetMaxHealthCenti": 10000,
+      "archeryTargetRegenCentiPerSecond": 100,
+      "archeryTargetRegenIntervalTicks": 20
+    }
   },
   {
     "id": "balance:residence_construction_v1",
@@ -94,20 +94,20 @@
     "group": "gameplay.core",
     "description": "Residence construction recipe version 1.",
     "profile": "residence_construction",
-    "values": [
-      1,
-      "item:wood",
-      "item:stone",
-      "item:copper_piece",
-      2,
-      2,
-      1,
-      4,
-      2,
-      4,
-      2,
-      2
-    ]
+    "fields": {
+      "recipeVersion": 1,
+      "wood": "item:wood",
+      "stone": "item:stone",
+      "copper": "item:copper_piece",
+      "rusticWood": 2,
+      "townhouseWood": 2,
+      "townhouseStone": 1,
+      "wallWood": 4,
+      "wallStone": 2,
+      "doorwayWood": 4,
+      "windowWood": 2,
+      "windowCopper": 2
+    }
   },
   {
     "id": "balance:world_policy",
@@ -116,18 +116,18 @@
     "group": "gameplay.core",
     "description": "World policy.",
     "profile": "world_policy",
-    "values": [
-      30,
-      2,
-      24000,
-      60,
-      16,
-      32000,
-      12,
-      3,
-      3,
-      4,
-      24
-    ]
+    "fields": {
+      "fiberTillDropPercent": 30,
+      "craftingStationReachTiles": 2,
+      "itemDespawnTicks": 24000,
+      "survivalSpawnSearchRadiusTiles": 60,
+      "proceduralWorldChunkTiles": 16,
+      "proceduralWorldExtentTiles": 32000,
+      "proceduralSpawnPregenRadiusChunks": 12,
+      "proceduralGenerationLookaheadChunks": 3,
+      "survivalTerrainMaxElevation": 3,
+      "survivalTerrainContourInsetTiles": 4,
+      "survivalTerrainMinimumSummitTiles": 24
+    }
   }
 ]

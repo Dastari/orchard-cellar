@@ -760,7 +760,7 @@ export function parseDataGraphEffect(value: unknown, path = '$'): Effect {
 export function parseInteractionDefinition(value: unknown, path: string): InteractionDefinition {
   const source = record(value, path);
   const verb = stringValue(source.verb, `${path}.verb`);
-  if (!['use', 'secondary', 'use_with', 'place', 'walk_onto', 'tick', 'break', 'timer'].includes(verb)) {
+  if (!['use', 'secondary', 'use_with', 'place', 'walk_onto', 'tick', 'break', 'timer', 'spawn', 'despawn', 'stateEnter', 'stateExit', 'dialogueChoice', 'questState', 'questObjective'].includes(verb)) {
     fail(`${path}.verb`, `unknown interaction verb ${verb}`);
   }
   const prompt = source.prompt === undefined ? undefined : typeof source.prompt === 'string'

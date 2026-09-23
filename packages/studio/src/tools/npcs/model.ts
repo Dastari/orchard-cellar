@@ -35,8 +35,8 @@ export class NpcManagerModel {
   select(entityId: string): void { this.#selected = this.#rows.find((row) => row.entityId === entityId) ?? null; this.#pending = null; }
 
   async load(reset = true): Promise<void> {
-    const page = await this.api.listEntities({ kinds: ['npc'], spaceId: this.#spaceId, x0: -64, y0: -64,
-      x1: 63, y1: 63, text: this.#filter, cursor: reset ? null : this.#nextCursor, limit: 50 });
+    const page = await this.api.listEntities({ kinds: ['npc'], spaceId: this.#spaceId, x0: 0, y0: 0,
+      x1: 127, y1: 127, text: this.#filter, cursor: reset ? null : this.#nextCursor, limit: 50 });
     this.#rows = Object.freeze(reset ? [...page.rows] : [...this.#rows, ...page.rows]);
     this.#nextCursor = page.nextCursor; this.#worldVersion = page.worldVersion;
     if (this.#selected !== null) this.#selected = this.#rows.find(({ entityId }) => entityId === this.#selected?.entityId) ?? null;

@@ -1,7 +1,7 @@
 import { resourceVisualState } from './resource-visual-state.js';
 import { profilePainterProducer } from './painter-producer-profile.js';
-import { FIXED_UNITS_PER_PIXEL, cropGrowthAt, runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem, recoverableArrowDirection } from '@orchard/sim';
-import { drawAuthoredResourceVisual, drawOverworldArrow, drawOverworldCrop, drawOverworldItem, natureDecorationFrame } from '@orchard/engine/overworld-art';
+import { FIXED_UNITS_PER_PIXEL, naturalObjectId, resolveObjectDefinitionAppearance, cropGrowthAt, runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem, recoverableArrowDirection } from '@orchard/sim';
+import { drawAuthoredOverworldObject, drawAuthoredResourceVisual, drawOverworldArrow, drawOverworldCrop, drawOverworldItem, natureDecorationFrame } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import { deterministicFlameFlicker } from '@orchard/engine/light-sources';
 import { treeSwayOffset } from '@orchard/engine/weather-effects';
@@ -14,7 +14,7 @@ type Inputs = Pick<GameplayPainterInputs,
   'scale' | 'visualTickClock' | 'treeShakeRemaining' | 'effectPhase' | 'drawSouthFacingReceiver' |
   'miningClassFromWire' | 'cropDefinitionForSnapshot' | 'renderAuthorityTick' | 'cropAutomaticallyWateredForSnapshot' | 'cropCalendarOffsetForSnapshot' |
   'cropGreenhouseProtectedForSnapshot' | 'dynamicLighting' | 'lightVisible' | 'pointLights' |
-  'projectedLight'
+  'projectedLight' | 'objectPresentations'
 >;
 
 /** Mechanically extracted painter producer; command order and draw bodies are unchanged. */
@@ -26,7 +26,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
     scale, visualTickClock, treeShakeRemaining, effectPhase, drawSouthFacingReceiver,
     miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot, cropCalendarOffsetForSnapshot,
     cropGreenhouseProtectedForSnapshot, dynamicLighting, lightVisible, pointLights,
-    projectedLight,
+    projectedLight, objectPresentations,
   } = input;
   if (!debugEntitiesHidden) for (const resource of [
     ...worldResourcesIncludingPersonalQuest(snapshot), ...homesteadSurroundingResources(seed),
@@ -34,7 +34,14 @@ function buildEnqueueGameplayResources(input: Inputs): void {
     if (liveMapSuppressesGeneratedResource(snapshot, resource.id)) continue;
     const definition = runtimeResourceDefinition(snapshot.content.registry, resource);
     if (definition === null) continue;
-    const visualKind = definition.visual.asset;
+    const visualState = resourceVisualState(resource, definition, renderAuthorityTick);
+    const objectId = naturalObjectId(definition.id);
+    const object = snapshot.content.registry.objects.get(objectId);
+    const appearance = object === undefined ? null : resolveObjectDefinitionAppearance(object, { stage: visualState });
+    const resolvedVisual = appearance?.sprite === null || appearance?.sprite === undefined ? definition.visual
+      : { ...definition.visual, asset: appearance.sprite.asset };
+    const visualScale = appearance?.sprite?.scale ?? 1;
+    const visualKind = resolvedVisual.asset;
     const resourceX = resource.tileX * 16 + 8;
     const resourceY = (resource.tileY + 1) * 16;
     if (!worldPointVisible(resourceX, resourceY, visible)) continue;
@@ -58,12 +65,22 @@ function buildEnqueueGameplayResources(input: Inputs): void {
       footY: resourceY,
       tie: `resource:${resource.id}`,
       draw: () => {
-        const visualState = resourceVisualState(resource, definition, renderAuthorityTick);
+        if (object !== undefined && snapshot.content.registry.definitions.has(objectId)) {
+          const stage = object.components.states?.stage;
+          const stateJson = stage?.type === 'enum' && stage.values.includes(visualState) ? JSON.stringify({ stage: visualState }) : '{}';
+          const sprite = objectPresentations.resolve(snapshot.content, { id: resource.id, kind: resource.kind,
+            definitionId: objectId, stateJson, open: false, lit: false }).sprite;
+          if (sprite?.asset !== null && sprite?.asset !== undefined) {
+            drawAuthoredOverworldObject(context, sprite.asset, sprite.animation, Math.floor(visualTickClock.renderTick),
+              resourceX, resourceY, cameraX, cameraY, scale, sprite.scale);
+            return;
+          }
+        }
         if (definition.visual.kind === 'fish') {
           if (resource.depleted) return;
           drawAuthoredResourceVisual(
-            context, art, definition.visual, 'mature', resourceX, resourceY,
-            cameraX, cameraY, scale, 'mixed', 1, natureDecorationFrame(
+            context, art, resolvedVisual, 'mature', resourceX, resourceY,
+            cameraX, cameraY, scale * visualScale, 'mixed', 1, natureDecorationFrame(
               'nature_fish_shadow',
               visualTickClock.renderTick,
               Number(resource.id % 96n),
@@ -75,8 +92,8 @@ function buildEnqueueGameplayResources(input: Inputs): void {
         if (definition.interaction.mode === 'gather') {
           if (resource.depleted) return;
           drawAuthoredResourceVisual(
-            context, art, definition.visual, 'mature', resourceX, resourceY,
-            cameraX, cameraY, scale,
+            context, art, resolvedVisual, 'mature', resourceX, resourceY,
+            cameraX, cameraY, scale * visualScale,
           );
           return;
         }
@@ -85,8 +102,8 @@ function buildEnqueueGameplayResources(input: Inputs): void {
           const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
           const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
           drawSouthFacingReceiver(resourceX, resourceY, () => drawAuthoredResourceVisual(
-            context, art, definition.visual, 'mature', resourceX + shakeX, resourceY,
-            cameraX, cameraY, scale,
+            context, art, resolvedVisual, 'mature', resourceX + shakeX, resourceY,
+            cameraX, cameraY, scale * visualScale,
             miningClassFromWire(resource.miningClass, resource.spaceId), resource.richness,
           ));
           return;
@@ -94,8 +111,8 @@ function buildEnqueueGameplayResources(input: Inputs): void {
         const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
         const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
         const drawTree = (): void => drawAuthoredResourceVisual(
-          context, art, definition.visual, visualState,
-          resourceX + shakeX, resourceY, cameraX, cameraY, scale,
+          context, art, resolvedVisual, 'mature',
+          resourceX + shakeX, resourceY, cameraX, cameraY, scale * visualScale,
           'mixed', 1, 0, sway[0], sway[1],
         );
         drawTree();
@@ -120,13 +137,25 @@ function buildEnqueueGameplayResources(input: Inputs): void {
       cropCalendarOffsetForSnapshot(snapshot),
       cropGreenhouseProtectedForSnapshot(snapshot, crop.spaceId),
     );
+    const objectId = naturalObjectId(`crop:${crop.cropKind}`);
+    const object = snapshot.content.registry.objects.get(objectId);
+    const state: Record<string, number> = object?.components.states?.stage?.type === 'counter' ? { stage: growth.stage } : {};
+    const appearance = object === undefined ? null : resolveObjectDefinitionAppearance(object, state);
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `crop:${crop.id}`,
-      draw: () => drawOverworldCrop(
-        context, art, definition.assetKey.slice('crop_cf_'.length),
-        growth.stage, x, y, cameraX, cameraY, scale,
-      ),
+      draw: () => {
+        if (object !== undefined && snapshot.content.registry.definitions.has(objectId)) {
+          const sprite = objectPresentations.resolve(snapshot.content, { id: crop.id, kind: crop.cropKind,
+            definitionId: objectId, stateJson: JSON.stringify(state), open: false, lit: false }).sprite;
+          if (sprite?.asset !== null && sprite?.asset !== undefined) {
+            drawAuthoredOverworldObject(context, sprite.asset, sprite.animation, growth.stage, x, y, cameraX, cameraY, scale, sprite.scale);
+            return;
+          }
+        }
+        drawOverworldCrop(context, art, (appearance?.sprite?.asset ?? definition.assetKey).slice('crop_cf_'.length),
+          growth.stage, x, y, cameraX, cameraY, scale * (appearance?.sprite?.scale ?? 1));
+      },
     });
   }
   if (!debugEntitiesHidden) for (const item of snapshot.worldItems) {

@@ -1,3 +1,4 @@
+import { homesteadBiomeAt, runtimeTraversalPolicy, staticTraversalChannels, terrainCellMedium, SURVIVAL_WORLD_SEED } from '@orchard/sim';
 import {persistedHearthArchitectureCollision} from '@orchard/sim';
 import {hearthInteriorCollision} from '@orchard/sim';
 import {
@@ -79,6 +80,7 @@ const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
   readonly blocked: boolean[];
   readonly elevations?: Int16Array | Uint8Array;
   terrainPlaneBlocked?: Uint8Array;
+  traversalChannels?: CollisionMap['traversalChannels'];
   readonly keys: Set<string>;
 }>();
 
@@ -200,6 +202,19 @@ export function terrainCollisionForSpace(
   }
   if(definition?.generator==='residence'&&medium==='ground')collision=persistedHearthArchitectureCollision(
     definition.residenceExpansionRank??0,collision,definition.residenceArchitectureJson);
+  if (definition?.generator !== 'island' && runtimeTraversalPolicy(registry) !== null) {
+    if (medium !== 'ground') {
+      const ground = terrainCollisionForSpace(registry, spaceId, 'ground', instanceRow);
+      collision = { ...collision, ...(ground.traversalChannels === undefined ? {} : { traversalChannels: ground.traversalChannels }) };
+    } else {
+      const rogue = definition?.rogueRoom;
+      const layout = rogue === undefined ? null : generateRogueRoomLayout(rogue.seed, rogue.roomNumber, rogue.roomKind as Parameters<typeof generateRogueRoomLayout>[2]);
+      const hazards = new Set((layout?.hazards ?? []).map(point => point.tileY * collision.width + point.tileX));
+      const mediumAt = (index: number) => hazards.has(index) ? 'lava' as const
+        : definition?.homesteadSite === undefined ? 'land' as const : terrainCellMedium({ biome: homesteadBiomeAt(SURVIVAL_WORLD_SEED, definition.homesteadSite, index % collision.width, Math.floor(index / collision.width), collision.width) });
+      collision = { ...collision, traversalChannels: staticTraversalChannels(collision, mediumAt, hazards) };
+    }
+  }
   SPACE_TERRAIN_COLLISION.set(key, collision);
   return collision;
 }
@@ -291,6 +306,7 @@ export function createAuthoritySpaceCollisionMap(
   // Terrain is immutable for a space definition. Reusing the cached arrays
   // avoids rebuilding the large topside terrain for every authority tick.
   const terrain = terrainCollisionForSpace(registry, spaceId, medium, instanceRow);
+  let traversalChannels = terrain.traversalChannels;
   let blocked = terrain.blocked;
   let elevations = terrain.elevations;
   let terrainPlaneBlocked = terrain.terrainPlaneBlocked;
@@ -314,6 +330,7 @@ export function createAuthoritySpaceCollisionMap(
       DYNAMIC_EXCAVATION_COLLISION.set(terrain, dynamic);
     }
     let terrainHeightChanged = false;
+    let geometryChanged = dynamic.traversalChannels === undefined;
     for (const tile of excavatedTiles) {
       for (const cell of cellarExcavationFootprint(
         tile.tileX,
@@ -330,6 +347,7 @@ export function createAuthoritySpaceCollisionMap(
           terrainHeightChanged = true;
         }
         dynamic.keys.add(key);
+        geometryChanged = true;
       }
     }
     if (terrainHeightChanged && dynamic.elevations !== undefined) {
@@ -339,6 +357,10 @@ export function createAuthoritySpaceCollisionMap(
         terrain.height,
       );
     }
+    if (geometryChanged && terrain.traversalChannels !== undefined && medium === 'ground') {
+      dynamic.traversalChannels = staticTraversalChannels({ ...terrain, blocked: dynamic.blocked });
+    }
+    traversalChannels = dynamic.traversalChannels ?? traversalChannels;
     blocked = dynamic.blocked;
     elevations = dynamic.elevations;
     terrainPlaneBlocked = dynamic.terrainPlaneBlocked;
@@ -383,6 +405,7 @@ export function createAuthoritySpaceCollisionMap(
   return {
     width: terrain.width,
     height: terrain.height,
+    ...(traversalChannels === undefined ? {} : { traversalChannels }),
     blocked,
     ...(medium === 'ground' && elevations !== undefined
       ? { elevations }

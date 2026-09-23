@@ -157,7 +157,8 @@ describe('NPC/dialogue/quest content definitions', () => {
 
   it('requires authored boat interaction reach', () => {
     const boat = bootstrapNpcDefinitions().find((definition) => definition.id === 'npc:boat')!;
-    expect(boat.mount).toEqual({ adapter: 'boat', reachFixed: 512 });
+    expect(boat.mount).toEqual({ adapter: 'boat', reachFixed: 512, traversalAbilities: ['boat'],
+      replacesAbilities: ['walk', 'boat', 'swim', 'fly', 'water_walk'] });
     expect(() => parseNpcDefinition({ ...boat, mount: { adapter: 'boat' } }))
       .toThrow(/reachFixed/u);
     expect(parseNpcDefinition({ ...boat, mount: { adapter: 'boat', reachFixed: 313 } }).mount)

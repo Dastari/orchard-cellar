@@ -90,3 +90,27 @@ Unknown or malformed values are rejected. This is authored metadata only;
 The chunk-format lane uses the same names. A future capability-aware traversal
 resolver consumes the metadata; boats, water walking and hazard immunity are
 not implemented in this slice.
+
+## Blob47 and native fringe follow-on
+
+See [migration spec](rule-catalogue-blob47-spec.md). Available families optionally
+carry `layers: [{masks, fallback}]`, sharing the family's roles and topology. Mask
+entries optionally carry `matchMask`; match when `(neighbourMask & matchMask) ===
+mask`. Omitting it preserves exact matching. Invalid or ignored set bits and
+duplicate `(mask, matchMask)` pairs are rejected. Ordered patterns may overlap;
+first match wins, including an explicitly empty roles list. Fallback applies
+within that layer only. `resolveRuleFrame` stays base-only; `resolveRuleLayers`
+returns the independently resolved base and overlays, omitting transparent layers.
+
+Committed `farmland_blob47` stores 47 eligible-diagonal patterns and fill/inset
+roles. The isolated inset has no match and remains transparent. Four distinct
+`grass_N_fringe` transition entries store native cardinal art and NW/NE/SW/SE
+corner layers, including opaque middle assets. These are deliberately not forced
+into blob47. `terrainRuleLayers` compiles all 256 masks once per immutable catalogue
+identity; terrain uses the bootstrap catalogue until the future hot-registry lane.
+
+The existing basic definition is 59,271 compact bytes, below the 65,536-byte
+wire limit. Total runtime content is 616,383 bytes (919 definitions), +33,665 bytes
+from PR #73. Authoring row JSON is 771,045 bytes; these are distinct measurements.
+The measured next-whole-KiB regression budget is 602 KiB. As with the groundwork,
+publish the matching world parser before publishing content with new fields.

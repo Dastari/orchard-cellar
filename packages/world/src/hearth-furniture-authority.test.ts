@@ -59,6 +59,7 @@ function fixture() {
       by_chunk: { filter: (space: number) => [...rows.values()].filter(row => row.spaceId === space) } },
     world_placeable_slot: { by_placeable: { filter: (id: bigint) => [...slots.values()].filter(row => row.placeableId === id) },
       id: { delete: (id: string) => slots.delete(id) } },
+    object_lifecycle_state: { placeableId: empty },
     world_placeable_build: { placeableId: empty }, world_placeable_damage: { placeableId: empty },
     player_seat: { placeableId: empty }, active_placeable: { by_placeable: { filter: () => [] } },
   } };

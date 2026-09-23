@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.27.2 — 2026-09-23
+
+- Add owner-only CAS chunk shadow staging, additive regional heads and verified private collision blobs.
+- Add bounded view/ring chunk loading, IndexedDB caching with connection teardown and revision-pinned diagnostic subscriptions behind a default-off flag.
+- Add offline static bundle preparation compatible with existing eight-character content hashes and a generator retirement build gate; live terrain and movement remain unchanged.
+## 0.26.0 — 2026-09-23
+
+- Persist authored object state and growth anchors with bounded lazy catch-up, historical weather/calendar epochs and isolated scheduled transactions. Route spawn/place, interaction and explicit state mutations through approved lifecycle callbacks and transition graphs.
+- Resolve sprite, footprint, light, shadow, global-light reception and interaction availability from ordered state overrides. Replace map light asset lists and tree-prefix shadow inference with authored object bindings.
+- Add dual-read resource/crop object projections while preserving legacy row identities, harvest/farming authority and stage artwork. Keep all schema changes additive; no deployment or destructive migration.
+- See [object runtime specification and handoff](docs/object-state-runtime.md) for validation, integration and migration boundaries.
+## 0.26.0 — 2026-09-23 — D6 runtime consumers and percentage hazards
+
+- Wire shared medium admission to prediction, authority movement, NPC AI, projectiles and gameplay placement while preserving independent geometry and explicit legacy/shadow modes. The authored bootstrap policy remains shadow.
+- Author boat/mount/creature/enemy grants and approved lava 10% / shroom-water 2% maximum-health damage each second. Boat/water-walk admission is separate from toxin immunity.
+- Add private fractional hazard state, existing knockout/rogue recovery and environmental encounter completion without synthetic player credit. Offline ticks never accrue exposure.
+- Add generated/compiled/chunk medium parity and authority persistence/recovery regression tests; document policy bounds, editor boundary and release gating in docs/64-medium-traversal-runtime.md.
+- Content: 920 definitions, 585,179 runtime bytes (a69b62bf), +2,461 bytes; measured guard 572 KiB.
+
+
+## 0.25.0 — 2026-09-23 — D6 traversal authoring groundwork
+
+- Add authored `world_rules` traversal policies, explicit actor/mount/effect grants, independent hazard cadence, and a shared medium predicate/classifier.
+- Add a bounded cached collision projection with explicit legacy/shadow/active results and immutable shadow differences for integration. No gameplay call site switches in this groundwork.
+- Keep the bootstrap policy collection empty pending owner hazard balance/access decisions. D6 runtime integration, terrain-role coverage and live activation remain incomplete; see `docs/medium-traversal-handoff.md`.
+- Sim 0.23.0; tools 0.21.0. Existing definitions and saved rows retain compatibility.
+
+## 0.25.2 — reviewed source integration
+
+- Combine sparse music, multi-space reads, authored progression, reviewed lifecycle hooks and blob47 rules.
+- Require world-operation scope for spatial reads and loot/progression scope for progression authoring.
+- Regenerate combined contracts, pin the historical migration snapshot, and measure the 604 KiB content budget.
+- Production source matches the passing PR87 rehearsal; no deployment or later runtime activation.
+
+
+## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
+
+- Integrate typed sparse cell-part reconstruction and reuse the catalogue
+  medium contract; retain generated-world and authored-part round-trip parity.
+- Add versioned per-cell medium and independent solid blockers for D6; retain
+  unchanged walking/boat parity channels until the later ability-based runtime.
+- Add SHA-256-addressed 64×64 static world chunks with one-cell halos, signed
+  elevations, ordered authored/generated records, exact generated resource IDs,
+  and an optional cell-part section.
+- Add an offline materializer and actual-server parity oracle, plus a compatible
+  `ChunkTerrainStore`. Runtime subscriptions and world schema are unchanged.
+- Preserve independently captured client/server collision channels; validate
+  bootstrap goldens and the local authored-map snapshot before runtime migration.
+- See [materialization procedure](docs/world-chunk-materialization.md) for commands,
+  format details, asset-index integration, and the subsequent streaming boundary.
+
+## 0.25.1 — 2026-09-23
+
+- Add v2 reviewed object, NPC, dialogue and quest lifecycle callbacks with typed engine capabilities, bounded execution and exact-source hash approval. Preserve v1 item artifacts.
+- Bind object event/state transition callback references to their owning definition; raise state exit/enter and action-objective notifications from existing world authority paths. Add graph event verbs and regenerate form schemas.
+- Reject type assertions, interpolated string expansion and bigint operations that could evade the callback AST budget.
+- Validate v2 source, generated code, metadata and provenance in lifecycle build/integrity gates. New checked-in bundle is empty; release remains separately reviewed. See [F3 specification and handoff](docs/lifecycle-object-quest-hooks.md).
+
+## 0.24.0 — 2026-09-23
+
+- Build content-addressed atlas pages, deduplicate identical seasonal/shadow variants, and retain unchanged atlas files across worker releases in a bounded immutable cache.
+- Add opt-in semantic asset packs, lazy per-pack metadata, and chunk-prefetch APIs. Keep consolidated gameplay/Studio loading as the default pending the separate spawn-dependency/runtime migration.
+- Tools 0.20.0, UI 0.21.0, client 0.21.0; full sprite/season/shadow-omit pixel parity verified.
+## 0.25.0 — 2026-09-23
+
+- Move blob47 farmland and native grass fringe frame selection/composition into authored catalogue data, preserving all pre-migration pixels. Hoed and authored farmland share the same resolver; wet occupancy remains independent.
+- Add optional masked neighbour matches and ordered independent layers to the generic interpreter, with strict validation and compiled terrain lookups. Regenerate Studio field schemas.
+- Pin complete farmland/fringe layer goldens and update the measured content envelope to 602 KiB (616,383 runtime bytes).
+
 ## 0.24.1 — 2026-09-23
 
 - Fix workstation and private-job progress using calendar offsets: elapsed time now uses the authoritative simulation clock exclusively, while date/weather/moon displays retain calendar time. Client 0.20.2.
@@ -38,6 +107,19 @@
 - Studio 0.13.2 repairs conflicting diagonal insets only around Smart Placement strokes; Exact Placement and existing maps remain valid. Stone cliff brushes select matching grass 1–4.
 - Engine 0.20.1 renders explicitly authored desert/shroomland cap materials from the selected native family.
 - Regenerate independently reviewed native examples with corrected diagonals, matching grass/desert/volcanic ground, cyan oasis water, and explicit withheld interior assemblies where source roles remain unverified.
+## 0.24.1 — 2026-09-23
+
+- Studio 0.14.1 retries read-only space metadata when the shell connects or its signed-in identity/role changes.
+
+## 0.24.0 — 2026-09-23
+
+- Studio 0.14.0 uses per-space viewport subscriptions, all-space presence, authoritative space metadata and bounded server entity pages including crops. Adds F5 picker sources and a read-only runtime-space route/data boundary for the later World Map canvas.
+- Sim 0.22.0 shares static, homestead/residence/cellar and rogue space resolution with portal links. World 0.21.0 and bindings 0.16.0 add admin-gated registry and indexed cursor paging without exposing private run state or reviving retired farm parcels.
+## 0.24.0 — 2026-09-23
+
+- Author named combat, world-policy and residence balance fields with legacy tuple compatibility.
+- Move XP curve, level cap, respec ladder and 16 activity awards into validated progression content; live world and character/skill UI read published tuning.
+- Expose balance and progression through Studio World Tables; preserve current runtime values with migration parity tests.
 
 ## 0.23.1 — 2026-09-22
 

@@ -16,7 +16,8 @@ const registry = bootstrapContentRegistry();
 describe('authored NPC runtime identity and mount capability', () => {
   it('preserves legacy mount health and skill requirements in authored metadata', () => {
     expect(registry.npcs.get('npc:boat')?.health).toBe(BOAT_MAX_HEALTH);
-    expect(runtimeNpcMount(registry, { kind: 'boat' })).toEqual({ adapter: 'boat', reachFixed: HORSE_MOUNT_REACH_FIXED });
+    expect(runtimeNpcMount(registry, { kind: 'boat' })).toEqual({ adapter: 'boat', reachFixed: HORSE_MOUNT_REACH_FIXED,
+      traversalAbilities: ['boat'], replacesAbilities: ['walk', 'boat', 'swim', 'fly', 'water_walk'] });
     expect(registry.npcs.get('npc:horse')?.health).toBe(resolveCreatureStats('horse').maxHealthCenti / 100);
     expect(runtimeNpcMount(registry, { kind: 'horse' })).toMatchObject({
       adapter: 'horse', requiredSkill: 'stable_hand', jumpSkill: 'steeplechase',

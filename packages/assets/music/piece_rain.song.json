@@ -1,0 +1,249 @@
+{
+ "name": "piece_rain",
+ "kind": "piece",
+ "bpm": 76,
+ "swing": 0.02,
+ "key": "G",
+ "mode": "lydian",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 16,
+ "masterGainDb": -4,
+ "quotesMotif": {
+  "id": "orchard_home",
+  "channel": "flute",
+  "pattern": "Motif",
+  "exactPitch": false
+ },
+ "loop": false,
+ "fx": {
+  "reverb": 1.0,
+  "delayBeats": 0.75,
+  "delayFeedback": 0.35
+ },
+ "iterationNotes": [
+  "Pass 1: sparse adaptive-director piece (docs/12 \u00a72.5); quotes the orchard_home motif. Owner listening pass pending."
+ ],
+ "channels": [
+  {
+   "patch": "pluck",
+   "vol": 0.3,
+   "pan": 0.3,
+   "patterns": [
+    "ArpA",
+    "ArpB",
+    "ArpA",
+    "ArpEnd"
+   ]
+  },
+  {
+   "patch": "flute",
+   "vol": 0.5,
+   "pan": 0.05,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Motif",
+    "Rest"
+   ]
+  },
+  {
+   "patch": "bells",
+   "vol": 0.24,
+   "pan": -0.4,
+   "patterns": [
+    "Rest",
+    "Drop",
+    "Rest",
+    "Drop"
+   ]
+  }
+ ],
+ "patterns": {
+  "Rest": {
+   "steps": 64,
+   "notes": []
+  },
+  "ArpA": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "F#4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "ArpB": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "B3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "G4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "F#4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "ArpEnd": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "G3",
+     8,
+     0.5
+    ],
+    [
+     40,
+     "D4",
+     8,
+     0.45
+    ],
+    [
+     48,
+     "B4",
+     16,
+     0.45
+    ]
+   ]
+  },
+  "Motif": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G4",
+     4,
+     0.75
+    ],
+    [
+     8,
+     "B4",
+     4,
+     0.75
+    ],
+    [
+     16,
+     "D5",
+     8,
+     0.8
+    ],
+    [
+     32,
+     "F#5",
+     6,
+     0.75
+    ],
+    [
+     44,
+     "E5",
+     4,
+     0.7
+    ],
+    [
+     52,
+     "D5",
+     12,
+     0.65
+    ]
+   ]
+  },
+  "Drop": {
+   "steps": 64,
+   "notes": [
+    [
+     28,
+     "E6",
+     3,
+     0.45
+    ],
+    [
+     52,
+     "B5",
+     3,
+     0.4
+    ]
+   ]
+  }
+ }
+}

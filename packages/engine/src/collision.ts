@@ -1,3 +1,4 @@
+import { runtimeTraversalPolicy, mapDocumentTraversalChannels, createLiveIslandMapDocument, activeSurvivalLandmarks, staticTraversalChannels, terrainCellMedium, type MediumCollisionChannels } from '@orchard/sim';
 import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
@@ -48,6 +49,7 @@ export interface CollisionWorldPlaceable {
   readonly carriedBy?: unknown;
 }
 
+const traversalChannelsCache = new WeakMap<TerrainArray, WeakMap<ContentRegistry, MediumCollisionChannels>>();
 const cellarBoundaryCollisionCache = new WeakMap<TerrainArray, readonly boolean[]>();
 
 /** Uncut cellar rock is height-owned terrain rather than an absolute blocker.
@@ -136,8 +138,27 @@ export function createClientCollisionMap(
       if (obstacle !== null) obstacles.push(obstacle);
     }
   }
+  let traversalChannels = terrain.traversalChannels;
+  if (traversalChannels === undefined && contentRegistry !== undefined && runtimeTraversalPolicy(contentRegistry) !== null) {
+    let cache = traversalChannelsCache.get(terrain);
+    if (cache === undefined) { cache = new WeakMap(); traversalChannelsCache.set(terrain, cache); }
+    traversalChannels = cache.get(contentRegistry);
+    if (traversalChannels === undefined) {
+      if (terrain.spaceId === TOPSIDE_SPACE_ID) {
+        const document = createLiveIslandMapDocument({ seed: terrain.seed, landmarks: activeSurvivalLandmarks(contentRegistry, TOPSIDE_SPACE_ID) });
+        traversalChannels = mapDocumentTraversalChannels(document);
+      } else {
+        const ground = prepareClientTerrainCollision(terrain, 'ground', authoredDockWalkableTiles);
+        const hazards = new Set(Array.from(terrain.rogueHazards ?? [], (value, index) => value ? index : -1).filter(index => index >= 0));
+        traversalChannels = staticTraversalChannels(ground, index => hazards.has(index) ? 'lava'
+          : terrainCellMedium({ biome: SURVIVAL_BIOMES[terrain.biomes[index]!] ?? 'water' }), hazards);
+      }
+      cache.set(contentRegistry, traversalChannels);
+    }
+  }
   return {
     ...(preparedTerrain ?? prepareClientTerrainCollision(terrain, medium, authoredDockWalkableTiles)),
+    ...(traversalChannels === undefined ? {} : { traversalChannels }),
     obstacles,
     resourceObstacles,
   };
@@ -175,6 +196,7 @@ export function prepareClientTerrainCollision(
   return {
     width: terrain.width,
     height: terrain.height,
+    ...(terrain.traversalChannels === undefined ? {} : { traversalChannels: terrain.traversalChannels }),
     blocked,
     ...(medium === 'ground' ? { elevations: terrain.elevations } : {}),
     ...(medium === 'ground' && fixedTerrainPlane !== undefined

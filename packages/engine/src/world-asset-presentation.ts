@@ -63,7 +63,8 @@ function descriptor(asset: LoadedAsset, frame: AtlasFrame, pages?: WorldAssetPag
   return source;
 }
 export function worldAssetFrameSource(context: CanvasRenderingContext2D, asset: LoadedAsset, frame: AtlasFrame,
-  transform?: (source: AssetFrameSource) => AssetFrameSource): AssetFrameSource | null {
+  transform?: (source: AssetFrameSource) => AssetFrameSource, receivesLight = true): AssetFrameSource | null {
   const source = descriptor(asset, frame, presentations.get(context));
-  return receiverFrameSource(context, transform?.(source) ?? source);
+  const transformed = transform?.(source) ?? source;
+  return receivesLight ? receiverFrameSource(context, transformed) : transformed;
 }

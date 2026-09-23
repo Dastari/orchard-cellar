@@ -156,6 +156,7 @@ import PlaceHomesteadBuildableReducer from "./place_homestead_buildable_reducer"
 import PrioritizeEquipmentSkillReducer from "./prioritize_equipment_skill_reducer";
 import PublishContentChangeSetReducer from "./publish_content_change_set_reducer";
 import PublishLiveMapDocumentReducer from "./publish_live_map_document_reducer";
+import PublishWorldChunkShadowReducer from "./publish_world_chunk_shadow_reducer";
 import PurchaseHomesteadUpgradeReducer from "./purchase_homestead_upgrade_reducer";
 import PurchaseResidenceExpansionReducer from "./purchase_residence_expansion_reducer";
 import PurchaseSkillNodeReducer from "./purchase_skill_node_reducer";
@@ -196,6 +197,7 @@ import SetWorldWindDirectionReducer from "./set_world_wind_direction_reducer";
 import SitHearthFurnitureReducer from "./sit_hearth_furniture_reducer";
 import SkipRogueRewardReducer from "./skip_rogue_reward_reducer";
 import SortMenuContainerReducer from "./sort_menu_container_reducer";
+import StageWorldChunkBlobReducer from "./stage_world_chunk_blob_reducer";
 import StandHearthFurnitureReducer from "./stand_hearth_furniture_reducer";
 import StartRogueRunReducer from "./start_rogue_run_reducer";
 import SubmitStudioScriptReducer from "./submit_studio_script_reducer";
@@ -214,6 +216,7 @@ import * as AdminClientErrorsProcedure from "./admin_client_errors_procedure";
 import * as AdminConnectionsPageProcedure from "./admin_connections_page_procedure";
 import * as AdminContainerContentsProcedure from "./admin_container_contents_procedure";
 import * as AdminEntitiesInAreaProcedure from "./admin_entities_in_area_procedure";
+import * as AdminEntitiesInAreaPageProcedure from "./admin_entities_in_area_page_procedure";
 import * as AdminFindPlayersProcedure from "./admin_find_players_procedure";
 import * as AdminHomesteadProcedure from "./admin_homestead_procedure";
 import * as AdminLegacyFarmRetirementStatusProcedure from "./admin_legacy_farm_retirement_status_procedure";
@@ -221,10 +224,12 @@ import * as AdminMissingContainerRecoveryProcedure from "./admin_missing_contain
 import * as AdminPlayerInventoryProcedure from "./admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "./admin_player_mutation_result_procedure";
 import * as AdminPlayerSnapshotProcedure from "./admin_player_snapshot_procedure";
+import * as AdminSpaceRegistryProcedure from "./admin_space_registry_procedure";
 import * as AdminStudioMembersProcedure from "./admin_studio_members_procedure";
 import * as AdminStudioScopesProcedure from "./admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
+import * as InspectWorldChunkShadowProcedure from "./inspect_world_chunk_shadow_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
 import * as StudioScopeReceiptProcedure from "./studio_scope_receipt_procedure";
 import * as StudioScriptReviewProcedure from "./studio_script_review_procedure";
@@ -310,6 +315,8 @@ import VisibleChatMessagesRow from "./visible_chat_messages_table";
 import VisibleWorldSpeechRow from "./visible_world_speech_table";
 import WorldCampfireStateRow from "./world_campfire_state_table";
 import WorldChestRow from "./world_chest_table";
+import WorldChunkHeadRow from "./world_chunk_head_table";
+import WorldChunkShadowRow from "./world_chunk_shadow_table";
 import WorldClockRow from "./world_clock_table";
 import WorldCombatTargetRow from "./world_combat_target_table";
 import WorldCropRow from "./world_crop_table";
@@ -604,6 +611,12 @@ const tablesSchema = __schema({
         'id',
         'spaceId',
       ] },
+      { accessor: 'by_admin_area', name: 'world_chest_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
+      ] },
       { accessor: 'by_chunk', name: 'world_chest_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
         'chunkX',
@@ -614,6 +627,31 @@ const tablesSchema = __schema({
       { name: 'world_chest_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldChestRow),
+  worldChunkHead: __table({
+    name: 'world_chunk_head',
+    indexes: [
+      { accessor: 'id', name: 'world_chunk_head_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_space', name: 'world_chunk_head_space_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_chunk_head_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldChunkHeadRow),
+  worldChunkShadow: __table({
+    name: 'world_chunk_shadow',
+    indexes: [
+      { accessor: 'spaceId', name: 'world_chunk_shadow_space_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_chunk_shadow_space_id_key', constraint: 'unique', columns: ['spaceId'] },
+    ],
+  }, WorldChunkShadowRow),
   worldClock: __table({
     name: 'world_clock',
     indexes: [
@@ -648,6 +686,12 @@ const tablesSchema = __schema({
     name: 'world_crop',
     indexes: [
       { accessor: 'id', name: 'world_crop_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_crop_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
         'id',
       ] },
       { accessor: 'by_chunk', name: 'world_crop_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
@@ -696,6 +740,12 @@ const tablesSchema = __schema({
       { accessor: 'id', name: 'world_item_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
+      { accessor: 'by_admin_area', name: 'world_item_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
+      ] },
       { accessor: 'by_chunk', name: 'world_item_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
         'chunkX',
@@ -726,6 +776,12 @@ const tablesSchema = __schema({
       { accessor: 'by_rider', name: 'world_npc_rider_idx_hash', algorithm: 'btree', columns: [
         'rider',
       ] },
+      { accessor: 'by_admin_area', name: 'world_npc_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
+      ] },
       { accessor: 'by_chunk', name: 'world_npc_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
         'chunkX',
@@ -747,6 +803,12 @@ const tablesSchema = __schema({
       ] },
       { accessor: 'by_placer', name: 'world_placeable_placed_by_idx_btree', algorithm: 'btree', columns: [
         'placedBy',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_placeable_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
       ] },
       { accessor: 'by_chunk', name: 'world_placeable_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
@@ -785,6 +847,12 @@ const tablesSchema = __schema({
       ] },
       { accessor: 'by_regrowth_progress', name: 'world_resource_regrowth_progress_idx_btree', algorithm: 'btree', columns: [
         'regrowthProgress',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_resource_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+        'id',
       ] },
       { accessor: 'by_chunk', name: 'world_resource_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
@@ -827,6 +895,12 @@ const tablesSchema = __schema({
     name: 'world_surface',
     indexes: [
       { accessor: 'id', name: 'world_surface_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_admin_area', name: 'world_surface_space_id_chunk_x_chunk_y_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
         'id',
       ] },
       { accessor: 'by_chunk', name: 'world_surface_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
@@ -1442,6 +1516,7 @@ const reducersSchema = __reducers(
   __reducerSchema("prioritize_equipment_skill", PrioritizeEquipmentSkillReducer),
   __reducerSchema("publish_content_change_set", PublishContentChangeSetReducer),
   __reducerSchema("publish_live_map_document", PublishLiveMapDocumentReducer),
+  __reducerSchema("publish_world_chunk_shadow", PublishWorldChunkShadowReducer),
   __reducerSchema("purchase_homestead_upgrade", PurchaseHomesteadUpgradeReducer),
   __reducerSchema("purchase_residence_expansion", PurchaseResidenceExpansionReducer),
   __reducerSchema("purchase_skill_node", PurchaseSkillNodeReducer),
@@ -1482,6 +1557,7 @@ const reducersSchema = __reducers(
   __reducerSchema("sit_hearth_furniture", SitHearthFurnitureReducer),
   __reducerSchema("skip_rogue_reward", SkipRogueRewardReducer),
   __reducerSchema("sort_menu_container", SortMenuContainerReducer),
+  __reducerSchema("stage_world_chunk_blob", StageWorldChunkBlobReducer),
   __reducerSchema("stand_hearth_furniture", StandHearthFurnitureReducer),
   __reducerSchema("start_rogue_run", StartRogueRunReducer),
   __reducerSchema("submit_studio_script", SubmitStudioScriptReducer),
@@ -1502,6 +1578,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_connections_page", AdminConnectionsPageProcedure.params, AdminConnectionsPageProcedure.returnType),
   __procedureSchema("admin_container_contents", AdminContainerContentsProcedure.params, AdminContainerContentsProcedure.returnType),
   __procedureSchema("admin_entities_in_area", AdminEntitiesInAreaProcedure.params, AdminEntitiesInAreaProcedure.returnType),
+  __procedureSchema("admin_entities_in_area_page", AdminEntitiesInAreaPageProcedure.params, AdminEntitiesInAreaPageProcedure.returnType),
   __procedureSchema("admin_find_players", AdminFindPlayersProcedure.params, AdminFindPlayersProcedure.returnType),
   __procedureSchema("admin_homestead", AdminHomesteadProcedure.params, AdminHomesteadProcedure.returnType),
   __procedureSchema("admin_legacy_farm_retirement_status", AdminLegacyFarmRetirementStatusProcedure.params, AdminLegacyFarmRetirementStatusProcedure.returnType),
@@ -1509,10 +1586,12 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_player_inventory", AdminPlayerInventoryProcedure.params, AdminPlayerInventoryProcedure.returnType),
   __procedureSchema("admin_player_mutation_result", AdminPlayerMutationResultProcedure.params, AdminPlayerMutationResultProcedure.returnType),
   __procedureSchema("admin_player_snapshot", AdminPlayerSnapshotProcedure.params, AdminPlayerSnapshotProcedure.returnType),
+  __procedureSchema("admin_space_registry", AdminSpaceRegistryProcedure.params, AdminSpaceRegistryProcedure.returnType),
   __procedureSchema("admin_studio_members", AdminStudioMembersProcedure.params, AdminStudioMembersProcedure.returnType),
   __procedureSchema("admin_studio_scopes", AdminStudioScopesProcedure.params, AdminStudioScopesProcedure.returnType),
   __procedureSchema("admin_telemetry", AdminTelemetryProcedure.params, AdminTelemetryProcedure.returnType),
   __procedureSchema("admin_validate_world", AdminValidateWorldProcedure.params, AdminValidateWorldProcedure.returnType),
+  __procedureSchema("inspect_world_chunk_shadow", InspectWorldChunkShadowProcedure.params, InspectWorldChunkShadowProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
   __procedureSchema("studio_scope_receipt", StudioScopeReceiptProcedure.params, StudioScopeReceiptProcedure.returnType),
   __procedureSchema("studio_script_review", StudioScriptReviewProcedure.params, StudioScriptReviewProcedure.returnType),
@@ -1554,6 +1633,10 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_campfire_state": Omit<typeof tablesSchema.schemaType.tables["worldCampfireState"], "accessorName"> & { readonly accessorName: "world_campfire_state" };
     /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
     readonly "world_chest": Omit<typeof tablesSchema.schemaType.tables["worldChest"], "accessorName"> & { readonly accessorName: "world_chest" };
+    /** @deprecated Use `worldChunkHead` instead. This alias will be removed in the next major version. */
+    readonly "world_chunk_head": Omit<typeof tablesSchema.schemaType.tables["worldChunkHead"], "accessorName"> & { readonly accessorName: "world_chunk_head" };
+    /** @deprecated Use `worldChunkShadow` instead. This alias will be removed in the next major version. */
+    readonly "world_chunk_shadow": Omit<typeof tablesSchema.schemaType.tables["worldChunkShadow"], "accessorName"> & { readonly accessorName: "world_chunk_shadow" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
     /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
@@ -1623,6 +1706,8 @@ const tableAccessorAliases = {
   "space_portal": "spacePortal",
   "world_campfire_state": "worldCampfireState",
   "world_chest": "worldChest",
+  "world_chunk_head": "worldChunkHead",
+  "world_chunk_shadow": "worldChunkShadow",
   "world_clock": "worldClock",
   "world_combat_target": "worldCombatTarget",
   "world_crop": "worldCrop",
@@ -1694,6 +1779,10 @@ export type DbView = __DbViewBase & {
   readonly "world_campfire_state": __DbViewBase["worldCampfireState"];
   /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
   readonly "world_chest": __DbViewBase["worldChest"];
+  /** @deprecated Use `worldChunkHead` instead. This alias will be removed in the next major version. */
+  readonly "world_chunk_head": __DbViewBase["worldChunkHead"];
+  /** @deprecated Use `worldChunkShadow` instead. This alias will be removed in the next major version. */
+  readonly "world_chunk_shadow": __DbViewBase["worldChunkShadow"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
   /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
@@ -1766,6 +1855,10 @@ export type Tables = __TablesBase & {
   readonly "world_campfire_state": __TablesBase["worldCampfireState"];
   /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
   readonly "world_chest": __TablesBase["worldChest"];
+  /** @deprecated Use `worldChunkHead` instead. This alias will be removed in the next major version. */
+  readonly "world_chunk_head": __TablesBase["worldChunkHead"];
+  /** @deprecated Use `worldChunkShadow` instead. This alias will be removed in the next major version. */
+  readonly "world_chunk_shadow": __TablesBase["worldChunkShadow"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
   /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
