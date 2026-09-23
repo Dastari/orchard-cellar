@@ -31,3 +31,22 @@ were regenerated for the five authored frame changes. Fixture verification:
 563 tests passed; final ordinary (non-update) replay includes Studio shell assets.
 The first full run also needed generated Studio public assets in the isolated
 worktree; `npm run ui:assets -w @orchard/tools -- studio` supplies them.
+
+## C implementation
+
+`feat/shared-growth-timing` stacks on B. Crop/tree/fruit and authorized stateful
+projections share the contract and existing math. Spatial hover is independent
+of action reach and invalidates only for relevant row/content/map revisions.
+No lifecycle view/schema is added: generic private anchors remain unavailable
+to public hover until a separately authorized public projection is supplied.
+Focused growth/spatial/kit checks: 19 passed before final integration; workspace
+typecheck/lint/content validation and world/client builds pass. A fresh full
+`npm test` is running against cumulative A+B+C, including B fixture repairs.
+
+Local C browser checks at four tiles from the player (beyond action reach)
+showed beetroot PAUSED: NEEDS WATER with no countdown, watered beetroot
+GROWING / 15:00 LEFT, winter DORMANT UNTIL SPRING with no countdown,
+and tree/fruit hover over the authored trunk target. Evidence:
+`/tmp/timing-crop-dry.png`, `/tmp/timing-growth-wet.png`,
+`/tmp/timing-growth-winter.png`, `/tmp/timing-growth-tree.png`,
+`/tmp/timing-growth-fruit.png`.

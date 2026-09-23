@@ -90,3 +90,25 @@ Spatial buckets respect authored target rectangles or placement footprints and
 terrain projection independently of action reach. All five authored frames bind
 the shared kit timing pane. A small canvas bridge keeps retained Studio modules
 out of the independent game build. No authority schema or scheduled writes change.
+
+## Growth delivery (PR C)
+
+- Crop status and stage come from `cropGrowthAt`; water and season coverage are
+  checked before reporting an exact finish. Estimated countdowns labelled GROWTH
+  mean remaining active growth, not wall-clock completion. Dry/dormant crops have
+  no ETA. Stage and Soil Whisperer water details remain visible in the kit tooltip.
+- Tree progress comes from the subscribed row. A bounded future sweep projection
+  reuses `treeRegrowthProgressAtSweep`; changing future weather makes its ETA
+  estimated. Fruit cooldown uses `orchardFruitStatus` and the persisted deadline.
+- Generic lifecycle projection accepts an authorized lifecycle/epoch snapshot and
+  uses `statefulTimingMilestones`, which calls the same private deadline helpers
+  as settlement. It reports pending transitions without executing callbacks.
+  Public generic objects do not yet carry #81's private lifecycle anchors: the
+  adapter explicitly reports unavailable without an anchor. A future approved
+  public presentation contract can feed it without inventing new authority.
+- One shared spatial bucket index serves workstation/resource/crop inspection.
+  Keyed-store revisions avoid all-crop scans on render ticks and unrelated moving
+  entity updates. Resource target bounds are authored; crops use projected tiles.
+
+Stage indexes in the timing contract are zero-based; the UI presents them as
+one-based labels. Null means no visible growth stage yet (for example a stump).

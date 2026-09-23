@@ -1,3 +1,5 @@
+import { projectGrowthTiming, type GrowthTimingSource } from './timing-growth.js';
+export type { CropTimingSource, TreeTimingSource, FruitTimingSource, StatefulTimingSource } from './timing-growth.js';
 import { processProgressAt, processRemainingTicksAt, settleProcess,
   type ProcessAdapter, type ProcessSettlementOptions, type ProcessSettlementState,
 } from './behaviour/handlers/processors.js';
@@ -42,7 +44,8 @@ function inactiveReason(source: ProcessTimingSource): string {
 /** Read-only projection; settlement remains the sole producer of output.
  * The same settlement function determines catch-up and next-unit progress.
  * Public anchors never imply confirmed output or reveal private slots. */
-export function projectTiming(source: ProcessTimingSource, authorityTick: bigint): TimingProjection {
+export function projectTiming(source: ProcessTimingSource | GrowthTimingSource, authorityTick: bigint): TimingProjection {
+  if (source.kind !== 'process') return projectGrowthTiming(source, authorityTick);
   let startTick = source.startTick;
   let status: TimingStatus = startTick === undefined ? 'idle' : 'running';
   let reason: string | null = source.state === undefined ? 'contents-unknown' : null;
