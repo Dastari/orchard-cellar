@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.24.0 — 2026-09-23
+
+- Studio 0.14.0 uses per-space viewport subscriptions, all-space presence, authoritative space metadata and bounded server entity pages including crops. Adds F5 picker sources and a read-only runtime-space route/data boundary for the later World Map canvas.
+- Sim 0.22.0 shares static, homestead/residence/cellar and rogue space resolution with portal links. World 0.21.0 and bindings 0.16.0 add admin-gated registry and indexed cursor paging without exposing private run state or reviving retired farm parcels.
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.

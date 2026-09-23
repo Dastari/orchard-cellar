@@ -192,3 +192,5 @@ export * from './map-object-occupancy.js';
 export * from './object-presentation.js';
 export * from './smart-object-prefabs.js';
 export * from './map-entity-state.js';
+
+export * from './space-registry.js';

@@ -1,3 +1,5 @@
+import { buildSpaceRegistry } from '@orchard/sim';
+import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
 import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
@@ -2049,7 +2051,8 @@ const world_surface = table(
   {
     name: 'world_surface',
     public: true,
-    indexes: [{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] }],
+    indexes: [{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] }],
   },
   {
     id: t.u64().primaryKey(), kind: t.string(), tileX: t.i16(), tileY: t.i16(),
@@ -2193,6 +2196,7 @@ const world_resource = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_depleted', algorithm: 'btree', columns: ['depleted'] },
       { accessor: 'by_regrowth_progress', algorithm: 'btree', columns: ['regrowthProgress'] },
     ],
@@ -2289,6 +2293,7 @@ const world_crop = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
     ],
   },
   {
@@ -2313,6 +2318,7 @@ const world_item = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
@@ -2423,6 +2429,7 @@ const world_chest = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
       { accessor: 'by_migration_order', algorithm: 'btree', columns: ['id', 'spaceId'] },
     ],
@@ -2528,6 +2535,7 @@ const world_placeable = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
       { accessor: 'by_placer', algorithm: 'btree', columns: ['placedBy'] },
     ],
@@ -2650,6 +2658,7 @@ const world_npc = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_admin_area', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY', 'id'] },
       { accessor: 'by_rider', algorithm: 'hash', columns: ['rider'] },
     ],
   },
@@ -8130,6 +8139,87 @@ export const adminMissingContainerRecovery = spacetimedb.procedure(
   }),
 );
 
+/** Every iterator seeks directly within one requested chunk; excluded keys resume dense chunks. */
+function* adminAreaIndexRows(tx: AdminProcedureTx, source: number, spaceId: number,
+  chunkX: number, chunkY: number, after: string | null): Generator<AdminAreaRow> {
+  if (source === 0) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_placeable.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      if (genericChest(tx, row) && !chestMigrationReadsUsePlaceables(tx) && tx.db.chest_migration_mapping.placeableId.find(row.id) !== null) { yield { key: row.id.toString(), entity: null }; continue; }
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: genericChest(tx, row) ? 'chest' : 'placeable', definitionId: row.definitionId || row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { open: row.open, lit: row.lit, stateJson: row.stateJson } } };
+    }
+  }
+  if (source === 1) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_chest.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      if (chestMigrationReadsUsePlaceables(tx) && tx.db.chest_migration_mapping.chestId.find(row.id) !== null) { yield { key: row.id.toString(), entity: null }; continue; }
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'chest', definitionId: 'chest',
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { carried: row.carriedBy !== undefined } } };
+    }
+  }
+  if (source === 2) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_npc.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'npc', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { displayName: row.displayName, facing: row.facing, health: row.health } } };
+    }
+  }
+  if (source === 3) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_item.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'item', definitionId: row.itemKind,
+        spaceId: String(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { quantity: row.quantity, durability: row.durability } } };
+    }
+  }
+  if (source === 4) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_resource.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'resource', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { health: row.health, depleted: row.depleted } } };
+    }
+  }
+  if (source === 5) {
+    const range = after === null ? new Range<bigint>() : new Range({ tag: 'excluded', value: BigInt(after) });
+    for (const row of tx.db.world_surface.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'surface', definitionId: row.kind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { capacity: row.capacity } } };
+    }
+  }
+  if (source === 6) {
+    const range = after === null ? new Range<string>() : new Range({ tag: 'excluded', value: after });
+    for (const row of tx.db.world_crop.by_admin_area.filter([spaceId, chunkX, chunkY, range])) {
+      yield { key: row.id.toString(), entity: { entityId: row.id.toString(), kind: 'crop', definitionId: row.cropKind,
+        spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY, state: { ownerIdentity: row.owner.toHexString(), growthTicks: row.growthTicks.toString(), plantedAtTick: row.plantedAtTick.toString(), composted: row.composted } } };
+    }
+  }
+}
+
+export const adminEntitiesInAreaPage = spacetimedb.procedure(
+  { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32(),
+    cursor: t.option(t.string()), limit: t.u32(), kinds: t.array(t.string()), text: t.string() },
+  t.string(),
+  (ctx, request) => ctx.withTx((tx) => {
+    requireAdminProcedure(tx);
+    return stringifyAdminProcedureResult(buildAdminAreaPage({ ...request,
+      ...(request.cursor === undefined ? {} : { cursor: request.cursor }) },
+    (source, space, x, y, after) => adminAreaIndexRows(tx, source, space, x, y, after)));
+  }),
+);
+
+/** Only geometry and ownership leave the private run table, after the admin gate. */
+export const adminSpaceRegistry = spacetimedb.procedure({}, t.string(), (ctx) => ctx.withTx((tx) => {
+  requireAdminProcedure(tx);
+  const homes = [...tx.db.homestead.iter()].map((home) => ({ ...home, ownerIdentity: home.owner.toHexString() }));
+  const runs = [...tx.db.rogue_run.iter()].map((run) => ({
+    spaceId: run.spaceId, instanceKind: run.instanceKind, seed: run.seed,
+    roomNumber: run.roomNumber, roomKind: run.roomKind, theme: run.theme,
+    ownerIdentity: run.owner.toHexString(), ownerName: tx.db.player_public.identity.find(run.owner)?.displayName,
+  }));
+  return stringifyAdminProcedureResult(buildSpaceRegistry(contentRegistry(tx).compiled.spaces, [...homes, ...runs],
+    [...tx.db.space_portal.iter()].map((portal) => ({ ...portal, id: String(portal.id) }))));
+}));
+
 export const adminEntitiesInArea = spacetimedb.procedure(
   { spaceId: t.string(), x0: t.i32(), y0: t.i32(), x1: t.i32(), y1: t.i32() },
   t.string(),
@@ -8138,41 +8228,17 @@ export const adminEntitiesInArea = spacetimedb.procedure(
     const spaceId = Number(bounds.spaceId);
     if (!Number.isInteger(spaceId) || spaceId < 0 || spaceId > 65_535) throw new SenderError('admin_payload_invalid');
     const rows = function* (): Generator<AdminEntitySummary> {
-      for (const row of tx.db.world_placeable.by_chunk.filter(spaceId)) {
-        if (genericChest(tx, row) && !chestMigrationReadsUsePlaceables(tx)
-          && tx.db.chest_migration_mapping.placeableId.find(row.id) !== null) continue;
-        yield {
-          entityId: row.id.toString(), kind: genericChest(tx, row) ? 'chest' : 'placeable',
-          definitionId: row.definitionId || row.kind,
-          spaceId: String(row.spaceId), tileX: row.tileX, tileY: row.tileY,
-          state: { open: row.open, lit: row.lit, stateJson: row.stateJson },
-        };
+      const minX = Math.floor(Math.min(bounds.x0, bounds.x1) / SURVIVAL_CHUNK_TILES);
+      const maxX = Math.floor(Math.max(bounds.x0, bounds.x1) / SURVIVAL_CHUNK_TILES);
+      const minY = Math.floor(Math.min(bounds.y0, bounds.y1) / SURVIVAL_CHUNK_TILES);
+      const maxY = Math.floor(Math.max(bounds.y0, bounds.y1) / SURVIVAL_CHUNK_TILES);
+      for (let source = 0; source < 7; source += 1) {
+        for (let x = minX; x <= maxX; x += 1) for (let y = minY; y <= maxY; y += 1) {
+          for (const row of adminAreaIndexRows(tx, source, spaceId, x, y, null)) {
+            if (row.entity !== null) yield row.entity;
+          }
+        }
       }
-      for (const row of tx.db.world_chest.by_chunk.filter(spaceId)) {
-        if (chestMigrationReadsUsePlaceables(tx)
-          && tx.db.chest_migration_mapping.chestId.find(row.id) !== null) continue;
-        yield {
-          entityId: row.id.toString(), kind: 'chest', definitionId: 'chest', spaceId: String(row.spaceId),
-          tileX: row.tileX, tileY: row.tileY, state: { carried: row.carriedBy !== undefined },
-        };
-      }
-      for (const row of tx.db.world_npc.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'npc', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED),
-        state: { displayName: row.displayName, facing: row.facing, health: row.health },
-      };
-      for (const row of tx.db.world_item.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'item', definitionId: row.itemKind, spaceId: String(row.spaceId),
-        tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED), state: { quantity: row.quantity, durability: row.durability },
-      };
-      for (const row of tx.db.world_resource.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'resource', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: row.tileX, tileY: row.tileY, state: { health: row.health, depleted: row.depleted },
-      };
-      for (const row of tx.db.world_surface.by_chunk.filter(spaceId)) yield {
-        entityId: row.id.toString(), kind: 'surface', definitionId: row.kind, spaceId: String(row.spaceId),
-        tileX: row.tileX, tileY: row.tileY, state: { capacity: row.capacity },
-      };
     };
     return adminProcedureJson(buildAdminEntitiesInArea(rows(), bounds));
   }),

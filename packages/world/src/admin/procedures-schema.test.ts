@@ -21,7 +21,13 @@ describe('W1 administration procedure schema', () => {
       const registration = exportedProcedure(name);
       expect(registration).toContain('ctx.withTx((tx) =>');
       expect(registration).toContain('requireAdminProcedure(tx);');
-      expect(registration).not.toContain('.iter()');
+      // Registry enumerates bounded u16 space identities, not spatial populations.
+      if (name !== 'adminSpaceRegistry') expect(registration).not.toContain('.iter()');
+      else {
+        expect(registration).toContain('buildSpaceRegistry(contentRegistry(tx).compiled.spaces');
+        expect(registration).not.toContain('run.currency');
+        expect(registration).not.toMatch(/\.\.\.run\b/u);
+      }
     }
   });
 

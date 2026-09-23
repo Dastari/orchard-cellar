@@ -429,3 +429,15 @@ The selection inspector preserves its scroll and input models across actual data
 refreshes. Open popovers defer shell replacement, and stable hover dwell survives
 replacement without a hide/show timer. Native UI-kit track/grip art and compact
 parchment tooltips are shared controls. See [the specification](studio-smart-placement-spec.md).
+
+## Studio multi-space backend
+
+F4 shares `sim/space-registry.ts` between runtime authority and Studio, resolving
+revision-bound static geometry plus persisted homestead and rogue instances.
+`adminSpaceRegistry` projects only geometry and ownership from private runs after
+the admin gate. `adminEntitiesInAreaPage` uses `(spaceId, chunkX, chunkY, id)`
+indexes and request-bound keyset cursors; scan budgets remain bounded even in
+dense chunks or when filters return no matches. Studio uses per-space viewport
+subscriptions while player presence remains global. Runtime-space route references
+are read-only and distinct from map documents. See [specification](studio-multi-space-spec.md)
+and [decision](adr/ADR-studio-multi-space.md).

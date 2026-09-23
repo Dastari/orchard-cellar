@@ -1,6 +1,6 @@
 import { Identity } from 'spacetimedb';
 import type { DbConnection } from '@orchard/world-bindings';
-import { diffAdminValues, type AdminJsonObject, type AdminJsonValue } from '@orchard/sim';
+import { diffAdminValues, type AdminJsonObject, type AdminJsonValue, type SpaceRegistryEntry } from '@orchard/sim';
 import {
   decodeAdminTransportResult,
   type AdminApi,
@@ -171,7 +171,7 @@ const isPlayerMutationCommitResult = (value: unknown): value is PlayerMutationCo
 
 const isEntitySummary = (value: unknown): value is AdminEntitySummary => isRecord(value)
   && hasStrings(value, ['entityId', 'kind', 'definitionId', 'spaceId'])
-  && ['placeable', 'chest', 'npc', 'item', 'resource', 'surface'].includes(String(value['kind']))
+  && ['placeable', 'chest', 'npc', 'item', 'resource', 'surface', 'crop'].includes(String(value['kind']))
   && isNumber(value['tileX']) && isNumber(value['tileY']) && isAdminJsonObject(value['state']);
 
 const isContainer = (value: unknown): value is AdminContainerSnapshot => isRecord(value)
@@ -347,21 +347,17 @@ export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, Membe
 
   async listEntities(query: AdminEntityQuery): Promise<AdminEntityPage> {
     if (!Number.isSafeInteger(query.limit) || query.limit < 1 || query.limit > 100) throw new Error('admin_payload_invalid');
-    const payload = await requiredConnection(this.connection).procedures.adminEntitiesInArea({
+    const payload = await requiredConnection(this.connection).procedures.adminEntitiesInAreaPage({
       spaceId: query.spaceId, x0: query.x0, y0: query.y0, x1: query.x1, y1: query.y1,
+      kinds: [...query.kinds], text: query.text, limit: query.limit, cursor: query.cursor ?? undefined,
     });
-    const rows = decodeAdminTransportResult(payload, (value): value is readonly AdminEntitySummary[] => Array.isArray(value) && value.every(isEntitySummary));
-    const text = query.text.trim().toLocaleLowerCase('en-US');
-    const matching = rows.filter((row) => query.kinds.includes(row.kind)
-      && (text === '' || `${row.entityId} ${row.definitionId}`.toLocaleLowerCase('en-US').includes(text)))
-      .sort((left, right) => left.entityId.localeCompare(right.entityId));
-    const offset = query.cursor === null ? 0 : Number(query.cursor);
-    if (!Number.isSafeInteger(offset) || offset < 0) throw new Error('admin_invalid_cursor');
-    const page = matching.slice(offset, offset + query.limit).map((row): AdminEntityRecord => Object.freeze({
-      ...row, ownerIdentity: null, version: '',
-    }));
-    return Object.freeze({ rows: Object.freeze(page), nextCursor: offset + page.length < matching.length
-      ? String(offset + page.length) : null, worldVersion: '', rowsScanned: rows.length });
+    const page = decodeAdminTransportResult(payload, (value): value is {
+      rows: readonly AdminEntitySummary[]; nextCursor: string | null; rowsScanned: number;
+    } => isRecord(value) && Array.isArray(value['rows']) && value['rows'].every(isEntitySummary)
+      && isNullableString(value['nextCursor']) && isNumber(value['rowsScanned']));
+    return Object.freeze({ rows: Object.freeze(page.rows.map((row): AdminEntityRecord => Object.freeze({
+      ...row, ownerIdentity: typeof row.state['ownerIdentity'] === 'string' ? row.state['ownerIdentity'] : null, version: '',
+    }))), nextCursor: page.nextCursor, worldVersion: '', rowsScanned: page.rowsScanned });
   }
 
   async container(entityId: string): Promise<AdminContainerSnapshot> {
@@ -680,9 +676,9 @@ export class StudioLiveAdminWorldService implements AdminWorldApi {
       try { value = JSON.parse(row.flagsJson) as unknown; } catch { value = {}; }
       return [String(row.spaceId), isAdminJsonObject(value) ? value : {}] as const;
     }));
-    const homes = [...connection.db.homestead.iter()].slice(0, 100);
-    const spaceIds = new Set(['0', ...homes.map((home) => String(home.spaceId)), ...flags.keys()]);
-    const portals = [...connection.db.spacePortal.iter()].slice(0, 100);
+    const homes = [...connection.db.homestead.iter()];
+    const spaces = await fetchStudioSpaceRegistry(connection);
+    const portals = [...connection.db.spacePortal.iter()];
     const reverseKeys = new Set(portals.map((row) => `${row.fromSpace}:${row.fromTileX}:${row.fromTileY}:${row.toSpace}:${row.toTileX}:${row.toTileY}`));
     const environment = [...connection.db.worldEnvironment.iter()][0];
     const wind = [...connection.db.worldWind.iter()][0];
@@ -690,9 +686,9 @@ export class StudioLiveAdminWorldService implements AdminWorldApi {
     const head = connection.db.liveMapDocument.mapId.find('live-island');
     return Object.freeze({
       worldVersion: report.worldVersion,
-      spaces: Object.freeze([...spaceIds].slice(0, 100).map((spaceId) => Object.freeze({
-        spaceId, label: spaceId === '0' ? 'Topside' : homes.find((home) => String(home.spaceId) === spaceId)?.ownerName ?? `Space ${spaceId}`,
-        sizeTiles: spaceId === '0' ? 128 : 48, flags: flags.get(spaceId) ?? {},
+      spaces: Object.freeze(spaces.map((space) => Object.freeze({
+        spaceId: String(space.definition.spaceId), label: space.label,
+        sizeTiles: space.definition.sizeTiles, flags: flags.get(String(space.definition.spaceId)) ?? {},
       }))),
       portals: Object.freeze(portals.map((row) => Object.freeze({ portalId: String(row.id), fromSpace: String(row.fromSpace),
         toSpace: String(row.toSpace), paired: reverseKeys.has(`${row.toSpace}:${row.toTileX}:${row.toTileY}:${row.fromSpace}:${row.fromTileX}:${row.fromTileY}`) }))),
@@ -793,4 +789,14 @@ export class StudioLiveAdminWorldService implements AdminWorldApi {
     const page = decodeAdminTransportResult(payload, isAdminPage(isAudit));
     return page.rows.find((row) => row.payload.clientMutationId === clientMutationId) ?? null;
   }
+}
+
+/** Shared F5 source; includes admin-only rogue geometry without subscribing private run state. */
+export async function fetchStudioSpaceRegistry(connection: DbConnection): Promise<readonly SpaceRegistryEntry[]> {
+  return decodeAdminTransportResult(await connection.procedures.adminSpaceRegistry({}),
+    (value): value is readonly SpaceRegistryEntry[] => Array.isArray(value) && value.every((row: unknown) =>
+      isRecord(row) && isString(row['label']) && isNullableString(row['ownerIdentity'])
+      && isNullableString(row['ownerName']) && isString(row['kind']) && Array.isArray(row['portals'])
+      && isRecord(row['definition']) && isNumber(row['definition']['spaceId'])
+      && isNumber(row['definition']['sizeTiles']) && isString(row['definition']['generator'])));
 }

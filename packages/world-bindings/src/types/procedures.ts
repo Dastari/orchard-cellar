@@ -12,6 +12,7 @@ import * as AdminClientErrorsProcedure from "../admin_client_errors_procedure";
 import * as AdminConnectionsPageProcedure from "../admin_connections_page_procedure";
 import * as AdminContainerContentsProcedure from "../admin_container_contents_procedure";
 import * as AdminEntitiesInAreaProcedure from "../admin_entities_in_area_procedure";
+import * as AdminEntitiesInAreaPageProcedure from "../admin_entities_in_area_page_procedure";
 import * as AdminFindPlayersProcedure from "../admin_find_players_procedure";
 import * as AdminHomesteadProcedure from "../admin_homestead_procedure";
 import * as AdminLegacyFarmRetirementStatusProcedure from "../admin_legacy_farm_retirement_status_procedure";
@@ -19,6 +20,7 @@ import * as AdminMissingContainerRecoveryProcedure from "../admin_missing_contai
 import * as AdminPlayerInventoryProcedure from "../admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "../admin_player_mutation_result_procedure";
 import * as AdminPlayerSnapshotProcedure from "../admin_player_snapshot_procedure";
+import * as AdminSpaceRegistryProcedure from "../admin_space_registry_procedure";
 import * as AdminTelemetryProcedure from "../admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "../admin_validate_world_procedure";
 
@@ -34,6 +36,8 @@ export type AdminContainerContentsArgs = __Infer<typeof AdminContainerContentsPr
 export type AdminContainerContentsResult = __Infer<typeof AdminContainerContentsProcedure.returnType>;
 export type AdminEntitiesInAreaArgs = __Infer<typeof AdminEntitiesInAreaProcedure.params>;
 export type AdminEntitiesInAreaResult = __Infer<typeof AdminEntitiesInAreaProcedure.returnType>;
+export type AdminEntitiesInAreaPageArgs = __Infer<typeof AdminEntitiesInAreaPageProcedure.params>;
+export type AdminEntitiesInAreaPageResult = __Infer<typeof AdminEntitiesInAreaPageProcedure.returnType>;
 export type AdminFindPlayersArgs = __Infer<typeof AdminFindPlayersProcedure.params>;
 export type AdminFindPlayersResult = __Infer<typeof AdminFindPlayersProcedure.returnType>;
 export type AdminHomesteadArgs = __Infer<typeof AdminHomesteadProcedure.params>;
@@ -48,6 +52,8 @@ export type AdminPlayerMutationResultArgs = __Infer<typeof AdminPlayerMutationRe
 export type AdminPlayerMutationResultResult = __Infer<typeof AdminPlayerMutationResultProcedure.returnType>;
 export type AdminPlayerSnapshotArgs = __Infer<typeof AdminPlayerSnapshotProcedure.params>;
 export type AdminPlayerSnapshotResult = __Infer<typeof AdminPlayerSnapshotProcedure.returnType>;
+export type AdminSpaceRegistryArgs = __Infer<typeof AdminSpaceRegistryProcedure.params>;
+export type AdminSpaceRegistryResult = __Infer<typeof AdminSpaceRegistryProcedure.returnType>;
 export type AdminTelemetryArgs = __Infer<typeof AdminTelemetryProcedure.params>;
 export type AdminTelemetryResult = __Infer<typeof AdminTelemetryProcedure.returnType>;
 export type AdminValidateWorldArgs = __Infer<typeof AdminValidateWorldProcedure.params>;
