@@ -1,0 +1,368 @@
+{
+ "name": "piece_dew",
+ "kind": "piece",
+ "bpm": 84,
+ "swing": 0.03,
+ "key": "G",
+ "mode": "major",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 16,
+ "masterGainDb": -5,
+ "quotesMotif": {
+  "id": "orchard_home",
+  "channel": "flute",
+  "pattern": "Motif",
+  "exactPitch": true
+ },
+ "loop": false,
+ "fx": {
+  "reverb": 0.9,
+  "delayBeats": 0.75,
+  "delayFeedback": 0.3
+ },
+ "iterationNotes": [
+  "Pass 1: sparse adaptive-director piece (docs/12 \u00a72.5); quotes the orchard_home motif. Owner listening pass pending."
+ ],
+ "channels": [
+  {
+   "patch": "flute",
+   "vol": 0.6,
+   "pan": 0.08,
+   "patterns": [
+    "Rest",
+    "Motif",
+    "Rest",
+    "Answer"
+   ]
+  },
+  {
+   "patch": "pluck",
+   "vol": 0.3,
+   "pan": 0.35,
+   "patterns": [
+    "ArpA",
+    "ArpB",
+    "ArpA",
+    "ArpEnd"
+   ]
+  },
+  {
+   "patch": "bells",
+   "vol": 0.3,
+   "pan": -0.4,
+   "patterns": [
+    "Dew",
+    "Rest",
+    "Dew2",
+    "Rest"
+   ]
+  },
+  {
+   "patch": "bass",
+   "vol": 0.26,
+   "patterns": [
+    "Rest",
+    "BassB",
+    "BassA",
+    "BassEnd"
+   ]
+  }
+ ],
+ "patterns": {
+  "Rest": {
+   "steps": 64,
+   "notes": []
+  },
+  "Motif": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G4",
+     4,
+     0.8
+    ],
+    [
+     8,
+     "B4",
+     4,
+     0.8
+    ],
+    [
+     16,
+     "D5",
+     8,
+     0.9
+    ],
+    [
+     32,
+     "A4",
+     4,
+     0.75
+    ],
+    [
+     40,
+     "B4",
+     4,
+     0.8
+    ],
+    [
+     48,
+     "G4",
+     10,
+     0.7
+    ]
+   ]
+  },
+  "Answer": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E5",
+     6,
+     0.85
+    ],
+    [
+     8,
+     "D5",
+     4,
+     0.8
+    ],
+    [
+     16,
+     "B4",
+     8,
+     0.75
+    ],
+    [
+     36,
+     "A4",
+     4,
+     0.75
+    ],
+    [
+     44,
+     "B4",
+     4,
+     0.75
+    ],
+    [
+     52,
+     "G4",
+     12,
+     0.65
+    ]
+   ]
+  },
+  "ArpA": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "D4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "B4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "E4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "ArpB": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "B3",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "G4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.55
+    ],
+    [
+     40,
+     "A3",
+     6,
+     0.45
+    ],
+    [
+     48,
+     "F#4",
+     8,
+     0.5
+    ]
+   ]
+  },
+  "ArpEnd": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     6,
+     0.55
+    ],
+    [
+     8,
+     "G4",
+     6,
+     0.45
+    ],
+    [
+     16,
+     "E4",
+     8,
+     0.5
+    ],
+    [
+     32,
+     "G3",
+     8,
+     0.6
+    ],
+    [
+     40,
+     "D4",
+     8,
+     0.5
+    ],
+    [
+     48,
+     "B4",
+     16,
+     0.55
+    ]
+   ]
+  },
+  "Dew": {
+   "steps": 64,
+   "notes": [
+    [
+     20,
+     "D6",
+     4,
+     0.6
+    ],
+    [
+     44,
+     "B5",
+     4,
+     0.55
+    ]
+   ]
+  },
+  "Dew2": {
+   "steps": 64,
+   "notes": [
+    [
+     12,
+     "G5",
+     4,
+     0.6
+    ],
+    [
+     40,
+     "E6",
+     4,
+     0.5
+    ]
+   ]
+  },
+  "BassA": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G2",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "C3",
+     6,
+     0.7
+    ]
+   ]
+  },
+  "BassB": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E2",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "D3",
+     6,
+     0.7
+    ]
+   ]
+  },
+  "BassEnd": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C3",
+     6,
+     0.7
+    ],
+    [
+     32,
+     "G2",
+     8,
+     0.6
+    ]
+   ]
+  }
+ }
+}
