@@ -10,6 +10,8 @@ The numbers below are approved implementation budgets, not measured gameplay out
 [All 6,982 icon dispositions](food-alchemy/icon-audit.csv) ·
 [Review and verification instructions](food-alchemy/README.md).
 
+Implementation artwork is delivered for review in [native imports #90](https://github.com/Dastari/orchard-cellar/pull/90), [core ingredients #91](https://github.com/Dastari/orchard-cellar/pull/91), [collections #92](https://github.com/Dastari/orchard-cellar/pull/92), [stations #94](https://github.com/Dastari/orchard-cellar/pull/94), and [semantic corrections #95](https://github.com/Dastari/orchard-cellar/pull/95): 250 inventory icons and eight world sprites. The companion links their visual reviews. Full-suite/integration checks remain outstanding; these PRs do not activate gameplay.
+
 ## 1. Scope and approval contract
 
 Make fruit processing the common foundation of cooking, medicine and alchemy.
