@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import appleTreeJson from './fixtures/object-archetype-apple-tree.json' with { type: 'json' };
 import { describe, expect, it } from 'vitest';
 import { bootstrapContentDefinitions } from './bootstrap-registry.js';
 import { parseContentDefinition, SUPPORTED_CONTENT_KINDS } from './definitions.js';
@@ -13,8 +13,7 @@ describe('type-derived content field schemas', () => {
     }
   });
   it('supports object transition alternatives without exposing excluded optional-never fields', () => {
-    const source = JSON.parse(readFileSync(new URL('./fixtures/object-archetype-apple-tree.json', import.meta.url), 'utf8'));
-    const parsed = parseContentDefinition('object', source);
+    const parsed = parseContentDefinition('object', appleTreeJson);
     expect(contentFieldErrors(CONTENT_FIELD_SCHEMAS, CONTENT_FIELD_SCHEMAS.roots.object!, parsed)).toEqual([]);
     const transitions = Object.values(CONTENT_FIELD_SCHEMAS.nodes).filter(node => node.type === 'object' && node.fields['from'] && (node.fields['after'] || node.fields['on']));
     expect(transitions.length).toBeGreaterThan(1);
