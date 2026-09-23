@@ -1,3 +1,4 @@
+import { runtimeActivityExperience, runtimeProgression } from '@orchard/sim';
 import {planLiveMapEntityStates} from './live-map-entity-state.js';
 import {validateLiveMapShape} from './live-map-shape.js';
 import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
@@ -280,8 +281,6 @@ import {
   FISH_POOL_RESOURCE_ID_BASE,
   FISH_POOL_MIN_SPACING_TILES,
   FISHING_CAST_TICKS,
-  FISHING_CATCH_FARMING_XP,
-  FISHING_POOL_DEPLETION_FARMING_XP,
   miningWorkPerHit,
   resolveMiningLoot,
   resolveMiningRockBonus,
@@ -11532,7 +11531,7 @@ function worldBehaviourEffectWriter(
         });
         const soilId = worldSoilId(planned.spaceId, planned.tileX, planned.tileY);
         if (ctx.db.world_soil.id.find(soilId) !== null) ctx.db.world_soil.id.delete(soilId);
-        grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+        grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'plant_fruit_seed'));
         return;
       }
       const definition = runtimeCropDefinitionForSeed(contentRegistry(ctx), planned.seedItemKind);
@@ -11556,7 +11555,7 @@ function worldBehaviourEffectWriter(
       recordPlayerStatistic(
         ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, definition.harvestItemKind,
       );
-      grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+      grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'plant_seed'));
     },
     farmTool: ({ action, at }) => {
       const planned = plannedFarmTool;
@@ -17455,7 +17454,7 @@ export const resetSkillTree = spacetimedb.reducer(
     if (!isSkillTrack(track)) throw new SenderError('invalid_skill_track');
     const progress = ensurePlayerSkillTrack(ctx, ctx.sender, track);
     if (progress.spentPoints === 0) throw new SenderError('skill_tree_empty');
-    const cost = skillRespecCostBronze(progress.respecCount);
+    const cost = skillRespecCostBronze(progress.respecCount, runtimeProgression(contentRegistry(ctx)));
     const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
     if (wallet === null) throw new SenderError('wallet_not_ready');
     if (wallet.balanceBronze < cost) throw new SenderError('insufficient_funds');
@@ -19102,7 +19101,7 @@ export const purchaseHomesteadUpgrade = spacetimedb.reducer(
     recordPlayerStatistic(
       ctx, ctx.sender, 'homestead_upgrades_purchased', 1n, clock.authorityTick, upgradeKind,
     );
-    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(20 * quote.nextRank));
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'homestead_upgrade', quote.nextRank));
   },
 );
 
@@ -20993,7 +20992,7 @@ function pickOrchardFruit(
   ctx.db.player_position.identity.update({ ...position, actionKind: 'pickup',
     actionStartedTick: nextActionStartedTick(position.actionStartedTick, authorityTick) });
   recordPlayerStatistic(ctx, ctx.sender, 'resources_gathered', 1n, authorityTick, resource.kind);
-  grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(harvest.quantity * 2));
+  grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'orchard_harvest', harvest.quantity));
 }
 
 export const gatherWorldResource = spacetimedb.reducer(
@@ -22706,13 +22705,13 @@ function applyHarvestResourceLifecycle(
         horizontalSpacing: 4 * FIXED_UNITS_PER_PIXEL,
         recordItemsObtained: true,
       }, lootAuthorityDependencies);
-      const payoutExperience = nodeClass === 'rock' ? 2n
-        : nodeClass === 'mixed' ? (resolved.producedOre ? 6n : 3n) : 10n;
+      const payoutExperience = runtimeActivityExperience(contentRegistry(ctx), nodeClass === 'rock' ? 'mine_rock'
+        : nodeClass === 'mixed' ? (resolved.producedOre ? 'mine_mixed_ore' : 'mine_mixed_stone') : 'mine_ore');
       grantSkillExperience(
         ctx,
         ctx.sender,
         'farming',
-        payoutExperience + (depleted ? BigInt(maximumRichness) : 0n),
+        payoutExperience + (depleted ? runtimeActivityExperience(contentRegistry(ctx), 'mine_depletion', maximumRichness) : 0n),
       );
       return;
     }
@@ -22829,7 +22828,7 @@ function applyHarvestResourceLifecycle(
     }, lootAuthorityDependencies);
     for (const drop of drops) {
       if (runtimeItemHasTag(contentRegistry(ctx), drop.itemKind, 'crop.fruit')) {
-        grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(drop.quantity * 2));
+        grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'resource_fruit_harvest', drop.quantity));
       }
     }
 }
@@ -23022,7 +23021,7 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
     );
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
     wearInventoryTool(ctx, selected);
-    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_catch'));
     ctx.db.player_position.identity.update({
       ...position,
       actionKind: 'fish_reel',
@@ -23097,9 +23096,9 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
       ])
       : 0n,
   });
-  grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_CATCH_FARMING_XP);
+  grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_catch'));
   if (depleted) {
-    grantSkillExperience(ctx, ctx.sender, 'farming', FISHING_POOL_DEPLETION_FARMING_XP);
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'fish_depletion'));
     recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, pool.kind);
   }
   ctx.db.player_position.identity.update({
@@ -23662,7 +23661,7 @@ function applyFarmToolUse(
         1n,
         clock.authorityTick,
       );
-      grantSkillExperience(ctx, ctx.sender, 'farming', farmMode === 'cultivate' ? 2n : 1n);
+      grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), farmMode === 'cultivate' ? 'cultivate' : 'water'));
     }
 }
 
@@ -23853,7 +23852,7 @@ export const harvestCropTile = spacetimedb.reducer(
       clock.authorityTick,
       definition.harvestItemKind,
     );
-    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(8 + harvestQuantity));
+    grantSkillExperience(ctx, ctx.sender, 'farming', runtimeActivityExperience(contentRegistry(ctx), 'crop_harvest', harvestQuantity));
   },
 );
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0 — 2026-09-23
+
+- Author named combat, world-policy and residence balance fields with legacy tuple compatibility.
+- Move XP curve, level cap, respec ladder and 16 activity awards into validated progression content; live world and character/skill UI read published tuning.
+- Expose balance and progression through Studio World Tables; preserve current runtime values with migration parity tests.
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.

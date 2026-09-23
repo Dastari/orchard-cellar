@@ -1,3 +1,4 @@
+import { BOOTSTRAP_PROGRESSION, type ProgressionContentDefinition } from '@orchard/sim';
 import {
   ATTRIBUTE_IDS,
   EQUIPMENT_SLOTS,
@@ -42,6 +43,7 @@ export interface CharacterEquipmentItem {
 }
 
 export interface CharacterScreenModel {
+  readonly progression?: ProgressionContentDefinition;
   readonly playerId: string;
   readonly displayName: string;
   readonly appearance: PlayerAppearanceSelection;
@@ -461,9 +463,9 @@ export class CharacterScreen {
     const experienceStep = Math.max(11, Math.min(20, Math.floor((layout.experiencePanel.height - 25) / 3)));
     for (const [index, track] of (['combat', 'explorer', 'farming'] as const).entries()) {
       const experience = model.tracks.find((entry) => entry.track === track)?.experience ?? 0n;
-      const level = skillLevelForExperience(experience);
-      const start = skillExperienceForLevel(level);
-      const next = skillExperienceForLevel(Math.min(50, level + 1));
+      const level = skillLevelForExperience(experience, model.progression);
+      const start = skillExperienceForLevel(level, model.progression);
+      const next = skillExperienceForLevel(level + 1, model.progression);
       const y = layout.experiencePanel.y + 21 + index * experienceStep;
       drawFantasyIcon(context, this.skin, {
         x: layout.experiencePanel.x + 8, y: y - 2, width: 13, height: 13,
@@ -472,8 +474,8 @@ export class CharacterScreen {
       const barX = layout.experiencePanel.x + Math.min(112, Math.floor(layout.experiencePanel.width * 0.43));
       const barWidth = Math.max(32, layout.experiencePanel.width - (barX - layout.experiencePanel.x) - 55);
       drawProgressBar(context, { x: barX, y: y - 2, width: barWidth, height: 9 },
-        level >= 50 ? 1 : Number(experience - start) / Number(next - start));
-      label(context, this.fonts, level >= 50 ? 'MAX' : `${experience - start} XP`,
+        level >= (model.progression ?? BOOTSTRAP_PROGRESSION).levelCap ? 1 : Number(experience - start) / Number(next - start));
+      label(context, this.fonts, level >= (model.progression ?? BOOTSTRAP_PROGRESSION).levelCap ? 'MAX' : `${experience - start} XP`,
         layout.experiencePanel.x + layout.experiencePanel.width - 8, y,
         { align: 'right', color: '#8a5a32' });
     }

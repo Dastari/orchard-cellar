@@ -1,3 +1,4 @@
+import { BOOTSTRAP_PROGRESSION, type ProgressionContentDefinition } from '@orchard/sim';
 import {
   SKILL_TRACKS,
   availableSkillPoints,
@@ -29,6 +30,7 @@ export interface SkillRankModel {
 }
 
 export interface SkillTreeModel {
+  readonly progression?: ProgressionContentDefinition;
   readonly nodes: readonly SkillNodeDefinition[];
   readonly tracks: readonly SkillTrackProgressModel[];
   readonly ranks: readonly SkillRankModel[];
@@ -264,7 +266,7 @@ export class SkillTreeUi {
     }
     if (containsPoint(layout.learnButton, point)) {
       const node = this.selectedNodeId === null ? null : this.nodes().find((candidate) => candidate.id === this.selectedNodeId);
-      if (node && skillPurchaseRejectionForNodes(this.model.nodes, node.id, { ...this.progress(), ranks: this.ranks() }) === null) this.callbacks.purchase(node.id);
+      if (node && skillPurchaseRejectionForNodes(this.model.nodes, node.id, { ...this.progress(), ranks: this.ranks() }, this.model.progression) === null) this.callbacks.purchase(node.id);
       return true;
     }
     const node = containsPoint(layout.viewport, point) ? this.nodeAt(point, layout.viewport) : null;
@@ -320,12 +322,12 @@ export class SkillTreeUi {
     const layout = skillTreeLayout(rect);
     const progress = this.progress();
     const ranks = this.ranks();
-    const level = skillLevelForExperience(progress.experience);
-    const points = availableSkillPoints(progress.experience, progress.spentPoints, progress.bonusPoints);
-    const levelStart = skillExperienceForLevel(level);
-    const levelEnd = skillExperienceForLevel(Math.min(50, level + 1));
+    const level = skillLevelForExperience(progress.experience, this.model.progression);
+    const points = availableSkillPoints(progress.experience, progress.spentPoints, progress.bonusPoints, this.model.progression);
+    const levelStart = skillExperienceForLevel(level, this.model.progression);
+    const levelEnd = skillExperienceForLevel(level + 1, this.model.progression);
     const levelSpan = levelEnd > levelStart ? levelEnd - levelStart : 1n;
-    const xpFraction = level >= 50 ? 1 : Number(progress.experience - levelStart) / Number(levelSpan);
+    const xpFraction = level >= (this.model.progression ?? BOOTSTRAP_PROGRESSION).levelCap ? 1 : Number(progress.experience - levelStart) / Number(levelSpan);
 
     for (const track of SKILL_TRACKS) {
       const active = track === this.track;
@@ -337,7 +339,7 @@ export class SkillTreeUi {
     const xpBar = { x: rect.x + 18, y: rect.y + 29, width: rect.width - 38, height: 7 };
     context.fillStyle = '#5b3728'; context.fillRect(xpBar.x, xpBar.y, xpBar.width, xpBar.height);
     context.fillStyle = '#d49b38'; context.fillRect(xpBar.x + 1, xpBar.y + 1, Math.max(0, Math.round((xpBar.width - 2) * xpFraction)), xpBar.height - 2);
-    label(context, this.fonts, level >= 50 ? 'MAX LEVEL' : `${progress.experience - levelStart} / ${levelSpan} XP`, xpBar.x + xpBar.width / 2, xpBar.y - 1, { align: 'center', color: '#fff2d0' });
+    label(context, this.fonts, level >= (this.model.progression ?? BOOTSTRAP_PROGRESSION).levelCap ? 'MAX LEVEL' : `${progress.experience - levelStart} / ${levelSpan} XP`, xpBar.x + xpBar.width / 2, xpBar.y - 1, { align: 'center', color: '#fff2d0' });
 
     context.save();
     context.beginPath();
@@ -370,7 +372,7 @@ export class SkillTreeUi {
     for (const node of nodes) {
       const nodeRect = this.nodeRect(node, layout.viewport, coordinateBounds);
       const rank = node.root === true ? 1 : ranks[node.id] ?? 0;
-      const rejection = skillPurchaseRejectionForNodes(this.model.nodes, node.id, { ...progress, ranks });
+      const rejection = skillPurchaseRejectionForNodes(this.model.nodes, node.id, { ...progress, ranks }, this.model.progression);
       const implemented = skillNodeIsImplemented(node);
       context.fillStyle = implemented
         ? rank > 0 ? '#4f8f42' : rejection === null ? '#e4b36d' : '#9b795e'
@@ -459,7 +461,7 @@ export class SkillTreeUi {
       wrappedLines(selected.description, Math.max(18, Math.floor((layout.detail.width - 18) / 6))).forEach((line, index) => {
         label(context, this.fonts, line, detailX, layout.detail.y + 46 + gearLines.length*11 + index * 13, { color: '#5f3b24' });
       });
-      const rejection = skillPurchaseRejectionForNodes(this.model.nodes, selected.id, { ...progress, ranks });
+      const rejection = skillPurchaseRejectionForNodes(this.model.nodes, selected.id, { ...progress, ranks }, this.model.progression);
       if (rejection !== null && selected.root !== true) {
         label(context, this.fonts, rejection.replaceAll('_', ' ').toUpperCase(), detailX, layout.detail.y+contentHeight-8, { color: '#9a3f39' });
       }
@@ -474,13 +476,13 @@ export class SkillTreeUi {
       label:this.model.skillPriority?.[0]===selected?.id?'GEAR PRIORITY: FIRST':'PRIORITIZE GEAR SKILL',
       state:selected?.gearBoostable===true?'idle':'disabled',
     });
-    const resetCost = skillRespecCostBronze(progress.respecCount);
+    const resetCost = skillRespecCostBronze(progress.respecCount, this.model.progression);
     const canReset = progress.spentPoints > 0 && this.model.balanceBronze >= resetCost;
     drawButton(context, this.skin, this.fonts, layout.resetButton, {
       label: `RESET ${bronzeLabel(resetCost)}`,
       tone: 'danger', state: canReset ? 'idle' : 'disabled',
     });
-    const selectedRejection = selected === null ? 'skill_not_found' : skillPurchaseRejectionForNodes(this.model.nodes, selected.id, { ...progress, ranks });
+    const selectedRejection = selected === null ? 'skill_not_found' : skillPurchaseRejectionForNodes(this.model.nodes, selected.id, { ...progress, ranks }, this.model.progression);
     const canLearn = selected !== null && selectedRejection === null;
     drawButton(context, this.skin, this.fonts, layout.learnButton, {
       label: selected?.root === true ? 'ROOT OWNED' : 'LEARN +1',
