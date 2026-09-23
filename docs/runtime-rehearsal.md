@@ -77,3 +77,17 @@ traversal/chunk parity. Workspace lint and full repository build passed.
 Full npm run check will run on the stable committed production snapshot.
 Logs use `/tmp/runtime-rehearsal-*.log`. Exact result counts and final source/tree
 identities must be recorded before source propagation or completion is claimed.
+
+
+Diagnostic full check on `d94e73d6` completed with 1,022 files: 6,388 passing,
+one skipped and one failing test. The only failure was the legacy-runtime
+retirement fixture counting 26 bootstrap JSON imports; combined progression and
+world_rules add up to 27. The fixture is corrected to the measured exact count.
+No production behavior changes in this correction. This failed diagnostic is
+not a clean full-check pass; the corrected snapshot requires a fresh full run.
+
+Guarded Studio production, shadow client build and normal client chunk boundary
+check passed. Explicit generator-free validation rejects the retained runtime as
+expected. Six D6 core files, five object-lifecycle core files and seven chunk
+shadow/controller/network files are byte-identical to their exact source heads.
+Initial origin/main audit used `5578b49c96d8131f83bb7d642c7e09d840471b3c`.
