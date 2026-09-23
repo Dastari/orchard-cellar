@@ -1,5 +1,5 @@
 import type { TerrainArray } from './terrain.js';
-import type { CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
+import type { CellPart, CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
 import { WORLD_CHUNK_VOID, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, decodeWorldChunk, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 
 /** Compatibility adapter for today's contiguous TerrainArray contract.
@@ -83,6 +83,18 @@ export class ChunkTerrainStore implements TerrainArray {
     for (const name of ['cliffFamilies', 'surfaceFamilies', 'ledges', 'authoredFarmland', 'terrainPlaneBlocked']) {
       if (channels[name]) Object.defineProperty(this, name, { value: channels[name], enumerable: true });
     }
+    if (this.#terrainMetadata['hasCellParts']) Object.defineProperty(this, 'cellParts', {
+      get: () => {
+        const parts = new Map<number, readonly CellPart[]>();
+        for (const chunk of this.#chunks.values()) for (const [local, value] of Object.entries(chunk.cellParts ?? {})) {
+          const index = Number(local);
+          const x = chunk.cx * WORLD_CHUNK_SIZE + index % WORLD_CHUNK_SIZE;
+          const y = chunk.cy * WORLD_CHUNK_SIZE + Math.floor(index / WORLD_CHUNK_SIZE);
+          parts.set(y * this.width + x, value as unknown as readonly CellPart[]);
+        }
+        return parts;
+      }, enumerable: true,
+    });
     if (this.#terrainMetadata['hasTransitions']) Object.defineProperty(this, 'terrainTransitions', {
       get: () => this.records('transition').map(record => record.value as unknown as TerrainTransition), enumerable: true,
     });
@@ -109,6 +121,7 @@ export class ChunkTerrainStore implements TerrainArray {
     if (!(value instanceof Int16Array)) throw new TypeError(`Missing i16 channel ${name}`);
     return value;
   }
+  declare readonly cellParts?: ReadonlyMap<number, readonly CellPart[]>;
   declare readonly cliffFamilies?: Uint8Array;
   declare readonly surfaceFamilies?: Uint8Array;
   declare readonly ledges?: Uint8Array;
@@ -129,6 +142,11 @@ export class ChunkTerrainStore implements TerrainArray {
     const head = this.#heads.get(key);
     if (!head || chunk.spaceId !== this.spaceId || chunk.assetRevision !== this.#manifest.assetRevision
       || chunk.contentHash !== head.contentHash || bytes.length !== head.byteLength) throw new TypeError('Chunk does not match manifest');
+    for (const key of Object.keys(chunk.cellParts ?? {})) {
+      const local = Number(key);
+      if (chunk.cx * WORLD_CHUNK_SIZE + local % WORLD_CHUNK_SIZE >= this.width
+        || chunk.cy * WORLD_CHUNK_SIZE + Math.floor(local / WORLD_CHUNK_SIZE) >= this.height) throw new TypeError('Chunk cell part outside map');
+    }
     const entries = Object.entries(this.channels);
     if (Object.keys(chunk.arrays).length !== entries.length) throw new TypeError('Chunk channel set mismatch');
     // Validate the complete chunk before mutating any installed cells.

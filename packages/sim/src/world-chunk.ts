@@ -1,11 +1,12 @@
 import { sha256 } from '@noble/hashes/sha2.js';
+import { RULE_MEDIA, type RuleMedium } from './rule-catalogue.js';
 
 /** Offline/materialized world format. No generator or engine dependency. */
 export const WORLD_CHUNK_SCHEMA = 1 as const;
 /** Independent extension version: never reinterpret existing numeric medium IDs. */
 export const WORLD_CHUNK_MEDIUM_SCHEMA = 1 as const;
-export const WORLD_CHUNK_MEDIA = ['land', 'shallow_water', 'deep_water', 'lava', 'shroom_water', 'void'] as const;
-export type WorldChunkMedium = typeof WORLD_CHUNK_MEDIA[number];
+export const WORLD_CHUNK_MEDIA = RULE_MEDIA;
+export type WorldChunkMedium = RuleMedium;
 export const WORLD_CHUNK_VOID = 5 as const;
 export const WORLD_CHUNK_SIZE = 64 as const;
 export const WORLD_CHUNK_HALO = 1 as const;

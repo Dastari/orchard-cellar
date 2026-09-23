@@ -15,9 +15,10 @@ function fixture() {
   };
   const blobs = [0, 1].map(cx => encodeWorldChunk({ schema: 1, mediumSchema: 1, spaceId: 1, cx, cy: 0, assetRevision: 'a',
     arrays: Object.fromEntries(Object.entries(arrays).map(([name, value]) => [name, sliceWorldChunkChannel(value, width, height, cx, 0, name === 'medium' ? 5 : name === 'solidBlocked' ? 1 : 0)])),
+    cellParts: { '0': [{ slot: 'water', exact: { frame: cx + 7 } }] },
     records: [{ kind: 'resource', ordinal: 1 - cx, tileX: cx * 64, tileY: 0, value: { id: 1000 + cx } }], assetIds: [], atlasPackIds: [] }));
   const manifest: WorldChunkManifest = { schema: 1, chunkSize: 64, spaceId: 1, width, height, assetRevision: 'a', sourceRevision: 1, sourceHash: 'source',
-    metadata: { terrain: { seed: 42, version: 1 }, channels: Object.fromEntries(Object.entries(arrays).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: 1 }])) },
+    metadata: { terrain: { seed: 42, version: 1, hasCellParts: true }, channels: Object.fromEntries(Object.entries(arrays).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: 1 }])) },
     chunks: blobs.map((bytes, cx) => ({ cx, cy: 0, byteLength: bytes.length, contentHash: decodeWorldChunk(bytes).contentHash })) };
   return { arrays, blobs, manifest };
 }
@@ -36,11 +37,13 @@ describe('ChunkTerrainStore', () => {
     nodeBuffer.fill(0); // readFile buffers must be copied, not retained as mutable views
     expect(store.hasTile(64, 0)).toBe(true);
     expect(store.hasTile(0, 0)).toBe(false);
+    expect(store.cellParts?.get(64)).toEqual([{ slot: 'water', exact: { frame: 8 } }]);
     expect(terrain.blocked[0]).toBe(true);
     expect(terrain.blocked[64]).toBe(false);
     store.install(blobs[0]!);
     store.install(blobs[0]!);
     expect(store.complete).toBe(true);
+    expect(store.cellParts?.get(0)).toEqual([{ slot: 'water', exact: { frame: 7 } }]);
     expect(store.chunkAt(1, 0)?.arrays['medium']?.[69]).toBe(5);
     expect(store.chunkAt(1, 0)?.arrays['solidBlocked']?.[69]).toBe(1);
     expect(store.channels).toEqual(arrays);

@@ -126,6 +126,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   }
   const terrainMeta: Record<string, unknown> = {};
   for (const field of ['seed', 'version', 'generator', 'defaultCliffFamily', 'defaultSurfaceFamily', 'cliffFamilyIds', 'projectionStyle', 'baseDatum', 'fixedTerrainPlane', 'raisedTerrainCollisionClassified'] as const) if (terrain[field] !== undefined) terrainMeta[field] = terrain[field];
+  terrainMeta['hasCellParts'] = terrain.cellParts !== undefined;
   terrainMeta['hasTransitions'] = terrain.terrainTransitions !== undefined;
   terrainMeta['hasOverrides'] = terrain.terrainOverrides !== undefined;
   return { terrain, document, channels, records, collisions, metadata: {
@@ -212,7 +213,8 @@ export function verifyWorldChunkParity(snapshot: WorldChunkSnapshot, materialize
   for (const [name, expected] of Object.entries(snapshot.terrain)) {
     if (name === 'tilesets') continue; // same immutable registry resolver supplied above
     const actual = (store as unknown as Record<string, unknown>)[name];
-    if (canonicalChunkJson(actual) !== canonicalChunkJson(expected)) throw new Error(`TerrainArray parity failed: ${name}`);
+    const canonical = (value: unknown): string => canonicalChunkJson(value instanceof Map ? [...value.entries()].sort(([a], [b]) => a - b) : value);
+    if (canonical(actual) !== canonical(expected)) throw new Error(`TerrainArray parity failed: ${name}`);
   }
   const included = (name: string): boolean => materialized.manifest.metadata['includesServerOracle'] === true || !name.startsWith('server');
   for (const [name, expected] of Object.entries(snapshot.channels).filter(([name]) => included(name))) {

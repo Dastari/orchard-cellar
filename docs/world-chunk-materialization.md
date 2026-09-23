@@ -45,9 +45,9 @@ blockers are captured independently; precise legacy elevation masks and object
 obstacles are also retained. A medium alone never grants movement.
 
 All legacy walking and boat layers remain unchanged. No `canTraverse`, abilities,
-hazards or gameplay switch is introduced. Rule-catalogue resolution is supplied
-through the optional capture callback after #73 integration; this branch has no
-catalogue or per-role declarations yet.
+hazards or gameplay switch is introduced. The medium type and palette now reuse #73’s `RuleMedium` / `RULE_MEDIA`.
+Resolved per-role metadata can be supplied through the optional capture callback;
+no medium is inferred from artwork/frame names.
 
 ## Verification and handoff
 
@@ -112,9 +112,10 @@ and UI sources it audits disable `exactOptionalPropertyTypes`.
   placements, prefab definitions, layers, entity edits and combat regions survive.
 - Negative chunk coordinates are supported by the codec. The compatibility store
   currently represents the existing finite, zero-origin island only.
-- A source containing cell parts is rejected if this checkout's map parser drops
-  them. After PR #66 is integrated, the materializer preserves their optional
-  local section; it never silently exports a lossy pre-parts interpretation.
+- PR #66 cell parts are retained in each local chunk section and reconstructed
+  as the typed sparse `TerrainArray.cellParts` map. Parity compares actual entries
+  in canonical cell order, including out-of-order chunk installs. Out-of-map part
+  anchors are rejected. A parser that drops source parts still fails closed.
 - Custom authored tileset resolvers can be supplied as the second store constructor
   argument, from the same content registry as the export. The store allocates full arrays to satisfy today's interface and blocks missing
   cells. Full collision reconstruction requires every chunk. Actual subscription
@@ -191,3 +192,9 @@ stale generated-atlas and absent ignored premium-source fixtures; the isolated
 atlas was rebuilt and all seven affected map-export tests pass. All three premium-icon tests also pass after restoring ignored source art. The
 original coverage run ended with 5 fixture failures and 5,932 passes; it is not
 reported as a clean full run. See the PR for exhaustive and CI status. No deployment or world publication occurred.
+
+Integrated #66/#73 validation: 19 focused codec/store/medium/dependency/golden
+tests pass, including a complete authored cell-part snapshot round-trip. D6
+standalone head `231972a1` passed all 5,947 coverage tests and 101 exhaustive
+tests with coverage thresholds met. Final combined evidence belongs in the
+wave-one rehearsal PR; no runtime switch occurs here.

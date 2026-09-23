@@ -1,7 +1,9 @@
 # Changelog
 
-## Chunk materialization groundwork — sim 0.21.2 / engine 0.20.2
+## Chunk materialization groundwork — sim 0.22.3 / engine 0.20.3
 
+- Integrate typed sparse cell-part reconstruction and reuse the catalogue
+  medium contract; retain generated-world and authored-part round-trip parity.
 - Add versioned per-cell medium and independent solid blockers for D6; retain
   unchanged walking/boat parity channels until the later ability-based runtime.
 - Add SHA-256-addressed 64×64 static world chunks with one-cell halos, signed
