@@ -20,6 +20,8 @@ export interface ProcessTimingSource {
   readonly adapter: ProcessAdapter;
   readonly durationTicks: bigint;
   readonly startTick: bigint | undefined;
+  /** Public fire state remains known even when private slots are closed. */
+  readonly lit?: boolean;
   /** Missing slots mean public hover cannot prove input/fuel/output custody. */
   readonly state?: ProcessSettlementState;
   readonly options: ProcessSettlementOptions;
@@ -43,6 +45,10 @@ function inactiveReason(source: ProcessTimingSource): string {
  * The same settlement function determines catch-up and next-unit progress.
  * Public anchors never imply confirmed output or reveal private slots. */
 export function projectTiming(source: ProcessTimingSource, authorityTick: bigint): TimingProjection {
+  if (source.state === undefined && source.adapter === 'campfire_cooking' && source.lit === false) {
+    return { status: 'blocked', reason: 'fire-out', stage: null, progress: 0,
+      remainingActiveTicks: null, nextTransitionTick: null, confidence: 'exact' };
+  }
   let startTick = source.startTick;
   let status: TimingStatus = startTick === undefined ? 'idle' : 'running';
   let reason: string | null = source.state === undefined ? 'contents-unknown' : null;
