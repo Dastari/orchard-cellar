@@ -82,7 +82,12 @@
       "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
       "vendorNumber": 881,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Grey mineral powder does not read as sugar"
+      "reviewNote": "Grey mineral powder does not read as sugar",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_food_sugar",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:cocoa",
@@ -311,7 +316,12 @@
       "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
       "vendorNumber": 881,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Grey mineral powder needs salt-specific silhouette"
+      "reviewNote": "Grey mineral powder needs salt-specific silhouette",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_alchemy_salt",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:raw_game",
@@ -328,7 +338,12 @@
       "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
       "vendorNumber": 148,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Narrative \u00a78 explicitly requires new raw/cooked game art despite catalogue selection"
+      "reviewNote": "Narrative §8 explicitly requires new raw/cooked game art despite catalogue selection",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_animal_raw_game",
+        "sourcePR": 91
+      }
     },
     {
       "item": "item:flour",
@@ -393,7 +408,12 @@
       "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
       "vendorNumber": 165,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Dark segmented lump reads as charcoal"
+      "reviewNote": "Dark segmented lump reads as charcoal",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_food_butter",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:curd",
@@ -410,7 +430,12 @@
       "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
       "vendorNumber": 881,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Grey powder/lump does not read as curd"
+      "reviewNote": "Grey powder/lump does not read as curd",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_food_curd",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:cheese",
@@ -491,7 +516,12 @@
       "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
       "vendorNumber": 871,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Stone/ingot silhouette does not read as bandage compound"
+      "reviewNote": "Stone/ingot silhouette does not read as bandage compound",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_alchemy_bandage_compound",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:salve",
@@ -508,7 +538,12 @@
       "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
       "vendorNumber": 91,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Red jelly dessert does not read as medicine"
+      "reviewNote": "Red jelly dessert does not read as medicine",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_alchemy_salve",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:bandage",
@@ -541,7 +576,12 @@
       "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
       "vendorNumber": 893,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Goblet silhouette does not read as feed"
+      "reviewNote": "Goblet silhouette does not read as feed",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_animal_animal_feed",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:ruby_dust",
@@ -1358,7 +1398,12 @@
       "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
       "vendorNumber": 147,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Red berry tart conflicts with pumpkin identity"
+      "reviewNote": "Red berry tart conflicts with pumpkin identity",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_food_pumpkin_pie",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:apple_pie",
@@ -1663,7 +1708,12 @@
       "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
       "vendorNumber": 141,
       "reviewStatus": "needs_art_correction",
-      "reviewNote": "Packaged fries conflict with roast potato and calm-farm brief"
+      "reviewNote": "Packaged fries conflict with roast potato and calm-farm brief",
+      "resolution": {
+        "status": "bespoke_replacement_reviewed",
+        "asset": "icon_food_roast_potato",
+        "sourcePR": 95
+      }
     },
     {
       "item": "item:garden_salad",
@@ -3480,245 +3530,2528 @@
       "name": "Wool",
       "group": "animal",
       "art": "ART NEEDED: wool tuft; shown powder icon is reference only",
-      "source": "New sheep loot (\u00a77); proposed shop:willow_storekeeper"
+      "source": "New sheep loot (§7); proposed shop:willow_storekeeper",
+      "delivery": {
+        "asset": "icon_animal_wool",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:wing_dust",
       "name": "Wing Dust",
       "group": "animal",
       "art": "ART NEEDED: wing dust pouch; shown powder icon is reference only",
-      "source": "Nonlethal butterfly habitat residue, once per specimen identity (\u00a77.1); storekeeper offer"
+      "source": "Nonlethal butterfly habitat residue, once per specimen identity (§7.1); storekeeper offer",
+      "delivery": {
+        "asset": "icon_animal_wing_dust",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:apple_must",
       "name": "Apple Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_apple_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:apple_pomace",
       "name": "Apple Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:apple_must"
+      "source": "Coproduct of process:apple_must",
+      "delivery": {
+        "asset": "icon_alchemy_apple_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:cherry_must",
       "name": "Cherry Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_cherry_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:cherry_pomace",
       "name": "Cherry Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:cherry_must"
+      "source": "Coproduct of process:cherry_must",
+      "delivery": {
+        "asset": "icon_alchemy_cherry_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:pear_must",
       "name": "Pear Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_pear_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:pear_pomace",
       "name": "Pear Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:pear_must"
+      "source": "Coproduct of process:pear_must",
+      "delivery": {
+        "asset": "icon_alchemy_pear_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:peach_must",
       "name": "Peach Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_peach_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:peach_pomace",
       "name": "Peach Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:peach_must"
+      "source": "Coproduct of process:peach_must",
+      "delivery": {
+        "asset": "icon_alchemy_peach_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:grape_must",
       "name": "Grape Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_grape_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:grape_pomace",
       "name": "Grape Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:grape_must"
+      "source": "Coproduct of process:grape_must",
+      "delivery": {
+        "asset": "icon_alchemy_grape_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:strawberry_must",
       "name": "Strawberry Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_strawberry_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:strawberry_pomace",
       "name": "Strawberry Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:strawberry_must"
+      "source": "Coproduct of process:strawberry_must",
+      "delivery": {
+        "asset": "icon_alchemy_strawberry_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:watermelon_must",
       "name": "Watermelon Must",
       "group": "fruit",
       "art": "ART NEEDED: labelled fruit jug; current generic must shown as reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_watermelon_must",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:watermelon_pomace",
       "name": "Watermelon Pomace",
       "group": "fruit",
       "art": "ART NEEDED: fruit-marked pomace; generic reference only",
-      "source": "Coproduct of process:watermelon_must"
+      "source": "Coproduct of process:watermelon_must",
+      "delivery": {
+        "asset": "icon_alchemy_watermelon_pomace",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:varietal_press",
       "name": "Varietal Press",
       "group": "station",
       "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_varietal_press",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:alchemy_cask",
       "name": "Alchemy Cask",
       "group": "station",
       "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_alchemy_cask",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:cauldron",
       "name": "Kitchen Cauldron",
       "group": "station",
       "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_cauldron",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:oven",
       "name": "Bread Oven",
       "group": "station",
       "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_oven",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:alchemy",
       "name": "Alchemy Station",
       "group": "station",
       "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_alchemy",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:still",
       "name": "Copper Still",
       "group": "station",
       "art": "ART NEEDED: three-state station set and item icon; displayed existing prop is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_alchemy_still",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:cooked_game",
       "name": "Roast Game",
       "group": "food",
       "art": "ART NEEDED: cooked species silhouette; existing cooked-meat icon is reference only",
-      "source": "Crafted"
+      "source": "Crafted",
+      "delivery": {
+        "asset": "icon_food_cooked_game",
+        "sourcePR": 91,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:captured_bee",
       "name": "Captured Bee",
       "group": "collection",
       "art": "ART NEEDED: recognizable live bee in ventilated jar; reference only",
-      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; §7.1",
+      "delivery": {
+        "asset": "icon_animal_captured_bee",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:captured_butterfly",
       "name": "Captured Butterfly",
       "group": "collection",
       "art": "ART NEEDED: recognizable live butterfly in ventilated jar; reference only",
-      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; §7.1",
+      "delivery": {
+        "asset": "icon_animal_captured_butterfly",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:captured_frog",
       "name": "Captured Frog",
       "group": "collection",
       "art": "ART NEEDED: recognizable live frog in ventilated jar; reference only",
-      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; §7.1",
+      "delivery": {
+        "asset": "icon_animal_captured_frog",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:captured_mouse",
       "name": "Captured Mouse",
       "group": "collection",
       "art": "ART NEEDED: recognizable live mouse in ventilated jar; reference only",
-      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; §7.1",
+      "delivery": {
+        "asset": "icon_animal_captured_mouse",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:captured_scarab",
       "name": "Captured Scarab",
       "group": "collection",
       "art": "ART NEEDED: recognizable live scarab in ventilated jar; reference only",
-      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; §7.1",
+      "delivery": {
+        "asset": "icon_animal_captured_scarab",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:captured_snail",
       "name": "Captured Snail",
       "group": "collection",
       "art": "ART NEEDED: recognizable live snail in ventilated jar; reference only",
-      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; \u00a77.1"
+      "source": "Nonlethal net capture with reusable specimen jar; unique custody ID; §7.1",
+      "delivery": {
+        "asset": "icon_animal_captured_snail",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:capture_net",
       "name": "Capture Net",
       "group": "tool",
       "art": "ART NEEDED: Capture Net native pixel icon; reference only",
-      "source": "Hand crafting; \u00a77.1\u20137.2"
+      "source": "Hand crafting; §7.1–7.2",
+      "delivery": {
+        "asset": "icon_alchemy_capture_net",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:specimen_jar",
       "name": "Ventilated Specimen Jar",
       "group": "tool",
       "art": "ART NEEDED: Ventilated Specimen Jar native pixel icon; reference only",
-      "source": "Hand crafting; \u00a77.1\u20137.2"
+      "source": "Hand crafting; §7.1–7.2",
+      "delivery": {
+        "asset": "icon_alchemy_specimen_jar",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:apiary_frame",
       "name": "Apiary Frame",
       "group": "ingredient",
       "art": "ART NEEDED: Apiary Frame native pixel icon; reference only",
-      "source": "Hand crafting; \u00a77.1\u20137.2"
+      "source": "Hand crafting; §7.1–7.2",
+      "delivery": {
+        "asset": "icon_alchemy_apiary_frame",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:apiary",
       "name": "Apiary",
       "group": "station",
       "art": "ART NEEDED: Apiary native pixel icon; reference only",
-      "source": "Hand crafting; \u00a77.1\u20137.2"
+      "source": "Hand crafting; §7.1–7.2",
+      "delivery": {
+        "asset": "icon_alchemy_apiary",
+        "sourcePR": 94,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:honeycomb",
       "name": "Honeycomb",
       "group": "animal",
       "art": "ART NEEDED: hexagonal comb; jar is reference only",
-      "source": "Active apiary: 1 frame + 600s with flowering habitat and installed colony; \u00a77.2"
+      "source": "Active apiary: 1 frame + 600s with flowering habitat and installed colony; §7.2",
+      "delivery": {
+        "asset": "icon_animal_honeycomb",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     },
     {
       "id": "item:beeswax",
       "name": "Beeswax",
       "group": "animal",
       "art": "ART NEEDED: pale wax lump; mineral references only",
-      "source": "Honeycomb extraction co-product; \u00a77.2"
+      "source": "Honeycomb extraction co-product; §7.2",
+      "delivery": {
+        "asset": "icon_animal_beeswax",
+        "sourcePR": 92,
+        "reviewStatus": "bespoke_art_reviewed"
+      }
     }
-  ]
+  ],
+  "deliveryInventory": {
+    "schemaVersion": 1,
+    "sourceHeads": {
+      "90": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+      "91": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+      "92": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+      "94": "90ca81af4e33e2540004148af2dd044e1901db64",
+      "95": "50da7cf6f27ace8e6017588c1d31966e86a76298"
+    },
+    "assets": [
+      {
+        "asset": "icon_alchemy_alchemy",
+        "path": "packages/assets/ui/icon_alchemy_alchemy.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "f00a278a446a7d1af056a5d71b7a7a2b7de9be8517684c53cd11cf89c2454eca",
+        "item": "item:alchemy"
+      },
+      {
+        "asset": "icon_alchemy_alchemy_cask",
+        "path": "packages/assets/ui/icon_alchemy_alchemy_cask.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "4571e79eb46109cea0c2293f96ebd5c74f6b7f43e3916e57764fbc06a9cd99ee",
+        "item": "item:alchemy_cask"
+      },
+      {
+        "asset": "icon_alchemy_amethyst_dust",
+        "path": "packages/assets/ui/icon_alchemy_amethyst_dust.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e9d39bdaa202e2dd7e02e3ed216ec7817f5a21df2816870e3c3299e4e26ee924",
+        "item": "item:amethyst_dust"
+      },
+      {
+        "asset": "icon_alchemy_apiary",
+        "path": "packages/assets/ui/icon_alchemy_apiary.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "70ed9fe2663a24e349d16504f1977c077ccf142852ceac81b50429836e37af3b",
+        "item": "item:apiary"
+      },
+      {
+        "asset": "icon_alchemy_apiary_frame",
+        "path": "packages/assets/ui/icon_alchemy_apiary_frame.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "ab4c6f819161f63e5624507085960cb608300ac43082524d652dcbea22b879d0",
+        "item": "item:apiary_frame"
+      },
+      {
+        "asset": "icon_alchemy_apple_must",
+        "path": "packages/assets/ui/icon_alchemy_apple_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "c9ff42aa0b027263eba1a2a14a67ac834e6f44aba49a5d97fe9d78131aae3384",
+        "item": "item:apple_must"
+      },
+      {
+        "asset": "icon_alchemy_apple_pomace",
+        "path": "packages/assets/ui/icon_alchemy_apple_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "a7bbc19d5ff12e3445f9f9d61847bf531d4052ac03772ad398fd0c85a5075639",
+        "item": "item:apple_pomace"
+      },
+      {
+        "asset": "icon_alchemy_bandage",
+        "path": "packages/assets/ui/icon_alchemy_bandage.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "68a0b6db0ab668085efa35bf652c6ba2f32f49c8ee1fcf81a8caf90eebbcae2b",
+        "item": "item:bandage"
+      },
+      {
+        "asset": "icon_alchemy_bandage_compound",
+        "path": "packages/assets/ui/icon_alchemy_bandage_compound.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "0f2aadbd8de8937fd7f444693523d29a306a004b070b608523288c4e6e880d7f",
+        "item": "item:bandage_compound"
+      },
+      {
+        "asset": "icon_alchemy_brown_mushroom",
+        "path": "packages/assets/ui/icon_alchemy_brown_mushroom.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2a7062fd4d3a549a4158cad27a477c4467d2c57cccf5387a17d6b10820420130",
+        "item": "item:brown_mushroom"
+      },
+      {
+        "asset": "icon_alchemy_capture_net",
+        "path": "packages/assets/ui/icon_alchemy_capture_net.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "e03d756428370edf804de54d94bca401914095932f394246ce9c29bb804dbabc",
+        "item": "item:capture_net"
+      },
+      {
+        "asset": "icon_alchemy_cauldron",
+        "path": "packages/assets/ui/icon_alchemy_cauldron.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "944bfbe7401eebf8fe1858d14c0159f07e206a00d7ff9309b4104a5b0c254420",
+        "item": "item:cauldron"
+      },
+      {
+        "asset": "icon_alchemy_cherry_must",
+        "path": "packages/assets/ui/icon_alchemy_cherry_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "524608baae33c0688251634e51ea60c276159049410eec9b4c52a25aaed7a4bb",
+        "item": "item:cherry_must"
+      },
+      {
+        "asset": "icon_alchemy_cherry_pomace",
+        "path": "packages/assets/ui/icon_alchemy_cherry_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "71ba30e141adba67c7271bce0ff6708fb0cb3bad74380d805db203c0eb45dd85",
+        "item": "item:cherry_pomace"
+      },
+      {
+        "asset": "icon_alchemy_distilled_apple_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_apple_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "91ebe76ff162a409d28d82871af22d1290d6cfd6db364e4a0018be72dd6ed8f2",
+        "item": "item:distilled_apple_essence"
+      },
+      {
+        "asset": "icon_alchemy_distilled_cherry_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_cherry_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fe1d93b4eb2acdb82eaf526d825932589a6dfb09a47f531369de5e973a928e82",
+        "item": "item:distilled_cherry_essence"
+      },
+      {
+        "asset": "icon_alchemy_distilled_grape_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_grape_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2e679f3950eebffd55e84333b08a454b15a8702f557794889774b7bb194fb1ff",
+        "item": "item:distilled_grape_essence"
+      },
+      {
+        "asset": "icon_alchemy_distilled_peach_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_peach_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "a8e200daa20d794e5922de2ac35296e77e273622db040f3db1ab4c6f23977df5",
+        "item": "item:distilled_peach_essence"
+      },
+      {
+        "asset": "icon_alchemy_distilled_pear_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_pear_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1d5e5798baa2f7050b20375a679f7317603bcc6032070061424d65ee3df1cf0a",
+        "item": "item:distilled_pear_essence"
+      },
+      {
+        "asset": "icon_alchemy_distilled_strawberry_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_strawberry_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e7f5b539af237e4f52edc4697c20b6fd979df3fd4e0b4b4469f121a0d6591c71",
+        "item": "item:distilled_strawberry_essence"
+      },
+      {
+        "asset": "icon_alchemy_distilled_watermelon_essence",
+        "path": "packages/assets/ui/icon_alchemy_distilled_watermelon_essence.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4b865e6f9fc0d277ce41605dd4c685dc2d7b3df4998911ecf37eaf89ceae23d3",
+        "item": "item:distilled_watermelon_essence"
+      },
+      {
+        "asset": "icon_alchemy_emerald_dust",
+        "path": "packages/assets/ui/icon_alchemy_emerald_dust.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fabfcb466f511c25e3cd8bcbf712cfa698c6299ef6058d4a09605880ad87d172",
+        "item": "item:emerald_dust"
+      },
+      {
+        "asset": "icon_alchemy_empty_vial",
+        "path": "packages/assets/ui/icon_alchemy_empty_vial.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8378d1544773b888fb942fe1f391a75b5cc1258ac6a99c96d7b8fea06e855448",
+        "item": "item:empty_vial"
+      },
+      {
+        "asset": "icon_alchemy_fermented_apple_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_apple_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c1471e9fb0161b9f5c3828b8de573f23eb3fc2e08c681aded6894ae8dbd29297",
+        "item": "item:fermented_apple_must"
+      },
+      {
+        "asset": "icon_alchemy_fermented_cherry_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_cherry_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f188327d24c4435c4c7b50f3f194d83b5982b7f520c44f495728618a309d332a",
+        "item": "item:fermented_cherry_must"
+      },
+      {
+        "asset": "icon_alchemy_fermented_grape_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_grape_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "675232308e9e01dd301c9201d3e48c55806263410607a2a7b364cb29296b0096",
+        "item": "item:fermented_grape_must"
+      },
+      {
+        "asset": "icon_alchemy_fermented_peach_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_peach_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "7feb912ccf08773b2d85046e26ce7f3d2e1415a59ac6d40d9dc170c15f34819c",
+        "item": "item:fermented_peach_must"
+      },
+      {
+        "asset": "icon_alchemy_fermented_pear_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_pear_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0f5ef4c1de2117ae237d02db94ce828f90b23c9a3808df7e9b9e8ecbe716a3c5",
+        "item": "item:fermented_pear_must"
+      },
+      {
+        "asset": "icon_alchemy_fermented_strawberry_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_strawberry_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b7b27495f533ad9b86805744ef893d19ecbad427736717607304911d2b35e95a",
+        "item": "item:fermented_strawberry_must"
+      },
+      {
+        "asset": "icon_alchemy_fermented_watermelon_must",
+        "path": "packages/assets/ui/icon_alchemy_fermented_watermelon_must.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cd4a4d779b8b6ae084beb31fc55616fee55152fb8c1ea3cc8c7980346babf2c7",
+        "item": "item:fermented_watermelon_must"
+      },
+      {
+        "asset": "icon_alchemy_grape_must",
+        "path": "packages/assets/ui/icon_alchemy_grape_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "9c5753c38ee854d7858b5dfe967f0cd1b6c4e530b6fd9348711cd19a35f11835",
+        "item": "item:grape_must"
+      },
+      {
+        "asset": "icon_alchemy_grape_pomace",
+        "path": "packages/assets/ui/icon_alchemy_grape_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "b70ae9820bb8c51ad4d76647fd1f55aa1412ddabdfc15ec807f4e06a838ef637",
+        "item": "item:grape_pomace"
+      },
+      {
+        "asset": "icon_alchemy_herbal_concentrate",
+        "path": "packages/assets/ui/icon_alchemy_herbal_concentrate.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "954954fb95a2f00fde9b4f98bac4b44ac7f49644e8482b074619e36680d50f70",
+        "item": "item:herbal_concentrate"
+      },
+      {
+        "asset": "icon_alchemy_herbal_extract",
+        "path": "packages/assets/ui/icon_alchemy_herbal_extract.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6a1dc38fe5bfc64ad322eb828733075ed85de05b0148c93690cbd3708914b625",
+        "item": "item:herbal_extract"
+      },
+      {
+        "asset": "icon_alchemy_moonleaf",
+        "path": "packages/assets/ui/icon_alchemy_moonleaf.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d0f2a22f7810ffdaf2d1e9fb1d4915e3399ce6bb8fb55a0706d81a09052e8ffe",
+        "item": "item:moonleaf"
+      },
+      {
+        "asset": "icon_alchemy_oven",
+        "path": "packages/assets/ui/icon_alchemy_oven.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "99ef5ca9df91f39ab7b81d0c5adb4f6704d6fffa8c515ec2e6c82f67eb72b228",
+        "item": "item:oven"
+      },
+      {
+        "asset": "icon_alchemy_peach_must",
+        "path": "packages/assets/ui/icon_alchemy_peach_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "5fb624a203a2725ad802358d19e6e772fa60cb469abf7d09e5d57373162e6ebf",
+        "item": "item:peach_must"
+      },
+      {
+        "asset": "icon_alchemy_peach_pomace",
+        "path": "packages/assets/ui/icon_alchemy_peach_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "0bb6ffaf5087ff8faeb997059cf7fb84f2c7da261b95db4e23a9afd367c4dc74",
+        "item": "item:peach_pomace"
+      },
+      {
+        "asset": "icon_alchemy_pear_must",
+        "path": "packages/assets/ui/icon_alchemy_pear_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "efba374e113e14092f599b027410a1878eaf8c6effa98d9f1116baa727d49148",
+        "item": "item:pear_must"
+      },
+      {
+        "asset": "icon_alchemy_pear_pomace",
+        "path": "packages/assets/ui/icon_alchemy_pear_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "c0cab0b86d3a893454fa1d4efdfe00eb73169e6da0afc6c824aeb2cfb172b151",
+        "item": "item:pear_pomace"
+      },
+      {
+        "asset": "icon_alchemy_potion_combat_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_combat_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b41ed44f5b5d1e0860ded45ff0c9c7abd585b554e8256f181fd6215c9c8c3a63",
+        "item": "item:potion_combat_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_combat_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_combat_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3d123f3a3042a6f06ed5653d1e429b6b571debab422ee29b42e5e94e4e885895",
+        "item": "item:potion_combat_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_combat_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_combat_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "bde322c4e11e096b3da952e6550a35ea53ea26a36d60c9e6a9029e86f35a034e",
+        "item": "item:potion_combat_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_crafting_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_crafting_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "a2743b70c5a68f0d64f293f83049e8d3363cf4dcbb8df4957d1a5c07ddb778cd",
+        "item": "item:potion_crafting_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_crafting_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_crafting_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "a3d84434cdb163c4ffaa8ce745bad543a3cc4e6d280400f7e12200dfec6aa0fc",
+        "item": "item:potion_crafting_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_crafting_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_crafting_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f30b39cd7492c3daf31e65d25d22dba41a49a833a59f6950a636c7d57cf9d67b",
+        "item": "item:potion_crafting_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_defence_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_defence_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "205d2bee55dbaabc4382df03a070b72d031b0165bf301ecc97a1b39c0e3528ac",
+        "item": "item:potion_defence_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_defence_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_defence_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f5dc07470545c45bade01ba1f060c40104d2eeaafc1305989d2edfea565087cd",
+        "item": "item:potion_defence_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_defence_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_defence_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d13e295ea6336c50e6c31bab3046f97eb8ac2cd4524e74a82b2b55781a4439d5",
+        "item": "item:potion_defence_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_farming_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_farming_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "dc969605512a55659a73d30f93c69300d9e972bec3a4a722576de34042d8687b",
+        "item": "item:potion_farming_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_farming_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_farming_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d80e7bf09ac950795ff7202c6742e4b10f96d7214283f5bd67ab20b91b7b4ed5",
+        "item": "item:potion_farming_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_farming_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_farming_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "7e20da2579df7f1fbe4959a260e6e6de071037d649a4e3d13741ba8ca73ab813",
+        "item": "item:potion_farming_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_fishing_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_fishing_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1e1768628c55b9f6a1189e2eff11e020cf8138965d551ed220f7140acc8c9039",
+        "item": "item:potion_fishing_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_fishing_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_fishing_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3a7888206c5ff7cdf2b75dfc874f08e3f585631e5f9c1f1f0c85d03d8a4dfabe",
+        "item": "item:potion_fishing_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_fishing_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_fishing_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f94a9eba9226a4488d084177a9e85560ade760f48da179855e5b2b378663a9da",
+        "item": "item:potion_fishing_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_flight_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_flight_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d21caa5dcbbfa3f62a7057cde4890e545a009db4e35c48a8b2f8381299c4a059",
+        "item": "item:potion_flight_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_fortitude_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_fortitude_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "32a993a8f07117b5e779cc42edae93648d2747a9502ae8326abfc4dcfbef65f7",
+        "item": "item:potion_fortitude_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_fortitude_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_fortitude_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "888e28648d5a4768e5eb54144d672ae54f5f7b8875c14d99a3cea9d79fb9b40a",
+        "item": "item:potion_fortitude_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_fortitude_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_fortitude_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1201188ca0a8a6c23e9e460713ece7f03911d07427bd93db28ccb929e1df2293",
+        "item": "item:potion_fortitude_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_healing_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_healing_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "903a6d98cb9a83768480a0dfd6ea34f51e8488ff7c3b64545da8a6c98d94db29",
+        "item": "item:potion_healing_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_healing_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_healing_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "dfccb3fb026627e7e7ad897eab7688ab30f43e8145d8fb061de77f64d98703f1",
+        "item": "item:potion_healing_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_healing_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_healing_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c37d829c1edf61b64ffd350539d895c89aa8bef1dadf6319b19aa571f3f0e2dd",
+        "item": "item:potion_healing_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_hunger_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_hunger_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "68f17651b4256c11dad9bae32ea99221e9717e49ba3c5b531a19fb985a869c26",
+        "item": "item:potion_hunger_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_hunger_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_hunger_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cdb27aba8bf27f14484b84de7d5058ae164a9a6a09085262586a9f11f78336af",
+        "item": "item:potion_hunger_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_hunger_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_hunger_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "26fd2607775b3478aed09d28ffb538046bea907ee30504306fa643b8af39e214",
+        "item": "item:potion_hunger_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_lava_immune_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_lava_immune_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3a43c813f82233d2446252a59cef8849a0ff21f9d051b3a8406de37e52064808",
+        "item": "item:potion_lava_immune_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_lava_immune_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_lava_immune_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "19a7daa594ac9af1110515815d030813d637071eb04c0e4f2402b048e7c52363",
+        "item": "item:potion_lava_immune_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_lava_immune_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_lava_immune_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "ee18f7b965c52d91ddcdf32fc5ba6932caae3c06449cb8722f6c717331eca6b3",
+        "item": "item:potion_lava_immune_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_luck_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_luck_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9410988fafe28a9b96bea839a5f6cfe5a2cb4e9bdf847c81e9ac6e1eb3f1ffb6",
+        "item": "item:potion_luck_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_luck_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_luck_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "a1b7231f91648f39c958940653c594fdbcc14be0191bb8cd693876be47c752e1",
+        "item": "item:potion_luck_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_luck_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_luck_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "542b14bb42fe1125f011fa65045c8271ad334f5eb207549439201acd8da44560",
+        "item": "item:potion_luck_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_mana_flow_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_mana_flow_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "18c8cd217749fda9022bc6e57a80d076645f7ff251bd98f7bd6b061f0eb0af02",
+        "item": "item:potion_mana_flow_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_mana_flow_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_mana_flow_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c1d76bce5365296ae0aa951531daa027a41a9afd9e2cf0b3fdf7fbbcb23f7cf7",
+        "item": "item:potion_mana_flow_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_mana_flow_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_mana_flow_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cfb376d3da2ee0a07e4875e723bed6cc5fd20c8d34ea36b2243a596cd7e72b29",
+        "item": "item:potion_mana_flow_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_mana_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_mana_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "438571efaa7516b3a2b8ea373838947b674a1de5109f82b8f8d53c4239f8722e",
+        "item": "item:potion_mana_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_mana_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_mana_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8c582d456dafaeb551b9b3ab6a2b3fab86e7756f9683007fae5015fc55d26561",
+        "item": "item:potion_mana_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_mana_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_mana_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c122da588022f1c94f359a15f52c0e8df70450d0d2ac9732fa6e542a8052e7ff",
+        "item": "item:potion_mana_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_mining_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_mining_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d1d948b7e0e3d0f641df5382ab4994ed10693b762e1c545d9fc33d0bded3d082",
+        "item": "item:potion_mining_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_mining_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_mining_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "26d19b0a86ffa6437226bfda611e213d2ebbe3ec3bb8b8716e41fff900e30ad4",
+        "item": "item:potion_mining_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_mining_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_mining_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e60cd651e0d6d82a5b52dfd6240e7ad56fa1b69b6c1b33ced5457357bd9fbce2",
+        "item": "item:potion_mining_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_night_vision_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_night_vision_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "eb87642ef2b2d7d307015e91ab511e7eee233af753f6730390d360481685729d",
+        "item": "item:potion_night_vision_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_night_vision_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_night_vision_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "963a3bb65f35c8e2a0988592f846627734fbe2960400ed49938f39efc0c2267b",
+        "item": "item:potion_night_vision_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_night_vision_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_night_vision_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "bdebace049544f1423b6a0cb273396d9569ba10f87d980b83f56b7671efef648",
+        "item": "item:potion_night_vision_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_regeneration_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_regeneration_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "eb245c6b0447300ec0e9c14b62f353216bd3084e9645cb71b2df58bcac1028d9",
+        "item": "item:potion_regeneration_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_regeneration_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_regeneration_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "46356aa834b66e1022f265b2bbb043b129b08ae51f7e397bcdfc67ac6568fc90",
+        "item": "item:potion_regeneration_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_regeneration_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_regeneration_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3351c664ae9b71eab76c0a28d7cd855b2f67a66640c0af892b2551d493047a45",
+        "item": "item:potion_regeneration_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_speed_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_speed_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f875fac101b09017d6d7872a44e0303972db37b494a7b37f134f44a1d2f9cc22",
+        "item": "item:potion_speed_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_speed_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_speed_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "ab65db5f853be76fbc11c8dea0db590e82394c99621c81bedd8efa91f7ceeeb7",
+        "item": "item:potion_speed_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_speed_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_speed_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9dd60de7fd15458f235a00b3d61e7d0e61f6e3f69f94077552634e3e40cbc876",
+        "item": "item:potion_speed_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_toxin_immune_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_toxin_immune_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9507895bff452ac3ac8bf00f2cecf302520557998983ee79c6fff92390eaf790",
+        "item": "item:potion_toxin_immune_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_toxin_immune_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_toxin_immune_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f560892da88df0110f6b87805a861dc78f854a692447d98332efca5106aa986b",
+        "item": "item:potion_toxin_immune_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_toxin_immune_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_toxin_immune_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "64e4094489342c7df119d8ca02cf02fda4ef883b7fb246e766c787096aa328fd",
+        "item": "item:potion_toxin_immune_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_vigour_flow_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_vigour_flow_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2734141772573ead12ae217bee4c5cc0b1a5e6279ad722d148ca9f312cd312f1",
+        "item": "item:potion_vigour_flow_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_vigour_flow_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_vigour_flow_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3e03a71918714a0a21f3a46442a343eb7476531d4d4bb0df651a173c4a3c5c7b",
+        "item": "item:potion_vigour_flow_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_vigour_flow_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_vigour_flow_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "86d602abb4e789155ce23015326323d9a4ee11c6f3a753e8e13da7868126c474",
+        "item": "item:potion_vigour_flow_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_vigour_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_vigour_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4e04b3d052bb3535ca9a8205a9dae01c7c7cab8edb1e5b5e42c25ff662e6503b",
+        "item": "item:potion_vigour_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_vigour_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_vigour_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b1408f7eca171b1dc80a8dd2c469bdb16aa9825e411219822a3638f612881c3e",
+        "item": "item:potion_vigour_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_vigour_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_vigour_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "00096169c00ef6401bd671e072c63ea4ccfba22a0842ead586772e092db7008b",
+        "item": "item:potion_vigour_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_water_walk_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_water_walk_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cc519165d039ee7c8adbefeeab3787f010d602fc525a884a976d580e3adb2b86",
+        "item": "item:potion_water_walk_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_water_walk_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_water_walk_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1e5f2b768af9cb513816072cf844905b03f9829c32d0736ab281be0e78c474c9",
+        "item": "item:potion_water_walk_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_water_walk_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_water_walk_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "05d34c175a319f713b0cb23e050c126123f83bed2410e759598fb12328253a06",
+        "item": "item:potion_water_walk_standard"
+      },
+      {
+        "asset": "icon_alchemy_potion_woodcutting_greater",
+        "path": "packages/assets/ui/icon_alchemy_potion_woodcutting_greater.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "bfe65bdac6d8e7aee540ff95912a867b30333eebd50ba4efe8d1064a0c411b7d",
+        "item": "item:potion_woodcutting_greater"
+      },
+      {
+        "asset": "icon_alchemy_potion_woodcutting_minor",
+        "path": "packages/assets/ui/icon_alchemy_potion_woodcutting_minor.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "eee3219670001bf7fb9fc92f7f992d4d9bf2f7433f209fc5ebceb6af83eb69c0",
+        "item": "item:potion_woodcutting_minor"
+      },
+      {
+        "asset": "icon_alchemy_potion_woodcutting_standard",
+        "path": "packages/assets/ui/icon_alchemy_potion_woodcutting_standard.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "143c5ac887330f1b15df7c2d9e95e2736527454e55f1fa09398cbde6eb6e8391",
+        "item": "item:potion_woodcutting_standard"
+      },
+      {
+        "asset": "icon_alchemy_refined_catalyst",
+        "path": "packages/assets/ui/icon_alchemy_refined_catalyst.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "633d39205f740387b0201349bac032cf36c71c654bc40f1ecaf25efa89832aad",
+        "item": "item:refined_catalyst"
+      },
+      {
+        "asset": "icon_alchemy_ruby_dust",
+        "path": "packages/assets/ui/icon_alchemy_ruby_dust.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0716a7905af1708c6e6f1b09456255d9f89811f072013654783f74bb9012e9f2",
+        "item": "item:ruby_dust"
+      },
+      {
+        "asset": "icon_alchemy_salt",
+        "path": "packages/assets/ui/icon_alchemy_salt.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "2b63701c0997d05ebd625f182418d912f89edf98c45a6f913f70a1ed9febde94",
+        "item": "item:salt"
+      },
+      {
+        "asset": "icon_alchemy_salve",
+        "path": "packages/assets/ui/icon_alchemy_salve.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "90906316b3ed2aa0dad69fc6f4fb499f947f00958ec96cb52a899604e02edf1a",
+        "item": "item:salve"
+      },
+      {
+        "asset": "icon_alchemy_sapphire_dust",
+        "path": "packages/assets/ui/icon_alchemy_sapphire_dust.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "5af04049523a05bb05ac3ddf37e7c6026159f110d942079868344b9a5926ce7c",
+        "item": "item:sapphire_dust"
+      },
+      {
+        "asset": "icon_alchemy_shroom_spore",
+        "path": "packages/assets/ui/icon_alchemy_shroom_spore.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "212493c8520faf220a25b6328346e9ef3938a2258622d479a70744a5c1f6e6cc",
+        "item": "item:shroom_spore"
+      },
+      {
+        "asset": "icon_alchemy_specimen_jar",
+        "path": "packages/assets/ui/icon_alchemy_specimen_jar.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "cbee1eb78dbcf7a5784ae95023b39dc29cbfdc1ff8aca9bdebdf74a5e2310b6d",
+        "item": "item:specimen_jar"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_apple_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_apple_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0641a10235490cd64aa682d7200e06bd6ba10ed261f94eb01a8489eb2ea07e80",
+        "item": "item:stabilized_apple_base"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_cherry_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_cherry_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1f0ad36189205cca5310461b4f65a178188ed446940da4bcca095809fda6cf04",
+        "item": "item:stabilized_cherry_base"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_grape_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_grape_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1d6597104bbd0f83e401bb1af4c09ccd7a654c24d8682784fa47df4f77a143be",
+        "item": "item:stabilized_grape_base"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_peach_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_peach_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8273808ae53ade24b4d7128f140896d397995dc65c56819cf5105275f0c36b3e",
+        "item": "item:stabilized_peach_base"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_pear_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_pear_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c57bb5a67fcdc40fff2c8343477897973b28ca757c4062fd3f0c69ea85fee8fe",
+        "item": "item:stabilized_pear_base"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_strawberry_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_strawberry_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "92a0b7343eb4b29263b8bb3f18920255fa124e791994edec25eba4523c07e6c6",
+        "item": "item:stabilized_strawberry_base"
+      },
+      {
+        "asset": "icon_alchemy_stabilized_watermelon_base",
+        "path": "packages/assets/ui/icon_alchemy_stabilized_watermelon_base.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "449d052455ff56ab28d716dca2f4251ead58d424861765eaab6a68f6563c8f1f",
+        "item": "item:stabilized_watermelon_base"
+      },
+      {
+        "asset": "icon_alchemy_still",
+        "path": "packages/assets/ui/icon_alchemy_still.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "0b62efc7f5bb0b0c185e2bcae89c47a1f52cc1641360896b3746861e3b301a44",
+        "item": "item:still"
+      },
+      {
+        "asset": "icon_alchemy_strawberry_must",
+        "path": "packages/assets/ui/icon_alchemy_strawberry_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "217b3791f2cd5759390de7cfe52c47511912039fa6a8baa02a43b98e0d144c42",
+        "item": "item:strawberry_must"
+      },
+      {
+        "asset": "icon_alchemy_strawberry_pomace",
+        "path": "packages/assets/ui/icon_alchemy_strawberry_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "de909368334625aef595b714d5067cfaf53683240e9a051697c2a0b0fe81a72d",
+        "item": "item:strawberry_pomace"
+      },
+      {
+        "asset": "icon_alchemy_topaz_dust",
+        "path": "packages/assets/ui/icon_alchemy_topaz_dust.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "62fd5d194ebae0f6602ade30f9d194c7cddc780fef5acfa480d1ed6953ca3d4a",
+        "item": "item:topaz_dust"
+      },
+      {
+        "asset": "icon_alchemy_varietal_press",
+        "path": "packages/assets/ui/icon_alchemy_varietal_press.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "63f92853a0a3a9d0e20ecd2a82a7becd819d3b760c4f805bbe92879bfbfc5222",
+        "item": "item:varietal_press"
+      },
+      {
+        "asset": "icon_alchemy_watermelon_must",
+        "path": "packages/assets/ui/icon_alchemy_watermelon_must.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "a2d7e89e5bdb1cb0fc2221e67ec55d6fd914cb785f61ee91fb23291891612a34",
+        "item": "item:watermelon_must"
+      },
+      {
+        "asset": "icon_alchemy_watermelon_pomace",
+        "path": "packages/assets/ui/icon_alchemy_watermelon_pomace.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "8e51c457526f09f5488afbbb0c72667d9abfd153340780c035c1f896a45ae871",
+        "item": "item:watermelon_pomace"
+      },
+      {
+        "asset": "icon_animal_animal_fat",
+        "path": "packages/assets/ui/icon_animal_animal_fat.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6929d421e67db24ed0f13405cd8849fbff45335984f367f5039acfd3e9c41686",
+        "item": "item:animal_fat"
+      },
+      {
+        "asset": "icon_animal_animal_feed",
+        "path": "packages/assets/ui/icon_animal_animal_feed.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "528c01922c19eb2e315ad108019ab2c5fa44fef3124f9811072c9d8763798b5f",
+        "item": "item:animal_feed"
+      },
+      {
+        "asset": "icon_animal_beeswax",
+        "path": "packages/assets/ui/icon_animal_beeswax.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "ab9a4768fb28bb86d32f9bb4ffdf1435dbea73951a55fe6c7867f8092f4f0ee4",
+        "item": "item:beeswax"
+      },
+      {
+        "asset": "icon_animal_bone",
+        "path": "packages/assets/ui/icon_animal_bone.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4996da7f186b4cf82603e4b2dcbd5e216c06838b106508a7826db4e3a61d9076",
+        "item": "item:bone"
+      },
+      {
+        "asset": "icon_animal_buoyant_extract",
+        "path": "packages/assets/ui/icon_animal_buoyant_extract.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "435322593961996e227fd347641f36b7843f95cef50c373c28686cc891471124",
+        "item": "item:buoyant_extract"
+      },
+      {
+        "asset": "icon_animal_captured_bee",
+        "path": "packages/assets/ui/icon_animal_captured_bee.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "ec6629408667f69c45f851d8bb9cb957008d38ee4c39a5c7622dbbfbd2e187c3",
+        "item": "item:captured_bee"
+      },
+      {
+        "asset": "icon_animal_captured_butterfly",
+        "path": "packages/assets/ui/icon_animal_captured_butterfly.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "c2cfe2b218acd613da4def4b2f8f65aea9a2c6c6f2b50ef196299fac59c4dae3",
+        "item": "item:captured_butterfly"
+      },
+      {
+        "asset": "icon_animal_captured_frog",
+        "path": "packages/assets/ui/icon_animal_captured_frog.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "ff57471041697a59ceafc1f39e79cf61b847817b8f02d7f453588ad16a24964a",
+        "item": "item:captured_frog"
+      },
+      {
+        "asset": "icon_animal_captured_mouse",
+        "path": "packages/assets/ui/icon_animal_captured_mouse.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "3584d1dc997f5aa5e9882a05b13c24adac327e91d442f6f8455c79a3948ddf28",
+        "item": "item:captured_mouse"
+      },
+      {
+        "asset": "icon_animal_captured_scarab",
+        "path": "packages/assets/ui/icon_animal_captured_scarab.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "84eca1495cbc4528b0f83a710868cedfaa56691fc5b9a629eb5ea073fb8f643a",
+        "item": "item:captured_scarab"
+      },
+      {
+        "asset": "icon_animal_captured_snail",
+        "path": "packages/assets/ui/icon_animal_captured_snail.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "872bc7134e31e2dd7d12e9c4b8268408e67f49a9d5deabcd9a2c22d271aa9c1b",
+        "item": "item:captured_snail"
+      },
+      {
+        "asset": "icon_animal_chitin",
+        "path": "packages/assets/ui/icon_animal_chitin.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b5d424a1442f6a538d876075cf3de3660f6c07d07cfe1d9ccc2e2dd0a7e5f76e",
+        "item": "item:chitin"
+      },
+      {
+        "asset": "icon_animal_egg",
+        "path": "packages/assets/ui/icon_animal_egg.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "94a1aae80315b485ed632d0e22002cfa2b8451b0d63f8ac8354c1941c769fd3a",
+        "item": "item:egg"
+      },
+      {
+        "asset": "icon_animal_feather",
+        "path": "packages/assets/ui/icon_animal_feather.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2f78e0c132881015fba1f61649895b981a7eef7e210a6133270d26b6828466f1",
+        "item": "item:feather"
+      },
+      {
+        "asset": "icon_animal_flight_reagent",
+        "path": "packages/assets/ui/icon_animal_flight_reagent.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "84699c2d5f4f44bca8ac39e15700a4629b3c36765621f69f936249de3876974a",
+        "item": "item:flight_reagent"
+      },
+      {
+        "asset": "icon_animal_honey",
+        "path": "packages/assets/ui/icon_animal_honey.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "a02bf4ad67a627bb0b790ee704abf953bab5ca24e19b92cf0658afe2b7b4d2c4",
+        "item": "item:honey"
+      },
+      {
+        "asset": "icon_animal_honeycomb",
+        "path": "packages/assets/ui/icon_animal_honeycomb.sprite.json",
+        "sourcePR": 92,
+        "sourceCommit": "758f98bc7934251c5cf6e50a77219759b8aaa9ac",
+        "sha256": "10443c68d639c0744bbc1a3e919a0b0bc1e205c3c2fa48e94b72fe5ac913fddc",
+        "item": "item:honeycomb"
+      },
+      {
+        "asset": "icon_animal_pond_slime",
+        "path": "packages/assets/ui/icon_animal_pond_slime.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "717f90ab090d5f6b055ed6aa116b753fed463a10029335d349d713d797f57925",
+        "item": "item:pond_slime"
+      },
+      {
+        "asset": "icon_animal_raw_game",
+        "path": "packages/assets/ui/icon_animal_raw_game.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "5f6088d0bf4f4a5ed05a6db402dc3dbb49f272fc829535c8d290bd54c962c883",
+        "item": "item:raw_game"
+      },
+      {
+        "asset": "icon_animal_shell",
+        "path": "packages/assets/ui/icon_animal_shell.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f532337775d1188f4b4419e8fd02ecb9fa130f2dc349ed7a074f85aa58eb4906",
+        "item": "item:shell"
+      },
+      {
+        "asset": "icon_animal_washed_feather",
+        "path": "packages/assets/ui/icon_animal_washed_feather.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "beb9f7502fed0cab3307f7c70963c37c8ec931264d41c5c96af6bc1bb23623cb",
+        "item": "item:washed_feather"
+      },
+      {
+        "asset": "icon_animal_wing_dust",
+        "path": "packages/assets/ui/icon_animal_wing_dust.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "d296897f4695bc43aaf16493d94f8e8508a4fa5fa66412798e253c912fb4940c",
+        "item": "item:wing_dust"
+      },
+      {
+        "asset": "icon_animal_wool",
+        "path": "packages/assets/ui/icon_animal_wool.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "f783f67ab2614b7f3e0c0c129054cadfdda53f7e908ea7bc6b0770454403dd1c",
+        "item": "item:wool"
+      },
+      {
+        "asset": "icon_food_apple_cake_slice",
+        "path": "packages/assets/ui/icon_food_apple_cake_slice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8af0c93b2e1064410655e745c219068fa80407f4b29d2ef33efde1630b04b812",
+        "item": "item:apple_cake_slice"
+      },
+      {
+        "asset": "icon_food_apple_cream_drink",
+        "path": "packages/assets/ui/icon_food_apple_cream_drink.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4fa97df7b7403323be563346293d1de2aa233bb285f4feab1d0e10e504fd5520",
+        "item": "item:apple_cream_drink"
+      },
+      {
+        "asset": "icon_food_apple_donut",
+        "path": "packages/assets/ui/icon_food_apple_donut.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3e2160760fe07966fb0c9b5ee080cbdf7ae454c5c31bb034be75f2f0d93f095c",
+        "item": "item:apple_donut"
+      },
+      {
+        "asset": "icon_food_apple_frozen_cream",
+        "path": "packages/assets/ui/icon_food_apple_frozen_cream.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0eaa8fbe3a06a3b20c3ccea9b5bc57b4e1101da6cceac3c5fd694b45dc436910",
+        "item": "item:apple_frozen_cream"
+      },
+      {
+        "asset": "icon_food_apple_jam",
+        "path": "packages/assets/ui/icon_food_apple_jam.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "32d171950c4f33ecca6c5ab082489f7dd4f62c5a8da53e532a0c8a097067a70e",
+        "item": "item:apple_jam"
+      },
+      {
+        "asset": "icon_food_apple_jelly",
+        "path": "packages/assets/ui/icon_food_apple_jelly.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6cde7559393eef18b34e25b8ed894f6d10bc443716ecb499978bd3c627b5cd61",
+        "item": "item:apple_jelly"
+      },
+      {
+        "asset": "icon_food_apple_lollipop",
+        "path": "packages/assets/ui/icon_food_apple_lollipop.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "ab57c8e0445bfb5474bf5e2b72ec25c647d0254297ed54f66dfe2d005b67f72f",
+        "item": "item:apple_lollipop"
+      },
+      {
+        "asset": "icon_food_apple_macaron",
+        "path": "packages/assets/ui/icon_food_apple_macaron.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "eb8654cde8f422cc5bdcacd8c73dd9061edacb39b93e301fd4929dc87ff30438",
+        "item": "item:apple_macaron"
+      },
+      {
+        "asset": "icon_food_apple_pie",
+        "path": "packages/assets/ui/icon_food_apple_pie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c1d06dfd51dbbe9a6a4fa8fb1c28a137495c3af5e5ad18958627116727535d70",
+        "item": "item:apple_pie"
+      },
+      {
+        "asset": "icon_food_apple_sweet",
+        "path": "packages/assets/ui/icon_food_apple_sweet.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "55e3210819dd2963651da73511c517d037a9b634323e6ea2babe4fc4bb614b73",
+        "item": "item:apple_sweet"
+      },
+      {
+        "asset": "icon_food_beetroot_soup",
+        "path": "packages/assets/ui/icon_food_beetroot_soup.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fe7490d2675b5dcf28d5b329bc877eb546aa47347d44c4277ea92d9acb8863c4",
+        "item": "item:beetroot_soup"
+      },
+      {
+        "asset": "icon_food_berry_pie",
+        "path": "packages/assets/ui/icon_food_berry_pie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fcabd000e5d547cb400955147b46755fec6cd6de44f226ead0e13d4fe233ad2c",
+        "item": "item:berry_pie"
+      },
+      {
+        "asset": "icon_food_bowl",
+        "path": "packages/assets/ui/icon_food_bowl.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e0df38b3bb0efc329a28822cf84f5b53353ba2dc4c6490db2d51f621099f3a45",
+        "item": "item:bowl"
+      },
+      {
+        "asset": "icon_food_bread",
+        "path": "packages/assets/ui/icon_food_bread.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "45162fef1bc3f3e4ee7ea3f222f22a0a63435d388fb89abb0792c6deef4c36ce",
+        "item": "item:bread"
+      },
+      {
+        "asset": "icon_food_bread_roll",
+        "path": "packages/assets/ui/icon_food_bread_roll.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cbcd3b673eb52faaca0d16ce1b439b8d9f18ab67488198e4e83cccf0c93a1195",
+        "item": "item:bread_roll"
+      },
+      {
+        "asset": "icon_food_butter",
+        "path": "packages/assets/ui/icon_food_butter.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "a8184b36119e3a4607461ea03d3e8159e2345ba9532c52e24627c04c2619cf4b",
+        "item": "item:butter"
+      },
+      {
+        "asset": "icon_food_cake",
+        "path": "packages/assets/ui/icon_food_cake.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b6629b9b633ff3f10130e346c10a58e573abbd9c6388b43b3eb88246098f03aa",
+        "item": "item:cake"
+      },
+      {
+        "asset": "icon_food_cheese",
+        "path": "packages/assets/ui/icon_food_cheese.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8fd5ab3de3fa0b01c4a37a9e307dd721d842a14534148239fdbd03a359671516",
+        "item": "item:cheese"
+      },
+      {
+        "asset": "icon_food_cheese_bread",
+        "path": "packages/assets/ui/icon_food_cheese_bread.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "7a978e1a4c3667c318c0f7ee4b781929ca38584023e802c1f0d407abcbf7a42c",
+        "item": "item:cheese_bread"
+      },
+      {
+        "asset": "icon_food_cheese_flatbread",
+        "path": "packages/assets/ui/icon_food_cheese_flatbread.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "80f4a09b21a1d5c8bdd551b2f1f942a044860f55ce6b03d66da1dff1f8d7a837",
+        "item": "item:cheese_flatbread"
+      },
+      {
+        "asset": "icon_food_cheese_slice",
+        "path": "packages/assets/ui/icon_food_cheese_slice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d7a58fa603cb47b1e17f1a4cd3c212b43d7ccc0a3b074eac6753fbcf2455138c",
+        "item": "item:cheese_slice"
+      },
+      {
+        "asset": "icon_food_cheesecake",
+        "path": "packages/assets/ui/icon_food_cheesecake.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "7d8afb2dffa6e7f45a0fe39c58bb79002651630573a7c4a735204c95a854e1ba",
+        "item": "item:cheesecake"
+      },
+      {
+        "asset": "icon_food_cherry_cake_slice",
+        "path": "packages/assets/ui/icon_food_cherry_cake_slice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "bc1dc4560022d1a85d1f952fb331cf4151ccea46f9289c53d74ebc3e1c28625c",
+        "item": "item:cherry_cake_slice"
+      },
+      {
+        "asset": "icon_food_cherry_cream_drink",
+        "path": "packages/assets/ui/icon_food_cherry_cream_drink.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fb9f1c11ac88bf92a7c416ca2781f70654f78214f7e1e6ddc338db74a2038cda",
+        "item": "item:cherry_cream_drink"
+      },
+      {
+        "asset": "icon_food_cherry_donut",
+        "path": "packages/assets/ui/icon_food_cherry_donut.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9d0f7722aa539c9517ad9631a37291017a1066273da992222b7264be557db08d",
+        "item": "item:cherry_donut"
+      },
+      {
+        "asset": "icon_food_cherry_frozen_cream",
+        "path": "packages/assets/ui/icon_food_cherry_frozen_cream.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "23e8ff551115102918f8dd652873078780228a84465d63a8e00254522f8b77f7",
+        "item": "item:cherry_frozen_cream"
+      },
+      {
+        "asset": "icon_food_cherry_jam",
+        "path": "packages/assets/ui/icon_food_cherry_jam.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "39ee8667807e003490d449bef368f9696e22f0dd4ad5eb0470139ffae3b9270d",
+        "item": "item:cherry_jam"
+      },
+      {
+        "asset": "icon_food_cherry_jelly",
+        "path": "packages/assets/ui/icon_food_cherry_jelly.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4bc0863fc1b7f5263d58ce2e3790b41b9485925f25782dc09951b429ecf540a6",
+        "item": "item:cherry_jelly"
+      },
+      {
+        "asset": "icon_food_cherry_lollipop",
+        "path": "packages/assets/ui/icon_food_cherry_lollipop.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fa2b4c172e59fd29b09417dd3d8f8feb11619a4478b0b04f26a60f029ec94d25",
+        "item": "item:cherry_lollipop"
+      },
+      {
+        "asset": "icon_food_cherry_macaron",
+        "path": "packages/assets/ui/icon_food_cherry_macaron.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "38c991dccfa123d68665b2139dc2268efd8ce286c5b36ed52708721e91604dd3",
+        "item": "item:cherry_macaron"
+      },
+      {
+        "asset": "icon_food_cherry_sweet",
+        "path": "packages/assets/ui/icon_food_cherry_sweet.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e70a9b9d542af9342fb13f3f83e2ea05f325e5e3fdfced302faf3c2c6051bb99",
+        "item": "item:cherry_sweet"
+      },
+      {
+        "asset": "icon_food_cocoa",
+        "path": "packages/assets/ui/icon_food_cocoa.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "5cf141b8b33d396d6e8ffbef0bf807c270a6241738016b2f4ec639365b2eda9f",
+        "item": "item:cocoa"
+      },
+      {
+        "asset": "icon_food_cocoa_bar",
+        "path": "packages/assets/ui/icon_food_cocoa_bar.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cb84a6aa0e2cde2f49f5cdaec6281abda5ff142ce7ed21b3001a70a7475e85e7",
+        "item": "item:cocoa_bar"
+      },
+      {
+        "asset": "icon_food_cocoa_bread",
+        "path": "packages/assets/ui/icon_food_cocoa_bread.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c11bf7b4808df286b4ac942d686d9425e5aea859e2414cd2536ce58209388bd5",
+        "item": "item:cocoa_bread"
+      },
+      {
+        "asset": "icon_food_cocoa_cupcake",
+        "path": "packages/assets/ui/icon_food_cocoa_cupcake.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c82b72b0ec3c8d01eac85d8ef9ff3a3580f7b333ef0822a1119f91e8fa9ae4f3",
+        "item": "item:cocoa_cupcake"
+      },
+      {
+        "asset": "icon_food_cooked_fish_roll",
+        "path": "packages/assets/ui/icon_food_cooked_fish_roll.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "60279cc2968f49ac64c4dd0a942bc1095639308e86461570bd9afc271db0e0b6",
+        "item": "item:cooked_fish_roll"
+      },
+      {
+        "asset": "icon_food_cooked_game",
+        "path": "packages/assets/ui/icon_food_cooked_game.sprite.json",
+        "sourcePR": 91,
+        "sourceCommit": "4a46b587b5ca457bbeabd17a1b646de0fbc5f33e",
+        "sha256": "81281ba93a4a99b00c2cbca47d41e0a51c3d5931d055f3ce99917207bd29df78",
+        "item": "item:cooked_game"
+      },
+      {
+        "asset": "icon_food_cookie",
+        "path": "packages/assets/ui/icon_food_cookie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "21f9a02d9db712c36bc1b5a33ae0bf566c08ac98fba3a7157194d478fd0bc4d2",
+        "item": "item:cookie"
+      },
+      {
+        "asset": "icon_food_cream",
+        "path": "packages/assets/ui/icon_food_cream.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "38ed8a81483da08458f631488399744a90c226a47c07a7170eacdb9cf1226530",
+        "item": "item:cream"
+      },
+      {
+        "asset": "icon_food_curd",
+        "path": "packages/assets/ui/icon_food_curd.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "668d21197712b170adb5f75f0104eecb8f6d9d7caa68d003427b8e8c395e20ea",
+        "item": "item:curd"
+      },
+      {
+        "asset": "icon_food_custard_pie",
+        "path": "packages/assets/ui/icon_food_custard_pie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fb6c76ecc06504669d526157eab73a99805f071db55bd76c853fdecf8a52bf04",
+        "item": "item:custard_pie"
+      },
+      {
+        "asset": "icon_food_dough",
+        "path": "packages/assets/ui/icon_food_dough.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1f1e3f2c783f75c81e1838d63f522e34fee97df3abd318383bc9b8c6da80fda7",
+        "item": "item:dough"
+      },
+      {
+        "asset": "icon_food_egg_rice_bite",
+        "path": "packages/assets/ui/icon_food_egg_rice_bite.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6a7496e28b0b3d7241af58e0381bae41c288a7adea433d3aa992f8f693a6a45b",
+        "item": "item:egg_rice_bite"
+      },
+      {
+        "asset": "icon_food_fish_chowder",
+        "path": "packages/assets/ui/icon_food_fish_chowder.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "5e02433b84d9d910d6700d94949cdf95d5552cb22d9920037bc79940412d23e7",
+        "item": "item:fish_chowder"
+      },
+      {
+        "asset": "icon_food_fish_oil",
+        "path": "packages/assets/ui/icon_food_fish_oil.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "11720cbaf3c3000dbef6d165d82085e4e9ed1eb0f5e02cc50f3cbb464058b725",
+        "item": "item:fish_oil"
+      },
+      {
+        "asset": "icon_food_fish_pie",
+        "path": "packages/assets/ui/icon_food_fish_pie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d0ab92998f94aa051d1d2b1461396da3cc5d4a033a6af3bebde088b7a6ae32c1",
+        "item": "item:fish_pie"
+      },
+      {
+        "asset": "icon_food_fish_rice_bite",
+        "path": "packages/assets/ui/icon_food_fish_rice_bite.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "86fe8fce66ef3138250fb59de8f5273da476c03ae6bb41921d8e37c8b85ef6d8",
+        "item": "item:fish_rice_bite"
+      },
+      {
+        "asset": "icon_food_fish_rice_plate",
+        "path": "packages/assets/ui/icon_food_fish_rice_plate.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "33205e1f0731cefc1431ba57ad445414776b4b24982db56a291a6e08efc6d3c9",
+        "item": "item:fish_rice_plate"
+      },
+      {
+        "asset": "icon_food_flour",
+        "path": "packages/assets/ui/icon_food_flour.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8cc96211aa4fbcbf0784f18470f49c04ecc85b6b0973a85f604d6323ae3496bb",
+        "item": "item:flour"
+      },
+      {
+        "asset": "icon_food_fried_egg",
+        "path": "packages/assets/ui/icon_food_fried_egg.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3e89ae0b3c3f7f0e280bd2fbfd2799854abb07eb87c52b4397c4ffb5c1a5ae11",
+        "item": "item:fried_egg"
+      },
+      {
+        "asset": "icon_food_fruit_sandwich",
+        "path": "packages/assets/ui/icon_food_fruit_sandwich.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0870609555d6ebe15f72611c1f50a67ae7f07d4add88517e852832aee8983d9b",
+        "item": "item:fruit_sandwich"
+      },
+      {
+        "asset": "icon_food_fruit_tart",
+        "path": "packages/assets/ui/icon_food_fruit_tart.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "03fbbdf1761782bf9b0ec57f6ac950c50092eadc228969470509f7b1ba033ade",
+        "item": "item:fruit_tart"
+      },
+      {
+        "asset": "icon_food_garden_salad",
+        "path": "packages/assets/ui/icon_food_garden_salad.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "7dc612846089421388f83f9678eb13a6e6a7a128cb2eb041f18b7050e5f977c7",
+        "item": "item:garden_salad"
+      },
+      {
+        "asset": "icon_food_grape_cake_slice",
+        "path": "packages/assets/ui/icon_food_grape_cake_slice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4de56efe00f6643c371f5e4c25496059409409132f78f79a6124b367af141775",
+        "item": "item:grape_cake_slice"
+      },
+      {
+        "asset": "icon_food_grape_cream_drink",
+        "path": "packages/assets/ui/icon_food_grape_cream_drink.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cbb969f159b0c6908dadd63f78e43372c781ec9b54bb62e705ac520cb2964357",
+        "item": "item:grape_cream_drink"
+      },
+      {
+        "asset": "icon_food_grape_donut",
+        "path": "packages/assets/ui/icon_food_grape_donut.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1d73a2f2b96c71258c430725c53e23c1bd5ad36f818bc48f4ee225ac45fba43a",
+        "item": "item:grape_donut"
+      },
+      {
+        "asset": "icon_food_grape_frozen_cream",
+        "path": "packages/assets/ui/icon_food_grape_frozen_cream.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "5091b24d9eac364bbdb61206b793f84837bef1618a9a8278a4a06f01a5e5e22a",
+        "item": "item:grape_frozen_cream"
+      },
+      {
+        "asset": "icon_food_grape_jam",
+        "path": "packages/assets/ui/icon_food_grape_jam.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "850bb4f5b7f59b0a898f504c5cad9666c724581b8789e990da5cbb3ed11f9720",
+        "item": "item:grape_jam"
+      },
+      {
+        "asset": "icon_food_grape_jelly",
+        "path": "packages/assets/ui/icon_food_grape_jelly.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "aee5377c379e6b4ed81f3efca7af60b18f014b10bac8b1278ebe7dac4fe042cd",
+        "item": "item:grape_jelly"
+      },
+      {
+        "asset": "icon_food_grape_lollipop",
+        "path": "packages/assets/ui/icon_food_grape_lollipop.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "1f3478d4cb3cd5240d9127b26453e287fb2f77b22191724622a1cf0eb33033d0",
+        "item": "item:grape_lollipop"
+      },
+      {
+        "asset": "icon_food_grape_macaron",
+        "path": "packages/assets/ui/icon_food_grape_macaron.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fff4e41b725658ffdec98b4f89c2894d693932dd28e764f17f5a9715c82321c0",
+        "item": "item:grape_macaron"
+      },
+      {
+        "asset": "icon_food_grape_sweet",
+        "path": "packages/assets/ui/icon_food_grape_sweet.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2d9bac322e286764b9f213af5b3daabe814e721fabefa5ba9aefb36279bee25b",
+        "item": "item:grape_sweet"
+      },
+      {
+        "asset": "icon_food_hearty_stew",
+        "path": "packages/assets/ui/icon_food_hearty_stew.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2b4c8f55f5897abc012ccceea2df5724cfb61d0940ab9e40b566e6c2f845ed29",
+        "item": "item:hearty_stew"
+      },
+      {
+        "asset": "icon_food_honey_bread",
+        "path": "packages/assets/ui/icon_food_honey_bread.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2f31ed77242d8882b64604ceb79d676cae9c465dc2082fc3eb1fbb18b88b5932",
+        "item": "item:honey_bread"
+      },
+      {
+        "asset": "icon_food_honey_cupcake",
+        "path": "packages/assets/ui/icon_food_honey_cupcake.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b0480f714767d8c5e064f565d993d8c1620d62d1c398e71122c93ad5ce1acdf7",
+        "item": "item:honey_cupcake"
+      },
+      {
+        "asset": "icon_food_honey_stack",
+        "path": "packages/assets/ui/icon_food_honey_stack.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "93a9b14434a3143a82beda5e5b88177149882e58c8a201edbdbec65bfb257dc5",
+        "item": "item:honey_stack"
+      },
+      {
+        "asset": "icon_food_meat_pie",
+        "path": "packages/assets/ui/icon_food_meat_pie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b4367429a4711ecd9c0b2be06d100e1eef8983c21436bcbdbed7bab36a5f0c51",
+        "item": "item:meat_pie"
+      },
+      {
+        "asset": "icon_food_milk",
+        "path": "packages/assets/ui/icon_food_milk.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "4b1dd07a7bdf36af2f3b4ff51a06a7ef09490af202d04e0a2755221f53b26759",
+        "item": "item:milk"
+      },
+      {
+        "asset": "icon_food_mushroom_stew",
+        "path": "packages/assets/ui/icon_food_mushroom_stew.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "a8e22a7940bc1302fde18cc852037eece0cc63d3e6822361f5f6ac7dccd7e9b9",
+        "item": "item:mushroom_stew"
+      },
+      {
+        "asset": "icon_food_omelette",
+        "path": "packages/assets/ui/icon_food_omelette.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e0bb25b3d60e60bc10e410c6ef43ea57481b85ab9bd7ad4dfe55e661e5e3fdde",
+        "item": "item:omelette"
+      },
+      {
+        "asset": "icon_food_pancake",
+        "path": "packages/assets/ui/icon_food_pancake.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "55c7e47ee83013bebd685d0f404147d7644aa16e4f0cab0ed9f7b458b166f3c5",
+        "item": "item:pancake"
+      },
+      {
+        "asset": "icon_food_peach_cake_slice",
+        "path": "packages/assets/ui/icon_food_peach_cake_slice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6b3fc94eb0721c5cb17398f0fedc0b5522cf5182e94e38b4f4996f2326e897c6",
+        "item": "item:peach_cake_slice"
+      },
+      {
+        "asset": "icon_food_peach_cream_drink",
+        "path": "packages/assets/ui/icon_food_peach_cream_drink.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "ad3e6b291380eb47dfd86b0ff9590987b561b7f3710a537934b69f64964fc052",
+        "item": "item:peach_cream_drink"
+      },
+      {
+        "asset": "icon_food_peach_donut",
+        "path": "packages/assets/ui/icon_food_peach_donut.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6564b4b79f03b4a7e1e8b7c49260851976e3b6f56a218b4d8da2c482a35a5a45",
+        "item": "item:peach_donut"
+      },
+      {
+        "asset": "icon_food_peach_frozen_cream",
+        "path": "packages/assets/ui/icon_food_peach_frozen_cream.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "fbeb906ed6d0d473d8fe7c1356411898a6017bfc7da6d1eccbc2a70d98a25baa",
+        "item": "item:peach_frozen_cream"
+      },
+      {
+        "asset": "icon_food_peach_jam",
+        "path": "packages/assets/ui/icon_food_peach_jam.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "3a52052860ebf1e8b92b1d6784477120d098804d2feec4093bb880664a2700ce",
+        "item": "item:peach_jam"
+      },
+      {
+        "asset": "icon_food_peach_jelly",
+        "path": "packages/assets/ui/icon_food_peach_jelly.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "cd4eb4df4752a2f449779895da27ebe5db2dfa2663154c92fc0157ae81e8f838",
+        "item": "item:peach_jelly"
+      },
+      {
+        "asset": "icon_food_peach_lollipop",
+        "path": "packages/assets/ui/icon_food_peach_lollipop.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "5e8eb27d254793c9818579e3bf844b5934e20f930a3a36d745646d4fa9eed6ee",
+        "item": "item:peach_lollipop"
+      },
+      {
+        "asset": "icon_food_peach_macaron",
+        "path": "packages/assets/ui/icon_food_peach_macaron.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "e733a47314de6f7f0a11597f0e7ad9044b51b693dfde1ba130eed0dae1d80a79",
+        "item": "item:peach_macaron"
+      },
+      {
+        "asset": "icon_food_peach_sweet",
+        "path": "packages/assets/ui/icon_food_peach_sweet.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "5347c972a92a307bac0bd4aa7322c03f04454e322e0df1d50574ef6d577af02e",
+        "item": "item:peach_sweet"
+      },
+      {
+        "asset": "icon_food_porridge",
+        "path": "packages/assets/ui/icon_food_porridge.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "dff17a069b24fc672ac8cfdc55e122a3791c92edb65e47f7eacf288cd435bf92",
+        "item": "item:porridge"
+      },
+      {
+        "asset": "icon_food_pumpkin_pie",
+        "path": "packages/assets/ui/icon_food_pumpkin_pie.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "e6f6b65c02542e4c3a361ebc7669fc8988a8b41b7e4122e45cb2c9fc91c658fc",
+        "item": "item:pumpkin_pie"
+      },
+      {
+        "asset": "icon_food_pumpkin_tart",
+        "path": "packages/assets/ui/icon_food_pumpkin_tart.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "063ba389654677b5053b55368462457a193e6fa7c31dcdb537c8a4c89b784111",
+        "item": "item:pumpkin_tart"
+      },
+      {
+        "asset": "icon_food_rice",
+        "path": "packages/assets/ui/icon_food_rice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9245d2b273da6bdc79a5dbe6d243590babf41b352f02f0630db5cdf1f91b4629",
+        "item": "item:rice"
+      },
+      {
+        "asset": "icon_food_rice_cake",
+        "path": "packages/assets/ui/icon_food_rice_cake.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6cd307fc7be36b4cd4fc7e0514f7f778dc0886ede395d367297bb929e10165b3",
+        "item": "item:rice_cake"
+      },
+      {
+        "asset": "icon_food_roast_potato",
+        "path": "packages/assets/ui/icon_food_roast_potato.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "bbf2e0d3843b479476ecff8f5e5ca15cab4a001c65fa136f4efc75e518f46cd7",
+        "item": "item:roast_potato"
+      },
+      {
+        "asset": "icon_food_roast_wrap",
+        "path": "packages/assets/ui/icon_food_roast_wrap.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9e8692a7e557cc25b8625351fbc5823dc7ae1c5501d7db7d33cb544608c5e216",
+        "item": "item:roast_wrap"
+      },
+      {
+        "asset": "icon_food_seaweed",
+        "path": "packages/assets/ui/icon_food_seaweed.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "9fc3b7c3c5362d0ef51a20afcbe6043e25a3a044a776dd850b61b1834c2d4a5b",
+        "item": "item:seaweed"
+      },
+      {
+        "asset": "icon_food_strawberry_cake_slice",
+        "path": "packages/assets/ui/icon_food_strawberry_cake_slice.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0624a21b075e0ff0a7807fa7f2a353c58ef0f4f4826fc84eca15473cf7cfea3e",
+        "item": "item:strawberry_cake_slice"
+      },
+      {
+        "asset": "icon_food_strawberry_cream_drink",
+        "path": "packages/assets/ui/icon_food_strawberry_cream_drink.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "8909996b5853037acb762441c936ff4678e1f27aef5fcf54517a2712b3ca510d",
+        "item": "item:strawberry_cream_drink"
+      },
+      {
+        "asset": "icon_food_strawberry_donut",
+        "path": "packages/assets/ui/icon_food_strawberry_donut.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "ab9c281e535c96d95dd9c2861790a1ece424cd182ee5525dade9961540001732",
+        "item": "item:strawberry_donut"
+      },
+      {
+        "asset": "icon_food_strawberry_frozen_cream",
+        "path": "packages/assets/ui/icon_food_strawberry_frozen_cream.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "22fff3035674e2c8fd52db609807c75158e05d48950cc8ce4761b955ff1495cc",
+        "item": "item:strawberry_frozen_cream"
+      },
+      {
+        "asset": "icon_food_strawberry_jam",
+        "path": "packages/assets/ui/icon_food_strawberry_jam.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "d77d8baa96e36ec7d9cdf6d7922e9d4d3879ecdd6b4aa60e58c0a2281e2a8e1a",
+        "item": "item:strawberry_jam"
+      },
+      {
+        "asset": "icon_food_strawberry_jelly",
+        "path": "packages/assets/ui/icon_food_strawberry_jelly.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "b3342dd8bef3799c89db2d34265fbfcb1eb379b80e373ac1617de811fbfac5c8",
+        "item": "item:strawberry_jelly"
+      },
+      {
+        "asset": "icon_food_strawberry_lollipop",
+        "path": "packages/assets/ui/icon_food_strawberry_lollipop.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "c37dbb0d21e8c5369cdcd23bd632797105f782a8ead859f175d7eafb7dd16e2b",
+        "item": "item:strawberry_lollipop"
+      },
+      {
+        "asset": "icon_food_strawberry_macaron",
+        "path": "packages/assets/ui/icon_food_strawberry_macaron.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "63c635c0872ab0cce9c28c937452a371fd5cd4e7e9384b39330e66ccae552e17",
+        "item": "item:strawberry_macaron"
+      },
+      {
+        "asset": "icon_food_strawberry_sweet",
+        "path": "packages/assets/ui/icon_food_strawberry_sweet.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "2fe87b85729c8ea6c4adcb0e179fa5c67dcfd93018fd22f60600e4ad02e44c44",
+        "item": "item:strawberry_sweet"
+      },
+      {
+        "asset": "icon_food_sugar",
+        "path": "packages/assets/ui/icon_food_sugar.sprite.json",
+        "sourcePR": 95,
+        "sourceCommit": "50da7cf6f27ace8e6017588c1d31966e86a76298",
+        "sha256": "6a53c8213622ca8290c074efc9de7375d32f5e153fcd0ce595f9ff37ab7a42c3",
+        "item": "item:sugar"
+      },
+      {
+        "asset": "icon_food_toast",
+        "path": "packages/assets/ui/icon_food_toast.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "6c09eee9c2be67b5bbadf9faea29296cb66d330565fa12cb39ff9e0c5f13781d",
+        "item": "item:toast"
+      },
+      {
+        "asset": "icon_food_vegetable_pie",
+        "path": "packages/assets/ui/icon_food_vegetable_pie.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "f24e8c6c805c330571c4d389f862baebbc72dbc699051997022fdb39033d833c",
+        "item": "item:vegetable_pie"
+      },
+      {
+        "asset": "icon_food_vegetable_roll",
+        "path": "packages/assets/ui/icon_food_vegetable_roll.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "daa2504504cf4e5f8785da82a0985b1f3aab8234a4d8ce584f4e0ad49c04a956",
+        "item": "item:vegetable_roll"
+      },
+      {
+        "asset": "icon_food_vegetable_soup",
+        "path": "packages/assets/ui/icon_food_vegetable_soup.sprite.json",
+        "sourcePR": 90,
+        "sourceCommit": "c132e2a6e6ff9ab0a9db6bbb06d730afe8f133b7",
+        "sha256": "0ca8b8d7b264f3be6910e1d5ac5214cd19d6fea8aaaa8c4c17b23fb290ef4d4f",
+        "item": "item:vegetable_soup"
+      },
+      {
+        "asset": "prop_alchemy_bench",
+        "path": "packages/assets/props/prop_alchemy_bench.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "9bd07ca4bf9c75096fd722355a195c5548d2a6c4b85b5b2cfb5d7e05ad1328b3",
+        "frameCounts": {
+          "idle": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_alchemy_cask",
+        "path": "packages/assets/props/prop_alchemy_cask.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "b62da608081ef1eb3a50916c209f02d5029f16c2e715d7101d71c55a1be35e96",
+        "frameCounts": {
+          "idle": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_apiary",
+        "path": "packages/assets/props/prop_apiary.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "f8480491a84f338081c56ff074bd6768cc814c15c4672000bbf090d8399109f8",
+        "frameCounts": {
+          "empty": 1,
+          "colony": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_bread_oven",
+        "path": "packages/assets/props/prop_bread_oven.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "ce5c0fd044ae5d188da18733587993598426bf283560e0791a2f48210883ee90",
+        "frameCounts": {
+          "idle": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_copper_still",
+        "path": "packages/assets/props/prop_copper_still.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "2c9d48f5af00591ca6c5ecd947e0497122ae972d05a821aea94c10fed173cc3d",
+        "frameCounts": {
+          "idle": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_kitchen_cauldron",
+        "path": "packages/assets/props/prop_kitchen_cauldron.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "0a9394c9b14e1e7716411cc798f62776bc0c5e48455c5a7799513f9c232ecfa0",
+        "frameCounts": {
+          "idle": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_varietal_press",
+        "path": "packages/assets/props/prop_varietal_press.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "3170ab01b0150598e83b71ccb96c2ed4d6bb5bf154a6bb7921aef3c0e574522f",
+        "frameCounts": {
+          "idle": 1,
+          "working": 4,
+          "finished": 1
+        }
+      },
+      {
+        "asset": "prop_wild_hive",
+        "path": "packages/assets/props/prop_wild_hive.sprite.json",
+        "sourcePR": 94,
+        "sourceCommit": "90ca81af4e33e2540004148af2dd044e1901db64",
+        "sha256": "8c6364bd3e3244a35d71060d89129de89cddea74ebc0bb8dd9132e756da8e20c",
+        "frameCounts": {
+          "idle": 1,
+          "bee_active": 4
+        }
+      }
+    ]
+  }
 }
