@@ -1,11 +1,11 @@
-// v1.0.0 — Reproduce the doc 63 station-art review from committed text grids.
+// v1.0.1 — Reproduce the food & alchemy station-art review (wiki: Art/Sprites, Food & alchemy stations) from committed text grids.
 import process from 'node:process';
 import console from 'node:console';
 import { createCanvas } from '@napi-rs/canvas';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.resolve(root, process.argv[2] ?? 'output/food-alchemy-station-art');
 const world = ['alchemy_bench', 'copper_still', 'kitchen_cauldron', 'bread_oven', 'varietal_press', 'alchemy_cask', 'apiary', 'wild_hive'].map(n => `prop_${n}`);
 const icons = ['alchemy', 'still', 'cauldron', 'oven', 'varietal_press', 'alchemy_cask', 'apiary'].map(n => `icon_alchemy_${n}`);
