@@ -1281,6 +1281,9 @@ export function selectedGeneratedMapDescriptor(
     ?? document.cells[`${marker.tileX},${marker.tileY}`]?.elevation
     ?? document.baseElevation;
   const details = [
+    ...(marker.ownership === undefined ? [] : [{ label: 'Owner',
+      value: marker.ownership === 'world' ? 'WORLD' : 'PLAYER' }]),
+    ...(marker.mapMaterialized === true ? [{ label: 'Placement', value: 'FOLLOWS AUTHORED MAP OBJECT' }] : []),
     ...(marker.open === undefined ? [] : [{ label: 'Open', value: marker.open ? 'YES' : 'NO' }]),
     ...(marker.lit === undefined ? [] : [{ label: 'Lit', value: marker.lit ? 'YES' : 'NO' }]),
     ...(marker.facing === undefined ? [] : [{ label: 'Facing', value: marker.facing.toUpperCase() }]),
