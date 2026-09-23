@@ -30,14 +30,11 @@ describe('docs/53 T6 derived-state cutover', () => {
   });
 
   it('derives current calendar time from authority plus offset on the client', () => {
-    const helper = sourceBetween(
-      clientSource,
-      'function cropCalendarOffsetForSnapshot(',
-      'const npcInteractionUi =',
-    );
+    const helper = readFileSync(new URL('../../client/src/content/timing-clock.ts', import.meta.url), 'utf8');
     expect(helper).toContain('snapshot.environment?.cropCalendarOffset');
     expect(helper).toContain("(snapshot.clock?.authorityTick ?? 0n) + cropCalendarOffsetForSnapshot(snapshot)");
-    expect(clientSource.match(/calendarTickForSnapshot\(snapshot\)/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(clientSource).toContain('snapshotTimingClocks(snapshot)');
+    expect(clientSource.match(/calendarTickForSnapshot\(snapshot\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it('centralizes inventory-derived equipment projection in the shared helper', () => {

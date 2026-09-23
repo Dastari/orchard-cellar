@@ -39,6 +39,15 @@
         }
       },
       {
+        "id": "timing",
+        "kind": "text",
+        "label": "STATUS",
+        "minWidth": 100,
+        "bind": {
+          "timing": "process"
+        }
+      },
+      {
         "id": "backpack",
         "kind": "slots",
         "label": "INVENTORY",
@@ -154,15 +163,6 @@
         }
       },
       {
-        "id": "progress",
-        "kind": "bar",
-        "label": "PROGRESS",
-        "minWidth": 18,
-        "bind": {
-          "process": "progress"
-        }
-      },
-      {
         "id": "output",
         "kind": "slots",
         "label": "COOKED FOOD",
@@ -175,6 +175,15 @@
         },
         "restriction": {
           "readOnly": true
+        }
+      },
+      {
+        "id": "timing",
+        "kind": "text",
+        "label": "STATUS",
+        "minWidth": 100,
+        "bind": {
+          "timing": "process"
         }
       },
       {
@@ -325,15 +334,6 @@
         }
       },
       {
-        "id": "progress",
-        "kind": "bar",
-        "label": "PROGRESS",
-        "minWidth": 18,
-        "bind": {
-          "process": "progress"
-        }
-      },
-      {
         "id": "output",
         "kind": "slots",
         "label": "BOTTLES",
@@ -346,6 +346,15 @@
         },
         "restriction": {
           "readOnly": true
+        }
+      },
+      {
+        "id": "timing",
+        "kind": "text",
+        "label": "STATUS",
+        "minWidth": 100,
+        "bind": {
+          "timing": "process"
         }
       },
       {
@@ -413,15 +422,6 @@
         }
       },
       {
-        "id": "progress",
-        "kind": "bar",
-        "label": "PROGRESS",
-        "minWidth": 18,
-        "bind": {
-          "process": "progress"
-        }
-      },
-      {
         "id": "output",
         "kind": "slots",
         "label": "BARS",
@@ -434,6 +434,15 @@
         },
         "restriction": {
           "readOnly": true
+        }
+      },
+      {
+        "id": "timing",
+        "kind": "text",
+        "label": "STATUS",
+        "minWidth": 100,
+        "bind": {
+          "timing": "process"
         }
       },
       {
@@ -606,15 +615,6 @@
         }
       },
       {
-        "id": "progress",
-        "kind": "bar",
-        "label": "PROGRESS",
-        "minWidth": 18,
-        "bind": {
-          "process": "progress"
-        }
-      },
-      {
         "id": "output",
         "kind": "slots",
         "label": "MUST + POMACE",
@@ -628,6 +628,15 @@
         },
         "restriction": {
           "readOnly": true
+        }
+      },
+      {
+        "id": "timing",
+        "kind": "text",
+        "label": "STATUS",
+        "minWidth": 100,
+        "bind": {
+          "timing": "process"
         }
       },
       {
