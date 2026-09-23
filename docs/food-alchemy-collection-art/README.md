@@ -101,7 +101,13 @@ Passed: isolated `npm ci --ignore-scripts`, workspace typecheck, lint, content
 validation (919 definitions), asset validation (1,331 assets), atlas/UI assets build,
 17 targeted pipeline/registry/UI-metadata/frame-kind tests, exact four-season atlas
 pixel comparison, all-eleven naming/palette/size/anchor/art-bound checks, and
-`git diff --check`. Full `npm test` is still running; the PR records its final result.
+`git diff --check`. The original full `npm test` coverage run reported 145 failures
+in existing plain-icon/native-village source checks because this isolated worktree
+lacked the ignored licensed `references/` directory. A narrow reproduction confirmed
+`ENOENT`; after linking the authorized local reference library, both affected suites
+passed all 147 tests. No source asset or test logic was changed. The original full
+run remains active at handoff; full-suite and exhaustive-phase success are not
+claimed. See the PR for subsequent completion status.
 
 ## Delivery and handoff
 
