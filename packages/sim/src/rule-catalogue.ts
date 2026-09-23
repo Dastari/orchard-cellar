@@ -21,12 +21,24 @@ export type RuleRole = { readonly unavailable: string; readonly medium?: RuleMed
   readonly seasonalRemaps: Readonly<Record<string, RuleFrame>>;
 };
 export interface RuleFamilyIdentity { readonly id: string; readonly kind: RuleKind }
+export interface RuleMaskEntry {
+  readonly mask: number;
+  /** Relevant bits; omitted means the full topology. First match wins. */
+  readonly matchMask?: number;
+  readonly roles: readonly string[];
+}
+export interface RuleLayer {
+  readonly masks: readonly RuleMaskEntry[];
+  readonly fallback: readonly string[];
+}
 export interface AvailableRuleFamily extends RuleFamilyIdentity {
   readonly topology: 'cardinal' | 'eight-way';
   readonly neighbourPredicate: 'same-family' | 'connects-to' | 'matching-tags';
   readonly members: { readonly definitionIds: readonly string[]; readonly assetIds: readonly string[]; readonly tags: readonly string[]; readonly exactAssetIds: readonly string[] };
   /** First matching entry wins; fallback roles are attempted in listed order. */
-  readonly masks: readonly { readonly mask: number; readonly roles: readonly string[] }[];
+  readonly masks: readonly RuleMaskEntry[];
+  /** Independently resolved overlays, after the base layer. */
+  readonly layers?: readonly RuleLayer[];
   readonly fallback: readonly string[];
   readonly roles: Readonly<Record<string, RuleRole>>;
   readonly transforms: readonly RuleTransform[];
@@ -78,22 +90,37 @@ function family(v: unknown, path: string): RuleFamily {
   const r = record(v, path); const id = text(r.id, `${path}.id`);
   const kind = choice(r.kind, RULE_KINDS, `${path}.kind`);
   if ('unavailable' in r) { keys(r, ['id', 'kind', 'unavailable'], path); return { id, kind, unavailable: text(r.unavailable, `${path}.unavailable`) }; }
-  keys(r, ['id', 'kind', 'topology', 'neighbourPredicate', 'members', 'masks', 'fallback', 'roles', 'transforms', 'smart', 'compatibleFamilies'], path);
+  keys(r, ['id', 'kind', 'topology', 'neighbourPredicate', 'members', 'masks', 'fallback', 'roles', 'transforms', 'smart', 'compatibleFamilies', 'layers'], path);
   const topology = choice(r.topology, ['cardinal', 'eight-way'] as const, `${path}.topology`);
   if (kind === 'connect4' && topology !== 'cardinal') invalid(path, 'connect4 requires cardinal topology');
   const m = record(r.members, `${path}.members`); keys(m, ['definitionIds', 'assetIds', 'tags', 'exactAssetIds'], `${path}.members`);
   const members = { definitionIds: strings(m.definitionIds, `${path}.members.definitionIds`), assetIds: strings(m.assetIds, `${path}.members.assetIds`), tags: strings(m.tags, `${path}.members.tags`), exactAssetIds: strings(m.exactAssetIds, `${path}.members.exactAssetIds`) };
   if (members.exactAssetIds.some(id => !members.assetIds.includes(id))) invalid(path, 'exact assets must be members');
   const roles = Object.fromEntries(Object.entries(record(r.roles, `${path}.roles`)).map(([key, v]) => [key, role(v, `${path}.roles.${key}`)]));
-  const masks = list(r.masks, `${path}.masks`).map((v, i) => { const p = `${path}.masks[${i}]`; const m = record(v, p); keys(m, ['mask', 'roles'], p); return { mask: integer(m.mask, `${p}.mask`, topology === 'cardinal' ? 15 : 255), roles: strings(m.roles, `${p}.roles`) }; });
-  if (new Set(masks.map(m => m.mask)).size !== masks.length) invalid(path, 'duplicate mask');
-  const fallback = strings(r.fallback, `${path}.fallback`);
-  for (const id of [...fallback, ...masks.flatMap(m => m.roles)]) if (!Object.prototype.hasOwnProperty.call(roles, id)) invalid(path, `unknown role ${id}`);
+  const maximumMask = topology === 'cardinal' ? 15 : 255;
+  function layer(value: Record<string, unknown>, layerPath: string): RuleLayer {
+    const masks = list(value.masks, `${layerPath}.masks`).map((v, i) => {
+      const p = `${layerPath}.masks[${i}]`; const m = record(v, p);
+      keys(m, ['mask', 'matchMask', 'roles'], p);
+      const mask = integer(m.mask, `${p}.mask`, maximumMask);
+      const matchMask = m.matchMask === undefined ? maximumMask : integer(m.matchMask, `${p}.matchMask`, maximumMask);
+      if ((mask & matchMask) !== mask) invalid(p, 'mask contains ignored bits');
+      return { mask, ...(m.matchMask === undefined ? {} : { matchMask }), roles: strings(m.roles, `${p}.roles`) };
+    });
+    if (new Set(masks.map(m => `${m.mask}/${m.matchMask ?? maximumMask}`)).size !== masks.length) invalid(layerPath, 'duplicate mask');
+    const fallback = strings(value.fallback, `${layerPath}.fallback`);
+    for (const id of [...fallback, ...masks.flatMap(m => m.roles)]) if (!Object.prototype.hasOwnProperty.call(roles, id)) invalid(layerPath, `unknown role ${id}`);
+    return { masks, fallback };
+  }
+  const { masks, fallback } = layer(r, path);
+  const layers = r.layers === undefined ? undefined : list(r.layers, `${path}.layers`).map((v, i) => {
+    const p = `${path}.layers[${i}]`; const entry = record(v, p); keys(entry, ['masks', 'fallback'], p); return layer(entry, p);
+  });
   const transforms = list(r.transforms, `${path}.transforms`).map(v => choice(v, [0, 1, 2, 3, 'flipX'] as const, `${path}.transforms`));
   if (!transforms.length || new Set(transforms).size !== transforms.length) invalid(path, 'transforms must be nonempty and unique');
   for (const value of Object.values(roles)) if (!('unavailable' in value)) for (const f of [value.frame, ...value.variants, ...Object.values(value.seasonalRemaps)]) if (!transforms.includes(f.transform ?? 0)) invalid(path, 'frame transform not allowed');
   const smart = record(r.smart, `${path}.smart`); keys(smart, ['halo', 'formations'], `${path}.smart`);
-  return { id, kind, topology, neighbourPredicate: choice(r.neighbourPredicate, ['same-family', 'connects-to', 'matching-tags'] as const, `${path}.neighbourPredicate`), members, masks, fallback, roles, transforms,
+  return { id, kind, topology, neighbourPredicate: choice(r.neighbourPredicate, ['same-family', 'connects-to', 'matching-tags'] as const, `${path}.neighbourPredicate`), members, masks, fallback, roles, transforms, ...(layers === undefined ? {} : { layers }),
     smart: { halo: integer(smart.halo, `${path}.smart.halo`, 64), formations: strings(smart.formations, `${path}.smart.formations`) }, compatibleFamilies: strings(r.compatibleFamilies, `${path}.compatibleFamilies`) };
 }
 export function parseRuleCatalogue(value: unknown): RuleCatalogue {
@@ -120,8 +147,11 @@ export interface ResolvedRuleFrame extends RuleFrame { readonly role: string; re
  * Entropy is supplied by the caller (for example a stable cell hash), never RNG. */
 export function resolveRuleFrame(family: RuleFamily, mask: number, entropy = 0, season?: string): ResolvedRuleFrame | null {
   if ('unavailable' in family) return null;
+  return resolveLayerFrame(family, family, mask, entropy, season);
+}
+function resolveLayerFrame(family: AvailableRuleFamily, layer: RuleLayer, mask: number, entropy: number, season?: string): ResolvedRuleFrame | null {
   const normalized = mask & (family.topology === 'cardinal' ? 15 : 255);
-  for (const id of [...(family.masks.find(m => m.mask === normalized)?.roles ?? []), ...family.fallback]) {
+  for (const id of [...(layer.masks.find(m => (normalized & (m.matchMask ?? (family.topology === 'cardinal' ? 15 : 255))) === m.mask)?.roles ?? []), ...layer.fallback]) {
     const role = family.roles[id]; if (!role || 'unavailable' in role) continue;
     let selected = role.frame;
     if (season !== undefined && role.seasonalRemaps[season]) selected = role.seasonalRemaps[season]!;
@@ -133,4 +163,13 @@ export function resolveRuleFrame(family: RuleFamily, mask: number, entropy = 0, 
     return { assetId: selected.assetId, frame: selected.frame, ...(selected.transform === undefined ? {} : { transform: selected.transform }), role: id, blocksMovement: role.blocksMovement, blocksLight: role.blocksLight };
   }
   return null;
+}
+
+/** Base followed by each independently selected overlay; transparent bases are valid. */
+export function resolveRuleLayers(family: RuleFamily, mask: number, entropy = 0, season?: string): readonly ResolvedRuleFrame[] {
+  if ('unavailable' in family) return [];
+  return [family, ...(family.layers ?? [])].flatMap(layer => {
+    const frame = resolveLayerFrame(family, layer, mask, entropy, season);
+    return frame === null ? [] : [frame];
+  });
 }

@@ -5,9 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Combined progression content: 920 definitions, 584644 runtime bytes.
+// Combined wave2 content: 920 definitions, 618,309 runtime bytes.
 // Retain the measured next-whole-KiB regression envelope.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 571 * 1024;
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 604 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

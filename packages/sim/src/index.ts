@@ -202,3 +202,5 @@ export * from './progression.js';
 export * from './content/progression-definition.js';
 export * from './content/balance-fields.js';
 export * from './behaviour/authored-hooks.js';
+
+export * from './terrain-rule-catalogue.js';

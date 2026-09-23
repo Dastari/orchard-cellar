@@ -61,3 +61,12 @@ with authoritative geometry, ownership labels and outgoing portal links. Supply
 include residence expansion and architecture; cellars use the existing 1024-tile
 envelope. Private run rows must be projected behind caller authorization.
 See [the F4 specification](../../docs/studio-multi-space-spec.md).
+## Authored terrain rule layers
+
+`parseRuleCatalogue` validates optional per-family `layers` and per-entry
+`matchMask` fields. `resolveRuleFrame` resolves the base; `resolveRuleLayers`
+returns base then independent overlays, with first-match and role fallback order.
+`ruleNeighbourMask` samples NESW, NE, SE, SW, NW. `terrainRuleLayers` compiles the
+finite mask domain per immutable catalogue identity; `farmlandRuleLayers` uses
+the committed farmland catalogue shared by authored and hoed soil.
+See [the contract](../../docs/rule-catalogue-blob47-spec.md).

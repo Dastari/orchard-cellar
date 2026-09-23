@@ -1,3 +1,5 @@
+import { terrainRuleLayers, ruleNeighbourMask } from '@orchard/sim';
+import { authoredFarmlandRuleLayersAt } from './terrain.js';
 import {hearthDoorwayFeatures} from './hearth-doorway.js';
 import {residenceWallAt} from './residence-wall.js';
 import { groundLightSource } from './ground-light-source.js';
@@ -26,7 +28,6 @@ import type { LoadedAsset } from '@orchard/ui';
 import { selectAtlasFrame, snapRectForContext } from '@orchard/ui';
 import {
   beachFrameIndexAt,
-  authoredFarmlandFrameIndexAt,
   desertGrassEdgeFrameIndexAt,
   desertGrassInsetFrameIndicesAt,
   desertShoreFrameIndexAt,
@@ -286,7 +287,7 @@ export interface CellarGroundVisualLayer {
 }
 
 export interface AuthoredFarmlandGroundLayer {
-  readonly asset: 'tile_cf_farmland' | 'tile_cf_farmland_grass_inset';
+  readonly asset: string;
   readonly frame: number;
 }
 
@@ -297,14 +298,7 @@ export function authoredFarmlandGroundLayersAt(
   tileX: number,
   tileY: number,
 ): readonly AuthoredFarmlandGroundLayer[] {
-  const frame = authoredFarmlandFrameIndexAt(terrain, tileX, tileY);
-  if (frame === null) return [];
-  return [
-    { asset: 'tile_cf_farmland', frame },
-    ...(frame === 0
-      ? []
-      : [{ asset: 'tile_cf_farmland_grass_inset' as const, frame }]),
-  ];
+  return authoredFarmlandRuleLayersAt(terrain,tileX,tileY).map(({assetId,frame})=>({asset:assetId,frame}));
 }
 
 function cellarFloorDetailLayersAt(
@@ -529,20 +523,8 @@ export function authoredGrassFringeLayersAt(terrain: TerrainArray, tileX: number
   if(own===null&&!all.some(family=>family!==null&&family!=='grass_1'))return null;
   const layers:{assetId:string;frame:number}[]=[];
   for(const family of new Set(all.filter(value=>value!==null))){
-    const definition=TERRAIN_SURFACE_FAMILIES[family];
-    const mask=(all[0]===family?1:0)|(all[1]===family?2:0)|(all[2]===family?4:0)|(all[3]===family?8:0);
-    // Adjacent sides use native corners, not overlapping straight fringes.
-    // Opposite sides fill the tile; sheet frame 17 is transparent, so use the
-    // separate opaque middle asset. -2 means no cardinal, -1 means full fill.
-    const frame=[-2,1,18,2,33,-1,34,-1,16,0,-1,-1,32,-1,-1,-1][mask]!;
-    if(frame===-1){layers.push({assetId:definition.assetId,frame:0});continue;}
-    if(frame>=0)layers.push({assetId:definition.sheetAssetId,frame});
-    // Flat diagonal fringes are the native quartet at columns 0–1, rows 3–4,
-    // distinct from raised ledge insets. Their taper spans the entire 16px tile.
-    for(const [dx,dy,corner] of [[-1,-1,65],[1,-1,64],[-1,1,49],[1,1,48]] as const){
-      if(neighbor(dx,dy)===family&&neighbor(dx,0)!==family&&neighbor(0,dy)!==family)
-        layers.push({assetId:definition.sheetAssetId,frame:corner});
-    }
+    const mask=ruleNeighbourMask((dx,dy)=>neighbor(dx,dy)===family);
+    for(const {assetId,frame} of terrainRuleLayers(`${family}_fringe`,mask))layers.push({assetId,frame});
   }
   layers.sort((a,b)=>b.assetId.localeCompare(a.assetId));
   return layers;
@@ -1197,11 +1179,13 @@ export class GroundChunkCache {
           );
 
         const exactFarmland = exactSlot('farmland');
-        for (const layer of authoredFarmlandGroundLayersAt(terrain, tileX, tileY)) {
-          if (layer.asset === 'tile_cf_farmland' ? exactFarmland : exactFarmlandInset) continue;
+        for (const [layerIndex,layer] of authoredFarmlandGroundLayersAt(terrain, tileX, tileY).entries()) {
+          if (layerIndex === 0 ? exactFarmland : exactFarmlandInset) continue;
+          const asset=art.terrainAssets[layer.asset] ?? (layer.asset==='tile_cf_farmland'?art.farmland:layer.asset==='tile_cf_farmland_grass_inset'?art.farmlandGrassInset:undefined);
+          if(!asset)continue;
           drawGroundAsset(
             context,
-            layer.asset === 'tile_cf_farmland' ? art.farmland : art.farmlandGrassInset,
+            asset,
             localX,
             localY,
             layer.frame,
