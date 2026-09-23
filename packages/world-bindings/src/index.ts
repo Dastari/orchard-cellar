@@ -97,6 +97,7 @@ import AdminUnstickReducer from "./admin_unstick_reducer";
 import AdminVerifyLegacyChestsReducer from "./admin_verify_legacy_chests_reducer";
 import AdminVerifyLegacyFarmRetirementReducer from "./admin_verify_legacy_farm_retirement_reducer";
 import ApproveMemberReducer from "./approve_member_reducer";
+import ApproveStudioScriptReducer from "./approve_studio_script_reducer";
 import BuyMerchantCartReducer from "./buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "./buy_merchant_item_reducer";
 import CancelTradeReducer from "./cancel_trade_reducer";
@@ -185,6 +186,7 @@ import SetHomesteadMemberRoleReducer from "./set_homestead_member_role_reducer";
 import SetInputReducer from "./set_input_reducer";
 import SetMessageOfDayReducer from "./set_message_of_day_reducer";
 import SetQuestPinnedReducer from "./set_quest_pinned_reducer";
+import SetStudioScopeReducer from "./set_studio_scope_reducer";
 import SetTradeAcceptedReducer from "./set_trade_accepted_reducer";
 import SetTradeOfferBronzeReducer from "./set_trade_offer_bronze_reducer";
 import SetTradeOfferItemReducer from "./set_trade_offer_item_reducer";
@@ -196,6 +198,7 @@ import SkipRogueRewardReducer from "./skip_rogue_reward_reducer";
 import SortMenuContainerReducer from "./sort_menu_container_reducer";
 import StandHearthFurnitureReducer from "./stand_hearth_furniture_reducer";
 import StartRogueRunReducer from "./start_rogue_run_reducer";
+import SubmitStudioScriptReducer from "./submit_studio_script_reducer";
 import TendTreeReducer from "./tend_tree_reducer";
 import ThrowMenuItemReducer from "./throw_menu_item_reducer";
 import ToggleHomesteadGateReducer from "./toggle_homestead_gate_reducer";
@@ -218,8 +221,13 @@ import * as AdminMissingContainerRecoveryProcedure from "./admin_missing_contain
 import * as AdminPlayerInventoryProcedure from "./admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "./admin_player_mutation_result_procedure";
 import * as AdminPlayerSnapshotProcedure from "./admin_player_snapshot_procedure";
+import * as AdminStudioMembersProcedure from "./admin_studio_members_procedure";
+import * as AdminStudioScopesProcedure from "./admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
+import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
+import * as StudioScopeReceiptProcedure from "./studio_scope_receipt_procedure";
+import * as StudioScriptReviewProcedure from "./studio_script_review_procedure";
 
 // Import all table schema definitions
 import ActiveFarmSkillNodesRow from "./active_farm_skill_nodes_table";
@@ -281,6 +289,7 @@ import OwnRogueRunRow from "./own_rogue_run_table";
 import OwnRogueRunUpgradesRow from "./own_rogue_run_upgrades_table";
 import OwnSessionChatNoticesRow from "./own_session_chat_notices_table";
 import OwnStatsRow from "./own_stats_table";
+import OwnStudioScopeGrantsRow from "./own_studio_scope_grants_table";
 import OwnSupportGrantRow from "./own_support_grant_table";
 import OwnSurvivalRow from "./own_survival_table";
 import OwnTradeOffersRow from "./own_trade_offers_table";
@@ -1237,6 +1246,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnStatsRow),
+  ownStudioScopeGrants: __table({
+    name: 'own_studio_scope_grants',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnStudioScopeGrantsRow),
   ownSupportGrant: __table({
     name: 'own_support_grant',
     indexes: [
@@ -1367,6 +1383,7 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_verify_legacy_chests", AdminVerifyLegacyChestsReducer),
   __reducerSchema("admin_verify_legacy_farm_retirement", AdminVerifyLegacyFarmRetirementReducer),
   __reducerSchema("approve_member", ApproveMemberReducer),
+  __reducerSchema("approve_studio_script", ApproveStudioScriptReducer),
   __reducerSchema("buy_merchant_cart", BuyMerchantCartReducer),
   __reducerSchema("buy_merchant_item", BuyMerchantItemReducer),
   __reducerSchema("cancel_trade", CancelTradeReducer),
@@ -1455,6 +1472,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_input", SetInputReducer),
   __reducerSchema("set_message_of_day", SetMessageOfDayReducer),
   __reducerSchema("set_quest_pinned", SetQuestPinnedReducer),
+  __reducerSchema("set_studio_scope", SetStudioScopeReducer),
   __reducerSchema("set_trade_accepted", SetTradeAcceptedReducer),
   __reducerSchema("set_trade_offer_bronze", SetTradeOfferBronzeReducer),
   __reducerSchema("set_trade_offer_item", SetTradeOfferItemReducer),
@@ -1466,6 +1484,7 @@ const reducersSchema = __reducers(
   __reducerSchema("sort_menu_container", SortMenuContainerReducer),
   __reducerSchema("stand_hearth_furniture", StandHearthFurnitureReducer),
   __reducerSchema("start_rogue_run", StartRogueRunReducer),
+  __reducerSchema("submit_studio_script", SubmitStudioScriptReducer),
   __reducerSchema("tend_tree", TendTreeReducer),
   __reducerSchema("throw_menu_item", ThrowMenuItemReducer),
   __reducerSchema("toggle_homestead_gate", ToggleHomesteadGateReducer),
@@ -1490,8 +1509,13 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_player_inventory", AdminPlayerInventoryProcedure.params, AdminPlayerInventoryProcedure.returnType),
   __procedureSchema("admin_player_mutation_result", AdminPlayerMutationResultProcedure.params, AdminPlayerMutationResultProcedure.returnType),
   __procedureSchema("admin_player_snapshot", AdminPlayerSnapshotProcedure.params, AdminPlayerSnapshotProcedure.returnType),
+  __procedureSchema("admin_studio_members", AdminStudioMembersProcedure.params, AdminStudioMembersProcedure.returnType),
+  __procedureSchema("admin_studio_scopes", AdminStudioScopesProcedure.params, AdminStudioScopesProcedure.returnType),
   __procedureSchema("admin_telemetry", AdminTelemetryProcedure.params, AdminTelemetryProcedure.returnType),
   __procedureSchema("admin_validate_world", AdminValidateWorldProcedure.params, AdminValidateWorldProcedure.returnType),
+  __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
+  __procedureSchema("studio_scope_receipt", StudioScopeReceiptProcedure.params, StudioScopeReceiptProcedure.returnType),
+  __procedureSchema("studio_script_review", StudioScriptReviewProcedure.params, StudioScriptReviewProcedure.returnType),
 );
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {

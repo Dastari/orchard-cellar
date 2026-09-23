@@ -1,3 +1,4 @@
+import { CONTENT_SCOPES, resolveStudioScopes, type StudioScope, type ScopeOverride } from '../../../sim/src/studio-scopes.js';
 import type { StudioMode } from './studio-models.js';
 
 export type StudioRole = 'owner' | 'admin' | 'content_editor' | 'support' | 'moderator';
@@ -66,4 +67,32 @@ export function firstAccessibleStudioMode(role: string | null): StudioMode {
 
 export function studioRoleCan(role: string | null, capability: StudioCapability): boolean {
   return isStudioRole(role) && ROLE_CAPABILITIES[role].includes(capability);
+}
+
+/** Caller-private scope rows are presentation only; reducers re-check authority. */
+export { resolveStudioScopes };
+export type { StudioScope, ScopeOverride };
+export function studioScopedModeAccess(scopes: readonly StudioScope[], mode: StudioMode): StudioAccess {
+  if (mode === 'observe') return scopes.includes('observe') ? 'read_only' : 'hidden';
+  if (mode === 'operate') return scopes.some(s => s.startsWith('operate.')) ? 'write' : scopes.includes('observe') ? 'read_only' : 'hidden';
+  return scopes.some(s => CONTENT_SCOPES.includes(s) || s === 'audio' || s === 'art' || s === 'scripts.author') ? 'write' : 'hidden';
+}
+const TOOL_SCOPES: Readonly<Record<string, readonly StudioScope[]>> = {
+  map: ['map'], tiles: ['tilesets'], object: ['objects'], items: ['items_economy'],
+  narrative: ['narrative', 'actors'], 'npc-studio': ['actors'], 'dialogue-graph': ['narrative'], 'quest-editor': ['narrative'], character: ['art'], audio: ['audio'], 'ui-lab': ['frames'],
+  'world-tables': CONTENT_SCOPES, 'pack-studio': CONTENT_SCOPES,
+  players: ['operate.players'], playbooks: ['operate.players'], membership: ['operate.membership'],
+  world: ['operate.world'], objects: ['operate.world'], containers: ['operate.world'], npcs: ['operate.world'],
+  observe: ['observe'],
+};
+export function studioScopedToolAccess(scopes: readonly StudioScope[], tool: string): StudioAccess {
+  const required = TOOL_SCOPES[tool] ?? [];
+  if (required.some(scope => scopes.includes(scope))) return tool === 'observe' ? 'read_only' : 'write';
+  return scopes.includes('observe') ? 'read_only' : 'hidden';
+}
+
+/** Explicit operation grants use the full domain policy; legacy support keeps its caps. */
+export function studioScopedOperateRole(role: StudioRole | null, explicitScopes: readonly StudioScope[], tool: string): StudioRole | null {
+  const scope = tool === 'players' || tool === 'playbooks' ? 'operate.players' : 'operate.world';
+  return tool !== 'membership' && explicitScopes.includes(scope) ? 'admin' : role;
 }

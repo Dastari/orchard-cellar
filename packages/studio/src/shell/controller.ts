@@ -60,7 +60,9 @@ export class StudioShellController {
   activeRoute(): StudioToolRoute {
     const role = this.session.snapshot().role;
     return this.tools.resolve(this.#activePath, role)
-      ?? this.tools.routes(role).find(({ tool }) => tool.mode === firstAccessibleStudioMode(role))!;
+      ?? this.tools.routes(role).find(({ tool }) => tool.mode === firstAccessibleStudioMode(role))
+      ?? this.tools.routes(role)[0]
+      ?? { path: '/build/map', tool: this.tools.tools().find(tool => tool.id === 'map')!, access: 'read_only' };
   }
 
   navigate(path: string): boolean {
@@ -101,6 +103,7 @@ export class StudioShellController {
   disconnect(): void {
     this.#adapter?.disconnect();
     this.#adapter = null;
+    this.tools.setScopes(undefined);
     this.session.disconnected();
     if (studioModeAccess(null, this.activeRoute().tool.mode) === 'hidden') this.navigate('/build/map');
     this.onChanged();
@@ -144,9 +147,12 @@ export class StudioShellController {
 
   private reconcileConnection(): void {
     const view = this.#adapter?.view();
+    this.tools.setScopes(view?.connected ? view.scopes : undefined,
+      view?.role === 'owner' || view?.role === 'admin' || view?.explicitScopes?.includes('map') === true);
     if (view === undefined) return;
     if (view.connected && view.identity !== null && view.role !== null) {
       this.session.connected({ identity: view.identity, role: view.role, contentRevision: view.contentRevision, mapRevision: view.mapRevision });
+      this.session.setMode(this.activeRoute().tool.mode);
     } else if (!view.connected && this.session.snapshot().phase === 'connected') this.session.failed(view.error ?? 'Connection lost. Reconnect to continue editing the live map.');
     else if (view.error !== null) this.session.failed(view.error);
     else if (view.connected && !view.synchronizing && view.identity !== null) this.session.failed('studio_role_required');

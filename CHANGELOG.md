@@ -2,6 +2,10 @@
 
 ## 0.24.0 — 2026-09-23
 
+- Add server-enforced Studio domain scopes with additive grant overrides, legacy access compatibility, audited previews, stale-state protection and idempotent audit receipts.
+- Check all content kinds in publishes, deletions and restores, and gate administration families. Studio mirrors private scope state in tool access.
+- Bind script review records to artifact hashes and authenticated authors; require a separately scoped approver. Reviewed warm-build release gates remain required.
+
 - Integrate object-archetype form schemas, omitting excluded optional-never keys;
   arrange the schema specimen beside data controls to avoid district overlap.
 

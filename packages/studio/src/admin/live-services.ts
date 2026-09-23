@@ -1,3 +1,4 @@
+import { isStudioScope } from '../../../sim/src/studio-scopes.js';
 import { Identity } from 'spacetimedb';
 import type { DbConnection } from '@orchard/world-bindings';
 import { diffAdminValues, type AdminJsonObject, type AdminJsonValue } from '@orchard/sim';
@@ -236,26 +237,6 @@ function commonArgs(mutation: AdminPlayerMutation | AdminEntityMutation, expecte
   };
 }
 
-function membershipVersion(snapshot: AdminPlayerSnapshot): string {
-  const { role, grants, blocked, revoked } = snapshot.membership;
-  return JSON.stringify([role, [...grants].sort(), blocked, revoked]);
-}
-
-function membershipRow(snapshot: AdminPlayerSnapshot): MembershipAdminRow {
-  return Object.freeze({
-    identity: snapshot.identity,
-    displayName: snapshot.displayName,
-    role: snapshot.membership.role,
-    grants: Object.freeze([...snapshot.membership.grants]),
-    blocked: snapshot.membership.blocked,
-    revoked: snapshot.membership.revoked,
-    // Authority enforces the actual invariant. Conservatively protect owners in
-    // the UI because the bounded search procedure cannot prove another owner exists.
-    lastActiveOwner: snapshot.membership.role === 'owner',
-    version: membershipVersion(snapshot),
-  });
-}
-
 /** All connected admin tools share this service and therefore the shell's one
  * DbConnection/subscription. It never constructs a connection or stores auth. */
 export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, MembershipApi, ObserveApi,
@@ -452,20 +433,39 @@ export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, Membe
   }
 
   async list(query: string): Promise<readonly MembershipAdminRow[]> {
-    const page = await this.findPlayers(query, null);
-    const snapshots = await Promise.all(page.rows.slice(0, 50).map(({ identity }) => this.playerSnapshot(identity)));
-    return Object.freeze(snapshots.map(membershipRow));
+    const data: unknown = JSON.parse(await requiredConnection(this.connection).procedures.adminStudioMembers({ query }));
+    if (!Array.isArray(data) || data.some(row => typeof row !== 'object' || row === null
+      || typeof row.identity !== 'string' || typeof row.version !== 'string' || !Array.isArray(row.scopes)
+      || !row.scopes.every((scope: unknown) => typeof scope === 'string' && isStudioScope(scope)))) {
+      throw new Error('invalid_membership_response');
+    }
+    return data as MembershipAdminRow[];
   }
 
   async preview(targetIdentity: string, mutation: MembershipMutationDraft, reason: string,
     clientMutationId: string, expectedVersion: string): Promise<MembershipPreview> {
     if (reason.trim().length < 8) throw new Error('admin_invalid_reason');
-    const before = membershipRow(await this.playerSnapshot(targetIdentity));
+    if (mutation.operation === 'set_scope') {
+      const response: unknown = JSON.parse(await requiredConnection(this.connection).procedures.previewStudioScope({
+        identity: asIdentity(targetIdentity), scope: mutation.scope, granted: mutation.granted, reason, clientMutationId,
+      }));
+      if (typeof response !== 'object' || response === null || !('version' in response) || typeof response.version !== 'string'
+        || !('before' in response) || typeof response.before !== 'boolean' || !('after' in response) || typeof response.after !== 'boolean') {
+        throw new Error('invalid_scope_preview');
+      }
+      if (response.version !== expectedVersion) throw new Error('admin_preview_stale');
+      const preview = Object.freeze({ token: clientMutationId, targetIdentity, baseVersion: response.version, mutation,
+        preview: diffAdminValues({ [mutation.scope]: response.before }, { [mutation.scope]: response.after }), warnings: [] });
+      this.#membershipPreviews.set(clientMutationId, preview);
+      return preview;
+    }
+    const before = (await this.list(targetIdentity)).find(row => row.identity === targetIdentity);
+    if (before === undefined) throw new Error('admin_target_not_found');
     if (before.version !== expectedVersion) throw new Error('admin_world_revision_conflict');
     const after = this.applyMembership(before, mutation);
     const changes = diffAdminValues(
-      { role: before.role, grants: before.grants, blocked: before.blocked, revoked: before.revoked },
-      { role: after.role, grants: after.grants, blocked: after.blocked, revoked: after.revoked },
+      { role: before.role, grants: before.grants, scopes: before.scopes ?? [], blocked: before.blocked, revoked: before.revoked },
+      { role: after.role, grants: after.grants, scopes: after.scopes ?? [], blocked: after.blocked, revoked: after.revoked },
     ).changes;
     const result = Object.freeze({ token: clientMutationId, targetIdentity, baseVersion: expectedVersion,
       mutation, preview: Object.freeze({ changes, truncated: false }),
@@ -477,11 +477,13 @@ export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, Membe
   async commit(preview: MembershipPreview, reason: string): Promise<MembershipCommitResult> {
     const staged = this.#membershipPreviews.get(preview.token);
     if (staged === undefined || JSON.stringify(staged) !== JSON.stringify(preview)) throw new Error('admin_preview_required');
-    const current = membershipRow(await this.playerSnapshot(preview.targetIdentity));
+    const current = (await this.list(preview.targetIdentity)).find(row => row.identity === preview.targetIdentity);
+    if (current === undefined) throw new Error('admin_target_not_found');
     if (current.version !== preview.baseVersion) throw new Error('admin_preview_stale');
     const connection = requiredConnection(this.connection); const identity = asIdentity(preview.targetIdentity);
     const inverse = this.inverseMembership(current, preview.mutation);
     switch (preview.mutation.operation) {
+      case 'set_scope': await connection.reducers.setStudioScope({ identity, scope: preview.mutation.scope, granted: preview.mutation.granted, reason, clientMutationId: preview.token, expectedVersion: preview.baseVersion }); break;
       case 'approve': case 'set_role': await connection.reducers.approveMember({ identity, role: preview.mutation.role }); break;
       case 'revoke': await connection.reducers.revokeMember({ identity, blocked: false }); break;
       case 'set_blocked': {
@@ -495,8 +497,9 @@ export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, Membe
       case 'revoke_support': await connection.reducers.adminRevokeSupport({ identity, reason, clientMutationId: preview.token }); break;
     }
     this.#membershipPreviews.delete(preview.token);
-    return Object.freeze({ row: membershipRow(await this.playerSnapshot(preview.targetIdentity)),
-      auditId: `membership:${preview.token}`, inverse });
+    return Object.freeze({ row: (await this.list(preview.targetIdentity)).find(row => row.identity === preview.targetIdentity) ?? current,
+      auditId: preview.mutation.operation === 'set_scope'
+        ? await connection.procedures.studioScopeReceipt({ clientMutationId: preview.token }) : `membership:${preview.token}`, inverse });
   }
 
   async auditPage(filter: Readonly<Record<string, string>>, cursor: string | null): Promise<AdminPage<AdminAuditRow>> {
@@ -639,6 +642,7 @@ export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, Membe
     if (mutation.operation === 'grant_support') grants.add('support');
     if (mutation.operation === 'revoke_support') grants.delete('support');
     return Object.freeze({ ...row,
+      ...(mutation.operation === 'set_scope' ? { scopes: mutation.granted ? [...new Set([...(row.scopes ?? []), mutation.scope])] : (row.scopes ?? []).filter(scope => scope !== mutation.scope) } : {}),
       ...(mutation.operation === 'approve' || mutation.operation === 'set_role' ? { role: mutation.role, revoked: false, blocked: false } : {}),
       ...(mutation.operation === 'revoke' ? { revoked: true } : {}),
       ...(mutation.operation === 'set_blocked' ? { blocked: mutation.blocked } : {}),
@@ -647,6 +651,8 @@ export class StudioLiveAdminServices implements AdminApi, AdminObjectsApi, Membe
 
   private inverseMembership(row: MembershipAdminRow, mutation: MembershipMutationDraft): MembershipMutationDraft | null {
     switch (mutation.operation) {
+      case 'set_scope': return { operation: 'set_scope', scope: mutation.scope, granted: (row.scopes ?? []).includes(mutation.scope) };
+
       case 'approve': case 'set_role': return { operation: 'set_role', role: row.role };
       case 'set_blocked': return { operation: 'set_blocked', blocked: row.blocked };
       case 'grant_content_editor': return { operation: 'revoke_content_editor' };

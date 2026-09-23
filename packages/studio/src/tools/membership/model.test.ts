@@ -31,3 +31,16 @@ describe('MembershipManagerModel', () => {
     await expect(model.commit()).rejects.toThrow('admin_preview_required');
   });
 });
+
+describe('delegated scope grants', () => {
+  it('lets a scoped manager preview and revoke one domain without granting role administration', async () => {
+    const model = new MembershipManagerModel(new MockMembershipApi(), 'content_editor', () => 'scope-grant-1', ['operate.membership', 'objects']);
+    await model.search('bea'); model.select('identity-bea'); model.setReason('Delegate object authoring');
+    await expect(model.preview({ operation: 'set_role', role: 'owner' })).rejects.toThrow('membership_owner_required');
+    await model.preview({ operation: 'set_scope', scope: 'objects', granted: true });
+    expect((await model.commit()).row.scopes).toEqual(['objects']);
+    model.setReason('Revoke object authoring');
+    await model.preview({ operation: 'set_scope', scope: 'objects', granted: false });
+    expect((await model.commit()).row.scopes).toEqual([]);
+  });
+});

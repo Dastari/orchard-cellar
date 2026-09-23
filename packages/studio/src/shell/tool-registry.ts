@@ -14,7 +14,7 @@ import { PLAYBOOKS_TOOL_REGISTRATION } from '../tools/playbooks/model.js';
 import { UI_LAB_TOOL_REGISTRATION } from '../tools/ui-lab/model.js';
 import { TILES_TOOL_REGISTRATION } from '../tools/tiles/contracts.js';
 import { WORLD_AUTHORING_TOOL_REGISTRATIONS } from '../tools/world-tables/contracts.js';
-import { studioModeAccess, type StudioAccess } from './access.js';
+import { studioModeAccess, studioScopedToolAccess, type StudioScope, type StudioAccess } from './access.js';
 
 export interface StudioCommandDefinition {
   readonly id: string;
@@ -40,6 +40,11 @@ export interface StudioToolRoute {
 }
 
 export class StudioToolRegistry {
+  #scopes: readonly StudioScope[] | undefined;
+  #liveMapWritable = true;
+  setScopes(scopes: readonly StudioScope[] | undefined, liveMapWritable = true): void {
+    this.#scopes = scopes; this.#liveMapWritable = liveMapWritable;
+  }
   readonly #tools = new Map<string, StudioToolDefinition>();
 
   registerStudioTool(tool: StudioToolDefinition): () => void {
@@ -66,7 +71,9 @@ export class StudioToolRegistry {
 
   routes(role: string | null): readonly StudioToolRoute[] {
     return Object.freeze(this.tools().flatMap((tool) => {
-      const access = studioModeAccess(role, tool.mode);
+      const scopedAccess = this.#scopes === undefined ? studioModeAccess(role, tool.mode) : studioScopedToolAccess(this.#scopes, tool.id);
+      const access = this.#scopes !== undefined && tool.id === 'map' && scopedAccess === 'write' && !this.#liveMapWritable
+        ? 'read_only' : scopedAccess;
       return access === 'hidden' ? [] : tool.routes.map((path) => ({ path, tool, access }));
     }));
   }
