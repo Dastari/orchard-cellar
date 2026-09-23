@@ -1,0 +1,35 @@
+{
+  "name": "icon_alchemy_strawberry_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....DDDD.......",
+        "....DDDFDD......",
+        ".....DFFD.......",
+        "....DHHFFD.DD...",
+        "...DDHHFFDDEED..",
+        "..DHaabbaaD..D..",
+        "..DHnnllllD..D..",
+        "..DHnmmlllDEED..",
+        "..DDJmmllJDDD...",
+        "..DDJJllJJD.....",
+        "...DJJjjJJD.....",
+        "....SSSSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true
+}
