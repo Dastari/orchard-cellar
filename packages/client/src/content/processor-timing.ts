@@ -49,7 +49,7 @@ function computeProcessorTiming(placeable: WorldPlaceable, authorityTick: bigint
   const startTick = adapter === 'smelting' ? placeable.smeltStartTick
     : adapter === 'campfire_cooking' ? placeable.cookStartTick
       : adapter === 'barrel' ? placeable.barrelSealedTick : placeable.processStartTick;
-  const timing = projectTiming({ kind: 'process', definitions, adapter, durationTicks, startTick,
+  const timing = projectTiming({ kind: 'process', definitions, adapter, durationTicks, startTick, lit: placeable.lit,
     ...(slots === undefined ? {} : { state: { slots, startTick, lit: placeable.lit } }),
     options: { topology, ticksPerUnit: durationTicks, catchUpCap: processor.catchUpCap,
       maxStackForItem: kind => runtimeItemDefinition(context.registry, kind)?.maxStack ?? null,

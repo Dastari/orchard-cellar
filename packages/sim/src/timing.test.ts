@@ -51,6 +51,11 @@ describe('shared timing projection', () => {
     expect(projectTiming({ ...fire, state: { ...fire.state!, lit: false } }, 120n)).toMatchObject({ status: 'blocked', reason: 'fire-out' });
   });
 
+  it('uses public extinguished-fire state even when inventory is closed', () => {
+    const { state: _state, ...source } = fixture('campfire_cooking');
+    expect(projectTiming({ ...source, lit: false }, 120n)).toMatchObject({ status: 'blocked', reason: 'fire-out', remainingActiveTicks: null });
+  });
+
   it('never calls an unsealed barrel input ready output', () => {
     const source = fixture('barrel');
     expect(projectTiming({ ...source, startTick: undefined, state: { ...source.state!, startTick: undefined } }, 120n))
