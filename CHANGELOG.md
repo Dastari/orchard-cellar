@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0 — 2026-09-23
+
+- Add the versioned, validated tileset rule catalogue and deterministic mask/role interpreter. Existing cliff content stays unchanged.
+- Fence/hedge compatibility assets and frames are authored data; live Studio and game objects join by definition membership and `connectsTo` IDs/tags. Runtime content can replace join art without changing code.
+- Pin pre-migration resolver outputs for raised terrain, transition/shore, blob47/farmland, waterfall lanes, cave patches and connect4 masks.
+
 ## 0.23.1 — 2026-09-22
 
 - Studio 0.13.1 paints newly loaded palette thumbnails while the placement-mode menu stays open, preserving its selection and drawer scroll.

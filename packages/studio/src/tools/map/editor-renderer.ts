@@ -2,7 +2,7 @@ import { patchMapEditorTerrain } from './editor-terrain-patch.js';
 import { drawStudioLiveGroundPaths } from './live-ground-paths.js';
 import { terrainMinimumElevation, terrainMaximumElevation } from '@orchard/engine/terrain';
 import { writeEditorMapOverviewPixel } from './editor-map-overview.js';
-import { connectedObjectFamily, connectedObjectIndex } from '@orchard/sim';
+import { connectedObjectDefinitionFamily, connectedObjectCatalogue, connectedObjectIndex } from '@orchard/sim';
 import { drawConnectedObject } from '@orchard/engine/connected-objects';
 import {
   TILE_SIZE_PIXELS,
@@ -1172,12 +1172,13 @@ export class MapEditorRenderer {
 
     if (drawLiveArtwork) {
       const liveAnimationFrame = Math.floor(performance.now() / 125);
+      const connectionCatalogue=connectedObjectCatalogue(this.#liveRegistry?.tilesets);
       const connections = interaction.liveMarkers().flatMap(marker=>{
         const presentation=resolveStudioLiveMarkerPresentation(this.#liveRegistry,marker);
-        const family=presentation.kind==='object'?connectedObjectFamily(presentation.definition.components.sprite?.asset??''):null;
-        return family?[{marker,family,tileX:marker.tileX,tileY:marker.tileY,elevation:marker.elevation??terrainElevationAtWorldFoot(terrain,marker.worldX,marker.worldY),space:marker.spaceId}]:[];
+        const family=presentation.kind==='object'?connectedObjectDefinitionFamily(presentation.definition,connectionCatalogue):null;
+        return family?[{marker,family,tileX:marker.tileX,tileY:marker.tileY,elevation:marker.elevation??terrainElevationAtWorldFoot(terrain,marker.worldX,marker.worldY),space:marker.spaceId,...(presentation.kind==='object'?{definition:presentation.definition}:{})}]:[];
       });
-      const masks=connectedObjectIndex(connections);
+      const masks=connectedObjectIndex(connections,connectionCatalogue);
       const byId=new Map(connections.map(cell=>[cell.marker.id,{family:cell.family,mask:masks(cell)}]));
       for (const marker of interaction.liveMarkers()) {
         if (!model.isLayerVisible(marker.layer)
@@ -1323,13 +1324,13 @@ export class MapEditorRenderer {
     worldY: number,
     camera: { readonly x: number; readonly y: number; readonly zoom: number },
     animationFrameBase: number,
-    connection?: {family:NonNullable<ReturnType<typeof connectedObjectFamily>>;mask:number},
+    connection?: {family:NonNullable<ReturnType<typeof connectedObjectDefinitionFamily>>;mask:number},
   ): void {
     if (!this.liveMarkerHasArtwork(marker)) return;
     const presentation = resolveStudioLiveMarkerPresentation(this.#liveRegistry, marker);
     const animationFrame = animationFrameBase + (marker.animationPhase ?? marker.id.length % 19);
     const draw = (): void => {
-      if(connection && marker.kind !== 'fence_gate' && drawConnectedObject(context,connection.family,connection.mask,worldX,worldY,camera.x,camera.y,camera.zoom)) return;
+      if(connection && marker.kind !== 'fence_gate' && drawConnectedObject(context,connection.family,connection.mask,worldX,worldY,camera.x,camera.y,camera.zoom,connectedObjectCatalogue(this.#liveRegistry?.tilesets))) return;
       if (presentation.kind === 'object') {
         const sprite = presentation.definition.components.sprite;
         const asset = sprite === undefined ? undefined : this.#liveObjectAssets.get(sprite.asset);
