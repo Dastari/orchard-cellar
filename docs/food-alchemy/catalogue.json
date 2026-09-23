@@ -2520,11 +2520,11 @@
       "name": "Milk",
       "group": "dairy",
       "status": "proposed",
-      "icon": "Farming:167",
+      "icon": "Farming:168",
       "alternates": [
         "Farming:205"
       ],
-      "art": "existing icon selected",
+      "art": "existing icon selected; P0 corrected one-cell source-selection error after native visual review",
       "source": "Proposed shop:willow_cook; cow husbandry is optional later",
       "inputs": {},
       "station": "none",
@@ -2543,12 +2543,12 @@
       "name": "Egg",
       "group": "animal",
       "status": "proposed",
-      "icon": "Farming:168",
+      "icon": "Farming:169",
       "alternates": [
         "Food:31",
         "Food:32"
       ],
-      "art": "existing icon selected",
+      "art": "existing icon selected; P0 corrected one-cell source-selection error after native visual review",
       "source": "Proposed shop:willow_cook; coop production optional later",
       "inputs": {},
       "station": "none",

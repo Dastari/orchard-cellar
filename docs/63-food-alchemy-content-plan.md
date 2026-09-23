@@ -83,6 +83,9 @@ The baseline rows in §12 expand their current inputs, effects, stack sizes and 
 
 ## 3. Art inventory and import contract
 
+P0 source correction (23 September 2026): milk uses Farming #168 and egg uses Farming #169. The original #167/#168 selection was one cell early (orange liquid / milk flask). Native review confirmed the corrected silhouettes; item identity, prices and effects are unchanged.
+
+
 The premium intake in commits `278f1205` / `a0e36d98` retained nine native sheets:
 Armor 1,850; Farming 205; Food 194; Monster Drops 210; Potions 676; Resources 950;
 Tools 553; Treasure & Keys 704; Weapons 1,640 = **6,982 numbered icons**.
@@ -809,8 +812,8 @@ Potion-use lists in JSON are expanded transitively; table abbreviates them by fa
 | `item:wheat` **Wheat** | existing unchanged; Crop crop:wheat | [item_cf_crop_wheat](food-alchemy/index.html#item:wheat); Keep reviewed icon; no closer alternate established; alt: Retain current; no closer candidate | — → 1; none; 0s | Existing gates; D0 | None; not consumable | none | 99; — / 7 |
 | `item:wood` **Wood** | existing unchanged; Existing authored sources; retained unchanged | [item_cf_wood](food-alchemy/index.html#item:wood); Keep reviewed icon; no closer alternate established; alt: Retain current; no closer candidate | — → 1; none; 0s | Existing gates; D0 | None; not consumable | combat, crafting, defence, farming, fishing, flight, fortitude, healing, hunger, lava_immune, luck, mana, mana_flow, mining, night_vision, regeneration, speed, toxin_immune, vigour, vigour_flow, water_walk, woodcutting | 99; 6 / 2 |
 | `item:yellow_pepper` **Yellow Pepper** | existing unchanged; Crop crop:yellow_pepper | [item_cf_crop_yellow_pepper](food-alchemy/index.html#item:yellow_pepper); Keep reviewed icon; no closer alternate established; alt: Retain current; no closer candidate | — → 1; none; 0s | Existing gates; D0 | Hunger +5 instant | none | 99; — / 12 |
-| `item:milk` **Milk** | proposed; Proposed shop:willow_cook; cow husbandry is optional later | [Farming #167](food-alchemy/index.html#item:milk); existing icon selected; alt: Farming #205 | — → 1; none; 0s | T0; D0 | Hunger +4 | none | 32; 20 / 4 |
-| `item:egg` **Egg** | proposed; Proposed shop:willow_cook; coop production optional later | [Farming #168](food-alchemy/index.html#item:egg); existing icon selected; alt: Food #31, Food #32 | — → 1; none; 0s | T0; D0 | Not raw-edible | none | 99; 12 / 2 |
+| `item:milk` **Milk** | proposed; Proposed shop:willow_cook; cow husbandry is optional later | [Farming #168](food-alchemy/index.html#item:milk); existing icon selected; P0 corrected one-cell source-selection error after native visual review; alt: Farming #205 | — → 1; none; 0s | T0; D0 | Hunger +4 | none | 32; 20 / 4 |
+| `item:egg` **Egg** | proposed; Proposed shop:willow_cook; coop production optional later | [Farming #169](food-alchemy/index.html#item:egg); existing icon selected; P0 corrected one-cell source-selection error after native visual review; alt: Food #31, Food #32 | — → 1; none; 0s | T0; D0 | Not raw-edible | none | 99; 12 / 2 |
 | `item:honey` **Honey** | proposed; Apiary honeycomb extraction (§7.2), plus existing cook offer proposed at 20 bronze | [Food #40](food-alchemy/index.html#item:honey); existing icon selected; alt: Food #38, Food #39 | 1 honeycomb, 1 wood → 2; cauldron; 30s | T0; D0 | Hunger +4; Health +2 over 10s (1/5s) | hunger, vigour, vigour_flow | 99; 20 / 4 |
 | `item:sugar` **Sugar** | proposed; Proposed shop:willow_cook | [Resources #881](food-alchemy/index.html#item:sugar); existing icon selected; alt: Resources #882 | — → 1; none; 0s | T0; D0 | Not raw-edible | none | 32; 8 / 1 |
 | `item:cocoa` **Cocoa** | proposed; Proposed shop:willow_cook imported ingredient | [Farming #83](food-alchemy/index.html#item:cocoa); existing icon selected; alt: Farming #85 | — → 1; none; 0s | T0; D0 | Not raw-edible | none | 32; 16 / 3 |
