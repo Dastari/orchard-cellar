@@ -1,6 +1,6 @@
 # Object state runtime
 
-Status: implemented on `feat/object-state-runtime`, stacked on PR 78 (`2dda559c`). Final clean full-suite validation is running. Only GoldCondor coordinates merges; no deployment is authorized.
+Status: implemented on `feat/object-state-runtime`, stacked on PR 78 (`2dda559c`). Implementation PR: https://github.com/Dastari/orchard-cellar/pull/81. Clean local full-suite validation passed. Only GoldCondor coordinates merges; no deployment is authorized.
 
 ## Contract and decision record
 
@@ -18,7 +18,7 @@ D6 owns medium, traversal abilities and hazard policy. This lane supplies solid 
 
 Validation completed: 166 focused tests across 23 files; a separate 78-test regression run covers interior compatibility, cleanup, rendering signatures and package seams. Added deterministic renderer tests cover arbitrary-named lights/column casters, off-state map lighting and independent local/celestial occlusion. Workspace typechecks, lint, world build, guarded Studio production build, client production build, lifecycle integrity, 919-definition content validation and 1320-asset validation passed during implementation. Final checks are repeated after the last source changes.
 
-The initial full coverage run completed 981 files with 6044 passing tests, 8 failures and one skip while fixes were in progress. All eight failures were diagnosed and fixed; this is not recorded as a clean full-suite pass. A fresh complete `npm test` run is active at `/tmp/orchard-object-state-full-test-final.log` (session 61577). Final results and PR readiness must be updated before handoff.
+The final clean `npm test` completed successfully on implementation commit `7ab7eec5`: coverage 982 files / 6084 passing tests / one skipped (989.86 seconds), followed by all seven exhaustive files / 101 passing tests (155.73 seconds). Coverage: statements 88.9%, branches 84.1%, functions 94.42%, lines 93.03%. Log: `/tmp/orchard-object-state-full-test-final.log`. Final workspace typecheck, lint, checked world build and 47-test closeout suite passed on the same source. The initial diagnostic run exposed eight regressions; they were fixed before this clean run. Hosted CI remains a separate merge gate.
 
 Versions: repository 0.26.0, sim 0.24.0, world 0.23.0, engine/client 0.21.0, world-bindings 0.17.0. Generated bindings add only private-row type descriptors; no new public subscription or reducer API is required.
 
@@ -41,4 +41,4 @@ Worktree: `/home/toby/projects/orchard-object-state-runtime`; branch: `feat/obje
 
 Read this document, `AGENTS.md`, docs 61–62 on `origin/docs/world-editor-model`, then verify branch/PR state and pending checks. The implementation has no live publication or destructive migration. Existing resources/crops remain in their legacy authoritative stores; do not describe this compatibility stage as completed table retirement. Review any future migration against preserved ids, loot/collision/growth parity and an explicit backfill/verify/retire plan. Environment epochs are retained because older object anchors can still need them; do not prune without proving the minimum live anchor.
 
-Next milestone: record the final clean test/check results, open/update the separate PR, send its exact head and integration notes to GoldCondor, and release reservations. Any merge or deployment is coordinator-owned and separately gated.
+Next milestone: GoldCondor reviews PR 81, verifies hosted CI and reconciles its stacked base with the complete predecessor batch. The final follow-up commit updates only this validation record; production source was tested at `7ab7eec5`. Any merge or deployment is coordinator-owned and separately gated.
