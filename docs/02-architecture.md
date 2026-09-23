@@ -492,6 +492,10 @@ Items, Narrative and World Tables share the form adapter. Reference navigation
 selects a concrete target; kinds without a specialized selector use the generic
 World Tables form. The reverse-reference index follows declared reference fields
 rather than searching arbitrary prose. See [F1 design](62-f1-schema-forms.md).
+
+## Chunk runtime shadow boundary
+
+The shadow phase adds public `world_chunk_shadow` and `world_chunk_head` metadata and private `world_chunk_blob` bytes. Owner-only staging verifies the existing immutable codec and compares map/content revisions before atomically replacing heads. The client uses a separate bounded chunk-native store with view/ring pins, a two-request loader and hash-key IndexedDB retention. It compares diagnostics without replacing legacy terrain or movement. An owner-only procedure samples private chunk collision without a whole-world reconstruction. Static preparation is offline and publication remains separately gated. See [chunk runtime shadow](chunk-runtime-shadow.md) for interfaces, limits and activation gates.
 ## Studio multi-space backend
 
 F4 shares `sim/space-registry.ts` between runtime authority and Studio, resolving

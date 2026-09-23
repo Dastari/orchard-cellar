@@ -128,6 +128,7 @@ import PlaceHomesteadBuildableReducer from "../place_homestead_buildable_reducer
 import PrioritizeEquipmentSkillReducer from "../prioritize_equipment_skill_reducer";
 import PublishContentChangeSetReducer from "../publish_content_change_set_reducer";
 import PublishLiveMapDocumentReducer from "../publish_live_map_document_reducer";
+import PublishWorldChunkShadowReducer from "../publish_world_chunk_shadow_reducer";
 import PurchaseHomesteadUpgradeReducer from "../purchase_homestead_upgrade_reducer";
 import PurchaseResidenceExpansionReducer from "../purchase_residence_expansion_reducer";
 import PurchaseSkillNodeReducer from "../purchase_skill_node_reducer";
@@ -168,6 +169,7 @@ import SetWorldWindDirectionReducer from "../set_world_wind_direction_reducer";
 import SitHearthFurnitureReducer from "../sit_hearth_furniture_reducer";
 import SkipRogueRewardReducer from "../skip_rogue_reward_reducer";
 import SortMenuContainerReducer from "../sort_menu_container_reducer";
+import StageWorldChunkBlobReducer from "../stage_world_chunk_blob_reducer";
 import StandHearthFurnitureReducer from "../stand_hearth_furniture_reducer";
 import StartRogueRunReducer from "../start_rogue_run_reducer";
 import SubmitStudioScriptReducer from "../submit_studio_script_reducer";
@@ -301,6 +303,7 @@ export type PlaceHomesteadBuildableParams = __Infer<typeof PlaceHomesteadBuildab
 export type PrioritizeEquipmentSkillParams = __Infer<typeof PrioritizeEquipmentSkillReducer>;
 export type PublishContentChangeSetParams = __Infer<typeof PublishContentChangeSetReducer>;
 export type PublishLiveMapDocumentParams = __Infer<typeof PublishLiveMapDocumentReducer>;
+export type PublishWorldChunkShadowParams = __Infer<typeof PublishWorldChunkShadowReducer>;
 export type PurchaseHomesteadUpgradeParams = __Infer<typeof PurchaseHomesteadUpgradeReducer>;
 export type PurchaseResidenceExpansionParams = __Infer<typeof PurchaseResidenceExpansionReducer>;
 export type PurchaseSkillNodeParams = __Infer<typeof PurchaseSkillNodeReducer>;
@@ -341,6 +344,7 @@ export type SetWorldWindDirectionParams = __Infer<typeof SetWorldWindDirectionRe
 export type SitHearthFurnitureParams = __Infer<typeof SitHearthFurnitureReducer>;
 export type SkipRogueRewardParams = __Infer<typeof SkipRogueRewardReducer>;
 export type SortMenuContainerParams = __Infer<typeof SortMenuContainerReducer>;
+export type StageWorldChunkBlobParams = __Infer<typeof StageWorldChunkBlobReducer>;
 export type StandHearthFurnitureParams = __Infer<typeof StandHearthFurnitureReducer>;
 export type StartRogueRunParams = __Infer<typeof StartRogueRunReducer>;
 export type SubmitStudioScriptParams = __Infer<typeof SubmitStudioScriptReducer>;

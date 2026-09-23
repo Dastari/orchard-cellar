@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.27.2 — 2026-09-23
+
+- Add owner-only CAS chunk shadow staging, additive regional heads and verified private collision blobs.
+- Add bounded view/ring chunk loading, IndexedDB caching with connection teardown and revision-pinned diagnostic subscriptions behind a default-off flag.
+- Add offline static bundle preparation compatible with existing eight-character content hashes and a generator retirement build gate; live terrain and movement remain unchanged.
 ## 0.26.0 — 2026-09-23
 
 - Persist authored object state and growth anchors with bounded lazy catch-up, historical weather/calendar epochs and isolated scheduled transactions. Route spawn/place, interaction and explicit state mutations through approved lifecycle callbacks and transition graphs.
