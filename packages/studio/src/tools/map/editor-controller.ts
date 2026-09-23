@@ -1542,7 +1542,10 @@ export class MapEditorController {
         const command = mapEditorTerrainCommand(
           stroke.tool, stroke.points, this.model.document(), this.#activeElevation, this.#automaticGeneration,
         );
-        if (command !== null) this.model.editTerrain(command);
+        if (command !== null) {
+          const result=this.model.editTerrain(command);
+          if(result.rejected==='terrain_inset_conflict')this.#terrainAuthoringFeedback='This stroke needs conflicting inset blocks. Widen the area or use Exact Placement.';
+        }
       } else if (stroke.kind === 'terrain_patch') {
         const before = this.model.document();
         const expand = this.#automaticGeneration && (stroke.tool === 'raise' || stroke.tool === 'lower');
@@ -1566,11 +1569,13 @@ export class MapEditorController {
         }
         const points = stroke.tool === 'raise' || stroke.tool === 'lower'
           ? candidates.filter(point=>resolvedMapCellAt(terrain,point.tileX,point.tileY).elevation === stroke.elevation) : candidates;
-        this.model.editTerrain({kind:'paint', points, patch:stroke.patch, }, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined, this.#automaticGeneration && stroke.tool === 'inspect');
+        const result=this.model.editTerrain({kind:'paint', points, patch:stroke.patch, enforceSingleTerrainInset:expand}, this.#editingTool !== null && stroke.tool === 'inspect' ? this.#materialBiome : undefined, this.#automaticGeneration && stroke.tool === 'inspect' && !stroke.consumesSample);
         if (this.model.document() !== before) {
           if (stroke.consumesSample) this.#sampledTerrainPatch = null;
           if (this.#selectedExactTerrainOverride !== null) this.#selectedExactTerrainOverride = null;
           this.#terrainAuthoringFeedback = null;
+        } else if(result.rejected==='terrain_inset_conflict') {
+          this.#terrainAuthoringFeedback='This stroke needs conflicting inset blocks. Widen the area or use Exact Placement.';
         }
       } else if (stroke.kind === 'scatter' && this.#selectedPrefabId !== null) {
         const prefab = this.allPrefabs().find(({ id }) => id === this.#selectedPrefabId);

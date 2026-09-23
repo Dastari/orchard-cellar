@@ -16,6 +16,10 @@ describe('semantic material palette',()=>{
   }
   expect(choices.find(c=>c.id==='biome-paving')?.patch.surface).toBe('stone');
  });
+ it('selects the native grass family for every stone cliff brush',()=>{
+  const choices=mapMaterialChoices(OFFLINE_TERRAIN_AUTHORING_PALETTE);
+  for(const n of [1,2,3,4])expect(choices.find(c=>c.id===`stone_${n}`)?.patch.surfaceFamily).toBe(`grass_${n}`);
+ });
  it('keeps medium icons fixed while growing column count',()=>{
   expect(mapPaletteColumns(95)).toBe(3);expect(mapPaletteColumns(180)).toBe(3);expect(mapPaletteColumns(290)).toBe(6);
  });

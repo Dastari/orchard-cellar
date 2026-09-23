@@ -9,6 +9,8 @@ import {
   caveFloorPatchVariantAt,
   SURVIVAL_CHUNK_TILES,
   TERRAIN_SURFACE_FAMILIES,
+  TERRAIN_CLIFF_FAMILIES,
+  type TerrainCliffFamily,
   TILE_SIZE_PIXELS,
   surfaceFamilyAtIndex,
   type SurvivalBiome,
@@ -401,6 +403,21 @@ function groundAssetForBiome(
   return art.grass;
 }
 
+/** Explicit material brushes use the native cap of their selected cliff.
+ * Inherited/procedural terrain and independently authored grass palettes retain
+ * their existing material; this is presentation, not geometry normalization. */
+export function authoredCliffGroundLayerAt(terrain: TerrainArray, tileX: number, tileY: number) {
+  const index=tileY*terrain.width+tileX;
+  const surface=terrain.authoredSurfaces?.[index];
+  if((surface!=='stone'&&surface!=='sand')||!terrain.cliffFamilies?.[index]
+    ||terrain.surfaceFamilies?.[index])return null;
+  const family=(TERRAIN_CLIFF_FAMILIES as Readonly<Record<string,TerrainCliffFamily>>)[terrainCliffFamilyAt(terrain,tileX,tileY)];
+  if(!family?.available)return null;
+  const live=terrain.tilesets?.tileSetFor(terrainCliffFamilyAt(terrain,tileX,tileY));
+  if(live&&live.assetId!==family.tileSet.assetId)return null;
+  return family.substrate?.cap??null;
+}
+
 export function groundAssetForTile(
   art: OverworldArt,
   terrain: TerrainArray,
@@ -408,6 +425,8 @@ export function groundAssetForTile(
   tileY: number,
   biome: SurvivalBiome,
 ): LoadedAsset {
+  const native=authoredCliffGroundLayerAt(terrain,tileX,tileY);
+  if(native&&art.terrainAssets[native.assetId])return art.terrainAssets[native.assetId]!;
   if (terrain.authoredSurfaces?.[tileY*terrain.width+tileX] === 'cave_floor') {
     const family=terrainCliffFamilyAt(terrain,tileX,tileY);
     return family.startsWith('dungeon') ? art.rogueDungeonFloor : family.startsWith('volcanic') ? art.rogueVolcanicFloor : art.caveFloorMiddle;
@@ -914,7 +933,9 @@ export class GroundChunkCache {
         );
         const base = groundAssetForTile(art, terrain, tileX, tileY, biome);
         const interiorFloor = terrain.authoredSurfaces?.[tileY*terrain.width+tileX] === 'cave_floor';
-        const baseFrame =
+        const nativeGround=authoredCliffGroundLayerAt(terrain,tileX,tileY);
+        const nativeFrame=nativeGround&&art.terrainAssets[nativeGround.assetId]===base?nativeGround.frame:null;
+        const baseFrame = nativeFrame ?? (
           interiorFloor ? (base === art.caveFloorMiddle ? 0 : (tileY % 3)*3+tileX%3) : biome === 'paving'
             ? terrain.dirtTerraces[tileY*terrain.width+tileX]?46:(tileY % 2) * 2 + tileX % 2
             : biome === 'volcanic_ash' || biome === 'lava'
@@ -925,7 +946,7 @@ export class GroundChunkCache {
               ? 4
               : biome === "desert_shore"
                 ? desertShoreFrameIndexAt(terrain, tileX, tileY)
-                : 0;
+                : 0);
         drawGroundAsset(context, base, localX, localY, baseFrame);
         if (interiorFloor) continue;
 
