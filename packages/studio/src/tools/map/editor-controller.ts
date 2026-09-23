@@ -19,12 +19,17 @@ import {
   minimumTerrainBrushPoints,
   isChoppableTreeKind,
   MANUAL_OBJECT_CONNECTION_TAG,
+  cellPartForTerrainAsset,
+  contourOverrideFromCellParts,
+  exactAppearanceParts,
   mapObjectIsGroundDecal,
   resolvedMapBiomeAt,
   resolvedMapCellAt,
   stairRunValid,
   survivalElevationBytes,
   terrainDocumentForMapV3,
+  type CellPart,
+  type CellPartSlot,
   type MapBiomeId,
   type MapCellPatch,
   type MapDocumentV3,
@@ -138,7 +143,8 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     defaultCliffFamily,
     ...Object.values(terrainDocument.cells).flatMap((cell) => [
       ...(cell.cliffFamily === undefined ? [] : [cell.cliffFamily]),
-      ...(cell.terrainOverride?.family === undefined ? [] : [cell.terrainOverride.family]),
+      ...((cell.terrainOverride ?? contourOverrideFromCellParts(cell.parts))?.family === undefined
+        ? [] : [(cell.terrainOverride ?? contourOverrideFromCellParts(cell.parts))!.family!]),
     ]),
   ])];
   const cliffFamilyIndex = new Map(cliffFamilyIds.map((family, index) => [family, index + 1]));
@@ -146,7 +152,7 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     (cell) => cell.cliffFamily !== undefined,
   );
   const hasTerrainOverrides = Object.values(terrainDocument.cells).some(
-    (cell) => cell.terrainOverride !== undefined,
+    (cell) => cell.terrainOverride !== undefined || contourOverrideFromCellParts(cell.parts) !== null,
   );
   const cliffFamilies = hasCliffFamilies ? new Uint8Array(length) : undefined;
   const terrainOverrides = hasTerrainOverrides
@@ -165,9 +171,8 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     if (cliffFamilies !== undefined && cell.cliffFamily !== undefined) {
       cliffFamilies[index] = cliffFamilyIndex.get(cell.cliffFamily) ?? 0;
     }
-    if (terrainOverrides !== undefined && cell.terrainOverride !== undefined) {
-      terrainOverrides[index] = cell.terrainOverride;
-    }
+    const override = cell.terrainOverride ?? contourOverrideFromCellParts(cell.parts);
+    if (terrainOverrides !== undefined && override !== null) terrainOverrides[index] = override;
   }
 
   const transitions = [
@@ -195,6 +200,16 @@ export function mapEditorPickingTerrain(document: MapDocumentV3): TerrainArray {
     dirtCliffRoles: new Uint8Array(0),
     dirtTerraces: new Uint8Array(0),
   };
+}
+
+/** An Exact palette tile whose atlas is a terrain component becomes a cell
+ * part at that frame; any other tile (decoration) stays an object. */
+export function exactTileCellPart(prefab: MapPrefabDocumentV2): CellPart | null {
+  const placement = prefab.placements[0];
+  if (prefab.placements.length !== 1 || placement === undefined
+    || placement.visual.kind !== 'variant' || placement.visual.name !== 'base') return null;
+  const target = cellPartForTerrainAsset(placement.assetName);
+  return target === null ? null : { ...target, exact: { frame: placement.visual.frameIndex } };
 }
 
 export const MAP_EDITOR_TERRAIN_TOOLS = [
@@ -754,6 +769,9 @@ export class MapEditorController {
   #prefabCache: {document:MapDocumentV3;catalog:readonly MapPrefabDocumentV2[];all:readonly MapPrefabDocumentV2[]}|null=null;
   #catalog: readonly MapPrefabDocumentV2[] = [];
   #objectStroke: {tileX:number;tileY:number;elevation:number}|null = null;
+  /** Exact palette tile that is a terrain component (path edge, fringe,
+   * shore, water, farmland). It paints a cell part, never an object. */
+  #selectedExactPart: CellPart | null = null;
   #pan: { readonly x: number; readonly y: number } | null = null;
   #drag: DragState | null = null;
   #stroke: PaintStroke | null = null;
@@ -955,6 +973,7 @@ export class MapEditorController {
     this.#terrainAuthoringFeedback = null;
     this.#eyedropperActive = false;
     this.#selectedPrefabId = null; this.#selectedAnchorKind = null; this.#selectedBiome = null;
+    this.#selectedExactPart = null;
     this.model.selectWorkspace(tool === 'objects' ? 'objects' : 'terrain');
     this.#activeLayer = tool === 'objects' ? 'objects' : 'terrain';
     this.#terrainTool = tool === 'raise' || tool === 'lower' ? tool : 'inspect';
@@ -975,8 +994,28 @@ export class MapEditorController {
     return exactTilePaletteChoices(this.allPrefabs(), query);
   }
   selectExactTile(prefabId:string):void {
-    if(!this.exactTileChoices().some(p=>p.id===prefabId))return;
-    this.selectEditingTool('terrain');this.#activeLayer='ground';this.model.selectWorkspace('objects');this.#selectedPrefabId=prefabId;
+    const prefab=this.exactTileChoices().find(p=>p.id===prefabId);
+    if(!prefab)return;
+    this.selectEditingTool('terrain');
+    const part=exactTileCellPart(prefab);
+    if(part!==null){
+      // Terrain components stay on the terrain layer as an exact cell part.
+      this.#selectedPrefabId=prefabId;this.#selectedExactPart=part;
+      return;
+    }
+    // Genuine decorations remain Ground Details objects.
+    this.#activeLayer='ground';this.model.selectWorkspace('objects');this.#selectedPrefabId=prefabId;
+  }
+  /** Part the armed Exact tile will paint, or null for object placement. */
+  selectedExactPart(): CellPart | null { return this.#selectedExactPart; }
+  /** Exact appearance parts on the selected cell, for the inspector. */
+  selectedCellExactParts(): readonly CellPart[] {
+    const point=this.selectedTerrainPoint();
+    return point===null?[]:exactAppearanceParts(this.model.document().cells[`${point.tileX},${point.tileY}`]?.parts);
+  }
+  /** "Revert to smart": drops only the exact frame of one part. */
+  revertSelectedCellPartExact(slot: CellPartSlot): boolean {
+    return this.paintSelectedTerrainPatch({ revertPartExact: slot });
   }
   selectObjectChoice(prefabId: string): void {
     const prefab = this.allPrefabs().find(entry => entry.id === prefabId);
@@ -1009,6 +1048,7 @@ export class MapEditorController {
   selectPrefab(prefabId: string | null): void {
     if (prefabId !== null && !this.allPrefabs().some(({ id }) => id === prefabId)) return;
     this.#selectedPrefabId = prefabId;
+    this.#selectedExactPart = null;
     if (prefabId !== null) this.#selectedAnchorKind = null;
     this.#eyedropperActive = false;
     if (prefabId !== null) this.#selectedBiome = null;
@@ -1364,6 +1404,13 @@ export class MapEditorController {
         this.beginAuthoredDrag(picked, tile.tileX, tile.tileY);
         return true;
       }
+    }
+    if(this.#editingTool==='terrain'&&!this.#automaticGeneration&&this.#selectedExactPart!==null){
+      if(!this.terrainAuthoringAvailable()){this.#terrainAuthoringFeedback='SELECT THE VISIBLE EDITABLE TERRAIN LAYER';return true;}
+      this.model.selectTile(tile.tileX,tile.tileY);this.#activeElevation=tile.elevation;
+      this.#stroke={kind:'terrain_patch',elevation:tile.elevation,tool:'inspect',patch:{cellPart:this.#selectedExactPart},
+        consumesSample:false,continuous:true,points:[tile]};
+      return true;
     }
     if(this.#editingTool==='terrain'&&!this.#automaticGeneration&&this.#selectedPrefabId!==null){
       this.#objectStroke=tile;this.placeSelectedPrefab(tile.tileX,tile.tileY,tile.elevation);return true;
