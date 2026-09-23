@@ -1,0 +1,64 @@
+{
+  "name": "icon_alchemy_sapphire_dust",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....00..000....",
+        "....012002210...",
+        "..002332233210..",
+        ".0122122321220..",
+        ".02213333321220.",
+        "..0223322332220.",
+        ".0232133323320..",
+        ".0232133333320..",
+        ".02223233313220.",
+        "..0243332132210.",
+        "..021233322210..",
+        "...02122111140..",
+        "...0222000140...",
+        "....000...00....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#0098dc",
+    "2": "#00cdf9",
+    "3": "#0cf1ff",
+    "4": "#0069aa"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    64,
+    1408,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.mineral",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

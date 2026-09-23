@@ -1,0 +1,67 @@
+{
+  "name": "icon_food_fried_egg",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......000......",
+        ".....0011100....",
+        "....021131140...",
+        "...02113111140..",
+        "..0225111156440.",
+        ".02274555564420.",
+        ".02772456644220.",
+        ".04777244442240.",
+        "..027772222240..",
+        "..07727772440...",
+        ".07722224400....",
+        ".042224400......",
+        "..044400........",
+        "...000..........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#feae34",
+    "2": "#f9e6cf",
+    "3": "#fee761",
+    "4": "#f6ca9f",
+    "5": "#f77622",
+    "6": "#d45608",
+    "7": "#ffffff"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    0,
+    48,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

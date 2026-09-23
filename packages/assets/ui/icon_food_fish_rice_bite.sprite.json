@@ -1,0 +1,70 @@
+{
+  "name": "icon_food_fish_rice_bite",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "...00000........",
+        "..01222300......",
+        ".0122434440.....",
+        ".05122444430....",
+        "..06112433440...",
+        "..066712444430..",
+        "..0678812433440.",
+        "...088981244420.",
+        "....08999122210.",
+        ".....00aa91110..",
+        ".......000000...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#bf6f4a",
+    "2": "#e69c69",
+    "3": "#f9e6cf",
+    "4": "#f6ca9f",
+    "5": "#8a4836",
+    "6": "#424c6e",
+    "7": "#657392",
+    "8": "#92a1b9",
+    "9": "#c7cfdd",
+    "a": "#ffffff"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    64,
+    288,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

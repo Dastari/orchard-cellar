@@ -1,0 +1,71 @@
+{
+  "name": "icon_alchemy_potion_mining_minor",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".........000....",
+        "........01110...",
+        ".....000012210..",
+        "....0303041220..",
+        "...03503304440..",
+        "..03544633000...",
+        "..0714446580....",
+        "..059aa12000....",
+        "..05499999b0....",
+        "...05449980.....",
+        "....088bb0......",
+        ".....0000.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#e4f1f2",
+    "4": "#8a4836",
+    "5": "#66b0b3",
+    "6": "#aad3d5",
+    "7": "#84c0c2",
+    "8": "#528e9c",
+    "9": "#5d2c28",
+    "a": "#f6ca9f",
+    "b": "#38616d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Potions_all_16x16.png",
+  "sourceRegion": [
+    0,
+    256,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.potion",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

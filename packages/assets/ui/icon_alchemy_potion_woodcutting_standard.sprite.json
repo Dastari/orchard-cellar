@@ -1,0 +1,74 @@
+{
+  "name": "icon_alchemy_potion_woodcutting_standard",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".........000....",
+        "........01110...",
+        "....0000012210..",
+        "...03403051220..",
+        "..034603305550..",
+        ".034777833000...",
+        ".04977778a60....",
+        ".04bcc9d9000....",
+        ".0abbbbbbb60....",
+        ".0a7bbbbbb60....",
+        "..0677bbbe0.....",
+        "...0666ee0......",
+        "....00000.......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#e4f1f2",
+    "4": "#84c0c2",
+    "5": "#8a4836",
+    "6": "#528e9c",
+    "7": "#1e6f50",
+    "8": "#aad3d5",
+    "9": "#5ac54f",
+    "a": "#66b0b3",
+    "b": "#134c4c",
+    "c": "#99e65f",
+    "d": "#33984b",
+    "e": "#38616d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Potions_all_16x16.png",
+  "sourceRegion": [
+    16,
+    128,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.potion",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

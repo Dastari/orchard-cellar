@@ -1,0 +1,66 @@
+{
+  "name": "icon_food_bread",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........0000...",
+        ".......0011230..",
+        "......014551230.",
+        ".....0551455230.",
+        "....01455515260.",
+        "...055145552260.",
+        "..014555155260..",
+        "..05145555230...",
+        ".01155155230....",
+        ".0551555230.....",
+        ".025552230......",
+        ".03222260.......",
+        "..033660........",
+        "...0000.........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f6ca9f",
+    "2": "#bf6f4a",
+    "3": "#8a4836",
+    "4": "#f9e6cf",
+    "5": "#e69c69",
+    "6": "#5d2c28"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    48,
+    16,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

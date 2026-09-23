@@ -1,0 +1,66 @@
+{
+  "name": "icon_food_bread_roll",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......0000......",
+        "....00111100....",
+        "...0231231140...",
+        "..011231111140..",
+        ".01121131111440.",
+        ".02111112111440.",
+        ".04231111114440.",
+        ".04443321144450.",
+        ".05444444445560.",
+        "..065444455560..",
+        "...0065556600...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#f6ca9f",
+    "3": "#f9e6cf",
+    "4": "#bf6f4a",
+    "5": "#8a4836",
+    "6": "#5d2c28"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    64,
+    16,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

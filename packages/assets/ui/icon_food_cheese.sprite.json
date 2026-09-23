@@ -1,0 +1,71 @@
+{
+  "name": "icon_food_cheese",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....000000......",
+        "...012231100....",
+        "..01222232210...",
+        ".0322332222210..",
+        ".01322332232230.",
+        ".01333223223340.",
+        ".01312333333560.",
+        "005212123566160.",
+        "0701121231551600",
+        "0870515221551090",
+        ".0870001111509a0",
+        "..08778000009a0.",
+        "...0877888b9a0..",
+        "....08bbb99a0...",
+        ".....0000000...."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffc825",
+    "2": "#ffeb57",
+    "3": "#fff7b8",
+    "4": "#ff5000",
+    "5": "#ffa214",
+    "6": "#ed7614",
+    "7": "#f9e6cf",
+    "8": "#f6ca9f",
+    "9": "#bf6f4a",
+    "a": "#8a4836",
+    "b": "#e69c69"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    80,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.dairy",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

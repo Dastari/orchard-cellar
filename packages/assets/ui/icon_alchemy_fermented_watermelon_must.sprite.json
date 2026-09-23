@@ -1,0 +1,73 @@
+{
+  "name": "icon_alchemy_fermented_watermelon_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".............00.",
+        "............0120",
+        "........00003240",
+        ".......05677580.",
+        "......05377980..",
+        ".....053765890..",
+        "....0a37659980..",
+        "...0ab76588980..",
+        "..0abbb588950...",
+        ".05bbbca8950....",
+        "0563bcacda0.....",
+        "06365acda0......",
+        "066598da0.......",
+        ".0689980........",
+        "..08880.........",
+        "...000.........."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#c2db48",
+    "4": "#8a4836",
+    "5": "#798e33",
+    "6": "#96b635",
+    "7": "#e9ec6a",
+    "8": "#577330",
+    "9": "#3f582c",
+    "a": "#104647",
+    "b": "#1d7768",
+    "c": "#155a5b",
+    "d": "#0a2d2e"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    112,
+    208,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.fruit",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

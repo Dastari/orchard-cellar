@@ -1,0 +1,67 @@
+{
+  "name": "icon_food_cocoa_cupcake",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        "....00122300....",
+        "...0123321340...",
+        "..012234111340..",
+        ".01132211443340.",
+        ".03111111453340.",
+        ".04311413333450.",
+        "..043333354450..",
+        "..024433445530..",
+        "..062645551120..",
+        "...0771223220...",
+        "...0772761620...",
+        "....07276160....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#bf6f4a",
+    "2": "#e69c69",
+    "3": "#8a4836",
+    "4": "#5d2c28",
+    "5": "#391f21",
+    "6": "#f6ca9f",
+    "7": "#f9e6cf"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    48,
+    160,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

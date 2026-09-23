@@ -1,0 +1,65 @@
+{
+  "name": "icon_animal_egg",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........00000...",
+        "......00111230..",
+        "....00214411230.",
+        "...022141111230.",
+        "..0222111122230.",
+        ".02212211222250.",
+        ".02111222222350.",
+        ".0211222222230..",
+        ".0222222222350..",
+        ".032222222330...",
+        "..03222233350...",
+        "...053333350....",
+        "....0533550.....",
+        ".....00000......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e6cf",
+    "2": "#f6ca9f",
+    "3": "#e69c69",
+    "4": "#ffffff",
+    "5": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Farming_all_16x16.png",
+  "sourceRegion": [
+    128,
+    256,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.animal",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

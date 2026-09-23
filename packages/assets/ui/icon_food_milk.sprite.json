@@ -1,0 +1,72 @@
+{
+  "name": "icon_food_milk",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........000...",
+        "........001110..",
+        "......002013310.",
+        ".....0224051330.",
+        "....02444405550.",
+        "...02666666000..",
+        "..076666666680..",
+        ".0799966666a0...",
+        ".079999999b80...",
+        ".0c99999bba0....",
+        ".0cb99bbb80.....",
+        "..0cbbbba0......",
+        "...0aa880.......",
+        "....0000........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#aad3d5",
+    "3": "#bf6f4a",
+    "4": "#b4b4b4",
+    "5": "#8a4836",
+    "6": "#ffffff",
+    "7": "#84c0c2",
+    "8": "#38616d",
+    "9": "#f9e6cf",
+    "a": "#528e9c",
+    "b": "#e2bc8d",
+    "c": "#66b0b3"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Farming_all_16x16.png",
+  "sourceRegion": [
+    112,
+    256,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.dairy",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

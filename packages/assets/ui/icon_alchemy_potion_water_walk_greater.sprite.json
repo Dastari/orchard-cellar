@@ -1,0 +1,74 @@
+{
+  "name": "icon_alchemy_potion_water_walk_greater",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........000...",
+        ".........01110..",
+        ".....0000012210.",
+        "...003403051220.",
+        "..0346703305550.",
+        ".0367888433000..",
+        ".04889a884b70...",
+        "0398888a88000...",
+        "04cd88888ac70...",
+        "06ccd999acc70...",
+        ".04ccccccc70....",
+        ".068cccccce0....",
+        "..06688c7e0.....",
+        "...0067700......",
+        ".....000........"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#e4f1f2",
+    "4": "#aad3d5",
+    "5": "#8a4836",
+    "6": "#84c0c2",
+    "7": "#528e9c",
+    "8": "#0069aa",
+    "9": "#00cdf9",
+    "a": "#0098dc",
+    "b": "#66b0b3",
+    "c": "#00396d",
+    "d": "#0cf1ff",
+    "e": "#38616d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Potions_all_16x16.png",
+  "sourceRegion": [
+    32,
+    160,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.potion",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "icon_food_apple_pie",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0011111100...",
+        "..011222222110..",
+        ".01222233333310.",
+        "0122234433333310",
+        "0122344334433310",
+        "0122343344333210",
+        "0252233333322140",
+        ".02552222221140.",
+        ".02225511114440.",
+        "..022223333440..",
+        "...0023333400...",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f6ca9f",
+    "2": "#e69c69",
+    "3": "#bf6f4a",
+    "4": "#8a4836",
+    "5": "#f9e6cf"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    112,
+    224,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

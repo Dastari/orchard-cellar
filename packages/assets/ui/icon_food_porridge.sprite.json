@@ -1,0 +1,72 @@
+{
+  "name": "icon_food_porridge",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............00..",
+        "...........0110.",
+        ".....0000000120.",
+        "...00333440250..",
+        "..033666602500..",
+        ".03667887059040.",
+        "0368877a05990640",
+        "0377aa7777907740",
+        "0437777aa77774b0",
+        ".043377788744b0.",
+        ".0444333344bbb0.",
+        "..04444ccccbb0..",
+        "...004ccccb00...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c7cfdd",
+    "2": "#92a1b9",
+    "3": "#f6ca9f",
+    "4": "#e69c69",
+    "5": "#657392",
+    "6": "#4b2925",
+    "7": "#e07438",
+    "8": "#edab50",
+    "9": "#424c6e",
+    "a": "#ebcd7a",
+    "b": "#8a4836",
+    "c": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    0,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

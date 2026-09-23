@@ -1,0 +1,72 @@
+{
+  "name": "icon_food_vegetable_soup",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............00..",
+        "...........0110.",
+        ".....0000000120.",
+        "...00333440250..",
+        "..033666602500..",
+        ".03667777058040.",
+        "0367777905880640",
+        "037797999980a740",
+        "043777a9aa9994b0",
+        ".0433999aa944b0.",
+        ".0444333344bbb0.",
+        "..04444ccccbb0..",
+        "...004ccccb00...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c7cfdd",
+    "2": "#92a1b9",
+    "3": "#f6ca9f",
+    "4": "#e69c69",
+    "5": "#657392",
+    "6": "#4b2925",
+    "7": "#1e6f50",
+    "8": "#424c6e",
+    "9": "#33984b",
+    "a": "#5ac54f",
+    "b": "#8a4836",
+    "c": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    80,
+    0,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

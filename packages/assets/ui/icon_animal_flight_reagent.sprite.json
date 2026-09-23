@@ -1,0 +1,72 @@
+{
+  "name": "icon_animal_flight_reagent",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........000...",
+        ".........01110..",
+        ".....0000012210.",
+        "...003403051220.",
+        "..0346703305550.",
+        ".0333788433000..",
+        ".033390004a70...",
+        "0333b0...0000...",
+        "04c30.....070...",
+        "069c0.....080...",
+        ".04c0......00...",
+        ".069c0..........",
+        "..066c00........",
+        "...006780.......",
+        ".....0000......."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#e4f1f2",
+    "4": "#aad3d5",
+    "5": "#8a4836",
+    "6": "#84c0c2",
+    "7": "#528e9c",
+    "8": "#38616d",
+    "9": "#7a09fa",
+    "a": "#66b0b3",
+    "b": "#f389f5",
+    "c": "#3003d9"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Potions_all_16x16.png",
+  "sourceRegion": [
+    192,
+    480,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.animal",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

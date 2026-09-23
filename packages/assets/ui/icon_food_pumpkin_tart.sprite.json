@@ -1,0 +1,67 @@
+{
+  "name": "icon_food_pumpkin_tart",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0011111100...",
+        "..011232232110..",
+        ".01344341114410.",
+        "0123253253523510",
+        "0123553253523510",
+        "0144411143443410",
+        "0463253553523170",
+        ".04662322321170.",
+        ".04446611117770.",
+        "..044443333770..",
+        "...0043333700...",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f6ca9f",
+    "2": "#ed7614",
+    "3": "#bf6f4a",
+    "4": "#e69c69",
+    "5": "#ff5000",
+    "6": "#f9e6cf",
+    "7": "#8a4836"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    48,
+    256,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

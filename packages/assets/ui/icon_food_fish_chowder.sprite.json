@@ -1,0 +1,73 @@
+{
+  "name": "icon_food_fish_chowder",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............00..",
+        "...........0110.",
+        ".....0000000120.",
+        "...00333440250..",
+        "..033666602500..",
+        ".03667777058040.",
+        "0367779705880640",
+        "037779aabb80bb40",
+        "0437779aabbbb4c0",
+        ".0433bbbbbb44c0.",
+        ".0444333344ccc0.",
+        "..04444ddddcc0..",
+        "...004ddddc00...",
+        ".....000000.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c7cfdd",
+    "2": "#92a1b9",
+    "3": "#f6ca9f",
+    "4": "#e69c69",
+    "5": "#657392",
+    "6": "#4b2925",
+    "7": "#9f1e1e",
+    "8": "#424c6e",
+    "9": "#e78e83",
+    "a": "#f4c9c3",
+    "b": "#c13725",
+    "c": "#8a4836",
+    "d": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    112,
+    0,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

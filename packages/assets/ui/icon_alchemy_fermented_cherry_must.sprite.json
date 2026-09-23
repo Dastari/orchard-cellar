@@ -1,0 +1,75 @@
+{
+  "name": "icon_alchemy_fermented_cherry_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".............00.",
+        "............0120",
+        "...........03230",
+        "..........03450.",
+        ".......0006750..",
+        ".....008967a0...",
+        "....079977a0....",
+        "...0b9687aa0....",
+        "..0bc687dda0....",
+        ".07ccc7aad0.....",
+        "0789cebada0.....",
+        "08887befb0......",
+        "0887dafb0.......",
+        ".08adda0........",
+        "..0aaa0.........",
+        "...000.........."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffeb57",
+    "2": "#ffc825",
+    "3": "#ffa214",
+    "4": "#ed7614",
+    "5": "#ff5000",
+    "6": "#f68187",
+    "7": "#c42430",
+    "8": "#ea323c",
+    "9": "#f5555d",
+    "a": "#891e2b",
+    "b": "#e69c69",
+    "c": "#f9e6cf",
+    "d": "#571c27",
+    "e": "#f6ca9f",
+    "f": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    192,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.fruit",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

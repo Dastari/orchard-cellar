@@ -1,0 +1,67 @@
+{
+  "name": "icon_alchemy_brown_mushroom",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....35555332...",
+        "...35555555532..",
+        "..353001100132..",
+        "..530104411002..",
+        "..300046641002..",
+        "..20014666012...",
+        "...210466222....",
+        "....22266.......",
+        ".......67.......",
+        "........74......",
+        "........74......",
+        "........74......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
+  "sourceRegion": [
+    112,
+    64,
+    16,
+    16
+  ],
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#2b1e0f",
+    "1": "#393415",
+    "2": "#54501b",
+    "3": "#8d8626",
+    "4": "#b850a0",
+    "5": "#ded235",
+    "6": "#e472b7",
+    "7": "#eaaac4"
+  },
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "item.mushroom",
+    "feature.food_alchemy",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

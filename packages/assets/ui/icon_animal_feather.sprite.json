@@ -1,0 +1,65 @@
+{
+  "name": "icon_animal_feather",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "............000.",
+        ".......00.00110.",
+        "......01002120..",
+        "...00.0121120...",
+        "...0102113240...",
+        "...01112354220..",
+        "...02123522400..",
+        "..0102352420....",
+        "..01235244440...",
+        "..02354422000...",
+        "..03544200......",
+        ".0350000........",
+        ".050............",
+        "..0.............",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffffff",
+    "2": "#f9e6cf",
+    "3": "#e69c69",
+    "4": "#f6ca9f",
+    "5": "#b86f50"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Monster_Drops_all_16x16.png",
+  "sourceRegion": [
+    0,
+    32,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.animal",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "icon_food_peach_macaron",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0012223300...",
+        "..031411223110..",
+        ".03332442114330.",
+        ".03322244443330.",
+        ".03224444222330.",
+        ".02241124422230.",
+        ".05112221141360.",
+        ".05555223515560.",
+        ".03553377755570.",
+        "..032337775230..",
+        "...0076663200...",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#fff7b8",
+    "2": "#ffc825",
+    "3": "#ffa214",
+    "4": "#fffdf0",
+    "5": "#ffeb57",
+    "6": "#ff5000",
+    "7": "#ed7614"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    96,
+    128,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

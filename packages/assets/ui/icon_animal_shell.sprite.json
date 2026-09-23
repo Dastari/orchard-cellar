@@ -1,0 +1,65 @@
+{
+  "name": "icon_animal_shell",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......0000......",
+        ".....011210.....",
+        "....01343210....",
+        "....02112430....",
+        "....0223340.....",
+        "....01233210....",
+        "....02112430....",
+        "....02233400....",
+        ".....02335210...",
+        ".....05112430...",
+        ".....0334430....",
+        "......03340.....",
+        ".......000......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#fdfaf7",
+    "2": "#f9e6cf",
+    "3": "#e2bc8d",
+    "4": "#bc915c",
+    "5": "#7a6143"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Monster_Drops_all_16x16.png",
+  "sourceRegion": [
+    96,
+    240,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.animal",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

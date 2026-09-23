@@ -1,0 +1,72 @@
+{
+  "name": "icon_food_cocoa_bar",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........00......",
+        ".......01100....",
+        ".......0122300..",
+        "......032231120.",
+        "......013341220.",
+        ".....011244320..",
+        "....0012241130..",
+        "...0550031120...",
+        "....065500220...",
+        "...070086600....",
+        "...097a00860....",
+        "..0997bac00.....",
+        "..097bbbac0.....",
+        "...00bbaa0......",
+        ".....00aa0......",
+        ".......00......."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#bf6f4a",
+    "2": "#8a4836",
+    "3": "#5d2c28",
+    "4": "#391f21",
+    "5": "#ffffff",
+    "6": "#c7cfdd",
+    "7": "#ea323c",
+    "8": "#92a1b9",
+    "9": "#f5555d",
+    "a": "#891e2b",
+    "b": "#c42430",
+    "c": "#571c27"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_all_16x16.png",
+  "sourceRegion": [
+    112,
+    256,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.food",
+    "feature.food_alchemy",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}
