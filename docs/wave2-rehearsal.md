@@ -72,7 +72,20 @@ This is measured combined content, not an arithmetic sum of branch estimates.
   Corrected migration and schema run: five passing tests.
 - Full repository build and client chunk boundaries passed. Final focused run:
   **129 tests / 19 files passed**.
-- Full `npm run check`: pending. No complete final-suite claim is made yet.
+- Full `npm run check` **exit 0** on production head `a59d85ad`: 1,000 coverage
+  files / **6,310 passing tests and one skip**, then **101 exhaustive tests** in
+  seven files. Coverage: statements 89.05%, branches 84.40%, functions 94.57%,
+  lines 93.11%; all thresholds passed. Coverage duration 1,055.37 seconds;
+  exhaustive duration 147.57 seconds.
+- The same complete run passed lifecycle integrity, 920 definitions / 26 files,
+  world build, all workspace types and lint, then 1,320 art assets, 12 songs,
+  10 SFX, 55 palette colors and four seasonal remaps.
+- Full log: `/tmp/copper-wave2-full-check.log`. Final closeout changes only this
+  evidence document; production source remains exactly the tested snapshot.
+- Hosted CI was still pending at closeout; no hosted pass is claimed.
+  Rehearsal PR: https://github.com/Dastari/orchard-cellar/pull/87 (draft,
+  **DO NOT MERGE**). Source integration fixes remain coordinator work; source
+  branches were never modified during this rehearsal.
 
 ## Preserved boundaries and gaps
 
