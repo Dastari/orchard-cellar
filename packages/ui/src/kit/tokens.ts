@@ -5,7 +5,7 @@ export const UI_SIZES = ['sm', 'md', 'lg'] as const;
 export type UiControlSize = typeof UI_SIZES[number];
 export const UI_SPACES = [0, 2, 4, 6, 8, 12, 16, 24, 32] as const;
 export type UiSpace = typeof UI_SPACES[number];
-export const UI_TEXT_ROLES = ['body', 'header', 'label', 'caption'] as const;
+export const UI_TEXT_ROLES = ['body', 'header', 'label', 'caption', 'special-heading'] as const;
 export type UiTextRole = typeof UI_TEXT_ROLES[number];
 export const UI_SHAPES = ['chamfered', 'square', 'pill'] as const;
 export type UiShape = typeof UI_SHAPES[number];
@@ -17,7 +17,10 @@ export const UI_FRAME_STYLES = ['wood', 'parchment', 'wood_parchment', 'thin', '
 export type UiSurfaceStyle = typeof UI_FRAME_STYLES[number];
 export const UI_TEXT_METRICS = Object.freeze({
   body: { font: 'body', glyphWidth: 5, glyphHeight: 7, lineHeight: 10 },
-  header: { font: 'header', glyphWidth: 8, glyphHeight: 12, lineHeight: 16 },
+  // Ordinary titles share the controls' font; semantic hierarchy does not select a different face.
+  header: { font: 'body', glyphWidth: 5, glyphHeight: 7, lineHeight: 10 },
+  // Opt in only for a deliberate decorative heading or long-form reading context.
+  'special-heading': { font: 'header', glyphWidth: 8, glyphHeight: 12, lineHeight: 16 },
   label: { font: 'body', glyphWidth: 5, glyphHeight: 7, lineHeight: 10 },
   caption: { font: 'body', glyphWidth: 5, glyphHeight: 7, lineHeight: 10 },
 } as const);

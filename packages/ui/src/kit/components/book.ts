@@ -4,7 +4,7 @@ import type { UiTextLinkTarget } from '../../design-system/rich-text.js';
 import type { UiRect } from '../../geometry.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import type { UiTone } from '../tokens.js';
+import type { UiTextRole, UiTone } from '../tokens.js';
 import type { UiKitArt } from './art.js';
 import { uiFrame } from './frame.js';
 import { uiText } from './text.js';
@@ -14,7 +14,7 @@ export interface UiMarkdownOptions {
   readonly id?: string; readonly source: string; readonly layout?: UiStyle; readonly onLink?: (target: UiTextLinkTarget) => void;
   readonly renderEmbed?: (entry: Pick<GameBookEmbedEntry, 'embedKind' | 'reference' | 'label'>) => UiElement | undefined;
 }
-function linkedText(text: string, role: 'body' | 'header', link?: UiTextLinkTarget, action?: (target: UiTextLinkTarget) => void, style?: UiStyle): UiElement {
+function linkedText(text: string, role: UiTextRole, link?: UiTextLinkTarget, action?: (target: UiTextLinkTarget) => void, style?: UiStyle): UiElement {
   const base = uiText(text, { role, overflow: 'clip', layout: style });
   if (!link) return base;
   return new UiElement({ ...base.hooks, kind: 'book-link', focusable: true, pointerMode: 'capture',
@@ -58,8 +58,9 @@ export function uiBook(options: UiBookOptions): UiElement {
       for (const [side, pageIndex] of gameBookSpreadPageIndices(spread, layout.pageCount).entries()) {
         if (pageIndex === null) continue; const page = layout.pages[pageIndex]!, area = layout.pageContentRects[side]!;
         const panel = place(new UiElement({ kind: 'book-page', props: { page: pageIndex }, style: { display: 'stack' } }), area, r); element.append(panel);
+        // Long-form headings retain the font that layoutGameBook measured for their page and link rectangles.
         for (const entry of page.entries) {
-          if (entry.kind === 'line') for (const fragment of entry.fragments) panel.append(place(linkedText(fragment.text, fragment.font, fragment.link, link), { x: area.x + entry.x + fragment.x, y: area.y + entry.y, width: fragment.width, height: entry.height }, area));
+          if (entry.kind === 'line') for (const fragment of entry.fragments) panel.append(place(linkedText(fragment.text, fragment.font === 'header' ? 'special-heading' : 'body', fragment.link, link), { x: area.x + entry.x + fragment.x, y: area.y + entry.y, width: fragment.width, height: entry.height }, area));
           else if (entry.kind === 'rule') panel.append(place(uiSeparator(), { x: area.x, y: area.y + entry.y, width: area.width, height: 1 }, area));
           else panel.append(place(options.renderEmbed?.(entry) ?? uiFrame({ style: 'thin', children: [uiText(entry.label ?? `${entry.embedKind}: ${entry.reference}`)] }), { x: area.x + entry.rect.x, y: area.y + entry.rect.y, width: Math.min(area.width, entry.rect.width), height: entry.rect.height }, area));
         }
