@@ -6,6 +6,17 @@ import { UiElement } from '../runtime/element.js';
 import { uiFixed } from '../layout/box.js';
 
 describe('action notices', () => {
+  it('offers compact release activation without changing the default specimen contract', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(106,60);
+    const open = vi.fn(); root.mount(uiActionNotice({ id: 'compact', message: 'NEW FARMING SKILL POINT · OPEN',
+      compact: true, activateOn: 'up', onOpen: open, onDismiss: vi.fn() })); root.arrange();
+    const button = root.entries().find(row => row.element.id === 'compact:open')!.element;
+    const point = { x: button.rect.x + 2, y: button.rect.y + 2 };
+    root.pointer({ type: 'down', point, pointerId: 1, button: 0 }); expect(open).not.toHaveBeenCalled();
+    root.pointer({ type: 'up', point, pointerId: 1, button: 0 }); expect(open).toHaveBeenCalledOnce();
+    const dismiss = root.entries().find(row => row.element.id === 'compact:dismiss')!.element;
+    expect(dismiss.props['label']).toBe('X'); expect(dismiss.label).toBe('Dismiss notice'); expect(dismiss.rect).toEqual(dismiss.clip); root.dispose();
+  });
   it.each([240,320,640])('keeps both actions clipped and keyboard operable at width %i', width => {
     const root = new UiRoot({ scale: 1 }); root.resize(width,100);
     const open = vi.fn(), dismiss = vi.fn();

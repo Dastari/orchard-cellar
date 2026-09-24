@@ -1,12 +1,14 @@
 import type { LoadedAsset } from '../../assets.js';
 import { selectAtlasFrame } from '../../sprite.js';
-import { drawOutlinedPixelText } from '../../pixel-ui.js';
+import { drawOutlinedPixelText, drawPixelText } from '../../pixel-ui.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, uiOffset, type UiStyle } from '../layout/box.js';
 import { resolveUiTextContrast, UI_TONE_FACES } from '../skin/contrast.js';
 export type UiWorldFeedbackEntry = { readonly id: string; readonly x: number; readonly y: number } & (
   { readonly kind: 'quest'; readonly artwork: LoadedAsset | (() => LoadedAsset | undefined) }
-  | { readonly kind: 'damage'; readonly amount: number; readonly critical?: boolean; readonly progress: number }
+  | { readonly kind: 'damage'; readonly amount: number; readonly critical?: boolean; readonly progress: number;
+      /** Production combat keeps its established color and bold critical amount. */
+      readonly presentation?: 'combat' }
 );
 export function uiWorldFeedback(options: { readonly entries?: readonly UiWorldFeedbackEntry[]; readonly layout?: UiStyle } = {}): UiElement {
   const nodes = new Map<string, UiElement>();
@@ -31,14 +33,20 @@ export function uiWorldFeedback(options: { readonly entries?: readonly UiWorldFe
                 const tone = value.critical ? 'warning' : 'neutral';
                 const progress = Math.max(0, Math.min(1, value.progress));
                 context.save(); context.globalAlpha *= progress < .6 ? 1 : (1 - progress) / .4;
-                drawOutlinedPixelText(context, art.pixel, `-${Math.max(1, Math.round(value.amount))}${value.critical ? '!' : ''}`, r.x + 1, r.y + 1,
+                const label = damageLabel(value);
+                if (value.presentation === 'combat') {
+                  const color = value.critical ? '#ffd34e' : '#fff1cf';
+                  drawPixelText(context, art.pixel, label, r.x + 1, r.y + 1, { color: '#3f2832' });
+                  drawPixelText(context, art.pixel, label, r.x, r.y, { color });
+                  if (value.critical) drawPixelText(context, art.pixel, label, r.x + 1, r.y, { color });
+                } else drawOutlinedPixelText(context, art.pixel, label, r.x + 1, r.y + 1,
                   { color: resolveUiTextContrast(tone).color, outlineColor: UI_TONE_FACES[tone].frame.face });
                 context.restore();
               }
             },
           }); element.append(node); nodes.set(entry.id, node);
         }
-        const label = entry.kind === 'damage' ? `-${Math.max(1, Math.round(entry.amount))}${entry.critical ? '!' : ''}` : 'Quest';
+        const label = entry.kind === 'damage' ? damageLabel(entry) : 'Quest';
         const width = entry.kind === 'quest' ? 16 : label.length * 6 + 2, height = entry.kind === 'quest' ? 18 : 10;
         node.label = label; node.setProps({ entry }, false);
         node.setStyle({ width: uiFixed(width), height: uiFixed(height),
@@ -48,4 +56,7 @@ export function uiWorldFeedback(options: { readonly entries?: readonly UiWorldFe
       return { min: { width: 0, height: 0 }, preferred: available };
     },
   });
+}
+function damageLabel(entry: Extract<UiWorldFeedbackEntry, { kind: 'damage' }>): string {
+  return `-${Math.max(1, Math.round(entry.amount))}${entry.critical && entry.presentation !== 'combat' ? '!' : ''}`;
 }
