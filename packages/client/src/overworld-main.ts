@@ -1121,7 +1121,7 @@ retainedUi.register({ id: 'character-name', priority: 1000, root: characterNameP
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
 const readingRoots = overworldUi.enableRetainedReading(kitArt);
 const characterRoots = overworldUi.enableRetainedCharacter(kitArt);
-for (const window of ['character', 'statistics'] as const) retainedUi.register({ id: `character-${window}`, priority: 500,
+for (const window of ['character', 'statistics', 'skills'] as const) retainedUi.register({ id: `character-${window}`, priority: 500,
   root: characterRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window && overworldUi.retainedCharacterActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
 const systemMenuRoot = overworldUi.enableRetainedSystem(kitArt);
@@ -6374,7 +6374,7 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
-    if (retainedUi.key(event, 'character-character') || retainedUi.key(event, 'character-statistics') || retainedUi.key(event, 'system-menus') || retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
+    if (retainedUi.key(event, 'character-skills') || retainedUi.key(event, 'character-character') || retainedUi.key(event, 'character-statistics') || retainedUi.key(event, 'system-menus') || retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
       syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'inventory-menus')) {
@@ -6994,7 +6994,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
   if (retainedPointers.dispatch('move', event, 'npc-interaction')) return;
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
-  if (retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
+  if (retainedPointers.dispatch('move', event, 'character-skills') || retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
   if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.pointerLeave(); return; }
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
@@ -7107,7 +7107,7 @@ canvas.addEventListener('pointerdown', (event) => {
     if (retainedPointers.dispatch('down', event, 'build-palette')) {
       event.preventDefault(); return;
     }
-    if (retainedPointers.dispatch('down', event, 'character-character') || retainedPointers.dispatch('down', event, 'character-statistics') || retainedPointers.dispatch('down', event, 'system-menus') || retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
+    if (retainedPointers.dispatch('down', event, 'character-skills') || retainedPointers.dispatch('down', event, 'character-character') || retainedPointers.dispatch('down', event, 'character-statistics') || retainedPointers.dispatch('down', event, 'system-menus') || retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
       event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'inventory-menus')) {
@@ -7485,7 +7485,7 @@ canvas.addEventListener('wheel', (event) => {
     if (retainedUi.wheel(retainedWheel, 'build-palette')) {
       event.preventDefault(); return;
     }
-    if (retainedUi.wheel(retainedWheel, 'character-character') || retainedUi.wheel(retainedWheel, 'character-statistics') || retainedUi.wheel(retainedWheel, 'system-menus') || retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
+    if (retainedUi.wheel(retainedWheel, 'character-skills') || retainedUi.wheel(retainedWheel, 'character-character') || retainedUi.wheel(retainedWheel, 'character-statistics') || retainedUi.wheel(retainedWheel, 'system-menus') || retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
       event.preventDefault(); return;
     }
     if (retainedUi.wheel(retainedWheel, 'inventory-menus')) {

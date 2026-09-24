@@ -184,7 +184,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // cover deep links, parent shortcuts, focus/resize, one command and cancelled touch custody.
 // Reviewed system-menu command adapter and retirement of its production legacy dispatch.
 // Reviewed shared character/statistics adapters, appearance rejection and legacy path retirement.
-const STRUCTURAL_SEAM_DIGEST = '1da5f84c2e9aa403d891b7b5f97d9351dcdfa9205c74cc538f92214c7c9fcfc0';
+// Reviewed skills host: shared navigation, actual parent deep links and captured reconnect tails.
+const STRUCTURAL_SEAM_DIGEST = 'ef31dd9105daaafb568cdff0c6e57be2fba84d16c1cff858012b3a2d6e9dab31';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

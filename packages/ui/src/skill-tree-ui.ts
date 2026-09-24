@@ -36,6 +36,7 @@ export interface SkillTreeCallbacks {
 }
 
 export interface SkillTreeNavigation {
+  readonly onKey?: (key: string, repeat: boolean) => boolean;
   readonly artwork?: Readonly<Record<string, LoadedAsset>>;
   readonly onNavigate?: (page: 'character' | 'skills' | 'statistics') => void;
   readonly onClose?: () => void;

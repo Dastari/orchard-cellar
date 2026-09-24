@@ -68,7 +68,12 @@ try {
  ui.openWindow=settings.stash?'content':settings.ferry?'ferry':settings.rewards?'outdoor-rewards':settings.skills?'skills':'inventory';ui.update(model);
  if(settings.ferry)ui.openFerry('orchard');
  if(settings.rewards&&settings.rewardState==='full-bags'){ui.handleKeyDown('Enter',false);for(let i=0;i<5;i++)await Promise.resolve();}
- if(settings.skills) {ui.skillTree.selectTrack('combat');ui.skillTree.selectedNodeId='blade_training';}
+ if(settings.skills) {
+  const roots=ui.enableRetainedCharacter(await loadUiKitArt());ui.openSkillTrack('combat');
+  const node=roots.skills.entries().find(entry=>entry.element.id==='skill:blade_training')?.element;
+  if(!node)throw new Error('Missing authored blade training node');
+  roots.skills.focus.set(node);roots.skills.key({key:'Enter'});
+ }
  else if(!settings.stash&&!settings.rewards&&!settings.ferry) {const slot=overworldUiLayout(settings.uiWidth,settings.uiHeight).backpackSlots[0];ui.pointerMove({x:slot.x+8,y:slot.y+8});}
  if(settings.danger){ui.openWindow=null;model.dangerNotice=settings.danger;model.zoneName='Overworld';ui.update(model);ui.pointerMove({x:-100,y:-100});}
  const canvas=document.createElement('canvas');canvas.width=settings.width;canvas.height=settings.height;

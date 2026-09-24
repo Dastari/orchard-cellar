@@ -12,6 +12,7 @@ import { uiMeter } from './meter.js';
 import { uiSkillGraph, type UiSkillGraphElement } from './skill-graph.js';
 
 export interface UiSkillsOptions extends SkillTreeCallbacks {
+  readonly onKey?: (key: string, repeat: boolean) => boolean;
   readonly model: SkillTreeModel; readonly track?: SkillTrack; readonly artwork?: Readonly<Record<string, LoadedAsset>>;
   readonly onNavigate?: (page: 'character' | 'skills' | 'statistics') => void; readonly onClose?: () => void; readonly layout?: UiStyle;
 }
@@ -112,7 +113,7 @@ export function uiSkills(options: UiSkillsOptions): UiSkillsElement {
     uiFlex({ direction: 'row', width: 'grow', height: 'grow', gap: 8 }, [uiFlex({ width: 'grow', height: 'grow', grow: 2, minWidth: uiFixed(100), gap: 4 }, [toolbar, graphHost]), detailScroll]),
   ] });
   const host = new UiElement({ id: 'game.skills.host', kind: 'skills-screen', children: [frame], style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' }, props: { singlePointer: true },
-    onKeyCapture(event) { if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; } });
+    onKeyCapture(event) { if (options.onKey?.(event.key, event.repeat === true)) return true; if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; } });
   const updateSkills = (next: SkillTreeModel) => {
     const nextKey = modelKey(next); if (nextKey === currentModelKey) return;
     currentModelKey = nextKey; const nextCatalog = JSON.stringify(next.nodes); model = next;

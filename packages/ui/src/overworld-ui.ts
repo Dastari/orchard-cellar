@@ -68,7 +68,7 @@ import { CharacterScreen, progressionWindowRect, type CharacterScreenModel } fro
 import { SkillTreeUi, type SkillTreeModel } from './skill-tree-ui.js';
 import type { SkillPointNotice } from './skill-point-notice.js';
 import { StatisticsScreen, type StatisticsScreenModel } from './statistics-screen.js';
-import { PROGRESSION_TABS, progressionTabsLayout, type ProgressionTab } from './progression-tabs.js';
+import { type ProgressionTab } from './progression-tabs.js';
 import { QuestLog, type QuestLogEntry } from './quest-log.js';
 import { drawUiInventorySlotBacking, uiInventorySelectorRect } from './design-system/inventory.js';
 import { uiDurabilityFraction } from './item-durability.js';
@@ -1213,28 +1213,34 @@ export class OverworldUi {
     });
   }
   disposeRetainedSystem(): void { this.systemMenus?.dispose(); this.systemMenus = null; }
-  enableRetainedCharacter(art: UiKitArt): { readonly character: UiRoot; readonly statistics: UiRoot } {
+  enableRetainedCharacter(art: UiKitArt): { readonly character: UiRoot; readonly statistics: UiRoot; readonly skills: UiRoot } {
     const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: 'character' | 'skills' | 'statistics') => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
-    if (!this.characterScreen || !this.statisticsScreen) {
+    if (!this.characterScreen || !this.statisticsScreen || !this.skillTree) {
       this.characterScreen = new CharacterScreen(art, { setAppearance: appearance => this.callbacks.setAppearance?.(appearance) },
         this.drawPlayerDoll, (context, rect, item) => this.drawInventoryItem(context, rect, item.itemKind, item.quantity, item.durability, item.lit), navigation);
       this.statisticsScreen = new StatisticsScreen(art, navigation);
+      this.skillTree = new SkillTreeUi(art, {
+        prioritize: nodeId => this.callbacks.prioritizeEquipmentSkill?.(nodeId),
+        purchase: nodeId => this.callbacks.purchaseSkillNode?.(nodeId), reset: track => this.callbacks.resetSkillTree?.(track),
+      }, { ...navigation, artwork: this.skin.skillIcons });
 
     }
-    this.syncRetainedCharacter(); return { character: this.characterScreen.root, statistics: this.statisticsScreen.root };
+    this.syncRetainedCharacter(); return { character: this.characterScreen.root, statistics: this.statisticsScreen.root, skills: this.skillTree.root };
   }
   get retainedCharacterActive(): boolean {
     return this.openWindowValue === 'character' && this.characterScreen?.active === true
-      || this.openWindowValue === 'statistics' && this.statisticsScreen?.active === true;
+      || this.openWindowValue === 'statistics' && this.statisticsScreen?.active === true
+      || this.openWindowValue === 'skills' && this.skillTree?.active === true;
   }
   private syncRetainedCharacter(): void {
     this.characterScreen?.update(this.openWindowValue === 'character' && this.model.connected ? this.model.character ?? null : null);
     this.statisticsScreen?.update(this.openWindowValue === 'statistics' && this.model.connected ? {
       ...(this.model.statistics ?? { statistics: [] }), contentRegistry: this.model.contentRegistry,
     } : null);
-    for (const view of [this.characterScreen, this.statisticsScreen]) view?.setBounds(this.layout.progressionWindow, this.model.width, this.model.height);
+    this.skillTree?.update(this.openWindowValue === 'skills' && this.model.connected ? this.model.skills ?? null : null);
+    for (const view of [this.characterScreen, this.statisticsScreen, this.skillTree]) view?.setBounds(this.layout.progressionWindow, this.model.width, this.model.height);
   }
-  disposeRetainedCharacter(): void { this.characterScreen?.dispose(); this.statisticsScreen?.dispose(); this.characterScreen = null; this.statisticsScreen = null; }
+  disposeRetainedCharacter(): void { this.skillTree?.dispose(); this.skillTree = null; this.characterScreen?.dispose(); this.statisticsScreen?.dispose(); this.characterScreen = null; this.statisticsScreen = null; }
   private retainedMenus: InventoryMenus | null = null;
   private retainedArtwork: OverworldUiItemArt | null = null;
   get retainedInventoryRoot(): UiRoot | null { return this.retainedMenus?.root ?? null; }
@@ -1512,7 +1518,7 @@ export class OverworldUi {
   private readonly playerResourceFrame: PlayerResourceFrame;
   private readonly targetResourceFrame: PlayerResourceFrame;
   private characterScreen: CharacterScreen | null = null;
-  private readonly skillTree: SkillTreeUi;
+  private skillTree: SkillTreeUi | null = null;
   private statisticsScreen: StatisticsScreen | null = null;
   private questLog: QuestLog | null = null;
   private readonly ferryMenu:FerryMenu;
@@ -1665,11 +1671,6 @@ export class OverworldUi {
         const target = this.model.targetVitals;
         if (target?.targetId === targetId) drawTargetPortrait(context, target, rect);
       },
-    });
-    this.skillTree = new SkillTreeUi(skin, fonts, {
-      prioritize:(nodeId)=>this.callbacks.prioritizeEquipmentSkill?.(nodeId),
-      purchase: (nodeId) => this.callbacks.purchaseSkillNode?.(nodeId),
-      reset: (track) => this.callbacks.resetSkillTree?.(track),
     });
     this.zoneNode = widget('button', 'hud.zone', {
       onPointer: (event) => {
@@ -2114,7 +2115,7 @@ export class OverworldUi {
 
   openFerry(source:HearthFerryDock):void {this.ferryMenu.open(source);this.openWindow='ferry';}
   get openWindow(): OverworldWindow | null { return this.openWindowValue; }
-  get activeSkillTrack(): SkillTrack { return this.skillTree.selectedTrack; }
+  get activeSkillTrack(): SkillTrack { return this.skillTree?.selectedTrack ?? 'explorer'; }
   private selectLightingMode(mode: LightingSettingsMode): void {
     if (mode !== 'basic') this.callbacks.setLightingModel?.(mode === 'dynamic' ? 'unified' : 'classic');
     this.callbacks.setLightingQuality?.(mode === 'basic' ? 'basic' : 'dynamic');
@@ -2177,7 +2178,7 @@ export class OverworldUi {
   }
 
   openSkillTrack(track: SkillTrack): void {
-    this.skillTree.selectTrack(track, this.progressionContentRect());
+    this.skillTree?.selectTrack(track);
     this.openWindow = 'skills';
   }
   set openWindow(window: OverworldWindow | null) {
@@ -2204,10 +2205,10 @@ export class OverworldUi {
       this.callbacks.returnInventoryCursor();
     }
     if (nextWindow === 'help' && this.openWindowValue !== 'help') this.helpBook?.reset();
-    if (this.openWindowValue === 'skills' && nextWindow !== 'skills') this.skillTree.pointerLeave();
     this.openWindowValue = nextWindow;
     this.syncActiveWindow();
     if (previousWindow !== nextWindow) {
+      if (nextWindow === 'skills') this.skillTree?.focus();
       if (nextWindow === 'character') this.characterScreen?.focus();
       if (nextWindow === 'statistics') this.statisticsScreen?.focus();
       if (nextWindow === 'quests') this.questLog?.focus();
@@ -2235,7 +2236,6 @@ export class OverworldUi {
       this.watchStatusOutput.textContent = [watchStatus, skillStatus].filter(Boolean).join(' ');
     }
     this.syncPwaUpdatePrompt(previousUpdateStatus);
-    if (model.skills !== undefined) this.skillTree.update(model.skills);
     this.questLog?.update(model.quests ?? []);
     this.outdoorRewards.update(model.outdoorRewards??[],model.delveActive===true);
     if (this.openWindowValue === 'developer' && !model.canAdministerWorld) this.openWindowValue = 'system';
@@ -2544,7 +2544,6 @@ export class OverworldUi {
     void _modifiers;
     this.systemCursorMove(point);
     if (this.blockingUpdatePromptVisible) return;
-    if (this.openWindowValue === 'skills') this.skillTree.pointerMove(point, this.progressionContentRect());
     if(this.openWindowValue==='outdoor-rewards')this.outdoorRewards.pointerMove(point,this.layout.progressionWindow);
     if (this.onlinePlayerListActive) this.onlinePlayersScrollBar.pointerMove(point);
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
@@ -2679,17 +2678,6 @@ export class OverworldUi {
     }
     if (this.openWindowValue === null && this.model.targetVitals !== undefined
       && containsPoint(this.layout.targetVitals, point)) return true;
-    if (button === 0 && (this.openWindowValue === 'character' || this.openWindowValue === 'skills'
-      || this.openWindowValue === 'statistics')) {
-      const tabs = progressionTabsLayout(this.layout.progressionWindow).tabs;
-      const tab = PROGRESSION_TABS.find((candidate) => containsPoint(tabs[candidate], point));
-      if (tab !== undefined) {
-        this.openWindow = tab;
-        return true;
-      }
-    }
-    if (this.openWindowValue === 'skills'
-      && this.skillTree.pointerDown(point, button, this.progressionContentRect())) return true;
     if(this.openWindowValue==='ferry'&&!containsPoint(this.closeNode.bounds,point)
       &&this.ferryMenu.pointerDown(point,button,this.layout.progressionWindow))return true;
     if(this.openWindowValue==='outdoor-rewards'&&!containsPoint(this.closeNode.bounds,point)
@@ -2774,7 +2762,6 @@ export class OverworldUi {
       this.selectCraftingRecipe(recipeId);
       return true;
     }
-    if (this.openWindowValue === 'skills' && this.skillTree.pointerUp()) return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.pointerUp())return true;
     if (this.onlinePlayersScrollBar.pointerUp()) return true;
     if (this.inventoryScrollBar.pointerUp()) return true;
@@ -2948,7 +2935,6 @@ export class OverworldUi {
     this.musicSlider.pointerLeave();
     this.sfxSlider.pointerLeave();
     this.onlinePlayersScrollBar.pointerLeave();
-    this.skillTree.pointerLeave();
     this.outdoorRewards.pointerLeave();
     this.inventoryScrollBar.pointerLeave();
     this.craftingRecipeScrollBar.pointerLeave();
@@ -2957,8 +2943,6 @@ export class OverworldUi {
 
   wheel(point: UiPoint, deltaX: number, deltaY: number): boolean {
     if (this.blockingUpdatePromptVisible) return true;
-    if (this.openWindowValue === 'skills'
-      && this.skillTree.wheel(point, deltaY, this.progressionContentRect())) return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.wheel(point,deltaY,this.layout.progressionWindow))return true;
     if (this.onlinePlayerListActive && containsPoint(this.onlinePlayerListRect, point) && deltaY !== 0) {
       this.onlinePlayersScrollBar.wheel(deltaY, 1);
@@ -3403,9 +3387,6 @@ export class OverworldUi {
       ? this.model.inventoryFrameState ?? {} : this.model.activeFrameState ?? {};
   }
 
-  private progressionContentRect(): UiRect {
-    return progressionTabsLayout(this.layout.progressionWindow).content;
-  }
 
   /** Keep the active modal's hit targets in lockstep with its visual state. */
   private syncActiveWindow(): void {
@@ -4016,6 +3997,7 @@ export class OverworldUi {
   }
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
+    if (window === 'skills') { this.skillTree?.draw(context); return; }
     if (window === 'character') { this.characterScreen?.draw(context); return; }
     if (window === 'statistics') { this.statisticsScreen?.draw(context); return; }
     if (this.retainedSystemActive) { this.systemMenus!.draw(context); return; }
@@ -4082,7 +4064,6 @@ export class OverworldUi {
           : window === 'cooking' ? 'COOKING FIRE'
           : window === 'press' ? 'FRUIT PRESS'
           : window === 'fermentation' ? 'FERMENTATION CASK'
-          : window === 'skills' ? 'CHARACTER'
           : window === 'ferry' ? 'ISLAND FERRY'
           : window === 'outdoor-rewards' ? 'EXPEDITION REWARDS'
           : window === 'delve-confirmation' ? 'START DELVE'
@@ -4109,24 +4090,6 @@ export class OverworldUi {
     else if (window === 'cooking') this.drawCooking(context, rect);
     else if (window === 'press') this.drawFruitPress(context, rect);
     else if (window === 'fermentation') this.drawFermentation(context, rect);
-    else if (window === 'skills') {
-      const progression = progressionTabsLayout(rect);
-      const tabGlyphs: Readonly<Record<ProgressionTab, FantasyButtonGlyph>> = {
-        character: 'heart',
-        skills: 'star',
-        statistics: 'up',
-      };
-      for (const tab of PROGRESSION_TABS) drawMenuButton(
-        context,
-        this.skin,
-        this.fonts,
-        this.pointer,
-        progression.tabs[tab],
-        tab.toUpperCase(),
-        { active: tab === window, glyph: tabGlyphs[tab] },
-      );
-      this.skillTree.draw(context, progression.content);
-    }
     else if(window==='outdoor-rewards')this.outdoorRewards.draw(context,rect);
     else if(window==='ferry')this.ferryMenu.draw(context,rect);
     else if (window === 'delve-confirmation') this.drawDelveConfirmation(context, rect);
