@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.28.0 / UI 0.30.0 — Shared quests and guide (not yet deployed)
+
+- Render the production quest log and help guide with the shared kit, preserving real quest pin/drop callbacks, deep links, selection, reading navigation and parent close policies.
+- Keep stable roots and focus across authoritative updates and resizing; retire old frame drawing and coordinate input together. Preserve captured-pointer cancellation, secondary-touch rejection and repeated activation guards.
+- Use font_5x7 for ordinary chrome and quest text; book page headings retain their explicit long-form reading role. Workspace0.34.0.
+
 ## Client 0.27.0 / UI 0.29.0 — Shared build palette (not yet deployed)
 
 - Adopt the shared build palette using real furniture, construction, upgrade and residence models; preserve existing transport and authoritative rejection handling.

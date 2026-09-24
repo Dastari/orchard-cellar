@@ -1121,10 +1121,14 @@ function retainedUiAvailable(): boolean {
 retainedUi.register({ id: 'character-name', priority: 1000, root: characterNamePrompt.root,
   active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
+const readingRoots = overworldUi.enableRetainedReading(kitArt);
 retainedUi.register({ id: 'inventory-menus', priority: 500, root: inventoryMenuRoot,
   active: () => retainedUiAvailable() && overworldUi.retainedInventoryActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible,
   blocking: () => true });
+for (const window of ['quests', 'help'] as const) retainedUi.register({ id: `reading-${window}`, priority: 500,
+  root: readingRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
 retainedUi.register({ id: 'player-trade', priority: 900, root: tradeUi.root,
   active: () => retainedUiAvailable() && tradeUi.active, blocking: () => true });
 retainedUi.register({ id: 'build-palette', priority: 200, root: homesteadBuildPalette.root,
@@ -1151,7 +1155,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
 });
 import.meta.hot?.dispose(() => {
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
-  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory();
+  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading();
 });
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
@@ -6360,6 +6364,9 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
+    if (retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
+      syncRetainedText(); event.preventDefault(); return;
+    }
     if (retainedUi.key(event, 'inventory-menus')) {
       syncRetainedText(); event.preventDefault(); return;
     }
@@ -6978,6 +6985,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
   if (npcInteractionUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
+  if (retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
   if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.pointerLeave(); return; }
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
@@ -7094,6 +7102,9 @@ canvas.addEventListener('pointerdown', (event) => {
       return;
     }
     if (retainedPointers.dispatch('down', event, 'build-palette')) {
+      event.preventDefault(); return;
+    }
+    if (retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
       event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'inventory-menus')) {
@@ -7468,6 +7479,9 @@ canvas.addEventListener('wheel', (event) => {
     const retainedWheel = { point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
       deltaY: event.deltaY * wheelUnit / currentUiScale() };
     if (retainedUi.wheel(retainedWheel, 'build-palette')) {
+      event.preventDefault(); return;
+    }
+    if (retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
       event.preventDefault(); return;
     }
     if (retainedUi.wheel(retainedWheel, 'inventory-menus')) {
