@@ -1,5 +1,25 @@
 [
   {
+    "id": "item:amethyst_dust",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Amethyst Dust",
+    "icon": {
+      "asset": "icon_alchemy_amethyst_dust"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem_dust",
+      "gem.amethyst"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    }
+  },
+  {
     "id": "item:amethyst_ore",
     "kind": "item",
     "schemaVersion": 1,
@@ -37,6 +57,26 @@
     "economy": {
       "buy": null,
       "sell": 9
+    }
+  },
+  {
+    "id": "item:animal_fat",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Animal Fat",
+    "icon": {
+      "asset": "icon_animal_animal_fat"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 12,
+      "sell": 2
     }
   },
   {
@@ -124,6 +164,27 @@
     "economy": {
       "buy": null,
       "sell": 1
+    }
+  },
+  {
+    "id": "item:arcane_essence",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Arcane Essence",
+    "icon": {
+      "asset": "icon_craft_arcane_essence"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.essence",
+      "material.enchanting",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 30
     }
   },
   {
@@ -288,6 +349,26 @@
     }
   },
   {
+    "id": "item:beeswax",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Beeswax",
+    "icon": {
+      "asset": "icon_animal_beeswax"
+    },
+    "maxStack": 32,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    }
+  },
+  {
     "id": "item:beetroot",
     "kind": "item",
     "schemaVersion": 1,
@@ -410,6 +491,26 @@
     }
   },
   {
+    "id": "item:bone",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Bone",
+    "icon": {
+      "asset": "icon_animal_bone"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 12,
+      "sell": 2
+    }
+  },
+  {
     "id": "item:boots",
     "kind": "item",
     "schemaVersion": 1,
@@ -492,6 +593,48 @@
     "equip": {
       "slot": "hand",
       "avatarAction": "ranged_weapon"
+    }
+  },
+  {
+    "id": "item:brick",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Brick",
+    "icon": {
+      "asset": "icon_craft_brick"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.processed",
+      "material.masonry"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 3
+    }
+  },
+  {
+    "id": "item:bronze_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Bronze Bar",
+    "icon": {
+      "asset": "icon_craft_bronze_bar"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.metal",
+      "material.bar",
+      "metal.bronze",
+      "material.alloy"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 120
     }
   },
   {
@@ -786,6 +929,25 @@
     ]
   },
   {
+    "id": "item:chain_links",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Chain Links",
+    "icon": {
+      "asset": "icon_craft_chain_links"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.metalwork"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 30
+    }
+  },
+  {
     "id": "item:cherry",
     "kind": "item",
     "schemaVersion": 1,
@@ -873,6 +1035,26 @@
     }
   },
   {
+    "id": "item:chitin",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Chitin",
+    "icon": {
+      "asset": "icon_animal_chitin"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 16,
+      "sell": 3
+    }
+  },
+  {
     "id": "item:cinder_ore",
     "kind": "item",
     "schemaVersion": 1,
@@ -889,6 +1071,46 @@
     "economy": {
       "buy": null,
       "sell": 30
+    }
+  },
+  {
+    "id": "item:clay",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Clay",
+    "icon": {
+      "asset": "icon_craft_clay"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.earth",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    }
+  },
+  {
+    "id": "item:coal",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Coal",
+    "icon": {
+      "asset": "icon_craft_coal"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.fuel",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 6
     }
   },
   {
@@ -1782,6 +2004,111 @@
     }
   },
   {
+    "id": "item:cut_amethyst",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cut Amethyst",
+    "icon": {
+      "asset": "item_cf_amethyst_gem"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem",
+      "gem.amethyst"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 150
+    }
+  },
+  {
+    "id": "item:cut_emerald",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cut Emerald",
+    "icon": {
+      "asset": "item_cf_emerald_gem"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem",
+      "gem.emerald"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 140
+    }
+  },
+  {
+    "id": "item:cut_ruby",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cut Ruby",
+    "icon": {
+      "asset": "item_cf_ruby_gem"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem",
+      "gem.ruby"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 200
+    }
+  },
+  {
+    "id": "item:cut_sapphire",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cut Sapphire",
+    "icon": {
+      "asset": "item_cf_sapphire_gem"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem",
+      "gem.sapphire"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 170
+    }
+  },
+  {
+    "id": "item:cut_topaz",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cut Topaz",
+    "icon": {
+      "asset": "item_cf_topaz_gem"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem",
+      "gem.topaz"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 120
+    }
+  },
+  {
     "id": "item:delver_memorial_planter",
     "kind": "item",
     "schemaVersion": 1,
@@ -1803,6 +2130,27 @@
     }
   },
   {
+    "id": "item:ember_essence",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Ember Essence",
+    "icon": {
+      "asset": "icon_craft_ember_essence"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.essence",
+      "material.enchanting",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 30
+    }
+  },
+  {
     "id": "item:emberglass",
     "kind": "item",
     "schemaVersion": 1,
@@ -1819,6 +2167,26 @@
     "economy": {
       "buy": null,
       "sell": 24
+    }
+  },
+  {
+    "id": "item:emerald_dust",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Emerald Dust",
+    "icon": {
+      "asset": "icon_alchemy_emerald_dust"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem_dust",
+      "gem.emerald"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
     }
   },
   {
@@ -1859,6 +2227,26 @@
     "economy": {
       "buy": null,
       "sell": 8
+    }
+  },
+  {
+    "id": "item:feather",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Feather",
+    "icon": {
+      "asset": "icon_animal_feather"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 12,
+      "sell": 2
     }
   },
   {
@@ -1927,7 +2315,7 @@
     "schemaVersion": 1,
     "displayName": "Fiber",
     "icon": {
-      "asset": "item_cf_fiber"
+      "asset": "icon_craft_fiber"
     },
     "maxStack": 99,
     "tags": [
@@ -3935,6 +4323,25 @@
     }
   },
   {
+    "id": "item:glass_pane",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Glass Pane",
+    "icon": {
+      "asset": "icon_craft_glass_pane"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.processed",
+      "material.glass"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    }
+  },
+  {
     "id": "item:gloves",
     "kind": "item",
     "schemaVersion": 1,
@@ -4060,6 +4467,27 @@
     "equip": {
       "slot": "hand",
       "avatarAction": "ranged_weapon"
+    }
+  },
+  {
+    "id": "item:gold_filigree",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Filigree",
+    "icon": {
+      "asset": "icon_craft_gold_filigree"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.metalwork",
+      "metal.gold"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 160
     }
   },
   {
@@ -7919,6 +8347,25 @@
     }
   },
   {
+    "id": "item:ink",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Ink",
+    "icon": {
+      "asset": "icon_craft_ink"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.scribing"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    }
+  },
+  {
     "id": "item:iron_axe",
     "kind": "item",
     "schemaVersion": 1,
@@ -8405,6 +8852,26 @@
     }
   },
   {
+    "id": "item:linen_cloth",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Linen Cloth",
+    "icon": {
+      "asset": "icon_craft_linen_cloth"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.textile",
+      "material.cloth"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 28
+    }
+  },
+  {
     "id": "item:marlow_book",
     "kind": "item",
     "schemaVersion": 1,
@@ -8510,6 +8977,25 @@
     "economy": {
       "buy": null,
       "sell": 12
+    }
+  },
+  {
+    "id": "item:nails",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Nails",
+    "icon": {
+      "asset": "icon_craft_nails"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.metalwork"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 2
     }
   },
   {
@@ -8735,6 +9221,25 @@
     "economy": {
       "buy": 1800,
       "sell": 720
+    }
+  },
+  {
+    "id": "item:parchment",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Parchment",
+    "icon": {
+      "asset": "icon_craft_parchment"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.scribing"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 3
     }
   },
   {
@@ -9062,6 +9567,26 @@
     ],
     "economy": {
       "buy": null,
+      "sell": 4
+    }
+  },
+  {
+    "id": "item:pond_slime",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pond Slime",
+    "icon": {
+      "asset": "icon_animal_pond_slime"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 20,
       "sell": 4
     }
   },
@@ -10739,6 +11264,26 @@
     }
   },
   {
+    "id": "item:raw_hide",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Raw Hide",
+    "icon": {
+      "asset": "icon_craft_raw_hide"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.hide",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 8
+    }
+  },
+  {
     "id": "item:raw_mutton",
     "kind": "item",
     "schemaVersion": 1,
@@ -10859,6 +11404,45 @@
     }
   },
   {
+    "id": "item:rope",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Rope",
+    "icon": {
+      "asset": "icon_craft_rope"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.textile"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 22
+    }
+  },
+  {
+    "id": "item:ruby_dust",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Ruby Dust",
+    "icon": {
+      "asset": "icon_alchemy_ruby_dust"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem_dust",
+      "gem.ruby"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    }
+  },
+  {
     "id": "item:ruby_ore",
     "kind": "item",
     "schemaVersion": 1,
@@ -10896,6 +11480,66 @@
     "economy": {
       "buy": null,
       "sell": 12
+    }
+  },
+  {
+    "id": "item:salt",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Salt",
+    "icon": {
+      "asset": "icon_alchemy_salt"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.mineral",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 8,
+      "sell": 1
+    }
+  },
+  {
+    "id": "item:sand",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sand",
+    "icon": {
+      "asset": "icon_craft_sand"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.earth",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    }
+  },
+  {
+    "id": "item:sapphire_dust",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sapphire Dust",
+    "icon": {
+      "asset": "icon_alchemy_sapphire_dust"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem_dust",
+      "gem.sapphire"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
     }
   },
   {
@@ -10939,6 +11583,27 @@
     }
   },
   {
+    "id": "item:scale",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Scale",
+    "icon": {
+      "asset": "icon_craft_scale"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    }
+  },
+  {
     "id": "item:shed",
     "kind": "item",
     "schemaVersion": 1,
@@ -10956,6 +11621,26 @@
     "economy": {
       "buy": null,
       "sell": 360
+    }
+  },
+  {
+    "id": "item:shell",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Shell",
+    "icon": {
+      "asset": "icon_animal_shell"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": 16,
+      "sell": 3
     }
   },
   {
@@ -11029,6 +11714,26 @@
     "economy": {
       "buy": null,
       "sell": 5
+    }
+  },
+  {
+    "id": "item:silk_thread",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silk Thread",
+    "icon": {
+      "asset": "icon_craft_silk_thread"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.textile"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 22
     }
   },
   {
@@ -11158,6 +11863,27 @@
     "equip": {
       "slot": "hand",
       "avatarAction": "ranged_weapon"
+    }
+  },
+  {
+    "id": "item:silver_filigree",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Filigree",
+    "icon": {
+      "asset": "icon_craft_silver_filigree"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.metalwork",
+      "metal.silver"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 45
     }
   },
   {
@@ -11363,6 +12089,67 @@
     }
   },
   {
+    "id": "item:sinew",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sinew",
+    "icon": {
+      "asset": "icon_craft_sinew"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.animal",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 6
+    }
+  },
+  {
+    "id": "item:slime_gel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Slime Gel",
+    "icon": {
+      "asset": "icon_craft_slime_gel"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.monster",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    }
+  },
+  {
+    "id": "item:spider_silk",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Spider Silk",
+    "icon": {
+      "asset": "icon_craft_spider_silk"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.fiber",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    }
+  },
+  {
     "id": "item:sprinkler",
     "kind": "item",
     "schemaVersion": 1,
@@ -11404,6 +12191,29 @@
     "economy": {
       "buy": 60,
       "sell": 1
+    }
+  },
+  {
+    "id": "item:steel_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Steel Bar",
+    "icon": {
+      "asset": "icon_craft_steel_bar"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.metal",
+      "material.bar",
+      "metal.steel",
+      "material.alloy"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 188
     }
   },
   {
@@ -11872,6 +12682,48 @@
     }
   },
   {
+    "id": "item:tin_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Tin Bar",
+    "icon": {
+      "asset": "icon_craft_tin_bar"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.metal",
+      "material.bar",
+      "metal.tin"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 120
+    }
+  },
+  {
+    "id": "item:tin_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Tin Ore",
+    "icon": {
+      "asset": "icon_craft_tin_ore"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.ore",
+      "ore.tin",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 60
+    }
+  },
+  {
     "id": "item:tomato",
     "kind": "item",
     "schemaVersion": 1,
@@ -11951,6 +12803,26 @@
     "economy": {
       "buy": 28,
       "sell": 7
+    }
+  },
+  {
+    "id": "item:topaz_dust",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Topaz Dust",
+    "icon": {
+      "asset": "icon_alchemy_topaz_dust"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.gem_dust",
+      "gem.topaz"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
     }
   },
   {
@@ -12129,6 +13001,27 @@
     "economy": {
       "buy": 18,
       "sell": 4
+    }
+  },
+  {
+    "id": "item:warden_heartstone",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Warden Heartstone",
+    "icon": {
+      "asset": "icon_craft_warden_heartstone"
+    },
+    "quality": "epic",
+    "maxStack": 16,
+    "tags": [
+      "item.resource",
+      "material.monster",
+      "material.boss_core",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 400
     }
   },
   {
@@ -12365,6 +13258,46 @@
     }
   },
   {
+    "id": "item:wool",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wool",
+    "icon": {
+      "asset": "icon_animal_wool"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.raw",
+      "material.fiber",
+      "material.pending_source"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 3
+    }
+  },
+  {
+    "id": "item:wool_cloth",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wool Cloth",
+    "icon": {
+      "asset": "icon_craft_wool_cloth"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.textile",
+      "material.cloth"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    }
+  },
+  {
     "id": "item:workbench",
     "kind": "item",
     "schemaVersion": 1,
@@ -12381,6 +13314,25 @@
     "economy": {
       "buy": 120,
       "sell": 3
+    }
+  },
+  {
+    "id": "item:yarn",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Yarn",
+    "icon": {
+      "asset": "icon_craft_yarn"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.textile"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 5
     }
   },
   {

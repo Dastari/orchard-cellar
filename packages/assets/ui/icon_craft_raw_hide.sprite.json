@@ -1,0 +1,63 @@
+{
+  "name": "icon_craft_raw_hide",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".00....00....00.",
+        "0120..0110..0210",
+        "0112001133002110",
+        ".01113333331110.",
+        ".03133433433130.",
+        "..033433334330..",
+        "...0333343330...",
+        "...0433433340...",
+        "...0433433340...",
+        "..013433334310..",
+        "..021311333120..",
+        ".02140011004120.",
+        ".0340..00..0430.",
+        "..00........00..",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e4a672",
+    "2": "#ead4aa",
+    "3": "#b86f50",
+    "4": "#743f39"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    96,
+    1424,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

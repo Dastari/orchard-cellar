@@ -39,12 +39,21 @@ describe('premium tool, skill and seed artwork', () => {
     };
     const gearNames = gearImports.imports.map(({ asset }) => asset).sort();
     const gearNameSet = new Set(gearNames);
+    const materialImports = JSON.parse(await readFile(new URL('packages/tools/src/material-icon-imports.json', workspaceRoot), 'utf8')) as {
+      imports: { asset: string; source: string }[];
+    };
+    // Only the Kenmi-sourced material crops carry source.kenmi; Clockwork Raven ones are tagged separately.
+    const materialNames = materialImports.imports.filter(({ source }) => source.includes('/kenmi/')).map(({ asset }) => asset).sort();
+    const materialNameSet = new Set(materialNames);
     const nonFoodAssets = assets.filter(asset => !asset.tags?.includes('feature.food_alchemy'));
     // The original 20 replacements plus legacy shovel alias remain intact.
-    expect(nonFoodAssets.filter(asset => !gearNameSet.has(asset.name))).toHaveLength(21);
+    expect(nonFoodAssets.filter(asset => !gearNameSet.has(asset.name) && !materialNameSet.has(asset.name))).toHaveLength(21);
     // Approved weapon/component imports match the reviewed manifest exactly.
     expect(gearNames).toHaveLength(19);
     expect(nonFoodAssets.filter(asset => gearNameSet.has(asset.name)).map(asset => asset.name).sort()).toEqual(gearNames);
+    // Approved crafting-material imports (Craft-D2 / Prog-D1) match their reviewed manifest exactly.
+    expect(materialNames).toHaveLength(24);
+    expect(nonFoodAssets.filter(asset => materialNameSet.has(asset.name)).map(asset => asset.name).sort()).toEqual(materialNames);
     // Retain source-pixel checks for every import, including food/alchemy and gear.
     for (const asset of assets) {
       const image = decodePng(await readFile(new URL(asset.sourcePath!, workspaceRoot)));

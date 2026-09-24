@@ -1,0 +1,62 @@
+{
+  "name": "icon_craft_rope",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".........01.....",
+        ".......10220....",
+        ".......020023...",
+        ".......3022313..",
+        "......32313303..",
+        ".....323032003..",
+        "...1023233333...",
+        "..1220130320....",
+        "..1201303..32...",
+        "..0220303...30..",
+        "...033103.3332..",
+        "....3333..320...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#e4a672",
+    "1": "#ead4aa",
+    "2": "#b86f50",
+    "3": "#733e39"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourceRegion": [
+    0,
+    144,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

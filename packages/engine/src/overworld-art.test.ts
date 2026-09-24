@@ -256,7 +256,7 @@ describe('overworld art topology', () => {
     expect(overworldItemIconKey('iron_axe')).toBe('icon_tool_iron_axe');
     expect(overworldItemIconKey('copper_pickaxe')).toBe('icon_tool_copper_pickaxe');
     expect(overworldItemIconKey('workbench')).toBe('prop_cf_workbench');
-    expect(overworldItemIconKey('fiber')).toBe('item_cf_fiber');
+    expect(overworldItemIconKey('fiber')).toBe('icon_craft_fiber');
     expect(overworldItemIconKey('future_item')).toBe('system_missing_asset');
   });
 

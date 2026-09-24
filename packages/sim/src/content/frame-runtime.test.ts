@@ -19,13 +19,13 @@ function frame(id: string): FrameContentDefinition {
 describe('frame restriction resolver', () => {
   it('derives station inputs and outputs deterministically', () => {
     expect(frameRestrictions(frame('furnace'), registry)).toEqual({
-      0: { acceptedKinds: ['copper_ore', 'gold_ore', 'iron_ore', 'silver_ore'] },
+      0: { acceptedKinds: ['clay', 'copper_ore', 'gold_ore', 'iron_ore', 'sand', 'silver_ore', 'tin_ore'] },
       1: { acceptedKinds: ['plank', 'wood'] },
       2: { readOnly: true },
     });
     expect(resolveFrameSlotRestriction({
       acceptedFrom: { stationTag: 'station.furnace', role: 'output' }, readOnly: true,
-    }, registry)).toEqual({ acceptedKinds: ['copper_bar', 'gold_bar', 'iron_bar', 'silver_bar'], readOnly: true });
+    }, registry)).toEqual({ acceptedKinds: ['brick', 'copper_bar', 'glass_pane', 'gold_bar', 'iron_bar', 'silver_bar', 'tin_bar'], readOnly: true });
   });
 
   it('rejects insertion when an authored process set is empty but preserves extraction of existing contents', () => {

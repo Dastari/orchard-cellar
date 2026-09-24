@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.40.5 / Studio 0.15.5 / World 0.26.1 — Materials foundation
+
+- Add 47 crafting materials with icon art, even before they have a source (Craft-D2, Prog-D1, PR #147). The groups are hides and textiles, metals and metalwork, building materials, magic, cut gems, gem dusts and essences. There are 23 shaped workbench and anvil recipes and 4 single-input furnace and barrel processes. For example: sand to glass pane, clay to brick, copper plus tin to bronze, and raw hide to leather.
+  - Items with no source yet are recorded in the `crafting_material_pending_source` inert group.
+  - No recipe sells for more than its inputs.
+  - The furnace's shared smelt time stays at 6000 ticks.
+- Import 29 `icon_craft_*` icons from the licensed Kenmi and Clockwork Raven sheets. The source is hash-pinned, and a guard rejects any crop that is pixel-identical to an existing sprite.
+- Fiber now shows a fiber icon instead of a bone (BUG-035).
+- The content payload cap rises from 617 KiB to 1 MiB (Content-D1). The pack measures 651,943 bytes across 1,021 definitions.
+- Workspace 0.49.0, Assets 0.22.0 and Tools 0.24.0 reconcile the combined source. The stored schema is unchanged. The world module rebuilds with the new bootstrap pack, and the content head gains the new definitions.
+
 ## Client 0.40.4 / UI 0.42.1 / Studio 0.15.4 / World 0.26.0 — Gear stat budgets and per-item gear foundation
 
 - Equipment may grant the six attributes, maximum mana, health/mana/vigour regeneration and flat Health (Gear-D3, PR #136). Each rule is keyed by stat and layer with a per-item cap (content validation, which also sums an item's same-stat modifiers) and a separate loadout cap; the ten pre-existing rules keep one shared range and behave exactly as before. Placeholder caps await the owner's balance pass. Equipment tooltips show attribute points, regeneration per second and flat Health in their own units.

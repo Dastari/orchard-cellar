@@ -1,0 +1,61 @@
+{
+  "name": "icon_craft_parchment",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......0000001...",
+        "......02022221..",
+        "......00222221..",
+        "......02022221..",
+        ".....020222221..",
+        ".....002022211..",
+        ".....020222121..",
+        "....020222121...",
+        "...0202221211...",
+        "..12022212121...",
+        "...112212121....",
+        ".....111111.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#ead4aa",
+    "1": "#b86f50",
+    "2": "#e4a672"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourceRegion": [
+    128,
+    64,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

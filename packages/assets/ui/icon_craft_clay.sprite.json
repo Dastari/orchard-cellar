@@ -1,0 +1,63 @@
+{
+  "name": "icon_craft_clay",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........00......",
+        "......00110.....",
+        "....00112210....",
+        "..00111222210...",
+        "..012211222210..",
+        "..021221121130..",
+        "..022122113430..",
+        "..022411433430..",
+        "..022414433430..",
+        "..022424433430..",
+        "...02424433400..",
+        "....04244300....",
+        ".....02400......",
+        "......00........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ead4aa",
+    "2": "#e4a672",
+    "3": "#743f39",
+    "4": "#b86f50"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    32,
+    944,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

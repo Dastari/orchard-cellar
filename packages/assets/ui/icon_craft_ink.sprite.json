@@ -1,0 +1,65 @@
+{
+  "name": "icon_craft_ink",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...........001..",
+        ".........23110..",
+        "........33120...",
+        ".......23133....",
+        "......23132.....",
+        "......3132......",
+        "......13........",
+        ".....445........",
+        "....46445.......",
+        "...4644445......",
+        "...4444455......",
+        "....55555.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#5a6988",
+    "1": "#e4a672",
+    "2": "#ead4aa",
+    "3": "#ffffff",
+    "4": "#733e39",
+    "5": "#3e2731",
+    "6": "#b86f50"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourceRegion": [
+    112,
+    128,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

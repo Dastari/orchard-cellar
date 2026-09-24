@@ -1,0 +1,66 @@
+{
+  "name": "icon_craft_scale",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....00000......",
+        "....0123240000..",
+        "....0232142320..",
+        "..004441563210..",
+        ".0123246666150..",
+        ".02321623266770.",
+        ".01215632162320.",
+        "..0446661573210.",
+        "..0123266776150.",
+        "..0232162327550.",
+        "..012157321700..",
+        "...015572150....",
+        "....00001550....",
+        "........000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#00cdf9",
+    "2": "#0cf1ff",
+    "3": "#94fdff",
+    "4": "#0069aa",
+    "5": "#0098dc",
+    "6": "#00396d",
+    "7": "#03193f"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Monster_Drops_all_16x16.png",
+  "sourceRegion": [
+    64,
+    272,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

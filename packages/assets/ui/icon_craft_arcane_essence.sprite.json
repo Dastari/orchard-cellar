@@ -1,0 +1,72 @@
+{
+  "name": "icon_craft_arcane_essence",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........000...",
+        ".........01110..",
+        ".....0000012210.",
+        "...003403051220.",
+        "..0346603305550.",
+        ".0366676433000..",
+        ".0478666649a0...",
+        "0367767766000...",
+        "04666687666a0...",
+        "0bc6766667ca0...",
+        ".04c666ccca0....",
+        ".0bcccccccd0....",
+        "..0bbcccad0.....",
+        "...00baa00......",
+        ".....000........"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#bf6f4a",
+    "3": "#e4f1f2",
+    "4": "#aad3d5",
+    "5": "#8a4836",
+    "6": "#7a09fa",
+    "7": "#f389f5",
+    "8": "#fdd2ed",
+    "9": "#66b0b3",
+    "a": "#528e9c",
+    "b": "#84c0c2",
+    "c": "#3003d9",
+    "d": "#38616d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Potions_all_16x16.png",
+  "sourceRegion": [
+    32,
+    736,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

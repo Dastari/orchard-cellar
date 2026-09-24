@@ -1,17 +1,17 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 352,
+    "bootstrapItemCount": 399,
     "lifecycleRevision": 19,
     "lifecycleBundleSha256": "50dd4bbaed6264c3754bb7e82a2b3761113a9cd4a8456cc6eeeba5cd46bfc97f",
     "authoredCallbackCount": 157,
-    "inertItemCount": 93,
+    "inertItemCount": 140,
     "dataGraphItemCount": 69,
     "transactionItemCount": 33
   },
   "reattestation": {
     "date": "2026-09-24",
-    "note": "Crafting overhaul: nine new sword/bow material tiers get cloned weapon callbacks (157 total); the timber frame, iron fittings and stone foundation structure components are inert crafting materials (93 inert). Graph and transaction owners are unchanged."
+    "note": "Materials foundation (Craft-D2, Prog-D1): 47 new crafting materials are inert (26 crafted or processed materials join crafting_material; 21 owner-approved materials without world sources yet form crafting_material_pending_source). 140 inert; callbacks, graph and transaction owners unchanged."
   },
   "groups": [
     {
@@ -49,23 +49,49 @@
       "advertisedCapabilities": [],
       "reason": "Inventory materials are consumed by recipes, processors, or fuel systems rather than direct use.",
       "itemIds": [
+        "item:amethyst_dust",
         "item:ashwood",
         "item:basalt",
+        "item:brick",
+        "item:bronze_bar",
         "item:cactus",
+        "item:chain_links",
         "item:cinder_ore",
+        "item:cut_amethyst",
+        "item:cut_emerald",
+        "item:cut_ruby",
+        "item:cut_sapphire",
+        "item:cut_topaz",
         "item:emberglass",
+        "item:emerald_dust",
         "item:fiber",
+        "item:glass_pane",
+        "item:gold_filigree",
         "item:guardian_seal",
+        "item:ink",
         "item:iron_fittings",
         "item:leather",
+        "item:linen_cloth",
+        "item:nails",
+        "item:parchment",
         "item:pebble",
         "item:plank",
+        "item:rope",
+        "item:ruby_dust",
+        "item:sapphire_dust",
+        "item:silk_thread",
+        "item:silver_filigree",
+        "item:steel_bar",
         "item:stick",
         "item:stone",
         "item:stone_foundation",
         "item:string",
         "item:timber_frame",
-        "item:wood"
+        "item:tin_bar",
+        "item:topaz_dust",
+        "item:wood",
+        "item:wool_cloth",
+        "item:yarn"
       ]
     },
     {
@@ -186,6 +212,35 @@
         "item:hearth_uncommon_legs",
         "item:hearth_uncommon_shield",
         "item:hearth_wayfarer_pendant"
+      ]
+    },
+    {
+      "classification": "crafting_material_pending_source",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [],
+      "reason": "Owner-approved materials (Craft-D2, Prog-D1) added before their world sources; loot, shearing and tanning sources arrive in later PRs. Consumed by recipes and processors only.",
+      "itemIds": [
+        "item:animal_fat",
+        "item:arcane_essence",
+        "item:beeswax",
+        "item:bone",
+        "item:chitin",
+        "item:clay",
+        "item:coal",
+        "item:ember_essence",
+        "item:feather",
+        "item:pond_slime",
+        "item:raw_hide",
+        "item:salt",
+        "item:sand",
+        "item:scale",
+        "item:shell",
+        "item:sinew",
+        "item:slime_gel",
+        "item:spider_silk",
+        "item:tin_ore",
+        "item:warden_heartstone",
+        "item:wool"
       ]
     }
   ]

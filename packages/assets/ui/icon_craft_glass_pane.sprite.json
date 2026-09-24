@@ -1,0 +1,63 @@
+{
+  "name": "icon_craft_glass_pane",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".......0000000..",
+        "......012121210.",
+        ".....0121212130.",
+        "....0121212130..",
+        "...0121212140...",
+        "..0121112130....",
+        ".0121112140.....",
+        ".044443330......",
+        "..0000000.......",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#262b44",
+    "1": "#78d3ff",
+    "2": "#d7feff",
+    "3": "#051003",
+    "4": "#2c647a"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    176,
+    0,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

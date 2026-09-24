@@ -1,0 +1,62 @@
+{
+  "name": "icon_craft_sinew",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..........000...",
+        ".........0110...",
+        ".........0210...",
+        "........01230...",
+        "......002210....",
+        ".....0122130....",
+        "....0121330.....",
+        "....021300......",
+        "...01230........",
+        "...0110.........",
+        "...0130.........",
+        "...000..........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#b86f50",
+    "2": "#e4a672",
+    "3": "#8a4836"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    112,
+    1424,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}
