@@ -1,8 +1,8 @@
 {
   "format": "orchard-item-lifecycle-metadata-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 18,
-  "bundleSha256": "fff623581f6316f60ba3851350f0bb193684a7d889f6aefdc9fe277c2d4bee0a",
+  "revision": 19,
+  "bundleSha256": "50dd4bbaed6264c3754bb7e82a2b3761113a9cd4a8456cc6eeeba5cd46bfc97f",
   "handlers": [
     {
       "itemId": "item:anvil",
@@ -278,6 +278,16 @@
       ]
     },
     {
+      "itemId": "item:copper_bow",
+      "event": "onUse",
+      "id": "item:copper_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
       "itemId": "item:copper_hoe",
       "event": "onUse",
       "id": "item:copper_hoe.on_use",
@@ -305,6 +315,16 @@
       "id": "item:copper_shovel.repair_at_anvil",
       "prompt": "REPAIR COPPER SHOVEL",
       "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:copper_sword",
+      "event": "onUse",
+      "id": "item:copper_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
         "useWith"
       ]
     },
@@ -437,6 +457,16 @@
       ]
     },
     {
+      "itemId": "item:gold_bow",
+      "event": "onUse",
+      "id": "item:gold_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
       "itemId": "item:gold_hoe",
       "event": "onUse",
       "id": "item:gold_hoe.on_use",
@@ -464,6 +494,16 @@
       "id": "item:gold_shovel.repair_at_anvil",
       "prompt": "REPAIR GOLD SHOVEL",
       "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:gold_sword",
+      "event": "onUse",
+      "id": "item:gold_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
         "useWith"
       ]
     },
@@ -667,6 +707,16 @@
       "triggers": [
         "secondary",
         "useWith"
+      ]
+    },
+    {
+      "itemId": "item:iron_bow",
+      "event": "onUse",
+      "id": "item:iron_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
       ]
     },
     {
@@ -1146,6 +1196,16 @@
       ]
     },
     {
+      "itemId": "item:silver_bow",
+      "event": "onUse",
+      "id": "item:silver_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
       "itemId": "item:silver_hoe",
       "event": "onUse",
       "id": "item:silver_hoe.on_use",
@@ -1173,6 +1233,16 @@
       "id": "item:silver_shovel.repair_at_anvil",
       "prompt": "REPAIR SILVER SHOVEL",
       "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:silver_sword",
+      "event": "onUse",
+      "id": "item:silver_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
         "useWith"
       ]
     },
@@ -1232,6 +1302,16 @@
       "id": "item:stone_shovel.repair_at_anvil",
       "prompt": "REPAIR STONE SHOVEL",
       "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:stone_sword",
+      "event": "onUse",
+      "id": "item:stone_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
         "useWith"
       ]
     },
@@ -1353,6 +1433,16 @@
       "prompt": "PLANT SEEDS",
       "triggers": [
         "place"
+      ]
+    },
+    {
+      "itemId": "item:wooden_sword",
+      "event": "onUse",
+      "id": "item:wooden_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
       ]
     },
     {

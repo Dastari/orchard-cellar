@@ -47,8 +47,9 @@ describe('shared container stacking rules', () => {
   it('merges fresh crafted arrows into persisted output while retaining explicit power and wear differences', () => {
     const crafted = craftItem({
       grid: { id: 'grid', capacity: 10, slots: [
-        { itemKind: 'stick', quantity: 1, lit: true }, { itemKind: 'stone', quantity: 1, lit: true },
-        null, null, null, null, null, null, null, { itemKind: 'arrow', quantity: 5, lit: true },
+        { itemKind: 'stone', quantity: 1, lit: true }, null, null,
+        { itemKind: 'stick', quantity: 1, lit: true }, null, null,
+        { itemKind: 'fiber', quantity: 1, lit: true }, null, null, { itemKind: 'arrow', quantity: 5, lit: true },
       ] },
     }, { recipeId: 'arrows', gridContainer: 'grid', resultIndex: 9 });
     expect(crafted.ok && crafted.containers.grid?.slots[9]).toEqual({ itemKind: 'arrow', quantity: 9, lit: true });
@@ -316,9 +317,9 @@ describe('crafting recipes', () => {
     }
   });
 
-  it('crafts four arrows from a stick and stone in either position', () => {
+  it('crafts four arrows from a stone tip, stick shaft and fiber fletching in any column', () => {
     const grid = { id: 'crafting', capacity: 9, slots: [
-      null, null, { itemKind: 'stone', quantity: 2 }, null, { itemKind: 'stick', quantity: 1 }, null, null, null, null,
+      null, null, { itemKind: 'stone', quantity: 2 }, null, null, { itemKind: 'stick', quantity: 1 }, null, null, { itemKind: 'fiber', quantity: 1 },
     ] } as const;
     expect(matchingRecipeId(grid)).toBe('arrows');
     expect(craftItem({ grid: { ...grid, capacity: 10, slots: [...grid.slots, null] } }, {

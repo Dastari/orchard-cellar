@@ -11,7 +11,11 @@ describe('Delve keepsake content contract', () => {
     const recipe = delveCompletionRecipe(registry)!;
     expect(recipe.id).toBe('recipe:delver_memorial_planter');
     expect(recipe).toMatchObject({ requiresKnowledge: true, stationRequirement: { objectTag: 'station.workbench' },
-      inputs: [{ item: 'item:stone', count: 4 }, { item: 'item:fiber', count: 8 }, { item: 'item:sunflower', count: 2 }] });
+      recipeKind: 'shaped', pattern: [
+        [null, 'item:sunflower', null],
+        ['item:stone', 'item:fiber', 'item:stone'],
+        ['item:stone', 'item:stone', 'item:stone'],
+      ] });
     expect(runtimeRecipeDefinition(registry, 'delver_memorial_planter')?.requiresKnowledge).toBe(true);
     expect(registry.items.get(recipe.output.item)?.economy).toEqual({ buy: null, sell: 0 });
     const object = registry.objects.get('object:delver_memorial_planter')!;

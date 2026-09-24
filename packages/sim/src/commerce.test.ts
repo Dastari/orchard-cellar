@@ -55,12 +55,14 @@ describe('coin currency and item economy', () => {
 
   it('Systems/Economy: prices every phases 1–3 material and placeable', () => {
     expect(ITEM_ECONOMY.fiber!).toEqual({ buyPriceBronze: null, sellPriceBronze: 2 });
-    expect(ITEM_ECONOMY.workbench!).toEqual({ buyPriceBronze: 120, sellPriceBronze: 48 });
-    expect(ITEM_ECONOMY.campfire!.sellPriceBronze).toBe(18);
-    expect(ITEM_ECONOMY.fence!.sellPriceBronze).toBe(4);
-    expect(ITEM_ECONOMY.fence_gate!.sellPriceBronze).toBe(12);
-    expect(ITEM_ECONOMY.sign!.sellPriceBronze).toBe(10);
-    expect(ITEM_ECONOMY.standing_torch!.sellPriceBronze).toBe(20);
+    // Crafted placeables resell for at most 80% of their materials (owner crafting
+    // overhaul 2026-09-24: no craft-and-sell loop).
+    expect(ITEM_ECONOMY.workbench!).toEqual({ buyPriceBronze: 120, sellPriceBronze: 3 });
+    expect(ITEM_ECONOMY.campfire!.sellPriceBronze).toBe(7);
+    expect(ITEM_ECONOMY.fence!.sellPriceBronze).toBe(1);
+    expect(ITEM_ECONOMY.fence_gate!.sellPriceBronze).toBe(4);
+    expect(ITEM_ECONOMY.sign!.sellPriceBronze).toBe(5);
+    expect(ITEM_ECONOMY.standing_torch!.sellPriceBronze).toBe(1);
   });
 
   it('pays exactly twice the ore plus one wood fuel opportunity cost for bars', () => {

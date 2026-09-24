@@ -24,9 +24,9 @@ describe('Hearth fixed equipment content', () => {
     }
   });
   it('uses active content weapon power and fails closed for retired or mismatched weapons', () => {
-    expect(runtimeWeaponBaseDamageCenti(registry, 'sword', 'melee')).toBe(1800);
-    expect(runtimeWeaponBaseDamageCenti(registry, 'bow', 'ranged')).toBe(1400);
-    expect(runtimeWeaponBaseDamageCenti(registry, 'hearth_legendary_sword', 'melee')).toBe(2300);
+    expect(runtimeWeaponBaseDamageCenti(registry, 'sword', 'melee')).toBe(1600);
+    expect(runtimeWeaponBaseDamageCenti(registry, 'bow', 'ranged')).toBe(1250);
+    expect(runtimeWeaponBaseDamageCenti(registry, 'hearth_legendary_sword', 'melee')).toBe(2400);
     expect(runtimeWeaponBaseDamageCenti(registry, 'hearth_legendary_sword', 'ranged')).toBeNull();
     expect(runtimeWeaponBaseDamageCenti(registry, 'stone', 'melee')).toBeNull();
     const original = registry.items.get('item:sword')!;

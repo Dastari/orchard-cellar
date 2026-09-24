@@ -4,7 +4,6 @@ import { expect, it } from 'vitest';
 import {
   bootstrapContentRegistry,
   runtimeConsumeCraftingRecipe,
-  runtimeRecipeDefinition,
   runtimeRecipeIdsUnlockedByBook,
 } from '@orchard/sim';
 import { buildHearthEquipmentAcquisition } from './hearth-equipment-acquisition.js';
@@ -56,46 +55,48 @@ it('connects plans to real service NPC shops and exactly one reusable recipe', (
   }
 });
 
-it('uses current affordable shore quantities and a peaceful pendant branch without resale loops', () => {
+it('shapes every piece from its tier: common from materials, higher tiers upgrade the tier below', () => {
+  const previous: Record<string, string> = { uncommon: 'common', rare: 'uncommon', epic: 'rare', legendary: 'epic' };
   for (const recipe of pack.recipes) {
-    if (recipe.recipeKind !== 'shapeless') throw new Error('expected shapeless recipe');
+    if (recipe.recipeKind !== 'shaped') throw new Error('expected shaped recipe');
     const item = registry.items.get(recipe.output.item)!;
-    expect(recipe.inputs.length).toBeLessThanOrEqual(9);
+    const cells = recipe.pattern.flat().filter((cell): cell is NonNullable<typeof cell> => cell !== null);
+    expect(cells.length).toBeLessThanOrEqual(9);
     expect(recipe.stationRequirement).toEqual({ objectTag: 'station.workbench' });
-    const sale = recipe.inputs.reduce((sum, input) => (
-      sum + registry.items.get(input.item)!.economy.sell * input.count
-    ), 0);
+    const sale = cells.reduce((sum, cell) => sum + registry.items.get(cell)!.economy.sell, 0);
     expect(sale).toBeGreaterThan(item.economy.sell);
-    expect(recipe.inputs.some((input) => input.item === 'item:guardian_seal')).toBe(false);
-    if (item.quality === 'uncommon') {
-      for (const id of ['item:ashwood', 'item:basalt']) {
-        expect(recipe.inputs.find((input) => input.item === id)!.count).toBeLessThanOrEqual(4);
-      }
-    }
+    expect(cells).not.toContain('item:guardian_seal');
     if (item.id.endsWith('_pendant')) {
-      expect(recipe.inputs.map((input) => input.item).sort()).toEqual(['item:fiber', 'item:iron_bar', 'item:wood']);
+      // A string loop, an iron setting and a charm for the pendant's trade.
+      expect(cells.filter((cell) => cell === 'item:string')).toHaveLength(5);
+      expect(cells).toContain('item:iron_bar');
+      continue;
     }
-    for (const input of recipe.inputs) {
-      expect(input.count).toBeLessThanOrEqual(registry.items.get(input.item)!.maxStack);
+    const slot = item.id.slice(item.id.lastIndexOf('_') + 1);
+    if (item.quality === 'common') {
+      expect(cells.some((cell) => cell.startsWith('item:hearth_'))).toBe(false);
+    } else {
+      // Exactly one copy of the same slot one quality below sits in the centre.
+      expect(cells.filter((cell) => cell.startsWith('item:hearth_'))).toEqual([`item:hearth_${previous[item.quality]}_${slot}`]);
+      expect(recipe.pattern[1]![1]).toBe(`item:hearth_${previous[item.quality]}_${slot}`);
     }
   }
 });
 
-it('every authored recipe consumes its exact actual nine-slot material grid and produces one native gear item', () => {
+it('every authored recipe consumes its exact placed grid and produces one native gear item', () => {
   for (const definition of pack.recipes) {
     const id = definition.id.slice(7);
-    const recipe = runtimeRecipeDefinition(registry, id)!;
-    if (recipe.kind !== 'shapeless') throw new Error('expected shapeless recipe');
-    const inputs = Object.entries(recipe.inputs).map(([itemKind, quantity]) => ({ itemKind, quantity }));
-    const grid = {
-      id: 'crafting', capacity: 9, slots: [...inputs, ...Array(9 - inputs.length).fill(null)],
-    };
+    if (definition.recipeKind !== 'shaped') throw new Error('expected shaped recipe');
+    const slots = Array.from({ length: 9 }, (_, index) => {
+      const cell = definition.pattern[Math.floor(index / 3)]?.[index % 3] ?? null;
+      return cell === null ? null : { itemKind: cell.slice(5), quantity: 1 };
+    });
+    const grid = { id: 'crafting', capacity: 9, slots };
     const result = runtimeConsumeCraftingRecipe(registry, grid, id);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.code);
     expect(result.crafted).toEqual({ itemKind: definition.output.item.slice(5), quantity: 1 });
     expect(result.container.slots.every((slot) => slot === null)).toBe(true);
-    expect(grid.slots[0]).toEqual(inputs[0]);
   }
 });
 

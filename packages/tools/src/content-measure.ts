@@ -5,9 +5,10 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Combined wave2, D6 and timing content: 921 definitions, 620,844 runtime bytes.
+// Crafting overhaul (weapon material tiers, structure components, shaped
+// recipes): 947 definitions, 631,483 runtime bytes.
 // Retain the measured next-whole-KiB regression envelope.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 607 * 1024;
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 617 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;
