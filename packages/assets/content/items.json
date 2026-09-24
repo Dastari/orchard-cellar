@@ -306,7 +306,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 780
+      "sell": 446
     }
   },
   {
@@ -327,7 +327,7 @@
     ],
     "economy": {
       "buy": 180,
-      "sell": 72
+      "sell": 8
     }
   },
   {
@@ -757,7 +757,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 24
+      "sell": 154
     }
   },
   {
@@ -1085,11 +1085,10 @@
     "tags": [
       "item.resource",
       "material.raw",
-      "material.earth",
-      "material.pending_source"
+      "material.earth"
     ],
     "economy": {
-      "buy": null,
+      "buy": 4,
       "sell": 1
     }
   },
@@ -1105,11 +1104,10 @@
     "tags": [
       "item.resource",
       "material.raw",
-      "material.fuel",
-      "material.pending_source"
+      "material.fuel"
     ],
     "economy": {
-      "buy": null,
+      "buy": 24,
       "sell": 6
     }
   },
@@ -1505,7 +1503,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 420
+      "sell": 44
     }
   },
   {
@@ -2306,7 +2304,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 161
+      "sell": 110
     }
   },
   {
@@ -2745,7 +2743,7 @@
     ],
     "economy": {
       "buy": 360,
-      "sell": 36
+      "sell": 66
     }
   },
   {
@@ -3081,7 +3079,7 @@
     ],
     "economy": {
       "buy": 140,
-      "sell": 7
+      "sell": 9
     }
   },
   {
@@ -3305,7 +3303,7 @@
     ],
     "economy": {
       "buy": 200,
-      "sell": 8
+      "sell": 46
     }
   },
   {
@@ -3361,7 +3359,7 @@
     ],
     "economy": {
       "buy": 420,
-      "sell": 44
+      "sell": 52
     }
   },
   {
@@ -3417,7 +3415,7 @@
     ],
     "economy": {
       "buy": 460,
-      "sell": 12
+      "sell": 50
     }
   },
   {
@@ -3585,7 +3583,7 @@
     ],
     "economy": {
       "buy": 130,
-      "sell": 7
+      "sell": 69
     }
   },
   {
@@ -3641,7 +3639,7 @@
     ],
     "economy": {
       "buy": 260,
-      "sell": 8
+      "sell": 71
     }
   },
   {
@@ -3697,7 +3695,7 @@
     ],
     "economy": {
       "buy": 190,
-      "sell": 10
+      "sell": 54
     }
   },
   {
@@ -3753,7 +3751,7 @@
     ],
     "economy": {
       "buy": 170,
-      "sell": 20
+      "sell": 25
     }
   },
   {
@@ -3809,7 +3807,7 @@
     ],
     "economy": {
       "buy": 290,
-      "sell": 8
+      "sell": 47
     }
   },
   {
@@ -3865,7 +3863,7 @@
     ],
     "economy": {
       "buy": 240,
-      "sell": 14
+      "sell": 54
     }
   },
   {
@@ -3921,7 +3919,7 @@
     ],
     "economy": {
       "buy": 160,
-      "sell": 8
+      "sell": 20
     }
   },
   {
@@ -4033,7 +4031,7 @@
     ],
     "economy": {
       "buy": 100,
-      "sell": 8
+      "sell": 9
     }
   },
   {
@@ -4089,7 +4087,7 @@
     ],
     "economy": {
       "buy": 210,
-      "sell": 12
+      "sell": 9
     }
   },
   {
@@ -4145,7 +4143,7 @@
     ],
     "economy": {
       "buy": 350,
-      "sell": 12
+      "sell": 21
     }
   },
   {
@@ -4874,7 +4872,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 520
+      "sell": 394
     }
   },
   {
@@ -11514,11 +11512,10 @@
     "tags": [
       "item.resource",
       "material.raw",
-      "material.earth",
-      "material.pending_source"
+      "material.earth"
     ],
     "economy": {
-      "buy": null,
+      "buy": 4,
       "sell": 1
     }
   },
@@ -11620,7 +11617,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 360
+      "sell": 32
     }
   },
   {
@@ -11753,7 +11750,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 560
+      "sell": 396
     }
   },
   {
@@ -12313,7 +12310,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 9
+      "sell": 14
     }
   },
   {
@@ -12678,7 +12675,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 6
+      "sell": 9
     }
   },
   {
@@ -12715,11 +12712,10 @@
       "item.resource",
       "material.raw",
       "material.ore",
-      "ore.tin",
-      "material.pending_source"
+      "ore.tin"
     ],
     "economy": {
-      "buy": null,
+      "buy": 160,
       "sell": 60
     }
   },
@@ -13042,7 +13038,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 625
+      "sell": 193
     },
     "equip": {
       "slot": "ring"
@@ -13269,11 +13265,10 @@
     "tags": [
       "item.resource",
       "material.raw",
-      "material.fiber",
-      "material.pending_source"
+      "material.fiber"
     ],
     "economy": {
-      "buy": null,
+      "buy": 16,
       "sell": 3
     }
   },

@@ -21,8 +21,8 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:ashwood | inert: crafting_material | — | economy.sell=8; maxStack=99; schemaVersion=1 |
 | item:axe | callback | secondary, useWith | durability.max=200; durability.repairCost=5; economy.buy=450; economy.sell=4; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.baseDamageCenti=800; tool.swing.rangeFixed=384; tool.swingTicks=8; tool.tier=0; vigour.costCenti=5000; vigour.minimumSwingTicks=8 |
 | item:backpack | inert: passive_equipment | — | economy.buy=1500; economy.sell=70; equip.inventoryCapacity=20; maxStack=1; schemaVersion=1 |
-| item:barn | callback | place | economy.sell=780; maxStack=1; schemaVersion=1 |
-| item:barrel | callback | place | economy.buy=180; economy.sell=72; maxStack=16; schemaVersion=1 |
+| item:barn | callback | place | economy.sell=446; maxStack=1; schemaVersion=1 |
+| item:barrel | callback | place | economy.buy=180; economy.sell=8; maxStack=16; schemaVersion=1 |
 | item:basalt | inert: crafting_material | — | economy.sell=8; maxStack=99; schemaVersion=1 |
 | item:beeswax | inert: crafting_material_pending_source | — | economy.sell=1; maxStack=32; schemaVersion=1 |
 | item:beetroot | callback | secondary | economy.sell=9; food.restoreCenti=700; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=700; schemaVersion=1 |
@@ -38,7 +38,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:cabbage | callback | secondary | economy.sell=22; food.restoreCenti=900; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=900; schemaVersion=1 |
 | item:cabbage_seeds | callback | place | economy.buy=24; economy.sell=6; maxStack=99; schemaVersion=1 |
 | item:cactus | inert: crafting_material | — | economy.sell=3; maxStack=99; schemaVersion=1 |
-| item:camp_cooking_fire | callback | place | economy.sell=24; maxStack=1; schemaVersion=1 |
+| item:camp_cooking_fire | callback | place | economy.sell=154; maxStack=1; schemaVersion=1 |
 | item:campfire | callback | place | economy.sell=7; maxStack=16; schemaVersion=1 |
 | item:carrot | callback | secondary | economy.sell=9; food.restoreCenti=600; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=600; schemaVersion=1 |
 | item:carrot_seeds | callback | place | economy.buy=20; economy.sell=5; maxStack=99; schemaVersion=1 |
@@ -49,8 +49,8 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:chest | callback | place | economy.buy=160; economy.sell=6; maxStack=16; schemaVersion=1 |
 | item:chitin | inert: crafting_material_pending_source | — | economy.buy=16; economy.sell=3; maxStack=99; schemaVersion=1 |
 | item:cinder_ore | inert: crafting_material | — | economy.sell=30; maxStack=99; schemaVersion=1 |
-| item:clay | inert: crafting_material_pending_source | — | economy.sell=1; maxStack=99; schemaVersion=1 |
-| item:coal | inert: crafting_material_pending_source | — | economy.sell=6; maxStack=99; schemaVersion=1 |
+| item:clay | inert: crafting_material | — | economy.buy=4; economy.sell=1; maxStack=99; schemaVersion=1 |
+| item:coal | inert: crafting_material | — | economy.buy=24; economy.sell=6; maxStack=99; schemaVersion=1 |
 | item:compost | callback | place | economy.sell=4; maxStack=99; schemaVersion=1 |
 | item:cooked_beef | callback | secondary | economy.buy=88; economy.sell=44; food.restoreCenti=4000; maxStack=32; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=4000; schemaVersion=1 |
 | item:cooked_chicken | callback | secondary | economy.buy=56; economy.sell=28; food.restoreCenti=2800; maxStack=32; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=2800; schemaVersion=1 |
@@ -58,7 +58,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:cooked_mutton | callback | secondary | economy.buy=72; economy.sell=36; food.restoreCenti=3200; maxStack=32; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=3200; schemaVersion=1 |
 | item:cooked_pork | callback | secondary | economy.buy=72; economy.sell=36; food.restoreCenti=3400; maxStack=32; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=3400; schemaVersion=1 |
 | item:cooking_fire | callback | place | economy.sell=24; maxStack=1; schemaVersion=1 |
-| item:coop | callback | place | economy.sell=420; maxStack=1; schemaVersion=1 |
+| item:coop | callback | place | economy.sell=44; maxStack=1; schemaVersion=1 |
 | item:copper_axe | callback | secondary, useWith | durability.max=200; durability.repairCost=5; economy.buy=450; economy.sell=180; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.baseDamageCenti=800; tool.swing.rangeFixed=384; tool.swingTicks=8; tool.tier=0; vigour.costCenti=5000; vigour.minimumSwingTicks=8 |
 | item:copper_bar | inert: ore_and_refined_material | — | economy.sell=130; maxStack=99; schemaVersion=1 |
 | item:copper_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1325; durability.max=220; durability.repairCost=5; economy.sell=228; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3000; vigour.minimumSwingTicks=6 |
@@ -86,7 +86,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:feather | inert: crafting_material_pending_source | — | economy.buy=12; economy.sell=2; maxStack=99; schemaVersion=1 |
 | item:fence | callback | place | economy.sell=1; maxStack=99; schemaVersion=1 |
 | item:fence_gate | callback | place | economy.sell=4; maxStack=16; schemaVersion=1 |
-| item:fermentation_cask | callback | place | economy.sell=161; maxStack=1; schemaVersion=1 |
+| item:fermentation_cask | callback | place | economy.sell=110; maxStack=1; schemaVersion=1 |
 | item:fiber | inert: crafting_material | — | economy.sell=2; maxStack=99; schemaVersion=1 |
 | item:fishing_handbook | callback | secondary | economy.sell=1; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:fishing_rod | callback | useAt, useWith | durability.max=160; durability.repairCost=5; economy.buy=400; economy.sell=5; maxStack=1; schemaVersion=1; tool.reachTiles=3; tool.swingTicks=6; tool.tier=0; vigour.costCenti=600; vigour.minimumSwingTicks=6 |
@@ -102,7 +102,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:furniture_rustic_chair_plan | data graph | secondary | economy.buy=50; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_rustic_chest | furniture transaction | — | economy.buy=210; economy.sell=13; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_chest_plan | data graph | secondary | economy.buy=110; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_rustic_cooking_range | furniture transaction | — | economy.buy=360; economy.sell=36; maxStack=16; schemaVersion=1 |
+| item:furniture_rustic_cooking_range | furniture transaction | — | economy.buy=360; economy.sell=66; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_cooking_range_plan | data graph | secondary | economy.buy=180; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_rustic_cupboard | furniture transaction | — | economy.buy=250; economy.sell=14; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_cupboard_plan | data graph | secondary | economy.buy=130; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
@@ -114,7 +114,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:furniture_rustic_potted_fern_plan | data graph | secondary | economy.buy=50; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_rustic_runner | furniture transaction | — | economy.buy=110; economy.sell=4; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_runner_plan | data graph | secondary | economy.buy=60; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_rustic_standing_lamp | furniture transaction | — | economy.buy=140; economy.sell=7; maxStack=16; schemaVersion=1 |
+| item:furniture_rustic_standing_lamp | furniture transaction | — | economy.buy=140; economy.sell=9; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_standing_lamp_plan | data graph | secondary | economy.buy=70; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_rustic_stool | furniture transaction | — | economy.buy=80; economy.sell=3; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_stool_plan | data graph | secondary | economy.buy=40; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
@@ -122,37 +122,37 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:furniture_rustic_woven_rug_plan | data graph | secondary | economy.buy=50; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_rustic_writing_table | furniture transaction | — | economy.buy=150; economy.sell=4; maxStack=16; schemaVersion=1 |
 | item:furniture_rustic_writing_table_plan | data graph | secondary | economy.buy=80; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_armchair | furniture transaction | — | economy.buy=200; economy.sell=8; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_armchair | furniture transaction | — | economy.buy=200; economy.sell=46; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_armchair_plan | data graph | secondary | economy.buy=100; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_bath | furniture transaction | — | economy.buy=420; economy.sell=44; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_bath | furniture transaction | — | economy.buy=420; economy.sell=52; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_bath_plan | data graph | secondary | economy.buy=210; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_bed | furniture transaction | — | economy.buy=460; economy.sell=12; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_bed | furniture transaction | — | economy.buy=460; economy.sell=50; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_bed_plan | data graph | secondary | economy.buy=230; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_townhouse_bookcase | furniture transaction | — | economy.buy=270; economy.sell=7; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_bookcase_plan | data graph | secondary | economy.buy=140; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_townhouse_cabinet | furniture transaction | — | economy.buy=290; economy.sell=21; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_cabinet_plan | data graph | secondary | economy.buy=150; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_chair | furniture transaction | — | economy.buy=130; economy.sell=7; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_chair | furniture transaction | — | economy.buy=130; economy.sell=69; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_chair_plan | data graph | secondary | economy.buy=70; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_dining_table | furniture transaction | — | economy.buy=260; economy.sell=8; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_dining_table | furniture transaction | — | economy.buy=260; economy.sell=71; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_dining_table_plan | data graph | secondary | economy.buy=130; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_floor_lamp | furniture transaction | — | economy.buy=190; economy.sell=10; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_floor_lamp | furniture transaction | — | economy.buy=190; economy.sell=54; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_floor_lamp_plan | data graph | secondary | economy.buy=100; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_flower_planter | furniture transaction | — | economy.buy=170; economy.sell=20; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_flower_planter | furniture transaction | — | economy.buy=170; economy.sell=25; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_flower_planter_plan | data graph | secondary | economy.buy=90; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_loveseat | furniture transaction | — | economy.buy=290; economy.sell=8; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_loveseat | furniture transaction | — | economy.buy=290; economy.sell=47; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_loveseat_plan | data graph | secondary | economy.buy=150; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_patterned_rug | furniture transaction | — | economy.buy=240; economy.sell=14; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_patterned_rug | furniture transaction | — | economy.buy=240; economy.sell=54; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_patterned_rug_plan | data graph | secondary | economy.buy=120; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_round_rug | furniture transaction | — | economy.buy=160; economy.sell=8; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_round_rug | furniture transaction | — | economy.buy=160; economy.sell=20; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_round_rug_plan | data graph | secondary | economy.buy=80; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_townhouse_side_table | furniture transaction | — | economy.buy=90; economy.sell=3; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_side_table_plan | data graph | secondary | economy.buy=50; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_table_lamp | furniture transaction | — | economy.buy=100; economy.sell=8; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_table_lamp | furniture transaction | — | economy.buy=100; economy.sell=9; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_table_lamp_plan | data graph | secondary | economy.buy=50; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_wall_mirror | furniture transaction | — | economy.buy=210; economy.sell=12; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_wall_mirror | furniture transaction | — | economy.buy=210; economy.sell=9; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_wall_mirror_plan | data graph | secondary | economy.buy=110; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:furniture_townhouse_wardrobe | furniture transaction | — | economy.buy=350; economy.sell=12; maxStack=16; schemaVersion=1 |
+| item:furniture_townhouse_wardrobe | furniture transaction | — | economy.buy=350; economy.sell=21; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_wardrobe_plan | data graph | secondary | economy.buy=180; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:furniture_townhouse_washstand | furniture transaction | — | economy.buy=270; economy.sell=15; maxStack=16; schemaVersion=1 |
 | item:furniture_townhouse_washstand_plan | data graph | secondary | economy.buy=140; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
@@ -174,7 +174,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:grape_seeds | callback | place | economy.buy=40; economy.sell=10; maxStack=99; schemaVersion=1 |
 | item:green_pepper | callback | secondary | economy.sell=12; food.restoreCenti=500; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=500; schemaVersion=1 |
 | item:green_pepper_seeds | callback | place | economy.buy=30; economy.sell=7; maxStack=99; schemaVersion=1 |
-| item:greenhouse | callback | place | economy.sell=520; maxStack=1; schemaVersion=1 |
+| item:greenhouse | callback | place | economy.sell=394; maxStack=1; schemaVersion=1 |
 | item:guardian_seal | inert: crafting_material | — | economy.sell=0; maxStack=99; schemaVersion=1 |
 | item:hammer | callback | useWith | durability.max=300; durability.repairCost=5; economy.buy=500; economy.sell=200; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=9; tool.tier=0; vigour.costCenti=1800; vigour.minimumSwingTicks=9 |
 | item:hearth_angler_pendant | inert: hearth_equipment_passives | — | economy.sell=215; maxStack=1; modifiers.0.value=500; schemaVersion=1 |
@@ -340,18 +340,18 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:ruby_ore | inert: ore_and_refined_material | — | economy.buy=260; economy.sell=104; maxStack=99; schemaVersion=1 |
 | item:ruby_piece | inert: ore_and_refined_material | — | economy.sell=12; maxStack=99; schemaVersion=1 |
 | item:salt | inert: crafting_material_pending_source | — | economy.buy=8; economy.sell=1; maxStack=99; schemaVersion=1 |
-| item:sand | inert: crafting_material_pending_source | — | economy.sell=1; maxStack=99; schemaVersion=1 |
+| item:sand | inert: crafting_material | — | economy.buy=4; economy.sell=1; maxStack=99; schemaVersion=1 |
 | item:sapphire_dust | inert: crafting_material | — | economy.sell=4; maxStack=99; schemaVersion=1 |
 | item:sapphire_ore | inert: ore_and_refined_material | — | economy.buy=220; economy.sell=88; maxStack=99; schemaVersion=1 |
 | item:sapphire_piece | inert: ore_and_refined_material | — | economy.sell=10; maxStack=99; schemaVersion=1 |
 | item:scale | inert: crafting_material_pending_source | — | economy.sell=14; maxStack=99; schemaVersion=1 |
-| item:shed | callback | place | economy.sell=360; maxStack=1; schemaVersion=1 |
+| item:shed | callback | place | economy.sell=32; maxStack=1; schemaVersion=1 |
 | item:shell | inert: crafting_material_pending_source | — | economy.buy=16; economy.sell=3; maxStack=99; schemaVersion=1 |
 | item:shield | inert: prototype_gear | — | economy.buy=2100; economy.sell=840; maxStack=1; schemaVersion=1 |
 | item:shovel | callback | useWith | durability.max=220; durability.repairCost=5; economy.buy=400; economy.sell=2; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=7; tool.tier=0; vigour.costCenti=1200; vigour.minimumSwingTicks=7 |
 | item:sign | callback | place | economy.sell=5; maxStack=16; schemaVersion=1 |
 | item:silk_thread | inert: crafting_material | — | economy.sell=22; maxStack=99; schemaVersion=1 |
-| item:silo | callback | place | economy.sell=560; maxStack=1; schemaVersion=1 |
+| item:silo | callback | place | economy.sell=396; maxStack=1; schemaVersion=1 |
 | item:silver_axe | callback | secondary, useWith | durability.max=500; durability.repairCost=5; economy.buy=450; economy.sell=180; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.baseDamageCenti=800; tool.swing.rangeFixed=384; tool.swingTicks=8; tool.tier=0; vigour.costCenti=5000; vigour.minimumSwingTicks=8 |
 | item:silver_bar | inert: ore_and_refined_material | — | economy.sell=184; maxStack=99; schemaVersion=1 |
 | item:silver_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1450; durability.max=320; durability.repairCost=5; economy.sell=314; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2800; vigour.minimumSwingTicks=5 |
@@ -370,7 +370,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:stick | inert: crafting_material | — | economy.buy=2; economy.sell=1; maxStack=99; schemaVersion=1 |
 | item:stone | inert: crafting_material | — | economy.buy=8; economy.sell=3; maxStack=99; schemaVersion=1 |
 | item:stone_axe | callback | secondary, useWith | durability.max=300; durability.repairCost=5; economy.buy=450; economy.sell=8; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.baseDamageCenti=800; tool.swing.rangeFixed=384; tool.swingTicks=8; tool.tier=0; vigour.costCenti=5000; vigour.minimumSwingTicks=8 |
-| item:stone_foundation | inert: crafting_material | — | economy.sell=9; maxStack=99; schemaVersion=1 |
+| item:stone_foundation | inert: crafting_material | — | economy.sell=14; maxStack=99; schemaVersion=1 |
 | item:stone_hoe | callback | place, secondary, useWith | durability.max=270; durability.repairCost=5; economy.buy=350; economy.sell=6; maxStack=1; schemaVersion=1; tool.reachTiles=2; tool.swing.arcDegrees=90; tool.swing.baseDamageCenti=400; tool.swing.rangeFixed=320; tool.swingTicks=6; tool.tier=0; vigour.costCenti=500; vigour.minimumSwingTicks=6 |
 | item:stone_pickaxe | callback | secondary, useAt, useWith | durability.max=375; durability.repairCost=5; economy.buy=600; economy.sell=8; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=45; tool.swing.baseDamageCenti=700; tool.swing.rangeFixed=256; tool.swingTicks=10; tool.tier=1; vigour.costCenti=5000; vigour.minimumSwingTicks=10 |
 | item:stone_shovel | callback | useWith | durability.max=330; durability.repairCost=5; economy.buy=400; economy.sell=4; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=7; tool.tier=0; vigour.costCenti=1200; vigour.minimumSwingTicks=7 |
@@ -381,9 +381,9 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:sunflower | inert: crop_without_consumption_semantics | — | economy.sell=11; maxStack=99; schemaVersion=1 |
 | item:sunflower_seeds | callback | place | economy.buy=24; economy.sell=6; maxStack=99; schemaVersion=1 |
 | item:sword | callback | secondary, useWith | combat.baseDamageCenti=1600; durability.max=260; durability.repairCost=5; economy.buy=500; economy.sell=295; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=7; tool.tier=0; vigour.costCenti=3600; vigour.minimumSwingTicks=7 |
-| item:timber_frame | inert: crafting_material | — | economy.sell=6; maxStack=99; schemaVersion=1 |
+| item:timber_frame | inert: crafting_material | — | economy.sell=9; maxStack=99; schemaVersion=1 |
 | item:tin_bar | inert: crafting_material | — | economy.sell=120; maxStack=99; schemaVersion=1 |
-| item:tin_ore | inert: crafting_material_pending_source | — | economy.sell=60; maxStack=99; schemaVersion=1 |
+| item:tin_ore | inert: crafting_material | — | economy.buy=160; economy.sell=60; maxStack=99; schemaVersion=1 |
 | item:tomato | callback | secondary | economy.sell=11; food.restoreCenti=500; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=500; schemaVersion=1 |
 | item:tomato_seeds | callback | place | economy.buy=28; economy.sell=7; maxStack=99; schemaVersion=1 |
 | item:topaz_dust | inert: crafting_material | — | economy.sell=4; maxStack=99; schemaVersion=1 |
@@ -394,7 +394,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:turnip | callback | secondary | economy.sell=8; food.restoreCenti=600; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=600; schemaVersion=1 |
 | item:turnip_seeds | callback | place | economy.buy=18; economy.sell=4; maxStack=99; schemaVersion=1 |
 | item:warden_heartstone | inert: crafting_material_pending_source | — | economy.sell=400; maxStack=16; schemaVersion=1 |
-| item:watch | inert: passive_equipment | — | economy.sell=625; maxStack=1; schemaVersion=1 |
+| item:watch | inert: passive_equipment | — | economy.sell=193; maxStack=1; schemaVersion=1 |
 | item:watering_can | callback | place, useWith | durability.max=160; durability.repairCost=5; economy.buy=400; economy.sell=160; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=6; tool.tier=0; vigour.costCenti=800; vigour.minimumSwingTicks=6 |
 | item:watermelon | callback | secondary | economy.sell=40; food.restoreCenti=1300; maxStack=99; onUse.0.effects.0.consumeSelected=1; onUse.0.effects.1.restoreHunger=1300; schemaVersion=1 |
 | item:watermelon_seeds | callback | place | economy.buy=44; economy.sell=11; maxStack=99; schemaVersion=1 |
@@ -402,7 +402,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:wheat_seeds | callback | place | economy.buy=18; economy.sell=4; maxStack=99; schemaVersion=1 |
 | item:wood | inert: crafting_material | — | economy.buy=6; economy.sell=2; fuel.smelts=1; maxStack=99; schemaVersion=1 |
 | item:wooden_sword | callback | secondary, useWith | combat.baseDamageCenti=1100; durability.max=60; durability.repairCost=5; economy.buy=60; economy.sell=2; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=7; tool.tier=0; vigour.costCenti=3000; vigour.minimumSwingTicks=7 |
-| item:wool | inert: crafting_material_pending_source | — | economy.sell=3; maxStack=99; schemaVersion=1 |
+| item:wool | inert: crafting_material | — | economy.buy=16; economy.sell=3; maxStack=99; schemaVersion=1 |
 | item:wool_cloth | inert: crafting_material | — | economy.sell=18; maxStack=99; schemaVersion=1 |
 | item:workbench | callback | place | economy.buy=120; economy.sell=3; maxStack=16; schemaVersion=1 |
 | item:yarn | inert: crafting_material | — | economy.sell=5; maxStack=99; schemaVersion=1 |

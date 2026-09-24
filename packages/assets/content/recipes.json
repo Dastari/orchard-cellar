@@ -48,6 +48,39 @@
     ]
   },
   {
+    "id": "recipe:anvil",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:anvil",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        "item:iron_bar",
+        "item:iron_bar"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ],
+      [
+        "item:iron_bar",
+        "item:iron_bar",
+        "item:iron_bar"
+      ]
+    ]
+  },
+  {
     "id": "recipe:arrows",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -151,6 +184,9 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
     "recipeKind": "shaped",
     "pattern": [
       [
@@ -159,13 +195,13 @@
         "item:timber_frame"
       ],
       [
-        "item:iron_fittings",
         "item:timber_frame",
-        "item:iron_fittings"
+        "item:coop",
+        "item:timber_frame"
       ],
       [
         "item:stone_foundation",
-        "item:stone_foundation",
+        "item:iron_fittings",
         "item:stone_foundation"
       ]
     ]
@@ -187,14 +223,14 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:iron_bar",
         "item:plank",
-        "item:iron_bar"
+        "item:plank",
+        "item:plank"
       ],
       [
-        "item:plank",
+        "item:nails",
         null,
-        "item:plank"
+        "item:nails"
       ],
       [
         "item:plank",
@@ -300,14 +336,9 @@
     "recipeKind": "shaped",
     "pattern": [
       [
+        "item:stick",
         "item:iron_bar",
-        null,
-        "item:iron_bar"
-      ],
-      [
-        null,
-        "item:iron_bar",
-        null
+        "item:stick"
       ],
       [
         null,
@@ -458,7 +489,7 @@
     "pattern": [
       [
         "item:stone",
-        "item:iron_bar",
+        "item:stone",
         "item:stone"
       ],
       [
@@ -484,22 +515,25 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
     "recipeKind": "shaped",
     "pattern": [
       [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
         "item:timber_frame",
-        "item:iron_fittings",
+        "item:nails",
         "item:timber_frame"
       ],
       [
         "item:timber_frame",
-        null,
+        "item:stone_foundation",
         "item:timber_frame"
-      ],
-      [
-        "item:stone_foundation",
-        "item:stone_foundation",
-        "item:stone_foundation"
       ]
     ]
   },
@@ -1262,9 +1296,9 @@
         "item:iron_piece"
       ],
       [
-        "item:stone",
-        null,
-        "item:stone"
+        "item:iron_piece",
+        "item:cooking_fire",
+        "item:iron_piece"
       ],
       [
         "item:stone",
@@ -1446,17 +1480,17 @@
     "pattern": [
       [
         null,
+        "item:glass_pane",
+        null
+      ],
+      [
+        null,
         "item:copper_piece",
         null
       ],
       [
         null,
         "item:stick",
-        null
-      ],
-      [
-        null,
-        "item:plank",
         null
       ]
     ]
@@ -1565,9 +1599,9 @@
         "item:plank"
       ],
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:wool_cloth",
+        "item:wool_cloth",
+        "item:wool_cloth"
       ],
       [
         "item:plank",
@@ -1598,14 +1632,14 @@
         "item:iron_piece"
       ],
       [
-        "item:iron_piece",
+        "item:glass_pane",
         null,
-        "item:iron_piece"
+        "item:glass_pane"
       ],
       [
-        "item:stone",
-        "item:stone",
-        "item:stone"
+        "item:iron_piece",
+        "item:iron_piece",
+        "item:iron_piece"
       ]
     ]
   },
@@ -1626,9 +1660,9 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:wool_cloth",
+        "item:wool_cloth",
+        "item:wool_cloth"
       ],
       [
         "item:fiber",
@@ -1730,9 +1764,9 @@
         null
       ],
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:linen_cloth",
+        "item:linen_cloth",
+        "item:linen_cloth"
       ],
       [
         "item:stick",
@@ -1758,9 +1792,9 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:linen_cloth",
+        "item:linen_cloth",
+        "item:linen_cloth"
       ],
       [
         "item:plank",
@@ -1791,18 +1825,18 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:fiber",
-        "item:copper_piece",
-        "item:fiber"
+        "item:linen_cloth",
+        "item:glass_pane",
+        "item:linen_cloth"
       ],
       [
         null,
-        "item:stick",
+        "item:copper_piece",
         null
       ],
       [
         null,
-        "item:plank",
+        "item:stick",
         null
       ]
     ]
@@ -1829,9 +1863,9 @@
         "item:sunflower"
       ],
       [
-        "item:plank",
-        "item:fiber",
-        "item:plank"
+        "item:brick",
+        "item:compost",
+        "item:brick"
       ]
     ]
   },
@@ -1852,9 +1886,9 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:wool_cloth",
+        "item:wool_cloth",
+        "item:wool_cloth"
       ],
       [
         "item:plank",
@@ -1885,19 +1919,19 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:yarn",
+        "item:yarn",
+        "item:yarn"
       ],
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:yarn",
+        "item:linen_cloth",
+        "item:yarn"
       ],
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:yarn",
+        "item:yarn",
+        "item:yarn"
       ]
     ]
   },
@@ -1919,17 +1953,17 @@
     "pattern": [
       [
         null,
-        "item:fiber",
+        "item:yarn",
         null
       ],
       [
-        "item:fiber",
-        "item:fiber",
-        "item:fiber"
+        "item:yarn",
+        "item:yarn",
+        "item:yarn"
       ],
       [
         null,
-        "item:fiber",
+        "item:yarn",
         null
       ]
     ]
@@ -1980,12 +2014,12 @@
     "pattern": [
       [
         null,
-        "item:copper_piece",
+        "item:glass_pane",
         null
       ],
       [
         null,
-        "item:fiber",
+        "item:copper_piece",
         null
       ],
       [
@@ -2018,7 +2052,7 @@
       ],
       [
         "item:plank",
-        "item:copper_piece",
+        "item:glass_pane",
         "item:plank"
       ],
       [
@@ -2046,13 +2080,16 @@
     "pattern": [
       [
         "item:plank",
+        "item:plank",
         "item:plank"
       ],
       [
+        "item:iron_piece",
         "item:plank",
         "item:iron_piece"
       ],
       [
+        "item:plank",
         "item:plank",
         "item:plank"
       ]
@@ -2081,7 +2118,7 @@
       ],
       [
         "item:stone",
-        "item:stone",
+        "item:brick",
         "item:stone"
       ],
       [
@@ -2346,22 +2383,25 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:timber_frame",
-        "item:timber_frame",
-        "item:timber_frame"
+        "item:glass_pane",
+        "item:glass_pane",
+        "item:glass_pane"
       ],
       [
-        "item:timber_frame",
+        "item:glass_pane",
         "item:iron_fittings",
-        "item:timber_frame"
+        "item:glass_pane"
       ],
       [
+        "item:timber_frame",
         "item:stone_foundation",
-        "item:iron_fittings",
-        "item:stone_foundation"
+        "item:timber_frame"
       ]
     ]
   },
@@ -4415,16 +4455,24 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
     "recipeKind": "shaped",
     "pattern": [
       [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
         "item:timber_frame",
-        "item:timber_frame",
+        "item:nails",
         "item:timber_frame"
       ],
       [
         "item:timber_frame",
-        "item:iron_fittings",
+        null,
         "item:timber_frame"
       ]
     ]
@@ -4527,21 +4575,24 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:stone_foundation",
+        "item:brick",
         "item:iron_fittings",
-        "item:stone_foundation"
+        "item:brick"
       ],
       [
-        "item:stone_foundation",
+        "item:brick",
         null,
-        "item:stone_foundation"
+        "item:brick"
       ],
       [
         "item:stone_foundation",
-        "item:iron_fittings",
+        "item:stone_foundation",
         "item:stone_foundation"
       ]
     ]
@@ -4837,16 +4888,9 @@
     "pattern": [
       [
         "item:pebble",
-        "item:pebble",
         "item:pebble"
       ],
       [
-        "item:pebble",
-        "item:pebble",
-        "item:pebble"
-      ],
-      [
-        "item:pebble",
         "item:pebble",
         "item:pebble"
       ]
@@ -4903,9 +4947,11 @@
     "pattern": [
       [
         "item:stone",
+        "item:stone",
         "item:stone"
       ],
       [
+        "item:stone",
         "item:stone",
         "item:stone"
       ]
@@ -5100,9 +5146,9 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:plank",
+        "item:wood",
         "item:stick",
-        "item:plank"
+        "item:wood"
       ],
       [
         "item:stick",
@@ -5110,9 +5156,9 @@
         "item:stick"
       ],
       [
-        "item:plank",
+        "item:wood",
         "item:stick",
-        "item:plank"
+        "item:wood"
       ]
     ]
   },
@@ -5202,10 +5248,19 @@
     "recipeKind": "shaped",
     "pattern": [
       [
-        "item:gold_bar"
+        null,
+        "item:glass_pane",
+        null
       ],
       [
-        "item:copper_bar"
+        "item:gold_piece",
+        "item:copper_bar",
+        "item:gold_piece"
+      ],
+      [
+        null,
+        "item:gold_piece",
+        null
       ]
     ]
   },
