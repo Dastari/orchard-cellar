@@ -10,7 +10,7 @@ function menuUpdateLabel(status: PwaUpdateStatus): string {
   return ({ available: 'Update now', checking: 'Checking', updating: 'Updating', current: 'Check for update', error: 'Retry update', unsupported: 'Update unavailable' } as const)[status] ?? pwaUpdateLabel(status);
 }
 
-export type UiGameMenuAction = 'resume' | 'settings' | 'help' | 'developer' | 'fullscreen'
+export type UiGameMenuAction = 'resume' | 'character' | 'settings' | 'help' | 'developer' | 'fullscreen'
   | 'check-update' | 'apply-update' | 'exit-delve' | 'sign-out' | 'quit' | 'outdoor-rewards';
 export interface UiGameMenuModel {
   readonly outdoorRewardCount?: number;
@@ -36,6 +36,7 @@ export function uiGameMenu(options: UiGameMenuOptions): UiGameMenuElement {
     action: () => UiGameMenuAction; visible?: () => boolean; disabled?: () => boolean }[] = [
     { id: 'resume', label: () => 'Resume', tone: () => 'success', action: () => 'resume' },
     { id: 'outdoor-rewards', label: () => `Rewards (${model.outdoorRewardCount ?? 0})`, tone: () => 'success', action: () => 'outdoor-rewards', visible: () => model.outdoorRewardCount !== undefined },
+    { id: 'character', label: () => 'Character', tone: () => 'primary', action: () => 'character' },
     { id: 'settings', label: () => 'Settings', tone: () => 'primary', action: () => 'settings' },
     { id: 'help', label: () => 'Help', tone: () => 'primary', action: () => 'help' },
     { id: 'developer', label: () => 'Developer', tone: () => 'primary', action: () => 'developer', visible: () => model.canAdministerWorld === true },

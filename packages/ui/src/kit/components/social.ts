@@ -156,16 +156,18 @@ export function uiSettingRow(label: string, control: UiElement, hint?: string): 
 
 /** Vertical menu tab in the legacy settings idiom: peach chamfered at rest, a green square face when current,
  * with its authored button glyph leading the label. */
-export function uiMenuTab(options: { readonly id?: string; readonly label: string; readonly glyph: string; readonly active: boolean; readonly onPress: () => void; readonly width?: number; /** Glyph only, for narrow screens; the label stays the accessible name. */ readonly iconOnly?: boolean }): UiElement {
-  const hooks = pressHooks(options.onPress);
-  return new UiElement({ id: options.id, kind: 'tab', label: options.label, focusable: true, pointerMode: 'capture', props: { selected: options.active, tone: options.active ? 'success' : 'primary', buttonSurface: true },
+export function uiMenuTab(options: { readonly id?: string; readonly label: string; readonly glyph: string; readonly active: boolean | (() => boolean); readonly onPress: () => void; readonly width?: number; /** Glyph only, for narrow screens; the label stays the accessible name. */ readonly iconOnly?: boolean }): UiElement {
+  const hooks = pressHooks(options.onPress), active = () => typeof options.active === 'function' ? options.active() : options.active;
+  return new UiElement({ id: options.id, kind: 'tab', label: options.label, focusable: true, pointerMode: 'capture', props: { selected: active(), tone: active() ? 'success' : 'primary', buttonSurface: true },
     style: { width: uiFixed(options.width ?? (options.iconOnly ? 22 : 88)), height: uiFixed(22), shrink: 0 }, ...hooks,
+    // A live active state keeps the tab (and its focus) while the selection moves.
+    onArrange(element) { const now = active(); if (element.props['selected'] !== now) element.setProps({ selected: now, tone: now ? 'success' : 'primary' }, false); },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return;
-      const r = element.rect, tone = options.active ? 'success' : 'primary', shape = options.active ? 'square' : 'chamfered', state = hooks.pressed() ? 'pressed' : 'idle', drop = hooks.pressed() ? 1 : 0;
+      const current = active(), r = element.rect, tone = current ? 'success' : 'primary', shape = current ? 'square' : 'chamfered', state = hooks.pressed() ? 'pressed' : 'idle', drop = hooks.pressed() ? 1 : 0;
       paintUiSkin(context, art.skin.button, `${tone}.md.${shape}.${state}`, r);
       paintUiSkin(context, art.skin.icon, `bglyph.${options.glyph}.${tone}`, { x: r.x + 3, y: r.y + 3 + drop, width: 16, height: 16 });
-      if (!options.iconOnly) drawPixelText(context, art.pixel, fitPixelText(options.label, r.width - 26, 1, art.pixel.font), r.x + 21, r.y + 8 + drop, { color: options.active ? '#fff6e0' : INK });
+      if (!options.iconOnly) drawPixelText(context, art.pixel, fitPixelText(options.label, r.width - 26, 1, art.pixel.font), r.x + 21, r.y + 8 + drop, { color: current ? '#fff6e0' : INK });
       if (hovered || focused) paintUiSkin(context, art.skin.button, `outline.md.${shape}.${state}.${focused ? 'white' : 'gold'}`, r);
     } });
 }

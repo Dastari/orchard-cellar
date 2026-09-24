@@ -119,13 +119,18 @@ export function uiSettings(options: UiSettingsOptions): UiSettingsElement {
   // The tab column matches the page's height; on short screens it scrolls too, so the window never does.
   const tabColumn = uiScrollArea({ width: uiFixed(88), height: uiFixed(PANEL.height), shrink: 0, padding: 0 }, [tabs]);
   tabColumn.setProps({ touchScroll: true });
+  // Tabs are built once per glyph mode; their active state is live, so moving the selection keeps focus.
   const buildTabs = () => {
-    const focused = tabs.children.some(tab => tab.props['focused']) ? selected : null;
     for (const child of [...tabs.children]) child.dispose();
-    tabs.replaceChildren([...UI_SETTINGS_TABS.map(id => uiMenuTab({ id: `settings.pages:tab:${id}`, label: TAB_FACES[id][0], glyph: TAB_FACES[id][1], active: id === selected, iconOnly: compact, onPress: () => selectSettingsTab(id) })),
+    tabs.replaceChildren([...UI_SETTINGS_TABS.map(id => uiMenuTab({ id: `settings.pages:tab:${id}`, label: TAB_FACES[id][0], glyph: TAB_FACES[id][1], active: () => id === selected, iconOnly: compact, onPress: () => selectSettingsTab(id) })),
       uiFlex({ height: uiFixed(8) }, []), uiMenuTab({ id: 'settings.back', label: 'Back', glyph: 'back', active: false, iconOnly: compact, onPress: options.onBack })]);
-    if (focused) tabs.children.find(tab => tab.id === `settings.pages:tab:${selected}`)?.requestFocus();
   };
+  // Up and Down on a focused tab move the selection and the focus through the column.
+  Object.assign(tabs.hooks, { onKey: (event: { readonly key: string }) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return false;
+    const index = UI_SETTINGS_TABS.indexOf(selected), next = UI_SETTINGS_TABS[(index + (event.key === 'ArrowUp' ? -1 : 1) + UI_SETTINGS_TABS.length) % UI_SETTINGS_TABS.length]!;
+    selectSettingsTab(next); tabs.children.find(tab => tab.id === `settings.pages:tab:${next}`)?.requestFocus(); return true;
+  } });
   const showPage = () => {
     for (const child of [...heading.children]) child.dispose();
     heading.append(uiPageHeading(TAB_FACES[selected][0] === 'Access' ? 'Accessibility' : TAB_FACES[selected][0], undefined, { rule: false }));
@@ -133,8 +138,8 @@ export function uiSettings(options: UiSettingsOptions): UiSettingsElement {
   };
   function selectSettingsTab(tab: UiSettingsTab): void {
     const changed = tab !== selected; selected = tab;
-    if (changed) options.onTab?.(selected);
-    buildTabs(); showPage();
+    if (changed) { options.onTab?.(selected); showPage(); }
+    for (const tab of tabs.children) tab.invalidate();
   }
   const frame = uiWindow({ id: 'game.settings', title: 'SETTINGS', closeLabel: 'Close settings', onClose: options.onBack, layout: { direction: 'row', gap: 8, align: 'start' }, children: [tabColumn, panel] });
   if (options.layout) frame.setStyle(options.layout);

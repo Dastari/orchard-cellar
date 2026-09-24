@@ -54,6 +54,10 @@ it('routes the real game menu once on release, retires legacy hits and cancels o
   f.runtime.pointer({ type: 'up', point: p, pointerId: 2, button: 0 }); expect(f.ui.openWindow).toBe('system');
   press(f.root, 'game-menu.settings'); f.runtime.key({ key: 'i' }); expect(f.ui.openWindow).toBe('inventory');
 });
+it('opens the character book from the approved menu entry', () => {
+  const f = fixture(); f.ui.openWindow = 'system';
+  press(f.root, 'game-menu.character'); expect(f.ui.openWindow).toBe('character');
+});
 it('commits current audio, lighting and touch preferences while preserving focus across resize', () => {
   const f = fixture({ touchControlPreferences: { swapped: true, bottomOffset: 17 } }); f.ui.openWindow = 'settings';
   press(f.root, 'settings.pages:tab:audio'); const slider = element(f.root, 'settings.volume.master');
