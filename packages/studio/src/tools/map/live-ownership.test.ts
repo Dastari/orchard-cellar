@@ -71,15 +71,28 @@ describe('ownership-aware live markers (Studio/Map Editor)', () => {
   it('prefers the editable authored lamp over its materialized live row', () => {
     const markers = mapEditorLiveMarkers(rows([lampRow]));
     expect(mapStreetlampLiveBindings(liveIsland).get(lampRow.id.toString())).toBe('lamp-object');
-    expect(pickTopmostVisibleMapEntity(liveIsland, markers, () => true, 20, 24))
+    expect(pickTopmostVisibleMapEntity(liveIsland, markers, () => true, 20, 24, liveIsland))
       .toMatchObject({ kind: 'object', id: 'lamp-object' });
     // Both halves share the World Objects band, so hiding it hides the lamp.
-    expect(pickTopmostVisibleMapEntity(liveIsland, markers, (layer) => layer !== 'objects', 20, 24))
+    expect(pickTopmostVisibleMapEntity(liveIsland, markers, (layer) => layer !== 'objects', 20, 24, liveIsland))
       .toBeNull();
     // Without an enabled authored copy the live row stays selectable.
     const disabled = { ...liveIsland, objects: [{ ...lampObject, enabled: false }] };
-    expect(pickTopmostVisibleMapEntity(disabled, markers, () => true, 20, 24))
+    expect(pickTopmostVisibleMapEntity(disabled, markers, () => true, 20, 24, liveIsland))
       .toMatchObject({ kind: 'live', id: lampRow.id.toString(), layer: 'objects' });
+  });
+
+  it('keeps authored picking through a dirty move without an old-position ghost', () => {
+    const markers = mapEditorLiveMarkers(rows([lampRow]));
+    const moved = { ...liveIsland, objects: [{ ...lampObject, tileX: 26, layer: 'canopy' as const }] };
+    expect(pickTopmostVisibleMapEntity(moved, markers, () => true, 26, 24, liveIsland))
+      .toMatchObject({ kind: 'object', id: lampObject.id });
+    expect(pickTopmostVisibleMapEntity(moved, markers, () => true, 20, 24, liveIsland)).toBeNull();
+    expect(pickTopmostVisibleMapEntity(moved, markers, layer => layer !== 'canopy', 20, 24, liveIsland)).toBeNull();
+    expect(pickTopmostVisibleMapEntity(moved, markers, layer => layer !== 'canopy', 26, 24, liveIsland)).toBeNull();
+    const deleted = { ...liveIsland, objects: [] };
+    expect(pickTopmostVisibleMapEntity(deleted, markers, () => true, 20, 24, liveIsland))
+      .toMatchObject({ kind: 'live', id: String(lampRow.id) });
   });
 
   it('routes world-owned objects through the admin path but not map-materialized lamps', () => {
