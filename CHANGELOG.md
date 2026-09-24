@@ -14,6 +14,8 @@ One heading per game version, newest first. Parallel branches that bumped to the
   - The title flow, name prompt, the update, delve and trader dialogs, the build palette, and online players.
   - Dark notices, nameplates, the hover card and the chat panel.
   - All of it scales to phone layouts.
+  - Review fixes: touch sort for the barrel, and visible reasons for locked recipes. The dodge disc shows its real key (R). Desktop keyboard players get the approved one-row HUD. The game menu has a Character entry, arrow keys work in settings and the shop, and prices drop zero denominations. The redesign art's licensed Kenmi derivation is stated.
+  - Faded chat history lets world clicks through (BUG-038). Hover still reveals it (BUG-034).
 - **Recipe recosting (Craft-D2, PR #152 by GrayOx).**
   - Buildings are costed by footprint; the barn is built from a coop item.
   - Components: a timber frame takes 4.5 wood, and a stone foundation 6 stone.
