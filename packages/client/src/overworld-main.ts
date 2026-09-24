@@ -265,16 +265,6 @@ const shopFilterInputElement = document.querySelector<HTMLInputElement>('#shop-f
 if (shopFilterInputElement === null) throw new Error('Missing shop filter input');
 const inventoryFilterInputElement = document.querySelector<HTMLInputElement>('#inventory-filter');
 if (inventoryFilterInputElement === null) throw new Error('Missing inventory filter input');
-const tradeMoneyGoldInputElement = document.querySelector<HTMLInputElement>('#trade-money-gold');
-const tradeMoneySilverInputElement = document.querySelector<HTMLInputElement>('#trade-money-silver');
-const tradeMoneyBronzeInputElement = document.querySelector<HTMLInputElement>('#trade-money-bronze');
-if (tradeMoneyGoldInputElement === null || tradeMoneySilverInputElement === null
-  || tradeMoneyBronzeInputElement === null) throw new Error('Missing trade money inputs');
-const tradeMoneyInputElements = [
-  tradeMoneyGoldInputElement,
-  tradeMoneySilverInputElement,
-  tradeMoneyBronzeInputElement,
-] as const;
 setLoadingScreenStage({
   title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
 });
@@ -1088,11 +1078,7 @@ const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
     variant: profile?.variant ?? 0,
   }, rect);
 }, shopFilterInputElement);
-const tradeUi = new TradeUi(art.uiSkin, art.ui, itemArt, {
-  gold: tradeMoneyGoldInputElement,
-  silver: tradeMoneySilverInputElement,
-  bronze: tradeMoneyBronzeInputElement,
-}, {
+const tradeUi = new TradeUi(kitArt, itemArt, {
   acceptRequest: (tradeId) => showResult(network.acceptTradeRequest(tradeId), 'TRADE OPENED'),
   declineRequest: (tradeId) => showResult(network.declineTrade(tradeId), 'TRADE DECLINED'),
   cancel: (tradeId) => showResult(network.cancelTrade(tradeId), 'TRADE CANCELLED'),
@@ -1120,6 +1106,13 @@ function retainedUiAvailable(): boolean {
 }
 retainedUi.register({ id: 'character-name', priority: 1000, root: characterNamePrompt.root,
   active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
+const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
+retainedUi.register({ id: 'inventory-menus', priority: 500, root: inventoryMenuRoot,
+  active: () => retainedUiAvailable() && overworldUi.retainedInventoryActive
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible,
+  blocking: () => true });
+retainedUi.register({ id: 'player-trade', priority: 900, root: tradeUi.root,
+  active: () => retainedUiAvailable() && tradeUi.active, blocking: () => true });
 retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.root,
   active: () => retainedUiAvailable() && questTracker.isActive && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
@@ -1141,7 +1134,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
 });
 import.meta.hot?.dispose(() => {
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
-  characterNamePrompt.dispose(); questTracker.dispose();
+  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); overworldUi.disposeRetainedInventory();
 });
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
@@ -5392,7 +5385,9 @@ function renderFrame(alpha = 1): void {
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
   });
   const tradeSession = snapshot.tradeSession;
-  tradeUi.update(tradeSession === null || snapshot.identityHex === null ? null : {
+  tradeUi.update(!snapshot.connected || tradeSession === null || snapshot.identityHex === null ? null : {
+    connectionScope: `${snapshot.identityHex}:${network.sessionGeneration}`,
+    backpackSlotCapacity,
     contentRegistry: snapshot.content.registry,
     identityHex: snapshot.identityHex,
     session: tradeSession,
@@ -6325,23 +6320,16 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
-    if (tradeMoneyInputElements.includes(document.activeElement as HTMLInputElement)) {
-      if (event.code === 'Escape') {
-        (document.activeElement as HTMLInputElement).blur();
-        event.preventDefault();
-      }
-      return;
-    }
     if (retainedUi.key(event, 'character-name')) {
-      event.preventDefault();
+      syncRetainedText(); event.preventDefault();
       return;
     }
-    if (tradeUi.handleKeyDown(event.code, event.repeat)) {
-      event.preventDefault();
+    if (retainedUi.key(event, 'player-trade')) {
+      syncRetainedText(); event.preventDefault();
       return;
     }
     if (!chatOverlay.isOpen && retainedUi.key(event, 'quest-tracker')) {
-      event.preventDefault();
+      syncRetainedText(); event.preventDefault();
       return;
     }
     if (!chatInteractionBlocked() && chatOverlay.handleGlobalKeyDown(event)) {
@@ -6352,6 +6340,9 @@ window.addEventListener('keydown', (event) => {
     if (npcInteractionUi.handleKeyDown(event.code, event.repeat)) {
       event.preventDefault();
       return;
+    }
+    if (retainedUi.key(event, 'inventory-menus')) {
+      syncRetainedText(); event.preventDefault(); return;
     }
     if (event.code === 'Tab') {
       onlinePlayersVisible = true;
@@ -6873,7 +6864,6 @@ function clearPointerPresentation(): void {
   hoveredInteractionTile = null;
   rogueUiPointer = null;
   retainedUi.clearHover();
-  tradeUi.pointerLeave();
   npcInteractionUi.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
@@ -6966,8 +6956,9 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   if (retainedPointers.dispatch('move', event, 'character-name')) return;
-  if (tradeUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'player-trade')) return;
   if (npcInteractionUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
@@ -6975,7 +6966,10 @@ canvas.addEventListener('pointermove', (event) => {
   if (overworldUi.openWindow === null && !chatOverlay.isHovered) retainedPointers.dispatch('move', event, 'quest-tracker');
   else retainedUi.clearHover();
 });
-canvas.addEventListener('pointerleave', () => {
+canvas.addEventListener('pointerleave', (event) => {
+  // A captured retained gesture can finish outside the canvas. Legacy leave
+  // cleanup must not clear its inventory preview before the owned release.
+  if (retainedUi.tracksPointer(event.pointerId)) { retainedUi.clearHover(); return; }
   clearPointerPresentation();
 });
 canvas.addEventListener('pointerdown', (event) => {
@@ -7020,8 +7014,7 @@ canvas.addEventListener('pointerdown', (event) => {
       return;
     }
   }
-  if (!interfaceHidden && tradeUi.pointerDown({ x, y }, event.button, event.pointerType)) {
-    canvas.setPointerCapture(event.pointerId);
+  if (!interfaceHidden && retainedPointers.dispatch('down', event, 'player-trade')) {
     event.preventDefault();
     return;
   }
@@ -7099,6 +7092,9 @@ canvas.addEventListener('pointerdown', (event) => {
       canvas.setPointerCapture(event.pointerId);
       event.preventDefault();
       return;
+    }
+    if (retainedPointers.dispatch('down', event, 'inventory-menus')) {
+      event.preventDefault(); return;
     }
     // The retained window tree is visually above chat and therefore receives
     // the first opportunity to capture input as well. Previously chat could
@@ -7401,7 +7397,6 @@ canvas.addEventListener('pointerup', (event) => {
       return;
     }
     if (tradeUi.active) {
-      tradeUi.pointerUp();
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       event.preventDefault();
       return;
@@ -7443,7 +7438,6 @@ canvas.addEventListener('pointercancel', () => {
   hoveredInteractionTile = null;
   chatOverlay.pointerCancel();
   npcInteractionUi.pointerLeave();
-  tradeUi.pointerLeave();
   overworldUi.pointerLeave();
 });
 canvas.addEventListener('wheel', (event) => {
@@ -7456,13 +7450,22 @@ canvas.addEventListener('wheel', (event) => {
     if (retainedUi.wheel({ point: { x, y }, deltaX: event.deltaX, deltaY: event.deltaY }, 'character-name')) {
       event.preventDefault(); return;
     }
-    if (tradeUi.wheel({ x, y }, event.deltaY)) {
+    if (retainedUi.wheel({ point: { x, y },
+      deltaX: event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+      deltaY: event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+    }, 'player-trade')) {
       event.preventDefault();
       return;
     }
     if (npcInteractionUi.wheel({ x, y }, event.deltaY) || npcInteractionUi.active) {
       event.preventDefault();
       return;
+    }
+    const wheelUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1;
+    const retainedWheel = { point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
+      deltaY: event.deltaY * wheelUnit / currentUiScale() };
+    if (retainedUi.wheel(retainedWheel, 'inventory-menus')) {
+      event.preventDefault(); return;
     }
     if (overworldUi.wheel({ x, y }, event.deltaX, event.deltaY)) {
       event.preventDefault();
@@ -7471,9 +7474,7 @@ canvas.addEventListener('wheel', (event) => {
     if (!chatInteractionBlocked() && chatOverlay.wheel({ x, y }, event.deltaY)) {
       retainedUi.clearHover(); event.preventDefault(); return;
     }
-    const wheelUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1;
-    if (retainedUi.wheel({ point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
-      deltaY: event.deltaY * wheelUnit / currentUiScale() }, 'quest-tracker')) {
+    if (retainedUi.wheel(retainedWheel, 'quest-tracker')) {
       event.preventDefault(); return;
     }
   }

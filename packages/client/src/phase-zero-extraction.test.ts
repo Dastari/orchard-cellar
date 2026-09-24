@@ -173,7 +173,12 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // BUG-017 (PR104): reviewed OverworldUi touch arbitration resolves vertical
 // scrolling before pickup and locks horizontal drag ownership. Actual-host
 // regressions pass; the other four seams and all import-direction gates are unchanged.
-const STRUCTURAL_SEAM_DIGEST = "05a885a949918db058f5f7aa3c84617adfaec3d8e845857a7c35790e34747e08";
+// September24 inventory/storage adoption extracts the existing gesture authority
+// into shared helpers and binds four retained compositions. Actual-host regressions
+// cover cursor custody, restrictions, touch/focus and reconnect; other seams remain unchanged.
+// Trade adoption retires the old drawing/native input paths; two-identity reducer,
+// revision, money and reconnect tests cover the replacement wrapper.
+const STRUCTURAL_SEAM_DIGEST = '793898eeb55189927394666263b3a42b29caf0fca9aa1f25dad01f4943a30581';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
