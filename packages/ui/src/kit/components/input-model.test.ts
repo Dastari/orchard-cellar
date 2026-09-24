@@ -2,6 +2,14 @@ import { expect, it, vi } from 'vitest';
 import { ui } from './index.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { UiRoot } from '../runtime/root.js';
+it('keeps native keyboard hints opt-in without replacing editor validation', () => {
+  const numeric = ui.input({ label: 'Amount', inputMode: 'numeric' });
+  expect(numeric.props['inputMode']).toBe('numeric');
+  numeric.hooks.onClipboard?.('paste', '12x', numeric);
+  expect((numeric.props['editor'] as CanvasTextEditor).snapshot().value).toBe('12x');
+  expect(ui.input({ label: 'Name' }).props['inputMode']).toBe('text');
+  expect(ui.textArea({ label: 'Search', inputMode: 'search' }).props['inputMode']).toBe('search');
+});
 it('retains a host editor selection and draft across a surface rebuild', () => {
   const changed = vi.fn(), editor = new CanvasTextEditor({ value: 'apple', onChange: changed });
   const root = new UiRoot({ scale: 1 }); root.resize(300,200);
