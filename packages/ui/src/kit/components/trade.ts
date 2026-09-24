@@ -120,7 +120,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   let carriedHost: UiElement | undefined, inventoryStructure = '';
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
-    const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, layout: { width: 'grow' },
+    const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, inputMode: 'numeric', layout: { width: 'grow' },
       onChange: () => { cleanEditors(); }, onSubmit: () => { commitMoney(); } });
     const field = new UiElement({ ...input.hooks,
       onFocus(focused, element, source) {
