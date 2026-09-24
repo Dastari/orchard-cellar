@@ -143,18 +143,33 @@ export function runProbe(probe: ReadinessProbe, repoRoot: string): ProbeResult {
   return { id: probe.id, step: probe.step, description: probe.description, count, files: files.sort() };
 }
 
-/** Legacy modules recorded by the last client build, or null when no build exists. */
+/**
+ * Legacy modules recorded by the last client build, or null when the audit is
+ * missing or is not exactly the envelope `chunkRuntimeBuildAudit`
+ * (packages/client/src/chunk-shadow-build-gate.ts) emits today: schema 1,
+ * mode off|shadow, activationAllowed false, string legacyModules. S4/S5 must
+ * extend this check alongside the emitter when an activation mode exists.
+ */
 export function clientBuildLegacyModules(repoRoot: string): readonly string[] | null {
   const path = resolve(repoRoot, 'packages/client/dist/chunk-runtime-audit.json');
   if (!existsSync(path)) return null;
-  let audit: { legacyModules?: unknown };
+  let audit: unknown;
   try {
-    audit = JSON.parse(readFileSync(path, 'utf8')) as { legacyModules?: unknown };
+    audit = JSON.parse(readFileSync(path, 'utf8'));
   } catch {
     return null;
   }
-  return Array.isArray(audit?.legacyModules) && audit.legacyModules.every((id) => typeof id === 'string')
-    ? audit.legacyModules as string[] : null;
+  return validClientBuildAudit(audit) ? audit.legacyModules : null;
+}
+
+export function validClientBuildAudit(audit: unknown): audit is { readonly legacyModules: readonly string[] } {
+  if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) return false;
+  const { schema, mode, activationAllowed, legacyModules } = audit as Record<string, unknown>;
+  return schema === 1
+    && (mode === 'off' || mode === 'shadow')
+    && activationAllowed === false
+    && Array.isArray(legacyModules)
+    && legacyModules.every((id) => typeof id === 'string');
 }
 
 const STEP_ORDER: readonly MigrationStep[] = ['step4', 'step5', 'step6'];

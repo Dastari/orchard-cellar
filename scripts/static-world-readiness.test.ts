@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  blockingProbes, main, MANUAL_GATES, parseReadinessArgs, READINESS_PROBES, requirementFailures, runProbe, type ProbeResult,
+  blockingProbes, main, MANUAL_GATES, parseReadinessArgs, READINESS_PROBES, requirementFailures, runProbe, validClientBuildAudit,
+  type ProbeResult,
 } from './static-world-readiness.js';
+import { chunkRuntimeBuildAudit } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 describe('static-world readiness', () => {
   it('finds the whole-map dependencies the migration still has to remove', () => {
@@ -45,6 +47,20 @@ describe('static-world readiness', () => {
     expect(requirementFailures([], [], 'step6')).toEqual([]);
   });
 
+  // Exactly what chunkRuntimeBuildAudit emits for a generator-free shadow build.
+  const emitted = { schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false };
+
+  it('accepts only the envelope the client build gate emits', () => {
+    expect(validClientBuildAudit(emitted)).toBe(true);
+    expect(validClientBuildAudit({ ...emitted, mode: 'off' })).toBe(true);
+    // Stays in lockstep with the real emitter.
+    for (const mode of ['off', 'shadow']) expect(validClientBuildAudit(chunkRuntimeBuildAudit(mode, []))).toBe(true);
+    for (const bad of [
+      null, [], { legacyModules: [] }, { ...emitted, schema: 2 }, { ...emitted, mode: 'on' }, { ...emitted, mode: 'banana' },
+      { ...emitted, activationAllowed: true }, { ...emitted, legacyModules: null }, { ...emitted, legacyModules: [1] },
+    ]) expect(validClientBuildAudit(bad)).toBe(false);
+  });
+
   describe('CLI exit codes on a zero-probe fixture', () => {
     let root = '';
     afterEach(() => { vi.restoreAllMocks(); if (root) rmSync(root, { recursive: true, force: true }); });
@@ -66,9 +82,13 @@ describe('static-world readiness', () => {
       expect(run(['--require', 'step6'])).toBe(1);
       audit('not json');
       expect(run(['--require', 'step5'])).toBe(1);
-      audit(JSON.stringify({ schema: 1, legacyModules: ['packages/sim/src/map-compiler.ts'] }));
+      audit(JSON.stringify({ ...emitted, legacyModules: ['packages/sim/src/map-compiler.ts'] }));
       expect(run(['--require', 'step5'])).toBe(1);
-      audit(JSON.stringify({ schema: 1, legacyModules: [] }));
+      audit(JSON.stringify({ legacyModules: [] }));
+      expect(run(['--require', 'step5'])).toBe(1);
+      audit(JSON.stringify({ schema: 999, mode: 'banana', activationAllowed: true, legacyModules: [] }));
+      expect(run(['--require', 'step6'])).toBe(1);
+      audit(JSON.stringify(emitted));
       expect(run(['--require', 'step6'])).toBe(0);
     });
   });
