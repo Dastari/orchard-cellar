@@ -1,5 +1,5 @@
 import { uiTiming, timingLabels } from './timing.js';
-import { uiWindow } from './window.js';
+import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
 import { HOTBAR_SLOT_COUNT, type TimingProjection, type FrameContentDefinition, type FrameRestrictionRegistry } from '@orchard/sim';
 import { resolveFramePaneSlots, type FrameContainerAliases } from '../../content-frame.js';
@@ -149,7 +149,12 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   };
   if (machine || timingPane) {
     const entity = definition.panes.filter(pane => isEntity(pane) && !custom(pane));
-    const slotFor = (pane: Pane) => { const g = grid(pane); return g ? visible(pane, uiStationSlot((pane.label ?? pane.id).toUpperCase(), g)) : null; };
+    // An entity side with a sort control (the preserving barrel) keeps a touch-reachable sort glyph beside its slots.
+    const slotFor = (pane: Pane) => { const g = grid(pane); if (!g) return null;
+      const controls = options.inventoryControls?.[bindingsOf(pane)[0]!.containerId];
+      const sort = controls?.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: `${definition.id}.pane.${pane.id}.sort`, label: 'Sort & stack', onPress: () => { if (controls.sortEnabled?.() !== false) controls.onSort!(); } }) : null;
+      if (sort && controls?.sortEnabled) refresh.push(() => { const disabled = !controls.sortEnabled!(); if (sort.disabled !== disabled) sort.setDisabled(disabled); });
+      return visible(pane, uiStationSlot((pane.label ?? pane.id).toUpperCase(), sort ? uiFlex({ direction: 'row', gap: 4, align: 'start' }, [g, sort]) : g)); };
     const inputs = entity.filter(pane => !pane.restriction?.readOnly).flatMap(pane => { const node = slotFor(pane); return node ? [node] : []; });
     const outputs = entity.filter(pane => pane.restriction?.readOnly).flatMap(pane => { const node = slotFor(pane); return node ? [node] : []; });
     const status = () => sentenceCase(timingLabels(timing).status), time = () => timingLabels(timing).time.toLowerCase();

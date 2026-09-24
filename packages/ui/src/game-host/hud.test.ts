@@ -144,6 +144,23 @@ describe('production shared HUD compositions', () => {
 });
 
 
+describe('desktop HUD arrangement', () => {
+  it.each([[480, 270], [640, 360], [960, 540]])('gives keyboard play the approved one-row HUD at the game\'s desktop logical size %sx%s', (width, height) => {
+    const f = fixture(width, height), node = (id: string) => f.node('hotbarVitals', id);
+    const slot = node('game.hud.hotbar.slot.0'), system = node('game.hud.system'), crafting = node('game.hud.crafting'), weapon = node('game.hud.weapon');
+    // Shortcuts, hotbar and main hand share one row, M B C before the hotbar and V after it.
+    for (const control of [system, crafting, weapon]) expect(control.rect.y, control.id).toBe(slot.rect.y);
+    expect(system.rect.x).toBeLessThan(crafting.rect.x); expect(crafting.rect.x).toBeLessThan(slot.rect.x); expect(weapon.rect.x).toBeGreaterThan(slot.rect.x);
+    // The character card and purse never overlap the row.
+    const intersects = (a: UiElement, b: UiElement) => a.rect.x < b.rect.x + b.rect.width && a.rect.x + a.rect.width > b.rect.x && a.rect.y < b.rect.y + b.rect.height && a.rect.y + a.rect.height > b.rect.y;
+    for (const id of ['game.hud.character', 'game.hud.purse']) for (const control of [system, crafting, slot, weapon]) expect(intersects(node(id), control), `${id}/${control.id}`).toBe(false);
+  });
+  it('keeps touch play on the stacked arrangement', () => {
+    const f = fixture(844, 390); f.host.update({ ...model(), touchControls: { enabled: true, preferences: { swapped: false, bottomOffset: 0 } } });
+    expect(f.node('hotbarVitals', 'game.hud.system').rect.y).toBeLessThan(f.node('hotbarVitals', 'game.hud.hotbar.slot.0').rect.y);
+  });
+});
+
 describe('BUG-029 combined compact touch and HUD', () => {
  const intersects = (a: {x:number;y:number;width:number;height:number}, b: {x:number;y:number;width:number;height:number}) => a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0 && a.x < b.x+b.width && b.x < a.x+a.width && a.y < b.y+b.height && b.y < a.y+a.height;
  function touchModel(swapped=false,bottomOffset=0):GameHudModel { const original=model(); return {...original, trackedQuestCount:1, touchControls:{enabled:true,preferences:{swapped,bottomOffset}}, zone:{...original.zone,watch:{time:'12:00',date:'Summer 24',moon:'Waxing moon'}}}; }

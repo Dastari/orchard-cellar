@@ -5,6 +5,7 @@ import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry }
 
 
 import { timingLabels } from '@orchard/ui';
+import { TOUCH_ACTION_KEY_CODES } from '@orchard/ui';
 import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
 import { projectTiming, rainForWeatherMode } from '@orchard/sim';
 import { TimingHoverIndex } from './content/timing-hover.js';
@@ -6861,7 +6862,7 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     return;
   }
-  if (event.code === 'KeyR' && !event.repeat) {
+  if (event.code === TOUCH_ACTION_KEY_CODES.dodge && !event.repeat) {
     if (!defenseInputAvailable()) {event.preventDefault();return;}
     const aim=defenseAim();
     showResult(network.combatDefense('dodge',aim.x,aim.y),'DODGE · 18 VIGOUR');

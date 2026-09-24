@@ -201,7 +201,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // and the quest log's chapter tabs open them; character, skill, records, quest and reading host tests cover the tabs.
 // Dialogue, merchant, merchant panels and trade render approved uiWindow compositions; the trade host no longer
 // sizes its window (it centres and the window caps itself). NPC, merchant, seal-panel and trade host tests cover the seam.
-const STRUCTURAL_SEAM_DIGEST = 'f40a010a055760d458ffaa2c279226e3e61895bc73436b70bbb3d91b4330fec9';
+// Review fixes: crafting recipes carry a visible reason (skill rank or station), the game menu opens the character
+// book, and the client's dodge key reads the shared TOUCH_ACTION_KEY_CODES; crafting, menu and touch tests cover them.
+const STRUCTURAL_SEAM_DIGEST = 'b2f14984903caf28e91ce4140a2e0e861ca906a20dbfe091592ea490f29030c6';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

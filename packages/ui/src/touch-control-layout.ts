@@ -19,6 +19,10 @@ export interface TouchControlPreferences {
   readonly bottomOffset: number;
 }
 
+/** Keyboard codes behind the touch actions: the world's key handler and the thumb discs' labels share them. */
+export const TOUCH_ACTION_KEY_CODES = { interact: 'KeyE', secondary: 'KeyF', jump: 'Space', dodge: 'KeyR' } as const;
+/** The printed key for a code: "KeyR" reads R, "Space" reads SPACE. */
+export function touchActionKeyLabel(code: string): string { return code.startsWith('Key') ? code.slice(3) : code.toUpperCase(); }
 export const MAX_TOUCH_BOTTOM_OFFSET = 120;
 export const DEFAULT_TOUCH_CONTROL_PREFERENCES: TouchControlPreferences = { swapped: false, bottomOffset: 0 };
 

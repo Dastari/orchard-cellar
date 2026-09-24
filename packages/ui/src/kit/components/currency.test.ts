@@ -12,11 +12,11 @@ describe('currency', () => {
     expect(parts(30625)).toEqual([['gold', 3n], ['silver', 6n], ['bronze', 25n]]);
     expect(uiCurrencyLabel(30625n)).toBe('3g 6s 25b');
   });
-  it('omits leading zero units but keeps inner zeros', () => {
+  it('omits zero units so prices read 5 gold rather than 5 gold 0 silver 0 bronze', () => {
     expect(parts(250n)).toEqual([['silver', 2n], ['bronze', 50n]]);
     expect(parts(7n)).toEqual([['bronze', 7n]]);
-    expect(parts(10005n)).toEqual([['gold', 1n], ['silver', 0n], ['bronze', 5n]]);
-    expect(parts(20000n)).toEqual([['gold', 2n], ['silver', 0n], ['bronze', 0n]]);
+    expect(parts(10005n)).toEqual([['gold', 1n], ['bronze', 5n]]);
+    expect(parts(20000n)).toEqual([['gold', 2n]]);
     expect(uiCurrencyLabel(250)).toBe('2s 50b');
   });
   it('shows zero, negative and non-finite amounts as a single zero bronze', () => {

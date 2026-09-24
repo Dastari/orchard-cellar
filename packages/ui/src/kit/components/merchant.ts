@@ -76,13 +76,23 @@ function stepButton(id: string, glyph: string, label: string, onPress: (event: U
 export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
     let model = options.model, key = '';
     const editor = new CanvasTextEditor({ value: model.filter, maxLength: 32 });
-    const controls = new Map<string, { row: UiElement; minus: UiElement; plus: UiElement }>();
+    const controls = new Map<string, { row: UiElement; minus: UiElement; plus: UiElement; name?: UiElement }>();
+    // Up and Down move between wares, keeping the column (name, minus or plus) that had focus.
+    let focus: { readonly itemKind: string; readonly column: 'name' | 'minus' | 'plus' } | null = null;
+    const track = (element: UiElement, itemKind: string, column: 'name' | 'minus' | 'plus') => { Object.assign(element.hooks, { onFocus: (focused: boolean) => { if (focused) focus = { itemKind, column }; else if (focus?.itemKind === itemKind && focus.column === column) focus = null; } }); return element; };
     const current = (itemKind: string) => model.rows.find(row => row.itemKind === itemKind);
     const adjust = (id: string, direction: -1 | 1, event: UiButtonModifiers) => { const row = current(id); if (!row || model.pending)
         return; options.onQuantity(id, boundedStepperValue(row.quantity, direction, 0, row.maximumQuantity, { shift: event.shiftKey, control: event.ctrlKey })); };
     const input = uiInput({ id: 'merchant.filter', label: 'Search wares', placeholder: 'Search', editor, clearable: true, size: 'sm', leading: uiGlyph('glyph.search'), onChange: query => options.onFilter(query), layout: { width: uiFixed(116) } });
     const list = uiScrollArea({ id: 'merchant.stock', label: 'Merchant stock', scrollStyle: 'wood', width: 'grow', height: uiFixed(VISIBLE_ROWS * ROW_HEIGHT), padding: { right: 24 } });
     list.setProps({ touchScroll: true });
+    Object.assign(list.hooks, { onKey: (event: { readonly key: string }) => {
+        if ((event.key !== 'ArrowUp' && event.key !== 'ArrowDown') || !focus) return false;
+        const index = model.rows.findIndex(row => row.itemKind === focus!.itemKind), next = model.rows[index + (event.key === 'ArrowUp' ? -1 : 1)];
+        if (index < 0 || !next) return true;
+        const target = controls.get(next.itemKind); if (!target) return true;
+        (focus.column === 'name' ? target.name ?? target.plus : focus.column === 'minus' ? target.minus : target.plus).requestFocus(); return true;
+    } });
     const fit = { mode: 'percent', fraction: 1 } as const;
     const panel = uiFrame({ style: 'parchment_plain', padding: 4, layout: { direction: 'column', gap: 0, width: uiFixed(LIST_WIDTH), maxWidth: fit, padding: { top: 8, left: 4, right: 4, bottom: 4 } }, children: [list] });
     const tabsHost = uiFlex({ direction: 'row', align: 'end' });
@@ -137,7 +147,8 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
                 if (quantity > 0 || hovered) { context.fillStyle = quantity > 0 ? '#e4a672' : 'rgba(228, 166, 114, 0.45)'; context.fillRect(r.x, r.y, r.width, r.height); }
                 context.fillStyle = '#e4a672'; context.fillRect(r.x, r.y + r.height - 1, r.width, 1);
             } });
-        controls.set(row.itemKind, { row: line, minus, plus });
+        track(minus, row.itemKind, 'minus'); track(plus, row.itemKind, 'plus'); if (inspectable) track(name, row.itemKind, 'name');
+        controls.set(row.itemKind, { row: line, minus, plus, ...(inspectable ? { name } : {}) });
         return line;
     };
     const updateMerchant = (next: UiMerchantModel) => {
@@ -159,7 +170,8 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         for (const [node, bronze] of [[total, next.totalBronze], [purse, next.balanceBronze]] as const) { node.setProps({ bronze }); node.label = uiCurrencyLabel(bronze); }
         const items = next.rows.reduce((sum, row) => sum + row.quantity, 0), verb = next.tab === 'buy' ? 'Buy' : 'Sell';
         commit.setProps({ label: next.pending ? 'Processing' : items > 0 ? `${verb} ${items} item${items === 1 ? '' : 's'}` : verb }).setDisabled(!next.canCommit || next.pending);
-        const nextKey = JSON.stringify([next.tab, next.filter, next.compact, next.rows.map(row => [row.itemKind, row.name, row.unitPrice, row.maximumQuantity, row.ownedQuantity])]);
+        // Owned counts and quantities paint live, so only the set of wares rebuilds the list (keeping focus and held steppers).
+        const nextKey = JSON.stringify([next.tab, next.filter, next.compact, next.rows.map(row => [row.itemKind, row.name, row.unitPrice, row.maximumQuantity, row.ownedQuantity !== undefined])]);
         if (nextKey !== key) {
             key = nextKey;
             if (reset) { list.scroll.y = 0; list.scroll.x = 0; }

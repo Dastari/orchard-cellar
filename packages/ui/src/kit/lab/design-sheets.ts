@@ -384,7 +384,7 @@ function touchHud(ui: UiFactory, mocks: UiLabMocks, landscape = false): UiElemen
     place(uiTouchAction({ label: 'Interact', key: 'E', icon: 'touch.hand', tone: 'success', size: 44 }), { right: 0, bottom: 0 }),
     place(uiTouchAction({ label: 'Use', key: 'F', icon: 'touch.tool', size: 40 }), { right: 50, bottom: 2 }),
     place(uiTouchAction({ label: 'Jump', key: 'SPACE', icon: 'touch.jump', size: 36 }), { right: 4, bottom: 52 }),
-    place(uiTouchAction({ label: 'Dodge', key: 'V', icon: 'touch.dodge', tone: 'info', size: 32, cooldown: .4 }), { right: 50, bottom: 48 }),
+    place(uiTouchAction({ label: 'Dodge', key: 'R', icon: 'touch.dodge', tone: 'info', size: 32, cooldown: .4 }), { right: 50, bottom: 48 }),
     place(uiTouchAction({ label: 'Block', key: 'HOLD', icon: 'touch.block', tone: 'danger', size: 32 }), { right: 88, bottom: 30 })]);
   if (landscape) {
     const { controller, artwork } = uiLabInventory(mocks);

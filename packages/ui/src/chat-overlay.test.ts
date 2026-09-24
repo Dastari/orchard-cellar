@@ -133,6 +133,37 @@ function retainedFixture(send = vi.fn<(_: string) => Promise<void>>(async () => 
   return { overlay, send, changed, node, point, click, write, prefs };
 }
 describe('production retained chat adapter', () => {
+  it('BUG-038: lets world clicks through the faded history area, and hover re-reveals it', () => {
+    const f = retainedFixture(), history = f.node('chat.history'), p = f.point(history);
+    const draw = (now: number) => f.overlay.draw(createCanvas(480, 270).getContext('2d') as unknown as CanvasRenderingContext2D, now);
+    // A fresh message is visible: the history takes the click.
+    draw(2_000);
+    expect(f.overlay.root.pointer({ type: 'down', point: p, pointerId: 1, button: 0 })).toBe(true);
+    f.overlay.root.pointer({ type: 'cancel', point: p, pointerId: 1, button: 0 });
+    // Faded out (8s delay + 4s fade after arriving at 1s): the click passes through to the world.
+    draw(20_000);
+    expect(f.overlay.root.pointer({ type: 'down', point: p, pointerId: 2, button: 0 })).toBe(false);
+    f.overlay.root.pointer({ type: 'up', point: p, pointerId: 2, button: 0 });
+    expect(f.overlay.isOpen).toBe(false);
+    // Pointing at the faded area reveals the history again (BUG-034) without taking the world's clicks.
+    f.overlay.root.pointer({ type: 'move', point: p, pointerId: 3, button: 0 }); draw(20_016);
+    expect(f.overlay.isHovered).toBe(true);
+    expect(f.overlay.root.pointer({ type: 'down', point: p, pointerId: 3, button: 0 })).toBe(false);
+    f.overlay.root.pointer({ type: 'up', point: p, pointerId: 3, button: 0 }); expect(f.overlay.isOpen).toBe(false);
+    // The chat button still opens chat, and an open chat's history takes clicks again.
+    f.click('chat.toggle', 4); f.overlay.open(); draw(20_032);
+    expect(f.overlay.isOpen).toBe(true);
+    expect(f.overlay.root.pointer({ type: 'down', point: f.point(f.node('chat.history')), pointerId: 5, button: 0 })).toBe(true);
+  });
+  it('BUG-038: still scrolls a hover-revealed history with the wheel', () => {
+    const messages = Array.from({ length: 40 }, (_, index) => ({ ...chatModel().messages[0]!, id: BigInt(index + 1), body: `Message ${index}` }));
+    const f = retainedFixture(undefined, { ...chatModel(), width: 640, height: 360, messages }), history = f.node('chat.history'), p = f.point(history);
+    const draw = (now: number) => f.overlay.draw(createCanvas(640, 360).getContext('2d') as unknown as CanvasRenderingContext2D, now);
+    draw(20_000); f.overlay.root.pointer({ type: 'move', point: p, pointerId: 1, button: 0 }); draw(20_016);
+    expect(f.overlay.isHovered).toBe(true);
+    const before = history.scroll.y; expect(f.overlay.root.wheel({ point: p, deltaX: 0, deltaY: -30 })).toBe(true);
+    expect(history.scroll.y).not.toBe(before);
+  });
   it.each([false, true])('hides passive history chrome without discarding messages, draft or scroll (touch %s)', touchControls => {
     const model = { ...chatModel(), width: 640, height: 360, touchControls,
       messages: Array.from({ length: 40 }, (_, index) => ({ ...chatModel().messages[0]!, id: BigInt(index + 1), body: `Message ${index}` })) };
