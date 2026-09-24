@@ -7,6 +7,10 @@ One heading per game version, newest first. Parallel branches that bumped to the
 - Adopt the shared skill graph, authored node art, details, track navigation and progression actions using subscribed ranks, requirements, equipment contributions and reset costs.
 - Keep pan, zoom, selection and focus through harmless updates and resize. Cancel stale held actions when selection, authority or connection changes; retire legacy skill drawing and input together. Workspace 0.38.0.
 
+## Client 0.29.1 / UI 0.31.1 — Touch slider intent (not yet deployed)
+
+- Prevent vertical touch scrolling over audio or developer time sliders from sending a preference or world command before scroll intent is resolved (BUG-024). Intentional taps and horizontal drags retain their commands; desktop drag, keyboard and wheel controls are unchanged. Workspace 0.35.1.
+
 ## Client 0.31.0 / UI 0.33.0 — Shared dialogue and merchant windows (not yet deployed)
 
 - Adopt the shared NPC dialogue and merchant compositions with authoritative offers, inventory capacity, currency and transaction results. Native filter editing uses the central text bridge.
