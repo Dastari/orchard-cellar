@@ -9,7 +9,7 @@ describe('equipment inspection',()=>{
     const ranks={blade_training:5};
     const before=JSON.stringify({inventory,ranks});
     const lines=equipmentDescriptionLines(registry,'hearth_legendary_sword',inventory,0,ranks,['blade_training'])!;
-    expect(lines).toContain('BASE DAMAGE 23 (CURRENT 19.5)');
+    expect(lines).toContain('BASE DAMAGE 24 (CURRENT 20.5)');
     expect(lines).toContain('+10% MELEE POWER');
     expect(lines).toContain('5 TRAINED + 2 GEAR = 7 EFFECTIVE (MAX 7)');
     expect(lines).toContain('BONUSES APPLY WHEN EQUIPPED AND SELECTED');

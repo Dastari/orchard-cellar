@@ -5076,8 +5076,24 @@
     ],
     "transitions": {
       "ramp": {
-        "available": false,
-        "reason": "No authored ramp variants are available for this source family."
+        "available": true,
+        "assetId": "tile_cf_grass_1_sheet",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              22,
+              23
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              6,
+              7
+            ]
+          }
+        ]
       },
       "stair": {
         "available": false,
@@ -5090,7 +5106,8 @@
     },
     "assetIds": [
       "tile_cf_basic_cliff",
-      "tile_cf_grass_1_ledge"
+      "tile_cf_grass_1_ledge",
+      "tile_cf_grass_1_sheet"
     ]
   },
   {

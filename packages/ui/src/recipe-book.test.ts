@@ -5,19 +5,21 @@ import { craftingRecipeBookEntries, craftingRecipePattern, craftingRecipeStacks,
 describe('crafting recipe list', () => {
   it('fills large furniture recipes from split stacks and preserves partial grid contents', () => {
     const registry = bootstrapContentRegistry(), id = 'furniture_rustic_bed';
-    expect(craftingRecipeStacks(id, [id], registry)?.filter(Boolean)).toEqual([
-      { itemKind: 'wood', quantity: 24 }, { itemKind: 'fiber', quantity: 40 },
-    ]);
-    const inventory = [{ slot: 0, itemKind: 'wood', quantity: 10 }, { slot: 1, itemKind: 'wood', quantity: 20 },
-      { slot: 2, itemKind: 'fiber', quantity: 40 }, { slot: CRAFTING_SLOT_OFFSET, itemKind: 'wood', quantity: 4 }];
+    // Shaped: one item per cell, fiber row over plank row.
+    const fiber = { itemKind: 'fiber', quantity: 1 }, plank = { itemKind: 'plank', quantity: 1 };
+    expect(craftingRecipeStacks(id, [id], registry)).toEqual([fiber, fiber, fiber, plank, plank, plank, null, null, null]);
+    const inventory = [{ slot: 0, itemKind: 'plank', quantity: 1 }, { slot: 1, itemKind: 'plank', quantity: 5 },
+      { slot: 2, itemKind: 'fiber', quantity: 3 }, { slot: CRAFTING_SLOT_OFFSET + 3, itemKind: 'plank', quantity: 1 }];
     const before = JSON.stringify(inventory);
     expect(ghostFillRecipeMoves(id, inventory, false, [id], registry)).toEqual([
-      { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 10 },
-      { fromContainer: 'hotbar', fromIndex: 1, toContainer: 'crafting', toIndex: 0, quantity: 10 },
-      { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 1, quantity: 40 },
+      { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 0, quantity: 1 },
+      { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 1, quantity: 1 },
+      { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 2, quantity: 1 },
+      { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 4, quantity: 1 },
+      { fromContainer: 'hotbar', fromIndex: 1, toContainer: 'crafting', toIndex: 5, quantity: 1 },
     ]);
     expect(JSON.stringify(inventory)).toBe(before);
-    expect(ghostFillRecipeMoves(id, [...inventory, { slot: CRAFTING_SLOT_OFFSET + 1, itemKind: 'stone', quantity: 1 }], false, [id], registry)).toBeNull();
+    expect(ghostFillRecipeMoves(id, [...inventory, { slot: CRAFTING_SLOT_OFFSET + 7, itemKind: 'stone', quantity: 1 }], false, [id], registry)).toBeNull();
   });
   it('projects authored skill requirements independently of recipe identity and station access', () => {
     const rows = bootstrapContentRows().map((row) => row.id !== 'recipe:planks' ? row : {
