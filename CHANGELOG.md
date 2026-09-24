@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.27.1 / UI 0.29.1 — Nonmodal pointer ownership (not yet deployed)
+
+- Honor single-pointer ownership within nonmodal palette controls while preserving fresh outside world gestures and independent scopes (BUG-021).
+- Keep cancelled tails owned through release, clear retired ownership, and handle fresh presses after a missing release without sending a second command. Workspace0.33.1.
+
 ## Client 0.27.0 / UI 0.29.0 — Shared build palette (not yet deployed)
 
 - Adopt the shared build palette using real furniture, construction, upgrade and residence models; preserve existing transport and authoritative rejection handling.

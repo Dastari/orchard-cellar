@@ -179,6 +179,28 @@ describe('production build palette retained host', () => {
     } finally { runtime.dispose(); }
   });
 
+  it.each([false, true])('arbitrates secondary touch on the actual nonmodal palette (other control: %s)', otherControl => {
+    const upgrades = Object.values(bootstrapContentRegistry().compiled.upgrades).slice(0, 2), upgrade = upgrades[0]!, requests: string[] = [];
+    const palette = fixture({ ...base, furnishing: false, upgrades }, () => {
+      const request = palette.takePurchaseRequest(); if (request) requests.push(request);
+    });
+    const runtime = new GameUiRuntime();
+    runtime.register({ id: 'build-palette', priority: 200, root: palette.root, active: () => true, blocking: () => false });
+    const p = point(palette, `upgrade.${upgrade.kind}`), primary = { point: p, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true };
+    const secondary = { ...primary, point: otherControl ? point(palette, `upgrade.${upgrades[1]!.kind}`) : p, pointerId: 2, isPrimary: false };
+    try {
+      expect(runtime.pointer({ ...primary, type: 'down' })).toBe(true);
+      expect(runtime.pointer({ ...secondary, type: 'down' })).toBe(true);
+      expect(runtime.pointer({ ...secondary, type: 'up' })).toBe(true);
+      expect(requests).toEqual([]); expect(runtime.tracksPointer(1)).toBe(true);
+      expect(runtime.pointer({ ...primary, type: 'down', pointerId: 3, isPrimary: false, point: { x: 1, y: 1 } })).toBe(false);
+      runtime.pointer({ ...primary, type: 'up' }); expect(requests).toEqual([upgrade.kind]);
+      runtime.pointer({ ...primary, type: 'down' });
+      palette.setModel({ ...base, furnishing: false, upgrades, scope: 'reconnected' });
+      runtime.pointer({ ...primary, type: 'up' }); expect(requests).toEqual([upgrade.kind]);
+    } finally { runtime.dispose(); }
+  });
+
   it.each(['catalogue', 'empty', 'construction', 'review', 'pending', 'expansion', 'locked', 'error'] as const)('renders real %s art with 5x7 glyphs across compact/wide scales and fractional DPR', view => {
     const directory = process.env['ORCHARD_BUILD_PALETTE_EVIDENCE'];
     for (const scale of [1, 2, 3]) for (const dpr of [1, 1.25]) for (const width of [320, 640]) {
