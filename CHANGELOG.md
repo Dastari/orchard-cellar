@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.1 / UI 0.27.1 — Trade keyboard hints (not yet deployed)
+
+- Request numeric keyboards for all three trade money fields through the shared native editor bridge; ordinary fields reset the hint to text.
+- Keep sanitization, bigint limits, IME/clipboard and single-command submission authoritative. Workspace0.31.1.
+
 ## Client 0.25.0 / UI 0.27.0 — Shared player trade (not yet deployed)
 
 - Use the shared trade composition with live escrow, revision and wallet models; retain server authority and one command per gesture.

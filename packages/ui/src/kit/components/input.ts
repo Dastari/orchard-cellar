@@ -11,6 +11,8 @@ export interface UiInputOptions {
   readonly id?: string; readonly label: string; readonly value?: string; readonly placeholder?: string;
   /** Retained host model. When supplied it owns value, limits and selection. */
   readonly editor?: CanvasTextEditor;
+  /** Native keyboard hint only; the host still owns validation and sanitization. */
+  readonly inputMode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
   readonly tone?: UiTone; readonly size?: UiControlSize; readonly disabled?: boolean; readonly readOnly?: boolean;
   readonly error?: string; readonly maxLength?: number; readonly layout?: UiStyle;
   readonly leading?: UiElement; readonly trailing?: UiElement; readonly clearable?: boolean;
@@ -57,7 +59,7 @@ function field(options: UiTextAreaOptions, multiline: boolean): UiElement {
     return line.start + [...line.text].slice(0, count).join('').length;
   };
   const edit = new UiElement({ id: options.id, kind: multiline ? 'text-area' : 'input', label: options.label, focusable: true, disabled: options.disabled,
-    pointerMode: 'capture', props: { value: editor.snapshot().value, tone, editable: !options.readOnly, editor },
+    pointerMode: 'capture', props: { value: editor.snapshot().value, tone, editable: !options.readOnly, editor, inputMode: options.inputMode ?? 'text' },
     get animated() { return focused; }, style: { width: 'grow', height: uiFixed(multiline ? Math.max(2, options.rows ?? 4) * 10 + 12 : metrics.controlHeight), padding: 4, ...options.layout },
     onFocus(value, element) { focused = value; if (value) { editor.focus(); reveal(element); } else editor.blur(); element.invalidateRoot?.(false); },
     onPointer(event, element) {
