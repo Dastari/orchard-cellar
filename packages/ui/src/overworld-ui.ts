@@ -1513,6 +1513,8 @@ export class OverworldUi {
       registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
       backpackCapacity: this.model.backpackSlotCapacity ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
+      // The paper doll shows the wearer with the same painter as the character screen.
+      portrait: (context, bounds) => { const appearance = this.model.character?.appearance; if (appearance) this.drawPlayerDoll(context, appearance, 'down', bounds); },
       ...(this.openWindowValue === 'crafting' ? { crafting: {
         recipes: this.recipeBookEntries().map(entry => ({ id: entry.recipeId,
           label: this.itemDefinition(entry.outputKind)?.displayName ?? entry.outputKind,

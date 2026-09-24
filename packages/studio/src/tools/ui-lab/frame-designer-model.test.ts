@@ -56,8 +56,10 @@ describe('Frame Designer model', () => {
         viewport: { width, height: 270 },
       }).snapshot();
       const frame = state.hitTargets.find(node => node.id === furnace.id)!;
-      expect(frame.kind).toBe('frame');
-      expect(frame.rect).toEqual({ x: 0, y: 0, width, height: 270 });
+      expect(frame.kind).toBe('window');
+      // Game windows fit their content and never exceed the viewport.
+      expect(frame.rect.x).toBe(0); expect(frame.rect.y).toBe(0);
+      expect(frame.rect.width).toBeLessThanOrEqual(width); expect(frame.rect.height).toBeLessThanOrEqual(270);
       for (const node of state.hitTargets) {
         if (node.clip.width === 0 || node.clip.height === 0) continue;
         expect(node.clip.x).toBeGreaterThanOrEqual(0);

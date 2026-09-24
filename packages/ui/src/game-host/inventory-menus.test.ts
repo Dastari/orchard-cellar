@@ -205,7 +205,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('scrolls through fractional touch motion without a pickup command', () => {
-    const f = fixture('inventory', { width:360, height:270 });
+    const f = fixture('inventory', { width:360, height:200 });
     try {
       const scroll = f.root.entries().find(({element}) => element.style.overflow === 'scroll-y' && element.scroll.maxY > 0)!.element;
       f.root.wheel({point:{x:scroll.rect.x+10,y:scroll.rect.y+10},deltaX:0,deltaY:180}); f.root.arrange();
@@ -221,7 +221,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('keeps horizontal touch pickup owned after a vertical leg and cancellation', () => {
-    const f = fixture('inventory', { width:360, height:270 });
+    const f = fixture('inventory', { width:360, height:200 });
     try {
       const scroll = f.root.entries().find(({element}) => element.style.overflow === 'scroll-y' && element.scroll.maxY > 0)!.element;
       f.root.wheel({point:{x:scroll.rect.x+10,y:scroll.rect.y+10},deltaX:0,deltaY:180}); f.root.arrange();
@@ -309,7 +309,7 @@ describe('production retained inventory authority bridge', () => {
     for (const inside of [true,false]) {
       const f=fixture('inventory',{cursorStack:{itemKind:'wood',quantity:8}});
       try {
-        const frame=f.root.entries().find(({element})=>element.kind==='frame')!.element;
+        const frame=f.root.entries().find(({element})=>element.kind==='window')!.element;
         const point=inside ? {x:frame.rect.x+12,y:frame.rect.y+48} : {x:2,y:2};
         f.root.pointer({type:'down',point,pointerId:1,button:2});
         f.root.pointer({type:'up',point,pointerId:1,button:2});
@@ -348,12 +348,12 @@ describe('production retained inventory authority bridge', () => {
     }});
     try {
       const labels=()=>f.root.entries().map(({element})=>element.props['text']);
-      expect(labels()).toContain('IN PROGRESS');
+      expect(labels()).toContain('In progress');
       f.update({activeFrameTiming:{status:'paused',reason:'unsealed',stage:null,progress:0.5,
         remainingActiveTicks:1200n,nextTransitionTick:null,confidence:'exact'}});
-      expect(labels()).toContain('SEAL TO START');
+      expect(labels()).toContain('Seal to start');
       f.update({activeFrameTiming:undefined});
-      expect(labels()).toContain('IDLE'); expect(labels()).not.toContain('IN PROGRESS');
+      expect(labels()).toContain('Idle'); expect(labels()).not.toContain('In progress');
     } finally { f.dispose(); }
   });
 
@@ -395,7 +395,7 @@ describe('production retained inventory authority bridge', () => {
 
 
   it('keeps primary focus and scrolling when a second finger touches an editor or scrollbar', () => {
-    const f=fixture('inventory',{width:360,height:270});
+    const f=fixture('inventory',{width:360,height:200});
     try {
       const scroll=f.root.entries().find(({element})=>element.style.overflow==='scroll-y' && element.scroll.maxY>0)!.element;
       f.root.wheel({point:{x:scroll.rect.x+10,y:scroll.rect.y+10},deltaX:0,deltaY:180}); f.root.arrange();
@@ -463,7 +463,7 @@ describe('production retained inventory authority bridge', () => {
       expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')).toHaveLength(8);
       f.click(f.slot('placeable',0));
       expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',0,'left');
-      const seal=f.root.entries().find(({element})=>element.label==='SEAL')!.element;
+      const seal=f.root.entries().find(({element})=>element.label==='Seal')!.element;
       f.click(seal); expect(f.handlers.frameAction).toHaveBeenCalledExactlyOnceWith('seal');
       f.ui.openWindow=null; expect(f.handlers.closePlaceable).toHaveBeenCalledExactlyOnceWith();
     } finally { f.dispose(); }
@@ -532,20 +532,20 @@ describe('production retained processor authority bridge',()=>{
       openPlaceableInventory:source.state!.slots.flatMap((stack,slot)=>stack?[{slot,...stack}]:[])});
     try {
       const text=()=>f.root.entries().map(({element})=>element.props['text']);
-      expect(text()).toContain('IN PROGRESS');
+      expect(text()).toContain('In progress');
       const meter=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='Progress')!.element;
       expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
       f.update({activeFrameTiming:projectTiming(source,1300n)});
-      expect(text()).toContain('COLLECT TO CONFIRM');
+      expect(text()).toContain('Collect to confirm');
       f.click(f.slot('placeable',spec.outputIndex));
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
       const empty={...source,state:{...source.state!,slots:source.state!.slots.map(()=>null)}};
       f.update({activeFrameTiming:projectTiming(empty,120n)});
-      expect(text()).toContain('ADD INPUTS');
+      expect(text()).toContain('Add inputs');
       expect(text().some(value=>typeof value==='string' && value.endsWith(' LEFT'))).toBe(false);
       f.update({connected:false}); expect(f.ui.retainedInventoryActive).toBe(false);
       f.update({connected:true,activeFrameTiming:projectTiming(source,120n)});
-      expect(text()).toContain('IN PROGRESS'); expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
+      expect(text()).toContain('In progress'); expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
     } finally { f.dispose(); }
   });
 
@@ -571,17 +571,17 @@ describe('production retained processor authority bridge',()=>{
       activeFrameTiming:{status:'blocked',reason:'fire-out',stage:null,progress:0,remainingActiveTicks:null,nextTransitionTick:null,confidence:'exact'}});
     try {
       const labels=()=>f.root.entries().map(({element})=>element.label);
-      expect(labels()).toContain('FIRE OUT'); expect(labels()).toContain('3 × COOKED BEEF');
-      expect(labels()).not.toContain('COLLECT BATCH'); expect(labels()).toContain('CANCEL BATCH');
+      expect(labels()).toContain('Fire out'); expect(labels()).toContain('3 × COOKED BEEF');
+      expect(labels()).not.toContain('Collect batch'); expect(labels()).toContain('Cancel batch');
       const batch=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='BATCH PROGRESS')!.element;
       expect(batch.props['value']).toBe(0.25);
       f.update({activeFrameState:{processJobPending:true,processJobReady:true,processJobLabel:'3 × COOKED BEEF',processJobProgress:1}});
-      expect(batch.props['value']).toBe(1);expect(labels()).toContain('COLLECT BATCH');
-      const collect=f.root.entries().find(({element})=>element.label==='COLLECT BATCH')!.element;
+      expect(batch.props['value']).toBe(1);expect(labels()).toContain('Collect batch');
+      const collect=f.root.entries().find(({element})=>element.label==='Collect batch')!.element;
       f.click(collect); expect(f.handlers.frameAction).toHaveBeenCalledExactlyOnceWith('collect_job');
-      const cancel=f.root.entries().find(({element})=>element.label==='CANCEL BATCH')!.element;
+      const cancel=f.root.entries().find(({element})=>element.label==='Cancel batch')!.element;
       f.pointer('down',cancel); f.update({activeFrameState:{processJobPending:false,processJobReady:false}}); f.pointer('up',cancel);
-      expect(f.handlers.frameAction).toHaveBeenCalledTimes(1); expect(labels()).not.toContain('CANCEL BATCH');
+      expect(f.handlers.frameAction).toHaveBeenCalledTimes(1); expect(labels()).not.toContain('Cancel batch');
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally {f.dispose();}
   });

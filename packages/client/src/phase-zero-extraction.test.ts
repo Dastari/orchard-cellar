@@ -194,7 +194,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // actual-source privacy/timing/scope regressions pass independently.
 // BUG029 forwards actual touch placement and explicit compact-page keyboard ownership.
 // Actual-parent runtime tests cover layout, one target command and Escape focus return.
-const STRUCTURAL_SEAM_DIGEST = 'f0b192a4ead42b834ab71d314479fc32689bee264f28740b99ad008321f7aeb9';
+// Game UI redesign: the retained inventory snapshot passes the paper-doll portrait painter (drawPlayerDoll);
+// inventory-menus host and container-binding tests cover fitted windows and bindings.
+const STRUCTURAL_SEAM_DIGEST = '4df0eb08fdbe79555cd0aa0029b8b9ba9dfe461b0412e1101162e127bbec10ab';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
