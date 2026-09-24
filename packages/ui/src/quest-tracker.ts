@@ -13,6 +13,9 @@ export interface QuestTrackerModel {
   readonly height?: number;
   /** HUD element the tracker should sit beneath until the player moves it. */
   readonly anchorRect?: UiRect;
+  /** Temporary space used only until the player explicitly moves the tracker. */
+  readonly layoutRegion?: UiRect;
+  readonly visible?: boolean;
   readonly entries: readonly QuestTrackerEntry[];
 }
 export interface QuestTrackerPosition {
@@ -30,12 +33,13 @@ export function questTrackerBounds(
   collapsed: boolean,
   position: QuestTrackerPosition | UiPoint | null = null,
 ): UiRect {
-  const width = Math.max(0, Math.min(UI_QUEST_TRACKER_METRICS.width, model.width - 8));
-  const height = Math.min(uiQuestTrackerHeight(model.entries, collapsed), Math.max(0, (model.height ?? 270) - 8));
+  const region = position === null ? model.layoutRegion : undefined;
+  const width = Math.max(0, Math.min(UI_QUEST_TRACKER_METRICS.width, model.width - 8, region?.width ?? Infinity));
+  const height = Math.min(uiQuestTrackerHeight(model.entries, collapsed), Math.max(0, (model.height ?? 270) - 8), region?.height ?? Infinity);
   const defaultX = model.anchorRect === undefined
     ? model.width - width - 8 : model.anchorRect.x + model.anchorRect.width - width;
   const defaultY = model.anchorRect === undefined ? 34 : model.anchorRect.y + model.anchorRect.height + 4;
-  const requested = position === null ? { x: defaultX, y: defaultY }
+  const requested = position === null ? { x: region?.x ?? defaultX, y: region?.y ?? defaultY }
     : 'right' in position ? { x: model.width - width - position.right, y: position.y } : position;
   return {
     x: Math.max(4, Math.min(Math.max(4, model.width - width - 4), requested.x)),
@@ -81,7 +85,7 @@ export class QuestTracker {
     this.root.mount(this.tracker);
   }
 
-  get isActive(): boolean { return !this.root.disposed && this.model.entries.length > 0; }
+  get isActive(): boolean { return !this.root.disposed && this.model.visible !== false && this.model.entries.length > 0; }
   get currentBounds(): UiRect { return questTrackerBounds(this.model, this.collapsed, this.position); }
 
   update(model: QuestTrackerModel): void {
@@ -91,10 +95,8 @@ export class QuestTracker {
     if (this.position !== null) {
       const migrated = !('right' in this.position);
       const relative = 'right' in this.position ? this.position : this.positionFromPoint(this.position);
-      const bounds = questTrackerBounds(model, this.collapsed, relative);
-      // A narrow viewport may clamp x, but must not overwrite the requested
-      // right offset before the player returns to a wide viewport.
-      this.position = { right: Math.max(4, relative.right), y: bounds.y };
+      // Temporary viewport clamping must preserve both requested coordinates.
+      this.position = { right: Math.max(4, relative.right), y: relative.y };
       if (migrated) this.savePosition();
     }
     this.refresh();
@@ -107,13 +109,14 @@ export class QuestTracker {
   dispose(): void { this.headerDrag = null; this.root.dispose(); }
 
   private refresh(): void {
-    const key = JSON.stringify([this.collapsed, this.model.entries]);
+    const key = JSON.stringify([this.collapsed, this.model.entries, this.isActive]);
     if (key !== this.contentKey) {
       this.contentKey = key;
       this.tracker.updateQuestTracker(this.model.entries, this.collapsed);
       this.tracker.setStyle({ visible: this.isActive });
       this.layoutKey = '';
     }
+    if (!this.isActive) { this.root.input.cancelPointers(); this.root.focus.set(null); this.headerDrag = null; }
     this.place();
   }
 
@@ -161,6 +164,6 @@ export class QuestTracker {
     if (this.position !== null && 'right' in this.position) this.writeStorage(POSITION_STORAGE_KEY, JSON.stringify(this.position));
   }
   private positionFromPoint(point: UiPoint): QuestTrackerPosition {
-    return { right: Math.max(4, this.model.width - this.currentBounds.width - point.x), y: point.y };
+    return { right: Math.max(4, this.model.width - Math.max(0, Math.min(UI_QUEST_TRACKER_METRICS.width, this.model.width - 8)) - point.x), y: point.y };
   }
 }

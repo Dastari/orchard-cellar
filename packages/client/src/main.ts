@@ -89,8 +89,6 @@ async function launchClient(): Promise<void> {
     const canvas = document.querySelector<HTMLCanvasElement>('#game');
     canvas?.classList.add('custom-cursor');
     canvas?.setAttribute('aria-label', 'Orchard and Cellar shared overworld');
-    const textInput = document.querySelector<HTMLInputElement>('#account-name');
-    textInput?.setAttribute('aria-label', 'General chat message');
     await import('./overworld-main.js');
   } else {
     document.title = 'Orchard & Cellar — Account';

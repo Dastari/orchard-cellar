@@ -36,8 +36,8 @@ describe('single authored item callback ownership', () => {
     const authored = source.handlers.map(({ source: handlerSource }) => handlerSource).join('\n');
     expect(authored.match(/context\.player\.restoreHunger\(restored\)/gu)).toHaveLength(53);
     expect(authored.match(/kind: 'food_eaten'/gu)).toHaveLength(53);
-    expect(authored.match(/context\.item\.repair\(\)/gu)).toHaveLength(39);
-    expect(authored.match(/kind: 'tools_repaired'/gu)).toHaveLength(39);
+    expect(authored.match(/context\.item\.repair\(\)/gu)).toHaveLength(48);
+    expect(authored.match(/kind: 'tools_repaired'/gu)).toHaveLength(48);
     expect(authored.match(/statistic: 'orchard_tea_consumed'/gu)).toHaveLength(1);
     expect(authored).not.toContain("context.item.applyEffect('hunger'");
     expect(authored).not.toContain("context.item.applyEffect('repair_selected'");
@@ -46,7 +46,7 @@ describe('single authored item callback ownership', () => {
   });
 
   it('merges hoe and watering-can farm and repair lanes without semantic drift', () => {
-    expect(source.revision).toBe(18);
+    expect(source.revision).toBe(19);
     for (const itemId of ['item:hoe', 'item:watering_can']) {
       const handlers = source.handlers.filter((handler) => handler.itemId === itemId);
       expect(handlers, itemId).toHaveLength(1);

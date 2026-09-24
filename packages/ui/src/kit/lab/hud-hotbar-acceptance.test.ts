@@ -24,6 +24,17 @@ describe('HUD hotbar', () => {
     root.key({ key: '1', altKey: true }); expect(selected).toHaveBeenCalledTimes(2);
     root.dispose();
   });
+  it('uses an authoritative selection getter without creating a second optimistic selection', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(298,80); let selected = 0;
+    const choose = vi.fn(); const bar = root.mount(ui.hotbar({ container: 'hotbar', count: 10, selected: () => selected, onSelect: choose })); root.arrange();
+    const point = { x: bar.children[2]!.rect.x+10, y: bar.children[2]!.rect.y+10 };
+    root.pointer({ type:'down',point,button:0,pointerId:1 });root.pointer({ type:'up',point,button:0,pointerId:1 });
+    expect(choose).toHaveBeenCalledExactlyOnceWith(2);expect(bar.children[0]!.props['selected']).toBe(true);expect(bar.children[2]!.props['selected']).toBe(false);
+    selected=2;bar.invalidate();root.arrange();expect(bar.children[2]!.props['selected']).toBe(true);
+    selected=0;bar.invalidate();root.arrange();expect(bar.children[0]!.props['selected']).toBe(true);
+    root.focus.set(bar.children[0]!);root.key({key:'3',repeat:true});expect(choose).toHaveBeenCalledOnce();
+    root.key({key:'3'});expect(choose).toHaveBeenLastCalledWith(2);expect(bar.children[0]!.props['selected']).toBe(true);root.dispose();
+  });
   it('composites a clipped tree without clearing or replacing the host transform', () => {
     const canvas = createCanvas(80,80), context = canvas.getContext('2d');
     context.fillStyle = '#ff0000'; context.fillRect(0,0,80,80);

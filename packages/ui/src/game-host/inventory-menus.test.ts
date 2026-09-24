@@ -1,9 +1,8 @@
+import { GameOnlinePlayers } from './online-players.js';
+import { GameUiRuntime } from './runtime.js';
+import { nextHomesteadMemberRole } from '../overworld-ui.js';
 import { describe, expect, it, vi } from 'vitest';
-import { createCanvas } from '@napi-rs/canvas';
-import { uiTestAsset } from '../kit/lab/testing/art.js';
-import { scrollThumbRect, type ScrollBar } from '../scrollbar.js';
-import type { UiRect } from '../geometry.js';
-import { bootstrapContentRegistry, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, runtimeMaxStack, type ItemStack } from '@orchard/sim';
+import { bootstrapContentRegistry, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, runtimeMaxStack, projectTiming, processTopologyForObject, type ProcessTimingSource, type ItemStack, type FrameContentDefinition } from '@orchard/sim';
 import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
 import type { PixelUi } from '../pixel-ui.js';
@@ -97,21 +96,20 @@ function cursor(ui: OverworldUi): ItemStack | null | undefined {
 }
 
 function rosterFixture(canManageHomestead = false) {
-  const skin = { panelWood: uiTestAsset('ui_cf_panel_wood'), panelParchment: uiTestAsset('ui_cf_panel_parchment'),
-    banner: uiTestAsset('ui_cf_banner'), buttonDeny: uiTestAsset('ui_cf_button_accent_red'),
-    sliderTrackVertical: uiTestAsset('ui_cf_slider_track_vertical'), sliderHandle: uiTestAsset('ui_cf_slider_handle'),
-  } as UiSkin;
-  const fonts = { font: uiTestAsset('font_5x7'), headerFont: uiTestAsset('font_8x12'), panel: skin.panelWood };
-  const f = fixture('inventory', { width:800,height:270,canManageHomestead }, {skin,fonts});
-  const canvas = createCanvas(800,270);
-  vi.stubGlobal('document', {createElement:()=>createCanvas(1,1)});
+  const f = fixture('inventory', { width:800,height:270,canManageHomestead });
   const players = Array.from({length:40},(_,index)=>({identityHex:`player-${index}`,displayName:`PLAYER ${index}`,
     self:false,idleMinutes:null,homesteadRole:'guest' as const}));
-  f.ui.drawOnlinePlayers(canvas.getContext('2d') as unknown as CanvasRenderingContext2D,players);
-  // Geometry comes from the actual public renderer; assertions inspect its real scrollbar.
-  const view=f.ui as unknown as {onlinePlayerListRect:UiRect;onlinePlayerListCloseButton:UiRect;
-    onlinePlayerRows:readonly {rect:UiRect}[];onlinePlayersScrollBar:ScrollBar};
-  return {...f,view,dispose(){f.dispose();vi.unstubAllGlobals();}};
+  const roster = new GameOnlinePlayers({} as UiKitArt, {onClose:f.handlers.toggleOnlinePlayers,
+    onManage:request=>f.handlers.manageHomesteadMember?.(request.expectedIdentityHex, request.intent==='remove'?null:nextHomesteadMemberRole(request.expectedRole), request.intent==='remove')});
+  roster.setBounds({x:200,y:4,width:400,height:262},800,270);
+  roster.update({scopeKey:'owner:1:space',identityHex:'owner',visible:true,canManage:canManageHomestead,players});
+  const runtime = new GameUiRuntime();
+  runtime.register({id:'inventory',root:f.root,priority:500,active:()=>f.ui.retainedInventoryActive,blocking:()=>true});
+  runtime.register({id:'roster',root:roster.root,priority:750,active:()=>roster.active,blocking:()=>true});
+  const find=(id:string)=>{roster.root.arrange();return roster.root.entries().find(e=>e.element.id===id)!.element;};
+  const node=(id:string)=>{const n=find(id);roster.root.focus.set(n);roster.root.arrange();return n;};
+  const pointer=(type:UiRootPointer['type'],point:{x:number;y:number},extra:Partial<UiRootPointer>={})=>runtime.pointer({type,point,pointerId:9,button:0,...extra});
+  return {...f,roster,runtime,find,node,rpointer:pointer,dispose(){runtime.dispose();roster.dispose();f.dispose();}};
 }
 
 describe('production retained inventory authority bridge', () => {
@@ -423,48 +421,39 @@ describe('production retained inventory authority bridge', () => {
   it('keeps roster close and role actions above retained inventory', () => {
     const f=rosterFixture(true);
     try {
-      const row=f.view.onlinePlayerRows[0]!.rect,point={x:row.x+5,y:row.y+5};
-      f.ui.pointerDown(point,0); f.ui.pointerUp(point,0);
+      const row=f.node('game.online-players:player:player-0'),point=f.point(row);
+      f.rpointer('down',point); expect(f.handlers.manageHomesteadMember).not.toHaveBeenCalled(); f.rpointer('up',point);
       expect(f.handlers.manageHomesteadMember).toHaveBeenCalledExactlyOnceWith('player-0','worker',false);
-      f.ui.pointerDown(point,2); f.ui.pointerUp(point,2);
+      f.rpointer('down',point,{button:2});f.rpointer('up',point,{button:2});
       expect(f.handlers.manageHomesteadMember).toHaveBeenLastCalledWith('player-0',null,true);
-      const close=f.view.onlinePlayerListCloseButton;
-      f.ui.pointerDown({x:close.x+5,y:close.y+5},0); f.ui.pointerUp({x:close.x+5,y:close.y+5},0);
-      expect(f.handlers.toggleOnlinePlayers).toHaveBeenCalledExactlyOnceWith();
-      expect(f.ui.openWindow).toBe('inventory');
-      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      const close=f.roster.root.entries().find(e=>e.element.label==='X')!.element;
+      f.rpointer('down',f.point(close));f.rpointer('up',f.point(close));expect(f.handlers.toggleOnlinePlayers).toHaveBeenCalledExactlyOnceWith();
+      expect(f.ui.openWindow).toBe('inventory');expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
   });
 
-  it('scrolls the roster by wheel and thumb without reviving legacy inventory input', () => {
+  it('scrolls the retained roster without reviving legacy inventory input', () => {
     const f=rosterFixture();
     try {
-      const scroll=f.view.onlinePlayersScrollBar,rect=f.view.onlinePlayerListRect;
-      f.ui.wheel({x:rect.x+10,y:rect.y+50},0,120); expect(scroll.position).toBe(1);
-      const thumb=scrollThumbRect(scroll.bounds,40,17,scroll.position);
-      const start={x:thumb.x+5,y:thumb.y+thumb.height/2};
-      f.ui.pointerDown(start,0); f.ui.pointerMove({x:start.x,y:start.y+40});
-      expect(scroll.position).toBeGreaterThan(1);
-      f.ui.pointerUp({x:start.x,y:start.y+40},0); const end=scroll.position;
-      f.ui.pointerMove({x:start.x,y:start.y+80}); expect(scroll.position).toBe(end);
-      f.ui.pointerDown(f.point(f.slot('backpack',0)),0); f.ui.pointerUp(f.point(f.slot('backpack',0)),0);
+      const list=f.find('game.online-players:list'),point={x:list.contentRect.x+8,y:list.contentRect.y+50};
+      f.runtime.wheel({point,deltaX:0,deltaY:60});expect(list.scroll.y).toBeGreaterThan(0);
+      const end=list.scroll.y;f.rpointer('up',point);f.rpointer('move',{x:point.x,y:point.y-80});expect(list.scroll.y).toBe(end);
+      const inventoryPoint=f.point(f.slot('backpack',0));f.rpointer('down',inventoryPoint);f.rpointer('up',inventoryPoint);
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
   });
 
-  it('scrolls the roster by touch and ends swipe ownership on release', () => {
-    const f=rosterFixture();
+  it('scrolls a manageable roster with touch without role or inventory commands (BUG-026)', () => {
+    const f=rosterFixture(true);
     try {
-      const rect=f.view.onlinePlayerListRect,scroll=f.view.onlinePlayersScrollBar;
-      const start={x:rect.x+20,y:rect.y+80};
-      f.ui.pointerDown(start,0,{pointerType:'touch'});
-      f.ui.pointerMove({x:start.x,y:start.y-24}); expect(scroll.position).toBeGreaterThan(0);
-      f.ui.pointerUp({x:start.x,y:start.y-24},0); const end=scroll.position;
-      f.ui.pointerMove({x:start.x,y:start.y-60}); expect(scroll.position).toBe(end);
-      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      const row=f.node('game.online-players:player:player-2'),start=f.point(row),list=f.find('game.online-players:list'),before=list.scroll.y;
+      f.rpointer('down',start,{pointerType:'touch'});
+      for(const dy of [3,4,24])f.rpointer('move',{x:start.x,y:start.y-dy},{pointerType:'touch'});
+      expect(list.scroll.y).toBeGreaterThan(before);f.rpointer('up',{x:start.x,y:start.y-24},{pointerType:'touch'});
+      const end=list.scroll.y;f.rpointer('move',{x:start.x,y:start.y-60},{pointerType:'touch'});expect(list.scroll.y).toBe(end);
+      expect(f.handlers.manageHomesteadMember).not.toHaveBeenCalled();expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
   });
-
 
   it('adopts the actual authored barrel content route with real slot and seal commands', () => {
     const f=fixture('content',{activeFrameId:'frame:barrel',activeFrameState:{sealed:false},
@@ -480,10 +469,189 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
-  it.each(['frame:furnace','frame:cooking','frame:press','frame:fermentation','frame:hearth_stash'] as const)('keeps unmigrated content frame %s on its existing path',activeFrameId=>{
+  it.each(['frame:hearth_stash'] as const)('keeps unmigrated content frame %s on its existing path',activeFrameId=>{
     const f=fixture('content',{activeFrameId});
     try { expect(f.ui.retainedInventoryActive).toBe(false); }
     finally { f.dispose(); }
+  });
+
+});
+
+
+const processorCases = [
+  {frame:'frame:furnace',adapter:'smelting',slots:3,input:'copper_ore',output:'copper_bar',outputIndex:2},
+  {frame:'frame:cooking',adapter:'campfire_cooking',slots:2,input:'raw_beef',output:'cooked_beef',outputIndex:1},
+  {frame:'frame:press',adapter:'press',slots:3,input:'apple',output:'must',outputIndex:1},
+  {frame:'frame:fermentation',adapter:'fermentation',slots:2,input:'must',output:'bottles',outputIndex:1},
+] as const;
+
+function processorTimingSource(spec: typeof processorCases[number]): ProcessTimingSource {
+  const recipe=[...registry.processes.values()].find(def=>def.adapter===spec.adapter && def.input.item===`item:${spec.input}`)!;
+  const object=[...registry.objects.values()].find(def=>def.components.processor?.processTag===recipe.stationTag)!;
+  const topology=processTopologyForObject(object)!;
+  const slots:(ItemStack|null)[]=Array.from({length:topology.slotCount},()=>null);
+  slots[topology.inputSlots[0]!]={itemKind:spec.input,quantity:recipe.input.count*4};
+  if(recipe.fuelPolicy) slots[topology.fuelSlots[0]!]={itemKind:recipe.fuelPolicy.acceptedItems[0]!.slice(5),quantity:8};
+  return {kind:'process',definitions:[recipe],adapter:spec.adapter,durationTicks:1200n,startTick:100n,
+    state:{slots,startTick:100n,lit:true},options:{topology,ticksPerUnit:1200n,maxStackForItem:kind=>runtimeMaxStack(registry,kind)}};
+}
+
+describe('production retained processor authority bridge',()=>{
+  it.each(processorCases)('adopts $frame through its real content route and keeps processor roles unsortable',spec=>{
+    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:0,itemKind:spec.input,quantity:6}]});
+    try {
+      expect(f.ui.retainedInventoryActive).toBe(true);
+      expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')).toHaveLength(spec.slots);
+      expect(f.root.entries().filter(({element})=>element.label==='Sort inventory')).toHaveLength(1);
+      f.click(f.slot('placeable',0),{shiftKey:true});
+      expect(f.handlers.quickMoveInventoryItem).toHaveBeenCalledExactlyOnceWith('placeable',0,['hotbar','backpack']);
+      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')
+        .every(({element})=>(element.props['binding'] as {index:number}).index<spec.slots)).toBe(true);
+    } finally { f.dispose(); }
+  });
+
+  it.each(processorCases)('allows output extraction but rejects insertion in $frame',spec=>{
+    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:spec.outputIndex,itemKind:spec.output,quantity:2}]});
+    try {
+      f.click(f.slot('placeable',spec.outputIndex));
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',spec.outputIndex,'left');
+      expect(cursor(f.ui)).toMatchObject({itemKind:spec.output,quantity:2});
+    } finally { f.dispose(); }
+    const held=fixture('content',{activeFrameId:spec.frame,cursorStack:{itemKind:spec.output,quantity:2}});
+    try {
+      held.click(held.slot('placeable',spec.outputIndex));
+      expect(held.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      expect(cursor(held.ui)).toBeUndefined();
+    } finally { held.dispose(); }
+  });
+
+  it.each(processorCases)('uses the real timing projection in $frame without creating unsettled output',spec=>{
+    const source=processorTimingSource(spec);
+    const f=fixture('content',{activeFrameId:spec.frame,activeFrameTiming:projectTiming(source,120n),
+      openPlaceableInventory:source.state!.slots.flatMap((stack,slot)=>stack?[{slot,...stack}]:[])});
+    try {
+      const text=()=>f.root.entries().map(({element})=>element.props['text']);
+      expect(text()).toContain('IN PROGRESS');
+      const meter=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='Progress')!.element;
+      expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
+      f.update({activeFrameTiming:projectTiming(source,1300n)});
+      expect(text()).toContain('COLLECT TO CONFIRM');
+      f.click(f.slot('placeable',spec.outputIndex));
+      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      const empty={...source,state:{...source.state!,slots:source.state!.slots.map(()=>null)}};
+      f.update({activeFrameTiming:projectTiming(empty,120n)});
+      expect(text()).toContain('ADD INPUTS');
+      expect(text().some(value=>typeof value==='string' && value.endsWith(' LEFT'))).toBe(false);
+      f.update({connected:false}); expect(f.ui.retainedInventoryActive).toBe(false);
+      f.update({connected:true,activeFrameTiming:projectTiming(source,120n)});
+      expect(text()).toContain('IN PROGRESS'); expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
+    } finally { f.dispose(); }
+  });
+
+  it('keeps furnace input and fuel roles separate and rejects retired process inputs',()=>{
+    for(const [index,itemKind,allowed] of [[0,'copper_ore',true],[0,'wood',false],[1,'wood',true],[1,'copper_ore',false]] as const){
+      const f=fixture('content',{activeFrameId:'frame:furnace',cursorStack:{itemKind,quantity:3}});
+      try {f.click(f.slot('placeable',index));expect(f.handlers.inventoryCursorClick).toHaveBeenCalledTimes(allowed?1:0);}
+      finally {f.dispose();}
+    }
+    const retired={...registry,processes:new Map([...registry.processes].map(([id,process])=>[id,process.stationTag==='station.furnace'?{...process,retired:true}:process]))};
+    const f=fixture('content',{activeFrameId:'frame:furnace',contentRegistry:retired,cursorStack:{itemKind:'copper_ore',quantity:3}});
+    try {f.click(f.slot('placeable',0));expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();}
+    finally {f.dispose();}
+    const existing=fixture('content',{activeFrameId:'frame:furnace',contentRegistry:retired,
+      openPlaceableInventory:[{slot:0,itemKind:'copper_ore',quantity:3}]});
+    try {existing.click(existing.slot('placeable',0));expect(existing.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',0,'left');}
+    finally {existing.dispose();}
+  });
+
+  it('keeps cooking private batch progress and commands separate from station timing',()=>{
+    const f=fixture('content',{activeFrameId:'frame:cooking',activeFrameState:{processJobPending:true,
+      processJobReady:false,processJobLabel:'3 × COOKED BEEF',processJobProgress:0.25},
+      activeFrameTiming:{status:'blocked',reason:'fire-out',stage:null,progress:0,remainingActiveTicks:null,nextTransitionTick:null,confidence:'exact'}});
+    try {
+      const labels=()=>f.root.entries().map(({element})=>element.label);
+      expect(labels()).toContain('FIRE OUT'); expect(labels()).toContain('3 × COOKED BEEF');
+      expect(labels()).not.toContain('COLLECT BATCH'); expect(labels()).toContain('CANCEL BATCH');
+      const batch=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='BATCH PROGRESS')!.element;
+      expect(batch.props['value']).toBe(0.25);
+      f.update({activeFrameState:{processJobPending:true,processJobReady:true,processJobLabel:'3 × COOKED BEEF',processJobProgress:1}});
+      expect(batch.props['value']).toBe(1);expect(labels()).toContain('COLLECT BATCH');
+      const collect=f.root.entries().find(({element})=>element.label==='COLLECT BATCH')!.element;
+      f.click(collect); expect(f.handlers.frameAction).toHaveBeenCalledExactlyOnceWith('collect_job');
+      const cancel=f.root.entries().find(({element})=>element.label==='CANCEL BATCH')!.element;
+      f.pointer('down',cancel); f.update({activeFrameState:{processJobPending:false,processJobReady:false}}); f.pointer('up',cancel);
+      expect(f.handlers.frameAction).toHaveBeenCalledTimes(1); expect(labels()).not.toContain('CANCEL BATCH');
+      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+    } finally {f.dispose();}
+  });
+
+  it('forwards changing authoritative process progress to authored progress bars',()=>{
+    const base=registry.frames.get('frame:furnace')!;
+    const frame:FrameContentDefinition={...base,panes:[...base.panes,{id:'authority-progress',kind:'bar',label:'AUTHORITY PROGRESS',bind:{process:'progress'}}]};
+    const contentRegistry={...registry,frames:new Map(registry.frames).set(frame.id,frame)};
+    const f=fixture('content',{activeFrameId:frame.id,contentRegistry,activeFrameProgress:0.25});
+    try {
+      const meter=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='AUTHORITY PROGRESS')!.element;
+      const value=meter.props['value'] as ()=>number;
+      expect(value()).toBe(0.25); f.update({activeFrameProgress:0.75}); expect(value()).toBe(0.75);
+      expect(f.root.entries().find(({element})=>element===meter)?.element).toBe(meter);
+    } finally {f.dispose();}
+  });
+
+  it('preserves hidden output bindings in the actual pickup prediction',()=>{
+    const base=registry.frames.get('frame:press')!;
+    const frame:FrameContentDefinition={...base,panes:base.panes.map(pane=>pane.id==='output'?{...pane,visibleWhen:{state:'showOutputs',equals:true}}:pane)};
+    const f=fixture('content',{activeFrameId:frame.id,contentRegistry:{...registry,frames:new Map(registry.frames).set(frame.id,frame)},
+      activeFrameState:{showOutputs:false},openPlaceableInventory:[{slot:0,itemKind:'apple',quantity:4},{slot:1,itemKind:'must',quantity:2},{slot:2,itemKind:'pomace',quantity:1}]});
+    try {
+      expect(f.root.entries().some(({element})=>(element.props['binding'] as {container?:string;index?:number}|undefined)?.container==='placeable' && (element.props['binding'] as {index:number}).index===2)).toBe(false);
+      f.click(f.slot('placeable',0));
+      const predicted=f.ui as unknown as {optimisticMenuItems:Map<{containerId:string;index:number},ItemStack|null>};
+      expect([...predicted.optimisticMenuItems].find(([slot])=>slot.containerId==='placeable' && slot.index===2)?.[1]).toMatchObject({itemKind:'pomace',quantity:1});
+      f.update({activeFrameState:{showOutputs:true}}); expect(f.slot('placeable',2)).toBeDefined();
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',0,'left');
+    } finally {f.dispose();}
+  });
+
+
+  it.each(processorCases)('restores rejected output custody and reconnects the same $frame root',async spec=>{
+    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:spec.outputIndex,itemKind:spec.output,quantity:2}]});
+    try {
+      let reject!:(error:Error)=>void;
+      vi.mocked(f.handlers.inventoryCursorClick).mockImplementationOnce(()=>new Promise<void>((_resolve,failure)=>{reject=failure;}));
+      f.click(f.slot('placeable',spec.outputIndex));expect(cursor(f.ui)?.quantity).toBe(2);
+      reject(new Error('container_not_found'));await Promise.resolve();await Promise.resolve();
+      f.update({connected:false,cursorStack:null});expect(cursor(f.ui)).toBeUndefined();
+      f.update({connected:true});expect(f.ui.retainedInventoryRoot).toBe(f.root);
+      f.click(f.slot('placeable',spec.outputIndex),{button:2});
+      expect(f.handlers.inventoryCursorClick).toHaveBeenLastCalledWith('placeable',spec.outputIndex,'right');
+      expect(cursor(f.ui)).toMatchObject({itemKind:spec.output,quantity:1});
+      f.root.pointer({type:'cancel',point:f.point(f.slot('placeable',spec.outputIndex)),pointerId:1,button:0});
+      expect(cursor(f.ui)?.quantity).toBe(1);expect(f.handlers.returnInventoryCursor).not.toHaveBeenCalled();
+    } finally {f.dispose();}
+  });
+
+  it.each(processorCases)('keeps a carried $frame output when the backpack destination is full',spec=>{
+    const f=fixture('content',{activeFrameId:spec.frame,cursorStack:{itemKind:spec.output,quantity:2},
+      inventory:Array.from({length:20},(_,index)=>({slot:10+index,itemKind:spec.output,quantity:runtimeMaxStack(registry,spec.output)!}))});
+    try {
+      f.click(f.slot('backpack',0));expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      expect(cursor(f.ui)).toBeUndefined();
+    } finally {f.dispose();}
+  });
+
+  it.each(processorCases)('keeps $frame filter focus and authored bindings across compact/wide resizing',spec=>{
+    const f=fixture('content',{activeFrameId:spec.frame});
+    try {
+      const input=f.root.entries().find(({element})=>element.label==='Filter items')!.element;
+      f.root.focus.set(input,'keyboard');f.root.text('wood');
+      for(const width of [320,390,960]){
+        f.update({width});f.root.arrange();expect(f.root.focus.current).toBe(input);
+        expect(input.props['value']).toBe('wood');
+        expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')).toHaveLength(spec.slots);
+      }
+    } finally {f.dispose();}
   });
 
 });

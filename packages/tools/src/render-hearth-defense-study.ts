@@ -13,9 +13,10 @@ const scene=`
 import {drawPlayerDefenseCue} from '/packages/engine/src/combat-telegraph.ts';
 import {loadOverworldArt} from '/packages/engine/src/overworld-art.ts';
 import {drawPixelText} from '/packages/ui/src/pixel-ui.ts';
+import {loadUiKitArt} from '/packages/ui/src/kit/components/art.ts';
 import {TouchControls,touchControlLayout} from '/packages/ui/src/touch-controls.ts';
 try {
- const art=await loadOverworldArt(),canvas=document.createElement('canvas');canvas.width=1440;canvas.height=960;
+ const [art,kitArt]=await Promise.all([loadOverworldArt(),loadUiKitArt()]),canvas=document.createElement('canvas');canvas.width=1440;canvas.height=960;
  const ctx=canvas.getContext('2d');document.body.append(canvas);ctx.imageSmoothingEnabled=false;
  ctx.fillStyle='#1f302c';ctx.fillRect(0,0,1440,960);ctx.scale(2,2);
  for(const [left,width,height] of [[0,480,270],[480,240,480]]) {
@@ -23,9 +24,9 @@ try {
   ctx.fillStyle='#477c45';ctx.fillRect(0,0,width,height);
   ctx.strokeStyle='#558a52';for(let x=0;x<width;x+=16){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,height);ctx.stroke();}
   drawPixelText(ctx,art.ui,width>300?'R: DODGE / HOLD X: BLOCK':'TOUCH DEFENSES',12,16,{color:'#fff2d0'});
-  const controls=new TouchControls(true),layout=touchControlLayout(width,height);
-  controls.pointerDown({x:layout.blockButton.x+8,y:layout.blockButton.y+8},1,'touch',width,height);
-  controls.draw(ctx,art.ui,art.uiSkin,width,height);
+  const controls=new TouchControls(kitArt,()=>{},true),layout=touchControlLayout(width,height);controls.setBounds(width,height);
+  controls.root.pointer({type:'down',point:{x:layout.blockButton.x+8,y:layout.blockButton.y+8},pointerId:1,pointerType:'touch',button:0});
+  controls.draw(ctx);controls.dispose();
   for(const [kind,x] of [['block',width/2-28],['dodge',width/2+28]]) {
    drawPlayerDefenseCue(ctx,kind,'right',x,100,0,0,1);
    drawPixelText(ctx,art.ui,kind.toUpperCase(),x,125,{align:'center',color:'#fff2d0'});
@@ -75,7 +76,7 @@ try {
  await mkdir(dirname(output), { recursive: true });
  await writeFile(output, png);
  const atlas = JSON.parse(await readFile(resolve(root, 'packages/client/public/generated/atlas.meta.json'), 'utf8')) as { revision: string };
- const sourcePaths = ['packages/tools/src/render-hearth-defense-study.ts','packages/engine/src/combat-telegraph.ts','packages/sim/src/combat-actions.ts','packages/engine/src/overworld-art.ts','packages/client/public/generated/atlas.meta.json'];
+ const sourcePaths = ['packages/tools/src/render-hearth-defense-study.ts','packages/ui/src/touch-controls.ts','packages/ui/src/touch-control-layout.ts','packages/ui/src/kit/components/touch-controls.ts','packages/engine/src/combat-telegraph.ts','packages/sim/src/combat-actions.ts','packages/engine/src/overworld-art.ts','packages/client/public/generated/atlas.meta.json'];
  const sourceSha256 = Object.fromEntries(await Promise.all(sourcePaths.map(async (path) => [
   path, createHash('sha256').update(await readFile(resolve(root, path))).digest('hex'),
  ])));

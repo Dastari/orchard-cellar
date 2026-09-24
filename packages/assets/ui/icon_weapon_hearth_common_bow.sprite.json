@@ -1,0 +1,69 @@
+{
+  "name": "icon_weapon_hearth_common_bow",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "00.........00...",
+        "0100000000020...",
+        "001333314050....",
+        "06000000050...00",
+        ".060....070..020",
+        "..080....070050.",
+        "...080....07500.",
+        "....090....00a0.",
+        ".....090....040.",
+        "......090...040.",
+        ".......090..010.",
+        "........080.010.",
+        ".........080010.",
+        "..........06010.",
+        "...........06010",
+        "............0000"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#8e9ab4",
+    "2": "#fff7d2",
+    "3": "#c0cbdc",
+    "4": "#6c7c9d",
+    "5": "#fee761",
+    "6": "#5d5d5d",
+    "7": "#feae34",
+    "8": "#858585",
+    "9": "#b4b4b4",
+    "a": "#424c6e"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Weapons_all_16x16.png",
+  "sourceRegion": [
+    16,
+    1776,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.weapon",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

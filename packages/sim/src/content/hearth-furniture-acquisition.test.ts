@@ -6,21 +6,35 @@ const registry = bootstrapContentRegistry();
 describe('furniture acquisition', () => {
   it('atomically fills the production grid using split stacks and the live recipe', () => {
     const id = 'furniture_rustic_bed', recipe = runtimeRecipeDefinition(registry, id)!;
+    // The bed is shaped (owner crafting overhaul): a fiber mattress over a plank frame.
+    const shaped: Record<string, ContainerSnapshot> = {
+      hotbar: { id: 'hotbar', capacity: 3, slots: [{ itemKind: 'plank', quantity: 2 }, { itemKind: 'plank', quantity: 5 }, { itemKind: 'fiber', quantity: 4 }] },
+      backpack: { id: 'backpack', capacity: 1, slots: [null] },
+      crafting: { id: 'crafting', capacity: 9, slots: [{ itemKind: 'fiber', quantity: 1 }, ...Array(8).fill(null)] },
+    };
+    const shapedBefore = JSON.stringify(shaped), content = itemContainerContentResolver(registry);
+    const placed = fillCraftingRecipeFromInventory(shaped, id, content, recipe);
+    if (!placed.ok) throw new Error(placed.code);
+    expect(placed.containers.crafting!.slots.slice(0, 6)).toEqual([
+      { itemKind: 'fiber', quantity: 1 }, { itemKind: 'fiber', quantity: 1 }, { itemKind: 'fiber', quantity: 1 },
+      { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 },
+    ]);
+    expect(placed.movedQuantity).toBe(5);
+    expect(runtimeRecipeMatchesGrid(registry, placed.containers.crafting!, id)).toBe(true);
+    expect(JSON.stringify(shaped)).toBe(shapedBefore);
+    const occupied = { ...shaped, crafting: { ...shaped.crafting!, slots: [{ itemKind: 'stone', quantity: 1 }, ...Array(8).fill(null)] } };
+    expect(fillCraftingRecipeFromInventory(occupied, id, content, recipe)).toMatchObject({ ok: false, code: 'recipe_inputs_missing' });
+    // Shapeless recipes (mixing and processing) still fill by count from split stacks.
     const containers: Record<string, ContainerSnapshot> = {
       hotbar: { id: 'hotbar', capacity: 3, slots: [{ itemKind: 'wood', quantity: 10 }, { itemKind: 'wood', quantity: 20 }, { itemKind: 'fiber', quantity: 40 }] },
       backpack: { id: 'backpack', capacity: 1, slots: [null] },
       crafting: { id: 'crafting', capacity: 9, slots: [{ itemKind: 'wood', quantity: 4 }, ...Array(8).fill(null)] },
     };
-    const before = JSON.stringify(containers), content = itemContainerContentResolver(registry);
-    const filled = fillCraftingRecipeFromInventory(containers, id, content, recipe);
-    expect(filled.ok).toBe(true);
-    if (!filled.ok) throw new Error(filled.code);
-    expect(filled.containers.crafting!.slots.slice(0, 2)).toEqual([{ itemKind: 'wood', quantity: 24 }, { itemKind: 'fiber', quantity: 40 }]);
-    expect(filled.movedQuantity).toBe(60);
-    expect(runtimeRecipeMatchesGrid(registry, filled.containers.crafting!, id)).toBe(true);
-    expect(JSON.stringify(containers)).toBe(before);
+    const before = JSON.stringify(containers);
     const blocked = { ...containers, crafting: { ...containers.crafting!, slots: [{ itemKind: 'wood', quantity: 4 }, { itemKind: 'stone', quantity: 1 }, ...Array(7).fill(null)] } };
-    expect(fillCraftingRecipeFromInventory(blocked, id, content, recipe)).toMatchObject({ ok: false, code: 'recipe_inputs_missing' });
+    expect(fillCraftingRecipeFromInventory(blocked, id, content, { ...recipe, kind: 'shapeless', inputs: { wood: 24, fiber: 40 } }))
+      .toMatchObject({ ok: false, code: 'recipe_inputs_missing' });
+    expect(JSON.stringify(containers)).toBe(before);
     const liveRecipe = { ...recipe, kind: 'shapeless' as const, inputs: { wood: 30, fiber: 35 } };
     const live = fillCraftingRecipeFromInventory(containers, id, content, liveRecipe);
     if (!live.ok) throw new Error(live.code);
@@ -45,9 +59,9 @@ describe('furniture acquisition', () => {
       expect(runtimeRecipeIdsUnlockedByBook(registry, `${id}_plan`)).toEqual([id]);
       expect(plan.onUse[0]!.effects).toContainEqual({ consumeSelected: 1 });
       expect(plan.economy.sell).toBe(0);
-      expect(recipe.recipeKind).toBe('shapeless');
-      if (recipe.recipeKind !== 'shapeless') throw new Error('expected shapeless recipe');
-      const materialSale = recipe.inputs.reduce((sum, input) => sum + registry.items.get(input.item)!.economy.sell * input.count, 0);
+      expect(recipe.recipeKind).toBe('shaped');
+      if (recipe.recipeKind !== 'shaped') throw new Error('expected shaped recipe');
+      const materialSale = recipe.pattern.flat().reduce((sum, cell) => sum + (cell === null ? 0 : registry.items.get(cell)!.economy.sell), 0);
       expect(item.economy.sell).toBeLessThan(materialSale);
       expect(item.economy.sell).toBeLessThan(item.economy.buy!);
       expect(recipe.stationRequirement).toEqual({ objectTag: 'station.workbench' });
@@ -71,7 +85,11 @@ describe('furniture acquisition', () => {
   });
   it('keeps a selected table recipe across batches while rejecting insufficient or unrelated inputs', () => {
     const id = 'furniture_rustic_dining_table';
-    const grid = { id: 'crafting', capacity: 9, slots: [{ itemKind: 'wood', quantity: 57 }, ...Array(8).fill(null)] };
+    // Shaped table (planks top and apron, stick legs); two of each cell makes two tables.
+    const two = (itemKind: string) => ({ itemKind, quantity: 2 });
+    const grid = { id: 'crafting', capacity: 9, slots: [
+      two('plank'), two('plank'), two('plank'), two('plank'), two('plank'), two('plank'), two('stick'), null, two('stick'),
+    ] };
     expect(runtimeMatchingRecipeId(registry, grid, 9, id)).toBe(id);
     expect(runtimeRecipeMatchesGrid(registry, grid, 'furniture_rustic_chest')).toBe(false);
     let current = grid;
@@ -82,7 +100,7 @@ describe('furniture acquisition', () => {
       expect(consumed.crafted).toEqual({ itemKind: id, quantity: 1 });
       current = { ...grid, slots: [...consumed.container.slots] };
     }
-    expect(current.slots[0]).toMatchObject({ itemKind: 'wood', quantity: 1 });
+    expect(current.slots.every((slot) => slot === null)).toBe(true);
     expect(runtimeRecipeMatchesGrid(registry, current, id)).toBe(false);
     expect(runtimeRecipeMatchesGrid(registry, current, 'missing')).toBe(false);
     const definition = registry.recipes.get(`recipe:${id}`)!;

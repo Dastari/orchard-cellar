@@ -1,0 +1,69 @@
+{
+  "name": "icon_weapon_hearth_legendary_bow",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......000000....",
+        "...000112220....",
+        ".0034441120.....",
+        "033334441050....",
+        "0300000105650.00",
+        "0070...008565020",
+        "..090....0850220",
+        "...090....001120",
+        "....0a0...014110",
+        ".....0a0...04410",
+        "......0a0..0440.",
+        ".......090.0340.",
+        "........0900330.",
+        ".........07030..",
+        "..........0330..",
+        "..........000..."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#fee761",
+    "2": "#fff7d2",
+    "3": "#dd5a08",
+    "4": "#feae34",
+    "5": "#ea323c",
+    "6": "#f68187",
+    "7": "#5d5d5d",
+    "8": "#891e2b",
+    "9": "#858585",
+    "a": "#b4b4b4"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Weapons_all_16x16.png",
+  "sourceRegion": [
+    48,
+    1856,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.weapon",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

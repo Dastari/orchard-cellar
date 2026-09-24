@@ -3,6 +3,7 @@ import { uiFixed, type UiStyle } from '../layout/box.js';
 import { paintUiSkin } from './art.js';
 import type { UiControlSize } from '../tokens.js';
 import { uiMeter } from './meter.js';
+import { uiTooltip } from './tooltip.js';
 export type UiVitalKind = 'health' | 'mana' | 'vigour';
 export interface UiVitalValues {
   readonly health: number; readonly maxHealth: number;
@@ -11,6 +12,8 @@ export interface UiVitalValues {
 }
 export interface UiVitalsOptions {
   readonly id?: string; readonly values: UiVitalValues | (() => UiVitalValues | undefined);
+  readonly tooltip?: (kind: UiVitalKind, values: UiVitalValues | undefined) => string;
+  readonly vigourDenied?: () => boolean;
   readonly portrait?: UiElement; readonly mirrored?: boolean; readonly size?: UiControlSize; readonly layout?: UiStyle;
 }
 export function uiVitalFraction(current: number | undefined, maximum: number | undefined): number {
@@ -27,11 +30,20 @@ export function uiVitals(options: UiVitalsOptions): UiElement {
       tone: (['danger', 'info', 'success'] as const)[index], variant: 'resource', reversed: options.mirrored,
       layout: { position: 'absolute', inset: { left: uiFixed((options.mirrored ? 0 : 18) * scale), top: uiFixed((3 + index * 4) * scale) }, width: uiFixed(30 * scale), height: uiFixed(5 * scale) },
       value: () => { const value = values(); return uiVitalFraction(value?.[kind], value?.[(['maxHealth', 'maxMana', 'maxVigour'] as const)[index]!]); } });
-    meter.setProps({ resource: kind }); return meter;
+    meter.setProps({ resource: kind });
+    if (!options.tooltip) return meter;
+    const layout = meter.style; meter.setStyle({ position: 'relative', inset: undefined, width: 'grow', height: 'grow' }); meter.focusable = true;
+    return uiTooltip(() => options.tooltip!(kind, values()), meter, layout);
   });
   const portrait = options.portrait?.setStyle({ position: 'absolute', inset: { left: uiFixed((options.mirrored ? 33 : 3) * scale), top: uiFixed(3 * scale) }, width: uiFixed(12 * scale), height: uiFixed(13 * scale), shrink: 0 });
   return new UiElement({ id: options.id, kind: 'vitals', style: { display: 'stack', width: uiFixed(48 * scale), height: uiFixed(19 * scale), ...options.layout },
     children: [...(portrait ? [portrait] : []), ...bars],
+    paintOverlay(_element, { context }) {
+      if (!options.vigourDenied?.()) return;
+      const bar = bars[2]!.rect; context.fillStyle = '#d44747';
+      for (const [x,y] of [[bar.x,bar.y],[bar.x+bar.width-3,bar.y],[bar.x,bar.y+bar.height-1],[bar.x+bar.width-3,bar.y+bar.height-1]]) context.fillRect(x!,y!,3,1);
+      for (const [x,y] of [[bar.x,bar.y],[bar.x+bar.width-1,bar.y],[bar.x,bar.y+bar.height-3],[bar.x+bar.width-1,bar.y+bar.height-3]]) context.fillRect(x!,y!,1,3);
+    },
     paint(element, { context, art }) {
       if (!art) return;
       context.save();

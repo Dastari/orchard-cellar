@@ -9,11 +9,11 @@ const characterName = readFileSync(new URL('../../ui/src/character-name-prompt.t
 
 describe('overworld UI compositing order', () => {
   it('draws the system cursor after every other scene overlay', () => {
-    const frameStart = main.indexOf('questTracker.draw(uiContext)');
+    const frameStart = main.indexOf('touchControls.draw(uiContext)');
     const frameEnd = main.indexOf("if (!interfaceHidden && debugCollision", frameStart);
     const composite = main.slice(frameStart, frameEnd);
     const cursor = composite.indexOf('overworldUi.drawCursorOverlay(uiContext)');
-    expect(cursor).toBeGreaterThan(composite.indexOf('overworldUi.drawOnlinePlayers'));
+    expect(cursor).toBeGreaterThan(composite.indexOf('onlineRoster.draw'));
     expect(cursor).toBeGreaterThan(composite.indexOf('npcInteractionUi.draw'));
     expect(cursor).toBeGreaterThan(composite.indexOf('tradeUi.draw'));
     expect(cursor).toBeGreaterThan(composite.indexOf('characterNamePrompt.draw'));
@@ -26,10 +26,13 @@ describe('overworld UI compositing order', () => {
     const input = main.slice(start, end);
     const build = input.indexOf('overworldUi.pointerBuildControl');
     expect(build).toBeGreaterThan(input.indexOf('overworldUi.blockingUpdatePromptVisible'));
-    expect(build).toBeGreaterThan(input.indexOf('tradeUi.pointerDown'));
-    expect(build).toBeLessThan(input.indexOf('touchControls.pointerDown'));
-    expect(build).toBeLessThan(input.indexOf('homesteadBuildPalette.pointerDown'));
-    const frame = main.slice(main.indexOf('questTracker.draw(uiContext)'));
+    const trade = input.indexOf("retainedPointers.dispatch('down', event, 'player-trade')");
+    const palette = input.indexOf("retainedPointers.dispatch('down', event, 'build-palette')");
+    expect(trade).toBeGreaterThan(0); expect(palette).toBeGreaterThan(0);
+    expect(build).toBeGreaterThan(trade);
+    expect(build).toBeLessThan(input.indexOf("retainedPointers.dispatch('down', event, 'touch-controls')"));
+    expect(build).toBeLessThan(palette);
+    const frame = main.slice(main.indexOf('touchControls.draw(uiContext)'));
     expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('touchControls.draw'));
     expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('homesteadBuildPalette.draw'));
   });
@@ -51,18 +54,68 @@ describe('overworld UI compositing order', () => {
     const pointerMove = main.slice(pointerMoveStart, pointerMoveEnd);
     expect(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'player-trade')")).toBeGreaterThan(0);
     expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'player-trade')"));
-    expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf('npcInteractionUi.pointerMove'));
+    expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'npc-interaction')"));
 
     const blurStart = main.indexOf("window.addEventListener('blur'");
     const blurEnd = main.indexOf('function dispatchTouchControlAction', blurStart);
     expect(main.slice(blurStart, blurEnd)).toContain('clearPointerPresentation()');
   });
 
-  it('uses the authored ribbon for the online-player heading', () => {
-    const start = ui.indexOf('drawOnlinePlayers(');
-    const end = ui.indexOf('private drawStatus(', start);
-    const roster = ui.slice(start, end);
-    expect(roster).toContain('this.windowRibbon.draw(');
-    expect(roster).toContain('`ONLINE PLAYERS  ${players.length}`');
+  it('retires legacy roster draw and input together', () => {
+    expect(ui).not.toMatch(/drawOnlinePlayers|pointerOnlinePlayersDown|onlinePlayersScrollBar/);
+    expect(main).toContain('onlineRoster.draw(uiContext)');
+    expect(main).toContain('onManage: manageOnlinePlayer');
   });
+
+});
+
+it('routes adopted modal roots through every central uncaptured input entry', () => {
+  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation', 'hud-zoneMinimap', 'hud-hotbarVitals', 'hud-targetEffects', 'chat', 'online-players']) {
+    expect(main).toContain(`retainedUi.key(event, '${host}')`);
+    expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
+    expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);
+    expect(main).toMatch(new RegExp(`retainedUi\\.wheel\\([\\s\\S]*?, '${host}'\\)`));
+  }
+});
+
+ it('paints the quest tracker over the HUD to match its higher pointer priority', () => {
+  const start = main.indexOf('overworldUi.drawHud(uiContext)');
+  const frame = main.slice(start, main.indexOf('overworldUi.drawCursorOverlay(uiContext)', start));
+  expect(start).toBeGreaterThan(0);
+  expect(frame.indexOf('questTracker.draw')).toBeGreaterThan(frame.indexOf('overworldUi.drawHud'));
+  expect(frame.indexOf('overworldUi.draw(uiContext, false)')).toBeGreaterThan(frame.indexOf('questTracker.draw'));
+});
+
+it('routes foreground quest gestures before underlying HUD scopes at each actual input entry', () => {
+  for (const type of ['down','move']) {
+    const event = type === 'down' ? 'pointerdown' : 'pointermove';
+    const start = main.indexOf(`canvas.addEventListener('${event}'`);
+    const end = main.indexOf('canvas.addEventListener(',start+10);
+    const body = main.slice(start,end);
+    expect(body.indexOf(`retainedPointers.dispatch('${type}', event, 'hud-zoneMinimap')`)).toBeGreaterThan(body.indexOf(`retainedPointers.dispatch('${type}', event, 'quest-tracker')`));
+  }
+});
+
+it('retires legacy chat input and preserves retained ownership through native capture', () => {
+  expect(main).not.toContain('chatInputElement');
+  expect(main).not.toMatch(/chatOverlay\.(pointerDown|pointerUp|pointerCancel|pointerMove|pointerLeave|wheel)\(/);
+  expect(main).toContain("retainedUi.focus('chat'); syncRetainedText()");
+  expect(main).toContain('nativeChatOwner && !retainedPointers.hasCapture');
+  expect(main).toContain("props['editor'] === chatOverlay.editor");
+});
+
+it('keeps touch controls on one retained multi-pointer route and leaves world keys authoritative', () => {
+ expect(main).toContain('new TouchControls(kitArt, dispatchTouchControlAction)');
+ expect(main).toContain("retainedPointers.dispatch('down', event, 'touch-controls')");
+ expect(main).not.toMatch(/touchControls\.(pointerDown|pointerUp|pointerCancel|pointerMove|ownsPointer)\(/);
+ expect(main).not.toContain("retainedUi.key(event, 'touch-controls')");
+ expect(main).toContain('touchControls.setBounds(width, height)');
+ expect(main).toContain('touchControls.dispose()');
+});
+
+
+it('paints thumb controls beneath the HUD and quest tracker', () => {
+ const touch=main.indexOf('touchControls.draw(uiContext)');
+ expect(touch).toBeLessThan(main.indexOf('overworldUi.drawHud(uiContext)'));
+ expect(touch).toBeLessThan(main.indexOf('questTracker.draw(uiContext)'));
 });

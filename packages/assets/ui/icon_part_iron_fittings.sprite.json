@@ -1,0 +1,63 @@
+{
+  "name": "icon_part_iron_fittings",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........000.....",
+        ".......01110....",
+        ".......021310...",
+        ".......0424410..",
+        "........0423110.",
+        "......003342210.",
+        "......021304440.",
+        "....0034400000..",
+        "....02130.......",
+        "..0034400.......",
+        "..02130.........",
+        ".034400.........",
+        ".0130...........",
+        ".000............",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#8e9ab4",
+    "2": "#c0cbdc",
+    "3": "#6c7c9d",
+    "4": "#424c6e"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    16,
+    688,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

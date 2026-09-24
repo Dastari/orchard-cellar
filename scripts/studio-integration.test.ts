@@ -9,7 +9,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-function fixture() {
+function fixture(legacyUi = false) {
   const root = mkdtempSync(join(tmpdir(), 'studio-integration-'));
   roots.push(root);
   const repository = join(root, 'repository');
@@ -30,7 +30,7 @@ function fixture() {
   put('packages/sim/src/index.ts', 'current simulation');
   put('packages/client/public/placeholder', '');
   put('packages/studio/public/placeholder', '');
-  put('ui/theme.json', '{}\n');
+  if (legacyUi) put('ui/theme.json', '{}\n');
   put('ops/README.md', 'operations');
   put('.env.studio-production.local', 'VITE_TEST_PUBLIC_VALUE=studio\n');
   for (const path of ['scripts/build-reviewed-studio.sh', 'scripts/studio-release-inputs.mjs', 'packages/studio/scripts/verify-ui-kit.mjs']) {
@@ -49,6 +49,9 @@ if [[ "$1" = run && "$2" = ui:assets ]]; then
 fi
 if [[ "$1" = run && "$2" = build ]]; then
   if [[ "\${STUDIO_TEST_MUTATE:-}" = true ]]; then printf changed >> packages/sim/src/index.ts; fi
+  if [[ "\${STUDIO_TEST_MUTATE:-}" = ui ]]; then printf changed >> ui/theme.json; fi
+  if [[ "\${STUDIO_TEST_MUTATE:-}" = remove-ui ]]; then rm -r ui; fi
+  if [[ "\${STUDIO_TEST_MUTATE:-}" = create-ui ]]; then mkdir ui; printf added > ui/added.json; fi
   for argument in "$@"; do
     if [[ "\${previous:-}" = --outDir ]]; then mkdir -p "$argument"; printf 'built studio' > "$argument/index.html"; fi
     previous=$argument
@@ -62,8 +65,8 @@ fi
 }
 
 describe('integrated Studio release staging', () => {
-  it('builds only Studio from current shared sources and the pinned lock without changing live artifacts', () => {
-    const f = fixture();
+  it.each([false, true])('builds only Studio without changing live artifacts, with legacy ui=%s', (legacyUi) => {
+    const f = fixture(legacyUi);
     const result = f.run();
     expect(result.status, result.stderr).toBe(0);
     expect(readFileSync(join(f.work, 'packages/sim/src/index.ts'), 'utf8')).toBe('current simulation');
@@ -85,6 +88,10 @@ describe('integrated Studio release staging', () => {
     expect(readFileSync(join(f.repository, 'packages/studio/dist/index.html'), 'utf8')).toBe('live studio');
     expect(readFileSync(join(f.repository, 'packages/client/dist/index.html'), 'utf8')).toBe('live game');
     expect(readFileSync(join(f.output, 'index.html'), 'utf8')).toBe('built studio');
+    const manifest = JSON.parse(readFileSync(join(f.work, 'source-manifest.json'), 'utf8'));
+    expect(Object.hasOwn(manifest, 'ui/theme.json')).toBe(legacyUi);
+    expect(existsSync(join(f.work, 'ui'))).toBe(legacyUi);
+    if (legacyUi) expect(readFileSync(join(f.work, 'ui/theme.json'), 'utf8')).toBe('{}\n');
   });
 
   it.each(['missing kit', 'retired renderer'])('refuses %s before creating a workspace', (failure) => {
@@ -110,6 +117,32 @@ describe('integrated Studio release staging', () => {
     const f = fixture();
     expect(f.run({ STUDIO_TEST_MUTATE: 'true' }).status).not.toBe(0);
     expect(readFileSync(join(f.repository, 'packages/sim/src/index.ts'), 'utf8')).toBe('current simulation');
+  });
+
+  it.each(['ui', 'remove-ui', 'create-ui'])('detects optional legacy tree mutation: %s', mutation => {
+    const f = fixture(mutation !== 'create-ui');
+    const result = f.run({ STUDIO_TEST_MUTATE: mutation });
+    expect(result.status).not.toBe(0);
+    expect(readFileSync(join(f.work, 'source-manifest.json'), 'utf8')).not.toBe(readFileSync(join(f.work, 'source-after.json'), 'utf8'));
+    expect(existsSync(join(f.repository, 'ui'))).toBe(mutation !== 'create-ui');
+    if (mutation !== 'create-ui') expect(readFileSync(join(f.repository, 'ui/theme.json'), 'utf8')).toBe('{}\n');
+  });
+
+  it.each(['root link', 'nested link'])('rejects optional legacy ui %s without reading external source', kind => {
+    const f = fixture(kind === 'nested link');
+    if (kind === 'root link') symlinkSync(join(f.repository, 'ops'), join(f.repository, 'ui'));
+    else symlinkSync(join(f.repository, 'ops/README.md'), join(f.repository, 'ui/external.md'));
+    const result = f.run();
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(kind === 'root link' ? 'Legacy ui source must be a real directory' : 'studio_source_symlink:ui/external.md');
+    expect(existsSync(f.output)).toBe(false);
+  });
+
+  it.each(['packages', 'scripts', 'ops'])('keeps required source tree %s mandatory', tree => {
+    const f = fixture();
+    rmSync(join(f.repository, tree), { recursive: true });
+    expect(f.run().status).not.toBe(0);
+    expect(existsSync(f.output)).toBe(false);
   });
 
   it('rejects existing output and destinations inside the source or each other', () => {

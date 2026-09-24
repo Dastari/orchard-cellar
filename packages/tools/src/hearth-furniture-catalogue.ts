@@ -1,325 +1,243 @@
 /** Reviewed base catalogue from the Astra furniture catalogue review (wiki: History/Hearth Harbour and Embers).
- * Native crop/placement review is separate; this table supplies names and economy. */
+ * Native crop/placement review is separate; this table supplies names, economy and
+ * the shaped crafting pattern (owner request 2026-09-24: logical Minecraft-style
+ * shapes, one item per cell) read with HEARTH_FURNITURE_PATTERN_LEGEND. */
+export const HEARTH_FURNITURE_PATTERN_LEGEND: Readonly<Record<string, string>> = {
+  P: 'plank', S: 'stick', F: 'fiber', T: 'stone', i: 'iron_piece', c: 'copper_piece', U: 'sunflower',
+};
 export const HEARTH_FURNITURE_CATALOGUE = [
   {
     "suffix": "rustic_stool",
     "displayName": "Timber stool",
     "style": "rustic",
-    "materials": {
-      "wood": 10,
-      "fiber": 2
-    },
+    "pattern": ["PP", "SS"],
     "priceBronze": 80
   },
   {
     "suffix": "rustic_chair",
     "displayName": "Ladder chair",
     "style": "rustic",
-    "materials": {
-      "wood": 12,
-      "fiber": 4
-    },
+    "pattern": ["P..", "PPP", "S.S"],
     "priceBronze": 100
   },
   {
     "suffix": "rustic_bench",
     "displayName": "Timber bench",
     "style": "rustic",
-    "materials": {
-      "wood": 24,
-      "fiber": 4
-    },
+    "pattern": ["PPP", "S.S"],
     "priceBronze": 190
   },
   {
     "suffix": "townhouse_chair",
     "displayName": "Cushioned chair",
     "style": "townhouse",
-    "materials": {
-      "wood": 12,
-      "fiber": 14
-    },
+    "pattern": ["P..", "FFF", "S.S"],
     "priceBronze": 130
   },
   {
     "suffix": "townhouse_loveseat",
     "displayName": "Blue loveseat",
     "style": "townhouse",
-    "materials": {
-      "wood": 28,
-      "fiber": 30
-    },
+    "pattern": ["FFF", "PPP", "P.P"],
     "priceBronze": 290
   },
   {
     "suffix": "townhouse_armchair",
     "displayName": "Hearth armchair",
     "style": "townhouse",
-    "materials": {
-      "wood": 18,
-      "fiber": 24
-    },
+    "pattern": ["P.P", "FFF", "P.P"],
     "priceBronze": 200
   },
   {
     "suffix": "rustic_dining_table",
     "displayName": "Timber dining table",
     "style": "rustic",
-    "materials": {
-      "wood": 28
-    },
+    "pattern": ["PPP", "PPP", "S.S"],
     "priceBronze": 220
   },
   {
     "suffix": "rustic_writing_table",
     "displayName": "Writing table",
     "style": "rustic",
-    "materials": {
-      "wood": 20
-    },
+    "pattern": ["PPP", "P.S"],
     "priceBronze": 150
   },
   {
     "suffix": "townhouse_dining_table",
     "displayName": "Linen dining table",
     "style": "townhouse",
-    "materials": {
-      "wood": 28,
-      "fiber": 20
-    },
+    "pattern": ["FFF", "PPP", "S.S"],
     "priceBronze": 260
   },
   {
     "suffix": "townhouse_side_table",
     "displayName": "Side table",
     "style": "townhouse",
-    "materials": {
-      "wood": 12
-    },
+    "pattern": ["PPP", ".S."],
     "priceBronze": 90
   },
   {
     "suffix": "rustic_bed",
     "displayName": "Single timber bed",
     "style": "rustic",
-    "materials": {
-      "wood": 24,
-      "fiber": 40
-    },
+    "pattern": ["FFF", "PPP"],
     "priceBronze": 280
   },
   {
     "suffix": "townhouse_bed",
     "displayName": "Blue double bed",
     "style": "townhouse",
-    "materials": {
-      "wood": 40,
-      "fiber": 64
-    },
+    "pattern": ["FFF", "FFF", "PPP"],
     "priceBronze": 460
   },
   {
     "suffix": "rustic_chest",
     "displayName": "Timber chest",
     "style": "rustic",
-    "materials": {
-      "wood": 24,
-      "iron_piece": 2
-    },
+    "pattern": ["PiP", "P.P", "PPP"],
     "priceBronze": 210
   },
   {
     "suffix": "townhouse_wardrobe",
     "displayName": "Tall wardrobe",
     "style": "townhouse",
-    "materials": {
-      "wood": 40,
-      "iron_piece": 4
-    },
+    "pattern": ["PP", "Pi", "PP"],
     "priceBronze": 350
   },
   {
     "suffix": "rustic_bookshelf",
     "displayName": "Narrow bookshelf",
     "style": "rustic",
-    "materials": {
-      "wood": 22
-    },
+    "pattern": ["PPP", "SSS", "PPP"],
     "priceBronze": 170
   },
   {
     "suffix": "rustic_cupboard",
     "displayName": "Timber cupboard",
     "style": "rustic",
-    "materials": {
-      "wood": 30,
-      "iron_piece": 2
-    },
+    "pattern": ["PPP", "PiP", "PPP"],
     "priceBronze": 250
   },
   {
     "suffix": "townhouse_bookcase",
     "displayName": "Wide bookcase",
     "style": "townhouse",
-    "materials": {
-      "wood": 36
-    },
+    "pattern": ["PPP", "SPS", "PPP"],
     "priceBronze": 270
   },
   {
     "suffix": "townhouse_cabinet",
     "displayName": "Townhouse cabinet",
     "style": "townhouse",
-    "materials": {
-      "wood": 32,
-      "iron_piece": 4
-    },
+    "pattern": ["PiP", "PPP", "PiP"],
     "priceBronze": 290
   },
   {
     "suffix": "rustic_woven_rug",
     "displayName": "Woven rug",
     "style": "rustic",
-    "materials": {
-      "fiber": 40
-    },
+    "pattern": ["FFF", "FFF"],
     "priceBronze": 100
   },
   {
     "suffix": "rustic_runner",
     "displayName": "Hall runner",
     "style": "rustic",
-    "materials": {
-      "fiber": 44
-    },
+    "pattern": ["FFF"],
     "priceBronze": 110
   },
   {
     "suffix": "townhouse_round_rug",
     "displayName": "Round blue rug",
     "style": "townhouse",
-    "materials": {
-      "fiber": 64
-    },
+    "pattern": [".F.", "FFF", ".F."],
     "priceBronze": 160
   },
   {
     "suffix": "townhouse_patterned_rug",
     "displayName": "Burgundy rug",
     "style": "townhouse",
-    "materials": {
-      "fiber": 96
-    },
+    "pattern": ["FFF", "FFF", "FFF"],
     "priceBronze": 240
   },
   {
     "suffix": "rustic_standing_lamp",
     "displayName": "Timber standing lamp",
     "style": "rustic",
-    "materials": {
-      "wood": 12,
-      "copper_piece": 4,
-      "fiber": 6
-    },
+    "pattern": [".c.", ".S.", ".P."],
     "priceBronze": 140
   },
   {
     "suffix": "townhouse_floor_lamp",
     "displayName": "Blue floor lamp",
     "style": "townhouse",
-    "materials": {
-      "wood": 14,
-      "copper_piece": 6,
-      "fiber": 12
-    },
+    "pattern": ["FcF", ".S.", ".P."],
     "priceBronze": 190
   },
   {
     "suffix": "townhouse_table_lamp",
     "displayName": "Small table lamp",
     "style": "townhouse",
-    "materials": {
-      "wood": 6,
-      "copper_piece": 3,
-      "fiber": 8
-    },
+    "pattern": [".c.", ".F.", ".P."],
     "priceBronze": 100
   },
   {
     "suffix": "rustic_hearth",
     "displayName": "Stone hearth",
     "style": "rustic",
-    "materials": {
-      "stone": 32,
-      "iron_piece": 6,
-      "wood": 8
-    },
+    "pattern": ["TTT", "T.T", "TiT"],
     "priceBronze": 460
   },
   {
     "suffix": "rustic_cooking_range",
     "displayName": "Cooking range",
     "style": "rustic",
-    "materials": {
-      "stone": 20,
-      "iron_piece": 10,
-      "wood": 4
-    },
+    "pattern": ["iii", "T.T", "TTT"],
     "priceBronze": 360
   },
   {
     "suffix": "townhouse_washstand",
     "displayName": "Cabinet washstand",
     "style": "townhouse",
-    "materials": {
-      "wood": 20,
-      "stone": 8,
-      "copper_piece": 4
-    },
+    "pattern": [".c.", "TTT", "PPP"],
     "priceBronze": 270
   },
   {
     "suffix": "townhouse_bath",
     "displayName": "Enamel bath",
     "style": "townhouse",
-    "materials": {
-      "stone": 20,
-      "iron_piece": 12,
-      "copper_piece": 8
-    },
+    "pattern": ["ici", "i.i", "TTT"],
     "priceBronze": 420
   },
   {
     "suffix": "rustic_potted_fern",
     "displayName": "Potted fern",
     "style": "rustic",
-    "materials": {
-      "stone": 4,
-      "fiber": 8,
-      "sunflower": 2
-    },
+    "pattern": [".U.", "TFT", ".T."],
     "priceBronze": 90
   },
   {
     "suffix": "townhouse_flower_planter",
     "displayName": "Flower planter",
     "style": "townhouse",
-    "materials": {
-      "wood": 12,
-      "fiber": 8,
-      "sunflower": 4
-    },
+    "pattern": ["U.U", "PFP"],
     "priceBronze": 170
   },
   {
     "suffix": "townhouse_wall_mirror",
     "displayName": "Wall mirror",
     "style": "townhouse",
-    "materials": {
-      "wood": 12,
-      "stone": 8,
-      "copper_piece": 4
-    },
+    "pattern": ["PPP", "PcP", "PPP"],
     "priceBronze": 210
   }
 ] as const;
+
+/** The shaped recipe grid for a catalogue entry: rows of `item:` ids or null. */
+export function hearthFurniturePattern(entry: { readonly suffix: string; readonly pattern: readonly string[] }): (`item:${string}` | null)[][] {
+  return entry.pattern.map((row) => [...row].map((cell) => {
+    if (cell === '.') return null;
+    const material = HEARTH_FURNITURE_PATTERN_LEGEND[cell];
+    if (material === undefined) throw new Error(`unknown_furniture_pattern_symbol:${entry.suffix}:${cell}`);
+    return `item:${material}` as const;
+  }));
+}

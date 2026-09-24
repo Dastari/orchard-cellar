@@ -8,11 +8,12 @@ import {
   type PlayerStatisticCategory,
   type PlayerStatisticDefinition,
 } from '@orchard/sim';
-import { drawPixelText, drawPixelTextInRect, type PixelUi } from './pixel-ui.js';
-import { drawFantasyIcon, FANTASY_ICON_FAMILIES, type FantasyIconDefinition } from './design-system/fantasy-controls.js';
-import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
-import { ScrollBar } from './scrollbar.js';
-import { drawUiSkinAsset, type UiSkin } from './skin.js';
+import type { UiRect } from './geometry.js';
+import type { UiKitArt } from './kit/components/art.js';
+import { uiStatistics, type UiStatisticsElement } from './kit/components/statistics.js';
+import { uiFixed } from './kit/layout/box.js';
+import { UiRoot } from './kit/runtime/root.js';
+import type { CharacterScreenNavigation } from './character-screen.js';
 
 export interface PlayerStatisticModel {
   readonly statisticKind: string;
@@ -33,25 +34,6 @@ const CATEGORY_ORDER: readonly PlayerStatisticCategory[] = [
   'account', 'progression', 'exploration', 'social', 'farming', 'crafting',
   'commerce', 'items', 'tools', 'world', 'creatures', 'combat', 'future',
 ];
-
-const CATEGORY_ICON: Readonly<Record<PlayerStatisticCategory, string>> = {
-  account: 'crown',
-  social: 'chat',
-  exploration: 'star',
-  items: 'backpack',
-  crafting: 'wrench',
-  commerce: 'coin',
-  farming: 'heart',
-  world: 'star',
-  tools: 'gear',
-  creatures: 'heart',
-  combat: 'sword',
-  progression: 'trophy',
-  future: 'book',
-};
-
-const ICON_BY_ID = new Map(FANTASY_ICON_FAMILIES.map((icon) => [icon.id, icon]));
-const FALLBACK_ICON = FANTASY_ICON_FAMILIES[0]!;
 
 export function visiblePlayerStatisticRows(model: StatisticsScreenModel): readonly StatisticsScreenRow[] {
   return model.statistics.flatMap((entry) => {
@@ -111,133 +93,43 @@ export function playerStatisticSubjectLabel(subjectKind: string, registry?: Cont
   return (name ?? subjectKind.replaceAll('_', ' ')).toUpperCase();
 }
 
-interface StatisticsLayout {
-  readonly frame: UiRect;
-  readonly viewport: UiRect;
-  readonly scrollbar: UiRect;
-  readonly rowHeight: number;
-  readonly visibleRows: number;
-}
-
-export function statisticsScreenLayout(rect: UiRect): StatisticsLayout {
-  const frame = { x: rect.x + 2, y: rect.y + 2, width: rect.width - 4, height: rect.height - 4 };
-  const viewport = {
-    x: frame.x + 10,
-    y: frame.y + 37,
-    width: Math.max(1, frame.width - 33),
-    height: Math.max(1, frame.height - 48),
-  };
-  const rowHeight = rect.height < 240 ? 25 : 29;
-  return {
-    frame,
-    viewport,
-    scrollbar: { x: frame.x + frame.width - 19, y: viewport.y, width: 12, height: viewport.height },
-    rowHeight,
-    visibleRows: Math.max(1, Math.floor(viewport.height / rowHeight)),
-  };
-}
-
-function iconFor(category: PlayerStatisticCategory): FantasyIconDefinition {
-  return ICON_BY_ID.get(CATEGORY_ICON[category]) ?? FALLBACK_ICON;
-}
-
+/** Subscribed bigint values remain authoritative; the shared table owns browsing state. */
 export class StatisticsScreen {
-  private model: StatisticsScreenModel = { statistics: [] };
-  private readonly scrollbar: ScrollBar;
-
-  constructor(private readonly skin: UiSkin, private readonly fonts: PixelUi) {
-    this.scrollbar = new ScrollBar(skin, { showWhenDisabled: true, trackClick: 'jump' });
+  readonly root: UiRoot;
+  private view: UiStatisticsElement | null = null;
+  private bounds: UiRect | undefined;
+  constructor(art: UiKitArt, private readonly navigation: CharacterScreenNavigation = {}) {
+    this.root = new UiRoot({ art, scale: 1, label: 'Lifetime records' });
   }
-
-  update(model: StatisticsScreenModel): void { this.model = model; }
-
-  private sync(rect: UiRect): { readonly layout: StatisticsLayout; readonly rows: readonly StatisticsScreenRow[] } {
-    const layout = statisticsScreenLayout(rect);
-    const rows = visiblePlayerStatisticRows(this.model);
-    this.scrollbar.setBounds(layout.scrollbar);
-    this.scrollbar.setMetrics(rows.length, layout.visibleRows);
-    return { layout, rows };
-  }
-
-  pointerDown(point: UiPoint, rect: UiRect, pointerType: 'mouse' | 'touch' = 'mouse'): boolean {
-    const { layout } = this.sync(rect);
-    if (pointerType === 'touch' && containsPoint(layout.viewport, point)) {
-      this.scrollbar.beginSwipe(point, layout.viewport, pointerType);
-      return true;
+  get active(): boolean { return this.view !== null; }
+  update(model: StatisticsScreenModel | null): void {
+    if (model === null) { this.root.input.cancelPointers(); this.root.focus.set(null); this.view?.dispose(); this.view = null; return; }
+    const focus = this.root.focus.current;
+    if (!this.view) { this.view = uiStatistics({ model, ...this.navigation }); this.root.mount(this.view); this.applyBounds(); }
+    else this.view.updateStatistics(model);
+    this.root.arrange();
+    if (focus?.disposed) {
+      const candidates = this.root.entries().map(entry => entry.element);
+      const target = candidates.find(element => element.id === focus.id)
+        ?? candidates.find(element => element.kind === focus.kind && element.label === focus.label && element.focusable && !element.disabled);
+      if (target && !target.disabled) this.root.focus.set(target); else this.view.focusStatistics();
+      this.root.arrange();
     }
-    return this.scrollbar.pointerDown(point);
   }
-
-  pointerMove(point: UiPoint): void {
-    this.scrollbar.pointerMove(point);
-    this.scrollbar.swipeMove(point, 20);
+  private applyBounds(): void {
+    if (!this.view || !this.bounds) return;
+    const frame = this.bounds;
+    this.view.setCompactStatistics(frame.height < 220);
+    this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) }, width: uiFixed(frame.width), height: uiFixed(frame.height) });
   }
-  pointerUp(): boolean {
-    const swipe = this.scrollbar.endSwipe();
-    return this.scrollbar.pointerUp() || swipe;
-  }
-  pointerLeave(): void { this.scrollbar.pointerLeave(); }
-
-  wheel(point: UiPoint, deltaY: number, rect: UiRect): boolean {
-    const { layout } = this.sync(rect);
-    return containsPoint(layout.viewport, point) && this.scrollbar.wheel(deltaY, 2);
-  }
-
-  draw(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const { layout, rows } = this.sync(rect);
-    drawUiSkinAsset(context, this.skin.frameThin, layout.frame);
-    const trophy = ICON_BY_ID.get('trophy') ?? FALLBACK_ICON;
-    drawFantasyIcon(context, this.skin, {
-      x: layout.frame.x + 10, y: layout.frame.y + 9, width: 18, height: 18,
-    }, trophy, { level: 0 });
-    drawPixelText(context, this.fonts, 'LIFETIME RECORDS', layout.frame.x + 34, layout.frame.y + 11, {
-      color: '#4d2e22', font: 'header',
-    });
-    drawPixelText(context, this.fonts, `${rows.length} TRACKED`, layout.frame.x + layout.frame.width - 27, layout.frame.y + 13, {
-      align: 'right', color: '#8c5d3a',
-    });
-    context.fillStyle = '#b97755';
-    context.fillRect(layout.viewport.x, layout.viewport.y - 5, layout.viewport.width, 1);
-
-    if (rows.length === 0) {
-      drawPixelTextInRect(context, this.fonts, 'NO LIFETIME RECORDS YET', layout.viewport, {
-        align: 'center', verticalAlign: 'center', color: '#8c6c54',
-      });
-      this.scrollbar.draw(context);
-      return;
+  setBounds(frame: UiRect, viewportWidth: number, viewportHeight: number): void {
+    this.root.resize(viewportWidth, viewportHeight);
+    if (!this.bounds || Object.keys(frame).some(key => frame[key as keyof UiRect] !== this.bounds![key as keyof UiRect])) {
+      this.bounds = { ...frame }; this.applyBounds();
     }
-
-    const first = this.scrollbar.position;
-    rows.slice(first, first + layout.visibleRows).forEach((row, index) => {
-      const y = layout.viewport.y + index * layout.rowHeight;
-      const rowRect = {
-        x: layout.viewport.x,
-        y,
-        width: layout.viewport.width,
-        height: layout.rowHeight - 2,
-      };
-      context.fillStyle = index % 2 === 0 ? '#ead0aa55' : '#c8956f2b';
-      context.fillRect(rowRect.x, rowRect.y, rowRect.width, rowRect.height);
-      drawFantasyIcon(context, this.skin, {
-        x: rowRect.x + 4, y: rowRect.y + Math.max(2, Math.floor((rowRect.height - 17) / 2)), width: 17, height: 17,
-      }, iconFor(row.definition.category), { level: 0 });
-      const valueWidth = Math.min(145, Math.max(74, Math.floor(rowRect.width * 0.28)));
-      const textX = rowRect.x + 26;
-      const textWidth = Math.max(1, rowRect.width - 31 - valueWidth);
-      const subject = playerStatisticSubjectLabel(row.subjectKind, this.model.contentRegistry);
-      drawPixelTextInRect(context, this.fonts, row.definition.name.toUpperCase(), {
-        x: textX, y: rowRect.y + 3, width: textWidth, height: 10,
-      }, { color: '#5f3b24', overflow: 'ellipsis' });
-      drawPixelTextInRect(context, this.fonts, subject || row.definition.category.toUpperCase(), {
-        x: textX, y: rowRect.y + 14, width: textWidth, height: 9,
-      }, { color: '#9a6745', overflow: 'ellipsis' });
-      drawPixelTextInRect(context, this.fonts, formatPlayerStatisticValue(row.value, row.definition), {
-        x: rowRect.x + rowRect.width - valueWidth,
-        y: rowRect.y,
-        width: valueWidth - 6,
-        height: rowRect.height,
-      }, { align: 'right', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
-    });
-    this.scrollbar.draw(context);
+    this.root.arrange();
   }
+  focus(): void { this.view?.setStyle({ visible: true }); this.view?.focusStatistics(); this.root.arrange(); }
+  draw(context: CanvasRenderingContext2D): void { if (this.active) this.root.drawInContext(context); }
+  dispose(): void { this.root.dispose(); this.view = null; }
 }

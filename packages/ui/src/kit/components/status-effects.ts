@@ -1,3 +1,4 @@
+import type { UiRect } from '../../geometry.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone } from '../tokens.js';
@@ -7,7 +8,7 @@ import { uiTooltip } from './tooltip.js';
 export interface UiStatusEffect {
   readonly id: string;
   readonly name: string;
-  readonly icon: UiIconSource;
+  readonly icon?: UiIconSource;
   readonly tone?: UiTone;
   readonly remainingTicks: number;
   readonly durationTicks: number;
@@ -17,6 +18,7 @@ export interface UiStatusEffectsOptions {
   readonly id?: string;
   readonly effects: readonly UiStatusEffect[];
   readonly ticksPerSecond: number;
+  readonly renderIcon?: (context: CanvasRenderingContext2D, bounds: UiRect, effect: UiStatusEffect) => void;
   readonly layout?: UiStyle;
 }
 export function uiStatusEffectLabel(effect: UiStatusEffect, ticksPerSecond: number): string {
@@ -34,29 +36,30 @@ export function uiStatusEffects(options: UiStatusEffectsOptions): UiElement {
   return new UiElement({ id: options.id, kind: 'status-effects', props: { effects: options.effects },
     style: { display: 'flex', direction: 'row', gap: 2, width: 'grow', height: 'fit', ...options.layout },
     measure(element) {
-      const active = new Set<string>();
+      const active = new Set<string>(); const ordered: UiElement[] = [];
       for (const effect of element.props['effects'] as readonly UiStatusEffect[]) {
         active.add(effect.id);
         const key = JSON.stringify([effect.icon, effect.tone]);
         let entry = retained.get(effect.id);
         if (entry?.key !== key) {
           entry?.wrapper.dispose();
-          const icon = uiIcon(effect.icon, { tone: effect.tone });
+          const icon = effect.icon ? uiIcon(effect.icon, { tone: effect.tone }) : undefined;
           const face = uiButton({ label: '', tone: effect.tone, layout: { width: uiFixed(24), height: uiFixed(24) } });
           const current = { effect };
           const cell = new UiElement({ ...face.hooks, onPointer: undefined, onKey: undefined, pointerMode: 'passthrough', id: `${element.id}:${effect.id}`, kind: 'status-effect', focusable: true,
-            paint(node, context) { if (!uiStatusEffectBlinkHidden(current.effect, context.reducedMotion)) { face.hooks.paint?.(node, context); icon.hooks.paint?.(node, context); } },
+            paint(node, context) { if (!uiStatusEffectBlinkHidden(current.effect, context.reducedMotion)) { face.hooks.paint?.(node, context); if (options.renderIcon) options.renderIcon(context.context, node.rect, current.effect); else icon?.hooks.paint?.(node, context); } },
           });
           const wrapper = uiTooltip(() => uiStatusEffectLabel(current.effect, options.ticksPerSecond), cell,
             { width: uiFixed(24), height: uiFixed(24), shrink: 0 });
           entry = { get effect() { return current.effect; }, set effect(value) { current.effect = value; }, key, cell, wrapper };
           retained.set(effect.id, entry); element.append(wrapper);
         }
-        entry.effect = effect;
+        ordered.push(entry.wrapper); entry.effect = effect;
         const label = uiStatusEffectLabel(effect, options.ticksPerSecond);
         if (entry.cell.label !== label) { entry.cell.label = label; entry.wrapper.invalidate(); }
       }
       for (const [id, entry] of retained) if (!active.has(id)) { entry.wrapper.dispose(); retained.delete(id); }
+      if (element.children.some((child,index) => child !== ordered[index])) element.replaceChildren(ordered);
       return { min: { width: 0, height: 0 }, preferred: { width: 0, height: 0 } };
     },
   });

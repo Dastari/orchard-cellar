@@ -3,8 +3,25 @@ import { UiRoot } from '../runtime/root.js';
 import { uiWorldFeedback } from './world-feedback.js';
 import { uiTestAsset, uiTestArt } from '../lab/testing/art.js';
 import { createUiRecordingCanvas } from '../runtime/recording-canvas.js';
+import { createCanvas } from '@napi-rs/canvas';
 
 describe('world marker and damage feedback', () => {
+  it('keeps the production damage amount and critical palette without specimen punctuation', async () => {
+    const root = new UiRoot({ scale: 1, art: await uiTestArt() }); root.resize(100,100);
+    const node = root.mount(uiWorldFeedback({ entries: [{ id: 'hit', kind: 'damage', x: 50, y: 20, amount: 10,
+      progress: .8, critical: true, presentation: 'combat' }] }));
+    const canvas = createUiRecordingCanvas(100,100); root.draw(canvas.context, 0);
+    expect(node.children[0]!.label).toBe('-10'); expect(canvas.records.length).toBeGreaterThan(0);
+    expect(canvas.balanced).toBe(true); expect(canvas.context.globalAlpha).toBe(1);
+    node.setProps({ entries: [{ id: 'hit', kind: 'damage', x: 50, y: 20, amount: 10,
+      progress: .3, critical: true, presentation: 'combat' }] });
+    const bitmap = createCanvas(100,100), context = bitmap.getContext('2d');
+    root.draw(context as unknown as CanvasRenderingContext2D, 0);
+    const pixels = context.getImageData(0,0,100,100).data;
+    const colors = new Set<string>();
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 3]! > 0) colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`);
+    expect(colors.has('255,211,78')).toBe(true); expect(colors.has('63,40,50')).toBe(true); root.dispose();
+  });
   it('snaps moving entries once, retains identity and removes expired numbers', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(100,100);
     const entry = { id: 'hit', kind: 'damage' as const, x: 50.3, y: 20.7, amount: 12, critical: true, progress: .2 };

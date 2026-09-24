@@ -1,11 +1,10 @@
-import type { PixelUi } from './pixel-ui.js';
-import { drawPixelText } from './pixel-ui.js';
 import type { UiPoint, UiRect } from './geometry.js';
-import type { UiSkin } from './skin.js';
-import { drawUiLabelPlate, drawUiSkinAsset, drawUiSkinNatural, uiSkinContentRect } from './skin.js';
+import type { UiKitArt } from './kit/components/art.js';
+import { uiChat, type UiChatElement, type UiChatLine } from './kit/components/chat.js';
+import { UiRoot } from './kit/runtime/root.js';
+import { CanvasTextEditor } from './kit/runtime/text-editor.js';
+import { uiFixed } from './kit/layout/box.js';
 import { chatCommandSuggestions } from './chat-command.js';
-import { drawCanvasTextInput } from './canvas-text-input.js';
-import { ScrollBar } from './scrollbar.js';
 import { touchControlLayout } from './touch-controls.js';
 
 export const CHAT_FADE_DELAY_MS = 8_000;
@@ -15,9 +14,7 @@ const CHAT_LINE_HEIGHT = 9;
 const CHAT_VISIBLE_LINES = 7;
 const CHAT_FRAME_CONTENT_PADDING = 2;
 const CHAT_INPUT_HEIGHT = 22;
-const CHAT_SCROLLBAR_GUTTER = 14;
 const CHAT_TOGGLE_SIZE = 22;
-const CHAT_DRAG_THRESHOLD = 4;
 const CHAT_POSITION_STORAGE_KEY = 'orchard:chat-anchor';
 const CHAT_COLLAPSED_STORAGE_KEY = 'orchard:chat-collapsed';
 
@@ -32,6 +29,7 @@ export interface ChatOverlayMessage {
 }
 
 export interface ChatOverlayModel {
+  readonly sessionKey: string;
   readonly width: number;
   readonly height: number;
   readonly connected: boolean;
@@ -101,18 +99,6 @@ export function chatMessagePresentation(message: Pick<ChatOverlayMessage, 'chann
     return { text: `[From ${message.senderDisplayName}] ${message.body}`, color: '#ef9dea' };
   }
   return { text: `[${message.channelName}] ${message.senderDisplayName}: ${message.body}`, color: '#fff1cf' };
-}
-
-interface ChatLine {
-  readonly messageId: bigint;
-  readonly text: string;
-  readonly color: string;
-  readonly arrivedAt: number;
-}
-
-function contains(rect: UiRect, point: UiPoint): boolean {
-  return point.x >= rect.x && point.x < rect.x + rect.width
-    && point.y >= rect.y && point.y < rect.y + rect.height;
 }
 
 export function chatToggleButtonRect(historyRect: UiRect): UiRect {
@@ -196,486 +182,166 @@ export function hasUnseenChatMessage(
   return messages.some((message) => !knownIds.has(message.id));
 }
 
+export interface ChatOverlayPreferences {
+  read(key: string): string | null;
+  write(key: string, value: string): void;
+}
+const browserPreferences: ChatOverlayPreferences = {
+  read: key => typeof localStorage === 'undefined' ? null : localStorage.getItem(key),
+  write: (key, value) => { if (typeof localStorage !== 'undefined') localStorage.setItem(key, value); },
+};
+/** One retained composition/editor; the client owns native focus, transport and world input. */
 export class ChatOverlay {
-  private model: ChatOverlayModel = {
-    width: 480, height: 270, connected: false, canAdministerWorld: false,
-    onlinePlayerNames: [], replyPlayerName: null, messages: [],
-  };
-  private historyRect: UiRect = { x: 5, y: 133, width: 276, height: 67 };
-  private inputRect: UiRect = { x: 5, y: 203, width: 276, height: CHAT_INPUT_HEIGHT };
-  private toggleRect: UiRect = chatToggleButtonRect(this.historyRect);
+  readonly root: UiRoot;
+  readonly editor: CanvasTextEditor;
+  private readonly view: UiChatElement;
+  private model: ChatOverlayModel = { sessionKey: '', width: 480, height: 270, connected: false, canAdministerWorld: false,
+    onlinePlayerNames: [], replyPlayerName: null, messages: [] };
   private readonly arrivals = new Map<bigint, number>();
   private messagesInitialized = false;
-  private hovered = false;
-  private toggleHovered = false;
   private openValue = false;
-  private collapsedValue = this.loadCollapsed();
+  private collapsedValue: boolean;
   private unreadValue = false;
-  private errorText: string | null = null;
-  private errorAt = 0;
+  private hovered = false;
+  private anchor: UiPoint | null;
+  private dragOrigin: UiPoint | null = null;
   private suggestionIndex = 0;
-  private scrollbarFocused = false;
-  private visibleLineCount = CHAT_VISIBLE_LINES;
-  private readonly scrollBar: ScrollBar;
-  private baseLayout: ChatOverlayLayout = chatOverlayLayout(this.model);
-  private anchor: UiPoint | null = this.loadAnchor();
-  private toggleDrag: {
-    readonly start: UiPoint;
-    readonly anchor: UiPoint;
-    moved: boolean;
-  } | null = null;
-  private focusOnPointerUp = false;
-
-  constructor(
-    private readonly skin: UiSkin,
-    private readonly fonts: PixelUi,
-    private readonly input: HTMLInputElement,
-    private readonly send: (body: string) => Promise<void>,
+  private error: { text: string; arrivedAt: number } | null = null;
+  private lastDraft = '';
+  private generation = 0;
+  private request = 0;
+  private now = 0;
+  private disposed = false;
+  constructor(art: UiKitArt | undefined, private readonly send: (body: string) => Promise<void>,
     private readonly onOpenChanged: (open: boolean) => void,
-  ) {
-    this.scrollBar = new ScrollBar(skin);
-    input.id = 'chat-input';
-    input.maxLength = 240;
-    input.autocomplete = 'off';
-    input.setAttribute('aria-label', 'Chat message or command');
-    input.addEventListener('input', () => {
-      this.errorText = null;
-      this.suggestionIndex = 0;
-      this.scrollbarFocused = false;
+    private readonly preferences: ChatOverlayPreferences = browserPreferences) {
+    this.collapsedValue = storedChatCollapsed(this.read(CHAT_COLLAPSED_STORAGE_KEY));
+    this.anchor = this.readAnchor();
+    this.root = new UiRoot({ art, scale: 1, label: 'Chat' });
+    this.editor = new CanvasTextEditor({ maxLength: 240, onChange: () => this.changed() });
+    this.view = uiChat({ model: this.presentation(), editor: this.editor,
+      onSubmit: body => this.submit(body), onChange: () => this.changed(),
+      onToggle: () => this.setCollapsed(!this.collapsedValue), onOpen: () => this.open(), onDismiss: () => this.dismiss(),
+      onSuggestionIndex: index => { this.suggestionIndex = index; this.sync(); },
+      onComplete: index => this.complete(index),
+      onHover: hovered => { if (this.hovered !== hovered) { this.hovered = hovered && this.active; this.sync(); } },
+      onMove: delta => {
+        this.dragOrigin ??= { x: this.view.toggle.rect.x, y: this.view.toggle.rect.y };
+        this.anchor = { x: this.dragOrigin.x + delta.x, y: this.dragOrigin.y + delta.y }; this.sync();
+      },
+      onMoveEnd: () => { this.dragOrigin = null; if (this.anchor) this.write(CHAT_POSITION_STORAGE_KEY, JSON.stringify(this.anchor)); },
+      onMoveCancel: () => { this.dragOrigin = null; },
     });
-    input.addEventListener('keydown', (event) => {
-      event.stopPropagation();
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        this.close();
-        return;
-      }
-      if (input.value.startsWith('/') && (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-        event.preventDefault();
-        const suggestions = this.commandSuggestions();
-        if (suggestions.length === 0) return;
-        if (event.key === 'ArrowDown') this.suggestionIndex = (this.suggestionIndex + 1) % suggestions.length;
-        else if (event.key === 'ArrowUp') this.suggestionIndex = (this.suggestionIndex + suggestions.length - 1) % suggestions.length;
-        else {
-          const selected = suggestions[this.suggestionIndex % suggestions.length]!;
-          input.value = selected.completion;
-          input.setSelectionRange(input.value.length, input.value.length);
-          this.suggestionIndex = 0;
-        }
-        return;
-      }
-      const pageKey = event.key === 'PageUp' || event.key === 'PageDown';
-      const focusedScrollKey = this.scrollbarFocused
-        && (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Home' || event.key === 'End');
-      if ((pageKey || focusedScrollKey) && this.scrollBar.handleKey(event.key)) {
-        event.preventDefault();
-        return;
-      }
-      if (event.key !== 'Enter' || event.isComposing) return;
-      event.preventDefault();
-      const body = input.value.trim();
-      if (body.length === 0) {
-        this.close();
-        return;
-      }
-      input.value = '';
-      this.close();
-      void this.send(body).catch((error: unknown) => {
-        this.errorText = error instanceof Error ? error.message : String(error);
-        this.errorAt = performance.now();
-      });
-    });
-    input.addEventListener('keyup', (event) => event.stopPropagation());
-    input.addEventListener('blur', () => {
-      // iOS can emit a transient blur while resizing its visual viewport for
-      // the software keyboard. Keep the canvas chat session alive on touch;
-      // explicit send, Escape, or the chat toggle still closes it.
-      if (this.openValue && this.model.touchControls !== true) this.close();
-    });
+    this.root.mount(this.view); this.sync();
   }
-
+  get active(): boolean { return !this.disposed && this.model.connected && this.model.interactionBlocked !== true; }
   get isOpen(): boolean { return this.openValue; }
   get isCollapsed(): boolean { return this.collapsedValue; }
   get hasUnread(): boolean { return this.unreadValue; }
-  get isHovered(): boolean { return this.hovered || this.toggleHovered; }
-  dismiss(): void { this.close(); }
-
+  get isHovered(): boolean { return this.active && this.hovered; }
   update(model: ChatOverlayModel, now = performance.now()): void {
-    const keepAtEnd = this.scrollBar.atEnd;
-    this.model = model;
-    if (model.interactionBlocked === true) {
-      this.pointerCancel();
-      this.pointerLeave();
+    if (this.disposed) return;
+    if (model.sessionKey !== this.model.sessionKey || !model.connected && this.model.connected) {
+      this.generation++; this.root.input.cancelPointers(); this.root.focus.set(null); this.dismiss();
+      this.arrivals.clear(); this.messagesInitialized = false; this.unreadValue = false; this.error = null; this.editor.setValue('');
     }
-    this.baseLayout = chatOverlayLayout(model, this.skin.panelParchment.slice);
-    const layout = positionedChatOverlayLayout(this.baseLayout, model, this.anchor);
-    if (this.anchor !== null) this.anchor = { x: layout.toggle.x, y: layout.toggle.y };
-    this.inputRect = layout.input;
-    this.historyRect = layout.history;
-    this.toggleRect = layout.toggle;
-    this.visibleLineCount = layout.visibleLines;
-    const content = uiSkinContentRect(this.skin.panelParchment, this.historyRect, CHAT_FRAME_CONTENT_PADDING);
-    this.scrollBar.setBounds({
-      x: content.x + content.width - CHAT_SCROLLBAR_GUTTER,
-      y: content.y,
-      width: CHAT_SCROLLBAR_GUTTER,
-      height: content.height,
-    });
-    const current = new Set(model.messages.map((message) => message.id));
-    if (this.messagesInitialized && this.collapsedValue
-      && hasUnseenChatMessage(new Set(this.arrivals.keys()), model.messages)) {
-      this.unreadValue = true;
-    }
-    for (const message of model.messages) {
-      if (!this.arrivals.has(message.id)) {
-        this.arrivals.set(message.id, now);
-      }
-    }
+    this.model = model; this.now = now;
+    if (!this.active) { this.root.input.cancelPointers(); this.root.input.clearHover(); this.root.focus.set(null); this.hovered = false; }
+    if (this.messagesInitialized && this.collapsedValue && hasUnseenChatMessage(new Set(this.arrivals.keys()), model.messages)) this.unreadValue = true;
+    const current = new Set(model.messages.map(message => message.id));
+    for (const message of model.messages) if (!this.arrivals.has(message.id)) this.arrivals.set(message.id, now);
     for (const id of this.arrivals.keys()) if (!current.has(id)) this.arrivals.delete(id);
     this.messagesInitialized = true;
-    this.scrollBar.setMetrics(this.lines().length, this.visibleLineCount, keepAtEnd);
+    this.sync();
   }
-
-  handleGlobalKeyDown(event: KeyboardEvent): boolean {
-    if (this.model.interactionBlocked === true
-      || this.openValue || event.repeat || (event.key !== 'Enter' && event.key !== '/')) return false;
-    this.open(event.key === '/' ? '/' : '');
-    return true;
+  handleGlobalKeyDown(event: Pick<KeyboardEvent, 'key' | 'repeat'> & Partial<Pick<KeyboardEvent, 'isComposing' | 'ctrlKey' | 'metaKey' | 'altKey'>>): boolean {
+    if (!this.active || this.openValue || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || !['Enter', '/'].includes(event.key)) return false;
+    this.open(event.key === '/' ? '/' : ''); return true;
   }
-
-  pointerMove(point: UiPoint): void {
-    if (this.model.interactionBlocked === true) {
-      this.pointerLeave();
-      return;
-    }
-    if (this.toggleDrag !== null) {
-      const deltaX = point.x - this.toggleDrag.start.x;
-      const deltaY = point.y - this.toggleDrag.start.y;
-      if (!this.toggleDrag.moved
-        && deltaX * deltaX + deltaY * deltaY >= CHAT_DRAG_THRESHOLD * CHAT_DRAG_THRESHOLD) {
-        this.toggleDrag.moved = true;
-      }
-      if (this.toggleDrag.moved) {
-        this.applyAnchor({
-          x: this.toggleDrag.anchor.x + deltaX,
-          y: this.toggleDrag.anchor.y + deltaY,
-        });
-      }
-      this.toggleHovered = true;
-      this.hovered = true;
-      return;
-    }
-    this.toggleHovered = contains(this.toggleRect, point);
-    if (this.collapsedValue) {
-      this.hovered = this.toggleHovered;
-      return;
-    }
-    this.scrollBar.pointerMove(point);
-    if (this.scrollBar.swipeMove(point, 12)) {
-      this.hovered = true;
-      return;
-    }
-    this.hovered = this.toggleHovered
-      || contains(this.historyRect, point)
-      || (this.openValue && contains(this.inputRect, point));
-  }
-
-  pointerLeave(): void { this.hovered = false; this.toggleHovered = false; this.scrollBar.pointerLeave(); }
-
-  pointerDown(point: UiPoint, button: number, pointerType?: string): boolean {
-    if (this.model.interactionBlocked === true) return false;
-    if (button === 0 && contains(this.toggleRect, point)) {
-      this.toggleDrag = {
-        start: point,
-        anchor: { x: this.toggleRect.x, y: this.toggleRect.y },
-        moved: false,
-      };
-      return true;
-    }
-    if (this.collapsedValue) return false;
-    if (button !== 0 || (!contains(this.historyRect, point) && !contains(this.inputRect, point))) return false;
-    // On iOS, focusing during pointerdown and then retaining pointer capture
-    // can make the keyboard open and immediately close. Keep this interaction
-    // synchronous with the completing user gesture instead.
-    this.open('', false);
-    this.focusOnPointerUp = true;
-    if (contains(this.historyRect, point)) {
-      this.scrollbarFocused = true;
-      this.scrollBar.beginSwipe(point, this.historyRect, pointerType);
-      this.scrollBar.pointerDown(point);
-    } else {
-      this.scrollbarFocused = false;
-    }
-    return true;
-  }
-
-  pointerUp(): boolean {
-    if (this.model.interactionBlocked === true) {
-      this.pointerCancel();
-      return false;
-    }
-    if (this.toggleDrag !== null) {
-      const moved = this.toggleDrag.moved;
-      this.toggleDrag = null;
-      if (moved) this.saveAnchor();
-      else this.setCollapsed(!this.collapsedValue);
-      return true;
-    }
-    if (this.scrollBar.endSwipe()) {
-      this.focusOnPointerUp = false;
-      return true;
-    }
-    if (this.focusOnPointerUp) {
-      this.focusOnPointerUp = false;
-      this.focusInput();
-      return true;
-    }
-    return this.scrollBar.pointerUp();
-  }
-
-  pointerCancel(): void {
-    this.toggleDrag = null;
-    this.focusOnPointerUp = false;
-    this.hovered = false;
-    this.toggleHovered = false;
-    this.scrollBar.pointerLeave();
-  }
-
-  wheel(point: UiPoint, deltaY: number): boolean {
-    if (this.model.interactionBlocked === true) return false;
-    if (this.collapsedValue) return false;
-    if (!contains(this.historyRect, point) || deltaY === 0) return false;
-    this.scrollBar.wheel(deltaY);
-    return true;
-  }
-
-  draw(context: CanvasRenderingContext2D, now = performance.now()): void {
-    this.drawToggle(context);
-    const toggleTooltip = chatToggleTooltipText(
-      this.toggleHovered && this.toggleDrag === null,
-      this.model.touchControls === true,
-    );
-    if (toggleTooltip !== null) {
-      const tooltip = { x: this.toggleRect.x + this.toggleRect.width + 3, y: this.toggleRect.y + 3, width: 52, height: 16 };
-      drawUiLabelPlate(context, this.skin, tooltip);
-      drawPixelText(context, this.fonts, toggleTooltip, tooltip.x + tooltip.width / 2, tooltip.y + 4, {
-        align: 'center', color: '#5f3b24',
-      });
-    }
-    if (this.collapsedValue) return;
-    const expanded = chatHistoryExpanded(
-      this.model.touchControls === true,
-      this.openValue,
-      this.hovered,
-    );
-    const lines = this.lines();
-    const visible = lines.slice(this.scrollBar.position, this.scrollBar.position + this.visibleLineCount);
-    if (expanded) {
-      context.save();
-      context.globalAlpha = 0.9;
-      drawUiSkinAsset(context, this.skin.panelParchment, this.historyRect);
-      context.restore();
-      if (this.hovered) {
-        const panelContent = uiSkinContentRect(this.skin.panelParchment, this.historyRect, 0);
-        context.save();
-        context.globalAlpha = CHAT_HOVER_SHADE_ALPHA;
-        context.fillStyle = '#251b18';
-        context.fillRect(panelContent.x, panelContent.y, panelContent.width, panelContent.height);
-        context.restore();
-      }
-    }
-    const content = this.historyContentRect();
-    const firstLineY = content.y + content.height - visible.length * CHAT_LINE_HEIGHT;
-    context.save();
-    context.beginPath();
-    context.rect(content.x, content.y, content.width, content.height);
-    context.clip();
-    visible.forEach((line, index) => {
-      const alpha = chatLineAlpha(now - line.arrivedAt, expanded);
-      if (alpha <= 0) return;
-      const y = firstLineY + index * CHAT_LINE_HEIGHT;
-      context.save();
-      context.globalAlpha = alpha;
-      drawPixelText(context, this.fonts, line.text, content.x + 1, y + 1, { color: '#251b18' });
-      drawPixelText(context, this.fonts, line.text, content.x, y, { color: line.color });
-      context.restore();
-    });
-    context.restore();
-    if (expanded) this.scrollBar.draw(context);
-    if (!this.openValue) return;
-    const suggestions = this.commandSuggestions();
-    if (this.input.value.startsWith('/') && suggestions.length > 0) {
-      const visibleSuggestions = suggestions.slice(0, 4);
-      const predictionRect = {
-        x: this.inputRect.x,
-        y: this.inputRect.y - (visibleSuggestions.length * CHAT_LINE_HEIGHT + 20),
-        width: this.inputRect.width,
-        height: visibleSuggestions.length * CHAT_LINE_HEIGHT + 16,
-      };
-      drawUiSkinAsset(context, this.skin.panelParchment, predictionRect);
-      const predictionContent = uiSkinContentRect(this.skin.panelParchment, predictionRect, 0);
-      visibleSuggestions.forEach((suggestion, index) => {
-        const selected = index === this.suggestionIndex % visibleSuggestions.length;
-        if (selected) {
-          context.fillStyle = '#9d684366';
-          context.fillRect(predictionContent.x, predictionContent.y + index * CHAT_LINE_HEIGHT,
-            predictionContent.width, CHAT_LINE_HEIGHT);
-        }
-        drawPixelText(context, this.fonts, suggestion.label, predictionContent.x + 1,
-          predictionContent.y + index * CHAT_LINE_HEIGHT + 1, { color: '#fff1cf' });
-        drawPixelText(context, this.fonts, suggestion.label, predictionContent.x,
-          predictionContent.y + index * CHAT_LINE_HEIGHT, { color: '#3f2d25' });
-      });
-    }
-    drawUiSkinAsset(context, this.skin.frameThin, this.inputRect);
-    const prefix = this.input.value.startsWith('/') ? 'COMMAND: ' : 'SAY [General]: ';
-    drawCanvasTextInput(context, this.fonts, this.input, {
-      x: this.inputRect.x + 7,
-      y: this.inputRect.y + 6,
-      width: this.inputRect.width - 14,
-      prefix,
-      placeholder: this.input.value.startsWith('/') ? 'COMMAND' : 'MESSAGE',
-      now,
-    });
-  }
-
-  private lines(): readonly ChatLine[] {
-    const content = this.historyContentRect();
-    const maximumCharacters = Math.max(8, Math.floor(content.width / 6));
-    const messages = [...this.model.messages].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    const lines: ChatLine[] = [];
-    for (const message of messages) {
-      const presentation = chatMessagePresentation(message);
-      for (const text of wrapChatText(presentation.text, maximumCharacters)) {
-        lines.push({ messageId: message.id, text, color: presentation.color, arrivedAt: this.arrivals.get(message.id) ?? 0 });
-      }
-    }
-    if (this.errorText !== null && performance.now() - this.errorAt < CHAT_FADE_DELAY_MS + CHAT_FADE_DURATION_MS) {
-      for (const text of wrapChatText(`[Chat] ${this.errorText}`, maximumCharacters)) {
-        lines.push({ messageId: -1n, text, color: '#ffb09b', arrivedAt: this.errorAt });
-      }
-    }
-    return lines;
-  }
-
-  private commandSuggestions() {
-    return chatCommandSuggestions(
-      this.input.value,
-      this.model.onlinePlayerNames,
-      this.model.canAdministerWorld,
-      this.model.replyPlayerName,
-    );
-  }
-
-  private historyContentRect(): UiRect {
-    const content = uiSkinContentRect(this.skin.panelParchment, this.historyRect, CHAT_FRAME_CONTENT_PADDING);
-    return { ...content, width: Math.max(1, content.width - CHAT_SCROLLBAR_GUTTER) };
-  }
-
-  private applyAnchor(anchor: UiPoint): void {
-    const layout = positionedChatOverlayLayout(this.baseLayout, this.model, anchor);
-    this.anchor = { x: layout.toggle.x, y: layout.toggle.y };
-    this.inputRect = layout.input;
-    this.historyRect = layout.history;
-    this.toggleRect = layout.toggle;
-    const content = uiSkinContentRect(this.skin.panelParchment, this.historyRect, CHAT_FRAME_CONTENT_PADDING);
-    this.scrollBar.setBounds({
-      x: content.x + content.width - CHAT_SCROLLBAR_GUTTER,
-      y: content.y,
-      width: CHAT_SCROLLBAR_GUTTER,
-      height: content.height,
-    });
-  }
-
-  private loadAnchor(): UiPoint | null {
-    if (typeof localStorage === 'undefined') return null;
-    try {
-      const stored = JSON.parse(localStorage.getItem(CHAT_POSITION_STORAGE_KEY) ?? 'null') as unknown;
-      if (typeof stored !== 'object' || stored === null) return null;
-      const point = stored as { readonly x?: unknown; readonly y?: unknown };
-      return typeof point.x === 'number' && Number.isFinite(point.x)
-        && typeof point.y === 'number' && Number.isFinite(point.y)
-        ? { x: point.x, y: point.y }
-        : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private saveAnchor(): void {
-    if (this.anchor === null || typeof localStorage === 'undefined') return;
-    localStorage.setItem(CHAT_POSITION_STORAGE_KEY, JSON.stringify(this.anchor));
-  }
-
-  private loadCollapsed(): boolean {
-    if (typeof localStorage === 'undefined') return false;
-    try {
-      return storedChatCollapsed(localStorage.getItem(CHAT_COLLAPSED_STORAGE_KEY));
-    } catch {
-      return false;
-    }
-  }
-
-  private saveCollapsed(): void {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      localStorage.setItem(CHAT_COLLAPSED_STORAGE_KEY, String(this.collapsedValue));
-    } catch {
-      // Storage can be unavailable in privacy modes; retain the in-memory state.
-    }
-  }
-
-  private drawToggle(context: CanvasRenderingContext2D): void {
-    drawUiSkinAsset(
-      context,
-      this.unreadValue ? this.skin.buttonSmallConfirm : this.skin.buttonSmall,
-      this.toggleRect,
-      'idle',
-    );
-    drawUiSkinNatural(
-      context,
-      this.skin.chatIcon,
-      this.toggleRect.x + Math.round((this.toggleRect.width - 16) / 2),
-      this.toggleRect.y + Math.round((this.toggleRect.height - 16) / 2),
-    );
-  }
-
-  private setCollapsed(collapsed: boolean): void {
-    if (collapsed === this.collapsedValue) return;
-    if (collapsed) this.close();
-    this.collapsedValue = collapsed;
-    if (!collapsed) this.unreadValue = false;
-    this.hovered = false;
-    this.saveCollapsed();
-  }
-
-  private open(initialValue = '', focusInput = true): void {
-    if (!this.model.connected) return;
-    this.setCollapsed(false);
-    this.unreadValue = false;
+  open(initialValue = ''): void {
+    if (!this.active) return;
+    this.setCollapsed(false); this.unreadValue = false;
     if (!this.openValue) {
-      this.openValue = true;
-      this.scrollBar.scrollToEnd();
-      this.suggestionIndex = 0;
-      this.input.value = initialValue;
-      this.onOpenChanged(true);
+      this.openValue = true; this.editor.setValue(initialValue); this.suggestionIndex = 0; this.view.scrollToEnd(); this.onOpenChanged(true);
     }
-    if (focusInput) this.focusInput();
+    this.sync(); this.view.focusInput(); this.root.arrange();
   }
-
-  private focusInput(): void {
+  dismiss(): void {
     if (!this.openValue) return;
-    this.input.classList.add('keyboard-active');
-    this.input.focus({ preventScroll: true });
+    this.openValue = false; this.root.focus.set(null); this.onOpenChanged(false); this.sync();
   }
-
-  private close(): void {
-    if (!this.openValue) return;
-    this.openValue = false;
-    this.focusOnPointerUp = false;
-    this.scrollbarFocused = false;
-    this.input.classList.remove('keyboard-active');
-    this.input.blur();
-    this.onOpenChanged(false);
+  /** Called by the coordinator for the shared native editor's blur event. */
+  blurInput(): void { if (this.model.touchControls !== true) this.dismiss(); }
+  private setCollapsed(value: boolean): void {
+    if (value === this.collapsedValue) return;
+    if (value) this.dismiss();
+    this.collapsedValue = value; if (!value) this.unreadValue = false; this.hovered = false;
+    this.write(CHAT_COLLAPSED_STORAGE_KEY, String(value)); this.sync();
   }
+  private changed(): void {
+    const value = this.editor.snapshot().value;
+    if (value === this.lastDraft) return;
+    this.lastDraft = value; this.suggestionIndex = 0; this.error = null;
+    if (this.view) this.sync();
+  }
+  private complete(index: number): void {
+    const suggestion = this.suggestions()[index]; if (!suggestion || !this.active || !this.openValue) return;
+    this.editor.setValue(suggestion.completion); this.suggestionIndex = 0; this.sync(); this.view.focusInput(); this.root.arrange();
+  }
+  private submit(value: string): void {
+    if (!this.active || !this.openValue || this.editor.snapshot().composing) return;
+    const body = value.trim(); if (!body) { this.dismiss(); return; }
+    const generation = this.generation, request = ++this.request;
+    this.editor.setValue(''); this.dismiss();
+    const rejected = (error: unknown) => {
+      if (this.disposed || generation !== this.generation || request !== this.request) return;
+      // Completion never writes the editor: a newer draft/selection/composition is independent.
+      this.error = { text: error instanceof Error ? error.message : String(error), arrivedAt: this.now }; this.sync();
+    };
+    try { void this.send(body).catch(rejected); } catch (error) { rejected(error); }
+  }
+  private suggestions() { return chatCommandSuggestions(this.editor.snapshot().value, this.model.onlinePlayerNames, this.model.canAdministerWorld, this.model.replyPlayerName); }
+  private presentation() {
+    const lines: UiChatLine[] = [...this.model.messages].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).map(message => {
+      const { text, color } = chatMessagePresentation(message);
+      return { id: message.id.toString(), text, color, arrivedAt: this.arrivals.get(message.id) ?? this.now };
+    });
+    if (this.error && this.now - this.error.arrivedAt < CHAT_FADE_DELAY_MS + CHAT_FADE_DURATION_MS) lines.push({ id: 'local-error', text: `[Chat] ${this.error.text}`, color: '#ffb09b', arrivedAt: this.error.arrivedAt });
+    const suggestions = this.editor && this.openValue ? this.suggestions() : [];
+    this.suggestionIndex = Math.min(this.suggestionIndex, Math.max(0, suggestions.length - 1));
+    return { open: this.openValue, collapsed: this.collapsedValue, unread: this.unreadValue, hovered: this.hovered,
+      touch: this.model.touchControls === true, blocked: !this.active, lines, suggestions, suggestionIndex: this.suggestionIndex };
+  }
+  private sync(): void {
+    if (!this.view || this.disposed) return;
+    this.view.updateChat(this.presentation()); this.root.resize(this.model.width, this.model.height);
+    const base = chatOverlayLayout(this.model, [8, 8, 8, 8]);
+    // Compact shared chat needs its 24px toggle, 22px editor and a 4px gap.
+    // Commands also retain one 16px suggestion row and a second 4px gap.
+    // Thumb clearance may yield to this minimum; the software keyboard may not.
+    const minimumHeight = this.openValue ? 50 + (this.suggestions().length > 0 ? 20 : 0) : 24;
+    const keyboardInset = Math.max(0, this.model.keyboardInset ?? 0);
+    const keyboardTop = keyboardInset > 0 ? this.model.height - keyboardInset - 5 : this.model.height - 4;
+    const bottom = Math.max(28, Math.min(this.model.height - 4, keyboardTop,
+      Math.max(4 + minimumHeight, base.input.y + base.input.height)));
+    const height = Math.min(170, Math.max(24, bottom - 4));
+    const width = Math.max(24, Math.min(base.history.width, this.model.width - 8));
+    const x = Math.max(4, Math.min(this.model.width - 4 - width, this.anchor?.x ?? 5));
+    const y = Math.max(4, Math.min(bottom - height, this.anchor?.y ?? bottom - height));
+    if (this.anchor) this.anchor = { x, y };
+    this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(x), top: uiFixed(y) }, width: uiFixed(width), height: uiFixed(this.collapsedValue ? 24 : height) });
+    this.root.arrange();
+  }
+  private read(key: string): string | null { try { return this.preferences.read(key); } catch { return null; } }
+  private write(key: string, value: string): void { try { this.preferences.write(key, value); } catch { /* Privacy mode keeps in-memory preference. */ } }
+  private readAnchor(): UiPoint | null {
+    try {
+      const value = JSON.parse(this.read(CHAT_POSITION_STORAGE_KEY) ?? 'null') as unknown;
+      if (typeof value !== 'object' || value === null) return null;
+      const point = value as { x?: unknown; y?: unknown };
+      return typeof point.x === 'number' && Number.isFinite(point.x) && typeof point.y === 'number' && Number.isFinite(point.y) ? { x: point.x, y: point.y } : null;
+    } catch { return null; }
+  }
+  draw(context: CanvasRenderingContext2D, now = this.now): void { if (!this.disposed) this.root.drawInContext(context, now); }
+  dispose(): void { if (this.disposed) return; this.dismiss(); this.disposed = true; this.generation++; this.root.dispose(); }
 }

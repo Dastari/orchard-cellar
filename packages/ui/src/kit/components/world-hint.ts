@@ -20,15 +20,17 @@ export function uiWorldHint(options: UiWorldHintOptions = {}): UiElement {
     measure(element, available) {
       const hint = element.props['hint'] as UiWorldHint | null;
       if (!hint || !Number.isFinite(hint.x + hint.y)) { panel?.setStyle({ visible: false }); return { min: { width: 0, height: 0 }, preferred: available }; }
-      const next = JSON.stringify([hint.title, hint.lines, hint.tone, hint.progress !== undefined]);
+      const compact = available.width < 280 || available.height < 160;
+      const next = JSON.stringify([hint.title, hint.lines, hint.tone, hint.progress !== undefined, compact]);
       if (!panel || key !== next || artwork !== hint.artwork) {
         panel?.dispose(); key = next; artwork = hint.artwork;
         meter = hint.progress === undefined ? undefined : uiMeter({ label: 'Progress', value: hint.progress, tone: hint.tone, layout: { width: 'grow' } });
-        panel = uiFrame({ tone: hint.tone, header: { title: hint.title, content: uiText(hint.title, { role: 'label', wrap: true, layout: { width: 'grow' } }) },
-          layout: { position: 'absolute', width: uiFixed(280), height: 'fit', anchor: { target: 'top_left', self: 'bottom' } },
-          children: [uiFlex({ direction: 'row', width: 'grow', gap: 8 }, [
+        panel = uiFrame({ tone: hint.tone, padding: compact ? 4 : undefined,
+          header: compact ? undefined : { title: hint.title, content: uiText(hint.title, { role: 'label', wrap: true, layout: { width: 'grow' } }) },
+          layout: { position: 'absolute', width: uiFixed(280), height: 'fit', gap: compact ? 0 : undefined, anchor: { target: 'top_left', self: 'bottom' } },
+          children: [...(compact ? [uiText(hint.title, { role: 'label', wrap: true, layout: { width: 'grow' } })] : []), uiFlex({ direction: 'row', width: 'grow', gap: compact ? 4 : 8 }, [
             ...(hint.artwork ? [uiSprite(hint.artwork, { label: hint.title, animation: 'base', playing: false, layout: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, fit: 'contain' })] : []),
-            uiFlex({ width: 'grow', gap: 4 }, hint.lines.map(line => uiText(line, { wrap: true }))),
+            uiFlex({ width: 'grow', gap: compact ? 0 : 4 }, hint.lines.map(line => uiText(line, { wrap: true }))),
           ]), ...(meter ? [meter] : [])],
         }); element.append(panel);
       }
