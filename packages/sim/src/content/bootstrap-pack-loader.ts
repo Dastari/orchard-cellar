@@ -8,6 +8,7 @@ import dialoguesJson from '../../../assets/content/dialogues.json' with { type: 
 import effectsJson from '../../../assets/content/effects.json' with { type: 'json' };
 import enemiesJson from '../../../assets/content/enemies.json' with { type: 'json' };
 import encountersJson from '../../../assets/content/encounters.json' with { type: 'json' };
+import gearJson from '../../../assets/content/gear.json' with { type: 'json' };
 import framesJson from '../../../assets/content/frames.json' with { type: 'json' };
 import itemsJson from '../../../assets/content/items.json' with { type: 'json' };
 import lootJson from '../../../assets/content/loot.json' with { type: 'json' };
@@ -34,7 +35,7 @@ import {
 
 const BOOTSTRAP_PACK_FILES: readonly unknown[] = Object.freeze([
   progressionJson, balanceGroupsJson, balanceJson, creaturesJson, cropsJson, dialoguesJson,
-  effectsJson, enemiesJson, encountersJson, framesJson, itemsJson, lootJson, loadoutsJson, npcsJson, processesJson,
+  effectsJson, enemiesJson, encountersJson, framesJson, gearJson, itemsJson, lootJson, loadoutsJson, npcsJson, processesJson,
   objectsJson,
   questsJson, recipesJson, resourcesJson, shopsJson, skillTreesJson, spacesJson, spawnsJson,
   statisticsJson, tilesetsJson, upgradesJson, worldRulesJson,

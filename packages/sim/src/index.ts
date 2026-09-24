@@ -208,6 +208,8 @@ export * from './terrain-rule-catalogue.js';
 export * from './traversal.js';
 export * from './traversal-medium.js';
 export * from './content/world-rules-definition.js';
+export * from './content/gear-definition.js';
+export * from './content/gear-catalogue.js';
 export * from './content/runtime-traversal.js';
 export * from './map-traversal.js';
 export * from './traversal-hazards.js';
