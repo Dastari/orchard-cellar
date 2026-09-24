@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Workspace 0.46.4 — Accurate production guide recipes
+
+- Read the guide's crafting costs, outputs and shaped patterns from the same reviewed content used by the game. Show the Greenhouse's five Timber Frames, two Iron Fittings and two Stone Foundations, plus component procurement patterns.
+- Replace obsolete Build-control positioning instructions and label generated source/date honestly. The guide remains a separate documentation artifact; application versions and runtime behavior are unchanged.
+
 ## Workspace 0.46.3 — Licensed premium import verification (not yet deployed)
 
 - Preserve the original21 premium imports and check all19 approved weapon/component imports against their exact committed manifest names. Retain pixel comparisons for every premium asset; no artwork or content changes.
