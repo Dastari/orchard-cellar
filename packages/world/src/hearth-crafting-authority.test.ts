@@ -9,7 +9,10 @@ if (!statement.initializer || !ts.isCallExpression(statement.initializer)) throw
 const callback = statement.initializer.arguments.find(ts.isArrowFunction)!;
 const code = ts.transpileModule(`return (${callback.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function fixture(wood: number, blocked = false, requiresKnowledge = false) {
-  const registry=sim.buildContentRegistry([...sim.bootstrapContentRegistry().definitions.values()].map(def=>def.id==='recipe:furniture_rustic_dining_table'?{...def,requiresKnowledge}:def).map(def=>({id:def.id,kind:def.kind,json:JSON.stringify(def)}))).registry;
+  // Pins the craft reducer's authority (knowledge, station, batching, output room),
+  // not content: the table is a synthetic shapeless 28-wood recipe here, whatever
+  // the live shaped pattern is.
+  const registry=sim.buildContentRegistry([...sim.bootstrapContentRegistry().definitions.values()].map(def=>def.id==='recipe:furniture_rustic_dining_table'?{id:def.id,kind:def.kind,schemaVersion:1,output:(def as sim.RecipeContentDefinition).output,stationRequirement:{objectTag:'station.workbench'},recipeKind:'shapeless',inputs:[{item:'item:wood',count:28}],...(requiresKnowledge?{requiresKnowledge}:{})}:def).map(def=>({id:def.id,kind:def.kind,json:JSON.stringify(def)}))).registry;
   let learned=false;
   type Row = { id: number; slot: number; itemKind: string; quantity: number; durability: number; lit: boolean };
   const rows = new Map<number, Row>();

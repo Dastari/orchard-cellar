@@ -161,7 +161,7 @@ describe('equipment authority transitions',()=>{
     f.api.applyBowBeginLifecycle(f.ctx);f.clock.authorityTick+=20n;
     const modifiers=f.modifiers();
     const attributes=sim.resolveStats(sim.BASE_ATTRIBUTES,modifiers).attributes;
-    const expected=sim.resolveCombatDamage({attackKind:'ranged',weaponBaseCenti:1550,scalingAttribute:attributes.dex,
+    const expected=sim.resolveCombatDamage({attackKind:'ranged',weaponBaseCenti:1750,scalingAttribute:attributes.dex,
       armorCenti:0,armorPctBasisPoints:0,attackerModifiers:modifiers,
       seedParts:[123,'gear-player',f.clock.authorityTick,1n,'hearth_rare_bow']});
     f.api.applyBowFireLifecycle(f.ctx,64,0,500);

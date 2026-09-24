@@ -18,7 +18,7 @@ describe('furniture purchase inspection', () => {
         const details = furnitureShopDetails(registry, 'furniture_rustic_dining_table_plan');
         expect(details).toMatchObject({ itemKind: 'furniture_rustic_dining_table', isPlan: true });
         expect(details?.name).toMatch(/Plan/);
-        expect(details?.lines).toEqual(expect.arrayContaining(['RECIPE PLAN', '3 X 2 TILES', 'WORKBENCH REQUIRED', '28 Wood']));
+        expect(details?.lines).toEqual(expect.arrayContaining(['RECIPE PLAN', '3 X 2 TILES', 'WORKBENCH REQUIRED', '6 Wooden Planks', '2 Stick']));
         expect(furnitureShopDetails(registry, 'furniture_rustic_chair')?.lines).toContain('FINISHED FURNITURE');
         expect(furnitureShopDetails(registry, 'wood')).toBeNull();
     });

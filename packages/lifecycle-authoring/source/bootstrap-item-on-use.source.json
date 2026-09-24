@@ -1,7 +1,7 @@
 {
   "format": "orchard-lifecycle-source-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 18,
+  "revision": 19,
   "engineApiVersion": 1,
   "handlers": [
     {
@@ -275,6 +275,17 @@
       "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'swing' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
     },
     {
+      "itemId": "item:copper_bow",
+      "id": "item:copper_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
       "itemId": "item:copper_hoe",
       "id": "item:copper_hoe.on_use",
       "event": "onUse",
@@ -307,6 +318,17 @@
         "useWith"
       ],
       "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:copper_sword",
+      "id": "item:copper_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  context.emit({ worldTool: { action: 'swing' } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
     },
     {
       "itemId": "item:corn",
@@ -439,6 +461,17 @@
       "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'swing' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
     },
     {
+      "itemId": "item:gold_bow",
+      "id": "item:gold_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
       "itemId": "item:gold_hoe",
       "id": "item:gold_hoe.on_use",
       "event": "onUse",
@@ -471,6 +504,17 @@
         "useWith"
       ],
       "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:gold_sword",
+      "id": "item:gold_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  context.emit({ worldTool: { action: 'swing' } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
     },
     {
       "itemId": "item:grape",
@@ -685,6 +729,17 @@
         "useWith"
       ],
       "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'swing' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:iron_bow",
+      "id": "item:iron_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
     },
     {
       "itemId": "item:iron_hoe",
@@ -1113,6 +1168,17 @@
       "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'swing' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
     },
     {
+      "itemId": "item:silver_bow",
+      "id": "item:silver_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
       "itemId": "item:silver_hoe",
       "id": "item:silver_hoe.on_use",
       "event": "onUse",
@@ -1145,6 +1211,17 @@
         "useWith"
       ],
       "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:silver_sword",
+      "id": "item:silver_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  context.emit({ worldTool: { action: 'swing' } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
     },
     {
       "itemId": "item:sprinkler",
@@ -1210,6 +1287,17 @@
         "useWith"
       ],
       "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:stone_sword",
+      "id": "item:stone_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  context.emit({ worldTool: { action: 'swing' } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
     },
     {
       "itemId": "item:strawberry",
@@ -1331,6 +1419,17 @@
         "place"
       ],
       "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:wooden_sword",
+      "id": "item:wooden_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  context.emit({ worldTool: { action: 'swing' } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
     },
     {
       "itemId": "item:workbench",

@@ -2382,7 +2382,7 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('planks', true);
   });
 
-  it('crafts the selected furniture instead of a cheaper recipe sharing its ingredients', () => {
+  it('crafts the selected furniture from its shaped pattern', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
@@ -2390,7 +2390,11 @@ describe('overworld inventory and system menu', () => {
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       contentRegistry: buildContentRegistry(bootstrapContentRows()).registry,
       knownRecipeIds: ['furniture_rustic_dining_table'], nearbyCraftingStations: ['workbench'],
-      inventory: [{ slot: CRAFTING_SLOT_OFFSET, itemKind: 'wood', quantity: 57 }], hasBackpack: false,
+      inventory: [
+        ...[0, 1, 2, 3, 4, 5].map((index) => ({ slot: CRAFTING_SLOT_OFFSET + index, itemKind: 'plank', quantity: 1 })),
+        { slot: CRAFTING_SLOT_OFFSET + 6, itemKind: 'stick', quantity: 1 },
+        { slot: CRAFTING_SLOT_OFFSET + 8, itemKind: 'stick', quantity: 1 },
+      ], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,

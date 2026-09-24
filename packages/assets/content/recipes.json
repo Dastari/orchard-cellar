@@ -43,16 +43,17 @@
     "unlockHint": {
       "book": "item:marlow_book"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stick",
-        "count": 1
-      },
-      {
-        "item": "item:stone",
-        "count": 1
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone"
+      ],
+      [
+        "item:stick"
+      ],
+      [
+        "item:fiber"
+      ]
     ]
   },
   {
@@ -102,16 +103,23 @@
     "unlockHint": {
       "book": "item:marlow_book"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:leather",
-        "count": 4
-      },
-      {
-        "item": "item:string",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:leather",
+        "item:string"
+      ],
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ],
+      [
+        null,
+        "item:leather",
+        null
+      ]
     ]
   },
   {
@@ -125,20 +133,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:plank",
-        "count": 40
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 12
-      },
-      {
-        "item": "item:stone",
-        "count": 16
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:timber_frame",
+        "item:timber_frame",
+        "item:timber_frame"
+      ],
+      [
+        "item:iron_fittings",
+        "item:timber_frame",
+        "item:iron_fittings"
+      ],
+      [
+        "item:stone_foundation",
+        "item:stone_foundation",
+        "item:stone_foundation"
+      ]
     ]
   },
   {
@@ -203,6 +214,39 @@
     ]
   },
   {
+    "id": "recipe:bow",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:bow",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:stick",
+        "item:string"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:string"
+      ],
+      [
+        null,
+        "item:stick",
+        "item:string"
+      ]
+    ]
+  },
+  {
     "id": "recipe:camp_cooking_fire",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -246,16 +290,23 @@
     "unlockHint": {
       "book": "item:marlow_book"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 3
-      },
-      {
-        "item": "item:stick",
-        "count": 3
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ],
+      [
+        "item:wood",
+        "item:wood",
+        "item:wood"
+      ]
     ]
   },
   {
@@ -376,20 +427,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:plank",
-        "count": 24
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 6
-      },
-      {
-        "item": "item:stone",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:timber_frame",
+        "item:iron_fittings",
+        "item:timber_frame"
+      ],
+      [
+        "item:timber_frame",
+        null,
+        "item:timber_frame"
+      ],
+      [
+        "item:stone_foundation",
+        "item:stone_foundation",
+        "item:stone_foundation"
+      ]
     ]
   },
   {
@@ -422,6 +476,39 @@
         null,
         "item:stick",
         null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:copper_bow",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_bow",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:copper_bar",
+        "item:string"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:string"
+      ],
+      [
+        null,
+        "item:copper_bar",
+        "item:string"
       ]
     ]
   },
@@ -555,6 +642,33 @@
     ]
   },
   {
+    "id": "recipe:copper_sword",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_sword",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_bar"
+      ],
+      [
+        "item:copper_bar"
+      ],
+      [
+        "item:stick"
+      ]
+    ]
+  },
+  {
     "id": "recipe:delver_memorial_planter",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -566,20 +680,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 4
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:sunflower",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:sunflower",
+        null
+      ],
+      [
+        "item:stone",
+        "item:fiber",
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ]
     ]
   },
   {
@@ -802,16 +919,18 @@
     "unlockHint": {
       "book": "item:furniture_rustic_bed_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 40
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -828,16 +947,18 @@
     "unlockHint": {
       "book": "item:furniture_rustic_bench_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ]
     ]
   },
   {
@@ -854,12 +975,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_bookshelf_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 22
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        "item:stick",
+        "item:stick"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -876,16 +1008,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_chair_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        null,
+        null
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ]
     ]
   },
   {
@@ -902,16 +1041,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_chest_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:iron_piece",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -928,20 +1074,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_cooking_range_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 20
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 10
-      },
-      {
-        "item": "item:wood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_piece",
+        "item:iron_piece",
+        "item:iron_piece"
+      ],
+      [
+        "item:stone",
+        null,
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ]
     ]
   },
   {
@@ -958,16 +1107,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_cupboard_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 30
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:iron_piece",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -984,12 +1140,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_dining_table_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 28
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ]
     ]
   },
   {
@@ -1006,20 +1173,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_hearth_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 32
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 6
-      },
-      {
-        "item": "item:wood",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        null,
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:iron_piece",
+        "item:stone"
+      ]
     ]
   },
   {
@@ -1036,20 +1206,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_potted_fern_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 4
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:sunflower",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:sunflower",
+        null
+      ],
+      [
+        "item:stone",
+        "item:fiber",
+        "item:stone"
+      ],
+      [
+        null,
+        "item:stone",
+        null
+      ]
     ]
   },
   {
@@ -1066,12 +1239,13 @@
     "unlockHint": {
       "book": "item:furniture_rustic_runner_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:fiber",
-        "count": 44
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ]
     ]
   },
   {
@@ -1088,20 +1262,23 @@
     "unlockHint": {
       "book": "item:furniture_rustic_standing_lamp_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:copper_piece",
-        "count": 4
-      },
-      {
-        "item": "item:fiber",
-        "count": 6
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:copper_piece",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:plank",
+        null
+      ]
     ]
   },
   {
@@ -1118,16 +1295,16 @@
     "unlockHint": {
       "book": "item:furniture_rustic_stool_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 10
-      },
-      {
-        "item": "item:fiber",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        "item:stick"
+      ]
     ]
   },
   {
@@ -1144,12 +1321,18 @@
     "unlockHint": {
       "book": "item:furniture_rustic_woven_rug_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:fiber",
-        "count": 40
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ]
     ]
   },
   {
@@ -1166,12 +1349,18 @@
     "unlockHint": {
       "book": "item:furniture_rustic_writing_table_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 20
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:stick"
+      ]
     ]
   },
   {
@@ -1188,16 +1377,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_armchair_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 24
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1214,20 +1410,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_bath_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 20
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 12
-      },
-      {
-        "item": "item:copper_piece",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_piece",
+        "item:copper_piece",
+        "item:iron_piece"
+      ],
+      [
+        "item:iron_piece",
+        null,
+        "item:iron_piece"
+      ],
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ]
     ]
   },
   {
@@ -1244,16 +1443,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_bed_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 40
-      },
-      {
-        "item": "item:fiber",
-        "count": 64
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1270,12 +1476,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_bookcase_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 36
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        "item:plank",
+        "item:stick"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1292,16 +1509,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_cabinet_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 32
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:iron_piece",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:iron_piece",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1318,16 +1542,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_chair_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 14
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        null,
+        null
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ]
     ]
   },
   {
@@ -1344,16 +1575,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_dining_table_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 28
-      },
-      {
-        "item": "item:fiber",
-        "count": 20
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ]
     ]
   },
   {
@@ -1370,20 +1608,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_floor_lamp_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 14
-      },
-      {
-        "item": "item:copper_piece",
-        "count": 6
-      },
-      {
-        "item": "item:fiber",
-        "count": 12
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:copper_piece",
+        "item:fiber"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:plank",
+        null
+      ]
     ]
   },
   {
@@ -1400,20 +1641,18 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_flower_planter_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:sunflower",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:sunflower",
+        null,
+        "item:sunflower"
+      ],
+      [
+        "item:plank",
+        "item:fiber",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1430,16 +1669,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_loveseat_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 28
-      },
-      {
-        "item": "item:fiber",
-        "count": 30
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1456,12 +1702,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_patterned_rug_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:fiber",
-        "count": 96
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ]
     ]
   },
   {
@@ -1478,12 +1735,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_round_rug_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:fiber",
-        "count": 64
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:fiber",
+        null
+      ],
+      [
+        "item:fiber",
+        "item:fiber",
+        "item:fiber"
+      ],
+      [
+        null,
+        "item:fiber",
+        null
+      ]
     ]
   },
   {
@@ -1500,12 +1768,18 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_side_table_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 12
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
     ]
   },
   {
@@ -1522,20 +1796,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_table_lamp_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 6
-      },
-      {
-        "item": "item:copper_piece",
-        "count": 3
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:copper_piece",
+        null
+      ],
+      [
+        null,
+        "item:fiber",
+        null
+      ],
+      [
+        null,
+        "item:plank",
+        null
+      ]
     ]
   },
   {
@@ -1552,20 +1829,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_wall_mirror_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:stone",
-        "count": 8
-      },
-      {
-        "item": "item:copper_piece",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:copper_piece",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1582,16 +1862,20 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_wardrobe_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 40
-      },
-      {
-        "item": "item:iron_piece",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:iron_piece"
+      ],
+      [
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1608,20 +1892,23 @@
     "unlockHint": {
       "book": "item:furniture_townhouse_washstand_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 20
-      },
-      {
-        "item": "item:stone",
-        "count": 8
-      },
-      {
-        "item": "item:copper_piece",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:copper_piece",
+        null
+      ],
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -1654,6 +1941,39 @@
         null,
         "item:stick",
         null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_bow",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_bow",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:gold_bar",
+        "item:string"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:string"
+      ],
+      [
+        null,
+        "item:gold_bar",
+        "item:string"
       ]
     ]
   },
@@ -1787,6 +2107,33 @@
     ]
   },
   {
+    "id": "recipe:gold_sword",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_sword",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_bar"
+      ],
+      [
+        "item:gold_bar"
+      ],
+      [
+        "item:stick"
+      ]
+    ]
+  },
+  {
     "id": "recipe:greenhouse",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -1801,20 +2148,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:plank",
-        "count": 20
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 8
-      },
-      {
-        "item": "item:stone",
-        "count": 12
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:timber_frame",
+        "item:timber_frame",
+        "item:timber_frame"
+      ],
+      [
+        "item:timber_frame",
+        "item:iron_fittings",
+        "item:timber_frame"
+      ],
+      [
+        "item:stone_foundation",
+        "item:iron_fittings",
+        "item:stone_foundation"
+      ]
     ]
   },
   {
@@ -1832,20 +2182,23 @@
     "unlockHint": {
       "book": "item:hearth_angler_pendant_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:wood",
-        "count": 10
-      },
-      {
-        "item": "item:fiber",
-        "count": 10
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:string",
+        "item:string"
+      ],
+      [
+        "item:string",
+        "item:raw_fish",
+        "item:string"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ]
     ]
   },
   {
@@ -1862,20 +2215,23 @@
     "unlockHint": {
       "book": "item:hearth_common_body_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 48
-      },
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        "item:leather",
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        "item:leather",
+        "item:leather"
+      ]
     ]
   },
   {
@@ -1892,16 +2248,23 @@
     "unlockHint": {
       "book": "item:hearth_common_bow_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 60
-      },
-      {
-        "item": "item:fiber",
-        "count": 21
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:ashwood",
+        "item:string"
+      ],
+      [
+        "item:iron_bar",
+        "item:stick",
+        "item:string"
+      ],
+      [
+        null,
+        "item:ashwood",
+        "item:string"
+      ]
     ]
   },
   {
@@ -1918,20 +2281,18 @@
     "unlockHint": {
       "book": "item:hearth_common_feet_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ]
     ]
   },
   {
@@ -1948,20 +2309,13 @@
     "unlockHint": {
       "book": "item:hearth_common_hands_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 12
-      },
-      {
-        "item": "item:wood",
-        "count": 6
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ]
     ]
   },
   {
@@ -1978,20 +2332,18 @@
     "unlockHint": {
       "book": "item:hearth_common_head_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:leather",
+        "item:leather",
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ]
     ]
   },
   {
@@ -2008,20 +2360,23 @@
     "unlockHint": {
       "book": "item:hearth_common_legs_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:leather",
+        "item:leather",
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        null,
+        "item:leather"
+      ]
     ]
   },
   {
@@ -2038,20 +2393,23 @@
     "unlockHint": {
       "book": "item:hearth_common_shield_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:iron_bar",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        null,
+        "item:plank",
+        null
+      ]
     ]
   },
   {
@@ -2068,20 +2426,23 @@
     "unlockHint": {
       "book": "item:hearth_common_sword_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:iron_bar",
+        null
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ],
+      [
+        "item:stone",
+        "item:stick",
+        "item:stone"
+      ]
     ]
   },
   {
@@ -2099,32 +2460,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_body_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 48
-      },
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_body",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2142,28 +2494,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_bow_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 60
-      },
-      {
-        "item": "item:fiber",
-        "count": 21
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_bow",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2181,32 +2528,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_feet_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_feet",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2224,32 +2562,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_hands_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 12
-      },
-      {
-        "item": "item:wood",
-        "count": 6
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_hands",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2267,32 +2596,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_head_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_head",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2310,32 +2630,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_legs_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_legs",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2353,32 +2664,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_shield_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_shield",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2396,32 +2698,23 @@
     "unlockHint": {
       "book": "item:hearth_epic_sword_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 2
-      },
-      {
-        "item": "item:emberglass",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:hearth_rare_sword",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        null,
+        "item:cinder_ore"
+      ]
     ]
   },
   {
@@ -2439,20 +2732,23 @@
     "unlockHint": {
       "book": "item:hearth_forester_pendant_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:wood",
-        "count": 10
-      },
-      {
-        "item": "item:fiber",
-        "count": 10
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:string",
+        "item:string"
+      ],
+      [
+        "item:string",
+        "item:ashwood",
+        "item:string"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ]
     ]
   },
   {
@@ -2470,20 +2766,23 @@
     "unlockHint": {
       "book": "item:hearth_harvest_pendant_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:wood",
-        "count": 10
-      },
-      {
-        "item": "item:fiber",
-        "count": 10
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:string",
+        "item:string"
+      ],
+      [
+        "item:string",
+        "item:wheat",
+        "item:string"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ]
     ]
   },
   {
@@ -2498,36 +2797,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 48
-      },
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_body",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2542,32 +2828,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 60
-      },
-      {
-        "item": "item:fiber",
-        "count": 21
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_bow",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2582,36 +2859,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_feet",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2626,36 +2890,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 12
-      },
-      {
-        "item": "item:wood",
-        "count": 6
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_hands",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2670,36 +2921,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_head",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2714,36 +2952,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_legs",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2758,36 +2983,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_shield",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2802,36 +3014,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:cinder_ore",
-        "count": 4
-      },
-      {
-        "item": "item:emberglass",
-        "count": 4
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ],
+      [
+        "item:cinder_ore",
+        "item:hearth_epic_sword",
+        "item:cinder_ore"
+      ],
+      [
+        "item:emberglass",
+        "item:cinder_ore",
+        "item:emberglass"
+      ]
     ]
   },
   {
@@ -2849,20 +3048,23 @@
     "unlockHint": {
       "book": "item:hearth_prospector_pendant_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:wood",
-        "count": 10
-      },
-      {
-        "item": "item:fiber",
-        "count": 10
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:string",
+        "item:string"
+      ],
+      [
+        "item:string",
+        "item:copper_piece",
+        "item:string"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ]
     ]
   },
   {
@@ -2880,32 +3082,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_body_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 48
-      },
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_body",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -2923,28 +3116,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_bow_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 60
-      },
-      {
-        "item": "item:fiber",
-        "count": 21
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_bow",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -2962,32 +3150,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_feet_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_feet",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -3005,32 +3184,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_hands_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 12
-      },
-      {
-        "item": "item:wood",
-        "count": 6
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_hands",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -3048,32 +3218,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_head_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_head",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -3091,32 +3252,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_legs_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_legs",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -3134,32 +3286,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_shield_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_shield",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -3177,32 +3320,23 @@
     "unlockHint": {
       "book": "item:hearth_rare_sword_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ashwood",
+        "item:iron_bar",
+        "item:ashwood"
+      ],
+      [
+        null,
+        "item:hearth_uncommon_sword",
+        null
+      ],
+      [
+        "item:ashwood",
+        null,
+        "item:ashwood"
+      ]
     ]
   },
   {
@@ -3220,28 +3354,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_body_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 48
-      },
-      {
-        "item": "item:wood",
-        "count": 24
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      },
-      {
-        "item": "item:basalt",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_body",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3259,24 +3388,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_bow_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 60
-      },
-      {
-        "item": "item:fiber",
-        "count": 21
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      },
-      {
-        "item": "item:basalt",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_bow",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3294,28 +3422,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_feet_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_feet",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3333,28 +3456,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_hands_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 12
-      },
-      {
-        "item": "item:wood",
-        "count": 6
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_hands",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3372,28 +3490,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_head_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_head",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3411,28 +3524,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_legs_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      },
-      {
-        "item": "item:basalt",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_legs",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3450,28 +3558,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_shield_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 24
-      },
-      {
-        "item": "item:wood",
-        "count": 12
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 2
-      },
-      {
-        "item": "item:basalt",
-        "count": 2
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_shield",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3489,28 +3592,23 @@
     "unlockHint": {
       "book": "item:hearth_uncommon_sword_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 36
-      },
-      {
-        "item": "item:wood",
-        "count": 18
-      },
-      {
-        "item": "item:fiber",
-        "count": 8
-      },
-      {
-        "item": "item:ashwood",
-        "count": 4
-      },
-      {
-        "item": "item:basalt",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:basalt",
+        null
+      ],
+      [
+        "item:basalt",
+        "item:hearth_common_sword",
+        "item:basalt"
+      ],
+      [
+        null,
+        "item:basalt",
+        null
+      ]
     ]
   },
   {
@@ -3528,20 +3626,23 @@
     "unlockHint": {
       "book": "item:hearth_wayfarer_pendant_plan"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:iron_bar",
-        "count": 1
-      },
-      {
-        "item": "item:wood",
-        "count": 10
-      },
-      {
-        "item": "item:fiber",
-        "count": 10
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:string",
+        "item:string"
+      ],
+      [
+        "item:string",
+        "item:leather",
+        "item:string"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ]
     ]
   },
   {
@@ -3606,6 +3707,67 @@
       [
         null,
         "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_bow",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_bow",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:iron_bar",
+        "item:string"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:string"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        "item:string"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_fittings",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_fittings",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        null,
+        "item:iron_bar"
+      ],
+      [
+        null,
+        "item:iron_bar",
         null
       ]
     ]
@@ -3906,16 +4068,18 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:plank",
-        "count": 24
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 4
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:timber_frame",
+        "item:timber_frame",
+        "item:timber_frame"
+      ],
+      [
+        "item:timber_frame",
+        "item:iron_fittings",
+        "item:timber_frame"
+      ]
     ]
   },
   {
@@ -3995,16 +4159,23 @@
     "stationRequirement": {
       "objectTag": "station.workbench"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:stone",
-        "count": 30
-      },
-      {
-        "item": "item:iron_bar",
-        "count": 10
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone_foundation",
+        "item:iron_fittings",
+        "item:stone_foundation"
+      ],
+      [
+        "item:stone_foundation",
+        null,
+        "item:stone_foundation"
+      ],
+      [
+        "item:stone_foundation",
+        "item:iron_fittings",
+        "item:stone_foundation"
+      ]
     ]
   },
   {
@@ -4037,6 +4208,39 @@
         null,
         "item:stick",
         null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silver_bow",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_bow",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:silver_bar",
+        "item:string"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:string"
+      ],
+      [
+        null,
+        "item:silver_bar",
+        "item:string"
       ]
     ]
   },
@@ -4136,6 +4340,33 @@
         null,
         "item:stick",
         null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silver_sword",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_sword",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:silver_bar"
+      ],
+      [
+        "item:silver_bar"
+      ],
+      [
+        "item:stick"
       ]
     ]
   },
@@ -4248,6 +4479,32 @@
     ]
   },
   {
+    "id": "recipe:stone_foundation",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone_foundation",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:stone"
+      ]
+    ]
+  },
+  {
     "id": "recipe:stone_hoe",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4347,6 +4604,33 @@
     ]
   },
   {
+    "id": "recipe:stone_sword",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone_sword",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone"
+      ],
+      [
+        "item:stone"
+      ],
+      [
+        "item:stick"
+      ]
+    ]
+  },
+  {
     "id": "recipe:string",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4363,6 +4647,66 @@
         "item": "item:fiber",
         "count": 3
       }
+    ]
+  },
+  {
+    "id": "recipe:sword",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:sword",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar"
+      ],
+      [
+        "item:iron_bar"
+      ],
+      [
+        "item:stick"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:timber_frame",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:timber_frame",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:stick",
+        "item:plank"
+      ],
+      [
+        "item:stick",
+        null,
+        "item:stick"
+      ],
+      [
+        "item:plank",
+        "item:stick",
+        "item:plank"
+      ]
     ]
   },
   {
@@ -4406,16 +4750,14 @@
     "unlockHint": {
       "book": "item:marlow_book"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:wood",
-        "count": 1
-      },
-      {
-        "item": "item:fiber",
-        "count": 1
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:fiber"
+      ],
+      [
+        "item:stick"
+      ]
     ]
   },
   {
@@ -4432,16 +4774,41 @@
     "unlockHint": {
       "book": "item:marlow_book"
     },
-    "recipeKind": "shapeless",
-    "inputs": [
-      {
-        "item": "item:copper_bar",
-        "count": 1
-      },
-      {
-        "item": "item:gold_bar",
-        "count": 1
-      }
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_bar"
+      ],
+      [
+        "item:copper_bar"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:wooden_sword",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:wooden_sword",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank"
+      ],
+      [
+        "item:plank"
+      ],
+      [
+        "item:stick"
+      ]
     ]
   },
   {

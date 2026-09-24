@@ -1,17 +1,17 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 340,
-    "lifecycleRevision": 18,
-    "lifecycleBundleSha256": "fff623581f6316f60ba3851350f0bb193684a7d889f6aefdc9fe277c2d4bee0a",
-    "authoredCallbackCount": 148,
-    "inertItemCount": 90,
+    "bootstrapItemCount": 352,
+    "lifecycleRevision": 19,
+    "lifecycleBundleSha256": "50dd4bbaed6264c3754bb7e82a2b3761113a9cd4a8456cc6eeeba5cd46bfc97f",
+    "authoredCallbackCount": 157,
+    "inertItemCount": 93,
     "dataGraphItemCount": 69,
     "transactionItemCount": 33
   },
   "reattestation": {
-    "date": "2026-09-21",
-    "note": "Compost, 22 preserved provisions and two specialist meals have generated callbacks; all 90 remaining inert classifications and 69 graph/32 transaction owners are preserved. Delve completion adds the Delver Memorial Planter as a furniture-transaction item; existing callbacks and inert classifications are unchanged."
+    "date": "2026-09-24",
+    "note": "Crafting overhaul: nine new sword/bow material tiers get cloned weapon callbacks (157 total); the timber frame, iron fittings and stone foundation structure components are inert crafting materials (93 inert). Graph and transaction owners are unchanged."
   },
   "groups": [
     {
@@ -56,12 +56,15 @@
         "item:emberglass",
         "item:fiber",
         "item:guardian_seal",
+        "item:iron_fittings",
         "item:leather",
         "item:pebble",
         "item:plank",
         "item:stick",
         "item:stone",
+        "item:stone_foundation",
         "item:string",
+        "item:timber_frame",
         "item:wood"
       ]
     },

@@ -1,0 +1,66 @@
+{
+  "name": "icon_weapon_iron_bow",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "00..............",
+        "010000000.......",
+        "00213333300.....",
+        "040000133550....",
+        ".040..0013550...",
+        "..060...013330..",
+        "...060...01130..",
+        "....070...02130.",
+        ".....070...0230.",
+        "......070..0210.",
+        ".......070..010.",
+        "........060.020.",
+        ".........060020.",
+        "..........04010.",
+        "...........04010",
+        "............0000"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#6c7c9d",
+    "2": "#424c6e",
+    "3": "#8e9ab4",
+    "4": "#5d5d5d",
+    "5": "#c0cbdc",
+    "6": "#858585",
+    "7": "#b4b4b4"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Weapons_all_16x16.png",
+  "sourceRegion": [
+    16,
+    1744,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.weapon",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

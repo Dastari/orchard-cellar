@@ -1,7 +1,7 @@
 /* This file is generated from validated Orchard lifecycle source. Do not edit. */
 import { defineItemOnUse, defineItemOnUseHandlers, type AnyHandlerRegistration } from '@orchard/sim';
 
-export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "fff623581f6316f60ba3851350f0bb193684a7d889f6aefdc9fe277c2d4bee0a" as const;
+export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "50dd4bbaed6264c3754bb7e82a2b3761113a9cd4a8456cc6eeeba5cd46bfc97f" as const;
 
 export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistration[] = Object.freeze([
   ...defineItemOnUseHandlers({
@@ -546,6 +546,44 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
     },
   }),
   ...defineItemOnUseHandlers({
+    itemId: "item:copper_bow",
+    id: "item:copper_bow.on_use",
+    prompt: "USE BOW",
+    triggers: ["useWith","aimedUse"] as const,
+    run(context) {
+      if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else if (context.event.type === 'aimedUse') {
+        if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });
+        else if (context.event.phase === 'cancel') {
+          context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });
+        } else {
+          context.emit({ bowAction: {
+            phase: 'fire',
+            aimX: context.event.aimX,
+            aimY: context.event.aimY,
+            chargeMs: context.event.chargeMs,
+          } });
+        }
+      } else context.pass();
+    },
+  }),
+  ...defineItemOnUseHandlers({
     itemId: "item:copper_hoe",
     id: "item:copper_hoe.on_use",
     prompt: "USE COPPER HOE",
@@ -631,6 +669,34 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
             context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:copper_sword",
+    id: "item:copper_sword.on_use",
+    prompt: "USE SWORD",
+    triggers: ["secondary","useWith"] as const,
+    run(context) {
+      if (context.event.type === 'secondary') {
+        context.emit({ worldTool: { action: 'swing' } });
+      } else if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else context.pass();
     },
   }),
   defineItemOnUse({
@@ -887,6 +953,44 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
     },
   }),
   ...defineItemOnUseHandlers({
+    itemId: "item:gold_bow",
+    id: "item:gold_bow.on_use",
+    prompt: "USE BOW",
+    triggers: ["useWith","aimedUse"] as const,
+    run(context) {
+      if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else if (context.event.type === 'aimedUse') {
+        if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });
+        else if (context.event.phase === 'cancel') {
+          context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });
+        } else {
+          context.emit({ bowAction: {
+            phase: 'fire',
+            aimX: context.event.aimX,
+            aimY: context.event.aimY,
+            chargeMs: context.event.chargeMs,
+          } });
+        }
+      } else context.pass();
+    },
+  }),
+  ...defineItemOnUseHandlers({
     itemId: "item:gold_hoe",
     id: "item:gold_hoe.on_use",
     prompt: "USE GOLD HOE",
@@ -972,6 +1076,34 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
             context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:gold_sword",
+    id: "item:gold_sword.on_use",
+    prompt: "USE SWORD",
+    triggers: ["secondary","useWith"] as const,
+    run(context) {
+      if (context.event.type === 'secondary') {
+        context.emit({ worldTool: { action: 'swing' } });
+      } else if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else context.pass();
     },
   }),
   defineItemOnUse({
@@ -1514,6 +1646,44 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
         } else if (target.definitionId === 'object:chest') {
           context.emit({ worldTool: { action: 'target' } });
         } else context.emit({ worldTool: { action: 'target' } });
+      } else context.pass();
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:iron_bow",
+    id: "item:iron_bow.on_use",
+    prompt: "USE BOW",
+    triggers: ["useWith","aimedUse"] as const,
+    run(context) {
+      if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else if (context.event.type === 'aimedUse') {
+        if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });
+        else if (context.event.phase === 'cancel') {
+          context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });
+        } else {
+          context.emit({ bowAction: {
+            phase: 'fire',
+            aimX: context.event.aimX,
+            aimY: context.event.aimY,
+            chargeMs: context.event.chargeMs,
+          } });
+        }
       } else context.pass();
     },
   }),
@@ -2379,6 +2549,44 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
     },
   }),
   ...defineItemOnUseHandlers({
+    itemId: "item:silver_bow",
+    id: "item:silver_bow.on_use",
+    prompt: "USE BOW",
+    triggers: ["useWith","aimedUse"] as const,
+    run(context) {
+      if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else if (context.event.type === 'aimedUse') {
+        if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });
+        else if (context.event.phase === 'cancel') {
+          context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });
+        } else {
+          context.emit({ bowAction: {
+            phase: 'fire',
+            aimX: context.event.aimX,
+            aimY: context.event.aimY,
+            chargeMs: context.event.chargeMs,
+          } });
+        }
+      } else context.pass();
+    },
+  }),
+  ...defineItemOnUseHandlers({
     itemId: "item:silver_hoe",
     id: "item:silver_hoe.on_use",
     prompt: "USE SILVER HOE",
@@ -2464,6 +2672,34 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
             context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:silver_sword",
+    id: "item:silver_sword.on_use",
+    prompt: "USE SWORD",
+    triggers: ["secondary","useWith"] as const,
+    run(context) {
+      if (context.event.type === 'secondary') {
+        context.emit({ worldTool: { action: 'swing' } });
+      } else if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else context.pass();
     },
   }),
   ...defineItemOnUseHandlers({
@@ -2615,6 +2851,34 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
             context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:stone_sword",
+    id: "item:stone_sword.on_use",
+    prompt: "USE SWORD",
+    triggers: ["secondary","useWith"] as const,
+    run(context) {
+      if (context.event.type === 'secondary') {
+        context.emit({ worldTool: { action: 'swing' } });
+      } else if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else context.pass();
     },
   }),
   defineItemOnUse({
@@ -2835,6 +3099,34 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
     },
   }),
   ...defineItemOnUseHandlers({
+    itemId: "item:wooden_sword",
+    id: "item:wooden_sword.on_use",
+    prompt: "USE SWORD",
+    triggers: ["secondary","useWith"] as const,
+    run(context) {
+      if (context.event.type === 'secondary') {
+        context.emit({ worldTool: { action: 'swing' } });
+      } else if (context.event.type === 'useWith') {
+        if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
+          || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
+        else {
+          const maximum = context.item.snapshot.state?.repairMaximum;
+          const material = context.item.snapshot.state?.repairMaterial;
+          const cost = context.item.snapshot.state?.repairCostBronze;
+          const durability = context.item.snapshot.durability;
+          if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');
+          else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');
+          else {
+            context.player.consumeItem(material);
+            context.emit({ chargeBronze: cost });
+            context.item.repair();
+            context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });
+          }
+        }
+      } else context.pass();
+    },
+  }),
+  ...defineItemOnUseHandlers({
     itemId: "item:workbench",
     id: "item:workbench.place",
     prompt: "PLACE WORKBENCH",
@@ -2915,9 +3207,11 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:cooking_fire","event":"onUse","id":"item:cooking_fire.place","prompt":"PLACE COOKING FIRE","triggers":["place"]}),
   Object.freeze({"itemId":"item:coop","event":"onUse","id":"item:coop.place","prompt":"PLACE COOP","triggers":["place"]}),
   Object.freeze({"itemId":"item:copper_axe","event":"onUse","id":"item:copper_axe.world_tool","prompt":"USE COPPER AXE","triggers":["secondary","useWith"]}),
+  Object.freeze({"itemId":"item:copper_bow","event":"onUse","id":"item:copper_bow.on_use","prompt":"USE BOW","triggers":["useWith","aimedUse"]}),
   Object.freeze({"itemId":"item:copper_hoe","event":"onUse","id":"item:copper_hoe.on_use","prompt":"USE COPPER HOE","triggers":["secondary","useWith","place"]}),
   Object.freeze({"itemId":"item:copper_pickaxe","event":"onUse","id":"item:copper_pickaxe.world_tool","prompt":"USE COPPER PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:copper_shovel","event":"onUse","id":"item:copper_shovel.repair_at_anvil","prompt":"REPAIR COPPER SHOVEL","triggers":["useWith"]}),
+  Object.freeze({"itemId":"item:copper_sword","event":"onUse","id":"item:copper_sword.on_use","prompt":"USE SWORD","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:corn","event":"onUse","id":"item:corn.on_use","prompt":"EAT CORN","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:corn_seeds","event":"onUse","id":"item.corn-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:cucumber","event":"onUse","id":"item:cucumber.on_use","prompt":"EAT CUCUMBER","triggers":["secondary"]}),
@@ -2932,9 +3226,11 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:garlic","event":"onUse","id":"item:garlic.on_use","prompt":"EAT GARLIC","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:garlic_seeds","event":"onUse","id":"item.garlic-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:gold_axe","event":"onUse","id":"item:gold_axe.world_tool","prompt":"USE GOLD AXE","triggers":["secondary","useWith"]}),
+  Object.freeze({"itemId":"item:gold_bow","event":"onUse","id":"item:gold_bow.on_use","prompt":"USE BOW","triggers":["useWith","aimedUse"]}),
   Object.freeze({"itemId":"item:gold_hoe","event":"onUse","id":"item:gold_hoe.on_use","prompt":"USE GOLD HOE","triggers":["secondary","useWith","place"]}),
   Object.freeze({"itemId":"item:gold_pickaxe","event":"onUse","id":"item:gold_pickaxe.world_tool","prompt":"USE GOLD PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:gold_shovel","event":"onUse","id":"item:gold_shovel.repair_at_anvil","prompt":"REPAIR GOLD SHOVEL","triggers":["useWith"]}),
+  Object.freeze({"itemId":"item:gold_sword","event":"onUse","id":"item:gold_sword.on_use","prompt":"USE SWORD","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:grape","event":"onUse","id":"item:grape.on_use","prompt":"EAT GRAPES","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:grape_seeds","event":"onUse","id":"item.grape-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:green_pepper","event":"onUse","id":"item:green_pepper.on_use","prompt":"EAT GREEN PEPPER","triggers":["secondary"]}),
@@ -2956,6 +3252,7 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:hot_pepper","event":"onUse","id":"item:hot_pepper.on_use","prompt":"EAT HOT PEPPER","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:hot_pepper_seeds","event":"onUse","id":"item.hot-pepper-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:iron_axe","event":"onUse","id":"item:iron_axe.world_tool","prompt":"USE IRON AXE","triggers":["secondary","useWith"]}),
+  Object.freeze({"itemId":"item:iron_bow","event":"onUse","id":"item:iron_bow.on_use","prompt":"USE BOW","triggers":["useWith","aimedUse"]}),
   Object.freeze({"itemId":"item:iron_hoe","event":"onUse","id":"item:iron_hoe.on_use","prompt":"USE IRON HOE","triggers":["secondary","useWith","place"]}),
   Object.freeze({"itemId":"item:iron_pickaxe","event":"onUse","id":"item:iron_pickaxe.world_tool","prompt":"USE IRON PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:iron_shovel","event":"onUse","id":"item:iron_shovel.repair_at_anvil","prompt":"REPAIR IRON SHOVEL","triggers":["useWith"]}),
@@ -3008,15 +3305,18 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:sign","event":"onUse","id":"item:sign.place","prompt":"PLACE SIGN","triggers":["place"]}),
   Object.freeze({"itemId":"item:silo","event":"onUse","id":"item:silo.place","prompt":"PLACE SILO","triggers":["place"]}),
   Object.freeze({"itemId":"item:silver_axe","event":"onUse","id":"item:silver_axe.world_tool","prompt":"USE SILVER AXE","triggers":["secondary","useWith"]}),
+  Object.freeze({"itemId":"item:silver_bow","event":"onUse","id":"item:silver_bow.on_use","prompt":"USE BOW","triggers":["useWith","aimedUse"]}),
   Object.freeze({"itemId":"item:silver_hoe","event":"onUse","id":"item:silver_hoe.on_use","prompt":"USE SILVER HOE","triggers":["secondary","useWith","place"]}),
   Object.freeze({"itemId":"item:silver_pickaxe","event":"onUse","id":"item:silver_pickaxe.world_tool","prompt":"USE SILVER PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:silver_shovel","event":"onUse","id":"item:silver_shovel.repair_at_anvil","prompt":"REPAIR SILVER SHOVEL","triggers":["useWith"]}),
+  Object.freeze({"itemId":"item:silver_sword","event":"onUse","id":"item:silver_sword.on_use","prompt":"USE SWORD","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:sprinkler","event":"onUse","id":"item:sprinkler.place","prompt":"PLACE SPRINKLER","triggers":["place"]}),
   Object.freeze({"itemId":"item:standing_torch","event":"onUse","id":"item:standing_torch.place","prompt":"PLACE STANDING TORCH","triggers":["place"]}),
   Object.freeze({"itemId":"item:stone_axe","event":"onUse","id":"item:stone_axe.world_tool","prompt":"USE STONE AXE","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:stone_hoe","event":"onUse","id":"item:stone_hoe.on_use","prompt":"USE STONE HOE","triggers":["secondary","useWith","place"]}),
   Object.freeze({"itemId":"item:stone_pickaxe","event":"onUse","id":"item:stone_pickaxe.world_tool","prompt":"USE STONE PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:stone_shovel","event":"onUse","id":"item:stone_shovel.repair_at_anvil","prompt":"REPAIR STONE SHOVEL","triggers":["useWith"]}),
+  Object.freeze({"itemId":"item:stone_sword","event":"onUse","id":"item:stone_sword.on_use","prompt":"USE SWORD","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:strawberry","event":"onUse","id":"item:strawberry.on_use","prompt":"EAT STRAWBERRY","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:strawberry_seeds","event":"onUse","id":"item.strawberry-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:sunflower_seeds","event":"onUse","id":"item.sunflower-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
@@ -3030,6 +3330,7 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:watermelon","event":"onUse","id":"item:watermelon.on_use","prompt":"EAT WATERMELON","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:watermelon_seeds","event":"onUse","id":"item.watermelon-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:wheat_seeds","event":"onUse","id":"item.wheat-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
+  Object.freeze({"itemId":"item:wooden_sword","event":"onUse","id":"item:wooden_sword.on_use","prompt":"USE SWORD","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:workbench","event":"onUse","id":"item:workbench.place","prompt":"PLACE WORKBENCH","triggers":["place"]}),
   Object.freeze({"itemId":"item:yellow_pepper","event":"onUse","id":"item:yellow_pepper.on_use","prompt":"EAT YELLOW PEPPER","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:yellow_pepper_seeds","event":"onUse","id":"item.yellow-pepper-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]})

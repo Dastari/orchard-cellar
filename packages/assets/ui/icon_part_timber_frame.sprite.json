@@ -1,0 +1,64 @@
+{
+  "name": "icon_part_timber_frame",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "....000000......",
+        "...0112344000...",
+        "...055211234400.",
+        "..01553553111110",
+        "..05541554551230",
+        "..05531531551340",
+        ".01552552551220.",
+        ".01521552551230.",
+        ".05525521551340.",
+        "01553553151220..",
+        "05531554551230..",
+        "05535531551340..",
+        "0554552151220...",
+        ".000552551230...",
+        "....000551340...",
+        ".......00000...."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e69c69",
+    "2": "#8a4836",
+    "3": "#7d3d2b",
+    "4": "#5d2c28",
+    "5": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    16,
+    1504,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

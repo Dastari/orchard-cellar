@@ -20,7 +20,7 @@ describe('authored new-player loadout planning', () => {
       { slot: 1, itemKind: 'pickaxe', quantity: 1, durability: 250, lit: true },
       { slot: 2, itemKind: 'hoe', quantity: 1, durability: 180, lit: true },
       { slot: 3, itemKind: 'watering_can', quantity: 1, durability: 160, lit: true },
-      { slot: 4, itemKind: 'bow', quantity: 1, durability: 300, lit: true },
+      { slot: 4, itemKind: 'bow', quantity: 1, durability: 180, lit: true },
       { slot: 5, itemKind: 'arrow', quantity: 32, durability: 0, lit: true },
     ]);
     expect(plan.slots.slice(6)).toHaveLength(INVENTORY_SLOT_COUNT - 6);

@@ -1,0 +1,67 @@
+{
+  "name": "icon_weapon_iron_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............0000",
+        "...........01110",
+        "..........011110",
+        ".........0111210",
+        "........0111220.",
+        ".......0111230..",
+        ".00...0111230...",
+        ".040.0113230....",
+        ".0440213250.....",
+        "..04053250......",
+        "..0140550.......",
+        "...06100........",
+        "..0706610.......",
+        "0080.00610......",
+        "010....000......",
+        "000............."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c0cbdc",
+    "2": "#8e9ab4",
+    "3": "#6c7c9d",
+    "4": "#ffffff",
+    "5": "#424c6e",
+    "6": "#8b9bb4",
+    "7": "#8a4836",
+    "8": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Weapons_all_16x16.png",
+  "sourceRegion": [
+    16,
+    0,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.weapon",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

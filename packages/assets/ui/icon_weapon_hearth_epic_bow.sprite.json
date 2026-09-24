@@ -1,0 +1,69 @@
+{
+  "name": "icon_weapon_hearth_epic_bow",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......000.......",
+        "...0001220......",
+        ".003333120......",
+        "04344333100.....",
+        "040000010560....",
+        "0070...008560...",
+        "..090....085000.",
+        "...090....001220",
+        "....0a0...013120",
+        ".....0a0...03310",
+        "......0a0..0330.",
+        ".......090.0430.",
+        "........0900430.",
+        ".........07030..",
+        "..........0440..",
+        "..........000..."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#00cdf9",
+    "2": "#94fdff",
+    "3": "#0098dc",
+    "4": "#0069aa",
+    "5": "#ea323c",
+    "6": "#f68187",
+    "7": "#5d5d5d",
+    "8": "#891e2b",
+    "9": "#858585",
+    "a": "#b4b4b4"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Weapons_all_16x16.png",
+  "sourceRegion": [
+    80,
+    1840,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.weapon",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

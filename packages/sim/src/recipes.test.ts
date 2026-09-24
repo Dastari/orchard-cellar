@@ -74,12 +74,17 @@ describe('Systems/Economy: crafting recipe goldens', () => {
   it('pins hand recipe inputs and outputs', () => {
     expect(RECIPES.planks!).toMatchObject({ inputs: { wood: 1 }, output: { itemKind: 'plank', quantity: 4 } });
     expect(RECIPES.sticks!).toMatchObject({ pattern: [['plank'], ['plank']], output: { itemKind: 'stick', quantity: 4 } });
-    expect(RECIPES.torch!).toMatchObject({ inputs: { wood: 1, fiber: 1 }, output: { itemKind: 'torch', quantity: 2 } });
-    expect(RECIPES.campfire!).toMatchObject({ inputs: { wood: 3, stick: 3 }, output: { itemKind: 'campfire', quantity: 1 } });
+    // Shaped, Minecraft-style (owner rule 2026-09-24): fiber wick over a stick; sticks over a log bed.
+    expect(RECIPES.torch!).toMatchObject({ pattern: [['fiber'], ['stick']], output: { itemKind: 'torch', quantity: 2 } });
+    expect(RECIPES.campfire!).toMatchObject({
+      pattern: [[null, 'stick', null], ['stick', null, 'stick'], ['wood', 'wood', 'wood']], output: { itemKind: 'campfire', quantity: 1 },
+    });
     expect(RECIPES.workbench!).toMatchObject({ output: { itemKind: 'workbench', quantity: 1 } });
     expect(RECIPES.string!).toMatchObject({ inputs: { fiber: 3 }, output: { itemKind: 'string', quantity: 1 } });
     expect(RECIPES.backpack!).toMatchObject({
-      station: 'workbench', inputs: { leather: 4, string: 2 }, output: { itemKind: 'backpack', quantity: 1 },
+      station: 'workbench',
+      pattern: [['string', 'leather', 'string'], ['leather', null, 'leather'], [null, 'leather', null]],
+      output: { itemKind: 'backpack', quantity: 1 },
     });
   });
 
@@ -95,14 +100,15 @@ describe('Systems/Economy: crafting recipe goldens', () => {
   it('crafts the first ring-slot item from copper and gold at an anvil', () => {
     expect(RECIPES.watch!).toMatchObject({
       station: 'anvil',
-      inputs: { copper_bar: 1, gold_bar: 1 },
+      pattern: [['gold_bar'], ['copper_bar']],
       output: { itemKind: 'watch', quantity: 1 },
     });
     expect(recipeIngredientStacks(RECIPES.watch!)).toEqual([
       { itemKind: 'copper_bar', quantity: 1 },
       { itemKind: 'gold_bar', quantity: 1 },
     ]);
-    expect(recipeMatches(RECIPES.watch!, grid({ 0: 'gold_bar', 8: 'copper_bar' }))).toBe(true);
+    expect(recipeMatches(RECIPES.watch!, grid({ 1: 'gold_bar', 4: 'copper_bar' }))).toBe(true);
+    expect(recipeMatches(RECIPES.watch!, grid({ 0: 'gold_bar', 8: 'copper_bar' }))).toBe(false);
   });
 
   it('compacts nine small resources and gates barrels behind smelted iron', () => {
@@ -134,7 +140,7 @@ describe('Systems/Economy: crafting recipe goldens', () => {
     ]);
   });
 
-  it('Systems/Crafting: closes the wood + fiber → torch → workbench → fence chain', () => {
+  it('Systems/Crafting: closes the wood → planks/sticks → torch → workbench → fence chain', () => {
     const craft = (recipeId: keyof typeof RECIPES, slots: readonly (ItemStack | null)[]) => {
       const grid = { id: 'crafting', capacity: 9, slots };
       expect(matchingRecipeId(grid)).toBe(recipeId);
@@ -146,7 +152,7 @@ describe('Systems/Economy: crafting recipe goldens', () => {
 
     expect(craft('planks', grid({ 4: 'wood' }))).toEqual({ itemKind: 'plank', quantity: 4 });
     expect(craft('sticks', grid({ 1: 'plank', 4: 'plank' }))).toEqual({ itemKind: 'stick', quantity: 4 });
-    expect(craft('torch', grid({ 2: 'wood', 6: 'fiber' }))).toEqual({ itemKind: 'torch', quantity: 2 });
+    expect(craft('torch', grid({ 2: 'fiber', 5: 'stick' }))).toEqual({ itemKind: 'torch', quantity: 2 });
     expect(craft('workbench', grid({ 1: 'plank', 2: 'plank', 4: 'plank', 5: 'plank' })))
       .toEqual({ itemKind: 'workbench', quantity: 1 });
     expect(RECIPES.fence!.station).toBe('workbench');
