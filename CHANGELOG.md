@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## 0.28.1 — Touch inventory fix (not yet deployed)
+
+- Fixed gradual vertical touch swipes picking up an inventory item before scrolling began. Horizontal dragging, taps, scroll boundaries and held-cursor interactions retain one command per gesture.
+- Game 0.22.3 / UI 0.24.1. Regression and local reproduction tracked in [BUG-017](https://wiki.orchard.dastari.net/Bugs/BUG-017%20Inventory%20pickup%20can%20precede%20touch%20scroll%20ownership).
+
 ## 0.28.0 — UI release integration (not yet deployed)
 
 - Preserve pointer type and modifiers, scope dispatch around remaining legacy surfaces, and admit concrete shared kit modules while excluding Studio and lab factories from game bundles.
