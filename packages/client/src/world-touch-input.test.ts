@@ -1,3 +1,5 @@
+import { GameUiRuntime } from '../../ui/src/game-host/runtime.js';
+import type { UiKitArt } from '../../ui/src/kit/components/art.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TouchControls, touchControlLayout } from '@orchard/ui';
 import { WorldTouchInput, WORLD_TOUCH_HOLD_MS } from './world-touch-input.js';
@@ -126,20 +128,23 @@ describe('world touch gesture ownership', () => {
 
   it('excludes touches owned by thumb controls from world pinch recognition', () => {
     const { input, callbacks } = harness();
-    const controls = new TouchControls(true);
+    const controls = new TouchControls({} as UiKitArt, () => {}, true);
+    controls.setBounds(800,500);
+    const runtime=new GameUiRuntime();runtime.register({id:'touch',root:controls.root,priority:25,active:()=>controls.visible,blocking:()=>false});
     const layout = touchControlLayout(800, 500);
     const route = (touch: ReturnType<typeof point>) => {
-      if (controls.pointerDown(touch, touch.pointerId, 'touch', 800, 500) === null) input.pointerDown(touch);
+      if (!runtime.pointer({type:'down',point:touch,pointerId:touch.pointerId,pointerType:'touch',button:0},{hostId:'touch'})) input.pointerDown(touch);
     };
     route(point(1, layout.joystickCenter.x, layout.joystickCenter.y));
     route(point(2, 300));
-    expect(controls.ownsPointer(1)).toBe(true);
+    expect(runtime.tracksPointer(1)).toBe(true);
     expect(input.ownsPointer(1)).toBe(false);
     expect(input.pinching).toBe(false);
     input.pointerUp(point(2, 300));
     expect(callbacks.zoomTo).not.toHaveBeenCalled();
     expect(callbacks.tap).toHaveBeenCalledTimes(1);
-    controls.pointerUp(1);
+    runtime.pointer({type:'up',point:layout.joystickCenter,pointerId:1,pointerType:'touch',button:0});
+    runtime.dispose();controls.dispose();
   });
 
   it('ignores unrelated UI pointer releases and consumes all pinch fingers', () => {

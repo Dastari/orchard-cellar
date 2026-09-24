@@ -9,7 +9,7 @@ const characterName = readFileSync(new URL('../../ui/src/character-name-prompt.t
 
 describe('overworld UI compositing order', () => {
   it('draws the system cursor after every other scene overlay', () => {
-    const frameStart = main.indexOf('questTracker.draw(uiContext)');
+    const frameStart = main.indexOf('touchControls.draw(uiContext)');
     const frameEnd = main.indexOf("if (!interfaceHidden && debugCollision", frameStart);
     const composite = main.slice(frameStart, frameEnd);
     const cursor = composite.indexOf('overworldUi.drawCursorOverlay(uiContext)');
@@ -30,9 +30,9 @@ describe('overworld UI compositing order', () => {
     const palette = input.indexOf("retainedPointers.dispatch('down', event, 'build-palette')");
     expect(trade).toBeGreaterThan(0); expect(palette).toBeGreaterThan(0);
     expect(build).toBeGreaterThan(trade);
-    expect(build).toBeLessThan(input.indexOf('touchControls.pointerDown'));
+    expect(build).toBeLessThan(input.indexOf("retainedPointers.dispatch('down', event, 'touch-controls')"));
     expect(build).toBeLessThan(palette);
-    const frame = main.slice(main.indexOf('questTracker.draw(uiContext)'));
+    const frame = main.slice(main.indexOf('touchControls.draw(uiContext)'));
     expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('touchControls.draw'));
     expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('homesteadBuildPalette.draw'));
   });
@@ -102,4 +102,20 @@ it('retires legacy chat input and preserves retained ownership through native ca
   expect(main).toContain("retainedUi.focus('chat'); syncRetainedText()");
   expect(main).toContain('nativeChatOwner && !retainedPointers.hasCapture');
   expect(main).toContain("props['editor'] === chatOverlay.editor");
+});
+
+it('keeps touch controls on one retained multi-pointer route and leaves world keys authoritative', () => {
+ expect(main).toContain('new TouchControls(kitArt, dispatchTouchControlAction)');
+ expect(main).toContain("retainedPointers.dispatch('down', event, 'touch-controls')");
+ expect(main).not.toMatch(/touchControls\.(pointerDown|pointerUp|pointerCancel|pointerMove|ownsPointer)\(/);
+ expect(main).not.toContain("retainedUi.key(event, 'touch-controls')");
+ expect(main).toContain('touchControls.setBounds(width, height)');
+ expect(main).toContain('touchControls.dispose()');
+});
+
+
+it('paints thumb controls beneath the HUD and quest tracker', () => {
+ const touch=main.indexOf('touchControls.draw(uiContext)');
+ expect(touch).toBeLessThan(main.indexOf('overworldUi.drawHud(uiContext)'));
+ expect(touch).toBeLessThan(main.indexOf('questTracker.draw(uiContext)'));
 });

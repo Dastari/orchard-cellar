@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.38.0 / UI 0.40.0 — Shared touch controls (not yet deployed)
+
+- Use the same five-action touch composition as Studio, preserving eight-way movement, deadzone, action timing, held block and independent pointer custody. Central retained capture owns all thumb-control tails while world pinch and hold gestures keep their existing authority.
+- Keep all controls onscreen at compact sizes and maximum saved offset (BUG-027); preserve swap preferences and cancel stale movement/holds on resize, modal takeover or recovery. Retire legacy touch drawing and input together.
+- Render the ordinary collision-height diagnostic in font_5x7. Workspace0.44.0.
+
 ## Client 0.37.0 / UI 0.39.0 — Shared online-player roster (not yet deployed)
 
 - Adopt the shared roster with real identities, online/idle status, roles and owner permissions. Keep role cycling distinct from remove-and-kick and recheck current scope, role and authority before transport.
