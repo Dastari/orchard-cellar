@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadBootstrapPackDefinitions } from './content/bootstrap-pack-loader.js';
+import { gearFixtureRegistry, gearFixtureCatalogue } from './content/gear-catalogue.fixture.js';
 import {
   compileGearCatalogue,
   gearStatDisplayValue,
@@ -7,7 +7,6 @@ import {
   isGearWeaponBase,
 } from './content/gear-catalogue.js';
 import {
-  bootstrapGearCatalogue,
   gearModifiers,
   isGearInstanceId,
   itemGearDisplayName,
@@ -19,7 +18,7 @@ import {
   type ItemGear,
 } from './item-gear.js';
 
-const catalogue = bootstrapGearCatalogue();
+const catalogue = gearFixtureCatalogue();
 const gear = (fields: Partial<ItemGear>): ItemGear => ({
   instanceId: '4242', rollVersion: 1, rarity: 'common', material: 'iron', itemLevel: 12,
   prefix: '', suffix: '', lineage: '', legendary: '', seed: 7, ...fields,
@@ -70,7 +69,7 @@ describe('ItemGear derivation', () => {
 
   it('is deterministic and ignores the seed', () => {
     const copy = gear({ rarity: 'epic', material: 'steel', itemLevel: 22, lineage: 'dawnsworn' });
-    const recompiled = compileGearCatalogue(loadBootstrapPackDefinitions())!;
+    const recompiled = compileGearCatalogue(gearFixtureRegistry().registry.gear.values())!;
     expect(gearModifiers(copy, catalogue)).toEqual(gearModifiers(copy, recompiled));
     expect(gearModifiers({ ...copy, seed: 123_456 }, catalogue)).toEqual(gearModifiers(copy, catalogue));
     expect(itemGearDisplayName(copy, 'greathelm', catalogue)).toBe(itemGearDisplayName(copy, 'greathelm', recompiled));

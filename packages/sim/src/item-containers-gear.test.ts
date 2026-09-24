@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BOOTSTRAP_ITEM_CONTAINER_CONTENT,
   clickContainerSlot,
+  distributeItemStack,
   insertItemStack,
   insertItemStackPartial,
   itemStacksCompatible,
@@ -86,5 +87,25 @@ describe('instanced gear stacks', () => {
       { container: 'a', index: 1, button: 'left' }, content);
     expect(placed.ok && placed.outcome).toBe('swap');
     expect(placed.ok && [placed.containers.a!.slots[1], placed.cursor]).toEqual([sword, woodCopy('46')]);
+  });
+
+  // Regression (BeigeShore, PR #139 review): distribute compared only item kinds,
+  // so one quantity-1 gear copy merged into another and its record vanished.
+  it('never distribute a gear copy into another stack, and move it whole into one empty slot', () => {
+    const containers = { backpack: container('backpack', [woodCopy('10'), woodCopy('11'), { itemKind: 'wood', quantity: 2 }, null, null]) };
+    const into = (index: number) => ({ container: 'backpack', index });
+    const merged = distributeItemStack(containers, { fromContainer: 'backpack', fromIndex: 0, targets: [into(1), into(2)] }, content);
+    expect(merged).toEqual(expect.objectContaining({ ok: false }));
+    const moved = distributeItemStack(containers, { fromContainer: 'backpack', fromIndex: 0, targets: [into(3), into(4)] }, content);
+    expect(moved.ok && moved.containers['backpack']!.slots).toEqual([
+      null, woodCopy('11'), { itemKind: 'wood', quantity: 2 }, woodCopy('10'), null,
+    ]);
+    // Plain stacks still never merge into a gear copy.
+    const plain = distributeItemStack(containers, { fromContainer: 'backpack', fromIndex: 2, targets: [into(1)] }, content);
+    expect(plain).toEqual(expect.objectContaining({ ok: false }));
+    // A malformed multi-quantity gear stack is refused rather than split into duplicate ids.
+    const broken = { backpack: container('backpack', [{ ...woodCopy('12'), quantity: 2 }, null, null]) };
+    expect(distributeItemStack(broken, { fromContainer: 'backpack', fromIndex: 0, targets: [into(1), into(2)] }, content))
+      .toEqual(expect.objectContaining({ ok: false }));
   });
 });

@@ -917,6 +917,11 @@ export function distributeItemStack(
   if (!Number.isSafeInteger(requestedQuantity) || requestedQuantity <= 0 || requestedQuantity > source.quantity) {
     return failure('invalid_quantity');
   }
+  // A gear copy is one unique item: it only ever moves whole into one empty
+  // slot, never merges into another stack and never splits (which would
+  // duplicate or drop its record).
+  const instanced = source.gear !== undefined;
+  if (instanced && source.quantity !== 1) return failure('invalid_quantity');
 
   const seen = new Set<string>();
   const targets = request.targets.filter((target) => {
@@ -931,9 +936,9 @@ export function distributeItemStack(
     if (!Number.isSafeInteger(target.index) || target.index < 0 || target.index >= container.capacity) return [];
     if (!slotAcceptsItem(container, target.index, source.itemKind, content)) return [];
     const stack = container.slots[target.index] ?? null;
-    if (stack !== null && stack.itemKind !== source.itemKind) return [];
+    if (stack !== null && (stack.itemKind !== source.itemKind || instanced || stack.gear !== undefined)) return [];
     return [{ ...target, available: (content.maxStackFor(source.itemKind) ?? 0) - (stack?.quantity ?? 0) }];
-  }).filter((target) => target.available > 0);
+  }).filter((target) => target.available > 0).slice(0, instanced ? 1 : undefined);
   if (capacities.length === 0) return failure('container_full');
   const movedQuantity = Math.min(requestedQuantity, capacities.reduce((sum, target) => sum + target.available, 0));
   if (movedQuantity <= 0) return failure('container_full');

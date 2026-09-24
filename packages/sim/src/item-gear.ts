@@ -1,6 +1,4 @@
-import { loadBootstrapPackDefinitions } from './content/bootstrap-pack-loader.js';
 import {
-  compileGearCatalogue,
   gearRarityRank,
   gearStatDisplayValue,
   gearStatModifierValue,
@@ -44,15 +42,6 @@ export interface ItemGear {
 }
 
 export const GEAR_ROLL_VERSION = 1;
-
-let bootstrapCatalogue: GearCatalogue | undefined;
-/** Gear catalogue compiled from the committed bootstrap pack, for previews and
- * tests. Authorities compile from their active registry instead. */
-export function bootstrapGearCatalogue(): GearCatalogue {
-  bootstrapCatalogue ??= compileGearCatalogue(loadBootstrapPackDefinitions()) ?? undefined;
-  if (bootstrapCatalogue === undefined) throw new Error('bootstrap_gear_rules_missing');
-  return bootstrapCatalogue;
-}
 
 const U64_MAX = (1n << 64n) - 1n;
 const U32_MAX = 0xffff_ffff;

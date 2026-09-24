@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bootstrapContentRegistry, bootstrapContentRows } from './bootstrap-registry.js';
+import { bootstrapContentRegistry } from './bootstrap-registry.js';
+import { bootstrapRowsWithGearFixture, gearFixtureRegistry } from './gear-catalogue.fixture.js';
 import { compileGearCatalogue } from './gear-catalogue.js';
 import { parseGearDefinition } from './gear-definition.js';
 import { buildContentRegistry } from './registry.js';
 
-const rows = bootstrapContentRows();
+const rows = bootstrapRowsWithGearFixture();
 const json = (id: string): Record<string, unknown> => JSON.parse(rows.find((row) => row.id === id)!.json as string) as Record<string, unknown>;
 const rules = () => json('gear:rules') as { stats: Record<string, unknown>[]; itemLevelBands: Record<string, unknown>[]; rarities: Record<string, unknown>[] } & Record<string, unknown>;
 
@@ -19,8 +20,12 @@ function packWith(...changed: Record<string, unknown>[]) {
 const errors = (report: ReturnType<typeof packWith>) => report.errors.map(({ code, definitionId, message }) => `${code} ${definitionId ?? ''}: ${message}`);
 
 describe('gear content', () => {
-  it('loads and validates the committed gear catalogue', () => {
-    const registry = bootstrapContentRegistry();
+  it('ships the gear reader with no gear rows in the committed pack (staged rollout)', () => {
+    expect(bootstrapContentRegistry().gear.size).toBe(0);
+  });
+
+  it('loads and validates the gear catalogue fixture with the bootstrap pack', () => {
+    const registry = gearFixtureRegistry().registry;
     expect(registry.gear.size).toBe(145);
     const catalogue = compileGearCatalogue(registry.gear.values())!;
     expect([catalogue.materials.size, catalogue.prefixes.size, catalogue.suffixes.size, catalogue.lineages.size,
@@ -29,7 +34,7 @@ describe('gear content', () => {
   });
 
   it('maps every stat to a real modifier target or a gear-boostable skill node', () => {
-    const catalogue = compileGearCatalogue(bootstrapContentRegistry().gear.values())!;
+    const catalogue = compileGearCatalogue(gearFixtureRegistry().registry.gear.values())!;
     const skillNodes = [...bootstrapContentRegistry().skillTrees.values()].flatMap(({ nodes }) => nodes)
       .filter((node) => node.gearBoostable === true).map(({ id }) => id);
     for (const stat of catalogue.stats.values()) {
