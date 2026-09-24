@@ -6,8 +6,10 @@ import type { UiSkin } from './skin.js';
 import type { PixelUi } from './pixel-ui.js';
 import { uiTestArt } from './kit/lab/testing/art.js';
 import type { UiKitArt } from './kit/components/art.js';
-import type { UiRoot } from './kit/runtime/root.js';
+import { UiRoot } from './kit/runtime/root.js';
+import { uiButton } from './kit/components/button.js';
 import { GameUiRuntime } from './game-host/runtime.js';
+import { DEFAULT_TOUCH_CONTROL_PREFERENCES, touchControlLayout } from './touch-control-layout.js';
 
 let art: UiKitArt;
 beforeAll(async () => { art = await uiTestArt(); vi.stubGlobal('document', { createElement: () => createCanvas(1, 1), querySelector: () => null }); });
@@ -23,7 +25,8 @@ function fixture() {
     dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0, raining: false, weatherMode: 'auto', prompt: null, toast: null,
     contentRegistry: bootstrapContentRegistry(), vitals: { playerId: 'self', health: 300, maxHealth: 1000, mana: 400, maxMana: 1000, vigour: 500, maxVigour: 1000 },
     targetVitals: { targetId: 'npc:1', displayName: 'Long named creature', health: 9, maxHealth: 12, portrait: { kind: 'combat_target' } } };
-  ui.update(model); const roots = ui.enableRetainedHud(art), runtime = new GameUiRuntime();
+  ui.update(model); const runtime = new GameUiRuntime();
+  const roots = ui.enableRetainedHud(art, surface => { runtime.focus(surface); });
   for (const surface of ['zoneMinimap','hotbarVitals','targetEffects'] as const) runtime.register({ id: surface, root: roots[surface], priority: 50,
     active: () => ui.retainedHudVisible(surface) && ui.openWindow === null && !ui.blockingUpdatePromptVisible, blocking: () => false });
   cleanup.push(() => { runtime.dispose(); ui.disposeRetainedHud(); });
@@ -96,4 +99,91 @@ it('keeps compact default quests above target controls and restores them after e
   expect(f.ui.questTrackerVisible).toBe(true); updateTracker(); expect(tracker.currentBounds).toEqual(bounds);
   f.update({width:640,height:360}); expect(f.ui.minimapBounds.height).toBe(92); expect(f.ui.questTrackerRegion).toBeUndefined();
   f.update({width:320,height:180}); expect(f.ui.minimapBounds.height).toBe(24); expect(f.ui.questTrackerVisible).toBe(true);
+});
+
+it('projects touch enablement and saved placement into the actual parent HUD without changing desktop layout', () => {
+  const f = fixture();
+  const desktop = f.ui.minimapBounds;
+  for (const swapped of [false, true]) {
+    const preferences = { ...DEFAULT_TOUCH_CONTROL_PREFERENCES, swapped, bottomOffset: 120 };
+    f.update({ touchControls: true, touchControlPreferences: preferences, trackedQuestCount: 1 });
+    const region = f.ui.questTrackerRegion!;
+    const touch = touchControlLayout(320, 180, preferences);
+    const radius = touch.joystickRadius + 8;
+    const controls = [
+      { x: touch.joystickCenter.x - radius, y: touch.joystickCenter.y - radius, width: radius * 2, height: radius * 2 },
+      touch.blockButton, touch.jumpButton, touch.secondaryButton, touch.interactButton, touch.dodgeButton,
+    ];
+    expect(region.height).toBe(38);
+    for (const rect of controls) expect(region.x < rect.x + rect.width && region.x + region.width > rect.x
+      && region.y < rect.y + rect.height && region.y + region.height > rect.y).toBe(false);
+    expect(f.roots.zoneMinimap.entries().some(entry => entry.element.id === 'game.hud.compact.tab.you' && entry.element.visible)).toBe(true);
+    expect(preferences).toEqual({ ...DEFAULT_TOUCH_CONTROL_PREFERENCES, swapped, bottomOffset: 120 });
+  }
+  f.update({ touchControls: false, trackedQuestCount: 0 });
+  expect(f.ui.questTrackerRegion).toBeUndefined();
+  expect(f.ui.minimapBounds).toEqual(desktop);
+});
+
+it('hands compact page keyboard focus through the actual parent and returns to its tab', () => {
+  const f = fixture();
+  f.update({ touchControls: true, trackedQuestCount: 1 });
+  f.roots.zoneMinimap.arrange();
+  const status = f.roots.zoneMinimap.entries().find(entry => entry.element.id === 'game.hud.compact.tab.status')!.element.rect;
+  const p = { x: status.x + status.width / 2, y: status.y + status.height / 2 };
+  f.runtime.pointer({ type: 'down', point: p, pointerId: 91, button: 0 });
+  f.runtime.pointer({ type: 'up', point: p, pointerId: 91, button: 0 });
+  const tabTo = (id: string) => {
+    for (let attempt = 0; attempt < 24 && f.runtime.focusedElement?.id !== id; attempt++) f.runtime.key({ key: 'Tab' });
+    expect(f.runtime.focusedElement?.id).toBe(id);
+  };
+  tabTo('game.hud.clear-target');
+  f.runtime.key({ key: 'Enter' });
+  expect(f.clear).toHaveBeenCalledExactlyOnceWith('npc:1');
+  f.runtime.key({ key: 'Escape' });
+  expect(f.runtime.focusedElement?.id).toBe('game.hud.compact.tab.status');
+  expect(f.ui.openWindow).toBeNull();
+  tabTo('game.hud.compact.tab.you');
+  f.runtime.key({ key: 'Enter' });
+  tabTo('game.hud.purse:button');
+  f.runtime.key({ key: 'Escape' });
+  expect(f.runtime.focusedElement?.id).toBe('game.hud.compact.tab.you');
+  expect(f.ui.openWindow).toBeNull();
+});
+
+it.each([true, false])('keeps empty STATUS keyboard navigation available (initially empty: %s)', initiallyEmpty => {
+  const f = fixture();
+  f.update({ touchControls: true, trackedQuestCount: 1, effects: [], ...(initiallyEmpty ? { targetVitals: undefined } : {}) });
+  f.roots.zoneMinimap.arrange();
+  const status = f.roots.zoneMinimap.entries().find(entry => entry.element.id === 'game.hud.compact.tab.status')!.element.rect;
+  const p = { x: status.x + status.width / 2, y: status.y + status.height / 2 };
+  f.runtime.pointer({ type: 'down', point: p, pointerId: 92, button: 0 });
+  f.runtime.pointer({ type: 'up', point: p, pointerId: 92, button: 0 });
+  if (!initiallyEmpty) f.update({ targetVitals: undefined });
+  expect(f.runtime.focusedElement?.id).toBe('game.hud.compact.status.empty');
+  expect(f.runtime.key({ key: 'Tab' })).toBe(true);
+  expect(f.runtime.key({ key: 'Escape' })).toBe(true);
+  expect(f.runtime.focusedElement?.id).toBe('game.hud.compact.tab.status');
+  expect(f.ui.openWindow).toBeNull();
+});
+
+it('repairs a vanished status control locally without taking keyboard ownership from another host', () => {
+  const f = fixture(); f.update({ touchControls: true, effects: [] });
+  f.roots.zoneMinimap.arrange();
+  const status = f.roots.zoneMinimap.entries().find(entry => entry.element.id === 'game.hud.compact.tab.status')!.element.rect;
+  const p = { x: status.x + status.width / 2, y: status.y + status.height / 2 };
+  f.runtime.pointer({ type: 'down', point: p, pointerId: 93, button: 0 });
+  f.runtime.pointer({ type: 'up', point: p, pointerId: 93, button: 0 });
+  const other = new UiRoot({ scale: 1 }); other.resize(320, 180);
+  other.mount(uiButton({ id: 'other-host-control', label: 'Other host' }));
+  f.runtime.register({ id: 'other', root: other, priority: 200, active: () => true, blocking: () => false });
+  cleanup.push(() => other.dispose()); other.arrange();
+  const rect = other.entries().find(entry => entry.element.id === 'other-host-control')!.element.rect;
+  const q = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  f.runtime.pointer({ type: 'down', point: q, pointerId: 94, button: 0 });
+  f.runtime.pointer({ type: 'up', point: q, pointerId: 94, button: 0 });
+  expect(f.runtime.focusedElement?.id).toBe('other-host-control');
+  f.update({ targetVitals: undefined });
+  expect(f.roots.targetEffects.focus.current?.id).toBe('game.hud.compact.status.empty');
+  expect(f.runtime.focusedElement?.id).toBe('other-host-control');
 });

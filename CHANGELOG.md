@@ -15,6 +15,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 - Keep equipment inspection above inventory slots and damage above world hints. Scope notice actions to the current identity, connection and notice; preserve the K shortcut and authoritative expiry. Compact rejection messages take precedence when no readable notice space remains.
 - Complete central adoption of all 33 migration surfaces, including shared touch actions in Studio's UI lab. Workspace0.45.0; final browser, combined CI and signed-in release acceptance remain gates. Engine0.24.0, Sim0.25.1 retain the merged terrain release.
 
+## Client 0.38.1 / UI 0.40.1 — Responsive touch and HUD composition (not yet deployed)
+
+- Fit touch controls beside the actual compact HUD and pinned quests so Block and the joystick remain reachable. Preserve hotbar slot authority, full status information through shared scrolling, saved placement preferences and single-primary HUD gesture policy.
+- Fit full player/target status around touch capture areas in wide and portrait layouts; preserve non-touch geometry and saved preferences. Workspace0.44.1. BUG-029 browser acceptance and final combined checks remain required before publication.
+
 ## Client 0.38.0 / UI 0.40.0 — Shared touch controls (not yet deployed)
 
 - Use the same five-action touch composition as Studio, preserving eight-way movement, deadzone, action timing, held block and independent pointer custody. Central retained capture owns all thumb-control tails while world pinch and hold gestures keep their existing authority.

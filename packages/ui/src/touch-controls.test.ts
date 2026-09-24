@@ -83,7 +83,7 @@ describe('production shared touch adapter',()=>{
 
 describe('canonical production thumb layout',()=>{
  it('preserves normal portrait/landscape positions and clamps persisted preferences',()=>{
-  expect(touchControlLayout(390,844).joystickCenter.y).toBe(770);const portrait=touchControlLayout(390,844);expect(portrait.interactButton.y+portrait.interactButton.height).toBe(793);
+  expect(touchControlLayout(390,844).joystickCenter.y).toBe(765);const portrait=touchControlLayout(390,844);expect(portrait.interactButton.y+portrait.interactButton.height).toBe(793);
   const landscape=touchControlLayout(844,390);expect(landscape.joystickCenter.y).toBe(350);expect(landscape.interactButton).toMatchObject({y:328,height:30});
   expect(normalizeTouchControlPreferences({swapped:true,bottomOffset:150})).toEqual({swapped:true,bottomOffset:120});expect(normalizeTouchControlPreferences({bottomOffset:NaN})).toEqual({swapped:false,bottomOffset:0});
  });
@@ -102,6 +102,19 @@ describe('canonical production thumb layout',()=>{
    const preferences:TouchControlPreferences={swapped,bottomOffset};controls.setPreferences(preferences);controls.setBounds(width,height);const layout=touchControlLayout(width,height,preferences);
    for(const action of actionNames){controls.root.arrange();const node=controls.root.entries().find(entry=>entry.element.id===`game.touch-controls:${action}`)!.element;expect(node.rect).toEqual(layout[`${action}Button`]);expect(node.clip).toEqual(node.rect);onAction.mockClear();pointer('down',center(node.rect));pointer('up',center(node.rect));expect(onAction).toHaveBeenCalledExactlyOnceWith(action);}
    for(const scale of[1,2,3]){const canvas=createCanvas(Math.round(width*scale*1.25),Math.round(height*scale*1.25)),ctx=canvas.getContext('2d');ctx.scale(scale*1.25,scale*1.25);controls.draw(ctx as unknown as CanvasRenderingContext2D);expect(ctx.getImageData(0,0,canvas.width,canvas.height).data.some(value=>value!==0)).toBe(true);if(evidence&&bottomOffset===120)writeFileSync(`${evidence}/touch-${width}x${height}-swap${swapped}-scale${scale}-dpr1.25.png`,canvas.toBuffer('image/png'));}
+  }
+ });
+});
+
+// BUG-029: isolated on-screen bounds are insufficient; reserve the real HUD chrome.
+describe('compact combined touch reservations', () => {
+ it.each([false, true])('keeps full thumb captures between chrome and hotbar when swapped=%s', swapped => {
+  for (const [width, height] of [[320, 180], [480, 270]]) for (const bottomOffset of [0, 40, 120]) {
+   const layout = touchControlLayout(width!, height!, { swapped, bottomOffset });
+   const radius = layout.joystickRadius + 8;
+   const boxes = [{ x: layout.joystickCenter.x-radius, y: layout.joystickCenter.y-radius, width: radius*2, height: radius*2 }, ...actionNames.map(name => layout[`${name}Button`])];
+   for (const box of boxes) { expect(box.y).toBeGreaterThanOrEqual(40); expect(box.y+box.height).toBeLessThanOrEqual(height!-6-31-4); }
+   expect(normalizeTouchControlPreferences({swapped,bottomOffset}).bottomOffset).toBe(bottomOffset);
   }
  });
 });

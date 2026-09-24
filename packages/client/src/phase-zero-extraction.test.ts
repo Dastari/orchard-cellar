@@ -192,7 +192,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Reviewed feedback projection preserves dwell/notification authority and retires
 // legacy production drawing and notice hits together; real-parent geometry and
 // actual-source privacy/timing/scope regressions pass independently.
-const STRUCTURAL_SEAM_DIGEST = 'e5f3be8042666b0ec5fa51d1b30e65f1dddbcfd0ad48bb6473fe51581bf326ec';
+// BUG029 forwards actual touch placement and explicit compact-page keyboard ownership.
+// Actual-parent runtime tests cover layout, one target command and Escape focus return.
+const STRUCTURAL_SEAM_DIGEST = 'f0b192a4ead42b834ab71d314479fc32689bee264f28740b99ad008321f7aeb9';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

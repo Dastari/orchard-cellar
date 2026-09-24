@@ -290,9 +290,10 @@ it.each(['quest-tracker','hud-hotbarVitals'])('gives %s the compact overlap befo
   down(1,42,150);expect(controls.direction).toBe('idle');expect(actions).not.toHaveBeenCalled();
   target.dispatchEvent(pointer('pointerup',1,42,150));expect(commands).toHaveBeenCalledTimes(1);
   modal=false;controls.setBlocked(false);
-  down(2,42,120);expect(controls.direction).toBe('up');expect(captures.has(2)).toBe(true);
+  const stick=touchControlLayout(320,180).joystickCenter;
+  down(2,stick.x,stick.y-20);expect(controls.direction).toBe('up');expect(captures.has(2)).toBe(true);
   down(3,42,150);target.dispatchEvent(pointer('pointerup',3,42,150));expect(commands).toHaveBeenCalledTimes(2);
-  expect(controls.direction).toBe('idle');target.dispatchEvent(pointer('pointerup',2,42,120));
+  expect(controls.direction).toBe('idle');target.dispatchEvent(pointer('pointerup',2,stick.x,stick.y-20));
   expect(captures.size).toBe(0);expect(world).not.toHaveBeenCalled();expect(refresh).not.toHaveBeenCalled();
  }finally{adapter.dispose();runtime.dispose();controls.dispose();foreground.dispose();}
 });
