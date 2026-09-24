@@ -199,6 +199,16 @@ function drawAuthoredDownFrame(
   drawBand(21, 10, rect.y + rect.height - lowerBodyHeight, 10);
 }
 
+/** The authored speech frame for `tone` stretched to `rect`, its tail on the `direction` side (the down tail
+ * hangs 5px below the rect). Shared by the kit's world speech so both draw the same bubble. */
+export function drawSpeechBubbleFrame(context: CanvasRenderingContext2D, asset: LoadedAsset, rect: UiRect, direction: SpeechBubbleDirection): void {
+  drawAuthoredFrame(context, asset, rect, direction);
+}
+/** Light text on the saturated bubbles, dark ink on the white and beige ones. */
+export function speechBubbleInk(kind: SpeechBubbleKind): string {
+  return kind === 'shout' || kind === 'tell' || kind === 'guild' || kind === 'thought' ? '#fff1cf' : '#3f2d25';
+}
+
 function drawAuthoredFrame(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset,
@@ -237,13 +247,12 @@ export function drawSpeechBubble(
 ): void {
   const asset = bubbleAsset(skin, kind);
   drawAuthoredFrame(context, asset, rect, direction);
-  const lightText = kind === 'shout' || kind === 'tell' || kind === 'guild' || kind === 'thought';
   layout.lines.forEach((line, index) => drawPixelText(
     context,
     fonts,
     line,
     rect.x + rect.width / 2,
     rect.y + VERTICAL_PADDING + index * LINE_HEIGHT,
-    { align: 'center', color: lightText ? '#fff1cf' : '#3f2d25' },
+    { align: 'center', color: speechBubbleInk(kind) },
   ));
 }
