@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.36.0 / UI 0.38.0 — Shared account and loading gateways (not yet deployed)
+
+- Adopt the shared account composition and all three loading hosts with responsive safe-area bounds and font_5x7. Keep native name editing, profile validation, OIDC navigation and music under their existing authorities; cancel duplicate and stale commands while busy.
+- Preserve the permanent startup canvas, one animation loop, loading-stage projection and accessible pre-asset status. Retire the account's legacy input and drawing together. Workspace 0.42.0 / Engine 0.24.0.
+
 ## Client 0.35.0 / UI 0.37.0 — Shared chat and native editing (not yet deployed)
 
 - Adopt the shared chat composition with existing message/whisper commands, arrival-based fade, history, unread state, draggable position, suggestions and 240-character editor. Preserve drafts through deferred failures, touch keyboard transitions and harmless authority updates.

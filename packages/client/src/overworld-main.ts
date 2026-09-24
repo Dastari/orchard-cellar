@@ -15,7 +15,7 @@ import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
 import { orchardHarvestPrompt } from './orchard-presentation.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
-import { drawInitialWorldLoading } from './initial-world-loading.js';
+import { drawInitialWorldLoading, disposeInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
@@ -259,7 +259,7 @@ setLoadingScreenStage({
 });
 const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
 const retainedUi = new GameUiRuntime();
-upgradeLoadingScreen(art.ui, art.uiSkin, art.fruitItems['apple'] ?? art.missingItem);
+upgradeLoadingScreen(kitArt, art.fruitItems['apple'] ?? art.missingItem);
 setLoadingScreenStage({
   title: 'SAILING TO YOUR ISLAND', detail: 'CONNECTING TO THE SHARED WORLD', progress: 58,
 });
@@ -1185,7 +1185,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
-  overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
+  disposeInitialWorldLoading(renderer); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
   retainedText.input.removeEventListener('blur', handleRetainedTextBlur);
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose(); chatOverlay.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
@@ -4547,8 +4547,8 @@ function renderFrame(alpha = 1): void {
       const recoveryState = connectionRecoveryState();
       if (recoveryState === null) {
         drawInitialWorldLoading(renderer, {
-          ui: art.ui, skin: art.uiSkin, apple: art.fruitItems['apple'] ?? art.missingItem,
-        }, loadingStage, import.meta.env.VITE_CLIENT_VERSION);
+          kitArt, apple: art.fruitItems['apple'] ?? art.missingItem,
+        }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
       } else {
         connectionRecoveryOverlay.composite(renderer, overlayViewport, recoveryState, hasRenderedWorldFrame);
       }

@@ -4,7 +4,6 @@ import {
   rememberLocalProfile,
   validLocalProfileName,
 } from './account-profile.js';
-import { accountButtonRects, accountPointerAction } from './account-actions.js';
 import {
   beginOidcLogin,
   completeOidcCallback,
@@ -19,14 +18,11 @@ import {
 import {
   canvasHostViewport,
   canvasSafeAreaInsets,
-  centeredFixedSceneLayout,
   insetCanvasViewport,
 } from '@orchard/engine/display';
 import { loadGeneratedAsset } from '@orchard/ui';
-import { drawPixelText, loadPixelUi } from '@orchard/ui';
-import { drawUiSkinAsset, loadGameplayUiSkin } from '@orchard/ui';
-import { drawCanvasTextInput } from '@orchard/ui';
-import { drawGatewayFrame } from '@orchard/ui';
+import { GameGateway, GameUiRuntime, UiTextBridge, loadUiKitArt, gameGatewayLayout } from '@orchard/ui/game';
+import { RetainedUiPointers } from './retained-ui-input.js';
 import { drawOrchardBackdrop, loadOrchardBackdrop } from '@orchard/ui';
 import { AudioBus } from '@orchard/engine/audio/audio-bus';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen } from '@orchard/engine/loading-screen';
@@ -40,10 +36,8 @@ const loggingOut = new URLSearchParams(initialSearch).has('logout');
 if (oidcCallback || loggingOut) history.replaceState(null, '', '/');
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
-const inputElement = document.querySelector<HTMLInputElement>('#account-name');
-if (canvasElement === null || inputElement === null) throw new Error('Missing account canvas controls');
+if (canvasElement === null) throw new Error('Missing account canvas');
 const canvas: HTMLCanvasElement = canvasElement;
-const input: HTMLInputElement = inputElement;
 canvas.classList.add('account-screen');
 void loadOrchardBackdrop();
 const canvasContext = canvas.getContext('2d');
@@ -56,10 +50,10 @@ void audio.unlock().catch(() => undefined);
 setLoadingScreenStage({
   title: 'OPENING THE ORCHARD', detail: 'LAYING OUT THE ACCOUNT DESK', progress: 55,
 });
-const [ui, skin, orchardEmblem] = await Promise.all([
-  loadPixelUi(), loadGameplayUiSkin(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
+const [kitArt, orchardEmblem] = await Promise.all([
+  loadUiKitArt(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
 ]);
-upgradeLoadingScreen(ui, skin, orchardEmblem);
+upgradeLoadingScreen(kitArt, orchardEmblem);
 const clientVersion = import.meta.env.VITE_CLIENT_VERSION;
 
 let authSession: OidcSession | null = null;
@@ -88,39 +82,72 @@ let message = oidcConfigured
   ? authSession === null ? 'CREATE AN ACCOUNT OR SIGN IN TO CONTINUE' : `WELCOME BACK, ${authSession.displayName.toUpperCase()}`
   : localProfilesEnabled ? 'ACCOUNT LOGIN OFF - LOCAL DEV PREVIEW' : 'ACCOUNT LOGIN IS NOT CONFIGURED';
 let viewport = canvasHostViewport(canvas);
-let scene = centeredFixedSceneLayout(viewport.width, viewport.height);
+let safeArea = canvasSafeAreaInsets(canvas);
+let scene = gameGatewayLayout(viewport.width, viewport.height);
 let displayPixelRatio = Math.max(1, devicePixelRatio);
 let navigationPending = false;
 let animationFrameId: number | null = null;
+const accountEvents = new AbortController();
+const gateway = new GameGateway(kitArt, {
+  onAction(action) {
+    if (authBusy || navigationPending) return;
+    if (action === 'toggle-preview') { localPreview = !localPreview; resize(); }
+    else if (action === 'continue-local') submitLocal();
+    else if (action === 'enter-world') launchAccount();
+    else if (action === 'sign-out') {
+      authSession = null; authBusy = true; message = 'SIGNING OUT';
+      navigateWithMusic(() => { void signOutOidc(); });
+    } else void submitAccount(action === 'register' ? 'register' : action === 'recover' ? 'recover' : 'login');
+    updateGateway();
+  },
+  onSelectProfile(index) { if (profiles.names[index] !== undefined) { selected = index; updateGateway(); } },
+  onNameChange(name) { message = validLocalProfileName(name.trim()) ? 'PRESS ENTER TO CREATE OR CONTINUE' : 'TYPE A NEW FARMER NAME'; },
+  onDismissName() { message = 'CHOOSE A FARMER OR TYPE A NEW NAME'; },
+}, { emblem: orchardEmblem, version: clientVersion });
+const runtime = new GameUiRuntime();
+runtime.register({ id: 'gateway', root: gateway.root, priority: 1, active: () => gateway.active, blocking: () => true });
+const text = new UiTextBridge(canvas, () => runtime.focusedElement, event => gateway.root.key(event), element => {
+  const bounds = canvas.getBoundingClientRect(), sx = bounds.width / Math.max(1, viewport.width), sy = bounds.height / Math.max(1, viewport.height);
+  return { x: bounds.left + (safeArea.left + element.rect.x * scene.scale) * sx,
+    y: bounds.top + (safeArea.top + element.rect.y * scene.scale) * sy,
+    width: element.rect.width * scene.scale * sx, height: element.rect.height * scene.scale * sy };
+}, () => {});
+text.input.setAttribute('autocomplete', 'nickname');
+const syncText = () => { if (!pointers.hasCapture) text.sync(); };
+const pointers = new RetainedUiPointers(canvas, window, runtime, event => {
+  const bounds = canvas.getBoundingClientRect();
+  return { x: ((event.clientX - bounds.left) * viewport.width / Math.max(1, bounds.width) - safeArea.left) / scene.scale,
+    y: ((event.clientY - bounds.top) * viewport.height / Math.max(1, bounds.height) - safeArea.top) / scene.scale };
+}, syncText, () => {});
+function updateGateway(): void {
+  gateway.update({ scopeKey: authSession?.subject ?? 'signed-out', localPreview, signedIn: authSession !== null,
+    displayName: authSession?.displayName, profiles: profiles.names, selected, message, error: authError ?? undefined,
+    busy: authBusy || navigationPending, allowLocalPreview: localProfilesEnabled, allowPreviewToggle: oidcConfigured && localProfilesEnabled });
+  runtime.reconcile();
+}
+
 
 function navigateWithMusic(action: () => void): void {
   if (navigationPending) return;
   navigationPending = true;
+  updateGateway();
   void audio.fadeOutForNavigation().finally(action);
 }
 
 function resize(): void {
   viewport = canvasHostViewport(canvas);
-  const safeArea = canvasSafeAreaInsets(canvas);
+  safeArea = canvasSafeAreaInsets(canvas);
   const safeViewport = insetCanvasViewport(viewport.width, viewport.height, safeArea);
-  const safeScene = centeredFixedSceneLayout(safeViewport.width, safeViewport.height);
-  scene = {
-    ...safeScene,
-    x: safeScene.x + safeArea.left,
-    y: safeScene.y + safeArea.top,
-  };
+  const visibleHeight = Math.min(safeViewport.height, Math.max(1, (window.visualViewport?.height ?? viewport.height) - safeArea.top - safeArea.bottom));
+  scene = gameGatewayLayout(safeViewport.width, visibleHeight);
+  gateway.setBounds(scene.frame, scene.width, scene.height);
   displayPixelRatio = Math.max(1, devicePixelRatio);
   canvas.width = Math.round(viewport.width * displayPixelRatio);
   canvas.height = Math.round(viewport.height * displayPixelRatio);
   canvas.style.width = `${viewport.width}px`;
   canvas.style.height = `${viewport.height}px`;
   context.imageSmoothingEnabled = false;
-  const rect = canvas.getBoundingClientRect();
-  input.style.left = `${rect.left + scene.x + 102 * scene.scale}px`;
-  input.style.top = `${rect.top + scene.y + 187 * scene.scale}px`;
-  input.style.width = `${276 * scene.scale}px`;
-  input.style.height = `${23 * scene.scale}px`;
-  input.hidden = !localPreview;
+  updateGateway(); syncText();
 }
 
 function launchLocal(name: string): void {
@@ -136,50 +163,6 @@ function launchAccount(): void {
   });
 }
 
-function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
-  drawPixelText(context, ui, text, x, y - 7, { align, color });
-}
-
-function drawAccountLogin(): void {
-  drawUiSkinAsset(context, skin.panelParchment, { x: 82, y: 87, width: 316, height: 118 });
-  if (authSession !== null) {
-    drawText('SIGNED IN AS', 240, 111, '#91672e', 'center');
-    drawText(authSession.displayName.toUpperCase(), 240, 129, '#6f451f', 'center');
-    drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.enterWorld, 'idle');
-    drawText('ENTER THE ORCHARD', 240, 162, '#fff2d0', 'center');
-    drawUiSkinAsset(context, skin.buttonDeny, accountButtonRects.signOut, 'idle');
-    drawText('SIGN OUT', 240, 190, '#fff2d0', 'center');
-    return;
-  }
-  drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.signIn, 'idle');
-  drawText('SIGN IN', 167, 157, '#fff2d0', 'center');
-  drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.register, 'idle');
-  drawText('CREATE ACCOUNT', 313, 157, '#fff2d0', 'center');
-  drawUiSkinAsset(context, skin.button, accountButtonRects.recover, 'idle');
-  drawText('RECOVER ACCOUNT', 240, 188, '#5b3d22', 'center');
-}
-
-function drawLocalPreview(): void {
-  const visibleStart = Math.max(0, Math.min(selected - 2, profiles.names.length - 5));
-  const visible = profiles.names.slice(visibleStart, visibleStart + 5);
-  if (visible.length === 0) drawText('NO SAVED FARMERS YET', 240, 116, '#91672e', 'center');
-  for (const [index, name] of visible.entries()) {
-    const absolute = visibleStart + index;
-    const y = 96 + index * 20;
-    drawUiSkinAsset(context, absolute === selected ? skin.buttonConfirm : skin.button, { x: 102, y: y - 13, width: 276, height: 18 }, 'idle');
-    drawText(`${absolute === selected ? '> ' : '  '}${name.toUpperCase()}`, 111, y, absolute === selected ? '#fff2d0' : '#5b3d22');
-  }
-  drawText('NEW DEVELOPMENT FARMER', 102, 183, '#6f451f');
-  drawUiSkinAsset(context, skin.frameThin, { x: 102, y: 187, width: 276, height: 23 });
-  drawCanvasTextInput(context, ui, input, {
-    x: 110,
-    y: 193,
-    width: 256,
-    placeholder: 'TYPE 3-20 CHARACTERS',
-    displayValue: input.value.toUpperCase(),
-  });
-}
-
 function render(): void {
   animationFrameId = null;
   if (displayPixelRatio !== Math.max(1, devicePixelRatio)) resize();
@@ -187,17 +170,9 @@ function render(): void {
   context.imageSmoothingEnabled = false;
   drawOrchardBackdrop(context, viewport.width, viewport.height);
   context.save();
-  context.translate(scene.x, scene.y);
+  context.translate(safeArea.left, safeArea.top);
   context.scale(scene.scale, scene.scale);
-  const accountHeight = localPreview ? 222 : 200;
-  drawGatewayFrame(context, { ui, skin, apple: orchardEmblem }, clientVersion, accountHeight);
-  if (localPreview) drawText('LOCAL DEVELOPMENT PREVIEW', 240, 73, '#91672e', 'center');
-  drawText((authError ?? message).slice(0, 58).toUpperCase(), 240, 83, authError ? '#a43b2f' : '#6f451f', 'center');
-
-  if (localPreview) drawLocalPreview();
-  else drawAccountLogin();
-
-  if (localPreview) drawText('ARROWS SELECT  ENTER CONTINUE  N NEW', 240, 218, '#6f451f', 'center');
+  updateGateway(); gateway.draw(context); syncText();
   context.restore();
   animationFrameId = requestAnimationFrame(render);
 }
@@ -213,7 +188,7 @@ function stopRendering(): void {
 }
 
 function submitLocal(): void {
-  const name = input.value.trim();
+  const name = gateway.editor.snapshot().value.trim();
   if (name.length > 0) {
     if (!validLocalProfileName(name)) {
       message = 'USE 3-20 LETTERS, NUMBERS, SPACES, - OR APOSTROPHE';
@@ -224,7 +199,7 @@ function submitLocal(): void {
   }
   const chosen = profiles.names[selected];
   if (chosen === undefined) {
-    input.focus();
+    gateway.focusName();
     message = 'TYPE A FARMER NAME FIRST';
     return;
   }
@@ -240,97 +215,44 @@ async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
   }
   authBusy = true;
   message = intent === 'login' ? 'OPENING SIGN IN' : 'OPENING ACCOUNT SERVICE';
+  updateGateway();
   try {
     await beginOidcLogin(intent);
   } catch (error: unknown) {
     authBusy = false;
     authError = error instanceof Error ? error.message : 'Unable to start login.';
+    updateGateway();
   }
 }
 
-window.addEventListener('resize', resize);
-window.visualViewport?.addEventListener('resize', resize);
+window.addEventListener('resize', resize, { signal: accountEvents.signal });
+window.visualViewport?.addEventListener('resize', resize, { signal: accountEvents.signal });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopRendering();
+  if (document.hidden) { stopRendering(); pointers.cancel(); }
   else {
     resize();
     startRendering();
   }
-});
-window.addEventListener('keydown', (event) => {
+}, { signal: accountEvents.signal });
+window.addEventListener('keydown', event => {
+  if (event.target === text.input) return;
   void audio.unlock().catch(() => undefined);
-  if (oidcConfigured && localProfilesEnabled && event.key.toLowerCase() === 'd' && document.activeElement !== input && !event.repeat) {
-    localPreview = !localPreview;
-    input.blur();
-    resize();
-    event.preventDefault();
-    return;
-  }
-  if (!localPreview) {
-    if (event.key === 'Enter' && !event.repeat) void submitAccount();
-    else if (event.key.toLowerCase() === 'l' && authSession !== null && !event.repeat) {
-      authSession = null;
-      authBusy = true;
-      message = 'SIGNING OUT';
-      navigateWithMusic(() => { void signOutOidc(); });
-    }
-    return;
-  }
-  if (document.activeElement === input && event.key !== 'Escape') {
-    if (event.key === 'Enter') submitLocal();
-    return;
-  }
-  if (event.key === 'ArrowUp' && profiles.names.length > 0) {
-    selected = (selected - 1 + profiles.names.length) % profiles.names.length;
-    event.preventDefault();
-  } else if (event.key === 'ArrowDown' && profiles.names.length > 0) {
-    selected = (selected + 1) % profiles.names.length;
-    event.preventDefault();
-  } else if (event.key.toLowerCase() === 'n') {
-    input.focus();
-  } else if (event.key === 'Enter') {
-    submitLocal();
-  } else if (event.key === 'Escape') {
-    input.value = '';
-    input.blur();
-    message = 'CHOOSE A FARMER OR TYPE A NEW NAME';
-  }
-});
-canvas.addEventListener('pointerdown', (event) => {
+  if (gateway.handleGlobalKeyDown(event) || gateway.root.key(event)) { event.preventDefault(); updateGateway(); syncText(); }
+}, { signal: accountEvents.signal });
+canvas.addEventListener('pointerdown', event => {
   void audio.unlock().catch(() => undefined);
-  const rect = canvas.getBoundingClientRect();
-  const x = (event.clientX - rect.left - scene.x) / scene.scale;
-  const y = (event.clientY - rect.top - scene.y) / scene.scale;
-  if (!localPreview) {
-    const action = accountPointerAction(authSession !== null, x, y);
-    if (action === 'enter-world') launchAccount();
-    else if (action === 'sign-out') {
-      authSession = null;
-      authBusy = true;
-      message = 'SIGNING OUT';
-      navigateWithMusic(() => { void signOutOidc(); });
-    } else if (action === 'sign-in') void submitAccount();
-    else if (action === 'register') void submitAccount('register');
-    else if (action === 'recover') void submitAccount('recover');
-    return;
-  }
-  if (x >= 102 && x <= 378 && y >= 187 && y <= 207) {
-    input.focus();
-    return;
-  }
-  if (x < 102 || x > 378 || y < 85 || y > 190) return;
-  const visibleStart = Math.max(0, Math.min(selected - 2, profiles.names.length - 5));
-  const row = Math.floor((y - 85) / 20);
-  const next = visibleStart + row;
-  if (profiles.names[next] !== undefined) {
-    selected = next;
-    input.value = '';
-    input.blur();
-  }
-});
-input.addEventListener('input', () => {
-  message = validLocalProfileName(input.value.trim()) ? 'PRESS ENTER TO CREATE OR CONTINUE' : 'TYPE A NEW FARMER NAME';
-});
+  if (pointers.dispatch('down', event, 'gateway')) event.preventDefault();
+}, { signal: accountEvents.signal });
+canvas.addEventListener('pointermove', event => { pointers.dispatch('move', event, 'gateway'); }, { signal: accountEvents.signal });
+canvas.addEventListener('pointerleave', () => runtime.clearHover(), { signal: accountEvents.signal });
+canvas.addEventListener('wheel', event => {
+  const bounds = canvas.getBoundingClientRect(), unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.height : 1;
+  if (runtime.wheel({ point: { x: ((event.clientX - bounds.left) * viewport.width / Math.max(1,bounds.width) - safeArea.left) / scene.scale,
+    y: ((event.clientY - bounds.top) * viewport.height / Math.max(1,bounds.height) - safeArea.top) / scene.scale },
+    deltaX:event.deltaX * unit / scene.scale,deltaY:event.deltaY * unit / scene.scale },'gateway')) event.preventDefault();
+}, {passive:false, signal: accountEvents.signal});
+window.addEventListener('blur', () => pointers.cancel(), { signal: accountEvents.signal });
+import.meta.hot?.dispose(() => { stopRendering(); accountEvents.abort(); pointers.dispose(); text.dispose(); runtime.dispose(); gateway.dispose(); });
 
 resize();
 dismissLoadingScreen();
