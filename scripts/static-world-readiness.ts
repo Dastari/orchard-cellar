@@ -217,7 +217,7 @@ export function requirementFailures(
 ): readonly string[] {
   const failures: string[] = [];
   if (step !== 'step4') {
-    if (legacyModules === null) failures.push('no valid client build audit (run npm run client:build)');
+    if (legacyModules === null) failures.push('no valid client build audit (run npm run build -w @orchard/client)');
     else if (legacyModules.length > 0) failures.push(`client build still bundles ${legacyModules.length} legacy module(s)`);
   }
   const blocking = blockingProbes(results, step);
@@ -247,7 +247,7 @@ export function main(argv: readonly string[], repoRoot = resolve('.')): number {
         console.log(`  manual  ${gate.id} — ${gate.evidence}`);
       }
     }
-    console.log(`\nclient build legacy modules: ${legacyModules === null ? 'no valid build audit (run npm run client:build)' : legacyModules.length}`);
+    console.log(`\nclient build legacy modules: ${legacyModules === null ? 'no valid build audit (run npm run build -w @orchard/client)' : legacyModules.length}`);
   }
 
   if (args.required === null) return 0;

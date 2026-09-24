@@ -42,7 +42,7 @@ describe('static-world readiness', () => {
 
   it('requires a valid client build audit for steps 5 and 6', () => {
     expect(requirementFailures([], null, 'step4')).toEqual([]);
-    expect(requirementFailures([], null, 'step5')).toEqual(['no valid client build audit (run npm run client:build)']);
+    expect(requirementFailures([], null, 'step5')).toEqual(['no valid client build audit (run npm run build -w @orchard/client)']);
     expect(requirementFailures([], ['packages/engine/src/terrain.ts'], 'step6')).toEqual(['client build still bundles 1 legacy module(s)']);
     expect(requirementFailures([], [], 'step6')).toEqual([]);
   });

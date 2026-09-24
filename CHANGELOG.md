@@ -2,6 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.40.3 / UI 0.42.0 / Studio 0.15.3 — Reviewed rendering and UI foundations
+
+- Render actor shadows at native pixel resolution with prepared sun-angle fades. Preserve receiver lighting, contact shadows and existing Canvas/WebGL boundaries.
+- Add the authored dark tooltip frame, quality inks, item-tooltip and currency kit components, plus an offline gear rig/catalogue renderer. These additive exports do not replace production equipment tooltips or activate instanced gear gameplay.
+- Add static-world readiness probes with strict arguments and validated build-audit envelopes. Report manual gates separately; D6 remains shadow and chunks remain off. Correct the diagnostic's client build command.
+- Retain the reviewed passive-chat drawing/hit-area correction from Client0.40.2. Workspace0.47.0, Engine0.24.1, Assets0.21.0 and Tools0.23.0 reconcile the combined source. World0.25.0, contentR18 and stored schemas are unchanged by this batch. PR136/139 are excluded pending their separate integration.
+
 ## Client 0.40.2 / UI 0.41.2 / Studio 0.15.2 — Passive chat scrollbar
 
 - Hide the closed chat history scrollbar and its thumb hit area together when history is not expanded. Preserve recent passive messages, stored history, draft, focus and scroll offset; show normal scroll controls on desktop hover or open input.
