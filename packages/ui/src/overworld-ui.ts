@@ -1,3 +1,4 @@
+import type { GameFeedbackModel } from './game-host/feedback.js';
 import { GameHud, type GameHudSurface } from './game-host/hud.js';
 import { DelveConfirmationUi, UpdateReadyUi } from './game-host/overlays.js';
 import { SystemMenus } from './game-host/system-menus.js';
@@ -1170,6 +1171,38 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 }
 
 export class OverworldUi {
+  private retainedFeedback = false;
+  enableRetainedFeedback(): void { this.retainedFeedback = true; }
+  /** Project existing hover/dwell/notification authority; shared roots own paint. */
+  feedbackHud(now: number): Omit<GameFeedbackModel['hud'], 'notice'> {
+    const allowed = this.openWindowValue === null || this.openWindowValue === 'system' || this.isInventoryWindow(this.openWindowValue);
+    const item = this.hoveredItem();
+    const detailsReady = this.equipmentTooltipDwell.ready(item?.itemKind ?? null, now);
+    const text = allowed && (!this.gameHud || this.isInventoryWindow(this.openWindowValue)) ? this.tooltipText() : null;
+    let tooltip: GameFeedbackModel['hud']['tooltip'] = null;
+    if (text) {
+      const gear = !detailsReady || this.model.touchControls === true || text.startsWith('REQUIRES ') || item === null || this.model.contentRegistry === undefined ? null : equipmentDescriptionLines(
+        this.model.contentRegistry, item.itemKind, this.model.inventory, this.model.selectedSlot,
+        Object.fromEntries((this.model.skills?.ranks ?? []).map(({ nodeId, rank }) => [nodeId, rank])), this.model.skills?.skillPriority ?? [],
+      );
+      const details = gear === null ? null : item?.durability === undefined ? gear : gear.map(line =>
+        line.startsWith('MAX DURABILITY ') ? `DURABILITY ${item.durability} / ${line.slice(15)}` : line);
+      const base = this.touchInventoryTooltipRect();
+      // Keep touch labels below the actual window hotbar. Desktop details grow
+      // upward above the existing tooltip anchor without covering its slots.
+      tooltip = { text: details?.join('\n') ?? text,
+        anchor: { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
+        ...(details ? { maxHeight: Math.max(0, base.y - 8) } : {}), tone: 'neutral' };
+    }
+    const prompt = this.openWindowValue === null && !tooltip ? this.model.prompt : null;
+    const toast = this.notificationText();
+    return {
+      prompt: prompt ? { text: prompt, anchor: { x: this.model.width / 2, y: this.layout.tooltip.y + this.layout.tooltip.height }, tone: 'neutral' } : null,
+      toast: toast ? { text: toast, anchor: { x: this.model.width / 2, y: this.layout.notification.y + this.layout.notification.height },
+        tone: this.model.toastKind === 'failure' ? 'danger' : this.model.toastKind === 'success' ? 'success' : 'primary' } : null,
+      tooltip,
+    };
+  }
   private gameHud: GameHud | null = null;
   enableRetainedHud(art: UiKitArt): Readonly<Record<GameHudSurface, UiRoot>> {
     this.gameHud ??= new GameHud(art, {
@@ -2670,7 +2703,7 @@ export class OverworldUi {
     }
     this.inventoryTouchStart = null;
     this.inventoryScrollBar.cancelSwipe();
-    const skillPointNotice = this.skillPointNoticeLayout();
+    const skillPointNotice = this.retainedFeedback ? null : this.skillPointNoticeLayout();
     if (!this.blockingUpdatePromptVisible && button === 0
       && skillPointNotice !== null && containsPoint(skillPointNotice.frame, point)) {
       if (!containsPoint(skillPointNotice.dismiss, point)) this.openSkillTrack(this.model.skillPointNotice!.track);
@@ -3069,10 +3102,12 @@ export class OverworldUi {
       this.drawWindow(context, this.openWindowValue);
     }
     if (this.isInventoryWindow(this.openWindowValue)) this.drawQuickCraftTargets(context);
-    if (this.openWindowValue === null || this.openWindowValue === 'system'
-      || this.isInventoryWindow(this.openWindowValue)) this.drawTooltip(context);
-    this.drawNotification(context);
-    this.drawSkillPointNotice(context);
+    if (!this.retainedFeedback) {
+      if (this.openWindowValue === null || this.openWindowValue === 'system'
+        || this.isInventoryWindow(this.openWindowValue)) this.drawTooltip(context);
+      this.drawNotification(context);
+      this.drawSkillPointNotice(context);
+    }
   }
 
   /** Final UI pass so an update decision cannot sit behind another modal. */

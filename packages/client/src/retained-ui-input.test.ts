@@ -264,6 +264,9 @@ it.each([1,2,3])('keeps independent native captures for movement/action/block an
  }finally{adapter.dispose();runtime.dispose();controls.dispose();modal.dispose();}
 });
 
+// Synthetic passive targets isolate central routing. Real GameHud intentionally
+// rejects secondary touch through its single-primary policy; this fixture does
+// not claim that a second finger opens a HUD modal in production.
 it.each(['quest-tracker','hud-hotbarVitals'])('gives %s the compact overlap before touch movement in the actual production listener', host => {
  const target=new EventTarget(),captures=new Set<number>(),actions=vi.fn(),world=vi.fn(),refresh=vi.fn(),commands=vi.fn();
  const canvas=Object.assign(new EventTarget(),{focus(){},setPointerCapture:(id:number)=>captures.add(id),hasPointerCapture:(id:number)=>captures.has(id),releasePointerCapture:(id:number)=>captures.delete(id)});

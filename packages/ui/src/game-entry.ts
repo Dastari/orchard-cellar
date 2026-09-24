@@ -10,3 +10,5 @@ export { DelveRewardsUi } from './game-host/overlays.js';
 export { GameGateway, GameGatewayLoading, gameGatewayLayout, type GameGatewayModel } from './game-host/gateway.js';
 
 export { GameOnlinePlayers, type GameOnlinePlayersModel, type OnlinePlayerManagementRequest } from './game-host/online-players.js';
+
+export { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope } from './game-host/feedback.js';

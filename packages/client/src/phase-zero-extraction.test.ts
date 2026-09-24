@@ -189,7 +189,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Reviewed shared HUD projections, legacy hit-path retirement and foreground tracker ordering.
 // Reviewed roster replacement removes legacy rendering, scroll/role hit paths together.
 // Actual inventory coexistence, scoped management and touch-release regressions cover this seam.
-const STRUCTURAL_SEAM_DIGEST = '10fed0daa4dfe384a34e5f672bd5aa0c76c23c6d32c947d81eee42b4ca6fb19a';
+// Reviewed feedback projection preserves dwell/notification authority and retires
+// legacy production drawing and notice hits together; real-parent geometry and
+// actual-source privacy/timing/scope regressions pass independently.
+const STRUCTURAL_SEAM_DIGEST = 'e5f3be8042666b0ec5fa51d1b30e65f1dddbcfd0ad48bb6473fe51581bf326ec';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

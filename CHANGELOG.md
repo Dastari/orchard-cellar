@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.39.0 / UI 0.41.0 / Studio 0.15.0 — Shared contextual feedback (not yet deployed)
+
+- Adopt shared nameplates, quest markers, combat feedback, fishing progress, public/private speech, contextual hints, notifications and skill notices. Preserve camera projection, recipient filtering, authoritative timing and permission checks; retire replaced production drawing and pointer paths together.
+- Keep equipment inspection above inventory slots and damage above world hints. Scope notice actions to the current identity, connection and notice; preserve the K shortcut and authoritative expiry. Compact rejection messages take precedence when no readable notice space remains.
+- Complete central adoption of all 33 migration surfaces, including shared touch actions in Studio's UI lab. Workspace0.45.0; final browser, combined CI and signed-in release acceptance remain gates. Engine0.24.0, Sim0.25.1 retain the merged terrain release.
+
 ## Client 0.38.0 / UI 0.40.0 — Shared touch controls (not yet deployed)
 
 - Use the same five-action touch composition as Studio, preserving eight-way movement, deadzone, action timing, held block and independent pointer custody. Central retained capture owns all thumb-control tails while world pinch and hold gestures keep their existing authority.

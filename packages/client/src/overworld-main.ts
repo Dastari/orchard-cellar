@@ -1,4 +1,4 @@
-import { DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
@@ -7,7 +7,6 @@ import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry }
 import { timingLabels } from '@orchard/ui';
 import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
 import { projectTiming, rainForWeatherMode } from '@orchard/sim';
-import { drawTimingTooltip } from '@orchard/ui';
 import { TimingHoverIndex } from './content/timing-hover.js';
 import { cachedProcessorRuntime, projectProcessorTiming } from './content/processor-timing.js';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
@@ -126,7 +125,6 @@ import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
-import { drawProgressBar, GREEN_PROGRESS_PALETTE } from '@orchard/ui';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from '@orchard/engine/loading-screen';
 import { isStandaloneWebApp, pwaClient } from './pwa.js';
 import {
@@ -145,7 +143,7 @@ import {
   type OverworldView,
 } from './net/overworld-connection.js';
 import { AvatarAnimationController, LocalActionPresentation, FrameVisualTickClock, PresentationCorrection, ProjectileSnapshotBuffer, RemoteSnapshotBuffer, RenderTickClock, VisualTickClock, presentationAuthorityTick, type SampledProjectile, type SampledRemote } from './net/netcode.js';
-import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortrait, drawPlayerPaperDoll, drawNpcPortrait, drawUiAsset, drawUiAssetFrame, horseJumpPose, loadOverworldArt, type WorldVisualBounds } from '@orchard/engine/overworld-art';
+import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortrait, drawPlayerPaperDoll, drawNpcPortrait, drawUiAsset, horseJumpPose, loadOverworldArt, type WorldVisualBounds } from '@orchard/engine/overworld-art';
 import { cameraAxisOffset } from '@orchard/engine/camera';
 import { snapGameplayCamera } from './gameplay-camera.js';
 import { createClientCollisionMap } from '@orchard/engine/collision';
@@ -211,12 +209,9 @@ import { entityTargetAtWorldPoint, sameEntityTarget, targetKey, type SelectedEnt
 import { ChatOverlay } from '@orchard/ui';
 import { parseChatSubmission } from '@orchard/ui';
 import {
-  drawSpeechBubble,
   edgeSpeechAnchor,
   speechBubbleHeadOffset,
   speechBubbleIsRecent,
-  speechBubbleLayout,
-  speechBubbleRect,
   type EdgeSpeechAnchor,
 } from '@orchard/ui';
 import { CharacterNamePrompt } from '@orchard/ui';
@@ -1091,6 +1086,37 @@ const onlineRoster = new GameOnlinePlayers(kitArt, {
   onManage: manageOnlinePlayer,
   onClose: () => setOnlinePlayersVisible(false),
 });
+overworldUi.enableRetainedFeedback();
+const gameFeedback = new GameFeedback(kitArt, {
+  onOpenSkillNotice: expected => activateFeedbackNotice(expected, true),
+  onDismissSkillNotice: expected => activateFeedbackNotice(expected, false),
+});
+let feedbackNoticeValue: SkillPointNotice | null = null;
+let feedbackNoticeRevision = 0;
+function currentSkillNoticeId(): string {
+  if (feedbackNoticeValue !== skillPointNotice) { feedbackNoticeValue = skillPointNotice; feedbackNoticeRevision++; }
+  return String(feedbackNoticeRevision);
+}
+function feedbackSessionKey(): string {
+  return `${latestSnapshot.identityHex}:${network.sessionGeneration}:${latestSnapshot.connected}:${activeSpaceDefinition.spaceId}:${latestSnapshot.rogueRun?.id ?? ''}`;
+}
+function feedbackNoticeAvailable(): boolean {
+  return retainedUiAvailable() && overworldUi.openWindow === null && !chatOverlay.isOpen && !onlinePlayersVisible
+    && !characterNamePrompt.isActive && !npcInteractionUi.active && !tradeUi.active;
+}
+function feedbackHudProjection(now: number, height: number): Omit<GameFeedbackModel['hud'], 'notice'> {
+  const hud = overworldUi.feedbackHud(now);
+  // At the smallest logical bounds, keep the actionable notice and rejection
+  // message readable. The passive interaction prompt returns with the space.
+  return { ...hud, prompt: height < 160 && skillPointNotice !== null && feedbackNoticeAvailable() ? null : hud.prompt };
+}
+function activateFeedbackNotice(expected: GameSkillNoticeScope, open: boolean): void {
+  const notice = skillPointNotice;
+  if (!feedbackNoticeAvailable() || notice === null || expected.sessionKey !== feedbackSessionKey()
+    || expected.noticeId !== currentSkillNoticeId() || expected.track !== notice.track || expected.points !== notice.points) return;
+  if (open) overworldUi.openSkillTrack(notice.track);
+  dismissSkillPointNotice();
+}
 function onlinePlayersScope(): string {
   return `${latestSnapshot.identityHex}:${network.sessionGeneration}:${activeSpaceDefinition.spaceId}`;
 }
@@ -1189,6 +1215,8 @@ retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.roo
   active: () => retainedUiAvailable() && questTracker.isActive && overworldUi.questTrackerVisible && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
   blocking: () => false });
+retainedUi.register({ id: 'feedback-notice', priority: 175, root: gameFeedback.roots.notice,
+  active: () => feedbackNoticeAvailable() && gameFeedback.noticeActive, blocking: () => false });
 retainedUi.register({ id: 'touch-controls', priority: 25, root: touchControls.root,
   active: () => touchControls.visible && !touchControlsBlocked(), blocking: () => false });
 retainedUi.register({ id: 'chat', priority: 150, root: chatOverlay.root,
@@ -1221,7 +1249,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
-  disposeInitialWorldLoading(renderer); touchControls.dispose(); onlineRoster.dispose(); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
+  disposeInitialWorldLoading(renderer); gameFeedback.dispose(); touchControls.dispose(); onlineRoster.dispose(); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
   retainedText.input.removeEventListener('blur', handleRetainedTextBlur);
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose(); chatOverlay.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
@@ -5593,36 +5621,30 @@ function renderFrame(alpha = 1): void {
   retainedUi.reconcile(); syncRetainedText();
   renderMetrics.recordStage('uiLayout', performance.now() - uiLayoutStartedAt);
   const uiDrawStartedAt = performance.now();
-  if (!interfaceHidden && nameplatesVisible) {
-    overworldUi.drawNameplates(uiContext, nameplates.map((nameplate) => ({
-      x: (nameplate.x - cameraX) * worldZoom / uiScale,
-      y: (nameplate.y - cameraY - 42) * worldZoom / uiScale,
-      text: nameplate.name,
-      ...(nameplate.offline === true ? { offline: true } : {}),
-    })));
-  }
+  const feedbackNow = performance.now();
+  const feedbackEntries: GameFeedbackModel['world']['feedback'][number][] = [];
+  const feedbackSpeech: GameFeedbackModel['world']['speech'][number][] = [];
+  let feedbackHint: GameFeedbackModel['world']['hint'] = null;
+  let feedbackFishing: GameFeedbackModel['world']['fishing'] = null;
+  const feedbackNames = !interfaceHidden && nameplatesVisible ? nameplates.map((nameplate) => ({
+    x: (nameplate.x - cameraX) * worldZoom / uiScale,
+    y: (nameplate.y - cameraY - 42) * worldZoom / uiScale,
+    text: nameplate.name, ...(nameplate.offline === true ? { offline: true } : {}),
+  })) : [];
   if (!interfaceHidden && snapshot.fishingCast !== null && snapshot.identityHex !== null) {
     const anchor = renderedPlayerAnchors.get(snapshot.identityHex);
-    if (anchor !== undefined) {
-      const progress = Math.max(0, Math.min(
-        1,
-        Number(renderAuthorityTick - snapshot.fishingCast.startedTick) / Number(FISHING_CAST_TICKS),
-      ));
-      const width = 24;
-      const x = Math.round((anchor.x - cameraX) * worldZoom / uiScale - width / 2);
-      const y = Math.round((anchor.y - cameraY - 34) * worldZoom / uiScale);
-      drawProgressBar(uiContext, { x, y, width, height: 4 }, progress, GREEN_PROGRESS_PALETTE);
-    }
+    if (anchor !== undefined) feedbackFishing = { id: snapshot.identityHex,
+      progress: Math.max(0, Math.min(1, Number(renderAuthorityTick - snapshot.fishingCast.startedTick) / Number(FISHING_CAST_TICKS))),
+      x: Math.round((anchor.x - cameraX) * worldZoom / uiScale),
+      y: Math.round((anchor.y - cameraY - 34) * worldZoom / uiScale),
+    };
   }
-  if (!interfaceHidden) {
-    const bob = Math.round(Math.sin(performance.now() / 260));
-    for (const marker of questMarkerAnchors) {
-      const asset = art.itemIcons[`quest_${marker.kind}`];
-      if (asset === undefined) continue;
-      const x = (marker.x - cameraX) * worldZoom / uiScale - 8;
-      const y = (marker.y - cameraY - 40) * worldZoom / uiScale - 8 + bob;
-      drawUiAsset(uiContext, asset, x, y, 1);
-    }
+  if (!interfaceHidden) for (const marker of questMarkerAnchors) {
+    const asset = art.itemIcons[`quest_${marker.kind}`];
+    if (asset === undefined) continue;
+    feedbackEntries.push({ id: `quest:${marker.kind}:${marker.x}:${marker.y}`, kind: 'quest', artwork: asset,
+      x: (marker.x - cameraX) * worldZoom / uiScale,
+      y: (marker.y - cameraY - 40) * worldZoom / uiScale });
   }
   const hoveredDetectedOre = !interfaceHidden && worldPointer !== null
     && overworldUi.openWindow === null && !chatOverlay.isOpen
@@ -5634,16 +5656,10 @@ function renderFrame(alpha = 1): void {
   if (hoveredDetectedOre !== null) {
     const title = `${hoveredDetectedOre.oreKind.replace(/^ore_/, '').toUpperCase()} VEIN`;
     const distance = `${hoveredDetectedOre.distanceTiles.toFixed(1)} TILES AWAY`;
-    const width = Math.max(112, measurePixelText(title, 1, art.ui.font) + 14,
-      measurePixelText(distance, 1, art.ui.font) + 14);
-    const worldX = hoveredDetectedOre.tileX * 16 + 8;
-    const worldY = hoveredDetectedOre.tileY * 16 + 8;
-    const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2,
-      Math.round((worldX - cameraX) * worldZoom / uiScale - width / 2)));
-    const panelY = Math.max(2, Math.round((worldY - cameraY - 22) * worldZoom / uiScale - 32));
-    drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-    drawPixelText(uiContext, art.ui, title, panelX + 7, panelY + 6);
-    drawPixelText(uiContext, art.ui, distance, panelX + 7, panelY + 18, { color: '#71532e' });
+    const worldX = hoveredDetectedOre.tileX * 16 + 8, worldY = hoveredDetectedOre.tileY * 16 + 8;
+    feedbackHint = { title, lines: [distance], tone: 'neutral',
+      x: (worldX - cameraX) * worldZoom / uiScale,
+      y: (worldY - cameraY - 22) * worldZoom / uiScale };
   }
   if (hoveredDetectedOre === null && !interfaceHidden && hoveredInteractionTile !== null && worldPointer !== null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
@@ -5658,21 +5674,10 @@ function renderFrame(alpha = 1): void {
       if (runtimeResourceDefinition(snapshot.content.registry, hoveredMiningResource)?.interaction.mode === 'fish') {
         const catches = hoveredMiningResource.richness;
         const status = `${catches} CATCH${catches === 1 ? '' : 'ES'} LEFT`;
-        const width = Math.max(
-          112,
-          measurePixelText('FISH POOL', 1, art.ui.font) + 31,
-          measurePixelText(status, 1, art.ui.font) + 38,
-        );
-        const worldX = hoveredMiningResource.tileX * 16 + 8;
-        const worldY = (hoveredMiningResource.tileY + 1) * 16;
-        const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-        const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-        const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-        const panelY = Math.max(2, Math.round(anchorY - 32));
-        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
-        drawUiAsset(uiContext, art.itemIcons.raw_fish ?? art.missingItem, panelX + 7, panelY + 7, 1);
-        drawPixelText(uiContext, art.ui, 'FISH POOL', panelX + 28, panelY + 6);
-        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, { color: '#315c35' });
+        const worldX = hoveredMiningResource.tileX * 16 + 8, worldY = (hoveredMiningResource.tileY + 1) * 16;
+        feedbackHint = { title: 'FISH POOL', lines: [status], tone: 'success', artwork: art.itemIcons.raw_fish ?? art.missingItem,
+          x: (worldX - cameraX) * worldZoom / uiScale,
+          y: (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale };
       } else {
       const nodeClass = miningClassFromWire(
         hoveredMiningResource.miningClass, hoveredMiningResource.spaceId,
@@ -5695,35 +5700,11 @@ function renderFrame(alpha = 1): void {
         : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
           : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
             : 'GUARANTEED FULL ORE CHUNK';
-      const width = Math.max(
-        144,
-        measurePixelText(title, 1, art.ui.font) + 31,
-        measurePixelText(classLabel, 1, art.ui.font) + 38,
-        measurePixelText(status, 1, art.ui.font) + 38,
-        measurePixelText(odds, 1, art.ui.font) + 38,
-      );
-      const worldX = hoveredMiningResource.tileX * 16 + 8;
-      const worldY = (hoveredMiningResource.tileY + 1) * 16;
-      const anchorX = (worldX - cameraX) * worldZoom / uiScale;
-      const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-      const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
-      const panelHeight = 48;
-      const panelY = Math.max(2, Math.round(anchorY - panelHeight - 2));
-      drawPixelPanel(uiContext, art.ui, panelX, panelY, width, panelHeight);
-      drawUiAssetFrame(
-        uiContext,
-        art.cropTimer,
-        Math.min(15, Math.floor(hoveredMiningResource.yieldProgress / 12 * 15)),
-        panelX + 7,
-        panelY + 13,
-        1,
-      );
-      drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 4);
-      drawPixelText(uiContext, art.ui, classLabel, panelX + 29, panelY + 14, { color: '#8a5a2b' });
-      drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 24, { color: '#315c35' });
-      drawPixelText(uiContext, art.ui, odds, panelX + 29, panelY + 34, {
-        color: prospectorRank > 0 ? '#71532e' : '#836f58',
-      });
+      const worldX = hoveredMiningResource.tileX * 16 + 8, worldY = (hoveredMiningResource.tileY + 1) * 16;
+      feedbackHint = { title, lines: [classLabel, status, odds], tone: 'neutral',
+        progress: Math.max(0, Math.min(1, hoveredMiningResource.yieldProgress / 12)),
+        x: (worldX - cameraX) * worldZoom / uiScale,
+        y: (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale };
       }
     }
   }
@@ -5740,12 +5721,11 @@ function renderFrame(alpha = 1): void {
       const result = processorTiming(snapshot, hoveredProcessor, authorityTick);
       if (result !== null) {
         const x = hoveredProcessor.tileX * 16 + 8, y = (hoveredProcessor.tileY + 1) * 16;
-        const width = Math.min(156, canvasUiWidth - 4);
-        drawTimingTooltip(uiContext, {
-          x: Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round((x - cameraX) * worldZoom / uiScale - width / 2))),
-          y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
-          width, height: 68,
-        }, result.object.displayName, result.timing, { skin: art.uiSkin, fonts: art.ui });
+        const labels = timingLabels(result.timing);
+        feedbackHint = { title: result.object.displayName, lines: [labels.status, labels.time].filter(Boolean),
+          tone: 'neutral', progress: result.timing.progress,
+          x: (x - cameraX) * worldZoom / uiScale,
+          y: (y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 8 };
       }
     } else {
       const target = growthTimingHoverIndex.pick({ registry: snapshot.content.registry,
@@ -5768,7 +5748,7 @@ function renderFrame(alpha = 1): void {
         if (timing !== null) {
           const name = definition?.displayName ?? (target.kind === 'resource'
             ? runtimeResourceDefinition(snapshot.content.registry, target.row)?.displayName : undefined) ?? 'Growth';
-          const x = row.tileX * 16 + 8, y = (row.tileY + 1) * 16, width = Math.min(156, canvasUiWidth - 4);
+          const x = row.tileX * 16 + 8, y = (row.tileY + 1) * 16;
           let detail = timing.stage === null ? '' : `STAGE ${timing.stage + 1}`;
           if (target.kind === 'crop' && definition !== null && soil !== undefined && personalFarmingSkills.soilWhisperer) {
             const growth = cropGrowthAt(definition, target.row.growthTicks, target.row.growthUpdatedAtTick,
@@ -5779,19 +5759,18 @@ function renderFrame(alpha = 1): void {
               confidence: 'exact', remainingActiveTicks: growth.wateredUntilTick - authorityTick }).time.replace(' LEFT', ' WATER') : 'DRY';
             detail = `${Math.floor(timing.progress * 100)}% ${water}`;
           }
-          drawTimingTooltip(uiContext, {
-            x: Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round((x - cameraX) * worldZoom / uiScale - width / 2))),
-            y: Math.max(2, Math.round((y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 76)),
-            width, height: detail ? 84 : 68,
-          }, name, timing, { skin: art.uiSkin, fonts: art.ui }, detail);
+          const labels = timingLabels(timing);
+          feedbackHint = { title: name, lines: [labels.status, labels.time, detail].filter(Boolean),
+            tone: 'neutral', progress: timing.progress,
+            x: (x - cameraX) * worldZoom / uiScale,
+            y: (y - projectionAt(x, y) - cameraY) * worldZoom / uiScale - 8 };
         }
       }
     }
   }
   if (!interfaceHidden) {
-    const combatTextNow = performance.now();
-    for (const combatText of floatingCombatTexts) {
-      const age = combatTextNow - combatText.startedAtMs;
+    for (const [combatIndex, combatText] of floatingCombatTexts.entries()) {
+      const age = feedbackNow - combatText.startedAtMs;
       const progress = Math.max(0, Math.min(1, age / 1_100));
       const target = combatText.targetKind === 'npc'
         ? snapshot.npcs.get(combatText.targetId)
@@ -5801,20 +5780,9 @@ function renderFrame(alpha = 1): void {
       const projection = projectionAt(worldX, worldY);
       const screenX = (worldX - cameraX) * worldZoom / uiScale;
       const screenY = (worldY - projection - cameraY - 35 - progress * 13) * worldZoom / uiScale;
-      const label = `-${Math.max(1, Math.round(combatText.amountCenti / 100))}`;
-      const textColor = combatText.critical ? '#ffd34e' : '#fff1cf';
-      uiContext.save();
-      uiContext.globalAlpha = progress < 0.6 ? 1 : Math.max(0, (1 - progress) / 0.4);
-      drawPixelText(uiContext, art.ui, label, screenX + 1, screenY + 1, {
-        align: 'center', color: '#3f2832',
-      });
-      drawPixelText(uiContext, art.ui, label, screenX, screenY, {
-        align: 'center', color: textColor,
-      });
-      if (combatText.critical) drawPixelText(uiContext, art.ui, label, screenX + 1, screenY, {
-        align: 'center', color: textColor,
-      });
-      uiContext.restore();
+      feedbackEntries.push({ id: `combat:${combatText.targetKind}:${combatText.targetId}:${combatText.startedAtMs}:${combatIndex}`,
+        kind: 'damage', amount: combatText.amountCenti / 100, critical: combatText.critical, progress,
+        presentation: 'combat', x: screenX, y: screenY });
     }
   }
   if (!interfaceHidden) {
@@ -5841,7 +5809,6 @@ function renderFrame(alpha = 1): void {
         && screenY >= 0 && screenY <= canvasUiHeight;
       if (!onScreen && speech.kind !== 'shout') continue;
       const kind = speech.kind === 'shout' ? 'shout' : 'say';
-      const layout = speechBubbleLayout(speech.body);
       const anchor: EdgeSpeechAnchor = onScreen
         ? {
             x: screenX,
@@ -5851,8 +5818,7 @@ function renderFrame(alpha = 1): void {
             direction: 'down',
           }
         : edgeSpeechAnchor(screenX, screenY, canvasUiWidth, canvasUiHeight);
-      const rect = speechBubbleRect(anchor, layout, canvasUiWidth, canvasUiHeight);
-      drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, kind, anchor.direction);
+      feedbackSpeech.push({ id: `public:${speech.id}`, text: speech.body, kind, ...anchor });
     }
     // Whispers never enter public world-speech storage. Render the latest
     // recent message per sender from the recipient-filtered chat view so the
@@ -5875,14 +5841,12 @@ function renderFrame(alpha = 1): void {
       const screenX = (worldX - cameraX) * worldZoom / uiScale;
       const screenY = (worldY - cameraY) * worldZoom / uiScale;
       if (screenX < 0 || screenX > canvasUiWidth || screenY < 0 || screenY > canvasUiHeight) continue;
-      const layout = speechBubbleLayout(message.body);
       const anchor: EdgeSpeechAnchor = {
         x: screenX,
         y: screenY - speechBubbleHeadOffset(worldZoom, uiScale, mountedRiderIds.has(speakerId)),
         direction: 'down',
       };
-      const rect = speechBubbleRect(anchor, layout, canvasUiWidth, canvasUiHeight);
-      drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, 'tell', 'down');
+      feedbackSpeech.push({ id: `tell:${message.id}`, text: message.body, kind: 'tell', ...anchor });
     }
     const thought = snapshot.thought;
     const ownAnchor = snapshot.identityHex === null ? undefined : renderedPlayerAnchors.get(snapshot.identityHex);
@@ -5890,15 +5854,23 @@ function renderFrame(alpha = 1): void {
       && (snapshot.clock?.authorityTick ?? 0n) <= thought.expiresTick) {
       const screenX = (ownAnchor.x - cameraX) * worldZoom / uiScale;
       const screenY = (ownAnchor.y - cameraY) * worldZoom / uiScale;
-      const layout = speechBubbleLayout(thought.body);
       const anchor: EdgeSpeechAnchor = {
         x: screenX,
         y: screenY - speechBubbleHeadOffset(worldZoom, uiScale, localMount(snapshot) !== null),
         direction: 'down',
       };
-      const rect = speechBubbleRect(anchor, layout, canvasUiWidth, canvasUiHeight);
-      drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, 'thought', 'down');
+      feedbackSpeech.push({ id: 'own-thought', text: thought.body, kind: 'thought', ...anchor });
     }
+    gameFeedback.setBounds({ worldWidth: canvasUiWidth, worldHeight: canvasUiHeight, hudWidth: uiWidth, hudHeight: uiHeight });
+    gameFeedback.update({ sessionKey: feedbackSessionKey(), reducedMotion: reducedMotionPreference.matches,
+      world: { nameplates: feedbackNames, feedback: feedbackEntries, speech: feedbackSpeech, hint: feedbackHint, fishing: feedbackFishing },
+      hud: { ...feedbackHudProjection(feedbackNow, uiHeight), notice: skillPointNotice === null ? null : {
+        id: currentSkillNoticeId(), track: skillPointNotice.track, points: skillPointNotice.points,
+        y: overworldUi.skillPointNoticeLayout()?.frame.y ?? 4,
+      } },
+    });
+    retainedUi.reconcile();
+    gameFeedback.roots.world.drawInContext(uiContext, feedbackNow);
     uiContext.save();
     uiContext.translate(uiOriginX, uiOriginY);
     touchControls.draw(uiContext);
@@ -5906,6 +5878,8 @@ function renderFrame(alpha = 1): void {
     questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
     overworldUi.draw(uiContext, false);
+    gameFeedback.roots.hud.drawInContext(uiContext, feedbackNow);
+    if (feedbackNoticeAvailable() && gameFeedback.noticeVisible) gameFeedback.roots.notice.drawInContext(uiContext, feedbackNow);
     if (homesteadBuildMode && overworldUi.openWindow === null) {
       homesteadBuildPalette.draw(uiContext);
     }
@@ -6399,6 +6373,7 @@ window.addEventListener('keydown', (event) => {
     if (!chatOverlay.isOpen && retainedUi.key(event, 'build-palette')) {
       syncRetainedText(); event.preventDefault(); return;
     }
+    if (retainedUi.key(event, 'feedback-notice')) { event.preventDefault(); return; }
     if (!chatOverlay.isOpen && retainedUi.key(event, 'quest-tracker')) {
       syncRetainedText(); event.preventDefault();
       return;
@@ -7024,6 +6999,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
   if (retainedPointers.dispatch('move', event, 'character-skills') || retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
   if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.root.input.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'feedback-notice')) return;
   if (retainedPointers.dispatch('move', event, 'chat')) return;
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
   if (overworldUi.openWindow === null && !chatOverlay.isHovered && retainedPointers.dispatch('move', event, 'quest-tracker')) return;
@@ -7075,6 +7051,8 @@ canvas.addEventListener('pointerdown', (event) => {
   }
   // Scoped dispatch does not sort passive hosts. Match paint order before a
   // thumb control can claim a compact HUD overlap or mutate the world target.
+  if (!interfaceHidden && retainedPointers.dispatch('down', event, 'build-palette')) { event.preventDefault(); return; }
+  if (retainedPointers.dispatch('down', event, 'feedback-notice')) { event.preventDefault(); return; }
   const passiveHudRouted = touchControls.visible && !touchControlsBlocked();
   if (passiveHudRouted) {
     if (retainedPointers.dispatch('down', event, 'quest-tracker')
@@ -7110,9 +7088,6 @@ canvas.addEventListener('pointerdown', (event) => {
       return;
     }
     if (retainedPointers.dispatch('down', event, 'npc-interaction')) {
-      event.preventDefault(); return;
-    }
-    if (retainedPointers.dispatch('down', event, 'build-palette')) {
       event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'character-skills') || retainedPointers.dispatch('down', event, 'character-character') || retainedPointers.dispatch('down', event, 'character-statistics') || retainedPointers.dispatch('down', event, 'system-menus') || retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
@@ -7498,6 +7473,7 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
+    if (retainedUi.wheel(retainedWheel, 'feedback-notice')) { event.preventDefault(); return; }
     if (retainedUi.wheel(retainedWheel, 'chat')) { event.preventDefault(); return; }
     if (retainedUi.wheel(retainedWheel, 'quest-tracker')) {
       event.preventDefault(); return;
