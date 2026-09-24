@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+.vitest-reports/
 build/
 packages/assets/generated/
 packages/assets/review/

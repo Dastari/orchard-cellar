@@ -4,26 +4,82 @@ on:
   push:
   pull_request:
 
+# Per-PR CI runs the same gates as `npm run check`, split into parallel jobs:
+# static checks, the coverage suite in shards (thresholds enforced once on the
+# merged report), and the exhaustive suite. Transitional generator/parity tests
+# and the legacy cooking release-gate test run nightly (nightly.yml) instead;
+# `npm run check` still runs everything for local and release gates.
+# See wiki Roadmap/Test Suite Review.
+
+env:
+  # Original vendor sheets are licensed local fixtures; CI verifies the
+  # reviewed import fingerprints. Full local release checks use the sheets.
+  ORCHARD_TEST_LICENSED_ART: '0'
+
 jobs:
-  check:
+  static:
     runs-on: ubuntu-latest
-    env:
-      # Original vendor sheets are licensed local fixtures; CI verifies the
-      # reviewed import fingerprints. Full local release checks use the sheets.
-      ORCHARD_TEST_LICENSED_ART: '0'
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: ./.github/actions/setup
         with:
-          node-version: 22
-          cache: npm
-      - name: Install SpaceTimeDB 2.8.2
+          spacetime: 'true'
+      - run: npm run lifecycle:integrity
+      - run: npm run content:validate
+      - run: npm run build -w @orchard/world
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run assets:validate
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    env:
+      ORCHARD_COVERAGE_SHARD: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: npm run test:ci:coverage -- --shard=${{ matrix.shard }}/5 --reporter=blob --reporter=default
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          path: .vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-blob-*
+          path: .vitest-reports/
+          merge-multiple: true
+      # Enforces the coverage thresholds from vitest.config.ts on the whole suite.
+      - run: npx vitest --merge-reports --coverage
+
+  exhaustive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: npm run test:ci:exhaustive
+
+  # Single status name kept for the release tooling and coordinators.
+  check:
+    needs: [static, coverage, exhaustive]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All CI jobs passed
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://install.spacetimedb.com | sh -s -- --yes
-          "$HOME/.local/bin/spacetime" version install 2.8.2 --use --yes
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Install test utilities
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
-      - run: npm ci
-      - run: npm run assets:build
-      - run: npm run check
+          test '${{ needs.static.result }}' = success
+          test '${{ needs.coverage.result }}' = success
+          test '${{ needs.exhaustive.result }}' = success
