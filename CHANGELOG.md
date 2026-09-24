@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.30.1 / UI 0.32.1 — Readable compact statistics and table paging (not yet deployed)
+
+- Keep horizontal table scrollbar hit areas below the pagination controls, so native center pointer/touch presses reach Next and Previous (BUG-025).
+- Reclaim compact statistics frame padding to retain a complete readable row alongside its header and pager. Preserve table identity, sort, page, focus and saved browsing state through resizing. Workspace 0.36.1.
+
 ## Client 0.30.0 / UI 0.32.0 — Shared character and lifetime records (not yet deployed)
 
 - Adopt the shared character and statistics windows with real appearance, equipment, authored attributes and bigint lifetime records. Preserve navigation, focus and responsive scrolling through the central input runtime.

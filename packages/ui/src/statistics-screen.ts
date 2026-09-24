@@ -119,6 +119,7 @@ export class StatisticsScreen {
   private applyBounds(): void {
     if (!this.view || !this.bounds) return;
     const frame = this.bounds;
+    this.view.setCompactStatistics(frame.height < 220);
     this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) }, width: uiFixed(frame.width), height: uiFixed(frame.height) });
   }
   setBounds(frame: UiRect, viewportWidth: number, viewportHeight: number): void {
