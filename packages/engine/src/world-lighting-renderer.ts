@@ -8,25 +8,38 @@ import type { LightingReceiverClass } from './lighting-types.js';
 import type { TileLightmap } from './lighting.js';
 import type { PointLight } from './lighting.js';
 import { ReceiverFrameCache, withWorldReceiverLight } from './receiver-frame-source.js';
+import type { ActorShadowStamp } from './actor-shadow-stamps.js';
 import { groundSourceContext, withGroundSpriteSource,type GroundSpriteBasis } from './ground-light-source.js';
 import { webglFrameSource, webglWorldBackend } from './webgl/hooks.js';
-import { CelestialReceiverScene } from './receiver-lighting.js';
+import { CelestialReceiverScene, GAMEPLAY_GEOMETRY_TRANSITION, type ReceiverLightRaster } from './receiver-lighting.js';
 import { lightingOwner, terrainLightingOwner } from './lighting-owner.js';
 export { lightingOwner } from './lighting-owner.js';
 import { terrainBaseDatum, type TerrainArray } from './terrain.js';
 
 interface Upload { readonly canvas: HTMLCanvasElement; image: ImageData | null; pixels: WeakRef<Uint8ClampedArray<ArrayBuffer>> | null; revision: number }
 
-interface Plane { readonly canvas: HTMLCanvasElement; readonly left: number; readonly top: number; readonly step: number }
+interface Plane { readonly canvas: HTMLCanvasElement; readonly left: number; readonly top: number; readonly step: number; readonly raster: ReceiverLightRaster }
+interface StampSurface { readonly canvas: HTMLCanvasElement; image: ImageData | null; revision: number; used: number }
+interface LightWindow { readonly left: number; readonly top: number; readonly width: number; readonly height: number; readonly step: number }
 
-/** Receiver lighting in the actual world painter. Ground planes are resolved at
- * four game pixels and smoothly upsampled; artwork stays nearest-neighbour.
+/** Receiver planes cover the viewport plus a margin, snapped to this many
+ * world pixels, so walking reuses one retained plane for 64 px of travel. */
+export const RECEIVER_WINDOW_SNAP = 64;
+const RECEIVER_STEP = 4;
+const STAMP_SURFACE_LIMIT = 64;
+
+/** Receiver lighting in the actual world painter. Static ground planes are
+ * resolved at four game pixels and smoothly upsampled; moving bodies' ground
+ * shadows are native-pixel stamps that follow the sprite's pixel phase.
  * Every body receives its own RGB, so a shadow behind it cannot blacken it. */
 export class WorldLightingRenderer {
   readonly mapper: LightCoordinateMapper;
   readonly scene: CelestialReceiverScene;
   readonly frames = new ReceiverFrameCache();
   private planes = new Map<number, Plane>();
+  private stamps = new Map<number, readonly ActorShadowStamp[]>();
+  private readonly stampSurfaces = new Map<ActorShadowStamp, StampSurface>();
+  private frame = 0;
   private uploads = new Map<number, Upload>();
   private runCanvas: HTMLCanvasElement | null = null;
   private flameGlow: HTMLCanvasElement | null = null;
@@ -42,7 +55,7 @@ export class WorldLightingRenderer {
   uploadMs = 0;
   constructor(readonly terrain: TerrainArray) {
     this.mapper = new LightCoordinateMapper(terrain);
-    this.scene = new CelestialReceiverScene(this.mapper.pixelsPerHeightSubunit);
+    this.scene = new CelestialReceiverScene(this.mapper.pixelsPerHeightSubunit, undefined, undefined, GAMEPLAY_GEOMETRY_TRANSITION);
   }
   begin(sky: CelestialLighting, fixed: readonly DirectionalCaster[], moving: readonly DirectionalCaster[], lightmap: TileLightmap,
     cameraX: number, cameraY: number, width: number, height: number, staticIdentity?: number): void {
@@ -52,7 +65,17 @@ export class WorldLightingRenderer {
       this.localRevision++; this.localSourceRevision = lightmap.receiverRevision;
     }
     this.lightmap = lightmap; this.cameraX = cameraX; this.cameraY = cameraY; this.width = width; this.height = height;
-    this.planes.clear();
+    this.planes.clear(); this.stamps.clear(); this.frame++;
+    for (const [stamp, surface] of this.stampSurfaces) {
+      if (this.frame - surface.used > 60) { surface.canvas.width = surface.canvas.height = 0; this.stampSurfaces.delete(stamp); }
+    }
+  }
+  private window(level: number): LightWindow {
+    const snap = RECEIVER_WINDOW_SNAP, step = RECEIVER_STEP;
+    // World-aligned raster avoids swimming when the camera moves a fraction.
+    return { left: Math.floor(this.cameraX / snap) * snap - snap,
+      top: Math.floor(this.mapper.logicalY(this.cameraY, level) / snap) * snap - snap,
+      width: (Math.ceil(this.width / snap) + 3) * snap / step, height: (Math.ceil(this.height / snap) + 3) * snap / step, step };
   }
   drawReceiver(context: CanvasRenderingContext2D, x: number, y: number, level: number,
     receiver: LightingReceiverClass, draw: () => void): void {
@@ -71,11 +94,7 @@ export class WorldLightingRenderer {
     const existing = this.planes.get(level);
     if (existing !== undefined) return existing;
     if (this.planes.size >= 8) throw new Error('world_receiver_plane_budget_exceeded');
-    const step = 4;
-    // World-aligned raster avoids swimming when the camera moves a fraction.
-    const left = Math.floor(this.cameraX / step) * step - step;
-    const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
-    const width = Math.ceil(this.width / step) + 3, height = Math.ceil(this.height / step) + 3;
+    const { left, top, width, height, step } = this.window(level);
     const mergeStarted = performance.now();
     const raster = this.scene.rasterizeCached(this.localRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
       (x, y) => this.lightmap!.sampleReceiverLight(x, this.mapper.projectedY(y, level), level));
@@ -105,7 +124,44 @@ export class WorldLightingRenderer {
       upload.revision = raster.revision;
       this.uploadMs += performance.now() - uploadStarted;
     }
-    const plane = { canvas, left, top, step }; this.planes.set(level, plane); return plane;
+    const plane = { canvas, left, top, step, raster }; this.planes.set(level, plane); return plane;
+  }
+  private actorStamps(level: number): readonly ActorShadowStamp[] {
+    let stamps = this.stamps.get(level);
+    if (stamps === undefined) {
+      const started = performance.now();
+      stamps = this.scene.actorShadowStamps(this.plane(level).raster, this.mapper.heightAtLevel(level));
+      this.stamps.set(level, stamps); this.receiverMs += performance.now() - started;
+    }
+    return stamps;
+  }
+  /** One retained surface per pooled stamp; bytes are re-uploaded only when
+   * the stamp's shape or resolved light changes, not as it translates. */
+  private stampSurface(stamp: ActorShadowStamp): HTMLCanvasElement {
+    let surface = this.stampSurfaces.get(stamp);
+    if (surface === undefined) {
+      if (this.stampSurfaces.size >= STAMP_SURFACE_LIMIT) {
+        let oldest: ActorShadowStamp | undefined;
+        for (const [key, value] of this.stampSurfaces) if (oldest === undefined || value.used < this.stampSurfaces.get(oldest)!.used) oldest = key;
+        const old = this.stampSurfaces.get(oldest!)!; old.canvas.width = old.canvas.height = 0; this.stampSurfaces.delete(oldest!);
+      }
+      surface = { canvas: document.createElement('canvas'), image: null, revision: -1, used: this.frame };
+      this.stampSurfaces.set(stamp, surface);
+    }
+    surface.used = this.frame;
+    if (surface.revision !== stamp.revision) {
+      const { canvas } = surface, width = stamp.width, height = stamp.height;
+      if (canvas.width < width) canvas.width = width;
+      if (canvas.height < height) canvas.height = height;
+      if (surface.image === null || surface.image.width !== width || surface.image.height !== height) surface.image = new ImageData(width, height);
+      const context = canvas.getContext('2d');
+      if (context === null) throw new Error('world_actor_shadow_surface_unavailable');
+      const started = performance.now();
+      surface.image.data.set(stamp.pixels.subarray(0, width * height * 4));
+      context.putImageData(surface.image, 0, 0);
+      surface.revision = stamp.revision; this.uploadMs += performance.now() - started;
+    }
+    return surface.canvas;
   }
   compositeGround(context: CanvasRenderingContext2D, scale: number, level = terrainBaseDatum(this.terrain)): void {
     // A flattened CPU multiply would conceal the unresolved GPU lighting
@@ -118,6 +174,15 @@ export class WorldLightingRenderer {
       context.drawImage(plane.canvas, (plane.left - this.cameraX) * scale,
         (this.mapper.projectedY(plane.top, level) - this.cameraY) * scale,
         plane.canvas.width * plane.step * scale, plane.canvas.height * plane.step * scale);
+      // Quantize exactly as actor sprites do, so the shadow keeps their pixel phase.
+      context.imageSmoothingEnabled = false;
+      const projection = this.mapper.projectionAtLevel(level);
+      for (const stamp of this.actorStamps(level)) {
+        context.drawImage(this.stampSurface(stamp), 0, 0, stamp.width, stamp.height,
+          Math.round(stamp.anchorX * scale) - Math.round(this.cameraX * scale) + stamp.offsetX * scale,
+          Math.round(stamp.anchorY * scale) - Math.round(this.cameraY * scale) + (stamp.offsetY - projection) * scale,
+          stamp.width * scale, stamp.height * scale);
+      }
     } finally { context.restore(); }
   }
   /** A restrained warm halo makes green ground read as firelit. One reusable
@@ -153,11 +218,9 @@ export class WorldLightingRenderer {
     if(!Number.isFinite(determinant)||determinant===0)throw new Error('invalid_ground_sprite_basis');
     const target = groundSourceContext();
     if (target !== undefined && webglWorldBackend(target) !== undefined) {
-      const step = 4;
-      const left = Math.floor(this.cameraX / step) * step - step;
-      const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
-      const field = this.scene.rawFieldCached(this.localRevision, left, top,
-        Math.ceil(this.width / step) + 3, Math.ceil(this.height / step) + 3, this.mapper.heightAtLevel(level), step,
+      // GPU fields still carry moving coverage; their stamp path is a follow-up.
+      const { left, top, width, height, step } = this.window(level);
+      const field = this.scene.rawFieldCached(this.localRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
         (worldX, worldY) => this.lightmap!.sampleReceiverLight(worldX, this.mapper.projectedY(worldY, level), level));
       return webglFrameSource(target, source, { ground: { field, worldX: x, worldY: y, ...(basis?{basis}:{}) } })!;
     }
@@ -177,6 +240,14 @@ export class WorldLightingRenderer {
         context.setTransform(basis.d/determinant,-basis.b/determinant,-basis.c/determinant,basis.a/determinant,0,0);
       }
       context.drawImage(plane.canvas, plane.left - x, plane.top - y, plane.canvas.width * plane.step, plane.canvas.height * plane.step);
+      context.imageSmoothingEnabled = false;
+      for (const stamp of this.actorStamps(level)) {
+        const stampX = Math.round(stamp.anchorX) + stamp.offsetX - x, stampY = Math.round(stamp.anchorY) + stamp.offsetY - y;
+        if (basis === undefined && (stampX >= source.width || stampY >= source.height
+          || stampX + stamp.width <= 0 || stampY + stamp.height <= 0)) continue;
+        context.drawImage(this.stampSurface(stamp), 0, 0, stamp.width, stamp.height, stampX, stampY, stamp.width, stamp.height);
+        renderOperationCounters.groundSourceOperations++;
+      }
     } finally {context.restore();}
     context.globalCompositeOperation = 'destination-in'; context.imageSmoothingEnabled = false;
     context.drawImage(source.image, source.x, source.y, source.width, source.height, 0, 0, source.width, source.height);
@@ -188,11 +259,14 @@ export class WorldLightingRenderer {
     return this.frames.bytes + this.scene.retainedMaskBytes + this.scene.retainedCoverageBytes + this.scene.retainedRasterBytes
       + [...this.uploads.values()].reduce((sum, upload) => sum + upload.canvas.width * upload.canvas.height * 4 + (upload.image?.data.byteLength ?? 0), 0)
       + (this.runCanvas === null ? 0 : this.runCanvas.width * this.runCanvas.height * 4)
+      + [...this.stampSurfaces.values()].reduce((sum, surface) => sum + surface.canvas.width * surface.canvas.height * 4 + (surface.image?.data.byteLength ?? 0), 0)
       + (this.flameGlow === null ? 0 : this.flameGlow.width * this.flameGlow.height * 4);
   }
   reset(): void {
     this.receiverMs = this.mergeMs = this.uploadMs = 0;
-    this.frames.reset(); this.scene.reset(); this.planes.clear();
+    this.frames.reset(); this.scene.reset(); this.planes.clear(); this.stamps.clear();
+    for (const { canvas } of this.stampSurfaces.values()) canvas.width = canvas.height = 0;
+    this.stampSurfaces.clear();
     for (const { canvas } of this.uploads.values()) canvas.width = canvas.height = 0;
     this.uploads.clear();
     if (this.runCanvas !== null) this.runCanvas.width = this.runCanvas.height = 0;

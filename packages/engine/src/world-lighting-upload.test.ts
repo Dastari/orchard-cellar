@@ -32,8 +32,11 @@ describe('retained receiver uploads', () => {
     local.reset();
     renderer.begin(sky, [], [], local, 0, 0, 100, 100, 1); renderer.compositeGround(context, 1);
     expect(upload).toHaveBeenCalledTimes(2); expect(upload.mock.calls[1]![0]).toBe(retainedImage);
+    // Camera travel inside one 64 px snapped window reuses the retained plane.
+    renderer.begin(sky, [], [], local, 60, 0, 100, 100, 1); renderer.compositeGround(context, 1);
+    expect(upload).toHaveBeenCalledTimes(2);
     // A different window can have the same raster revision; pixels identity prevents a stale upload.
-    renderer.begin(sky, [], [], local, 4, 0, 100, 100, 1); renderer.compositeGround(context, 1);
+    renderer.begin(sky, [], [], local, 64, 0, 100, 100, 1); renderer.compositeGround(context, 1);
     expect(upload).toHaveBeenCalledTimes(3); expect(allocations).toBe(1);
     renderer.begin(sky, [], [], local, 0, 0, 100, 100, 1); renderer.compositeGround(context, 1);
     expect(upload).toHaveBeenCalledTimes(4); expect(allocations).toBe(1);
@@ -43,18 +46,28 @@ describe('retained receiver uploads', () => {
     expect(upload).toHaveBeenCalledTimes(5); expect(allocations).toBe(1);
     const caster = { owner: lightingOwner(50, 50), worldX: 50, worldY: 50, baseHeightSubunits: 0,
       heightSubunits: 4, footprint: { left: -3, right: 3, top: -2, bottom: 1 }, contact: true };
+    // Switching back to the first lightmap is one legitimate local change.
+    renderer.begin(sky, [], [], local, 0, 0, 100, 100, 1); renderer.compositeGround(context, 1);
     const coverageBefore = renderer.scene.diagnostics.staticCoverageBuilds;
-    const uploadBefore = upload.mock.calls.length;
+    const mergesBefore = renderer.scene.diagnostics.rgbMerges;
+    const planeUploads = () => upload.mock.calls.filter(([image]) => image === retainedImage).length;
+    const planeBefore = planeUploads(), uploadBefore = upload.mock.calls.length;
     for (let frame = 0; frame < 600; frame++) {
       renderer.begin(sky, [], [{ ...caster, worldX: 50 + frame / 1000 }], local, 0, 0, 100, 100, 1);
       renderer.compositeGround(context, 1);
     }
+    // Walking never re-merges or re-uploads the plane. One stamp surface is
+    // uploaded once, then again only when the rounded foot crosses x = 50.5.
     expect(renderer.scene.diagnostics.staticCoverageBuilds).toBe(coverageBefore);
-    expect(upload.mock.calls.length - uploadBefore).toBe(600);
-    expect(allocations).toBe(1); expect(create).toHaveBeenCalledOnce();
-    expect(upload.mock.calls.at(-1)![0]).toBe(retainedImage);
+    expect(renderer.scene.diagnostics.rgbMerges).toBe(mergesBefore);
+    expect(planeUploads()).toBe(planeBefore);
+    expect(upload.mock.calls.length - uploadBefore).toBe(2);
+    expect(create).toHaveBeenCalledTimes(2); expect(allocations).toBe(2);
+    const stampDraws = (context.drawImage as ReturnType<typeof vi.fn>).mock.calls.filter(([image]) => image === create.mock.results[1]!.value);
+    expect(stampDraws).toHaveLength(600);
+    expect(stampDraws[0]!.slice(5)).not.toEqual(stampDraws[599]!.slice(5));
     renderer.reset(); expect(renderer.bytes).toBe(0);
-    expect(create.mock.results[0]!.value.width).toBe(0);
+    expect(create.mock.results[0]!.value.width).toBe(0); expect(create.mock.results[1]!.value.width).toBe(0);
   });
   it('uses exact rounded-foot identities and a disjoint weak terrain namespace', () => {
     expect(lightingOwner(10.1, 20.1)).toBe(lightingOwner(10.2, 20.2));
