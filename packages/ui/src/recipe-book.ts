@@ -33,6 +33,8 @@ export interface RecipeBookEntry {
   readonly stationAvailable: boolean;
   readonly skillAvailable: boolean;
   readonly missingIngredients: boolean;
+  /** Per-ingredient need and carried count, for the recipe book's "Needs" page. */
+  readonly ingredients: readonly { readonly itemKind: string; readonly need: number; readonly have: number }[];
 }
 
 function requiredKinds(recipe: RecipeDefinition): readonly (string | null)[] {
@@ -103,6 +105,8 @@ export function craftingRecipeBookEntries(
       skillAvailable: registry === undefined || runtimeRecipeSkillSatisfied(registry, recipe.id, skillRanks),
       missingIngredients: Object.entries(ingredientCounts(recipe))
         .some(([kind, quantity]) => (carried[kind] ?? 0) < quantity),
+      ingredients: Object.entries(ingredientCounts(recipe))
+        .map(([itemKind, need]) => ({ itemKind, need, have: carried[itemKind] ?? 0 })),
     }));
 }
 

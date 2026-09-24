@@ -62,6 +62,11 @@ function callbacks(): OverworldUiCallbacks {
 
 
 const registry = bootstrapContentRegistry();
+/** Opens the crafting bench's recipe book with the keyboard, as a player would. */
+function openRecipeBook(f: { root: { entries(): readonly { element: { label: string } }[]; focus: { set(element: never, source: 'keyboard'): void }; key(event: { key: string }): unknown; arrange(): void } }): void {
+  const toggle = f.root.entries().find(({ element }) => element.label === 'Open recipe book')!.element;
+  f.root.focus.set(toggle as never, 'keyboard'); f.root.key({ key: 'Enter' }); f.root.arrange();
+}
 function fixture(window: OverworldWindow = 'inventory', overrides: Partial<OverworldUiModel> = {}, paint?: { skin: UiSkin; fonts: PixelUi }) {
   const handlers = callbacks();
   const ui = new OverworldUi(paint?.skin ?? {} as UiSkin, paint?.fonts ?? {} as PixelUi, {} as OverworldUiItemArt, handlers);
@@ -192,6 +197,7 @@ describe('production retained inventory authority bridge', () => {
   it('keeps the crafting grid 3x3 across compact and wide viewports without changing focused search', () => {
     const f = fixture('crafting');
     try {
+      openRecipeBook(f);
       const input = f.root.entries().find(({element}) => element.label === 'Search recipes')!.element;
       f.root.focus.set(input, 'keyboard'); f.root.text('plank');
       for (const width of [390, 800, 320, 960]) {
@@ -322,8 +328,10 @@ describe('production retained inventory authority bridge', () => {
   it('retains recipe pointer ownership across equivalent live snapshots', () => {
     const f=fixture('crafting');
     try {
-      const row=f.root.entries().find(({element})=>element.kind==='list-row')!.element;
-      f.pointer('down',row); f.update({timeLabel:'06:01'}); f.pointer('up',row);
+      // Recipes live in the recipe book; "Place in grid" ghost-fills the pattern.
+      openRecipeBook(f);
+      const place=f.root.entries().find(({element})=>element.label==='Place in grid')!.element;
+      f.pointer('down',place); f.update({timeLabel:'06:01'}); f.pointer('up',place);
       expect(f.handlers.ghostFillCraftingRecipe).toHaveBeenCalledExactlyOnceWith('planks');
     } finally { f.dispose(); }
   });
@@ -361,6 +369,7 @@ describe('production retained inventory authority bridge', () => {
   it.each(['inventory','crafting'] as const)('preserves %s filter Escape and Enter handoff without inventory shortcuts', window => {
     const f=fixture(window);
     try {
+      if (window==='crafting') openRecipeBook(f);
       const input=f.root.entries().find(({element})=>element.label===(window==='crafting'?'Search recipes':'Filter items'))!.element;
       f.pointer('move',f.slot('backpack',0));
       f.root.focus.set(input,'keyboard'); f.root.text('wood');

@@ -1518,7 +1518,10 @@ export class OverworldUi {
       ...(this.openWindowValue === 'crafting' ? { crafting: {
         recipes: this.recipeBookEntries().map(entry => ({ id: entry.recipeId,
           label: this.itemDefinition(entry.outputKind)?.displayName ?? entry.outputKind,
-          detail: entry.requiredStation === null ? undefined : this.craftingStationLabel(entry.requiredStation) })),
+          detail: entry.requiredStation === null ? undefined : this.craftingStationLabel(entry.requiredStation),
+          output: { itemKind: entry.outputKind, quantity: entry.outputQuantity },
+          status: !entry.skillAvailable ? 'locked' as const : !entry.stationAvailable ? 'station' as const : entry.missingIngredients ? 'missing' as const : 'ready' as const,
+          ingredients: entry.ingredients.map(ingredient => ({ ...ingredient, name: this.itemDefinition(ingredient.itemKind)?.displayName ?? ingredient.itemKind })) })),
         selected: this.selectedCraftingRecipeId, pattern: (pattern ?? []).map(stack => stack?.itemKind ?? null),
         output: this.recipeOutput(recipeId ?? ''),
         requirement: this.currentRecipeLocked() ? this.recipeSkillRequirement(recipeId ?? '') ?? 'RECIPE REQUIREMENTS NOT MET' : undefined,

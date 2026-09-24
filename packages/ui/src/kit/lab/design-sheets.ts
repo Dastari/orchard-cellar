@@ -27,6 +27,7 @@ import { uiSwitch } from '../components/forms.js';
 import { selectAtlasFrame } from '../../sprite.js';
 import type { UiLabMocks } from './registry.js';
 import { uiLabInventory } from './inventory-mock.js';
+import { uiLabGameOptions } from './game-mock.js';
 
 export type DesignSheetViewport = 'desktop' | 'laptop' | 'phone' | 'phone-landscape';
 export interface DesignSheet {
@@ -443,6 +444,15 @@ function titleScreen(ui: UiFactory, mocks: UiLabMocks, state: TitleState, viewpo
   ]);
 }
 
+/** The real game crafting surface (content frame path) with its recipe book open. */
+function gameCrafting(ui: UiFactory, mocks: UiLabMocks, open: boolean): UiElement {
+  const surface = ui.gameSurface(uiLabGameOptions('crafting', {}, mocks));
+  const find = (node: UiElement): UiElement | undefined => node.kind === 'crafting-bench' ? node : node.children.map(find).find(Boolean);
+  const bench = find(surface) as (UiElement & { setRecipeBook?: (open: boolean) => void }) | undefined;
+  bench?.setRecipeBook?.(open);
+  return centred(ui, surface);
+}
+
 export const DESIGN_SHEETS: readonly DesignSheet[] = [
   ...['character', 'skills', 'quests', 'statistics'].map((chapter): DesignSheet => ({ id: `book-${chapter}`, viewports: ['desktop', 'phone'], build: (ui, mocks, viewport) => characterBook(ui, mocks, chapter, viewport) })),
   { id: 'dialogue', viewports: ['desktop', 'phone'], build: (ui, mocks) => centred(ui, dialogueWindow(mocks)) },
@@ -464,6 +474,8 @@ export const DESIGN_SHEETS: readonly DesignSheet[] = [
   { id: 'b4-online-target', viewports: ['desktop'], build: (ui, mocks) => centred(ui, ui.flex({ direction: 'row', gap: 24, align: 'center' }, [onlinePlayers(ui), targetFrame(ui, mocks)])) },
   { id: 'b4-touch', viewports: ['phone', 'phone-landscape'], build: (ui, mocks, viewport) => touchHud(ui, mocks, viewport === 'phone-landscape') },
   { id: 'b4-help', viewports: ['desktop', 'phone'], build: (ui, _mocks, viewport) => helpBook(ui, viewport) },
+  { id: 'game-crafting-closed', viewports: ['desktop', 'phone'], build: (ui, mocks) => gameCrafting(ui, mocks, false) },
+  { id: 'game-crafting-open', viewports: ['desktop', 'phone'], build: (ui, mocks) => gameCrafting(ui, mocks, true) },
   { id: 'tooltips', viewports: ['desktop'], build: (ui, mocks) => tooltipSheet(ui, mocks) },
   { id: 'hud', viewports: ['desktop', 'phone'], build: (ui, mocks, viewport) => hudSheet(ui, mocks, viewport) },
   { id: 'inventory', viewports: ['desktop', 'phone'], build: (ui, mocks) => centred(ui, inventoryWindow(ui, mocks)) },
