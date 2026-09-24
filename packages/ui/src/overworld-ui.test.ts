@@ -1228,6 +1228,160 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
   });
 
+  describe('inventory touch scroll ownership (BUG-017)', () => {
+    function setup(capacity = 20, cursorQuantity = 0) {
+      const handlers = callbacks();
+      const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+      ui.openWindow = 'inventory';
+      ui.update({
+        width: 360, height: 270, connected: true, touchControls: true,
+        playerCount: 1, selectedSlot: 0,
+        inventory: Array.from({ length: capacity }, (_, index) => ({
+          slot: 10 + index, itemKind: 'wood', quantity: 1,
+        })),
+        cursorStack: cursorQuantity > 0 ? { itemKind: 'wood', quantity: cursorQuantity } : null,
+        hasBackpack: true, backpackSlotCapacity: capacity,
+        audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+        dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+        raining: false, weatherMode: 'auto', prompt: null, toast: null,
+      });
+      const layout = overworldUiLayout(360, 270);
+      const slot = layout.backpackSlots[0]!;
+      const start = { x: slot.x + slot.width / 2, y: slot.y + slot.height / 2 };
+      const point = (dx: number, dy: number) => ({ x: start.x + dx, y: start.y + dy });
+      return { ui, handlers, start, point, layout };
+    }
+
+    it.each([
+      { name: 'direct vertical', moves: [[0, -45]] },
+      { name: 'microstep vertical', moves: [[0, -2], [0, -3], [0, -4], [0, -45]] },
+      { name: 'fractional microstep vertical', moves: [[0, -2.5], [0, -3.5], [0, -3.99], [0, -4], [0, -45]] },
+      { name: 'direct vertical diagonal', moves: [[20, -45]] },
+      { name: 'microstep vertical diagonal', moves: [[1, -2], [2, -3], [3, -4], [20, -45]] },
+      { name: 'equal-axis diagonal', moves: [[2, -2], [3, -3], [4, -4], [45, -45]] },
+      { name: 'vertical then horizontal', moves: [[0, -4], [45, -4], [0, -45]] },
+    ])('scrolls $name without dispatching pickup', ({ moves }) => {
+      const { ui, handlers, start, point } = setup();
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      for (const [dx, dy] of moves) {
+        ui.pointerMove(point(dx!, dy!));
+        expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      }
+      const [dx, dy] = moves.at(-1)!;
+      ui.pointerUp(point(dx!, dy!), 0);
+      expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      expect(handlers.inventoryCursorQuickCraft).not.toHaveBeenCalled();
+      // A tap at the original coordinate now addresses the next row: prove
+      // this was an overflowing scroll through public input, not an inert drag.
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerUp(start, 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 5, 'left');
+    });
+
+    it.each([
+      { name: 'direct horizontal', moves: [[45, 0]] },
+      { name: 'microstep horizontal', moves: [[2, 0], [3, 0], [4, 0]] },
+      { name: 'direct horizontal diagonal', moves: [[45, -20]] },
+      { name: 'microstep horizontal diagonal', moves: [[2, -1], [3, -2], [4, -3]] },
+      { name: 'horizontal then vertical', moves: [[3, 0], [3, -45]] },
+    ])('picks up once for $name and preserves the prediction on cancellation', ({ moves }) => {
+      const { ui, handlers, start, point } = setup();
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      for (const [dx, dy] of moves) ui.pointerMove(point(dx!, dy!));
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 0, 'left');
+      const [dx, dy] = moves.at(-1)!;
+      ui.pointerUp(point(dx!, dy!), 0);
+      ui.pointerLeave();
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
+      expect(handlers.inventoryCursorQuickCraft).not.toHaveBeenCalled();
+      const prediction = ui as unknown as { optimisticMenuCursor: { itemKind: string; quantity: number } };
+      expect(prediction.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 1 });
+      // Even after a later vertical leg, pickup must not also scroll the grid.
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerUp(start, 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(2);
+      expect(handlers.inventoryCursorClick).toHaveBeenLastCalledWith('backpack', 0, 'left');
+    });
+
+    it('retains a tap below the scroll threshold', () => {
+      const { ui, handlers, start, point } = setup();
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerMove(point(0, -3));
+      expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      ui.pointerUp(point(0, -3), 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 0, 'left');
+    });
+
+    it('preserves the held authoritative cursor when scrolling cancels its preview', () => {
+      const { ui, handlers, start, point, layout } = setup(20, 7);
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      for (const dy of [-2, -3, -4, -45]) ui.pointerMove(point(0, dy));
+      ui.pointerUp(point(0, -45), 0);
+      ui.pointerLeave();
+      expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      expect(handlers.inventoryCursorQuickCraft).not.toHaveBeenCalled();
+      expect(handlers.returnInventoryCursor).not.toHaveBeenCalled();
+      // Place the still-held stack through the ordinary authority path.
+      const target = layout.inventoryHotbarSlots[0]!;
+      const destination = { x: target.x + 4, y: target.y + 4 };
+      ui.pointerDown(destination, 0, { pointerType: 'touch' });
+      ui.pointerUp(destination, 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('hotbar', 0, 'left');
+      const prediction = ui as unknown as {
+        inventoryHotbarSlots: readonly { item: { itemKind: string; quantity: number } | null }[];
+        optimisticMenuCursor: unknown;
+      };
+      expect(prediction.inventoryHotbarSlots[0]!.item).toMatchObject({ itemKind: 'wood', quantity: 7 });
+      expect(prediction.optimisticMenuCursor).toBeNull();
+    });
+
+    it('retains vertical drag pickup when there is no scroll overflow', () => {
+      const { ui, handlers, start, point } = setup(5);
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerMove(point(0, -3));
+      ui.pointerUp(point(0, -3), 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 0, 'left');
+    });
+
+    it('keeps a vertical swipe consumed at the top scroll boundary', () => {
+      const { ui, handlers, start, point } = setup();
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      for (const dy of [2, 3, 4, 45]) ui.pointerMove(point(0, dy));
+      ui.pointerUp(point(0, 45), 0);
+      expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerUp(start, 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 0, 'left');
+    });
+
+    it('retains horizontal quick-craft for a held cursor without duplicate targets', () => {
+      const { ui, handlers, start, point, layout } = setup(20, 7);
+      const second = layout.backpackSlots[1]!;
+      const target = { x: second.x + second.width / 2, y: second.y + second.height / 2 };
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerMove(point(3, 0));
+      ui.pointerMove(target);
+      ui.pointerMove(start);
+      ui.pointerMove(target);
+      ui.pointerUp(target, 0);
+      expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledExactlyOnceWith([
+        { container: 'backpack', index: 0 }, { container: 'backpack', index: 1 },
+      ], 'even');
+    });
+
+    it('clears a pending touch on leave before a later mouse drag', () => {
+      const { ui, handlers, start, point } = setup();
+      ui.pointerDown(start, 0, { pointerType: 'touch' });
+      ui.pointerMove(point(0, -2));
+      ui.pointerLeave();
+      ui.pointerDown(start, 0, { pointerType: 'mouse' });
+      ui.pointerMove(point(0, -3));
+      ui.pointerUp(point(0, -3), 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 0, 'left');
+    });
+  });
+
   it('fits chest storage beside the player backpack without overlapping', () => {
     const layout = overworldUiLayout(480, 270);
     const chestRight = Math.max(...layout.chestSlots.map((slot) => slot.x + slot.width));

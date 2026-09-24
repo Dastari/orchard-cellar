@@ -22,7 +22,8 @@ if (!popupCallbackRelayed) {
 }
 
 function isCanvasInput(target: EventTarget | null): boolean {
-  return target instanceof HTMLInputElement && target.classList.contains('canvas-input');
+  return (target instanceof HTMLInputElement && target.classList.contains('canvas-input'))
+    || (target instanceof HTMLTextAreaElement && target.dataset['uiKitInput'] === 'true');
 }
 
 // The rendered canvas owns interaction. Keep the hidden native inputs available

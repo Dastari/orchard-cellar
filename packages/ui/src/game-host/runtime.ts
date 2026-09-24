@@ -70,6 +70,21 @@ export class GameUiRuntime {
     return this.pointers.has(pointerId) || this.cancelled.has(pointerId);
   }
 
+  /** Unexpected DOM capture loss cancels only this gesture and keeps its tail. */
+  cancelPointer(pointerId: number): void {
+    const owned = this.pointers.get(pointerId);
+    if (!owned) return;
+    owned.host.root.pointer({ ...owned.event, type: 'cancel' });
+    this.pointers.delete(pointerId);
+    this.cancelled.add(pointerId);
+  }
+
+  /** A fresh native down (including outside the canvas) starts a new gesture. */
+  beginPointer(pointerId: number): void {
+    this.cancelPointer(pointerId);
+    this.cancelled.delete(pointerId);
+  }
+
   /** Final world/legacy handoff clears retained keyboard ownership and hover. */
   clearFocus(): void { this.keyboard = null; this.clearHover(); }
 
@@ -139,6 +154,11 @@ export class GameUiRuntime {
     host.root.arrange();
     // An empty passive root must not consume the game's Tab roster shortcut.
     if (!host.blocking() && !host.root.entries().some(({ element }) => element.focusable && element.visible && !element.disabled)) return false;
+    // A held activation key is one gesture. Text editors retain native repeat
+    // (spaces, deletion and navigation); their submission policy belongs to the host.
+    const focused = host.root.focus.current;
+    if (event.repeat && focused && !focused.props['editor']
+      && ['Enter', ' ', 'ContextMenu'].includes(event.key)) return true;
     return host.root.key(event) || host.blocking();
   }
 
