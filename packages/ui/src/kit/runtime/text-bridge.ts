@@ -52,11 +52,13 @@ export class UiTextBridge {
   sync(): void {
     const node = this.current(), editor = node?.props['editor'];
     if (!node || !(editor instanceof CanvasTextEditor) || node.disabled || !node.visible) {
+      this.input.inputMode = 'text';
       if (document.activeElement === this.input) this.canvas.focus({ preventScroll: true }); this.active = null; return;
     }
     const state = editor.snapshot(), bounds = this.rect(node);
     this.input.style.left = `${Math.max(0, bounds.x)}px`; this.input.style.top = `${Math.max(0, bounds.y)}px`;
     this.input.setAttribute('aria-label', node.label); this.input.readOnly = node.props['editable'] === false;
+    this.input.inputMode = String(node.props['inputMode'] ?? 'text');
     if (!this.composing) { this.input.value = state.value; this.input.setSelectionRange(state.caretStart, state.caretEnd, state.anchor > state.focus ? 'backward' : 'forward'); }
     if (this.active !== node || document.activeElement === this.canvas) { this.active = node; this.input.focus({ preventScroll: true }); }
   }
