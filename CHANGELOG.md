@@ -7,6 +7,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 - Fix BUG-019: a captured list row that disappears or moves during an update cannot pass its old release to a replacement row. Explicit scope/reconnect cancellation also suppresses the old pointer tail.
 - Keep suppression per pointer until release, cancellation or a fresh press; retain valid scrollbar and touch-scroll ownership. Workspace 0.31.2.
 
+## Client 0.25.1 / UI 0.27.1 — Trade keyboard hints (not yet deployed)
+
+- Request numeric keyboards for all three trade money fields through the shared native editor bridge; ordinary fields reset the hint to text.
+- Keep sanitization, bigint limits, IME/clipboard and single-command submission authoritative. Workspace0.31.1.
+
 ## Client 0.25.0 / UI 0.27.0 — Shared player trade (not yet deployed)
 
 - Use the shared trade composition with live escrow, revision and wallet models; retain server authority and one command per gesture.
