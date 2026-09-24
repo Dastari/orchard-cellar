@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "engineVersion": 1,
-  "contentHash": "3cc75c4a",
-  "definitionCount": 947,
+  "contentHash": "b21376c5",
+  "definitionCount": 1021,
   "kindCounts": {
-    "item": 352,
-    "recipe": 156,
-    "process": 37,
+    "item": 399,
+    "recipe": 179,
+    "process": 41,
     "shop": 10,
     "tileset": 14,
     "object": 60,
