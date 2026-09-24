@@ -8,6 +8,7 @@ export interface UiPurseOptions {
   readonly id?: string;
   readonly balance: bigint;
   readonly onOpen: () => void;
+  readonly activateOn?: 'down' | 'up';
   readonly layout?: UiStyle;
 }
 export function uiPurseLabel(balance: bigint): string {
@@ -18,7 +19,7 @@ export function uiPurseLabel(balance: bigint): string {
 export function uiPurse(options: UiPurseOptions): UiElement {
   let label = uiPurseLabel(options.balance);
   const button = uiButton({ id: options.id ? `${options.id}:button` : undefined, label, ariaLabel: `Inventory · ${label}`,
-    tone: 'primary', trailing: uiIcon({ cf: 'backpack' }), activateOn: 'down', onPress: options.onOpen,
+    tone: 'primary', trailing: uiIcon({ cf: 'backpack' }), get activateOn() { return options.activateOn ?? 'down'; }, onPress: options.onOpen,
     layout: { width: 'grow', height: 'grow' },
   });
   const tooltip = uiTooltip(() => `Inventory · ${label}`, button, { width: 'grow', height: 'grow' });

@@ -1,6 +1,11 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { GameHud, type GameHudModel, type GameHudSurface } from './hud.js';
+import { touchControlLayout } from '../touch-control-layout.js';
+import { TouchControls } from '../touch-controls.js';
+import { QuestTracker } from '../quest-tracker.js';
+import { scrollUiElement } from '../kit/layout/scroll.js';
 import { GameUiRuntime } from './runtime.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { uiTestArt } from '../kit/lab/testing/art.js';
@@ -19,7 +24,7 @@ function model(): GameHudModel {
   };
 }
 function fixture(width = 320, height = 180) {
-  const callbacks = { selectHotbar: vi.fn(), toggleInventory: vi.fn(), toggleCrafting: vi.fn(), toggleBuild: vi.fn(), openSystem: vi.fn(), openOnlinePlayers: vi.fn(), clearTarget: vi.fn() };
+  const callbacks = { selectHotbar: vi.fn(), toggleInventory: vi.fn(), toggleCrafting: vi.fn(), toggleBuild: vi.fn(), openSystem: vi.fn(), openOnlinePlayers: vi.fn(), clearTarget: vi.fn(), focusSurface: vi.fn<(surface: GameHudSurface) => void>() };
   const painters = { itemLabel: (stack: { itemKind: string; quantity: number }) => `${stack.itemKind} x${stack.quantity}`, drawItem: vi.fn(), drawPlayerHead: vi.fn(), drawTargetPortrait: vi.fn(), drawMinimap: vi.fn(), drawMoon: vi.fn(), drawEffect: vi.fn() };
   const host = new GameHud(art, callbacks, painters); hosts.push(host); host.resize(width, height); host.update(model());
   const node = (surface: GameHudSurface, id: string) => { host.roots[surface].arrange(); const entry = host.roots[surface].entries().find(row => row.element.id === id); expect(entry, id).toBeDefined(); return entry!.element; };
@@ -136,4 +141,129 @@ describe('production shared HUD compositions', () => {
       expect(slots).toHaveLength(10); expect(new Set(slots.map(row => row.element.rect.y)).size).toBe(1);
     }
   });
+});
+
+
+describe('BUG-029 combined compact touch and HUD', () => {
+ const intersects = (a: {x:number;y:number;width:number;height:number}, b: {x:number;y:number;width:number;height:number}) => a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0 && a.x < b.x+b.width && b.x < a.x+a.width && a.y < b.y+b.height && b.y < a.y+a.height;
+ function touchModel(swapped=false,bottomOffset=0):GameHudModel { const original=model(); return {...original, trackedQuestCount:1, touchControls:{enabled:true,preferences:{swapped,bottomOffset}}, zone:{...original.zone,watch:{time:'12:00',date:'Summer 24',moon:'Waxing moon'}}}; }
+ it.each([false,true])('separates real full-model HUD, quest and thumb captures across scales/offsets, swapped=%s',swapped=>{
+  const f=fixture(), controls=new TouchControls(art,vi.fn(),true), quest=new QuestTracker(art,vi.fn(),null);
+  try { for(const bottomOffset of [0,120]) for(const scale of [1,2,3]) {
+   f.host.update(touchModel(swapped,bottomOffset)); controls.setPreferences({swapped,bottomOffset});controls.setBounds(320,180);
+   const region=f.host.questTrackerRegion!; expect(region.height).toBe(38); expect(region.width).toBeGreaterThanOrEqual(120);
+   quest.update({width:320,height:180,layoutRegion:region,entries:[{id:'q0',title:'Long pinned quest',complete:false,objectives:['Find the orchard entrance','Read every line']}]});
+   const l=touchControlLayout(320,180,{swapped,bottomOffset}),r=l.joystickRadius+8,thumbs=[{x:l.joystickCenter.x-r,y:l.joystickCenter.y-r,width:r*2,height:r*2},l.blockButton,l.dodgeButton,l.interactButton,l.jumpButton,l.secondaryButton];
+   for(const page of ['you','status','zone','map'] as const) {
+    if(page==='you'||page==='status') f.click('zoneMinimap',`game.hud.compact.tab.${page}`); else f.click('zoneMinimap',`game.hud.compact.toggle-${page}`);
+    for(const surface of Object.keys(f.host.roots) as GameHudSurface[]) { f.host.roots[surface].arrange(); for(const {element} of f.host.roots[surface].entries()) if(element.focusable) for(const thumb of thumbs) expect(intersects(element.clip,thumb),`${page}:${element.id}`).toBe(false); }
+    for(const thumb of thumbs) expect(intersects(quest.currentBounds,thumb)).toBe(false);
+    const canvas=createCanvas(Math.round(320*scale*1.25),Math.round(180*scale*1.25)),context=canvas.getContext('2d');context.scale(scale*1.25,scale*1.25);controls.draw(context as unknown as CanvasRenderingContext2D);f.host.draw(context as unknown as CanvasRenderingContext2D);quest.draw(context as unknown as CanvasRenderingContext2D,1000);
+    expect(context.getImageData(0,0,canvas.width,canvas.height).data.some(v=>v!==0)).toBe(true);
+    const evidence=process.env['ORCHARD_TOUCH_HUD_EVIDENCE'];if(evidence&&(scale===1||page==='you')){mkdirSync(evidence,{recursive:true});writeFileSync(`${evidence}/compact-${page}-swap${swapped}-offset${bottomOffset}-scale${scale}-dpr1.25.png`,canvas.toBuffer('image/png'));}
+   }
+  } } finally { controls.dispose();quest.dispose(); }
+ });
+ it('scrolls every full-size utility/status control into view without firing down actions, and preserves focus/scroll on echoes',()=>{
+  const f=fixture();f.host.update(touchModel()); const root=f.host.roots.hotbarVitals;
+  const area=f.node('hotbarVitals','game.hud.compact.you'); expect(area.scroll.maxY).toBeGreaterThan(50);
+  const character=f.node('hotbarVitals','game.hud.character'); expect(character.rect.width).toBe(96);expect(character.rect.height).toBe(38);
+  const show=(surface:GameHudSurface,id:string,area:UiElement)=>{const element=f.node(surface,id); f.host.roots[surface].focus.set(element,'keyboard');f.host.roots[surface].arrange();expect(element.clip.height).toBeGreaterThanOrEqual(Math.min(element.rect.height,area.contentRect.height));return element;};
+  const purse=show('hotbarVitals','game.hud.purse:button',area),start=f.point(purse);
+  root.pointer({type:'down',point:start,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();
+  root.pointer({type:'move',point:{x:start.x,y:start.y+8},pointerId:1,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'up',point:start,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();
+  const tap=f.point(show('hotbarVitals','game.hud.purse:button',area));root.pointer({type:'down',point:tap,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();root.pointer({type:'up',point:tap,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();
+  const saved=area.scroll.y,focused=root.focus.current;f.host.update({...touchModel(),inventory:{...model().inventory,balanceBronze:12n}});expect(area.scroll.y).toBe(saved);expect(root.focus.current).toBe(focused);
+  for(const id of ['game.hud.weapon','game.hud.crafting','game.hud.build','game.hud.system']) show('hotbarVitals',id,area);
+  f.click('zoneMinimap','game.hud.compact.tab.status');const status=f.node('targetEffects','game.hud.compact.status');expect(status.scroll.maxY).toBeGreaterThan(0);show('targetEffects','game.hud.clear-target',status);f.click('targetEffects','game.hud.clear-target');expect(f.callbacks.clearTarget).toHaveBeenCalledExactlyOnceWith('target-a');
+  scrollUiElement(status,0,status.scroll.maxY);f.host.roots.targetEffects.arrange();const effects=f.node('targetEffects','game.hud.effect-scroll');expect(effects.clip.height).toBe(28);
+ });
+
+ it.each([[844,390],[390,844]])('keeps real noncompact touch status and hotbar clear at%s×%s', (width,height)=>{
+  const f=fixture(width,height);
+  for(const swapped of [false,true])for(const bottomOffset of [0,120]){
+   f.host.update(touchModel(swapped,bottomOffset));
+   const layout=touchControlLayout(width,height,{swapped,bottomOffset}),r=layout.joystickRadius+8;
+   const thumbs=[{x:layout.joystickCenter.x-r,y:layout.joystickCenter.y-r,width:r*2,height:r*2},layout.blockButton,layout.dodgeButton,layout.interactButton,layout.jumpButton,layout.secondaryButton];
+   for(const surface of Object.keys(f.host.roots) as GameHudSurface[]) for(const {element} of f.host.roots[surface].entries()) if(element.focusable) for(const thumb of thumbs) expect(intersects(element.clip,thumb),`${width}×${height} ${element.id}`).toBe(false);
+   for(const [surface,id] of [['hotbarVitals','game.hud.character'],['hotbarVitals','game.hud.hotbar.slot.0'],['hotbarVitals','game.hud.hotbar.slot.9'],['targetEffects','game.hud.target'],['targetEffects','game.hud.target-name'],['targetEffects','game.hud.clear-target']] as const){const element=f.node(surface,id);for(const thumb of thumbs)expect(intersects(element.clip,thumb),`${width}×${height} swap=${swapped} offset=${bottomOffset}: ${id}`).toBe(false);}
+   const controls=new TouchControls(art,vi.fn(),true),tracker=new QuestTracker(art,vi.fn(),null);try{controls.setBounds(width,height);controls.setPreferences({swapped,bottomOffset});tracker.update({width,height,layoutRegion:f.host.questTrackerRegion,anchorRect:f.host.minimapBounds,entries:[{id:'q0',title:'Pinned quest',complete:false,objectives:['Read the full objective']}]});for(const thumb of thumbs)expect(intersects(tracker.currentBounds,thumb)).toBe(false);
+    for(const scale of [1,2,3]){const canvas=createCanvas(Math.round(width*scale*1.25),Math.round(height*scale*1.25)),ctx=canvas.getContext('2d');ctx.scale(scale*1.25,scale*1.25);controls.draw(ctx as unknown as CanvasRenderingContext2D);f.host.draw(ctx as unknown as CanvasRenderingContext2D);tracker.draw(ctx as unknown as CanvasRenderingContext2D,1000);expect(ctx.getImageData(0,0,canvas.width,canvas.height).data.some(v=>v!==0)).toBe(true);const evidence=process.env['ORCHARD_TOUCH_HUD_EVIDENCE'];if(evidence){mkdirSync(evidence,{recursive:true});writeFileSync(`${evidence}/touch-${width}x${height}-swap${swapped}-offset${bottomOffset}-scale${scale}-dpr1.25.png`,canvas.toBuffer('image/png'));}}
+   }finally{controls.dispose();tracker.dispose();}
+  }
+ });
+ it.each([[639,180],[640,180],[800,180],[639,229],[640,229],[640,230],[640,330],[640,294],[640,295],[320,354],[320,355]])('fits full touch status across responsive boundaries at%s×%s', (width,height)=>{
+  const f=fixture(width,height),quest=new QuestTracker(art,vi.fn(),null);
+  try{for(const swapped of [false,true])for(const bottomOffset of [0,120]){
+   f.host.update(touchModel(swapped,bottomOffset));
+   const layout=touchControlLayout(width,height,{swapped,bottomOffset}),r=layout.joystickRadius+8,thumbs=[{x:layout.joystickCenter.x-r,y:layout.joystickCenter.y-r,width:r*2,height:r*2},layout.blockButton,layout.dodgeButton,layout.interactButton,layout.jumpButton,layout.secondaryButton];
+   for(const surface of Object.keys(f.host.roots) as GameHudSurface[])for(const {element} of f.host.roots[surface].entries())if(element.focusable)for(const thumb of thumbs)expect(intersects(element.clip,thumb),`${width}×${height} swap${swapped} offset${bottomOffset}: ${element.id}`).toBe(false);
+   const zoneNodes=f.host.roots.zoneMinimap.entries().filter(({element})=>['hud.zone','hud.online-players','hud.minimap','hud.minimap.expand'].includes(element.id));
+   for(const [surface,id] of [['hotbarVitals','game.hud.character'],['hotbarVitals','game.hud.hunger'],['targetEffects','game.hud.target'],['targetEffects','game.hud.target-name'],['targetEffects','game.hud.clear-target']] as const){const element=f.host.roots[surface].entries().find(row=>row.element.id===id)?.element;if(element)for(const zone of zoneNodes)expect(intersects(element.clip,zone.element.clip),`${id} versus ${zone.element.id}`).toBe(false);}
+   quest.update({width,height,anchorRect:f.host.minimapBounds,layoutRegion:f.host.questTrackerRegion,visible:f.host.questTrackerVisible,entries:[{id:'q0',title:'Boundary quest',complete:false,objectives:['Reach every line']}]});
+   for(const thumb of thumbs)expect(intersects(quest.currentBounds,thumb)).toBe(false);
+  }}finally{quest.dispose();}
+ });
+ it('hands actual runtime keyboard ownership into STATUS/YOU and Escape back to the selected tab',()=>{
+  const f=fixture(),runtime=new GameUiRuntime();f.host.update(touchModel());
+  try{for(const surface of Object.keys(f.host.roots) as GameHudSurface[])runtime.register({id:`hud-${surface}`,root:f.host.roots[surface],priority:40,active:()=>true,blocking:()=>false});
+   f.callbacks.focusSurface.mockImplementation(surface=>{runtime.focus(`hud-${surface}`);});
+   const status=f.point(f.node('zoneMinimap','game.hud.compact.tab.status'));
+   runtime.pointer({type:'down',point:status,pointerId:1,button:0,pointerType:'mouse'});runtime.pointer({type:'up',point:status,pointerId:1,button:0,pointerType:'mouse'});
+   expect(f.callbacks.focusSurface).toHaveBeenLastCalledWith('targetEffects');
+   for(let i=0;i<12&&runtime.focusedElement?.id!=='game.hud.clear-target';i++)runtime.key({key:'Tab'});
+   expect(runtime.focusedElement?.id).toBe('game.hud.clear-target');runtime.key({key:'Enter'});expect(f.callbacks.clearTarget).toHaveBeenCalledExactlyOnceWith('target-a');
+   expect(runtime.key({key:'Escape'})).toBe(true);expect(runtime.focusedElement?.id).toBe('game.hud.compact.tab.status');
+   runtime.key({key:'Tab',shiftKey:true});expect(runtime.focusedElement?.id).toBe('game.hud.compact.tab.you');runtime.key({key:'Enter'});expect(f.callbacks.focusSurface).toHaveBeenLastCalledWith('hotbarVitals');
+   for(let i=0;i<16&&runtime.focusedElement?.id!=='game.hud.purse:button';i++)runtime.key({key:'Tab'});
+   expect(runtime.focusedElement?.id).toBe('game.hud.purse:button');runtime.key({key:'Enter',repeat:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();runtime.key({key:'Enter'});expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();
+   const focus=runtime.focusedElement,scroll=f.node('hotbarVitals','game.hud.compact.you').scroll.y,requests=f.callbacks.focusSurface.mock.calls.length;f.host.update({...touchModel(),inventory:{...model().inventory,balanceBronze:1n}});expect(runtime.focusedElement).toBe(focus);expect(f.node('hotbarVitals','game.hud.compact.you').scroll.y).toBe(scroll);expect(f.callbacks.focusSurface).toHaveBeenCalledTimes(requests);
+   runtime.key({key:'Escape'});expect(runtime.focusedElement?.id).toBe('game.hud.compact.tab.you');
+  }finally{runtime.dispose();}
+ });
+ it('suppresses held compact utility tails across preference and responsive-scope changes',()=>{
+  const f=fixture(),runtime=new GameUiRuntime();f.host.update(touchModel());
+  try{for(const surface of Object.keys(f.host.roots) as GameHudSurface[])runtime.register({id:`hud-${surface}`,root:f.host.roots[surface],priority:40,active:()=>true,blocking:()=>false});f.callbacks.focusSurface.mockImplementation(surface=>{runtime.focus(`hud-${surface}`);});
+   const tab=f.point(f.node('zoneMinimap','game.hud.compact.tab.you'));runtime.pointer({type:'down',point:tab,pointerId:1,button:0});runtime.pointer({type:'up',point:tab,pointerId:1,button:0});
+   for(let i=0;i<16&&runtime.focusedElement?.id!=='game.hud.purse:button';i++)runtime.key({key:'Tab'});
+   const p=f.point(f.node('hotbarVitals','game.hud.purse:button'));runtime.pointer({type:'down',point:p,pointerId:2,button:0,pointerType:'touch',isPrimary:true});f.host.update(touchModel(true,120));runtime.pointer({type:'up',point:p,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();
+   const q=f.point(f.node('hotbarVitals','game.hud.purse:button'));runtime.pointer({type:'down',point:q,pointerId:3,button:0,pointerType:'touch',isPrimary:true});f.host.resize(800,600);runtime.pointer({type:'up',point:f.point(f.node('hotbarVitals','game.hud.purse:button')),pointerId:3,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();
+  }finally{runtime.dispose();}
+ });
+ it('captures a blank compact viewport swipe before world input and preserves single-primary policy',()=>{
+  const f=fixture();f.host.update(touchModel());const runtime=new GameUiRuntime();
+  try {for(const surface of Object.keys(f.host.roots) as GameHudSurface[]) runtime.register({id:surface,root:f.host.roots[surface],priority:40,active:()=>true,blocking:()=>false});
+   const area=f.node('hotbarVitals','game.hud.compact.you'),p={x:area.contentRect.x+110,y:area.contentRect.y+10};
+   expect(runtime.pointer({type:'down',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true})).toBe(true);
+   expect(runtime.tracksPointer(1)).toBe(true);const focused=f.host.roots.hotbarVitals.focus.current;
+   expect(runtime.pointer({type:'down',point:{x:p.x-50,y:p.y},pointerId:2,button:0,pointerType:'touch',isPrimary:false})).toBe(true);expect(f.host.roots.hotbarVitals.focus.current).toBe(focused);
+   runtime.pointer({type:'move',point:{x:p.x,y:p.y-8},pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(area.scroll.y).toBe(8);
+   runtime.pointer({type:'up',point:p,pointerId:2,button:0,pointerType:'touch',isPrimary:false});runtime.pointer({type:'up',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();expect(f.callbacks.selectHotbar).not.toHaveBeenCalled();
+  }finally{runtime.dispose();}
+ });
+ it.each(['game.hud.weapon','game.hud.crafting','game.hud.build','game.hud.system'] as const)('arbitrates scroll before compact %s activation and retains one tap/keyboard command',id=>{
+  const f=fixture();f.host.update(touchModel());const root=f.host.roots.hotbarVitals;
+  const command=id.endsWith('weapon')?f.callbacks.selectHotbar:id.endsWith('crafting')?f.callbacks.toggleCrafting:id.endsWith('build')?f.callbacks.toggleBuild:f.callbacks.openSystem;
+  const show=()=>{const element=f.node('hotbarVitals',id);root.focus.set(element,'keyboard');root.arrange();return f.point(element);};
+  let p=show();root.pointer({type:'down',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(command).not.toHaveBeenCalled();root.pointer({type:'move',point:{x:p.x,y:p.y+5},pointerId:1,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'up',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(command).not.toHaveBeenCalled();
+  p=show();root.pointer({type:'down',point:p,pointerId:2,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'cancel',point:p,pointerId:2,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'up',point:p,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(command).not.toHaveBeenCalled();
+  p=show();root.pointer({type:'down',point:p,pointerId:3,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'up',point:p,pointerId:3,button:0,pointerType:'touch',isPrimary:true});expect(command).toHaveBeenCalledOnce();root.key({key:'Enter',repeat:true});expect(command).toHaveBeenCalledOnce();root.key({key:'Enter'});expect(command).toHaveBeenCalledTimes(2);
+ });
+ it('keeps default purse and zone commands on down and restores original layout after compact resize',()=>{
+  const f=fixture(800,600),root=f.host.roots.hotbarVitals,p=f.point(f.node('hotbarVitals','game.hud.purse:button'));
+  root.pointer({type:'down',point:p,pointerId:1,button:0});expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();root.pointer({type:'up',point:p,pointerId:1,button:0});expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();
+  const before={...f.node('hotbarVitals','game.hud.character').rect};f.host.resize(320,180);f.host.update(touchModel());f.click('zoneMinimap','game.hud.compact.tab.status');f.host.resize(800,600);f.host.update(model());expect(f.node('hotbarVitals','game.hud.character').rect).toEqual(before);
+  const online=f.node('zoneMinimap','hud.online-players'),q=f.point(online);f.host.roots.zoneMinimap.pointer({type:'down',point:q,pointerId:2,button:0});expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();f.host.roots.zoneMinimap.pointer({type:'up',point:q,pointerId:2,button:0});expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();
+ });
+ it('defers scrollable zone/map release intent, keeps secondary touch inert and preserves ordinary default-down controls',()=>{
+  const f=fixture(); f.click('hotbarVitals','game.hud.purse:button');expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();f.callbacks.toggleInventory.mockClear();f.host.update(touchModel());
+  f.click('zoneMinimap','game.hud.compact.toggle-zone'); const root=f.host.roots.zoneMinimap,area=f.node('zoneMinimap','game.hud.compact.zone');
+  const online=f.node('zoneMinimap','hud.online-players');root.focus.set(online,'keyboard');root.arrange();const p=f.point(online);
+  root.pointer({type:'down',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.openOnlinePlayers).not.toHaveBeenCalled();
+  root.pointer({type:'move',point:{x:p.x,y:p.y-8},pointerId:1,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'up',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.openOnlinePlayers).not.toHaveBeenCalled();
+  root.focus.set(online,'keyboard');root.arrange();const q=f.point(online);root.pointer({type:'down',point:q,pointerId:2,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'down',point:q,pointerId:3,button:0,pointerType:'touch',isPrimary:false});root.pointer({type:'up',point:q,pointerId:3,button:0,pointerType:'touch',isPrimary:false});expect(f.callbacks.openOnlinePlayers).not.toHaveBeenCalled();root.pointer({type:'up',point:q,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();
+  root.key({key:'Enter',repeat:true});expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();expect(area.scroll.maxY).toBeGreaterThan(0);
+  f.click('zoneMinimap','game.hud.compact.toggle-map');const mapArea=f.node('zoneMinimap','game.hud.compact.map');expect(mapArea.scroll.maxY).toBeGreaterThan(0);const map=f.node('zoneMinimap','hud.minimap'),m=f.point(map);
+  root.pointer({type:'down',point:m,pointerId:4,button:0,pointerType:'touch',isPrimary:true});expect(f.node('zoneMinimap','game.hud.compact.map')).toBe(mapArea);root.pointer({type:'move',point:{x:m.x,y:m.y-8},pointerId:4,button:0,pointerType:'touch',isPrimary:true});root.pointer({type:'up',point:m,pointerId:4,button:0,pointerType:'touch',isPrimary:true});expect(f.node('zoneMinimap','game.hud.compact.map')).toBe(mapArea);
+ });
 });

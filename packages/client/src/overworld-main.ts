@@ -1151,7 +1151,7 @@ retainedUi.register({ id: 'delve-rewards', priority: 1100, root: delveRewards.re
 retainedUi.register({ id: 'delve-confirmation', priority: 700, root: overlayRoots.confirmation,
   active: () => retainedUiAvailable() && overworldUi.retainedConfirmationActive
     && !npcInteractionUi.active && !tradeUi.active && !onlinePlayersVisible, blocking: () => true });
-const hudRoots = overworldUi.enableRetainedHud(kitArt);
+const hudRoots = overworldUi.enableRetainedHud(kitArt, surface => { retainedUi.focus(`hud-${surface}`); });
 for (const surface of ['zoneMinimap', 'hotbarVitals', 'targetEffects'] as const) retainedUi.register({
   id: `hud-${surface}`, root: hudRoots[surface], priority: 50,
   active: () => retainedUiAvailable() && overworldUi.retainedHudVisible(surface) && overworldUi.openWindow === null

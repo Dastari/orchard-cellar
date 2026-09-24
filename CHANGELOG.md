@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.38.1 / UI 0.40.1 — Responsive touch and HUD composition (not yet deployed)
+
+- Fit touch controls beside the actual compact HUD and pinned quests so Block and the joystick remain reachable. Preserve hotbar slot authority, full status information through shared scrolling, saved placement preferences and single-primary HUD gesture policy.
+- Fit full player/target status around touch capture areas in wide and portrait layouts; preserve non-touch geometry and saved preferences. Workspace0.44.1. BUG-029 browser acceptance and final combined checks remain required before publication.
+
 ## Client 0.38.0 / UI 0.40.0 — Shared touch controls (not yet deployed)
 
 - Use the same five-action touch composition as Studio, preserving eight-way movement, deadzone, action timing, held block and independent pointer custody. Central retained capture owns all thumb-control tails while world pinch and hold gestures keep their existing authority.

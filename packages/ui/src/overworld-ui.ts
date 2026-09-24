@@ -1171,8 +1171,9 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 
 export class OverworldUi {
   private gameHud: GameHud | null = null;
-  enableRetainedHud(art: UiKitArt): Readonly<Record<GameHudSurface, UiRoot>> {
+  enableRetainedHud(art: UiKitArt, focusSurface?: (surface: GameHudSurface) => void): Readonly<Record<GameHudSurface, UiRoot>> {
     this.gameHud ??= new GameHud(art, {
+      ...(focusSurface ? { focusSurface } : {}),
       selectHotbar: slot => this.callbacks.selectHotbar(slot),
       toggleInventory: () => { this.openWindow = this.openWindowValue === 'inventory' ? null : 'inventory'; },
       toggleCrafting: () => { this.openWindow = this.openWindowValue === 'crafting' ? null : 'crafting'; },
@@ -1208,6 +1209,7 @@ export class OverworldUi {
         ...(model.moonPhase ? { moon: { phase: Object.keys(MOON_PHASE_LABELS).indexOf(model.moonPhase), label: MOON_PHASE_LABELS[model.moonPhase] } } : {}),
       },
       minimapTrackingEnabled: model.minimapTrackingEnabled === true, trackedQuestCount: model.trackedQuestCount,
+      touchControls: { enabled: model.touchControls === true, preferences: model.touchControlPreferences ?? DEFAULT_TOUCH_CONTROL_PREFERENCES },
       inventory: { rows: model.inventory.filter(row => row.itemKind !== 'empty' && row.quantity > 0).map(row => ({ slot: row.slot, stack: row })),
         selectedSlot: model.selectedSlot, mainHandIndex: MAIN_HAND_INVENTORY_SLOT, balanceBronze: model.balanceBronze ?? 0n },
       ...(vitals ? { player: { id: vitals.playerId, values: vitals, hunger: model.hunger, vigourDenied: model.vigourDenied } } : {}),

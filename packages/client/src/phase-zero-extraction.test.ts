@@ -189,7 +189,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Reviewed shared HUD projections, legacy hit-path retirement and foreground tracker ordering.
 // Reviewed roster replacement removes legacy rendering, scroll/role hit paths together.
 // Actual inventory coexistence, scoped management and touch-release regressions cover this seam.
-const STRUCTURAL_SEAM_DIGEST = '10fed0daa4dfe384a34e5f672bd5aa0c76c23c6d32c947d81eee42b4ca6fb19a';
+// BUG029 forwards actual touch placement and explicit compact-page keyboard ownership.
+// Actual-parent runtime tests cover layout, one target command and Escape focus return.
+const STRUCTURAL_SEAM_DIGEST = 'ca29f8fa9d5a074b3cc0655b2851a35c11305ac418262e917a95ddd79331ef2c';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
