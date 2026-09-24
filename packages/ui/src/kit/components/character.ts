@@ -14,6 +14,7 @@ import { uiMeter } from './meter.js';
 import { uiPaperDoll, type UiSlotOptions } from './inventory.js';
 import { uiViewport } from './viewport.js';
 export interface UiCharacterOptions {
+  readonly onKey?: (key: string, repeat: boolean) => boolean;
   readonly model: CharacterScreenModel; readonly asset?: (name:string)=>LoadedAsset|undefined; readonly artwork?: UiSlotOptions['artwork'];
   readonly onAppearance: (appearance: PlayerAppearanceSelection) => void | Promise<void>;
   readonly onNavigate?: (page:'character'|'skills'|'statistics')=>void; readonly onClose?:()=>void;
@@ -70,7 +71,7 @@ export function uiCharacter(options:UiCharacterOptions):UiCharacterElement {
   ]});
   const frame = new UiElement({ id: 'game.character.host', kind: 'character-screen', children: [base],
     style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' }, props: { touchScroll: true, singlePointer: true },
-    onKeyCapture(event) { if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; },
+    onKeyCapture(event) { if (options.onKey?.(event.key, event.repeat === true)) return true; if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; },
     onDispose() { live = false; request++; } });
   const updateCharacter=(next:CharacterScreenModel):void=>{
     if (next.playerId !== model.playerId) { request++; facing = 0; pending = null; }

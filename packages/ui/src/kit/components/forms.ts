@@ -63,14 +63,30 @@ export interface UiSliderOptions extends UiChoiceOptions {
 export function uiSlider(options: UiSliderOptions): UiElement {
   const min = options.min ?? 0, max = options.max ?? 100, step = options.step ?? 1, vertical = options.orientation === 'vertical';
   if (!(Number.isFinite(min + max + step) && max > min && step > 0)) throw new Error('Slider requires finite ordered bounds and a positive step');
-  let dragging = false;
+  let dragging = false, pendingTouch = false;
   const normalized = (value: number) => Math.max(min, Math.min(max, min + Math.round((value - min) / step) * step));
   const change = (element: UiElement, value: number) => { const next = normalized(value); if (next !== element.props['value']) { element.setProps({ value: next }, false); options.onChange?.(next); } };
   const track = (element: UiElement) => { const r = element.rect; return { x: r.x + 8, y: r.y + 8, width: Math.max(1, r.width - 16 - (options.valueLabel && !vertical ? 36 : 0)), height: Math.max(1, r.height - 16) }; };
   const point = (element: UiElement, x: number, y: number) => change(element, min + sliderValueAtPosition(track(element), { x, y }, vertical ? 'vertical' : 'horizontal') * (max - min));
   return new UiElement({ id: options.id, kind: 'slider', label: options.label, focusable: true, disabled: options.disabled, pointerMode: 'capture', props: { value: normalized(options.value ?? min), tone: options.tone ?? 'primary' },
     style: { width: vertical ? uiFixed(32) : 'grow', height: vertical ? uiFixed(120) : uiFixed(32), ...options.layout },
-    onPointer(event, element) { if (event.type === 'down' && event.button === 0) { dragging = true; event.capture(); point(element, event.point.x, event.point.y); return true; } if (dragging && event.type === 'move') { point(element, event.point.x, event.point.y); return true; } if (dragging && (event.type === 'up' || event.type === 'cancel')) { dragging = false; event.release(); return true; } return false; },
+    onPointer(event, element) {
+      if (event.type === 'down' && event.button === 0) {
+        dragging = true; pendingTouch = event.pointerType === 'touch'; event.capture();
+        // Touch-scroll arbitration must decide direction before this control
+        // sends a preference/world command. A stationary touch commits on up.
+        if (!pendingTouch) point(element, event.point.x, event.point.y);
+        return true;
+      }
+      if (dragging && event.type === 'move') { pendingTouch = false; point(element, event.point.x, event.point.y); return true; }
+      if (dragging && (event.type === 'up' || event.type === 'cancel')) {
+        const commitTap = pendingTouch && event.type === 'up' && containsPoint(element.clip, event.point);
+        dragging = false; pendingTouch = false; event.release();
+        if (commitTap) point(element, event.point.x, event.point.y);
+        return true;
+      }
+      return false;
+    },
     onWheel(event, element) { change(element, Number(element.props['value']) + (event.deltaY < 0 ? step : -step)); return true; },
     onKey(event, element) {
       const value = Number(element.props['value']);

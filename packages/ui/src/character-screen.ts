@@ -66,6 +66,7 @@ export function cycleAppearanceValue(
 }
 
 export interface CharacterScreenNavigation {
+  readonly onKey?: (key: string, repeat: boolean) => boolean;
   readonly onNavigate?: (page: 'character' | 'skills' | 'statistics') => void;
   readonly onClose?: () => void;
 }

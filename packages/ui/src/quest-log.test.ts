@@ -107,6 +107,35 @@ describe('production quest log retained adapter', () => {
     for (const id of ['quests.list', 'quests.pin', 'quests.drop']) { const action = node(log, id); expect(action.clip.height).toBe(action.rect.height); expect(action.clip.height).toBeGreaterThan(0); }
   });
 
+  it('keeps host-owned bounds and reachable actions after compact edge drags and viewport resizing', () => {
+    const { log, setPinned, drop } = fixture(quests, 320, 180);
+    const compact = { x: 4, y: 4, width: 312, height: 172 };
+    const check = (bounds: typeof compact) => {
+      expect(node(log, 'game.quests').rect).toEqual(bounds);
+      for (const id of ['quests.list', 'quests.pin', 'quests.drop']) {
+        const control = node(log, id);
+        expect(control.clip).toEqual(control.rect); expect(control.clip.height).toBeGreaterThan(0);
+        expect(control.rect.y + control.rect.height).toBeLessThanOrEqual(bounds.y + bounds.height);
+        expect(control.rect.x + control.rect.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+      }
+    };
+    check(compact);
+    for (const [pointerId, point] of [{ x: 308, y: 168 }, { x: 12, y: 168 }, { x: 308, y: 12 }, { x: 160, y: 174 }].entries()) {
+      log.root.pointer({ type: 'down', point, pointerId, button: 0 });
+      log.root.pointer({ type: 'move', point: { x: point.x + 40, y: point.y + 40 }, pointerId, button: 0 });
+      log.root.pointer({ type: 'up', point: { x: point.x + 40, y: point.y + 40 }, pointerId, button: 0 });
+      check(compact);
+    }
+    expect(setPinned).not.toHaveBeenCalled(); expect(drop).not.toHaveBeenCalled();
+    const wide = { x: 4, y: 4, width: 792, height: 592 };
+    log.setBounds(wide, 800, 600); check(wide);
+    log.setBounds(compact, 320, 180); check(compact);
+    const action = point(node(log, 'quests.pin'));
+    log.root.pointer({ type: 'down', point: action, pointerId: 10, button: 0 });
+    log.root.pointer({ type: 'up', point: action, pointerId: 10, button: 0 });
+    expect(setPinned).toHaveBeenCalledExactlyOnceWith('quest0', true);
+  });
+
   it('returns close to the host and reopens/focuses the same root', () => {
     const { log, close } = fixture(); const root = log.root;
     const x = root.entries().find(entry => entry.element.kind === 'button' && entry.element.label === 'X')!.element;

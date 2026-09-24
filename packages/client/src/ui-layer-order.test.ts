@@ -54,7 +54,7 @@ describe('overworld UI compositing order', () => {
     const pointerMove = main.slice(pointerMoveStart, pointerMoveEnd);
     expect(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'player-trade')")).toBeGreaterThan(0);
     expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'player-trade')"));
-    expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf('npcInteractionUi.pointerMove'));
+    expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'npc-interaction')"));
 
     const blurStart = main.indexOf("window.addEventListener('blur'");
     const blurEnd = main.indexOf('function dispatchTouchControlAction', blurStart);
@@ -68,4 +68,13 @@ describe('overworld UI compositing order', () => {
     expect(roster).toContain('this.windowRibbon.draw(');
     expect(roster).toContain('`ONLINE PLAYERS  ${players.length}`');
   });
+});
+
+it('routes adopted modal roots through every central uncaptured input entry', () => {
+  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction']) {
+    expect(main).toContain(`retainedUi.key(event, '${host}')`);
+    expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
+    expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);
+    expect(main).toMatch(new RegExp(`retainedUi\\.wheel\\([\\s\\S]*?, '${host}'\\)`));
+  }
 });

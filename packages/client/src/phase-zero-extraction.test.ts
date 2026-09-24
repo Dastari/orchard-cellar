@@ -182,7 +182,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // process progress; actual frame/slot/timing/command regressions cover the seam.
 // Reviewed quest/help host integration removes both legacy draw/input paths; actual host tests
 // cover deep links, parent shortcuts, focus/resize, one command and cancelled touch custody.
-const STRUCTURAL_SEAM_DIGEST = '325870c28708385ae8b023b9012f1d8e16542006de8bb95c080f3c7e9c460cea';
+// Reviewed system-menu command adapter and retirement of its production legacy dispatch.
+// Reviewed shared character/statistics adapters, appearance rejection and legacy path retirement.
+// Reviewed skills host: shared navigation, actual parent deep links and captured reconnect tails.
+const STRUCTURAL_SEAM_DIGEST = 'ef31dd9105daaafb568cdff0c6e57be2fba84d16c1cff858012b3a2d6e9dab31';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

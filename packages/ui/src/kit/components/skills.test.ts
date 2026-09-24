@@ -62,8 +62,9 @@ it('uses authored level caps, XP thresholds and respec costs after content chang
  const nodes=()=>root.entries().map(entry=>entry.element);
  expect(nodes().some(node=>node.label==='EXPLORER LEVEL 3 · 2 UNSPENT POINTS')).toBe(true);
  expect(nodes().some(node=>node.label==='MAX LEVEL')).toBe(true);
- expect(nodes().find(node=>node.props['label']==='RESET TREE 0G 0S 7C')?.disabled).toBe(true);
+ expect(nodes().some(node=>node.label==='RESET COST 0G 0S 7C')).toBe(true);
+ expect(nodes().find(node=>node.id==='skills.reset')?.disabled).toBe(true);
  frame.updateSkills({...model,balanceBronze:7n});root.arrange();
- expect(nodes().find(node=>node.props['label']==='RESET TREE 0G 0S 7C')?.disabled).toBe(false);
+ expect(nodes().find(node=>node.id==='skills.reset')?.disabled).toBe(false);
  root.dispose();
 });

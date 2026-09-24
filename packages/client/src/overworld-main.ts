@@ -261,8 +261,6 @@ const canvas: HTMLCanvasElement = canvasElement;
 const renderer = createGameplayRenderer(canvas);
 const chatInputElement = document.querySelector<HTMLInputElement>('#account-name');
 if (chatInputElement === null) throw new Error('Missing overworld text input');
-const shopFilterInputElement = document.querySelector<HTMLInputElement>('#shop-filter');
-if (shopFilterInputElement === null) throw new Error('Missing shop filter input');
 const inventoryFilterInputElement = document.querySelector<HTMLInputElement>('#inventory-filter');
 if (inventoryFilterInputElement === null) throw new Error('Missing inventory filter input');
 setLoadingScreenStage({
@@ -811,7 +809,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   travelHearthFerry:(from,to)=>network.travelHearthFerry(from,to),
   claimOutdoorReward: (id) => network.claimOutdoorReward(id),
   abandonQuest: (questId) => showResult(network.abandonQuest(questId), 'QUEST DROPPED'),
-  setAppearance: (appearance) => showResult(network.setAppearance(appearance), 'APPEARANCE UPDATED'),
+  setAppearance: (appearance) => showPredictedInventoryResult(network.setAppearance(appearance), 'APPEARANCE UPDATED'),
   prioritizeEquipmentSkill:(nodeId)=>showResult(network.prioritizeEquipmentSkill(nodeId),'EQUIPMENT SKILL PRIORITY UPDATED'),
   purchaseSkillNode: (nodeId) => showResult(network.purchaseSkillNode(nodeId), 'SKILL RANK LEARNED'),
   resetSkillTree: (track) => showResult(network.resetSkillTree(track), `${track.toUpperCase()} TREE RESET`),
@@ -1075,7 +1073,7 @@ function cropGreenhouseProtectedForSnapshot(
       && placeable.carriedBy === undefined);
 }
 
-const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
+const npcInteractionUi = new NpcInteractionUi(kitArt, itemArt, {
   unlockHearthLegendaryRecipe: offer => network.unlockHearthLegendaryRecipe(offer.recipeId, offer.expectedContentHash, offer.expectedSeals),
   fulfillVillageOrder:offer=>network.fulfillVillageOrder(offer.id,offer.revision,offer.contentHash,offer.totalBronze),
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
@@ -1091,7 +1089,7 @@ const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
     ...(profile === undefined ? {} : { species: profile.species }),
     variant: profile?.variant ?? 0,
   }, rect);
-}, shopFilterInputElement);
+});
 const tradeUi = new TradeUi(kitArt, itemArt, {
   acceptRequest: (tradeId) => showResult(network.acceptTradeRequest(tradeId), 'TRADE OPENED'),
   declineRequest: (tradeId) => showResult(network.declineTrade(tradeId), 'TRADE DECLINED'),
@@ -1122,6 +1120,14 @@ retainedUi.register({ id: 'character-name', priority: 1000, root: characterNameP
   active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
 const readingRoots = overworldUi.enableRetainedReading(kitArt);
+const characterRoots = overworldUi.enableRetainedCharacter(kitArt);
+for (const window of ['character', 'statistics', 'skills'] as const) retainedUi.register({ id: `character-${window}`, priority: 500,
+  root: characterRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window && overworldUi.retainedCharacterActive
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
+const systemMenuRoot = overworldUi.enableRetainedSystem(kitArt);
+retainedUi.register({ id: 'system-menus', priority: 500, root: systemMenuRoot,
+  active: () => retainedUiAvailable() && overworldUi.retainedSystemActive
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
 retainedUi.register({ id: 'inventory-menus', priority: 500, root: inventoryMenuRoot,
   active: () => retainedUiAvailable() && overworldUi.retainedInventoryActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible,
@@ -1129,6 +1135,8 @@ retainedUi.register({ id: 'inventory-menus', priority: 500, root: inventoryMenuR
 for (const window of ['quests', 'help'] as const) retainedUi.register({ id: `reading-${window}`, priority: 500,
   root: readingRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
+retainedUi.register({ id: 'npc-interaction', priority: 800, root: npcInteractionUi.root,
+  active: () => retainedUiAvailable() && npcInteractionUi.active && !tradeUi.active, blocking: () => true });
 retainedUi.register({ id: 'player-trade', priority: 900, root: tradeUi.root,
   active: () => retainedUiAvailable() && tradeUi.active, blocking: () => true });
 retainedUi.register({ id: 'build-palette', priority: 200, root: homesteadBuildPalette.root,
@@ -1155,7 +1163,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
 });
 import.meta.hot?.dispose(() => {
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
-  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading();
+  npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
 });
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
@@ -5418,7 +5426,9 @@ function renderFrame(alpha = 1): void {
     requesterName: snapshot.profiles.get(tradeSession.requester.toHexString())?.displayName ?? 'Player',
     recipientName: snapshot.profiles.get(tradeSession.recipient.toHexString())?.displayName ?? 'Player',
   });
-  npcInteractionUi.update(snapshot.activeDialogue === null ? null : {
+  const npcWasActive = npcInteractionUi.active;
+  npcInteractionUi.update(snapshot.activeDialogue === null || !network.gameplayReady ? null : {
+    interactionSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     ...(network.gameplayReady ? { sealSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}`,
       knownRecipeIds: [...snapshot.knownRecipes].map(row => row.recipeId) } : {}),
     orderSessionKey:`${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
@@ -5449,6 +5459,7 @@ function renderFrame(alpha = 1): void {
     touchControls: touchControls.available,
     contentRegistry: snapshot.content.registry,
   });
+  if (!npcWasActive && npcInteractionUi.active) npcInteractionUi.focus();
   questTracker.update({
     width: uiWidth,
     height: uiHeight,
@@ -6162,13 +6173,11 @@ function setInterfaceHidden(hidden: boolean): void {
   worldTouchInput.reset();
   onlinePlayersVisible = false;
   retainedUi.clearHover();
-  npcInteractionUi.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
   touchControls.setBlocked(hidden);
   if (!hidden) return;
   chatOverlay.dismiss();
-  shopFilterInputElement?.blur();
 }
 
 function chatInteractionBlocked(): boolean {
@@ -6360,11 +6369,12 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
-    if (npcInteractionUi.handleKeyDown(event.code, event.repeat)) {
+    if (retainedUi.key(event, 'npc-interaction')) {
+      syncRetainedText();
       event.preventDefault();
       return;
     }
-    if (retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
+    if (retainedUi.key(event, 'character-skills') || retainedUi.key(event, 'character-character') || retainedUi.key(event, 'character-statistics') || retainedUi.key(event, 'system-menus') || retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
       syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'inventory-menus')) {
@@ -6890,7 +6900,6 @@ function clearPointerPresentation(): void {
   hoveredInteractionTile = null;
   rogueUiPointer = null;
   retainedUi.clearHover();
-  npcInteractionUi.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
 }
@@ -6983,9 +6992,9 @@ canvas.addEventListener('pointermove', (event) => {
   }
   if (retainedPointers.dispatch('move', event, 'character-name')) return;
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
-  if (npcInteractionUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'npc-interaction')) return;
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
-  if (retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
+  if (retainedPointers.dispatch('move', event, 'character-skills') || retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
   if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.pointerLeave(); return; }
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
@@ -7092,19 +7101,13 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (npcInteractionUi.pointerDown({ x, y }, event.button, {
-      shift: event.shiftKey,
-      control: event.ctrlKey,
-      pointerType: event.pointerType,
-    })) {
-      canvas.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      return;
+    if (retainedPointers.dispatch('down', event, 'npc-interaction')) {
+      event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'build-palette')) {
       event.preventDefault(); return;
     }
-    if (retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
+    if (retainedPointers.dispatch('down', event, 'character-skills') || retainedPointers.dispatch('down', event, 'character-character') || retainedPointers.dispatch('down', event, 'character-statistics') || retainedPointers.dispatch('down', event, 'system-menus') || retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
       event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'inventory-menus')) {
@@ -7416,7 +7419,6 @@ canvas.addEventListener('pointerup', (event) => {
       return;
     }
     if (npcInteractionUi.active) {
-      npcInteractionUi.pointerUp();
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       event.preventDefault();
       return;
@@ -7451,7 +7453,6 @@ canvas.addEventListener('pointercancel', () => {
   worldPointer = null;
   hoveredInteractionTile = null;
   chatOverlay.pointerCancel();
-  npcInteractionUi.pointerLeave();
   overworldUi.pointerLeave();
 });
 canvas.addEventListener('wheel', (event) => {
@@ -7471,7 +7472,10 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
-    if (npcInteractionUi.wheel({ x, y }, event.deltaY) || npcInteractionUi.active) {
+    if (retainedUi.wheel({ point: { x, y },
+      deltaX: event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+      deltaY: event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+    }, 'npc-interaction')) {
       event.preventDefault();
       return;
     }
@@ -7481,7 +7485,7 @@ canvas.addEventListener('wheel', (event) => {
     if (retainedUi.wheel(retainedWheel, 'build-palette')) {
       event.preventDefault(); return;
     }
-    if (retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
+    if (retainedUi.wheel(retainedWheel, 'character-skills') || retainedUi.wheel(retainedWheel, 'character-character') || retainedUi.wheel(retainedWheel, 'character-statistics') || retainedUi.wheel(retainedWheel, 'system-menus') || retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
       event.preventDefault(); return;
     }
     if (retainedUi.wheel(retainedWheel, 'inventory-menus')) {
