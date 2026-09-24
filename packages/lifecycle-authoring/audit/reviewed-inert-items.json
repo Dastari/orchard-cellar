@@ -11,7 +11,7 @@
   },
   "reattestation": {
     "date": "2026-09-24",
-    "note": "Materials foundation (Craft-D2, Prog-D1): 47 new crafting materials are inert (26 crafted or processed materials join crafting_material; 21 owner-approved materials without world sources yet form crafting_material_pending_source). 140 inert; callbacks, graph and transaction owners unchanged."
+    "note": "Recipe recosting: wool, sand, clay, coal and tin ore gain interim shop sources and move from crafting_material_pending_source to crafting_material. 140 inert; owners unchanged."
   },
   "groups": [
     {
@@ -57,6 +57,8 @@
         "item:cactus",
         "item:chain_links",
         "item:cinder_ore",
+        "item:clay",
+        "item:coal",
         "item:cut_amethyst",
         "item:cut_emerald",
         "item:cut_ruby",
@@ -78,6 +80,7 @@
         "item:plank",
         "item:rope",
         "item:ruby_dust",
+        "item:sand",
         "item:sapphire_dust",
         "item:silk_thread",
         "item:silver_filigree",
@@ -88,8 +91,10 @@
         "item:string",
         "item:timber_frame",
         "item:tin_bar",
+        "item:tin_ore",
         "item:topaz_dust",
         "item:wood",
+        "item:wool",
         "item:wool_cloth",
         "item:yarn"
       ]
@@ -225,22 +230,17 @@
         "item:beeswax",
         "item:bone",
         "item:chitin",
-        "item:clay",
-        "item:coal",
         "item:ember_essence",
         "item:feather",
         "item:pond_slime",
         "item:raw_hide",
         "item:salt",
-        "item:sand",
         "item:scale",
         "item:shell",
         "item:sinew",
         "item:slime_gel",
         "item:spider_silk",
-        "item:tin_ore",
-        "item:warden_heartstone",
-        "item:wool"
+        "item:warden_heartstone"
       ]
     }
   ]

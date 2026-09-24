@@ -135,7 +135,7 @@ describe('shared container stacking rules', () => {
     const containers = {
       hotbar: { id: 'hotbar', capacity: 2, slots: [
         { itemKind: 'plank', quantity: 6 },
-        { itemKind: 'iron_bar', quantity: 2 },
+        { itemKind: 'nails', quantity: 2 },
       ] },
       backpack: { id: 'backpack', capacity: 1, slots: [null] },
       crafting: { id: 'crafting', capacity: 9, slots: Array.from({ length: 9 }, () => null) },
@@ -147,15 +147,15 @@ describe('shared container stacking rules', () => {
       containers: {
         hotbar: { slots: [null, null] },
         crafting: { slots: [
-          { itemKind: 'iron_bar', quantity: 1 }, { itemKind: 'plank', quantity: 1 }, { itemKind: 'iron_bar', quantity: 1 },
-          { itemKind: 'plank', quantity: 1 }, null, { itemKind: 'plank', quantity: 1 },
+          { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 },
+          { itemKind: 'nails', quantity: 1 }, null, { itemKind: 'nails', quantity: 1 },
           { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 },
         ] },
       },
     });
     expect(containers.hotbar.slots).toEqual([
       { itemKind: 'plank', quantity: 6 },
-      { itemKind: 'iron_bar', quantity: 2 },
+      { itemKind: 'nails', quantity: 2 },
     ]);
 
     const blocked = fillCraftingRecipeFromInventory({

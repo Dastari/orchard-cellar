@@ -154,7 +154,7 @@ describe('compiled processor behaviour handlers', () => {
     expect(processDefinition('smelting', 'iron_ore')).toMatchObject({
       stationTag: 'station.furnace',
       outputs: [{ item: 'item:iron_bar', count: 1 }],
-      fuelPolicy: { acceptedItems: ['item:wood', 'item:plank'], unitsPerItem: 1 },
+      fuelPolicy: { acceptedItems: ['item:coal', 'item:wood', 'item:plank'], unitsPerItem: 1 },
     });
     expect(processDefinition('campfire_cooking', 'raw_beef')).toMatchObject({
       stationTag: 'station.campfire',

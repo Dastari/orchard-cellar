@@ -205,6 +205,12 @@
       },
       {
         "item": "item:chest"
+      },
+      {
+        "item": "item:sand"
+      },
+      {
+        "item": "item:clay"
       }
     ],
     "currency": {
@@ -584,6 +590,12 @@
       },
       {
         "item": "item:hearth_uncommon_sword_plan"
+      },
+      {
+        "item": "item:coal"
+      },
+      {
+        "item": "item:tin_ore"
       }
     ],
     "currency": {
@@ -618,6 +630,9 @@
       },
       {
         "item": "item:arrow"
+      },
+      {
+        "item": "item:wool"
       }
     ],
     "currency": {

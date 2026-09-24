@@ -4,6 +4,8 @@
  * shapes, one item per cell) read with HEARTH_FURNITURE_PATTERN_LEGEND. */
 export const HEARTH_FURNITURE_PATTERN_LEGEND: Readonly<Record<string, string>> = {
   P: 'plank', S: 'stick', F: 'fiber', T: 'stone', i: 'iron_piece', c: 'copper_piece', U: 'sunflower',
+  // Materials foundation (Craft-D2): processed inputs give the townhouse set a real tier.
+  G: 'glass_pane', B: 'brick', K: 'compost', C: 'cooking_fire', L: 'linen_cloth', Y: 'wool_cloth', R: 'yarn',
 };
 export const HEARTH_FURNITURE_CATALOGUE = [
   {
@@ -31,21 +33,21 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "townhouse_chair",
     "displayName": "Cushioned chair",
     "style": "townhouse",
-    "pattern": ["P..", "FFF", "S.S"],
+    "pattern": ["P..", "LLL", "S.S"],
     "priceBronze": 130
   },
   {
     "suffix": "townhouse_loveseat",
     "displayName": "Blue loveseat",
     "style": "townhouse",
-    "pattern": ["FFF", "PPP", "P.P"],
+    "pattern": ["YYY", "PPP", "P.P"],
     "priceBronze": 290
   },
   {
     "suffix": "townhouse_armchair",
     "displayName": "Hearth armchair",
     "style": "townhouse",
-    "pattern": ["P.P", "FFF", "P.P"],
+    "pattern": ["P.P", "YYY", "P.P"],
     "priceBronze": 200
   },
   {
@@ -66,7 +68,7 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "townhouse_dining_table",
     "displayName": "Linen dining table",
     "style": "townhouse",
-    "pattern": ["FFF", "PPP", "S.S"],
+    "pattern": ["LLL", "PPP", "S.S"],
     "priceBronze": 260
   },
   {
@@ -87,7 +89,7 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "townhouse_bed",
     "displayName": "Blue double bed",
     "style": "townhouse",
-    "pattern": ["FFF", "FFF", "PPP"],
+    "pattern": ["YYY", "FFF", "PPP"],
     "priceBronze": 460
   },
   {
@@ -101,7 +103,7 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "townhouse_wardrobe",
     "displayName": "Tall wardrobe",
     "style": "townhouse",
-    "pattern": ["PP", "Pi", "PP"],
+    "pattern": ["PPP", "iPi", "PPP"],
     "priceBronze": 350
   },
   {
@@ -150,35 +152,35 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "townhouse_round_rug",
     "displayName": "Round blue rug",
     "style": "townhouse",
-    "pattern": [".F.", "FFF", ".F."],
+    "pattern": [".R.", "RRR", ".R."],
     "priceBronze": 160
   },
   {
     "suffix": "townhouse_patterned_rug",
     "displayName": "Burgundy rug",
     "style": "townhouse",
-    "pattern": ["FFF", "FFF", "FFF"],
+    "pattern": ["RRR", "RLR", "RRR"],
     "priceBronze": 240
   },
   {
     "suffix": "rustic_standing_lamp",
     "displayName": "Timber standing lamp",
     "style": "rustic",
-    "pattern": [".c.", ".S.", ".P."],
+    "pattern": [".G.", ".c.", ".S."],
     "priceBronze": 140
   },
   {
     "suffix": "townhouse_floor_lamp",
     "displayName": "Blue floor lamp",
     "style": "townhouse",
-    "pattern": ["FcF", ".S.", ".P."],
+    "pattern": ["LGL", ".c.", ".S."],
     "priceBronze": 190
   },
   {
     "suffix": "townhouse_table_lamp",
     "displayName": "Small table lamp",
     "style": "townhouse",
-    "pattern": [".c.", ".F.", ".P."],
+    "pattern": [".G.", ".c.", ".P."],
     "priceBronze": 100
   },
   {
@@ -192,21 +194,21 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "rustic_cooking_range",
     "displayName": "Cooking range",
     "style": "rustic",
-    "pattern": ["iii", "T.T", "TTT"],
+    "pattern": ["iii", "iCi", "TTT"],
     "priceBronze": 360
   },
   {
     "suffix": "townhouse_washstand",
     "displayName": "Cabinet washstand",
     "style": "townhouse",
-    "pattern": [".c.", "TTT", "PPP"],
+    "pattern": [".c.", "TBT", "PPP"],
     "priceBronze": 270
   },
   {
     "suffix": "townhouse_bath",
     "displayName": "Enamel bath",
     "style": "townhouse",
-    "pattern": ["ici", "i.i", "TTT"],
+    "pattern": ["ici", "G.G", "iii"],
     "priceBronze": 420
   },
   {
@@ -220,14 +222,14 @@ export const HEARTH_FURNITURE_CATALOGUE = [
     "suffix": "townhouse_flower_planter",
     "displayName": "Flower planter",
     "style": "townhouse",
-    "pattern": ["U.U", "PFP"],
+    "pattern": ["U.U", "BKB"],
     "priceBronze": 170
   },
   {
     "suffix": "townhouse_wall_mirror",
     "displayName": "Wall mirror",
     "style": "townhouse",
-    "pattern": ["PPP", "PcP", "PPP"],
+    "pattern": ["PPP", "PGP", "PPP"],
     "priceBronze": 210
   }
 ] as const;
