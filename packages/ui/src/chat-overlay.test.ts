@@ -220,13 +220,31 @@ describe('production retained chat adapter', () => {
     expect(f.overlay.handleGlobalKeyDown({ key: 'Enter', repeat: false })).toBe(false); expect(f.overlay.isHovered).toBe(false); runtime.dispose();
   });
   it.each([1,2,3])('keeps editor/toggle and command suggestions usable in compact/wide and keyboard-inset geometry at scale%i DPR1.25', scale => {
-    for (const [width,height,inset,touch] of [[320,180,0,false],[800,500,0,false],[390,844,330,true],[320,180,80,true]] as const) {
+    for (const [width,height,inset,touch] of [[320,180,0,false],[800,500,0,false],[390,844,330,true],[320,180,0,true],[320,180,80,true],[320,180,100,true],[320,180,101,true],[640,180,80,true]] as const) {
       const f = retainedFixture(undefined, { ...chatModel(), width, height, keyboardInset: inset, touchControls: touch }); f.overlay.open('/');
       const canvas = createCanvas(Math.round(width*scale*1.25),Math.round(height*scale*1.25)), ctx = canvas.getContext('2d'); ctx.scale(scale*1.25,scale*1.25); f.overlay.draw(ctx as unknown as CanvasRenderingContext2D,1000);
       for (const id of ['chat.toggle','chat.input']) { const node = f.node(id); expect(node.clip,`${id}/${width}/${inset}`).toEqual(node.rect); expect(node.rect.width).toBeGreaterThan(15); expect(node.rect.height).toBeGreaterThan(15); }
+      expect(f.node('chat.suggestion.0').clip).toEqual(f.node('chat.suggestion.0').rect);
       expect(f.node('chat.input').rect.y + f.node('chat.input').rect.height).toBeLessThanOrEqual(height-inset);
       f.overlay.root.key({ key: 'Tab' }); expect(f.overlay.editor.snapshot().value).toBe('/say ');
       expect(f.overlay.root.scale).toBe(1);
     }
+  });
+  it('keeps the compact command row and editor whole at minimum keyboard clearance without replacing an active composition', () => {
+    const initial = { ...chatModel(), width: 320, height: 180, touchControls: true, keyboardInset: 80 };
+    const f = retainedFixture(undefined, initial); f.overlay.open('/');
+    const input = f.node('chat.input'), editor = f.overlay.editor;
+    editor.handleCompositionStart(); editor.handleCompositionUpdate({ data: '果' });
+    const composition = editor.snapshot();
+    for (const keyboardInset of [101, 80, 0]) {
+      f.overlay.update({ ...initial, keyboardInset }, 1000);
+      expect(f.node('chat.input')).toBe(input); expect(editor.snapshot()).toEqual(composition);
+      expect(input.clip).toEqual(input.rect); expect(input.rect.height).toBe(22);
+      expect(input.rect.y + input.rect.height).toBeLessThanOrEqual(initial.height - keyboardInset);
+      f.overlay.root.key({ key: 'Enter' }); expect(f.send).not.toHaveBeenCalled();
+    }
+    editor.handleCompositionEnd({ data: '果' });
+    f.overlay.root.key({ key: 'Escape' }); expect(f.overlay.isOpen).toBe(false);
+    expect(f.changed.mock.calls).toEqual([[true], [false]]);
   });
 });

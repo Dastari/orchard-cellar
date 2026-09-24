@@ -316,7 +316,14 @@ export class ChatOverlay {
     if (!this.view || this.disposed) return;
     this.view.updateChat(this.presentation()); this.root.resize(this.model.width, this.model.height);
     const base = chatOverlayLayout(this.model, [8, 8, 8, 8]);
-    const bottom = Math.max(28, Math.min(this.model.height - 4, base.input.y + base.input.height));
+    // Compact shared chat needs its 24px toggle, 22px editor and a 4px gap.
+    // Commands also retain one 16px suggestion row and a second 4px gap.
+    // Thumb clearance may yield to this minimum; the software keyboard may not.
+    const minimumHeight = this.openValue ? 50 + (this.suggestions().length > 0 ? 20 : 0) : 24;
+    const keyboardInset = Math.max(0, this.model.keyboardInset ?? 0);
+    const keyboardTop = keyboardInset > 0 ? this.model.height - keyboardInset - 5 : this.model.height - 4;
+    const bottom = Math.max(28, Math.min(this.model.height - 4, keyboardTop,
+      Math.max(4 + minimumHeight, base.input.y + base.input.height)));
     const height = Math.min(170, Math.max(24, bottom - 4));
     const width = Math.max(24, Math.min(base.history.width, this.model.width - 8));
     const x = Math.max(4, Math.min(this.model.width - 4 - width, this.anchor?.x ?? 5));

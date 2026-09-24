@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.40.1 / UI 0.41.1 / Studio 0.15.1 — Compact chat keyboard clearance (not yet deployed)
+
+- Keep the complete native chat editor and command suggestion row visible when compact touch controls and the software keyboard share a short viewport. Preserve active composition, completion, dismissal and command ownership.
+- Workspace0.46.1. World0.25.0 and the reviewed content candidate remain unchanged; complete combined checks, CI and guarded publication remain required.
+
 ## Client 0.40.0 / World 0.25.0 — Approved crafting and basic stair content (not yet deployed)
 
 - Add shaped crafting patterns, nine weapons and three structure components with reviewed weapon art. Preserve explicit selected-recipe priority where a shaped fiber rug also matches the shapeless string recipe.
