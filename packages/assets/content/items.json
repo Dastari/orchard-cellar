@@ -172,7 +172,7 @@
     "schemaVersion": 1,
     "displayName": "Arcane Essence",
     "icon": {
-      "asset": "icon_material_arcane_essence"
+      "asset": "icon_craft_arcane_essence"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -601,7 +601,7 @@
     "schemaVersion": 1,
     "displayName": "Brick",
     "icon": {
-      "asset": "icon_material_brick"
+      "asset": "icon_craft_brick"
     },
     "maxStack": 99,
     "tags": [
@@ -620,7 +620,7 @@
     "schemaVersion": 1,
     "displayName": "Bronze Bar",
     "icon": {
-      "asset": "icon_material_bronze_bar"
+      "asset": "icon_craft_bronze_bar"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -934,7 +934,7 @@
     "schemaVersion": 1,
     "displayName": "Chain Links",
     "icon": {
-      "asset": "icon_material_chain_links"
+      "asset": "icon_craft_chain_links"
     },
     "maxStack": 99,
     "tags": [
@@ -1079,7 +1079,7 @@
     "schemaVersion": 1,
     "displayName": "Clay",
     "icon": {
-      "asset": "icon_material_clay"
+      "asset": "icon_craft_clay"
     },
     "maxStack": 99,
     "tags": [
@@ -1099,7 +1099,7 @@
     "schemaVersion": 1,
     "displayName": "Coal",
     "icon": {
-      "asset": "icon_material_coal"
+      "asset": "icon_craft_coal"
     },
     "maxStack": 99,
     "tags": [
@@ -2135,7 +2135,7 @@
     "schemaVersion": 1,
     "displayName": "Ember Essence",
     "icon": {
-      "asset": "icon_material_ember_essence"
+      "asset": "icon_craft_ember_essence"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -2315,7 +2315,7 @@
     "schemaVersion": 1,
     "displayName": "Fiber",
     "icon": {
-      "asset": "icon_material_fiber"
+      "asset": "icon_craft_fiber"
     },
     "maxStack": 99,
     "tags": [
@@ -4328,7 +4328,7 @@
     "schemaVersion": 1,
     "displayName": "Glass Pane",
     "icon": {
-      "asset": "icon_material_glass_pane"
+      "asset": "icon_craft_glass_pane"
     },
     "maxStack": 99,
     "tags": [
@@ -4475,7 +4475,7 @@
     "schemaVersion": 1,
     "displayName": "Gold Filigree",
     "icon": {
-      "asset": "icon_material_gold_filigree"
+      "asset": "icon_craft_gold_filigree"
     },
     "quality": "rare",
     "maxStack": 99,
@@ -8352,7 +8352,7 @@
     "schemaVersion": 1,
     "displayName": "Ink",
     "icon": {
-      "asset": "icon_material_ink"
+      "asset": "icon_craft_ink"
     },
     "maxStack": 99,
     "tags": [
@@ -8857,7 +8857,7 @@
     "schemaVersion": 1,
     "displayName": "Linen Cloth",
     "icon": {
-      "asset": "icon_material_linen_cloth"
+      "asset": "icon_craft_linen_cloth"
     },
     "maxStack": 99,
     "tags": [
@@ -8985,7 +8985,7 @@
     "schemaVersion": 1,
     "displayName": "Nails",
     "icon": {
-      "asset": "icon_material_nails"
+      "asset": "icon_craft_nails"
     },
     "maxStack": 99,
     "tags": [
@@ -9229,7 +9229,7 @@
     "schemaVersion": 1,
     "displayName": "Parchment",
     "icon": {
-      "asset": "icon_material_parchment"
+      "asset": "icon_craft_parchment"
     },
     "maxStack": 99,
     "tags": [
@@ -11269,7 +11269,7 @@
     "schemaVersion": 1,
     "displayName": "Raw Hide",
     "icon": {
-      "asset": "icon_material_raw_hide"
+      "asset": "icon_craft_raw_hide"
     },
     "maxStack": 99,
     "tags": [
@@ -11409,7 +11409,7 @@
     "schemaVersion": 1,
     "displayName": "Rope",
     "icon": {
-      "asset": "icon_material_rope"
+      "asset": "icon_craft_rope"
     },
     "maxStack": 99,
     "tags": [
@@ -11508,7 +11508,7 @@
     "schemaVersion": 1,
     "displayName": "Sand",
     "icon": {
-      "asset": "icon_material_sand"
+      "asset": "icon_craft_sand"
     },
     "maxStack": 99,
     "tags": [
@@ -11588,7 +11588,7 @@
     "schemaVersion": 1,
     "displayName": "Scale",
     "icon": {
-      "asset": "icon_material_scale"
+      "asset": "icon_craft_scale"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -11722,7 +11722,7 @@
     "schemaVersion": 1,
     "displayName": "Silk Thread",
     "icon": {
-      "asset": "icon_material_silk_thread"
+      "asset": "icon_craft_silk_thread"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -11871,7 +11871,7 @@
     "schemaVersion": 1,
     "displayName": "Silver Filigree",
     "icon": {
-      "asset": "icon_material_silver_filigree"
+      "asset": "icon_craft_silver_filigree"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -12094,7 +12094,7 @@
     "schemaVersion": 1,
     "displayName": "Sinew",
     "icon": {
-      "asset": "icon_material_sinew"
+      "asset": "icon_craft_sinew"
     },
     "maxStack": 99,
     "tags": [
@@ -12114,7 +12114,7 @@
     "schemaVersion": 1,
     "displayName": "Slime Gel",
     "icon": {
-      "asset": "icon_material_slime_gel"
+      "asset": "icon_craft_slime_gel"
     },
     "maxStack": 99,
     "tags": [
@@ -12134,7 +12134,7 @@
     "schemaVersion": 1,
     "displayName": "Spider Silk",
     "icon": {
-      "asset": "icon_material_spider_silk"
+      "asset": "icon_craft_spider_silk"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -12199,7 +12199,7 @@
     "schemaVersion": 1,
     "displayName": "Steel Bar",
     "icon": {
-      "asset": "icon_material_steel_bar"
+      "asset": "icon_craft_steel_bar"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -12687,7 +12687,7 @@
     "schemaVersion": 1,
     "displayName": "Tin Bar",
     "icon": {
-      "asset": "icon_material_tin_bar"
+      "asset": "icon_craft_tin_bar"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -12708,7 +12708,7 @@
     "schemaVersion": 1,
     "displayName": "Tin Ore",
     "icon": {
-      "asset": "icon_material_tin_ore"
+      "asset": "icon_craft_tin_ore"
     },
     "maxStack": 99,
     "tags": [
@@ -13009,7 +13009,7 @@
     "schemaVersion": 1,
     "displayName": "Warden Heartstone",
     "icon": {
-      "asset": "icon_material_warden_heartstone"
+      "asset": "icon_craft_warden_heartstone"
     },
     "quality": "epic",
     "maxStack": 16,
@@ -13283,7 +13283,7 @@
     "schemaVersion": 1,
     "displayName": "Wool Cloth",
     "icon": {
-      "asset": "icon_material_wool_cloth"
+      "asset": "icon_craft_wool_cloth"
     },
     "maxStack": 99,
     "tags": [
@@ -13322,7 +13322,7 @@
     "schemaVersion": 1,
     "displayName": "Yarn",
     "icon": {
-      "asset": "icon_material_yarn"
+      "asset": "icon_craft_yarn"
     },
     "maxStack": 99,
     "tags": [

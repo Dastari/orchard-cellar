@@ -99,7 +99,7 @@ describe('content frame runtime', () => {
     const input = furnace.panes.find(({ id }) => id === 'input')!;
     const backpack = furnace.panes.find(({ id }) => id === 'backpack')!;
     expect(resolveFramePaneSlots(input, aliases, registry)).toEqual([{
-      containerId: 'placeable', index: 0, restriction: { acceptedKinds: ['copper_ore', 'gold_ore', 'iron_ore', 'silver_ore'] },
+      containerId: 'placeable', index: 0, restriction: { acceptedKinds: ['clay', 'copper_ore', 'gold_ore', 'iron_ore', 'sand', 'silver_ore', 'tin_ore'] },
     }]);
     expect(resolveFramePaneSlots(backpack, aliases, registry)).toHaveLength(20);
     expect(resolveFramePaneSlots(backpack, aliases, registry)[0]).toMatchObject({ containerId: 'backpack', index: 0 });
@@ -108,14 +108,14 @@ describe('content frame runtime', () => {
   it('derives process input, fuel and output allow-lists from the content registry', () => {
     const furnace = frame('furnace');
     const restrictions = frameRestrictions(furnace, registry);
-    expect(restrictions[0]).toEqual({ acceptedKinds: ['copper_ore', 'gold_ore', 'iron_ore', 'silver_ore'] });
+    expect(restrictions[0]).toEqual({ acceptedKinds: ['clay', 'copper_ore', 'gold_ore', 'iron_ore', 'sand', 'silver_ore', 'tin_ore'] });
     expect(restrictions[1]).toEqual({ acceptedKinds: ['plank', 'wood'] });
     expect(restrictions[2]).toEqual({ readOnly: true });
 
     const derivedOutput = resolveFrameSlotRestriction({
       acceptedFrom: { stationTag: 'station.furnace', role: 'output' }, readOnly: true,
     }, registry);
-    expect(derivedOutput).toEqual({ acceptedKinds: ['copper_bar', 'gold_bar', 'iron_bar', 'silver_bar'], readOnly: true });
+    expect(derivedOutput).toEqual({ acceptedKinds: ['brick', 'copper_bar', 'glass_pane', 'gold_bar', 'iron_bar', 'silver_bar', 'tin_bar'], readOnly: true });
   });
 
   it('derives the barrel input family without embedding crop ids in the UI', () => {

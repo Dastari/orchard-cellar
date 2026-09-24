@@ -74,31 +74,6 @@
     "adapter": "fermentation"
   },
   {
-    "id": "process:fire_clay",
-    "kind": "process",
-    "schemaVersion": 1,
-    "stationTag": "station.furnace",
-    "input": {
-      "item": "item:clay",
-      "count": 1
-    },
-    "outputs": [
-      {
-        "item": "item:brick",
-        "count": 1
-      }
-    ],
-    "ticksPerUnit": 3000,
-    "fuelPolicy": {
-      "acceptedItems": [
-        "item:wood",
-        "item:plank"
-      ],
-      "unitsPerItem": 1
-    },
-    "adapter": "smelting"
-  },
-  {
     "id": "process:preserve_beetroot",
     "kind": "process",
     "schemaVersion": 1,
@@ -718,6 +693,31 @@
     "adapter": "campfire_cooking"
   },
   {
+    "id": "process:smelt_clay",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:clay",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:brick",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
     "id": "process:smelt_copper_ore",
     "kind": "process",
     "schemaVersion": 1,
@@ -807,7 +807,7 @@
         "count": 1
       }
     ],
-    "ticksPerUnit": 3000,
+    "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
         "item:wood",

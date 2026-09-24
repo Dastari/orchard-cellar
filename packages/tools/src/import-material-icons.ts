@@ -14,7 +14,7 @@ const manifest = JSON.parse(await readFile(new URL('packages/tools/src/material-
 const hashes = new Map<string, string>();
 for (const entry of manifest.imports) {
   if (!/^references\/art\/(kenmi\/cute-fantasy\/icons|clockwork-raven\/icon-packs)\//.test(entry.source)) throw new Error(`Not a licensed icon sheet: ${entry.asset}`);
-  if (!/^icon_material_[a-z0-9_]+$/.test(entry.asset)) throw new Error(`Invalid asset name: ${entry.asset}`);
+  if (!/^icon_craft_[a-z0-9_]+$/.test(entry.asset)) throw new Error(`Invalid asset name: ${entry.asset}`);
   if (entry.crop[2] !== 16 || entry.crop[3] !== 16 || entry.crop.some((n) => !Number.isInteger(n) || n < 0 || n % 16 !== 0)) throw new Error(`Invalid crop: ${entry.asset}`);
   if (!hashes.has(entry.source)) hashes.set(entry.source, createHash('sha256').update(await readFile(new URL(entry.source, workspaceRoot))).digest('hex'));
   if (hashes.get(entry.source) !== entry.sha256) throw new Error(`Source changed: ${entry.source}`);

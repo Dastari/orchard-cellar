@@ -1,5 +1,5 @@
 {
-  "name": "icon_material_arcane_essence",
+  "name": "icon_craft_ember_essence",
   "category": "ui",
   "size": [
     16,
@@ -38,13 +38,13 @@
     "3": "#e4f1f2",
     "4": "#aad3d5",
     "5": "#8a4836",
-    "6": "#7a09fa",
-    "7": "#f389f5",
-    "8": "#fdd2ed",
+    "6": "#ed7614",
+    "7": "#ffc825",
+    "8": "#ffeb57",
     "9": "#66b0b3",
     "a": "#528e9c",
     "b": "#84c0c2",
-    "c": "#3003d9",
+    "c": "#c64524",
     "d": "#38616d"
   },
   "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
@@ -53,7 +53,7 @@
   "importedFrom": "Potions_all_16x16.png",
   "sourceRegion": [
     32,
-    736,
+    608,
     16,
     16
   ],

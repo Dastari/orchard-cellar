@@ -3,7 +3,7 @@
   "imports": [
     {
       "item": "item:raw_hide",
-      "asset": "icon_material_raw_hide",
+      "asset": "icon_craft_raw_hide",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         96,
@@ -15,7 +15,7 @@
     },
     {
       "item": "item:yarn",
-      "asset": "icon_material_yarn",
+      "asset": "icon_craft_yarn",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         0,
@@ -27,7 +27,7 @@
     },
     {
       "item": "item:linen_cloth",
-      "asset": "icon_material_linen_cloth",
+      "asset": "icon_craft_linen_cloth",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         16,
@@ -39,7 +39,7 @@
     },
     {
       "item": "item:wool_cloth",
-      "asset": "icon_material_wool_cloth",
+      "asset": "icon_craft_wool_cloth",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         0,
@@ -51,7 +51,7 @@
     },
     {
       "item": "item:silk_thread",
-      "asset": "icon_material_silk_thread",
+      "asset": "icon_craft_silk_thread",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         0,
@@ -63,7 +63,7 @@
     },
     {
       "item": "item:sinew",
-      "asset": "icon_material_sinew",
+      "asset": "icon_craft_sinew",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         112,
@@ -75,7 +75,7 @@
     },
     {
       "item": "item:scale",
-      "asset": "icon_material_scale",
+      "asset": "icon_craft_scale",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
       "crop": [
         64,
@@ -87,7 +87,7 @@
     },
     {
       "item": "item:warden_heartstone",
-      "asset": "icon_material_warden_heartstone",
+      "asset": "icon_craft_warden_heartstone",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
       "crop": [
         48,
@@ -99,7 +99,7 @@
     },
     {
       "item": "item:bronze_bar",
-      "asset": "icon_material_bronze_bar",
+      "asset": "icon_craft_bronze_bar",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         32,
@@ -111,7 +111,7 @@
     },
     {
       "item": "item:steel_bar",
-      "asset": "icon_material_steel_bar",
+      "asset": "icon_craft_steel_bar",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         144,
@@ -123,7 +123,7 @@
     },
     {
       "item": "item:coal",
-      "asset": "icon_material_coal",
+      "asset": "icon_craft_coal",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         144,
@@ -135,7 +135,7 @@
     },
     {
       "item": "item:nails",
-      "asset": "icon_material_nails",
+      "asset": "icon_craft_nails",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         16,
@@ -147,7 +147,7 @@
     },
     {
       "item": "item:chain_links",
-      "asset": "icon_material_chain_links",
+      "asset": "icon_craft_chain_links",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         16,
@@ -159,7 +159,7 @@
     },
     {
       "item": "item:gold_filigree",
-      "asset": "icon_material_gold_filigree",
+      "asset": "icon_craft_gold_filigree",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         32,
@@ -171,7 +171,7 @@
     },
     {
       "item": "item:silver_filigree",
-      "asset": "icon_material_silver_filigree",
+      "asset": "icon_craft_silver_filigree",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         0,
@@ -183,7 +183,7 @@
     },
     {
       "item": "item:sand",
-      "asset": "icon_material_sand",
+      "asset": "icon_craft_sand",
       "source": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
       "crop": [
         128,
@@ -195,7 +195,7 @@
     },
     {
       "item": "item:clay",
-      "asset": "icon_material_clay",
+      "asset": "icon_craft_clay",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         32,
@@ -207,7 +207,7 @@
     },
     {
       "item": "item:brick",
-      "asset": "icon_material_brick",
+      "asset": "icon_craft_brick",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         96,
@@ -219,7 +219,7 @@
     },
     {
       "item": "item:glass_pane",
-      "asset": "icon_material_glass_pane",
+      "asset": "icon_craft_glass_pane",
       "source": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
       "crop": [
         176,
@@ -231,7 +231,7 @@
     },
     {
       "item": "item:rope",
-      "asset": "icon_material_rope",
+      "asset": "icon_craft_rope",
       "source": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
       "crop": [
         0,
@@ -243,7 +243,7 @@
     },
     {
       "item": "item:parchment",
-      "asset": "icon_material_parchment",
+      "asset": "icon_craft_parchment",
       "source": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
       "crop": [
         128,
@@ -255,7 +255,7 @@
     },
     {
       "item": "item:ink",
-      "asset": "icon_material_ink",
+      "asset": "icon_craft_ink",
       "source": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
       "crop": [
         112,
@@ -267,7 +267,7 @@
     },
     {
       "item": "item:ember_essence",
-      "asset": "icon_material_ember_essence",
+      "asset": "icon_craft_ember_essence",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
       "crop": [
         32,
@@ -279,7 +279,7 @@
     },
     {
       "item": "item:arcane_essence",
-      "asset": "icon_material_arcane_essence",
+      "asset": "icon_craft_arcane_essence",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
       "crop": [
         32,
@@ -291,7 +291,7 @@
     },
     {
       "item": "item:slime_gel",
-      "asset": "icon_material_slime_gel",
+      "asset": "icon_craft_slime_gel",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
       "crop": [
         16,
@@ -303,7 +303,7 @@
     },
     {
       "item": "item:spider_silk",
-      "asset": "icon_material_spider_silk",
+      "asset": "icon_craft_spider_silk",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         128,
@@ -315,7 +315,7 @@
     },
     {
       "item": "item:tin_ore",
-      "asset": "icon_material_tin_ore",
+      "asset": "icon_craft_tin_ore",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         0,
@@ -327,7 +327,7 @@
     },
     {
       "item": "item:tin_bar",
-      "asset": "icon_material_tin_bar",
+      "asset": "icon_craft_tin_bar",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         0,
@@ -339,7 +339,7 @@
     },
     {
       "item": "item:fiber",
-      "asset": "icon_material_fiber",
+      "asset": "icon_craft_fiber",
       "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
       "crop": [
         48,

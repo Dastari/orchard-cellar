@@ -9,7 +9,7 @@ const iconOf = (id: string) => registry.items.get(id as never)?.icon?.asset;
 
 describe('materials foundation', () => {
   it('shows Fiber as fiber, not the bone it was cut from (BUG-035)', () => {
-    expect(iconOf('item:fiber')).toBe('icon_material_fiber');
+    expect(iconOf('item:fiber')).toBe('icon_craft_fiber');
     expect(iconOf('item:fiber')).not.toBe(iconOf('item:bone'));
     expect(iconOf('item:fiber')).not.toBe('item_cf_fiber');
   });
