@@ -12,9 +12,9 @@ import { uiStatusEffects, type UiStatusEffect } from '../kit/components/status-e
 import { uiTooltip } from '../kit/components/tooltip.js';
 import { uiScrollArea } from '../kit/components/layout.js';
 import { uiText } from '../kit/components/text.js';
-import { touchControlLayout, touchControlsUseCompactLayout, type TouchControlPreferences } from '../touch-control-layout.js';
+import { hudHotbarSize, touchControlLayout, touchControlsUseCompactLayout, type TouchControlPreferences } from '../touch-control-layout.js';
 import { uiViewport } from '../kit/components/viewport.js';
-import { uiVitals, uiVitalFraction, type UiVitalKind, type UiVitalValues } from '../kit/components/vitals.js';
+import { UI_CLASSIC_VITALS, uiVitals, uiVitalFraction, type UiVitalKind, type UiVitalValues } from '../kit/components/vitals.js';
 import { uiFixed } from '../kit/layout/box.js';
 import { scrollUiElement } from '../kit/layout/scroll.js';
 import { UiElement } from '../kit/runtime/element.js';
@@ -85,8 +85,9 @@ export function gameHudArrangement(width: number, touch: boolean): GameHudArrang
 }
 /** Top of the character card's hunger line in the non-touch HUD; chat sits above it. */
 export function gameHudCharacterTop(width: number, height: number): number {
-  const barY = Math.max(0, height - 6 - (width >= 306 ? 31 : 64));
-  return Math.max(0, barY - (gameHudArrangement(width, false) === 'row' ? 6 : 4) - 48) - 13;
+  const barY = Math.max(0, height - 6 - hudHotbarSize(width).height), hunger = barY - 4 - UI_CLASSIC_VITALS.height - 10;
+  // Narrow screens may raise the shortcuts into a row above the frames.
+  return Math.max(0, gameHudArrangement(width, false) === 'row' ? hunger : hunger - 4 - 33);
 }
 function scoped(node: UiElement): UiElement { node.setProps({ singlePointer: true }); return node; }
 function vitalLabel(kind: UiVitalKind, value: UiVitalValues | undefined, centi: boolean): string {
@@ -174,7 +175,7 @@ export class GameHud {
       if (next !== this.hoveredSlot) { this.hoveredSlot = next; hotbarTip.invalidate(); }
     } });
     mount('hotbarVitals', this.hotbarPanel);
-    this.player = scoped(uiVitals({ id: 'game.hud.player', variant: 'card', size: 'md', values: () => this.model?.player?.values,
+    this.player = scoped(uiVitals({ id: 'game.hud.player', variant: 'classic', values: () => this.model?.player?.values,
       tooltip: (kind, value) => vitalLabel(kind, value, true), vigourDenied: () => this.model?.player?.vigourDenied === true,
       portrait: uiViewport({ label: 'Player portrait', render: (context, bounds) => { const player = this.model?.player; if (player) this.painters.drawPlayerHead(context, player.id, bounds); } }),
     }));
@@ -192,12 +193,14 @@ export class GameHud {
     const hungerFraction = () => uiVitalFraction(this.model?.player?.hunger?.current, this.model?.player?.hunger?.maximum);
     this.hunger = uiTooltip(() => { const hunger = this.model?.player?.hunger; return hunger ? `HUNGER ${(hunger.current / 100).toFixed(1)} / ${(hunger.maximum / 100).toFixed(1)}` : ''; },
       new UiElement({ id: 'game.hud.hunger', kind: 'meter', label: 'Hunger', focusable: true, style: { width: 'grow', height: 'grow' },
-        paint(element, { context, art, focused }) {
-          // A small gauge pip and the value as outlined HUD text; it turns rose when the player is starving.
-          if (!art) return; const r = element.rect, value = hungerFraction(), top = r.y + Math.floor((r.height - 6) / 2);
-          context.fillStyle = UI_HUD_INK.outline; context.fillRect(r.x, top, 6, 6);
-          context.fillStyle = '#feae34'; context.fillRect(r.x + 1, top + 1 + Math.round(4 * (1 - value)), 4, Math.round(4 * value));
-          drawOutlinedPixelText(context, art.pixel, `HUNGER ${Math.round(value * 100)}`, r.x + 10, top - 1, { color: focused ? UI_HUD_INK.gold : value < .25 ? '#f6757a' : UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
+        paint: (element, { context, art, focused }) => {
+          // The classic hunger strip over the frame: a dark 7px bar filling amber (rust when starving) with
+          // the value right-aligned over it as outlined cream text.
+          if (!art) return; const r = element.rect, value = hungerFraction(), bar = { x: r.x, y: r.y + 1, width: r.width, height: 7 };
+          context.fillStyle = UI_HUD_INK.outline; context.fillRect(bar.x, bar.y, bar.width, bar.height);
+          context.fillStyle = value <= .25 ? '#d56a55' : '#e1ad52'; context.fillRect(bar.x + 1, bar.y + 1, Math.round((bar.width - 2) * value), 5);
+          const current = this.model?.player?.hunger?.current ?? 0;
+          drawOutlinedPixelText(context, art.pixel, `HUNGER ${Math.ceil(current / 100)}`, r.x + r.width, r.y, { align: 'right', color: focused ? UI_HUD_INK.gold : '#fff1cf', outlineColor: UI_HUD_INK.outline });
         } }), { width: 'grow', height: 'grow' }); mount('hotbarVitals', this.hunger);
     this.purse = scoped(uiPurse({ id: 'game.hud.purse', balance: 0n, get activateOn() { return activation(); }, onOpen: () => this.callbacks.toggleInventory() })); mount('hotbarVitals', this.purse);
     this.weapon = scoped(uiTooltip(() => { const item = this.model && this.stack(this.model.inventory.mainHandIndex); return item ? `MAIN HAND · ${this.painters.itemLabel(item)} · V` : 'MAIN HAND · V'; },
@@ -210,16 +213,18 @@ export class GameHud {
     this.build = action('game.hud.build', 'B', 'hud.hammer', 'Build · B', () => this.callbacks.toggleBuild?.());
     this.system = action('game.hud.system', 'M', 'hud.gear', 'Menu · Escape', () => this.callbacks.openSystem());
     for (const node of [this.system, this.build, this.crafting]) mount('hotbarVitals', node);
-    this.target = scoped(uiVitals({ id: 'game.hud.target', variant: 'card', size: 'md', values: () => this.model?.target?.values,
+    this.target = scoped(uiVitals({ id: 'game.hud.target', variant: 'classic', mirrored: true, values: () => this.model?.target?.values,
       tooltip: (kind, value) => vitalLabel(kind, value, false), portrait: uiViewport({ label: 'Target portrait', render: (context, bounds) => {
         const target = this.model?.target; if (target) this.painters.drawTargetPortrait(context, target.id, bounds);
       } }),
     })); mount('targetEffects', this.target);
-    // The target's name sits over its card as outlined HUD text; the full name is in the tooltip.
+    // The target's name rides the frame's top rim, right-aligned, as outlined cream caps (18 characters at most);
+    // the full name is in the tooltip.
     const targetLabel = new UiElement({ id: 'game.hud.target-name', kind: 'badge', label: ' ', focusable: true, style: { width: 'grow', height: 'grow' },
       paint: (element, { context, art, focused }) => {
         const name = this.model?.target?.name; if (!art || !name) return; const r = element.rect;
-        drawOutlinedPixelText(context, art.pixel, fitPixelText(name.toUpperCase(), r.width - 2, 1, art.pixel.font), r.x + 1, r.y + Math.floor((r.height - 7) / 2), { color: focused ? UI_HUD_INK.gold : UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
+        const text = name.length > 18 ? `${name.slice(0, 15).toUpperCase()}...` : name.toUpperCase();
+        drawOutlinedPixelText(context, art.pixel, fitPixelText(text, r.width - 2, 1, art.pixel.font), r.x + r.width - 1, r.y + 1, { align: 'right', color: focused ? UI_HUD_INK.gold : '#fff1cf', outlineColor: UI_HUD_INK.outline });
       } });
     this.targetName = uiTooltip(() => this.model?.target?.name ?? '', targetLabel); mount('targetEffects', this.targetName);
     this.clear = scoped(uiButton({ id: 'game.hud.clear-target', label: '', ariaLabel: 'Clear target', onPress: () => { const id = this.model?.target?.id; if (id) this.callbacks.clearTarget(id); },
@@ -294,7 +299,7 @@ export class GameHud {
     const exclusions = [{ x: layout.joystickCenter.x - radius, width: radius * 2 }, layout.blockButton, layout.jumpButton, layout.secondaryButton, layout.interactButton, layout.dodgeButton];
     const left = Math.max(...exclusions.filter(rect => rect.x + rect.width / 2 < this.width / 2).map(rect => rect.x + rect.width)) + 4;
     const right = Math.min(...exclusions.filter(rect => rect.x + rect.width / 2 >= this.width / 2).map(rect => rect.x)) - 4;
-    const bottom = this.height - 6 - (this.width >= 306 ? 31 : 64) - 4;
+    const bottom = this.height - 6 - hudHotbarSize(this.width, this.compactTouchLayout).height - 4;
     return { x: left, y: 40, width: Math.max(0, right - left), height: Math.max(0, bottom - 40) };
   }
   private stack(index: number): ItemStack | null { return this.model?.inventory.rows.find(row => row.slot === index)?.stack ?? null; }
@@ -309,13 +314,13 @@ export class GameHud {
     if (this.compactTouchLayout) { const r = this.compactCenter; return { x: r.x, y: r.y + r.height - 38, width: r.width, height: 38 }; }
     if (this.model?.touchControls?.enabled) {
       const lane = this.compactCenter, width = Math.min(170, lane.width);
-      const barY = this.height - 6 - (this.width >= 306 ? 31 : 64);
+      const barY = this.height - 6 - hudHotbarSize(this.width).height;
       const statusClearance = lane.width >= 200 ? 134 : 197;
       return { x: lane.x + Math.floor((lane.width - width) / 2), y: 100, width, height: Math.min(96, Math.max(38, barY - statusClearance - 100)) };
     }
     if (!this.compactQuestLayout) return undefined;
     const width = Math.min(170, Math.max(0, this.width - Math.max(28, Math.min(220, this.width - 168)) - 12));
-    const barY = Math.max(0, this.height - 6 - (this.width >= 306 ? 31 : 64));
+    const barY = Math.max(0, this.height - 6 - hudHotbarSize(this.width).height);
     return { x: this.width - width - 4, y: 40, width, height: Math.max(0, barY - 73 - 40) };
   }
   update(model: GameHudModel | null): void {
@@ -360,49 +365,83 @@ export class GameHud {
     this.compactEmptyStatus.setStyle({ visible: !model.target && model.effects.length === 0 });
     this.weapon.setStyle({ visible: model.controls?.weapon !== false }); this.crafting.setStyle({ visible: model.controls?.crafting !== false });
     this.build.setStyle({ visible: model.controls?.build === true && Boolean(this.callbacks.toggleBuild) }); this.system.setStyle({ visible: model.controls?.system !== false });
-    const width = this.width, height = this.height, barWidth = width >= 306 ? 298 : 148, barHeight = width >= 306 ? 31 : 64;
+    const width = this.width, height = this.height, { width: barWidth, height: barHeight } = hudHotbarSize(width, this.compactTouchLayout);
     const bottom = height - 6, barY = Math.max(0, bottom - barHeight);
     const actions = [this.system, this.build, this.crafting].filter(node => node.style.visible !== false);
     const weaponShown = this.weapon.style.visible !== false, purseWidth = Math.min(uiPurseWidth(model.inventory.balanceBronze), HUD_PURSE_MAX, Math.max(0, width - 16));
     const zoneModel = { ...model.zone, collapsed: this.zoneCollapsed }, zoneHeight = uiZoneHeaderHeight(zoneModel);
     const zoneWidth = this.zoneCollapsed ? 28 : Math.min(uiZoneFlagWidth(model.zone.title) + 60, Math.max(156, width - 140)), flagWidth = Math.max(0, zoneWidth - 60);
     const touch = model.touchControls?.enabled === true;
-    const arrangement = gameHudArrangement(width, touch);
+    const row = actions.length * 30 + barWidth + (weaponShown ? 34 : 0), lane = touch ? this.compactCenter : { x: 0, width };
+    // Touch play keeps the one-row HUD when the whole row fits in the lane between the thumb banks.
+    const arrangement = gameHudArrangement(width, false) === 'row' && barHeight === 31 && (!touch || row + 16 <= lane.width) ? 'row' : 'stacked';
+    const card = { width: UI_CLASSIC_VITALS.width, height: UI_CLASSIC_VITALS.height }, cardY = barY - 4 - card.height;
+    // The classic frames sit directly above the hotbar's ends: the player on the left under its hunger strip and
+    // the mirrored target on the right, its name on the top rim and the clear cross just beside it.
+    const frameRects: UiRect[] = [];
+    const frames = (hotbarX: number, targetRight: number) => {
+      const targetX = Math.max(hotbarX + card.width + 4, targetRight - card.width), name = Math.min(108, Math.min(18, model.target?.name.length ?? 0) * 6 + 4);
+      const rects: [UiElement, UiRect][] = [[this.player, { x: hotbarX, y: cardY, ...card }], [this.hunger, { x: hotbarX + 4, y: cardY - 10, width: card.width - 8, height: 9 }],
+        [this.target, { x: targetX, y: cardY, ...card }], [this.targetName, { x: targetX + card.width - name, y: cardY - 3, width: name, height: 9 }],
+        [this.clear, { x: targetX + card.width + 2, y: cardY + 6, width: 16, height: 16 }]];
+      for (const [node, rect] of rects) { place(node, rect); frameRects.push(rect); }
+    };
     if (arrangement === 'row') {
-      // Classic desktop HUD: shortcuts, hotbar and main hand in one centred row; the character card sits
-      // directly above the hotbar's left end under its hunger line and the target card above its right end.
-      // The purse (also the bag button) takes the bottom-right corner: the row slides left of centre to make
-      // room for every coin, and the purse rises above the row only when even that is too narrow.
-      const row = actions.length * 30 + barWidth + (weaponShown ? 34 : 0), purseX = width - 8 - purseWidth;
-      const centred = Math.floor((width - row) / 2), purseBeside = row + 8 <= purseX - 8;
-      const rowX = purseBeside ? Math.max(8, Math.min(centred, purseX - 8 - row)) : centred, x0 = rowX + actions.length * 30;
-      const cardY = barY - 6 - 48;
+      // Desktop: shortcuts, hotbar and main hand in one centred row. The purse (also the bag button) takes the
+      // bottom-right corner: the row slides left of centre to make room for every coin, and the purse rises
+      // above the row's right end only when even that is too narrow.
+      let plate = purseWidth, purseX = width - 8 - plate, purseBeside = row + 8 <= purseX - 8 - lane.x;
+      if (!purseBeside) {
+        // A purse too wide for the corner shortens its coins to fit there rather than leave it (always on touch).
+        const room = width - 8 - (lane.x + 8 + row) - 8;
+        if (room >= 64 || touch) { plate = Math.max(0, room); purseX = width - 8 - plate; purseBeside = true; }
+      }
+      const centred = lane.x + Math.floor((lane.width - row) / 2);
+      const rowX = purseBeside ? Math.max(lane.x + 8, Math.min(centred, purseX - 8 - row)) : centred, x0 = rowX + actions.length * 30;
       place(this.hotbarPanel, { x: x0, y: barY, width: barWidth, height: barHeight });
       actions.forEach((node, index) => place(node, { x: x0 - (actions.length - index) * 30, y: barY, width: 28, height: 31 }));
       place(this.weapon, { x: x0 + barWidth + 6, y: barY, width: 28, height: 31 });
-      place(this.player, { x: x0, y: cardY, width: 96, height: 48 });
-      place(this.hunger, { x: x0, y: cardY - 13, width: 96, height: 11 });
-      place(this.purse, { x: purseX, y: purseBeside ? height - 8 - 26 : barY - 6 - 26, width: purseWidth, height: 26 });
-      const targetX = Math.max(x0 + 100, Math.min(x0 + barWidth, purseBeside ? width : purseX - 6) - 96);
-      place(this.target, { x: targetX, y: cardY, width: 96, height: 48 });
-      place(this.targetName, { x: targetX, y: cardY - 14, width: 74, height: 12 });
-      place(this.clear, { x: targetX + 76, y: cardY - 17, width: 20, height: 16 });
+      place(this.purse, { x: purseX, y: purseBeside ? height - 6 - 26 : barY - 6 - 26, width: plate, height: 26 });
+      frames(x0, Math.min(x0 + barWidth, purseBeside ? width : purseX - 22));
     } else {
-      // Narrow screens stack over the hotbar: card left, target right, shortcuts over the purse between.
-      place(this.hotbarPanel, { x: Math.max(4, Math.floor((width - barWidth) / 2)), y: barY, width: Math.min(barWidth, width - 8), height: barHeight });
-      const cardY = Math.max(0, barY - 4 - 48), middleX = Math.max(104, Math.floor(width / 2) - 56), gap = width - 208 >= 118 ? 2 : 0;
-      place(this.player, { x: 4, y: cardY, width: 96, height: 48 });
-      place(this.hunger, { x: 4, y: cardY - 13, width: 96, height: 11 });
-      place(this.target, { x: width - 100, y: cardY, width: 96, height: 48 });
-      place(this.targetName, { x: width - 100, y: cardY - 14, width: 74, height: 12 });
-      place(this.clear, { x: width - 24, y: cardY - 17, width: 20, height: 16 });
-      // The purse gets its full coin width centred between the cards, or its own line above them, kept clear
-      // of the thumb banks on touch screens (the purse face shortens its coins rather than cut them off).
-      const purseFits = purseWidth <= width - 208, lane = touch ? this.compactCenter : { x: 4, width: width - 8 };
-      const plate = purseFits ? purseWidth : Math.min(purseWidth, lane.width);
-      place(this.purse, { x: purseFits ? Math.floor((width - plate) / 2) : lane.x + Math.floor((lane.width - plate) / 2), y: purseFits ? barY - 30 : cardY - 13 - 30, width: plate, height: 26 });
-      actions.forEach((node, index) => place(node, { x: middleX + index * (28 + gap), y: barY - 65, width: 28, height: 31 }));
-      place(this.weapon, { x: middleX + actions.length * (28 + gap), y: barY - 65, width: 28, height: 31 });
+      // Narrow screens: the hotbar wraps to two rows of five at the bottom, the frames stand above its ends, the
+      // purse sits beside its last row in the bottom-right corner (the hotbar slides left to make room) and the
+      // shortcuts form a 2x2 block left of the hotbar, or a row above the frames on touch screens and when the
+      // block has no room.
+      const plaques = [...actions, ...(weaponShown ? [this.weapon] : [])], grid = !touch && plaques.length > 0 && barHeight === 64;
+      const minX = grid ? 8 + Math.ceil(plaques.length / 2) * 30 : 4;
+      // Touch keeps the hotbar centred, as the thumb layout expects, and shortens the purse's coins to fit.
+      const centred = Math.max(4, Math.floor((width - barWidth) / 2)), besideX = width - 6 - purseWidth - 4 - barWidth;
+      let purseBeside = besideX >= minX && !touch, plate = purseWidth;
+      const hotbarX = purseBeside ? Math.max(minX, Math.min(centred, besideX)) : centred;
+      if (!purseBeside) { const room = width - 6 - (hotbarX + barWidth + 4); if (room >= 64 || (touch && room >= 40)) { plate = Math.min(purseWidth, room); purseBeside = true; } }
+      place(this.hotbarPanel, { x: hotbarX, y: barY, width: Math.min(barWidth, width - 8), height: barHeight });
+      frames(hotbarX, hotbarX + barWidth);
+      const lineY = cardY - 14;
+      place(this.purse, { x: width - 6 - plate, y: purseBeside ? height - 6 - 26 : lineY - 28, width: plate, height: 26 });
+      if (grid && hotbarX >= minX) plaques.forEach((node, index) => place(node, { x: hotbarX - 2 - (Math.ceil(plaques.length / 2) - Math.floor(index / 2)) * 30, y: barY + (index % 2) * 33, width: 28, height: 31 }));
+      else {
+        const rowWidth = plaques.length * 30 - 2, rowX = Math.max(4, Math.min(width - 4 - rowWidth, Math.floor((width - rowWidth) / 2)));
+        const rowY = lineY - 33 - (purseBeside ? 0 : 30);
+        plaques.forEach((node, index) => place(node, { x: rowX + index * 30, y: rowY, width: 28, height: 31 }));
+      }
+    }
+    if (touch && !this.compactTouchLayout) {
+      // Where a thumb bank reaches over the hotbar's ends, the frames move into the lane between the banks.
+      const layout = touchControlLayout(width, height, model.touchControls?.preferences), radius = layout.joystickRadius + 8;
+      const thumbs = [{ x: layout.joystickCenter.x - radius, y: layout.joystickCenter.y - radius, width: radius * 2, height: radius * 2 },
+        layout.blockButton, layout.dodgeButton, layout.interactButton, layout.jumpButton, layout.secondaryButton];
+      const blocked = frameRects.some(r => thumbs.some(t => r.x < t.x + t.width && t.x < r.x + r.width && r.y < t.y + t.height && t.y < r.y + r.height));
+      if (blocked) {
+        const paired = lane.width >= 2 * card.width + 28, firstX = lane.x + Math.max(0, Math.floor((lane.width - (paired ? 2 * card.width + 22 : card.width + 18)) / 2));
+        const top = Math.min(...thumbs.map(t => t.y)) - 8, targetY = Math.min(barY - 117, top - card.height), playerY = paired ? targetY : targetY - card.height - 18;
+        const targetX = paired ? firstX + card.width + 4 : firstX;
+        place(this.player, { x: firstX, y: playerY, ...card });
+        place(this.hunger, { x: firstX + 4, y: playerY - 10, width: card.width - 8, height: 9 });
+        place(this.target, { x: targetX, y: targetY, ...card });
+        place(this.targetName, { x: targetX, y: targetY - 3, width: card.width, height: 9 });
+        place(this.clear, { x: targetX + card.width + 2, y: targetY + 6, width: 16, height: 16 });
+      }
     }
     place(this.zonePanel, { x: 4, y: 4, width: zoneWidth, height: zoneHeight });
     place(this.moon, { x: 4 + flagWidth + 3, y: 4, width: 24, height: 24 });
@@ -410,19 +449,6 @@ export class GameHud {
     const mapHeight = Math.min(touch ? 92 : 112, Math.max(56, barY - 70 - 8));
     place(this.map, { x: width - (this.effectiveMapCollapsed ? 28 : 128) - 4, y: 4, width: this.effectiveMapCollapsed ? 28 : 128, height: this.effectiveMapCollapsed ? 24 : mapHeight });
     place(this.effectViewport, { x: 4, y: zoneHeight + 8, width: Math.max(24, Math.min(height < 230 ? 104 : zoneWidth + 36, width - 140)), height: 28 });
-    if (model.touchControls?.enabled && !this.compactTouchLayout) {
-      // Keep full-size vital artwork in the lane between thumb banks. The
-      // row above utilities has room in both landscape and tall portrait.
-      const lane = this.compactCenter, paired = lane.width >= 200;
-      const firstX = lane.x + Math.max(0, Math.floor((lane.width - (paired ? 200 : 96)) / 2));
-      const targetX = paired ? firstX + 104 : firstX;
-      const targetY = barY - 117, playerY = paired ? targetY : targetY - 67;
-      place(this.player, { x: firstX, y: playerY, width: 96, height: 48 });
-      place(this.hunger, { x: firstX, y: playerY - 13, width: 96, height: 11 });
-      place(this.target, { x: targetX, y: targetY, width: 96, height: 48 });
-      place(this.targetName, { x: targetX, y: targetY - 14, width: 74, height: 12 });
-      place(this.clear, { x: targetX + 76, y: targetY - 17, width: 20, height: 16 });
-    }
     this.layoutCompact();
     for (const root of Object.values(this.roots)) root.arrange();
     for (const root of bodyFocusedRoots) if (!root.focus.current) root.focus.set(root.entries().find(({ element }) =>
@@ -456,23 +482,23 @@ export class GameHud {
     this.moon.setStyle({ visible: Boolean(this.model?.zone.moon) });
     const contentWidth = Math.max(0, center.width - 16), zoneHeight = this.model ? uiZoneHeaderHeight({ ...this.model.zone, collapsed: false }) : 23;
     place(this.compactEmptyStatus, { x: 0, y: 0, width: contentWidth, height: 24 });
-    // YOU: hunger over the card, then the shortcuts and the purse.
-    place(this.hunger, { x: 0, y: 0, width: 96, height: 11 });
-    place(this.player, { x: 0, y: 13, width: 96, height: 48 });
-    place(this.system, { x: 0, y: 65, width: 28, height: 31 });
-    place(this.build, { x: 30, y: 65, width: 28, height: 31 });
-    place(this.crafting, { x: 60, y: 65, width: 28, height: 31 });
-    place(this.weapon, { x: 90, y: 65, width: 28, height: 31 });
-    place(this.purse, { x: 0, y: 100, width: Math.min(contentWidth, this.model ? uiPurseWidth(this.model.inventory.balanceBronze) : contentWidth), height: 26 });
-    // STATUS: the target's name and clear over its card, then the effect strip.
-    place(this.targetName, { x: 0, y: 2, width: Math.max(0, Math.min(74, contentWidth - 24)), height: 12 });
-    place(this.clear, { x: Math.max(0, Math.min(76, contentWidth - 20)), y: 0, width: 20, height: 16 });
-    place(this.target, { x: 0, y: 18, width: 96, height: 48 });
-    place(this.effectViewport, { x: 0, y: 70, width: contentWidth, height: 28 });
+    // YOU: the hunger strip over the frame, then the shortcuts and the purse.
+    place(this.hunger, { x: 4, y: 0, width: 64, height: 9 });
+    place(this.player, { x: 0, y: 11, width: 72, height: 29 });
+    place(this.system, { x: 0, y: 44, width: 28, height: 31 });
+    place(this.build, { x: 30, y: 44, width: 28, height: 31 });
+    place(this.crafting, { x: 60, y: 44, width: 28, height: 31 });
+    place(this.weapon, { x: 90, y: 44, width: 28, height: 31 });
+    place(this.purse, { x: 0, y: 79, width: Math.min(contentWidth, this.model ? uiPurseWidth(this.model.inventory.balanceBronze) : contentWidth), height: 26 });
+    // STATUS: the target's name on its frame's rim with the clear cross beside the frame, then the effect strip.
+    place(this.targetName, { x: 0, y: 0, width: 72, height: 9 });
+    place(this.clear, { x: 74, y: 12, width: 16, height: 16 });
+    place(this.target, { x: 0, y: 6, width: 72, height: 29 });
+    place(this.effectViewport, { x: 0, y: 40, width: contentWidth, height: 28 });
     place(this.zonePanel, { x: 0, y: 0, width: contentWidth, height: zoneHeight });
     place(this.map, { x: 0, y: 0, width: Math.min(contentWidth, 128), height: 112 });
-    this.compactBodies.you.setStyle({ height: uiFixed(126) });
-    this.compactBodies.status.setStyle({ height: uiFixed(98) });
+    this.compactBodies.you.setStyle({ height: uiFixed(105) });
+    this.compactBodies.status.setStyle({ height: uiFixed(68) });
     this.compactBodies.zone.setStyle({ height: uiFixed(zoneHeight) });
     this.compactBodies.map.setStyle({ height: uiFixed(112) });
   }

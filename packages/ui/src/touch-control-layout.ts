@@ -50,6 +50,12 @@ const BUTTON_WIDTH = 38;
 const BUTTON_HEIGHT = 30;
 
 /** Dense landscape layouts share a reserved bottom bar and top chrome strip. */
+/** The HUD hotbar's footprint: one row of ten, or two rows of five on narrow screens (under 420 logical px, as
+ * the classic HUD did; the short-screen compact touch layout keeps one row down to 306px). */
+export function hudHotbarSize(width: number, compactTouch = false): { readonly width: number; readonly height: number } {
+  return width >= (compactTouch ? 306 : 420) ? { width: 298, height: 31 } : { width: 148, height: 64 };
+}
+
 export function touchControlsUseCompactLayout(width: number, height: number): boolean {
   // A full status row, readable tracker and top chrome need 295px. Below
   // 382px wide the two 96px status panels stack and need another 60px.
@@ -66,7 +72,7 @@ export function touchControlLayout(
 ): TouchControlLayout {
   if (touchControlsUseCompactLayout(width, height)) {
     const { swapped, bottomOffset } = normalizeTouchControlPreferences(preferences);
-    const hotbarHeight = width >= 306 ? 31 : 64;
+    const hotbarHeight = hudHotbarSize(width, true).height;
     const bottom = height - 6 - hotbarHeight - 4;
     const top = 40;
     // The joystick's capture radius is eight pixels larger than its artwork.
@@ -99,16 +105,19 @@ export function touchControlLayout(
   // The bottom-right mobile purse/inventory button occupies the final 32 UI
   // pixels. Keep E immediately above it instead of allowing the hit targets to
   // overlap, while leaving the joystick itself at its established position.
-  const buttonCenterY = Math.min(desiredButtonCenterY, height - 47);
   const right = Math.max(BUTTON_WIDTH + 8, width - 10);
+  const { width: barWidth, height: barHeight } = hudHotbarSize(width);
+  const barX = Math.max(4, Math.floor((width - barWidth) / 2));
+  // When the button bank shares columns with the (two-row) hotbar, it stands above the hotbar instead.
+  const bankLeft = swapped ? width - right : right - BUTTON_WIDTH * 2 - 8, bankRight = bankLeft + BUTTON_WIDTH * 2 + 8;
+  const bankOverBar = bankRight > barX && bankLeft < barX + barWidth;
+  const buttonCenterY = Math.min(desiredButtonCenterY, height - 47, bankOverBar ? height - 6 - barHeight - 4 - BUTTON_HEIGHT / 2 : Infinity);
   const offset = Math.min(bottomOffset, Math.max(0, Math.min(centerY - 38, buttonCenterY - (BUTTON_HEIGHT * 2 + 22) - 100)));
   const mirror = (rect: UiRect): UiRect => ({
     ...rect, x: swapped ? width - rect.x - rect.width : rect.x, y: rect.y - offset,
   });
   const joystickX = swapped ? width - JOYSTICK_RADIUS - 12 : JOYSTICK_RADIUS + 12;
   const captureRadius = JOYSTICK_RADIUS + 8;
-  const barWidth = width >= 306 ? 298 : 148, barHeight = width >= 306 ? 31 : 64;
-  const barX = Math.max(4, Math.floor((width - barWidth) / 2));
   const intersectsBarColumns = joystickX + captureRadius > barX && joystickX - captureRadius < barX + barWidth;
   const joystickY = intersectsBarColumns ? Math.min(centerY - offset, height - 6 - barHeight - 4 - captureRadius) : centerY - offset;
   return {

@@ -139,7 +139,8 @@ describe('production shared HUD compositions', () => {
         }
       }
       const slots = f.host.roots.hotbarVitals.entries().filter(row => row.element.id.startsWith('game.hud.hotbar.slot.'));
-      expect(slots).toHaveLength(10); expect(new Set(slots.map(row => row.element.rect.y)).size).toBe(1);
+      // The classic hotbar wraps to two rows of five below 420 logical px.
+      expect(slots).toHaveLength(10); expect(new Set(slots.map(row => row.element.rect.y)).size).toBe(width! < 420 ? 2 : 1);
     }
   });
 });
@@ -162,12 +163,13 @@ describe('desktop HUD arrangement', () => {
     const first = node('game.hud.hotbar.slot.0'), last = node('game.hud.hotbar.slot.9');
     const card = node('game.hud.character'), target = f.node('targetEffects', 'game.hud.target'), purse = node('game.hud.purse');
     // Player card directly above the hotbar's left end, target card level with it above the right end.
-    expect(card.rect.x).toBe(first.rect.x); expect(card.rect.y + card.rect.height).toBe(first.rect.y - 6);
+    expect(card.rect.x).toBe(first.rect.x); expect(card.rect.y + card.rect.height).toBe(first.rect.y - 4);
+    expect([card.rect.width, card.rect.height, target.rect.width, target.rect.height]).toEqual([72, 29, 72, 29]);
     expect(target.rect.y).toBe(card.rect.y); expect(target.rect.x + target.rect.width).toBeLessThanOrEqual(last.rect.x + last.rect.width);
     expect(target.rect.x).toBeGreaterThanOrEqual(card.rect.x + card.rect.width);
     // Purse and bag button hug the right edge with every coin shown; it only rises above the row when the corner is too narrow.
     expect(purse.rect.x + purse.rect.width).toBe(width - 8); expect(purse.rect.width).toBe(uiPurseWidth(33_912n));
-    if (width >= 640) expect(purse.rect.y + purse.rect.height).toBe(height - 8);
+    if (width >= 640) expect(purse.rect.y + purse.rect.height).toBe(height - 6);
     else expect(purse.rect.y + purse.rect.height).toBeLessThanOrEqual(first.rect.y - 6);
     for (const other of [card, target, first, last]) expect(purse.rect.x >= other.rect.x + other.rect.width || purse.rect.y >= other.rect.y + other.rect.height || purse.rect.y + purse.rect.height <= other.rect.y, other.id).toBe(true);
   });
@@ -175,9 +177,17 @@ describe('desktop HUD arrangement', () => {
     const f = fixture(480, 270), purse = f.node('hotbarVitals', 'game.hud.purse'), target = f.node('targetEffects', 'game.hud.target');
     expect(purse.rect.x + purse.rect.width).toBe(472); expect(purse.rect.x).toBeGreaterThanOrEqual(target.rect.x + target.rect.width);
   });
-  it('keeps touch play on the stacked arrangement', () => {
-    const f = fixture(844, 390); f.host.update({ ...model(), touchControls: { enabled: true, preferences: { swapped: false, bottomOffset: 0 } } });
-    expect(f.node('hotbarVitals', 'game.hud.system').rect.y).toBeLessThan(f.node('hotbarVitals', 'game.hud.hotbar.slot.0').rect.y);
+  it('keeps the one-row HUD for touch when it fits between the thumb banks, and two rows on a narrow phone', () => {
+    const touch = { ...model(), touchControls: { enabled: true, preferences: { swapped: false, bottomOffset: 0 } } };
+    const wide = fixture(844, 390); wide.host.update(touch);
+    expect(wide.node('hotbarVitals', 'game.hud.system').rect.y).toBe(wide.node('hotbarVitals', 'game.hud.hotbar.slot.0').rect.y);
+    const phone = fixture(390, 844); phone.host.update(touch);
+    const first = phone.node('hotbarVitals', 'game.hud.hotbar.slot.0'), sixth = phone.node('hotbarVitals', 'game.hud.hotbar.slot.5');
+    expect(sixth.rect.x).toBe(first.rect.x); expect(sixth.rect.y).toBeGreaterThan(first.rect.y);
+    // The frames stand over the rows' ends and the purse sits beside the second row, whole.
+    expect(phone.node('hotbarVitals', 'game.hud.character').rect.x).toBe(first.rect.x);
+    const purse = phone.node('hotbarVitals', 'game.hud.purse');
+    expect(purse.rect.y + purse.rect.height).toBe(838); expect(purse.rect.x).toBeGreaterThanOrEqual(phone.node('hotbarVitals', 'game.hud.hotbar.slot.9').rect.x + 28);
   });
 });
 
@@ -204,7 +214,7 @@ describe('BUG-029 combined compact touch and HUD', () => {
  it('scrolls every full-size utility/status control into view without firing down actions, and preserves focus/scroll on echoes',()=>{
   const f=fixture();f.host.update(touchModel()); const root=f.host.roots.hotbarVitals;
   const area=f.node('hotbarVitals','game.hud.compact.you'); expect(area.scroll.maxY).toBeGreaterThan(50);
-  const character=f.node('hotbarVitals','game.hud.character'); expect(character.rect.width).toBe(96);expect(character.rect.height).toBe(48);
+  const character=f.node('hotbarVitals','game.hud.character'); expect(character.rect.width).toBe(72);expect(character.rect.height).toBe(29);
   const show=(surface:GameHudSurface,id:string,area:UiElement)=>{const element=f.node(surface,id); f.host.roots[surface].focus.set(element,'keyboard');f.host.roots[surface].arrange();expect(element.clip.height).toBeGreaterThanOrEqual(Math.min(element.rect.height,area.contentRect.height));return element;};
   const purse=show('hotbarVitals','game.hud.purse:button',area),start=f.point(purse);
   root.pointer({type:'down',point:start,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();

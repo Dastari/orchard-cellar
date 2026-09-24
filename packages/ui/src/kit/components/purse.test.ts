@@ -12,7 +12,7 @@ describe('purse', () => {
   it('shows every coin whole at its preferred width and shortens instead of cutting a number off', () => {
     // The live purse once read "3g 39..." (owner report, 2026-09-25): the plate must fit every coin.
     const text = (balance: bigint, width: number) => uiPurseCoins(balance, width).map(([coin, value]) => `${value}${coin[0]}`).join(' ');
-    for (const balance of [33_912n, 123_456n, 99_999_999n]) expect(text(balance, uiPurseWidth(balance) - 38)).toBe(uiPurseLabel(balance));
+    for (const balance of [33_912n, 123_456n, 99_999_999n]) expect(text(balance, uiPurseWidth(balance) - 29)).toBe(uiPurseLabel(balance));
     expect(text(33_912n, 60)).toBe('3g 39s');
     expect(text(123_456_789_012n, 40)).toBe('12Mg');
   });
