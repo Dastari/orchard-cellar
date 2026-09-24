@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  rampPlacementFindings,
   maximumTerrainElevation,
   minimumTerrainElevation,
   retainMinimumTerrainFootprint,
@@ -132,5 +133,43 @@ describe('World/Map & Terrain: integer terrain elevation', () => {
       expect(course.map(({ lowerTileX }) => lowerTileX)).toEqual([3, 4, 5, 6]);
       expect(new Set(course.map(({ lowerTileY }) => lowerTileY))).toEqual(new Set([10 - contourLevel]));
     }
+  });
+});
+
+describe('rampPlacementFindings (owner stair rule: straight cliff edges only)', () => {
+  const grid = (rows: readonly string[]) => (x: number, y: number) => Number(rows[y]?.[x] ?? '0');
+  const slope = (x: number, lowerY: number, width = 2, contourLevel = 1): TerrainTransition[] =>
+    Array.from({ length: width }, (_, lane) => ({ contourLevel, kind: 'slope' as const, direction: 'up' as const,
+      lowerTileX: x + lane, lowerTileY: lowerY, upperTileX: x + lane, upperTileY: lowerY - 1 }));
+  const issues = (rows: readonly string[], transitions: readonly TerrainTransition[]) =>
+    rampPlacementFindings(transitions, grid(rows)).map((f) => f.issue);
+  const plateau = ['0000000000', '0111111110', '0111111110', '0111111110', '0000000000', '0000000000'];
+
+  it('accepts a run with the same cliff continuing two cells on both sides', () => {
+    expect(issues(plateau, slope(4, 4))).toEqual([]);
+  });
+  it('refuses a run one column from a corner, at a plateau end, or on the corner itself', () => {
+    expect(issues(plateau, slope(6, 4))).toEqual(['ramp_beside_corner']);
+    expect(issues(plateau, slope(7, 4))).toEqual(['ramp_beside_cliff_end']);
+    expect(issues(plateau, slope(1, 4))).toEqual(['ramp_beside_cliff_end']);
+  });
+  it('refuses a notch, a narrow spur and a carved corridor', () => {
+    // Notch: the cells beside the run are raised, so no cliff face continues past it.
+    expect(issues(['000000000', '011111110', '011111110', '011100110', '000000000'], slope(4, 3))).toEqual(['ramp_without_cliff']);
+    expect(issues(['00000000', '01111110', '01111110', '00011000', '00000000'], slope(3, 4))).toEqual(['ramp_without_cliff']);
+    // Corridor: the run climbs between raised walls that continue south of it.
+    expect(issues(['0000000000', '0111111110', '0111111110', '0111111110', '0111001110', '0111001110', '0000000000'], slope(4, 4))).toEqual(['ramp_without_cliff']);
+  });
+  it('refuses stairs onto a ledge only one row deep', () => {
+    expect(issues(['0000000000', '0000000000', '0111111110', '0000000000'], slope(4, 3))).toEqual(['ramp_cliff_too_shallow']);
+  });
+  it('checks every level of a multi-level stair run on a straight terrace', () => {
+    const terrace = ['0000000000', '0222222220', '0222222220', '0111111110', '0000000000'];
+    expect(rampPlacementFindings(expandStairRun({ x: 4, y: 4, direction: 'up', fromLevel: 0, toLevel: 2, width: 2 }), grid(terrace))).toEqual([]);
+    // Upper level ends beside the run (its east flank is the corner block), and
+    // where it ends the level-1 ledge is only one row deep.
+    const corner = ['0000000000', '0222220000', '0222220000', '0111111110', '0000000000'];
+    expect(rampPlacementFindings(expandStairRun({ x: 3, y: 4, direction: 'up', fromLevel: 0, toLevel: 2, width: 2 }), grid(corner)).map((f) => [f.contourLevel, f.issue]))
+      .toEqual([[1, 'ramp_cliff_too_shallow'], [2, 'ramp_beside_corner']]);
   });
 });

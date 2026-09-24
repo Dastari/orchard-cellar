@@ -56,7 +56,8 @@ try {
 
   // 3. Browser bundle with the atlas baked in.
   const wrapper = join(tmp, 'entry.ts');
-  writeFileSync(wrapper, `import { planTerrain as plan, type TerrainPlanInput } from ${JSON.stringify(ENTRY)};
+  writeFileSync(wrapper, `import { planTerrain as plan, stairPlacementFindings, type TerrainPlanInput } from ${JSON.stringify(ENTRY)};
+export { stairPlacementFindings };
 const atlas = ${JSON.stringify(atlas)};
 export const assets = ${JSON.stringify(assets)};
 export function planTerrain(input: Omit<TerrainPlanInput, 'atlas'> & { atlas?: TerrainPlanInput['atlas'] }) {

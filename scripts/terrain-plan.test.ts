@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planTerrain, type TerrainPlanAtlasAsset, type TerrainPlanInput } from './terrain-plan.js';
+import { planTerrain, stairPlacementFindings, type TerrainPlanAtlasAsset, type TerrainPlanInput } from './terrain-plan.js';
 
 // Every asset: a 16x16 tile anchored like the terrain atlas, with enough frames
 // for any role. Frame numbers therefore come straight from the resolvers.
@@ -54,5 +54,37 @@ describe('planTerrain', () => {
   it('is deterministic and leaves no draw without an asset', () => {
     expect(planTerrain(twoLevels())).toEqual(planTerrain(twoLevels()));
     expect(planTerrain(twoLevels('dungeon_1')).every((d) => d.assetId.length > 0)).toBe(true);
+  });
+});
+
+describe('stairs climb the full cliff height (owner stair rule, 2026-09-24)', () => {
+  const plateau = ['00000000', '00000000', '01111110', '01111110', '01111110', '00000000', '00000000'];
+  const heights = plateau.map((row) => [...row].map(Number));
+  const run = { x: 3, y: 5, direction: 'up' as const, fromLevel: 0, toLevel: 1, width: 2 };
+  const rows = (draws: ReturnType<typeof planTerrain>, x: number, asset: string) =>
+    draws.filter((d) => d.pass === 'depth' && d.x === x * 16 && d.assetId === asset).map((d) => [d.y / 16, d.frame]).sort((a, b) => a[0]! - b[0]!);
+
+  it('stone: crest on the rim row, treads over every wall row down to the foot, base below', () => {
+    const draws = planTerrain({ width: 8, height: 7, heights, cliffFamily: 'stone_1', surfaceFamily: 'grass_1', stairRuns: [run], atlas });
+    const wall = rows(draws, 2, 'tile_cf_stone_cliff_variants').map(([y]) => y!);
+    const stair = rows(draws, 3, 'tile_cf_grass_1_ramp_bank_stone');
+    const rim = Math.min(...wall.filter((y) => y > 1)), foot = Math.max(...wall);
+    expect(stair).toEqual([[rim, 0], ...Array.from({ length: foot - rim }, (_, i) => [rim + 1 + i, i % 2 === 0 ? 4 : 8]), [foot + 1, 12]]);
+  });
+
+  it('basic: the two-row brown-rim stair block from the grass_1 sheet, top row in the rim', () => {
+    const draws = planTerrain({ width: 8, height: 7, heights, cliffFamily: 'basic', surfaceFamily: 'grass_1', stairRuns: [run], atlas });
+    expect(rows(draws, 3, 'tile_cf_grass_1_sheet')).toEqual([[4, 6], [5, 22]]);
+    expect(rows(draws, 4, 'tile_cf_grass_1_sheet')).toEqual([[4, 7], [5, 23]]);
+  });
+});
+
+describe('stairPlacementFindings', () => {
+  it('reports runs beside a corner and accepts a straight edge', () => {
+    const heights = ['00000000', '00000000', '01111110', '01111110', '01111110', '00000000', '00000000'].map((r) => [...r].map(Number));
+    const at = (x: number) => stairPlacementFindings({ width: 8, height: 7, heights, stairRuns: [{ x, y: 5, direction: 'up', fromLevel: 0, toLevel: 1, width: 2 }] }).map((f) => f.issue);
+    expect(at(3)).toEqual([]);
+    expect(at(4)).toEqual(['ramp_beside_corner']);
+    expect(at(5)).toEqual(['ramp_beside_cliff_end']);
   });
 });

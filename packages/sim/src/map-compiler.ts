@@ -51,6 +51,7 @@ import {
   expandStairRun,
   retainMinimumTerrainFootprint,
   terrainTransitionLaneAt,
+  rampPlacementFindings,
   stairRunValid,
   terrainTransitionValid,
   type TerrainTransition,
@@ -849,6 +850,16 @@ export function validateMapDocument(
         tileX: transition.lowerTileX, tileY: transition.lowerTileY,
       });
     }
+  }
+  // Owner rule (2026-09-24): slopes and stairs only on a straight cliff edge.
+  // Existing documents keep loading; placements that break the rule are
+  // reported so they can be moved (Studio refuses new ones).
+  for (const finding of rampPlacementFindings(compiled.transitions, (x, y) => compiledMapElevationAt(compiled, x, y))) {
+    issues.push({
+      severity: 'warning', code: `transition_${finding.issue}`,
+      message: `L${finding.contourLevel} ${finding.width}-lane stair at ${finding.tileX},${finding.tileY} is not on a straight cliff edge (${finding.issue.replace(/_/g, ' ')})`,
+      tileX: finding.tileX, tileY: finding.tileY,
+    });
   }
   const reportedTransitionCapabilities = new Set<string>();
   for (const transition of compiled.transitions) {

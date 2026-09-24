@@ -102,6 +102,71 @@ export function terrainTransitionValid(transition: TerrainTransition): boolean {
     && transition.upperTileY - transition.lowerTileY === delta[1];
 }
 
+/** Why a north-facing slope or stair run may not sit where it is (owner rule,
+ * 2026-09-24): a stair is only cut into a straight run of cliff edge. The same
+ * cliff step must continue for two cells on both sides, so neither neighbour is
+ * a corner block, and the ground above must be raised too.
+ * - `ramp_without_cliff`: no cliff continues on either side (a corridor, a spur,
+ *   free-standing stairs).
+ * - `ramp_beside_cliff_end`: the cliff stops on one side (a plateau end, a notch).
+ * - `ramp_beside_corner`: the neighbouring cell is the corner block.
+ * - `ramp_cliff_too_shallow`: the raised ground above is only one row deep. */
+export type RampPlacementIssue =
+  | 'ramp_without_cliff'
+  | 'ramp_beside_cliff_end'
+  | 'ramp_beside_corner'
+  | 'ramp_cliff_too_shallow';
+
+export interface RampPlacementFinding {
+  readonly issue: RampPlacementIssue;
+  readonly contourLevel: number;
+  /** Lower-left lane of the offending course. */
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly width: number;
+}
+
+/** Checks every north-facing slope/stair course against the straight-edge rule.
+ * `elevationAt` returns the integer contour level of a cell (outside the map is
+ * treated by the caller, typically as the base level). Other directions have no
+ * stair art and are refused elsewhere, so they are not reported here. */
+export function rampPlacementFindings(
+  transitions: readonly TerrainTransition[],
+  elevationAt: (tileX: number, tileY: number) => number,
+): readonly RampPlacementFinding[] {
+  const courses = new Map<string, TerrainTransition[]>();
+  for (const t of transitions) {
+    if (t.direction !== 'up' || (t.kind !== 'slope' && t.kind !== 'stairs')) continue;
+    const key = `${t.contourLevel}:${t.kind}:${t.lowerTileY}`;
+    courses.set(key, [...(courses.get(key) ?? []), t]);
+  }
+  const findings: RampPlacementFinding[] = [];
+  for (const course of courses.values()) {
+    const xs = [...new Set(course.map((t) => t.lowerTileX))].sort((a, b) => a - b);
+    const { contourLevel, lowerTileY } = course[0]!;
+    const upperTileY = lowerTileY - 1;
+    // Split into contiguous lane groups (separate banks on one row).
+    let start = 0;
+    for (let i = 1; i <= xs.length; i += 1) {
+      if (i < xs.length && xs[i] === xs[i - 1]! + 1) continue;
+      const left = xs[start]!;
+      const right = xs[i - 1]!;
+      start = i;
+      const step = (x: number) => elevationAt(x, upperTileY) >= contourLevel && elevationAt(x, lowerTileY) <= contourLevel - 1;
+      const report = (issue: RampPlacementIssue) => findings.push({ issue, contourLevel, tileX: left, tileY: lowerTileY, width: right - left + 1 });
+      const left1 = step(left - 1);
+      const right1 = step(right + 1);
+      if (!left1 && !right1) { report('ramp_without_cliff'); continue; }
+      if (!left1 || !right1) { report('ramp_beside_cliff_end'); continue; }
+      if (!step(left - 2) || !step(right + 2)) { report('ramp_beside_corner'); continue; }
+      let shallow = false;
+      for (let x = left - 2; x <= right + 2; x += 1) if (elevationAt(x, upperTileY - 1) < contourLevel) shallow = true;
+      if (shallow) report('ramp_cliff_too_shallow');
+    }
+  }
+  return findings;
+}
+
 /** Resolves one endpoint inside a contiguous north-facing crossing course.
  * Separate banks on the same row never merge across a missing lane. */
 export function terrainTransitionLaneAt(
