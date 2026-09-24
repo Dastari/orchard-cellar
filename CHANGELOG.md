@@ -8,6 +8,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 - Keep stable roots and focus across authoritative updates and resizing; retire old frame drawing and coordinate input together. Preserve captured-pointer cancellation, secondary-touch rejection and repeated activation guards.
 - Use font_5x7 for ordinary chrome and quest text; book page headings retain their explicit long-form reading role. Workspace0.34.0.
 
+## Client 0.27.1 / UI 0.29.1 — Nonmodal pointer ownership (not yet deployed)
+
+- Honor single-pointer ownership within nonmodal palette controls while preserving fresh outside world gestures and independent scopes (BUG-021).
+- Keep cancelled tails owned through release, clear retired ownership, and handle fresh presses after a missing release without sending a second command. Workspace0.33.1.
+
 ## Client 0.27.0 / UI 0.29.0 — Shared build palette (not yet deployed)
 
 - Adopt the shared build palette using real furniture, construction, upgrade and residence models; preserve existing transport and authoritative rejection handling.
