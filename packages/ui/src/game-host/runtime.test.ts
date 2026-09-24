@@ -4,6 +4,9 @@ import { UiRoot } from '../kit/runtime/root.js';
 import { UiElement } from '../kit/runtime/element.js';
 import { uiFixed } from '../kit/layout/box.js';
 import type { UiRootPointer } from '../kit/runtime/input.js';
+import { uiButton } from '../kit/components/button.js';
+import { uiInput } from '../kit/components/input.js';
+import { CanvasTextEditor } from '../kit/runtime/text-editor.js';
 
 function fixture(priority = 1) {
   const events: string[] = [];
@@ -28,6 +31,42 @@ const pointer = (type: UiRootPointer['type'], x = 10, pointerId = 7): UiRootPoin
   ({ type, point: { x, y: 10 }, button: 0, pointerId });
 
 describe('game retained host input ownership', () => {
+  it('issues one activation for a held key while allowing a distinct next press', () => {
+    const runtime = new GameUiRuntime(), root = new UiRoot({ scale: 1 });
+    let commands = 0;
+    root.resize(200, 100);
+    root.mount(uiButton({ label: 'Purchase', onPress: () => { commands++; } }));
+    runtime.register({ id: 'purchase', priority: 1, root, active: () => true, blocking: () => false });
+    runtime.focus('purchase'); runtime.key({ key: 'Tab' });
+    try {
+      for (const key of ['Enter', ' ']) {
+        const before = commands;
+        expect(runtime.key({ key })).toBe(true);
+        expect(runtime.key({ key, repeat: true })).toBe(true);
+        expect(runtime.key({ key, repeat: true })).toBe(true);
+        expect(commands).toBe(before + 1);
+        expect(runtime.key({ key, repeat: false })).toBe(true);
+        expect(commands).toBe(before + 2);
+      }
+      expect(runtime.key({ key: 'ContextMenu', repeat: true })).toBe(true);
+    } finally { runtime.dispose(); root.dispose(); }
+  });
+
+  it('preserves repeated text editing and navigation in an actual editor', () => {
+    const runtime = new GameUiRuntime(), root = new UiRoot({ scale: 1 });
+    const editor = new CanvasTextEditor({ value: 'hello' });
+    root.resize(200, 100); root.mount(uiInput({ label: 'Search', editor }));
+    runtime.register({ id: 'search', priority: 1, root, active: () => true, blocking: () => true });
+    runtime.key({ key: 'Tab' }); editor.setSelection(5, 5);
+    try {
+      expect(runtime.key({ key: ' ', repeat: true })).toBe(true);
+      expect(editor.snapshot().value).toBe('hello ');
+      expect(runtime.key({ key: 'Backspace', repeat: true })).toBe(true);
+      expect(editor.snapshot().value).toBe('hello');
+      expect(runtime.key({ key: 'ArrowLeft', repeat: true })).toBe(true);
+      expect(editor.snapshot().focus).toBe(4);
+    } finally { runtime.dispose(); root.dispose(); }
+  });
   it('unregisters idempotently without disposing an externally owned replacement', () => {
     const runtime = new GameUiRuntime(), first = fixture(), next = fixture();
     const remove = runtime.register(first.host); remove();

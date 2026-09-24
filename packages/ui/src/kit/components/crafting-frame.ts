@@ -42,10 +42,11 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
     }
     if ('self' in pane.bind && pane.bind.self === 'crafting') {
       const grid = uiInventoryGrid({ container: options.aliases.crafting ?? 'crafting', count: (pane.columns ?? 3) * (pane.rows ?? 3), columns: pane.columns ?? 3,
+        fixedColumns: true,
         slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation,
         ghost: index => { const itemKind = snapshot.pattern[index]; return itemKind ? { itemKind, quantity: 1 } : null; },
       }); grids.push(grid);
-      const result = uiSlot({ label: 'Craft result', activateOn: 'down', artwork: options.artwork, iconAnimation: options.iconAnimation, stack: () => snapshot.output,
+      const result = uiSlot({ label: 'Craft result', activateOn: 'up', artwork: options.artwork, iconAnimation: options.iconAnimation, stack: () => snapshot.output,
         onPress: event => { if (snapshot.output && !snapshot.requirement) options.onCraft(event.shiftKey === true); },
       }); results.push(result);
       const requirement = uiText(snapshot.requirement ?? 'Take result · Shift: craft all', { wrap: true }); requirements.push(requirement);
@@ -54,7 +55,9 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
     return undefined;
   } });
   const updateCrafting = (next: UiCraftingSnapshot): void => {
-    const changed = snapshot.recipes !== next.recipes || snapshot.selected !== next.selected;
+    const changed = snapshot.selected !== next.selected || snapshot.recipes.length !== next.recipes.length
+      || snapshot.recipes.some((row, index) => { const nextRow = next.recipes[index]!;
+        return row.id !== nextRow.id || row.label !== nextRow.label || row.detail !== nextRow.detail; });
     snapshot = next;
     for (const grid of grids) grid.invalidate();
     for (const result of results) { result.setDisabled(!next.output || Boolean(next.requirement)); result.invalidate(); }
