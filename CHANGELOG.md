@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.29.1 / UI 0.31.1 — Touch slider intent (not yet deployed)
+
+- Prevent vertical touch scrolling over audio or developer time sliders from sending a preference or world command before scroll intent is resolved (BUG-024). Intentional taps and horizontal drags retain their commands; desktop drag, keyboard and wheel controls are unchanged. Workspace 0.35.1.
+
 ## Client 0.29.0 / UI 0.31.0 — Shared game settings and developer menus (not yet deployed)
 
 - Mount the shared game menu, all six settings pages, and current world/render developer controls through the central canvas input runtime.
