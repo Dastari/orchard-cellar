@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.4 / Engine 0.24.0 — Stable actor shadows and smooth sun steps (not yet deployed)
+
+- Draw moving actors' ground shadows as native-pixel stamps that follow the sprite's pixel position. They replace the 4-pixel lighting grid, where a narrow actor shadow pulsed in darkness and position while walking. Stamps resolve against the static field with the same maximum-light rule, so lanterns still fill them and tree shade is not darkened twice.
+- Walking no longer rebuilds, merges or uploads the full-screen static light plane every frame. Planes snap to a 64-pixel world window, and local light is sampled only when it changes.
+- Prepare each new sun/moon angle in 1 ms per-frame slices, then crossfade it in eight steps. The swap itself copies nothing, removing the periodic hitch roughly every 2.5 s and the visible jump of long dawn/dusk shadows. Canvas only; WebGL raw fields keep moving coverage. Workspace 0.32.2.
+
 ## Client 0.25.3 / Studio 0.14.3 — Full-height terrain stairs (not yet deployed)
 
 - Draw stair flights continuously from the cliff rim through its visible wall to the ground contact row; restore the basic terrain family's matching two-lane brown-rim stair block.
