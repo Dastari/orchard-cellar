@@ -1,15 +1,13 @@
-import { uiSpeechBubble } from './anchors.js';
 import type { LoadedAsset } from '../../assets.js';
 import type { UiRect } from '../../geometry.js';
 import type { UiTextLinkTarget } from '../../design-system/rich-text.js';
 import type { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone } from '../tokens.js';
-import { uiFrame } from './frame.js';
-import { uiFlex, uiScrollArea } from './layout.js';
-import { uiButton } from './button.js';
-import { uiRichText, uiText } from './text.js';
-import { uiViewport } from './viewport.js';
+import { uiWindow } from './window.js';
+import { uiChoiceButton, uiPortraitWell } from './social.js';
+import { uiFlex, uiStack } from './layout.js';
+import { uiRichText } from './text.js';
 import { uiSprite } from './media.js';
 import { uiTooltip } from './tooltip.js';
 export interface UiDialogueChoice {
@@ -37,29 +35,29 @@ export interface UiDialogueElement extends UiElement {
     updateDialogue(model: UiDialogueModel): void;
     handleDialogueKey(code: string): boolean;
 }
-/** The current node owns choice identity. Ordinary snapshots retain its scroll and controls. */
+const CHOICE_TONES: Partial<Record<UiTone, 'primary' | 'success' | 'danger'>> = { success: 'success', danger: 'danger' };
+/** Approved dialogue window: the speaker's name on the ribbon, their portrait in a framed well beside the
+ * speech, and numbered choice buttons below. The current node owns choice identity; ordinary snapshots
+ * retain the window's scroll and controls. */
 export function uiDialogue(options: UiDialogueOptions): UiDialogueElement {
     let model = options.model, choiceKey = '', speechKey = '';
-    const title = uiText(model.speaker, { role: 'header', layout: { width: 'grow' } });
-    const speech = uiSpeechBubble({ text: '', tail: 'left', tone: 'primary', layout: { width: 'grow' } });
-    for (const child of [...speech.children])
-        child.dispose();
-    const choices = uiFlex({ width: 'grow', gap: 4 });
-    const scroll = uiScrollArea({ width: 'grow', height: 'grow', gap: 8 }, [
-        uiFlex({ direction: 'row', width: 'grow', gap: 8, shrink: 0 }, [
-            ...(options.portrait ? [uiViewport({ label: 'NPC portrait', render: options.portrait, layout: { width: uiFixed(40), height: uiFixed(48), shrink: 0 } })] : []), speech,
+    const speech = uiFlex({ width: 'grow', grow: 1, basis: uiFixed(160) });
+    const choices = uiFlex({ width: 'grow', gap: 2 });
+    const body = uiFlex({ direction: 'column', gap: 8, width: uiFixed(320), maxWidth: { mode: 'percent', fraction: 1 } }, [
+        uiFlex({ direction: 'row', width: 'grow', gap: 8, align: 'start', shrink: 0 }, [
+            ...(options.portrait ? [uiPortraitWell({ label: model.speaker, paint: options.portrait })] : []), speech,
         ]), choices,
     ]);
-    const frame = uiFrame({ id: 'game.dialogue', padding: 8, header: { title: model.speaker, content: title, closable: true, onClose: options.onClose }, layout: { width: 'grow', height: 'grow', ...options.layout }, children: [scroll] });
+    const frame = uiWindow({ id: 'game.dialogue', title: model.speaker.toUpperCase(), onClose: options.onClose, layout: { direction: 'column', ...options.layout }, children: [body] });
+    const scroll = frame.children[0]!;
     const choose = (id: string) => { if (model.choices.some(choice => choice.id === id))
         options.choose(id); };
     const updateDialogue = (next: UiDialogueModel) => {
         const scopeChanged = next.id !== model.id;
         model = next;
-        title.setProps({ text: model.speaker });
+        frame.setWindowTitle(model.speaker.toUpperCase());
         if (scopeChanged) {
-            scroll.scroll.y = 0;
-            scroll.scroll.x = 0;
+            scroll.scroll.y = 0; scroll.scroll.x = 0;
         }
         if (speechKey !== next.body) {
             speechKey = next.body;
@@ -75,8 +73,13 @@ export function uiDialogue(options: UiDialogueOptions): UiDialogueElement {
         for (const child of [...choices.children])
             child.dispose();
         for (const [index, choice] of next.choices.entries()) {
-            const button = uiButton({ id: `dialogue:${choice.id}`, label: `${index + 1}. ${choice.label}`, ariaLabel: choice.label, tone: choice.tone ?? 'neutral', size: 'sm', leading: choice.marker ? uiSprite(choice.marker, { label: 'Quest marker', animation: Object.keys(choice.marker.metadata.animations)[0] ?? 'base', playing: false, layout: { width: uiFixed(16), height: uiFixed(16) } }) : undefined, onPress: () => choose(choice.id), layout: { width: 'grow', shrink: 0 } });
-            choices.append(uiTooltip([choice.label, choice.tooltip].filter(Boolean).join('\n'), button, { width: 'grow', height: uiFixed(choice.marker ? 20 : 16), shrink: 0 }));
+            const button = uiChoiceButton({ id: `dialogue:${choice.id}`, index: index + 1, label: choice.label, tone: CHOICE_TONES[choice.tone ?? 'primary'] ?? 'primary', onPress: () => choose(choice.id), layout: { width: 'grow' } });
+            button.label = choice.label;
+            // A quest marker stands at the choice's right end.
+            const marker = choice.marker ? uiSprite(choice.marker, { label: 'Quest marker', animation: Object.keys(choice.marker.metadata.animations)[0] ?? 'base', playing: true,
+                layout: { position: 'absolute', inset: { right: 4, top: 2 }, width: uiFixed(16), height: uiFixed(16) } }) : null;
+            const row = marker ? uiStack({ width: 'grow', height: uiFixed(20), shrink: 0 }, [button, marker]) : button;
+            choices.append(uiTooltip([choice.label, choice.tooltip].filter(Boolean).join('\n'), row, { width: 'grow', height: uiFixed(20), shrink: 0 }));
         }
     };
     const handleDialogueKey = (code: string) => { if (code === 'Escape') {

@@ -26,9 +26,9 @@ function deferred() {
 
 describe('production retained character naming gate', () => {
   it('presents validation errors without exposing reducer internals', () => {
-    expect(characterNameErrorText(new Error('display_name_taken'))).toBe('THAT CHARACTER NAME IS ALREADY TAKEN');
+    expect(characterNameErrorText(new Error('display_name_taken'))).toBe('That name is taken.');
     expect(characterNameErrorText(new Error('invalid_display_name'))).toContain('3-20');
-    expect(characterNameErrorText(new Error('network gone'))).toBe('COULD NOT SAVE THE CHARACTER NAME');
+    expect(characterNameErrorText(new Error('network gone'))).toBe('Could not save the name. Try again.');
   });
 
   it('retains the draft and focus across updates, validates, normalizes, and submits once until authority closes', async () => {
@@ -63,7 +63,7 @@ describe('production retained character naming gate', () => {
     const prompt = new CharacterNamePrompt(art, submit, () => {});
     prompt.update(480, 270, true); field(prompt); prompt.root.text('Mara'); prompt.root.key({ key: 'Enter' });
     first.reject(new Error('display_name_taken')); await first.promise.catch(() => {});
-    expect(errorText(prompt)).toContain('ALREADY TAKEN'); expect(draft(prompt)).toBe('Mara');
+    expect(errorText(prompt)).toBe('That name is taken.'); expect(draft(prompt)).toBe('Mara');
     expect(prompt.root.focus.current).toBe(field(prompt));
     prompt.root.key({ key: 'Enter' });
     prompt.update(480, 270, false); prompt.update(480, 270, true); field(prompt); prompt.root.text('New Name');
@@ -89,6 +89,23 @@ describe('production retained character naming gate', () => {
     prompt.root.pointer({ type: 'down', pointerId: 10, button: 0, point });
     prompt.root.pointer({ type: 'up', pointerId: 10, button: 0, point });
     expect(submit).toHaveBeenCalledExactlyOnceWith('Mara'); prompt.dispose();
+  });
+
+  it('keeps the naming window one size with or without a validation notice and keeps Begin on screen', () => {
+    const prompt = new CharacterNamePrompt(art, async () => {}, () => {});
+    const rect = (predicate: (element: { id: string; kind: string }) => boolean) => { prompt.root.arrange(); return prompt.root.entries().find(({ element }) => predicate(element))!.element.rect; };
+    for (const [width, height] of [[480, 270], [390, 797], [844, 390], [260, 180]] as const) {
+      prompt.update(width, height, true); field(prompt);
+      const window = rect(element => element.kind === 'window');
+      prompt.root.text('x'); prompt.root.key({ key: 'Enter' });
+      expect(errorText(prompt)).toContain('3-20');
+      expect(rect(element => element.kind === 'window')).toEqual(window);
+      const begin = rect(element => element.id === 'character-name.begin');
+      expect(begin.x).toBeGreaterThanOrEqual(window.x); expect(begin.x + begin.width).toBeLessThanOrEqual(window.x + window.width);
+      expect(begin.y + begin.height).toBeLessThanOrEqual(Math.min(height, window.y + window.height));
+      prompt.update(width, height, false);
+    }
+    prompt.dispose();
   });
 
   it('draws the concrete composition within compact/wide logical viewports under all UI scales and fractional DPR', () => {

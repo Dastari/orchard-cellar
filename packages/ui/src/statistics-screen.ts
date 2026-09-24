@@ -11,7 +11,9 @@ import {
 import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiStatistics, type UiStatisticsElement } from './kit/components/statistics.js';
+import { uiGameBookPage } from './kit/components/character-book.js';
 import { uiFixed } from './kit/layout/box.js';
+import type { UiElement } from './kit/runtime/element.js';
 import { UiRoot } from './kit/runtime/root.js';
 import type { CharacterScreenNavigation } from './character-screen.js';
 
@@ -84,20 +86,26 @@ export function formatPlayerStatisticValue(value: bigint, definition: PlayerStat
   return groupedInteger(value);
 }
 
-export function playerStatisticSubjectLabel(subjectKind: string, registry?: ContentRegistry): string {
+/** Reading-case subject name: the authored item name, or the subject id as capitalised words. */
+export function playerStatisticSubjectName(subjectKind: string, registry?: ContentRegistry): string {
   if (subjectKind.length === 0) return '';
   const authoredItem = registry?.items.get(`item:${subjectKind}`);
   const name = registry === undefined
     ? itemDefinition(subjectKind)?.displayName
     : authoredItem === undefined || authoredItem.retired === true ? undefined : authoredItem.displayName;
-  return (name ?? subjectKind.replaceAll('_', ' ')).toUpperCase();
+  return name ?? subjectKind.replaceAll('_', ' ').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
-/** Subscribed bigint values remain authoritative; the shared table owns browsing state. */
+export function playerStatisticSubjectLabel(subjectKind: string, registry?: ContentRegistry): string {
+  return playerStatisticSubjectName(subjectKind, registry).toUpperCase();
+}
+
+/** Subscribed bigint values remain authoritative; the Records chapter of the player's book owns browsing state. */
 export class StatisticsScreen {
   readonly root: UiRoot;
   private view: UiStatisticsElement | null = null;
   private bounds: UiRect | undefined;
+  private page = uiGameBookPage(640, 400);
   constructor(art: UiKitArt, private readonly navigation: CharacterScreenNavigation = {}) {
     this.root = new UiRoot({ art, scale: 1, label: 'Lifetime records' });
   }
@@ -105,27 +113,32 @@ export class StatisticsScreen {
   update(model: StatisticsScreenModel | null): void {
     if (model === null) { this.root.input.cancelPointers(); this.root.focus.set(null); this.view?.dispose(); this.view = null; return; }
     const focus = this.root.focus.current;
-    if (!this.view) { this.view = uiStatistics({ model, ...this.navigation }); this.root.mount(this.view); this.applyBounds(); }
+    if (!this.view) { this.view = uiStatistics({ model, page: this.page, ...this.navigation }); this.root.mount(this.view); this.applyBounds(); }
     else this.view.updateStatistics(model);
     this.root.arrange();
-    if (focus?.disposed) {
-      const candidates = this.root.entries().map(entry => entry.element);
-      const target = candidates.find(element => element.id === focus.id)
-        ?? candidates.find(element => element.kind === focus.kind && element.label === focus.label && element.focusable && !element.disabled);
-      if (target && !target.disabled) this.root.focus.set(target); else this.view.focusStatistics();
-      this.root.arrange();
-    }
+    this.restoreFocus(focus);
+  }
+  /** Rebuilt records keep stable ids, so a focus lost to a rebuild returns to the same record, category or tab. */
+  private restoreFocus(focus: UiElement | null): void {
+    if (!this.view || !focus?.disposed) return;
+    const candidates = this.root.entries().map(entry => entry.element);
+    const target = candidates.find(element => element.id === focus.id)
+      ?? candidates.find(element => element.kind === focus.kind && element.label === focus.label && element.focusable && !element.disabled);
+    if (target && !target.disabled) this.root.focus.set(target); else this.view.focusStatistics();
+    this.root.arrange();
   }
   private applyBounds(): void {
     if (!this.view || !this.bounds) return;
     const frame = this.bounds;
-    this.view.setCompactStatistics(frame.height < 220);
+    this.view.setStatisticsPage(this.page);
     this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) }, width: uiFixed(frame.width), height: uiFixed(frame.height) });
   }
   setBounds(frame: UiRect, viewportWidth: number, viewportHeight: number): void {
     this.root.resize(viewportWidth, viewportHeight);
-    if (!this.bounds || Object.keys(frame).some(key => frame[key as keyof UiRect] !== this.bounds![key as keyof UiRect])) {
-      this.bounds = { ...frame }; this.applyBounds();
+    const page = uiGameBookPage(viewportWidth, viewportHeight);
+    const pageChanged = page.width !== this.page.width || page.height !== this.page.height;
+    if (pageChanged || !this.bounds || Object.keys(frame).some(key => frame[key as keyof UiRect] !== this.bounds![key as keyof UiRect])) {
+      this.bounds = { ...frame }; this.page = page; this.applyBounds();
     }
     this.root.arrange();
   }

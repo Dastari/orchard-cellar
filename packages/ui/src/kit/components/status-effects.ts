@@ -4,6 +4,8 @@ import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone } from '../tokens.js';
 import { uiIcon, type UiIconSource } from './media.js';
 import { uiButton } from './button.js';
+import { drawOutlinedPixelText } from '../../pixel-ui.js';
+import { paintUiHudPlaque } from './hud-game.js';
 import { uiTooltip } from './tooltip.js';
 export interface UiStatusEffect {
   readonly id: string;
@@ -47,7 +49,14 @@ export function uiStatusEffects(options: UiStatusEffectsOptions): UiElement {
           const face = uiButton({ label: '', tone: effect.tone, layout: { width: uiFixed(24), height: uiFixed(24) } });
           const current = { effect };
           const cell = new UiElement({ ...face.hooks, onPointer: undefined, onKey: undefined, pointerMode: 'passthrough', id: `${element.id}:${effect.id}`, kind: 'status-effect', focusable: true,
-            paint(node, context) { if (!uiStatusEffectBlinkHidden(current.effect, context.reducedMotion)) { face.hooks.paint?.(node, context); if (options.renderIcon) options.renderIcon(context.context, node.rect, current.effect); else icon?.hooks.paint?.(node, context); } },
+            paint(node, context) {
+              if (uiStatusEffectBlinkHidden(current.effect, context.reducedMotion)) return;
+              // Slot-faced like the hotbar: the effect symbol centred, stacks outlined in the corner.
+              const r = node.rect, inner = { x: r.x + 4, y: r.y + 4, width: 16, height: 16 };
+              if (context.art) paintUiHudPlaque(context.context, context.art, r, { lit: context.hovered || context.focused });
+              if (options.renderIcon) options.renderIcon(context.context, inner, current.effect); else icon?.hooks.paint?.(node, context);
+              if (context.art && (current.effect.stacks ?? 1) > 1) drawOutlinedPixelText(context.context, context.art.pixel, String(current.effect.stacks), r.x + r.width - 2, r.y + r.height - 9, { align: 'right', color: '#fff6e0', outlineColor: '#3f2832' });
+            },
           });
           const wrapper = uiTooltip(() => uiStatusEffectLabel(current.effect, options.ticksPerSecond), cell,
             { width: uiFixed(24), height: uiFixed(24), shrink: 0 });

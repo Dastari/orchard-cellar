@@ -45,8 +45,11 @@ describe('Willowharbour authored services',()=>{
       }
     }
     const smithOffers=merchantOffers('willow_smith');
-    const smithGear=smithOffers.filter(item=>!item.endsWith('_plan'));
-    expect(smithOffers).toHaveLength(40);
+    // Smithing supplies (recipe recosting, Craft-D2): the interim peaceful source for coal and tin ore.
+    const smithSupplies=['coal','tin_ore'];
+    const smithGear=smithOffers.filter(item=>!item.endsWith('_plan')&&!smithSupplies.includes(item));
+    expect(smithOffers).toHaveLength(42);
+    expect(smithOffers.filter(item=>smithSupplies.includes(item)).sort()).toEqual(smithSupplies);
     expect(smithGear).toHaveLength(8);
     expect(smithGear.every(item=>item.startsWith('hearth_common_'))).toBe(true);
     for(const rarity of ['common','uncommon','rare','epic'])

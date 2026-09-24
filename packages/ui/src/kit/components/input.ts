@@ -5,8 +5,8 @@ import { UI_SIZE_METRICS, type UiControlSize, type UiTone } from '../tokens.js';
 import { drawPixelText } from '../../pixel-ui.js';
 import { UI_TONE_FACES } from '../skin/contrast.js';
 import { paintUiSkin, uiElementTextContrast } from './art.js';
-import { uiFlex } from './layout.js';
-import { uiIcon, uiIconButton } from './media.js';
+import { uiIcon } from './media.js';
+import { uiGlyphButton } from './window.js';
 export interface UiInputOptions {
   readonly id?: string; readonly label: string; readonly value?: string; readonly placeholder?: string;
   /** Retained host model. When supplied it owns value, limits and selection. */
@@ -102,7 +102,7 @@ function field(options: UiTextAreaOptions, multiline: boolean): UiElement {
     },
     paint(element, { context, art, now, reducedMotion }) {
       if (!art) return; sync(element);
-      paintUiSkin(context, art.skin.frame, 'thin', element.rect, false);
+      if (!element.props['chromeless']) paintUiSkin(context, art.skin.frame, 'thin', element.rect);
       const r = element.contentRect, state = editor.snapshot(), columns = Math.max(1, Math.floor((r.width - gutter) / 6));
       const lines = uiEditLines(state.value || options.placeholder || '', columns, multiline), rows = Math.max(1, Math.floor(r.height / 10));
       const caretLine = Math.max(0, lines.findLastIndex(line => line.start <= state.focus));
@@ -119,7 +119,7 @@ function field(options: UiTextAreaOptions, multiline: boolean): UiElement {
           context.fillStyle = UI_TONE_FACES.info.frame.face; context.fillRect(r.x + gutter + Math.max(0, selectionStart) * 6, y, Math.max(0, Math.min(columns, selectionEnd) - Math.max(0, selectionStart)) * 6, 10);
         }
         if (gutter) drawPixelText(context, art.pixel, String(index + 1), r.x, y, { color: ink });
-        drawPixelText(context, art.pixel, shown, r.x + gutter, y, { color: ink });
+        drawPixelText(context, art.pixel, shown, r.x + gutter, y, { color: state.value ? ink : '#9e5f45' });
         if (focused && caretLine === index && (reducedMotion || Math.floor(now / 530) % 2 === 0)) {
           const caret = [...line.text.slice(0, state.focus - line.start)].length - offsetX;
           context.fillStyle = ink; context.fillRect(r.x + gutter + Math.min(columns - 1, Math.max(0, caret)) * 6, y, 1, 8);
@@ -130,11 +130,20 @@ function field(options: UiTextAreaOptions, multiline: boolean): UiElement {
   });
   edit.setProps({ setValue: (value: string) => { editor.setValue(value); notify(edit); } }, false);
   if (!options.leading && !options.trailing && !options.clearable && !(multiline && options.resizable)) return edit;
-  const wrapper = uiFlex({ direction: 'row', gap: 4, align: 'center', width: 'grow', ...options.layout }, [
-    ...(options.leading ? [options.leading] : []), edit,
-    ...(options.clearable ? [uiIconButton({ fantasy: 'cross_white_medium' }, { label: `Clear ${options.label}`, layout: { width: uiFixed(24) }, onPress: () => { editor.setValue(''); notify(edit); } })] : []),
+  // Inline clear sits inside the field chrome and only appears once there is text to clear.
+  const clear = uiGlyphButton({ glyph: 'glyph.cross.primary', chrome: 'none', hideWhenDisabled: true, label: `Clear ${options.label}`, onPress: () => { editor.setValue(''); notify(edit); } });
+  const single = !multiline;
+  if (single) edit.setProps({ chromeless: true }, false);
+  // Single-line fields draw one shared chrome around the leading glyph, text and inline clear.
+  const wrapper = new UiElement({ kind: 'input-field', style: { display: 'flex', direction: 'row', gap: 2, align: 'center', width: 'grow',
+    ...(single ? { height: uiFixed(metrics.controlHeight), padding: { left: 4, right: 4 } } : {}), ...options.layout }, children: [
+    ...(options.leading ? [options.leading] : []), edit.setStyle(single ? { padding: { left: 0, right: 0, top: 4, bottom: 4 } } : {}),
+    ...(options.clearable ? [clear] : []),
     ...(options.trailing ? [options.trailing] : []),
-  ]);
+  ], paint(element, { context, art }) {
+    const empty = !editor.snapshot().value; if (clear.disabled !== empty) clear.setDisabled(empty);
+    if (art && single && !art.missingArt) paintUiSkin(context, art.skin.frame, 'thin', element.rect);
+  } });
   if (multiline && options.resizable) {
     let start: { y: number; height: number } | null = null;
     wrapper.append(new UiElement({ kind: 'textarea-resize', label: `Resize ${options.label}`, focusable: true, pointerMode: 'capture', style: { width: uiFixed(16), height: uiFixed(16) }, children: [uiIcon({ lucide: 'scale' })],

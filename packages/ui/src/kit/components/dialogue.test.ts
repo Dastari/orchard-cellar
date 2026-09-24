@@ -32,7 +32,7 @@ it('retains ordinary snapshot focus and scroll, but retires changed choice captu
     const button = root.entries().find(e => e.element.id === 'dialogue:10')!.element;
     root.focus.set(button, 'keyboard');
     root.arrange();
-    const scroll = root.entries().find(e => e.element.kind === 'scroll-area')!.element, offset = scroll.scroll.y;
+    const scroll = frame.children[0]!, offset = scroll.scroll.y;
     frame.updateDialogue({ ...model, speaker: 'Updated ordinary title' });
     root.arrange();
     expect(root.focus.current).toBe(button);

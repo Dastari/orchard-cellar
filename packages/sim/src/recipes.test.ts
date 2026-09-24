@@ -97,28 +97,29 @@ describe('Systems/Economy: crafting recipe goldens', () => {
     expect(RECIPES.standing_torch!.output).toEqual({ itemKind: 'standing_torch', quantity: 1 });
   });
 
-  it('crafts the first ring-slot item from copper and gold at an anvil', () => {
+  it('crafts the first ring-slot item from a glass face, gold case and copper movement at an anvil', () => {
     expect(RECIPES.watch!).toMatchObject({
       station: 'anvil',
-      pattern: [['gold_bar'], ['copper_bar']],
+      pattern: [[null, 'glass_pane', null], ['gold_piece', 'copper_bar', 'gold_piece'], [null, 'gold_piece', null]],
       output: { itemKind: 'watch', quantity: 1 },
     });
     expect(recipeIngredientStacks(RECIPES.watch!)).toEqual([
       { itemKind: 'copper_bar', quantity: 1 },
-      { itemKind: 'gold_bar', quantity: 1 },
+      { itemKind: 'glass_pane', quantity: 1 },
+      { itemKind: 'gold_piece', quantity: 3 },
     ]);
-    expect(recipeMatches(RECIPES.watch!, grid({ 1: 'gold_bar', 4: 'copper_bar' }))).toBe(true);
-    expect(recipeMatches(RECIPES.watch!, grid({ 0: 'gold_bar', 8: 'copper_bar' }))).toBe(false);
+    expect(recipeMatches(RECIPES.watch!, grid({ 1: 'glass_pane', 3: 'gold_piece', 4: 'copper_bar', 5: 'gold_piece', 7: 'gold_piece' }))).toBe(true);
+    expect(recipeMatches(RECIPES.watch!, grid({ 1: 'gold_piece', 3: 'gold_piece', 4: 'copper_bar', 5: 'glass_pane', 7: 'gold_piece' }))).toBe(false);
   });
 
-  it('compacts nine small resources and gates barrels behind smelted iron', () => {
-    expect(recipeIngredientStacks(RECIPES.stone!)).toEqual([{ itemKind: 'pebble', quantity: 9 }]);
+  it('compacts small resources and hoops barrels with iron nails', () => {
+    expect(recipeIngredientStacks(RECIPES.stone!)).toEqual([{ itemKind: 'pebble', quantity: 4 }]);
     expect(recipeIngredientStacks(RECIPES.iron_ore!)).toEqual([{ itemKind: 'iron_piece', quantity: 9 }]);
     expect(recipeIngredientStacks(RECIPES.copper_ore!)).toEqual([{ itemKind: 'copper_piece', quantity: 9 }]);
     expect(recipeIngredientStacks(RECIPES.gold_ore!)).toEqual([{ itemKind: 'gold_piece', quantity: 9 }]);
     expect(recipeIngredientStacks(RECIPES.furnace!)).toEqual([{ itemKind: 'stone', quantity: 8 }]);
     expect(recipeIngredientStacks(RECIPES.barrel!)).toEqual([
-      { itemKind: 'iron_bar', quantity: 2 },
+      { itemKind: 'nails', quantity: 2 },
       { itemKind: 'plank', quantity: 6 },
     ]);
     expect(recipeIngredientStacks(RECIPES.fruit_press!)).toEqual([
@@ -131,12 +132,12 @@ describe('Systems/Economy: crafting recipe goldens', () => {
     ]);
     expect(recipeIngredientStacks(RECIPES.cooking_fire!)).toEqual([
       { itemKind: 'campfire', quantity: 1 },
-      { itemKind: 'iron_bar', quantity: 1 },
-      { itemKind: 'stone', quantity: 7 },
+      { itemKind: 'stone', quantity: 8 },
     ]);
     expect(recipeIngredientStacks(RECIPES.camp_cooking_fire!)).toEqual([
       { itemKind: 'campfire', quantity: 1 },
-      { itemKind: 'iron_bar', quantity: 3 },
+      { itemKind: 'iron_bar', quantity: 1 },
+      { itemKind: 'stick', quantity: 2 },
     ]);
   });
 

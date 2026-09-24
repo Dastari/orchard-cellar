@@ -38,5 +38,5 @@ it('keeps effect identity and authored order while custom production artwork rep
   const context = { fillRect: vi.fn() } as unknown as CanvasRenderingContext2D;
   const cell = next!.children[0]!;
   cell.hooks.paint!(cell, { context, now: 0, hovered: false, focused: false, reducedMotion: false });
-  expect(paint).toHaveBeenCalledExactlyOnceWith(context, cell.rect, second); root.dispose();
+  expect(paint).toHaveBeenCalledExactlyOnceWith(context, { x: cell.rect.x + 4, y: cell.rect.y + 4, width: 16, height: 16 }, second); root.dispose();
 });

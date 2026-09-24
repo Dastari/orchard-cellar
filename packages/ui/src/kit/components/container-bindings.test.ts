@@ -29,10 +29,13 @@ describe('canonical carried inventory bindings', () => {
   });
   it('uses all canonical equipment positions with every current slot enabled', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(240,200); const doll = root.mount(uiPaperDoll({ container: 'equipment' })); root.arrange();
-    expect(doll.children.map(node => node.props['binding'])).toEqual(EQUIPMENT_SLOTS.map(slot => ({ container: 'equipment', index: slot.index })));
-    expect(doll.children.filter(node => !node.disabled).map(node => node.props['binding'])).toEqual(EQUIPMENT_SLOTS.map(slot => ({ container: 'equipment', index: slot.index })));
-    const [a,b,,d] = doll.children;
-    expect(b!.rect.x - a!.rect.x - a!.rect.width).toBe(2); expect(d!.rect.y - a!.rect.y - a!.rect.height).toBe(2); root.dispose();
+    // Slots sit in the paper-doll arrangement (armour left, accessories right, hands under the wearer); compare by index.
+    const slots = root.entries().map(entry => entry.element).filter(node => node.kind === 'slot' && node.isDescendantOf(doll));
+    const byIndex = (nodes: typeof slots) => nodes.map(node => node.props['binding'] as { container: string; index: number }).toSorted((a, b) => a.index - b.index);
+    expect(byIndex(slots)).toEqual(EQUIPMENT_SLOTS.map(slot => ({ container: 'equipment', index: slot.index })).toSorted((a, b) => a.index - b.index));
+    expect(slots.every(node => !node.disabled)).toBe(true);
+    const column = doll.children[0]!.children, [a, b] = column;
+    expect(b!.rect.y - a!.rect.y - a!.rect.height).toBe(2); root.dispose();
   });
   it('uses the game equipment restrictions in the lab authority', () => {
     const { model, controller } = uiLabInventory({ activate: vi.fn() });
@@ -56,7 +59,8 @@ describe('canonical carried inventory bindings', () => {
     expect(hotbar).toHaveLength(HOTBAR_SLOT_COUNT);
     for (const slot of hotbar) expect(slot.rect).toEqual(slot.clip);
     const equipment = slots.filter(node => (node.props['binding'] as { container: string }).container === 'equipment');
-    expect(equipment.map(node => node.props['binding'])).toEqual(EQUIPMENT_SLOTS.map(slot => ({container: 'equipment', index: slot.index}))); expect(equipment.filter(node => !node.disabled)).toHaveLength(EQUIPMENT_SLOTS.length); root.dispose();
+    const indexes = (bindings: readonly { container: string; index: number }[]) => bindings.toSorted((a, b) => a.index - b.index);
+    expect(indexes(equipment.map(node => node.props['binding'] as { container: string; index: number }))).toEqual(indexes(EQUIPMENT_SLOTS.map(slot => ({container: 'equipment', index: slot.index})))); expect(equipment.filter(node => !node.disabled)).toHaveLength(EQUIPMENT_SLOTS.length); root.dispose();
   });
 });
 

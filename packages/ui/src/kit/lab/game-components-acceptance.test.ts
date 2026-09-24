@@ -80,7 +80,7 @@ it('keeps barrel contents and merchant rows visible at their compact 2x gallery 
   for (const id of ['barrel','merchant-shop'] as const) {
     const options = uiLabGameOptions(id, {}, { art, activate: vi.fn() });
     const surface = UI_LAB_MIGRATION_SURFACES.find(surface => surface.id === id)!, root = new UiRoot({ art, scale: 2 }); root.resize(surface.specimenSize.width,surface.specimenSize.height); root.mount(ui.gameSurface(options)); root.arrange();
-    const content = root.entries().find(({ element }) => id === 'barrel' ? element.kind === 'slot' && element.label === 'entity/0' : element.kind === 'list-row' && element.label === options.merchantRows!.buy[0]!.itemKind)?.element;
+    const content = root.entries().find(({ element }) => id === 'barrel' ? element.kind === 'slot' && element.label === 'entity/0' : element.kind === 'shop-row')?.element;
     expect(content, id).toBeDefined(); expect(content!.clip.height, id).toBeGreaterThan(0); expect(content!.rect.y, id).toBeLessThan(content!.clip.y + content!.clip.height); root.dispose();
   }
 });

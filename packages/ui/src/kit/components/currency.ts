@@ -24,13 +24,13 @@ function canonicalBronze(value: bigint | number): bigint {
   if (typeof value === 'bigint') return value;
   return Number.isFinite(value) ? BigInt(Math.trunc(value)) : 0n;
 }
-/** Gold, silver and bronze from the first nonzero unit. Inner zeros stay
- * (1g 0s 5b); zero or negative amounts are a single `0` bronze group. */
+/** Gold, silver and bronze, showing only the units that are not zero (1g 5b, never 5g 0s 0b);
+ * zero or negative amounts are a single `0` bronze group. */
 export function uiCurrencyParts(bronze: bigint | number): readonly UiCurrencyPart[] {
   const purse = coinPurseFromBronze(canonicalBronze(bronze));
   const all: UiCurrencyPart[] = [{ unit: 'gold', value: purse.gold }, { unit: 'silver', value: BigInt(purse.silver) }, { unit: 'bronze', value: BigInt(purse.bronze) }];
-  const first = all.findIndex(part => part.value > 0n);
-  return first < 0 ? [all[2]!] : all.slice(first);
+  const shown = all.filter(part => part.value > 0n);
+  return shown.length ? shown : [all[2]!];
 }
 /** Accessible text for a currency amount, for example `3g 6s 25b`. */
 export function uiCurrencyLabel(bronze: bigint | number): string {
@@ -46,6 +46,8 @@ function currencyInk(element: UiElement): string {
   return uiElementTextContrast(element).color;
 }
 /** An amount shown as number-then-coin groups, omitting leading zero units. */
+/** Painted width of a coin amount, for callers that fit a container to it. */
+export function uiCurrencyWidth(bronze: bigint | number): number { return measureParts(uiCurrencyParts(bronze)); }
 export function uiCurrency(options: UiCurrencyOptions): UiElement {
   return new UiElement({ id: options.id, kind: 'currency', label: uiCurrencyLabel(options.bronze), props: { bronze: canonicalBronze(options.bronze) },
     style: { height: uiFixed(UI_COIN_SIZE), shrink: 0, ...options.layout },

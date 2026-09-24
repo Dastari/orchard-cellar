@@ -10,7 +10,7 @@ export function disposeInitialWorldLoading(renderer: object): void {
 /** Continue the shared startup composition inside the existing world loop. */
 export function drawInitialWorldLoading(
   renderer: Pick<UnifiedRenderer, 'beginUi' | 'endUi' | 'cssWidth' | 'cssHeight'>,
-  assets: { readonly kitArt: UiKitArt; readonly apple: LoadedAsset },
+  assets: { readonly kitArt: UiKitArt; readonly apple: LoadedAsset; readonly cask?: LoadedAsset },
   stage: LoadingScreenStage,
   version: string,
   safe: { readonly left: number; readonly right: number; readonly top: number; readonly bottom: number } = {left:0,right:0,top:0,bottom:0},
@@ -18,7 +18,7 @@ export function drawInitialWorldLoading(
   let retained = views.get(renderer);
   if (!retained || retained.art !== assets.kitArt || retained.version !== version) {
     retained?.view.dispose();
-    retained = { art: assets.kitArt, version, view: new GameGatewayLoading(assets.kitArt, {emblem:assets.apple,version}) };
+    retained = { art: assets.kitArt, version, view: new GameGatewayLoading(assets.kitArt, { emblem: assets.apple, cask: assets.cask, version }) };
     views.set(renderer,retained);
   }
   const context = renderer.beginUi(1);

@@ -201,6 +201,21 @@ describe('production build palette retained host', () => {
     } finally { runtime.dispose(); }
   });
 
+  it('selects remove with X, closes through the wooden plaque and fits its window to the catalogue', () => {
+    const onClose = vi.fn(), palette = new HomesteadBuildPalette(art, {}, undefined, onClose); palettes.push(palette);
+    palette.setModel({ ...base, furnishing: false, entries: base.entries.slice(0, 9) }); palette.showCatalogue();
+    expect(palette.root.focus.current?.id).toBe('game.build-palette');
+    palette.root.key({ key: 'x' }); expect(palette.selection).toEqual({ kind: 'remove' });
+    click(palette, 'item.piece_3'); expect(palette.selection).toEqual({ kind: 'place', itemKind: 'piece_3' });
+    palette.root.key({ key: 'X', repeat: true }); expect(palette.selection).toEqual({ kind: 'place', itemKind: 'piece_3' });
+    palette.root.arrange();
+    const window = palette.root.entries().find(entry => entry.element.id === 'game.build-palette')!.element;
+    expect(window.rect.width).toBe(322); expect(window.rect.height).toBeLessThan(palette.bounds.height + 1);
+    expect(control(palette, 'scroll').scroll.maxY).toBe(0);
+    const close = palette.root.entries().find(entry => entry.element.id === 'game.build-palette.close')!.element;
+    palette.root.focus.set(close); palette.root.key({ key: 'Enter' }); expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it.each(['catalogue', 'empty', 'construction', 'review', 'pending', 'expansion', 'locked', 'error'] as const)('renders real %s art with 5x7 glyphs across compact/wide scales and fractional DPR', view => {
     const directory = process.env['ORCHARD_BUILD_PALETTE_EVIDENCE'];
     for (const scale of [1, 2, 3]) for (const dpr of [1, 1.25]) for (const width of [320, 640]) {

@@ -1,15 +1,15 @@
 import { drawPixelText } from '../../pixel-ui.js';
 import { containsPoint, type UiPoint } from '../../geometry.js';
+import { paintUiHudPlaque } from './hud-game.js';
+import { paintUiDarkFrame } from './feedback-game.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import type { UiTone } from '../tokens.js';
+import { UI_ITEM_INKS, type UiTone } from '../tokens.js';
 import { scrollUiElement } from '../layout/scroll.js';
-import { paintUiSkin } from './art.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText, uiTextLines } from './text.js';
 import { uiInput } from './input.js';
-import { uiIconButton } from './media.js';
 import { uiButton } from './button.js';
 import { uiTooltip } from './tooltip.js';
 import { uiList } from './collections.js';
@@ -66,7 +66,8 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     },
     render(line) {
       const text = uiText(line.text, { outline: true, layout: { width: 'grow' } });
-      const plain = uiText(line.text, { layout: { width: 'grow' } });
+      // On the dark panel, lines read in the dark-frame body ink.
+      const plain = uiText(line.text, { layout: { width: 'grow' } }).setProps({ ink: UI_ITEM_INKS.body });
       return new UiElement({ ...text.hooks, id: `chat.message.${line.id}`, animated: true,
         paint(element, state) {
           const expanded = uiChatHistoryExpanded(model.touch, model.open, model.hovered); state.context.globalAlpha *= uiChatLineAlpha(state.now - line.arrivedAt, expanded);
@@ -81,11 +82,19 @@ export function uiChat(options: UiChatOptions): UiChatElement {
   const panel = new UiElement({ kind: 'chat-history-panel', pointerMode: 'capture', props: { tone: 'primary', touchScroll: true, singlePointer: true },
     style: { width: 'grow', height: 'grow', minHeight: uiFixed(0), padding: 8 }, children: [history],
     onPointer(event) { if (event.type === 'down' && event.button === 0) { event.capture(); return true; } if (event.type === 'up' && event.button === 0) { activateHistory(); event.release(); } return true; },
-    paint(element, { context, art }) {
-      if (art && (uiChatHistoryExpanded(model.touch, model.open, model.hovered))) paintUiSkin(context, art.skin.frame, 'primary.idle', element.rect);
+    paint(element, { context, art, now }) {
+      paintedAt = now;
+      if (art && (uiChatHistoryExpanded(model.touch, model.open, model.hovered))) { context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); }
     },
   });
-  const baseInput = uiInput({ id: 'chat.input', label: 'Chat message or command', editor, placeholder: 'SAY [General]: MESSAGE',
+  // BUG-038: the history takes clicks only while chat is open or a recent line is still showing. Once every
+  // line has faded the area lets world clicks through (a disabled subtree is skipped by hit testing). Hover is
+  // observed on the shell, so pointing at the faded area still re-reveals the history (BUG-034), and the
+  // shell scrolls a hover-revealed history with the wheel; a mouse click there reaches the world.
+  let paintedAt = 0;
+  const historyShown = () => model.open || model.lines.some(line => uiChatLineAlpha(paintedAt - line.arrivedAt, false) > 0);
+  const syncHistoryInput = () => { const idle = !historyShown(); if (panel.disabled !== idle) panel.setDisabled(idle); };
+  const baseInput = uiInput({ id: 'chat.input', label: 'Chat message or command', editor, placeholder: 'Say to General',
     onChange: () => { historyNavigation = false; options.onChange(); }, onSubmit: value => { if (!editor.snapshot().composing) options.onSubmit(value); }, layout: { width: 'grow', shrink: 0 } });
   const input = new UiElement({ ...baseInput.hooks, onPointer(event, element) {
     if (event.type === 'down') historyNavigation = false;
@@ -103,9 +112,15 @@ export function uiChat(options: UiChatOptions): UiChatElement {
   suggestions.setProps({ singlePointer: true }); suggestions.pointerMode = 'capture';
   const inputPanel = new UiElement({ kind: 'chat-editor-panel', props: { tone: 'primary', singlePointer: true },
     style: { display: 'stack', width: 'grow', height: uiFixed(24), shrink: 0 }, children: [input],
-    paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, 'primary.idle', element.rect); },
+    paint(element, { context, art }) { if (art) { context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); } },
   });
-  const base = uiIconButton({ cf: 'chat' }, { id: 'chat.toggle', label: 'Chat', tone: 'primary', layout: { width: uiFixed(24), height: uiFixed(24), shrink: 0 }, onPress: options.onToggle });
+  // The HUD plaque with the speech symbol, like the other HUD shortcuts but 24px tall so the compact
+  // keyboard-inset layout keeps its editor; a green pip marks unread messages.
+  const base = uiButton({ id: 'chat.toggle', label: '', ariaLabel: 'Chat', tone: 'primary', layout: { width: uiFixed(28), height: uiFixed(24), padding: 0, shrink: 0 }, onPress: options.onToggle,
+    face: (element, { context, art, hovered, focused, pressed }) => {
+      const r = element.rect; paintUiHudPlaque(context, art, r, { icon: 'hud.chat', pressed, lit: hovered || focused });
+      if (element.props['tone'] === 'success') { context.fillStyle = '#3f2832'; context.fillRect(r.x + r.width - 8, r.y + 2, 6, 6); context.fillStyle = '#63c74d'; context.fillRect(r.x + r.width - 7, r.y + 3, 4, 4); }
+    } });
   let drag: { start: UiPoint; moved: boolean; pointerId: number } | undefined;
   const toggle = new UiElement({ ...base.hooks, props: { ...base.props, singlePointer: true }, style: base.style, children: [...base.children],
     onPointer(event, element) {
@@ -130,11 +145,16 @@ export function uiChat(options: UiChatOptions): UiChatElement {
   const hoveredControl = () => hoverPoint !== null && (containsPoint(toggle.rect, hoverPoint) || !model.collapsed && (panel.visible && containsPoint(panel.rect, hoverPoint) || model.open && (containsPoint(input.rect, hoverPoint) || model.suggestions.length > 0 && containsPoint(suggestions.rect, hoverPoint))));
   const shell = new UiElement({ ...baseShell.hooks, props: { touchScroll: true }, children: [...baseShell.children],
     onHover: hovered => options.onHover?.(hovered && hoveredControl()),
+    onWheel(event) {
+      if (!panel.disabled || !uiChatHistoryExpanded(model.touch, model.open, model.hovered) || !containsPoint(history.clip, event.point)) return false;
+      return scrollUiElement(history, history.scroll.x, history.scroll.y + (event.deltaY || event.deltaX));
+    },
     onPointerObserved(event) {
       hoverPoint = event.type === 'cancel' ? null : event.point; options.onHover?.(hoveredControl());
       if (event.type === 'down' && containsPoint(history.clip, event.point)) historyClickAllowed = event.button === 0;
     },
     onArrange(element) {
+      syncHistoryInput();
       const compact = element.rect.height < 90;
       const historyVisible = !model.collapsed && (!model.open || !compact);
       if (panel.visible !== historyVisible) panel.setStyle({ visible: historyVisible });
@@ -165,6 +185,7 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     if (model.suggestionIndex !== next.suggestionIndex) revealSuggestion = true;
     model = next;
     history.setProps({ scrollbarVisible: uiChatHistoryExpanded(model.touch, model.open, model.hovered) }, false);
+    syncHistoryInput();
     const draft = editor.snapshot().value; if (draft !== previousDraft) { previousDraft = draft; historyNavigation = false; }
     shell.setDisabled(model.blocked);
     toggle.setProps({ tone: model.unread ? 'success' : 'primary' });

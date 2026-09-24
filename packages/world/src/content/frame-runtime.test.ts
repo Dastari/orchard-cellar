@@ -33,7 +33,7 @@ describe('world frame resolver', () => {
   it('resolves the same process-derived furnace restrictions as the client', () => {
     expect(placeableFrameRestrictions(registry, { kind: 'furnace' })).toEqual({
       0: { acceptedKinds: ['clay', 'copper_ore', 'gold_ore', 'iron_ore', 'sand', 'silver_ore', 'tin_ore'] },
-      1: { acceptedKinds: ['plank', 'wood'] },
+      1: { acceptedKinds: ['coal', 'plank', 'wood'] },
       2: { readOnly: true },
     });
   });

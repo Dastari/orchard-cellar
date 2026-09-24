@@ -38,16 +38,20 @@ export function uiRadioGroup(options: UiChoiceOptions & { readonly options: read
   }
   return group;
 }
-export function uiSwitch(options: UiChoiceOptions & { readonly value?: boolean; readonly onChange?: (value: boolean) => void }): UiElement {
+export function uiSwitch(options: UiChoiceOptions & { readonly value?: boolean; readonly onChange?: (value: boolean) => void; /** Toggle art only; the row supplies the visible label. */ readonly bare?: boolean; /** Green-on / red-off track instead of the neutral one. */ readonly coloured?: boolean }): UiElement {
   let started = -Infinity, elapsed = Infinity, pressed = false;
   const change = (element: UiElement) => { const value = !element.props['value']; started = performance.now(); elapsed = 0; element.setProps({ value }, false); options.onChange?.(value); };
   return new UiElement({ id: options.id, kind: 'switch', label: options.label, focusable: true, disabled: options.disabled, pointerMode: 'capture',
     props: { tone: options.tone ?? 'neutral', value: options.value ?? false }, get animated() { return elapsed < 150; },
-    style: { width: uiFixed(options.label.length * 6 + 44), height: uiFixed(24), ...options.layout },
+    style: { width: uiFixed(options.bare ? 32 : options.label.length * 6 + 44), height: uiFixed(options.bare ? 16 : 24), ...options.layout },
     onPointer(event, element) { if (event.type === 'down' && event.button === 0) { pressed = true; event.capture(); return true; } if (pressed && (event.type === 'up' || event.type === 'cancel')) { pressed = false; event.release(); if (event.type === 'up' && containsPoint(element.clip, event.point)) change(element); return true; } return false; },
     onKey(event, element) { if (event.key !== ' ' && event.key !== 'Enter') return false; change(element); return true; },
     paint(element, { context, art, now, reducedMotion }) {
       if (!art) return; elapsed = now - started; const r = element.rect, tone = options.tone ?? 'neutral';
+      if (options.bare) {
+        const frame = reducedMotion || elapsed >= 150 ? element.props['value'] ? 3 : 0 : toggleFrameIndex(Boolean(element.props['value']), elapsed);
+        paintUiSkin(context, art.skin.toggle, `toggle_switch.${options.coloured ? 'colored' : 'neutral'}.${frame}`, { x: r.x + 1, y: r.y + 1, width: 30, height: 14 }); return;
+      }
       paintUiSkin(context, art.skin.button, `${element.props['value'] ? tone : 'muted'}.md.pill.idle`, r);
       const frame = reducedMotion || elapsed >= 150 ? element.props['value'] ? 3 : 0 : toggleFrameIndex(Boolean(element.props['value']), elapsed);
       paintUiSkin(context, art.skin.toggle, `toggle_switch.neutral.${frame}`, { x: r.x + 4, y: r.y + Math.floor((r.height - 14) / 2), width: 30, height: 14 });
@@ -108,7 +112,9 @@ export function uiSlider(options: UiSliderOptions): UiElement {
       } else {
         const rect = { x: t.x, y: element.rect.y + 10, width: t.width, height: 6 };
         paintUiSkin(context, art.skin.slider, `slider_track.base.${index}`, rect);
-        if (fraction > 0) paintUiSkin(context, art.skin.slider, `slider_fill.base.${index}`, { x: rect.x + 1, y: rect.y + 1, width: Math.max(0, Math.round((rect.width - 2) * fraction)), height: 4 });
+        // The fill keeps the track's length and is clipped to the value, so its segment marks line up on every slider.
+        if (fraction > 0) { context.save(); context.beginPath(); context.rect(rect.x + 1, rect.y + 1, Math.max(0, Math.round((rect.width - 2) * fraction)), 4); context.clip();
+          paintUiSkin(context, art.skin.slider, `slider_fill.base.${index}`, { x: rect.x + 1, y: rect.y + 1, width: rect.width - 2, height: 4 }); context.restore(); }
         if (tokenFill) { context.fillStyle = UI_TONE_FACES[tone].frame.face; context.fillRect(rect.x + 1, rect.y + 2, Math.round((rect.width - 2) * fraction), 2); }
         paintUiSkin(context, art.skin.slider, `slider_handle.horizontal.${index * 2}`, { x: Math.round(t.x + t.width * fraction - 8), y: element.rect.y + 5, width: 16, height: 16 });
       }

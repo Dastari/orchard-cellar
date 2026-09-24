@@ -33,7 +33,8 @@ function productionMenu(window: 'settings' | 'developer') {
 
 it.each(['settings', 'developer'] as const)('vertical touch scroll through the production %s slider sends no command', window => {
   const f = productionMenu(window);
-  const scroll = f.root.entries().find(entry => entry.element.kind === 'scroll-area' && entry.element.scroll.maxY > 0)!.element;
+  // The scrolling ancestor of the slider (settings also scrolls its tab column on short screens).
+  const scroll = f.root.entries().find(entry => entry.element.kind === 'scroll-area' && entry.element.scroll.maxY > 0 && f.slider.isDescendantOf(entry.element))!.element;
   const before = scroll.scroll.y;
   f.pointer('down');
   expect(f.changed).not.toHaveBeenCalled();

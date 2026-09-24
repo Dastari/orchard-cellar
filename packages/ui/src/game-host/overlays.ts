@@ -7,8 +7,19 @@ import { uiUpdateReady } from '../kit/components/update-ready.js';
 import { UiElement } from '../kit/runtime/element.js';
 import { UiRoot } from '../kit/runtime/root.js';
 import { uiFixed } from '../kit/layout/box.js';
+import { UI_TONE_FACES } from '../kit/skin/contrast.js';
 
 interface Viewport { readonly width: number; readonly height: number }
+/** Blocking dialogs centre at their fitted size over a light veil. */
+const CENTRED_MODAL = { display: 'flex', justify: 'center', align: 'center', width: 'grow', height: 'grow', zLayer: 'modal' } as const;
+function dimBackdrop(element: UiElement, { context }: { readonly context: CanvasRenderingContext2D }): void {
+  const r = element.rect; context.save(); context.globalAlpha = .35; context.fillStyle = UI_TONE_FACES.muted.button_disabled.face;
+  context.fillRect(r.x, r.y, r.width, r.height); context.restore();
+}
+/** The fitted window never exceeds the viewport; its body scrolls inside the chrome instead. */
+function capToViewport(view: UiElement, viewport: Viewport): void {
+  view.setStyle({ maxWidth: uiFixed(Math.max(0, viewport.width - 8)), maxHeight: uiFixed(Math.max(0, viewport.height - 8)) });
+}
 export interface DelveConfirmationModel extends Viewport {
   /** Identity, connection generation and current entry interaction. */
   readonly sessionKey: string; readonly visible: boolean; readonly canBegin: boolean;
@@ -37,8 +48,8 @@ export class DelveConfirmationUi {
     if (!this.active) return;
     if (!this.view) {
       this.view = uiDelveConfirmation({ canBegin: model.canBegin, onBegin: () => this.finish(true), onCancel: () => this.finish(false) });
-      this.root.mount(new UiElement({ id: 'game.delve-confirmation.host', style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' },
-        props: { singlePointer: true, touchScroll: true }, children: [this.view],
+      this.root.mount(new UiElement({ id: 'game.delve-confirmation.host', style: CENTRED_MODAL,
+        props: { singlePointer: true, touchScroll: true }, children: [this.view], paint: dimBackdrop,
         onKeyCapture: event => {
           if (event.repeat && ['Enter', ' ', 'Escape', 'e', 'E'].includes(event.key)) return true;
           if (event.key.toLowerCase() === 'e') { this.finish(true); return true; }
@@ -47,7 +58,7 @@ export class DelveConfirmationUi {
       }));
       this.view.focusBegin();
     }
-    this.view.updateCanBegin(model.canBegin); this.root.arrange();
+    this.view.updateCanBegin(model.canBegin); capToViewport(this.view, model); this.root.arrange();
   }
   private finish(begin: boolean): void {
     if (!this.active || (begin && !this.model?.canBegin)) return;
@@ -84,14 +95,14 @@ export class UpdateReadyUi {
     if (!this.active) return;
     if (!this.view) {
       this.view = uiUpdateReady({ onRefresh: () => this.refresh(), onLater: () => this.later() });
-      this.root.mount(new UiElement({ id: 'game.update-ready.host', style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' },
-        props: { singlePointer: true, touchScroll: true }, children: [this.view],
+      this.root.mount(new UiElement({ id: 'game.update-ready.host', style: CENTRED_MODAL,
+        props: { singlePointer: true, touchScroll: true }, children: [this.view], paint: dimBackdrop,
         onKeyCapture: event => event.repeat && ['Enter', ' ', 'Escape'].includes(event.key) ? true : false,
       }));
-      this.root.arrange();
+      capToViewport(this.view, model); this.root.arrange();
       this.root.entries().find(({ element }) => element.id === 'update-ready.refresh')?.element.requestFocus();
     }
-    this.root.arrange();
+    capToViewport(this.view, model); this.root.arrange();
   }
   private refresh(): void {
     if (!this.active || this.refreshing) return;

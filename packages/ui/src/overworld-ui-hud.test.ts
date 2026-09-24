@@ -97,7 +97,7 @@ it('keeps compact default quests above target controls and restores them after e
   const map = point(f.roots.zoneMinimap,'hud.minimap');
   f.runtime.pointer({type:'down',point:map,pointerId:82,button:0}); f.runtime.pointer({type:'up',point:map,pointerId:82,button:0});
   expect(f.ui.questTrackerVisible).toBe(true); updateTracker(); expect(tracker.currentBounds).toEqual(bounds);
-  f.update({width:640,height:360}); expect(f.ui.minimapBounds.height).toBe(92); expect(f.ui.questTrackerRegion).toBeUndefined();
+  f.update({width:640,height:360}); expect(f.ui.minimapBounds.height).toBe(112); expect(f.ui.questTrackerRegion).toBeUndefined();
   f.update({width:320,height:180}); expect(f.ui.minimapBounds.height).toBe(24); expect(f.ui.questTrackerVisible).toBe(true);
 });
 

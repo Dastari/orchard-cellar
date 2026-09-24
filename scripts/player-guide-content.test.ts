@@ -64,12 +64,12 @@ describe('production guide crafting facts (BUG033)', () => {
       expect(fact.stationText).toBe(source.stationRequirement ? 'Workbench' : 'Handcraft (no station)');
     }
     const greenhouse = facts['recipe:greenhouse']!;
-    expect(greenhouse.ingredients.map(({ count }) => count)).toEqual([5, 2, 2]);
-    expect(greenhouse.patternText).toBe('A A A\nA B A\nC B C');
-    expect(greenhouse.legendText).toBe('A = Timber Frame · B = Iron Fittings · C = Stone Foundation · dot = empty slot');
+    expect(greenhouse.ingredients.map(({ count }) => count)).toEqual([5, 1, 2, 1]);
+    expect(greenhouse.patternText).toBe('A A A\nA B A\nC D C');
+    expect(greenhouse.legendText).toBe('A = Glass Pane · B = Iron Fittings · C = Timber Frame · D = Stone Foundation · dot = empty slot');
     expect(greenhouse.skillRequirement).toEqual({ skillNode: 'greenhouse_charter', minimumRank: 1 });
     expect(facts['recipe:iron_fittings']!.patternText).toBe('A . A\n. A .');
-    expect(facts['recipe:stone_foundation']!.patternText).toBe('A A\nA A');
+    expect(facts['recipe:stone_foundation']!.patternText).toBe('A A A\nA A A');
     expect(facts['recipe:timber_frame']!.patternText).toBe('A B A\nB . B\nA B A');
   });
 
@@ -86,9 +86,9 @@ describe('production guide crafting facts (BUG033)', () => {
     const result = run(path);
     expect(result.status, result.stderr).toBe(0);
     const facts: Record<string, Fact> = JSON.parse(result.stdout);
-    expect(facts['recipe:greenhouse']!.materialsText).toBe('4 Revised Frame + 2 Iron Fittings + 2 Stone Foundation');
+    expect(facts['recipe:greenhouse']!.materialsText).toBe('4 Glass Pane + 1 Iron Fittings + 2 Revised Frame + 1 Stone Foundation');
     expect(facts['recipe:greenhouse']!.outputText).toBe('2 Greenhouse');
-    expect(facts['recipe:greenhouse']!.patternText).toBe('. A A\nA B A\nC B C');
+    expect(facts['recipe:greenhouse']!.patternText).toBe('. A A\nA B A\nC D C');
     expect(facts['recipe:compost']!.materialsText).toBe('7 Pomace + 1 Fiber');
   });
 

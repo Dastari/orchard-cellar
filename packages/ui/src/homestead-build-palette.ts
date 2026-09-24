@@ -5,6 +5,7 @@ import type { UiKitArt } from './kit/components/art.js';
 import { uiBuildPalette, type UiBuildPaletteAction, type UiBuildPaletteEntry, type UiBuildPaletteModel,
   type UiBuildPaletteView, type UiBuildSelection } from './kit/components/build-palette.js';
 import { uiFixed } from './kit/layout/box.js';
+import { UiElement } from './kit/runtime/element.js';
 import { UiRoot } from './kit/runtime/root.js';
 
 export type HomesteadBuildSelection = UiBuildSelection;
@@ -18,10 +19,11 @@ export interface HomesteadBuildPaletteModel extends Omit<UiBuildPaletteModel, 's
 /** Logical game HUD bounds. Overflow stays in the shared scroll area. */
 export function homesteadBuildPaletteBounds(model: Pick<HomesteadBuildPaletteModel, 'width' | 'height' | 'entries' | 'upgrades' | 'furnishing'>,
   view: UiBuildPaletteView = 'catalogue', construction = false): UiRect {
-  const width = Math.max(0, Math.min(304, model.width - 8));
+  const width = Math.max(0, Math.min(322, model.width - 8));
+  // Catalogue: window chrome, nine-slot rows, the selection row, furnishing actions, upgrades and the hint line.
   const desired = view === 'selection' ? construction ? 220 : 100 : view === 'expansion' ? 220
-    : view === 'construction' ? 320 : 108 + Math.ceil(model.entries.length / Math.max(1, Math.floor((width - 20) / 30))) * 33
-      + model.upgrades.length * 28 + (model.furnishing ? 112 : 0);
+    : view === 'construction' ? 320 : 48 + Math.max(1, Math.ceil(model.entries.length / 9)) * 33 + 37
+      + (model.furnishing ? 30 : 0) + model.upgrades.length * 28 + 30;
   const height = Math.max(0, Math.min(desired, model.height - 8));
   return { x: Math.max(4, Math.round((model.width - width) / 2)), y: 4, width, height };
 }
@@ -31,6 +33,7 @@ export function homesteadBuildPaletteBounds(model: Pick<HomesteadBuildPaletteMod
 export class HomesteadBuildPalette {
   readonly root: UiRoot;
   private palette: ReturnType<typeof uiBuildPalette>;
+  private readonly stage: UiElement;
   private model: HomesteadBuildPaletteModel = { width: 320, height: 180, entries: [], upgrades: [], counts: {}, upgradeRanks: {}, balanceBronze: 0n };
   private selected: HomesteadBuildSelection = { kind: 'remove' };
   private view: UiBuildPaletteView = 'catalogue';
@@ -44,9 +47,13 @@ export class HomesteadBuildPalette {
   private activeExpansion: number | null = null;
   private expansionRequest: { token: number; rank: number; scope: string | undefined } | null = null;
 
-  constructor(art: UiKitArt, private readonly itemArt: Readonly<Record<string, LoadedAsset>>, private readonly onActionReady?: () => void) {
+  constructor(art: UiKitArt, private readonly itemArt: Readonly<Record<string, LoadedAsset>>, private readonly onActionReady?: () => void,
+    /** The window's wooden close; the client leaves build mode. */
+    private readonly onClose?: () => void) {
     this.root = new UiRoot({ art, scale: 1, label: 'Build palette' });
-    this.palette = this.createPalette(); this.root.mount(this.palette); this.refresh();
+    this.stage = new UiElement({ id: 'game.build-palette.stage', style: { display: 'flex', direction: 'column', align: 'center', position: 'absolute' } });
+    this.root.mount(this.stage);
+    this.palette = this.createPalette(); this.stage.append(this.palette); this.refresh();
   }
   private createPalette(): ReturnType<typeof uiBuildPalette> {
     const palette = uiBuildPalette({ model: { ...this.model, selection: this.selected }, artwork: this.itemArt,
@@ -69,6 +76,7 @@ export class HomesteadBuildPalette {
         this.selectedConstruction = tool; this.view = 'selection'; this.changed();
       },
       onAction: action => this.action(action),
+      onClose: this.onClose ? () => { if (!this.root.disposed) this.onClose?.(); } : undefined,
     });
     palette.setProps({ touchScroll: true, singlePointer: true }, false);
     return palette;
@@ -77,7 +85,13 @@ export class HomesteadBuildPalette {
   get selection(): HomesteadBuildSelection { return this.selected; }
   get constructionTool(): HearthConstructionTool | null { return this.selectedConstruction; }
   get bounds(): UiRect { return homesteadBuildPaletteBounds(this.model, this.view, this.selectedConstruction !== null); }
-  showCatalogue(): void { this.view = this.selectedConstruction ? 'construction' : 'catalogue'; this.refresh(); }
+  /** Opening build mode lands keyboard focus on the palette window itself, so X and Tab act on it
+   * without opening a slot tooltip over the selection. */
+  showCatalogue(): void {
+    this.view = this.selectedConstruction ? 'construction' : 'catalogue'; this.refresh();
+    const current = this.root.focus.current;
+    if (!current || current.disposed) { this.root.arrange(); this.root.focus.set(this.palette); }
+  }
   takePurchaseRequest(): HomesteadUpgradeKind | null { const value = this.purchaseRequest; this.purchaseRequest = null; return value; }
   takeUndoMoveRequest(): boolean { const value = this.undoMoveRequested; this.undoMoveRequested = false; return value; }
   takeConstructionApply(): boolean { const value = this.constructionApply; this.constructionApply = false; return value; }
@@ -105,7 +119,7 @@ export class HomesteadBuildPalette {
     this.model = model;
     // A new identity/session/space invalidates captured controls from the old scope.
     // The root stays stable; ordinary snapshots preserve the complete subtree.
-    if (scopeChanged) { this.palette.dispose(); this.palette = this.createPalette(); this.root.mount(this.palette); }
+    if (scopeChanged) { this.palette.dispose(); this.palette = this.createPalette(); this.stage.append(this.palette); }
     if (!model.furnishing && this.selected.kind === 'move') this.selected = { kind: 'remove' };
     if (initial || this.selected.kind === 'place' && !model.entries.some(entry => this.selected.kind === 'place' && entry.itemKind === this.selected.itemKind)) {
       const first = model.entries[0]; this.selected = first ? { kind: 'place', itemKind: first.itemKind } : { kind: 'remove' };
@@ -135,8 +149,11 @@ export class HomesteadBuildPalette {
   }
   private refresh(): void {
     if (this.root.disposed) return;
+    // The window fits its content, centred at the top of the logical bounds, which cap it (a long catalogue scrolls).
     const bounds = this.bounds;
-    this.palette.setStyle({ position: 'absolute', inset: { left: uiFixed(bounds.x), top: uiFixed(bounds.y) }, width: uiFixed(bounds.width), height: uiFixed(bounds.height) });
+    this.stage.setStyle({ inset: { left: uiFixed(bounds.x), top: uiFixed(bounds.y) }, width: uiFixed(bounds.width), height: uiFixed(bounds.height) });
+    this.palette.setStyle({ maxWidth: uiFixed(bounds.width), maxHeight: uiFixed(bounds.height) });
+    this.palette.scrollArea.setStyle({ maxHeight: uiFixed(Math.max(0, bounds.height - 48)) });
     this.palette.updateBuildPalette({ ...this.model, selection: this.selected, view: this.view,
       constructionTool: this.selectedConstruction, expansionPending: this.expansionPending });
   }

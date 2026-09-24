@@ -15,7 +15,7 @@ it('uses current update state and gates admin, delve and unsupported actions', (
   onAction.mockClear(); root.focus.set(update, 'keyboard'); root.key({ key: 'Enter' }); expect(onAction).not.toHaveBeenCalled();
   const fullscreen = find('fullscreen')!; root.focus.set(fullscreen, 'keyboard'); root.key({ key: 'Enter' }); expect(onAction).not.toHaveBeenCalled();
   menu.updateGameMenu({ pwaUpdateStatus: 'available', fullscreen: true }); root.arrange();
-  expect(find('update')).toBe(update); expect(fullscreen.props['label']).toBe('WINDOWED');
+  expect(find('update')).toBe(update); expect(fullscreen.props['label']).toBe('Windowed');
   root.focus.set(update, 'keyboard'); root.key({ key: 'Enter' }); expect(onAction).toHaveBeenLastCalledWith('apply-update');
   expect(find('developer')).toBeUndefined(); expect(find('exit-delve')).toBeUndefined();
   root.dispose();

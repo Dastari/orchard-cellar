@@ -62,6 +62,11 @@ function callbacks(): OverworldUiCallbacks {
 
 
 const registry = bootstrapContentRegistry();
+/** Opens the crafting bench's recipe book with the keyboard, as a player would. */
+function openRecipeBook(f: { root: { entries(): readonly { element: { label: string } }[]; focus: { set(element: never, source: 'keyboard'): void }; key(event: { key: string }): unknown; arrange(): void } }): void {
+  const toggle = f.root.entries().find(({ element }) => element.label === 'Open recipe book')!.element;
+  f.root.focus.set(toggle as never, 'keyboard'); f.root.key({ key: 'Enter' }); f.root.arrange();
+}
 function fixture(window: OverworldWindow = 'inventory', overrides: Partial<OverworldUiModel> = {}, paint?: { skin: UiSkin; fonts: PixelUi }) {
   const handlers = callbacks();
   const ui = new OverworldUi(paint?.skin ?? {} as UiSkin, paint?.fonts ?? {} as PixelUi, {} as OverworldUiItemArt, handlers);
@@ -192,11 +197,16 @@ describe('production retained inventory authority bridge', () => {
   it('keeps the crafting grid 3x3 across compact and wide viewports without changing focused search', () => {
     const f = fixture('crafting');
     try {
+      openRecipeBook(f);
       const input = f.root.entries().find(({element}) => element.label === 'Search recipes')!.element;
       f.root.focus.set(input, 'keyboard'); f.root.text('plank');
+      for (const width of [390, 800, 320, 960]) { f.update({ width }); f.root.arrange(); f.root.arrange(); expect(f.root.focus.current).toBe(input); }
+      // Small screens let the open book take the bench's place; with the book closed the grid is always 3x3.
+      const toggle = f.root.entries().find(({ element }) => element.id === 'crafting.recipe-book')?.element;
+      if (toggle) { f.root.focus.set(toggle, 'keyboard'); f.root.key({ key: 'Enter' }); }
+      else { const close = f.root.entries().find(({ element }) => element.label === 'Close recipe book')!.element; f.root.focus.set(close, 'keyboard'); f.root.key({ key: 'Enter' }); }
       for (const width of [390, 800, 320, 960]) {
-        f.update({ width }); f.root.arrange();
-        expect(f.root.focus.current).toBe(input);
+        f.update({ width }); f.root.arrange(); f.root.arrange();
         const slots = Array.from({length:9},(_,i)=>f.slot('crafting',i));
         expect(new Set(slots.map(node=>node.rect.x)).size).toBe(3);
         expect(new Set(slots.map(node=>node.rect.y)).size).toBe(3);
@@ -205,7 +215,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('scrolls through fractional touch motion without a pickup command', () => {
-    const f = fixture('inventory', { width:360, height:270 });
+    const f = fixture('inventory', { width:360, height:200 });
     try {
       const scroll = f.root.entries().find(({element}) => element.style.overflow === 'scroll-y' && element.scroll.maxY > 0)!.element;
       f.root.wheel({point:{x:scroll.rect.x+10,y:scroll.rect.y+10},deltaX:0,deltaY:180}); f.root.arrange();
@@ -221,7 +231,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('keeps horizontal touch pickup owned after a vertical leg and cancellation', () => {
-    const f = fixture('inventory', { width:360, height:270 });
+    const f = fixture('inventory', { width:360, height:200 });
     try {
       const scroll = f.root.entries().find(({element}) => element.style.overflow === 'scroll-y' && element.scroll.maxY > 0)!.element;
       f.root.wheel({point:{x:scroll.rect.x+10,y:scroll.rect.y+10},deltaX:0,deltaY:180}); f.root.arrange();
@@ -309,7 +319,7 @@ describe('production retained inventory authority bridge', () => {
     for (const inside of [true,false]) {
       const f=fixture('inventory',{cursorStack:{itemKind:'wood',quantity:8}});
       try {
-        const frame=f.root.entries().find(({element})=>element.kind==='frame')!.element;
+        const frame=f.root.entries().find(({element})=>element.kind==='window')!.element;
         const point=inside ? {x:frame.rect.x+12,y:frame.rect.y+48} : {x:2,y:2};
         f.root.pointer({type:'down',point,pointerId:1,button:2});
         f.root.pointer({type:'up',point,pointerId:1,button:2});
@@ -322,8 +332,10 @@ describe('production retained inventory authority bridge', () => {
   it('retains recipe pointer ownership across equivalent live snapshots', () => {
     const f=fixture('crafting');
     try {
-      const row=f.root.entries().find(({element})=>element.kind==='list-row')!.element;
-      f.pointer('down',row); f.update({timeLabel:'06:01'}); f.pointer('up',row);
+      // Recipes live in the recipe book; "Place in grid" ghost-fills the pattern.
+      openRecipeBook(f);
+      const place=f.root.entries().find(({element})=>element.label==='Place in grid')!.element;
+      f.pointer('down',place); f.update({timeLabel:'06:01'}); f.pointer('up',place);
       expect(f.handlers.ghostFillCraftingRecipe).toHaveBeenCalledExactlyOnceWith('planks');
     } finally { f.dispose(); }
   });
@@ -348,12 +360,12 @@ describe('production retained inventory authority bridge', () => {
     }});
     try {
       const labels=()=>f.root.entries().map(({element})=>element.props['text']);
-      expect(labels()).toContain('IN PROGRESS');
+      expect(labels()).toContain('In progress');
       f.update({activeFrameTiming:{status:'paused',reason:'unsealed',stage:null,progress:0.5,
         remainingActiveTicks:1200n,nextTransitionTick:null,confidence:'exact'}});
-      expect(labels()).toContain('SEAL TO START');
+      expect(labels()).toContain('Seal to start');
       f.update({activeFrameTiming:undefined});
-      expect(labels()).toContain('IDLE'); expect(labels()).not.toContain('IN PROGRESS');
+      expect(labels()).toContain('Idle'); expect(labels()).not.toContain('In progress');
     } finally { f.dispose(); }
   });
 
@@ -361,6 +373,7 @@ describe('production retained inventory authority bridge', () => {
   it.each(['inventory','crafting'] as const)('preserves %s filter Escape and Enter handoff without inventory shortcuts', window => {
     const f=fixture(window);
     try {
+      if (window==='crafting') openRecipeBook(f);
       const input=f.root.entries().find(({element})=>element.label===(window==='crafting'?'Search recipes':'Filter items'))!.element;
       f.pointer('move',f.slot('backpack',0));
       f.root.focus.set(input,'keyboard'); f.root.text('wood');
@@ -395,7 +408,7 @@ describe('production retained inventory authority bridge', () => {
 
 
   it('keeps primary focus and scrolling when a second finger touches an editor or scrollbar', () => {
-    const f=fixture('inventory',{width:360,height:270});
+    const f=fixture('inventory',{width:360,height:200});
     try {
       const scroll=f.root.entries().find(({element})=>element.style.overflow==='scroll-y' && element.scroll.maxY>0)!.element;
       f.root.wheel({point:{x:scroll.rect.x+10,y:scroll.rect.y+10},deltaX:0,deltaY:180}); f.root.arrange();
@@ -426,7 +439,7 @@ describe('production retained inventory authority bridge', () => {
       expect(f.handlers.manageHomesteadMember).toHaveBeenCalledExactlyOnceWith('player-0','worker',false);
       f.rpointer('down',point,{button:2});f.rpointer('up',point,{button:2});
       expect(f.handlers.manageHomesteadMember).toHaveBeenLastCalledWith('player-0',null,true);
-      const close=f.roster.root.entries().find(e=>e.element.label==='X')!.element;
+      const close=f.roster.root.entries().find(e=>e.element.id==='game.online-players.close')!.element;
       f.rpointer('down',f.point(close));f.rpointer('up',f.point(close));expect(f.handlers.toggleOnlinePlayers).toHaveBeenCalledExactlyOnceWith();
       expect(f.ui.openWindow).toBe('inventory');expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
@@ -463,7 +476,7 @@ describe('production retained inventory authority bridge', () => {
       expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')).toHaveLength(8);
       f.click(f.slot('placeable',0));
       expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',0,'left');
-      const seal=f.root.entries().find(({element})=>element.label==='SEAL')!.element;
+      const seal=f.root.entries().find(({element})=>element.label==='Seal')!.element;
       f.click(seal); expect(f.handlers.frameAction).toHaveBeenCalledExactlyOnceWith('seal');
       f.ui.openWindow=null; expect(f.handlers.closePlaceable).toHaveBeenCalledExactlyOnceWith();
     } finally { f.dispose(); }
@@ -511,6 +524,19 @@ describe('production retained processor authority bridge',()=>{
     } finally { f.dispose(); }
   });
 
+  it('keeps a touch-reachable sort for the preserving barrel',()=>{
+    const f=fixture('content',{activeFrameId:'frame:barrel',openPlaceableInventory:[{slot:0,itemKind:'apple',quantity:3},{slot:2,itemKind:'apple',quantity:2}]});
+    try {
+      const sort=f.root.entries().find(({element})=>element.id==='frame:barrel.pane.contents.sort'||(element.label==='Sort & stack'&&element.kind==='button'))?.element;
+      expect(sort,'barrel sort glyph').toBeDefined();
+      f.root.focus.set(sort!,'keyboard'); f.root.arrange();
+      const point={x:sort!.clip.x+sort!.clip.width/2,y:sort!.clip.y+sort!.clip.height/2};
+      f.root.pointer({type:'down',point,pointerId:9,button:0,pointerType:'touch',isPrimary:true});
+      f.root.pointer({type:'up',point,pointerId:9,button:0,pointerType:'touch',isPrimary:true});
+      expect(f.handlers.sortInventoryContainer).toHaveBeenCalledOnce();
+    } finally { f.dispose(); }
+  });
+
   it.each(processorCases)('allows output extraction but rejects insertion in $frame',spec=>{
     const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:spec.outputIndex,itemKind:spec.output,quantity:2}]});
     try {
@@ -532,20 +558,20 @@ describe('production retained processor authority bridge',()=>{
       openPlaceableInventory:source.state!.slots.flatMap((stack,slot)=>stack?[{slot,...stack}]:[])});
     try {
       const text=()=>f.root.entries().map(({element})=>element.props['text']);
-      expect(text()).toContain('IN PROGRESS');
+      expect(text()).toContain('In progress');
       const meter=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='Progress')!.element;
       expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
       f.update({activeFrameTiming:projectTiming(source,1300n)});
-      expect(text()).toContain('COLLECT TO CONFIRM');
+      expect(text()).toContain('Collect to confirm');
       f.click(f.slot('placeable',spec.outputIndex));
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
       const empty={...source,state:{...source.state!,slots:source.state!.slots.map(()=>null)}};
       f.update({activeFrameTiming:projectTiming(empty,120n)});
-      expect(text()).toContain('ADD INPUTS');
+      expect(text()).toContain('Add inputs');
       expect(text().some(value=>typeof value==='string' && value.endsWith(' LEFT'))).toBe(false);
       f.update({connected:false}); expect(f.ui.retainedInventoryActive).toBe(false);
       f.update({connected:true,activeFrameTiming:projectTiming(source,120n)});
-      expect(text()).toContain('IN PROGRESS'); expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
+      expect(text()).toContain('In progress'); expect(meter.props['value']).toBe(projectTiming(source,120n).progress);
     } finally { f.dispose(); }
   });
 
@@ -571,17 +597,17 @@ describe('production retained processor authority bridge',()=>{
       activeFrameTiming:{status:'blocked',reason:'fire-out',stage:null,progress:0,remainingActiveTicks:null,nextTransitionTick:null,confidence:'exact'}});
     try {
       const labels=()=>f.root.entries().map(({element})=>element.label);
-      expect(labels()).toContain('FIRE OUT'); expect(labels()).toContain('3 × COOKED BEEF');
-      expect(labels()).not.toContain('COLLECT BATCH'); expect(labels()).toContain('CANCEL BATCH');
+      expect(labels()).toContain('Fire out'); expect(labels()).toContain('3 × COOKED BEEF');
+      expect(labels()).not.toContain('Collect batch'); expect(labels()).toContain('Cancel batch');
       const batch=f.root.entries().find(({element})=>element.kind==='meter' && element.label==='BATCH PROGRESS')!.element;
       expect(batch.props['value']).toBe(0.25);
       f.update({activeFrameState:{processJobPending:true,processJobReady:true,processJobLabel:'3 × COOKED BEEF',processJobProgress:1}});
-      expect(batch.props['value']).toBe(1);expect(labels()).toContain('COLLECT BATCH');
-      const collect=f.root.entries().find(({element})=>element.label==='COLLECT BATCH')!.element;
+      expect(batch.props['value']).toBe(1);expect(labels()).toContain('Collect batch');
+      const collect=f.root.entries().find(({element})=>element.label==='Collect batch')!.element;
       f.click(collect); expect(f.handlers.frameAction).toHaveBeenCalledExactlyOnceWith('collect_job');
-      const cancel=f.root.entries().find(({element})=>element.label==='CANCEL BATCH')!.element;
+      const cancel=f.root.entries().find(({element})=>element.label==='Cancel batch')!.element;
       f.pointer('down',cancel); f.update({activeFrameState:{processJobPending:false,processJobReady:false}}); f.pointer('up',cancel);
-      expect(f.handlers.frameAction).toHaveBeenCalledTimes(1); expect(labels()).not.toContain('CANCEL BATCH');
+      expect(f.handlers.frameAction).toHaveBeenCalledTimes(1); expect(labels()).not.toContain('Cancel batch');
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally {f.dispose();}
   });

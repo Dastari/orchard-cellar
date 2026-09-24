@@ -68,6 +68,7 @@ import {
 } from './skin.js';
 import { widget, type WidgetNode } from './widget.js';
 import { CharacterScreen, progressionWindowRect, type CharacterScreenModel } from './character-screen.js';
+import type { UiGameBookChapter } from './kit/components/character-book.js';
 import { SkillTreeUi, type SkillTreeModel } from './skill-tree-ui.js';
 import type { SkillPointNotice } from './skill-point-notice.js';
 import { StatisticsScreen, type StatisticsScreenModel } from './statistics-screen.js';
@@ -1170,6 +1171,9 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
   context.restore();
 }
 
+/** "REQUIRES A WORKBENCH WITHIN 2 TILES" in the book's sentence case. */
+function sentenceCaseRequirement(text: string): string { const lower = text.toLowerCase(); return lower.charAt(0).toUpperCase() + lower.slice(1); }
+
 export class OverworldUi {
   private retainedFeedback = false;
   enableRetainedFeedback(): void { this.retainedFeedback = true; }
@@ -1301,7 +1305,7 @@ export class OverworldUi {
       action: action => {
         switch (action) {
           case 'resume': this.openWindow = null; break;
-          case 'settings': case 'help': case 'developer': case 'outdoor-rewards': this.openWindow = action; break;
+          case 'settings': case 'help': case 'developer': case 'outdoor-rewards': case 'character': this.openWindow = action; break;
           case 'fullscreen': if (this.model.fullscreenAvailable !== false) this.callbacks.toggleFullscreen(); break;
           case 'check-update': if (this.model.pwaUpdateStatus !== 'checking' && this.model.pwaUpdateStatus !== 'updating') this.callbacks.checkForClientUpdate(); break;
           case 'apply-update': if (this.model.pwaUpdateStatus === 'available') this.callbacks.applyClientUpdate(); break;
@@ -1334,7 +1338,7 @@ export class OverworldUi {
   }
   disposeRetainedSystem(): void { this.systemMenus?.dispose(); this.systemMenus = null; }
   enableRetainedCharacter(art: UiKitArt): { readonly character: UiRoot; readonly statistics: UiRoot; readonly skills: UiRoot } {
-    const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: 'character' | 'skills' | 'statistics') => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
+    const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: UiGameBookChapter) => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
     if (!this.characterScreen || !this.statisticsScreen || !this.skillTree) {
       this.characterScreen = new CharacterScreen(art, { setAppearance: appearance => this.callbacks.setAppearance?.(appearance) },
         this.drawPlayerDoll, (context, rect, item) => this.drawInventoryItem(context, rect, item.itemKind, item.quantity, item.durability, item.lit), navigation);
@@ -1419,7 +1423,7 @@ export class OverworldUi {
       this.questLog = new QuestLog(art, {
         setPinned: (id, pinned) => this.callbacks.setQuestPinned(id, pinned),
         drop: id => this.callbacks.abandonQuest(id),
-      }, () => { this.openWindow = null; });
+      }, () => { this.openWindow = null; }, page => { this.openWindow = page; });
       this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; });
       for (const root of [this.questLog.root, this.helpBook.root]) {
         for (const { element } of root.entries()) if (element.id === 'game.quests' || element.id === 'game.help.frame') {
@@ -1513,10 +1517,18 @@ export class OverworldUi {
       registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
       backpackCapacity: this.model.backpackSlotCapacity ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
+      // The paper doll shows the wearer with the same painter as the character screen.
+      portrait: (context, bounds) => { const appearance = this.model.character?.appearance; if (appearance) this.drawPlayerDoll(context, appearance, 'down', bounds); },
       ...(this.openWindowValue === 'crafting' ? { crafting: {
         recipes: this.recipeBookEntries().map(entry => ({ id: entry.recipeId,
           label: this.itemDefinition(entry.outputKind)?.displayName ?? entry.outputKind,
-          detail: entry.requiredStation === null ? undefined : this.craftingStationLabel(entry.requiredStation) })),
+          detail: entry.requiredStation === null ? undefined : this.craftingStationLabel(entry.requiredStation),
+          output: { itemKind: entry.outputKind, quantity: entry.outputQuantity },
+          status: !entry.skillAvailable ? 'locked' as const : !entry.stationAvailable ? 'station' as const : entry.missingIngredients ? 'missing' as const : 'ready' as const,
+          // Why a recipe cannot be placed, shown on its page (touch has no hover).
+          reason: !entry.skillAvailable ? sentenceCaseRequirement(this.recipeSkillRequirement(entry.recipeId) ?? 'Recipe requirements not met')
+            : !entry.stationAvailable && entry.requiredStation !== null ? sentenceCaseRequirement(this.craftingStationRequirement(entry.requiredStation)) : undefined,
+          ingredients: entry.ingredients.map(ingredient => ({ ...ingredient, name: this.itemDefinition(ingredient.itemKind)?.displayName ?? ingredient.itemKind })) })),
         selected: this.selectedCraftingRecipeId, pattern: (pattern ?? []).map(stack => stack?.itemKind ?? null),
         output: this.recipeOutput(recipeId ?? ''),
         requirement: this.currentRecipeLocked() ? this.recipeSkillRequirement(recipeId ?? '') ?? 'RECIPE REQUIREMENTS NOT MET' : undefined,

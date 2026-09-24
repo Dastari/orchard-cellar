@@ -196,6 +196,12 @@ const extracts: readonly UiExtract[] = [
     uiSizing: 'nine_slice', slice: [13, 12, 11, 13], tags: ['ui.panel', 'ui.material.wood'],
   },
   {
+    // The pack's second wood panel: boards across top and bottom, posts inside; used for crate-like storage windows.
+    name: 'ui_cf_panel_crate', source: `${uiRoot}/UI_Frames.png`, size: [40, 41],
+    groups: { base: [r(964, 4, 40, 41)] }, frameKinds: { base: 'state' },
+    uiSizing: 'nine_slice', slice: [12, 12, 12, 13], tags: ['ui.panel', 'ui.material.wood'],
+  },
+  {
     name: 'ui_cf_panel_parchment', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
     groups: { base: [r(1064, 8, 32, 32)] }, frameKinds: { base: 'state' },
     uiSizing: 'nine_slice', slice: [8, 8, 8, 8], tags: ['ui.panel', 'ui.material.parchment'],
@@ -204,6 +210,23 @@ const extracts: readonly UiExtract[] = [
     name: 'ui_cf_book_open', source: `${uiRoot}/Book_UI.png`, size: [224, 133],
     groups: { base: [r(8, 6, 224, 133)] }, frameKinds: { base: 'state' },
     uiSizing: 'fixed', tags: ['ui.book', 'ui.help', 'ui.material.parchment'],
+  },
+  {
+    // Side bookmarks along a book's edge: seven colours, each with a longer pulled-out state.
+    name: 'ui_cf_book_bookmarks', source: `${uiRoot}/Book_UI.png`, size: [28, 18],
+    groups: Object.fromEntries(['red', 'blue', 'green', 'gold', 'cream', 'peach', 'white'].flatMap((colour, index) => [
+      [colour, [r(752 + index * 48, 31, 28, 18)]], [`${colour}_pulled`, [r(750 + index * 48, 79, 28, 18)]],
+    ])),
+    frameKinds: Object.fromEntries(['red', 'blue', 'green', 'gold', 'cream', 'peach', 'white'].flatMap(colour => [[colour, 'state'], [`${colour}_pulled`, 'state']])),
+    uiSizing: 'fixed', tags: ['ui.book', 'ui.tab'],
+  },
+  {
+    // Upright page tabs along a book's top edge: resting and raised (selected), peach and grey.
+    name: 'ui_cf_book_tabs', source: `${uiRoot}/Book_UI.png`, size: [20, 21],
+    groups: { peach: [r(590, 27, 20, 21)], peach_raised: [r(623, 28, 20, 21)], grey: [r(670, 27, 20, 21)], grey_raised: [r(703, 28, 20, 21)],
+      cream: [r(590, 75, 20, 21)], cream_raised: [r(623, 76, 20, 21)], white: [r(670, 75, 20, 21)], white_raised: [r(703, 76, 20, 21)] },
+    frameKinds: { peach: 'state', peach_raised: 'state', grey: 'state', grey_raised: 'state', cream: 'state', cream_raised: 'state', white: 'state', white_raised: 'state' },
+    uiSizing: 'fixed', tags: ['ui.book', 'ui.tab'],
   },
   {
     name: 'ui_cf_frame_thin', source: `${uiRoot}/UI_Frames.png`, size: [28, 31],

@@ -27,7 +27,7 @@ it('retains quantity controls and filter focus while enforcing bounds and pendin
     root.arrange();
     expect(root.focus.current).toBe(input);
     expect(frame.filterEditor.snapshot().value).toBe('app');
-    const purchase = root.entries().find(e => e.element.kind === 'button' && e.element.props['label'] === 'PROCESSING')!.element;
+    const purchase = root.entries().find(e => e.element.kind === 'button' && e.element.props['label'] === 'Processing')!.element;
     expect(purchase.disabled).toBe(true);
     root.focus.set(purchase, 'keyboard');
     root.key({ key: 'Enter' });
@@ -51,5 +51,21 @@ it('keeps compact names, prices and quantities in separate visible cells and can
     frame.updateMerchant({ ...model, rows: [{ ...model.rows[0]!, itemKind: 'pear', name: 'Pear' }] });
     root.pointer({ type: 'up', point, pointerId: 1, button: 0 });
     expect(quantity).not.toHaveBeenCalled();
+    root.dispose();
+});
+
+it('moves between wares with the arrow keys and keeps rows when owned counts change', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(800, 480);
+    const rows = [{ itemKind: 'apple', name: 'Apple', unitPrice: 3, maximumQuantity: 5, quantity: 0, ownedQuantity: 1 }, { itemKind: 'pear', name: 'Pear', unitPrice: 4, maximumQuantity: 5, quantity: 0, ownedQuantity: 0 }];
+    const model: UiMerchantModel = { speaker: 'Marlow', tab: 'buy', rows, balanceBronze: 100n, totalBronze: 0n, pending: false, canCommit: false, filter: '' };
+    const frame = uiMerchant({ model, onTab: vi.fn(), onFilter: vi.fn(), onQuantity: vi.fn(), onCommit: vi.fn(), onBack: vi.fn(), onClose: vi.fn() });
+    root.mount(frame); root.arrange();
+    const find = (label: string) => root.entries().find(e => e.element.label === label)!.element;
+    const applePlus = find('Increase Apple'); root.focus.set(applePlus, 'keyboard');
+    root.key({ key: 'ArrowDown' }); root.arrange(); expect(root.focus.current).toBe(find('Increase Pear'));
+    root.key({ key: 'ArrowUp' }); root.arrange(); expect(root.focus.current).toBe(applePlus);
+    // Buying changes what the player owns: the rows, and the focused stepper, stay.
+    frame.updateMerchant({ ...model, rows: rows.map(row => row.itemKind === 'apple' ? { ...row, ownedQuantity: 4 } : row) }); root.arrange();
+    expect(find('Increase Apple')).toBe(applePlus); expect(root.focus.current).toBe(applePlus);
     root.dispose();
 });

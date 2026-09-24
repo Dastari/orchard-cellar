@@ -1,11 +1,11 @@
 import type { LoadedAsset } from '../../assets.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import { uiFrame } from './frame.js';
-import { uiFlex, uiScrollArea } from './layout.js';
+import { uiGlyphButton, uiWindow } from './window.js';
+import { uiChoiceButton, uiPortraitWell } from './social.js';
+import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonModifiers } from './button.js';
-import { uiSprite } from './media.js';
 import { uiTooltip } from './tooltip.js';
 export interface UiMerchantPanelModel {
     readonly id: string;
@@ -37,23 +37,25 @@ export interface UiMerchantPanelOptions {
 export interface UiMerchantPanelElement extends UiElement {
     updatePanel(model: UiMerchantPanelModel): void;
 }
-/** Presentation only. The production host retains the frozen quotes and authoritative flows. */
+const PANEL_WIDTH = 300;
+/** Presentation only. The production host retains the frozen quotes and authoritative flows.
+ * Drawn with the approved window kit: the title on the ribbon, an optional item in a portrait well,
+ * offers as choice buttons with their detail beneath, and Back, pager and confirm along the foot. */
 export function uiMerchantPanel(options: UiMerchantPanelOptions): UiMerchantPanelElement {
     let model = options.model, key = '';
-    const title = uiText(model.title, { role: 'header', layout: { width: 'grow' } });
-    const content = uiFlex({ width: 'grow', gap: 6, shrink: 0 });
+    const content = uiFlex({ direction: 'column', gap: 6, width: uiFixed(PANEL_WIDTH), maxWidth: { mode: 'percent', fraction: 1 }, shrink: 0 });
     const notice = uiText('', { wrap: true, layout: { width: 'grow' } });
-    const back = uiButton({ id: 'merchant.panel.back', label: model.backLabel, size: 'sm', onPress: options.back });
-    const previous = uiButton({ id: 'merchant.panel.previous', label: '<', ariaLabel: 'Previous offers', size: 'sm', onPress: () => options.page(-1) });
-    const next = uiButton({ id: 'merchant.panel.next', label: '>', ariaLabel: 'Next offers', size: 'sm', onPress: () => options.page(1) });
-    const page = uiText('');
-    const pages = uiFlex({ direction: 'row', gap: 4 }, [previous, page, next]);
-    const createConfirm = () => uiButton({ id: 'merchant.panel.confirm', label: 'CONFIRM', size: 'sm', tone: 'success', onPress: event => { if (model.canConfirm && !model.pending)
+    const back = uiButton({ id: 'merchant.panel.back', label: model.backLabel, tone: 'primary', onPress: options.back });
+    const previous = uiGlyphButton({ id: 'merchant.panel.previous', glyph: 'glyph.previous', label: 'Previous offers', chrome: 'none', onPress: () => options.page(-1) });
+    const next = uiGlyphButton({ id: 'merchant.panel.next', glyph: 'glyph.next', label: 'Next offers', chrome: 'none', onPress: () => options.page(1) });
+    const page = uiText('', { align: 'center', layout: { width: uiFixed(32) } });
+    const pages = uiFlex({ direction: 'row', gap: 2, align: 'center' }, [previous, page, next]);
+    const createConfirm = () => uiButton({ id: 'merchant.panel.confirm', label: 'CONFIRM', tone: 'success', onPress: event => { if (model.canConfirm && !model.pending)
             options.confirm(event); } });
     let confirm = createConfirm();
-    const actions = uiFlex({ direction: 'row', wrap: true, width: 'grow', gap: 4, shrink: 0 }, [back, pages, confirm]);
-    const scroll = uiScrollArea({ width: 'grow', height: 'grow', gap: 6 }, [content, notice, actions]);
-    const frame = uiFrame({ id: 'game.merchant.panel', padding: 8, header: { title: model.title, content: title, closable: true, onClose: options.close }, layout: { width: 'grow', height: 'grow', ...options.layout }, children: [scroll] });
+    const actions = uiFlex({ direction: 'row', wrap: true, align: 'center', gap: 4, shrink: 0, width: uiFixed(PANEL_WIDTH), maxWidth: { mode: 'percent', fraction: 1 } }, [back, pages, uiFlex({ grow: 1 }, []), confirm]);
+    const frame = uiWindow({ id: 'game.merchant.panel', title: model.title.toUpperCase(), onClose: options.close, layout: { direction: 'column', gap: 6, ...options.layout }, children: [content, notice, actions] });
+    const scroll = frame.children[0]!;
     const updatePanel = (value: UiMerchantPanelModel) => {
         const changed = model.id !== value.id;
         model = value;
@@ -62,7 +64,7 @@ export function uiMerchantPanel(options: UiMerchantPanelOptions): UiMerchantPane
             confirm = createConfirm();
             actions.append(confirm);
         }
-        title.setProps({ text: model.title });
+        frame.setWindowTitle(model.title.toUpperCase());
         notice.setProps({ text: model.notice }).setStyle({ visible: !!model.notice });
         back.setProps({ label: model.backLabel });
         confirm.setProps({ label: model.pending ? 'PENDING' : model.confirmLabel ?? '' }).setDisabled(!model.canConfirm || model.pending).setStyle({ visible: !!model.confirmLabel });
@@ -77,14 +79,22 @@ export function uiMerchantPanel(options: UiMerchantPanelOptions): UiMerchantPane
                 scroll.scroll.y = 0;
             for (const child of [...content.children])
                 child.dispose();
-            if (model.image)
-                content.append(uiSprite(model.image, { label: model.title, animation: Object.keys(model.image.metadata.animations)[0] ?? 'base', playing: false, layout: { width: uiFixed(40), height: uiFixed(48), shrink: 0 } }));
-            for (const line of model.lines)
-                content.append(uiText(line, { wrap: true, layout: { width: 'grow' } }));
+            const lines = model.lines.filter(Boolean).map(line => uiText(line, { wrap: true, layout: { width: 'grow' } }));
+            const image = model.image;
+            if (image)
+                content.append(uiFlex({ direction: 'row', gap: 8, align: 'start', alignSelf: 'stretch' }, [
+                    uiPortraitWell({ label: model.title, size: 44, paint: (context, bounds) => {
+                        const group = Object.keys(image.metadata.animations)[0] ?? 'base', source = image.metadata.animations[group]?.[0]; if (!source) return;
+                        const f = Math.min(2, Math.floor(Math.min(bounds.width / source.width, bounds.height / source.height)) || 1), w = source.width * f, h = source.height * f;
+                        context.drawImage(image.image, source.x, source.y, source.width, source.height, bounds.x + Math.floor((bounds.width - w) / 2), bounds.y + Math.floor((bounds.height - h) / 2), w, h);
+                    } }),
+                    uiFlex({ direction: 'column', gap: 4, grow: 1 }, lines)]));
+            else
+                for (const line of lines) content.append(line);
             for (const row of model.rows) {
-                const button = uiButton({ id: `merchant.panel.offer:${row.id}`, label: row.label, ariaLabel: row.label, size: 'sm', disabled: model.pending, onPress: () => { if (!model.pending && model.rows.some(current => current.id === row.id))
+                const button = uiChoiceButton({ id: `merchant.panel.offer:${row.id}`, label: row.label, disabled: model.pending, onPress: () => { if (!model.pending && model.rows.some(current => current.id === row.id))
                         options.select(row.id); }, layout: { width: 'grow' } });
-                content.append(uiFlex({ width: 'grow', gap: 2, shrink: 0 }, [uiTooltip(row.label, button, { width: 'grow' }), uiText(row.detail, { wrap: true, layout: { width: 'grow' } })]));
+                content.append(uiFlex({ width: 'grow', gap: 2, shrink: 0 }, [uiTooltip(row.label, button, { width: 'grow', height: uiFixed(20) }), uiText(row.detail, { role: 'caption', wrap: true, layout: { width: 'grow' } })]));
             }
         }
         const disable = (node: UiElement): void => { if (node.id.startsWith('merchant.panel.offer:'))

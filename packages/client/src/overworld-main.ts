@@ -5,6 +5,7 @@ import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry }
 
 
 import { timingLabels } from '@orchard/ui';
+import { TOUCH_ACTION_KEY_CODES } from '@orchard/ui';
 import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
 import { projectTiming, rainForWeatherMode } from '@orchard/sim';
 import { TimingHoverIndex } from './content/timing-hover.js';
@@ -358,6 +359,10 @@ const characterNamePrompt = new CharacterNamePrompt(
     chatOverlay.dismiss();
     keys.clear();
     network.setDirection('idle');
+  },
+  {
+    portrait: (context, rect) => drawPlayerPaperDoll(context, art, ownAppearanceSelection(latestSnapshot) ?? DEFAULT_PLAYER_APPEARANCE, 'down', rect),
+    cask: art.itemIcons['barrel'],
   },
 );
 let latestSnapshot = network.view();
@@ -965,7 +970,8 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   }
   marker(centerWorldX, centerWorldY, '#fff3be', 4);
 });
-const homesteadBuildPalette = new HomesteadBuildPalette(kitArt, itemArt, drainBuildPaletteActions);
+const homesteadBuildPalette = new HomesteadBuildPalette(kitArt, itemArt, drainBuildPaletteActions,
+  () => { if (homesteadBuildMode) toggleHomesteadBuildMode(); });
 function drainBuildPaletteActions(): void {
   if (homesteadBuildPalette.takeConstructionApply()) applyConstructionProposal();
   if (homesteadBuildPalette.takeConstructionCancel()) constructionProposal = null;
@@ -1085,6 +1091,8 @@ const questTracker = new QuestTracker(
 const onlineRoster = new GameOnlinePlayers(kitArt, {
   onManage: manageOnlinePlayer,
   onClose: () => setOnlinePlayersVisible(false),
+  // The roster's whisper glyph closes it and opens chat with the whisper command for that name.
+  onWhisper: name => { setOnlinePlayersVisible(false); openRetainedChatWith(`/w ${name} `); },
 });
 overworldUi.enableRetainedFeedback();
 const gameFeedback = new GameFeedback(kitArt, {
@@ -1239,6 +1247,10 @@ function syncRetainedText(): void {
 function openRetainedChat(event: Pick<KeyboardEvent, 'key' | 'repeat'> & Partial<Pick<KeyboardEvent, 'isComposing' | 'ctrlKey' | 'metaKey' | 'altKey'>>): boolean {
   if (chatInteractionBlocked() || !chatOverlay.handleGlobalKeyDown(event)) return false;
   retainedUi.focus('chat'); syncRetainedText(); return true;
+}
+function openRetainedChatWith(initialValue: string): void {
+  if (chatInteractionBlocked() || !chatOverlay.active) return;
+  chatOverlay.open(initialValue); retainedUi.focus('chat'); syncRetainedText();
 }
 // Install before recovery and legacy capture listeners so cancelled tails cannot
 // become a new command on whichever modal appeared during the gesture.
@@ -4602,7 +4614,7 @@ function renderFrame(alpha = 1): void {
       const recoveryState = connectionRecoveryState();
       if (recoveryState === null) {
         drawInitialWorldLoading(renderer, {
-          kitArt, apple: art.fruitItems['apple'] ?? art.missingItem,
+          kitArt, apple: art.fruitItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
         }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
       } else {
         connectionRecoveryOverlay.composite(renderer, overlayViewport, recoveryState, hasRenderedWorldFrame);
@@ -6850,7 +6862,7 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     return;
   }
-  if (event.code === 'KeyR' && !event.repeat) {
+  if (event.code === TOUCH_ACTION_KEY_CODES.dodge && !event.repeat) {
     if (!defenseInputAvailable()) {event.preventDefault();return;}
     const aim=defenseAim();
     showResult(network.combatDefense('dodge',aim.x,aim.y),'DODGE · 18 VIGOUR');

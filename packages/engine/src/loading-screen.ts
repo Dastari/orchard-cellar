@@ -82,7 +82,9 @@ export function initializeLoadingScreen(): Promise<void> {
   initializationPromise ??= Promise.all([
     loadUiKitArt({ families: ['frame', 'meter', 'feedback', 'slider'], icons: [] }),
     loadGeneratedAsset('icon_resource_fruit', 'summer'),
-  ]).then(([kitArt, apple]) => { upgradeLoadingScreen(kitArt, apple); });
+    // The cellar barrel closes the logo sign's right end, as on every title screen.
+    loadGeneratedAsset('prop_cf_barrel', 'summer').catch(() => undefined),
+  ]).then(([kitArt, apple, cask]) => { upgradeLoadingScreen(kitArt, apple, cask); });
   return initializationPromise;
 }
 
@@ -90,6 +92,7 @@ export function initializeLoadingScreen(): Promise<void> {
 export function upgradeLoadingScreen(
   kitArt: UiKitArt,
   emblem: LoadedAsset,
+  cask?: LoadedAsset,
 ): void {
   if (dismissed || pixelFrameRequest !== null) return;
   const root = document.querySelector<HTMLElement>('#loading-screen');
@@ -97,7 +100,7 @@ export function upgradeLoadingScreen(
   if (root === null || canvas === null) return;
   const context = canvas.getContext('2d');
   if (context === null) return;
-  loadingView = new GameGatewayLoading(kitArt, { emblem, version: clientVersion });
+  loadingView = new GameGatewayLoading(kitArt, { emblem, cask, version: clientVersion });
 
   const resize = (): void => {
     const { width, height } = canvasHostViewport(canvas);

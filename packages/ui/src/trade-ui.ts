@@ -2,7 +2,7 @@ import type { UiKitArt } from './kit/components/art.js';
 import { uiTrade, type UiTradeElement } from './kit/components/trade.js';
 import { UiElement } from './kit/runtime/element.js';
 import { UiRoot } from './kit/runtime/root.js';
-import { uiFixed } from './kit/layout/box.js';
+
 import type { OverworldUiItemArt } from './overworld-ui.js';
 import type { TradeUiCallbacks, TradeUiModel } from './trade-model.js';
 export { tradeItemDisplayName, tradeItemIsOfferable } from './trade-model.js';
@@ -22,16 +22,8 @@ export class TradeUi {
     this.root = new UiRoot({ art, scale: 1, label: 'Player trade' });
     this.modal = new UiElement({ id: 'game.player-trade', kind: 'trade-modal',
       props: { touchScroll: true, singlePointer: true },
-      style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal', visible: false },
+      style: { display: 'flex', justify: 'center', align: 'center', width: 'grow', height: 'grow', zLayer: 'modal', visible: false },
       pointerMode: 'capture', onPointer: () => true,
-      measure: (_element, available) => {
-        const requested = this.model?.session.state === 'requested';
-        const width = Math.max(0, Math.min(requested ? 360 : 560, available.width - 12));
-        const height = Math.max(0, Math.min(requested ? 180 : 460, available.height - 12));
-        this.trade?.setStyle({ position: 'absolute', width: uiFixed(width), height: uiFixed(height),
-          inset: { left: uiFixed((available.width - width) / 2), top: uiFixed((available.height - height) / 2) } });
-        return { min: { width: 0, height: 0 }, preferred: available };
-      },
       paint: (element, { context }) => { context.fillStyle = 'rgba(12, 20, 17, 0.5)';
         const r = element.rect; context.fillRect(r.x, r.y, r.width, r.height); },
     });
@@ -59,8 +51,7 @@ export class TradeUi {
     this.modal.setStyle({ visible: model !== null });
     if (model) {
       if (this.trade) this.trade.updateTrade(model);
-      else { this.trade = uiTrade({ model, callbacks: this.callbacks, artwork: this.itemArt,
-        layout: { position: 'absolute', width: 'grow', height: 'grow' } }); this.modal.append(this.trade); }
+      else { this.trade = uiTrade({ model, callbacks: this.callbacks, artwork: this.itemArt }); this.modal.append(this.trade); }
     }
   }
 

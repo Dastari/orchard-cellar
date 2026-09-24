@@ -3,6 +3,7 @@ import type { LoadedAsset } from './assets.js';
 import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiSkills, type UiSkillsElement } from './kit/components/skills.js';
+import { uiGameBookPage, type UiGameBookChapter } from './kit/components/character-book.js';
 import { uiFixed } from './kit/layout/box.js';
 import { UiRoot } from './kit/runtime/root.js';
 
@@ -38,7 +39,7 @@ export interface SkillTreeCallbacks {
 export interface SkillTreeNavigation {
   readonly onKey?: (key: string, repeat: boolean) => boolean;
   readonly artwork?: Readonly<Record<string, LoadedAsset>>;
-  readonly onNavigate?: (page: 'character' | 'skills' | 'statistics') => void;
+  readonly onNavigate?: (page: UiGameBookChapter) => void;
   readonly onClose?: () => void;
 }
 
@@ -49,6 +50,7 @@ export class SkillTreeUi {
   private track: SkillTrack = 'explorer';
   private bounds: UiRect | undefined;
   private catalogKey = '';
+  private page = { width: 200, height: 248 };
   constructor(art: UiKitArt, private readonly callbacks: SkillTreeCallbacks, private readonly navigation: SkillTreeNavigation = {}) {
     this.root = new UiRoot({ art, scale: 1, label: 'Skills' });
   }
@@ -67,7 +69,7 @@ export class SkillTreeUi {
     if (this.view && this.catalogKey !== catalogKey) this.root.input.cancelPointers();
     this.catalogKey = catalogKey;
     if (!this.view) {
-      this.view = uiSkills({ model, track: this.track, ...this.callbacks, ...this.navigation });
+      this.view = uiSkills({ model, track: this.track, page: this.page, ...this.callbacks, ...this.navigation });
       this.root.mount(this.view); this.applyBounds();
     } else this.view.updateSkills(model);
     this.root.arrange();
@@ -84,6 +86,9 @@ export class SkillTreeUi {
   }
   setBounds(frame: UiRect, viewportWidth: number, viewportHeight: number): void {
     this.root.resize(viewportWidth, viewportHeight);
+    // The book's leaves follow the viewport, resized in place so the graph view and focus survive.
+    const page = uiGameBookPage(viewportWidth, viewportHeight);
+    if (page.width !== this.page.width || page.height !== this.page.height) { this.page = page; this.view?.setPage(page); }
     if (!this.bounds || Object.keys(frame).some(key => frame[key as keyof UiRect] !== this.bounds![key as keyof UiRect])) {
       this.bounds = { ...frame }; this.applyBounds();
     }

@@ -1,12 +1,17 @@
-import { DEFAULT_TOUCH_CONTROL_PREFERENCES, normalizeTouchControlPreferences, touchControlLayout, touchDirectionFromDelta,
+import { DEFAULT_TOUCH_CONTROL_PREFERENCES, TOUCH_ACTION_KEY_CODES, normalizeTouchControlPreferences, touchActionKeyLabel, touchControlLayout, touchDirectionFromDelta,
   type TouchControlAction, type TouchControlPreferences, type TouchDirection } from '../../touch-control-layout.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { uiButton } from './button.js';
 import { uiFlex } from './layout.js';
-import { uiText } from './text.js';
 import { paintUiSkin } from './art.js';
+import { paintUiTouchDisc, paintUiTouchKnob, paintUiTouchPad, type UiTouchTone } from './touch-game.js';
 export type UiTouchAction = Exclude<TouchControlAction, 'movement'>;
+const TOUCH_DISCS: Record<UiTouchAction, { readonly tone: UiTouchTone; readonly icon: string; readonly key: string }> = {
+  interact: { tone: 'success', icon: 'touch.hand', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.interact) }, secondary: { tone: 'primary', icon: 'touch.tool', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.secondary) },
+  jump: { tone: 'primary', icon: 'touch.jump', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.jump) }, dodge: { tone: 'info', icon: 'touch.dodge', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.dodge) },
+  block: { tone: 'danger', icon: 'touch.block', key: 'HOLD' },
+};
 export interface UiTouchControlsOptions {
   readonly id?: string; readonly placement?: 'inline' | 'hud'; readonly layout?: UiStyle;
   /** Production gameplay keys use the existing world controls, not HUD focus. */
@@ -26,7 +31,10 @@ export function uiTouchControls(options: UiTouchControlsOptions): UiTouchControl
   let preferences = normalizeTouchControlPreferences(options.preferences ?? DEFAULT_TOUCH_CONTROL_PREFERENCES);
   const held = new Map<UiTouchAction, Set<number>>();
   const knob = new UiElement({ kind: 'joystick-knob', style: { position: 'absolute', width: uiFixed(24), height: uiFixed(24) },
-    paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.button, 'success.md.pill.idle', element.rect); },
+    paint(element, { context, art }) {
+      if (options.placement === 'hud') paintUiTouchKnob(context, element.rect.x + element.rect.width / 2, element.rect.y + element.rect.height / 2, 11);
+      else if (art) paintUiSkin(context, art.skin.button, 'success.md.pill.idle', element.rect);
+    },
   });
   const placeKnob = (element: UiElement) => {
     const radius = Math.max(0, Math.min(element.rect.width, element.rect.height) / 2 - 19);
@@ -60,20 +68,21 @@ export function uiTouchControls(options: UiTouchControlsOptions): UiTouchControl
     },
     onFocus(focused, element) { if (!focused && pointer === undefined) move(element, 0, 0); },
     paint(element, { context, art }) {
-      if (art) paintUiSkin(context, art.skin.button, 'primary.lg.pill.idle', { x: element.rect.x + 8, y: element.rect.y + 8,
-        width: Math.max(0, element.rect.width - 16), height: Math.max(0, element.rect.height - 16) });
+      const well = { x: element.rect.x + 8, y: element.rect.y + 8, width: Math.max(0, element.rect.width - 16), height: Math.max(0, element.rect.height - 16) };
+      // In the game the pad is the translucent parchment well; the inline lab keeps the pack's pill.
+      if (options.placement === 'hud') paintUiTouchPad(context, well);
+      else if (art) paintUiSkin(context, art.skin.button, 'primary.lg.pill.idle', well);
     },
   });
   const actions = (['interact','secondary','jump','dodge','block'] as const).map(action => {
     const pointers = new Set<number>(); held.set(action, pointers);
-    const hudLabel = ({ interact: 'E', secondary: 'F', jump: 'SPACE', dodge: 'DODGE', block: 'BLOCK' })[action];
+    const disc = TOUCH_DISCS[action];
     const button = uiButton({ id: options.id ? `${options.id}:${action}` : undefined,
-      label: options.placement === 'hud' ? '' : action,
-      layout: options.placement === 'hud' ? { padding: 2 } : undefined,
-      children: options.placement === 'hud' ? [uiFlex({ width: 'grow', height: 'grow', justify: 'center', gap: 2 }, [
-        uiText(hudLabel, { align: 'center', layout: { width: 'grow' } }),
-        ...(action === 'dodge' || action === 'block' ? [uiText(action === 'dodge' ? '18 V' : 'HOLD', { align: 'center', layout: { width: 'grow' } })] : []),
-      ])] : undefined,
+      label: options.placement === 'hud' ? disc.key : action,
+      layout: options.placement === 'hud' ? { padding: 0 } : undefined,
+      // In the game each action is a round thumb disc: tone face, symbol and its keyboard letter.
+      face: options.placement === 'hud' ? (element, { context, art, pressed, hovered, focused }) =>
+        paintUiTouchDisc(context, art, element.rect, { tone: disc.tone, icon: disc.icon, key: disc.key, pressed: pressed || element.props['pressed'] === true, lit: hovered || focused }) : undefined,
       ariaLabel: action === 'block' ? 'Hold to block' : action === 'dodge' ? 'Dodge · 18 vigour' : action,
       size: 'lg', tone: action === 'interact' ? 'success' : 'primary', activateOn: 'down', onPress: () => options.onAction?.(action),
     });

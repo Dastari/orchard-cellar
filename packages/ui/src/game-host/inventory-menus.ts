@@ -7,11 +7,11 @@ import { CanvasTextEditor } from '../kit/runtime/text-editor.js';
 import { UiElement, type UiElementKey, type UiElementPointer } from '../kit/runtime/element.js';
 import { UiInventoryController, type UiInventoryModel, type UiInventorySlotRef } from '../kit/runtime/inventory.js';
 import { uiContentFrame, type UiContentFrameElement } from '../kit/components/content-frame.js';
+import { uiViewport } from '../kit/components/viewport.js';
 import { uiCraftingFrame, type UiCraftingFrameElement, type UiCraftingSnapshot } from '../kit/components/crafting-frame.js';
 import { UiInventoryFilter, type UiInventoryControls } from '../kit/components/inventory-panel.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import type { UiSlotOptions } from '../kit/components/inventory.js';
-import { uiFixed } from '../kit/layout/box.js';
 
 export interface InventoryMenuSnapshot {
   readonly width: number; readonly height: number;
@@ -26,6 +26,8 @@ export interface InventoryMenuSnapshot {
   readonly filter: string;
   readonly recipeFilter: string;
   readonly artwork: NonNullable<UiSlotOptions['artwork']>;
+  /** Paints the wearer into the paper-doll well. */
+  readonly portrait?: (context: CanvasRenderingContext2D, bounds: UiRect) => void;
 }
 
 /** Presentation/gesture boundary. Every mutation remains in OverworldUi. */
@@ -53,7 +55,6 @@ export class InventoryMenus {
   private frame: UiContentFrameElement | UiCraftingFrameElement | null = null;
   private snapshot: InventoryMenuSnapshot | null = null;
   private definition: FrameContentDefinition | null = null;
-  private viewportKey = '';
   private readonly filter = new UiInventoryFilter();
 
   constructor(art: UiKitArt, private readonly authority: InventoryMenuAuthority) {
@@ -122,16 +123,8 @@ export class InventoryMenus {
     this.frame!.updateState(snapshot.state);
     this.frame!.updateTiming(snapshot.timing ?? { status: 'idle', reason: null, stage: null, progress: 0,
       remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' });
-    if (snapshot.crafting && 'updateCrafting' in this.frame!) this.frame.updateCrafting(snapshot.crafting);
-    const viewportKey = `${snapshot.width}:${snapshot.height}`;
-    if (this.viewportKey !== viewportKey) {
-      this.viewportKey = viewportKey;
-      const width = Math.max(0, Math.min(700, snapshot.width - 16));
-      const height = Math.max(0, Math.min(420, snapshot.height - 16));
-      this.frame!.setStyle({ width: uiFixed(width), height: uiFixed(height), inset: {
-        left: uiFixed((snapshot.width - width) / 2), top: uiFixed((snapshot.height - height) / 2),
-      } });
-    }
+    if (snapshot.crafting && 'updateCrafting' in this.frame!) { this.frame.updateCrafting(snapshot.crafting); this.frame.setCraftingViewport(snapshot.width - 8, snapshot.height - 8); }
+    // Windows fit their content (approved redesign); the centring wrapper places them.
     this.controller.refresh();
     this.root.arrange();
   }
@@ -140,7 +133,7 @@ export class InventoryMenus {
     this.root.input.cancelPointers(); this.controller.cancel();
     for (const child of [...this.root.tree.children]) child.dispose();
     this.root.tree.replaceChildren([]);
-    this.definition = snapshot.definition; this.viewportKey = '';
+    this.definition = snapshot.definition;
     const chest = snapshot.aliases.entity === 'chest';
     const controls = (container: string, showFilter: boolean): UiInventoryControls => ({
       filterModel: this.filter, showFilter, sortEnabled: () => this.authority.cursor === null,
@@ -159,14 +152,14 @@ export class InventoryMenus {
           showFilter: false, sortEnabled: () => this.authority.cursor === null } } : {}),
       },
       onInvoke: (id: string) => this.authority.invoke(id), onClose: () => this.authority.close(),
-      layout: { position: 'absolute' as const },
+      portrait: uiViewport({ label: 'Character preview', render: (context, bounds) => this.snapshot?.portrait?.(context, bounds) }),
     };
     this.frame = snapshot.crafting ? uiCraftingFrame({ ...options, crafting: snapshot.crafting,
       recipeFilter: snapshot.recipeFilter, onRecipe: id => this.authority.recipe(id),
       onRecipeFilter: query => this.authority.recipeFilter(query), onCraft: all => this.authority.craft(all),
     }) : uiContentFrame(options);
     this.root.mount(new UiElement({ id: 'game.inventory-menus', kind: 'inventory-menus',
-      props: { touchScroll: true, singlePointer: true }, style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' },
+      props: { touchScroll: true, singlePointer: true }, style: { display: 'flex', justify: 'center', align: 'center', width: 'grow', height: 'grow', zLayer: 'modal' },
       pointerMode: 'capture', children: [this.frame],
       onPointerObserved: event => this.authority.hover(event.point),
       onPointer: event => this.controller.background(event, () => this.authority.background(event, this.contains(event.point))),
