@@ -2,6 +2,36 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.2 / UI 0.27.2 — Cancelled pointer ownership (not yet deployed)
+
+### Workspace 0.32.0 / Engine 0.23.0 — Terrain plan recorder (PR113; source only)
+
+- Expose the real game/Studio terrain draw plan to wiki tooling through a recording canvas, including projected walls, raised ground and stair courses.
+- Add a browser bundle and matching atlas manifest so wiki tile layouts use the engine's rules. The optional engine canvas factory preserves default runtime behavior. No world, map or content publication.
+
+- Fix BUG-019: a captured list row that disappears or moves during an update cannot pass its old release to a replacement row. Explicit scope/reconnect cancellation also suppresses the old pointer tail.
+- Keep suppression per pointer until release, cancellation or a fresh press; retain valid scrollbar and touch-scroll ownership. Workspace 0.31.2.
+
+## Client 0.25.1 / UI 0.27.1 — Trade keyboard hints (not yet deployed)
+
+- Request numeric keyboards for all three trade money fields through the shared native editor bridge; ordinary fields reset the hint to text.
+- Keep sanitization, bigint limits, IME/clipboard and single-command submission authoritative. Workspace0.31.1.
+
+## Client 0.25.0 / UI 0.27.0 — Shared player trade (not yet deployed)
+
+- Use the shared trade composition with live escrow, revision and wallet models; retain server authority and one command per gesture.
+- Preserve exact bigint money, draft focus through ordinary updates, stale-revision rejection, touch ownership and reconnect draft reset. Remove the old trade renderer and three native input paths.
+- Exclude inaccessible equipment/crafting/backpack slots from trade offers (BUG-018). The actual production wrapper is checked against a two-identity reducer harness.
+- Workspace 0.31.0. Seven of 33 surfaces are wired in the combined source; browser, final CI and live acceptance remain pending.
+
+## Client 0.24.0 / UI 0.26.0 — Shared inventory and storage windows (not yet deployed)
+
+- Bind inventory, crafting, chest and barrel windows to the shared kit compositions while retaining the existing inventory authority, cursor prediction and command transport.
+- Keep the crafting grid at 3×3, chest at 16 slots and barrel at 8. Search never renumbers slots; shared chest filtering, cursor-aware sort, restrictions and authoritative timing remain intact.
+- Resolve touch scrolling before pickup, preserve one pointer owner across slots and background, and retain filter Escape/Enter behavior through resize and reconnect.
+- Keep roster controls responsive above inventory and suppress repeated activation keys without affecting text editing.
+- Workspace 0.30.0. Six of 33 surfaces are wired in the combined source; final checks and live acceptance remain pending in the [release ledger](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24).
+
 ## Client 0.23.0 / UI 0.25.0 — Retained name gate and quest tracker (not yet deployed)
 
 - Use the shared kit's character-name gate and quest tracker in the game with real naming and pinned-quest models. Keep pending/error handling, required naming, focus, tracker collapse and saved position across resizing.

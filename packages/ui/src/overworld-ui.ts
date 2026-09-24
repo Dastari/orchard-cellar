@@ -1,4 +1,8 @@
 import type { TimingProjection } from '@orchard/sim';
+import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
+import type { UiKitArt } from './kit/components/art.js';
+import type { UiRoot } from './kit/runtime/root.js';
+import type { UiInventorySlotRef } from './kit/runtime/inventory.js';
 import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
 import {HEARTH_LOBBY_STASH_CAPACITY} from '@orchard/sim';
@@ -1159,6 +1163,111 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 }
 
 export class OverworldUi {
+  private retainedMenus: InventoryMenus | null = null;
+  private retainedArtwork: OverworldUiItemArt | null = null;
+  get retainedInventoryRoot(): UiRoot | null { return this.retainedMenus?.root ?? null; }
+  get retainedInventoryActive(): boolean { return this.retainedMenus?.active === true; }
+
+  /** Central client registers this stable root once; no DOM listeners or RAF. */
+  enableRetainedInventory(art: UiKitArt): UiRoot {
+    if (this.retainedMenus) return this.retainedMenus.root;
+    this.retainedArtwork = new Proxy(this.itemArt, { get: (assets, key) => typeof key === 'string'
+      ? overworldItemArtwork(assets, key, this.model.contentRegistry) : Reflect.get(assets, key) });
+    const cursor = () => this.heldCursorStack();
+    const dragging = () => this.cursorPress !== null;
+    const authority: InventoryMenuAuthority = {
+      get cursor() { return cursor(); }, get status() { return ''; },
+      get dragging() { return dragging(); },
+      stack: ref => this.retainedSlot(ref)?.item ?? null,
+      displayedCursor: () => this.quickCraftPreviewCursor === undefined ? this.heldCursorStack() : this.quickCraftOriginalCursor,
+      canAccept: (ref, item) => { const slot = this.retainedSlot(ref), cursor = item ?? this.heldCursorStack();
+        return slot !== null && (cursor === null || slot.accepts(cursor.itemKind)); },
+      pointerMove: (point, ref) => this.moveInventoryGesture(point, ref ? this.retainedSlot(ref) : null),
+      begin: (ref, point, button) => { const slot = this.retainedSlot(ref); if (slot) this.beginInventoryGesture(slot, point, button); },
+      finish: (point, shift, inside) => { this.finishInventoryGesture(point, shift, inside); },
+      cancel: () => { this.cancelQuickCraftPreview(); this.cursorPress = null; this.inventoryOutsidePress = null; },
+      background: (event, inside) => {
+        if (event.type === 'down' && (event.button === 0 || event.button === 2) && this.heldCursorStack() !== null) {
+          this.inventoryOutsidePress = event.button === 2 ? 'right' : 'left'; event.capture();
+        } else if (event.type === 'up') { this.finishInventoryGesture(event.point, event.shiftKey === true, inside); event.release(); }
+        else if (event.type === 'cancel') { authority.cancel(); event.release(); }
+      },
+      hover: (point) => { this.pointer = point; this.systemCursorMove(point); },
+      key: (event) => {
+        const code = 'code' in event && typeof event.code === 'string' ? event.code
+          : /^[0-9]$/u.test(event.key) ? `Digit${event.key}` : /^[a-z]$/iu.test(event.key) ? `Key${event.key.toUpperCase()}` : event.key;
+        if (!['Escape', 'KeyI', 'KeyC', 'KeyP', 'KeyK', 'KeyO', 'KeyL', 'KeyQ'].includes(code)
+          && !(this.openWindowValue === 'barrel' && code === 'KeyS') && !/^Digit[0-9]$/u.test(code)) return false;
+        return this.handleKeyDown(code, 'repeat' in event && event.repeat === true, { ctrl: event.ctrlKey });
+      },
+      close: () => { this.openWindow = null; }, invoke: (id) => { this.callbacks.frameAction?.(id); },
+      sort: (container) => { if (this.heldCursorStack() === null && (container === 'backpack' || container === 'chest' || container === 'placeable')) this.trackInventoryPrediction(this.callbacks.sortInventoryContainer(container)); },
+      filter: (value) => { this.inventoryFilterText = value; }, recipeFilter: (value) => { this.recipeFilterText = value; },
+      recipe: (id) => { this.selectCraftingRecipe(id); this.syncRetainedInventory(); },
+      craft: (all) => { const id = this.currentRecipeId(); if (id !== null && !this.currentRecipeLocked()) this.callbacks.craftInventoryRecipe(id, all); },
+      label: item => this.itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
+      iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry),
+    };
+    this.retainedMenus = new InventoryMenus(art, authority);
+    this.syncRetainedInventory();
+    return this.retainedMenus.root;
+  }
+
+  disposeRetainedInventory(): void { this.retainedMenus?.dispose(); this.retainedMenus = null; }
+
+  private retainedFrame(): ContentFrameLayout | null {
+    if (!this.retainedMenus) return null;
+    const frame = this.activeContentFrame();
+    // Authored placeables enter through the generic content window. Adopt only
+    // the reviewed barrel frame here; processors and stash keep their own path.
+    if (this.openWindowValue === 'content') return frame?.definition.id === 'frame:barrel' ? frame : null;
+    return ['inventory', 'crafting', 'chest', 'barrel'].includes(this.openWindowValue ?? '') ? frame : null;
+  }
+
+  /** Complete authored bindings, independent of filter, clipping and scrolling. */
+  private retainedSlots(): ItemSlot[] {
+    const frame = this.retainedFrame(); if (!frame) return [];
+    const collections: Readonly<Record<string, readonly ItemSlot[]>> = {
+      backpack: this.backpackItemSlots, hotbar: this.inventoryHotbarSlots, equipment: this.equipmentItemSlots,
+      crafting: this.craftingItemSlots, chest: this.chestItemSlots, placeable: this.placeableItemSlots,
+    };
+    const slots = new Set<ItemSlot>();
+    for (const pane of frame.panes) for (const binding of pane.slots) {
+      const slot = collections[binding.containerId]?.find(candidate => candidate.index === binding.index);
+      if (!slot || !slot.enabled) continue;
+      slot.setRestriction(binding.restriction); slots.add(slot);
+    }
+    if (frame.definition.hotbar) for (const slot of this.inventoryHotbarSlots) slots.add(slot);
+    return [...slots];
+  }
+
+  private retainedSlot(ref: UiInventorySlotRef): ItemSlot | null {
+    return this.retainedSlots().find(slot => slot.containerId === ref.container && slot.index === ref.index) ?? null;
+  }
+
+  private syncRetainedInventory(): void {
+    if (!this.retainedMenus) return;
+    const frame = this.retainedFrame(), registry = this.model.contentRegistry;
+    if (!frame || !registry || !this.model.connected) { this.retainedMenus.update(null); return; }
+    const recipeId = this.currentRecipeId();
+    const pattern = this.selectedCraftingRecipeId === null ? null
+      : craftingRecipeStacks(this.selectedCraftingRecipeId, this.model.knownRecipeIds ?? [], registry);
+    this.retainedMenus.update({ width: this.model.width, height: this.model.height, definition: frame.definition,
+      aliases: { backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting',
+        entity: frame.definition.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable' },
+      registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming,
+      backpackCapacity: this.model.backpackSlotCapacity ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS),
+      filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
+      ...(this.openWindowValue === 'crafting' ? { crafting: {
+        recipes: this.recipeBookEntries().map(entry => ({ id: entry.recipeId,
+          label: this.itemDefinition(entry.outputKind)?.displayName ?? entry.outputKind,
+          detail: entry.requiredStation === null ? undefined : this.craftingStationLabel(entry.requiredStation) })),
+        selected: this.selectedCraftingRecipeId, pattern: (pattern ?? []).map(stack => stack?.itemKind ?? null),
+        output: this.recipeOutput(recipeId ?? ''),
+        requirement: this.currentRecipeLocked() ? this.recipeSkillRequirement(recipeId ?? '') ?? 'RECIPE REQUIREMENTS NOT MET' : undefined,
+      } } : {}),
+    });
+  }
   private readonly statusCache = new HudSectionCache();
   private readonly currencyCache = new HudSectionCache();
   private readonly hotbarCache = new HudSectionCache();
@@ -2311,6 +2420,14 @@ export class OverworldUi {
   }
 
   pointerMove(point: UiPoint, _modifiers: { readonly shift?: boolean } = {}): void {
+    if (this.retainedInventoryActive && !this.blockingUpdatePromptVisible) {
+      this.systemCursorMove(point);
+      if (this.onlinePlayerListActive) {
+        this.onlinePlayersScrollBar.pointerMove(point);
+        this.onlinePlayersScrollBar.swipeMove(point, ONLINE_PLAYER_LIST_ROW_HEIGHT);
+      }
+      return;
+    }
     void _modifiers;
     this.systemCursorMove(point);
     if (this.blockingUpdatePromptVisible) return;
@@ -2355,35 +2472,7 @@ export class OverworldUi {
     // threshold. Keep vertical/tied touch movement pending until scrolling
     // takes ownership; a release below that threshold remains an ordinary tap.
     if (this.inventoryTouchStart !== null) return;
-    if (this.cursorPress !== null && !this.cursorPress.cursorWasHeld
-      && !this.cursorPress.pickedUpDuringDrag && this.cursorPress.origin.item !== null) {
-      const dx = point.x - this.cursorPress.startPoint.x;
-      const dy = point.y - this.cursorPress.startPoint.y;
-      if (dx * dx + dy * dy >= INVENTORY_DRAG_START_DISTANCE * INVENTORY_DRAG_START_DISTANCE
-        && this.predictCursorClick(this.cursorPress.origin, this.cursorPress.button)) {
-        this.cursorPress.pickedUpDuringDrag = true;
-        this.cursorPress.dragged = true;
-        this.trackInventoryPrediction(this.callbacks.inventoryCursorClick(
-          this.cursorPress.origin.containerId,
-          this.cursorPress.origin.index,
-          this.cursorPress.button,
-        ));
-      }
-    }
-    if (this.cursorPress?.cursorWasHeld) {
-      const target = this.inventoryItemSlotAt(point);
-      const cursor = this.heldCursorStack();
-      const targetStack = target?.item ?? null;
-      const targetCompatible = targetStack === null || (cursor !== null && cursor !== undefined
-        && itemStacksCompatible(targetStack, cursor)
-        && targetStack.quantity < this.maxStackFor(cursor.itemKind));
-      if (target !== null && cursor != null && target.accepts(cursor.itemKind) && targetCompatible
-        && !this.cursorPress.targets.includes(target)) {
-        this.cursorPress.targets.push(target);
-        if (target !== this.cursorPress.origin) this.cursorPress.dragged = true;
-        if (this.cursorPress.targets.length > 1) this.applyQuickCraftPreview();
-      }
-    }
+    this.moveInventoryGesture(point, this.inventoryItemSlotAt(point));
     this.timeSlider.pointerMove(point);
     this.touchBottomOffsetSlider.pointerMove(point);
     this.masterSlider.pointerMove(point);
@@ -2391,10 +2480,38 @@ export class OverworldUi {
     this.sfxSlider.pointerMove(point);
   }
 
+  /** Roster remains above both retained and legacy inventory windows. */
+  private pointerOnlinePlayersDown(point: UiPoint, button: number, pointerType?: string): boolean {
+    if (!this.onlinePlayerListActive) return false;
+    if (button === 0) this.onlinePlayersScrollBar.beginSwipe(point, this.onlinePlayerListRect, pointerType);
+    if (button === 0 && this.onlinePlayerListActive
+      && containsPoint(this.onlinePlayerListCloseButton, point)) {
+      this.onlinePlayerListActive = false;
+      this.callbacks.toggleOnlinePlayers();
+      return true;
+    }
+    if (this.onlinePlayerListActive && this.model.canManageHomestead === true
+      && (button === 0 || button === 2)) {
+      const row = this.onlinePlayerRows.find((candidate) => containsPoint(candidate.rect, point));
+      if (row !== undefined && !row.player.self && row.player.identityHex !== undefined) {
+        const nextRole = button === 2 ? null : nextHomesteadMemberRole(row.player.homesteadRole);
+        this.callbacks.manageHomesteadMember?.(row.player.identityHex, nextRole, button === 2);
+        return true;
+      }
+    }
+    if (button === 0 && this.onlinePlayerListActive && this.onlinePlayersScrollBar.pointerDown(point)) return true;
+    return false;
+  }
+
   pointerDown(point: UiPoint, button: number, modifiers: {
     readonly shift?: boolean;
     readonly pointerType?: string;
   } = {}): boolean {
+    if (this.retainedInventoryActive && !this.blockingUpdatePromptVisible) {
+      this.systemCursorDown(point);
+      this.pointerOnlinePlayersDown(point, button, modifiers.pointerType);
+      return true;
+    }
     this.inventoryTouchStart = null;
     this.inventoryScrollBar.cancelSwipe();
     const skillPointNotice = this.skillPointNoticeLayout();
@@ -2417,9 +2534,6 @@ export class OverworldUi {
       this.selectedCraftingRecipeId = null;
     }
     if (button === 0) {
-      if (this.onlinePlayerListActive) {
-        this.onlinePlayersScrollBar.beginSwipe(point, this.onlinePlayerListRect, modifiers.pointerType);
-      }
       if (this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
         || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
         || this.openWindowValue === 'fermentation') {
@@ -2438,22 +2552,7 @@ export class OverworldUi {
         }, modifiers.pointerType);
       }
     }
-    if (button === 0 && this.onlinePlayerListActive
-      && containsPoint(this.onlinePlayerListCloseButton, point)) {
-      this.onlinePlayerListActive = false;
-      this.callbacks.toggleOnlinePlayers();
-      return true;
-    }
-    if (this.onlinePlayerListActive && this.model.canManageHomestead === true
-      && (button === 0 || button === 2)) {
-      const row = this.onlinePlayerRows.find((candidate) => containsPoint(candidate.rect, point));
-      if (row !== undefined && !row.player.self && row.player.identityHex !== undefined) {
-        const nextRole = button === 2 ? null : nextHomesteadMemberRole(row.player.homesteadRole);
-        this.callbacks.manageHomesteadMember?.(row.player.identityHex, nextRole, button === 2);
-        return true;
-      }
-    }
-    if (button === 0 && this.onlinePlayerListActive && this.onlinePlayersScrollBar.pointerDown(point)) return true;
+    if (this.pointerOnlinePlayersDown(point, button, modifiers.pointerType)) return true;
     if (button === 0 && (this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation') && this.inventoryScrollBar.pointerDown(point)) {
@@ -2537,20 +2636,7 @@ export class OverworldUi {
     if (this.isInventoryWindow(this.openWindowValue)) {
       const slot = this.inventoryItemSlotAt(point);
       if (slot !== null && (button === 0 || button === 2)) {
-        const cursor = this.heldCursorStack();
-        const cursorWasHeld = cursor != null;
-        const stack = slot.item;
-        const originEligible = cursor !== null && cursor !== undefined && slot.accepts(cursor.itemKind)
-          && (stack === null || (itemStacksCompatible(stack, cursor)
-            && stack.quantity < this.maxStackFor(cursor.itemKind)));
-        this.cursorPress = {
-          origin: slot, button: button === 2 ? 'right' : 'left', cursorWasHeld,
-          startPoint: point,
-          targets: cursorWasHeld && originEligible ? [slot] : [], dragged: false,
-          pickedUpDuringDrag: false,
-        };
-        if (cursorWasHeld && originEligible) this.applyQuickCraftPreview();
-        return true;
+        return this.beginInventoryGesture(slot, point, button);
       }
       if ((button === 0 || button === 2) && this.heldCursorStack() != null) {
         this.inventoryOutsidePress = button === 2 ? 'right' : 'left';
@@ -2561,6 +2647,11 @@ export class OverworldUi {
   }
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
+    if (this.retainedInventoryActive && !this.blockingUpdatePromptVisible) {
+      this.onlinePlayersScrollBar.endSwipe();
+      this.onlinePlayersScrollBar.pointerUp();
+      return true;
+    }
     this.inventoryTouchStart = null;
     this.pointer = point;
     if (this.blockingUpdatePromptVisible) {
@@ -2591,6 +2682,65 @@ export class OverworldUi {
     if (this.onlinePlayersScrollBar.pointerUp()) return true;
     if (this.inventoryScrollBar.pointerUp()) return true;
     if (this.craftingRecipeScrollBar.pointerUp()) return true;
+    if (this.finishInventoryGesture(point, modifiers.shift === true, containsPoint(this.activeWindowRect(), point))) return true;
+    const consumed = this.router.routePointer({ kind: 'pointer_up', point, button });
+    return this.timeSlider.pointerUp(point)
+      || this.touchBottomOffsetSlider.pointerUp(point)
+      || this.masterSlider.pointerUp(point)
+      || this.musicSlider.pointerUp(point)
+      || this.sfxSlider.pointerUp(point)
+      || consumed;
+  }
+
+  private beginInventoryGesture(slot: ItemSlot, point: UiPoint, button: number): boolean {
+    const cursor = this.heldCursorStack();
+    const cursorWasHeld = cursor != null;
+    const stack = slot.item;
+    const originEligible = cursor !== null && cursor !== undefined && slot.accepts(cursor.itemKind)
+      && (stack === null || (itemStacksCompatible(stack, cursor)
+        && stack.quantity < this.maxStackFor(cursor.itemKind)));
+    this.cursorPress = {
+      origin: slot, button: button === 2 ? 'right' : 'left', cursorWasHeld,
+      startPoint: point,
+      targets: cursorWasHeld && originEligible ? [slot] : [], dragged: false,
+      pickedUpDuringDrag: false,
+    };
+    if (cursorWasHeld && originEligible) this.applyQuickCraftPreview();
+    return true;
+  }
+
+  private moveInventoryGesture(point: UiPoint, target: ItemSlot | null): void {
+    if (this.cursorPress !== null && !this.cursorPress.cursorWasHeld
+      && !this.cursorPress.pickedUpDuringDrag && this.cursorPress.origin.item !== null) {
+      const dx = point.x - this.cursorPress.startPoint.x;
+      const dy = point.y - this.cursorPress.startPoint.y;
+      if (dx * dx + dy * dy >= INVENTORY_DRAG_START_DISTANCE * INVENTORY_DRAG_START_DISTANCE
+        && this.predictCursorClick(this.cursorPress.origin, this.cursorPress.button)) {
+        this.cursorPress.pickedUpDuringDrag = true;
+        this.cursorPress.dragged = true;
+        this.trackInventoryPrediction(this.callbacks.inventoryCursorClick(
+          this.cursorPress.origin.containerId,
+          this.cursorPress.origin.index,
+          this.cursorPress.button,
+        ));
+      }
+    }
+    if (this.cursorPress?.cursorWasHeld) {
+      const cursor = this.heldCursorStack();
+      const targetStack = target?.item ?? null;
+      const targetCompatible = targetStack === null || (cursor !== null && cursor !== undefined
+        && itemStacksCompatible(targetStack, cursor)
+        && targetStack.quantity < this.maxStackFor(cursor.itemKind));
+      if (target !== null && cursor != null && target.accepts(cursor.itemKind) && targetCompatible
+        && !this.cursorPress.targets.includes(target)) {
+        this.cursorPress.targets.push(target);
+        if (target !== this.cursorPress.origin) this.cursorPress.dragged = true;
+        if (this.cursorPress.targets.length > 1) this.applyQuickCraftPreview();
+      }
+    }
+  }
+
+  private finishInventoryGesture(point: UiPoint, shift: boolean, inside: boolean): boolean {
     if (this.cursorPress !== null) {
       const press = this.cursorPress;
       this.cursorPress = null;
@@ -2598,7 +2748,7 @@ export class OverworldUi {
       if (press.pickedUpDuringDrag) {
         this.cancelQuickCraftPreview();
         this.lastCursorClick = null;
-      } else if (modifiers.shift && press.button === 'left') {
+      } else if (shift && press.button === 'left') {
           this.cancelQuickCraftPreview();
           const sourceContainers = this.quickMoveSourceContainers(pressed.containerId);
           const sourceRegion = sourceContainers.join('|');
@@ -2675,7 +2825,7 @@ export class OverworldUi {
       const outsideButton = this.inventoryOutsidePress;
       this.inventoryOutsidePress = null;
       if (this.inventoryItemSlotAt(point) === null) {
-        if (containsPoint(this.activeWindowRect(), point)) {
+        if (inside) {
           this.cancelQuickCraftPreview();
           this.clearOptimisticMenu();
           this.callbacks.returnInventoryCursor();
@@ -2685,13 +2835,7 @@ export class OverworldUi {
       }
       return true;
     }
-    const consumed = this.router.routePointer({ kind: 'pointer_up', point, button });
-    return this.timeSlider.pointerUp(point)
-      || this.touchBottomOffsetSlider.pointerUp(point)
-      || this.masterSlider.pointerUp(point)
-      || this.musicSlider.pointerUp(point)
-      || this.sfxSlider.pointerUp(point)
-      || consumed;
+    return false;
   }
 
   pointerLeave(): void {
@@ -2729,6 +2873,7 @@ export class OverworldUi {
       this.onlinePlayersScrollBar.wheel(deltaY, 1);
       return true;
     }
+    if (this.retainedInventoryActive) return true;
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation')
@@ -3281,6 +3426,11 @@ export class OverworldUi {
       ]) slot.visible = false;
     }
     this.applyContentFrameBindings();
+    this.syncRetainedInventory();
+    if (this.retainedInventoryActive) {
+      if (this.inventoryFilterInput) { this.inventoryFilterInput.hidden = true; this.inventoryFilterInput.blur(); }
+      if (this.recipeFilterInput) { this.recipeFilterInput.hidden = true; this.recipeFilterInput.blur(); }
+    }
     const chestFrame = this.activeContentFrame();
     if (chestFrame !== null && chestInventorySearchRect(chestFrame) !== null) {
       for (const [container, node] of [['chest', this.chestSortNode], ['backpack', this.backpackSortNode]] as const) {
@@ -3660,6 +3810,7 @@ export class OverworldUi {
   }
 
   tooltipText(): string | null {
+    if (this.retainedInventoryActive) return this.retainedMenus!.tooltipAt(this.pointer);
     if (this.backpackSortNode.contains(this.pointer)
       || this.chestSortNode.contains(this.pointer)
       || this.barrelSortNode.contains(this.pointer)) return 'SORT & STACK';
@@ -3753,6 +3904,7 @@ export class OverworldUi {
   }
 
   private hoveredItem(): ItemStack | null {
+    if (this.retainedInventoryActive) return this.retainedMenus!.itemAt(this.pointer);
     if (this.isInventoryWindow(this.openWindowValue)) {
       if (this.openWindowValue === 'crafting' && containsPoint(this.layout.craftingResult, this.pointer)) {
         return this.recipeOutput(this.currentRecipeId() ?? '') ?? null;
@@ -3768,6 +3920,17 @@ export class OverworldUi {
   }
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
+    if (this.retainedInventoryActive) {
+      this.retainedMenus!.draw(context);
+      // The existing single cursor/tooltip overlay uses the kit's real bounds.
+      for (const slot of this.retainedSlots()) slot.visible = false;
+      for (const { element } of this.retainedMenus!.root.entries()) {
+        const binding = element.props['binding'] as UiInventorySlotRef | undefined;
+        const slot = binding ? this.retainedSlot(binding) : null;
+        if (slot) { slot.setBounds(element.rect); slot.visible = element.clip.width > 0 && element.clip.height > 0; }
+      }
+      return;
+    }
     const rect = this.activeWindowRect();
     const contentFrame = this.activeContentFrame(window);
     const authoredEntityFrame = contentFrame?.definition.presentation?.surface === 'entity';
@@ -3959,6 +4122,12 @@ export class OverworldUi {
   }
 
   private inventoryItemSlotAt(point: UiPoint): ItemSlot | null {
+    if (this.retainedInventoryActive) {
+      const target = this.retainedMenus!.slotAt(point);
+      const slot = target === null ? null : this.retainedSlot(target.ref);
+      if (slot && target) slot.setBounds(target.rect);
+      return slot;
+    }
     const visible = this.visibleItemSlots();
     return visible
       .find((slot) => slot.node.contains(point) && slot.enabled) ?? null;
@@ -4533,6 +4702,7 @@ export class OverworldUi {
   }
 
   private visibleItemSlots(): ItemSlot[] {
+    if (this.retainedFrame() !== null) return this.retainedSlots();
     if (this.activeContentFrame() !== null) {
       return [
         ...this.inventoryHotbarSlots, ...this.backpackItemSlots, ...this.equipmentItemSlots,
