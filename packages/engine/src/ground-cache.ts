@@ -556,7 +556,12 @@ export class GroundChunkCache {
   private presentationKey = "original";
   private presentationContext: CanvasRenderingContext2D | null = null;
 
-  constructor(capacity = 64) {
+  /** `createCanvas` defaults to a DOM canvas; tools pass a recording canvas
+   * (scripts/terrain-plan.ts) to list the tile draws without a browser. */
+  constructor(
+    capacity = 64,
+    private readonly createCanvas: () => HTMLCanvasElement = () => document.createElement("canvas"),
+  ) {
     this.chunks = new ChunkLruCache(capacity);
   }
 
@@ -783,7 +788,7 @@ export class GroundChunkCache {
     chunkX: number,
     chunkY: number,
   ): HTMLCanvasElement {
-    const canvas = document.createElement("canvas");
+    const canvas = this.createCanvas();
     canvas.width = GROUND_CHUNK_PIXELS;
     canvas.height = GROUND_CHUNK_PIXELS;
     const context = canvas.getContext("2d");

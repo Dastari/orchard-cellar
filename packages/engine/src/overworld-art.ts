@@ -580,7 +580,8 @@ function legacyLandmarkArt(existing:Readonly<Record<string,LoadedAsset>>):Readon
   return result;
 }
 
-const MAP_EDITOR_ASSET_NAMES = {
+/** Named terrain art fields and the asset each loads (also read by scripts/terrain-plan.ts). */
+export const MAP_EDITOR_ASSET_NAMES = {
   horse: 'horse_cf_bramble',
   merchantNpc: 'npc_cf_bartender_bruno',
   farmerBobNpc: 'npc_cf_farmer_bob',
