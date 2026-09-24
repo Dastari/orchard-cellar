@@ -13,10 +13,13 @@ it('paints loading and failure with the startup art subset and retains stage con
   const meter = root.entries().find(entry => entry.element.id === 'gateway.loading.progress')!.element;
   expect(meter.props['value']).toBe(.58);
   const before = canvas.toBuffer('image/png');
+  // A failed stage keeps the same frame and retitles it CONNECTION LOST with the stage as a dark error notice.
   frame.updateLoading({title:'CONNECTION FAILED',detail:'Refresh to try again',progress:120,error:true}); root.draw(context,0);
-  expect(root.entries().find(entry => entry.element.id === meter.id)?.element).toBe(meter);
   expect(meter.props).toMatchObject({value:1,tone:'danger'});
+  expect(root.entries().find(entry => entry.element.id === 'gateway.loading.error')?.element.props['text']).toBe('Connection failed');
+  expect(root.entries().some(entry => entry.element.kind === 'window-ribbon' && entry.element.props['text'] === 'CONNECTION LOST')).toBe(true);
   expect(canvas.toBuffer('image/png')).not.toEqual(before);
   frame.updateLoading({title:'WAITING',detail:'Retrying',progress:NaN}); root.arrange();expect(meter.props['value']).toBe(0);
+  expect(root.entries().find(entry => entry.element.id === meter.id)?.element).toBe(meter);
   root.dispose();
 });

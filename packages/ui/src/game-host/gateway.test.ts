@@ -133,11 +133,16 @@ it('updates actual loading composition with authoritative/clamped progress and n
   const host = new GameGatewayLoading(art, { version: 'test', emblem: uiTestAsset('icon_resource_fruit') }); hosts.push(host);
   host.setBounds({ x: 4, y: 4, width: 312, height: 172 }, 320, 180);
   for (const [progress, expected] of [[45, .45], [150, 1], [-10, 0], [NaN, 0]]) {
-    host.update({ title: 'Opening the orchard', detail: 'Connecting to your world', progress: progress!, error: true });
+    host.update({ title: 'Opening the orchard', detail: 'Connecting to your world', progress: progress!, error: false });
     expect(node(host.root, 'gateway.loading.progress').props['value']).toBe(expected);
     expect(host.root.entries().filter(entry => entry.element.focusable)).toHaveLength(0);
     host.draw(createCanvas(320, 180).getContext('2d') as unknown as CanvasRenderingContext2D);
   }
+  // A failed stage swaps the bar for the dark error notice in the same frame, still without account controls.
+  host.update({ title: 'THE FERRY COULD NOT DOCK', detail: 'CHECK YOUR CONNECTION', progress: 100, error: true });
+  expect(node(host.root, 'gateway.loading.error').props['text']).toBe('The ferry could not dock');
+  expect(host.root.entries().filter(entry => entry.element.focusable)).toHaveLength(0);
+  host.draw(createCanvas(320, 180).getContext('2d') as unknown as CanvasRenderingContext2D);
   host.update(null); expect(host.root.entries().some(entry => entry.element.id === 'game.loading')).toBe(false);
 });
 
@@ -174,9 +179,10 @@ it('renders real-art account, local and loading evidence at compact/wide scales 
 });
 
 it('preserves deliberate scroll through harmless updates but resets it when switching account scope/mode',()=>{
- const {host}=fixture({localPreview:true});host.setBounds({x:4,y:4,width:312,height:172},320,180);host.focusName();
+ // Only a viewport shorter than the constant window shortens (and scrolls) its body.
+ const {host}=fixture({localPreview:true});host.setBounds({x:0,y:0,width:320,height:110},320,110);host.focusName();
  const content=node(host.root,'gateway.content');expect(content.scroll.y).toBeGreaterThan(0);
- const prior=content.scroll.y;host.update({...model,localPreview:true,message:'Notice'});host.setBounds({x:4,y:4,width:312,height:172},320,180);expect(content.scroll.y).toBe(prior);
+ const prior=content.scroll.y;host.update({...model,localPreview:true,message:'A different notice that also takes two lines'});host.setBounds({x:0,y:0,width:320,height:110},320,110);expect(content.scroll.y).toBe(prior);
  host.update(model);expect(content.scroll.y).toBe(0);expect(host.root.focus.current).toBeNull();
 });
 
@@ -198,4 +204,38 @@ it('fits integer-scale gateways within compact and wide safe viewports with only
     const ctx=createCanvas(width!,height!).getContext('2d');ctx.scale(scene.scale,scene.scale);loading.draw(ctx as unknown as CanvasRenderingContext2D);
     const bar=node(loading.root,'gateway.loading.progress');expect(bar.clip).toEqual(bar.rect);
   }
+});
+
+it('keeps one constant logo sign and window across every account and loading state per viewport class', () => {
+  vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
+  const { host } = fixture(); const loading = new GameGatewayLoading(art, { version: 'test', emblem: uiTestAsset('icon_resource_fruit') }); hosts.push(loading);
+  const frameOf = (root: UiRoot) => {
+    root.arrange(); const find = (kind: string) => root.entries().find(entry => entry.element.kind === kind)?.element.rect;
+    return { window: find('window')!, logo: find('game-logo') };
+  };
+  for (const [width, height, logo] of [[960, 540, 414], [390, 797, 378], [844, 390, 414], [640, 360, 414], [360, 640, 215]] as const) {
+    const scene = gameGatewayLayout(width, height); host.setBounds(scene.frame, scene.width, scene.height); loading.setBounds(scene.frame, scene.width, scene.height);
+    const frames: ReturnType<typeof frameOf>[] = [];
+    for (const patch of [{}, { signedIn: true, displayName: 'Mara' }, { localPreview: true }, { busy: true, message: 'OPENING SIGN IN' }, { error: 'Unable to start login.' }] as Partial<GameGatewayModel>[]) {
+      host.update({ ...model, ...patch }); frames.push(frameOf(host.root));
+    }
+    for (const error of [false, true]) { loading.update({ title: 'GROWING YOUR ISLAND', detail: 'READING TERRAIN', progress: 62, error }); frames.push(frameOf(loading.root)); }
+    for (const frame of frames) expect(frame, `${width}x${height}`).toEqual(frames[0]);
+    const { window, logo: sign } = frames[0]!;
+    expect(sign?.width, `${width}x${height} logo`).toBe(logo);
+    expect(window.y).toBeGreaterThan(sign!.y + sign!.height);
+    expect(window.x).toBeGreaterThanOrEqual(0); expect(window.x + window.width).toBeLessThanOrEqual(scene.width);
+    // The version footer stays clear of the window.
+    expect(window.y + window.height).toBeLessThanOrEqual(scene.height - 16);
+  }
+});
+
+it('fires text links on release inside only, never after a cancelled press, and lets a focused link own Enter', () => {
+  const { host, onAction } = fixture(); const p = point(host.root, 'gateway.register');
+  host.root.pointer({ type: 'down', point: p, button: 0, pointerId: 3 }); host.root.pointer({ type: 'cancel', point: p, button: 0, pointerId: 3 });
+  host.root.pointer({ type: 'up', point: p, button: 0, pointerId: 3 });
+  host.root.pointer({ type: 'down', point: p, button: 0, pointerId: 4 }); host.root.pointer({ type: 'up', point: { x: 1, y: 1 }, button: 0, pointerId: 4 });
+  expect(onAction).not.toHaveBeenCalled();
+  focus(host.root, 'gateway.toggle-preview'); key(host, 'Enter'); expect(onAction).toHaveBeenCalledExactlyOnceWith('toggle-preview', undefined);
+  host.update({ ...model, busy: true }); tap(host.root, 'gateway.register'); expect(onAction).toHaveBeenCalledTimes(1);
 });

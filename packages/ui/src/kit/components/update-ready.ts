@@ -1,25 +1,25 @@
-import { uiDialog, type UiDialogOptions } from './overlays.js';
-import { uiFlex, uiScrollArea } from './layout.js';
+import { uiFixed, type UiStyle } from '../layout/box.js';
+import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton } from './button.js';
+import { uiWindow, type UiWindowElement } from './window.js';
 export interface UiUpdateReadyOptions {
   readonly onRefresh: () => void;
   readonly onLater: () => void;
-  readonly layout?: UiDialogOptions['layout'];
+  readonly layout?: UiStyle;
 }
-/** An update decision stays above gameplay; closing is equivalent to Later. */
-export function uiUpdateReady(options: UiUpdateReadyOptions) {
-  const dialog = uiDialog({ id: 'game.update-ready', title: 'UPDATE READY', tone: 'primary', open: true,
-    dismissOnBackdrop: false, onClose: options.onLater, layout: options.layout,
-    children: [uiScrollArea({gap:8,height:'fit'}, [
-      uiText('A NEW ORCHARD VERSION IS READY.', {wrap:true}),
-      uiText('REFRESH NOW TO USE IT, OR CONTINUE SAFELY.', {wrap:true}),
-      uiFlex({direction:'row',wrap:true,width:'grow',gap:4},[
-        uiButton({id:'update-ready.refresh',label:'REFRESH NOW',tone:'success',layout:{width:'grow'},onPress:options.onRefresh}),
-        uiButton({id:'update-ready.later',label:'LATER',layout:{width:'grow'},onPress:()=>dialog.close()}),
+/** An update decision stays above gameplay; the wooden close and Escape are equivalent to Later. */
+export function uiUpdateReady(options: UiUpdateReadyOptions): UiWindowElement {
+  const later = () => { if (!dialog.visible) return; dialog.setStyle({ visible: false }); options.onLater(); };
+  const dialog = uiWindow({ id: 'game.update-ready', title: 'UPDATE READY', onClose: later,
+    layout: { direction: 'column', gap: 8, width: uiFixed(200), maxWidth: { mode: 'percent', fraction: 1 }, ...options.layout }, children: [
+      uiText('A new version of Orchard & Cellar is ready. Reload to update; your progress is saved.', { wrap: true, layout: { width: 'grow' } }),
+      uiFlex({ direction: 'row', gap: 4, justify: 'end', alignSelf: 'stretch' }, [
+        uiButton({ id: 'update-ready.later', label: 'Later', tone: 'primary', onPress: later }),
+        uiButton({ id: 'update-ready.refresh', label: 'Reload', tone: 'success', onPress: options.onRefresh }),
       ]),
-    ])],
-  });
+    ] });
+  Object.assign(dialog.hooks, { onDismiss: later });
   dialog.setProps({ singlePointer: true, touchScroll: true });
   return dialog;
 }

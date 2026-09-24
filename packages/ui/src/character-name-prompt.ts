@@ -1,14 +1,24 @@
 import { normalizeCharacterName } from '@orchard/sim';
+import type { LoadedAsset } from './assets.js';
+import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiCharacterName, type UiCharacterNameElement } from './kit/components/character-name.js';
 import { UiRoot } from './kit/runtime/root.js';
 
 export function characterNameErrorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('display_name_taken')) return 'THAT CHARACTER NAME IS ALREADY TAKEN';
-  if (message.includes('invalid_display_name')) return "3-20 LETTERS, NUMBERS, SPACES, - OR '";
-  if (message.includes('character_name_already_set')) return 'THIS CHARACTER ALREADY HAS A NAME';
-  return 'COULD NOT SAVE THE CHARACTER NAME';
+  if (message.includes('display_name_taken')) return 'That name is taken.';
+  if (message.includes('invalid_display_name')) return INVALID_NAME;
+  if (message.includes('character_name_already_set')) return 'This character already has a name.';
+  return 'Could not save the name. Try again.';
+}
+const INVALID_NAME = "Use 3-20 letters, numbers, spaces, - or '.";
+
+/** Optional presentation for the naming frame: the player's character (painted facing the viewer)
+ * beside the field, and the cellar barrel for the logo sign. */
+export interface CharacterNamePromptArt {
+  readonly portrait?: (context: CanvasRenderingContext2D, bounds: UiRect) => void;
+  readonly cask?: LoadedAsset;
 }
 
 
@@ -26,11 +36,13 @@ export class CharacterNamePrompt {
     art: UiKitArt,
     private readonly submitName: (name: string) => Promise<void>,
     private readonly onActiveChanged: (active: boolean) => void,
+    presentation: CharacterNamePromptArt = {},
   ) {
     this.root = new UiRoot({ art, scale: 1, label: 'Name your character' });
     this.gate = uiCharacterName({
       onSubmit: name => { void this.submit(name); },
       onChange: () => { if (this.error !== null) { this.error = null; this.refresh(); } },
+      portrait: presentation.portrait, cask: presentation.cask,
     });
     this.gate.setStyle({ visible: false });
     this.root.mount(this.gate);
@@ -73,7 +85,7 @@ export class CharacterNamePrompt {
     if (!this.activeValue || this.busy || this.root.disposed) return;
     const name = normalizeCharacterName(value);
     if (name === null) {
-      this.error = "3-20 LETTERS, NUMBERS, SPACES, - OR '";
+      this.error = INVALID_NAME;
       this.refresh();
       this.gate.focusName();
       return;

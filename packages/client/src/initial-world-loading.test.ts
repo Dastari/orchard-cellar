@@ -29,7 +29,7 @@ function fixture() {
     safeAreaInsets: { left: 0, top: 0, right:0, bottom:0 }, renderer: {}, kitArt:{},
     worldUpdateOverlay: { draw: vi.fn(), reset: vi.fn() },
     connectionRecoveryOverlay: { composite: vi.fn() }, drawInitialWorldLoading: vi.fn(),
-    art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, missingItem: {} },
+    art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, itemIcons: {}, missingItem: {} },
     renderStarted: performance.now(), renderMetrics: { record: vi.fn(), recordRenderSubmit: vi.fn() },
   };
   return { deps, render: () => new Function(...Object.keys(deps), code)(...Object.values(deps)) };

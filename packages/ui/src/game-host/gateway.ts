@@ -20,16 +20,18 @@ export interface GameGatewayCommands {
   readonly onNameChange?: (rawName: string) => void;
   readonly onDismissName?: () => void;
 }
-export interface GameGatewayArt { readonly emblem?: LoadedAsset; readonly version?: string }
+/** Title-flow art: the apple (used by startup screens before the icon skin loads), the cellar barrel
+ * for the logo sign's far end, and the client version shown bottom-left. */
+export interface GameGatewayArt { readonly emblem?: LoadedAsset; readonly cask?: LoadedAsset; readonly version?: string }
 
-/** Keep integer pixel type readable while compact gateways reflow within the safe viewport. */
+/** Integer pixel scale for the title flow. A step up needs a 480x300 logical screen, room for the large
+ * logo sign above the full window with the version footer clear, so 960x540 stays at 1x like the approved
+ * desktop composition. The frame covers the whole safe viewport: the title frame centres itself in it and
+ * keeps the logo and window at one size per viewport class across every title state. */
 export function gameGatewayLayout(width: number, height: number, maximumScale = 2) {
-  const scale = Math.max(1, Math.min(maximumScale, Math.floor(Math.min(width / 480, height / 270))));
+  const scale = Math.max(1, Math.min(maximumScale, Math.floor(Math.min(width / 480, height / 300))));
   const logicalWidth = Math.max(1, Math.floor(width / scale)), logicalHeight = Math.max(1, Math.floor(height / scale));
-  const frameWidth = Math.max(0, Math.min(480, logicalWidth - 8)), frameHeight = Math.max(0, Math.min(300, logicalHeight - 8));
-  return { scale, width: logicalWidth, height: logicalHeight, frame: {
-    x: Math.floor((logicalWidth - frameWidth) / 2), y: Math.floor((logicalHeight - frameHeight) / 2), width: frameWidth, height: frameHeight,
-  } };
+  return { scale, width: logicalWidth, height: logicalHeight, frame: { x: 0, y: 0, width: logicalWidth, height: logicalHeight } };
 }
 
 function place(root: UiRoot, view: UiElement, frame: UiRect, width: number, height: number): void {
@@ -70,7 +72,7 @@ export class GameGateway {
   constructor(art: UiKitArt, private readonly commands: GameGatewayCommands, private readonly decoration: GameGatewayArt = {}) {
     this.root = new UiRoot({ art, scale: 1, label: 'Account gateway' });
     this.view = uiGateway({ model: { localPreview: false, signedIn: false, profiles: [], selected: 0, message: '', busy: true },
-      emblem: decoration.emblem, preserveNameOnNavigate: true,
+      emblem: decoration.emblem, cask: decoration.cask, preserveNameOnNavigate: true,
       onAction: (action, name) => { if (this.active) commands.onAction(action, name); },
       onSelectProfile: index => { if (this.active) commands.onSelectProfile(index); },
       onNameChange: name => { if (this.active) commands.onNameChange?.(name); },
@@ -132,8 +134,9 @@ export class GameGateway {
       }
     }
     if (event.key === 'Enter') {
-      // A focused action button owns Enter (e.g. Recover); an editor or unfocused canvas owns submit.
-      if (this.root.focus.current?.kind === 'button' && !this.root.focus.current.id.startsWith('gateway.profile.')) return false;
+      // A focused action button or link owns Enter (e.g. Recover); an editor or unfocused canvas owns submit.
+      const focused = this.root.focus.current;
+      if ((focused?.kind === 'button' || focused?.kind === 'link') && !focused.id.startsWith('gateway.profile.')) return false;
       this.view.submit(); return true;
     }
     return false;

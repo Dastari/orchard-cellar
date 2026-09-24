@@ -25,13 +25,16 @@ export interface OnlinePlayerManagementRequest {
 export interface GameOnlinePlayersCommands {
   readonly onManage: (request: OnlinePlayerManagementRequest) => void;
   readonly onClose: () => void;
+  /** Opens a whisper to that player's name; rows offer it only when supplied and never for yourself. */
+  readonly onWhisper?: (displayName: string) => void;
 }
 
 /** Roster composition only. Membership authority, role cycling, transport and
  * error/rejection reporting remain in the game's existing command boundary. */
 export class GameOnlinePlayers {
   readonly root: UiRoot;
-  private readonly view: UiElement;
+  private readonly view: ReturnType<typeof uiOnlinePlayers>;
+  private readonly stage: UiElement;
   private model: GameOnlinePlayersModel | null = null;
   private commandKey = '';
   private closed = false;
@@ -40,10 +43,13 @@ export class GameOnlinePlayers {
     this.root = new UiRoot({ art, scale: 1, label: 'Online players' });
     this.view = uiOnlinePlayers({ id: 'game.online-players', players: [], removeActionLabel: 'Remove and kick', onClose: () => this.close(),
       onCycleRole: id => this.manage(id, 'cycle'), onRemove: id => this.manage(id, 'remove'),
+      onWhisper: commands.onWhisper ? id => this.whisper(id) : undefined,
       layout: { zLayer: 'modal', visible: false },
     });
+    // The window fits its rows and centres inside the host-supplied bounds, which cap it.
+    this.stage = new UiElement({ id: 'game.online-players.stage', style: { display: 'flex', justify: 'center', align: 'center', position: 'absolute' }, children: [this.view] });
     this.root.mount(new UiElement({ id: 'game.online-players.host', style: { display: 'stack', width: 'grow', height: 'grow' },
-      children: [this.view], onKeyCapture: event => this.key(event) }));
+      children: [this.stage], onKeyCapture: event => this.key(event) }));
   }
   get active(): boolean { return !this.disposed && this.model?.visible === true && !this.closed; }
   update(model: GameOnlinePlayersModel | null): void {
@@ -59,13 +65,14 @@ export class GameOnlinePlayers {
       reset(this.view);
     }
     this.model = model;
+    // Closed intervals stay closed until the controlled host becomes active again.
     this.view.setStyle({ visible: this.active });
-    // uiFrame hides its own chrome on the close button; restore it only when
-    // the controlled host becomes active again. Closed intervals stay closed.
-    if (this.active) this.view.children[0]?.setStyle({ visible: true });
     if (model) this.view.setProps({ players: model.players.map(player => ({ id: player.identityHex,
       label: `${player.displayName}${player.self ? '  (YOU)' : ''}${player.idleMinutes === null ? '' : `  (idle ${player.idleMinutes} min)`}${player.homesteadRole === null ? '' : `  [${player.homesteadRole.toUpperCase()}]`}`,
-      idle: player.idleMinutes !== null, manageable: this.manageable(player),
+      name: player.displayName, self: this.isSelf(player),
+      caption: this.isSelf(player) ? 'You' : player.homesteadRole === null ? '' : player.homesteadRole[0]!.toUpperCase() + player.homesteadRole.slice(1),
+      status: player.idleMinutes === null ? '' : `Idle ${player.idleMinutes} min`,
+      idle: player.idleMinutes !== null, manageable: this.manageable(player), whisper: !this.isSelf(player) && player.identityHex !== '',
     })) });
     this.root.arrange();
   }
@@ -73,8 +80,11 @@ export class GameOnlinePlayers {
     const changed = this.view.rect.x !== frame.x || this.view.rect.y !== frame.y
       || this.view.rect.width !== frame.width || this.view.rect.height !== frame.height;
     this.root.resize(viewportWidth, viewportHeight);
-    this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) },
+    this.stage.setStyle({ inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) },
       width: uiFixed(Math.max(0, frame.width)), height: uiFixed(Math.max(0, frame.height)) });
+    this.view.setStyle({ maxWidth: uiFixed(Math.max(0, frame.width)), maxHeight: uiFixed(Math.max(0, frame.height)) });
+    // The rows scroll inside the window; the chrome (ribbon, padding) keeps the rest of the bounds.
+    this.view.setListMaxHeight(Math.max(18, frame.height - 56));
     this.root.arrange();
     if (changed) this.revealFocused();
   }
@@ -90,6 +100,14 @@ export class GameOnlinePlayers {
       rect = { ...rect, y: rect.y - (parent.scroll.y - old) };
     }
     this.root.arrange();
+  }
+  private isSelf(player: GameOnlinePlayer): boolean {
+    return player.self || (this.model?.identityHex != null && player.identityHex === this.model.identityHex);
+  }
+  private whisper(identityHex: string): void {
+    const player = this.model?.players.find(candidate => candidate.identityHex === identityHex);
+    if (!this.active || !player || this.isSelf(player)) return;
+    this.commands.onWhisper?.(player.displayName);
   }
   private manageable(player: GameOnlinePlayer): boolean {
     return this.active && this.model?.canManage === true && this.model.identityHex !== null
@@ -108,6 +126,8 @@ export class GameOnlinePlayers {
     if (!this.active) return false;
     if (event.repeat && ['Enter', ' ', 'Escape'].includes(event.key)) return true;
     if (event.ctrlKey || event.metaKey || event.altKey) return false;
+    // Escape closes the roster even while a row's tooltip is showing.
+    if (event.key === 'Escape') { this.close(); return true; }
     const list = this.root.entries().find(entry => entry.element.id === 'game.online-players:list')?.element;
     if (list && (event.key === 'PageDown' || event.key === 'PageUp')) {
       scrollUiElement(list, list.scroll.x, list.scroll.y + (event.key === 'PageDown' ? 1 : -1) * list.contentRect.height); return true;

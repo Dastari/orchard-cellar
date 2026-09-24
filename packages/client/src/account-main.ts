@@ -50,10 +50,10 @@ void audio.unlock().catch(() => undefined);
 setLoadingScreenStage({
   title: 'OPENING THE ORCHARD', detail: 'LAYING OUT THE ACCOUNT DESK', progress: 55,
 });
-const [kitArt, orchardEmblem] = await Promise.all([
-  loadUiKitArt(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
+const [kitArt, orchardEmblem, cellarCask] = await Promise.all([
+  loadUiKitArt(), loadGeneratedAsset('icon_resource_fruit', 'summer'), loadGeneratedAsset('prop_cf_barrel', 'summer').catch(() => undefined),
 ]);
-upgradeLoadingScreen(kitArt, orchardEmblem);
+upgradeLoadingScreen(kitArt, orchardEmblem, cellarCask);
 const clientVersion = import.meta.env.VITE_CLIENT_VERSION;
 
 let authSession: OidcSession | null = null;
@@ -103,7 +103,7 @@ const gateway = new GameGateway(kitArt, {
   onSelectProfile(index) { if (profiles.names[index] !== undefined) { selected = index; updateGateway(); } },
   onNameChange(name) { message = validLocalProfileName(name.trim()) ? 'PRESS ENTER TO CREATE OR CONTINUE' : 'TYPE A NEW FARMER NAME'; },
   onDismissName() { message = 'CHOOSE A FARMER OR TYPE A NEW NAME'; },
-}, { emblem: orchardEmblem, version: clientVersion });
+}, { emblem: orchardEmblem, cask: cellarCask, version: clientVersion });
 const runtime = new GameUiRuntime();
 runtime.register({ id: 'gateway', root: gateway.root, priority: 1, active: () => gateway.active, blocking: () => true });
 const text = new UiTextBridge(canvas, () => runtime.focusedElement, event => gateway.root.key(event), element => {
