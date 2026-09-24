@@ -1219,9 +1219,12 @@ export class OverworldUi {
     if (!this.retainedMenus) return null;
     const frame = this.activeContentFrame();
     // Authored placeables enter through the generic content window. Adopt only
-    // the reviewed barrel frame here; processors and stash keep their own path.
-    if (this.openWindowValue === 'content') return frame?.definition.id === 'frame:barrel' ? frame : null;
-    return ['inventory', 'crafting', 'chest', 'barrel'].includes(this.openWindowValue ?? '') ? frame : null;
+    // reviewed frame IDs; stash and other authored content keep their own path.
+    if (this.openWindowValue === 'content') return frame && [
+      'frame:barrel', 'frame:furnace', 'frame:cooking', 'frame:press', 'frame:fermentation',
+    ].includes(frame.definition.id) ? frame : null;
+    return ['inventory', 'crafting', 'chest', 'barrel', 'furnace', 'cooking', 'press', 'fermentation']
+      .includes(this.openWindowValue ?? '') ? frame : null;
   }
 
   /** Complete authored bindings, independent of filter, clipping and scrolling. */
@@ -1255,7 +1258,7 @@ export class OverworldUi {
     this.retainedMenus.update({ width: this.model.width, height: this.model.height, definition: frame.definition,
       aliases: { backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting',
         entity: frame.definition.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable' },
-      registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming,
+      registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
       backpackCapacity: this.model.backpackSlotCapacity ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
       ...(this.openWindowValue === 'crafting' ? { crafting: {

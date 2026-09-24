@@ -178,7 +178,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // cover cursor custody, restrictions, touch/focus and reconnect; other seams remain unchanged.
 // Trade adoption retires the old drawing/native input paths; two-identity reducer,
 // revision, money and reconnect tests cover the replacement wrapper.
-const STRUCTURAL_SEAM_DIGEST = '793898eeb55189927394666263b3a42b29caf0fca9aa1f25dad01f4943a30581';
+// Processor adoption extends only reviewed frame routes and forwards authoritative
+// process progress; actual frame/slot/timing/command regressions cover the seam.
+const STRUCTURAL_SEAM_DIGEST = '0ab4dd1d6867e43d8d4fcd7b0a6a2bf572aa72a9df0fbd33e5f5d3ca4831de36';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

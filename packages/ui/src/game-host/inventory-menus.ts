@@ -20,6 +20,7 @@ export interface InventoryMenuSnapshot {
   readonly registry: Pick<FrameRestrictionRegistry, 'items' | 'processes'>;
   readonly state: Readonly<Record<string, boolean | number | string>>;
   readonly timing?: TimingProjection;
+  readonly progress?: number;
   readonly crafting?: UiCraftingSnapshot;
   readonly backpackCapacity: number;
   readonly filter: string;
@@ -150,10 +151,11 @@ export class InventoryMenus {
     const options = {
       definition: snapshot.definition, aliases: snapshot.aliases, registry: snapshot.registry,
       controller: this.controller, artwork: snapshot.artwork, state: snapshot.state, timing: snapshot.timing,
+      progress: () => this.snapshot?.progress ?? 0,
       iconAnimation: (item: ItemStack) => this.authority.iconAnimation(item),
       inventoryControls: { backpack: controls('backpack', !chest),
         ...(chest ? { chest: controls('chest', true) } : {}),
-        ...(snapshot.aliases.entity === 'placeable' ? { placeable: { onSort: () => this.authority.sort('placeable'),
+        ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),
           showFilter: false, sortEnabled: () => this.authority.cursor === null } } : {}),
       },
       onInvoke: (id: string) => this.authority.invoke(id), onClose: () => this.authority.close(),
