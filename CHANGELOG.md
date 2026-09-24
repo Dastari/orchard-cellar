@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.30.0 / UI 0.32.0 — Shared character and lifetime records (not yet deployed)
+
+- Adopt the shared character and statistics windows with real appearance, equipment, authored attributes and bigint lifetime records. Preserve navigation, focus and responsive scrolling through the central input runtime.
+- Fix BUG-022: follow authoritative appearance changes and roll rejected current previews back without allowing stale completions to overwrite newer intent. Keep equipment read-only and draw authoritative durability once.
+- Retire legacy character/statistics drawing and pointer paths together. Workspace0.36.0.
+
 ## Client 0.29.0 / UI 0.31.0 — Shared game settings and developer menus (not yet deployed)
 
 - Mount the shared game menu, all six settings pages, and current world/render developer controls through the central canvas input runtime.

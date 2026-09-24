@@ -69,3 +69,12 @@ describe('overworld UI compositing order', () => {
     expect(roster).toContain('`ONLINE PLAYERS  ${players.length}`');
   });
 });
+
+it('routes both adopted character roots through every central uncaptured input entry', () => {
+  for (const host of ['character-character', 'character-statistics']) {
+    expect(main).toContain(`retainedUi.key(event, '${host}')`);
+    expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
+    expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);
+    expect(main).toContain(`retainedUi.wheel(retainedWheel, '${host}')`);
+  }
+});

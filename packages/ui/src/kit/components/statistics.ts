@@ -6,7 +6,7 @@ import { uiFlex } from './layout.js';
 import { uiButton } from './button.js';
 import { uiText } from './text.js';
 import { uiTable, type UiTableState } from './collections.js';
-export interface UiStatisticsOptions { readonly model: StatisticsScreenModel; readonly onClose?: () => void; readonly onNavigate?: (page: 'character'|'skills'|'statistics') => void; readonly layout?: UiStyle }
+export interface UiStatisticsOptions { readonly onKey?: (key: string, repeat: boolean) => boolean; readonly model: StatisticsScreenModel; readonly onClose?: () => void; readonly onNavigate?: (page: 'character'|'skills'|'statistics') => void; readonly layout?: UiStyle }
 export interface UiStatisticsElement extends UiElement { updateStatistics(model: StatisticsScreenModel): void; focusStatistics(): void }
 export function uiStatistics(options: UiStatisticsOptions): UiStatisticsElement {
   let state: UiTableState | undefined, key = '', model = options.model;
@@ -20,7 +20,7 @@ export function uiStatistics(options: UiStatisticsOptions): UiStatisticsElement 
     ] });
   const frame = new UiElement({ id: 'game.statistics.host', kind: 'statistics-screen', children: [base],
     style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' }, props: { touchScroll: true, singlePointer: true },
-    onKeyCapture(event) { if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; } });
+    onKeyCapture(event) { if (options.onKey?.(event.key, event.repeat === true)) return true; if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; } });
   const descendants = (node: UiElement): UiElement[] => node.children.flatMap(child => [child, ...descendants(child)]);
   const updateStatistics = (nextModel: StatisticsScreenModel): void => {
     model = nextModel;
