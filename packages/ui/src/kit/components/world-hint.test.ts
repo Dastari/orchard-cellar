@@ -14,7 +14,7 @@ describe('world hover hint', () => {
   });
   it.each([120, 240, 640])('wraps information inside the viewport at width %i', width => {
     const root = new UiRoot({ scale: 1 }); root.resize(width, 300); root.mount(uiWorldHint({ hint: { ...hint, x: width, y: 2 } })); root.arrange();
-    const frame = root.entries().find(entry => entry.element.kind === 'frame')!.element;
+    const frame = root.entries().find(entry => entry.element.kind === 'world-hover')!.element;
     expect(frame.rect).toEqual(frame.clip);
     const texts = root.entries().filter(entry => entry.element.kind === 'text');
     expect(texts.map(entry => entry.element.label)).toEqual([hint.title, ...hint.lines]);

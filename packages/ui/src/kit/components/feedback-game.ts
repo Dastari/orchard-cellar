@@ -10,7 +10,7 @@ import { uiInput } from './input.js';
 import type { CanvasTextEditor } from '../runtime/text-editor.js';
 
 /** Everything that floats over the world shares the dark Gear-D4 frame and its tested inks. */
-const dark = (element: UiElement, context: CanvasRenderingContext2D, art: Parameters<NonNullable<UiElement['hooks']['paint']>>[1]['art'], frame = 'tooltip_dark.neutral') => {
+export const paintUiDarkFrame = (element: UiElement, context: CanvasRenderingContext2D, art: Parameters<NonNullable<UiElement['hooks']['paint']>>[1]['art'], frame = 'tooltip_dark.neutral') => {
   if (art) paintUiSkin(context, art.skin.frame, frame, element.rect);
 };
 const inked = (text: string, ink: string, layout?: UiStyle) => { const node = uiText(text, { wrap: true, layout }); node.setProps({ ink }); return node; };
@@ -22,7 +22,7 @@ export function uiNotice(options: { readonly text: string; readonly kind?: UiNot
   const glyph = kind === 'error' ? 'glyph.cross.red' : kind === 'success' ? 'glyph.check' : 'notice.info';
   return new UiElement({ kind: 'notice', label: options.text, props: { itemInks: true }, style: { display: 'flex', direction: 'row', gap: 4, align: 'center', padding: { left: 4, right: 8, top: 2, bottom: 4 }, shrink: 0 },
     children: [new UiElement({ kind: 'glyph', style: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.icon, glyph, element.rect); } }), inked(options.text, ink)],
-    paint(element, { context, art }) { dark(element, context, art, kind === 'error' ? 'tooltip_dark.poor' : kind === 'success' ? 'tooltip_dark.uncommon' : 'tooltip_dark.neutral'); } });
+    paint(element, { context, art }) { paintUiDarkFrame(element, context, art, kind === 'error' ? 'tooltip_dark.poor' : kind === 'success' ? 'tooltip_dark.uncommon' : 'tooltip_dark.neutral'); } });
 }
 
 /** A lasting announcement (skill point, level up): gold title, detail, an action and a dismiss cross. */
@@ -37,15 +37,15 @@ export function uiToastCard(options: { readonly title: string; readonly detail?:
     children: [
       ...(options.icon ? [new UiElement({ kind: 'glyph', style: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.icon, options.icon!, element.rect); } })] : []),
       text, ...(options.onDismiss ? [uiGlyphButton({ glyph: 'glyph.cross.light', chrome: 'none', label: 'Dismiss', onPress: options.onDismiss })] : [])],
-    paint(element, { context, art }) { dark(element, context, art, 'tooltip_dark.legendary'); } });
+    paint(element, { context, art }) { paintUiDarkFrame(element, context, art, 'tooltip_dark.legendary'); } });
 }
 
 export type UiNameplateKind = 'self' | 'player' | 'friend' | 'npc' | 'offline';
 const PLATE_INKS: Readonly<Record<UiNameplateKind, string>> = { self: UI_ITEM_INKS.body, player: UI_ITEM_INKS.body, friend: UI_ITEM_INKS.equip, npc: UI_ITEM_INKS.flavour, offline: UI_ITEM_INKS.muted };
 /** A slim dark plate over a character's head; NPCs in gold, friends in green, offline in grey. */
-export function uiNameplate(options: { readonly name: string; readonly kind?: UiNameplateKind; readonly detail?: string }): UiElement {
+export function uiNameplate(options: { readonly id?: string; readonly name: string; readonly kind?: UiNameplateKind; readonly detail?: string }): UiElement {
   const kind = options.kind ?? 'player';
-  return new UiElement({ kind: 'nameplate', label: options.name, style: { height: uiFixed(options.detail ? 22 : 13), shrink: 0 },
+  return new UiElement({ id: options.id, kind: 'nameplate', label: options.name, style: { height: uiFixed(options.detail ? 22 : 13), shrink: 0 },
     measure() { const width = Math.max(options.name.length, options.detail?.length ?? 0) * 6 + 7; return { min: { width, height: 13 }, preferred: { width, height: options.detail ? 22 : 13 } }; },
     paint(element, { context, art }) {
       if (!art) return; const r = element.rect;
@@ -63,7 +63,7 @@ export function uiWorldHover(options: { readonly title: string; readonly lines: 
     children: [inked(options.title, UI_ITEM_INKS.flavour), ...options.lines.map(line => inked(line, UI_ITEM_INKS.body)),
       ...(options.progress !== undefined ? [new UiElement({ kind: 'meter', label: 'Progress', style: { height: uiFixed(4), alignSelf: 'stretch' },
         paint(element, { context }) { const r = element.rect; context.fillStyle = '#3a3150'; context.fillRect(r.x, r.y, r.width, r.height); context.fillStyle = '#63c74d'; context.fillRect(r.x, r.y, Math.round(r.width * options.progress!), r.height); } })] : [])],
-    paint(element, { context, art }) { dark(element, context, art); } });
+    paint(element, { context, art }) { paintUiDarkFrame(element, context, art); } });
 }
 
 export interface UiChatLine { readonly channel: 'general' | 'trade' | 'party' | 'private' | 'system'; readonly author?: string; readonly text: string }
@@ -85,5 +85,5 @@ export function uiChatPanel(options: { readonly lines: readonly UiChatLine[]; re
   const input = options.open ? uiInput({ id: 'chat.input', label: 'Chat message', placeholder: `Say to ${options.channel ?? 'General'}`, editor: options.editor, size: 'md', onSubmit: options.onSubmit }) : null;
   return new UiElement({ id: 'chat', kind: 'chat', label: 'Chat', props: { itemInks: true }, style: { display: 'flex', direction: 'column', gap: 4, padding: 6, width: uiFixed(width), shrink: 0 },
     children: [log, ...(input ? [input] : [])],
-    paint(element, { context, art }) { if (!options.open) return; context.save(); context.globalAlpha *= .88; dark(element, context, art); context.restore(); } });
+    paint(element, { context, art }) { if (!options.open) return; context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); } });
 }

@@ -54,8 +54,8 @@ describe('production feedback compositions', () => {
   it('paints quest indicators behind a hover hint but damage above it, with speech last', async () => {
     const f = await fixture(), m = model();
     f.host.update({ ...m, world: { ...m.world, nameplates: [], fishing: null,
-      feedback: [{ ...m.world.feedback[0]!, x: 100, y: 40 }, { ...m.world.feedback[1]!, x: 100, y: 45 }],
-      hint: { x: 100, y: 100, title: 'APPLE TREE', lines: ['NEEDS WATER'], tone: 'neutral' },
+      feedback: [{ ...m.world.feedback[0]!, x: 100, y: 88 }, { ...m.world.feedback[1]!, x: 100, y: 45 }],
+      hint: { x: 100, y: 100, title: 'APPLE TREE', lines: ['NEEDS WATER BEFORE IT FRUITS'], tone: 'neutral' },
       speech: [{ id: 'speech', x: 270, y: 170, kind: 'say', text: 'Hello' }],
     } });
     const root = f.host.roots.world, paints: string[] = [];
@@ -67,9 +67,10 @@ describe('production feedback compositions', () => {
       vi.spyOn(node.hooks, 'paint').mockImplementation((...args) => { paints.push(name); paint(...args); });
     }
     const damage = target('world-feedback:damage');
-    expect(damage.rect.x).toBeGreaterThanOrEqual(hint.rect.x);
-    expect(damage.rect.y).toBeGreaterThanOrEqual(hint.rect.y);
-    expect(damage.rect.y + damage.rect.height).toBeLessThanOrEqual(hint.rect.y + hint.rect.height);
+    // The damage number's centre lies over the hover card, so paint order decides what shows.
+    const centre = { x: damage.rect.x + damage.rect.width / 2, y: damage.rect.y + damage.rect.height / 2 };
+    expect(centre.x).toBeGreaterThanOrEqual(hint.rect.x); expect(centre.x).toBeLessThanOrEqual(hint.rect.x + hint.rect.width);
+    expect(centre.y).toBeGreaterThanOrEqual(hint.rect.y); expect(centre.y).toBeLessThanOrEqual(hint.rect.y + hint.rect.height);
     const canvas = createCanvas(320,180), context = canvas.getContext('2d');
     root.drawInContext(context as unknown as CanvasRenderingContext2D, 500);
     expect(paints).toEqual(['quest', 'hint', 'damage', 'speech']);
