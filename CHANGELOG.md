@@ -32,6 +32,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 
 - Version mutable atlas index requests by client build so returning players controlled by an older service worker load matching index/category metadata after deployment. Keep existing revision checks and immutable asset caching.
 
+### Studio 0.14.2 — lamp presentation fix (not yet deployed)
+
+- Draw a materialized town lamp once in Studio using its authoritative live state at the authored draft position. Preserve both records and use the verified published map binding for draft moves, picking and fallback behavior.
+- Regression and local visual evidence: [BUG-010](https://wiki.orchard.dastari.net/Bugs/BUG-010%20Studio%20draws%20both%20copies%20of%20a%20streetlamp).
+
 ## 0.27.2 — 2026-09-23 — integrated runtime release
 
 ### Published and verified

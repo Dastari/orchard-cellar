@@ -1,6 +1,7 @@
 import { MAP_SPATIAL_COLOURS } from './spatial-colours.js';
 import {mapEditorObjectOccupiedCells} from './connected-object-footprint.js';
-import {classifyLiveOwnership,mapStreetlampLiveBindings,type MapEditorLiveOwnership} from './live-ownership.js';
+import {classifyLiveOwnership,type MapEditorLiveOwnership} from './live-ownership.js';
+import { resolveMapLampPresentation } from './lamp-presentation.js';
 import {mapMaterialChoices} from './material-palette.js';
 import { exactTilePaletteChoices } from './exact-tile-palette.js';
 import {
@@ -503,6 +504,7 @@ export function pickTopmostVisibleMapEntity(
   isLayerVisible: (layer: MapContentLayerId) => boolean,
   tileX: number,
   tileY: number,
+  publishedDocument: MapDocumentV3 | null = null,
 ): MapEditorVisibleEntityPick | null {
   let selected: RankedVisibleEntityPick | null = null;
   const consider = (
@@ -545,14 +547,8 @@ export function pickTopmostVisibleMapEntity(
     landmarkOffset + index);
   });
   const liveOffset = landmarkOffset + document.landmarks.length;
-  const authoredBindings = mapStreetlampLiveBindings(document);
-  liveMarkers.forEach((marker, index) => {
-    // One logical object: when the live row is materialized from a visible,
-    // enabled authored object, the authored copy is the editable one.
-    const boundObjectId = marker.mapMaterialized === true ? authoredBindings.get(marker.id) : undefined;
-    const bound = boundObjectId === undefined ? undefined
-      : document.objects.find((object) => object.id === boundObjectId && object.enabled);
-    if (bound !== undefined && isLayerVisible(bound.layer)) return;
+  const presentation = resolveMapLampPresentation(document, publishedDocument, liveMarkers);
+  presentation.liveMarkers.forEach((marker, index) => {
     if (!homesteadBuildFootprintTiles({ footprint: marker.footprint }, marker.tileX, marker.tileY)
       .some((cell) => cell.tileX === tileX && cell.tileY === tileY)) return;
     consider({
@@ -803,7 +799,10 @@ export class MapEditorController {
     model.setLiveObjectOccupancy(object=>{
       if(!object.enabled||mapObjectIsGroundDecal(model.document(),object))return false;
       const cells=mapEditorObjectOccupiedCells(model.document(),object);
-      return this.liveMarkers().some(marker=>marker.spaceId===0&&marker.layer===object.layer
+      const draft = model.document();
+      const candidate = { ...draft, objects: draft.objects.map(current => current.id === object.id ? object : current) };
+      const live = resolveMapLampPresentation(candidate, model.publishedDocument(), this.liveMarkers()).liveMarkers;
+      return live.some(marker=>marker.spaceId===0&&marker.layer===object.layer
         &&!['player','npc'].includes(marker.entityKind)&&!model.document().generatedSuppressions.includes(`${marker.entityKind}-${marker.id}`)
         &&cells.some(cell=>cell.tileX>=marker.tileX-Math.floor((marker.footprint.width-1)/2)
           &&cell.tileX<marker.tileX-Math.floor((marker.footprint.width-1)/2)+marker.footprint.width
@@ -2157,6 +2156,7 @@ export class MapEditorController {
       (layer) => this.model.isLayerRendered(layer),
       tileX,
       tileY,
+      this.model.publishedDocument(),
     );
     if (selected !== null) {
       this.model.selectWorkspace('objects');
