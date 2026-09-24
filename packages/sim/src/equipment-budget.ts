@@ -87,6 +87,20 @@ export function equipmentModifierAllowed(modifier: Modifier): boolean {
     && modifier.value >= rule.minimum && modifier.value <= rule.maximum;
 }
 
+/** Authored whole-item check used by content validation: an item's modifiers,
+ * summed per (target, layer), must stay within the per-item range. Without it,
+ * several same-stat modifiers could each pass `equipmentModifierAllowed` and
+ * together exceed the per-item cap. Returns the rules the item breaks. */
+export function equipmentItemBudgetViolations(modifiers: readonly Modifier[]): readonly EquipmentStatBudget[] {
+  const sums = new Map<EquipmentStatBudget, number>();
+  for (const modifier of modifiers) {
+    if (!equipmentModifierAllowed(modifier)) continue;
+    const rule = equipmentStatBudget(modifier.target, modifier.layer)!;
+    sums.set(rule, (sums.get(rule) ?? 0) + modifier.value);
+  }
+  return [...sums].filter(([rule, value]) => value < rule.minimum || value > rule.maximum).map(([rule]) => rule);
+}
+
 export function cappedEquipmentModifiers(modifiers: readonly Modifier[]): readonly Modifier[] {
   const sums = new Map<EquipmentStatBudget,number>();
   for (const modifier of modifiers) {

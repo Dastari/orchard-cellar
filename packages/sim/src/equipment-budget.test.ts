@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cappedEquipmentModifiers, EQUIPMENT_STAT_BUDGETS, equipmentModifierAllowed } from './equipment-budget.js';
+import { cappedEquipmentModifiers, EQUIPMENT_STAT_BUDGETS, equipmentItemBudgetViolations, equipmentModifierAllowed } from './equipment-budget.js';
 import { resolveModifierTarget, type Modifier } from './modifiers.js';
 const mod = (target:Modifier['target'],value:number,layer:Modifier['layer']='pctAdd'):Modifier=>({id:`test.${target}`,target,value,layer,source:'equipment'});
 describe('equipment-only stat budgets',()=>{
@@ -106,5 +106,14 @@ describe('equipment-only stat budgets',()=>{
     ]);
     // Flat applies before pctAdd: (10000 + 30000) * 1.2.
     expect(resolveModifierTarget('maxHealth',10000,equipment)).toBe(48000);
+  });
+  it('sums one item\'s same-stat modifiers against the per-item cap', () => {
+    const str = (id: string, value: number): Modifier => ({ id, target: 'str', value, layer: 'flat', source: 'equipment' });
+    expect(equipmentItemBudgetViolations([str('a', 8)])).toEqual([]);
+    expect(equipmentItemBudgetViolations([str('a', 8), str('b', 8), str('c', 8)]).map(rule => rule.key)).toEqual(['str']);
+    expect(equipmentItemBudgetViolations([str('a', 4), str('b', 4)])).toEqual([]);
+    // Pre-Gear-D3 shared rules keep one range, so existing items are unaffected.
+    expect(equipmentItemBudgetViolations([mod('attackPower', 1500), mod('attackPower', 1500)])).toEqual([]);
+    expect(equipmentItemBudgetViolations([mod('attackPower', 2000), mod('attackPower', 2000)]).map(rule => rule.key)).toEqual(['attackPower']);
   });
 });

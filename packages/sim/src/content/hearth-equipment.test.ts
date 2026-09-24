@@ -112,5 +112,10 @@ describe('Hearth fixed equipment content', () => {
       code: 'invalid_component_set', message: expect.stringContaining('gear_str'),
     })]);
     expect(withModifiers([bonus('gear_int', 'int', 5, 'pctMult')])).toHaveLength(1);
+    // Regression (ScarletAnchor, PR #136 review): repeated same-stat modifiers are
+    // summed per item, so three +8 STR lines cannot reach +24 on one item.
+    expect(withModifiers([bonus('gear_str_a', 'str', 8), bonus('gear_str_b', 'str', 8), bonus('gear_str_c', 'str', 8)]))
+      .toEqual([expect.objectContaining({ code: 'invalid_component_set', message: expect.stringContaining('str exceed the per-item budget') })]);
+    expect(withModifiers([bonus('gear_str_a', 'str', 4), bonus('gear_str_b', 'str', 4)])).toEqual([]);
   });
 });
