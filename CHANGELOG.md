@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.40.4 / UI 0.42.1 / Studio 0.15.4 / World 0.26.0 — Gear stat budgets and per-item gear foundation
+
+- Equipment may grant the six attributes, maximum mana, health/mana/vigour regeneration and flat Health (Gear-D3, PR #136). Each rule is keyed by stat and layer with a per-item cap (content validation, which also sums an item's same-stat modifiers) and a separate loadout cap; the ten pre-existing rules keep one shared range and behave exactly as before. Placeholder caps await the owner's balance pass. Equipment tooltips show attribute points, regeneration per second and flat Health in their own units.
+- Add the per-copy `ItemGear` record, deterministic item-level effect derivation, naming and sell value, and a `gear` content kind (Gear-D1/D2, PR #139). The rollout is reader-first: the committed pack carries no gear rows (`gear.json` is `[]`), so content, payload and older readers are unchanged; the 145-row catalogue is a test fixture. Instanced gear stacks never merge or split. No stored schema, grants or gear gameplay are activated.
+- Workspace 0.48.0, Sim 0.27.0, Tools 0.23.1 and Assets 0.21.1 reconcile the combined source. Content R18 and stored schemas are unchanged; the world module is rebuilt with the new sim.
+
 ## Client 0.40.3 / UI 0.42.0 / Studio 0.15.3 — Reviewed rendering and UI foundations
 
 - Render actor shadows at native pixel resolution with prepared sun-angle fades. Preserve receiver lighting, contact shadows and existing Canvas/WebGL boundaries.
