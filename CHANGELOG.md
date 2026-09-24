@@ -2,6 +2,14 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.24.0 / UI 0.26.0 — Shared inventory and storage windows (not yet deployed)
+
+- Bind inventory, crafting, chest and barrel windows to the shared kit compositions while retaining the existing inventory authority, cursor prediction and command transport.
+- Keep the crafting grid at 3×3, chest at 16 slots and barrel at 8. Search never renumbers slots; shared chest filtering, cursor-aware sort, restrictions and authoritative timing remain intact.
+- Resolve touch scrolling before pickup, preserve one pointer owner across slots and background, and retain filter Escape/Enter behavior through resize and reconnect.
+- Keep roster controls responsive above inventory and suppress repeated activation keys without affecting text editing.
+- Workspace 0.30.0. Six of 33 surfaces are wired in the combined source; final checks and live acceptance remain pending in the [release ledger](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24).
+
 ## Client 0.23.0 / UI 0.25.0 — Retained name gate and quest tracker (not yet deployed)
 
 - Use the shared kit's character-name gate and quest tracker in the game with real naming and pinned-quest models. Keep pending/error handling, required naming, focus, tracker collapse and saved position across resizing.

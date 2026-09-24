@@ -154,6 +154,11 @@ export class GameUiRuntime {
     host.root.arrange();
     // An empty passive root must not consume the game's Tab roster shortcut.
     if (!host.blocking() && !host.root.entries().some(({ element }) => element.focusable && element.visible && !element.disabled)) return false;
+    // A held activation key is one gesture. Text editors retain native repeat
+    // (spaces, deletion and navigation); their submission policy belongs to the host.
+    const focused = host.root.focus.current;
+    if (event.repeat && focused && !focused.props['editor']
+      && ['Enter', ' ', 'ContextMenu'].includes(event.key)) return true;
     return host.root.key(event) || host.blocking();
   }
 

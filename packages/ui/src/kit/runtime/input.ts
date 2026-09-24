@@ -10,6 +10,8 @@ export class UiInput {
   private hoverKey: string | null = null;
   private hoverSince = 0;
   private captured = new Map<number, UiElement>();
+  private pointerOwner: { scope: UiElement; pointerId: number } | null = null;
+  private touchScrolls = new Map<number, { node: UiElement; start: UiPoint; y: number; offset: number; scrolling: boolean }>();
   private thumbDrag: { pointer: number; node: UiElement; axis: 'x' | 'y'; start: number; offset: number; travel: number } | null = null;
   constructor(private readonly entries: () => readonly UiPaintEntry[], readonly focus: UiFocus,
     private readonly invalidate: () => void) {}
@@ -27,6 +29,17 @@ export class UiInput {
     return result;
   }
   pointer(event: UiRootPointer): boolean {
+    const modal = uiTopModal(this.entries());
+    const scope = modal?.props['singlePointer'] ? modal : null;
+    if (this.pointerOwner?.scope !== scope) this.pointerOwner = null;
+    if (scope) {
+      // Opted-in game menus arbitrate before focus, observers and scrollbars,
+      // so an extra finger cannot steal a primary inventory or editor gesture.
+      if ((event.pointerType === 'touch' && event.isPrimary === false)
+        || (this.pointerOwner && this.pointerOwner.pointerId !== event.pointerId)) return true;
+      if (event.type === 'down') this.pointerOwner = { scope, pointerId: event.pointerId };
+      if (event.type === 'up' || event.type === 'cancel') this.pointerOwner = null;
+    }
     for (const { element } of this.entries()) element.hooks.onPointerObserved?.(event, element);
     let capture = this.captured.get(event.pointerId);
     if (capture && (event.type === 'down' || !this.allowed(capture))) {
@@ -35,8 +48,34 @@ export class UiInput {
       capture.hooks.onPointer?.({ ...event, type: 'cancel', capture() {}, release() {} }, capture);
       capture = undefined;
     }
+    if (event.type === 'down') this.touchScrolls.delete(event.pointerId);
     if (event.type === 'down') for (const { element } of this.entries()) if (element.hooks.onOutsidePointer && this.allowed(element) && !containsPoint(element.rect, event.point)) element.hooks.onOutsidePointer(element, event.point);
     const hits = this.hits(event.point);
+    const touch = this.touchScrolls.get(event.pointerId);
+    if (touch && event.type !== 'down') {
+      if (event.type === 'cancel' || !this.allowed(touch.node)) {
+        this.touchScrolls.delete(event.pointerId);
+        if (touch.scrolling) { this.captured.delete(event.pointerId); return true; }
+      } else if (event.type === 'move') {
+        const dx = event.point.x - touch.start.x, dy = event.point.y - touch.start.y;
+        if (!touch.scrolling && Math.abs(dx) > Math.abs(dy) && dx * dx + dy * dy >= 9) {
+          this.touchScrolls.delete(event.pointerId);
+        } else {
+          if (!touch.scrolling && Math.abs(dy) >= 4) {
+            touch.scrolling = true;
+            if (capture) capture.hooks.onPointer?.({ ...event, type: 'cancel', capture() {}, release() {} }, capture);
+            this.captured.delete(event.pointerId);
+          }
+          if (touch.scrolling) {
+            scrollUiElement(touch.node, touch.node.scroll.x, touch.offset + touch.y - event.point.y);
+          }
+          return true;
+        }
+      } else if (event.type === 'up') {
+        this.touchScrolls.delete(event.pointerId);
+        if (touch.scrolling) { this.captured.delete(event.pointerId); return true; }
+      }
+    }
     if (event.type === 'down' && event.button === 2) for (const node of hits) if (node.hooks.onContextMenu?.({ ...event, capture() {}, release() {} }, node)) return true;
     if (event.type === 'move' || event.type === 'down') { this.hoverPoint = event.point; this.setHover(hits[0] ?? null); }
     if (event.type === 'down') {
@@ -66,6 +105,16 @@ export class UiInput {
       scrollUiElement(drag.node, drag.axis === 'x' ? offset : drag.node.scroll.x, drag.axis === 'y' ? offset : drag.node.scroll.y);
       if (event.type === 'up' || event.type === 'cancel') { this.thumbDrag = null; this.captured.delete(event.pointerId); }
       return true;
+    }
+    if (event.type === 'down' && event.button === 0 && event.pointerType === 'touch' && event.isPrimary !== false) {
+      // Production menu hosts opt in. Resolve vertical scrolling before a
+      // captured slot receives movement and can dispatch a pickup command.
+      const scroll = hits.find(node => node.scroll.maxY > 0
+        && (node.style.overflow === 'scroll-y' || node.style.overflow === 'scroll')
+        && (() => { for (let parent: UiElement | null = node; parent; parent = parent.parent) if (parent.props['touchScroll']) return true; return false; })());
+      if (scroll) this.touchScrolls.set(event.pointerId, {
+        node: scroll, start: event.point, y: event.point.y, offset: scroll.scroll.y, scrolling: false,
+      });
     }
     let handled = false;
     for (const node of capture ? [capture] : hits) {
@@ -126,5 +175,12 @@ export class UiInput {
   /** Layout and retained-tree replacement can change the hit without a mouse move. */
   reconcileHover(): void { if (this.hoverPoint) this.setHover(this.hits(this.hoverPoint)[0] ?? null); }
   clearHover(): void { this.hoverPoint = null; this.setHover(null); }
-  dispose(): void { this.captured.clear(); this.thumbDrag = null; this.clearHover(); }
+  /** A hidden/replaced host must not retain a physical gesture across reconnect. */
+  cancelPointers(): void {
+    const captures = [...this.captured];
+    this.captured.clear(); this.touchScrolls.clear(); this.thumbDrag = null; this.pointerOwner = null;
+    for (const [pointerId, node] of captures) node.hooks.onPointer?.({ type: 'cancel', pointerId, button: 0,
+      point: this.hoverPoint ?? { x: 0, y: 0 }, capture() {}, release() {} }, node);
+  }
+  dispose(): void { this.cancelPointers(); this.clearHover(); }
 }
