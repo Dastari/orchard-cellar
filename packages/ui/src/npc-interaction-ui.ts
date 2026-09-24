@@ -152,7 +152,7 @@ export class NpcInteractionUi {
     private panel: UiMerchantPanelElement | null = null;
     constructor(art: UiKitArt, private readonly itemArt: OverworldUiItemArt, private readonly callbacks: NpcInteractionCallbacks, private readonly drawPortrait: NpcInteractionPortraitDrawer = () => undefined) {
         this.root = new UiRoot({ art, scale: 1, label: 'NPC interaction' });
-        this.host = new UiElement({ id: 'game.npc.host', focusable: true, props: { touchScroll: true, singlePointer: true, focusChrome: true }, style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal', visible: false }, onKeyCapture: event => this.key(event) });
+        this.host = new UiElement({ id: 'game.npc.host', focusable: true, props: { touchScroll: true, singlePointer: true, focusChrome: true }, style: { display: 'flex', justify: 'center', align: 'center', width: 'grow', height: 'grow', zLayer: 'modal', visible: false }, onKeyCapture: event => this.key(event) });
         this.root.mount(this.host);
     }
     get active(): boolean { return this.model !== null; }
@@ -221,8 +221,6 @@ export class NpcInteractionUi {
             return;
         }
         this.root.resize(model.width, model.height);
-        const width = Math.min(this.shopOpen ? 620 : 500, Math.max(0, model.width - 16)), height = Math.min(420, Math.max(0, model.height - 16));
-        const bounds = { position: 'absolute' as const, inset: { left: uiFixed(Math.round((model.width - width) / 2)), top: uiFixed(Math.round((model.height - height) / 2)) }, width: uiFixed(width), height: uiFixed(height) };
         const frame = npcInteractionFrame(model);
         const panelModel = this.panelModel();
         const key = panelModel ? 'panel' : this.shopOpen ? `merchant:${frame?.style ?? 'tonal'}` : 'dialogue';
@@ -250,7 +248,8 @@ export class NpcInteractionUi {
         this.merchant?.updateMerchant(this.merchantModel());
         if (panelModel)
             this.panel?.updatePanel(panelModel);
-        (this.panel ?? this.merchant ?? this.dialogue)?.setStyle({ ...bounds, visible: true });
+        // Windows fit their content, centred and capped by the viewport.
+        (this.panel ?? this.merchant ?? this.dialogue)?.setStyle({ maxWidth: uiFixed(Math.max(0, model.width - 8)), maxHeight: uiFixed(Math.max(0, model.height - 8)), visible: true });
         this.root.arrange();
         if (focus && (!this.root.focus.current || this.root.focus.current === this.host)) {
             const target = this.root.entries().find(entry => entry.element.id === focus)?.element;
@@ -258,7 +257,9 @@ export class NpcInteractionUi {
         }
     }
     private dialogueModel() { const node = this.node; return { id: `${this.epoch}:${this.model?.nodeId}`, speaker: node?.speaker ?? '', body: node?.body ?? '', choices: this.allDialogueChoices().map(choice => ({ id: choice.id, label: choice.label, tone: choice.tone === 'accept' ? 'success' as const : choice.tone === 'decline' ? 'danger' as const : 'neutral' as const, marker: choice.questMarker === 'offer' ? this.itemArt.quest_offer : choice.questMarker === 'complete' ? this.itemArt.quest_complete : undefined, tooltip: dialogueChoiceRewardTooltip(choice, this.model?.contentRegistry) })) }; }
-    private merchantModel() { const state = this.shopState; return { speaker: this.node?.speaker ?? '', title: npcInteractionFrame(this.model!)?.title, tab: this.tab, rows: this.shopRows().map(row => ({ ...row, quantity: this.cartQuantities().get(row.itemKind) ?? 0 })), balanceBronze: this.model?.balanceBronze ?? 0n, totalBronze: state.totalBronze, pending: state.pending, canCommit: state.canCommit, filter: this.filterText, compact: (this.model?.width ?? 0) < 600, sealsAvailable: this.sealExchangeAvailable(), notice: this.notice }; }
+    /** How many of an item the player carries anywhere, shown as "You have N" on the buy tab. */
+    private ownedCount(itemKind: string): number { return (this.model?.inventory ?? []).reduce((sum, slot) => sum + (slot.itemKind === itemKind ? Math.max(0, slot.quantity) : 0), 0); }
+    private merchantModel() { const state = this.shopState; return { speaker: this.node?.speaker ?? '', title: npcInteractionFrame(this.model!)?.title, tab: this.tab, rows: this.shopRows().map(row => ({ ...row, ownedQuantity: row.ownedQuantity ?? this.ownedCount(row.itemKind), quantity: this.cartQuantities().get(row.itemKind) ?? 0 })), balanceBronze: this.model?.balanceBronze ?? 0n, totalBronze: state.totalBronze, pending: state.pending, canCommit: state.canCommit, filter: this.filterText, compact: (this.model?.width ?? 0) < 600, sealsAvailable: this.sealExchangeAvailable(), notice: this.notice }; }
     private panelModel(): UiMerchantPanelModel | null {
         if (this.sealsOpen) {
             const flow = this.sealFlow, review = flow.review;

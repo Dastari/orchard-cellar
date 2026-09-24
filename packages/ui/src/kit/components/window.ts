@@ -13,6 +13,8 @@ import { uiFlex } from './layout.js';
 export interface UiWindowOptions {
   readonly id?: string; readonly title: string;
   readonly onClose?: () => void; readonly closeLabel?: string;
+  /** A host-built close control (usually uiWindowClose with its own guards) placed where the plaque goes. */
+  readonly closeControl?: UiElement;
   /** Body layout; windows default to a column that fits its children. */
   readonly layout?: UiStyle; readonly children?: readonly UiElement[];
   /** Content below a carved divider, such as the hotbar row. */
@@ -93,12 +95,16 @@ export function uiWindowClose(options: { readonly label?: string; readonly onPre
   });
 }
 
-export function uiWindow(options: UiWindowOptions): UiElement {
+export interface UiWindowElement extends UiElement {
+  /** Retitle the ribbon in place (for example when the speaker changes); it regrows to fit. */
+  setWindowTitle(title: string): void;
+}
+export function uiWindow(options: UiWindowOptions): UiWindowElement {
   const ribbon = uiWindowRibbon(options.title, { id: options.id ? `${options.id}.title` : undefined });
   // Titles always centre on the top board; the ribbon grows with its label.
   const header = uiFlex({ direction: 'row', align: 'center', justify: 'center', height: uiFixed(24),
     position: 'absolute', inset: { left: 24, right: 24, top: 0 } }, [ribbon]);
-  const close = options.onClose ? uiWindowClose({ id: options.id ? `${options.id}.close` : undefined, label: options.closeLabel ?? `Close ${options.title}`, onPress: options.onClose }) : null;
+  const close = options.closeControl ?? (options.onClose ? uiWindowClose({ id: options.id ? `${options.id}.close` : undefined, label: options.closeLabel ?? `Close ${options.title}`, onPress: options.onClose }) : null);
   close?.setStyle({ position: 'absolute', inset: { right: 0, top: 0 } });
   const body = uiFlex({ direction: 'column', gap: 8, ...options.layout }, options.children ?? []);
   // The divider spans the window; the hotbar row centres beneath it.
@@ -106,7 +112,7 @@ export function uiWindow(options: UiWindowOptions): UiElement {
   // Windows fit their content but never exceed the viewport: a taller body scrolls inside the chrome.
   const content = uiFlex({ direction: 'column', gap: 8, padding: WINDOW_PADDING, overflow: 'scroll-y', maxHeight: { mode: 'percent', fraction: 1 } }, [body, ...(footer ? [footer] : [])]);
   content.setProps({ touchScroll: true });
-  return new UiElement({ id: options.id, kind: 'window', label: options.title, props: { tone: 'primary', surface: 'wood_parchment', accent: options.accent ?? 'none' },
+  const window = new UiElement({ id: options.id, kind: 'window', label: options.title, props: { tone: 'primary', surface: 'wood_parchment', accent: options.accent ?? 'none' },
     style: { display: 'stack', overflow: 'clip', alignSelf: 'center', maxHeight: { mode: 'percent', fraction: 1 }, maxWidth: { mode: 'percent', fraction: 1 } },
     // Reading order: title, body, footer, then the close button last in tab order.
     children: [content, header, ...(close ? [close] : [])],
@@ -120,6 +126,8 @@ export function uiWindow(options: UiWindowOptions): UiElement {
         width: Math.max(0, wood.width - inset.left - inset.right), height: Math.max(0, wood.height - inset.top - inset.bottom) });
     },
   });
+  const setWindowTitle = (title: string) => { if (ribbon.props['text'] === title) return; ribbon.setProps({ text: title }); ribbon.label = title; window.label = title; };
+  return Object.assign(window, { setWindowTitle });
 }
 
 /** One authored 16px glyph from the skin icon family. */

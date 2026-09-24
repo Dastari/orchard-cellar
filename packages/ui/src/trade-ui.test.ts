@@ -192,8 +192,9 @@ describe('production retained trade host', () => {
 
   it.each([[323, 240], [480, 270], [800, 600]])('keeps modal and footer controls within %sx%s logical bounds', (width, height) => {
     const h = setup(); h.ui.resize(width, height); h.ui.root.arrange();
+    // Short screens scroll the window body; each control must come fully into view when focused.
     for (const id of ['game.trade', 'trade.accept', 'trade.cancel']) {
-      const r = h.node(id).rect; expect(r.x).toBeGreaterThanOrEqual(0); expect(r.y).toBeGreaterThanOrEqual(0);
+      const r = (id === 'game.trade' ? h.node(id) : h.reveal(id)).rect; expect(r.x).toBeGreaterThanOrEqual(0); expect(r.y).toBeGreaterThanOrEqual(0);
       expect(r.x + r.width).toBeLessThanOrEqual(width); expect(r.y + r.height).toBeLessThanOrEqual(height);
       expect(h.node(id).clip.height).toBeGreaterThan(0);
     }

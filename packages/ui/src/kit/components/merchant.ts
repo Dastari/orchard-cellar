@@ -1,18 +1,23 @@
 import type { LoadedAsset } from '../../assets.js';
 import { boundedStepperValue } from '../../bounded-stepper.js';
-import type { UiElement } from '../runtime/element.js';
+import { itemDefinition } from '@orchard/sim';
+import { drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
+import { UiElement } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { uiFrame } from './frame.js';
-import { uiFlex, uiScrollArea } from './layout.js';
-import { uiTable, type UiTableState } from './collections.js';
+import { uiFlex, uiScrollArea, uiStack } from './layout.js';
 import { uiText } from './text.js';
 import { uiInput } from './input.js';
 import { uiButton, type UiButtonModifiers } from './button.js';
-import { uiSprite } from './media.js';
 import type { UiSurfaceStyle } from '../tokens.js';
 import { uiTooltip } from './tooltip.js';
 import { uiPurseLabel } from './purse.js';
+import { uiCurrency, uiCurrencyLabel } from './currency.js';
+import { uiItemFrame } from './inventory.js';
+import { paintUiSkin } from './art.js';
+import { uiFolderTabs } from './social.js';
+import { uiGlyph, uiWindow } from './window.js';
 export interface UiMerchantRow {
     readonly itemKind: string;
     readonly name: string;
@@ -54,59 +59,121 @@ export interface UiMerchantElement extends UiElement {
     updateMerchant(model: UiMerchantModel): void;
     readonly filterEditor: CanvasTextEditor;
 }
+const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
+/** A bare glyph stepper button: minus or plus ink, faded when it cannot step; keeps shift/ctrl modifiers. */
+function stepButton(id: string, glyph: string, label: string, onPress: (event: UiButtonModifiers) => void): UiElement {
+    return uiButton({ id, label: '', ariaLabel: label, onPress, layout: { width: uiFixed(16), height: uiFixed(16), padding: 0, shrink: 0 },
+        face: (element, { context, art, hovered, focused, pressed, disabled }) => {
+            const r = element.rect; context.save(); if (disabled) context.globalAlpha *= .35;
+            paintUiSkin(context, art.skin.icon, glyph, { ...r, y: r.y + (pressed ? 1 : 0) });
+            context.restore();
+            if ((hovered || focused) && !disabled) { context.fillStyle = focused ? '#fff6e0' : '#feae34'; context.fillRect(r.x + 3, r.y + r.height - 1, r.width - 6, 1); }
+        } });
+}
+/** Approved merchant window: Buy and Sell folder tabs open into a scrolling list of shop rows, with a search
+ * field on the right; the cart total and purse sit above Back and the commit button. Row controls are
+ * retained while quantities change so focus and captures survive ordinary snapshots. */
 export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
-    let model = options.model, key = '', tableState: UiTableState | undefined;
+    let model = options.model, key = '';
     const editor = new CanvasTextEditor({ value: model.filter, maxLength: 32 });
-    const controls = new Map<string, {
-        value: UiElement;
-        minus: UiElement;
-        plus: UiElement;
-    }>();
-    const balance = uiText(''), total = uiText(''), notice = uiText('', { wrap: true, layout: { width: 'grow' } }), title = uiText('', { role: 'header', layout: { width: 'grow' } });
-    const adjust = (id: string, direction: -1 | 1, event: UiButtonModifiers) => { const row = model.rows.find(row => row.itemKind === id); if (!row || model.pending)
+    const controls = new Map<string, { row: UiElement; minus: UiElement; plus: UiElement }>();
+    const current = (itemKind: string) => model.rows.find(row => row.itemKind === itemKind);
+    const adjust = (id: string, direction: -1 | 1, event: UiButtonModifiers) => { const row = current(id); if (!row || model.pending)
         return; options.onQuantity(id, boundedStepperValue(row.quantity, direction, 0, row.maximumQuantity, { shift: event.shiftKey, control: event.ctrlKey })); };
-    const input = uiInput({ id: 'merchant.filter', label: 'Filter merchant items', placeholder: 'FILTER ITEMS', editor, clearable: true, onChange: query => options.onFilter(query), layout: { width: 'grow', shrink: 0 } });
-    const tableHost = uiFlex({ width: 'grow', height: uiFixed(220), shrink: 0 });
-    const commit = uiButton({ id: 'merchant.commit', label: 'PURCHASE', ariaLabel: 'Commit merchant cart', tone: 'success', size: 'sm', onPress: () => { if (model.canCommit && !model.pending)
+    const input = uiInput({ id: 'merchant.filter', label: 'Search wares', placeholder: 'Search', editor, clearable: true, size: 'sm', leading: uiGlyph('glyph.search'), onChange: query => options.onFilter(query), layout: { width: uiFixed(116) } });
+    const list = uiScrollArea({ id: 'merchant.stock', label: 'Merchant stock', scrollStyle: 'wood', width: 'grow', height: uiFixed(VISIBLE_ROWS * ROW_HEIGHT), padding: { right: 24 } });
+    list.setProps({ touchScroll: true });
+    const fit = { mode: 'percent', fraction: 1 } as const;
+    const panel = uiFrame({ style: 'parchment_plain', padding: 4, layout: { direction: 'column', gap: 0, width: uiFixed(LIST_WIDTH), maxWidth: fit, padding: { top: 8, left: 4, right: 4, bottom: 4 } }, children: [list] });
+    const tabsHost = uiFlex({ direction: 'row', align: 'end' });
+    // The panel art keeps a 5px transparent margin: tab feet land on its top border and the first tab starts
+    // just inside its left edge, so the tabs open into the panel like folder tabs.
+    const header = uiFlex({ direction: 'row', align: 'end', gap: 4, height: uiFixed(21), position: 'absolute', inset: { left: 8, right: 0, top: 0 } }, [
+        tabsHost, uiFlex({ grow: 1 }, []), uiFlex({ padding: { bottom: 6, right: 16 } }, [input])]);
+    const total = uiCurrency({ bronze: 0 }), purse = uiCurrency({ bronze: 0 });
+    const totalLabel = uiText('TOTAL', { role: 'label' });
+    const notice = uiText('', { wrap: true, layout: { width: uiFixed(LIST_WIDTH), maxWidth: fit } });
+    const commit = uiButton({ id: 'merchant.commit', label: 'Buy', ariaLabel: 'Commit merchant cart', tone: 'success', onPress: () => { if (model.canCommit && !model.pending)
             options.onCommit(); } });
-    const buy = uiButton({ id: 'merchant.buy', label: 'BUY', size: 'sm', onPress: () => options.onTab('buy') }), sell = uiButton({ id: 'merchant.sell', label: 'SELL', size: 'sm', onPress: () => options.onTab('sell') });
-    const tabs = uiFlex({ direction: 'row', gap: 4, shrink: 0 }, [buy, sell]);
-    const seals = uiButton({ id: 'merchant.seals', label: 'SEALS', size: 'sm', onPress: () => { if (model.sealsAvailable)
+    const seals = uiButton({ id: 'merchant.seals', label: 'Seals', tone: 'primary', onPress: () => { if (model.sealsAvailable)
             options.onSeals?.(); } });
-    const frame = uiFrame({ id: 'game.merchant', style: options.style, padding: 16, header: { title: `${model.speaker}'S SHOP`, content: title, closable: true, onClose: options.onClose }, layout: { width: 'grow', height: 'grow', ...options.layout }, children: [uiScrollArea({ width: 'grow', height: 'grow', gap: 4 }, [tabs, input, balance, tableHost, total, notice, uiFlex({ direction: 'row', gap: 4, shrink: 0 }, [uiButton({ id: 'merchant.back', label: 'BACK', size: 'sm', onPress: options.onBack }), seals, commit])])] });
+    const back = uiButton({ id: 'merchant.back', label: 'Back', tone: 'primary', onPress: options.onBack });
+    const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
+            uiStack({}, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), notice,
+            uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]),
+            uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]),
+        ] });
+    const shopRow = (row: UiMerchantRow): UiElement => {
+        const art = new UiElement({ kind: 'item-image', label: row.name, style: { width: uiFixed(20), height: uiFixed(20), shrink: 0 },
+            paint(element, { context }) {
+                const asset = options.artwork?.[row.itemKind], source = asset && uiItemFrame(asset, itemDefinition(row.itemKind)?.iconAnimation); if (!asset || !source) return;
+                const f = Math.min(1, 16 / source.width, 16 / source.height), w = Math.round(source.width * f), h = Math.round(source.height * f);
+                context.drawImage(asset.image, source.x, source.y, source.width, source.height, element.rect.x + Math.floor((20 - w) / 2), element.rect.y + Math.floor((20 - h) / 2), w, h);
+            } });
+        const inspectable = model.tab === 'buy' && options.onInspect !== undefined && options.canInspect?.(row.itemKind) === true;
+        const paintName = (element: UiElement, context: CanvasRenderingContext2D, pixel: Parameters<typeof drawPixelText>[1], lit: boolean) => {
+            const r = element.rect, live = current(row.itemKind) ?? row;
+            drawPixelText(context, pixel, fitPixelText(row.name, r.width, 1, pixel.font), r.x, r.y + (live.ownedQuantity !== undefined ? 2 : 6), { color: lit ? '#9e2835' : INK });
+            if (live.ownedQuantity !== undefined) drawPixelText(context, pixel, `You have ${live.ownedQuantity}`, r.x, r.y + 11, { color: MUTED });
+            if (inspectable) { context.fillStyle = lit ? '#9e2835' : '#e4a672'; context.fillRect(r.x, r.y + (live.ownedQuantity !== undefined ? 10 : 14), Math.min(r.width, measurePixelText(row.name, 1, pixel.font)), 1); }
+        };
+        const name = inspectable
+            ? uiButton({ id: `merchant.inspect:${row.itemKind}`, label: row.name, ariaLabel: `Inspect ${row.name}`, onPress: () => options.onInspect?.(row.itemKind), layout: { width: 'grow', height: uiFixed(20), padding: 0 },
+                face: (element, { context, art: kit, hovered, focused }) => paintName(element, context, kit.pixel, hovered || focused) })
+            : new UiElement({ kind: 'text', label: row.name, style: { width: 'grow', height: uiFixed(20) }, paint(element, { context, art: kit }) { if (kit) paintName(element, context, kit.pixel, false); } });
+        const minus = stepButton(`merchant.minus:${row.itemKind}`, 'glyph.minus', `Decrease ${row.name}`, event => adjust(row.itemKind, -1, event));
+        const plus = stepButton(`merchant.plus:${row.itemKind}`, 'glyph.plus', `Increase ${row.name}`, event => adjust(row.itemKind, 1, event));
+        const count = new UiElement({ kind: 'quantity', label: 'Quantity', style: { width: uiFixed(20), height: uiFixed(16), shrink: 0 },
+            paint(element, { context, art: kit }) {
+                if (!kit) return; const quantity = current(row.itemKind)?.quantity ?? 0, text = String(quantity), w = measurePixelText(text, 1, kit.pixel.font);
+                drawPixelText(context, kit.pixel, text, element.rect.x + Math.floor((20 - w) / 2), element.rect.y + 5, { color: quantity ? INK : MUTED });
+            } });
+        const line = new UiElement({ kind: 'shop-row', label: `${row.name}, ${uiPurseLabel(BigInt(row.unitPrice))}`,
+            style: { display: 'flex', direction: 'row', gap: 4, align: 'center', height: uiFixed(ROW_HEIGHT), alignSelf: 'stretch', shrink: 0, padding: { left: 2, right: 2 } },
+            children: [art, uiTooltip(`${row.name}${row.ownedQuantity === undefined ? '' : ` / OWNED ${row.ownedQuantity}`}`, name, { grow: 1, height: uiFixed(20) }), uiCurrency({ bronze: row.unitPrice }),
+                uiFlex({ direction: 'row', align: 'center', shrink: 0 }, [minus, count, plus])],
+            paint(element, { context, hovered }) {
+                const r = element.rect, quantity = current(row.itemKind)?.quantity ?? 0;
+                if (quantity > 0 || hovered) { context.fillStyle = quantity > 0 ? '#e4a672' : 'rgba(228, 166, 114, 0.45)'; context.fillRect(r.x, r.y, r.width, r.height); }
+                context.fillStyle = '#e4a672'; context.fillRect(r.x, r.y + r.height - 1, r.width, 1);
+            } });
+        controls.set(row.itemKind, { row: line, minus, plus });
+        return line;
+    };
     const updateMerchant = (next: UiMerchantModel) => {
         const reset = next.tab !== model.tab || next.filter !== model.filter;
         model = next;
         if (editor.snapshot().value !== next.filter)
             editor.setValue(next.filter);
-        buy.setProps({ tone: next.tab === 'buy' ? 'primary' : 'neutral' });
-        sell.setProps({ tone: next.tab === 'sell' ? 'primary' : 'neutral' });
-        title.setProps({ text: next.title ?? `${next.speaker}'S SHOP` });
+        frame.setWindowTitle((next.title ?? `${next.speaker}'s wares`).toUpperCase());
+        // Folder tabs carry ids merchant.buy and merchant.sell; they rebuild only when the open tab changes.
+        if (tabsHost.props['tab'] !== next.tab) {
+            const focused = tabsHost.children.flatMap(child => child.children).some(tab => tab.props['focused']);
+            for (const child of [...tabsHost.children]) child.dispose();
+            const tabs = uiFolderTabs({ id: 'merchant', tabs: [{ id: 'buy', label: 'Buy' }, { id: 'sell', label: 'Sell' }], active: next.tab, onSelect: id => options.onTab(id as 'buy' | 'sell') });
+            tabsHost.append(tabs); tabsHost.setProps({ tab: next.tab });
+            if (focused) tabs.children.find(tab => tab.props['selected'])?.requestFocus();
+        }
         notice.setProps({ text: next.notice ?? '' }).setStyle({ visible: !!next.notice });
         seals.setStyle({ visible: next.sealsAvailable === true });
-        balance.setProps({ text: `BALANCE ${uiPurseLabel(next.balanceBronze)}` });
-        total.setProps({ text: `${next.tab.toUpperCase()} TOTAL ${uiPurseLabel(next.totalBronze)}` });
-        commit.setProps({ label: next.pending ? 'PROCESSING' : next.tab === 'buy' ? 'PURCHASE' : 'SELL' }).setDisabled(!next.canCommit || next.pending);
+        for (const [node, bronze] of [[total, next.totalBronze], [purse, next.balanceBronze]] as const) { node.setProps({ bronze }); node.label = uiCurrencyLabel(bronze); }
+        const items = next.rows.reduce((sum, row) => sum + row.quantity, 0), verb = next.tab === 'buy' ? 'Buy' : 'Sell';
+        commit.setProps({ label: next.pending ? 'Processing' : items > 0 ? `${verb} ${items} item${items === 1 ? '' : 's'}` : verb }).setDisabled(!next.canCommit || next.pending);
         const nextKey = JSON.stringify([next.tab, next.filter, next.compact, next.rows.map(row => [row.itemKind, row.name, row.unitPrice, row.maximumQuantity, row.ownedQuantity])]);
         if (nextKey !== key) {
             key = nextKey;
-            if (reset)
-                tableState = undefined;
-            for (const child of [...tableHost.children])
+            if (reset) { list.scroll.y = 0; list.scroll.x = 0; }
+            for (const child of [...list.children])
                 child.dispose();
             controls.clear();
-            tableHost.append(uiTable({ id: 'merchant.stock', label: 'Merchant stock', surface: 'game', pageSize: 6, rows: next.rows, key: row => row.itemKind, state: tableState, onStateChange: state => { tableState = state; }, columns: [
-                    { id: 'item', label: 'Item', value: row => row.name, render: row => { const asset = options.artwork?.[row.itemKind]; return uiFlex({ direction: 'row', gap: 4, width: 'grow' }, [...(asset ? [uiSprite(asset, { label: row.name, animation: Object.keys(asset.metadata.animations)[0] ?? 'base', playing: false, layout: { width: uiFixed(16), height: uiFixed(16), shrink: 0 } })] : []), uiTooltip(`${row.name}${row.ownedQuantity === undefined ? '' : ` / OWNED ${row.ownedQuantity}`}`, model.tab === 'buy' && options.onInspect && options.canInspect?.(row.itemKind) ? uiButton({ id: `merchant.inspect:${row.itemKind}`, label: row.name, ariaLabel: `Inspect ${row.name}`, size: 'sm', onPress: () => options.onInspect?.(row.itemKind), layout: { width: 'grow' } }) : uiText(row.name, { overflow: 'ellipsis', layout: { width: 'grow' } }), { width: 'grow' })]); } },
-                    { id: 'price', label: 'Price', width: uiFixed(next.compact ? 64 : 108), value: (row: UiMerchantRow) => row.unitPrice, render: (row: UiMerchantRow) => uiText(uiPurseLabel(BigInt(row.unitPrice))) },
-                    ...(!next.compact ? [{ id: 'owned', label: 'Owned', width: uiFixed(52), value: (row: UiMerchantRow) => row.ownedQuantity ?? 0, render: (row: UiMerchantRow) => uiText(row.ownedQuantity === undefined ? '-' : String(row.ownedQuantity)) }] : []),
-                    { id: 'quantity', label: 'Quantity', width: uiFixed(84), sortable: false, value: row => row.quantity, render: row => { const current = () => model.rows.find(entry => entry.itemKind === row.itemKind) ?? row; const value = uiText(model.compact && row.ownedQuantity !== undefined ? `${current().quantity}/${current().ownedQuantity}` : String(current().quantity), { align: 'center', layout: { width: 'grow' } }); const minus = uiButton({ id: `merchant.minus:${row.itemKind}`, label: '-', ariaLabel: `Decrease ${row.name}`, size: 'sm', disabled: model.pending || current().quantity === 0, onPress: event => adjust(row.itemKind, -1, event) }), plus = uiButton({ id: `merchant.plus:${row.itemKind}`, label: '+', ariaLabel: `Increase ${row.name}`, size: 'sm', disabled: model.pending || current().quantity >= current().maximumQuantity, onPress: event => adjust(row.itemKind, 1, event) }); controls.set(row.itemKind, { value, minus, plus }); return uiFlex({ direction: 'row', width: 'grow', gap: 2 }, [minus, value, plus]); } },
-                ] }));
+            list.replaceChildren(next.rows.length ? next.rows.map(shopRow)
+                : [uiText(next.filter ? `Nothing matches "${next.filter}".` : next.tab === 'buy' ? 'Nothing for sale.' : 'Nothing to sell.', { align: 'center', layout: { width: 'grow' } })]);
         }
         for (const row of next.rows) {
             const control = controls.get(row.itemKind);
             if (!control)
                 continue;
-            control.value.setProps({ text: next.compact && row.ownedQuantity !== undefined ? `${row.quantity}/${row.ownedQuantity}` : String(row.quantity) });
+            control.row.invalidate();
             control.minus.setDisabled(next.pending || row.quantity <= 0);
             control.plus.setDisabled(next.pending || row.quantity >= row.maximumQuantity);
         }
