@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.2 / UI 0.27.2 — Cancelled pointer ownership (not yet deployed)
+
+- Fix BUG-019: a captured list row that disappears or moves during an update cannot pass its old release to a replacement row. Explicit scope/reconnect cancellation also suppresses the old pointer tail.
+- Keep suppression per pointer until release, cancellation or a fresh press; retain valid scrollbar and touch-scroll ownership. Workspace 0.31.2.
+
 ## Client 0.25.0 / UI 0.27.0 — Shared player trade (not yet deployed)
 
 - Use the shared trade composition with live escrow, revision and wallet models; retain server authority and one command per gesture.
