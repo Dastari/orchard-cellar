@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.35.0 / UI 0.37.0 — Shared chat and native editing (not yet deployed)
+
+- Adopt the shared chat composition with existing message/whisper commands, arrival-based fade, history, unread state, draggable position, suggestions and 240-character editor. Preserve drafts through deferred failures, touch keyboard transitions and harmless authority updates.
+- Use the central native editing and retained pointer ownership for IME, clipboard and captured gesture completion. Keep desktop dismissal and touch continuity scoped to chat; retire its separate HTML input and legacy drawing/pointer path together. Workspace 0.41.0.
+
 ## Client 0.34.0 / UI 0.36.0 — Shared game HUD (not yet deployed)
 
 - Adopt shared zone/minimap, hotbar/resources, target/effects compositions using existing inventory selection commands, actual registry art, equipped-watch authority and projected status timers.

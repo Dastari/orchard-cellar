@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { GameUiRuntime, UiRoot, UiTextBridge } from '@orchard/ui/game';
 import { UiElement } from '../../ui/src/kit/runtime/element.js';
 import { CanvasTextEditor } from '../../ui/src/kit/runtime/text-editor.js';
+import { ChatOverlay } from '../../ui/src/chat-overlay.js';
+import { uiButton } from '../../ui/src/kit/components/button.js';
 import { uiInput } from '../../ui/src/kit/components/input.js';
 import { uiFixed } from '../../ui/src/kit/layout/box.js';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
@@ -77,6 +79,48 @@ describe('retained UI DOM boundary', () => {
       expect(trace).toEqual(['capture', 'release', 'native-focus:false']);
       expect(documentStub.activeElement).toBe(bridge.input);
     } finally { adapter.dispose(); bridge.dispose(); runtime.dispose(); root.dispose(); vi.unstubAllGlobals(); }
+  });
+
+  it('declares capture before synchronous native-editor blur during canvas focus', () => {
+    const f = fixture(), observed: boolean[] = [];
+    f.canvas.focus = () => observed.push(f.adapter.hasCapture);
+    try {
+      f.adapter.dispatch('down', pointer('pointerdown'), 'panel');
+      expect(observed).toEqual([true]);
+      f.target.dispatchEvent(pointer('pointerup'));
+      expect(f.adapter.hasCapture).toBe(false);
+    } finally { f.dispose(); }
+  });
+
+  it.each([false,true])('preserves a chat draft during another passive gesture, then applies desktop/touch dismissal policy (%s)', touch => {
+    const target = new EventTarget(), captures = new Set<number>();
+    const doc = { activeElement:null as unknown, body:{append(){}}, createElement:()=>new NativeInput() };
+    class NativeInput extends EventTarget { style={};dataset={};value='';setAttribute(){}setSelectionRange(){}remove(){}focus(){doc.activeElement=this;} }
+    const canvas = Object.assign(new EventTarget(), {
+      focus() { const old=doc.activeElement; doc.activeElement=canvas; if(old instanceof EventTarget && old!==canvas) old.dispatchEvent(new Event('blur')); },
+      setPointerCapture:(id:number)=>captures.add(id), hasPointerCapture:(id:number)=>captures.has(id), releasePointerCapture:(id:number)=>captures.delete(id),
+    });
+    vi.stubGlobal('document',doc);
+    const chat = new ChatOverlay(undefined,async()=>{},()=>{},{read:()=>null,write(){}});
+    chat.update({sessionKey:'same',width:800,height:600,connected:true,canAdministerWorld:false,onlinePlayerNames:[],replyPlayerName:null,messages:[],touchControls:touch});
+    const runtime=new GameUiRuntime(), other=new UiRoot({scale:1}); other.resize(800,600);
+    other.mount(uiButton({label:'Tracked quest',layout:{position:'absolute',inset:{left:uiFixed(500),top:0},width:uiFixed(100),height:uiFixed(40)},onPress(){}}));
+    runtime.register({id:'chat',priority:150,root:chat.root,active:()=>chat.active,blocking:()=>false});
+    runtime.register({id:'quest',priority:100,root:other,active:()=>true,blocking:()=>false});
+    let owned=false;
+    const bridge=new UiTextBridge(canvas as unknown as HTMLCanvasElement,()=>runtime.focusedElement,e=>runtime.key(e),e=>e.rect,()=>{});
+    const sync=()=>{if(adapter.hasCapture)return;bridge.sync();owned=runtime.focusedElement?.props['editor']===chat.editor;};
+    const adapter=new RetainedUiPointers(canvas as unknown as HTMLCanvasElement,target as unknown as Window,runtime,e=>({x:e.clientX,y:e.clientY}),sync,()=>{});
+    bridge.input.addEventListener('blur',()=>{if(owned&&!adapter.hasCapture)chat.blurInput();owned=false;});
+    try {
+      chat.open('draft survives');runtime.focus('chat');sync();
+      adapter.dispatch('down',pointer('pointerdown',1,510),'quest');target.dispatchEvent(pointer('pointerup',1,510));
+      expect(chat.isOpen).toBe(true);expect(chat.editor.snapshot().value).toBe('draft survives');
+      expect(doc.activeElement).toBe(canvas);expect(owned).toBe(false);
+      runtime.clearFocus();sync();chat.blurInput();
+      expect(chat.isOpen).toBe(touch);expect(chat.editor.snapshot().value).toBe('draft survives');
+      if(touch){chat.open();runtime.focus('chat');sync();expect(doc.activeElement).toBe(bridge.input);}
+    } finally {adapter.dispose();bridge.dispose();runtime.dispose();chat.dispose();other.dispose();vi.unstubAllGlobals();}
   });
 
   it('keeps outside tails before legacy capture and releases before up activation', () => {

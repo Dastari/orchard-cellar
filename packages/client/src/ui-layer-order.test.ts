@@ -71,7 +71,7 @@ describe('overworld UI compositing order', () => {
 });
 
 it('routes adopted modal roots through every central uncaptured input entry', () => {
-  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation', 'hud-zoneMinimap', 'hud-hotbarVitals', 'hud-targetEffects']) {
+  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation', 'hud-zoneMinimap', 'hud-hotbarVitals', 'hud-targetEffects', 'chat']) {
     expect(main).toContain(`retainedUi.key(event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);
@@ -95,4 +95,12 @@ it('routes foreground quest gestures before underlying HUD scopes at each actual
     const body = main.slice(start,end);
     expect(body.indexOf(`retainedPointers.dispatch('${type}', event, 'hud-zoneMinimap')`)).toBeGreaterThan(body.indexOf(`retainedPointers.dispatch('${type}', event, 'quest-tracker')`));
   }
+});
+
+it('retires legacy chat input and preserves retained ownership through native capture', () => {
+  expect(main).not.toContain('chatInputElement');
+  expect(main).not.toMatch(/chatOverlay\.(pointerDown|pointerUp|pointerCancel|pointerMove|pointerLeave|wheel)\(/);
+  expect(main).toContain("retainedUi.focus('chat'); syncRetainedText()");
+  expect(main).toContain('nativeChatOwner && !retainedPointers.hasCapture');
+  expect(main).toContain("props['editor'] === chatOverlay.editor");
 });

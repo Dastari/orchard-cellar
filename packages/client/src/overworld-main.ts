@@ -252,8 +252,6 @@ const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 if (canvasElement === null) throw new Error('Missing overworld canvas');
 const canvas: HTMLCanvasElement = canvasElement;
 const renderer = createGameplayRenderer(canvas);
-const chatInputElement = document.querySelector<HTMLInputElement>('#account-name');
-if (chatInputElement === null) throw new Error('Missing overworld text input');
 const inventoryFilterInputElement = document.querySelector<HTMLInputElement>('#inventory-filter');
 if (inventoryFilterInputElement === null) throw new Error('Missing inventory filter input');
 setLoadingScreenStage({
@@ -323,9 +321,7 @@ const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
 const GENERAL_CHAT_CHANNEL_ID = 1n;
 const chatOverlay = new ChatOverlay(
-  art.uiSkin,
-  art.ui,
-  chatInputElement,
+  kitArt,
   (body) => submitChatInput(body),
   (open) => {
     if (!open) return;
@@ -1159,12 +1155,26 @@ retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.roo
   active: () => retainedUiAvailable() && questTracker.isActive && overworldUi.questTrackerVisible && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
   blocking: () => false });
+retainedUi.register({ id: 'chat', priority: 150, root: chatOverlay.root,
+  active: () => retainedUiAvailable() && chatOverlay.active && !chatInteractionBlocked(), blocking: () => false });
 const retainedText = new UiTextBridge(canvas, () => retainedUi.focusedElement,
   event => retainedUi.key(event), element => retainedUiClientRect(element.rect, canvas.getBoundingClientRect(),
     { width: renderer.cssWidth, height: renderer.cssHeight }, safeAreaInsets, currentUiScale()), () => {});
+let nativeChatOwner = false;
+function handleRetainedTextBlur(): void {
+  if (nativeChatOwner && !retainedPointers.hasCapture) chatOverlay.blurInput();
+  nativeChatOwner = false;
+}
+retainedText.input.addEventListener('blur', handleRetainedTextBlur);
 function syncRetainedText(): void {
   // Both event and frame synchronization obey the Safari capture boundary.
-  if (!retainedPointers.hasCapture) retainedText.sync();
+  if (retainedPointers.hasCapture) return;
+  retainedText.sync();
+  nativeChatOwner = retainedUi.focusedElement?.props['editor'] === chatOverlay.editor;
+}
+function openRetainedChat(event: Pick<KeyboardEvent, 'key' | 'repeat'> & Partial<Pick<KeyboardEvent, 'isComposing' | 'ctrlKey' | 'metaKey' | 'altKey'>>): boolean {
+  if (chatInteractionBlocked() || !chatOverlay.handleGlobalKeyDown(event)) return false;
+  retainedUi.focus('chat'); syncRetainedText(); return true;
 }
 // Install before recovery and legacy capture listeners so cancelled tails cannot
 // become a new command on whichever modal appeared during the gesture.
@@ -1176,7 +1186,8 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
 });
 import.meta.hot?.dispose(() => {
   overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
-  retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
+  retainedText.input.removeEventListener('blur', handleRetainedTextBlur);
+  retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose(); chatOverlay.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
 });
 
@@ -5491,7 +5502,9 @@ function renderFrame(alpha = 1): void {
     visible: overworldUi.questTrackerVisible,
   });
   const channelNames = new Map([...snapshot.chatChannels].map((channel) => [channel.id, channel.displayName]));
+  const chatWasActive = chatOverlay.active;
   chatOverlay.update({
+    sessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     width: uiWidth,
     height: uiHeight,
     connected: snapshot.connected,
@@ -5542,6 +5555,7 @@ function renderFrame(alpha = 1): void {
       })),
     ],
   });
+  if (!chatWasActive && chatOverlay.active && chatOverlay.isOpen) { chatOverlay.open(); retainedUi.focus('chat'); }
   characterNamePrompt.update(
     uiWidth,
     uiHeight,
@@ -6186,7 +6200,7 @@ function setInterfaceHidden(hidden: boolean): void {
   worldTouchInput.reset();
   onlinePlayersVisible = false;
   retainedUi.clearHover();
-  chatOverlay.pointerLeave();
+  chatOverlay.root.input.clearHover();
   overworldUi.pointerLeave();
   touchControls.setBlocked(hidden);
   if (!hidden) return;
@@ -6360,11 +6374,8 @@ window.addEventListener('keydown', (event) => {
       syncRetainedText(); event.preventDefault();
       return;
     }
-    if (!chatInteractionBlocked() && chatOverlay.handleGlobalKeyDown(event)) {
-      retainedUi.clearFocus(); syncRetainedText();
-      event.preventDefault();
-      return;
-    }
+    if (retainedUi.key(event, 'chat')) { syncRetainedText(); event.preventDefault(); return; }
+    if (openRetainedChat(event)) { event.preventDefault(); return; }
     if (retainedUi.key(event, 'npc-interaction')) {
       syncRetainedText();
       event.preventDefault();
@@ -6898,7 +6909,7 @@ function clearPointerPresentation(): void {
   worldPointer = null;
   hoveredInteractionTile = null;
   retainedUi.clearHover();
-  chatOverlay.pointerLeave();
+  chatOverlay.root.input.clearHover();
   overworldUi.pointerLeave();
 }
 
@@ -6989,9 +7000,8 @@ canvas.addEventListener('pointermove', (event) => {
   if (retainedPointers.dispatch('move', event, 'npc-interaction')) return;
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
   if (retainedPointers.dispatch('move', event, 'character-skills') || retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
-  if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.pointerLeave(); return; }
-  if (chatInteractionBlocked()) chatOverlay.pointerLeave();
-  else chatOverlay.pointerMove({ x, y });
+  if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.root.input.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'chat')) return;
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
   if (overworldUi.openWindow === null && !chatOverlay.isHovered && retainedPointers.dispatch('move', event, 'quest-tracker')) return;
   if (retainedPointers.dispatch('move', event, 'hud-zoneMinimap') || retainedPointers.dispatch('move', event, 'hud-hotbarVitals') || retainedPointers.dispatch('move', event, 'hud-targetEffects')) return;
@@ -7003,7 +7013,8 @@ canvas.addEventListener('pointerleave', (event) => {
   clearPointerPresentation();
 });
 canvas.addEventListener('pointerdown', (event) => {
-  retainedUi.clearFocus(); syncRetainedText();
+  // Keep an existing chat draft while its own retained controls take capture.
+  if (!chatOverlay.isOpen) { retainedUi.clearFocus(); syncRetainedText(); }
   void audio.unlock().catch(() => undefined);
   touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
@@ -7092,8 +7103,7 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (!chatInteractionBlocked() && chatOverlay.pointerDown({ x, y }, event.button, event.pointerType)) {
-      canvas.setPointerCapture(event.pointerId);
+    if (retainedPointers.dispatch('down', event, 'chat')) {
       event.preventDefault();
       return;
     }
@@ -7105,6 +7115,9 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault(); return;
     }
   }
+  const wasChatOpen = chatOverlay.isOpen;
+  retainedUi.clearFocus(); syncRetainedText();
+  if (wasChatOpen) { chatOverlay.blurInput(); event.preventDefault(); return; }
   const worldPointerAvailable = interfaceHidden
     || (overworldUi.openWindow === null && !chatOverlay.isOpen);
   if (event.pointerType === 'touch' && event.button === 0 && worldPointerAvailable) {
@@ -7401,11 +7414,8 @@ canvas.addEventListener('pointerup', (event) => {
   // text input. Mobile Safari otherwise may discard the just-opened keyboard
   // when it completes this captured pointer gesture.
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  let chatConsumed = false;
-  if (chatInteractionBlocked()) chatOverlay.pointerCancel();
-  else chatConsumed = chatOverlay.pointerUp();
   const consumed = overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
-  if (chatConsumed || consumed) event.preventDefault();
+  if (consumed) event.preventDefault();
 });
 canvas.addEventListener('lostpointercapture', (event) => {
   worldTouchInput.pointerUp({ pointerId: event.pointerId, x: 0, y: 0 }, true);
@@ -7414,7 +7424,7 @@ canvas.addEventListener('pointercancel', () => {
   cancelBowChargePresentation();
   worldPointer = null;
   hoveredInteractionTile = null;
-  chatOverlay.pointerCancel();
+  chatOverlay.root.input.cancelPointers();
   overworldUi.pointerLeave();
 });
 canvas.addEventListener('wheel', (event) => {
@@ -7459,9 +7469,7 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
-    if (!chatInteractionBlocked() && chatOverlay.wheel({ x, y }, event.deltaY)) {
-      retainedUi.clearHover(); event.preventDefault(); return;
-    }
+    if (retainedUi.wheel(retainedWheel, 'chat')) { event.preventDefault(); return; }
     if (retainedUi.wheel(retainedWheel, 'quest-tracker')) {
       event.preventDefault(); return;
     }
@@ -7583,7 +7591,7 @@ Object.assign(window, {
     setNameplatesVisible,
     setInterfaceHidden,
     interfaceHidden: () => interfaceHidden,
-    openChat: () => chatOverlay.handleGlobalKeyDown(new KeyboardEvent('keydown', { key: 'Enter' })),
+    openChat: () => openRetainedChat({ key: 'Enter', repeat: false }),
     openWindow: (window: 'inventory' | 'pack' | 'crafting' | 'barrel' | 'furnace' | 'cooking' | 'delve-confirmation' | 'system' | 'settings' | null) => { overworldUi.openWindow = window; },
     uiWindow: () => overworldUi.openWindow,
   },
