@@ -10,6 +10,7 @@ export class UiInput {
   private hoverKey: string | null = null;
   private hoverSince = 0;
   private captured = new Map<number, UiElement>();
+  private cancelledTails = new Set<number>();
   private pointerOwner: { scope: UiElement; pointerId: number } | null = null;
   private touchScrolls = new Map<number, { node: UiElement; start: UiPoint; y: number; offset: number; scrolling: boolean }>();
   private thumbDrag: { pointer: number; node: UiElement; axis: 'x' | 'y'; start: number; offset: number; travel: number } | null = null;
@@ -40,14 +41,26 @@ export class UiInput {
       if (event.type === 'down') this.pointerOwner = { scope, pointerId: event.pointerId };
       if (event.type === 'up' || event.type === 'cancel') this.pointerOwner = null;
     }
-    for (const { element } of this.entries()) element.hooks.onPointerObserved?.(event, element);
+    if (event.type === 'down') this.cancelledTails.delete(event.pointerId);
+    else if (this.cancelledTails.has(event.pointerId)) {
+      if (event.type === 'up' || event.type === 'cancel') this.cancelledTails.delete(event.pointerId);
+      return true;
+    }
     let capture = this.captured.get(event.pointerId);
     if (capture && (event.type === 'down' || !this.allowed(capture))) {
       this.captured.delete(event.pointerId);
       if (this.thumbDrag?.pointer === event.pointerId) this.thumbDrag = null;
       capture.hooks.onPointer?.({ ...event, type: 'cancel', capture() {}, release() {} }, capture);
       capture = undefined;
+      this.touchScrolls.delete(event.pointerId);
+      // A replacement hit target never inherits the old owner's gesture.
+      // Keep its remaining moves/release suppressed, but allow a fresh down.
+      if (event.type !== 'down') {
+        if (event.type !== 'up' && event.type !== 'cancel') this.cancelledTails.add(event.pointerId);
+        return true;
+      }
     }
+    for (const { element } of this.entries()) element.hooks.onPointerObserved?.(event, element);
     if (event.type === 'down') this.touchScrolls.delete(event.pointerId);
     if (event.type === 'down') for (const { element } of this.entries()) if (element.hooks.onOutsidePointer && this.allowed(element) && !containsPoint(element.rect, event.point)) element.hooks.onOutsidePointer(element, event.point);
     const hits = this.hits(event.point);
@@ -178,9 +191,12 @@ export class UiInput {
   /** A hidden/replaced host must not retain a physical gesture across reconnect. */
   cancelPointers(): void {
     const captures = [...this.captured];
+    for (const [pointerId] of captures) this.cancelledTails.add(pointerId);
+    for (const pointerId of this.touchScrolls.keys()) this.cancelledTails.add(pointerId);
+    if (this.pointerOwner) this.cancelledTails.add(this.pointerOwner.pointerId);
     this.captured.clear(); this.touchScrolls.clear(); this.thumbDrag = null; this.pointerOwner = null;
     for (const [pointerId, node] of captures) node.hooks.onPointer?.({ type: 'cancel', pointerId, button: 0,
       point: this.hoverPoint ?? { x: 0, y: 0 }, capture() {}, release() {} }, node);
   }
-  dispose(): void { this.cancelPointers(); this.clearHover(); }
+  dispose(): void { this.cancelPointers(); this.cancelledTails.clear(); this.clearHover(); }
 }
