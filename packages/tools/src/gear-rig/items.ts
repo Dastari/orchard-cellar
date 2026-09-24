@@ -1,6 +1,6 @@
 import {
   LEGENDARIES, LINEAGES, POOR_WORDS, PREFIXES, STATS, SUFFIXES,
-  affixValue, armourValue, baseType, defaultItemLevel, material, rarity, requiredLevel, sellValue, weaponDamage,
+  affixValue, armourValue, baseType, defaultItemLevel, material, requiredLevel, sellValue, weaponDamage,
   type BaseType, type Legendary, type Lineage, type Material, type RarityId, type StatDef,
 } from './catalogue.js';
 import { CAPE, HEAD_DESIGNS, paint } from './designs.js';
