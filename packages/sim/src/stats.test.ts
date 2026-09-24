@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_ATTRIBUTES, advanceVitals, checkModifier, createFullVitalState, resolveStats } from './stats.js';
+import { BASE_ATTRIBUTES, advanceVitals, checkModifier, createFullVitalState, resolveStats, resolveStatsWithProfile } from './stats.js';
 import type { Modifier } from './modifiers.js';
+import { BOOTSTRAP_CHARACTER_COMBAT_BALANCE } from './character-combat-balance.js';
+import { cappedEquipmentModifiers } from './equipment-budget.js';
 
 describe('Systems/Stats & Vitals: attributes and derived vitals', () => {
   it('resolves the documented baseline and D&D check modifiers', () => {
@@ -84,5 +86,19 @@ describe('Systems/Stats & Vitals: attributes and derived vitals', () => {
       manaRemainder: 13,
     };
     expect(advanceVitals(state, stats, 5n).manaRemainder).toBe(13);
+  });
+
+  it('derives vitals from Gear-D3 equipment attributes through the loadout budget', () => {
+    const profile = BOOTSTRAP_CHARACTER_COMBAT_BALANCE;
+    const gear = (target: Modifier['target'], value: number): Modifier => (
+      { id: `gear.${target}.${value}`, target, layer: 'flat', value, source: 'equipment' });
+    const equipment = cappedEquipmentModifiers([
+      gear('str', 3), gear('int', 8), gear('int', 8), gear('int', 8), gear('maxHealth', 12_000),
+    ]);
+    const stats = resolveStatsWithProfile(profile, BASE_ATTRIBUTES, equipment);
+    expect(stats.attributes.str).toBe(13);
+    expect(stats.attributes.int).toBe(30);
+    expect(stats.maxHealthCenti).toBe(13 * profile.healthCentiPerStrength + 12_000);
+    expect(stats.maxManaCenti).toBe(30 * profile.manaCentiPerIntelligence);
   });
 });

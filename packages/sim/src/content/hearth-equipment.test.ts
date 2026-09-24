@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bootstrapContentRegistry } from './bootstrap-registry.js';
+import { bootstrapContentDefinitions, bootstrapContentRegistry } from './bootstrap-registry.js';
+import { validateContentDefinitions } from './validate.js';
+import { parseItemDefinition } from './definitions.js';
 import { buildContentRegistry } from './registry.js';
 import { runtimeWeaponBaseDamageCenti } from './runtime.js';
 import { resolveEquipmentSkillRanks, modifiersForEffectiveSkillRanks, type EquipmentSkillContribution } from '../equipment-skills.js';
@@ -91,4 +93,24 @@ describe('Hearth fixed equipment content', () => {
     expect(resolveCombatMitigation(0,0,0,armorFor('legendary')).damageCenti).toBe(0);
   });
 
+  it('validates Gear-D3 attribute and vital modifiers against the per-item cap', () => {
+    const withModifiers = (modifiers: readonly object[]) => {
+      const definitions = bootstrapContentDefinitions().map(definition => {
+        if (definition.id !== 'item:hearth_legendary_hands' || definition.kind !== 'item') return definition;
+        const json = JSON.parse(JSON.stringify(definition)) as {modifiers?: object[]};
+        return parseItemDefinition({...json, modifiers: [...json.modifiers ?? [], ...modifiers]});
+      });
+      return validateContentDefinitions(definitions).errors
+        .filter(error => error.definitionId === 'item:hearth_legendary_hands' && error.path === 'modifiers');
+    };
+    const bonus = (id: string, target: string, value: number, layer = 'flat') => ({id, target, layer, value, source: 'equipment'});
+    expect(withModifiers([
+      bonus('gear_str', 'str', 8), bonus('gear_mana', 'maxMana', 2500, 'pctAdd'),
+      bonus('gear_regen', 'manaRegen', 150), bonus('gear_health', 'maxHealth', 12_000),
+    ])).toEqual([]);
+    expect(withModifiers([bonus('gear_str', 'str', 9)])).toEqual([expect.objectContaining({
+      code: 'invalid_component_set', message: expect.stringContaining('gear_str'),
+    })]);
+    expect(withModifiers([bonus('gear_int', 'int', 5, 'pctMult')])).toHaveLength(1);
+  });
 });
