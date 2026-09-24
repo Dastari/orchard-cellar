@@ -17,152 +17,168 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 
 ## Rarities
 
-| Rarity | Colour | Affixes | Affix power | Sell × | Look |
+| Rarity | Colour | Effects | Detail | Sell × | Look |
 | --- | --- | --- | --- | --- | --- |
-| Poor | `#9d9d9d` | none; damaged-base name | 0 | 0.2 | plainest icon of the family, dulled material |
-| Common | `#f4f1e8` | none | 0 | 1 | plain family icon and worn layer in its material |
-| Uncommon | `#63c74d` | one: prefix or suffix | 0.5 | 2 | plain family, material colour |
-| Rare | `#5a8ee0` | two: prefix and suffix; may grant a skill rank | 0.8 | 4 | trimmed icon; gilt trim on worn pieces |
-| Epic | `#b56be0` | lineage package: two attributes + an Equip effect | 1.1 | 10 | ornate icon; lineage ornaments (plume, wings, horns, pauldrons) |
-| Legendary | `#f6b83f` | unique: fixed stats + a signature effect + lore | 1.4 | 25 | bespoke design, unique finish, glow and glint |
+| Poor | `#9d9d9d` | 0 | none; damaged-base name | 0.2 | plainest icon of the family, dulled material |
+| Common | `#f4f1e8` | 0 | none | 1 | plain family icon and worn layer in its material |
+| Uncommon | `#63c74d` | 1 | one effect: a prefix or a suffix | 2 | plain family, material colour |
+| Rare | `#5a8ee0` | 2 | two effects: prefix and suffix; may grant a skill rank | 4 | trimmed icon; gilt trim on worn pieces |
+| Epic | `#b56be0` | 3 | three effects from its lineage | 10 | ornate icon; lineage ornaments (plume, wings, horns, pauldrons) |
+| Legendary | `#f6b83f` | 3 | three effects + a signature effect (named unique weapons: four + signature) | 25 | bespoke design, unique finish, glow and glint |
+
+## Item levels
+
+Item level (1–60) sets base armour and damage and the size of every effect. Rarity only decides how many effects an item has. Required level follows item level, capped at 50. Materials place items in a band; drops, crafting and vendors may pick any level inside it. Legendaries and named uniques are item level 55–60.
+
+| Material tier | Item level band | Required level |
+| --- | --- | --- |
+| 1 | 1–8 | 1–8 |
+| 2 | 8–15 | 8–15 |
+| 3 | 15–22 | 15–22 |
+| 4 | 22–30 | 22–30 |
+| 5 | 30–38 | 30–38 |
+| 6 | 38–45 | 38–45 |
+| 7 | 45–52 | 45–50 |
 
 ## Material ladders
 
-| Material | Line | Tier | Requires level | Palette | Note |
+| Material | Line | Tier | Item levels | Palette | Note |
 | --- | --- | --- | --- | --- | --- |
-| Bronze | metal | 1 | 1 | bronze |  |
-| Iron | metal | 2 | 8 | iron |  |
-| Steel | metal | 3 | 15 | silver |  |
-| Blackiron | metal | 4 | 22 | obsidian |  |
-| Gilded | metal | 4 | 22 | gold | ceremonial; charisma-leaning |
-| Verdant | metal | 5 | 30 | jade | living bronze from the old orchards |
-| Frostforged | metal | 5 | 30 | frost |  |
-| Emberforged | metal | 6 | 38 | ember |  |
-| Bloodsteel | metal | 6 | 38 | ruby |  |
-| Starmetal | metal | 7 | 45 | amethyst |  |
-| Linen | cloth | 1 | 1 | silver / White cloth |  |
-| Homespun | cloth | 1 | 1 | bronze / Brown cloth |  |
-| Woollen | cloth | 2 | 8 | jade / Green cloth |  |
-| Dyed | cloth | 3 | 15 | frost / Blue cloth |  |
-| Silken | cloth | 4 | 22 | amethyst / Purple cloth |  |
-| Velvet | cloth | 5 | 30 | ruby / Red cloth |  |
-| Moonweave | cloth | 7 | 45 | obsidian / Black cloth |  |
-| Rawhide | leather | 1 | 1 | bronze / Brown cloth |  |
-| Tanned | leather | 2 | 8 | ember / Orange cloth |  |
-| Hardened | leather | 3 | 15 | obsidian / Black cloth |  |
-| Drakehide | leather | 6 | 38 | ruby / Red cloth |  |
-| Quartz | gem | 1 | 1 | silver |  |
-| Jade | gem | 2 | 8 | jade |  |
-| Amber | gem | 3 | 15 | ember |  |
-| Aquamarine | gem | 4 | 22 | frost |  |
-| Topaz | gem | 4 | 22 | gold |  |
-| Ruby | gem | 5 | 30 | ruby |  |
-| Onyx | gem | 6 | 38 | obsidian |  |
-| Amethyst | gem | 7 | 45 | amethyst |  |
-| Ash | wood | 1 | 1 | bronze |  |
-| Yew | wood | 2 | 8 | bronze |  |
-| Ironwood | wood | 3 | 15 | iron |  |
+| Bronze | metal | 1 | 1–8 | bronze |  |
+| Iron | metal | 2 | 8–15 | iron |  |
+| Steel | metal | 3 | 15–22 | silver |  |
+| Blackiron | metal | 4 | 22–30 | obsidian |  |
+| Gilded | metal | 4 | 22–30 | gold | ceremonial; charisma-leaning |
+| Verdant | metal | 5 | 30–38 | jade | living bronze from the old orchards |
+| Frostforged | metal | 5 | 30–38 | frost |  |
+| Emberforged | metal | 6 | 38–45 | ember |  |
+| Bloodsteel | metal | 6 | 38–45 | ruby |  |
+| Starmetal | metal | 7 | 45–52 | amethyst |  |
+| Linen | cloth | 1 | 1–8 | silver / White cloth |  |
+| Homespun | cloth | 1 | 1–8 | bronze / Brown cloth |  |
+| Woollen | cloth | 2 | 8–15 | jade / Green cloth |  |
+| Dyed | cloth | 3 | 15–22 | frost / Blue cloth |  |
+| Silken | cloth | 4 | 22–30 | amethyst / Purple cloth |  |
+| Velvet | cloth | 5 | 30–38 | ruby / Red cloth |  |
+| Moonweave | cloth | 7 | 45–52 | obsidian / Black cloth |  |
+| Rawhide | leather | 1 | 1–8 | bronze / Brown cloth |  |
+| Tanned | leather | 2 | 8–15 | ember / Orange cloth |  |
+| Hardened | leather | 3 | 15–22 | obsidian / Black cloth |  |
+| Drakehide | leather | 6 | 38–45 | ruby / Red cloth |  |
+| Quartz | gem | 1 | 1–8 | silver |  |
+| Jade | gem | 2 | 8–15 | jade |  |
+| Amber | gem | 3 | 15–22 | ember |  |
+| Aquamarine | gem | 4 | 22–30 | frost |  |
+| Topaz | gem | 4 | 22–30 | gold |  |
+| Ruby | gem | 5 | 30–38 | ruby |  |
+| Onyx | gem | 6 | 38–45 | obsidian |  |
+| Amethyst | gem | 7 | 45–52 | amethyst |  |
+| Ash | wood | 1 | 1–8 | bronze |  |
+| Yew | wood | 2 | 8–15 | bronze |  |
+| Ironwood | wood | 3 | 15–22 | iron |  |
 
 ## Base types
 
 | Base | Slot | Group | Class | Materials | Icon family | Paper doll | Distinct items |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Cap | head | Hats | cloth | cloth, leather | armor 3 rows (30–47) | _soft caps need worn art_ | 1007 |
-| Kettle Hat | head | Hats | plate | metal | armor 1 rows (46–46) | _brimmed hat needs worn art_ | 916 |
-| Sallet | head | Helms | plate | metal | armor 3 rows (44–48) | helmet: kenmi_plate | 1136 |
-| Bascinet | head | Helms | plate | metal | armor 10 rows (20–29) | helmet: kenmi_heavy | 1136 |
-| Greathelm | head | Helms | plate | metal | armor 10 rows (0–9) | helmet: greathelm → gilded_helm → plumed_greathelm | 1136 |
-| Warhelm | head | Helms | plate | metal | armor 18 rows (10–39) | helmet: horned_warhelm | 1136 |
-| Winged Helm | head | Helms | plate | metal | armor 4 rows (40–43) | helmet: winged_helm | 1136 |
-| Circlet | head | Crowns | cloth | metal | painted from worn design | helmet: royal_crown | 916 |
-| Crown | head | Crowns | cloth | metal | painted from worn design | helmet: royal_crown | 916 |
-| Shirt | body | Clothing | cloth | cloth | armor 1 rows (49–49) | shirt layer | 692 |
-| Tunic | body | Clothing | cloth | cloth | armor 1 rows (58–58) | tunic layer | 692 |
-| Flannel | body | Clothing | cloth | cloth | armor 1 rows (67–67) | flannel layer | 692 |
-| Vestments | body | Robes | cloth | cloth | armor 2 rows (76–85) | vestments layer | 643 |
-| Jerkin | body | Leathers | leather | leather | armor 2 rows (94–103) | flannel layer | 426 |
-| Brigandine | body | Leathers | leather | leather | armor 2 rows (112–121) | tunic layer | 426 |
-| Breastplate | body | Plate | plate | metal | armor 40 rows (50–134) | plate layer | 1136 |
-| Cuirass | body | Plate | plate | metal | armor 40 rows (54–138) | plate layer + pauldrons from uncommon | 1136 |
-| Scale Hauberk | body | Plate | plate | metal | armor 8 rows (95–102) | plate layer + pauldrons from rare | 1136 |
-| Trousers | legs | Clothing | cloth | cloth | armor 2 rows (145–152) | trousers layer | 692 |
-| Dungarees | legs | Clothing | cloth | cloth | armor 2 rows (139–140) | dungarees layer | 692 |
-| Breeches | legs | Clothing | cloth | cloth | armor 2 rows (144–151) | breeches layer | 692 |
-| Leggings | legs | Leathers | leather | leather | armor 2 rows (156–163) | trousers layer | 426 |
-| Greaves | legs | Plate | plate | metal | armor 15 rows (145–169) | plate layer | 1136 |
-| Tassets | legs | Plate | plate | metal | armor 8 rows (141–161) | plate layer | 1136 |
-| Gloves | hands | Gloves | leather | cloth, leather | armor 3 rows (170–174) | hands layer recoloured | 1161 |
-| Gauntlets | hands | Gloves | plate | metal | armor 7 rows (170–176) | hands layer recoloured | 1056 |
-| Shoes | feet | Footwear | cloth | cloth, leather | armor 3 rows (181–184) | shoe pixels recoloured | 1084 |
-| Boots | feet | Footwear | leather | leather, cloth | armor 3 rows (177–183) | shoe pixels + ankle recoloured (boots) | 1084 |
-| Sabatons | feet | Footwear | plate | metal | armor 8 rows (177–184) | shoe pixels + ankle recoloured (sabatons) | 986 |
-| Cape | back | Cloaks | cloth | cloth | painted from worn design | cape layer (behind / over the back by facing) | 643 |
-| Cloak | back | Cloaks | cloth | cloth, leather | painted from worn design | cape layer (behind / over the back by facing) | 1007 |
-| Mantle | back | Cloaks | cloth | cloth | painted from worn design | cape layer (behind / over the back by facing) | 643 |
-| Arming Sword | main hand | Swords | — | metal | weapons 25 rows (0–24) | held blade | 1286 |
-| Longsword | main hand | Swords | — | metal | weapons 25 rows (25–49) | held blade | 1286 |
-| Scimitar | main hand | Swords | — | metal | weapons 3 rows (50–52) | held blade | 1286 |
-| Dagger | main hand | Daggers | — | metal | weapons 13 rows (53–65) | held blade | 1136 |
-| Hatchet | main hand | Axes | — | metal | weapons 8 rows (86–93) | held blade | 1286 |
-| Mace | main hand | Maces | — | metal | weapons 5 rows (125–129) | held blade | 1136 |
-| Morningstar | main hand | Maces | — | metal | weapons 2 rows (130–131) | held blade | 1136 |
-| Warhammer | two hand | Maces | — | metal | weapons 4 rows (132–135) | held blade | 1136 |
-| Spear | two hand | Polearms | — | metal | weapons 17 rows (66–82) | held blade | 1196 |
-| Trident | two hand | Polearms | — | metal | weapons 3 rows (83–85) | held blade | 1196 |
-| Halberd | two hand | Polearms | — | metal | weapons 15 rows (94–108) | held blade | 1196 |
-| Shortbow | two hand | Bows | — | wood, metal | weapons 4 rows (109–112) | held bow | 1553 |
-| Longbow | two hand | Bows | — | wood, metal | weapons 4 rows (113–116) | held bow | 1553 |
-| Crossbow | two hand | Crossbows | — | wood, metal | weapons 4 rows (119–122) | held crossbow | 1371 |
-| Arrows | ammo | Ammunition | — | metal | weapons 2 rows (117–118) | _shown in flight_ | 1056 |
-| Bolts | ammo | Ammunition | — | metal | weapons 2 rows (123–124) | _shown in flight_ | 1056 |
-| Staff | two hand | Staffs | — | gem | weapons 1 rows (125–125), gem head | held staff | 734 |
-| Rod | main hand | Staffs | — | gem | weapons 1 rows (126–126), gem head | held staff | 734 |
-| Sceptre | main hand | Staffs | — | gem | weapons 2 rows (127–131), gem head | held staff | 734 |
-| Buckler | off hand | Shields | — | wood, metal | weapons 2 rows (136–160) | held shield | 1475 |
-| Roundshield | off hand | Shields | — | wood, metal | weapons 6 rows (137–158) | held shield | 1475 |
-| Kite Shield | off hand | Shields | — | wood, metal | weapons 4 rows (142–145) | held shield | 1475 |
-| Heater | off hand | Shields | — | metal | weapons 6 rows (146–163) | held shield | 1136 |
-| Tower Shield | off hand | Shields | — | metal | weapons 2 rows (159–161) | held shield | 1136 |
-| Bulwark | off hand | Shields | — | metal | weapons 4 rows (154–157) | held shield | 1136 |
-| Aegis | off hand | Shields | — | metal | weapons 4 rows (150–153) | held shield | 1136 |
-| Pickaxe | tool | Tools | — | metal | tools 10 rows (0–9) | _uses the tool swing sheets_ | 1136 |
-| Woodaxe | tool | Tools | — | metal | tools 10 rows (10–19) | _uses the tool swing sheets_ | 1136 |
-| Shovel | tool | Tools | — | metal | tools 7 rows (20–26) | _uses the tool swing sheets_ | 1136 |
-| Hoe | tool | Tools | — | metal | tools 3 rows (27–29) | _uses the tool swing sheets_ | 1136 |
-| Sickle | tool | Tools | — | metal | tools 2 rows (40–41) | _uses the tool swing sheets_ | 1136 |
-| Watering Can | tool | Tools | — | metal | tools 1 rows (32–32) | _uses the watering sheets_ | 1136 |
-| Hammer | tool | Tools | — | metal | tools 1 rows (35–35) | _build tool_ | 1136 |
+| Cap | head | Hats | cloth | cloth, leather | armor 3 rows (30–47) | _soft caps need worn art_ | 1161 |
+| Kettle Hat | head | Hats | plate | metal | armor 1 rows (46–46) | _brimmed hat needs worn art_ | 1056 |
+| Sallet | head | Helms | plate | metal | armor 3 rows (44–48) | helmet: kenmi_plate | 1436 |
+| Bascinet | head | Helms | plate | metal | armor 10 rows (20–29) | helmet: kenmi_heavy | 1436 |
+| Greathelm | head | Helms | plate | metal | armor 10 rows (0–9) | helmet: greathelm → gilded_helm → plumed_greathelm | 1436 |
+| Warhelm | head | Helms | plate | metal | armor 18 rows (10–39) | helmet: horned_warhelm | 1436 |
+| Winged Helm | head | Helms | plate | metal | armor 4 rows (40–43) | helmet: winged_helm | 1436 |
+| Circlet | head | Crowns | cloth | metal | painted from worn design | helmet: royal_crown | 1056 |
+| Crown | head | Crowns | cloth | metal | painted from worn design | helmet: royal_crown | 1056 |
+| Shirt | body | Clothing | cloth | cloth | armor 1 rows (49–49) | shirt layer | 797 |
+| Tunic | body | Clothing | cloth | cloth | armor 1 rows (58–58) | tunic layer | 797 |
+| Flannel | body | Clothing | cloth | cloth | armor 1 rows (67–67) | flannel layer | 797 |
+| Vestments | body | Robes | cloth | cloth | armor 2 rows (76–85) | vestments layer | 741 |
+| Jerkin | body | Leathers | leather | leather | armor 2 rows (94–103) | flannel layer | 490 |
+| Brigandine | body | Leathers | leather | leather | armor 2 rows (112–121) | tunic layer | 490 |
+| Breastplate | body | Plate | plate | metal | armor 40 rows (50–134) | plate layer | 1436 |
+| Cuirass | body | Plate | plate | metal | armor 40 rows (54–138) | plate layer + pauldrons from uncommon | 1436 |
+| Scale Hauberk | body | Plate | plate | metal | armor 8 rows (95–102) | plate layer + pauldrons from rare | 1436 |
+| Trousers | legs | Clothing | cloth | cloth | armor 2 rows (145–152) | trousers layer | 797 |
+| Dungarees | legs | Clothing | cloth | cloth | armor 2 rows (139–140) | dungarees layer | 797 |
+| Breeches | legs | Clothing | cloth | cloth | armor 2 rows (144–151) | breeches layer | 797 |
+| Leggings | legs | Leathers | leather | leather | armor 2 rows (156–163) | trousers layer | 490 |
+| Greaves | legs | Plate | plate | metal | armor 15 rows (145–169) | plate layer | 1436 |
+| Tassets | legs | Plate | plate | metal | armor 8 rows (141–161) | plate layer | 1436 |
+| Gloves | hands | Gloves | leather | cloth, leather | armor 3 rows (170–174) | hands layer recoloured | 1469 |
+| Gauntlets | hands | Gloves | plate | metal | armor 7 rows (170–176) | hands layer recoloured | 1336 |
+| Shoes | feet | Footwear | cloth | cloth, leather | armor 3 rows (181–184) | shoe pixels recoloured | 1414 |
+| Boots | feet | Footwear | leather | leather, cloth | armor 3 rows (177–183) | shoe pixels + ankle recoloured (boots) | 1414 |
+| Sabatons | feet | Footwear | plate | metal | armor 8 rows (177–184) | shoe pixels + ankle recoloured (sabatons) | 1286 |
+| Cape | back | Cloaks | cloth | cloth | painted from worn design | cape layer (behind / over the back by facing) | 741 |
+| Cloak | back | Cloaks | cloth | cloth, leather | painted from worn design | cape layer (behind / over the back by facing) | 1161 |
+| Mantle | back | Cloaks | cloth | cloth | painted from worn design | cape layer (behind / over the back by facing) | 741 |
+| Arming Sword | main hand | Swords | — | metal | weapons 25 rows (0–24) | held blade | 1436 |
+| Longsword | main hand | Swords | — | metal | weapons 25 rows (25–49) | held blade | 1436 |
+| Scimitar | main hand | Swords | — | metal | weapons 3 rows (50–52) | held blade | 1436 |
+| Dagger | main hand | Daggers | — | metal | weapons 13 rows (53–65) | held blade | 1286 |
+| Hatchet | main hand | Axes | — | metal | weapons 8 rows (86–93) | held blade | 1436 |
+| Mace | main hand | Maces | — | metal | weapons 5 rows (125–129) | held blade | 1286 |
+| Morningstar | main hand | Maces | — | metal | weapons 2 rows (130–131) | held blade | 1286 |
+| Warhammer | two hand | Maces | — | metal | weapons 4 rows (132–135) | held blade | 1286 |
+| Spear | two hand | Polearms | — | metal | weapons 17 rows (66–82) | held blade | 1336 |
+| Trident | two hand | Polearms | — | metal | weapons 3 rows (83–85) | held blade | 1336 |
+| Halberd | two hand | Polearms | — | metal | weapons 15 rows (94–108) | held blade | 1336 |
+| Shortbow | two hand | Bows | — | wood, metal | weapons 4 rows (109–112) | held bow | 1735 |
+| Longbow | two hand | Bows | — | wood, metal | weapons 4 rows (113–116) | held bow | 1735 |
+| Crossbow | two hand | Crossbows | — | wood, metal | weapons 4 rows (119–122) | held crossbow | 1553 |
+| Arrows | ammo | Ammunition | — | metal | weapons 2 rows (117–118) | _shown in flight_ | 1196 |
+| Bolts | ammo | Ammunition | — | metal | weapons 2 rows (123–124) | _shown in flight_ | 1196 |
+| Staff | two hand | Staffs | — | gem | weapons 1 rows (125–125), gem head | held staff | 846 |
+| Rod | main hand | Staffs | — | gem | weapons 1 rows (126–126), gem head | held staff | 846 |
+| Sceptre | main hand | Staffs | — | gem | weapons 2 rows (127–131), gem head | held staff | 846 |
+| Buckler | off hand | Shields | — | wood, metal | weapons 2 rows (136–160) | held shield | 1865 |
+| Roundshield | off hand | Shields | — | wood, metal | weapons 6 rows (137–158) | held shield | 1865 |
+| Kite Shield | off hand | Shields | — | wood, metal | weapons 4 rows (142–145) | held shield | 1865 |
+| Heater | off hand | Shields | — | metal | weapons 6 rows (146–163) | held shield | 1436 |
+| Tower Shield | off hand | Shields | — | metal | weapons 2 rows (159–161) | held shield | 1436 |
+| Bulwark | off hand | Shields | — | metal | weapons 4 rows (154–157) | held shield | 1436 |
+| Aegis | off hand | Shields | — | metal | weapons 4 rows (150–153) | held shield | 1436 |
+| Pickaxe | tool | Tools | — | metal | tools 10 rows (0–9) | _uses the tool swing sheets_ | 1286 |
+| Woodaxe | tool | Tools | — | metal | tools 10 rows (10–19) | _uses the tool swing sheets_ | 1286 |
+| Shovel | tool | Tools | — | metal | tools 7 rows (20–26) | _uses the tool swing sheets_ | 1286 |
+| Hoe | tool | Tools | — | metal | tools 3 rows (27–29) | _uses the tool swing sheets_ | 1286 |
+| Sickle | tool | Tools | — | metal | tools 2 rows (40–41) | _uses the tool swing sheets_ | 1286 |
+| Watering Can | tool | Tools | — | metal | tools 1 rows (32–32) | _uses the watering sheets_ | 1286 |
+| Hammer | tool | Tools | — | metal | tools 1 rows (35–35) | _build tool_ | 1286 |
 
-**65 base types → 67,852 distinct generated items** (poor, common, every allowed single affix, every allowed prefix × suffix pair, per material, plus one epic per lineage and base, plus 12 legendaries). Content can publish any subset.
+**65 base types → 80,446 distinct generated items** (poor, common, every allowed single affix, every allowed prefix × suffix pair, per material, plus one epic per lineage and base, plus 12 legendaries). Content can publish any subset.
 
 ## Prefixes
 
-| Prefix | Grants | Rare at tier 1 / 4 / 7 | From | Suits |
+| Prefix | Grants | At item level 10 / 30 / 50 | From | Suits |
 | --- | --- | --- | --- | --- |
-| Mighty | Strength \* | 1 / 3 / 6 | uncommon | any |
-| Stalwart | Constitution \* | 1 / 3 / 6 | uncommon | any |
-| Nimble | Dexterity \* | 1 / 3 / 6 | uncommon | any |
-| Radiant | Intelligence \* | 1 / 3 / 6 | uncommon | any |
-| Serene | Wisdom \* | 1 / 3 / 6 | uncommon | any |
-| Gallant | Charisma \* | 1 / 3 / 6 | uncommon | any |
-| Keen | critical strike chance | 1% / 2% / 4% | uncommon | Swords, Daggers, Axes, Polearms, Bows |
-| Brutal | melee power | 2% / 6% / 11% | uncommon | Swords, Axes, Maces, Polearms |
-| Deadeye | ranged power | 2% / 6% / 11% | uncommon | Bows, Crossbows, Ammunition |
-| Warded | damage reduction | 1% / 3% / 4% | uncommon | Shields, Plate, Helms |
-| Tireless | tool vigour cost reduction | 2% / 6% / 11% | uncommon | Tools, Gloves |
+| Mighty | Strength \* | 1 / 4 / 6 | uncommon | any |
+| Stalwart | Constitution \* | 1 / 4 / 6 | uncommon | any |
+| Nimble | Dexterity \* | 1 / 4 / 6 | uncommon | any |
+| Radiant | Intelligence \* | 1 / 4 / 6 | uncommon | any |
+| Serene | Wisdom \* | 1 / 4 / 6 | uncommon | any |
+| Gallant | Charisma \* | 1 / 4 / 6 | uncommon | any |
+| Keen | critical strike chance | 1% / 3% / 5% | uncommon | Swords, Daggers, Axes, Polearms, Bows |
+| Brutal | melee power | 3% / 9% / 15% | uncommon | Swords, Axes, Maces, Polearms |
+| Deadeye | ranged power | 3% / 9% / 15% | uncommon | Bows, Crossbows, Ammunition |
+| Warded | damage reduction | 1% / 4% / 6% | uncommon | Shields, Plate, Helms |
+| Tireless | tool vigour cost reduction | 3% / 9% / 15% | uncommon | Tools, Gloves |
+| Hale | Health | 20 / 60 / 100 | uncommon | any |
+| Ironclad | Armor | 10 / 30 / 50 | uncommon | Plate, Helms, Shields, Footwear, Gloves |
 
 ## Suffixes
 
-| Suffix | Grants | Rare at tier 1 / 4 / 7 | From | Suits |
+| Suffix | Grants | At item level 10 / 30 / 50 | From | Suits |
 | --- | --- | --- | --- | --- |
-| of the Ages | mana per second \* | 0.1/s / 0.3/s / 0.6/s | uncommon | any |
-| of Renewal | health per second \* | 0.1/s / 0.3/s / 0.6/s | uncommon | any |
-| of Endurance | maximum vigour | 2% / 10% / 17% | uncommon | any |
-| of Fortitude | maximum health | 2% / 6% / 11% | uncommon | any |
-| of Arcana | maximum mana \* | 2% / 10% / 17% | uncommon | any |
-| of Swiftness | swing speed | 1% / 5% / 8% | uncommon | Swords, Daggers, Axes, Maces, Tools |
-| of the Bulwark | damage reduction | 1% / 3% / 4% | uncommon | Shields, Plate, Helms, Leathers |
-| of the Wanderer | sprint vigour cost reduction | 2% / 6% / 11% | uncommon | Footwear, Leathers, Clothing |
+| of the Ages | mana per second \* | 0.2/s / 0.6/s / 1/s | uncommon | any |
+| of Renewal | health per second \* | 0.2/s / 0.6/s / 1/s | uncommon | any |
+| of Endurance | maximum vigour | 4% / 12% / 20% | uncommon | any |
+| of Fortitude | maximum health | 3% / 9% / 15% | uncommon | any |
+| of Arcana | maximum mana \* | 4% / 12% / 20% | uncommon | any |
+| of Swiftness | swing speed | 2% / 6% / 10% | uncommon | Swords, Daggers, Axes, Maces, Tools |
+| of the Bulwark | damage reduction | 1% / 4% / 6% | uncommon | Shields, Plate, Helms, Leathers |
+| of the Wanderer | sprint vigour cost reduction | 3% / 9% / 15% | uncommon | Footwear, Leathers, Clothing |
 | of the Orchard | Farmcraft | +1 rank | rare | any |
 | of the Deep | Mining Endurance | +1 rank | rare | any |
 | of the Tides | Fishing Endurance | +1 rank | rare | any |
@@ -187,62 +203,62 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 
 ## Legendary uniques
 
-| Name | Base | Stats | Signature | Flavour |
+| Name | Base | Effects | Signature | Flavour |
 | --- | --- | --- | --- | --- |
-| **The Bonecrippler** | Warhammer | +7 Strength, +5 Constitution | Critical hits stagger the target and shatter 10% of its armour. | _"It has never needed a second swing."_ |
-| **Emberwake, Blade of the Last Hearth** | Longsword | +6 Strength, +4 Wisdom | Swings leave a trail of embers that burn for 3 seconds. | _"Forged in the one hearth that outlasted the Long Winter."_ |
-| **Frostwhisper** | Arming Sword | +7 Dexterity, +3 Intelligence | Every third strike chills, slowing the target by 30%. | _"Cold enough to hear."_ |
-| **Rootsinger** | Staff | +7 Wisdom, +5 Intelligence | Crops you tend grow one stage sooner while this staff is equipped. | _"The orchard answers when it sings."_ |
-| **Hollowmoon Sceptre** | Sceptre | +8 Intelligence, +3 Charisma | Spells cost no mana during the first hour of night. | _"Borrowed from a sky that never asked for it back."_ |
-| **Orchardkeeper's Aegis** | Aegis | +7 Constitution, +4 Wisdom | Blocking restores 2 vigour; +1 rank to Farmcraft. | _"Carried by the first keeper of the old trees."_ |
-| **Bulwark of the Hundred Winters** | Bulwark | +8 Constitution, +4 Charisma | Allies near you take 5% less damage. | _"Every dent is a winter it held."_ |
-| **Starfall** | Longbow | +7 Dexterity, +3 Intelligence | Fully drawn shots split into three falling stars. | _"Loose it at dusk and make a wish."_ |
-| **Crown of the Harvest King** | Crown | +8 Charisma, +4 Wisdom | Merchants pay 10% more for your produce. | _"Worn once a year, at the long table."_ |
-| **Dawnbreaker** | Greathelm | +7 Constitution, +4 Strength | The first hit you take each dawn is ignored. | _"The sun rises. So do you."_ |
-| **Wyrmscale Hauberk** | Scale Hauberk | +8 Constitution, +4 Strength | Immune to burning; +10% damage reduction. | _"The wyrm did not need it any more."_ |
-| **The Cellarmaster's Cleaver** | Hatchet | +5 Strength, +5 Charisma | Cellar goods you process age twice as fast. | _"Aged to perfection. Much like its owner."_ |
+| **The Bonecrippler** | Warhammer (ilvl 58) | Strength, Constitution, critical strike chance, Health | Critical hits stagger the target and shatter 10% of its armour. | _"It has never needed a second swing."_ |
+| **Emberwake, Blade of the Last Hearth** | Longsword (ilvl 60) | Strength, Wisdom, melee power, health per second | Swings leave a trail of embers that burn for 3 seconds. | _"Forged in the one hearth that outlasted the Long Winter."_ |
+| **Frostwhisper** | Arming Sword (ilvl 58) | Dexterity, Intelligence, swing speed, critical strike chance | Every third strike chills, slowing the target by 30%. | _"Cold enough to hear."_ |
+| **Rootsinger** | Staff (ilvl 58) | Wisdom, Intelligence, maximum mana, Farmcraft | Crops you tend grow one stage sooner while this staff is equipped. | _"The orchard answers when it sings."_ |
+| **Hollowmoon Sceptre** | Sceptre (ilvl 60) | Intelligence, Charisma, maximum mana, mana per second | Spells cost no mana during the first hour of night. | _"Borrowed from a sky that never asked for it back."_ |
+| **Orchardkeeper's Aegis** | Aegis (ilvl 56) | Constitution, Wisdom, damage reduction | Blocking restores 2 vigour; +1 rank to Farmcraft. | _"Carried by the first keeper of the old trees."_ |
+| **Bulwark of the Hundred Winters** | Bulwark (ilvl 57) | Constitution, Charisma, Health | Allies near you take 5% less damage. | _"Every dent is a winter it held."_ |
+| **Starfall** | Longbow (ilvl 60) | Dexterity, Intelligence, ranged power, critical strike chance | Fully drawn shots split into three falling stars. | _"Loose it at dusk and make a wish."_ |
+| **Crown of the Harvest King** | Crown (ilvl 55) | Charisma, Wisdom, maximum mana | Merchants pay 10% more for your produce. | _"Worn once a year, at the long table."_ |
+| **Dawnbreaker** | Greathelm (ilvl 57) | Constitution, Strength, health per second | The first hit you take each dawn is ignored. | _"The sun rises. So do you."_ |
+| **Wyrmscale Hauberk** | Scale Hauberk (ilvl 58) | Constitution, Strength, Armor | Immune to burning; +10% damage reduction. | _"The wyrm did not need it any more."_ |
+| **The Cellarmaster's Cleaver** | Hatchet (ilvl 56) | Strength, Charisma, swing speed, Woodcutting Endurance | Cellar goods you process age twice as fast. | _"Aged to perfection. Much like its owner."_ |
 
 ## Sample items in the renders
 
-| Name | Rarity | Base | Material | Sell (bronze) |
-| --- | --- | --- | --- | --- |
-| Chipped Iron Arming Sword | poor | Arming Sword | Iron | 20 |
-| Bronze Arming Sword | common | Arming Sword | Bronze | 25 |
-| Homespun Dungarees | common | Dungarees | Homespun | 13 |
-| Iron Sallet | common | Sallet | Iron | 100 |
-| Steel Longsword of Fortitude | uncommon | Longsword | Steel | 495 |
-| Stalwart Woollen Flannel | uncommon | Flannel | Woollen | 100 |
-| Warded Iron Roundshield | uncommon | Roundshield | Iron | 180 |
-| Dyed Breeches of the Wanderer | uncommon | Breeches | Dyed | 225 |
-| Tanned Boots of the Wanderer | uncommon | Boots | Tanned | 100 |
-| Gallant Velvet Cape | uncommon | Cape | Velvet | 625 |
-| Deadeye Iron Crossbow | uncommon | Crossbow | Iron | 240 |
-| Radiant Bulwark of the Ages | rare | Bulwark | Blackiron | 2240 |
-| Stalwart Greathelm of the Veteran | rare | Greathelm | Steel | 1080 |
-| Serene Staff of Arcana | rare | Staff | Aquamarine | 1440 |
-| Tireless Pickaxe of the Deep | rare | Pickaxe | Steel | 900 |
-| Deadeye Shortbow of the Hunt | rare | Shortbow | Yew | 360 |
-| Radiant Vestments of the Ages | rare | Vestments | Silken | 960 |
-| Dawnsworn Greathelm | epic | Greathelm | Steel | 2700 |
-| Duskwarden Warhelm | epic | Warhelm | Blackiron | 4800 |
-| Stormforged Cuirass | epic | Cuirass | Frostforged | 9375 |
-| Kingsguard Heater | epic | Heater | Gilded | 4000 |
-| Starweaver Rod | epic | Rod | Amethyst | 9800 |
-| Wildroot Halberd | epic | Halberd | Verdant | 8750 |
-| Starweaver Mantle | epic | Mantle | Silken | 2400 |
-| Stormforged Sabatons | epic | Sabatons | Frostforged | 4375 |
-| The Bonecrippler | legendary | Warhammer | Blackiron | 31500 |
-| Emberwake, Blade of the Last Hearth | legendary | Longsword | Emberforged | 24750 |
-| Frostwhisper | legendary | Arming Sword | Frostforged | 22500 |
-| Rootsinger | legendary | Staff | Jade | 20250 |
-| Hollowmoon Sceptre | legendary | Sceptre | Amethyst | 27563 |
-| Orchardkeeper's Aegis | legendary | Aegis | Verdant | 29250 |
-| Bulwark of the Hundred Winters | legendary | Bulwark | Gilded | 31500 |
-| Starfall | legendary | Longbow | Starmetal | 33688 |
-| Crown of the Harvest King | legendary | Crown | Gilded | 9375 |
-| Dawnbreaker | legendary | Greathelm | Steel | 27000 |
-| Wyrmscale Hauberk | legendary | Scale Hauberk | Emberforged | 42875 |
-| The Cellarmaster's Cleaver | legendary | Hatchet | Gilded | 15625 |
+| Name | Rarity | Item level | Base | Material | Sell (bronze) |
+| --- | --- | --- | --- | --- | --- |
+| Chipped Iron Arming Sword | poor | 8 | Arming Sword | Iron | 28 |
+| Bronze Arming Sword | common | 5 | Arming Sword | Bronze | 66 |
+| Homespun Dungarees | common | 5 | Dungarees | Homespun | 33 |
+| Iron Sallet | common | 12 | Sallet | Iron | 266 |
+| Steel Longsword of Fortitude | uncommon | 19 | Longsword | Steel | 1223 |
+| Stalwart Woollen Flannel | uncommon | 12 | Flannel | Woollen | 266 |
+| Warded Iron Roundshield | uncommon | 12 | Roundshield | Iron | 480 |
+| Dyed Breeches of the Wanderer | uncommon | 19 | Breeches | Dyed | 556 |
+| Tanned Boots of the Wanderer | uncommon | 12 | Boots | Tanned | 266 |
+| Gallant Velvet Cape | uncommon | 34 | Cape | Velvet | 1410 |
+| Deadeye Iron Crossbow | uncommon | 12 | Crossbow | Iron | 640 |
+| Radiant Bulwark of the Ages | rare | 26 | Bulwark | Blackiron | 5142 |
+| Stalwart Greathelm of the Veteran | rare | 19 | Greathelm | Steel | 2668 |
+| Serene Staff of Arcana | rare | 26 | Staff | Aquamarine | 3305 |
+| Tireless Pickaxe of the Deep | rare | 19 | Pickaxe | Steel | 2223 |
+| Deadeye Shortbow of the Hunt | rare | 12 | Shortbow | Yew | 959 |
+| Radiant Vestments of the Ages | rare | 26 | Vestments | Silken | 2204 |
+| Dawnsworn Greathelm | epic | 22 | Greathelm | Steel | 8434 |
+| Duskwarden Warhelm | epic | 30 | Warhelm | Blackiron | 13853 |
+| Stormforged Cuirass | epic | 38 | Cuirass | Frostforged | 25276 |
+| Kingsguard Heater | epic | 30 | Heater | Gilded | 11544 |
+| Starweaver Rod | epic | 52 | Rod | Amethyst | 22267 |
+| Wildroot Halberd | epic | 38 | Halberd | Verdant | 23591 |
+| Starweaver Mantle | epic | 30 | Mantle | Silken | 6927 |
+| Stormforged Sabatons | epic | 38 | Sabatons | Frostforged | 11796 |
+| The Bonecrippler | legendary | 58 | Warhammer | Blackiron | 116017 |
+| Emberwake, Blade of the Last Hearth | legendary | 60 | Longsword | Emberforged | 96238 |
+| Frostwhisper | legendary | 58 | Arming Sword | Frostforged | 82870 |
+| Rootsinger | legendary | 58 | Staff | Jade | 74583 |
+| Hollowmoon Sceptre | legendary | 60 | Sceptre | Amethyst | 78740 |
+| Orchardkeeper's Aegis | legendary | 56 | Aegis | Verdant | 101848 |
+| Bulwark of the Hundred Winters | legendary | 57 | Bulwark | Gilded | 112833 |
+| Starfall | legendary | 60 | Longbow | Starmetal | 96238 |
+| Crown of the Harvest King | legendary | 55 | Crown | Gilded | 45671 |
+| Dawnbreaker | legendary | 57 | Greathelm | Steel | 96714 |
+| Wyrmscale Hauberk | legendary | 58 | Scale Hauberk | Emberforged | 116017 |
+| The Cellarmaster's Cleaver | legendary | 56 | Hatchet | Gilded | 78345 |
 
 ## Open decisions
 

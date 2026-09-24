@@ -1,6 +1,6 @@
 import {
-  LEGENDARIES, LINEAGES, POOR_WORDS, PREFIXES, STATS, SUFFIXES, TIER_LEVEL,
-  affixValue, armourValue, baseType, material, rarity, sellValue, weaponDamage,
+  LEGENDARIES, LINEAGES, POOR_WORDS, PREFIXES, STATS, SUFFIXES,
+  affixValue, armourValue, baseType, defaultItemLevel, material, rarity, requiredLevel, sellValue, weaponDamage,
   type BaseType, type Legendary, type Lineage, type Material, type RarityId, type StatDef,
 } from './catalogue.js';
 import { CAPE, HEAD_DESIGNS, paint } from './designs.js';
@@ -19,6 +19,8 @@ export interface ItemSpec {
   readonly legendary?: string;
   /** Override the ornateness-ranked icon choice. */
   readonly iconRow?: number;
+  /** Item level; defaults to the material band (legendaries carry their own). */
+  readonly itemLevel?: number;
 }
 
 export interface TooltipLine {
@@ -36,6 +38,7 @@ export interface Item {
   readonly icon: Raster;
   readonly lines: readonly TooltipLine[];
   readonly sellBronze: number;
+  readonly itemLevel: number;
   readonly doll: Loadout;
 }
 
@@ -123,8 +126,8 @@ export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
   const base = baseType(legendary?.base ?? spec.base);
   const mat = material(legendary?.material ?? spec.material);
   const rarityId: RarityId = legendary ? 'legendary' : spec.rarity;
-  const rar = rarity(rarityId);
   const tier = legendary?.tier ?? mat.tier;
+  const itemLevel = legendary?.itemLevel ?? spec.itemLevel ?? defaultItemLevel(tier, spec.rarity);
   const prefix = PREFIXES.find((entry) => entry.id === spec.prefix);
   const suffix = SUFFIXES.find((entry) => entry.id === spec.suffix);
 
@@ -198,46 +201,47 @@ export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
   const lines: TooltipLine[] = [];
   if (rarityId === 'legendary') lines.push({ text: 'Unique', color: TOOLTIP_COLORS.white });
   lines.push({ text: SLOT_LABEL[base.slot], right: typeLabel(base), color: TOOLTIP_COLORS.white });
-  lines.push({ text: `Tier ${tier} ${mat.name}`, color: TOOLTIP_COLORS.muted });
+  lines.push({ text: `Item Level ${itemLevel}`, color: TOOLTIP_COLORS.flavour });
+  lines.push({ text: mat.name, color: TOOLTIP_COLORS.muted });
   const isWeapon = ['main_hand', 'two_hand'].includes(base.slot) && base.group !== 'Shields';
   if (isWeapon && base.group !== 'Staffs') {
-    lines.push({ text: `${weaponDamage(base, tier, rarityId)} Damage`, right: base.slot === 'two_hand' ? 'Slow' : 'Normal', color: TOOLTIP_COLORS.white });
+    lines.push({ text: `${weaponDamage(base, itemLevel, rarityId)} Damage`, right: base.slot === 'two_hand' ? 'Slow' : 'Normal', color: TOOLTIP_COLORS.white });
   } else if (base.group === 'Staffs') {
-    lines.push({ text: `${Math.round(weaponDamage(base, tier, rarityId) * 0.6)} Damage`, right: 'Normal', color: TOOLTIP_COLORS.white });
+    lines.push({ text: `${Math.round(weaponDamage(base, itemLevel, rarityId) * 0.6)} Damage`, right: 'Normal', color: TOOLTIP_COLORS.white });
   } else if (base.slot === 'tool') {
-    lines.push({ text: `Tool Power ${tier}`, color: TOOLTIP_COLORS.white });
+    lines.push({ text: `Tool Power ${tier}`, right: `Tier ${tier}`, color: TOOLTIP_COLORS.white });
   } else if (base.slot !== 'ammo') {
-    lines.push({ text: `${armourValue(base, tier, rarityId)} Armor`, color: TOOLTIP_COLORS.white });
+    lines.push({ text: `${armourValue(base, itemLevel, rarityId)} Armor`, color: TOOLTIP_COLORS.white });
   }
 
   const primary: [StatDef, number][] = [];
   const equips: string[] = [];
-  const add = (statId: string, power: number, fixed?: number): void => {
+  // Rarity decides how many effects; item level decides how big each one is.
+  const add = (statId: string): void => {
     const stat = STATS[statId]!;
-    const value = fixed ?? affixValue(stat, tier, power);
+    const value = affixValue(stat, itemLevel);
     if (stat.kind === 'primary') primary.push([stat, value]);
     else equips.push(equipText(stat, value));
   };
   if (legendary) {
-    for (const [statId, value] of legendary.stats) add(statId, rar.power, value);
+    for (const statId of legendary.stats) add(statId);
   } else if (lineage) {
-    for (const statId of lineage.stats) add(statId, rar.power);
-    add(lineage.equip, rar.power);
+    for (const statId of lineage.stats) add(statId);
+    add(lineage.equip);
   } else {
-    if (prefix) add(prefix.stat, rar.power);
-    if (suffix) add(suffix.stat, rar.power);
+    if (prefix) add(prefix.stat);
+    if (suffix) add(suffix.stat);
   }
-  if (base.group === 'Staffs') add('manaRegen', Math.max(0.5, rar.power));
   for (const [stat, value] of primary) lines.push({ text: `+${value} ${stat.label}`, color: TOOLTIP_COLORS.white });
   for (const text of equips) lines.push({ text, color: TOOLTIP_COLORS.equip });
   if (legendary) lines.push({ text: `Equip: ${legendary.signature}`, color: TOOLTIP_COLORS.equip });
 
   if (!['ammo'].includes(base.slot)) {
-    const durability = rarityId === 'legendary' ? 250 : 60 + 30 * tier;
+    const durability = rarityId === 'legendary' ? 250 : 60 + 3 * itemLevel;
     const current = rarityId === 'poor' ? Math.round(durability * 0.35) : durability;
     lines.push({ text: `Durability ${current} / ${durability}`, color: TOOLTIP_COLORS.white });
   }
-  const level = TIER_LEVEL[tier] ?? 1;
+  const level = requiredLevel(itemLevel);
   if (level > 1) lines.push({ text: `Requires Level ${level}`, color: TOOLTIP_COLORS.white });
   if (legendary) lines.push({ text: `"${legendary.flavour}"`, color: TOOLTIP_COLORS.flavour });
   else if (lineage) lines.push({ text: `"${lineage.theme[0]!.toUpperCase()}${lineage.theme.slice(1)}."`, color: TOOLTIP_COLORS.flavour });
@@ -250,7 +254,8 @@ export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
     material: mat,
     icon,
     lines,
-    sellBronze: sellValue(tier, rarityId, base.weight),
+    sellBronze: sellValue(itemLevel, rarityId, base.weight),
+    itemLevel,
     doll,
   };
 }

@@ -2,10 +2,12 @@ import { coins, rarity } from './catalogue.js';
 import type { Item, TooltipLine } from './items.js';
 import { TOOLTIP_COLORS } from './items.js';
 import { Raster } from './raster.js';
-import { drawText, textWidth, type BitmapFont } from './sprites.js';
+import { drawText, nineSlice, textWidth, type BitmapFont } from './sprites.js';
 
 export interface TooltipAssets {
   readonly font: BitmapFont;
+  /** `ui_orchard_tooltip_dark` frames by name (neutral, poor … legendary) and its nine-slice insets. */
+  readonly panel: { readonly frames: Readonly<Record<string, Raster>>; readonly slice: readonly [number, number, number, number] };
   readonly coinGold: Raster;
   readonly coinSilver: Raster;
   readonly coinBronze: Raster;
@@ -14,9 +16,7 @@ export interface TooltipAssets {
 const WIDTH = 204;
 const PAD = 6;
 const LINE = 10;
-const PANEL = '#1d1a2b';
 const RIM = '#5a6988';
-const OUTLINE = '#0e071b';
 
 function wrap(font: BitmapFont, text: string, width: number): string[] {
   const words = text.split(' ');
@@ -60,17 +60,10 @@ export function renderTooltip(item: Item, assets: TooltipAssets): Raster {
   const height = PAD + headerHeight + 4 + bodyHeight + LINE + 4 + PAD;
   const out = new Raster(WIDTH, height);
 
-  // Panel with a one-pixel rim; epic and legendary rims take the rarity colour.
-  const rimColor = item.rarity === 'epic' || item.rarity === 'legendary' ? rarity(item.rarity).color : RIM;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < WIDTH; x += 1) {
-      const edge = x === 0 || y === 0 || x === WIDTH - 1 || y === height - 1;
-      const rim = x === 1 || y === 1 || x === WIDTH - 2 || y === height - 2;
-      const corner = (x < 2 || x > WIDTH - 3) && (y < 2 || y > height - 3);
-      if (corner && (x === 0 || x === WIDTH - 1) && (y === 0 || y === height - 1)) continue;
-      out.set(x, y, edge ? OUTLINE : rim ? rimColor : PANEL, edge || rim ? 255 : 245);
-    }
-  }
+  // Kit dark panel, nine-sliced; uncommon and above take their rarity rim.
+  const frameName = ['uncommon', 'rare', 'epic', 'legendary'].includes(item.rarity) ? item.rarity : 'neutral';
+  out.draw(nineSlice(assets.panel.frames[frameName]!, assets.panel.slice, WIDTH, height), 0, 0);
+  const rimColor = frameName === 'neutral' ? RIM : rarity(item.rarity).color;
 
   // Icon in a small slot, name beside it.
   for (let y = 0; y < 20; y += 1) {

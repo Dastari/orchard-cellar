@@ -23,8 +23,8 @@ export interface Rarity {
   /** Tooltip name colour (game colours from roguelike-ui.ts; poor added). */
   readonly color: string;
   readonly affixes: string;
-  /** Multiplier for affix magnitude. */
-  readonly power: number;
+  /** Number of effects (prefix, suffix, lineage or unique stats). Item level, not rarity, sets their size. */
+  readonly effects: number;
   /** Multiplier for sell value. */
   readonly price: number;
   /** How the item looks compared with its base family. */
@@ -32,12 +32,12 @@ export interface Rarity {
 }
 
 export const RARITIES: readonly Rarity[] = [
-  { id: 'poor', name: 'Poor', color: '#9d9d9d', affixes: 'none; damaged-base name', power: 0, price: 0.2, look: 'plainest icon of the family, dulled material' },
-  { id: 'common', name: 'Common', color: '#f4f1e8', affixes: 'none', power: 0, price: 1, look: 'plain family icon and worn layer in its material' },
-  { id: 'uncommon', name: 'Uncommon', color: '#63c74d', affixes: 'one: prefix or suffix', power: 0.5, price: 2, look: 'plain family, material colour' },
-  { id: 'rare', name: 'Rare', color: '#5a8ee0', affixes: 'two: prefix and suffix; may grant a skill rank', power: 0.8, price: 4, look: 'trimmed icon; gilt trim on worn pieces' },
-  { id: 'epic', name: 'Epic', color: '#b56be0', affixes: 'lineage package: two attributes + an Equip effect', power: 1.1, price: 10, look: 'ornate icon; lineage ornaments (plume, wings, horns, pauldrons)' },
-  { id: 'legendary', name: 'Legendary', color: '#f6b83f', affixes: 'unique: fixed stats + a signature effect + lore', power: 1.4, price: 25, look: 'bespoke design, unique finish, glow and glint' },
+  { id: 'poor', name: 'Poor', color: '#9d9d9d', affixes: 'none; damaged-base name', effects: 0, price: 0.2, look: 'plainest icon of the family, dulled material' },
+  { id: 'common', name: 'Common', color: '#f4f1e8', affixes: 'none', effects: 0, price: 1, look: 'plain family icon and worn layer in its material' },
+  { id: 'uncommon', name: 'Uncommon', color: '#63c74d', affixes: 'one effect: a prefix or a suffix', effects: 1, price: 2, look: 'plain family, material colour' },
+  { id: 'rare', name: 'Rare', color: '#5a8ee0', affixes: 'two effects: prefix and suffix; may grant a skill rank', effects: 2, price: 4, look: 'trimmed icon; gilt trim on worn pieces' },
+  { id: 'epic', name: 'Epic', color: '#b56be0', affixes: 'three effects from its lineage', effects: 3, price: 10, look: 'ornate icon; lineage ornaments (plume, wings, horns, pauldrons)' },
+  { id: 'legendary', name: 'Legendary', color: '#f6b83f', affixes: 'three effects + a signature effect (named unique weapons: four + signature)', effects: 3, price: 25, look: 'bespoke design, unique finish, glow and glint' },
 ];
 
 export const rarity = (id: RarityId): Rarity => RARITIES.find((entry) => entry.id === id)!;
@@ -100,8 +100,26 @@ export const material = (id: string): Material => {
   return found;
 };
 
-/** Required level by material tier (level cap 50). */
-export const TIER_LEVEL = [0, 1, 8, 15, 22, 30, 38, 45] as const;
+/**
+ * Item level (1–60) sets base armour/damage and the size of every effect.
+ * Materials place items in an item-level band; the band's midpoint is the
+ * default, and drops, crafting and vendors may pick any level inside it.
+ * Legendaries and named uniques sit above the level cap (55–60).
+ */
+export const ITEM_LEVEL_BANDS: Readonly<Record<number, readonly [number, number]>> = {
+  1: [1, 8], 2: [8, 15], 3: [15, 22], 4: [22, 30], 5: [30, 38], 6: [38, 45], 7: [45, 52],
+};
+export const MAX_ITEM_LEVEL = 60;
+export const LEVEL_CAP = 50;
+
+export const defaultItemLevel = (tier: number, rarityId: RarityId): number => {
+  const [low, high] = ITEM_LEVEL_BANDS[tier] ?? [1, 8];
+  const middle = Math.round((low + high) / 2);
+  return Math.min(MAX_ITEM_LEVEL, rarityId === 'epic' ? high : rarityId === 'poor' ? low : middle);
+};
+
+/** Required level follows item level, capped at the level cap. */
+export const requiredLevel = (itemLevel: number): number => Math.min(LEVEL_CAP, itemLevel);
 
 // ---------------------------------------------------------------------------
 // Base item types
@@ -234,41 +252,43 @@ export interface StatDef {
   readonly label: string;
   /** White tooltip line (primary) or green `Equip:` line (secondary). */
   readonly kind: 'primary' | 'equip';
-  /** Magnitude per material tier at power 1.0. */
-  readonly perTier: number;
+  /** Magnitude per item level (see affixValue). */
+  readonly perLevel: number;
   readonly unit: 'points' | 'percent' | 'perSecond' | 'rank';
   /** Not yet allowed by EQUIPMENT_STAT_BUDGETS. */
   readonly needsBudget?: boolean;
 }
 
 export const STATS: Readonly<Record<string, StatDef>> = {
-  str: { id: 'str', target: 'str', label: 'Strength', kind: 'primary', perTier: 1, unit: 'points', needsBudget: true },
-  dex: { id: 'dex', target: 'dex', label: 'Dexterity', kind: 'primary', perTier: 1, unit: 'points', needsBudget: true },
-  con: { id: 'con', target: 'con', label: 'Constitution', kind: 'primary', perTier: 1, unit: 'points', needsBudget: true },
-  int: { id: 'int', target: 'int', label: 'Intelligence', kind: 'primary', perTier: 1, unit: 'points', needsBudget: true },
-  wis: { id: 'wis', target: 'wis', label: 'Wisdom', kind: 'primary', perTier: 1, unit: 'points', needsBudget: true },
-  cha: { id: 'cha', target: 'cha', label: 'Charisma', kind: 'primary', perTier: 1, unit: 'points', needsBudget: true },
-  attackPower: { id: 'attackPower', target: 'attackPower', label: 'melee power', kind: 'equip', perTier: 2, unit: 'percent' },
-  rangedPower: { id: 'rangedPower', target: 'rangedPower', label: 'ranged power', kind: 'equip', perTier: 2, unit: 'percent' },
-  criticalChance: { id: 'criticalChance', target: 'criticalChance', label: 'critical strike chance', kind: 'equip', perTier: 0.7, unit: 'percent' },
-  maxHealth: { id: 'maxHealth', target: 'maxHealth', label: 'maximum health', kind: 'equip', perTier: 2, unit: 'percent' },
-  maxVigour: { id: 'maxVigour', target: 'maxVigour', label: 'maximum vigour', kind: 'equip', perTier: 3, unit: 'percent' },
-  armorPct: { id: 'armorPct', target: 'armorPct', label: 'damage reduction', kind: 'equip', perTier: 0.8, unit: 'percent' },
-  swingSpeed: { id: 'swingSpeed', target: 'swingSpeed', label: 'swing speed', kind: 'equip', perTier: 1.5, unit: 'percent' },
-  toolVigourCost: { id: 'toolVigourCost', target: 'toolVigourCost', label: 'tool vigour cost reduction', kind: 'equip', perTier: 2, unit: 'percent' },
-  sprintVigourCost: { id: 'sprintVigourCost', target: 'sprintVigourCost', label: 'sprint vigour cost reduction', kind: 'equip', perTier: 2, unit: 'percent' },
-  manaRegen: { id: 'manaRegen', target: 'manaRegen', label: 'mana per second', kind: 'equip', perTier: 0.1, unit: 'perSecond', needsBudget: true },
-  healthRegen: { id: 'healthRegen', target: 'healthRegen', label: 'health per second', kind: 'equip', perTier: 0.1, unit: 'perSecond', needsBudget: true },
-  vigourRegen: { id: 'vigourRegen', target: 'vigourRegen', label: 'vigour per second', kind: 'equip', perTier: 0.1, unit: 'perSecond', needsBudget: true },
-  maxMana: { id: 'maxMana', target: 'maxMana', label: 'maximum mana', kind: 'equip', perTier: 3, unit: 'percent', needsBudget: true },
-  farmcraft: { id: 'farmcraft', target: 'farmcraft', label: 'Farmcraft', kind: 'equip', perTier: 0, unit: 'rank' },
-  mining_endurance: { id: 'mining_endurance', target: 'mining_endurance', label: 'Mining Endurance', kind: 'equip', perTier: 0, unit: 'rank' },
-  fishing_endurance: { id: 'fishing_endurance', target: 'fishing_endurance', label: 'Fishing Endurance', kind: 'equip', perTier: 0, unit: 'rank' },
-  woodcutting_endurance: { id: 'woodcutting_endurance', target: 'woodcutting_endurance', label: 'Woodcutting Endurance', kind: 'equip', perTier: 0, unit: 'rank' },
-  blade_training: { id: 'blade_training', target: 'blade_training', label: 'Blade Training', kind: 'equip', perTier: 0, unit: 'rank' },
-  archery_basics: { id: 'archery_basics', target: 'archery_basics', label: 'Archery Basics', kind: 'equip', perTier: 0, unit: 'rank' },
-  battle_conditioning: { id: 'battle_conditioning', target: 'battle_conditioning', label: 'Battle Conditioning', kind: 'equip', perTier: 0, unit: 'rank' },
-  measured_stride: { id: 'measured_stride', target: 'measured_stride', label: 'Measured Stride', kind: 'equip', perTier: 0, unit: 'rank' },
+  str: { id: 'str', target: 'str', label: 'Strength', kind: 'primary', perLevel: 1 / 8, unit: 'points', needsBudget: true },
+  dex: { id: 'dex', target: 'dex', label: 'Dexterity', kind: 'primary', perLevel: 1 / 8, unit: 'points', needsBudget: true },
+  con: { id: 'con', target: 'con', label: 'Constitution', kind: 'primary', perLevel: 1 / 8, unit: 'points', needsBudget: true },
+  int: { id: 'int', target: 'int', label: 'Intelligence', kind: 'primary', perLevel: 1 / 8, unit: 'points', needsBudget: true },
+  wis: { id: 'wis', target: 'wis', label: 'Wisdom', kind: 'primary', perLevel: 1 / 8, unit: 'points', needsBudget: true },
+  cha: { id: 'cha', target: 'cha', label: 'Charisma', kind: 'primary', perLevel: 1 / 8, unit: 'points', needsBudget: true },
+  attackPower: { id: 'attackPower', target: 'attackPower', label: 'melee power', kind: 'equip', perLevel: 0.3, unit: 'percent' },
+  rangedPower: { id: 'rangedPower', target: 'rangedPower', label: 'ranged power', kind: 'equip', perLevel: 0.3, unit: 'percent' },
+  criticalChance: { id: 'criticalChance', target: 'criticalChance', label: 'critical strike chance', kind: 'equip', perLevel: 0.1, unit: 'percent' },
+  maxHealth: { id: 'maxHealth', target: 'maxHealth', label: 'maximum health', kind: 'equip', perLevel: 0.3, unit: 'percent' },
+  maxVigour: { id: 'maxVigour', target: 'maxVigour', label: 'maximum vigour', kind: 'equip', perLevel: 0.4, unit: 'percent' },
+  armorPct: { id: 'armorPct', target: 'armorPct', label: 'damage reduction', kind: 'equip', perLevel: 0.12, unit: 'percent' },
+  swingSpeed: { id: 'swingSpeed', target: 'swingSpeed', label: 'swing speed', kind: 'equip', perLevel: 0.2, unit: 'percent' },
+  toolVigourCost: { id: 'toolVigourCost', target: 'toolVigourCost', label: 'tool vigour cost reduction', kind: 'equip', perLevel: 0.3, unit: 'percent' },
+  sprintVigourCost: { id: 'sprintVigourCost', target: 'sprintVigourCost', label: 'sprint vigour cost reduction', kind: 'equip', perLevel: 0.3, unit: 'percent' },
+  manaRegen: { id: 'manaRegen', target: 'manaRegen', label: 'mana per second', kind: 'equip', perLevel: 0.02, unit: 'perSecond', needsBudget: true },
+  healthRegen: { id: 'healthRegen', target: 'healthRegen', label: 'health per second', kind: 'equip', perLevel: 0.02, unit: 'perSecond', needsBudget: true },
+  vigourRegen: { id: 'vigourRegen', target: 'vigourRegen', label: 'vigour per second', kind: 'equip', perLevel: 0.02, unit: 'perSecond', needsBudget: true },
+  health: { id: 'health', target: 'maxHealth', label: 'Health', kind: 'primary', perLevel: 2, unit: 'points' },
+  armor: { id: 'armor', target: 'armor', label: 'Armor', kind: 'primary', perLevel: 1, unit: 'points' },
+  maxMana: { id: 'maxMana', target: 'maxMana', label: 'maximum mana', kind: 'equip', perLevel: 0.4, unit: 'percent', needsBudget: true },
+  farmcraft: { id: 'farmcraft', target: 'farmcraft', label: 'Farmcraft', kind: 'equip', perLevel: 0, unit: 'rank' },
+  mining_endurance: { id: 'mining_endurance', target: 'mining_endurance', label: 'Mining Endurance', kind: 'equip', perLevel: 0, unit: 'rank' },
+  fishing_endurance: { id: 'fishing_endurance', target: 'fishing_endurance', label: 'Fishing Endurance', kind: 'equip', perLevel: 0, unit: 'rank' },
+  woodcutting_endurance: { id: 'woodcutting_endurance', target: 'woodcutting_endurance', label: 'Woodcutting Endurance', kind: 'equip', perLevel: 0, unit: 'rank' },
+  blade_training: { id: 'blade_training', target: 'blade_training', label: 'Blade Training', kind: 'equip', perLevel: 0, unit: 'rank' },
+  archery_basics: { id: 'archery_basics', target: 'archery_basics', label: 'Archery Basics', kind: 'equip', perLevel: 0, unit: 'rank' },
+  battle_conditioning: { id: 'battle_conditioning', target: 'battle_conditioning', label: 'Battle Conditioning', kind: 'equip', perLevel: 0, unit: 'rank' },
+  measured_stride: { id: 'measured_stride', target: 'measured_stride', label: 'Measured Stride', kind: 'equip', perLevel: 0, unit: 'rank' },
 };
 
 export interface Affix {
@@ -294,6 +314,8 @@ export const PREFIXES: readonly Affix[] = [
   { id: 'deadeye', name: 'Deadeye', stat: 'rangedPower', from: 'uncommon', suits: ['Bows', 'Crossbows', 'Ammunition'] },
   { id: 'warded', name: 'Warded', stat: 'armorPct', from: 'uncommon', suits: ['Shields', 'Plate', 'Helms'] },
   { id: 'tireless', name: 'Tireless', stat: 'toolVigourCost', from: 'uncommon', suits: ['Tools', 'Gloves'] },
+  { id: 'hale', name: 'Hale', stat: 'health', from: 'uncommon', suits: [] },
+  { id: 'ironclad', name: 'Ironclad', stat: 'armor', from: 'uncommon', suits: ['Plate', 'Helms', 'Shields', 'Footwear', 'Gloves'] },
 ];
 
 /** Suffixes grant a secondary stat, regeneration or a skill rank (green Equip lines). */
@@ -360,7 +382,10 @@ export interface Legendary {
   readonly material: string;
   /** Legendaries sit at the top of the ladder regardless of material. */
   readonly tier: number;
-  readonly stats: readonly [string, number][];
+  /** Item level; legendaries and named uniques are 55–60. */
+  readonly itemLevel: number;
+  /** Effects sized by item level: three for legendary armour, four for named unique weapons. */
+  readonly stats: readonly string[];
   readonly signature: string;
   readonly flavour: string;
   /** Icon/visual finish: icon column palette plus optional bespoke ramp and aura. */
@@ -368,42 +393,44 @@ export interface Legendary {
 }
 
 export const LEGENDARIES: readonly Legendary[] = [
-  { id: 'bonecrippler', name: 'The Bonecrippler', base: 'warhammer', material: 'blackiron', tier: 6, stats: [['str', 7], ['con', 5]], signature: 'Critical hits stagger the target and shatter 10% of its armour.', flavour: 'It has never needed a second swing.', finish: { palette: 'obsidian', row: 133, bone: true, aura: '#e4a672' } },
-  { id: 'emberwake', name: 'Emberwake, Blade of the Last Hearth', base: 'longsword', material: 'emberforged', tier: 6, stats: [['str', 6], ['wis', 4]], signature: 'Swings leave a trail of embers that burn for 3 seconds.', flavour: 'Forged in the one hearth that outlasted the Long Winter.', finish: { palette: 'ember', row: 32, aura: '#ffa214' } },
-  { id: 'frostwhisper', name: 'Frostwhisper', base: 'arming_sword', material: 'frostforged', tier: 6, stats: [['dex', 7], ['int', 3]], signature: 'Every third strike chills, slowing the target by 30%.', flavour: 'Cold enough to hear.', finish: { palette: 'frost', row: 26, aura: '#94fdff' } },
-  { id: 'rootsinger', name: 'Rootsinger', base: 'staff', material: 'jade', tier: 6, stats: [['wis', 7], ['int', 5]], signature: 'Crops you tend grow one stage sooner while this staff is equipped.', flavour: 'The orchard answers when it sings.', finish: { palette: 'jade', staffHead: 'jade', aura: '#d3fc7e' } },
-  { id: 'hollowmoon', name: 'Hollowmoon Sceptre', base: 'sceptre', material: 'amethyst', tier: 7, stats: [['int', 8], ['cha', 3]], signature: 'Spells cost no mana during the first hour of night.', flavour: 'Borrowed from a sky that never asked for it back.', finish: { palette: 'amethyst', staffHead: 'amethyst', aura: '#f389f5' } },
-  { id: 'orchardkeeper', name: "Orchardkeeper's Aegis", base: 'aegis', material: 'verdant', tier: 6, stats: [['con', 7], ['wis', 4]], signature: 'Blocking restores 2 vigour; +1 rank to Farmcraft.', flavour: 'Carried by the first keeper of the old trees.', finish: { palette: 'jade', row: 151, aura: '#5ac54f' } },
-  { id: 'kingsbulwark', name: 'Bulwark of the Hundred Winters', base: 'bulwark', material: 'gilded', tier: 6, stats: [['con', 8], ['cha', 4]], signature: 'Allies near you take 5% less damage.', flavour: 'Every dent is a winter it held.', finish: { palette: 'gold', row: 156, aura: '#fee761' } },
-  { id: 'starfall', name: 'Starfall', base: 'longbow', material: 'starmetal', tier: 7, stats: [['dex', 7], ['int', 3]], signature: 'Fully drawn shots split into three falling stars.', flavour: 'Loose it at dusk and make a wish.', finish: { palette: 'amethyst', row: 116, aura: '#fdd2ed' } },
-  { id: 'harvest_crown', name: 'Crown of the Harvest King', base: 'crown', material: 'gilded', tier: 5, stats: [['cha', 8], ['wis', 4]], signature: 'Merchants pay 10% more for your produce.', flavour: 'Worn once a year, at the long table.', finish: { palette: 'gold', accent: 'gold', detail: 'jade', aura: '#fee761' } },
-  { id: 'dawnbreaker', name: 'Dawnbreaker', base: 'greathelm', material: 'steel', tier: 6, stats: [['con', 7], ['str', 4]], signature: 'The first hit you take each dawn is ignored.', flavour: 'The sun rises. So do you.', finish: { palette: 'silver', accent: 'gold', detail: 'ember', aura: '#ffeb57' } },
-  { id: 'wyrmscale', name: 'Wyrmscale Hauberk', base: 'hauberk', material: 'emberforged', tier: 7, stats: [['con', 8], ['str', 4]], signature: 'Immune to burning; +10% damage reduction.', flavour: 'The wyrm did not need it any more.', finish: { palette: 'ember', accent: 'gold', aura: '#ffa214' } },
-  { id: 'cellarmaster', name: "The Cellarmaster's Cleaver", base: 'hatchet', material: 'gilded', tier: 5, stats: [['str', 5], ['cha', 5]], signature: 'Cellar goods you process age twice as fast.', flavour: 'Aged to perfection. Much like its owner.', finish: { palette: 'gold', row: 90, aura: '#feae34' } },
+  { id: 'bonecrippler', name: 'The Bonecrippler', base: 'warhammer', material: 'blackiron', tier: 6, itemLevel: 58, stats: ['str', 'con', 'criticalChance', 'health'], signature: 'Critical hits stagger the target and shatter 10% of its armour.', flavour: 'It has never needed a second swing.', finish: { palette: 'obsidian', row: 133, bone: true, aura: '#e4a672' } },
+  { id: 'emberwake', name: 'Emberwake, Blade of the Last Hearth', base: 'longsword', material: 'emberforged', tier: 6, itemLevel: 60, stats: ['str', 'wis', 'attackPower', 'healthRegen'], signature: 'Swings leave a trail of embers that burn for 3 seconds.', flavour: 'Forged in the one hearth that outlasted the Long Winter.', finish: { palette: 'ember', row: 32, aura: '#ffa214' } },
+  { id: 'frostwhisper', name: 'Frostwhisper', base: 'arming_sword', material: 'frostforged', tier: 6, itemLevel: 58, stats: ['dex', 'int', 'swingSpeed', 'criticalChance'], signature: 'Every third strike chills, slowing the target by 30%.', flavour: 'Cold enough to hear.', finish: { palette: 'frost', row: 26, aura: '#94fdff' } },
+  { id: 'rootsinger', name: 'Rootsinger', base: 'staff', material: 'jade', tier: 6, itemLevel: 58, stats: ['wis', 'int', 'maxMana', 'farmcraft'], signature: 'Crops you tend grow one stage sooner while this staff is equipped.', flavour: 'The orchard answers when it sings.', finish: { palette: 'jade', staffHead: 'jade', aura: '#d3fc7e' } },
+  { id: 'hollowmoon', name: 'Hollowmoon Sceptre', base: 'sceptre', material: 'amethyst', tier: 7, itemLevel: 60, stats: ['int', 'cha', 'maxMana', 'manaRegen'], signature: 'Spells cost no mana during the first hour of night.', flavour: 'Borrowed from a sky that never asked for it back.', finish: { palette: 'amethyst', staffHead: 'amethyst', aura: '#f389f5' } },
+  { id: 'orchardkeeper', name: "Orchardkeeper's Aegis", base: 'aegis', material: 'verdant', tier: 6, itemLevel: 56, stats: ['con', 'wis', 'armorPct'], signature: 'Blocking restores 2 vigour; +1 rank to Farmcraft.', flavour: 'Carried by the first keeper of the old trees.', finish: { palette: 'jade', row: 151, aura: '#5ac54f' } },
+  { id: 'kingsbulwark', name: 'Bulwark of the Hundred Winters', base: 'bulwark', material: 'gilded', tier: 6, itemLevel: 57, stats: ['con', 'cha', 'health'], signature: 'Allies near you take 5% less damage.', flavour: 'Every dent is a winter it held.', finish: { palette: 'gold', row: 156, aura: '#fee761' } },
+  { id: 'starfall', name: 'Starfall', base: 'longbow', material: 'starmetal', tier: 7, itemLevel: 60, stats: ['dex', 'int', 'rangedPower', 'criticalChance'], signature: 'Fully drawn shots split into three falling stars.', flavour: 'Loose it at dusk and make a wish.', finish: { palette: 'amethyst', row: 116, aura: '#fdd2ed' } },
+  { id: 'harvest_crown', name: 'Crown of the Harvest King', base: 'crown', material: 'gilded', tier: 5, itemLevel: 55, stats: ['cha', 'wis', 'maxMana'], signature: 'Merchants pay 10% more for your produce.', flavour: 'Worn once a year, at the long table.', finish: { palette: 'gold', accent: 'gold', detail: 'jade', aura: '#fee761' } },
+  { id: 'dawnbreaker', name: 'Dawnbreaker', base: 'greathelm', material: 'steel', tier: 6, itemLevel: 57, stats: ['con', 'str', 'healthRegen'], signature: 'The first hit you take each dawn is ignored.', flavour: 'The sun rises. So do you.', finish: { palette: 'silver', accent: 'gold', detail: 'ember', aura: '#ffeb57' } },
+  { id: 'wyrmscale', name: 'Wyrmscale Hauberk', base: 'hauberk', material: 'emberforged', tier: 7, itemLevel: 58, stats: ['con', 'str', 'armor'], signature: 'Immune to burning; +10% damage reduction.', flavour: 'The wyrm did not need it any more.', finish: { palette: 'ember', accent: 'gold', aura: '#ffa214' } },
+  { id: 'cellarmaster', name: "The Cellarmaster's Cleaver", base: 'hatchet', material: 'gilded', tier: 5, itemLevel: 56, stats: ['str', 'cha', 'swingSpeed', 'woodcutting_endurance'], signature: 'Cellar goods you process age twice as fast.', flavour: 'Aged to perfection. Much like its owner.', finish: { palette: 'gold', row: 90, aura: '#feae34' } },
 ];
 
 // ---------------------------------------------------------------------------
 // Pricing and derived numbers
 
-/** Sell value in bronze coins: 25 × tier² × rarity price multiplier. */
-export function sellValue(tier: number, rarityId: RarityId, weight = 1): number {
-  return Math.max(1, Math.round(25 * tier * tier * rarity(rarityId).price * Math.max(0.5, weight)));
+/** Sell value in bronze: 5 × itemLevel^1.6 × rarity price multiplier × base weight. */
+export function sellValue(itemLevel: number, rarityId: RarityId, weight = 1): number {
+  return Math.max(1, Math.round(5 * itemLevel ** 1.6 * rarity(rarityId).price * Math.max(0.5, weight)));
 }
 
-export function affixValue(stat: StatDef, tier: number, power: number): number {
+/** Effect size from item level; rarity only decides how many effects there are. */
+export function affixValue(stat: StatDef, itemLevel: number): number {
   if (stat.unit === 'rank') return 1;
-  if (stat.unit === 'points') return Math.max(1, Math.round(tier * power * stat.perTier));
-  if (stat.unit === 'perSecond') return Math.max(0.1, Math.round(tier * power * stat.perTier * 10) / 10);
-  return Math.max(1, Math.round(tier * power * stat.perTier));
+  if (stat.unit === 'perSecond') return Math.max(0.1, Math.round(itemLevel * stat.perLevel * 10) / 10);
+  return Math.max(1, Math.round(itemLevel * stat.perLevel));
 }
 
-export function armourValue(base: BaseType, tier: number, rarityId: RarityId): number {
+export function armourValue(base: BaseType, itemLevel: number, rarityId: RarityId): number {
   const classFactor = base.armourClass === 'plate' ? 3 : base.armourClass === 'leather' ? 2 : 1;
-  return Math.max(1, Math.round((4 + tier * 3) * base.weight * classFactor * (1 + rarity(rarityId).power * 0.15)));
+  const worn = rarityId === 'poor' ? 0.7 : 1;
+  return Math.max(1, Math.round((2 + itemLevel * 0.6) * base.weight * classFactor * worn));
 }
 
-export function weaponDamage(base: BaseType, tier: number, rarityId: RarityId): number {
-  return Math.round(18 * base.weight * (1 + 0.25 * (tier - 1)) * (1 + rarity(rarityId).power * 0.15));
+export function weaponDamage(base: BaseType, itemLevel: number, rarityId: RarityId): number {
+  const worn = rarityId === 'poor' ? 0.7 : 1;
+  return Math.max(1, Math.round(18 * base.weight * (1 + itemLevel / 60) * worn));
 }
 
 export function coins(bronze: number): { gold: number; silver: number; bronze: number } {

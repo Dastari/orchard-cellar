@@ -32,7 +32,13 @@ const [doll, library, font, gold, silver, bronze] = await Promise.all([
   loadSprite('ui/ui_cf_coin_silver.sprite.json'),
   loadSprite('ui/ui_cf_coin_bronze.sprite.json'),
 ]);
-const tooltipAssets: TooltipAssets = { font, coinGold: gold.image, coinSilver: silver.image, coinBronze: bronze.image };
+const panelNames = ['neutral', 'poor', 'common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
+const panelFrames = Object.fromEntries(await Promise.all(panelNames.map(async (name) => [name, (await loadSprite('ui/ui_orchard_tooltip_dark.sprite.json', name)).image] as const)));
+const panelSlice = (await loadSprite('ui/ui_orchard_tooltip_dark.sprite.json', 'neutral')).asset.slice as [number, number, number, number];
+const tooltipAssets: TooltipAssets = {
+  font, coinGold: gold.image, coinSilver: silver.image, coinBronze: bronze.image,
+  panel: { frames: panelFrames, slice: panelSlice },
+};
 const build = (spec: ItemSpec): Item => buildItem(spec, library);
 
 const GRASS = '#5f8a4c';

@@ -1,6 +1,6 @@
 import {
-  BASE_TYPES, LEGENDARIES, LINEAGES, MATERIALS_BY_LINE, PREFIXES, RARITIES, STATS, SUFFIXES, TIER_LEVEL,
-  affixValue, baseType, rarity, type Affix, type BaseType,
+  BASE_TYPES, ITEM_LEVEL_BANDS, LEGENDARIES, LINEAGES, MATERIALS_BY_LINE, PREFIXES, RARITIES, STATS, SUFFIXES,
+  affixValue, baseType, requiredLevel, type Affix, type BaseType,
 } from './catalogue.js';
 import type { IconLibrary } from './icons.js';
 import type { Item } from './items.js';
@@ -53,13 +53,19 @@ export function catalogueMarkdown(library: IconLibrary, examples: readonly Item[
   out.push('Prefixes grant a primary attribute or headline power (white lines). Suffixes grant a secondary stat, regeneration or a skill rank (green `Equip:` lines). Several items may share one icon or worn family; material, trim and rarity ornaments make them distinct.', '');
 
   out.push('## Rarities', '');
-  out.push(table(['Rarity', 'Colour', 'Affixes', 'Affix power', 'Sell ×', 'Look'], RARITIES.map((entry) => [
-    entry.name, `\`${entry.color}\``, entry.affixes, entry.power, entry.price, entry.look,
+  out.push(table(['Rarity', 'Colour', 'Effects', 'Detail', 'Sell ×', 'Look'], RARITIES.map((entry) => [
+    entry.name, `\`${entry.color}\``, entry.effects, entry.affixes, entry.price, entry.look,
+  ])), '');
+
+  out.push('## Item levels', '');
+  out.push('Item level (1–60) sets base armour and damage and the size of every effect. Rarity only decides how many effects an item has. Required level follows item level, capped at 50. Materials place items in a band; drops, crafting and vendors may pick any level inside it. Legendaries and named uniques are item level 55–60.', '');
+  out.push(table(['Material tier', 'Item level band', 'Required level'], Object.entries(ITEM_LEVEL_BANDS).map(([tier, [low, high]]) => [
+    tier, `${low}–${high}`, `${requiredLevel(low)}–${requiredLevel(high)}`,
   ])), '');
 
   out.push('## Material ladders', '');
-  out.push(table(['Material', 'Line', 'Tier', 'Requires level', 'Palette', 'Note'], MATERIALS_BY_LINE.map((entry) => [
-    entry.name, entry.line, entry.tier, TIER_LEVEL[entry.tier] ?? 1, entry.palette + (entry.cloth ? ` / ${entry.cloth} cloth` : ''), entry.note ?? '',
+  out.push(table(['Material', 'Line', 'Tier', 'Item levels', 'Palette', 'Note'], MATERIALS_BY_LINE.map((entry) => [
+    entry.name, entry.line, entry.tier, `${ITEM_LEVEL_BANDS[entry.tier]![0]}–${ITEM_LEVEL_BANDS[entry.tier]![1]}`, entry.palette + (entry.cloth ? ` / ${entry.cloth} cloth` : ''), entry.note ?? '',
   ])), '');
 
   out.push('## Base types', '');
@@ -85,14 +91,14 @@ export function catalogueMarkdown(library: IconLibrary, examples: readonly Item[
     const stat = STATS[statId]!;
     if (stat.unit === 'rank') return '+1 rank';
     const suffix = stat.unit === 'percent' ? '%' : stat.unit === 'perSecond' ? '/s' : '';
-    return [1, 4, 7].map((tier) => `${affixValue(stat, tier, rarity('rare').power)}${suffix}`).join(' / ');
+    return [10, 30, 50].map((level) => `${affixValue(stat, level)}${suffix}`).join(' / ');
   };
   out.push('## Prefixes', '');
-  out.push(table(['Prefix', 'Grants', 'Rare at tier 1 / 4 / 7', 'From', 'Suits'], PREFIXES.map((affix) => [
+  out.push(table(['Prefix', 'Grants', 'At item level 10 / 30 / 50', 'From', 'Suits'], PREFIXES.map((affix) => [
     affix.name, statCell(affix.stat), magnitude(affix.stat), affix.from, affix.suits.join(', ') || 'any',
   ])), '');
   out.push('## Suffixes', '');
-  out.push(table(['Suffix', 'Grants', 'Rare at tier 1 / 4 / 7', 'From', 'Suits'], SUFFIXES.map((affix) => [
+  out.push(table(['Suffix', 'Grants', 'At item level 10 / 30 / 50', 'From', 'Suits'], SUFFIXES.map((affix) => [
     affix.name, statCell(affix.stat), magnitude(affix.stat), affix.from, affix.suits.join(', ') || 'any',
   ])), '');
   out.push('\\* Needs `EQUIPMENT_STAT_BUDGETS` extended (attributes, mana and regeneration are not equipment-budgeted today). Skill ranks follow the existing rare-or-better, four-rank loadout rule.', '');
@@ -104,14 +110,14 @@ export function catalogueMarkdown(library: IconLibrary, examples: readonly Item[
   ])), '');
 
   out.push('## Legendary uniques', '');
-  out.push(table(['Name', 'Base', 'Stats', 'Signature', 'Flavour'], LEGENDARIES.map((entry) => [
-    `**${entry.name}**`, baseType(entry.base).name, entry.stats.map(([stat, value]) => `+${value} ${STATS[stat]!.label}`).join(', '),
+  out.push(table(['Name', 'Base', 'Effects', 'Signature', 'Flavour'], LEGENDARIES.map((entry) => [
+    `**${entry.name}**`, `${baseType(entry.base).name} (ilvl ${entry.itemLevel})`, entry.stats.map((stat) => STATS[stat]!.label).join(', '),
     entry.signature, `_"${entry.flavour}"_`,
   ])), '');
 
   out.push('## Sample items in the renders', '');
-  out.push(table(['Name', 'Rarity', 'Base', 'Material', 'Sell (bronze)'], examples.map((item) => [
-    item.name, item.rarity, item.base.name, item.material.name, item.sellBronze,
+  out.push(table(['Name', 'Rarity', 'Item level', 'Base', 'Material', 'Sell (bronze)'], examples.map((item) => [
+    item.name, item.rarity, item.itemLevel, item.base.name, item.material.name, item.sellBronze,
   ])), '');
 
   out.push('## Open decisions', '');
