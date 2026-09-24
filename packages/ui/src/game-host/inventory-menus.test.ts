@@ -1,8 +1,7 @@
+import { GameOnlinePlayers } from './online-players.js';
+import { GameUiRuntime } from './runtime.js';
+import { nextHomesteadMemberRole } from '../overworld-ui.js';
 import { describe, expect, it, vi } from 'vitest';
-import { createCanvas } from '@napi-rs/canvas';
-import { uiTestAsset } from '../kit/lab/testing/art.js';
-import { scrollThumbRect, type ScrollBar } from '../scrollbar.js';
-import type { UiRect } from '../geometry.js';
 import { bootstrapContentRegistry, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, runtimeMaxStack, projectTiming, processTopologyForObject, type ProcessTimingSource, type ItemStack, type FrameContentDefinition } from '@orchard/sim';
 import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
@@ -97,21 +96,20 @@ function cursor(ui: OverworldUi): ItemStack | null | undefined {
 }
 
 function rosterFixture(canManageHomestead = false) {
-  const skin = { panelWood: uiTestAsset('ui_cf_panel_wood'), panelParchment: uiTestAsset('ui_cf_panel_parchment'),
-    banner: uiTestAsset('ui_cf_banner'), buttonDeny: uiTestAsset('ui_cf_button_accent_red'),
-    sliderTrackVertical: uiTestAsset('ui_cf_slider_track_vertical'), sliderHandle: uiTestAsset('ui_cf_slider_handle'),
-  } as UiSkin;
-  const fonts = { font: uiTestAsset('font_5x7'), headerFont: uiTestAsset('font_8x12'), panel: skin.panelWood };
-  const f = fixture('inventory', { width:800,height:270,canManageHomestead }, {skin,fonts});
-  const canvas = createCanvas(800,270);
-  vi.stubGlobal('document', {createElement:()=>createCanvas(1,1)});
+  const f = fixture('inventory', { width:800,height:270,canManageHomestead });
   const players = Array.from({length:40},(_,index)=>({identityHex:`player-${index}`,displayName:`PLAYER ${index}`,
     self:false,idleMinutes:null,homesteadRole:'guest' as const}));
-  f.ui.drawOnlinePlayers(canvas.getContext('2d') as unknown as CanvasRenderingContext2D,players);
-  // Geometry comes from the actual public renderer; assertions inspect its real scrollbar.
-  const view=f.ui as unknown as {onlinePlayerListRect:UiRect;onlinePlayerListCloseButton:UiRect;
-    onlinePlayerRows:readonly {rect:UiRect}[];onlinePlayersScrollBar:ScrollBar};
-  return {...f,view,dispose(){f.dispose();vi.unstubAllGlobals();}};
+  const roster = new GameOnlinePlayers({} as UiKitArt, {onClose:f.handlers.toggleOnlinePlayers,
+    onManage:request=>f.handlers.manageHomesteadMember?.(request.expectedIdentityHex, request.intent==='remove'?null:nextHomesteadMemberRole(request.expectedRole), request.intent==='remove')});
+  roster.setBounds({x:200,y:4,width:400,height:262},800,270);
+  roster.update({scopeKey:'owner:1:space',identityHex:'owner',visible:true,canManage:canManageHomestead,players});
+  const runtime = new GameUiRuntime();
+  runtime.register({id:'inventory',root:f.root,priority:500,active:()=>f.ui.retainedInventoryActive,blocking:()=>true});
+  runtime.register({id:'roster',root:roster.root,priority:750,active:()=>roster.active,blocking:()=>true});
+  const find=(id:string)=>{roster.root.arrange();return roster.root.entries().find(e=>e.element.id===id)!.element;};
+  const node=(id:string)=>{const n=find(id);roster.root.focus.set(n);roster.root.arrange();return n;};
+  const pointer=(type:UiRootPointer['type'],point:{x:number;y:number},extra:Partial<UiRootPointer>={})=>runtime.pointer({type,point,pointerId:9,button:0,...extra});
+  return {...f,roster,runtime,find,node,rpointer:pointer,dispose(){runtime.dispose();roster.dispose();f.dispose();}};
 }
 
 describe('production retained inventory authority bridge', () => {
@@ -423,48 +421,39 @@ describe('production retained inventory authority bridge', () => {
   it('keeps roster close and role actions above retained inventory', () => {
     const f=rosterFixture(true);
     try {
-      const row=f.view.onlinePlayerRows[0]!.rect,point={x:row.x+5,y:row.y+5};
-      f.ui.pointerDown(point,0); f.ui.pointerUp(point,0);
+      const row=f.node('game.online-players:player:player-0'),point=f.point(row);
+      f.rpointer('down',point); expect(f.handlers.manageHomesteadMember).not.toHaveBeenCalled(); f.rpointer('up',point);
       expect(f.handlers.manageHomesteadMember).toHaveBeenCalledExactlyOnceWith('player-0','worker',false);
-      f.ui.pointerDown(point,2); f.ui.pointerUp(point,2);
+      f.rpointer('down',point,{button:2});f.rpointer('up',point,{button:2});
       expect(f.handlers.manageHomesteadMember).toHaveBeenLastCalledWith('player-0',null,true);
-      const close=f.view.onlinePlayerListCloseButton;
-      f.ui.pointerDown({x:close.x+5,y:close.y+5},0); f.ui.pointerUp({x:close.x+5,y:close.y+5},0);
-      expect(f.handlers.toggleOnlinePlayers).toHaveBeenCalledExactlyOnceWith();
-      expect(f.ui.openWindow).toBe('inventory');
-      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      const close=f.roster.root.entries().find(e=>e.element.label==='X')!.element;
+      f.rpointer('down',f.point(close));f.rpointer('up',f.point(close));expect(f.handlers.toggleOnlinePlayers).toHaveBeenCalledExactlyOnceWith();
+      expect(f.ui.openWindow).toBe('inventory');expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
   });
 
-  it('scrolls the roster by wheel and thumb without reviving legacy inventory input', () => {
+  it('scrolls the retained roster without reviving legacy inventory input', () => {
     const f=rosterFixture();
     try {
-      const scroll=f.view.onlinePlayersScrollBar,rect=f.view.onlinePlayerListRect;
-      f.ui.wheel({x:rect.x+10,y:rect.y+50},0,120); expect(scroll.position).toBe(1);
-      const thumb=scrollThumbRect(scroll.bounds,40,17,scroll.position);
-      const start={x:thumb.x+5,y:thumb.y+thumb.height/2};
-      f.ui.pointerDown(start,0); f.ui.pointerMove({x:start.x,y:start.y+40});
-      expect(scroll.position).toBeGreaterThan(1);
-      f.ui.pointerUp({x:start.x,y:start.y+40},0); const end=scroll.position;
-      f.ui.pointerMove({x:start.x,y:start.y+80}); expect(scroll.position).toBe(end);
-      f.ui.pointerDown(f.point(f.slot('backpack',0)),0); f.ui.pointerUp(f.point(f.slot('backpack',0)),0);
+      const list=f.find('game.online-players:list'),point={x:list.contentRect.x+8,y:list.contentRect.y+50};
+      f.runtime.wheel({point,deltaX:0,deltaY:60});expect(list.scroll.y).toBeGreaterThan(0);
+      const end=list.scroll.y;f.rpointer('up',point);f.rpointer('move',{x:point.x,y:point.y-80});expect(list.scroll.y).toBe(end);
+      const inventoryPoint=f.point(f.slot('backpack',0));f.rpointer('down',inventoryPoint);f.rpointer('up',inventoryPoint);
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
   });
 
-  it('scrolls the roster by touch and ends swipe ownership on release', () => {
-    const f=rosterFixture();
+  it('scrolls a manageable roster with touch without role or inventory commands (BUG-026)', () => {
+    const f=rosterFixture(true);
     try {
-      const rect=f.view.onlinePlayerListRect,scroll=f.view.onlinePlayersScrollBar;
-      const start={x:rect.x+20,y:rect.y+80};
-      f.ui.pointerDown(start,0,{pointerType:'touch'});
-      f.ui.pointerMove({x:start.x,y:start.y-24}); expect(scroll.position).toBeGreaterThan(0);
-      f.ui.pointerUp({x:start.x,y:start.y-24},0); const end=scroll.position;
-      f.ui.pointerMove({x:start.x,y:start.y-60}); expect(scroll.position).toBe(end);
-      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      const row=f.node('game.online-players:player:player-2'),start=f.point(row),list=f.find('game.online-players:list'),before=list.scroll.y;
+      f.rpointer('down',start,{pointerType:'touch'});
+      for(const dy of [3,4,24])f.rpointer('move',{x:start.x,y:start.y-dy},{pointerType:'touch'});
+      expect(list.scroll.y).toBeGreaterThan(before);f.rpointer('up',{x:start.x,y:start.y-24},{pointerType:'touch'});
+      const end=list.scroll.y;f.rpointer('move',{x:start.x,y:start.y-60},{pointerType:'touch'});expect(list.scroll.y).toBe(end);
+      expect(f.handlers.manageHomesteadMember).not.toHaveBeenCalled();expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }
   });
-
 
   it('adopts the actual authored barrel content route with real slot and seal commands', () => {
     const f=fixture('content',{activeFrameId:'frame:barrel',activeFrameState:{sealed:false},

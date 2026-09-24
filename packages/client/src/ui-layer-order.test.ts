@@ -13,7 +13,7 @@ describe('overworld UI compositing order', () => {
     const frameEnd = main.indexOf("if (!interfaceHidden && debugCollision", frameStart);
     const composite = main.slice(frameStart, frameEnd);
     const cursor = composite.indexOf('overworldUi.drawCursorOverlay(uiContext)');
-    expect(cursor).toBeGreaterThan(composite.indexOf('overworldUi.drawOnlinePlayers'));
+    expect(cursor).toBeGreaterThan(composite.indexOf('onlineRoster.draw'));
     expect(cursor).toBeGreaterThan(composite.indexOf('npcInteractionUi.draw'));
     expect(cursor).toBeGreaterThan(composite.indexOf('tradeUi.draw'));
     expect(cursor).toBeGreaterThan(composite.indexOf('characterNamePrompt.draw'));
@@ -61,17 +61,16 @@ describe('overworld UI compositing order', () => {
     expect(main.slice(blurStart, blurEnd)).toContain('clearPointerPresentation()');
   });
 
-  it('uses the authored ribbon for the online-player heading', () => {
-    const start = ui.indexOf('drawOnlinePlayers(');
-    const end = ui.indexOf('private drawStatus(', start);
-    const roster = ui.slice(start, end);
-    expect(roster).toContain('this.windowRibbon.draw(');
-    expect(roster).toContain('`ONLINE PLAYERS  ${players.length}`');
+  it('retires legacy roster draw and input together', () => {
+    expect(ui).not.toMatch(/drawOnlinePlayers|pointerOnlinePlayersDown|onlinePlayersScrollBar/);
+    expect(main).toContain('onlineRoster.draw(uiContext)');
+    expect(main).toContain('onManage: manageOnlinePlayer');
   });
+
 });
 
 it('routes adopted modal roots through every central uncaptured input entry', () => {
-  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation', 'hud-zoneMinimap', 'hud-hotbarVitals', 'hud-targetEffects', 'chat']) {
+  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation', 'hud-zoneMinimap', 'hud-hotbarVitals', 'hud-targetEffects', 'chat', 'online-players']) {
     expect(main).toContain(`retainedUi.key(event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);

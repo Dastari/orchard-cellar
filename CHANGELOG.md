@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.37.0 / UI 0.39.0 — Shared online-player roster (not yet deployed)
+
+- Adopt the shared roster with real identities, online/idle status, roles and owner permissions. Keep role cycling distinct from remove-and-kick and recheck current scope, role and authority before transport.
+- Resolve touch scrolling before membership commands (BUG-026); retain scroll/focus on harmless updates, cancel stale gestures and preserve hold-Tab versus sticky HUD opening. Retire legacy roster drawing/input together. Workspace0.43.0.
+- Fix BUG-028: preserve chat dismissal ownership before synchronous native blur, so the first outside click closes chat without also triggering a world action.
+
 ## Client 0.36.0 / UI 0.38.0 — Shared account and loading gateways (not yet deployed)
 
 - Adopt the shared account composition and all three loading hosts with responsive safe-area bounds and font_5x7. Keep native name editing, profile validation, OIDC navigation and music under their existing authorities; cancel duplicate and stale commands while busy.

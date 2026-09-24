@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { GameUiRuntime, UiRoot, UiTextBridge } from '@orchard/ui/game';
 import { UiElement } from '../../ui/src/kit/runtime/element.js';
@@ -7,6 +9,20 @@ import { uiButton } from '../../ui/src/kit/components/button.js';
 import { uiInput } from '../../ui/src/kit/components/input.js';
 import { uiFixed } from '../../ui/src/kit/layout/box.js';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
+
+// Execute the production listener itself: native blur during any scoped miss
+// must not turn the opening dismissal gesture into a world command.
+const mainSource=ts.createSourceFile('overworld-main.ts',readFileSync(new URL('./overworld-main.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
+let pointerDownBody='';
+function findPointerDown(node:ts.Node):void {
+ if(ts.isCallExpression(node)&&node.expression.getText(mainSource)==='canvas.addEventListener'&&node.arguments[0]?.getText(mainSource)==="'pointerdown'") {
+  const callback=node.arguments[1];if(callback&&ts.isArrowFunction(callback))pointerDownBody=callback.body.getText(mainSource).slice(1,-1);
+ }
+ ts.forEachChild(node,findPointerDown);
+}
+findPointerDown(mainSource);
+if(!pointerDownBody)throw Error('Missing actual canvas pointerdown listener');
+const productionPointerDown=ts.transpileModule(pointerDownBody,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 
 function pointer(type: string, id = 1, x = 10): PointerEvent {
   return Object.assign(new Event(type, { cancelable: true }), {
@@ -120,6 +136,22 @@ describe('retained UI DOM boundary', () => {
       runtime.clearFocus();sync();chat.blurInput();
       expect(chat.isOpen).toBe(touch);expect(chat.editor.snapshot().value).toBe('draft survives');
       if(touch){chat.open();runtime.focus('chat');sync();expect(doc.activeElement).toBe(bridge.input);}
+      // BUG028: fresh direct world click while native editing is active.
+      chat.open();chat.editor.setValue('direct outside draft');runtime.focus('chat');sync();
+      const world=vi.fn(), event=Object.assign(new Event('pointerdown',{cancelable:true}),{
+        pointerId:30,clientX:437,clientY:313,pointerType:'mouse',isPrimary:true,button:0,
+        shiftKey:false,altKey:false,ctrlKey:false,metaKey:false,
+      }) as PointerEvent;
+      const deps={event,retainedUi:runtime,syncRetainedText:sync,chatOverlay:chat,
+        audio:{unlock:async()=>{}},touchControls:{notePointerType(){},pointerDown:()=>null},
+        pointerUiPosition:()=>[437,313],pointerCanvasPosition:()=>[437,313],worldTouchInput:{pinching:false},
+        interfaceHidden:false,overworldUi:{systemCursorDown(){},pointerBuildControl:()=>false,pointerDown:()=>false,openWindow:null},
+        retainedPointers:adapter,terrainInspectorPointerDown:()=>false,touchControlViewport:()=>[800,600],
+        characterNamePrompt:{isActive:false},npcInteractionUi:{active:false},debugCollision:false,refreshHoveredInteractionTile(){},
+        canvas,performWorldPointerAction:world};
+      new Function(...Object.keys(deps),`let worldPointer=null;${productionPointerDown}`)(...Object.values(deps));
+      expect(world).not.toHaveBeenCalled();expect(event.defaultPrevented).toBe(true);
+      expect(chat.isOpen).toBe(touch);expect(chat.editor.snapshot().value).toBe('direct outside draft');
     } finally {adapter.dispose();bridge.dispose();runtime.dispose();chat.dispose();other.dispose();vi.unstubAllGlobals();}
   });
 

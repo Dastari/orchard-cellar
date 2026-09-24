@@ -33,7 +33,7 @@ import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { UiInputRouter } from './input-router.js';
 import { Slider } from './slider.js';
 import { MAX_TOUCH_BOTTOM_OFFSET, DEFAULT_TOUCH_CONTROL_PREFERENCES, type TouchControlPreferences } from './touch-controls.js';
-import { BUTTON_HEIGHT, CanvasButton, drawButton } from './button.js';
+import { BUTTON_HEIGHT, CanvasButton } from './button.js';
 import { drawToggleSwitch, Toggle } from './toggle.js';
 import { Ribbon, STACKED_RIBBON_HEIGHT } from './ribbon.js';
 import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot, itemSlotRejectsCursor } from './item-slot.js';
@@ -1590,7 +1590,6 @@ export class OverworldUi {
   private readonly windowRibbon: Ribbon;
   private readonly zoneRibbon: Ribbon;
   private helpBook: HelpBook | null = null;
-  private readonly onlinePlayersScrollBar: ScrollBar;
   private readonly inventoryScrollBar: ScrollBar;
   private readonly craftingRecipeScrollBar: ScrollBar;
   private readonly inventoryFilterInput: HTMLInputElement | null;
@@ -1648,10 +1647,6 @@ export class OverworldUi {
   } | null = null;
   private clickStartedAt = Number.NEGATIVE_INFINITY;
   private openWindowValue: OverworldWindow | null = null;
-  private onlinePlayerListActive = false;
-  private onlinePlayerListRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
-  private onlinePlayerListCloseButton: UiRect = { x: 0, y: 0, width: 0, height: 0 };
-  private onlinePlayerRows: readonly { readonly player: OnlinePlayerListEntry; readonly rect: UiRect }[] = [];
   private pendingTouchRecipeId: string | null = null;
   private zoneCollapsed = false;
   private minimapCollapsed = false;
@@ -1685,7 +1680,6 @@ export class OverworldUi {
       ()=>{if(this.openWindowValue==='ferry')this.openWindow=null;},()=>this.model.contentRegistry);
     this.outdoorRewards=new OutdoorRewards(skin,fonts,id=>this.callbacks.claimOutdoorReward?.(id)??Promise.reject(new Error('reward_unavailable')),
       (context,rect,kind)=>this.drawInventoryItem(context,rect,kind,1));
-    this.onlinePlayersScrollBar = new ScrollBar(skin);
     this.inventoryScrollBar = new ScrollBar(skin);
     this.craftingRecipeScrollBar = new ScrollBar(skin, {
       showWhenDisabled: true,
@@ -2303,7 +2297,6 @@ export class OverworldUi {
   }
 
   update(model: OverworldUiModel): void {
-    this.onlinePlayerListActive = false;
     const previousUpdateStatus = this.model.pwaUpdateStatus;
     this.model = model;
     const itemContent = this.itemContainerContent();
@@ -2615,24 +2608,15 @@ export class OverworldUi {
     return this.openWindowValue !== null;
   }
 
-  handleOnlinePlayersKeyDown(code: string): boolean {
-    return this.onlinePlayerListActive && this.onlinePlayersScrollBar.handleKey(code);
-  }
-
   pointerMove(point: UiPoint, _modifiers: { readonly shift?: boolean } = {}): void {
     if ((this.retainedConfirmationActive || this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorMove(point);
-      if (this.onlinePlayerListActive) {
-        this.onlinePlayersScrollBar.pointerMove(point);
-        this.onlinePlayersScrollBar.swipeMove(point, ONLINE_PLAYER_LIST_ROW_HEIGHT);
-      }
       return;
     }
     void _modifiers;
     this.systemCursorMove(point);
     if (this.blockingUpdatePromptVisible) return;
     if(this.openWindowValue==='outdoor-rewards')this.outdoorRewards.pointerMove(point,this.layout.progressionWindow);
-    if (this.onlinePlayerListActive) this.onlinePlayersScrollBar.pointerMove(point);
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation')
@@ -2649,11 +2633,10 @@ export class OverworldUi {
         this.inventoryScrollBar.cancelSwipe();
       }
     }
-    const onlineSwiped = this.onlinePlayersScrollBar.swipeMove(point, ONLINE_PLAYER_LIST_ROW_HEIGHT);
     const inventorySwiped = this.inventoryScrollBar.swipeMove(point, 31);
     if (inventorySwiped) this.syncInventoryBackpackSlots();
     const recipesSwiped = this.craftingRecipeScrollBar.swipeMove(point, 17);
-    if (onlineSwiped || inventorySwiped || recipesSwiped) {
+    if (inventorySwiped || recipesSwiped) {
       this.inventoryTouchStart = null;
       this.pendingTouchRecipeId = null;
       this.cancelQuickCraftPreview();
@@ -2677,36 +2660,12 @@ export class OverworldUi {
     this.sfxSlider.pointerMove(point);
   }
 
-  /** Roster remains above both retained and legacy inventory windows. */
-  private pointerOnlinePlayersDown(point: UiPoint, button: number, pointerType?: string): boolean {
-    if (!this.onlinePlayerListActive) return false;
-    if (button === 0) this.onlinePlayersScrollBar.beginSwipe(point, this.onlinePlayerListRect, pointerType);
-    if (button === 0 && this.onlinePlayerListActive
-      && containsPoint(this.onlinePlayerListCloseButton, point)) {
-      this.onlinePlayerListActive = false;
-      this.callbacks.toggleOnlinePlayers();
-      return true;
-    }
-    if (this.onlinePlayerListActive && this.model.canManageHomestead === true
-      && (button === 0 || button === 2)) {
-      const row = this.onlinePlayerRows.find((candidate) => containsPoint(candidate.rect, point));
-      if (row !== undefined && !row.player.self && row.player.identityHex !== undefined) {
-        const nextRole = button === 2 ? null : nextHomesteadMemberRole(row.player.homesteadRole);
-        this.callbacks.manageHomesteadMember?.(row.player.identityHex, nextRole, button === 2);
-        return true;
-      }
-    }
-    if (button === 0 && this.onlinePlayerListActive && this.onlinePlayersScrollBar.pointerDown(point)) return true;
-    return false;
-  }
-
   pointerDown(point: UiPoint, button: number, modifiers: {
     readonly shift?: boolean;
     readonly pointerType?: string;
   } = {}): boolean {
     if ((this.retainedConfirmationActive || this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorDown(point);
-      this.pointerOnlinePlayersDown(point, button, modifiers.pointerType);
       return true;
     }
     this.inventoryTouchStart = null;
@@ -2750,7 +2709,6 @@ export class OverworldUi {
         }, modifiers.pointerType);
       }
     }
-    if (this.pointerOnlinePlayersDown(point, button, modifiers.pointerType)) return true;
     if (button === 0 && (this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation') && this.inventoryScrollBar.pointerDown(point)) {
@@ -2823,8 +2781,6 @@ export class OverworldUi {
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     if ((this.retainedConfirmationActive || this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
-      this.onlinePlayersScrollBar.endSwipe();
-      this.onlinePlayersScrollBar.pointerUp();
       return true;
     }
     this.inventoryTouchStart = null;
@@ -2834,10 +2790,9 @@ export class OverworldUi {
       this.router.routePointer({ kind: 'pointer_up', point, button });
       return true;
     }
-    const onlineSwipeConsumed = this.onlinePlayersScrollBar.endSwipe();
     const inventorySwipeConsumed = this.inventoryScrollBar.endSwipe();
     const recipeSwipeConsumed = this.craftingRecipeScrollBar.endSwipe();
-    const touchSwipeConsumed = onlineSwipeConsumed || inventorySwipeConsumed || recipeSwipeConsumed;
+    const touchSwipeConsumed = inventorySwipeConsumed || recipeSwipeConsumed;
     if (touchSwipeConsumed) {
       this.pendingTouchRecipeId = null;
       this.cancelQuickCraftPreview();
@@ -2852,7 +2807,6 @@ export class OverworldUi {
       return true;
     }
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.pointerUp())return true;
-    if (this.onlinePlayersScrollBar.pointerUp()) return true;
     if (this.inventoryScrollBar.pointerUp()) return true;
     if (this.craftingRecipeScrollBar.pointerUp()) return true;
     if (this.finishInventoryGesture(point, modifiers.shift === true, containsPoint(this.activeWindowRect(), point))) return true;
@@ -3023,7 +2977,6 @@ export class OverworldUi {
     this.masterSlider.pointerLeave();
     this.musicSlider.pointerLeave();
     this.sfxSlider.pointerLeave();
-    this.onlinePlayersScrollBar.pointerLeave();
     this.outdoorRewards.pointerLeave();
     this.inventoryScrollBar.pointerLeave();
     this.craftingRecipeScrollBar.pointerLeave();
@@ -3033,10 +2986,6 @@ export class OverworldUi {
   wheel(point: UiPoint, deltaX: number, deltaY: number): boolean {
     if (this.blockingUpdatePromptVisible) return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.wheel(point,deltaY,this.layout.progressionWindow))return true;
-    if (this.onlinePlayerListActive && containsPoint(this.onlinePlayerListRect, point) && deltaY !== 0) {
-      this.onlinePlayersScrollBar.wheel(deltaY, 1);
-      return true;
-    }
     if (this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) return true;
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
@@ -3184,66 +3133,6 @@ export class OverworldUi {
         align: 'left', color: '#d8d9d2',
       });
     }
-  }
-
-  drawOnlinePlayers(context: CanvasRenderingContext2D, players: readonly OnlinePlayerListEntry[]): void {
-    const maximumRows = Math.max(1, Math.floor((this.model.height - 65) / ONLINE_PLAYER_LIST_ROW_HEIGHT));
-    this.onlinePlayersScrollBar.setMetrics(players.length, maximumRows);
-    const visiblePlayers = players.slice(
-      this.onlinePlayersScrollBar.position,
-      this.onlinePlayersScrollBar.position + maximumRows,
-    );
-    const width = Math.min(300, Math.max(170, this.model.width - 16));
-    const height = onlinePlayerListFrameHeight(visiblePlayers.length);
-    const rect = {
-      x: Math.round((this.model.width - width) / 2),
-      y: 12,
-      width,
-      height,
-    };
-    this.onlinePlayerListActive = true;
-    this.onlinePlayerListRect = rect;
-    this.onlinePlayerListCloseButton = onlinePlayerListCloseButtonRect(rect);
-    this.onlinePlayersScrollBar.setBounds({
-      x: rect.x + rect.width - 24,
-      y: rect.y + ONLINE_PLAYER_LIST_CONTENT_TOP,
-      width: 14,
-      height: visiblePlayers.length * ONLINE_PLAYER_LIST_ROW_HEIGHT,
-    });
-    drawUiSkinAsset(context, this.skin.panelWood, rect);
-    drawUiSkinAsset(context, this.skin.panelParchment, {
-      x: rect.x + 8,
-      y: rect.y + 10,
-      width: rect.width - 16,
-      height: rect.height - 18,
-    });
-    this.windowRibbon.draw(context, `ONLINE PLAYERS  ${players.length}`, rect.x + rect.width / 2, rect.y - 5, {
-      maxWidth: rect.width - 46,
-    });
-    drawButton(context, this.skin, this.fonts, this.onlinePlayerListCloseButton, {
-      label: 'X', tone: 'danger', size: 'compact',
-    });
-    visiblePlayers.forEach((player, index) => {
-      const rowY = rect.y + ONLINE_PLAYER_LIST_CONTENT_TOP + index * ONLINE_PLAYER_LIST_ROW_HEIGHT;
-      context.fillStyle = player.idleMinutes === null ? '#4f8f42' : '#d7a928';
-      context.fillRect(rect.x + 17, rowY + 2, 4, 4);
-      const roleSuffix = player.homesteadRole === null || player.homesteadRole === undefined
-        ? '' : `  [${player.homesteadRole.toUpperCase()}]`;
-      const maximumCharacters = Math.max(20, Math.floor((rect.width - 44) / 6));
-      drawLabel(context, this.fonts, fitLabel(`${onlinePlayerListLabel(player)}${roleSuffix}`, maximumCharacters), rect.x + 27, rowY, {
-        color: player.self ? '#4d2e22' : '#6b4428',
-      });
-    });
-    this.onlinePlayerRows = visiblePlayers.map((player, index) => ({
-      player,
-      rect: {
-        x: rect.x + 12,
-        y: rect.y + ONLINE_PLAYER_LIST_CONTENT_TOP + index * ONLINE_PLAYER_LIST_ROW_HEIGHT - 2,
-        width: rect.width - 36,
-        height: ONLINE_PLAYER_LIST_ROW_HEIGHT,
-      },
-    }));
-    this.onlinePlayersScrollBar.draw(context);
   }
 
   /** Drawn by the scene after every window and overlay. The system cursor is

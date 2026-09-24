@@ -1,4 +1,4 @@
-import { DelveRewardsUi, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
@@ -203,6 +203,7 @@ import {
   isInterfaceVisibilityToggle,
   isNameplateToggle,
   onlinePlayerIdleMinutes,
+  nextHomesteadMemberRole,
   OverworldUi,
   type OverworldUiTargetVitals,
 } from '@orchard/ui';
@@ -608,6 +609,7 @@ let interfaceHidden = false;
 let nameplatesVisible = true;
 let nameplatesPreferenceIdentity: string | null = null;
 let onlinePlayersVisible = false;
+let rosterOpenedByHeldTab = false;
 let homesteadBuildMode = false;
 const unknownActionKinds = new Set<string>();
 const remoteBuffers = new Map<string, RemoteSnapshotBuffer>();
@@ -823,22 +825,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   toggleFullscreen,
   checkForClientUpdate: () => { void pwaClient.checkForUpdate(); },
   applyClientUpdate: () => pwaClient.applyUpdate(),
-  toggleOnlinePlayers: () => { onlinePlayersVisible = !onlinePlayersVisible; },
-  manageHomesteadMember: (identityHex, role, kick) => {
-    const profile = latestSnapshot.profiles.get(identityHex);
-    if (profile === undefined) {
-      setToast('PLAYER IS NO LONGER ONLINE', 'failure', 90);
-      return;
-    }
-    if (role === null) showResult(
-      network.removeHomesteadMember(profile.identity, kick),
-      kick ? 'HOMESTEAD MEMBER REMOVED AND KICKED' : 'HOMESTEAD MEMBER REMOVED',
-    );
-    else showResult(
-      network.setHomesteadMemberRole(profile.identity, role),
-      `HOMESTEAD ROLE: ${role.toUpperCase()}`,
-    );
-  },
+  toggleOnlinePlayers: () => setOnlinePlayersVisible(!onlinePlayersVisible),
   moveInventoryItem: (request) => showResult(network.moveInventoryItem(request), 'ITEM MOVED'),
   quickMoveInventoryItem: (fromContainer, fromIndex, toContainers) => showResult(
     network.quickMoveInventoryItem(fromContainer, fromIndex, toContainers), 'ITEMS MOVED',
@@ -1100,6 +1087,50 @@ const questTracker = new QuestTracker(
   (questId) => { overworldUi.openQuest(questId); },
 );
 
+const onlineRoster = new GameOnlinePlayers(kitArt, {
+  onManage: manageOnlinePlayer,
+  onClose: () => setOnlinePlayersVisible(false),
+});
+function onlinePlayersScope(): string {
+  return `${latestSnapshot.identityHex}:${network.sessionGeneration}:${activeSpaceDefinition.spaceId}`;
+}
+function canManageOnlinePlayers(): boolean {
+  return latestSnapshot.connected && latestSnapshot.identityHex !== null
+    && latestSnapshot.homesteads.get(activeSpaceDefinition.spaceId)?.owner.toHexString() === latestSnapshot.identityHex;
+}
+function updateOnlinePlayers(): void {
+  const [width, height] = touchControlViewport();
+  const frameWidth = Math.min(400, Math.max(0, width - 8));
+  const frameHeight = Math.min(330, Math.max(0, height - 8));
+  onlineRoster.setBounds({ x: Math.round((width-frameWidth)/2), y: Math.round((height-frameHeight)/2), width: frameWidth, height: frameHeight }, width, height);
+  onlineRoster.update({ scopeKey: onlinePlayersScope(), identityHex: latestSnapshot.identityHex,
+    visible: onlinePlayersVisible && retainedUiAvailable() && !characterNamePrompt.isActive && !npcInteractionUi.active && !tradeUi.active,
+    canManage: canManageOnlinePlayers(), players: onlinePlayerEntries(latestSnapshot) });
+}
+function setOnlinePlayersVisible(visible: boolean, heldTab = false): void {
+  onlinePlayersVisible = visible;
+  rosterOpenedByHeldTab = visible && heldTab;
+  updateOnlinePlayers(); retainedUi.reconcile(); syncRetainedText();
+}
+function releaseOnlinePlayersTab(): boolean {
+  if (!rosterOpenedByHeldTab) return false;
+  setOnlinePlayersVisible(false); return true;
+}
+function manageOnlinePlayer(request: OnlinePlayerManagementRequest): void {
+  if (!onlinePlayersVisible || !retainedUiAvailable() || characterNamePrompt.isActive || npcInteractionUi.active || tradeUi.active || !canManageOnlinePlayers()
+    || request.scopeKey !== onlinePlayersScope() || request.expectedIdentityHex === latestSnapshot.identityHex) return;
+  const profile = latestSnapshot.profiles.get(request.expectedIdentityHex);
+  if (profile === undefined || !profile.online) return;
+  const member = [...latestSnapshot.homesteadMembers].find(row => row.guest.toHexString() === request.expectedIdentityHex);
+  const currentRole = member !== undefined && isHomesteadMemberRole(member.role) ? member.role : null;
+  if (currentRole !== request.expectedRole) return;
+  const kick = request.intent === 'remove';
+  const role = kick ? null : nextHomesteadMemberRole(currentRole);
+  if (role === null) showResult(network.removeHomesteadMember(profile.identity, kick),
+    kick ? 'HOMESTEAD MEMBER REMOVED AND KICKED' : 'HOMESTEAD MEMBER REMOVED');
+  else showResult(network.setHomesteadMemberRole(profile.identity, role), `HOMESTEAD ROLE: ${role.toUpperCase()}`);
+}
+
 function retainedUiAvailable(): boolean {
   return !interfaceHidden && worldClientReady() && !overworldUi.blockingUpdatePromptVisible
     && latestSnapshot.rogueRun?.phase !== 'reward';
@@ -1148,6 +1179,9 @@ retainedUi.register({ id: 'npc-interaction', priority: 800, root: npcInteraction
   active: () => retainedUiAvailable() && npcInteractionUi.active && !tradeUi.active, blocking: () => true });
 retainedUi.register({ id: 'player-trade', priority: 900, root: tradeUi.root,
   active: () => retainedUiAvailable() && tradeUi.active, blocking: () => true });
+retainedUi.register({ id: 'online-players', priority: 750, root: onlineRoster.root,
+  active: () => retainedUiAvailable() && onlineRoster.active && !characterNamePrompt.isActive && !tradeUi.active && !npcInteractionUi.active,
+  blocking: () => true });
 retainedUi.register({ id: 'build-palette', priority: 200, root: homesteadBuildPalette.root,
   active: () => retainedUiAvailable() && homesteadBuildMode && overworldUi.openWindow === null
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => false });
@@ -1185,7 +1219,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
-  disposeInitialWorldLoading(renderer); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
+  disposeInitialWorldLoading(renderer); onlineRoster.dispose(); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
   retainedText.input.removeEventListener('blur', handleRetainedTextBlur);
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose(); chatOverlay.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
@@ -5561,6 +5595,7 @@ function renderFrame(alpha = 1): void {
     uiHeight,
     snapshot.connected && snapshot.characterProfile?.nameChosen === false,
   );
+  updateOnlinePlayers();
   retainedUi.resize(uiWidth, uiHeight);
   retainedUi.reconcile(); syncRetainedText();
   renderMetrics.recordStage('uiLayout', performance.now() - uiLayoutStartedAt);
@@ -5880,7 +5915,7 @@ function renderFrame(alpha = 1): void {
     if (homesteadBuildMode && overworldUi.openWindow === null) {
       homesteadBuildPalette.draw(uiContext);
     }
-    if (onlinePlayersVisible) overworldUi.drawOnlinePlayers(uiContext, onlinePlayers);
+    onlineRoster.draw(uiContext);
     npcInteractionUi.draw(uiContext);
     tradeUi.draw(uiContext, uiWidth, uiHeight);
     characterNamePrompt.draw(uiContext);
@@ -6198,7 +6233,7 @@ function setInterfaceHidden(hidden: boolean): void {
   interfaceHidden = hidden;
   retainedPointers.cancel();
   worldTouchInput.reset();
-  onlinePlayersVisible = false;
+  setOnlinePlayersVisible(false);
   retainedUi.clearHover();
   chatOverlay.root.input.clearHover();
   overworldUi.pointerLeave();
@@ -6367,6 +6402,7 @@ window.addEventListener('keydown', (event) => {
       syncRetainedText(); event.preventDefault();
       return;
     }
+    if (retainedUi.key(event, 'online-players')) { syncRetainedText(); event.preventDefault(); return; }
     if (!chatOverlay.isOpen && retainedUi.key(event, 'build-palette')) {
       syncRetainedText(); event.preventDefault(); return;
     }
@@ -6391,11 +6427,7 @@ window.addEventListener('keydown', (event) => {
       syncRetainedText(); event.preventDefault(); return;
     }
     if (event.code === 'Tab') {
-      onlinePlayersVisible = true;
-      event.preventDefault();
-      return;
-    }
-    if (onlinePlayersVisible && overworldUi.handleOnlinePlayersKeyDown(event.code)) {
+      setOnlinePlayersVisible(true, true);
       event.preventDefault();
       return;
     }
@@ -6895,8 +6927,7 @@ window.addEventListener('keydown', (event) => {
   keys.add(event.code);
 });
 window.addEventListener('keyup', (event) => {
-  if (event.code !== 'Tab') return;
-  onlinePlayersVisible = false;
+  if (event.code !== 'Tab' || !releaseOnlinePlayersTab()) return;
   event.preventDefault();
 });
 document.addEventListener('visibilitychange', () => {
@@ -6916,7 +6947,7 @@ function clearPointerPresentation(): void {
 window.addEventListener('blur', () => {
   retainedPointers.cancel();
   releaseDefenseHold();
-  onlinePlayersVisible = false;
+  setOnlinePlayersVisible(false);
   keys.clear();
   touchControls.reset();
   worldTouchInput.reset();
@@ -6998,6 +7029,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (retainedPointers.dispatch('move', event, 'character-name')) return;
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
   if (retainedPointers.dispatch('move', event, 'npc-interaction')) return;
+  if (retainedPointers.dispatch('move', event, 'online-players')) return;
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
   if (retainedPointers.dispatch('move', event, 'character-skills') || retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
   if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.root.input.clearHover(); return; }
@@ -7013,8 +7045,11 @@ canvas.addEventListener('pointerleave', (event) => {
   clearPointerPresentation();
 });
 canvas.addEventListener('pointerdown', (event) => {
+  // Scoped pointer misses can synchronously blur native editing. Preserve the
+  // gesture's original dismissal ownership before any dispatch or text sync.
+  const wasChatOpen = chatOverlay.isOpen;
   // Keep an existing chat draft while its own retained controls take capture.
-  if (!chatOverlay.isOpen) { retainedUi.clearFocus(); syncRetainedText(); }
+  if (!wasChatOpen) { retainedUi.clearFocus(); syncRetainedText(); }
   void audio.unlock().catch(() => undefined);
   touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
@@ -7033,6 +7068,7 @@ canvas.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     return;
   }
+  if (!interfaceHidden && retainedPointers.dispatch('down', event, 'online-players')) { event.preventDefault(); return; }
   if (event.button === 0 && terrainInspectorPointerDown(x, y)) {
     canvas.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -7115,7 +7151,6 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault(); return;
     }
   }
-  const wasChatOpen = chatOverlay.isOpen;
   retainedUi.clearFocus(); syncRetainedText();
   if (wasChatOpen) { chatOverlay.blurInput(); event.preventDefault(); return; }
   const worldPointerAvailable = interfaceHidden
@@ -7456,6 +7491,7 @@ canvas.addEventListener('wheel', (event) => {
     const wheelUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1;
     const retainedWheel = { point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
       deltaY: event.deltaY * wheelUnit / currentUiScale() };
+    if (retainedUi.wheel(retainedWheel, 'online-players')) { event.preventDefault(); return; }
     if (retainedUi.wheel(retainedWheel, 'build-palette')) {
       event.preventDefault(); return;
     }
