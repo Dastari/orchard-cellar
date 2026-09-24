@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { blockingProbes, MANUAL_GATES, READINESS_PROBES, runProbe, type ProbeResult } from './static-world-readiness.js';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  blockingProbes, main, MANUAL_GATES, parseReadinessArgs, READINESS_PROBES, requirementFailures, runProbe, type ProbeResult,
+} from './static-world-readiness.js';
 
 describe('static-world readiness', () => {
   it('finds the whole-map dependencies the migration still has to remove', () => {
@@ -21,5 +26,50 @@ describe('static-world readiness', () => {
   it('keeps probe and manual gate ids unique', () => {
     const ids = [...READINESS_PROBES.map((probe) => probe.id), ...MANUAL_GATES.map((gate) => gate.id)];
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('rejects a missing, invalid, repeated or unknown requirement instead of passing', () => {
+    expect(parseReadinessArgs([])).toEqual({ json: false, required: null });
+    expect(parseReadinessArgs(['--json', '--require', 'step5'])).toEqual({ json: true, required: 'step5' });
+    expect(parseReadinessArgs(['--require'])).toHaveProperty('error');
+    expect(parseReadinessArgs(['--require', '--json'])).toHaveProperty('error');
+    expect(parseReadinessArgs(['--require', 'step7'])).toHaveProperty('error');
+    expect(parseReadinessArgs(['--require', 'step4', '--require', 'step6'])).toHaveProperty('error');
+    expect(parseReadinessArgs(['--requires', 'step4'])).toHaveProperty('error');
+  });
+
+  it('requires a valid client build audit for steps 5 and 6', () => {
+    expect(requirementFailures([], null, 'step4')).toEqual([]);
+    expect(requirementFailures([], null, 'step5')).toEqual(['no valid client build audit (run npm run client:build)']);
+    expect(requirementFailures([], ['packages/engine/src/terrain.ts'], 'step6')).toEqual(['client build still bundles 1 legacy module(s)']);
+    expect(requirementFailures([], [], 'step6')).toEqual([]);
+  });
+
+  describe('CLI exit codes on a zero-probe fixture', () => {
+    let root = '';
+    afterEach(() => { vi.restoreAllMocks(); if (root) rmSync(root, { recursive: true, force: true }); });
+    const run = (argv: string[]) => {
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      return main(argv, root);
+    };
+    const audit = (text: string) => {
+      mkdirSync(join(root, 'packages/client/dist'), { recursive: true });
+      writeFileSync(join(root, 'packages/client/dist/chunk-runtime-audit.json'), text);
+    };
+
+    it('fails steps 5 and 6 without a valid audit and passes only with an empty one', () => {
+      root = mkdtempSync(join(tmpdir(), 'static-world-readiness-'));
+      expect(run(['--require'])).toBe(2);
+      expect(run(['--require', 'step4'])).toBe(0);
+      expect(run(['--require', 'step5'])).toBe(1);
+      expect(run(['--require', 'step6'])).toBe(1);
+      audit('not json');
+      expect(run(['--require', 'step5'])).toBe(1);
+      audit(JSON.stringify({ schema: 1, legacyModules: ['packages/sim/src/map-compiler.ts'] }));
+      expect(run(['--require', 'step5'])).toBe(1);
+      audit(JSON.stringify({ schema: 1, legacyModules: [] }));
+      expect(run(['--require', 'step6'])).toBe(0);
+    });
   });
 });

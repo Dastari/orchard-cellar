@@ -147,8 +147,14 @@ export function runProbe(probe: ReadinessProbe, repoRoot: string): ProbeResult {
 export function clientBuildLegacyModules(repoRoot: string): readonly string[] | null {
   const path = resolve(repoRoot, 'packages/client/dist/chunk-runtime-audit.json');
   if (!existsSync(path)) return null;
-  const audit = JSON.parse(readFileSync(path, 'utf8')) as { legacyModules?: unknown };
-  return Array.isArray(audit.legacyModules) ? audit.legacyModules.map(String) : null;
+  let audit: { legacyModules?: unknown };
+  try {
+    audit = JSON.parse(readFileSync(path, 'utf8')) as { legacyModules?: unknown };
+  } catch {
+    return null;
+  }
+  return Array.isArray(audit?.legacyModules) && audit.legacyModules.every((id) => typeof id === 'string')
+    ? audit.legacyModules as string[] : null;
 }
 
 const STEP_ORDER: readonly MigrationStep[] = ['step4', 'step5', 'step6'];
@@ -159,18 +165,61 @@ export function blockingProbes(results: readonly ProbeResult[], step: MigrationS
   return results.filter((result) => through.includes(result.step) && result.count > 0);
 }
 
-function main(argv: readonly string[]): number {
-  const repoRoot = resolve('.');
-  const results = READINESS_PROBES.map((probe) => runProbe(probe, repoRoot));
-  const legacyModules = clientBuildLegacyModules(repoRoot);
-  const requireIndex = argv.indexOf('--require');
-  const required = requireIndex >= 0 ? argv[requireIndex + 1] as MigrationStep | undefined : undefined;
-  if (required !== undefined && !STEP_ORDER.includes(required)) {
-    console.error(`--require expects one of ${STEP_ORDER.join(', ')}`);
+export interface ReadinessArgs {
+  readonly json: boolean;
+  readonly required: MigrationStep | null;
+}
+
+/** Strict: a bare, repeated or unknown --require value is an error, never "no requirement". */
+export function parseReadinessArgs(argv: readonly string[]): ReadinessArgs | { readonly error: string } {
+  let json = false;
+  let required: MigrationStep | null = null;
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]!;
+    if (arg === '--json') {
+      json = true;
+    } else if (arg === '--require') {
+      const value = argv[index + 1];
+      if (value === undefined || !(STEP_ORDER as readonly string[]).includes(value)) {
+        return { error: `--require expects one of ${STEP_ORDER.join(', ')}` };
+      }
+      if (required !== null) return { error: '--require may be given only once' };
+      required = value as MigrationStep;
+      index += 1;
+    } else {
+      return { error: `unknown argument ${arg}` };
+    }
+  }
+  return { json, required };
+}
+
+/**
+ * Why a step is not ready. Steps 5 and 6 need a valid client build audit: a
+ * missing or unreadable audit blocks rather than passing silently.
+ */
+export function requirementFailures(
+  results: readonly ProbeResult[], legacyModules: readonly string[] | null, step: MigrationStep,
+): readonly string[] {
+  const failures: string[] = [];
+  if (step !== 'step4') {
+    if (legacyModules === null) failures.push('no valid client build audit (run npm run client:build)');
+    else if (legacyModules.length > 0) failures.push(`client build still bundles ${legacyModules.length} legacy module(s)`);
+  }
+  const blocking = blockingProbes(results, step);
+  if (blocking.length > 0) failures.push(`probes ${blocking.map((r) => `${r.id} (${r.count})`).join(', ')}`);
+  return failures;
+}
+
+export function main(argv: readonly string[], repoRoot = resolve('.')): number {
+  const args = parseReadinessArgs(argv);
+  if ('error' in args) {
+    console.error(args.error);
     return 2;
   }
+  const results = READINESS_PROBES.map((probe) => runProbe(probe, repoRoot));
+  const legacyModules = clientBuildLegacyModules(repoRoot);
 
-  if (argv.includes('--json')) {
+  if (args.json) {
     console.log(JSON.stringify({ schema: 1, probes: results, clientBuildLegacyModules: legacyModules, manualGates: MANUAL_GATES }, null, 2));
   } else {
     console.log('Static-world readiness (target: every count 0)\n');
@@ -183,20 +232,16 @@ function main(argv: readonly string[]): number {
         console.log(`  manual  ${gate.id} — ${gate.evidence}`);
       }
     }
-    console.log(`\nclient build legacy modules: ${legacyModules === null ? 'no build audit (run npm run client:build)' : legacyModules.length}`);
+    console.log(`\nclient build legacy modules: ${legacyModules === null ? 'no valid build audit (run npm run client:build)' : legacyModules.length}`);
   }
 
-  if (required === undefined) return 0;
-  const blocking = blockingProbes(results, required);
-  if (required !== 'step4' && legacyModules !== null && legacyModules.length > 0) {
-    console.error(`${required} blocked: client build still bundles ${legacyModules.length} legacy module(s)`);
+  if (args.required === null) return 0;
+  const failures = requirementFailures(results, legacyModules, args.required);
+  if (failures.length > 0) {
+    console.error(`${args.required} blocked by: ${failures.join('; ')}`);
     return 1;
   }
-  if (blocking.length > 0) {
-    console.error(`${required} blocked by: ${blocking.map((r) => `${r.id} (${r.count})`).join(', ')}`);
-    return 1;
-  }
-  console.log(`${required}: automated probes clear; manual gates still need recorded evidence.`);
+  console.log(`${args.required}: automated probes clear; manual gates still need recorded evidence.`);
   return 0;
 }
 
