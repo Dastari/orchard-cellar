@@ -5,8 +5,9 @@ import { containsPoint } from '../../geometry.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import { uiFrame } from './frame.js';
-import { uiFlex, uiScrollArea } from './layout.js';
+import { uiGlyph, uiWindow, uiWindowClose, uiWindowDivider } from './window.js';
+import { uiCurrency, uiCurrencyLabel } from './currency.js';
+import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonOptions } from './button.js';
 import { uiInput } from './input.js';
@@ -93,13 +94,11 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     return control;
   };
   const cancel = () => { if (live) options.callbacks.cancel(model.session.id); };
-  const title = uiText('TRADE', { role: 'header', overflow: 'ellipsis', layout: { width: 'grow' } });
-  const content = uiFlex({ width: 'grow', height: 'grow', gap: 8 });
-  // uiFrame's generic closable path hides locally. Trade must wait for authority,
-  // so its close control is explicit and leaves the frame visible on rejection.
-  const base = uiFrame({ id: 'game.trade', header: { title: 'TRADE', content: uiFlex({ direction: 'row', width: 'grow', gap: 4 }, [
-    title, button({ id: 'trade.close', label: 'X', ariaLabel: 'Cancel trade', size: 'sm', layout: { width: uiFixed(20) }, onPress: cancel }),
-  ]) }, layout: { width: 'grow', height: 'grow', ...options.layout }, children: [content] });
+  const content = uiFlex({ direction: 'column', gap: 8, align: 'center' });
+  // Trade must wait for authority, so the wooden close asks to cancel and the window stays up on rejection.
+  const close = guarded(uiWindowClose({ id: 'trade.close', label: 'Cancel trade', onPress: cancel })); cancelButtons.push(close);
+  const base = uiWindow({ id: 'game.trade', title: 'TRADE', closeControl: close, layout: { direction: 'column' }, children: [content] });
+  if (options.layout) base.setStyle(options.layout);
   const frame = new UiElement({ ...base.hooks, children: [...base.children],
     onPointerObserved(event) {
       allowBlurCommit = live && event.type === 'down' && !cancelButtons.some(control => !control.disposed
@@ -117,10 +116,11 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   });
   let ownLabel: UiElement | undefined, otherLabel: UiElement | undefined, wallet: UiElement | undefined;
   let otherMoney: UiElement | undefined, accept: UiElement | undefined, requestLabel: UiElement | undefined;
+  let ownTick: UiElement | undefined, otherTick: UiElement | undefined, status: UiElement | undefined;
   let carriedHost: UiElement | undefined, inventoryStructure = '';
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
-    const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, inputMode: 'numeric', layout: { width: 'grow' },
+    const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, inputMode: 'numeric', size: 'sm', leading: uiGlyph(`coin.${label.toLowerCase()}`), layout: { width: uiFixed(index === 0 ? 64 : 44) },
       onChange: () => { cleanEditors(); }, onSubmit: () => { commitMoney(); } });
     const field = new UiElement({ ...input.hooks,
       onFocus(focused, element, source) {
@@ -135,7 +135,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         return input.hooks.onKey?.(event, element) ?? false;
       },
     });
-    return uiFlex({ width: 'grow', basis: uiFixed(index === 0 ? 116 : 64), gap: 2 }, [uiText(label), field]);
+    return field;
   });
   const wrapSlots = (grid: UiElement, owner: () => string, actionable: boolean) => {
     for (const [index, cell] of [...grid.children].entries()) {
@@ -152,7 +152,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     inventoryStructure = key;
     for (const child of [...carriedHost.children]) child.dispose();
     const carried = uiInventoryGrid({ id: 'trade.inventory', container: 'trade-inventory', cells: inventory().map(row => ({ id: String(row.slot), index: row.slot })),
-      columns: 10, slotSize: 'sm', gap: 2, artwork, iconAnimation, allowSecondary: true,
+      columns: 10, gap: 2, fixedColumns: true, layout: { width: 'fit' }, artwork, iconAnimation, allowSecondary: true,
       stack: index => model.inventorySlots.find(row => row.slot === index) ?? null,
       onActivate(index, event) {
         if (!live) return;
@@ -192,50 +192,65 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     if (key !== structure) {
       structure = key; rebuilding = true; allowBlurCommit = false;
       for (const child of [...content.children]) child.dispose();
-      ownLabel = otherLabel = wallet = otherMoney = accept = requestLabel = carriedHost = undefined;
-      title.setProps({ text: model.session.state === 'requested' ? 'TRADE REQUEST' : 'TRADE' });
+      ownLabel = otherLabel = wallet = otherMoney = accept = requestLabel = carriedHost = ownTick = otherTick = status = undefined;
       if (model.session.state === 'requested') {
-        requestLabel = uiText('', { id: 'trade.request', wrap: true });
-        content.append(uiScrollArea({ height: 'grow' }, [requestLabel]));
-        content.append(uiFlex({ direction: 'row', wrap: true, gap: 4, shrink: 0 }, own() ? [
-          button({ id: 'trade.cancel', label: 'CANCEL', tone: 'danger', onPress: cancel }),
+        requestLabel = uiText('', { id: 'trade.request', wrap: true, align: 'center', layout: { width: uiFixed(240) } });
+        content.append(requestLabel);
+        content.append(uiFlex({ direction: 'row', gap: 4, justify: 'center', shrink: 0 }, own() ? [
+          button({ id: 'trade.cancel', label: 'Cancel', tone: 'danger', onPress: cancel }),
         ] : [
-          button({ id: 'trade.request.accept', label: 'ACCEPT REQUEST', tone: 'success', onPress: () => options.callbacks.acceptRequest(model.session.id) }),
-          button({ id: 'trade.request.decline', label: 'DECLINE', tone: 'danger', onPress: () => options.callbacks.declineRequest(model.session.id) }),
+          button({ id: 'trade.request.decline', label: 'Decline', tone: 'danger', onPress: () => options.callbacks.declineRequest(model.session.id) }),
+          button({ id: 'trade.request.accept', label: 'Accept', ariaLabel: 'Accept trade request', tone: 'success', onPress: () => options.callbacks.acceptRequest(model.session.id) }),
         ]));
       } else {
-        ownLabel = uiText('YOUR OFFER', { wrap: true }); otherLabel = uiText('', { wrap: true });
-        wallet = uiText('', { wrap: true }); otherMoney = uiText('', { wrap: true });
-        const ownGrid = wrapSlots(uiInventoryGrid({ id: 'trade.own', container: 'trade-own', count: 6, columns: 3, slotSize: 'sm', gap: 2,
+        // Two offer columns, each with a reserved tick so they line up; coins under each grid.
+        ownLabel = uiText('YOUR OFFER', { role: 'label' }); otherLabel = uiText('', { role: 'label' });
+        ownTick = uiGlyph('glyph.check', { label: 'Accepted' }); otherTick = uiGlyph('glyph.check', { label: 'Accepted' });
+        const tickSlot = (tick: UiElement) => uiFlex({ width: uiFixed(16), height: uiFixed(16), shrink: 0 }, [tick]);
+        wallet = uiText('', { role: 'caption', wrap: true, layout: { width: uiFixed(160) } }); otherMoney = uiCurrency({ bronze: 0 });
+        status = uiText('', { wrap: true, align: 'center', layout: { width: uiFixed(280) } });
+        const ownGrid = wrapSlots(uiInventoryGrid({ id: 'trade.own', container: 'trade-own', count: 6, columns: 3, gap: 2, fixedColumns: true, layout: { width: 'fit' },
           artwork, iconAnimation, stack: index => offer(model.identityHex, index) ?? null,
           onActivate: index => { if (live && offer(model.identityHex, index)) options.callbacks.removeItem(model.session.id, index); },
         }), () => model.identityHex, true);
-        const otherGrid = wrapSlots(uiInventoryGrid({ id: 'trade.other', container: 'trade-other', count: 6, columns: 3, slotSize: 'sm', gap: 2,
+        const otherGrid = wrapSlots(uiInventoryGrid({ id: 'trade.other', container: 'trade-other', count: 6, columns: 3, gap: 2, fixedColumns: true, layout: { width: 'fit' },
           artwork, iconAnimation, stack: index => offer(otherHex(), index) ?? null,
         }), otherHex, false);
-        carriedHost = uiFlex({ width: 'grow' }); inventoryStructure = '';
-        accept = button({ id: 'trade.accept', label: 'ACCEPT TRADE', tone: 'success', onPress: () => {
+        carriedHost = uiFlex({ shrink: 0 }); inventoryStructure = '';
+        accept = button({ id: 'trade.accept', label: 'Accept', ariaLabel: 'Accept trade', tone: 'success', onPress: () => {
           if (live) options.callbacks.setAccepted(model.session.id, !ownAccepted(), model.session.revision);
         } });
-        content.append(uiScrollArea({ id: 'trade.scroll', width: 'grow', height: 'grow', gap: 8 }, [
-          uiFlex({ direction: 'row', wrap: true, width: 'grow', gap: 8 }, [
-            uiFlex({ width: 'grow', basis: uiFixed(220), gap: 4 }, [ownLabel, ownGrid, uiFlex({ direction: 'row', wrap: true, width: 'grow', gap: 4 }, moneyFields()), wallet]),
-            uiFlex({ width: 'grow', basis: uiFixed(180), gap: 4 }, [otherLabel, otherGrid, otherMoney]),
-          ]), uiText('YOUR INVENTORY — CLICK TO OFFER', { wrap: true }), carriedHost,
+        const column = (label: UiElement, tick: UiElement, grid: UiElement, money: readonly UiElement[]) => uiFlex({ direction: 'column', gap: 4, shrink: 0 }, [
+          uiFlex({ direction: 'row', gap: 4, align: 'center', alignSelf: 'stretch', height: uiFixed(16) }, [label, uiFlex({ grow: 1 }, []), tickSlot(tick)]), grid, ...money]);
+        content.append(uiFlex({ id: 'trade.scroll', direction: 'row', gap: 16, align: 'start' }, [
+          column(ownLabel, ownTick, ownGrid, [uiFlex({ direction: 'row', gap: 2, align: 'center' }, moneyFields()), wallet]),
+          column(otherLabel, otherTick, otherGrid, [uiFlex({ direction: 'row', gap: 4, align: 'center', height: uiFixed(20) }, [uiText('COINS', { role: 'caption' }), otherMoney])]),
         ]));
-        content.append(uiFlex({ direction: 'row', wrap: true, gap: 4, shrink: 0 }, [
-          button({ id: 'trade.cancel', label: 'CANCEL', tone: 'danger', onPress: cancel }), accept,
+        content.append(status);
+        content.append(uiFlex({ direction: 'row', gap: 4, justify: 'center', shrink: 0 }, [
+          button({ id: 'trade.cancel', label: 'Cancel', tone: 'danger', onPress: cancel }), accept,
         ]));
+        // What you carry sits under the carved divider, like a window's hotbar row.
+        content.append(uiWindowDivider());
+        content.append(uiText('Click an item to offer it; right-click offers one.', { role: 'caption', align: 'center', wrap: true, layout: { width: uiFixed(280) } }));
+        content.append(carriedHost);
       }
       rebuilding = false;
     }
     if (model.session.state === 'active') refreshInventory();
-    requestLabel?.setProps({ text: own() ? `WAITING FOR ${model.recipientName}` : `${model.requesterName} WANTS TO TRADE` });
-    ownLabel?.setProps({ text: ownAccepted() ? 'YOUR OFFER — ACCEPTED' : 'YOUR OFFER' });
-    otherLabel?.setProps({ text: `${own() ? model.recipientName : model.requesterName} OFFER${otherAccepted() ? ' — ACCEPTED' : ''}` });
-    wallet?.setProps({ text: `YOU HAVE ${uiPurseLabel(model.walletBronze)}` });
-    otherMoney?.setProps({ text: uiPurseLabel(own() ? model.session.recipientBronze : model.session.requesterBronze) });
-    accept?.setProps({ label: ownAccepted() ? 'UNACCEPT' : 'ACCEPT TRADE' });
+    const other = own() ? model.recipientName : model.requesterName;
+    base.setWindowTitle(model.session.state === 'requested' ? 'TRADE REQUEST' : `TRADE WITH ${other.toUpperCase()}`);
+    requestLabel?.setProps({ text: own() ? `Waiting for ${model.recipientName} to answer.` : `${model.requesterName} wants to trade with you.` });
+    ownLabel?.setProps({ text: 'YOUR OFFER' }); ownLabel?.setProps({ label: ownAccepted() ? 'YOUR OFFER, ACCEPTED' : 'YOUR OFFER' });
+    otherLabel?.setProps({ text: `${other.toUpperCase()}'S OFFER` });
+    ownTick?.setStyle({ visible: ownAccepted() }); otherTick?.setStyle({ visible: otherAccepted() });
+    wallet?.setProps({ text: `You have ${uiPurseLabel(model.walletBronze)}` });
+    if (otherMoney) { const bronze = own() ? model.session.recipientBronze : model.session.requesterBronze; otherMoney.setProps({ bronze }); otherMoney.label = uiCurrencyLabel(bronze); }
+    status?.setProps({ text: ownAccepted() && otherAccepted() ? 'Both of you accepted. Completing the trade.'
+      : ownAccepted() ? `Waiting for ${other} to accept. Changing an offer clears both ticks.`
+      : otherAccepted() ? `${other} has accepted. Accept to trade, or change an offer to clear both ticks.`
+      : `${other} is still deciding. Changing an offer clears both ticks.` });
+    accept?.setProps({ label: ownAccepted() ? 'Unaccept' : 'Accept' });
     frame.invalidate();
   };
   updateTrade(model);

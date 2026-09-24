@@ -199,7 +199,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Recipe-book rows carry output, status and per-ingredient need/have; crafting-frame and host tests cover the book.
 // Player book: character, skills and records navigate across all four chapters (UiGameBookChapter, now including quests)
 // and the quest log's chapter tabs open them; character, skill, records, quest and reading host tests cover the tabs.
-const STRUCTURAL_SEAM_DIGEST = '6735909d2a880b1cc139bb2b8bdf635183654f7274808bc9f191060ce4cbc97b';
+// Dialogue, merchant, merchant panels and trade render approved uiWindow compositions; the trade host no longer
+// sizes its window (it centres and the window caps itself). NPC, merchant, seal-panel and trade host tests cover the seam.
+const STRUCTURAL_SEAM_DIGEST = 'f40a010a055760d458ffaa2c279226e3e61895bc73436b70bbb3d91b4330fec9';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

@@ -27,7 +27,7 @@ it('retains quantity controls and filter focus while enforcing bounds and pendin
     root.arrange();
     expect(root.focus.current).toBe(input);
     expect(frame.filterEditor.snapshot().value).toBe('app');
-    const purchase = root.entries().find(e => e.element.kind === 'button' && e.element.props['label'] === 'PROCESSING')!.element;
+    const purchase = root.entries().find(e => e.element.kind === 'button' && e.element.props['label'] === 'Processing')!.element;
     expect(purchase.disabled).toBe(true);
     root.focus.set(purchase, 'keyboard');
     root.key({ key: 'Enter' });
