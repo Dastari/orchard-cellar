@@ -8,7 +8,7 @@ import {
 // Owner, 2026-09-24: "Raise the cap. It's arbitrary. And we'll optimize later."
 // and "600k is tiny in the grand scheme of things." Cap set to 1 MiB; payload
 // optimisation is a deferred roadmap follow-up. Materials foundation measured
-// 1,021 definitions, 652,028 runtime bytes.
+// 1,021 definitions, 651,943 runtime bytes (rebased on a9c2b232).
 export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 1024 * 1024;
 
 export interface ContentPackMeasurement {
