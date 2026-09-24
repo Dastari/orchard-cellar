@@ -5,10 +5,11 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// Crafting overhaul (weapon material tiers, structure components, shaped
-// recipes): 947 definitions, 631,483 runtime bytes.
-// Retain the measured next-whole-KiB regression envelope.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 617 * 1024;
+// Owner, 2026-09-24: "Raise the cap. It's arbitrary. And we'll optimize later."
+// and "600k is tiny in the grand scheme of things." Cap set to 1 MiB; payload
+// optimisation is a deferred roadmap follow-up. Materials foundation measured
+// 1,021 definitions, 652,028 runtime bytes.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 1024 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;
