@@ -18,11 +18,11 @@ it('keeps tiled faces opaque at fractional device scales without stretching the 
     for (let index = 3; index < pixels.length; index += 4) expect(pixels[index]).toBe(255);
   }
 });
-it('leaves an empty input centre transparent while retaining the authored border', async () => {
+it('fills an empty input with the authored field face inside its border', async () => {
   const canvas = createCanvas(200, 40), context = canvas.getContext('2d');
   const root = new UiRoot({ scale: 1, art: await uiTestArt() }); root.resize(200, 40);
   root.mount(ui.input({ label: 'Name' })); root.draw(context as unknown as CanvasRenderingContext2D);
-  expect(context.getImageData(20, 8, 1, 1).data[3]).toBe(0);
+  expect(context.getImageData(20, 8, 1, 1).data[3]).toBe(255);
   expect([...context.getImageData(0, 0, 200, 24).data].some((value, index) => index % 4 === 3 && value > 0)).toBe(true);
   root.dispose();
 });

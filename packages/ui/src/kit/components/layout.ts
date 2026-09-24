@@ -44,9 +44,9 @@ export function uiSeparator(options: { readonly vertical?: boolean; readonly id?
     const r = element.rect; context.fillRect(r.x, r.y, r.width, r.height);
   } });
 }
-export function uiScrollArea(options: UiContainerOptions & { readonly initialScrollY?: number; readonly onScroll?: (element: UiElement) => void } = {}, children: readonly UiElement[] = []): UiElement {
-  const { id, label, initialScrollY, onScroll, onArrange, ...style } = options;
-  const area = new UiElement({ id, label, onScroll, onArrange, kind: 'scroll-area', props:{scrollbarWidth:style.padding===undefined?12:Math.max(4,Math.min(12,uiPaddingInsets(style.padding).right))}, style: { display: 'flex', direction: 'column', width: 'grow', height: 'grow', ...style, padding:style.padding??{right:16}, overflow: options.overflow ?? 'scroll-y' }, children,
+export function uiScrollArea(options: UiContainerOptions & { readonly initialScrollY?: number; readonly onScroll?: (element: UiElement) => void; readonly scrollStyle?: 'wood' } = {}, children: readonly UiElement[] = []): UiElement {
+  const { id, label, initialScrollY, onScroll, onArrange, scrollStyle, ...style } = options;
+  const area = new UiElement({ id, label, onScroll, onArrange, kind: 'scroll-area', props:{scrollStyle,scrollbarWidth:style.padding===undefined?12:Math.max(4,Math.min(12,uiPaddingInsets(style.padding).right))}, style: { display: 'flex', direction: 'column', width: 'grow', height: 'grow', ...style, padding:style.padding??{right:16}, overflow: options.overflow ?? 'scroll-y' }, children,
     paintOverlay(element, { context, art }) { paintUiScrollbar(element, context, art); },
   });
   area.scroll.y = Math.max(0, initialScrollY ?? 0); return area;

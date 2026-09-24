@@ -3,16 +3,28 @@ import { measureUiElement } from '../layout/measure.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { UI_MOTION } from '../tokens.js';
-import { uiFrame } from './frame.js';
+import { paintUiSkin } from './art.js';
+import { UI_ITEM_INKS } from '../tokens.js';
 import { uiText } from './text.js';
+export const UI_TOOLTIP_MAX_WIDTH = 160;
+/** The hint panel alone: dark frame, 6px padding, width fitted to the text up to the maximum. */
+export function uiHintPanel(text: string): UiElement {
+  const content = uiText(text, { wrap: true }); content.setProps({ ink: UI_ITEM_INKS.body });
+  const width = Math.min(UI_TOOLTIP_MAX_WIDTH, measureUiElement(content, { width: UI_TOOLTIP_MAX_WIDTH - 12, height: 400 }).preferred.width + 12);
+  return new UiElement({ kind: 'tooltip-frame', props: { itemInks: true }, style: { display: 'flex', direction: 'column', width: uiFixed(width), height: 'fit', padding: 6, shrink: 0 }, children: [content],
+    paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, 'tooltip_dark.neutral', element.rect); } });
+}
 export function uiTooltip(label: string | (() => string), child: UiElement, layout?: UiStyle): UiElement {
-  const content = uiText(typeof label === 'function' ? label() : label,{wrap:true});
+  const content = uiText(typeof label === 'function' ? label() : label, { wrap: true });
+  // Plain hints share the dark Gear-D4 frame and body ink with item tooltips.
+  content.setProps({ ink: UI_ITEM_INKS.body });
   const refresh = () => { const value = typeof label === 'function' ? label() : label; if (content.label !== value) content.setProps({ text: value }); };
   let timer: ReturnType<typeof setTimeout> | undefined;
   let hovered = false, focused = false, dismissed = false;
   let hoverSince = 0;
   const popup = new UiElement({ kind: 'tooltip-popup', style: { position: 'fixed', zLayer: 'floating', visible: false, width: uiFixed(180), height: 'fit', display: 'stack', overflow: 'scroll-y' },
-    children: [uiFrame({ tone: 'primary', style: 'parchment_plain', padding: 8, layout: { width: 'grow', height: 'fit' }, children: [content] })],
+    children: [new UiElement({ kind: 'tooltip-frame', props: { itemInks: true }, style: { display: 'flex', direction: 'column', width: 'grow', height: 'fit', padding: 6 }, children: [content],
+      paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, 'tooltip_dark.neutral', element.rect); } })],
     onDismiss() { dismissed = true; hide(); },
   });
   const hide = () => { clearTimeout(timer); timer = undefined; popup.setStyle({ visible: false }); };
@@ -23,8 +35,9 @@ export function uiTooltip(label: string | (() => string), child: UiElement, layo
       timer = undefined; refresh(); if(!content.label.trim())return;
       let root = element; let inModal=false;for(let ancestor:UiElement|null=element;ancestor;ancestor=ancestor.parent)if(ancestor.style.zLayer==='modal')inModal=true;while (root.parent) root = root.parent;
       popup.setStyle({zLayer:inModal?'toast':'floating'});
-      const natural = measureUiElement(content, {width: 220, height: root.rect.height}).preferred.width + 16;
-      popup.setStyle({ visible: true, width: uiFixed(Math.min(natural, 220, root.rect.width)), height: 'fit' });
+      // Fit the text plus 6px padding each side, wrapping once it reaches the 160px maximum.
+      const natural = measureUiElement(content, { width: UI_TOOLTIP_MAX_WIDTH - 12, height: root.rect.height }).preferred.width + 12;
+      popup.setStyle({ visible: true, width: uiFixed(Math.min(natural, UI_TOOLTIP_MAX_WIDTH, root.rect.width)), height: 'fit' });
       const size = measureUiElement(popup, root.rect).preferred;
       const rect = layoutUiAnchoredRect(element.rect, { width: Math.min(size.width, root.rect.width), height: Math.min(size.height, root.rect.height) },
         { targetAnchor: 'bottom_left', selfAnchor: 'top_left', offset: { x: 0, y: 4 }, constrainTo: root.rect });

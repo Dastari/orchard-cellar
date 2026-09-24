@@ -337,5 +337,6 @@
     ],
     "blocksMovement": false,
     "builderAvailable": false
-  }
+  },
+  "uiSizing": "fixed"
 }

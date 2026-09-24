@@ -14,6 +14,7 @@ import { paintUiSkin, paintUiMissingArt, uiElementTone } from './art.js';
 import { uiIcon, type UiIconSource } from './media.js';
 import { uiFlex } from './layout.js';
 import type { UiButtonModifiers } from './button.js';
+import { paintUiSelector } from './window.js';
 export interface UiSlotOptions {
   readonly id?: string; readonly label?: string; readonly stack?: ItemStack | null | (() => ItemStack | null);
   readonly icon?: UiIconSource; readonly artwork?: Readonly<Record<string, LoadedAsset>>;
@@ -23,10 +24,30 @@ export interface UiSlotOptions {
   /** Presentation only: a preview never becomes an inventory stack. */
   readonly ghost?: () => ItemStack | null;
   readonly controller?: UiInventoryController; readonly binding?: UiInventorySlotRef;
-  readonly tone?: UiTone; readonly hotkey?: string; readonly placeholder?: 'bag' | 'head' | 'ring' | 'body' | 'shield' | 'legs' | 'weapon';
+  readonly tone?: UiTone; readonly hotkey?: string; readonly placeholder?: UiSlotPlaceholder;
   readonly disabled?: boolean; readonly selected?: boolean; readonly layout?: UiStyle; readonly onPress?: (event: UiButtonModifiers) => void;
   readonly allowSecondary?: boolean; readonly activateOn?: 'down' | 'up';
 }
+/** Icon frame for an item asset: its declared animation, then the idle or closed pose. */
+export function uiItemFrame(asset: LoadedAsset, animation?: string) {
+  return selectAtlasFrame(asset.metadata, animation ?? 'base', 0) ?? selectAtlasFrame(asset.metadata, 'base', 0) ?? selectAtlasFrame(asset.metadata, 'idle', 0) ?? selectAtlasFrame(asset.metadata, 'closed', 0);
+}
+/** Bare item art at its native size, centred: station emblems, recipe lines, ingredient rows. */
+export function uiItemImage(options: { readonly itemKind: string; readonly artwork?: UiSlotOptions['artwork']; readonly label?: string; readonly size?: number }): UiElement {
+  const size = options.size ?? 16;
+  return new UiElement({ kind: 'item-image', label: options.label ?? itemDefinition(options.itemKind)?.displayName ?? options.itemKind, style: { width: uiFixed(size), height: uiFixed(size), shrink: 0 },
+    paint(element, { context }) {
+      const asset = options.artwork?.[options.itemKind], source = asset && uiItemFrame(asset, itemDefinition(options.itemKind)?.iconAnimation);
+      if (!asset || !source) return;
+      const r = element.rect, fit = Math.min(r.width / source.width, r.height / source.height), factor = fit >= 1 ? Math.floor(fit) : fit;
+      const width = Math.round(source.width * factor), height = Math.round(source.height * factor);
+      context.drawImage(asset.image, source.x, source.y, source.width, source.height, r.x + Math.floor((r.width - width) / 2), r.y + Math.floor((r.height - height) / 2), width, height);
+    },
+  });
+}
+/** Equipment slot ids, plus the legacy silhouette names that map onto them. */
+export type UiSlotPlaceholder = (typeof EQUIPMENT_SLOTS)[number]['id'] | 'bag' | 'ring' | 'shield' | 'weapon';
+const LEGACY_SILHOUETTES: Readonly<Record<string, string>> = { bag: 'backpack', ring: 'watch', shield: 'off_hand', weapon: 'main_hand' };
 export function uiSlot(options: UiSlotOptions): UiElement {
   let unregister: (() => void) | undefined;
   let pressed = false;
@@ -51,13 +72,13 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     onDispose() { unregister?.(); },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
-      context.save(); if (element.disabled) context.globalAlpha *= .42;
+      context.save(); if (element.disabled) context.globalAlpha *= .6;
       const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind), tone = uiElementTone(element);
       paintUiSkin(context, art.skin.slot, `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
       const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
       if (item && options.renderContent) options.renderContent(context, r, item, { ghost: Boolean(ghost) });
       else if (item) {
-        const asset = options.artwork?.[item.itemKind], source = asset && (selectAtlasFrame(asset.metadata, options.iconAnimation?.(item) ?? itemDefinition(item.itemKind)?.iconAnimation ?? 'base', 0) ?? selectAtlasFrame(asset.metadata, 'idle', 0) ?? selectAtlasFrame(asset.metadata, 'closed', 0));
+        const asset = options.artwork?.[item.itemKind], source = asset && uiItemFrame(asset, options.iconAnimation?.(item) ?? itemDefinition(item.itemKind)?.iconAnimation);
         if (asset && source) { const fit = Math.min((r.width - 8) / source.width, (r.height - 10) / source.height); const factor = fit >= 1 ? Math.min(scale, Math.floor(fit)) : Math.max(0, fit); const width = Math.max(1, Math.round(source.width * factor)), height = Math.max(1, Math.round(source.height * factor));
           context.save();
           if (ghost) context.globalAlpha *= .42;
@@ -67,9 +88,13 @@ export function uiSlot(options: UiSlotOptions): UiElement {
         if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 3, r.y + r.height - 10, { align: 'right', color: resolveUiTextContrast(tone).color, outlineColor: UI_TONE_FACES[tone].frame.face });
         const durability = uiDurabilityFraction(item.itemKind, item.durability);
         if (!ghost && durability !== null) { context.fillStyle = UI_TONE_FACES[durability > .5 ? 'success' : durability > .2 ? 'warning' : 'danger'].frame.face; context.fillRect(r.x + 4, r.y + r.height - 4, Math.floor((r.width - 8) * durability), 2); }
-      } else if (options.placeholder) paintUiSkin(context, art.skin.equipment, `grey.${options.placeholder}`, r);
+      } else if (options.placeholder) paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
       if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, { color: resolveUiTextContrast(tone).color, outlineColor: UI_TONE_FACES[tone].frame.face });
-      if (hovered || focused || element.props['selected']) { const accepted = options.controller && options.binding && options.controller.model.canAccept(options.binding); context.strokeStyle = resolveUiTextContrast(accepted ? 'success' : tone).color; context.lineWidth = 1; context.strokeRect(r.x + 1.5, r.y + 1.5, Math.max(0, r.width - 3), Math.max(0, r.height - 3)); }
+      // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop, white hover and keyboard focus.
+      const holding = Boolean(options.controller?.model.cursor), accepted = holding && options.controller && options.binding ? options.controller.model.canAccept(options.binding) : null;
+      if (element.props['selected'] || (hovered && accepted === true)) paintUiSelector(context, art.skin.selector, 'confirm', r);
+      else if (hovered && accepted === false) paintUiSelector(context, art.skin.selector, 'deny', r);
+      else if (hovered || focused) paintUiSelector(context, art.skin.selector, 'neutral', r);
       context.restore();
     },
   });
@@ -135,18 +160,32 @@ export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?:
     } });
   applySelection(initial); return grid;
 }
+/** Equipment arranged around the wearer: armour down the left, accessories down the right and
+ * both hands beneath the portrait well. Every slot keeps its logical binding. */
+export const UI_PAPER_DOLL_LAYOUT = {
+  left: ['head', 'neck', 'body', 'backpack'], right: ['hands', 'legs', 'feet', 'watch'], hands: ['main_hand', 'off_hand'],
+} as const satisfies Record<string, readonly (typeof EQUIPMENT_SLOTS)[number]['id'][]>;
 export function uiPaperDoll(options: UiInventoryGridOptions & { readonly portrait?: UiElement }): UiElement {
-  const placeholders: Partial<Record<(typeof EQUIPMENT_SLOTS)[number]['id'], UiSlotOptions['placeholder']>> = {
-    head: 'head', body: 'body', watch: 'ring', main_hand: 'weapon', backpack: 'bag', off_hand: 'shield', legs: 'legs',
+  const byIndex = new Map((options.cells ?? EQUIPMENT_SLOTS.map((slot): UiInventoryCell => ({ id: slot.id, index: slot.index }))).map((cell, index) => [cell.index ?? index, cell]));
+  const slot = (id: (typeof EQUIPMENT_SLOTS)[number]['id']) => {
+    const definition = EQUIPMENT_SLOTS.find(entry => entry.id === id)!, cell = byIndex.get(definition.index);
+    if (!cell) return uiFlex({ width: uiFixed(28), height: uiFixed(31), shrink: 0 }, []);
+    return uiSlot({ id: options.id ? `${options.id}.slot.${definition.index}` : undefined, label: definition.label.toLowerCase().replace(/(^|\s)\S/gu, letter => letter.toUpperCase()),
+      binding: { container: options.container, index: definition.index }, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation,
+      stack: options.stack ? () => options.stack!(definition.index) : undefined, onPress: options.onActivate ? event => options.onActivate!(definition.index, event) : undefined,
+      renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, definition.index, state) : undefined,
+      placeholder: cell.placeholder ?? id, disabled: cell.disabled, allowSecondary: options.allowSecondary, activateOn: options.activateOn });
   };
-  const source: readonly UiInventoryCell[] = options.cells ?? EQUIPMENT_SLOTS.map(slot => ({ id: slot.id, index: slot.index }));
-  const cells = source.flatMap((cell, index) => {
-    const slot = EQUIPMENT_SLOTS.find(slot => slot.index === (cell.index ?? index));
-    if (slot === undefined) return [];
-    return [{ ...cell, index: slot.index, placeholder: cell.placeholder ?? placeholders[slot.id],
-      disabled: cell.disabled ?? ('acceptedKinds' in slot
-        && Array.isArray(slot.acceptedKinds) && slot.acceptedKinds.length === 0) }];
+  const column = (ids: readonly (typeof EQUIPMENT_SLOTS)[number]['id'][]) => uiFlex({ direction: 'column', gap: 2, shrink: 0 }, ids.map(slot));
+  const well = new UiElement({ kind: 'paper-doll-well', label: 'Character preview', style: { width: uiFixed(72), height: uiFixed(97), display: 'stack', padding: 4, shrink: 0 },
+    children: options.portrait ? [options.portrait.setStyle({ width: 'grow', height: 'grow' })] : [],
+    paint(element, { context, art }) {
+      if (!art || art.missingArt) return;
+      const r = element.rect;
+      paintUiSkin(context, art.skin.frame, 'thin', r);
+    },
   });
-  const equipment = uiInventoryGrid({ ...options, columns: options.columns ?? 3, cells });
-  return options.portrait ? uiFlex({ direction: 'row', gap: 8, width: 'grow', ...options.layout }, [options.portrait, equipment]) : equipment;
+  const centre = uiFlex({ direction: 'column', gap: 2, align: 'center', shrink: 0 }, [well, uiFlex({ direction: 'row', gap: 2 }, UI_PAPER_DOLL_LAYOUT.hands.map(slot))]);
+  return uiFlex({ id: options.id, direction: 'row', gap: 4, align: 'start', shrink: 0, ...options.layout },
+    [column(UI_PAPER_DOLL_LAYOUT.left), centre, column(UI_PAPER_DOLL_LAYOUT.right)]);
 }

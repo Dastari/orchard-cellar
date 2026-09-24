@@ -44,12 +44,13 @@ export function uiText(value: string, options: UiTextOptions = {}): UiElement {
       if (!art) return;
       const r = element.rect, lines = linesFor(String(element.props['text']), r.width);
       const asset = metrics.font === 'header' ? art.pixel.headerFont : art.pixel.font;
-      const color = uiElementTextContrast(element).color;
+      // An explicit ink is reserved for fixed dark surfaces such as tooltips; everything else follows its tone.
+      const color = typeof element.props['ink'] === 'string' ? element.props['ink'] : uiElementTextContrast(element).color;
       lines.forEach((line, index) => {
         const width = measurePixelText(line, 1, asset);
         const x = r.x + (options.align === 'center' ? Math.floor((r.width - width) / 2) : options.align === 'right' ? r.width - width : 0);
         (options.outline ? drawOutlinedPixelText : drawPixelText)(context, art.pixel, line, x, r.y + index * metrics.lineHeight,
-          { font: metrics.font, color, outlineColor: UI_TONE_FACES[uiElementTone(element)].frame.face });
+          { font: metrics.font, color, outlineColor: typeof element.props['outlineInk'] === 'string' ? element.props['outlineInk'] : UI_TONE_FACES[uiElementTone(element)].frame.face });
       });
     },
   });
