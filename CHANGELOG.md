@@ -2,6 +2,29 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.41.0 / UI 0.43.0 / Studio 0.16.0 / World 0.26.2 — Game UI redesign and recipe recosting
+
+- **Game UI redesign (UI-D1, PRs #148–#156 by BoldBridge).** Every in-game surface is rebuilt to owner-approved kit-rendered designs (`Roadmap/Game UI Redesign` on the wiki). The redesign is presentation-level: authoritative command paths, pointer custody and the BUG-017..029 fixes are unchanged.
+  - Foundations: wood-and-parchment chrome with ribbon headings in the top board, a wooden close button, slot selectors and silhouettes, dark auto-sized item and hint tooltips, filled fields, and a slider fill fix.
+  - Windows fitted to their content: inventory, chest, the processing stations, and crafting with a separate recipe book. Shift-click moves stacks between containers.
+  - The HUD, with the quest tracker as outlined text on the world, the minimap frame, touch discs and pad, and the chat plaque.
+  - The player book (Character, Skills, Quests, Records) and the Help book.
+  - Dialogue, the merchant, and player trade.
+  - The game menu and vertical-tab settings.
+  - The title flow, name prompt, the update, delve and trader dialogs, the build palette, and online players.
+  - Dark notices, nameplates, the hover card and the chat panel.
+  - All of it scales to phone layouts.
+- **Recipe recosting (Craft-D2, PR #152 by GrayOx).**
+  - Buildings are costed by footprint; the barn is built from a coop item.
+  - Components: a timber frame takes 4.5 wood, and a stone foundation 6 stone.
+  - Stations are re-priced: the spit, the stone-ring fire, the anvil recipe, and the barrel with nails.
+  - Furniture now uses glass, brick and beeswax.
+  - Stone costs 4 pebbles.
+  - The bronze bar is worth more than copper.
+  - Coal becomes a furnace fuel.
+  - No crafted output sells for more than its inputs.
+- **Versions.** Workspace 0.50.0, Assets 0.23.0, Tools 0.24.1 and Engine 0.24.2 reconcile the combined source. The stored schema is unchanged. The world module rebuilds with the recosted bootstrap pack.
+
 ## Client 0.40.5 / Studio 0.15.5 / World 0.26.1 — Materials foundation
 
 - Add 47 crafting materials with icon art, even before they have a source (Craft-D2, Prog-D1, PR #147). The groups are hides and textiles, metals and metalwork, building materials, magic, cut gems, gem dusts and essences. There are 23 shaped workbench and anvil recipes and 4 single-input furnace and barrel processes. For example: sand to glass pane, clay to brick, copper plus tin to bronze, and raw hide to leather.
