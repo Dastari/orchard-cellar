@@ -24,7 +24,7 @@
     "I": "#8a4836"
   },
   "sourcePaletteMode": "exact",
-  "notes": "Authored button glyphs in the ui_cf_button_glyphs dark-peach ink (palette_1) for controls the licensed sheet lacks.",
+  "notes": "Project-authored button glyphs in the ui_cf_button_glyphs dark-peach ink (palette_1) for controls the licensed sheet lacks; the hammer frame is copied unchanged from licensed Kenmi icon_cf_hammer. See art/custom/ui-redesign/README.md.",
   "frameKinds": {
     "search": "state",
     "sort": "state",

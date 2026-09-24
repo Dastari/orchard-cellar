@@ -26,7 +26,7 @@
     "neck": "state",
     "hands": "state"
   },
-  "approved": true,
+  "approved": true, "notes": "Seven slots derived from licensed Kenmi ui_cf_kit_equipment_brown (backing removed, flat ink); legs, neck and hands project-authored. See art/custom/ui-redesign/README.md.",
   "tags": [
     "ui.equipment"
   ],
