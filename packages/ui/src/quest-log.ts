@@ -33,7 +33,7 @@ export class QuestLog {
 
   constructor(art: UiKitArt, callbacks: QuestLogCallbacks, onClose?: () => void) {
     this.root = new UiRoot({ art, scale: 1, label: 'Quest log' });
-    this.view = uiQuestLog({ entries: [], ...callbacks, onClose });
+    this.view = uiQuestLog({ entries: [], ...callbacks, onClose, resizable: false });
     this.root.mount(this.view);
   }
 

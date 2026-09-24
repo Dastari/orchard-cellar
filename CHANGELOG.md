@@ -8,6 +8,10 @@ One heading per game version, newest first. Parallel branches that bumped to the
 - Preserve audio restore, touch placement, lighting quality/model, world scale, presentation cap, experimental backend, updates, fullscreen and administration callbacks. Cancel stale held actions on permission or availability changes.
 - Use font_5x7 and scrollable bounded layouts; retire production legacy menu drawing and hits together. Workspace0.35.0.
 
+## Client 0.28.1 / UI 0.30.1 — Quest window bounds (not yet deployed)
+
+- Fix BUG-023: the production quest window uses host-owned responsive bounds. Remove its manual resize handles so edge drags cannot push Track/Drop outside compact viewports; lab resizing remains explicitly available. Workspace0.34.1.
+
 ## Client 0.28.0 / UI 0.30.0 — Shared quests and guide (not yet deployed)
 
 - Render the production quest log and help guide with the shared kit, preserving real quest pin/drop callbacks, deep links, selection, reading navigation and parent close policies.
