@@ -70,6 +70,21 @@ export class GameUiRuntime {
     return this.pointers.has(pointerId) || this.cancelled.has(pointerId);
   }
 
+  /** Unexpected DOM capture loss cancels only this gesture and keeps its tail. */
+  cancelPointer(pointerId: number): void {
+    const owned = this.pointers.get(pointerId);
+    if (!owned) return;
+    owned.host.root.pointer({ ...owned.event, type: 'cancel' });
+    this.pointers.delete(pointerId);
+    this.cancelled.add(pointerId);
+  }
+
+  /** A fresh native down (including outside the canvas) starts a new gesture. */
+  beginPointer(pointerId: number): void {
+    this.cancelPointer(pointerId);
+    this.cancelled.delete(pointerId);
+  }
+
   /** Final world/legacy handoff clears retained keyboard ownership and hover. */
   clearFocus(): void { this.keyboard = null; this.clearHover(); }
 

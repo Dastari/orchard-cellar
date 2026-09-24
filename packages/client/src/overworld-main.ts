@@ -1,3 +1,5 @@
+import { GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
 
@@ -259,8 +261,6 @@ const canvas: HTMLCanvasElement = canvasElement;
 const renderer = createGameplayRenderer(canvas);
 const chatInputElement = document.querySelector<HTMLInputElement>('#account-name');
 if (chatInputElement === null) throw new Error('Missing overworld text input');
-const characterNameInputElement = document.querySelector<HTMLInputElement>('#character-name');
-if (characterNameInputElement === null) throw new Error('Missing character name input');
 const shopFilterInputElement = document.querySelector<HTMLInputElement>('#shop-filter');
 if (shopFilterInputElement === null) throw new Error('Missing shop filter input');
 const inventoryFilterInputElement = document.querySelector<HTMLInputElement>('#inventory-filter');
@@ -278,7 +278,8 @@ const tradeMoneyInputElements = [
 setLoadingScreenStage({
   title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
 });
-const art = await loadOverworldArt();
+const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
+const retainedUi = new GameUiRuntime();
 upgradeLoadingScreen(art.ui, art.uiSkin, art.fruitItems['apple'] ?? art.missingItem);
 setLoadingScreenStage({
   title: 'SAILING TO YOUR ISLAND', detail: 'CONNECTING TO THE SHARED WORLD', progress: 58,
@@ -377,9 +378,7 @@ async function submitChatInput(body: string): Promise<void> {
   throw new Error('UNKNOWN COMMAND');
 }
 const characterNamePrompt = new CharacterNamePrompt(
-  art.uiSkin,
-  art.ui,
-  characterNameInputElement,
+  kitArt,
   (name) => network.setCharacterName(name),
   (active) => {
     if (!active) return;
@@ -1111,10 +1110,39 @@ const tradeUi = new TradeUi(art.uiSkin, art.ui, itemArt, {
   ),
 });
 const questTracker = new QuestTracker(
-  art.ui,
-  art.uiSkin.questTrackerChevron,
+  kitArt,
   (questId) => { overworldUi.openQuest(questId); },
 );
+
+function retainedUiAvailable(): boolean {
+  return !interfaceHidden && worldClientReady() && !overworldUi.blockingUpdatePromptVisible
+    && latestSnapshot.rogueRun?.phase !== 'reward';
+}
+retainedUi.register({ id: 'character-name', priority: 1000, root: characterNamePrompt.root,
+  active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
+retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.root,
+  active: () => retainedUiAvailable() && questTracker.isActive && !characterNamePrompt.isActive
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
+  blocking: () => false });
+const retainedText = new UiTextBridge(canvas, () => retainedUi.focusedElement,
+  event => retainedUi.key(event), element => retainedUiClientRect(element.rect, canvas.getBoundingClientRect(),
+    { width: renderer.cssWidth, height: renderer.cssHeight }, safeAreaInsets, currentUiScale()), () => {});
+function syncRetainedText(): void {
+  // Both event and frame synchronization obey the Safari capture boundary.
+  if (!retainedPointers.hasCapture) retainedText.sync();
+}
+// Install before recovery and legacy capture listeners so cancelled tails cannot
+// become a new command on whichever modal appeared during the gesture.
+const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, event => {
+  const [x, y] = pointerUiPosition(event); return { x, y };
+}, syncRetainedText, event => {
+  const [x, y] = pointerUiPosition(event);
+  overworldUi.systemCursorMove({ x, y });
+});
+import.meta.hot?.dispose(() => {
+  retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
+  characterNamePrompt.dispose(); questTracker.dispose();
+});
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
   const statistics = new Map([...snapshot.playerStatistics].map((row) => [
@@ -5468,6 +5496,8 @@ function renderFrame(alpha = 1): void {
     uiHeight,
     snapshot.connected && snapshot.characterProfile?.nameChosen === false,
   );
+  retainedUi.resize(uiWidth, uiHeight);
+  retainedUi.reconcile(); syncRetainedText();
   renderMetrics.recordStage('uiLayout', performance.now() - uiLayoutStartedAt);
   const uiDrawStartedAt = performance.now();
   if (!interfaceHidden && nameplatesVisible) {
@@ -6112,9 +6142,10 @@ function releaseBowShot(): void {
 function setInterfaceHidden(hidden: boolean): void {
   if (interfaceHidden === hidden) return;
   interfaceHidden = hidden;
+  retainedPointers.cancel();
   worldTouchInput.reset();
   onlinePlayersVisible = false;
-  characterNamePrompt.pointerLeave();
+  retainedUi.clearHover();
   npcInteractionUi.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
@@ -6122,7 +6153,6 @@ function setInterfaceHidden(hidden: boolean): void {
   touchControls.setBlocked(hidden);
   if (!hidden) return;
   chatOverlay.dismiss();
-  characterNameInputElement?.blur();
   shopFilterInputElement?.blur();
 }
 
@@ -6161,6 +6191,7 @@ function worldClientReady(): boolean {
 function clearConnectionInput(): void {
   if (connectionInputCleared) return;
   connectionInputCleared = true;
+  retainedPointers.cancel();
   keys.clear();
   touchControls.reset();
   worldTouchInput.reset();
@@ -6182,6 +6213,7 @@ function activateConnectionRecovery(action: 'retry' | 'sign-in'): void {
 
 pwaClient.subscribe((status) => {
   overworldUi.setPwaUpdateStatus(status);
+  retainedUi.reconcile(); syncRetainedText();
   canvas.classList.toggle('update-prompt-active', overworldUi.blockingUpdatePromptVisible || !worldClientReady());
   if (status !== 'available') return;
   setInterfaceHidden(false);
@@ -6271,6 +6303,7 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'Escape' && documentIsFullscreen()) event.preventDefault();
 }, { capture: true });
 window.addEventListener('keydown', (event) => {
+  if (event.target === retainedText.input) return;
   void audio.unlock().catch(() => undefined);
   const rogueRun = latestSnapshot.rogueRun;
   if (!interfaceHidden && overworldUi.openWindow === null && rogueRun !== null && !event.repeat) {
@@ -6299,7 +6332,7 @@ window.addEventListener('keydown', (event) => {
       }
       return;
     }
-    if (characterNamePrompt.handleGlobalKeyDown()) {
+    if (retainedUi.key(event, 'character-name')) {
       event.preventDefault();
       return;
     }
@@ -6307,7 +6340,12 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
+    if (!chatOverlay.isOpen && retainedUi.key(event, 'quest-tracker')) {
+      event.preventDefault();
+      return;
+    }
     if (!chatInteractionBlocked() && chatOverlay.handleGlobalKeyDown(event)) {
+      retainedUi.clearFocus(); syncRetainedText();
       event.preventDefault();
       return;
     }
@@ -6826,7 +6864,7 @@ window.addEventListener('keyup', (event) => {
 });
 document.addEventListener('visibilitychange', () => {
   weatherTickClock.pause();
-  if (document.hidden) { releaseDefenseHold(); clearPointerPresentation(); }
+  if (document.hidden) { retainedPointers.cancel(); releaseDefenseHold(); clearPointerPresentation(); }
 });
 window.addEventListener('keyup', (event) => keys.delete(event.code));
 
@@ -6834,15 +6872,15 @@ function clearPointerPresentation(): void {
   worldPointer = null;
   hoveredInteractionTile = null;
   rogueUiPointer = null;
-  characterNamePrompt.pointerLeave();
+  retainedUi.clearHover();
   tradeUi.pointerLeave();
   npcInteractionUi.pointerLeave();
-  questTracker.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
 }
 
 window.addEventListener('blur', () => {
+  retainedPointers.cancel();
   releaseDefenseHold();
   onlinePlayersVisible = false;
   keys.clear();
@@ -6927,21 +6965,21 @@ canvas.addEventListener('pointermove', (event) => {
     overworldUi.pointerMove({ x, y });
     return;
   }
-  characterNamePrompt.pointerMove({ x, y });
-  if (characterNamePrompt.isActive) return;
-  if (tradeUi.pointerMove({ x, y })) return;
-  if (npcInteractionUi.pointerMove({ x, y })) return;
+  if (retainedPointers.dispatch('move', event, 'character-name')) return;
+  if (tradeUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
+  if (npcInteractionUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
   if (homesteadBuildMode && overworldUi.openWindow === null) homesteadBuildPalette.pointerMove({ x, y });
-  if (overworldUi.openWindow === null) questTracker.pointerMove({ x, y });
-  else questTracker.pointerLeave();
+  if (overworldUi.openWindow === null && !chatOverlay.isHovered) retainedPointers.dispatch('move', event, 'quest-tracker');
+  else retainedUi.clearHover();
 });
 canvas.addEventListener('pointerleave', () => {
   clearPointerPresentation();
 });
 canvas.addEventListener('pointerdown', (event) => {
+  retainedUi.clearFocus(); syncRetainedText();
   void audio.unlock().catch(() => undefined);
   touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
@@ -7030,7 +7068,7 @@ canvas.addEventListener('pointerdown', (event) => {
     return;
   }
   if (!interfaceHidden) {
-    if (characterNamePrompt.pointerDown({ x, y }, event.button)) {
+    if (retainedPointers.dispatch('down', event, 'character-name')) {
       event.preventDefault();
       return;
     }
@@ -7078,8 +7116,7 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (overworldUi.openWindow === null && questTracker.pointerDown({ x, y }, event.button)) {
-      canvas.setPointerCapture(event.pointerId);
+    if (overworldUi.openWindow === null && retainedPointers.dispatch('down', event, 'quest-tracker')) {
       event.preventDefault();
       return;
     }
@@ -7390,12 +7427,11 @@ canvas.addEventListener('pointerup', (event) => {
   // text input. Mobile Safari otherwise may discard the just-opened keyboard
   // when it completes this captured pointer gesture.
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  const questTrackerConsumed = questTracker.pointerUp({ x, y });
   let chatConsumed = false;
   if (chatInteractionBlocked()) chatOverlay.pointerCancel();
   else chatConsumed = chatOverlay.pointerUp();
   const consumed = overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
-  if (questTrackerConsumed || chatConsumed || consumed) event.preventDefault();
+  if (chatConsumed || consumed) event.preventDefault();
 });
 canvas.addEventListener('lostpointercapture', (event) => {
   worldTouchInput.pointerUp({ pointerId: event.pointerId, x: 0, y: 0 }, true);
@@ -7405,7 +7441,6 @@ canvas.addEventListener('pointercancel', () => {
   rogueUiPointerId = null;
   worldPointer = null;
   hoveredInteractionTile = null;
-  questTracker.pointerCancel();
   chatOverlay.pointerCancel();
   npcInteractionUi.pointerLeave();
   tradeUi.pointerLeave();
@@ -7418,9 +7453,8 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
-    if (characterNamePrompt.isActive) {
-      event.preventDefault();
-      return;
+    if (retainedUi.wheel({ point: { x, y }, deltaX: event.deltaX, deltaY: event.deltaY }, 'character-name')) {
+      event.preventDefault(); return;
     }
     if (tradeUi.wheel({ x, y }, event.deltaY)) {
       event.preventDefault();
@@ -7435,8 +7469,12 @@ canvas.addEventListener('wheel', (event) => {
       return;
     }
     if (!chatInteractionBlocked() && chatOverlay.wheel({ x, y }, event.deltaY)) {
-      event.preventDefault();
-      return;
+      retainedUi.clearHover(); event.preventDefault(); return;
+    }
+    const wheelUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1;
+    if (retainedUi.wheel({ point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
+      deltaY: event.deltaY * wheelUnit / currentUiScale() }, 'quest-tracker')) {
+      event.preventDefault(); return;
     }
   }
   if (event.ctrlKey || event.deltaY === 0) return;
