@@ -56,7 +56,8 @@ export function paintUiTouchPad(context: CanvasRenderingContext2D, r: { x: numbe
 }
 /** The thumb stick: a shadowed stem under a domed peach cap with a grip ring and a highlight. */
 export function paintUiTouchKnob(context: CanvasRenderingContext2D, x: number, y: number, radius = 13): void {
-  x = Math.round(x); y = Math.round(y);
+  // The cap sits 2px above (x, y) so its stem and shadow end within `radius + 2` below it.
+  x = Math.round(x); y = Math.round(y) - 2;
   disc(context, x, y + 4, radius, 'rgba(24, 20, 37, 0.45)');
   disc(context, x, y + 2, radius, '#743f39', INK);
   bevelledCap(context, x, y, radius, '#f6ca9f', '#e4a672', '#b86f50');
@@ -66,16 +67,22 @@ export function paintUiTouchKnob(context: CanvasRenderingContext2D, x: number, y
 }
 /** A round thumb button centred in `r`, drawn like a physical button: a raised bevelled cap on a dark lip that
  * sinks when pressed, a gloss spot, its symbol and keyboard letter; `cooldown` sweeps a dark wedge over the cap. */
+/** The face centre of a round button painted by `paintUiTouchDisc` in `r`. */
+export function uiTouchDiscCentre(r: { x: number; y: number; width: number; height: number }, pressed = false): { readonly x: number; readonly y: number } {
+  const radius = Math.max(6, Math.min(Math.floor((r.width - 2) / 2), Math.floor((r.height - 4) / 2)));
+  return { x: Math.round(r.x + r.width / 2), y: r.y + Math.floor((r.height - 4 - radius * 2) / 2) + radius + (pressed ? 2 : 0) };
+}
 export function paintUiTouchDisc(context: CanvasRenderingContext2D, art: UiTouchArt, r: { x: number; y: number; width: number; height: number },
   options: { readonly tone?: UiTouchTone; readonly icon?: string; readonly key?: string; readonly pressed?: boolean; readonly lit?: boolean; readonly cooldown?: number }): void {
-  const size = Math.min(r.width, r.height), radius = Math.max(6, Math.floor(size / 2) - 1), cx = Math.round(r.x + r.width / 2);
-  const base = Math.round(r.y + r.height / 2) - 1, depth = options.pressed ? 1 : 3, cy = base + (options.pressed ? 2 : 0);
+  // The whole button, lip and shadow included, stays inside `r`: the cap rests 4px above the rect's foot.
+  const radius = Math.max(6, Math.min(Math.floor((r.width - 2) / 2), Math.floor((r.height - 4) / 2))), { x: cx, y: base } = uiTouchDiscCentre(r);
+  const depth = options.pressed ? 1 : 3, cy = base + (options.pressed ? 2 : 0);
   const [light, face, shade, deep] = TOUCH_FACES[options.tone ?? 'primary'];
-  disc(context, cx, base + 5, radius, 'rgba(24, 20, 37, 0.35)');
+  disc(context, cx, base + 4, radius, 'rgba(24, 20, 37, 0.35)');
   disc(context, cx, cy + depth, radius, deep, INK);
   bevelledCap(context, cx, cy, radius, light, face, shade, options.pressed);
   if (!options.pressed) disc(context, cx - Math.floor(radius / 2), cy - Math.floor(radius / 2), Math.max(1, Math.floor(radius / 6)), '#fff6e0');
-  if (options.lit) { context.fillStyle = '#fff6e0'; context.fillRect(cx - 3, cy - radius - 2, 7, 1); }
+  if (options.lit) { context.fillStyle = '#fff6e0'; context.fillRect(cx - 3, cy - radius + 1, 7, 1); }
   if (options.cooldown) {
     context.fillStyle = 'rgba(63, 40, 50, 0.55)';
     for (let y = -radius + 1; y <= radius - 1; y++) { const half = Math.floor(Math.sqrt((radius - 1) * (radius - 1) - y * y)); if (y + radius < options.cooldown * radius * 2) context.fillRect(cx - half, cy + y, half * 2 + 1, 1); }

@@ -30,7 +30,7 @@ export function uiTouchControls(options: UiTouchControlsOptions): UiTouchControl
   let pointer: number | undefined, vector = { x: 0, y: 0 };
   let preferences = normalizeTouchControlPreferences(options.preferences ?? DEFAULT_TOUCH_CONTROL_PREFERENCES);
   const held = new Map<UiTouchAction, Set<number>>();
-  const knob = new UiElement({ kind: 'joystick-knob', style: { position: 'absolute', width: uiFixed(24), height: uiFixed(24) },
+  const knob = new UiElement({ kind: 'joystick-knob', style: { position: 'absolute', width: uiFixed(28), height: uiFixed(28) },
     paint(element, { context, art }) {
       if (options.placement === 'hud') paintUiTouchKnob(context, element.rect.x + element.rect.width / 2, element.rect.y + element.rect.height / 2, 11);
       else if (art) paintUiSkin(context, art.skin.button, 'success.md.pill.idle', element.rect);
@@ -39,8 +39,8 @@ export function uiTouchControls(options: UiTouchControlsOptions): UiTouchControl
   const placeKnob = (element: UiElement) => {
     const radius = Math.max(0, Math.min(element.rect.width, element.rect.height) / 2 - 19);
     const length = Math.hypot(vector.x, vector.y), scale = length > radius ? radius / length : 1;
-    knob.setStyle({ inset: { left: uiFixed(Math.max(0, Math.round(element.rect.width / 2 - 12 + vector.x * scale))),
-      top: uiFixed(Math.max(0, Math.round(element.rect.height / 2 - 12 + vector.y * scale))) } });
+    knob.setStyle({ inset: { left: uiFixed(Math.max(0, Math.round(element.rect.width / 2 - 14 + vector.x * scale))),
+      top: uiFixed(Math.max(0, Math.round(element.rect.height / 2 - 14 + vector.y * scale))) } });
   };
   const move = (element: UiElement, x: number, y: number) => {
     vector = { x, y }; const direction = touchDirectionFromDelta(x, y); element.setProps({ direction }, false);
