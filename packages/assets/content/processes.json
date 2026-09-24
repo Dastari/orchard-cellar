@@ -74,6 +74,31 @@
     "adapter": "fermentation"
   },
   {
+    "id": "process:fire_clay",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:clay",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:brick",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 3000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
     "id": "process:preserve_beetroot",
     "kind": "process",
     "schemaVersion": 1,
@@ -768,6 +793,31 @@
     "adapter": "smelting"
   },
   {
+    "id": "process:smelt_sand",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:sand",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:glass_pane",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 3000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
     "id": "process:smelt_silver_ore",
     "kind": "process",
     "schemaVersion": 1,
@@ -791,5 +841,48 @@
       "unitsPerItem": 1
     },
     "adapter": "smelting"
+  },
+  {
+    "id": "process:smelt_tin_ore",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:tin_ore",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:tin_bar",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
+    "id": "process:tan_hide",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:raw_hide",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:leather",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
   }
 ]

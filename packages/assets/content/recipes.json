@@ -1,5 +1,23 @@
 [
   {
+    "id": "recipe:amethyst_dust",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:amethyst_dust",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:amethyst_ore"
+      ]
+    ]
+  },
+  {
     "id": "recipe:amethyst_ore",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -247,6 +265,25 @@
     ]
   },
   {
+    "id": "recipe:bronze_bar",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:bronze_bar",
+      "count": 2
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_bar",
+        "item:tin_bar"
+      ]
+    ]
+  },
+  {
     "id": "recipe:camp_cooking_fire",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -328,6 +365,26 @@
         "item": "item:apple",
         "count": 1
       }
+    ]
+  },
+  {
+    "id": "recipe:chain_links",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:chain_links",
+      "count": 6
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        null,
+        "item:iron_bar"
+      ]
     ]
   },
   {
@@ -669,6 +726,111 @@
     ]
   },
   {
+    "id": "recipe:cut_amethyst",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:cut_amethyst",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:amethyst_ore"
+      ],
+      [
+        "item:amethyst_ore"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:cut_emerald",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:cut_emerald",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emerald_ore"
+      ],
+      [
+        "item:emerald_ore"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:cut_ruby",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:cut_ruby",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ruby_ore"
+      ],
+      [
+        "item:ruby_ore"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:cut_sapphire",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:cut_sapphire",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:sapphire_ore"
+      ],
+      [
+        "item:sapphire_ore"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:cut_topaz",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:cut_topaz",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:topaz_ore"
+      ],
+      [
+        "item:topaz_ore"
+      ]
+    ]
+  },
+  {
     "id": "recipe:delver_memorial_planter",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -696,6 +858,24 @@
         "item:stone",
         "item:stone",
         "item:stone"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:emerald_dust",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:emerald_dust",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emerald_ore"
       ]
     ]
   },
@@ -1974,6 +2154,24 @@
         null,
         "item:gold_bar",
         "item:string"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_filigree",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_filigree",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_bar"
       ]
     ]
   },
@@ -3679,6 +3877,27 @@
     ]
   },
   {
+    "id": "recipe:ink",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:ink",
+      "count": 2
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:coal"
+      ],
+      [
+        "item:pond_slime"
+      ]
+    ]
+  },
+  {
     "id": "recipe:iron_axe",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -3902,6 +4121,50 @@
     ]
   },
   {
+    "id": "recipe:linen_cloth",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:linen_cloth",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        "item:string"
+      ],
+      [
+        "item:string",
+        "item:string"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:nails",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:nails",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_piece"
+      ],
+      [
+        "item:iron_piece"
+      ]
+    ]
+  },
+  {
     "id": "recipe:orchard_tea",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -3943,6 +4206,24 @@
         "item": "item:potato",
         "count": 1
       }
+    ]
+  },
+  {
+    "id": "recipe:parchment",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:parchment",
+      "count": 2
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:raw_hide"
+      ]
     ]
   },
   {
@@ -3998,6 +4279,54 @@
     ]
   },
   {
+    "id": "recipe:rope",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:rope",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:string",
+        null,
+        null
+      ],
+      [
+        null,
+        "item:string",
+        null
+      ],
+      [
+        null,
+        null,
+        "item:string"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:ruby_dust",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:ruby_dust",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ruby_ore"
+      ]
+    ]
+  },
+  {
     "id": "recipe:ruby_ore",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4024,6 +4353,24 @@
         "item:ruby_piece",
         "item:ruby_piece",
         "item:ruby_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:sapphire_dust",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:sapphire_dust",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:sapphire_ore"
       ]
     ]
   },
@@ -4149,6 +4496,27 @@
     ]
   },
   {
+    "id": "recipe:silk_thread",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silk_thread",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:spider_silk"
+      ],
+      [
+        "item:spider_silk"
+      ]
+    ]
+  },
+  {
     "id": "recipe:silo",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4241,6 +4609,24 @@
         null,
         "item:silver_bar",
         "item:string"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silver_filigree",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_filigree",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:silver_bar"
       ]
     ]
   },
@@ -4391,6 +4777,27 @@
       ],
       [
         "item:stick"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:steel_bar",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:steel_bar",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:coal"
+      ],
+      [
+        "item:iron_bar"
       ]
     ]
   },
@@ -4710,6 +5117,24 @@
     ]
   },
   {
+    "id": "recipe:topaz_dust",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:topaz_dust",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:topaz_ore"
+      ]
+    ]
+  },
+  {
     "id": "recipe:topaz_ore",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4812,6 +5237,29 @@
     ]
   },
   {
+    "id": "recipe:wool_cloth",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:wool_cloth",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:yarn",
+        "item:yarn"
+      ],
+      [
+        "item:yarn",
+        "item:yarn"
+      ]
+    ]
+  },
+  {
     "id": "recipe:workbench",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -4831,6 +5279,25 @@
       [
         "item:plank",
         "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:yarn",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:yarn",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:wool",
+        "item:wool"
       ]
     ]
   }
