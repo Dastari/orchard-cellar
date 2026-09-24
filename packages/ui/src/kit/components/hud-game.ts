@@ -9,6 +9,7 @@ import { paintUiSkin, uiSkinFrame } from './art.js';
 import { uiFlex } from './layout.js';
 import { uiViewport, type UiViewportOptions } from './viewport.js';
 import { uiGlyphButton } from './window.js';
+import { uiButton, type UiButtonFacePaint } from './button.js';
 
 /** HUD text sits directly on the world: pixel glyphs with a dark plum outline, never a panel. */
 export const UI_HUD_INK = Object.freeze({ outline: '#3f2832', gold: '#ffe36e', cream: '#fff0cf', tan: '#e7c9a0', done: '#8fdc6a' });
@@ -204,29 +205,24 @@ export function uiHudPurse(options: { readonly balance: () => bigint; readonly o
     paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, 'thin', element.rect); } });
 }
 
+/** The HUD plaque face: the pack's peach slot, a centred symbol, a hotkey in the corner and the selector corners on hover. */
+export function paintUiHudPlaque(context: CanvasRenderingContext2D, art: UiButtonFacePaint['art'], r: UiRect, options: { readonly icon?: string; readonly hotkey?: string; readonly pressed?: boolean; readonly lit?: boolean; readonly disabled?: boolean }): void {
+  context.save(); if (options.disabled) context.globalAlpha *= .6;
+  paintUiSkin(context, art.skin.slot, 'slot.idle.0', r);
+  if (options.icon) paintUiSkin(context, art.skin.icon, options.icon, { x: r.x + Math.floor((r.width - 16) / 2), y: r.y + Math.floor((r.height - 16) / 2) + (r.height > 26 ? 1 : 0) + (options.pressed ? 1 : 0), width: 16, height: 16 });
+  if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, { color: '#fff6e0', outlineColor: '#b86f50' });
+  context.restore();
+  if (options.lit && !options.disabled) {
+    const entry = art.skin.selector['selector_neutral.idle.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, entry.entry.group, 0);
+    if (entry && frame) for (const [cx, cy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const)
+      context.drawImage(entry.asset.image, frame.x + 11 + cx * 16, frame.y + 10 + cy * 18, 10, 10, cx ? r.x + r.width - 8 : r.x - 2, cy ? r.y + r.height - 8 : r.y - 2, 10, 10);
+  }
+}
+
 /** Square HUD shortcut: the pack's peach face, a symbol and its hotkey in the corner. */
-export function uiHudAction(options: { readonly id: string; readonly label: string; readonly hotkey?: string; readonly icon: string; readonly onPress: () => void }): UiElement {
-  let pressed = false;
-  const element: UiElement = new UiElement({ id: options.id, kind: 'button', label: options.hotkey ? `${options.label} (${options.hotkey})` : options.label, focusable: true, pointerMode: 'capture',
-    style: { width: uiFixed(28), height: uiFixed(31), shrink: 0 },
-    onPointer(event) {
-      if (event.type === 'down' && event.button === 0) { pressed = true; event.capture(); element.invalidateRoot?.(false); return true; }
-      if (event.type === 'up' && pressed) { pressed = false; event.release(); element.invalidateRoot?.(false); if (containsPoint(element.clip, event.point)) options.onPress(); return true; }
-      if (event.type === 'cancel') { pressed = false; event.release(); return true; }
-      return pressed;
-    },
-    onKey(event) { if (event.key !== 'Enter' && event.key !== ' ') return false; options.onPress(); return true; },
-    paint(_element, { context, art, hovered, focused }) {
-      if (!art) return; const r = element.rect;
-      paintUiSkin(context, art.skin.slot, 'slot.idle.0', r);
-      paintUiSkin(context, art.skin.icon, options.icon, { x: r.x + 6, y: r.y + 7 + (pressed ? 1 : 0), width: 16, height: 16 });
-      if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, { color: '#fff6e0', outlineColor: '#b86f50' });
-      if (hovered || focused) {
-        const entry = art.skin.selector['selector_neutral.idle.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, entry.entry.group, 0);
-        if (entry && frame) for (const [cx, cy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const)
-          context.drawImage(entry.asset.image, frame.x + 11 + cx * 16, frame.y + 10 + cy * 18, 10, 10, cx ? r.x + r.width - 8 : r.x - 2, cy ? r.y + r.height - 8 : r.y - 2, 10, 10);
-      }
-    },
-  });
-  return element;
+export function uiHudAction(options: { readonly id?: string; readonly label: string; readonly hotkey?: string; readonly icon: string; readonly onPress: () => void; readonly activateOn?: 'down' | 'up'; readonly layout?: UiStyle }): UiElement {
+  return uiButton({ id: options.id, label: options.hotkey ?? '', ariaLabel: options.hotkey ? `${options.label} (${options.hotkey})` : options.label,
+    get activateOn() { return options.activateOn ?? 'up'; }, onPress: () => options.onPress(),
+    layout: { width: uiFixed(28), height: uiFixed(31), padding: 0, shrink: 0, ...options.layout },
+    face: (element, { context, art, hovered, focused, pressed, disabled }) => paintUiHudPlaque(context, art, element.rect, { icon: options.icon, hotkey: options.hotkey, pressed, lit: hovered || focused, disabled }) });
 }

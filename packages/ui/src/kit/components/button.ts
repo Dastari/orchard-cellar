@@ -14,6 +14,13 @@ export interface UiButtonOptions {
   readonly onPress?: (event: UiButtonModifiers) => void; readonly children?: readonly UiElement[];
   /** Press-and-drag source. A release before the threshold still presses. */
   readonly drag?: UiButtonDrag;
+  /** Replaces the pack button chrome with bespoke art (HUD plaques, glyph faces); behaviour is unchanged. */
+  readonly face?: UiButtonFace;
+}
+export type UiButtonFace = (element: UiElement, paint: UiButtonFacePaint) => void;
+export interface UiButtonFacePaint {
+  readonly context: CanvasRenderingContext2D; readonly art: NonNullable<Parameters<NonNullable<UiElement['hooks']['paint']>>[1]['art']>;
+  readonly hovered: boolean; readonly focused: boolean; readonly pressed: boolean; readonly disabled: boolean;
 }
 /** Points are arranged logical coordinates, the same space as pointer events. */
 export interface UiButtonDrag {
@@ -67,6 +74,7 @@ export function uiButton(options: UiButtonOptions): UiElement {
     },
     paint(element, { context, art, focused, hovered }) {
       if (!art) return;
+      if (options.face) { options.face(element, { context, art, hovered, focused, pressed, disabled: element.disabled }); return; }
       const tone = element.disabled ? 'muted' : uiElementTone(element);
       const state = element.disabled ? 'disabled' : pressed ? 'pressed' : 'idle';
       if (art.missingArt) paintUiMissingArt(context, element.rect, art);

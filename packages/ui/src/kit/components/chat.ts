@@ -1,5 +1,6 @@
 import { drawPixelText } from '../../pixel-ui.js';
 import { containsPoint, type UiPoint } from '../../geometry.js';
+import { paintUiHudPlaque } from './hud-game.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -9,7 +10,6 @@ import { paintUiSkin } from './art.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText, uiTextLines } from './text.js';
 import { uiInput } from './input.js';
-import { uiIconButton } from './media.js';
 import { uiButton } from './button.js';
 import { uiTooltip } from './tooltip.js';
 import { uiList } from './collections.js';
@@ -105,7 +105,13 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     style: { display: 'stack', width: 'grow', height: uiFixed(24), shrink: 0 }, children: [input],
     paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, 'primary.idle', element.rect); },
   });
-  const base = uiIconButton({ cf: 'chat' }, { id: 'chat.toggle', label: 'Chat', tone: 'primary', layout: { width: uiFixed(24), height: uiFixed(24), shrink: 0 }, onPress: options.onToggle });
+  // The HUD plaque with the speech symbol, like the other HUD shortcuts but 24px tall so the compact
+  // keyboard-inset layout keeps its editor; a green pip marks unread messages.
+  const base = uiButton({ id: 'chat.toggle', label: '', ariaLabel: 'Chat', tone: 'primary', layout: { width: uiFixed(28), height: uiFixed(24), padding: 0, shrink: 0 }, onPress: options.onToggle,
+    face: (element, { context, art, hovered, focused, pressed }) => {
+      const r = element.rect; paintUiHudPlaque(context, art, r, { icon: 'hud.chat', pressed, lit: hovered || focused });
+      if (element.props['tone'] === 'success') { context.fillStyle = '#3f2832'; context.fillRect(r.x + r.width - 8, r.y + 2, 6, 6); context.fillStyle = '#63c74d'; context.fillRect(r.x + r.width - 7, r.y + 3, 4, 4); }
+    } });
   let drag: { start: UiPoint; moved: boolean; pointerId: number } | undefined;
   const toggle = new UiElement({ ...base.hooks, props: { ...base.props, singlePointer: true }, style: base.style, children: [...base.children],
     onPointer(event, element) {
