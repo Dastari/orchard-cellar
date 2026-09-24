@@ -545,6 +545,10 @@ export const UI_SKIN_MANIFEST = {
     "button_glyphs.palette_11.0": {"asset":"ui_cf_button_glyphs","group":"palette_11","index":0,"sizing":"fixed","size":[16,16]},
     "button_glyphs.palette_12.0": {"asset":"ui_cf_button_glyphs","group":"palette_12","index":0,"sizing":"fixed","size":[16,16]},
     "button_glyphs.palette_13.0": {"asset":"ui_cf_button_glyphs","group":"palette_13","index":0,"sizing":"fixed","size":[16,16]},
+    // Coin faces for ui.currency; the crop removes the 16×16 cell's empty border.
+    "coin.gold": {"asset":"ui_cf_coin_gold","group":"base","index":0,"sizing":"fixed","size":[16,16],"crop":[1,1,14,14]},
+    "coin.silver": {"asset":"ui_cf_coin_silver","group":"base","index":0,"sizing":"fixed","size":[16,16],"crop":[1,1,14,14]},
+    "coin.bronze": {"asset":"ui_cf_coin_bronze","group":"base","index":0,"sizing":"fixed","size":[16,16],"crop":[1,1,14,14]},
   },
   selector: {
     "selector_catalog.catalog.0": {"asset":"ui_cf_selector_catalog","group":"catalog","index":0,"sizing":"corners","size":[48,48]},

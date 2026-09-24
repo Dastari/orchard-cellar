@@ -188,6 +188,17 @@ composition with `inventoryControls: { backpack: { onSort, itemLabel, capacity }
 Sort callbacks request the host transaction; the component does not reorder
 authority-owned stacks itself.
 
+`ui.itemTooltip({ name, quality, icon, unique, lines, sellBronze })` draws the
+Gear-D4 item tooltip on `frame.tooltip_dark.*` at a fixed 204-pixel width. Poor and
+common items use the neutral rim; uncommon and above use their quality rim. Each
+line is `{ role, text, right? }`, where role is `body`, `muted`, `equip`, `flavour`,
+`unmet` or `itemLevel`. The component chooses the ink for each role from
+`UI_ITEM_INKS`; this is the one documented exception to tone-driven text colour.
+`icon` accepts a kit icon source or `{ artwork, animation? }` item art. Call
+`updateItemTooltip(model)` when the hovered item changes. `ui.currency({ bronze })`
+shows an amount as number-and-coin groups (`coin.gold|silver|bronze` icon entries)
+and omits leading zero units.
+
 ## Studio workbench
 
 [Workbench specimen](http://localhost:5175/author/ui-lab?specimen=studio-workbench)

@@ -63,11 +63,14 @@ import { uiLayerRow } from './layer-row.js';
 import { uiProgress } from './preview-data.js';
 import { uiSlot, uiInventoryGrid, uiHotbar, uiPaperDoll } from './inventory.js';
 import { uiTooltip } from './tooltip.js';
+import { uiItemTooltip } from './item-tooltip.js';
+import { uiCurrency } from './currency.js';
 export const ui = Object.freeze({ timing: uiTiming, schemaForm: uiSchemaForm, arrayEditor: uiArrayEditor, referencePicker: uiReferencePicker, usedBy: uiUsedBy, layerInspector: uiLayerInspector, diagnostics: uiDiagnostics, buildPalette: uiBuildPalette, hudTooltip: uiHudTooltip, systemCursor: uiSystemCursor, delveConfirmation: uiDelveConfirmation, delveHud: uiDelveHud, delveRewards: uiDelveRewards, chat: uiChat, updateReady: uiUpdateReady, characterName: uiCharacterName, loadingGateway: uiLoadingGateway, orchardBackdrop: uiOrchardBackdrop, gateway: uiGateway, developer: uiDeveloper, settings: uiSettings, gameMenu: uiGameMenu, trade: uiTrade, merchant: uiMerchant, dialogue: uiDialogue, helpBook: uiHelpBook, questLog: uiQuestLog, skills: uiSkills, skillGraph: uiSkillGraph, character: uiCharacter, statistics: uiStatistics, craftingFrame: uiCraftingFrame, worldFeedback: uiWorldFeedback, worldSpeech: uiWorldSpeech, worldHint: uiWorldHint, onlinePlayers: uiOnlinePlayers, purse: uiPurse, statusEffects: uiStatusEffects, actionNotice: uiActionNotice, nameplates: uiNameplates, questTracker: uiQuestTracker, zoneHeader: uiZoneHeader, minimap: uiMinimap, vitals: uiVitals, viewport: uiViewport, splitPane: uiSplitPane, workbench: uiWorkbench, workbenchNavigation: uiWorkbenchNavigationRail, frameDesigner: uiFrameDesigner, gameSurface: uiGameSurface, authoredCatalog: uiAuthoredCatalog, speechBubble: uiSpeechBubble, ribbon: uiRibbon, banner: uiBanner, badge: uiBadge, loadingSpinner: uiLoadingSpinner, cursor: uiCursor, crosshair: uiCrosshair, touchControls: uiTouchControls, book: uiBook, markdown: uiMarkdown, contentFrame: uiContentFrame, slot: uiSlot, hotbar: uiHotbar, paperDoll: uiPaperDoll, checkbox: uiCheckbox, radioGroup: uiRadioGroup, switch: uiSwitch, slider: uiSlider, stepper: uiStepper, input: uiInput, textArea: uiTextArea,
   select: uiSelect, combobox: uiCombobox, list: uiList, table: uiTable, tree: uiTree, tabs: uiTabs, pagination: uiPagination,
   popover: uiPopover, menu: uiMenu, contextMenu: uiContextMenu, dialog: uiDialog, confirm: uiConfirm, prompt: uiPrompt, toast: uiToast, meter: uiMeter, progressBar: uiProgressBar, progress: uiProgress, inventoryGrid: uiInventoryGrid, frame: uiFrame, text: uiText, richText: uiRichText, button: uiButton,
   flex: uiFlex, grid: uiGrid, stack: uiStack, windowStack: uiWindowStack, spacer: uiSpacer, separator: uiSeparator, scrollArea: uiScrollArea,
-  image: uiImage, sprite: uiSprite, icon: uiIcon, iconButton: uiIconButton, deferredImage: uiDeferredImage, imageUrl: uiImageUrl, selectionReticle: uiSelectionReticle, layerRow: uiLayerRow, tooltip: uiTooltip, inventoryPanel: uiInventoryPanel });
+  image: uiImage, sprite: uiSprite, icon: uiIcon, iconButton: uiIconButton, deferredImage: uiDeferredImage, imageUrl: uiImageUrl, selectionReticle: uiSelectionReticle, layerRow: uiLayerRow, tooltip: uiTooltip, inventoryPanel: uiInventoryPanel,
+  itemTooltip: uiItemTooltip, currency: uiCurrency });
 export type UiFactory = typeof ui;
 export * from './art.js';
 export * from './layout.js';
@@ -76,6 +79,8 @@ export * from './frame.js';
 export * from './button.js';
 export * from './media.js';
 export * from './tooltip.js';
+export * from './item-tooltip.js';
+export * from './currency.js';
 export * from './preview-data.js';
 
 export * from './forms.js';
