@@ -35,7 +35,7 @@ const scene=`
 import { villageOrders,villageOrderQuote,bootstrapContentRegistry,hearthFurnitureDefinition,compileEquipmentLoadout,MAIN_HAND_INVENTORY_SLOT } from '/packages/sim/src/index.ts';
 import { HomesteadBuildPalette } from '/packages/ui/src/homestead-build-palette.ts';
 import { loadUiKitArt } from '/packages/ui/src/kit/components/art.ts';
-import { NpcInteractionUi,npcInteractionLayout } from '/packages/ui/src/npc-interaction-ui.ts';
+import { NpcInteractionUi } from '/packages/ui/src/npc-interaction-ui.ts';
 import { OverworldUi,overworldUiLayout } from '/packages/ui/src/overworld-ui.ts';
 import {drawHearthSeatedGroup} from '/packages/engine/src/hearth-seating-scene.ts';
 import {HEARTH_FURNITURE_SHAPES} from '/packages/sim/src/index.ts';
@@ -74,21 +74,21 @@ try {
  const canvas=document.createElement('canvas');canvas.width=settings.width;canvas.height=settings.height;
  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.scale(settings.scale,settings.scale);ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);ui.draw(ctx);
  if(settings.seals){
-  const shop=new NpcInteractionUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,unlockHearthLegendaryRecipe:async()=>{}});
-  const model={width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get('npc:willow_archivist').runtimeId),
+  const shop=new NpcInteractionUi(await loadUiKitArt(),{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,unlockHearthLegendaryRecipe:async()=>{}});
+  const model={interactionSessionKey:'offline',width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get('npc:willow_archivist').runtimeId),
    dialogueId:'willow_archivist',shopId:'willow_archivist',nodeId:'shop',balanceBronze:1000n,inventory:[],contentRegistry:registry,sealSessionKey:'offline',knownRecipeIds:[]};
   shop.update(model);
-  if(settings.seals!=='shop')shop.handleKeyDown('KeyL',false);
-  if(settings.seals==='page2')shop.handleKeyDown('ArrowRight',false);
-  if(['review','pending','learned'].includes(settings.seals))shop.handleKeyDown('Digit1',false);
-  if(['pending','learned'].includes(settings.seals)){shop.handleKeyDown('Enter',false);await Promise.resolve();}
+  if(settings.seals!=='shop')shop.root.key({key:'l'});
+  if(settings.seals==='page2')shop.root.key({key:'ArrowRight'});
+  if(['review','pending','learned'].includes(settings.seals))shop.root.key({key:'1'});
+  if(['pending','learned'].includes(settings.seals)){shop.root.key({key:'Enter'});await Promise.resolve();}
   if(settings.seals==='learned')shop.update({...model,knownRecipeIds:['hearth_legendary_body']});
   ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);shop.draw(ctx);
  }
  if(settings.intro){
-  const dialogue=new NpcInteractionUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,fulfillVillageOrder:async()=>{}});
+  const dialogue=new NpcInteractionUi(await loadUiKitArt(),{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,fulfillVillageOrder:async()=>{}});
   const npcId=settings.orders?'npc:willow_storekeeper':settings.expeditionContract?(settings.expeditionContract==='prepare'?'npc:willow_smith':'npc:willow_archivist'):settings.rowan?'npc:willow_carpenter':'npc:willow_harbour_guide';
-  dialogue.update({width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get(npcId).runtimeId),
+  dialogue.update({interactionSessionKey:'offline',width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get(npcId).runtimeId),
     dialogueId:npcId.slice(4),nodeId:settings.orders?'greeting':settings.expeditionContract?'hearth_'+settings.expeditionContract+'_request':settings.furnishContract?'hearth_furnish_request':settings.rowan?'hearth_carpenter_accepted':'hearth_arrival_accepted',
     balanceBronze:0n,inventory:[],touchControls:true,contentRegistry:registry,orderSessionKey:'offline',
     villageOrders:settings.orders?villageOrders(registry).filter(order=>order.npc===npcId).map(order=>({...villageOrderQuote(registry,order.id,0),npcId:BigInt(registry.npcs.get(npcId).runtimeId),revision:0n,contentHash:registry.contentHash})):[],
@@ -96,15 +96,16 @@ try {
       ...(settings.expeditionContract==='outpost'||settings.expeditionContract==='basalt'?[{questId:'hearth_prepare_expedition',state:'turned_in'}]:[]),
       ...(settings.expeditionContract==='basalt'?[{questId:'hearth_clear_ash_shore',state:'turned_in'}]:[]),
       ...(settings.rowan?[{questId:'hearth_meet_carpenter',state:settings.furnishContract?'turned_in':'complete'}]:[])]});
-  if(settings.orders){dialogue.handleKeyDown('Digit1',false);if(settings.orderReview)dialogue.handleKeyDown('Digit1',false);if(settings.orderPending){dialogue.handleKeyDown('Enter',false);await Promise.resolve();}}
+  if(settings.orders){dialogue.root.key({key:'1'});if(settings.orderReview)dialogue.root.key({key:'1'});if(settings.orderPending){dialogue.root.key({key:'Enter'});await Promise.resolve();}}
   ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);dialogue.draw(ctx);
  }
  if(settings.furniture){
-  const shop=new NpcInteractionUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
-  shop.update({width:settings.uiWidth,height:settings.uiHeight,npcId:1n,dialogueId:'willow_furnisher',shopId:'willow_furnisher',nodeId:'shop',balanceBronze:10000n,inventory:[],contentRegistry:registry});
+  const shop=new NpcInteractionUi(await loadUiKitArt(),{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
+  shop.update({interactionSessionKey:'offline',width:settings.uiWidth,height:settings.uiHeight,npcId:1n,dialogueId:'willow_furnisher',shopId:'willow_furnisher',nodeId:'shop',balanceBronze:10000n,inventory:[],contentRegistry:registry});
   shop.setFilterText('Wall Mirror Plan');
-  const layout=npcInteractionLayout(settings.uiWidth,settings.uiHeight,true);
-  shop.pointerDown({x:layout.list.x+5,y:layout.list.y+5},0);
+  const inspect=shop.root.entries().find(entry=>entry.element.id.startsWith('merchant.inspect:'))?.element;
+  if(!inspect)throw new Error('Missing furniture inspect control');
+  shop.root.focus.set(inspect);shop.root.key({key:'Enter'});
   ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);shop.draw(ctx);
  }
  if(settings.furnishing){

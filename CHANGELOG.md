@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.31.0 / UI 0.33.0 — Shared dialogue and merchant windows (not yet deployed)
+
+- Adopt the shared NPC dialogue and merchant compositions with authoritative offers, inventory capacity, currency and transaction results. Native filter editing uses the central text bridge.
+- Preserve recipe exchanges, village orders and furniture inspection. Cancel stale held gestures when the session, selected cart or offer changes; fix pending transactions locking a reopened conversation (BUG-020).
+- Retire replaced NPC drawing and input paths together. Workspace 0.37.0. Browser acceptance and final CI remain release gates.
+
 ## Client 0.30.0 / UI 0.32.0 — Shared character and lifetime records (not yet deployed)
 
 - Adopt the shared character and statistics windows with real appearance, equipment, authored attributes and bigint lifetime records. Preserve navigation, focus and responsive scrolling through the central input runtime.
