@@ -2,6 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.40.0 / World 0.25.0 — Approved crafting and basic stair content (not yet deployed)
+
+- Add shaped crafting patterns, nine weapons and three structure components with reviewed weapon art. Preserve explicit selected-recipe priority where a shaped fiber rug also matches the shapeless string recipe.
+- Apply approved balance/content updates: starter wooden bow damage12.5/durability180, iron sword damage16/buy500, crafted resale caps at material cost, and common Shorehand leather armour26 per set. No food/alchemy gameplay changes.
+- Make the reviewed two-lane basic cliff stair transition available to Studio authoring. Keep existing authored terrain rules and all eight live island stair courses unchanged.
+- Publish lifecycle bundle19 with157 handlers and947 bundled definitions; the next live content-head revision is determined by guarded compare-and-swap, not the lifecycle revision. Workspace0.46.0, Assets0.20.0, Sim0.26.0, Tools0.22.0. UI0.41.0/Studio0.15.0 and Engine0.24.0 retain the reviewed UI and terrain stack. Publication requires full-schema parity, reviewed content candidate, checked rollback, final CI and same-identity reconnect verification.
+
 ## Client 0.39.0 / UI 0.41.0 / Studio 0.15.0 — Shared contextual feedback (not yet deployed)
 
 - Adopt shared nameplates, quest markers, combat feedback, fishing progress, public/private speech, contextual hints, notifications and skill notices. Preserve camera projection, recipient filtering, authoritative timing and permission checks; retire replaced production drawing and pointer paths together.
