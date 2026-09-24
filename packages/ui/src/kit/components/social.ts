@@ -1,6 +1,6 @@
 import { itemDefinition } from '@orchard/sim';
 import { containsPoint, type UiRect } from '../../geometry.js';
-import { drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
+import { drawOutlinedPixelText, drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
 import type { LoadedAsset } from '../../assets.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -142,32 +142,52 @@ export function uiShopRow(options: { readonly itemKind: string; readonly name: s
     } });
 }
 
-/** Settings line: label (and optional hint) on the left, its control on the right. */
-export function uiSettingRow(label: string, control: UiElement, hint?: string): UiElement {
-  const text = new UiElement({ kind: 'text', label, style: { grow: 1, height: uiFixed(hint ? 20 : 16) },
+/** Classic settings inks: brown caps labels, a lighter brown for hints and a greyed brown for reserved rows. */
+export const UI_SETTINGS_INKS = Object.freeze({ label: '#6b4428', hint: '#8c5d3a', muted: '#8c6c54' });
+/** Settings line: caps label (and optional hint) on the left, its control on the right. */
+export function uiSettingRow(label: string, control: UiElement, hint?: string, options: { readonly muted?: boolean } = {}): UiElement {
+  const caps = label.toUpperCase(), note = hint?.toUpperCase();
+  const text = new UiElement({ kind: 'text', label, style: { grow: 1, height: uiFixed(note ? 20 : 18) },
     paint(element, { context, art }) {
       if (!art) return; const r = element.rect;
-      drawPixelText(context, art.pixel, fitPixelText(label, r.width, 1, art.pixel.font), r.x, r.y + (hint ? 1 : 5), { color: INK });
-      if (hint) drawPixelText(context, art.pixel, fitPixelText(hint, r.width, 1, art.pixel.font), r.x, r.y + 11, { color: MUTED });
+      drawPixelText(context, art.pixel, fitPixelText(caps, r.width, 1, art.pixel.font), r.x, r.y + (note ? 1 : 6), { color: options.muted ? UI_SETTINGS_INKS.muted : UI_SETTINGS_INKS.label });
+      if (note) drawPixelText(context, art.pixel, fitPixelText(note, r.width, 1, art.pixel.font), r.x, r.y + 11, { color: UI_SETTINGS_INKS.hint });
     } });
   return new UiElement({ kind: 'setting-row', label, style: { display: 'flex', direction: 'row', gap: 8, align: 'center', alignSelf: 'stretch', padding: { top: 2, bottom: 2 }, shrink: 0 },
     children: [text, control] });
 }
 
+/** A reserved setting's current value: the greyed silver pill with its value in outlined cream caps. */
+export function uiSettingValue(value: string, options: { readonly width?: number } = {}): UiElement {
+  const caps = value.toUpperCase();
+  return new UiElement({ kind: 'button', label: value, disabled: true, props: { disabled: true },
+    style: { width: uiFixed(options.width ?? 132), height: uiFixed(18), shrink: 0 },
+    paint(element, { context, art }) {
+      if (!art) return; const r = element.rect;
+      paintUiSkin(context, art.skin.button, 'neutral.md.chamfered.disabled', r);
+      const text = fitPixelText(caps, r.width - 16, 1, art.pixel.font), width = measurePixelText(text, 1, art.pixel.font);
+      drawOutlinedPixelText(context, art.pixel, text, r.x + Math.floor((r.width - width) / 2), r.y + 5, { color: '#e0c49a', outlineColor: '#5f3b24' });
+    } });
+}
+
 /** Vertical menu tab in the legacy settings idiom: peach chamfered at rest, a green square face when current,
- * with its authored button glyph leading the label. */
-export function uiMenuTab(options: { readonly id?: string; readonly label: string; readonly glyph: string; readonly active: boolean | (() => boolean); readonly onPress: () => void; readonly width?: number; /** Glyph only, for narrow screens; the label stays the accessible name. */ readonly iconOnly?: boolean }): UiElement {
-  const hooks = pressHooks(options.onPress), active = () => typeof options.active === 'function' ? options.active() : options.active;
+ * with its authored button glyph at the left and the caps label centred beside it. */
+export function uiMenuTab(options: { readonly id?: string; readonly label: string; readonly glyph: string; readonly active: boolean | (() => boolean); readonly onPress: () => void; readonly width?: number; readonly height?: number; /** Glyph only, for narrow screens; the label stays the accessible name. */ readonly iconOnly?: boolean }): UiElement {
+  const hooks = pressHooks(options.onPress), active = () => typeof options.active === 'function' ? options.active() : options.active, caps = options.label.toUpperCase();
   return new UiElement({ id: options.id, kind: 'tab', label: options.label, focusable: true, pointerMode: 'capture', props: { selected: active(), tone: active() ? 'success' : 'primary', buttonSurface: true },
-    style: { width: uiFixed(options.width ?? (options.iconOnly ? 22 : 88)), height: uiFixed(22), shrink: 0 }, ...hooks,
+    style: { width: uiFixed(options.width ?? (options.iconOnly ? 24 : 106)), height: uiFixed(options.height ?? 24), shrink: 0 }, ...hooks,
     // A live active state keeps the tab (and its focus) while the selection moves.
     onArrange(element) { const now = active(); if (element.props['selected'] !== now) element.setProps({ selected: now, tone: now ? 'success' : 'primary' }, false); },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return;
       const current = active(), r = element.rect, tone = current ? 'success' : 'primary', shape = current ? 'square' : 'chamfered', state = hooks.pressed() ? 'pressed' : 'idle', drop = hooks.pressed() ? 1 : 0;
       paintUiSkin(context, art.skin.button, `${tone}.md.${shape}.${state}`, r);
-      paintUiSkin(context, art.skin.icon, `bglyph.${options.glyph}.${tone}`, { x: r.x + 3, y: r.y + 3 + drop, width: 16, height: 16 });
-      if (!options.iconOnly) drawPixelText(context, art.pixel, fitPixelText(options.label, r.width - 26, 1, art.pixel.font), r.x + 21, r.y + 8 + drop, { color: current ? '#fff6e0' : INK });
+      const glyphY = r.y + Math.floor((r.height - 16) / 2) - 1 + drop;
+      paintUiSkin(context, art.skin.icon, `bglyph.${options.glyph}.${tone}`, { x: options.iconOnly ? r.x + Math.floor((r.width - 16) / 2) : r.x + 4, y: glyphY, width: 16, height: 16 });
+      if (!options.iconOnly) {
+        const text = fitPixelText(caps, r.width - 28, 1, art.pixel.font), width = measurePixelText(text, 1, art.pixel.font), left = r.x + 22, span = r.width - 28;
+        drawPixelText(context, art.pixel, text, left + Math.floor((span - width) / 2), r.y + Math.floor((r.height - 7) / 2) - 1 + drop, { color: current ? '#fff2d0' : '#5f3b24' });
+      }
       if (hovered || focused) paintUiSkin(context, art.skin.button, `outline.md.${shape}.${state}.${focused ? 'white' : 'gold'}`, r);
     } });
 }
