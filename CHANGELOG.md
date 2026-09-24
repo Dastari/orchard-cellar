@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Workspace 0.46.3 — Licensed premium import verification (not yet deployed)
+
+- Preserve the original21 premium imports and check all19 approved weapon/component imports against their exact committed manifest names. Retain pixel comparisons for every premium asset; no artwork or content changes.
+- Correct the stale count that blocked the combined release check. Game0.40.1, Studio0.15.1 and world0.25.0 remain the proposed application versions.
+
 ## Workspace 0.46.2 — Studio staging after documentation retirement (not yet deployed)
 
 - Allow guarded Studio staging from current reviewed source without the retired root UI reference directory. If legacy references are present, copy and fingerprint them with symlink and mutation checks intact.

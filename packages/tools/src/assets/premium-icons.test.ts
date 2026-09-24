@@ -34,9 +34,18 @@ describe('premium tool, skill and seed artwork', () => {
 
   it.skipIf(process.env['ORCHARD_TEST_LICENSED_ART'] === '0')('preserves exact source pixels for every premium import and retained derivative', async () => {
     const assets = (await loadAssets()).filter(a => a.tags?.some(t => t === 'source.kenmi' || t === 'source.kenmi_derivative'));
+    const gearImports = JSON.parse(await readFile(new URL('packages/tools/src/gear-icon-imports.json', workspaceRoot), 'utf8')) as {
+      imports: { asset: string }[];
+    };
+    const gearNames = gearImports.imports.map(({ asset }) => asset).sort();
+    const gearNameSet = new Set(gearNames);
+    const nonFoodAssets = assets.filter(asset => !asset.tags?.includes('feature.food_alchemy'));
     // The original 20 replacements plus legacy shovel alias remain intact.
-    // Food/alchemy adds reviewed imports; retain source-pixel checks for all of them.
-    expect(assets.filter(asset => !asset.tags?.includes('feature.food_alchemy'))).toHaveLength(21);
+    expect(nonFoodAssets.filter(asset => !gearNameSet.has(asset.name))).toHaveLength(21);
+    // Approved weapon/component imports match the reviewed manifest exactly.
+    expect(gearNames).toHaveLength(19);
+    expect(nonFoodAssets.filter(asset => gearNameSet.has(asset.name)).map(asset => asset.name).sort()).toEqual(gearNames);
+    // Retain source-pixel checks for every import, including food/alchemy and gear.
     for (const asset of assets) {
       const image = decodePng(await readFile(new URL(asset.sourcePath!, workspaceRoot)));
       const [x, y, width, height] = asset.sourceRegion!;
