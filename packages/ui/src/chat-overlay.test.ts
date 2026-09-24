@@ -3,6 +3,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { uiTestArt } from './kit/lab/testing/art.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { UiElement } from './kit/runtime/element.js';
+import { scrollUiElement, uiScrollThumb } from './kit/layout/scroll.js';
 import { GameUiRuntime } from './game-host/runtime.js';
 import { UiTextBridge } from './kit/runtime/text-bridge.js';
 import type { ChatOverlayModel } from './chat-overlay.js';
@@ -132,6 +133,66 @@ function retainedFixture(send = vi.fn<(_: string) => Promise<void>>(async () => 
   return { overlay, send, changed, node, point, click, write, prefs };
 }
 describe('production retained chat adapter', () => {
+  it.each([false, true])('hides passive history chrome without discarding messages, draft or scroll (touch %s)', touchControls => {
+    const model = { ...chatModel(), width: 640, height: 360, touchControls,
+      messages: Array.from({ length: 40 }, (_, index) => ({ ...chatModel().messages[0]!, id: BigInt(index + 1), body: `Message ${index}` })) };
+    const f = retainedFixture(undefined, model), history = f.node('chat.history');
+    f.overlay.open(); f.overlay.editor.setValue('Unsent draft');
+    const track = uiScrollThumb(history, 'y')!.track;
+    scrollUiElement(history, 0, 100); f.overlay.root.arrange();
+    f.overlay.root.focus.set(history); const focus = f.overlay.root.focus.current;
+    const painted = (now: number, rect = track) => {
+      const canvas = createCanvas(640, 360), context = canvas.getContext('2d');
+      f.overlay.draw(context as unknown as CanvasRenderingContext2D, now);
+      return context.getImageData(rect.x, rect.y, rect.width, rect.height).data.some((value, index) => index % 4 === 3 && value > 0);
+    };
+    expect(painted(20_000)).toBe(true);
+    f.overlay.update(model, 20_000); expect(f.overlay.root.focus.current).toBe(focus);
+    expect(history.scroll.y).toBe(100);
+    f.overlay.dismiss(); f.overlay.root.input.clearHover(); f.overlay.update(model, 20_000);
+    const offset = history.scroll.y;
+    expect(uiScrollThumb(history, 'y')).toBeNull();
+    expect(painted(20_000)).toBe(false);
+    expect(f.node('chat.history')).toBe(history); expect(history.scroll.y).toBe(offset);
+    expect(f.overlay.editor.snapshot().value).toBe('Unsent draft');
+    f.overlay.open(); expect(uiScrollThumb(history, 'y')).not.toBeNull(); expect(painted(20_000)).toBe(true);
+    expect(f.node('chat.history')).toBe(history); expect(f.send).not.toHaveBeenCalled(); expect(f.write).not.toHaveBeenCalled();
+  });
+  it('keeps recent passive text visible and reveals history chrome only for desktop hover or open input', () => {
+    const model = { ...chatModel(), width: 640, height: 360,
+      messages: Array.from({ length: 40 }, (_, index) => ({ ...chatModel().messages[0]!, id: BigInt(index + 1), body: `Message ${index}` })) };
+    const f = retainedFixture(undefined, model), history = f.node('chat.history');
+    const ink = (now: number) => {
+      const context = createCanvas(640, 360).getContext('2d'); f.overlay.draw(context as unknown as CanvasRenderingContext2D, now);
+      const r = history.contentRect;
+      return context.getImageData(r.x, r.y, r.width - 12, r.height).data.some((value, index) => index % 4 === 3 && value > 0);
+    };
+    expect(ink(1000)).toBe(true); expect(ink(20_000)).toBe(false);
+    expect(uiScrollThumb(history, 'y')).toBeNull();
+    f.overlay.root.pointer({ type: 'move', point: f.point(history), pointerId: 1, button: 0, pointerType: 'mouse' });
+    expect(f.overlay.isHovered).toBe(true); expect(uiScrollThumb(history, 'y')).not.toBeNull(); expect(ink(20_000)).toBe(true);
+    f.overlay.root.input.clearHover(); expect(uiScrollThumb(history, 'y')).toBeNull();
+    f.overlay.update({ ...model, touchControls: true }, 20_000);
+    f.overlay.root.pointer({ type: 'move', point: f.point(history), pointerId: 2, button: 0, pointerType: 'touch' });
+    expect(uiScrollThumb(history, 'y')).toBeNull(); expect(ink(20_000)).toBe(false);
+    f.overlay.open(); expect(uiScrollThumb(history, 'y')).not.toBeNull(); expect(ink(20_000)).toBe(true);
+    expect(f.send).not.toHaveBeenCalled();
+  });
+  it('does not page an invisible scrollbar on a passive touch tap', () => {
+    const model = { ...chatModel(), width: 640, height: 360, touchControls: true,
+      messages: Array.from({ length: 40 }, (_, index) => ({ ...chatModel().messages[0]!, id: BigInt(index + 1), body: `Message ${index}` })) };
+    const f = retainedFixture(undefined, model), history = f.node('chat.history');
+    f.overlay.open(); const track = uiScrollThumb(history, 'y')!.track; f.overlay.dismiss();
+    f.overlay.update(model, 20_000); const offset = history.scroll.y;
+    const point = { x: track.x + track.width / 2, y: track.y + 4 };
+    f.overlay.root.pointer({ type: 'down', point, pointerId: 4, button: 0, pointerType: 'touch', isPrimary: true });
+    expect(history.scroll.y).toBe(offset); expect(f.overlay.isOpen).toBe(false);
+    f.overlay.root.pointer({ type: 'up', point, pointerId: 4, button: 0, pointerType: 'touch', isPrimary: true });
+    expect(history.scroll.y).toBe(offset); expect(f.overlay.isOpen).toBe(false);
+    expect(f.overlay.handleGlobalKeyDown({ key: 'Enter', repeat: false })).toBe(true);
+    expect(uiScrollThumb(history, 'y')).not.toBeNull();
+    expect(f.send).not.toHaveBeenCalled(); expect(f.write).not.toHaveBeenCalled();
+  });
   it('keeps one stable root/editor, opens from global shortcuts once and preserves draft, selection and scroll across snapshots', () => {
     const f = retainedFixture(), root = f.overlay.root, editor = f.overlay.editor;
     expect(f.overlay.handleGlobalKeyDown({ key: '/', repeat: false })).toBe(true); expect(f.changed).toHaveBeenCalledExactlyOnceWith(true);

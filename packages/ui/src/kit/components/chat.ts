@@ -164,6 +164,7 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     const atEnd = history.scroll.y >= history.scroll.maxY - 1;
     if (model.suggestionIndex !== next.suggestionIndex) revealSuggestion = true;
     model = next;
+    history.setProps({ scrollbarVisible: uiChatHistoryExpanded(model.touch, model.open, model.hovered) }, false);
     const draft = editor.snapshot().value; if (draft !== previousDraft) { previousDraft = draft; historyNavigation = false; }
     shell.setDisabled(model.blocked);
     toggle.setProps({ tone: model.unread ? 'success' : 'primary' });
