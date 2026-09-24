@@ -174,67 +174,67 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:hearth_common_shield_plan | data graph | secondary | economy.buy=75; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:hearth_common_sword | callback | secondary, useWith | combat.baseDamageCenti=1850; durability.max=300; durability.repairCost=5; economy.buy=750; economy.sell=335; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=7; tool.tier=0; vigour.costCenti=3600; vigour.minimumSwingTicks=7 |
 | item:hearth_common_sword_plan | data graph | secondary | economy.buy=75; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_body | inert: hearth_equipment_passives | — | economy.sell=435; maxStack=1; modifiers.0.value=49; modifiers.1.value=400; schemaVersion=1 |
+| item:hearth_epic_body | inert: hearth_equipment_passives | — | economy.sell=490; maxStack=1; modifiers.0.value=49; modifiers.1.value=400; schemaVersion=1 |
 | item:hearth_epic_body_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1900; durability.max=440; durability.repairCost=5; economy.sell=485; maxStack=1; modifiers.0.value=600; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2700; vigour.minimumSwingTicks=5 |
+| item:hearth_epic_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1900; durability.max=440; durability.repairCost=5; economy.sell=565; maxStack=1; modifiers.0.value=600; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2700; vigour.minimumSwingTicks=5 |
 | item:hearth_epic_bow_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_feet | inert: hearth_equipment_passives | — | economy.sell=385; maxStack=1; modifiers.0.value=29; modifiers.1.value=400; schemaVersion=1 |
+| item:hearth_epic_feet | inert: hearth_equipment_passives | — | economy.sell=425; maxStack=1; modifiers.0.value=29; modifiers.1.value=400; schemaVersion=1 |
 | item:hearth_epic_feet_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_hands | inert: hearth_equipment_passives | — | economy.sell=365; maxStack=1; modifiers.0.value=24; modifiers.1.value=400; schemaVersion=1 |
+| item:hearth_epic_hands | inert: hearth_equipment_passives | — | economy.sell=395; maxStack=1; modifiers.0.value=24; modifiers.1.value=400; schemaVersion=1 |
 | item:hearth_epic_hands_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_head | inert: hearth_equipment_passives | — | economy.sell=400; maxStack=1; modifiers.0.value=29; modifiers.1.value=400; schemaVersion=1 |
+| item:hearth_epic_head | inert: hearth_equipment_passives | — | economy.sell=445; maxStack=1; modifiers.0.value=29; modifiers.1.value=400; schemaVersion=1 |
 | item:hearth_epic_head_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_legs | inert: hearth_equipment_passives | — | economy.sell=425; maxStack=1; modifiers.0.value=34; modifiers.1.value=400; schemaVersion=1 |
+| item:hearth_epic_legs | inert: hearth_equipment_passives | — | economy.sell=475; maxStack=1; modifiers.0.value=34; modifiers.1.value=400; schemaVersion=1 |
 | item:hearth_epic_legs_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_shield | inert: hearth_equipment_passives | — | economy.sell=470; maxStack=1; modifiers.0.value=26; modifiers.1.value=400; schemaVersion=1 |
+| item:hearth_epic_shield | inert: hearth_equipment_passives | — | economy.sell=535; maxStack=1; modifiers.0.value=26; modifiers.1.value=400; schemaVersion=1 |
 | item:hearth_epic_shield_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_epic_sword | callback | secondary, useWith | combat.baseDamageCenti=2250; durability.max=440; durability.repairCost=5; economy.sell=590; maxStack=1; modifiers.0.value=600; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3300; vigour.minimumSwingTicks=6 |
+| item:hearth_epic_sword | callback | secondary, useWith | combat.baseDamageCenti=2250; durability.max=440; durability.repairCost=5; economy.sell=700; maxStack=1; modifiers.0.value=600; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3300; vigour.minimumSwingTicks=6 |
 | item:hearth_epic_sword_plan | data graph | secondary | economy.buy=850; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:hearth_forester_pendant | inert: hearth_equipment_passives | — | economy.sell=205; maxStack=1; modifiers.0.value=500; schemaVersion=1 |
 | item:hearth_forester_pendant_plan | data graph | secondary | economy.buy=350; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:hearth_harvest_pendant | inert: hearth_equipment_passives | — | economy.sell=205; maxStack=1; modifiers.0.value=500; schemaVersion=1 |
 | item:hearth_harvest_pendant_plan | data graph | secondary | economy.buy=350; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_legendary_body | inert: hearth_equipment_passives | — | economy.sell=585; maxStack=1; modifiers.0.value=52; modifiers.1.value=600; schemaVersion=1 |
-| item:hearth_legendary_bow | callback | aimedUse, useWith | combat.baseDamageCenti=2050; durability.max=520; durability.repairCost=5; economy.sell=630; maxStack=1; modifiers.0.value=1000; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2600; vigour.minimumSwingTicks=5 |
-| item:hearth_legendary_feet | inert: hearth_equipment_passives | — | economy.sell=540; maxStack=1; modifiers.0.value=32; modifiers.1.value=600; schemaVersion=1 |
-| item:hearth_legendary_hands | inert: hearth_equipment_passives | — | economy.sell=520; maxStack=1; modifiers.0.value=27; modifiers.1.value=600; schemaVersion=1 |
-| item:hearth_legendary_head | inert: hearth_equipment_passives | — | economy.sell=550; maxStack=1; modifiers.0.value=32; modifiers.1.value=600; schemaVersion=1 |
-| item:hearth_legendary_legs | inert: hearth_equipment_passives | — | economy.sell=575; maxStack=1; modifiers.0.value=37; modifiers.1.value=600; schemaVersion=1 |
-| item:hearth_legendary_shield | inert: hearth_equipment_passives | — | economy.sell=615; maxStack=1; modifiers.0.value=28; modifiers.1.value=500; schemaVersion=1 |
-| item:hearth_legendary_sword | callback | secondary, useWith | combat.baseDamageCenti=2400; durability.max=520; durability.repairCost=5; economy.sell=725; maxStack=1; modifiers.0.value=1000; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3200; vigour.minimumSwingTicks=6 |
+| item:hearth_legendary_body | inert: hearth_equipment_passives | — | economy.sell=680; maxStack=1; modifiers.0.value=52; modifiers.1.value=600; schemaVersion=1 |
+| item:hearth_legendary_bow | callback | aimedUse, useWith | combat.baseDamageCenti=2050; durability.max=520; durability.repairCost=5; economy.sell=755; maxStack=1; modifiers.0.value=1000; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2600; vigour.minimumSwingTicks=5 |
+| item:hearth_legendary_feet | inert: hearth_equipment_passives | — | economy.sell=615; maxStack=1; modifiers.0.value=32; modifiers.1.value=600; schemaVersion=1 |
+| item:hearth_legendary_hands | inert: hearth_equipment_passives | — | economy.sell=585; maxStack=1; modifiers.0.value=27; modifiers.1.value=600; schemaVersion=1 |
+| item:hearth_legendary_head | inert: hearth_equipment_passives | — | economy.sell=635; maxStack=1; modifiers.0.value=32; modifiers.1.value=600; schemaVersion=1 |
+| item:hearth_legendary_legs | inert: hearth_equipment_passives | — | economy.sell=665; maxStack=1; modifiers.0.value=37; modifiers.1.value=600; schemaVersion=1 |
+| item:hearth_legendary_shield | inert: hearth_equipment_passives | — | economy.sell=725; maxStack=1; modifiers.0.value=28; modifiers.1.value=500; schemaVersion=1 |
+| item:hearth_legendary_sword | callback | secondary, useWith | combat.baseDamageCenti=2400; durability.max=520; durability.repairCost=5; economy.sell=890; maxStack=1; modifiers.0.value=1000; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3200; vigour.minimumSwingTicks=6 |
 | item:hearth_prospector_pendant | inert: hearth_equipment_passives | — | economy.sell=205; maxStack=1; modifiers.0.value=500; schemaVersion=1 |
 | item:hearth_prospector_pendant_plan | data graph | secondary | economy.buy=350; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_body | inert: hearth_equipment_passives | — | economy.sell=320; maxStack=1; modifiers.0.value=46; modifiers.1.value=300; schemaVersion=1 |
+| item:hearth_rare_body | inert: hearth_equipment_passives | — | economy.sell=340; maxStack=1; modifiers.0.value=46; modifiers.1.value=300; schemaVersion=1 |
 | item:hearth_rare_body_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1750; durability.max=380; durability.repairCost=5; economy.sell=375; maxStack=1; modifiers.0.value=400; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2800; vigour.minimumSwingTicks=5 |
+| item:hearth_rare_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1750; durability.max=380; durability.repairCost=5; economy.sell=415; maxStack=1; modifiers.0.value=400; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=5; tool.tier=0; vigour.costCenti=2800; vigour.minimumSwingTicks=5 |
 | item:hearth_rare_bow_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_feet | inert: hearth_equipment_passives | — | economy.sell=265; maxStack=1; modifiers.0.value=26; modifiers.1.value=300; schemaVersion=1 |
+| item:hearth_rare_feet | inert: hearth_equipment_passives | — | economy.sell=275; maxStack=1; modifiers.0.value=26; modifiers.1.value=300; schemaVersion=1 |
 | item:hearth_rare_feet_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_hands | inert: hearth_equipment_passives | — | economy.sell=240; maxStack=1; modifiers.0.value=21; modifiers.1.value=300; schemaVersion=1 |
+| item:hearth_rare_hands | inert: hearth_equipment_passives | — | economy.sell=245; maxStack=1; modifiers.0.value=21; modifiers.1.value=300; schemaVersion=1 |
 | item:hearth_rare_hands_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_head | inert: hearth_equipment_passives | — | economy.sell=280; maxStack=1; modifiers.0.value=26; modifiers.1.value=300; schemaVersion=1 |
+| item:hearth_rare_head | inert: hearth_equipment_passives | — | economy.sell=295; maxStack=1; modifiers.0.value=26; modifiers.1.value=300; schemaVersion=1 |
 | item:hearth_rare_head_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_legs | inert: hearth_equipment_passives | — | economy.sell=305; maxStack=1; modifiers.0.value=31; modifiers.1.value=300; schemaVersion=1 |
+| item:hearth_rare_legs | inert: hearth_equipment_passives | — | economy.sell=325; maxStack=1; modifiers.0.value=31; modifiers.1.value=300; schemaVersion=1 |
 | item:hearth_rare_legs_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_shield | inert: hearth_equipment_passives | — | economy.sell=355; maxStack=1; modifiers.0.value=24; modifiers.1.value=300; schemaVersion=1 |
+| item:hearth_rare_shield | inert: hearth_equipment_passives | — | economy.sell=385; maxStack=1; modifiers.0.value=24; modifiers.1.value=300; schemaVersion=1 |
 | item:hearth_rare_shield_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_rare_sword | callback | secondary, useWith | combat.baseDamageCenti=2050; durability.max=380; durability.repairCost=5; economy.sell=490; maxStack=1; modifiers.0.value=400; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3400; vigour.minimumSwingTicks=6 |
+| item:hearth_rare_sword | callback | secondary, useWith | combat.baseDamageCenti=2050; durability.max=380; durability.repairCost=5; economy.sell=550; maxStack=1; modifiers.0.value=400; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3400; vigour.minimumSwingTicks=6 |
 | item:hearth_rare_sword_plan | data graph | secondary | economy.buy=400; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_body | inert: hearth_equipment_passives | — | economy.sell=140; maxStack=1; modifiers.0.value=43; modifiers.1.value=200; schemaVersion=1 |
+| item:hearth_uncommon_body | inert: hearth_equipment_passives | — | economy.sell=150; maxStack=1; modifiers.0.value=43; modifiers.1.value=200; schemaVersion=1 |
 | item:hearth_uncommon_body_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1650; durability.max=340; durability.repairCost=5; economy.sell=205; maxStack=1; modifiers.0.value=200; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=6; tool.tier=0; vigour.costCenti=2900; vigour.minimumSwingTicks=6 |
+| item:hearth_uncommon_bow | callback | aimedUse, useWith | combat.baseDamageCenti=1650; durability.max=340; durability.repairCost=5; economy.sell=225; maxStack=1; modifiers.0.value=200; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=6; tool.tier=0; vigour.costCenti=2900; vigour.minimumSwingTicks=6 |
 | item:hearth_uncommon_bow_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_feet | inert: hearth_equipment_passives | — | economy.sell=80; maxStack=1; modifiers.0.value=23; modifiers.1.value=200; schemaVersion=1 |
+| item:hearth_uncommon_feet | inert: hearth_equipment_passives | — | economy.sell=85; maxStack=1; modifiers.0.value=23; modifiers.1.value=200; schemaVersion=1 |
 | item:hearth_uncommon_feet_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:hearth_uncommon_hands | inert: hearth_equipment_passives | — | economy.sell=55; maxStack=1; modifiers.0.value=18; modifiers.1.value=200; schemaVersion=1 |
 | item:hearth_uncommon_hands_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_head | inert: hearth_equipment_passives | — | economy.sell=100; maxStack=1; modifiers.0.value=23; modifiers.1.value=200; schemaVersion=1 |
+| item:hearth_uncommon_head | inert: hearth_equipment_passives | — | economy.sell=105; maxStack=1; modifiers.0.value=23; modifiers.1.value=200; schemaVersion=1 |
 | item:hearth_uncommon_head_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_legs | inert: hearth_equipment_passives | — | economy.sell=125; maxStack=1; modifiers.0.value=28; modifiers.1.value=200; schemaVersion=1 |
+| item:hearth_uncommon_legs | inert: hearth_equipment_passives | — | economy.sell=135; maxStack=1; modifiers.0.value=28; modifiers.1.value=200; schemaVersion=1 |
 | item:hearth_uncommon_legs_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_shield | inert: hearth_equipment_passives | — | economy.sell=180; maxStack=1; modifiers.0.value=22; modifiers.1.value=200; schemaVersion=1 |
+| item:hearth_uncommon_shield | inert: hearth_equipment_passives | — | economy.sell=195; maxStack=1; modifiers.0.value=22; modifiers.1.value=200; schemaVersion=1 |
 | item:hearth_uncommon_shield_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
-| item:hearth_uncommon_sword | callback | secondary, useWith | combat.baseDamageCenti=1950; durability.max=340; durability.repairCost=5; economy.sell=330; maxStack=1; modifiers.0.value=200; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=7; tool.tier=0; vigour.costCenti=3500; vigour.minimumSwingTicks=7 |
+| item:hearth_uncommon_sword | callback | secondary, useWith | combat.baseDamageCenti=1950; durability.max=340; durability.repairCost=5; economy.sell=360; maxStack=1; modifiers.0.value=200; schemaVersion=1; tool.reachTiles=1; tool.swing.arcDegrees=90; tool.swing.rangeFixed=384; tool.swingTicks=7; tool.tier=0; vigour.costCenti=3500; vigour.minimumSwingTicks=7 |
 | item:hearth_uncommon_sword_plan | data graph | secondary | economy.buy=200; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |
 | item:hearth_wayfarer_pendant | inert: hearth_equipment_passives | — | economy.sell=215; maxStack=1; modifiers.0.value=500; schemaVersion=1 |
 | item:hearth_wayfarer_pendant_plan | data graph | secondary | economy.buy=350; economy.sell=0; maxStack=1; onUse.0.effects.1.consumeSelected=1; schemaVersion=1 |

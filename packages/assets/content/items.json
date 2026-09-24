@@ -5184,7 +5184,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 435
+      "sell": 490
     },
     "equip": {
       "slot": "body",
@@ -5260,7 +5260,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 485
+      "sell": 565
     },
     "durability": {
       "max": 440,
@@ -5357,7 +5357,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 385
+      "sell": 425
     },
     "equip": {
       "slot": "feet",
@@ -5435,7 +5435,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 365
+      "sell": 395
     },
     "equip": {
       "slot": "hands",
@@ -5513,7 +5513,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 400
+      "sell": 445
     },
     "equip": {
       "slot": "head",
@@ -5591,7 +5591,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 425
+      "sell": 475
     },
     "equip": {
       "slot": "legs",
@@ -5669,7 +5669,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 470
+      "sell": 535
     },
     "equip": {
       "slot": "off_hand",
@@ -5745,7 +5745,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 590
+      "sell": 700
     },
     "durability": {
       "max": 440,
@@ -5982,7 +5982,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 585
+      "sell": 680
     },
     "equip": {
       "slot": "body",
@@ -6020,7 +6020,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 630
+      "sell": 755
     },
     "durability": {
       "max": 520,
@@ -6079,7 +6079,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 540
+      "sell": 615
     },
     "equip": {
       "slot": "feet",
@@ -6119,7 +6119,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 520
+      "sell": 585
     },
     "equip": {
       "slot": "hands",
@@ -6159,7 +6159,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 550
+      "sell": 635
     },
     "equip": {
       "slot": "head",
@@ -6199,7 +6199,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 575
+      "sell": 665
     },
     "equip": {
       "slot": "legs",
@@ -6239,7 +6239,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 615
+      "sell": 725
     },
     "equip": {
       "slot": "off_hand",
@@ -6277,7 +6277,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 725
+      "sell": 890
     },
     "durability": {
       "max": 520,
@@ -6406,7 +6406,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 320
+      "sell": 340
     },
     "equip": {
       "slot": "body",
@@ -6482,7 +6482,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 375
+      "sell": 415
     },
     "durability": {
       "max": 380,
@@ -6579,7 +6579,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 265
+      "sell": 275
     },
     "equip": {
       "slot": "feet",
@@ -6657,7 +6657,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 240
+      "sell": 245
     },
     "equip": {
       "slot": "hands",
@@ -6735,7 +6735,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 280
+      "sell": 295
     },
     "equip": {
       "slot": "head",
@@ -6813,7 +6813,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 305
+      "sell": 325
     },
     "equip": {
       "slot": "legs",
@@ -6891,7 +6891,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 355
+      "sell": 385
     },
     "equip": {
       "slot": "off_hand",
@@ -6967,7 +6967,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 490
+      "sell": 550
     },
     "durability": {
       "max": 380,
@@ -7064,7 +7064,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 140
+      "sell": 150
     },
     "equip": {
       "slot": "body"
@@ -7139,7 +7139,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 205
+      "sell": 225
     },
     "durability": {
       "max": 340,
@@ -7235,7 +7235,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 80
+      "sell": 85
     },
     "equip": {
       "slot": "feet"
@@ -7389,7 +7389,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 100
+      "sell": 105
     },
     "equip": {
       "slot": "head"
@@ -7466,7 +7466,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 125
+      "sell": 135
     },
     "equip": {
       "slot": "legs"
@@ -7543,7 +7543,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 180
+      "sell": 195
     },
     "equip": {
       "slot": "off_hand"
@@ -7618,7 +7618,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 330
+      "sell": 360
     },
     "durability": {
       "max": 340,
