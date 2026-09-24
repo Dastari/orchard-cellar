@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { HEAD_DESIGNS, PAULDRON, paint, type HeadDesign } from './designs.js';
-import { mirror, uprightFromDiagonal, uprightGrip, wornOutline } from './held.js';
+import { CAPE, CAPE_DRAPE, HEAD_DESIGNS, PAULDRON, paint, type HeadDesign } from './designs.js';
+import { flipVertical, mirror, uprightFromDiagonal, uprightGrip, wornOutline } from './held.js';
 import { MATERIALS, WORN_OUTLINE, rampSwap, type MaterialName } from './materials.js';
 import { Raster } from './raster.js';
 import { CELL, measureFrame, type Facing, type FrameAnchors } from './rig.js';
@@ -24,7 +24,7 @@ export type Head =
     readonly detail: MaterialName;
   };
 
-export type HeldKind = 'blade' | 'bow' | 'staff' | 'shield';
+export type HeldKind = 'blade' | 'bow' | 'crossbow' | 'staff' | 'shield';
 
 /** Anything carried in a hand, given as its 16×16 inventory icon in final colours. */
 export interface Held {
@@ -32,6 +32,8 @@ export interface Held {
   readonly icon: Raster;
   /** Legendary glow colour; drawn as a soft one-pixel halo around the held sprite. */
   readonly aura?: string;
+  /** Carried on the back hilt-up (swords, daggers) or head-up (hafted weapons, bows, staffs). */
+  readonly carry?: 'hilt' | 'head';
 }
 
 export interface Loadout {
@@ -43,6 +45,15 @@ export interface Loadout {
   readonly pauldrons?: MaterialName;
   readonly mainHand?: Held;
   readonly offHand?: Held;
+  /** Footwear: Kenmi shoes are one colour, two pixels per foot; boots also colour the ankles. */
+  readonly feet?: { readonly kind: 'shoes' | 'boots' | 'sabatons'; readonly material: MaterialName };
+  readonly cape?: { readonly material: MaterialName; readonly trim: MaterialName };
+  /**
+   * `rest` (default): ordinary idle/walk rows with weapons, shields and bows
+   * carried on the back. `combat`: Kenmi's arms-out `hold_*` stance with the
+   * weapon in hand, used while fighting.
+   */
+  readonly stance?: 'rest' | 'combat';
 }
 
 export interface FrameRef {
@@ -195,7 +206,7 @@ export class Doll {
     if (!sprite) {
       sprite = held.kind === 'shield'
         ? wornOutline(held.icon)
-        : uprightFromDiagonal(held.kind === 'bow' ? mirror(held.icon) : held.icon);
+        : uprightFromDiagonal(held.kind === 'bow' || held.kind === 'crossbow' ? mirror(held.icon) : held.icon);
       this.heldCache.set(held.icon, sprite);
     }
     return held.aura ? withAura(sprite, held.aura) : sprite;
@@ -229,6 +240,7 @@ export class Doll {
       ? { x: side === 'left' ? box.x0 : box.x1 + (facing === 'right' ? 1 : 0), y: Math.floor((box.y0 + box.y1) / 2) }
       : { x: anchors.head.x + (side === 'left' ? -2 : 14), y: anchors.head.y + 10 };
     if (side === 'right' && held.kind === 'bow') sprite = mirror(sprite);
+    if (side === 'left' && held.kind === 'crossbow') sprite = mirror(sprite);
     const bounds = sprite.bounds()!;
     const hold = held.kind === 'bow'
       ? { x: side === 'left' ? bounds.x + bounds.width - 2 - pad : bounds.x + 1 + pad, y: bounds.y + Math.floor(bounds.height / 2) }
@@ -236,23 +248,88 @@ export class Doll {
     cell.draw(sprite, grip.x - hold.x, grip.y - hold.y);
   }
 
+  /**
+   * Carried on the back at rest, using the 45° icon itself so the item keeps its
+   * exact look. Swords and daggers ride hilt-up and hafted items head-up, over the
+   * character's right shoulder: screen-left facing down (behind the body, poking
+   * out beside the head), screen-right facing up (over the back, under the hair or
+   * helmet), and behind the body facing right. Shields show on the back only from
+   * behind or the side; facing down they are hidden by the body.
+   */
+  private drawCarried(cell: Raster, held: Held, anchors: FrameAnchors, facing: Facing): void {
+    const icon = wornOutline(held.icon);
+    const { x, y } = anchors.head;
+    if (held.kind === 'shield') {
+      if (facing === 'down') return;
+      const cx = facing === 'right' ? x + 1 : x + 6;
+      cell.draw(icon, cx - Math.floor(icon.width / 2), y + 12 - Math.floor(icon.height / 2));
+      return;
+    }
+    // Icons point up-right with the grip bottom-left.
+    const upperLeft = (held.carry ?? 'head') === 'hilt' ? flipVertical(icon) : mirror(icon);
+    const sprite = facing === 'up' ? mirror(upperLeft) : upperLeft;
+    // Raised and offset toward the carrying shoulder so the hilt or head clears the chibi head.
+    const cx = facing === 'right' ? x + 3 : facing === 'up' ? x + 8 : x + 4;
+    const cy = facing === 'right' ? y + 7 : y + 5;
+    cell.draw(sprite, cx - Math.floor(sprite.width / 2), cy - Math.floor(sprite.height / 2));
+  }
+
+  private drawCape(cell: Raster, cape: NonNullable<Loadout['cape']>, anchors: FrameAnchors, facing: Facing, walking: boolean): void {
+    const part = CAPE[facing];
+    const image = paint(part.grid, { primary: MATERIALS[cape.material], accent: MATERIALS[cape.trim], detail: MATERIALS[cape.trim] });
+    // Facing right the cape flares one pixel further back while walking.
+    const sway = facing === 'right' && walking ? -1 : 0;
+    cell.draw(image, anchors.head.x + part.dx + sway, anchors.head.y + part.dy);
+  }
+
+  /** Recolour the shoe pixels (and, for boots, the two leg rows above them). */
+  private drawFeet(cell: Raster, feet: NonNullable<Loadout['feet']>, row: number, frame: number): void {
+    const shoes = cellOf(this.sheets.shoes, row, frame);
+    const ramp = MATERIALS[feet.material];
+    const bounds = shoes.bounds();
+    if (!bounds) return;
+    for (let y = bounds.y; y < bounds.y + bounds.height; y += 1) {
+      for (let x = bounds.x; x < bounds.x + bounds.width; x += 1) {
+        if (!shoes.alpha(x, y)) continue;
+        cell.set(x, y, feet.kind === 'sabatons' ? ramp[2] : ramp[1]);
+        if (feet.kind === 'shoes') continue;
+        // Boots and sabatons climb the ankle: recolour leg pixels directly above each foot.
+        for (let up = 1; up <= (feet.kind === 'sabatons' ? 2 : 1); up += 1) {
+          const color = cell.hex(x, y - up);
+          if (color && color !== WORN_OUTLINE) cell.set(x, y - up, up === 1 ? ramp[feet.kind === 'sabatons' ? 3 : 2] : ramp[3]);
+        }
+      }
+    }
+  }
+
   async compose(loadout: Loadout, view: FrameRef): Promise<Raster> {
     const holding = loadout.mainHand !== undefined || loadout.offHand !== undefined;
-    const ref = holding ? { ...view, ...view.armed } : view;
+    const combat = holding && loadout.stance === 'combat';
+    const ref = combat ? { ...view, ...view.armed } : view;
     const facing = sheetFacing(ref.animation.replace('_left', '_right'));
     const anchors = measureFrame(this.sheets.base, this.sheets.hands, ref.row, ref.frame, facing);
     if (!anchors) throw new Error(`No body in row ${ref.row} frame ${ref.frame}`);
     const { row, frame } = ref;
+    const walking = ref.animation.startsWith('walk');
     const cell = new Raster(CELL, CELL);
-    if (loadout.offHand?.kind === 'shield' && facing === 'right') this.drawHeld(cell, loadout.offHand, anchors, facing, 'off');
+    const carried = combat ? [] : [loadout.mainHand, loadout.offHand].filter((held): held is Held => held !== undefined)
+      // Shields are strapped over any weapon on the back.
+      .sort((a, b) => Number(a.kind === 'shield') - Number(b.kind === 'shield'));
+
+    if (loadout.cape && CAPE[facing].layer === 'behind') this.drawCape(cell, loadout.cape, anchors, facing, walking);
+    if (facing !== 'up') for (const held of carried) this.drawCarried(cell, held, anchors, facing);
+    if (combat && loadout.offHand?.kind === 'shield' && facing === 'right') this.drawHeld(cell, loadout.offHand, anchors, facing, 'off');
     cell.draw(cellOf(this.sheets.base, row, frame), 0, 0);
     cell.draw(await this.garmentLayer(loadout.legs ?? { family: 'trousers', colour: 'Brown' }, 'legs', row, frame), 0, 0);
     cell.draw(cellOf(this.sheets.shoes, row, frame), 0, 0);
+    if (loadout.feet) this.drawFeet(cell, loadout.feet, row, frame);
     cell.draw(await this.garmentLayer(loadout.body ?? { family: 'shirt', colour: 'Blue' }, 'body', row, frame), 0, 0);
+    if (loadout.cape && CAPE[facing].layer === 'over') this.drawCape(cell, loadout.cape, anchors, facing, walking);
+    if (facing === 'up') for (const held of carried) this.drawCarried(cell, held, anchors, facing);
     if (!this.hidesHair(loadout.head)) cell.draw(cellOf(await this.sheet(loadout.hair ?? 'Head/Hair_1/Hair_1_Brown.png'), row, frame), 0, 0);
     if (loadout.head) this.drawHead(cell, loadout.head, anchors, facing, row, frame);
-    if (loadout.mainHand) this.drawHeld(cell, loadout.mainHand, anchors, facing, 'main');
-    if (loadout.offHand && !(loadout.offHand.kind === 'shield' && facing === 'right')) {
+    if (combat && loadout.mainHand) this.drawHeld(cell, loadout.mainHand, anchors, facing, 'main');
+    if (combat && loadout.offHand && !(loadout.offHand.kind === 'shield' && facing === 'right')) {
       this.drawHeld(cell, loadout.offHand, anchors, facing, 'off');
     }
     const handLayer = cellOf(this.sheets.hands, row, frame);
@@ -266,6 +343,11 @@ export class Doll {
           anchors.rightHand && { x: anchors.rightHand.x0, y: anchors.rightHand.y0 },
         ];
       for (const cap of caps) if (cap) cell.draw(guard, cap.x - 2, cap.y - 2);
+    }
+    if (loadout.cape && facing === 'down' && !loadout.pauldrons) {
+      const { material, trim } = loadout.cape;
+      const drape = paint(CAPE_DRAPE.grid, { primary: MATERIALS[material], accent: MATERIALS[trim], detail: MATERIALS[trim] });
+      cell.draw(drape, anchors.head.x + CAPE_DRAPE.dx - 1, anchors.head.y + CAPE_DRAPE.dy);
     }
     return ref.mirrored ? mirror(cell) : cell;
   }

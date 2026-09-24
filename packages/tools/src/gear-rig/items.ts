@@ -3,7 +3,7 @@ import {
   affixValue, armourValue, baseType, material, rarity, sellValue, weaponDamage,
   type BaseType, type Legendary, type Lineage, type Material, type RarityId, type StatDef,
 } from './catalogue.js';
-import { HEAD_DESIGNS, paint } from './designs.js';
+import { CAPE, HEAD_DESIGNS, paint } from './designs.js';
 import type { Garment, Head, Held, Loadout } from './doll.js';
 import { BONE, type IconLibrary } from './icons.js';
 import { MATERIALS, type MaterialName } from './materials.js';
@@ -48,7 +48,7 @@ export const TOOLTIP_COLORS = {
 } as const;
 
 const SLOT_LABEL: Record<BaseType['slot'], string> = {
-  head: 'Head', body: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet',
+  head: 'Head', body: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet', back: 'Back',
   main_hand: 'Main Hand', off_hand: 'Off Hand', two_hand: 'Two-Hand', tool: 'Tool', ammo: 'Ammunition',
 };
 
@@ -107,6 +107,16 @@ function designIcon(design: string, ramps: { primary: MaterialName; accent: Mate
   return icon.recolor(new Map([['#0e071b', '#000000']]));
 }
 
+/** Capes have no premium icon: paint the back view, framed in the 16×16 cell. */
+function capeIcon(primary: MaterialName, trim: MaterialName): Raster {
+  const image = paint(CAPE.up.grid, { primary: MATERIALS[primary], accent: MATERIALS[trim], detail: MATERIALS[trim] });
+  const icon = new Raster(16, 16);
+  // Stretch the 8-row cape to a 13-row icon by repeating its body rows.
+  const rows = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7];
+  rows.forEach((source, y) => icon.draw(image.crop(0, source, image.width, 1), Math.floor((16 - image.width) / 2), 1 + y));
+  return icon.recolor(new Map([['#0e071b', '#000000']]));
+}
+
 export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
   const legendary: Legendary | undefined = spec.legendary ? LEGENDARIES.find((entry) => entry.id === spec.legendary) : undefined;
   const lineage: Lineage | undefined = spec.lineage ? LINEAGES.find((entry) => entry.id === spec.lineage) : undefined;
@@ -129,8 +139,9 @@ export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
   else name = [prefix?.name, mat.name, base.name, suffix?.name].filter(Boolean).join(' ');
 
   // Visual palette ------------------------------------------------------------
-  const palette: MaterialName = legendary?.finish.palette ?? (lineage ? lineage.palette : mat.palette);
-  const accent: MaterialName = legendary?.finish.accent ?? lineage?.accent ?? (rarityId === 'rare' || rarityId === 'epic' ? (palette === 'gold' ? 'silver' : 'gold') : palette);
+  // Lineages recolour metal; cloth and leather keep their dye and take the lineage colour as trim.
+  const palette: MaterialName = legendary?.finish.palette ?? (lineage && mat.line === 'metal' ? lineage.palette : mat.palette);
+  const accent: MaterialName = legendary?.finish.accent ?? (lineage && mat.line !== 'metal' ? lineage.palette : lineage?.accent) ?? (rarityId === 'rare' || rarityId === 'epic' ? (palette === 'gold' ? 'silver' : 'gold') : palette);
   const detail: MaterialName = legendary?.finish.detail ?? lineage?.detail ?? 'ruby';
 
   // Icon --------------------------------------------------------------------------
@@ -140,6 +151,8 @@ export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
     : undefined;
   if (base.icon.rows.length === 0 && headFamily) {
     icon = designIcon(headFamily, { primary: palette, accent, detail });
+  } else if (base.visual.kind === 'cape') {
+    icon = capeIcon(palette, rarityId === 'common' || rarityId === 'poor' ? palette : accent);
   } else {
     const row = spec.iconRow ?? legendary?.finish.row ?? pickIconRow(library, base, rarityId, hash(name));
     icon = library.icon({
@@ -170,8 +183,13 @@ export function buildItem(spec: ItemSpec, library: IconLibrary): Item {
     }
   } else if (visual.kind === 'gauntlets') {
     doll.gauntlets = palette;
+  } else if (visual.kind === 'feet') {
+    doll.feet = { kind: visual.style, material: palette };
+  } else if (visual.kind === 'cape') {
+    doll.cape = { material: palette, trim: rarityId === 'common' || rarityId === 'poor' ? palette : accent };
   } else if (visual.kind === 'held') {
-    const held: Held = legendary ? { kind: visual.held, icon, aura: legendary.finish.aura } : { kind: visual.held, icon };
+    const carry = ['Swords', 'Daggers'].includes(base.group) ? 'hilt' as const : 'head' as const;
+    const held: Held = legendary ? { kind: visual.held, icon, carry, aura: legendary.finish.aura } : { kind: visual.held, icon, carry };
     if (visual.held === 'shield') doll.offHand = held;
     else doll.mainHand = held;
   }

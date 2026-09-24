@@ -93,8 +93,12 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 | Tassets | legs | Plate | plate | metal | armor 8 rows (141–161) | plate layer | 1136 |
 | Gloves | hands | Gloves | leather | cloth, leather | armor 3 rows (170–174) | hands layer recoloured | 1161 |
 | Gauntlets | hands | Gloves | plate | metal | armor 7 rows (170–176) | hands layer recoloured | 1056 |
-| Boots | feet | Footwear | leather | leather, cloth | armor 3 rows (177–183) | _feet use the shoes layer; recolour pending_ | 1084 |
-| Sabatons | feet | Footwear | plate | metal | armor 8 rows (177–184) | _plate feet need worn art_ | 986 |
+| Shoes | feet | Footwear | cloth | cloth, leather | armor 3 rows (181–184) | shoe pixels recoloured | 1084 |
+| Boots | feet | Footwear | leather | leather, cloth | armor 3 rows (177–183) | shoe pixels + ankle recoloured (boots) | 1084 |
+| Sabatons | feet | Footwear | plate | metal | armor 8 rows (177–184) | shoe pixels + ankle recoloured (sabatons) | 986 |
+| Cape | back | Cloaks | cloth | cloth | painted from worn design | cape layer (behind / over the back by facing) | 643 |
+| Cloak | back | Cloaks | cloth | cloth, leather | painted from worn design | cape layer (behind / over the back by facing) | 1007 |
+| Mantle | back | Cloaks | cloth | cloth | painted from worn design | cape layer (behind / over the back by facing) | 643 |
 | Arming Sword | main hand | Swords | — | metal | weapons 25 rows (0–24) | held blade | 1286 |
 | Longsword | main hand | Swords | — | metal | weapons 25 rows (25–49) | held blade | 1286 |
 | Scimitar | main hand | Swords | — | metal | weapons 3 rows (50–52) | held blade | 1286 |
@@ -108,7 +112,7 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 | Halberd | two hand | Polearms | — | metal | weapons 15 rows (94–108) | held blade | 1196 |
 | Shortbow | two hand | Bows | — | wood, metal | weapons 4 rows (109–112) | held bow | 1553 |
 | Longbow | two hand | Bows | — | wood, metal | weapons 4 rows (113–116) | held bow | 1553 |
-| Crossbow | two hand | Crossbows | — | wood, metal | weapons 4 rows (119–122) | _crossbows need a held pose_ | 1371 |
+| Crossbow | two hand | Crossbows | — | wood, metal | weapons 4 rows (119–122) | held crossbow | 1371 |
 | Arrows | ammo | Ammunition | — | metal | weapons 2 rows (117–118) | _shown in flight_ | 1056 |
 | Bolts | ammo | Ammunition | — | metal | weapons 2 rows (123–124) | _shown in flight_ | 1056 |
 | Staff | two hand | Staffs | — | gem | weapons 1 rows (125–125), gem head | held staff | 734 |
@@ -129,7 +133,7 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 | Watering Can | tool | Tools | — | metal | tools 1 rows (32–32) | _uses the watering sheets_ | 1136 |
 | Hammer | tool | Tools | — | metal | tools 1 rows (35–35) | _build tool_ | 1136 |
 
-**61 base types → 64,475 distinct generated items** (poor, common, every allowed single affix, every allowed prefix × suffix pair, per material, plus one epic per lineage and base, plus 12 legendaries). Content can publish any subset.
+**65 base types → 67,852 distinct generated items** (poor, common, every allowed single affix, every allowed prefix × suffix pair, per material, plus one epic per lineage and base, plus 12 legendaries). Content can publish any subset.
 
 ## Prefixes
 
@@ -210,6 +214,9 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 | Stalwart Woollen Flannel | uncommon | Flannel | Woollen | 100 |
 | Warded Iron Roundshield | uncommon | Roundshield | Iron | 180 |
 | Dyed Breeches of the Wanderer | uncommon | Breeches | Dyed | 225 |
+| Tanned Boots of the Wanderer | uncommon | Boots | Tanned | 100 |
+| Gallant Velvet Cape | uncommon | Cape | Velvet | 625 |
+| Deadeye Iron Crossbow | uncommon | Crossbow | Iron | 240 |
 | Radiant Bulwark of the Ages | rare | Bulwark | Blackiron | 2240 |
 | Stalwart Greathelm of the Veteran | rare | Greathelm | Steel | 1080 |
 | Serene Staff of Arcana | rare | Staff | Aquamarine | 1440 |
@@ -222,6 +229,8 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 | Kingsguard Heater | epic | Heater | Gilded | 4000 |
 | Starweaver Rod | epic | Rod | Amethyst | 9800 |
 | Wildroot Halberd | epic | Halberd | Verdant | 8750 |
+| Starweaver Mantle | epic | Mantle | Silken | 2400 |
+| Stormforged Sabatons | epic | Sabatons | Frostforged | 4375 |
 | The Bonecrippler | legendary | Warhammer | Blackiron | 31500 |
 | Emberwake, Blade of the Last Hearth | legendary | Longsword | Emberforged | 24750 |
 | Frostwhisper | legendary | Arming Sword | Frostforged | 22500 |
@@ -240,5 +249,5 @@ Prefixes grant a primary attribute or headline power (white lines). Suffixes gra
 - **Authored combinations or rolled affixes?** Item stacks carry no per-copy data today. Either publish chosen combinations as distinct item ids (fits the current schema and trading), or add per-item affix storage for random rolls.
 - **Attributes on gear.** Extend `EQUIPMENT_STAT_BUDGETS` to the six attributes, mana and regeneration, and show attributes to players.
 - **Two-hand vs shield.** Staffs, polearms, warhammers and bows are listed as two-handed; decide whether the off-hand stays empty.
-- **Missing worn art.** Caps, kettle hats, plate feet, boot recolours and crossbow poses need new worn designs; icons already exist.
+- **Missing worn art.** Caps and kettle hats need worn head designs; their icons already exist.
 - **Icon choice.** Each base ranks its icon rows by measured ornateness (accent pixels × 3 + area ÷ 4); rarer items take the more ornate rows. 164 weapon rows and 185 armour rows are available.

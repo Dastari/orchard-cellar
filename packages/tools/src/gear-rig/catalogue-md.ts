@@ -19,6 +19,8 @@ function visualLabel(base: BaseType): string {
     case 'head': return `helmet: ${[...new Set([visual.fallback, ...Object.values(visual.families)])].join(' → ')}`;
     case 'garment': return `${visual.family} layer${visual.pauldronsFrom ? ` + pauldrons from ${visual.pauldronsFrom}` : ''}`;
     case 'gauntlets': return 'hands layer recoloured';
+    case 'feet': return visual.style === 'shoes' ? 'shoe pixels recoloured' : `shoe pixels + ankle recoloured (${visual.style})`;
+    case 'cape': return 'cape layer (behind / over the back by facing)';
     case 'held': return `held ${visual.held}`;
     case 'none': return `_${visual.reason}_`;
   }
@@ -116,7 +118,7 @@ export function catalogueMarkdown(library: IconLibrary, examples: readonly Item[
   out.push('- **Authored combinations or rolled affixes?** Item stacks carry no per-copy data today. Either publish chosen combinations as distinct item ids (fits the current schema and trading), or add per-item affix storage for random rolls.');
   out.push('- **Attributes on gear.** Extend `EQUIPMENT_STAT_BUDGETS` to the six attributes, mana and regeneration, and show attributes to players.');
   out.push('- **Two-hand vs shield.** Staffs, polearms, warhammers and bows are listed as two-handed; decide whether the off-hand stays empty.');
-  out.push('- **Missing worn art.** Caps, kettle hats, plate feet, boot recolours and crossbow poses need new worn designs; icons already exist.');
+  out.push('- **Missing worn art.** Caps and kettle hats need worn head designs; their icons already exist.');
   out.push(`- **Icon choice.** Each base ranks its icon rows by measured ornateness (accent pixels × 3 + area ÷ 4); rarer items take the more ornate rows. ${library.rows('weapons')} weapon rows and ${library.rows('armor')} armour rows are available.`);
   return `${out.join('\n')}\n`;
 }

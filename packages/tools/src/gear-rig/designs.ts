@@ -276,3 +276,67 @@ export const PAULDRON: RoleGrid = [
   'oDCBo',
   '.ooo.',
 ];
+
+/**
+ * Capes hang from the shoulders. Facing down they sit behind the body and only
+ * the edges and hem show; facing up they cover the back (under the hair or
+ * helmet); facing right they trail behind. `A`–`E` is the hem trim.
+ */
+export const CAPE: Readonly<Record<Facing, Part & { readonly layer: 'behind' | 'over' }>> = {
+  down: {
+    layer: 'behind',
+    dx: 0,
+    dy: 8,
+    grid: [
+      '..ooooooooo..',
+      '.o322222221o.',
+      'o33222222211o',
+      'o33222222211o',
+      'o33222222211o',
+      'o33222222211o',
+      'oEDDDDDDDDCBo',
+      '.ooooooooooo.',
+    ],
+  },
+  up: {
+    layer: 'over',
+    dx: 1,
+    dy: 8,
+    grid: [
+      '..ooooooo..',
+      '.o3432221o.',
+      'o334322211o',
+      'o332322121o',
+      'o332322121o',
+      'o322322121o',
+      'oEDDDDDDCBo',
+      '.ooooooooo.',
+    ],
+  },
+  right: {
+    layer: 'behind',
+    dx: -2,
+    dy: 8,
+    grid: [
+      '....ooo.',
+      '...o32o.',
+      '..o332o.',
+      '.o33221o',
+      'o332221o',
+      'o332211o',
+      'oEDDDCBo',
+      '.oooooo.',
+    ],
+  },
+};
+
+/** Facing down, a cape shows as drapes over both shoulders fastened by a clasp. */
+export const CAPE_DRAPE: Part = {
+  dx: 1,
+  dy: 9,
+  grid: [
+    '.oo.......oo.',
+    'o33o.oEo.o21o',
+    '.oo...o...oo.',
+  ],
+};

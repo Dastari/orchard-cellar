@@ -106,7 +106,7 @@ export const TIER_LEVEL = [0, 1, 8, 15, 22, 30, 38, 45] as const;
 // ---------------------------------------------------------------------------
 // Base item types
 
-export type Slot = 'head' | 'body' | 'legs' | 'hands' | 'feet' | 'main_hand' | 'off_hand' | 'two_hand' | 'tool' | 'ammo';
+export type Slot = 'head' | 'body' | 'legs' | 'hands' | 'feet' | 'back' | 'main_hand' | 'off_hand' | 'two_hand' | 'tool' | 'ammo';
 export type ArmourClass = 'cloth' | 'leather' | 'plate';
 
 /** How the item appears on the paper doll. */
@@ -114,7 +114,9 @@ export type WornVisual =
   | { readonly kind: 'head'; readonly families: Readonly<Partial<Record<RarityId, string>>>; readonly fallback: string }
   | { readonly kind: 'garment'; readonly family: 'plate' | 'shirt' | 'tunic' | 'flannel' | 'vestments' | 'trousers' | 'dungarees' | 'breeches'; readonly pauldronsFrom?: RarityId }
   | { readonly kind: 'gauntlets' }
-  | { readonly kind: 'held'; readonly held: 'blade' | 'bow' | 'staff' | 'shield' }
+  | { readonly kind: 'feet'; readonly style: 'shoes' | 'boots' | 'sabatons' }
+  | { readonly kind: 'cape' }
+  | { readonly kind: 'held'; readonly held: 'blade' | 'bow' | 'crossbow' | 'staff' | 'shield' }
   | { readonly kind: 'none'; readonly reason: string };
 
 export interface BaseType {
@@ -168,8 +170,13 @@ export const BASE_TYPES: readonly BaseType[] = [
   // Hands and feet ---------------------------------------------------------
   { id: 'gloves', name: 'Gloves', slot: 'hands', group: 'Gloves', lines: ['cloth', 'leather'], armourClass: 'leather', icon: { sheet: 'armor', rows: [170, 172, 174] }, visual: { kind: 'gauntlets' }, weight: 0.4 },
   { id: 'gauntlets', name: 'Gauntlets', slot: 'hands', group: 'Gloves', lines: ['metal'], armourClass: 'plate', icon: { sheet: 'armor', rows: range(170, 176) }, visual: { kind: 'gauntlets' }, weight: 0.6 },
-  { id: 'boots', name: 'Boots', slot: 'feet', group: 'Footwear', lines: ['leather', 'cloth'], armourClass: 'leather', icon: { sheet: 'armor', rows: [177, 179, 183] }, visual: { kind: 'none', reason: 'feet use the shoes layer; recolour pending' }, weight: 0.5 },
-  { id: 'sabatons', name: 'Sabatons', slot: 'feet', group: 'Footwear', lines: ['metal'], armourClass: 'plate', icon: { sheet: 'armor', rows: range(177, 184) }, visual: { kind: 'none', reason: 'plate feet need worn art' }, weight: 0.7 },
+  { id: 'shoes', name: 'Shoes', slot: 'feet', group: 'Footwear', lines: ['cloth', 'leather'], armourClass: 'cloth', icon: { sheet: 'armor', rows: [181, 182, 184] }, visual: { kind: 'feet', style: 'shoes' }, weight: 0.3 },
+  { id: 'boots', name: 'Boots', slot: 'feet', group: 'Footwear', lines: ['leather', 'cloth'], armourClass: 'leather', icon: { sheet: 'armor', rows: [177, 179, 183] }, visual: { kind: 'feet', style: 'boots' }, weight: 0.5 },
+  { id: 'sabatons', name: 'Sabatons', slot: 'feet', group: 'Footwear', lines: ['metal'], armourClass: 'plate', icon: { sheet: 'armor', rows: range(177, 184) }, visual: { kind: 'feet', style: 'sabatons' }, weight: 0.7 },
+  // Back ------------------------------------------------------------------
+  { id: 'cape', name: 'Cape', slot: 'back', group: 'Cloaks', lines: ['cloth'], armourClass: 'cloth', icon: { sheet: 'armor', rows: [] }, visual: { kind: 'cape' }, weight: 0.4, note: 'icon painted from the worn cape' },
+  { id: 'cloak', name: 'Cloak', slot: 'back', group: 'Cloaks', lines: ['cloth', 'leather'], armourClass: 'cloth', icon: { sheet: 'armor', rows: [] }, visual: { kind: 'cape' }, weight: 0.5, note: 'icon painted from the worn cape' },
+  { id: 'mantle', name: 'Mantle', slot: 'back', group: 'Cloaks', lines: ['cloth'], armourClass: 'cloth', icon: { sheet: 'armor', rows: [] }, visual: { kind: 'cape' }, weight: 0.6, note: 'icon painted from the worn cape' },
   // One-handed weapons -----------------------------------------------------
   { id: 'arming_sword', name: 'Arming Sword', slot: 'main_hand', group: 'Swords', lines: ['metal'], icon: { sheet: 'weapons', rows: range(0, 24) }, visual: { kind: 'held', held: 'blade' }, weight: 1 },
   { id: 'longsword', name: 'Longsword', slot: 'main_hand', group: 'Swords', lines: ['metal'], icon: { sheet: 'weapons', rows: range(25, 49) }, visual: { kind: 'held', held: 'blade' }, weight: 1.1 },
@@ -186,7 +193,7 @@ export const BASE_TYPES: readonly BaseType[] = [
   // Ranged -----------------------------------------------------------------
   { id: 'shortbow', name: 'Shortbow', slot: 'two_hand', group: 'Bows', lines: ['wood', 'metal'], icon: { sheet: 'weapons', rows: [109, 110, 111, 112] }, visual: { kind: 'held', held: 'bow' }, weight: 0.9 },
   { id: 'longbow', name: 'Longbow', slot: 'two_hand', group: 'Bows', lines: ['wood', 'metal'], icon: { sheet: 'weapons', rows: [113, 114, 115, 116] }, visual: { kind: 'held', held: 'bow' }, weight: 1.1 },
-  { id: 'crossbow', name: 'Crossbow', slot: 'two_hand', group: 'Crossbows', lines: ['wood', 'metal'], icon: { sheet: 'weapons', rows: [119, 120, 121, 122] }, visual: { kind: 'none', reason: 'crossbows need a held pose' }, weight: 1.2 },
+  { id: 'crossbow', name: 'Crossbow', slot: 'two_hand', group: 'Crossbows', lines: ['wood', 'metal'], icon: { sheet: 'weapons', rows: [119, 120, 121, 122] }, visual: { kind: 'held', held: 'crossbow' }, weight: 1.2 },
   { id: 'arrows', name: 'Arrows', slot: 'ammo', group: 'Ammunition', lines: ['metal'], icon: { sheet: 'weapons', rows: [117, 118] }, visual: { kind: 'none', reason: 'shown in flight' }, weight: 0.1 },
   { id: 'bolts', name: 'Bolts', slot: 'ammo', group: 'Ammunition', lines: ['metal'], icon: { sheet: 'weapons', rows: [123, 124] }, visual: { kind: 'none', reason: 'shown in flight' }, weight: 0.1 },
   // Staffs (Kenmi mace/torch silhouettes with gem heads) ------------------

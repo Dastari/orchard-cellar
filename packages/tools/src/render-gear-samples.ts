@@ -103,7 +103,8 @@ const LOADOUTS: readonly Sample[] = [
 const weaponIcon = (weapon: Weapon): Raster => weaponIcons.crop(MATERIAL_ICON_COLUMN[weapon.material] * 16, weapon.row * 16, 16, 16);
 
 function toLoadout(sample: Sample): Loadout {
-  const loadout: { -readonly [K in keyof Loadout]: Loadout[K] } = {};
+  // These sheets demonstrate the combat stance; see render-gear-catalogue for rest.
+  const loadout: { -readonly [K in keyof Loadout]: Loadout[K] } = { stance: 'combat' };
   if (sample.head) loadout.head = sample.head;
   if (sample.body) loadout.body = { family: 'plate', material: sample.body };
   if (sample.legs) loadout.legs = { family: 'plate', material: sample.legs };

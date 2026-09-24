@@ -48,6 +48,16 @@ async function dollStrip(loadout: Loadout, views: readonly FrameRef[] = [VIEWS.i
   return strip;
 }
 
+async function joinStrips(strips: readonly Raster[]): Promise<Raster> {
+  const out = new Raster(strips.reduce((sum, strip) => sum + strip.width + 2, -2), Math.max(...strips.map((strip) => strip.height)));
+  let x = 0;
+  for (const strip of strips) {
+    out.draw(strip, x, 0);
+    x += strip.width + 2;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // 1. Item cards
 
@@ -60,6 +70,9 @@ const EXAMPLES: readonly ItemSpec[] = [
   { base: 'flannel', material: 'wool', rarity: 'uncommon', prefix: 'stalwart' },
   { base: 'roundshield', material: 'iron', rarity: 'uncommon', prefix: 'warded' },
   { base: 'breeches', material: 'dyed', rarity: 'uncommon', suffix: 'wanderer' },
+  { base: 'boots', material: 'tanned', rarity: 'uncommon', suffix: 'wanderer' },
+  { base: 'cape', material: 'velvet', rarity: 'uncommon', prefix: 'gallant' },
+  { base: 'crossbow', material: 'iron', rarity: 'uncommon', prefix: 'deadeye' },
   { base: 'bulwark', material: 'blackiron', rarity: 'rare', prefix: 'radiant', suffix: 'ages' },
   { base: 'greathelm', material: 'steel', rarity: 'rare', prefix: 'stalwart', suffix: 'veteran' },
   { base: 'staff', material: 'aquamarine', rarity: 'rare', prefix: 'serene', suffix: 'arcana' },
@@ -72,6 +85,8 @@ const EXAMPLES: readonly ItemSpec[] = [
   { base: 'heater', material: 'gilded', rarity: 'epic', lineage: 'kingsguard' },
   { base: 'rod', material: 'amethyst', rarity: 'epic', lineage: 'starweaver' },
   { base: 'halberd', material: 'verdant', rarity: 'epic', lineage: 'wildroot' },
+  { base: 'mantle', material: 'silk', rarity: 'epic', lineage: 'starweaver' },
+  { base: 'sabatons', material: 'frostforged', rarity: 'epic', lineage: 'stormforged' },
   { base: '', material: '', rarity: 'legendary', legendary: 'bonecrippler' },
   { base: '', material: '', rarity: 'legendary', legendary: 'emberwake' },
   { base: '', material: '', rarity: 'legendary', legendary: 'frostwhisper' },
@@ -89,7 +104,14 @@ const EXAMPLES: readonly ItemSpec[] = [
 async function card(item: Item): Promise<Raster> {
   const tooltip = renderTooltip(item, tooltipAssets);
   const hasDoll = Object.keys(item.doll).length > 0;
-  const strip = hasDoll ? await dollStrip(item.doll) : null;
+  const held = item.doll.mainHand !== undefined || item.doll.offHand !== undefined;
+  // Held items: at rest (front, back) and in the combat stance; worn items: three facings.
+  const strip = !hasDoll ? null : held
+    ? await joinStrips([
+      await dollStrip(item.doll, [VIEWS.idle_down, VIEWS.idle_up]),
+      await dollStrip({ ...item.doll, stance: 'combat' }, [VIEWS.idle_down]),
+    ])
+    : await dollStrip(item.doll);
   const width = tooltip.width + (strip ? strip.width + 6 : 0);
   const height = Math.max(tooltip.height, strip?.height ?? 0);
   const out = new Raster(width, height);
@@ -229,6 +251,8 @@ const SHOWCASE: { label: string; loadout: Loadout }[] = [
       { base: 'cuirass', material: 'steel', rarity: 'epic', lineage: 'dawnsworn' },
       { base: 'greaves', material: 'steel', rarity: 'epic', lineage: 'dawnsworn' },
       { base: 'gauntlets', material: 'gilded', rarity: 'rare', prefix: 'mighty', suffix: 'fortitude' },
+      { base: 'sabatons', material: 'gilded', rarity: 'rare', prefix: 'stalwart', suffix: 'fortitude' },
+      { base: 'cape', material: 'velvet', rarity: 'epic', lineage: 'dawnsworn' },
       { base: '', material: '', rarity: 'legendary', legendary: 'emberwake' },
       { base: '', material: '', rarity: 'legendary', legendary: 'kingsbulwark' },
     ),
@@ -239,6 +263,8 @@ const SHOWCASE: { label: string; loadout: Loadout }[] = [
       { base: 'warhelm', material: 'blackiron', rarity: 'epic', lineage: 'duskwarden' },
       { base: 'cuirass', material: 'blackiron', rarity: 'epic', lineage: 'duskwarden' },
       { base: 'tassets', material: 'blackiron', rarity: 'epic', lineage: 'duskwarden' },
+      { base: 'sabatons', material: 'blackiron', rarity: 'epic', lineage: 'duskwarden' },
+      { base: 'cloak', material: 'moonweave', rarity: 'epic', lineage: 'duskwarden' },
       { base: '', material: '', rarity: 'legendary', legendary: 'bonecrippler' },
     ),
   },
@@ -267,6 +293,8 @@ const SHOWCASE: { label: string; loadout: Loadout }[] = [
     loadout: merge(
       { base: 'vestments', material: 'silk', rarity: 'epic', lineage: 'starweaver' },
       { base: 'breeches', material: 'moonweave', rarity: 'rare', prefix: 'radiant', suffix: 'arcana' },
+      { base: 'mantle', material: 'silk', rarity: 'epic', lineage: 'starweaver' },
+      { base: 'shoes', material: 'silk', rarity: 'rare', prefix: 'serene', suffix: 'ages' },
       { base: '', material: '', rarity: 'legendary', legendary: 'hollowmoon' },
     ),
   },
@@ -276,6 +304,7 @@ const SHOWCASE: { label: string; loadout: Loadout }[] = [
       { base: '', material: '', rarity: 'legendary', legendary: 'harvest_crown' },
       { base: 'vestments', material: 'velvet', rarity: 'epic', lineage: 'kingsguard' },
       { base: 'breeches', material: 'velvet', rarity: 'rare', prefix: 'gallant', suffix: 'orchard' },
+      { base: 'mantle', material: 'velvet', rarity: 'epic', lineage: 'kingsguard' },
       { base: '', material: '', rarity: 'legendary', legendary: 'cellarmaster' },
     ),
   },
@@ -285,26 +314,76 @@ const SHOWCASE: { label: string; loadout: Loadout }[] = [
       { base: 'jerkin', material: 'drakehide', rarity: 'epic', lineage: 'stormforged' },
       { base: 'leggings', material: 'hardened', rarity: 'rare', prefix: 'nimble', suffix: 'stride' },
       { base: 'gloves', material: 'tanned', rarity: 'uncommon', prefix: 'nimble' },
+      { base: 'boots', material: 'hardened', rarity: 'rare', prefix: 'nimble', suffix: 'stride' },
+      { base: 'cloak', material: 'wool', rarity: 'rare', prefix: 'nimble', suffix: 'hunt' },
       { base: '', material: '', rarity: 'legendary', legendary: 'starfall' },
     ),
   },
 ];
 
 {
-  const views = [VIEWS.idle_down, VIEWS.walk_down, VIEWS.idle_right, VIEWS.idle_left, VIEWS.idle_up];
+  const rest = [VIEWS.idle_down, VIEWS.walk_down, VIEWS.idle_right, VIEWS.walk_right, VIEWS.idle_up, VIEWS.walk_up];
+  const combat = [VIEWS.idle_down, VIEWS.idle_right, VIEWS.idle_up];
   const labelHeight = 10;
-  const sheet = new Raster(10 + views.length * DOLL_CROP.width + 10, SHOWCASE.length * (DOLL_CROP.height + labelHeight + 4) + 6).fill(BACKDROP);
+  const width = (rest.length + combat.length) * DOLL_CROP.width + 8;
+  const sheet = new Raster(10 + width + 10, 12 + SHOWCASE.length * (DOLL_CROP.height + labelHeight + 4) + 6).fill(BACKDROP);
+  drawText(sheet, font, 'At rest (exploring)', 10, 4, '#f4f1e8');
+  drawText(sheet, font, 'Combat stance', 10 + rest.length * DOLL_CROP.width + 8, 4, '#f4f1e8');
   for (const [index, entry] of SHOWCASE.entries()) {
-    const y = 4 + index * (DOLL_CROP.height + labelHeight + 4);
+    const y = 14 + index * (DOLL_CROP.height + labelHeight + 4);
     drawText(sheet, font, entry.label, 10, y, rarity('legendary').color);
-    sheet.draw(await dollStrip(entry.loadout, views), 10, y + labelHeight);
+    sheet.draw(await dollStrip(entry.loadout, rest), 10, y + labelHeight);
+    sheet.draw(await dollStrip({ ...entry.loadout, stance: 'combat' }, combat), 10 + rest.length * DOLL_CROP.width + 8, y + labelHeight);
   }
   await sheet.scaled(4).save(resolve(outDir, 'showcase-outfits.png'));
-  const lineup = new Raster(SHOWCASE.length * 30 + 4, 38).fill(GRASS);
+  const lineup = new Raster(SHOWCASE.length * 30 + 4, 76).fill(GRASS);
   for (const [index, entry] of SHOWCASE.entries()) {
-    lineup.draw((await doll.compose(entry.loadout, VIEWS.idle_down)).crop(17, 8, 30, 36), 2 + index * 30, 1);
+    lineup.draw((await doll.compose(entry.loadout, VIEWS.walk_down)).crop(17, 8, 30, 36), 2 + index * 30, 1);
+    lineup.draw((await doll.compose({ ...entry.loadout, stance: 'combat' }, VIEWS.idle_down)).crop(17, 8, 30, 36), 2 + index * 30, 39);
   }
   await lineup.scaled(3).save(resolve(outDir, 'showcase-ingame-3x.png'));
+}
+
+// Capes and footwear -----------------------------------------------------------
+{
+  const capes: [string, ItemSpec][] = [
+    ['Homespun cape', { base: 'cape', material: 'homespun', rarity: 'common' }],
+    ['Velvet cape', { base: 'cape', material: 'velvet', rarity: 'rare', prefix: 'gallant', suffix: 'orchard' }],
+    ['Dyed cloak', { base: 'cloak', material: 'dyed', rarity: 'rare', prefix: 'nimble', suffix: 'stride' }],
+    ['Moonweave mantle', { base: 'mantle', material: 'moonweave', rarity: 'epic', lineage: 'starweaver' }],
+    ['Woollen cloak', { base: 'cloak', material: 'wool', rarity: 'uncommon', suffix: 'renewal' }],
+  ];
+  const views = [VIEWS.idle_down, VIEWS.idle_right, VIEWS.walk_right, VIEWS.idle_up, VIEWS.walk_up];
+  const feet: [string, ItemSpec][] = [
+    ['Shoes', { base: 'shoes', material: 'homespun', rarity: 'common' }],
+    ['Leather boots', { base: 'boots', material: 'tanned', rarity: 'common' }],
+    ['Black boots', { base: 'boots', material: 'hardened', rarity: 'uncommon', suffix: 'wanderer' }],
+    ['Iron sabatons', { base: 'sabatons', material: 'iron', rarity: 'common' }],
+    ['Gilded sabatons', { base: 'sabatons', material: 'gilded', rarity: 'rare', prefix: 'stalwart', suffix: 'fortitude' }],
+    ['Frost sabatons', { base: 'sabatons', material: 'frostforged', rarity: 'epic', lineage: 'stormforged' }],
+  ];
+  const rowHeight = DOLL_CROP.height + 12;
+  const sheet = new Raster(Math.max(90 + views.length * DOLL_CROP.width + 10, 90 + feet.length * 48 + 6), (capes.length + 1) * rowHeight + 22).fill(BACKDROP);
+  for (const [index, [label, spec]] of capes.entries()) {
+    const item = build(spec);
+    const y = 6 + index * rowHeight;
+    drawText(sheet, font, label, 6, y + 16, rarity(item.rarity).color);
+    sheet.draw(item.icon, 6, y + 26);
+    sheet.draw(await dollStrip(item.doll, views), 90, y);
+  }
+  const y = 6 + capes.length * rowHeight;
+  drawText(sheet, font, 'Footwear', 6, y + 16, '#f4f1e8');
+  for (const [index, [label, spec]] of feet.entries()) {
+    const item = build(spec);
+    const x = 90 + index * 48;
+    const cell = await doll.compose({ ...item.doll, legs: { family: 'trousers', colour: 'Blue' } }, VIEWS.idle_down);
+    const box = new Raster(46, 30).fill(GRASS).draw(cell.crop(20, 16, 26, 30), 20, 0);
+    box.draw(item.icon, 1, 2);
+    sheet.draw(box, x, y);
+    drawText(sheet, font, label.split(' ')[0]!, x, y + 32, rarity(item.rarity).color);
+    drawText(sheet, font, label.split(' ').slice(1).join(' '), x, y + 41, rarity(item.rarity).color);
+  }
+  await sheet.scaled(4).save(resolve(outDir, 'capes-footwear.png'));
 }
 
 // ---------------------------------------------------------------------------

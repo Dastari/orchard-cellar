@@ -34,7 +34,8 @@ describe('gear catalogue', () => {
       if (base.visual.kind === 'head') {
         for (const family of [base.visual.fallback, ...Object.values(base.visual.families)]) expect(designs, base.id).toContain(family);
       }
-      if (base.icon.rows.length === 0) expect(base.visual.kind, base.id).toBe('head');
+      // Crowns and capes have no premium icon; theirs is painted from the worn design.
+      if (base.icon.rows.length === 0) expect(['head', 'cape'], base.id).toContain(base.visual.kind);
     }
     expect(new Set(BASE_TYPES.map((base) => base.id)).size).toBe(BASE_TYPES.length);
   });

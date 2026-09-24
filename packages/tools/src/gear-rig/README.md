@@ -47,6 +47,23 @@ regenerate it with the catalogue command.
   ramp and a gilded collar.
 - **Crowns** have no premium icon; their icon is painted from the worn design.
 
+## Rest and combat stances
+
+The doll defaults to **rest**: the ordinary idle/walk rows, with the arms at the
+sides and every weapon, bow, staff and shield carried on the back. Carried items
+use the 45° icon itself, so they keep their exact look. Swords and daggers ride
+hilt-up and hafted items head-up, over the character's right shoulder. Shields
+show on the back from behind and the side, and are hidden by the body from the
+front. `stance: 'combat'` switches to Kenmi's arms-out `hold_*` rows with the
+weapon in hand. The game would use it while fighting (for example while attacking,
+for a few seconds afterwards, or with a draw/sheathe toggle).
+
+Capes are three small role-grid layers: behind the body with a shoulder drape and
+clasp from the front, trailing (and flaring while walking) from the side, and
+covering the back from behind. Footwear recolours Kenmi's two-pixel shoes. Boots
+also colour one ankle row and sabatons two. Crossbows ride on the back at rest and
+are held ready in combat.
+
 ## What the spike established
 
 - **Anchors come from the art.** Head boxes and hand blobs are measured per frame
