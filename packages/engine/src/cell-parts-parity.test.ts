@@ -100,7 +100,9 @@ function documentDigest(document: MapDocumentV2, probes: readonly (readonly [num
     terrain: terrainDigest(terrain),
     traces: probes.map(([x, y]) => semanticTerrainTraceAt(document, x, y, compiled)),
     plans: probes.map(([x, y]) => plateauLayerPlansAt(terrain, x, y)),
-    issues: validate ? validateMapDocument(document) : [],
+    // Stair-placement warnings (owner stair rule, 2026-09-24) are new findings,
+    // not a change to the legacy compile this parity test pins.
+    issues: validate ? validateMapDocument(document).filter(({ code }) => !code.startsWith('transition_ramp_')) : [],
     ground: validate ? groundDigest(terrain) : 'skipped',
   }));
 }

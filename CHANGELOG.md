@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.3 / Studio 0.14.3 — Full-height terrain stairs (not yet deployed)
+
+- Draw stair flights continuously from the cliff rim through its visible wall to the ground contact row; restore the basic terrain family's matching two-lane brown-rim stair block.
+- Studio permits new stairs only along a straight cliff edge with room beside the bank. Existing courses still load and report placement warnings; this release does not move live stairs or publish world, map or content changes.
+- Rebuild wiki terrain plans from the same reviewed engine rules. Workspace 0.32.1, Engine 0.23.1, Sim 0.25.1; UI remains 0.27.2. The static release includes previously merged inventory/storage, trade, shared typography and pointer fixes through main 687373eb, but excludes pending UI PRs.
+
 ## Client 0.25.2 / UI 0.27.2 — Cancelled pointer ownership (not yet deployed)
 
 ### Workspace 0.32.0 / Engine 0.23.0 — Terrain plan recorder (PR113; source only)

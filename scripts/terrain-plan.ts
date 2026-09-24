@@ -10,7 +10,7 @@
 // Frame numbers are indexes into each asset's base frames (the same order as
 // the terrain catalogue's frameIds): fake source rectangles encode the index as
 // x = frame * FRAME_STRIDE, so no reverse atlas lookup is needed.
-import { createEmptyMapDocument, mapCellKey, type MapDocumentV2, type StairRun } from '../packages/sim/src/index.js';
+import { createEmptyMapDocument, expandStairRun, mapCellKey, rampPlacementFindings, stairRunValid, type MapDocumentV2, type RampPlacementFinding, type StairRun } from '../packages/sim/src/index.js';
 import type { EmptyMapOptions } from '../packages/sim/src/terrain-lab.js';
 import { terrainArrayForMapDocument } from '../packages/engine/src/editor-terrain.js';
 import { GroundChunkCache } from '../packages/engine/src/ground-cache.js';
@@ -187,3 +187,11 @@ export function planTerrain(input: TerrainPlanInput): TerrainPlanDraw[] {
 /** Asset ids the terrain art loads by field name (caveSupport, dirtCliffEdge, …):
  * a plan can draw these besides the tile-category assets. */
 export const TERRAIN_PLAN_NAMED_ASSETS: readonly string[] = [...new Set(Object.values(MAP_EDITOR_ASSET_NAMES as Record<string, string>))];
+
+/** The stair runs of a layout that break the owner stair rule (straight cliff
+ * edges only); Studio refuses these placements. Outside the layout counts as
+ * ground level. */
+export function stairPlacementFindings(input: Pick<TerrainPlanInput, 'width' | 'height' | 'heights' | 'stairRuns'>): readonly RampPlacementFinding[] {
+  const heightAt = (x: number, y: number) => (x < 0 || y < 0 || x >= input.width || y >= input.height ? 0 : input.heights[y]?.[x] ?? 0);
+  return rampPlacementFindings((input.stairRuns ?? []).filter(stairRunValid).flatMap(expandStairRun), heightAt);
+}

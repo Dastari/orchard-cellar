@@ -488,7 +488,7 @@ describe('MapDocumentV2 editor foundation', () => {
       upperTileY: 1,
     }));
     expect(validateMapDocument({ ...northRaised, transitions: northBank })
-      .filter(({ code }) => code.startsWith('transition_'))).toEqual([]);
+      .filter(({ code }) => code.startsWith('transition_') && !code.startsWith('transition_ramp_'))).toEqual([]);
     expect(validateMapDocument({
       ...northRaised,
       transitions: northBank.map((transition) => ({ ...transition, kind: 'stairs' as const })),
@@ -623,7 +623,8 @@ describe('MapDocumentV2 editor foundation', () => {
     // The terrain-lab deliberately retains its isolated-cell review fixture;
     // imported-map validation now reports that fixture instead of silently
     // accepting geometry the editor brush would normalize away.
-    expect(validateMapDocument(lab)).toEqual([
+    const labIssues = validateMapDocument(lab);
+    expect(labIssues.filter(({ code }) => !code.startsWith('transition_ramp_'))).toEqual([
       expect.objectContaining({
         severity: 'warning', code: 'terrain_footprint_too_small', tileX: 7, tileY: 58,
       }),
@@ -631,6 +632,11 @@ describe('MapDocumentV2 editor foundation', () => {
         severity: 'error', code: 'transition_stair_art_unavailable', tileX: 19, tileY: 35,
       }),
     ]);
+    // Its ramps and stair sit on isolated review blocks, not straight cliff edges:
+    // reported as warnings (the owner stair rule), never as load errors.
+    const placement = labIssues.filter(({ code }) => code.startsWith('transition_ramp_'));
+    expect(placement.length).toBeGreaterThan(0);
+    expect(placement.every(({ severity }) => severity === 'warning')).toBe(true);
     expect(resolvedMapCellAt(lab, 20, 27).elevation).toBe(5);
     expect(resolvedMapCellAt(lab, 60, 27).elevation).toBe(-3);
   });

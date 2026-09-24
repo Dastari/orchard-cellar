@@ -21,11 +21,18 @@ function terrain(width = 8, height = 8, entries: readonly [number, number, numbe
   };
 }
 
+/** A straight cliff: level `level` on rows y0..y1 across the whole map width. */
+function plateau(width: number, y0: number, y1: number, level = 1): [number, number, number][] {
+  const entries: [number, number, number][] = [];
+  for (let y = y0; y <= y1; y += 1) for (let x = 0; x < width; x += 1) entries.push([x, y, level]);
+  return entries;
+}
+
 describe('map transition authoring plan', () => {
   it('authors a complete two-lane slope in gameplay direction', () => {
     const document = fixture();
     const plan = planMapEditorTransition(document, { tileX: 2, tileY: 4 }, { tileX: 2, tileY: 3 },
-      'slope', 2, terrain(8, 8, [[2, 3, 1], [3, 3, 1]]));
+      'slope', 2, terrain(8, 8, plateau(8, 1, 3)));
     expect(plan.error).toBeNull();
     expect(plan.direction).toBe('up');
     expect(plan.command).toEqual({ kind: 'add_transitions', transitions: [
@@ -101,10 +108,23 @@ describe('map transition authoring plan', () => {
     const elevations = terrain(5, 5, [[2, 1, 1], [3, 1, 1], [4, 1, 1]]);
     const plan = planMapEditorTransition(document, { tileX: 4, tileY: 2 }, { tileX: 4, tileY: 1 },
       'slope', 3, elevations);
-    expect(plan.error).toBeNull();
+    // Clamped to the map edge, the bank has no cliff beside it on the east.
+    expect(plan.error).toBe('transition_stair_off_straight_cliff');
     expect(plan.from.tileX).toBe(2);
     expect(plan.to.tileX).toBe(2);
     expect(plan.transitions.map(({ lowerTileX }) => lowerTileX)).toEqual([2, 3, 4]);
+  });
+
+  it('refuses slopes and stairs beside a corner, a cliff end or free-standing (owner rule)', () => {
+    const document = fixture(10, 8);
+    // Plateau x1-8, rows 1-3: a straight edge at x3-4, a corner beside x6-7, the end at x7-8.
+    const edge = terrain(10, 8, plateau(10, 1, 3).filter(([x]) => x >= 1 && x <= 8));
+    const at = (x: number) => planMapEditorTransition(document, { tileX: x, tileY: 4 }, { tileX: x, tileY: 3 }, 'slope', 2, edge).error;
+    expect(at(3)).toBeNull();
+    expect(at(6)).toBe('transition_stair_off_straight_cliff');
+    expect(at(7)).toBe('transition_stair_off_straight_cliff');
+    expect(planMapEditorTransition(document, { tileX: 2, tileY: 4 }, { tileX: 2, tileY: 3 },
+      'slope', 2, terrain(10, 8, [[2, 3, 1], [3, 3, 1]])).error).toBe('transition_stair_off_straight_cliff');
   });
 
   it('refuses a bank wider than the finite lateral dimension', () => {

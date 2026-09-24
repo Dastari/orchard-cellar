@@ -164,7 +164,10 @@ describe('MapEditorController', () => {
   });
 
   it('authors a complete slope gesture as one undoable and redoable terrain edit', () => {
-    const { controller, model } = terrainHarness([[2, 3, 1], [3, 3, 1]]);
+    // A straight cliff across the map (stairs need one: owner stair rule).
+    const plateau: [number, number, number][] = [];
+    for (let y = 1; y <= 3; y += 1) for (let x = 0; x < 8; x += 1) plateau.push([x, y, 1]);
+    const { controller, model } = terrainHarness(plateau);
     const terrain = mapEditorPickingTerrain(model.document());
     const lower = screenForTransitionFoot(controller, 2, 4);
     const upperOnLockedPlane = screenForProjectedTile(controller, terrain, 2, 3, 1);
@@ -242,7 +245,10 @@ describe('MapEditorController', () => {
   });
 
   it('gates transition gestures to the visible editable terrain layer', () => {
-    const { controller, model } = terrainHarness([[2, 3, 1], [3, 3, 1]]);
+    // A straight cliff across the map (stairs need one: owner stair rule).
+    const plateau: [number, number, number][] = [];
+    for (let y = 1; y <= 3; y += 1) for (let x = 0; x < 8; x += 1) plateau.push([x, y, 1]);
+    const { controller, model } = terrainHarness(plateau);
     const terrain = mapEditorPickingTerrain(model.document());
     const lower = screenForTransitionFoot(controller, 2, 4);
     const upper = screenForProjectedTile(controller, terrain, 2, 3, 1);

@@ -1,4 +1,5 @@
 import {
+  rampPlacementFindings,
   expandStairRun,
   resolvedMapCellAt,
   stairRunValid,
@@ -30,7 +31,8 @@ export type MapEditorTransitionError =
   | 'transition_stair_art_unavailable'
   | 'transition_ladder_runtime_unavailable'
   | 'transition_kind_runtime_unavailable'
-  | 'transition_endpoint_height_mismatch';
+  | 'transition_endpoint_height_mismatch'
+  | 'transition_stair_off_straight_cliff';
 
 export interface MapEditorTransitionPreviewPoint extends MapPoint {
   readonly elevation: number;
@@ -237,6 +239,16 @@ export function planMapEditorTransition(
   if (artRefusal !== null && !artRefusal.supported) {
     return invalidPlan(kind, width, from, to, artRefusal.code, direction, transitions);
   }
+  // Owner rule (2026-09-24): slopes and stairs only on a straight run of cliff
+  // edge, never beside a corner block, a cliff end, in a notch or a corridor.
+  if (kind === 'slope' || kind === 'stairs') {
+    const heightAt = (tileX: number, tileY: number) => (
+      tileX < 0 || tileY < 0 || tileX >= document.width || tileY >= document.height
+        ? document.baseElevation : elevationAt(document, terrain, { tileX, tileY }));
+    if (rampPlacementFindings(transitions, heightAt).length > 0) {
+      return invalidPlan(kind, width, from, to, 'transition_stair_off_straight_cliff', direction, transitions);
+    }
+  }
   return Object.freeze({ kind, width, direction, from, to,
     transitions: Object.freeze([...transitions]), command, error: null });
 }
@@ -253,5 +265,6 @@ export function mapEditorTransitionErrorLabel(error: MapEditorTransitionError | 
   if (error === 'transition_stair_art_unavailable') return 'DEDICATED STAIR ART IS NOT REGISTERED';
   if (error === 'transition_ladder_runtime_unavailable') return 'LADDER TRAVERSAL AND DIRECTIONAL ART ARE NOT AVAILABLE';
   if (error === 'transition_kind_runtime_unavailable') return 'TRANSITION KIND HAS NO RUNTIME ART CONTRACT';
+  if (error === 'transition_stair_off_straight_cliff') return 'STAIRS NEED A STRAIGHT CLIFF EDGE: NO CORNER, END, NOTCH OR CORRIDOR BESIDE THEM';
   return 'EVERY LANE MUST JOIN MATCHING CONTOUR ENDPOINTS';
 }

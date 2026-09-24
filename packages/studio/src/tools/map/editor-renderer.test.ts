@@ -75,8 +75,11 @@ describe('map editor render culling', () => {
       id: 'preview', title: 'Preview', width: 6, height: 6,
     }));
     const elevations = terrainFixture(6, 6);
-    elevations.elevations[1 * 6 + 2] = 1;
-    elevations.elevations[1 * 6 + 3] = 1;
+    // A straight cliff edge along row 1 (stairs need one: owner stair rule).
+    for (let x = 0; x < 6; x += 1) {
+      elevations.elevations[0 * 6 + x] = 1;
+      elevations.elevations[1 * 6 + x] = 1;
+    }
     const plan = planMapEditorTransition(document, { tileX: 2, tileY: 2 }, { tileX: 2, tileY: 1 },
       'slope', 2, elevations);
 
