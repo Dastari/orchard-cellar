@@ -14,7 +14,12 @@ it('keeps construction slots two pixels apart and guards current upgrade afforda
   expect(slots[1]!.rect.x - slots[0]!.rect.x - slots[0]!.rect.width).toBe(2);
   const secondRow = slots.find(slot => slot.rect.y > slots[0]!.rect.y)!;
   expect(secondRow.rect.y - slots[0]!.rect.y - slots[0]!.rect.height).toBe(2);
+  const grid = root.entries().find(entry => entry.element.id === 'build.entries')!.element;
+  expect(grid.rect.height).toBe(secondRow.rect.y + secondRow.rect.height - slots[0]!.rect.y);
   root.focus.set(slots[0]!); root.key({ key: 'Enter' }); expect(onSelect).toHaveBeenCalledWith({ kind: 'place', itemKind: 'item_0' });
+  palette.updateBuildPalette({ ...model, counts: { item_0: 1 } }); root.arrange();
+  expect(root.entries().find(entry => entry.element.id === slots[0]!.id)!.element).toBe(slots[0]);
+  expect(root.focus.current).toBe(slots[0]);
   let button = root.entries().find(entry => entry.element.id === `build.upgrade.${upgrade.kind}`)!.element;
   expect(button.disabled).toBe(true);
   palette.updateBuildPalette({ ...model, balanceBronze: 10n ** 15n }); root.arrange();

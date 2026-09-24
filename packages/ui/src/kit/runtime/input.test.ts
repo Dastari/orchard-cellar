@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { uiButton } from '../components/button.js';
 import { uiList } from '../components/collections.js';
 import { uiText } from '../components/text.js';
 import { uiFixed } from '../layout/box.js';
@@ -129,5 +130,111 @@ describe('BUG-019 invalidated captured pointer tails', () => {
     f.pointer('move', release); f.pointer('up', release); expect(f.selected).not.toHaveBeenCalled();
     f.pointer('down', release); f.pointer('up', release);
     expect(f.selected).toHaveBeenCalledExactlyOnceWith('replacement');
+  });
+});
+
+function scopedFixture(modal = false) {
+  const root = new UiRoot({ scale: 1 }); roots.push(root); root.resize(400, 200);
+  const actions = [vi.fn(), vi.fn(), vi.fn()];
+  const button = (index: number) => uiButton({ id: `scope-button-${index}`, label: `Action ${index}`, onPress: actions[index],
+    layout: { position: 'absolute', inset: { left: 8, top: 8 }, width: uiFixed(80), height: uiFixed(30) } });
+  const buttons = [button(0), button(1), button(2)];
+  const scopes = [0, 1].map(index => new UiElement({ id: `scope-${index}`, props: { singlePointer: true },
+    style: { position: 'absolute', inset: { left: uiFixed(index * 120), top: 0 }, width: uiFixed(100), height: uiFixed(100),
+      zLayer: modal && index === 0 ? 'modal' : undefined }, onPointer: () => true, children: [buttons[index]!] }));
+  buttons[2]!.setStyle({ inset: { left: uiFixed(248), top: 8 } });
+  scopes.forEach(scope => root.mount(scope)); root.mount(buttons[2]!); root.arrange();
+  const points = buttons.map(node => ({ x: node.rect.x + 10, y: node.rect.y + 10 }));
+  const pointer = (type: UiRootPointer['type'], point = points[0]!, pointerId = 1, extra: Partial<UiRootPointer> = {}) =>
+    root.pointer({ type, point, pointerId, button: 0, ...extra });
+  return { root, actions, buttons, scopes, points, pointer };
+}
+const primaryTouch = { pointerType: 'touch', isPrimary: true };
+const secondaryTouch = { pointerType: 'touch', isPrimary: false };
+describe('BUG-021 hit-scoped nonmodal pointer ownership', () => {
+  it('suppresses secondary touch before focus/observers and retains its rejected tails outside', () => {
+    const f = scopedFixture(), observed = vi.fn();
+    f.root.mount(new UiElement({ onPointerObserved: observed, style: { position: 'absolute', width: uiFixed(1), height: uiFixed(1) } }));
+    f.pointer('down', f.points[0], 1, primaryTouch); const focus = f.root.focus.current; observed.mockClear();
+    expect(f.pointer('down', f.points[0], 2, secondaryTouch)).toBe(true);
+    expect(f.root.focus.current).toBe(focus); expect(observed).not.toHaveBeenCalled();
+    expect(f.pointer('move', { x: 390, y: 190 }, 2, secondaryTouch)).toBe(true);
+    expect(f.pointer('up', { x: 390, y: 190 }, 2, secondaryTouch)).toBe(true);
+    expect(f.actions[0]).not.toHaveBeenCalled(); f.pointer('up', f.points[0], 1, primaryTouch);
+    expect(f.actions[0]).toHaveBeenCalledOnce();
+    f.pointer('down', f.points[0], 2, primaryTouch); f.pointer('up', f.points[0], 2, primaryTouch);
+    expect(f.actions[0]).toHaveBeenCalledTimes(2);
+  });
+  it('preserves fresh outside world input and independent subtree captures', () => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    expect(f.pointer('down', { x: 390, y: 190 }, 9, secondaryTouch)).toBe(false);
+    expect(f.pointer('up', { x: 390, y: 190 }, 9, secondaryTouch)).toBe(false);
+    f.pointer('down', f.points[1], 2); f.pointer('up', f.points[1], 2);
+    expect(f.actions[1]).toHaveBeenCalledOnce(); expect(f.actions[0]).not.toHaveBeenCalled();
+    f.pointer('up', f.points[0], 1); expect(f.actions[0]).toHaveBeenCalledOnce();
+  });
+  it('honors unrelated capture before a hit inside an owned scope', () => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    f.pointer('down', f.points[2], 2); const move = vi.spyOn(f.buttons[2]!.hooks, 'onPointer');
+    f.pointer('move', f.points[0], 2); expect(move.mock.calls.at(-1)?.[0].type).toBe('move');
+    f.pointer('up', f.points[2], 2); expect(f.actions[2]).toHaveBeenCalledOnce();
+    f.pointer('up', f.points[0], 1); expect(f.actions[0]).toHaveBeenCalledOnce();
+  });
+  it('uses the frontmost eligible hit and leaves an unrelated overlapping control independent', () => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    f.buttons[2]!.setStyle({ inset: { left: 8, top: 8 } }); f.root.arrange();
+    f.pointer('down', f.points[0], 2, secondaryTouch); f.pointer('up', f.points[0], 2, secondaryTouch);
+    expect(f.actions[2]).toHaveBeenCalledOnce(); expect(f.actions[0]).not.toHaveBeenCalled();
+    f.pointer('cancel', f.points[0], 1); expect(f.actions[0]).not.toHaveBeenCalled();
+  });
+  it('keeps owner release outside, explicit cancellation and keyboard behavior independent', () => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    f.root.focus.set(f.buttons[1]!); f.root.key({ key: 'Enter' }); expect(f.actions[1]).toHaveBeenCalledOnce();
+    f.pointer('up', f.points[1], 1); expect(f.actions[0]).not.toHaveBeenCalled();
+    expect(f.actions[1]).toHaveBeenCalledOnce();
+    f.pointer('down', f.points[0], 1); f.pointer('down', f.points[1], 2); f.root.input.cancelPointers();
+    f.pointer('up', f.points[0], 1); f.pointer('up', f.points[1], 2);
+    expect(f.actions[0]).not.toHaveBeenCalled(); expect(f.actions[1]).toHaveBeenCalledOnce();
+    f.pointer('down', f.points[0], 1); f.pointer('up', f.points[0], 1); expect(f.actions[0]).toHaveBeenCalledOnce();
+  });
+  it.each(['hidden', 'disposed'] as const)('cancels a %s scope exactly once without activating a replacement', state => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    const spy = vi.spyOn(f.buttons[0]!.hooks, 'onPointer');
+    if (state === 'hidden') f.scopes[0]!.setStyle({ visible: false }); else f.scopes[0]!.dispose();
+    f.buttons[2]!.setStyle({ inset: { left: 8, top: 8 } }); f.root.arrange();
+    f.pointer('move', f.points[0], 1); f.pointer('up', f.points[0], 1);
+    expect(f.actions[0]).not.toHaveBeenCalled(); expect(f.actions[2]).not.toHaveBeenCalled();
+    expect(spy.mock.calls.filter(([event]) => event.type === 'cancel')).toHaveLength(1);
+    f.pointer('down', f.points[0], 1); f.pointer('up', f.points[0], 1); expect(f.actions[2]).toHaveBeenCalledOnce();
+  });
+  it.each(['up', 'cancel'] as const)('releases the scope on suppressed final %s after an invalidated child move', ending => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    const old = f.buttons[0]!, cancel = vi.spyOn(old.hooks, 'onPointer'); old.dispose();
+    const replacement = uiButton({ label: 'Replacement', onPress: f.actions[0],
+      layout: { position: 'absolute', inset: { left: 8, top: 8 }, width: uiFixed(80), height: uiFixed(30) } });
+    f.scopes[0]!.append(replacement); f.root.arrange();
+    expect(f.pointer('move', f.points[0], 1)).toBe(true); expect(f.pointer(ending, f.points[0], 1)).toBe(true);
+    expect(f.actions[0]).not.toHaveBeenCalled(); expect(cancel.mock.calls.filter(([event]) => event.type === 'cancel')).toHaveLength(1);
+    f.pointer('down', f.points[0], 2); f.pointer('up', f.points[0], 2);
+    expect(f.actions[0]).toHaveBeenCalledOnce();
+  });
+  it('reuses a fresh pointer ID at another scope after a missing release', () => {
+    const f = scopedFixture(); f.pointer('down', f.points[0], 1);
+    const cancel = vi.spyOn(f.buttons[0]!.hooks, 'onPointer');
+    f.pointer('down', f.points[1], 1);
+    expect(cancel.mock.calls.filter(([event]) => event.type === 'cancel')).toHaveLength(1);
+    f.pointer('down', f.points[1], 2); f.pointer('up', f.points[1], 2); expect(f.actions[1]).not.toHaveBeenCalled();
+    f.pointer('down', f.points[0], 3); f.pointer('up', f.points[0], 3); expect(f.actions[0]).toHaveBeenCalledOnce();
+    f.pointer('up', f.points[1], 1); expect(f.actions[1]).toHaveBeenCalledOnce();
+    f.pointer('down', f.points[0], 1); f.pointer('down', { x: 390, y: 190 }, 1);
+    expect(f.pointer('up', { x: 390, y: 190 }, 1)).toBe(false);
+    f.pointer('down', f.points[0], 4); f.pointer('up', f.points[0], 4); expect(f.actions[0]).toHaveBeenCalledTimes(2);
+  });
+  it('retains modal-wide protection outside its rectangle', () => {
+    const f = scopedFixture(true); f.pointer('down', f.points[0], 1, primaryTouch);
+    expect(f.pointer('down', f.points[2], 2, secondaryTouch)).toBe(true);
+    expect(f.pointer('up', f.points[2], 2, secondaryTouch)).toBe(true);
+    expect(f.actions[2]).not.toHaveBeenCalled(); f.pointer('up', f.points[0], 1, primaryTouch);
+    expect(f.actions[0]).toHaveBeenCalledOnce();
   });
 });

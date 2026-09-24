@@ -2,6 +2,45 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.30.0 / UI 0.32.0 — Shared character and lifetime records (not yet deployed)
+
+- Adopt the shared character and statistics windows with real appearance, equipment, authored attributes and bigint lifetime records. Preserve navigation, focus and responsive scrolling through the central input runtime.
+- Fix BUG-022: follow authoritative appearance changes and roll rejected current previews back without allowing stale completions to overwrite newer intent. Keep equipment read-only and draw authoritative durability once.
+- Retire legacy character/statistics drawing and pointer paths together. Workspace0.36.0.
+
+## Client 0.29.0 / UI 0.31.0 — Shared game settings and developer menus (not yet deployed)
+
+- Mount the shared game menu, all six settings pages, and current world/render developer controls through the central canvas input runtime.
+- Preserve audio restore, touch placement, lighting quality/model, world scale, presentation cap, experimental backend, updates, fullscreen and administration callbacks. Cancel stale held actions on permission or availability changes.
+- Use font_5x7 and scrollable bounded layouts; retire production legacy menu drawing and hits together. Workspace0.35.0.
+
+## Client 0.28.1 / UI 0.30.1 — Quest window bounds (not yet deployed)
+
+- Fix BUG-023: the production quest window uses host-owned responsive bounds. Remove its manual resize handles so edge drags cannot push Track/Drop outside compact viewports; lab resizing remains explicitly available. Workspace0.34.1.
+
+## Client 0.28.0 / UI 0.30.0 — Shared quests and guide (not yet deployed)
+
+- Render the production quest log and help guide with the shared kit, preserving real quest pin/drop callbacks, deep links, selection, reading navigation and parent close policies.
+- Keep stable roots and focus across authoritative updates and resizing; retire old frame drawing and coordinate input together. Preserve captured-pointer cancellation, secondary-touch rejection and repeated activation guards.
+- Use font_5x7 for ordinary chrome and quest text; book page headings retain their explicit long-form reading role. Workspace0.34.0.
+
+## Client 0.27.1 / UI 0.29.1 — Nonmodal pointer ownership (not yet deployed)
+
+- Honor single-pointer ownership within nonmodal palette controls while preserving fresh outside world gestures and independent scopes (BUG-021).
+- Keep cancelled tails owned through release, clear retired ownership, and handle fresh presses after a missing release without sending a second command. Workspace0.33.1.
+
+## Client 0.27.0 / UI 0.29.0 — Shared build palette (not yet deployed)
+
+- Adopt the shared build palette using real furniture, construction, upgrade and residence models; preserve existing transport and authoritative rejection handling.
+- Route pointer, touch, wheel and keyboard actions through the common retained runtime, including held-key deduplication and scope cancellation. Retire the legacy palette draw/input paths together.
+- Preserve compact/wide layout, font_5x7 chrome and world input outside the palette. Workspace0.33.0.
+
+## Client 0.26.0 / UI 0.28.0 — Shared processor windows (not yet deployed)
+
+- Adopt the shared authored furnace, cooking, press and fermentation compositions through their actual content-window routes, retaining the existing inventory authority and slot restrictions.
+- Preserve extraction-only outputs, furnace fuel, cooking batch actions and authoritative running/paused/settlement timing. Keep sorting on the backpack; processor output panes do not offer unsupported sorting.
+- Forward authored process progress without creating client deadlines or granting outputs locally. Workspace 0.32.0; 11 of 33 surfaces are wired in combined source, with browser/final CI/live acceptance pending.
+
 ## Client 0.25.2 / UI 0.27.2 — Cancelled pointer ownership (not yet deployed)
 
 - Fix BUG-019: a captured list row that disappears or moves during an update cannot pass its old release to a replacement row. Explicit scope/reconnect cancellation also suppresses the old pointer tail.

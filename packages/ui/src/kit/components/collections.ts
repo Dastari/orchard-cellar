@@ -37,6 +37,9 @@ export function uiList<T>(options: UiListOptions<T>): UiElement {
     else if (y + rowHeight > list.scroll.y + list.contentRect.height) scrollUiElement(list, list.scroll.x, y + rowHeight - list.contentRect.height);
   };
   const rebuild = (element: UiElement) => {
+    // Controlled owners can update selection without replacing the focused list.
+    selected.clear();
+    for (const key of element.props['selected'] as readonly string[] ?? []) selected.add(key);
     active = Math.max(0, Math.min(items().length - 1, Number(element.props['active']) || 0));
     const all = items(), height = Math.max(rowHeight, element.contentRect.height || 240);
     const start = options.virtual === false ? 0 : Math.max(0, Math.floor(element.scroll.y / rowHeight) - 2);

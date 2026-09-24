@@ -11,7 +11,7 @@ export class UiInput {
   private hoverSince = 0;
   private captured = new Map<number, UiElement>();
   private cancelledTails = new Set<number>();
-  private pointerOwner: { scope: UiElement; pointerId: number } | null = null;
+  private pointerOwners = new Map<number, UiElement>();
   private touchScrolls = new Map<number, { node: UiElement; start: UiPoint; y: number; offset: number; scrolling: boolean }>();
   private thumbDrag: { pointer: number; node: UiElement; axis: 'x' | 'y'; start: number; offset: number; travel: number } | null = null;
   constructor(private readonly entries: () => readonly UiPaintEntry[], readonly focus: UiFocus,
@@ -29,25 +29,51 @@ export class UiInput {
     }
     return result;
   }
+  private singlePointerScope(node: UiElement | undefined): UiElement | null {
+    for (let current = node; current; current = current.parent ?? undefined) if (current.props['singlePointer']) return current;
+    return null;
+  }
   pointer(event: UiRootPointer): boolean {
-    const modal = uiTopModal(this.entries());
-    const scope = modal?.props['singlePointer'] ? modal : null;
-    if (this.pointerOwner?.scope !== scope) this.pointerOwner = null;
-    if (scope) {
-      // Opted-in game menus arbitrate before focus, observers and scrollbars,
-      // so an extra finger cannot steal a primary inventory or editor gesture.
-      if ((event.pointerType === 'touch' && event.isPrimary === false)
-        || (this.pointerOwner && this.pointerOwner.pointerId !== event.pointerId)) return true;
-      if (event.type === 'down') this.pointerOwner = { scope, pointerId: event.pointerId };
-      if (event.type === 'up' || event.type === 'cancel') this.pointerOwner = null;
+    // A replaced/hidden nonmodal scope owns its old tails, never its replacement.
+    for (const [pointerId, scope] of this.pointerOwners) if (!this.allowed(scope) || !scope.props['singlePointer']) {
+      this.pointerOwners.delete(pointerId); this.cancelledTails.add(pointerId);
+      const capture = this.captured.get(pointerId); this.captured.delete(pointerId);
+      this.touchScrolls.delete(pointerId);
+      if (this.thumbDrag?.pointer === pointerId) this.thumbDrag = null;
+      capture?.hooks.onPointer?.({ ...event, pointerId, type: 'cancel', capture() {}, release() {} }, capture);
     }
-    if (event.type === 'down') this.cancelledTails.delete(event.pointerId);
-    else if (this.cancelledTails.has(event.pointerId)) {
-      if (event.type === 'up' || event.type === 'cancel') this.cancelledTails.delete(event.pointerId);
+    if (event.type === 'down') {
+      // A fresh gesture may reuse an ID whose prior release was lost. Cancel
+      // its previous capture before resolving the new hit's ownership scope.
+      this.cancelledTails.delete(event.pointerId); this.pointerOwners.delete(event.pointerId);
+      const previous = this.captured.get(event.pointerId); this.captured.delete(event.pointerId);
+      this.touchScrolls.delete(event.pointerId);
+      if (this.thumbDrag?.pointer === event.pointerId) this.thumbDrag = null;
+      previous?.hooks.onPointer?.({ ...event, type: 'cancel', capture() {}, release() {} }, previous);
+    } else if (this.cancelledTails.has(event.pointerId)) {
+      if (event.type === 'up' || event.type === 'cancel') {
+        this.cancelledTails.delete(event.pointerId); this.pointerOwners.delete(event.pointerId);
+      }
       return true;
     }
+    const modal = uiTopModal(this.entries());
+    const captured = this.captured.get(event.pointerId) ?? this.touchScrolls.get(event.pointerId)?.node;
+    const scope = modal?.props['singlePointer'] ? modal
+      : captured ? this.singlePointerScope(captured)
+        : this.pointerOwners.get(event.pointerId) ?? this.singlePointerScope(this.hits(event.point)[0]);
+    if (scope) {
+      // Nonmodal scopes arbitrate only their hits/captures. Independent UI and
+      // fresh outside world gestures keep their own pointer ownership.
+      if ((event.pointerType === 'touch' && event.isPrimary === false)
+        || [...this.pointerOwners].some(([id, owner]) => owner === scope && id !== event.pointerId)) {
+        if (event.type === 'down') this.cancelledTails.add(event.pointerId);
+        return true;
+      }
+      if (event.type === 'down') this.pointerOwners.set(event.pointerId, scope);
+    }
+    if (event.type === 'up' || event.type === 'cancel') this.pointerOwners.delete(event.pointerId);
     let capture = this.captured.get(event.pointerId);
-    if (capture && (event.type === 'down' || !this.allowed(capture))) {
+    if (capture && !this.allowed(capture)) {
       this.captured.delete(event.pointerId);
       if (this.thumbDrag?.pointer === event.pointerId) this.thumbDrag = null;
       capture.hooks.onPointer?.({ ...event, type: 'cancel', capture() {}, release() {} }, capture);
@@ -193,8 +219,8 @@ export class UiInput {
     const captures = [...this.captured];
     for (const [pointerId] of captures) this.cancelledTails.add(pointerId);
     for (const pointerId of this.touchScrolls.keys()) this.cancelledTails.add(pointerId);
-    if (this.pointerOwner) this.cancelledTails.add(this.pointerOwner.pointerId);
-    this.captured.clear(); this.touchScrolls.clear(); this.thumbDrag = null; this.pointerOwner = null;
+    for (const pointerId of this.pointerOwners.keys()) this.cancelledTails.add(pointerId);
+    this.captured.clear(); this.touchScrolls.clear(); this.thumbDrag = null; this.pointerOwners.clear();
     for (const [pointerId, node] of captures) node.hooks.onPointer?.({ type: 'cancel', pointerId, button: 0,
       point: this.hoverPoint ?? { x: 0, y: 0 }, capture() {}, release() {} }, node);
   }
