@@ -2,12 +2,13 @@ import type { ItemStack } from '@orchard/sim';
 import { containsPoint, type UiRect } from '../geometry.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { uiButton } from '../kit/components/button.js';
-import { uiZoneHeader, uiMinimap, type UiZoneHeaderElement, type UiMinimapElement, type UiZoneHeaderModel } from '../kit/components/hud-chrome.js';
+import { paintUiHudPlaque, uiHudAction, UI_HUD_INK } from '../kit/components/hud-game.js';
+import { drawOutlinedPixelText, fitPixelText } from '../pixel-ui.js';
+import { paintUiSkin } from '../kit/components/art.js';
+import { uiZoneHeader, uiMinimap, uiZoneFlagWidth, uiZoneHeaderHeight, type UiZoneHeaderElement, type UiMinimapElement, type UiZoneHeaderModel } from '../kit/components/hud-chrome.js';
 import { uiHotbar, uiSlot } from '../kit/components/inventory.js';
-import { uiMeter } from '../kit/components/meter.js';
-import { uiPurse } from '../kit/components/purse.js';
+import { uiPurse, uiPurseWidth } from '../kit/components/purse.js';
 import { uiStatusEffects, type UiStatusEffect } from '../kit/components/status-effects.js';
-import { uiBadge } from '../kit/components/anchors.js';
 import { uiTooltip } from '../kit/components/tooltip.js';
 import { uiScrollArea } from '../kit/components/layout.js';
 import { uiText } from '../kit/components/text.js';
@@ -64,6 +65,21 @@ export interface GameHudPainters {
 }
 function place(node: UiElement, rect: UiRect): void {
   node.setStyle({ position: 'absolute', inset: { left: uiFixed(rect.x), top: uiFixed(rect.y) }, width: uiFixed(Math.max(0, rect.width)), height: uiFixed(Math.max(0, rect.height)) });
+}
+/** Compact touch page tabs: the HUD plaque with its word in outlined text, lit gold when its page is showing. */
+const compactTab: NonNullable<Parameters<typeof uiButton>[0]['face']> = (element, { context, art, hovered, focused, pressed }) => {
+  const r = element.rect, text = String(element.props['label']), active = element.props['tone'] === 'primary';
+  paintUiHudPlaque(context, art, r, { pressed, lit: hovered || focused });
+  const width = text.length * 6 - 1;
+  drawOutlinedPixelText(context, art.pixel, text, r.x + Math.floor((r.width - width) / 2), r.y + Math.floor((r.height - 7) / 2) + (pressed ? 1 : 0), { color: active ? UI_HUD_INK.gold : UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
+};
+/** From this width the shortcuts, hotbar and main hand share one row and the cards take the corners. */
+const HUD_WIDE = 660;
+/** Top of the character card's hunger line at the bottom-left of the non-touch HUD; chat sits above it. */
+export function gameHudCharacterTop(width: number, height: number): number {
+  if (width >= HUD_WIDE) return height - 8 - 48 - 13;
+  const barY = Math.max(0, height - 6 - (width >= 306 ? 31 : 64));
+  return Math.max(0, barY - 4 - 48) - 13;
 }
 function scoped(node: UiElement): UiElement { node.setProps({ singlePointer: true }); return node; }
 function vitalLabel(kind: UiVitalKind, value: UiVitalValues | undefined, centi: boolean): string {
@@ -123,7 +139,7 @@ export class GameHud {
       },
     }));
     const mount = (surface: GameHudSurface, node: UiElement) => this.roots[surface].tree.children[0]!.append(node);
-    this.zone = uiZoneHeader({ title: '', get activateOn() { return activation(); }, onToggle: () => { if (this.compactTouchLayout) { this.showCompactPage('you'); return; } this.zoneCollapsed = !this.zoneCollapsed; this.sync(); this.focusVisibleZone(); }, onPlayers: () => this.callbacks.openOnlinePlayers() });
+    this.zone = uiZoneHeader({ title: '', reserve: 26, get activateOn() { return activation(); }, onToggle: () => { if (this.compactTouchLayout) { this.showCompactPage('you'); return; } this.zoneCollapsed = !this.zoneCollapsed; this.sync(); this.focusVisibleZone(); }, onPlayers: () => this.callbacks.openOnlinePlayers() });
     this.zonePanel = scoped(uiTooltip(() => {
       const zone = this.model?.zone;
       return [zone?.title, zone?.subtitle, zone?.description, zone?.watch && `${zone.watch.time} · ${zone.watch.date} · ${zone.watch.moon}`].filter(Boolean).join('\n');
@@ -151,7 +167,7 @@ export class GameHud {
       if (next !== this.hoveredSlot) { this.hoveredSlot = next; hotbarTip.invalidate(); }
     } });
     mount('hotbarVitals', this.hotbarPanel);
-    this.player = scoped(uiVitals({ id: 'game.hud.player', size: 'md', values: () => this.model?.player?.values,
+    this.player = scoped(uiVitals({ id: 'game.hud.player', variant: 'card', size: 'md', values: () => this.model?.player?.values,
       tooltip: (kind, value) => vitalLabel(kind, value, true), vigourDenied: () => this.model?.player?.vigourDenied === true,
       portrait: uiViewport({ label: 'Player portrait', render: (context, bounds) => { const player = this.model?.player; if (player) this.painters.drawPlayerHead(context, player.id, bounds); } }),
     }));
@@ -166,27 +182,45 @@ export class GameHud {
       },
       onKey: event => { if (!['Enter', ' '].includes(event.key)) return false; if (!event.repeat) this.callbacks.openCharacter?.(); return true; },
     })); mount('hotbarVitals', this.player);
+    const hungerFraction = () => uiVitalFraction(this.model?.player?.hunger?.current, this.model?.player?.hunger?.maximum);
     this.hunger = uiTooltip(() => { const hunger = this.model?.player?.hunger; return hunger ? `HUNGER ${(hunger.current / 100).toFixed(1)} / ${(hunger.maximum / 100).toFixed(1)}` : ''; },
-      uiMeter({ id: 'game.hud.hunger', label: 'Hunger', tone: 'warning', value: () => uiVitalFraction(this.model?.player?.hunger?.current, this.model?.player?.hunger?.maximum), layout: { width: 'grow', height: 'grow' } })); this.hunger.children[0]!.focusable = true; mount('hotbarVitals', this.hunger);
+      new UiElement({ id: 'game.hud.hunger', kind: 'meter', label: 'Hunger', focusable: true, style: { width: 'grow', height: 'grow' },
+        paint(element, { context, art, focused }) {
+          // A small gauge pip and the value as outlined HUD text; it turns rose when the player is starving.
+          if (!art) return; const r = element.rect, value = hungerFraction(), top = r.y + Math.floor((r.height - 6) / 2);
+          context.fillStyle = UI_HUD_INK.outline; context.fillRect(r.x, top, 6, 6);
+          context.fillStyle = '#feae34'; context.fillRect(r.x + 1, top + 1 + Math.round(4 * (1 - value)), 4, Math.round(4 * value));
+          drawOutlinedPixelText(context, art.pixel, `HUNGER ${Math.round(value * 100)}`, r.x + 10, top - 1, { color: focused ? UI_HUD_INK.gold : value < .25 ? '#f6757a' : UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
+        } }), { width: 'grow', height: 'grow' }); mount('hotbarVitals', this.hunger);
     this.purse = scoped(uiPurse({ id: 'game.hud.purse', balance: 0n, get activateOn() { return activation(); }, onOpen: () => this.callbacks.toggleInventory() })); mount('hotbarVitals', this.purse);
     this.weapon = scoped(uiTooltip(() => { const item = this.model && this.stack(this.model.inventory.mainHandIndex); return item ? `MAIN HAND · ${this.painters.itemLabel(item)} · V` : 'MAIN HAND · V'; },
       uiSlot({ id: 'game.hud.weapon', label: 'Main hand', hotkey: 'V', placeholder: 'weapon', get activateOn() { return activation(); }, stack: () => this.model ? this.stack(this.model.inventory.mainHandIndex) : null,
         onPress: () => { if (this.model) this.callbacks.selectHotbar(this.model.inventory.mainHandIndex); }, renderContent: (context, bounds, item) => this.painters.drawItem(context, bounds, item) })));
     mount('hotbarVitals', this.weapon);
-    const action = (id: string, label: string, tooltip: string, press: () => void) => scoped(uiTooltip(tooltip,
-      uiButton({ id, label, ariaLabel: tooltip, size: 'sm', get activateOn() { return activation(); }, onPress: press, layout: { width: 'grow', height: 'grow' } })));
-    this.crafting = action('game.hud.crafting', 'C', 'Crafting · C', () => this.callbacks.toggleCrafting());
-    this.build = action('game.hud.build', 'B', 'Build', () => this.callbacks.toggleBuild?.());
-    this.system = action('game.hud.system', 'M', 'Menu · Escape', () => this.callbacks.openSystem());
-    for (const node of [this.crafting, this.build, this.system]) mount('hotbarVitals', node);
-    this.target = scoped(uiVitals({ id: 'game.hud.target', size: 'md', mirrored: true, values: () => this.model?.target?.values,
+    const action = (id: string, hotkey: string, icon: string, tooltip: string, press: () => void) => scoped(uiTooltip(tooltip,
+      uiHudAction({ id, label: tooltip, hotkey, icon, get activateOn() { return activation(); }, onPress: press, layout: { width: 'grow', height: 'grow' } })));
+    this.crafting = action('game.hud.crafting', 'C', 'hud.wrench', 'Crafting · C', () => this.callbacks.toggleCrafting());
+    this.build = action('game.hud.build', 'B', 'hud.hammer', 'Build · B', () => this.callbacks.toggleBuild?.());
+    this.system = action('game.hud.system', 'M', 'hud.gear', 'Menu · Escape', () => this.callbacks.openSystem());
+    for (const node of [this.system, this.build, this.crafting]) mount('hotbarVitals', node);
+    this.target = scoped(uiVitals({ id: 'game.hud.target', variant: 'card', size: 'md', values: () => this.model?.target?.values,
       tooltip: (kind, value) => vitalLabel(kind, value, false), portrait: uiViewport({ label: 'Target portrait', render: (context, bounds) => {
         const target = this.model?.target; if (target) this.painters.drawTargetPortrait(context, target.id, bounds);
       } }),
     })); mount('targetEffects', this.target);
-    const targetLabel = uiBadge({ id: 'game.hud.target-name', label: ' ', layout: { width: 'grow', height: 'grow' } }); targetLabel.focusable = true;
+    // The target's name sits over its card as outlined HUD text; the full name is in the tooltip.
+    const targetLabel = new UiElement({ id: 'game.hud.target-name', kind: 'badge', label: ' ', focusable: true, style: { width: 'grow', height: 'grow' },
+      paint: (element, { context, art, focused }) => {
+        const name = this.model?.target?.name; if (!art || !name) return; const r = element.rect;
+        drawOutlinedPixelText(context, art.pixel, fitPixelText(name.toUpperCase(), r.width - 2, 1, art.pixel.font), r.x + 1, r.y + Math.floor((r.height - 7) / 2), { color: focused ? UI_HUD_INK.gold : UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
+      } });
     this.targetName = uiTooltip(() => this.model?.target?.name ?? '', targetLabel); mount('targetEffects', this.targetName);
-    this.clear = scoped(uiButton({ id: 'game.hud.clear-target', label: 'X', ariaLabel: 'Clear target', size: 'sm', onPress: () => { const id = this.model?.target?.id; if (id) this.callbacks.clearTarget(id); }, layout: { width: 'grow', height: 'grow' } })); mount('targetEffects', this.clear);
+    this.clear = scoped(uiButton({ id: 'game.hud.clear-target', label: '', ariaLabel: 'Clear target', onPress: () => { const id = this.model?.target?.id; if (id) this.callbacks.clearTarget(id); },
+      layout: { width: 'grow', height: 'grow', padding: 0 },
+      face: (element, { context, art, hovered, focused, pressed }) => {
+        const r = element.rect, x = r.x + Math.floor((r.width - 16) / 2), y = r.y + Math.floor((r.height - 16) / 2) + (pressed ? 1 : 0);
+        paintUiSkin(context, art.skin.icon, hovered || focused ? 'glyph.cross.red' : 'glyph.cross.light', { x, y, width: 16, height: 16 });
+      } })); mount('targetEffects', this.clear);
     this.effects = uiStatusEffects({ id: 'game.hud.effects', effects: [], ticksPerSecond: 20,
       renderIcon: (context, bounds, effect) => { const actual = this.model?.effects.find(row => row.id === effect.id); if (actual) this.painters.drawEffect(context, bounds, actual.effectKind); },
       layout: { width: 'fit', height: uiFixed(24), shrink: 0 },
@@ -220,11 +254,11 @@ export class GameHud {
       return [page, view];
     })) as Record<'you' | 'status' | 'zone' | 'map', UiElement>;
     this.compactTabs = (['you', 'status'] as const).map(page => {
-      const tab = scoped(uiButton({ id: `game.hud.compact.tab.${page}`, label: page.toUpperCase(), size: 'sm', onPress: () => this.showCompactPage(page) }));
+      const tab = scoped(uiButton({ id: `game.hud.compact.tab.${page}`, label: page.toUpperCase(), size: 'sm', onPress: () => this.showCompactPage(page), face: compactTab }));
       mount('zoneMinimap', tab); return tab;
     });
-    this.compactZone = scoped(uiButton({ id: 'game.hud.compact.toggle-zone', label: 'ZONE', size: 'sm', onPress: () => this.showCompactPage(this.compactPage === 'zone' ? 'you' : 'zone') }));
-    this.compactMap = scoped(uiButton({ id: 'game.hud.compact.toggle-map', label: 'MAP', size: 'sm', onPress: () => this.showCompactPage(this.compactPage === 'map' ? 'you' : 'map') }));
+    this.compactZone = scoped(uiButton({ id: 'game.hud.compact.toggle-zone', label: 'ZONE', size: 'sm', face: compactTab, onPress: () => this.showCompactPage(this.compactPage === 'zone' ? 'you' : 'zone') }));
+    this.compactMap = scoped(uiButton({ id: 'game.hud.compact.toggle-map', label: 'MAP', size: 'sm', face: compactTab, onPress: () => this.showCompactPage(this.compactPage === 'map' ? 'you' : 'map') }));
     mount('zoneMinimap', this.compactZone); mount('zoneMinimap', this.compactMap);
     this.sync();
   }
@@ -269,13 +303,13 @@ export class GameHud {
     if (this.model?.touchControls?.enabled) {
       const lane = this.compactCenter, width = Math.min(170, lane.width);
       const barY = this.height - 6 - (this.width >= 306 ? 31 : 64);
-      const statusClearance = lane.width >= 200 ? 123 : 183;
+      const statusClearance = lane.width >= 200 ? 134 : 197;
       return { x: lane.x + Math.floor((lane.width - width) / 2), y: 100, width, height: Math.min(96, Math.max(38, barY - statusClearance - 100)) };
     }
     if (!this.compactQuestLayout) return undefined;
     const width = Math.min(170, Math.max(0, this.width - Math.max(28, Math.min(220, this.width - 168)) - 12));
     const barY = Math.max(0, this.height - 6 - (this.width >= 306 ? 31 : 64));
-    return { x: this.width - width - 4, y: 40, width, height: Math.max(0, barY - 65 - 40) };
+    return { x: this.width - width - 4, y: 40, width, height: Math.max(0, barY - 73 - 40) };
   }
   update(model: GameHudModel | null): void {
     if (model && model.ticksPerSecond !== 20) throw new Error('Game HUD expects the authoritative 20Hz clock');
@@ -313,43 +347,65 @@ export class GameHud {
     this.weapon.children[0]?.setProps({ selected: model.inventory.selectedSlot === model.inventory.mainHandIndex }, false);
     this.targetName.children[0]?.setProps({ label: model.target?.name ?? '' });
     this.effects.setProps({ effects: model.effects });
-    this.moon.setStyle({ visible: Boolean(model.zone.moon) }); this.player.setStyle({ visible: Boolean(model.player) }); this.hunger.setStyle({ visible: Boolean(model.player?.hunger) });
+    this.player.setStyle({ visible: Boolean(model.player) }); this.hunger.setStyle({ visible: Boolean(model.player?.hunger) });
     for (const node of [this.target, this.targetName, this.clear]) node.setStyle({ visible: Boolean(model.target) });
     this.effectViewport.setStyle({ visible: model.effects.length > 0 });
     this.compactEmptyStatus.setStyle({ visible: !model.target && model.effects.length === 0 });
     this.weapon.setStyle({ visible: model.controls?.weapon !== false }); this.crafting.setStyle({ visible: model.controls?.crafting !== false });
     this.build.setStyle({ visible: model.controls?.build === true && Boolean(this.callbacks.toggleBuild) }); this.system.setStyle({ visible: model.controls?.system !== false });
     const width = this.width, height = this.height, barWidth = width >= 306 ? 298 : 148, barHeight = width >= 306 ? 31 : 64;
-    const bottom = height - 6, barY = Math.max(0, bottom - barHeight), vitalsY = Math.max(0, barY - 42);
-    place(this.hotbarPanel, { x: Math.max(4, Math.floor((width - barWidth) / 2)), y: barY, width: Math.min(barWidth, width - 8), height: barHeight });
-    place(this.player, { x: 4, y: vitalsY, width: 96, height: 38 });
-    place(this.hunger, { x: 4, y: vitalsY - 9, width: 96, height: 7 });
-    place(this.target, { x: width - 100, y: vitalsY, width: 96, height: 38 });
-    place(this.targetName, { x: width - 100, y: vitalsY - 16, width: 70, height: 16 });
-    place(this.clear, { x: width - 28, y: vitalsY - 16, width: 24, height: 16 });
-    const middleX = Math.max(104, Math.floor(width / 2) - 52);
-    place(this.purse, { x: middleX, y: barY - 26, width: Math.max(0, Math.min(104, width - 208)), height: 22 });
-    place(this.weapon, { x: middleX, y: barY - 61, width: 28, height: 31 });
-    place(this.crafting, { x: middleX + 30, y: barY - 54, width: 24, height: 24 });
-    place(this.build, { x: middleX + 56, y: barY - 54, width: 24, height: 24 });
-    place(this.system, { x: middleX + 82, y: barY - 54, width: 24, height: 24 });
-    const zoneWidth = Math.max(28, Math.min(220, width - 168)), zoneHeight = this.zoneCollapsed ? 24 : model.zone.watch ? 54 : 34;
-    place(this.zonePanel, { x: 4, y: 4, width: this.zoneCollapsed ? 28 : zoneWidth, height: zoneHeight });
-    place(this.moon, { x: zoneWidth + 8, y: 4, width: 32, height: 32 });
-    place(this.map, { x: width - (this.effectiveMapCollapsed ? 28 : 116) - 4, y: 4, width: this.effectiveMapCollapsed ? 28 : 116, height: this.effectiveMapCollapsed ? 24 : Math.min(92, Math.max(56, vitalsY - 21)) });
-    place(this.effectViewport, { x: 4, y: zoneHeight + 8, width: Math.max(24, Math.min(height < 230 ? 96 : zoneWidth + 36, width - 132)), height: 28 });
+    const bottom = height - 6, barY = Math.max(0, bottom - barHeight);
+    const actions = [this.system, this.build, this.crafting].filter(node => node.style.visible !== false);
+    const weaponShown = this.weapon.style.visible !== false, purseWidth = Math.min(uiPurseWidth(model.inventory.balanceBronze), Math.max(0, width - 16));
+    const zoneModel = { ...model.zone, collapsed: this.zoneCollapsed }, zoneHeight = uiZoneHeaderHeight(zoneModel);
+    const zoneWidth = this.zoneCollapsed ? 28 : Math.min(uiZoneFlagWidth(model.zone.title) + 60, Math.max(156, width - 140)), flagWidth = Math.max(0, zoneWidth - 60);
+    const touch = model.touchControls?.enabled === true;
+    if (width >= HUD_WIDE && !touch) {
+      // Approved desktop HUD: shortcuts, hotbar and main hand in one centred row; the character card
+      // bottom-left under its hunger line, the purse bottom-right with the target card above it.
+      const row = actions.length * 30 + barWidth + (weaponShown ? 34 : 0), x0 = Math.floor((width - row) / 2) + actions.length * 30;
+      place(this.hotbarPanel, { x: x0, y: barY, width: barWidth, height: barHeight });
+      actions.forEach((node, index) => place(node, { x: x0 - (actions.length - index) * 30, y: barY, width: 28, height: 31 }));
+      place(this.weapon, { x: x0 + barWidth + 6, y: barY, width: 28, height: 31 });
+      place(this.player, { x: 8, y: height - 8 - 48, width: 96, height: 48 });
+      place(this.hunger, { x: 8, y: height - 8 - 48 - 13, width: 96, height: 11 });
+      place(this.purse, { x: width - 8 - purseWidth, y: height - 8 - 26, width: purseWidth, height: 26 });
+      const targetY = height - 8 - 26 - 8 - 48;
+      place(this.target, { x: width - 8 - 96, y: targetY, width: 96, height: 48 });
+      place(this.targetName, { x: width - 8 - 96, y: targetY - 14, width: 74, height: 12 });
+      place(this.clear, { x: width - 8 - 20, y: targetY - 17, width: 20, height: 16 });
+    } else {
+      // Narrow screens stack over the hotbar: card left, target right, shortcuts over the purse between.
+      place(this.hotbarPanel, { x: Math.max(4, Math.floor((width - barWidth) / 2)), y: barY, width: Math.min(barWidth, width - 8), height: barHeight });
+      const cardY = Math.max(0, barY - 4 - 48), middleX = Math.max(104, Math.floor(width / 2) - 56), gap = width - 208 >= 118 ? 2 : 0;
+      place(this.player, { x: 4, y: cardY, width: 96, height: 48 });
+      place(this.hunger, { x: 4, y: cardY - 13, width: 96, height: 11 });
+      place(this.target, { x: width - 100, y: cardY, width: 96, height: 48 });
+      place(this.targetName, { x: width - 100, y: cardY - 14, width: 74, height: 12 });
+      place(this.clear, { x: width - 24, y: cardY - 17, width: 20, height: 16 });
+      const middle = Math.max(0, Math.min(width - 208, 4 * 28 + 3 * gap));
+      place(this.purse, { x: middleX, y: barY - 30, width: Math.min(purseWidth, middle), height: 26 });
+      actions.forEach((node, index) => place(node, { x: middleX + index * (28 + gap), y: barY - 65, width: 28, height: 31 }));
+      place(this.weapon, { x: middleX + actions.length * (28 + gap), y: barY - 65, width: 28, height: 31 });
+    }
+    place(this.zonePanel, { x: 4, y: 4, width: zoneWidth, height: zoneHeight });
+    place(this.moon, { x: 4 + flagWidth + 3, y: 4, width: 24, height: 24 });
+    this.moon.setStyle({ visible: Boolean(model.zone.moon) && !this.zoneCollapsed });
+    const mapHeight = Math.min(touch ? 92 : 112, Math.max(56, (width >= HUD_WIDE && !touch ? height - 100 : barY - 70) - 8));
+    place(this.map, { x: width - (this.effectiveMapCollapsed ? 28 : 128) - 4, y: 4, width: this.effectiveMapCollapsed ? 28 : 128, height: this.effectiveMapCollapsed ? 24 : mapHeight });
+    place(this.effectViewport, { x: 4, y: zoneHeight + 8, width: Math.max(24, Math.min(height < 230 ? 104 : zoneWidth + 36, width - 140)), height: 28 });
     if (model.touchControls?.enabled && !this.compactTouchLayout) {
       // Keep full-size vital artwork in the lane between thumb banks. The
       // row above utilities has room in both landscape and tall portrait.
       const lane = this.compactCenter, paired = lane.width >= 200;
       const firstX = lane.x + Math.max(0, Math.floor((lane.width - (paired ? 200 : 96)) / 2));
       const targetX = paired ? firstX + 104 : firstX;
-      const targetY = barY - 103, playerY = paired ? targetY : targetY - 64;
-      place(this.player, { x: firstX, y: playerY, width: 96, height: 38 });
-      place(this.hunger, { x: firstX, y: playerY - 9, width: 96, height: 7 });
-      place(this.target, { x: targetX, y: targetY, width: 96, height: 38 });
-      place(this.targetName, { x: targetX, y: targetY - 16, width: 70, height: 16 });
-      place(this.clear, { x: targetX + 72, y: targetY - 16, width: 24, height: 16 });
+      const targetY = barY - 117, playerY = paired ? targetY : targetY - 67;
+      place(this.player, { x: firstX, y: playerY, width: 96, height: 48 });
+      place(this.hunger, { x: firstX, y: playerY - 13, width: 96, height: 11 });
+      place(this.target, { x: targetX, y: targetY, width: 96, height: 48 });
+      place(this.targetName, { x: targetX, y: targetY - 14, width: 74, height: 12 });
+      place(this.clear, { x: targetX + 76, y: targetY - 17, width: 20, height: 16 });
     }
     this.layoutCompact();
     for (const root of Object.values(this.roots)) root.arrange();
@@ -358,7 +414,7 @@ export class GameHud {
   }
   private layoutCompact(): void {
     const compact = this.compactTouchLayout;
-    const groups = { you: [this.player, this.hunger, this.purse, this.weapon, this.crafting, this.build, this.system],
+    const groups = { you: [this.hunger, this.player, this.system, this.build, this.crafting, this.weapon, this.purse],
       status: [this.target, this.targetName, this.clear, this.effectViewport], zone: [this.zonePanel], map: [this.map] };
     if (compact !== this.compactMounted) {
       for (const root of Object.values(this.roots)) root.input.cancelPointers();
@@ -380,26 +436,29 @@ export class GameHud {
     }
     place(this.compactZone, { x: 4, y: 4, width: 48, height: 24 });
     place(this.compactMap, { x: this.width - 52, y: 4, width: 48, height: 24 });
-    place(this.moon, { x: Math.floor(this.width / 2) - 16, y: 4, width: 32, height: 32 });
-    const contentWidth = Math.max(0, center.width - 16);
+    place(this.moon, { x: Math.floor(this.width / 2) - 12, y: 4, width: 24, height: 24 });
+    this.moon.setStyle({ visible: Boolean(this.model?.zone.moon) });
+    const contentWidth = Math.max(0, center.width - 16), zoneHeight = this.model ? uiZoneHeaderHeight({ ...this.model.zone, collapsed: false }) : 23;
     place(this.compactEmptyStatus, { x: 0, y: 0, width: contentWidth, height: 24 });
-    place(this.player, { x: 0, y: 0, width: 96, height: 38 });
-    place(this.hunger, { x: 0, y: 40, width: 96, height: 7 });
-    place(this.weapon, { x: 0, y: 51, width: 28, height: 31 });
-    place(this.crafting, { x: 30, y: 55, width: 24, height: 24 });
-    place(this.build, { x: 56, y: 55, width: 24, height: 24 });
-    place(this.system, { x: 82, y: 55, width: 24, height: 24 });
-    place(this.purse, { x: 0, y: 86, width: contentWidth, height: 22 });
-    place(this.targetName, { x: 0, y: 0, width: Math.max(0, contentWidth - 28), height: 16 });
-    place(this.clear, { x: Math.max(0, contentWidth - 24), y: 0, width: 24, height: 16 });
-    place(this.target, { x: 0, y: 18, width: 96, height: 38 });
-    place(this.effectViewport, { x: 0, y: 60, width: contentWidth, height: 28 });
-    place(this.zonePanel, { x: 0, y: 0, width: contentWidth, height: this.model?.zone.watch ? 54 : 34 });
-    place(this.map, { x: 0, y: 0, width: contentWidth, height: 92 });
-    this.compactBodies.you.setStyle({ height: uiFixed(112) });
-    this.compactBodies.status.setStyle({ height: uiFixed(92) });
-    this.compactBodies.zone.setStyle({ height: uiFixed(this.model?.zone.watch ? 54 : 34) });
-    this.compactBodies.map.setStyle({ height: uiFixed(92) });
+    // YOU: hunger over the card, then the shortcuts and the purse.
+    place(this.hunger, { x: 0, y: 0, width: 96, height: 11 });
+    place(this.player, { x: 0, y: 13, width: 96, height: 48 });
+    place(this.system, { x: 0, y: 65, width: 28, height: 31 });
+    place(this.build, { x: 30, y: 65, width: 28, height: 31 });
+    place(this.crafting, { x: 60, y: 65, width: 28, height: 31 });
+    place(this.weapon, { x: 90, y: 65, width: 28, height: 31 });
+    place(this.purse, { x: 0, y: 100, width: Math.min(contentWidth, this.model ? uiPurseWidth(this.model.inventory.balanceBronze) : contentWidth), height: 26 });
+    // STATUS: the target's name and clear over its card, then the effect strip.
+    place(this.targetName, { x: 0, y: 2, width: Math.max(0, Math.min(74, contentWidth - 24)), height: 12 });
+    place(this.clear, { x: Math.max(0, Math.min(76, contentWidth - 20)), y: 0, width: 20, height: 16 });
+    place(this.target, { x: 0, y: 18, width: 96, height: 48 });
+    place(this.effectViewport, { x: 0, y: 70, width: contentWidth, height: 28 });
+    place(this.zonePanel, { x: 0, y: 0, width: contentWidth, height: zoneHeight });
+    place(this.map, { x: 0, y: 0, width: Math.min(contentWidth, 128), height: 112 });
+    this.compactBodies.you.setStyle({ height: uiFixed(126) });
+    this.compactBodies.status.setStyle({ height: uiFixed(98) });
+    this.compactBodies.zone.setStyle({ height: uiFixed(zoneHeight) });
+    this.compactBodies.map.setStyle({ height: uiFixed(112) });
   }
   draw(context: CanvasRenderingContext2D, surface?: GameHudSurface): void {
     const surfaces = (surface ? [surface] : Object.keys(this.roots) as GameHudSurface[]).filter(key => this.isVisible(key));

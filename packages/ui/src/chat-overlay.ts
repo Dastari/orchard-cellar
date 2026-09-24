@@ -6,6 +6,7 @@ import { CanvasTextEditor } from './kit/runtime/text-editor.js';
 import { uiFixed } from './kit/layout/box.js';
 import { chatCommandSuggestions } from './chat-command.js';
 import { touchControlLayout } from './touch-controls.js';
+import { gameHudCharacterTop } from './game-host/hud.js';
 
 export const CHAT_FADE_DELAY_MS = 8_000;
 export const CHAT_FADE_DURATION_MS = 4_000;
@@ -124,7 +125,8 @@ export function chatOverlayLayout(
     controls.secondaryButton.y,
   ) - 5;
   const keyboardTop = keyboardInset > 0 ? model.height - keyboardInset - 5 : Number.POSITIVE_INFINITY;
-  const ordinaryBottom = model.height - 38;
+  // Without touch controls the chat stands on the HUD's character card and hunger line.
+  const ordinaryBottom = touch ? model.height - 38 : gameHudCharacterTop(model.width, model.height) - 4;
   const inputBottom = Math.min(ordinaryBottom, controlsTop, keyboardTop);
   const inputY = Math.max(8, Math.floor(inputBottom - CHAT_INPUT_HEIGHT));
   const input = { x: 5, y: inputY, width, height: CHAT_INPUT_HEIGHT };

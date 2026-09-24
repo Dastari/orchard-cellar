@@ -148,6 +148,6 @@ it('does not jump sideways while dragging out of a temporary narrow HUD region',
   tracker.update({width:320,height:180,entries:[entry],layoutRegion:{x:160,y:40,width:156,height:38}});
   const start = point(tracker); pointer(tracker,'down',start);
   const next = {x:start.x-20,y:start.y+12}; pointer(tracker,'move',next);
-  expect(tracker.currentBounds).toEqual({x:140,y:52,width:170,height:52});
-  pointer(tracker,'up',next); expect(tracker.currentBounds).toEqual({x:140,y:52,width:170,height:52}); tracker.dispose();
+  expect(tracker.currentBounds).toEqual({x:140,y:52,width:170,height:46});
+  pointer(tracker,'up',next); expect(tracker.currentBounds).toEqual({x:140,y:52,width:170,height:46}); tracker.dispose();
 });

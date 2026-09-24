@@ -62,8 +62,8 @@ describe('production shared HUD compositions', () => {
     root.key({ key: 'Enter' }); expect(zoom.disabled).toBe(true); expect(root.entries().some(row => row.element.label === 'MAP 4X')).toBe(true);
     f.click('zoneMinimap', 'hud.online-players'); expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();
     f.click('zoneMinimap', 'hud.zone'); expect(f.node('zoneMinimap', 'hud.zone.expand')).toBe(root.focus.current);
-    expect(f.host.minimapBounds.width).toBe(116); f.click('zoneMinimap', 'hud.minimap'); expect(f.host.minimapBounds.width).toBe(28);
-    expect(root.focus.current).toBe(f.node('zoneMinimap', 'hud.minimap.expand')); root.key({ key: 'Enter' }); expect(f.host.minimapBounds.width).toBe(116);
+    expect(f.host.minimapBounds.width).toBe(128); f.click('zoneMinimap', 'hud.minimap'); expect(f.host.minimapBounds.width).toBe(28);
+    expect(root.focus.current).toBe(f.node('zoneMinimap', 'hud.minimap.expand')); root.key({ key: 'Enter' }); expect(f.host.minimapBounds.width).toBe(128);
   });
   it('keeps background drawing separate from input eligibility and passes uncovered world gestures through', () => {
     const f = fixture(), runtime = new GameUiRuntime(); let eligible = true;
@@ -167,7 +167,7 @@ describe('BUG-029 combined compact touch and HUD', () => {
  it('scrolls every full-size utility/status control into view without firing down actions, and preserves focus/scroll on echoes',()=>{
   const f=fixture();f.host.update(touchModel()); const root=f.host.roots.hotbarVitals;
   const area=f.node('hotbarVitals','game.hud.compact.you'); expect(area.scroll.maxY).toBeGreaterThan(50);
-  const character=f.node('hotbarVitals','game.hud.character'); expect(character.rect.width).toBe(96);expect(character.rect.height).toBe(38);
+  const character=f.node('hotbarVitals','game.hud.character'); expect(character.rect.width).toBe(96);expect(character.rect.height).toBe(48);
   const show=(surface:GameHudSurface,id:string,area:UiElement)=>{const element=f.node(surface,id); f.host.roots[surface].focus.set(element,'keyboard');f.host.roots[surface].arrange();expect(element.clip.height).toBeGreaterThanOrEqual(Math.min(element.rect.height,area.contentRect.height));return element;};
   const purse=show('hotbarVitals','game.hud.purse:button',area),start=f.point(purse);
   root.pointer({type:'down',point:start,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();
@@ -256,7 +256,8 @@ describe('BUG-029 combined compact touch and HUD', () => {
   const online=f.node('zoneMinimap','hud.online-players'),q=f.point(online);f.host.roots.zoneMinimap.pointer({type:'down',point:q,pointerId:2,button:0});expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();f.host.roots.zoneMinimap.pointer({type:'up',point:q,pointerId:2,button:0});expect(f.callbacks.openOnlinePlayers).toHaveBeenCalledOnce();
  });
  it('defers scrollable zone/map release intent, keeps secondary touch inert and preserves ordinary default-down controls',()=>{
-  const f=fixture(); f.click('hotbarVitals','game.hud.purse:button');expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();f.callbacks.toggleInventory.mockClear();f.host.update(touchModel());
+  const f=fixture(); f.click('hotbarVitals','game.hud.purse:button');expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();f.callbacks.toggleInventory.mockClear();// The compact zone page scrolls once its lines outgrow the view: a danger status adds one.
+  f.host.update({...touchModel(),zone:{...touchModel().zone,subtitle:'Hearth danger rising'}});
   f.click('zoneMinimap','game.hud.compact.toggle-zone'); const root=f.host.roots.zoneMinimap,area=f.node('zoneMinimap','game.hud.compact.zone');
   const online=f.node('zoneMinimap','hud.online-players');root.focus.set(online,'keyboard');root.arrange();const p=f.point(online);
   root.pointer({type:'down',point:p,pointerId:1,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.openOnlinePlayers).not.toHaveBeenCalled();
