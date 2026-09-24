@@ -341,9 +341,72 @@ export function raisedTerrainStairFrameIndex(
   const course = crossing.endpoint === 'lower'
     ? bank.base
     : crossing.continued
-      ? bank.treads[Math.abs(entry.contourLevel) % bank.treads.length] ?? bank.treads[0]!
+      ? bank.treads[Math.abs(entry.contourLevel) % Math.max(1, bank.treads.length)] ?? bank.crest
       : bank.crest;
   return frameForRampCourse(course, crossing.laneIndex, crossing.width);
+}
+
+/** One screen row of a stair flight: `screenTileY` is the tile row the frame is
+ * painted on after height projection (map row minus the projected rows). */
+export interface RaisedTerrainStairColumnCourse {
+  readonly screenTileY: number;
+  readonly frame: number;
+  readonly course: 'crest' | 'tread' | 'base';
+}
+
+/** Full-height stair flight (owner rule, 2026-09-24): the top step of a flight
+ * draws the whole flight, so it climbs the visible cliff from the ground to the
+ * top. The crest sits on the rim row; treads (alternating courses) cover every
+ * row down to the foot row of the cliff wall beside the stair; the base course
+ * (the bank's contact shadow) lies on the ground row below. Only the top upper
+ * endpoint returns a column; every other stair entry draws nothing. */
+export function raisedTerrainStairColumn(
+  terrain: TerrainArray,
+  entry: Pick<RaisedTerrainDepthEntry, 'tileX' | 'tileY' | 'contourLevel' | 'plan' | 'visualProjectionRows' | 'baseDatum'>,
+): readonly RaisedTerrainStairColumnCourse[] | null {
+  const bank = raisedCliffTileSetFor(terrain, entry.tileX, entry.tileY).rampBank;
+  if (bank === null || entry.plan.rampRole === null) return null;
+  const crossing = rampTransitionAtEntry(terrain, entry);
+  if (crossing === null || crossing.endpoint !== 'upper' || crossing.continued) return null;
+  const transitions = terrain.terrainTransitions ?? [];
+  const projected = (contourLevel: number) => raisedTerrainVisualOffset({
+    contourLevel, visualProjectionRows: entry.visualProjectionRows, baseDatum: entry.baseDatum,
+  }) / TILE_SIZE_PIXELS;
+  // Walk down the flight to its bottom crossing.
+  let contour = entry.contourLevel;
+  let lowerX = crossing.transition.lowerTileX;
+  let lowerY = crossing.transition.lowerTileY;
+  for (;;) {
+    const below = transitions.find((t) => t.contourLevel === contour - 1
+      && t.kind === crossing.transition.kind && t.direction === crossing.transition.direction
+      && t.upperTileX === lowerX && t.upperTileY === lowerY);
+    if (below === undefined) break;
+    contour -= 1;
+    lowerX = below.lowerTileX;
+    lowerY = below.lowerTileY;
+  }
+  const topRow = entry.tileY - projected(entry.contourLevel);
+  // The foot row is where the cliff wall beside the stair ends (either flank).
+  // Without wall rows (a flat rim such as basic) the flight covers its own map
+  // rows, and the base course lands on the bottom lower endpoint.
+  const firstLaneX = entry.tileX - crossing.laneIndex;
+  let footRow = Math.max(topRow, lowerY - projected(contour) - 1);
+  for (const flankX of [firstLaneX - 1, firstLaneX + crossing.width]) {
+    for (let k = 0; k < 8; k += 1) {
+      const plan = plateauLayerPlansAt(terrain, flankX, lowerY + k).find((layer) => layer.contourLevel === contour)?.plan;
+      if (!plan?.faceLayers.some((face) => face.direct)) break;
+      footRow = Math.max(footRow, lowerY + k - projected(contour));
+    }
+  }
+  const frame = (course: RaisedTerrainRampBankCourse) => frameForRampCourse(course, crossing.laneIndex, crossing.width);
+  const column: RaisedTerrainStairColumnCourse[] = [{ screenTileY: topRow, frame: frame(bank.crest), course: 'crest' }];
+  for (let row = topRow + 1, i = 0; row <= footRow; row += 1, i += 1) {
+    // Banks without tread art (basic's stair block) repeat the crest course.
+    const tread = bank.treads.length > 0 ? bank.treads[i % bank.treads.length]! : bank.crest;
+    column.push({ screenTileY: row, frame: frame(tread), course: 'tread' });
+  }
+  column.push({ screenTileY: footRow + 1, frame: frame(bank.base), course: 'base' });
+  return column;
 }
 
 export function raisedTerrainLadderFrameIndex(
@@ -416,7 +479,7 @@ function drawEntryStratum(
   const cliffAsset = art.terrainAssets[tileSet.assetId] ?? art.cliff;
   const waterfallFrame = raisedTerrainWaterfallFrameIndex(terrain, entry, stratum);
   const stairCrossing = tileSet.rampBank === null ? null : rampTransitionAtEntry(terrain, entry);
-  const stairFrame = stratum === 'cap' ? raisedTerrainStairFrameIndex(terrain, entry) : null;
+  const stairColumn = stratum === 'cap' && stairCrossing !== null ? raisedTerrainStairColumn(terrain, entry) : null;
   context.save();
   context.translate(0, -raisedTerrainVisualOffset(entry) * scale);
   if (waterfallFrame !== null) {
@@ -434,16 +497,13 @@ function drawEntryStratum(
     return;
   }
   if (stairCrossing !== null) {
-    if (stairFrame !== null) drawTerrainAsset(
-      context,
-      art.terrainAssets[tileSet.rampBank?.assetId ?? tileSet.assetId] ?? cliffAsset,
-      stairFrame,
-      entry.tileX,
-      entry.tileY,
-      cameraX,
-      cameraY,
-      scale,
-    );
+    // The flight's top step paints the whole full-height column; the context
+    // is translated by this entry's projection, so add it back per row.
+    const projectedRows = raisedTerrainVisualOffset(entry) / TILE_SIZE_PIXELS;
+    const stairAsset = art.terrainAssets[tileSet.rampBank?.assetId ?? tileSet.assetId] ?? cliffAsset;
+    for (const course of stairColumn ?? []) {
+      drawTerrainAsset(context, stairAsset, course.frame, entry.tileX, course.screenTileY + projectedRows, cameraX, cameraY, scale);
+    }
     context.restore();
     return;
   }

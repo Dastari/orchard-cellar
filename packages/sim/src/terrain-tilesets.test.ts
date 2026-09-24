@@ -121,12 +121,23 @@ describe('terrain family registries', () => {
   });
 
   it('maps every authored ramp-bank crest directly to left, middle, right rails', () => {
-    for (const family of Object.values(TERRAIN_CLIFF_FAMILIES)) {
-      if (!family.available || family.tileSet.rampBank === null) continue;
+    for (const [id, family] of Object.entries(TERRAIN_CLIFF_FAMILIES)) {
+      if (!family.available || family.tileSet.rampBank === null || id === 'basic') continue;
       expect(family.tileSet.rampBank.crest).toEqual({
         left: 0, middle: [1], right: 2,
       });
     }
+  });
+
+  it('gives basic its fixed two-lane brown-rim stair block from the grass_1 sheet', () => {
+    // Grass_Tiles_1.png columns 6-7, rows 0-1 (16 columns): top row in the rim, bottom row on the ground.
+    expect(TERRAIN_CLIFF_FAMILIES.basic.tileSet.rampBank).toEqual({
+      assetId: 'tile_cf_grass_1_sheet',
+      crest: { left: 6, middle: [], right: 7 },
+      treads: [],
+      base: { left: 22, middle: [], right: 23 },
+      intentionalRoleFrameReuse: [],
+    });
   });
 
   it('registers all four grass sheets with their own fill, fringe, and verified wide banks', () => {

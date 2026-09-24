@@ -276,7 +276,19 @@ const BASIC: RaisedTerrainTileSet = {
     inner_bottom_right: 9, inner_bottom_left: 10,
     inner_top_right: 12, inner_top_left: 13,
   },
-  rampFrames: {}, rampBank: null, ledgeBank: TERRAIN_SURFACE_FAMILIES.grass_1.ledgeBank,
+  rampFrames: {},
+  // The free sheet has no stairs; the matching brown-rim stair block is on the
+  // grass_1 surface sheet (Grass_Tiles_1.png, columns 6-7, rows 0-1): the top
+  // row sits in the rim, the bottom row on the ground below. It is exactly two
+  // lanes wide (no middle column) and the flat rim has no wall rows to tread.
+  rampBank: {
+    assetId: 'tile_cf_grass_1_sheet',
+    crest: { left: 6, middle: [], right: 7 },
+    treads: [],
+    base: { left: 22, middle: [], right: 23 },
+    intentionalRoleFrameReuse: [],
+  },
+  ledgeBank: TERRAIN_SURFACE_FAMILIES.grass_1.ledgeBank,
   stairFrames: null, ladderFrames: null,
   // The free 3x6 sheet is a flat surface rim with no authored vertical wall
   // bank. Keep its projection contract at zero instead of emitting invisible

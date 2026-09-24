@@ -1,5 +1,5 @@
 {
-  "source": "origin/main 2e1d9a4f; 14 reviewed cliff hashes refreshed against PR62 98732c7e",
+  "source": "origin/main 2e1d9a4f; 14 reviewed cliff hashes refreshed against PR62 98732c7e; raised/basic/declaration refreshed for the basic two-lane stair block (owner stair rule, 2026-09-24)",
   "assetNames": [
     "action_cf_base",
     "action_cf_hair_1_brown",
@@ -1222,7 +1222,7 @@
   "hashes": {
     "raised/basic/tall/false": "60e7c3241c75147988123b8a29733ad0a24ab1ace7d411a38b5272ef5ed0d983",
     "raised/basic/tall/true": "5a10d7454fb53d25ecb2f2fd4ff9ec8c812433ecf9ec7436ff229243550b3655",
-    "raised/basic/declaration": "88e6659d7e1bcb9a48fe56f92389a3a45d9c1c799ba4eaf8d84caecdc405898f",
+    "raised/basic/declaration": "48b12d8e663eb8971938663d23a0dac8a6ea00afcaf47abcce516a672a5404dd",
     "raised/stone_1/tall/false": "8a6799d69656c2b2e37db30db9f5a1e753a187a2f7dff4002b1891f4f6699358",
     "raised/stone_1/tall/true": "b96d3060a42cdd351ca33eeb1749c904d2f1793e8a9c3dcb20017c6dd96d71f0",
     "raised/stone_1/declaration": "fa98b47397ab2e6e94835f7767f14ad0346f32dfe4ac1d27d4577df80a63bd41",

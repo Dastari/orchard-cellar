@@ -147,6 +147,11 @@ export function terrainTransitionCapability(
     code: 'transition_family_art_unavailable',
     message: `Cliff family ${familyId} has no registered north/up slope ramp-bank art.`,
   };
+  if (tileSet.rampBank.crest.middle.length === 0 && width !== 2) return {
+    supported: false,
+    code: 'transition_bank_width_unavailable',
+    message: `Cliff family ${familyId} has a fixed two-lane stair block (no middle lane art).`,
+  };
   return {
     supported: true,
     code: 'transition_supported',
@@ -382,8 +387,10 @@ function roleAsset(definition: TilesetContentDefinition, group: TilesetRoleGroup
   return definition.roleFrames.find((entry) => entry.group === group)?.assetId;
 }
 
+/** Three or more frames: left rail, repeatable middle, right rail. Exactly two:
+ * a fixed two-lane stair block (basic's brown-rim stairs) with no middle lane. */
 function rampCourse(frames: readonly number[] | undefined): RaisedTerrainRampBankCourse | null {
-  if (frames === undefined || frames.length < 3) return null;
+  if (frames === undefined || frames.length < 2) return null;
   return { left: frames[0]!, middle: frames.slice(1, -1), right: frames[frames.length - 1]! };
 }
 
@@ -436,7 +443,8 @@ export function runtimeTileSetFromDefinition(definition: TilesetContentDefinitio
       ...(rampCrest === null ? {} : { ramp_top_left: rampCrest.left, ramp_top_middle: rampCrest.middle[0], ramp_top_right: rampCrest.right }),
       ...(rampBase === null ? {} : { ramp_bottom_left: rampBase.left, ramp_bottom_middle: rampBase.middle[0], ramp_bottom_right: rampBase.right }),
     } : {},
-    rampBank: !ramp.available || rampCrest === null || rampBase === null || rampTreads.length === 0
+    rampBank: !ramp.available || rampCrest === null || rampBase === null
+      || (rampTreads.length === 0 && rampCrest.middle.length > 0)
       ? null : { assetId: ramp.assetId, crest: rampCrest, treads: rampTreads, base: rampBase },
     ledgeBank,
     stairFrames: stairTop === null || stairMiddle === null || stairBottom === null
@@ -493,14 +501,26 @@ function validateTransition(
     const bankVariant = variants.has('crest') || variants.has('base')
       || [...variants.keys()].some((id) => id.startsWith('tread.'));
     if (bankVariant) {
-      for (const id of ['crest', 'base']) {
-        if ((variants.get(id)?.length ?? 0) < 3) {
-          errors.push(finding('invalid_tileset_transition', `transitions.ramp.${id}`, `${id} requires left, middle, right frames`));
-        }
-      }
       const treads = [...variants].filter(([id]) => id.startsWith('tread.'));
-      if (treads.length === 0 || treads.some(([, frames]) => frames.length < 3)) {
-        errors.push(finding('invalid_tileset_transition', 'transitions.ramp.variants', 'ramp requires a three-lane tread variant'));
+      // A fixed two-lane stair block: crest and base of exactly two frames and
+      // no tread rows (a flat rim with no wall rows, e.g. the basic family).
+      const fixedBlock = variants.get('crest')?.length === 2;
+      if (fixedBlock) {
+        if (variants.get('base')?.length !== 2) {
+          errors.push(finding('invalid_tileset_transition', 'transitions.ramp.base', 'a two-lane stair block needs a two-frame base'));
+        }
+        if (treads.length > 0) {
+          errors.push(finding('invalid_tileset_transition', 'transitions.ramp.variants', 'a two-lane stair block has no tread rows'));
+        }
+      } else {
+        for (const id of ['crest', 'base']) {
+          if ((variants.get(id)?.length ?? 0) < 3) {
+            errors.push(finding('invalid_tileset_transition', `transitions.ramp.${id}`, `${id} requires left, middle, right frames`));
+          }
+        }
+        if (treads.length === 0 || treads.some(([, frames]) => frames.length < 3)) {
+          errors.push(finding('invalid_tileset_transition', 'transitions.ramp.variants', 'ramp requires a three-lane tread variant'));
+        }
       }
     } else {
       const directRoles = [
