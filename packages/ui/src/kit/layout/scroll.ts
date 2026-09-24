@@ -10,6 +10,9 @@ export function scrollUiElement(node: UiElement, x: number, y: number): boolean 
   node.hooks.onScroll?.(node); node.invalidateRoot?.(false); return true;
 }
 export function uiScrollThumb(node: UiElement, axis: 'x' | 'y'): { track: UiRect; thumb: UiRect } | null {
+  // Presentation owners may hide scroll chrome without losing content or offsets.
+  // The same geometry drives painting and thumb hit testing. Other consumers default on.
+  if (node.props['scrollbarVisible'] === false) return null;
   const mode = node.style.overflow ?? 'clip';
   if (mode === 'clip' || (axis === 'y' && mode === 'scroll-x') || (axis === 'x' && mode === 'scroll-y')) return null;
   const vertical = axis === 'y', maximum = vertical ? node.scroll.maxY : node.scroll.maxX;
