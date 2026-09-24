@@ -20,6 +20,8 @@
     "render:cave-autotile": "tsx src/render-cave-autotile-review.ts",
     "render:cliff-family": "tsx src/render-cliff-family-review.ts",
     "render:rogue-rooms": "tsx src/render-rogue-room-review.ts",
+    "render:gear-samples": "tsx src/render-gear-samples.ts",
+    "render:gear-catalogue": "tsx src/render-gear-catalogue.ts",
     "map:create": "tsx src/map-editor.ts create",
     "map:stroke": "tsx src/map-editor.ts stroke",
     "map:contour": "tsx src/map-editor.ts contour",
