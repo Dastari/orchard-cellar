@@ -82,10 +82,18 @@ export function uiChat(options: UiChatOptions): UiChatElement {
   const panel = new UiElement({ kind: 'chat-history-panel', pointerMode: 'capture', props: { tone: 'primary', touchScroll: true, singlePointer: true },
     style: { width: 'grow', height: 'grow', minHeight: uiFixed(0), padding: 8 }, children: [history],
     onPointer(event) { if (event.type === 'down' && event.button === 0) { event.capture(); return true; } if (event.type === 'up' && event.button === 0) { activateHistory(); event.release(); } return true; },
-    paint(element, { context, art }) {
+    paint(element, { context, art, now }) {
+      paintedAt = now;
       if (art && (uiChatHistoryExpanded(model.touch, model.open, model.hovered))) { context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); }
     },
   });
+  // BUG-038: the history takes clicks only while chat is open or a recent line is still showing. Once every
+  // line has faded the area lets world clicks through (a disabled subtree is skipped by hit testing). Hover is
+  // observed on the shell, so pointing at the faded area still re-reveals the history (BUG-034), and the
+  // shell scrolls a hover-revealed history with the wheel; a mouse click there reaches the world.
+  let paintedAt = 0;
+  const historyShown = () => model.open || model.lines.some(line => uiChatLineAlpha(paintedAt - line.arrivedAt, false) > 0);
+  const syncHistoryInput = () => { const idle = !historyShown(); if (panel.disabled !== idle) panel.setDisabled(idle); };
   const baseInput = uiInput({ id: 'chat.input', label: 'Chat message or command', editor, placeholder: 'Say to General',
     onChange: () => { historyNavigation = false; options.onChange(); }, onSubmit: value => { if (!editor.snapshot().composing) options.onSubmit(value); }, layout: { width: 'grow', shrink: 0 } });
   const input = new UiElement({ ...baseInput.hooks, onPointer(event, element) {
@@ -137,11 +145,16 @@ export function uiChat(options: UiChatOptions): UiChatElement {
   const hoveredControl = () => hoverPoint !== null && (containsPoint(toggle.rect, hoverPoint) || !model.collapsed && (panel.visible && containsPoint(panel.rect, hoverPoint) || model.open && (containsPoint(input.rect, hoverPoint) || model.suggestions.length > 0 && containsPoint(suggestions.rect, hoverPoint))));
   const shell = new UiElement({ ...baseShell.hooks, props: { touchScroll: true }, children: [...baseShell.children],
     onHover: hovered => options.onHover?.(hovered && hoveredControl()),
+    onWheel(event) {
+      if (!panel.disabled || !uiChatHistoryExpanded(model.touch, model.open, model.hovered) || !containsPoint(history.clip, event.point)) return false;
+      return scrollUiElement(history, history.scroll.x, history.scroll.y + (event.deltaY || event.deltaX));
+    },
     onPointerObserved(event) {
       hoverPoint = event.type === 'cancel' ? null : event.point; options.onHover?.(hoveredControl());
       if (event.type === 'down' && containsPoint(history.clip, event.point)) historyClickAllowed = event.button === 0;
     },
     onArrange(element) {
+      syncHistoryInput();
       const compact = element.rect.height < 90;
       const historyVisible = !model.collapsed && (!model.open || !compact);
       if (panel.visible !== historyVisible) panel.setStyle({ visible: historyVisible });
@@ -172,6 +185,7 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     if (model.suggestionIndex !== next.suggestionIndex) revealSuggestion = true;
     model = next;
     history.setProps({ scrollbarVisible: uiChatHistoryExpanded(model.touch, model.open, model.hovered) }, false);
+    syncHistoryInput();
     const draft = editor.snapshot().value; if (draft !== previousDraft) { previousDraft = draft; historyNavigation = false; }
     shell.setDisabled(model.blocked);
     toggle.setProps({ tone: model.unread ? 'success' : 'primary' });
