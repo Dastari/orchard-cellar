@@ -1,4 +1,4 @@
-import { DEFAULT_TOUCH_CONTROL_PREFERENCES, normalizeTouchControlPreferences, touchControlLayout, touchDirectionFromDelta,
+import { DEFAULT_TOUCH_CONTROL_PREFERENCES, TOUCH_ACTION_KEY_CODES, normalizeTouchControlPreferences, touchActionKeyLabel, touchControlLayout, touchDirectionFromDelta,
   type TouchControlAction, type TouchControlPreferences, type TouchDirection } from '../../touch-control-layout.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -8,8 +8,8 @@ import { paintUiSkin } from './art.js';
 import { paintUiTouchDisc, paintUiTouchKnob, paintUiTouchPad, type UiTouchTone } from './touch-game.js';
 export type UiTouchAction = Exclude<TouchControlAction, 'movement'>;
 const TOUCH_DISCS: Record<UiTouchAction, { readonly tone: UiTouchTone; readonly icon: string; readonly key: string }> = {
-  interact: { tone: 'success', icon: 'touch.hand', key: 'E' }, secondary: { tone: 'primary', icon: 'touch.tool', key: 'F' },
-  jump: { tone: 'primary', icon: 'touch.jump', key: 'SPACE' }, dodge: { tone: 'info', icon: 'touch.dodge', key: 'V' },
+  interact: { tone: 'success', icon: 'touch.hand', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.interact) }, secondary: { tone: 'primary', icon: 'touch.tool', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.secondary) },
+  jump: { tone: 'primary', icon: 'touch.jump', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.jump) }, dodge: { tone: 'info', icon: 'touch.dodge', key: touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.dodge) },
   block: { tone: 'danger', icon: 'touch.block', key: 'HOLD' },
 };
 export interface UiTouchControlsOptions {

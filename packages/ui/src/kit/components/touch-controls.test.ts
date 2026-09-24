@@ -13,3 +13,13 @@ it('keeps simultaneous pointers on one action held until both release, and a sec
  send('down',1);send('down',2);expect(view.isHeld('block')).toBe(true);expect(onAction).toHaveBeenCalledTimes(2);send('up',1);expect(view.isHeld('block')).toBe(true);send('cancel',2);expect(view.isHeld('block')).toBe(false);
  send('down',3,layout.joystickCenter);send('move',3,{x:layout.joystickCenter.x+20,y:layout.joystickCenter.y});expect(view.direction).toBe('right');send('down',4,layout.joystickCenter);send('move',4,{x:layout.joystickCenter.x-20,y:layout.joystickCenter.y});expect(view.direction).toBe('right');send('up',3,layout.joystickCenter);expect(view.direction).toBe('idle');root.dispose();
 });
+
+it('labels the dodge disc with the key the world actually binds', async () => {
+  const { TOUCH_ACTION_KEY_CODES, touchActionKeyLabel } = await import('../../touch-control-layout.js');
+  expect(TOUCH_ACTION_KEY_CODES.dodge).toBe('KeyR');
+  expect(touchActionKeyLabel(TOUCH_ACTION_KEY_CODES.dodge)).toBe('R');
+  const { uiTouchControls } = await import('./touch-controls.js');
+  const controls = uiTouchControls({ placement: 'hud', keyboard: false });
+  const dodge = controls.children.find(child => child.props['touchAction'] === 'dodge')!;
+  expect(dodge.props['label']).toBe('R');
+});
