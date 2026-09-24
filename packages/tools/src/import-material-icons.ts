@@ -22,7 +22,7 @@ for (const entry of manifest.imports) {
 for (const entry of manifest.imports) {
   const [x, y] = entry.crop;
   execFileSync(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('packages/tools/src/import-image.ts', workspaceRoot)),
-    entry.source, '--size', '16x16', '--crop', `${x},${y}`, '--name', entry.asset, '--category', 'ui'],
+    entry.source, '--size', '16x16', '--crop', `${x},${y}`, '--name', entry.asset, '--category', 'ui', '--exact-palette'],
   { cwd: fileURLToPath(workspaceRoot), stdio: 'pipe' });
   const output = new URL(`packages/assets/ui/${entry.asset}.sprite.json`, workspaceRoot);
   const asset = JSON.parse(await readFile(output, 'utf8')) as Record<string, unknown>;
