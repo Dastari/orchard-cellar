@@ -1,0 +1,63 @@
+{
+  "name": "icon_material_steel_bar",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......00.......",
+        "......01100.....",
+        ".....01221100...",
+        "....0122332110..",
+        "...012222331440.",
+        "..0122323314340.",
+        ".04411233133440.",
+        ".0433211123440..",
+        ".043332123440...",
+        ".00433213340....",
+        "...00221340.....",
+        ".....00140......",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#858585",
+    "2": "#5d5d5d",
+    "3": "#3d3d3d",
+    "4": "#272727"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    144,
+    240,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

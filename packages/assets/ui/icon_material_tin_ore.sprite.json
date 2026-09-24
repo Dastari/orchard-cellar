@@ -1,0 +1,68 @@
+{
+  "name": "icon_material_tin_ore",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........0000....",
+        ".......012310...",
+        "......01233440..",
+        "....0001334450..",
+        "...02301145000..",
+        "..0234000503230.",
+        "..0140231041330.",
+        "..0602331104140.",
+        ".07703314485550.",
+        ".07901444588580.",
+        ".0759085585580..",
+        "..05595885580...",
+        "...005888880....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#92a1b9",
+    "2": "#ffffff",
+    "3": "#c7cfdd",
+    "4": "#657392",
+    "5": "#424c6e",
+    "6": "#c0cbdc",
+    "7": "#8e9ab4",
+    "8": "#2a2f4e",
+    "9": "#6c7c9d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    0,
+    208,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

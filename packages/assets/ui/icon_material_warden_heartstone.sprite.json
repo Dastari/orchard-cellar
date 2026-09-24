@@ -1,0 +1,68 @@
+{
+  "name": "icon_material_warden_heartstone",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        "....00122200....",
+        "...0113344250...",
+        "..011334466250..",
+        "..013443446650..",
+        ".01343444446650.",
+        ".02344464476780.",
+        ".02434446667780.",
+        ".02444444666780.",
+        "..026466766780..",
+        "..052676677890..",
+        "...0556777890...",
+        "....00588800....",
+        "......0000......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f5555d",
+    "2": "#ea323c",
+    "3": "#ffc825",
+    "4": "#ffa214",
+    "5": "#c42430",
+    "6": "#ed7614",
+    "7": "#ff5000",
+    "8": "#891e2b",
+    "9": "#571c27"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Monster_Drops_all_16x16.png",
+  "sourceRegion": [
+    48,
+    320,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

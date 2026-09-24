@@ -1,0 +1,65 @@
+{
+  "name": "icon_material_wool_cloth",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......0000.....",
+        "......012130....",
+        ".....01223130...",
+        "....012232340...",
+        "...0122313450...",
+        "..01213234560...",
+        ".054661345650...",
+        "053553645644300.",
+        "0435353665431120",
+        "034334364431220.",
+        "05344365431110..",
+        ".053354431220...",
+        "..0000431110....",
+        "......01220.....",
+        ".......000......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c7cfdd",
+    "2": "#ffffff",
+    "3": "#92a1b9",
+    "4": "#657392",
+    "5": "#424c6e",
+    "6": "#2a2f4e"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    0,
+    1376,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

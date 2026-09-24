@@ -1,0 +1,63 @@
+{
+  "name": "icon_material_brick",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........00.....",
+        ".......00110....",
+        ".....00121110...",
+        "...00111112110..",
+        ".00211122111230.",
+        ".03112112213340.",
+        ".01311111332440.",
+        ".01231233422440.",
+        ".03123324422440.",
+        ".03112224422400.",
+        "..03112244200...",
+        "...01122400.....",
+        "....01200.......",
+        ".....00.........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e07438",
+    "2": "#c64524",
+    "3": "#edab50",
+    "4": "#8e251d"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    96,
+    1504,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

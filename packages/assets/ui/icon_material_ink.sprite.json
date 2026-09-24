@@ -1,0 +1,54 @@
+{
+  "name": "icon_material_ink",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...........AAA..",
+        ".........II66A..",
+        "........IIIII...",
+        ".......IIIII....",
+        "......IIIII.....",
+        "......IIII......",
+        "......II........",
+        ".....222........",
+        "....44222.......",
+        "...242222y......",
+        "...22222yy......",
+        "....yyyyy.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourceRegion": [
+    112,
+    128,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

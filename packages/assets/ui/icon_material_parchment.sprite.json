@@ -1,0 +1,54 @@
+{
+  "name": "icon_material_parchment",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......PPPPPPP...",
+        "......PPP66664..",
+        "......PP666664..",
+        "......PPP66664..",
+        ".....PPP666664..",
+        ".....PPPP66644..",
+        ".....PPP666664..",
+        "....66P666664...",
+        "...6666666644...",
+        "..66666666664...",
+        "...446646466....",
+        ".....444444.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourceRegion": [
+    128,
+    64,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "icon_material_gold_filigree",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........000.....",
+        ".......01230....",
+        "......0100030...",
+        ".....010..040...",
+        ".....010..00....",
+        ".....020........",
+        "......020.......",
+        ".......030......",
+        "........030.....",
+        "....00..040.....",
+        "...010..040.....",
+        "...0200050......",
+        "....02340.......",
+        ".....000........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#fff7d2",
+    "2": "#fee761",
+    "3": "#feae34",
+    "4": "#ed7614",
+    "5": "#ff5000"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_all_16x16.png",
+  "sourceRegion": [
+    32,
+    1248,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

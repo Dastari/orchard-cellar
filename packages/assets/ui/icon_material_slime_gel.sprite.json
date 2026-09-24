@@ -1,0 +1,63 @@
+{
+  "name": "icon_material_slime_gel",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        "....00111100....",
+        "...0112222110...",
+        "..012233222110..",
+        "..012322222110..",
+        ".01222222211110.",
+        ".01222222211410.",
+        ".01222211114410.",
+        ".01212114114410.",
+        "..011211114410..",
+        "..011111444410..",
+        "...0111444110...",
+        "....00111100....",
+        "......0000......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#5ac54f",
+    "2": "#99e65f",
+    "3": "#d3fc7e",
+    "4": "#33984b"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Monster_Drops_all_16x16.png",
+  "sourceRegion": [
+    16,
+    192,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

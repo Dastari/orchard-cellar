@@ -1,0 +1,54 @@
+{
+  "name": "icon_material_sand",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        ".......RR.......",
+        "......rrrr......",
+        ".....rrrrrr.....",
+        "....rrrrrrrr....",
+        "...rrrrrrrrrr...",
+        "..RrrrrrrrrrrR..",
+        "..RrrrrrrrrrrR..",
+        "...rrqrqrqrrr...",
+        "....qqqqqqqq....",
+        ".....RRRRRR.....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    128,
+    112,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.material",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}
