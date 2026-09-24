@@ -116,15 +116,24 @@ export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
     }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, cell.index ?? index, state) : undefined, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
   }); return grid;
 }
-export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?: number; readonly onSelect?: (index: number) => void }): UiElement {
+export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?: number | (() => number); readonly digitKeys?: boolean; readonly onSelect?: (index: number) => void }): UiElement {
   const base = uiInventoryGrid({ ...options, count: options.count ?? HOTBAR_SLOT_COUNT, columns: options.columns ?? options.count ?? HOTBAR_SLOT_COUNT, hotkeys: true, activateOn: 'down',
     onActivate: options.controller ? options.onActivate : index => select(index) });
-  const select = (index: number) => { grid.setProps({ selected: index }, false); grid.children.forEach((child, slot) => child.setProps({ selected: slot === index }, false)); options.onSelect?.(index); };
-  const grid = new UiElement({ ...base.hooks, children: [...base.children], props: { ...base.props, selected: options.selected ?? 0 }, onKey(event) {
-    if (!/^[0-9]$/u.test(event.key) || event.ctrlKey || event.metaKey || event.altKey) return false;
-    const index = event.key === '0' ? 9 : Number(event.key) - 1; if (index >= grid.children.length) return false; select(index); return true;
-  } });
-  grid.children.forEach((child, index) => child.setProps({ selected: index === (options.selected ?? 0) }, false)); return grid;
+  const controlled = typeof options.selected === 'function' ? options.selected : undefined;
+  const applySelection = (index: number) => {
+    if (grid.props['selected'] !== index) grid.setProps({ selected: index }, false);
+    grid.children.forEach((child, slot) => { if (child.props['selected'] !== (slot === index)) child.setProps({ selected: slot === index }, false); });
+  };
+  const select = (index: number) => { applySelection(controlled ? controlled() : index); options.onSelect?.(index); };
+  const initial = controlled ? controlled() : typeof options.selected === 'number' ? options.selected : 0;
+  const grid = new UiElement({ ...base.hooks, children: [...base.children], props: { ...base.props, selected: initial },
+    measure(element, available) { if (controlled) applySelection(controlled()); return base.hooks.measure!(element, available); },
+    onKey(event) {
+      if (options.digitKeys === false || !/^[0-9]$/u.test(event.key) || event.ctrlKey || event.metaKey || event.altKey) return false;
+      if (controlled && event.repeat) return true;
+      const index = event.key === '0' ? 9 : Number(event.key) - 1; if (index >= grid.children.length) return false; select(index); return true;
+    } });
+  applySelection(initial); return grid;
 }
 export function uiPaperDoll(options: UiInventoryGridOptions & { readonly portrait?: UiElement }): UiElement {
   const placeholders: Partial<Record<(typeof EQUIPMENT_SLOTS)[number]['id'], UiSlotOptions['placeholder']>> = {

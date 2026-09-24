@@ -772,6 +772,7 @@ function toggleHomesteadBuildMode(): void {
 const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   toggleBuild: () => toggleHomesteadBuildMode(),
   selectHotbar: (slot) => selectSlotOptimistically(slot),
+  clearTarget: id => { if (selectedEntityTarget && targetKey(selectedEntityTarget) === id) selectedEntityTarget = null; },
   setTimeFraction: (fraction) => sendOwnerWorldUpdate(
     network.setWorldTime(authorityTickAtDayProgress(worldCalendarTick(), fraction)),
   ),
@@ -1123,6 +1124,13 @@ retainedUi.register({ id: 'delve-rewards', priority: 1100, root: delveRewards.re
 retainedUi.register({ id: 'delve-confirmation', priority: 700, root: overlayRoots.confirmation,
   active: () => retainedUiAvailable() && overworldUi.retainedConfirmationActive
     && !npcInteractionUi.active && !tradeUi.active && !onlinePlayersVisible, blocking: () => true });
+const hudRoots = overworldUi.enableRetainedHud(kitArt);
+for (const surface of ['zoneMinimap', 'hotbarVitals', 'targetEffects'] as const) retainedUi.register({
+  id: `hud-${surface}`, root: hudRoots[surface], priority: 50,
+  active: () => retainedUiAvailable() && overworldUi.retainedHudVisible(surface) && overworldUi.openWindow === null
+    && !characterNamePrompt.isActive && !npcInteractionUi.active && !tradeUi.active && !onlinePlayersVisible && !chatOverlay.isOpen,
+  blocking: () => false,
+});
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
 const readingRoots = overworldUi.enableRetainedReading(kitArt);
 const characterRoots = overworldUi.enableRetainedCharacter(kitArt);
@@ -1148,7 +1156,7 @@ retainedUi.register({ id: 'build-palette', priority: 200, root: homesteadBuildPa
   active: () => retainedUiAvailable() && homesteadBuildMode && overworldUi.openWindow === null
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => false });
 retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.root,
-  active: () => retainedUiAvailable() && questTracker.isActive && !characterNamePrompt.isActive
+  active: () => retainedUiAvailable() && questTracker.isActive && overworldUi.questTrackerVisible && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
   blocking: () => false });
 const retainedText = new UiTextBridge(canvas, () => retainedUi.focusedElement,
@@ -1167,7 +1175,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
-  delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
+  overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
 });
@@ -5184,6 +5192,7 @@ function renderFrame(alpha = 1): void {
       };
     }).filter((effect): effect is NonNullable<typeof effect> => effect !== null);
   const quests = questLogEntries(snapshot);
+  const trackedQuests = questTrackerEntries(quests);
   const hunger = snapshot.survival === null
     ? HUNGER_MAX_CENTI
     : Math.max(0, Math.min(HUNGER_MAX_CENTI, snapshot.survival.hungerCenti));
@@ -5216,6 +5225,7 @@ function renderFrame(alpha = 1): void {
   renderMetrics.recordStage('uiModel', performance.now() - uiModelStartedAt);
   const uiLayoutStartedAt = performance.now();
   overworldUi.update({
+    trackedQuestCount: trackedQuests.length,
     outdoorRewardCount: snapshot.outdoorRewards?.size ?? 0,
     outdoorRewards: outdoorRewardsModel.entries(snapshot.outdoorRewards, snapshot.outdoorRewardsRevision, snapshot.content.registry),
     width: uiWidth,
@@ -5476,7 +5486,9 @@ function renderFrame(alpha = 1): void {
     width: uiWidth,
     height: uiHeight,
     anchorRect: overworldUi.minimapBounds,
-    entries: questTrackerEntries(quests),
+    entries: trackedQuests,
+    layoutRegion: overworldUi.questTrackerRegion,
+    visible: overworldUi.questTrackerVisible,
   });
   const channelNames = new Map([...snapshot.chatChannels].map((channel) => [channel.id, channel.displayName]));
   chatOverlay.update({
@@ -5847,9 +5859,10 @@ function renderFrame(alpha = 1): void {
     }
     uiContext.save();
     uiContext.translate(uiOriginX, uiOriginY);
+    overworldUi.drawHud(uiContext);
     questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
-    overworldUi.draw(uiContext);
+    overworldUi.draw(uiContext, false);
     if (homesteadBuildMode && overworldUi.openWindow === null) {
       homesteadBuildPalette.draw(uiContext);
     }
@@ -6361,6 +6374,9 @@ window.addEventListener('keydown', (event) => {
       syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'inventory-menus')) {
+      syncRetainedText(); event.preventDefault(); return;
+    }
+    if (retainedUi.key(event, 'hud-zoneMinimap') || retainedUi.key(event, 'hud-hotbarVitals') || retainedUi.key(event, 'hud-targetEffects')) {
       syncRetainedText(); event.preventDefault(); return;
     }
     if (event.code === 'Tab') {
@@ -6977,8 +6993,8 @@ canvas.addEventListener('pointermove', (event) => {
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
-  if (overworldUi.openWindow === null && !chatOverlay.isHovered) retainedPointers.dispatch('move', event, 'quest-tracker');
-  else retainedUi.clearHover();
+  if (overworldUi.openWindow === null && !chatOverlay.isHovered && retainedPointers.dispatch('move', event, 'quest-tracker')) return;
+  if (retainedPointers.dispatch('move', event, 'hud-zoneMinimap') || retainedPointers.dispatch('move', event, 'hud-hotbarVitals') || retainedPointers.dispatch('move', event, 'hud-targetEffects')) return;
 });
 canvas.addEventListener('pointerleave', (event) => {
   // A captured retained gesture can finish outside the canvas. Legacy leave
@@ -7084,6 +7100,9 @@ canvas.addEventListener('pointerdown', (event) => {
     if (overworldUi.openWindow === null && retainedPointers.dispatch('down', event, 'quest-tracker')) {
       event.preventDefault();
       return;
+    }
+    if (!interfaceHidden && (retainedPointers.dispatch('down', event, 'hud-zoneMinimap') || retainedPointers.dispatch('down', event, 'hud-hotbarVitals') || retainedPointers.dispatch('down', event, 'hud-targetEffects'))) {
+      event.preventDefault(); return;
     }
   }
   const worldPointerAvailable = interfaceHidden
@@ -7444,6 +7463,9 @@ canvas.addEventListener('wheel', (event) => {
       retainedUi.clearHover(); event.preventDefault(); return;
     }
     if (retainedUi.wheel(retainedWheel, 'quest-tracker')) {
+      event.preventDefault(); return;
+    }
+    if (retainedUi.wheel(retainedWheel, 'hud-zoneMinimap') || retainedUi.wheel(retainedWheel, 'hud-hotbarVitals') || retainedUi.wheel(retainedWheel, 'hud-targetEffects')) {
       event.preventDefault(); return;
     }
   }

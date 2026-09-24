@@ -71,10 +71,28 @@ describe('overworld UI compositing order', () => {
 });
 
 it('routes adopted modal roots through every central uncaptured input entry', () => {
-  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation']) {
+  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation', 'hud-zoneMinimap', 'hud-hotbarVitals', 'hud-targetEffects']) {
     expect(main).toContain(`retainedUi.key(event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);
     expect(main).toMatch(new RegExp(`retainedUi\\.wheel\\([\\s\\S]*?, '${host}'\\)`));
+  }
+});
+
+ it('paints the quest tracker over the HUD to match its higher pointer priority', () => {
+  const start = main.indexOf('overworldUi.drawHud(uiContext)');
+  const frame = main.slice(start, main.indexOf('overworldUi.drawCursorOverlay(uiContext)', start));
+  expect(start).toBeGreaterThan(0);
+  expect(frame.indexOf('questTracker.draw')).toBeGreaterThan(frame.indexOf('overworldUi.drawHud'));
+  expect(frame.indexOf('overworldUi.draw(uiContext, false)')).toBeGreaterThan(frame.indexOf('questTracker.draw'));
+});
+
+it('routes foreground quest gestures before underlying HUD scopes at each actual input entry', () => {
+  for (const type of ['down','move']) {
+    const event = type === 'down' ? 'pointerdown' : 'pointermove';
+    const start = main.indexOf(`canvas.addEventListener('${event}'`);
+    const end = main.indexOf('canvas.addEventListener(',start+10);
+    const body = main.slice(start,end);
+    expect(body.indexOf(`retainedPointers.dispatch('${type}', event, 'hud-zoneMinimap')`)).toBeGreaterThan(body.indexOf(`retainedPointers.dispatch('${type}', event, 'quest-tracker')`));
   }
 });

@@ -1,3 +1,4 @@
+import { GameHud, type GameHudSurface } from './game-host/hud.js';
 import { DelveConfirmationUi, UpdateReadyUi } from './game-host/overlays.js';
 import { SystemMenus } from './game-host/system-menus.js';
 import type { TimingProjection } from '@orchard/sim';
@@ -261,6 +262,7 @@ export interface OverworldUiModel {
   readonly touchControlPreferences?: TouchControlPreferences;
   readonly playerCount: number;
   readonly onlinePlayersVisible?: boolean;
+  readonly trackedQuestCount?: number;
   readonly canManageHomestead?: boolean;
   readonly zoneName?: string;
   readonly dangerNotice?: HearthDangerNotice | null;
@@ -345,6 +347,7 @@ export type MinimapDrawer = (
 ) => void;
 
 export interface OverworldUiCallbacks {
+  readonly clearTarget?: (expectedTargetId: string) => void;
   readonly toggleBuild?: () => void;
   readonly selectHotbar: (slot: number) => void;
   readonly setTimeFraction: (fraction: number) => void;
@@ -1167,6 +1170,60 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 }
 
 export class OverworldUi {
+  private gameHud: GameHud | null = null;
+  enableRetainedHud(art: UiKitArt): Readonly<Record<GameHudSurface, UiRoot>> {
+    this.gameHud ??= new GameHud(art, {
+      selectHotbar: slot => this.callbacks.selectHotbar(slot),
+      toggleInventory: () => { this.openWindow = this.openWindowValue === 'inventory' ? null : 'inventory'; },
+      toggleCrafting: () => { this.openWindow = this.openWindowValue === 'crafting' ? null : 'crafting'; },
+      toggleBuild: () => this.callbacks.toggleBuild?.(),
+      openSystem: () => { this.openWindow = 'system'; },
+      openCharacter: () => { this.openWindow = 'character'; },
+      openOnlinePlayers: () => this.callbacks.toggleOnlinePlayers(),
+      clearTarget: id => { if (this.model.targetVitals?.targetId === id) this.callbacks.clearTarget?.(id); },
+    }, {
+      itemLabel: stack => this.itemDefinition(stack.itemKind)?.displayName ?? stack.itemKind,
+      drawItem: (context, rect, stack) => this.drawInventoryItem(context, rect, stack.itemKind, stack.quantity, stack.durability, stack.lit),
+      drawPlayerHead: (context, id, rect) => this.drawPlayerHead(context, id, rect),
+      drawTargetPortrait: (context, id, rect) => { const target = this.model.targetVitals; if (target?.targetId === id) this.drawTargetPortrait(context, target, rect); },
+      drawMinimap: (context, rect, zoom, tracking) => this.drawMinimap(context, rect, zoom, tracking),
+      drawMoon: (context, rect) => { if (this.model.moonPhase) drawUiSkinAsset(context, this.skin.moonPhase, rect, this.model.moonPhase); },
+      drawEffect: (context, rect, effectKind) => drawUiSkinAsset(context, effectStatusAsset(this.skin, effectKind), rect),
+    });
+    this.syncRetainedHud(); return this.gameHud.roots;
+  }
+  get questTrackerVisible(): boolean { return this.gameHud?.questTrackerVisible ?? true; }
+  get questTrackerRegion(): UiRect | undefined { return this.gameHud?.questTrackerRegion; }
+  get retainedHudActive(): boolean { return this.gameHud?.active === true; }
+  retainedHudVisible(surface: GameHudSurface): boolean { return this.gameHud?.isVisible(surface) === true; }
+  private syncRetainedHud(): void {
+    const hud = this.gameHud; if (!hud) return;
+    const model = this.model, vitals = model.vitals, target = model.targetVitals;
+    hud.resize(model.width, model.height);
+    hud.update(!model.connected ? null : {
+      sessionKey: model.interactionSessionKey ?? String(model.connected),
+      zone: { title: model.dangerNotice ? 'CINDERWAKE' : model.zoneName ?? 'ORCHARD', onlineCount: model.playerCount,
+        ...(model.dangerNotice ? { subtitle: hearthDangerStatusLabel(model.dangerNotice), description: hearthDangerStatusDescription(model.dangerNotice) } : {}),
+        ...(hasEquippedWatch(model.inventory, model.contentRegistry) ? { watch: { time: model.timeLabel, date: model.dateLabel, moon: model.moonPhase ? MOON_PHASE_LABELS[model.moonPhase] : 'Moon Unknown' } } : {}),
+        ...(model.moonPhase ? { moon: { phase: Object.keys(MOON_PHASE_LABELS).indexOf(model.moonPhase), label: MOON_PHASE_LABELS[model.moonPhase] } } : {}),
+      },
+      minimapTrackingEnabled: model.minimapTrackingEnabled === true, trackedQuestCount: model.trackedQuestCount,
+      inventory: { rows: model.inventory.filter(row => row.itemKind !== 'empty' && row.quantity > 0).map(row => ({ slot: row.slot, stack: row })),
+        selectedSlot: model.selectedSlot, mainHandIndex: MAIN_HAND_INVENTORY_SLOT, balanceBronze: model.balanceBronze ?? 0n },
+      ...(vitals ? { player: { id: vitals.playerId, values: vitals, hunger: model.hunger, vigourDenied: model.vigourDenied } } : {}),
+      ...(target ? { target: { id: target.targetId, name: target.displayName, values: target } } : {}),
+      effects: (model.effects ?? []).map(effect => ({ ...effect, id: effect.effectKind })), ticksPerSecond: 20,
+      visible: { zoneMinimap: true, hotbarVitals: !this.isInventoryWindow(this.openWindowValue), targetEffects: !this.isInventoryWindow(this.openWindowValue) },
+      controls: { weapon: this.openWindowValue === null && model.inventory.some(row => row.slot === MAIN_HAND_INVENTORY_SLOT && row.itemKind !== 'empty' && row.quantity > 0),
+        crafting: this.openWindowValue === null, build: this.openWindowValue === null && Boolean(this.callbacks.toggleBuild), system: this.openWindowValue === null },
+    });
+    // Legacy HUD hit nodes and painters retire together; inventory nodes retain custody.
+    for (const child of this.root.children) if (child.id.startsWith('hud.')) child.visible = false;
+    for (const node of [...this.hotbarNodes, this.weaponShortcutNode, this.mobileMenuNode, this.buildNode, this.craftingNode,
+      this.currencyNode, this.zoneNode, this.minimapNode, this.minimapZoomOutNode, this.minimapZoomInNode]) node.visible = false;
+  }
+  disposeRetainedHud(): void { this.gameHud?.dispose(); this.gameHud = null; }
+
   private delveConfirmation: DelveConfirmationUi | null = null;
   private updateReady: UpdateReadyUi | null = null;
   enableRetainedOverlays(art: UiKitArt): { readonly confirmation: UiRoot; readonly update: UiRoot } {
@@ -1616,8 +1673,8 @@ export class OverworldUi {
     private readonly fonts: PixelUi,
     private readonly itemArt: OverworldUiItemArt,
     private readonly callbacks: OverworldUiCallbacks,
-    drawPlayerHead: (context: CanvasRenderingContext2D, playerId: string, rect: UiRect) => void = () => undefined,
-    drawTargetPortrait: (context: CanvasRenderingContext2D, target: OverworldUiTargetVitals, rect: UiRect) => void = () => undefined,
+    private readonly drawPlayerHead: (context: CanvasRenderingContext2D, playerId: string, rect: UiRect) => void = () => undefined,
+    private readonly drawTargetPortrait: (context: CanvasRenderingContext2D, target: OverworldUiTargetVitals, rect: UiRect) => void = () => undefined,
     private readonly drawPlayerDoll: (context: CanvasRenderingContext2D, appearance: PlayerAppearanceSelection, facing: Direction, rect: UiRect) => void = () => undefined,
     private readonly drawMinimap: MinimapDrawer = () => undefined,
   ) {
@@ -2181,7 +2238,7 @@ export class OverworldUi {
     this.updateLaterButton.enabled = status === 'available';
   }
   get minimapBounds(): UiRect {
-    return this.minimapCollapsed ? this.layout.collapsedMinimapTab : this.layout.minimap;
+    return this.gameHud?.minimapBounds ?? (this.minimapCollapsed ? this.layout.collapsedMinimapTab : this.layout.minimap);
   }
 
   private toggleAudioMute(bus: AudioVolumeBus): void {
@@ -2702,12 +2759,12 @@ export class OverworldUi {
     }
     if (button === 0 && this.openWindowValue === 'crafting'
       && this.craftingRecipeScrollBar.pointerDown(point)) return true;
-    if (this.openWindowValue === null && this.model.vitals !== undefined
+    if (!this.gameHud && this.openWindowValue === null && this.model.vitals !== undefined
       && containsPoint(this.layout.vitals, point)) {
       if (button === 0) this.openWindow = 'character';
       return true;
     }
-    if (this.openWindowValue === null && this.model.targetVitals !== undefined
+    if (!this.gameHud && this.openWindowValue === null && this.model.targetVitals !== undefined
       && containsPoint(this.layout.targetVitals, point)) return true;
     if(this.openWindowValue==='ferry'&&!containsPoint(this.closeNode.bounds,point)
       &&this.ferryMenu.pointerDown(point,button,this.layout.progressionWindow))return true;
@@ -2999,12 +3056,14 @@ export class OverworldUi {
 
   /** Keep the build toggle reachable above the external build catalogue. */
   pointerBuildControl(point: UiPoint, button: number): boolean {
+    if (this.gameHud) return false;
     if (button !== 0 || !this.buildNode.visible || !this.buildNode.contains(point)) return false;
     this.callbacks.toggleBuild?.();
     return true;
   }
 
   drawBuildControl(context: CanvasRenderingContext2D): void {
+    if (this.gameHud) return;
     if (this.buildNode.visible) {
       const rect = this.layout.buildButton;
       this.drawHudIconButton(context, rect, this.buildNode.contains(this.pointer), this.itemArt.hammer);
@@ -3012,6 +3071,7 @@ export class OverworldUi {
   }
 
   drawCraftingControl(context: CanvasRenderingContext2D): void {
+    if (this.gameHud) return;
     if (this.openWindowValue === null) {
       this.drawHudIconButton(context, this.layout.craftingButton, this.craftingNode.contains(this.pointer), this.skin.craftingIcon);
     }
@@ -3025,7 +3085,9 @@ export class OverworldUi {
     });
   }
 
-  draw(context: CanvasRenderingContext2D): void {
+  drawHud(context: CanvasRenderingContext2D): void {
+    if (this.gameHud) this.gameHud.draw(context);
+    else {
     this.drawCachedStatus(context);
     this.drawMinimapHud(context);
     this.drawCachedCurrency(context);
@@ -3042,6 +3104,11 @@ export class OverworldUi {
     }
     this.drawCraftingControl(context);
     this.drawBuildControl(context);
+    }
+  }
+
+  draw(context: CanvasRenderingContext2D, includeHud = true): void {
+    if (includeHud) this.drawHud(context);
     if (this.openWindowValue === 'help') this.helpBook?.draw(context);
     else if (this.openWindowValue) {
       if (!this.delveConfirmation && this.openWindowValue === 'delve-confirmation') {
@@ -3534,6 +3601,7 @@ export class OverworldUi {
     this.syncRetainedInventory();
     this.syncRetainedReading();
     this.syncRetainedOverlays();
+    this.syncRetainedHud();
     this.syncRetainedCharacter();
     this.syncRetainedSystem();
     if (this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) { this.windowNode.visible = false; this.closeNode.visible = false; }
@@ -3800,6 +3868,7 @@ export class OverworldUi {
   }
 
   private drawTooltip(context: CanvasRenderingContext2D): void {
+    if (this.gameHud && !this.isInventoryWindow(this.openWindowValue)) return;
     const item = this.hoveredItem();
     const detailsReady = this.equipmentTooltipDwell.ready(item?.itemKind ?? null, performance.now());
     const text = this.tooltipText();

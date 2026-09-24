@@ -186,7 +186,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Reviewed shared character/statistics adapters, appearance rejection and legacy path retirement.
 // Reviewed skills host: shared navigation, actual parent deep links and captured reconnect tails.
 // Reviewed shared overlay lifecycle: synchronous PWA readiness, input priority and confirmation scope.
-const STRUCTURAL_SEAM_DIGEST = 'ccb2b0795ee727e2847905d706233c3db85fd0a81330ee010c6f24d4e4aeef7b';
+// Reviewed shared HUD projections, legacy hit-path retirement and foreground tracker ordering.
+const STRUCTURAL_SEAM_DIGEST = '9271f3bb7942c9deb8ade6007c4dd3a76e1d4a86c491e3ce3eab3067c3e6eb29';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

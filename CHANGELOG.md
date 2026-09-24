@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.34.0 / UI 0.36.0 — Shared game HUD (not yet deployed)
+
+- Adopt shared zone/minimap, hotbar/resources, target/effects compositions using existing inventory selection commands, actual registry art, equipped-watch authority and projected status timers.
+- Preserve keyboard/pointer/touch and cancel stale gestures across target, connection or modal changes. Retire the replaced legacy drawing and hit paths together.
+- Give default tracked quests compact space above target controls; temporarily collapse the map, let explicit map inspection hide quests, restore wide layout and preserve saved tracker anchors during resize. Match foreground paint and input ordering. Workspace 0.40.0.
+
 ## Client 0.33.0 / UI 0.35.0 — Shared Delve and update overlays (not yet deployed)
 
 - Adopt shared Delve confirmation, current run rewards/status and update-ready compositions. Reward commands remain pending until authoritative state changes; rejection permits a scoped retry without fabricating currency or progression.
