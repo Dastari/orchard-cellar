@@ -7,8 +7,9 @@ import { uiFrame } from './frame.js';
 import { uiScrollArea } from './layout.js';
 
 export type UiGameMenuAction = 'resume' | 'settings' | 'help' | 'developer' | 'fullscreen'
-  | 'check-update' | 'apply-update' | 'exit-delve' | 'sign-out' | 'quit';
+  | 'check-update' | 'apply-update' | 'exit-delve' | 'sign-out' | 'quit' | 'outdoor-rewards';
 export interface UiGameMenuModel {
+  readonly outdoorRewardCount?: number;
   readonly canAdministerWorld?: boolean;
   readonly fullscreen?: boolean;
   readonly fullscreenAvailable?: boolean;
@@ -29,6 +30,7 @@ export function uiGameMenu(options: UiGameMenuOptions): UiGameMenuElement {
   const definitions: readonly { id: string; label: () => string; tone: () => UiTone;
     action: () => UiGameMenuAction; visible?: () => boolean; disabled?: () => boolean }[] = [
     { id: 'resume', label: () => 'RETURN TO WORLD', tone: () => 'success', action: () => 'resume' },
+    { id: 'outdoor-rewards', label: () => `REWARDS (${model.outdoorRewardCount ?? 0}) [O]`, tone: () => 'warning', action: () => 'outdoor-rewards', visible: () => model.outdoorRewardCount !== undefined },
     { id: 'settings', label: () => 'SETTINGS', tone: () => 'primary', action: () => 'settings' },
     { id: 'help', label: () => 'HELP', tone: () => 'primary', action: () => 'help' },
     { id: 'developer', label: () => 'DEVELOPER', tone: () => 'warning', action: () => 'developer', visible: () => model.canAdministerWorld === true },
