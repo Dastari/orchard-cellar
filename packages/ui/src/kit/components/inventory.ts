@@ -1,6 +1,6 @@
 import { EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT, itemDefinition, type ItemStack } from '@orchard/sim';
 import { uiDurabilityFraction } from '../../item-durability.js';
-import { containsPoint } from '../../geometry.js';
+import { containsPoint, type UiRect } from '../../geometry.js';
 import type { LoadedAsset } from '../../assets.js';
 import { selectAtlasFrame } from '../../sprite.js';
 import { drawOutlinedPixelText } from '../../pixel-ui.js';
@@ -18,6 +18,8 @@ export interface UiSlotOptions {
   readonly id?: string; readonly label?: string; readonly stack?: ItemStack | null | (() => ItemStack | null);
   readonly icon?: UiIconSource; readonly artwork?: Readonly<Record<string, LoadedAsset>>;
   readonly iconAnimation?: (item: ItemStack) => string;
+  /** Replaces stack art/count/durability only; slot chrome and empty placeholders remain shared. */
+  readonly renderContent?: (context: CanvasRenderingContext2D, bounds: UiRect, item: ItemStack, state: { readonly ghost: boolean }) => void;
   /** Presentation only: a preview never becomes an inventory stack. */
   readonly ghost?: () => ItemStack | null;
   readonly controller?: UiInventoryController; readonly binding?: UiInventorySlotRef;
@@ -53,7 +55,8 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind), tone = uiElementTone(element);
       paintUiSkin(context, art.skin.slot, `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
       const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
-      if (item) {
+      if (item && options.renderContent) options.renderContent(context, r, item, { ghost: Boolean(ghost) });
+      else if (item) {
         const asset = options.artwork?.[item.itemKind], source = asset && (selectAtlasFrame(asset.metadata, options.iconAnimation?.(item) ?? itemDefinition(item.itemKind)?.iconAnimation ?? 'base', 0) ?? selectAtlasFrame(asset.metadata, 'idle', 0) ?? selectAtlasFrame(asset.metadata, 'closed', 0));
         if (asset && source) { const fit = Math.min((r.width - 8) / source.width, (r.height - 10) / source.height); const factor = fit >= 1 ? Math.min(scale, Math.floor(fit)) : Math.max(0, fit); const width = Math.max(1, Math.round(source.width * factor)), height = Math.max(1, Math.round(source.height * factor));
           context.save();
@@ -85,6 +88,7 @@ export interface UiInventoryGridOptions {
   readonly onActivate?: (index: number, event: UiButtonModifiers) => void;
   readonly allowSecondary?: boolean; readonly activateOn?: UiSlotOptions['activateOn'];
   readonly iconAnimation?: UiSlotOptions['iconAnimation'];
+  readonly renderContent?: (context: CanvasRenderingContext2D, bounds: UiRect, item: ItemStack, index: number, state: { readonly ghost: boolean }) => void;
 }
 export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
   const cells: readonly UiInventoryCell[] = options.cells ?? Array.from({ length: options.count ?? 6 }, (_, index) => ({ id: String(index), index }));
@@ -109,7 +113,7 @@ export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
       }
       const height = Math.max(0, Math.ceil(count / columns) * (slotHeight + gap) - gap);
       return { min: { width: options.fixedColumns ? columns * (width + gap) - gap : Math.min(width, available.width), height: slotHeight }, preferred: { width: columns * (width + gap) - gap, height } };
-    }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
+    }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, cell.index ?? index, state) : undefined, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
   }); return grid;
 }
 export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?: number; readonly onSelect?: (index: number) => void }): UiElement {
