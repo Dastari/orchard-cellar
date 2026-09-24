@@ -20,5 +20,6 @@ export function uiUpdateReady(options: UiUpdateReadyOptions) {
       ]),
     ])],
   });
+  dialog.setProps({ singlePointer: true, touchScroll: true });
   return dialog;
 }

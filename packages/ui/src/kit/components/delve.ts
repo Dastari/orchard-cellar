@@ -1,4 +1,4 @@
-import { bootstrapContentRegistry, rogueUpgradeDefinition } from '@orchard/sim';
+import { bootstrapContentRegistry, rogueUpgradeDefinition, type RogueBoonRegistry } from '@orchard/sim';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { UI_TONE_FACES } from '../skin/contrast.js';
@@ -16,7 +16,12 @@ export interface UiDelveOffer {
   readonly slot: number; readonly upgradeId: string; readonly rarity: string;
   readonly magnitudePermille: number; readonly cost: number;
 }
-export interface UiDelveRewardsModel { readonly run: UiDelveRun; readonly offers: readonly UiDelveOffer[] }
+export interface UiDelveRewardsModel {
+  readonly run: UiDelveRun; readonly offers: readonly UiDelveOffer[];
+  readonly registry?: RogueBoonRegistry; readonly pending?: boolean; readonly notice?: string;
+  /** Reserved space for the production run HUD; the modal still owns the viewport. */
+  readonly topInset?: number;
+}
 export interface UiDelveRewardsOptions {
   readonly model: UiDelveRewardsModel; readonly layout?: UiStyle;
   readonly onChoose: (slot: number) => void; readonly onLeaveShop: () => void;
@@ -32,7 +37,7 @@ export function uiDelveHud(run: UiDelveRun, layout?: UiStyle) {
     const status = next.phase === 'combat'
       ? `WAVE ${Math.min(next.maximumWaves, next.wave + 1)}/${next.maximumWaves}`
       : next.phase === 'doors' ? 'CHOOSE A DOOR' : 'CHOOSE ONE BOON';
-    title.setProps({ text: `DELVE ${next.roomNumber + 1}/12  ${next.theme} ${next.roomKind}` });
+    title.setProps({ text: `DELVE ${next.roomNumber + 1}/12  ${next.theme.toUpperCase()} ${next.roomKind.toUpperCase()}` });
     detail.setProps({ text: `${status}   EMBERS ${next.currency}` });
   };
   updateDelveHud(run);
@@ -43,21 +48,25 @@ export function uiDelveHud(run: UiDelveRun, layout?: UiStyle) {
  * consult the current offer and wallet rather than a captured render model. */
 export function uiDelveRewards(options: UiDelveRewardsOptions) {
   let model = options.model;
+  let cardsKey = '';
+  const notice = uiText('', { id: 'delve.notice', wrap: true }).setProps({ tone: 'danger' });
   const cards = uiFlex({ id: 'delve.cards', direction: 'row', wrap: true, width: 'grow', gap: 4 });
   const currency = uiText('', { id: 'delve.currency', wrap: true });
   const choose = (slot: number): void => {
     const offer = model.offers.find(candidate => candidate.slot === slot);
-    if (model.run.phase === 'reward' && offer && offer.cost <= model.run.currency) options.onChoose(slot);
+    if (!model.pending && model.run.phase === 'reward' && offer && offer.cost <= model.run.currency) options.onChoose(slot);
   };
-  const leave = (): void => { if (model.run.phase === 'reward' && model.run.roomKind === 'shop') options.onLeaveShop(); };
+  const leave = (): void => { if (!model.pending && model.run.phase === 'reward' && model.run.roomKind === 'shop') options.onLeaveShop(); };
   const skip = uiButton({ id: 'delve.leave', label: 'LEAVE SHOP', onPress: leave, layout: { width: 'grow' } });
   const heading = uiText('', { id: 'delve.heading', role: 'header', wrap: true });
-  const scroll = uiScrollArea({ id: 'delve.scroll', gap: 8 }, [heading, currency, cards, skip]);
+  const scroll = uiScrollArea({ id: 'delve.scroll', gap: 8 }, [heading, currency, notice, cards, skip]);
   const frame = uiFrame({ id: 'delve.rewards.frame', layout: { position: 'absolute' }, children: [scroll] });
   const gate = new UiElement({ id: 'game.delve-rewards', kind: 'delve-rewards', label: 'Delve rewards',
     style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal', ...options.layout }, children: [frame],
+    props: { singlePointer: true, touchScroll: true, focusChrome: true }, focusable: true,
     pointerMode: 'capture', onPointer: () => true, onDismiss: leave,
     onKeyCapture(event) {
+      if (event.repeat && ['Escape', 'Enter', ' ', '1', '2', '3'].includes(event.key)) return true;
       if (event.key === 'Escape') { leave(); return true; }
       const index = ['1', '2', '3'].indexOf(event.key);
       if (index < 0) return false;
@@ -65,9 +74,10 @@ export function uiDelveRewards(options: UiDelveRewardsOptions) {
     },
     measure(_element, available) {
       const width = Math.max(0, Math.min(540, available.width - 16));
-      const height = Math.max(0, Math.min(width >= 390 ? 220 : 470, available.height - 16));
+      const top = Math.max(0, Math.min(model.topInset ?? 0, available.height - 16));
+      const height = Math.max(0, Math.min(width >= 390 ? 220 : 470, available.height - top - 16));
       frame.setStyle({ width: uiFixed(width), height: uiFixed(height), inset: {
-        left: uiFixed((available.width - width) / 2), top: uiFixed((available.height - height) / 2),
+        left: uiFixed((available.width - width) / 2), top: uiFixed(top + (available.height - top - height) / 2),
       } });
       return { min: { width: 0, height: 0 }, preferred: available };
     },
@@ -77,12 +87,20 @@ export function uiDelveRewards(options: UiDelveRewardsOptions) {
     },
   });
   const updateDelveRewards = (next: UiDelveRewardsModel): void => {
-    model = next;
+    model = next; gate.invalidate();
     heading.setProps({ text: model.run.roomKind === 'shop' ? 'THE CELLAR TRADER' : 'CHOOSE A BOON' });
     currency.setProps({ text: `DELVE ${model.run.roomNumber + 1}/12  ${model.run.theme}  EMBERS ${model.run.currency}` });
-    skip.setStyle({ visible: model.run.roomKind === 'shop' }).setDisabled(model.run.phase !== 'reward');
+    notice.setProps({ text: model.pending ? 'WAITING FOR THE DELVE...' : model.notice ?? '', tone: model.pending ? 'info' : 'danger' })
+      .setStyle({ visible: !!model.notice || !!model.pending });
+    skip.setStyle({ visible: model.run.roomKind === 'shop' }).setDisabled(model.run.phase !== 'reward' || !!model.pending);
+    const registry = model.registry ?? bootstrapContentRegistry();
+    const key = JSON.stringify([model.run.phase, !!model.pending, model.offers.map(offer => [offer,
+      offer.cost > model.run.currency, rogueUpgradeDefinition(registry, offer.upgradeId)])]);
+    if (key === cardsKey) return;
+    cardsKey = key;
+    for (const child of [...cards.children]) child.dispose();
     cards.replaceChildren(model.offers.map((offer, index) => {
-      const definition = rogueUpgradeDefinition(bootstrapContentRegistry(), offer.upgradeId);
+      const definition = rogueUpgradeDefinition(registry, offer.upgradeId);
       const rarity = Object.hasOwn(rarityTones, offer.rarity) ? offer.rarity : 'common';
       const unavailable = offer.cost > model.run.currency;
       const magnitude = `${Math.round(offer.magnitudePermille / 10)}%`;
@@ -95,7 +113,7 @@ export function uiDelveRewards(options: UiDelveRewardsOptions) {
           uiText(definition?.description ?? 'A strange cellar blessing.', { wrap: true }),
           uiButton({ id: `delve.choose.${offer.slot}`, label: unavailable ? `NEEDS ${offer.cost} EMBERS`
             : offer.cost > 0 ? `BUY: ${offer.cost} EMBERS` : 'CHOOSE', tone: rarityTones[rarity],
-          disabled: unavailable || model.run.phase !== 'reward', layout: { width: 'grow' }, onPress: () => choose(offer.slot) }),
+          disabled: unavailable || model.run.phase !== 'reward' || !!model.pending, layout: { width: 'grow' }, onPress: () => choose(offer.slot) }),
         ] });
     }));
   };

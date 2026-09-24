@@ -1,3 +1,4 @@
+import { DelveConfirmationUi, UpdateReadyUi } from './game-host/overlays.js';
 import { SystemMenus } from './game-host/system-menus.js';
 import type { TimingProjection } from '@orchard/sim';
 import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
@@ -252,6 +253,7 @@ export function moonPhasePixel(phase: MoonPhase, x: number, y: number): 0 | 1 | 
 }
 
 export interface OverworldUiModel {
+  readonly interactionSessionKey?: string;
   readonly width: number;
   readonly height: number;
   readonly connected: boolean;
@@ -1165,6 +1167,32 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 }
 
 export class OverworldUi {
+  private delveConfirmation: DelveConfirmationUi | null = null;
+  private updateReady: UpdateReadyUi | null = null;
+  enableRetainedOverlays(art: UiKitArt): { readonly confirmation: UiRoot; readonly update: UiRoot } {
+    this.delveConfirmation ??= new DelveConfirmationUi(art, {
+      begin: () => this.confirmDelve(), cancel: () => { this.openWindow = null; },
+    });
+    this.updateReady ??= new UpdateReadyUi(art, { refresh: () => this.callbacks.applyClientUpdate() });
+    this.syncRetainedOverlays();
+    return { confirmation: this.delveConfirmation.root, update: this.updateReady.root };
+  }
+  private syncRetainedOverlays(): void {
+    const { width, height } = this.model;
+    this.delveConfirmation?.update({ width, height,
+      sessionKey: this.model.interactionSessionKey ?? String(this.model.connected),
+      visible: this.openWindowValue === 'delve-confirmation' && this.model.connected,
+      canBegin: this.model.connected && !this.model.delveActive,
+    });
+    this.updateReady?.update({ width, height, status: this.model.pwaUpdateStatus ?? 'unsupported' });
+    if (this.delveConfirmation) { this.delveConfirmButton.node.visible = false; this.delveCancelButton.node.visible = false; }
+    if (this.updateReady) this.updatePromptNode.visible = false;
+  }
+  get retainedConfirmationActive(): boolean { return this.delveConfirmation?.active === true; }
+  disposeRetainedOverlays(): void {
+    this.delveConfirmation?.dispose(); this.updateReady?.dispose(); this.delveConfirmation = null; this.updateReady = null;
+  }
+
   private systemMenus: SystemMenus | null = null;
   get retainedSystemActive(): boolean { return this.systemMenus?.active === true; }
   enableRetainedSystem(art: UiKitArt): UiRoot {
@@ -2124,7 +2152,7 @@ export class OverworldUi {
   get selectedSettingsTab(): SettingsTab { return this.systemMenus?.selectedSettingsTab ?? this.settingsTab; }
   get selectedDeveloperTab(): DeveloperTab { return this.systemMenus?.selectedDeveloperTab ?? this.developerTab; }
   get blockingUpdatePromptVisible(): boolean {
-    return this.model.pwaUpdateStatus === 'available' && !this.updatePromptDismissed;
+    return this.updateReady?.active ?? (this.model.pwaUpdateStatus === 'available' && !this.updatePromptDismissed);
   }
 
   /** Service-worker events must make their modal interactive immediately,
@@ -2133,6 +2161,7 @@ export class OverworldUi {
     const previous = this.model.pwaUpdateStatus;
     this.model = { ...this.model, ...viewport, pwaUpdateStatus: status };
     this.syncPwaUpdatePrompt(previous);
+    this.syncRetainedOverlays();
     this.syncRetainedSystem();
   }
 
@@ -2451,6 +2480,7 @@ export class OverworldUi {
   handleKeyDown(code: string, repeat: boolean, modifiers: { readonly ctrl?: boolean } = {}): boolean {
     if (repeat) return false;
     if (this.blockingUpdatePromptVisible) {
+      if (this.updateReady) return true;
       if (code === 'Escape') {
         this.updatePromptDismissed = true;
         this.updatePromptNode.visible = false;
@@ -2477,7 +2507,7 @@ export class OverworldUi {
       this.syncActiveWindow();
       return true;
     }
-    if (this.openWindowValue === 'delve-confirmation'
+    if (!this.delveConfirmation && this.openWindowValue === 'delve-confirmation'
       && (code === 'Enter' || code === 'Space' || code === 'KeyE')) {
       this.confirmDelve();
       return true;
@@ -2533,7 +2563,7 @@ export class OverworldUi {
   }
 
   pointerMove(point: UiPoint, _modifiers: { readonly shift?: boolean } = {}): void {
-    if ((this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedConfirmationActive || this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorMove(point);
       if (this.onlinePlayerListActive) {
         this.onlinePlayersScrollBar.pointerMove(point);
@@ -2617,7 +2647,7 @@ export class OverworldUi {
     readonly shift?: boolean;
     readonly pointerType?: string;
   } = {}): boolean {
-    if ((this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedConfirmationActive || this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorDown(point);
       this.pointerOnlinePlayersDown(point, button, modifiers.pointerType);
       return true;
@@ -2633,6 +2663,7 @@ export class OverworldUi {
     }
     this.systemCursorDown(point);
     if (this.blockingUpdatePromptVisible) {
+      if (this.updateReady) return true;
       if (button === 0) this.router.routePointer({ kind: 'pointer_down', point, button });
       return true;
     }
@@ -2734,7 +2765,7 @@ export class OverworldUi {
   }
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
-    if ((this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedConfirmationActive || this.retainedInventoryActive || this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.onlinePlayersScrollBar.endSwipe();
       this.onlinePlayersScrollBar.pointerUp();
       return true;
@@ -2742,6 +2773,7 @@ export class OverworldUi {
     this.inventoryTouchStart = null;
     this.pointer = point;
     if (this.blockingUpdatePromptVisible) {
+      if (this.updateReady) return true;
       this.router.routePointer({ kind: 'pointer_up', point, button });
       return true;
     }
@@ -3012,7 +3044,7 @@ export class OverworldUi {
     this.drawBuildControl(context);
     if (this.openWindowValue === 'help') this.helpBook?.draw(context);
     else if (this.openWindowValue) {
-      if (this.openWindowValue === 'delve-confirmation') {
+      if (!this.delveConfirmation && this.openWindowValue === 'delve-confirmation') {
         context.save();
         context.fillStyle = 'rgba(20, 14, 19, 0.68)';
         context.fillRect(0, 0, this.model.width, this.model.height);
@@ -3029,6 +3061,7 @@ export class OverworldUi {
 
   /** Final UI pass so an update decision cannot sit behind another modal. */
   drawBlockingOverlay(context: CanvasRenderingContext2D): void {
+    if (this.updateReady) { this.updateReady.draw(context); return; }
     if (!this.blockingUpdatePromptVisible) return;
     const { frame } = this.updatePrompt;
     context.save();
@@ -3500,6 +3533,7 @@ export class OverworldUi {
     this.applyContentFrameBindings();
     this.syncRetainedInventory();
     this.syncRetainedReading();
+    this.syncRetainedOverlays();
     this.syncRetainedCharacter();
     this.syncRetainedSystem();
     if (this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) { this.windowNode.visible = false; this.closeNode.visible = false; }
@@ -3997,6 +4031,7 @@ export class OverworldUi {
   }
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
+    if (window === 'delve-confirmation' && this.delveConfirmation) { this.delveConfirmation.draw(context); return; }
     if (window === 'skills') { this.skillTree?.draw(context); return; }
     if (window === 'character') { this.characterScreen?.draw(context); return; }
     if (window === 'statistics') { this.statisticsScreen?.draw(context); return; }

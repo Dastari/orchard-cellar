@@ -6,3 +6,4 @@ export type { UiRootPointer } from './kit/runtime/input.js';
 export type { UiElement, UiElementKey, UiElementWheel } from './kit/runtime/element.js';
 export { loadUiKitArt, type UiKitArt } from './kit/components/art.js';
 export { uiFixed, uiOffset } from './kit/layout/box.js';
+export { DelveRewardsUi } from './game-host/overlays.js';

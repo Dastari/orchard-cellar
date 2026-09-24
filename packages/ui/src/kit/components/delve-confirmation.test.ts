@@ -14,3 +14,10 @@ it.each([[480, 270], [240, 150], [120, 160]] as const)('keeps confirmation actio
   root.key({ key: 'Enter' }); expect(onCancel).toHaveBeenCalledOnce();
   expect(onBegin).toHaveBeenCalledOnce(); root.dispose();
 });
+it('keeps cancellation available when entry permission changes', () => {
+  const root = new UiRoot({ scale: 1 }), onBegin = vi.fn(), onCancel = vi.fn(); root.resize(320, 180);
+  const dialog = uiDelveConfirmation({ onBegin, onCancel }); root.mount(dialog); root.arrange(); dialog.updateCanBegin(false);
+  const begin = root.entries().find(entry => entry.element.id === 'delve-confirmation.begin')!.element; expect(begin.disabled).toBe(true);
+  const cancel = root.entries().find(entry => entry.element.id === 'delve-confirmation.cancel')!.element; root.focus.set(cancel); root.key({ key: 'Enter' });
+  expect(onBegin).not.toHaveBeenCalled(); expect(onCancel).toHaveBeenCalledOnce(); root.dispose();
+});

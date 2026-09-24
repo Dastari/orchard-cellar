@@ -71,7 +71,7 @@ describe('overworld UI compositing order', () => {
 });
 
 it('routes adopted modal roots through every central uncaptured input entry', () => {
-  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction']) {
+  for (const host of ['character-character', 'character-statistics', 'character-skills', 'npc-interaction', 'update-ready', 'delve-rewards', 'delve-confirmation']) {
     expect(main).toContain(`retainedUi.key(event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('move', event, '${host}')`);
     expect(main).toContain(`retainedPointers.dispatch('down', event, '${host}')`);

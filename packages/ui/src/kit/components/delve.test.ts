@@ -37,3 +37,11 @@ it('contains the frame and scrolls reward choices on short and narrow viewports'
     root.dispose();
   }
 });
+it('retains current cards across harmless snapshots and disposes them when the offer changes', () => {
+  const root = new UiRoot({ scale: 1 }); root.resize(640, 400);
+  const rewards = uiDelveRewards({ model, onChoose: vi.fn(), onLeaveShop: vi.fn() }); root.mount(rewards); root.arrange();
+  const card = root.entries().find(entry => entry.element.id === 'delve.choose.0')!.element;
+  root.focus.set(card); rewards.updateDelveRewards({ ...model, run: { ...model.run, wave: 1 } }); root.arrange();
+  expect(root.entries().find(entry => entry.element.id === card.id)!.element).toBe(card); expect(root.focus.current).toBe(card);
+  rewards.updateDelveRewards({ ...model, offers: model.offers.map(offer => ({ ...offer, cost: offer.cost + 1 })) }); root.arrange(); expect(card.disposed).toBe(true); root.dispose();
+});
