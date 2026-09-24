@@ -134,8 +134,8 @@ describe('projected nameplates', () => {
     expect(original.rect.y + original.rect.height).toBe(60);
     layer.setProps({ labels: [{ id: 'mara', x: 100, y: 60, text: 'Mara', offline: true }] }); root.arrange();
     expect(layer.children).toHaveLength(1);
-    // Offline players get the greyed plate with an Offline line; the plate's label keeps the full name.
-    expect(layer.children[0]!.kind).toBe('nameplate'); expect(layer.children[0]!.style.height).toEqual({ mode: 'fixed', size: 22 });
+    // Offline players get the greyed one-line plate marked [offline]; the plate's label keeps the full name.
+    expect(layer.children[0]!.kind).toBe('nameplate'); expect(layer.children[0]!.style.height).toEqual({ mode: 'fixed', size: 13 });
     expect(layer.children[0]!.label).toBe('Mara [offline]');
     layer.setProps({ labels: [{ x: -1, y: 40, text: 'Left' }, { x: 201, y: 40, text: 'Right' },
       { x: 80, y: NaN, text: 'Invalid' }, { x: 80, y: 101, text: 'Below' }] }); root.arrange();

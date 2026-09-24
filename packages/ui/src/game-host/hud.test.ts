@@ -47,14 +47,12 @@ describe('production shared HUD compositions', () => {
     root.key({ key: 'Enter' }); expect(f.callbacks.selectHotbar).toHaveBeenCalledTimes(2);
     f.click('hotbarVitals', 'game.hud.weapon'); expect(f.callbacks.selectHotbar).toHaveBeenLastCalledWith(42);
   });
-  it('cancels target replacement, reconnect and explicit cancellation tails before any successor clear action', () => {
-    const f = fixture(), root = f.host.roots.targetEffects;
-    const down = (id: number) => root.pointer({ type: 'down', point: f.point(f.node('targetEffects', 'game.hud.clear-target')), pointerId: id, button: 0 });
-    const up = (id: number) => root.pointer({ type: 'up', point: f.point(f.node('targetEffects', 'game.hud.clear-target')), pointerId: id, button: 0 });
-    down(1); const next = model(); f.host.update({ ...next, target: { ...next.target!, id: 'target-b' } }); up(1); expect(f.callbacks.clearTarget).not.toHaveBeenCalled();
-    down(2); f.host.update(null); f.host.update({ ...next, sessionKey: 'session-b' }); up(2); expect(f.callbacks.clearTarget).not.toHaveBeenCalled();
-    down(3); root.input.cancelPointers(); up(3); expect(f.callbacks.clearTarget).not.toHaveBeenCalled();
-    down(4); up(4); expect(f.callbacks.clearTarget).toHaveBeenCalledExactlyOnceWith('target-a');
+  it('shows the classic target frame without a clear button; its name sits just above the frame', () => {
+    const f = fixture(640, 360), root = f.host.roots.targetEffects; root.arrange();
+    expect(root.entries().some(row => row.element.id === 'game.hud.clear-target')).toBe(false);
+    const frame = f.node('targetEffects', 'game.hud.target'), name = f.node('targetEffects', 'game.hud.target-name');
+    expect(name.rect.y + name.rect.height).toBeLessThanOrEqual(frame.rect.y); expect(frame.rect.y - (name.rect.y + name.rect.height)).toBeLessThanOrEqual(2);
+    expect(name.rect.x + name.rect.width).toBe(frame.rect.x + frame.rect.width);
   });
   it('retains map focus and zoom on harmless snapshots, clamps endpoints, and scopes collapse/online commands', () => {
     const f = fixture(), root = f.host.roots.zoneMinimap, zoom = f.node('zoneMinimap', 'hud.minimap.zoom-in');
@@ -84,7 +82,7 @@ describe('production shared HUD compositions', () => {
     expect(strip.scroll.maxX).toBeGreaterThan(100);
     root.pointer({ type: 'down', point: start, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
     const focus = root.focus.current;
-    root.pointer({ type: 'down', point: f.point(f.node('targetEffects', 'game.hud.clear-target')), pointerId: 2, button: 0, pointerType: 'touch', isPrimary: false });
+    root.pointer({ type: 'down', point: f.point(f.node('targetEffects', 'game.hud.target')), pointerId: 2, button: 0, pointerType: 'touch', isPrimary: false });
     root.pointer({ type: 'move', point: { x: start.x - 30, y: start.y }, pointerId: 1, button: 0, pointerType: 'touch' }); root.arrange();
     expect(strip.scroll.x).toBe(30); expect(root.focus.current).toBe(focus);
     root.pointer({ type: 'up', point: start, pointerId: 2, button: 0, pointerType: 'touch' }); expect(f.callbacks.clearTarget).not.toHaveBeenCalled();
@@ -120,10 +118,9 @@ describe('production shared HUD compositions', () => {
   it('keeps compact target actions clear of the map, currency and shortcuts with a watch equipped', () => {
     const f = fixture(); f.host.update({ ...model(), zone: { ...model().zone, watch: { time: '06:00', date: 'Spring 1', moon: 'Full moon' } } });
     const intersects = (a: UiElement, b: UiElement) => a.rect.x < b.rect.x + b.rect.width && a.rect.x + a.rect.width > b.rect.x && a.rect.y < b.rect.y + b.rect.height && a.rect.y + a.rect.height > b.rect.y;
-    const target = ['game.hud.target-name', 'game.hud.clear-target'].map(id => f.node('targetEffects', id));
+    const target = ['game.hud.target-name', 'game.hud.target'].map(id => f.node('targetEffects', id));
     const shortcuts = ['game.hud.weapon', 'game.hud.crafting', 'game.hud.build', 'game.hud.system', 'game.hud.purse'].map(id => f.node('hotbarVitals', id));
     for (const name of target) for (const button of shortcuts) expect(intersects(name, button), `${name.id}/${button.id}`).toBe(false);
-    expect(intersects(target[0]!, target[1]!)).toBe(false);
     const root = f.host.roots.targetEffects; root.focus.set(target[0]!); root.arrange();
     expect(root.entries().some(row => row.element.kind === 'text' && row.element.label === model().target!.name)).toBe(true);
   });
@@ -150,9 +147,9 @@ describe('desktop HUD arrangement', () => {
   it.each([[480, 270], [640, 360], [960, 540]])('gives keyboard play the approved one-row HUD at the game\'s desktop logical size %sx%s', (width, height) => {
     const f = fixture(width, height), node = (id: string) => f.node('hotbarVitals', id);
     const slot = node('game.hud.hotbar.slot.0'), system = node('game.hud.system'), crafting = node('game.hud.crafting'), weapon = node('game.hud.weapon');
-    // Shortcuts, hotbar and main hand share one row, M B C before the hotbar and V after it.
-    for (const control of [system, crafting, weapon]) expect(control.rect.y, control.id).toBe(slot.rect.y);
-    expect(system.rect.x).toBeLessThan(crafting.rect.x); expect(crafting.rect.x).toBeLessThan(slot.rect.x); expect(weapon.rect.x).toBeGreaterThan(slot.rect.x);
+    // The shortcuts are small round buttons anchored to the bottom-left corner, clear of the hotbar.
+    for (const control of [system, crafting, weapon]) { expect(control.rect, control.id).toMatchObject({ width: 26, height: 28 }); expect(control.rect.x + control.rect.width).toBeLessThan(slot.rect.x); }
+    expect(system.rect.x).toBe(6); expect(Math.max(...[system, crafting, weapon].map(control => control.rect.y + control.rect.height))).toBe(height - 6);
     // The character card and purse never overlap the row.
     const intersects = (a: UiElement, b: UiElement) => a.rect.x < b.rect.x + b.rect.width && a.rect.x + a.rect.width > b.rect.x && a.rect.y < b.rect.y + b.rect.height && a.rect.y + a.rect.height > b.rect.y;
     for (const id of ['game.hud.character', 'game.hud.purse']) for (const control of [system, crafting, slot, weapon]) expect(intersects(node(id), control), `${id}/${control.id}`).toBe(false);
@@ -180,7 +177,11 @@ describe('desktop HUD arrangement', () => {
   it('keeps the one-row HUD for touch when it fits between the thumb banks, and two rows on a narrow phone', () => {
     const touch = { ...model(), touchControls: { enabled: true, preferences: { swapped: false, bottomOffset: 0 } } };
     const wide = fixture(844, 390); wide.host.update(touch);
-    expect(wide.node('hotbarVitals', 'game.hud.system').rect.y).toBe(wide.node('hotbarVitals', 'game.hud.hotbar.slot.0').rect.y);
+    const wideSlots = [0, 9].map(index => wide.node('hotbarVitals', `game.hud.hotbar.slot.${index}`));
+    expect(wideSlots[0]!.rect.y).toBe(wideSlots[1]!.rect.y);
+    // The round shortcuts stand just above the left thumb control.
+    const joystick = touchControlLayout(844, 390).joystickCenter, system = wide.node('hotbarVitals', 'game.hud.system');
+    expect(system.rect.x).toBe(6); expect(system.rect.y + system.rect.height).toBeLessThanOrEqual(joystick.y - touchControlLayout(844, 390).joystickRadius - 8);
     const phone = fixture(390, 844); phone.host.update(touch);
     const first = phone.node('hotbarVitals', 'game.hud.hotbar.slot.0'), sixth = phone.node('hotbarVitals', 'game.hud.hotbar.slot.5');
     expect(sixth.rect.x).toBe(first.rect.x); expect(sixth.rect.y).toBeGreaterThan(first.rect.y);
@@ -222,7 +223,7 @@ describe('BUG-029 combined compact touch and HUD', () => {
   const tap=f.point(show('hotbarVitals','game.hud.purse:button',area));root.pointer({type:'down',point:tap,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).not.toHaveBeenCalled();root.pointer({type:'up',point:tap,pointerId:2,button:0,pointerType:'touch',isPrimary:true});expect(f.callbacks.toggleInventory).toHaveBeenCalledOnce();
   const saved=area.scroll.y,focused=root.focus.current;f.host.update({...touchModel(),inventory:{...model().inventory,balanceBronze:12n}});expect(area.scroll.y).toBe(saved);expect(root.focus.current).toBe(focused);
   for(const id of ['game.hud.weapon','game.hud.crafting','game.hud.build','game.hud.system']) show('hotbarVitals',id,area);
-  f.click('zoneMinimap','game.hud.compact.tab.status');const status=f.node('targetEffects','game.hud.compact.status');expect(status.scroll.maxY).toBeGreaterThan(0);show('targetEffects','game.hud.clear-target',status);f.click('targetEffects','game.hud.clear-target');expect(f.callbacks.clearTarget).toHaveBeenCalledExactlyOnceWith('target-a');
+  f.click('zoneMinimap','game.hud.compact.tab.status');const status=f.node('targetEffects','game.hud.compact.status');expect(status.scroll.maxY).toBeGreaterThan(0);show('targetEffects','game.hud.target-name',status);
   scrollUiElement(status,0,status.scroll.maxY);f.host.roots.targetEffects.arrange();const effects=f.node('targetEffects','game.hud.effect-scroll');expect(effects.clip.height).toBe(28);
  });
 
@@ -233,7 +234,7 @@ describe('BUG-029 combined compact touch and HUD', () => {
    const layout=touchControlLayout(width,height,{swapped,bottomOffset}),r=layout.joystickRadius+8;
    const thumbs=[{x:layout.joystickCenter.x-r,y:layout.joystickCenter.y-r,width:r*2,height:r*2},layout.blockButton,layout.dodgeButton,layout.interactButton,layout.jumpButton,layout.secondaryButton];
    for(const surface of Object.keys(f.host.roots) as GameHudSurface[]) for(const {element} of f.host.roots[surface].entries()) if(element.focusable) for(const thumb of thumbs) expect(intersects(element.clip,thumb),`${width}×${height} ${element.id}`).toBe(false);
-   for(const [surface,id] of [['hotbarVitals','game.hud.character'],['hotbarVitals','game.hud.hotbar.slot.0'],['hotbarVitals','game.hud.hotbar.slot.9'],['targetEffects','game.hud.target'],['targetEffects','game.hud.target-name'],['targetEffects','game.hud.clear-target']] as const){const element=f.node(surface,id);for(const thumb of thumbs)expect(intersects(element.clip,thumb),`${width}×${height} swap=${swapped} offset=${bottomOffset}: ${id}`).toBe(false);}
+   for(const [surface,id] of [['hotbarVitals','game.hud.character'],['hotbarVitals','game.hud.hotbar.slot.0'],['hotbarVitals','game.hud.hotbar.slot.9'],['targetEffects','game.hud.target'],['targetEffects','game.hud.target-name']] as const){const element=f.node(surface,id);for(const thumb of thumbs)expect(intersects(element.clip,thumb),`${width}×${height} swap=${swapped} offset=${bottomOffset}: ${id}`).toBe(false);}
    const controls=new TouchControls(art,vi.fn(),true),tracker=new QuestTracker(art,vi.fn(),null);try{controls.setBounds(width,height);controls.setPreferences({swapped,bottomOffset});tracker.update({width,height,layoutRegion:f.host.questTrackerRegion,anchorRect:f.host.minimapBounds,entries:[{id:'q0',title:'Pinned quest',complete:false,objectives:['Read the full objective']}]});for(const thumb of thumbs)expect(intersects(tracker.currentBounds,thumb)).toBe(false);
     for(const scale of [1,2,3]){const canvas=createCanvas(Math.round(width*scale*1.25),Math.round(height*scale*1.25)),ctx=canvas.getContext('2d');ctx.scale(scale*1.25,scale*1.25);controls.draw(ctx as unknown as CanvasRenderingContext2D);f.host.draw(ctx as unknown as CanvasRenderingContext2D);tracker.draw(ctx as unknown as CanvasRenderingContext2D,1000);expect(ctx.getImageData(0,0,canvas.width,canvas.height).data.some(v=>v!==0)).toBe(true);const evidence=process.env['ORCHARD_TOUCH_HUD_EVIDENCE'];if(evidence){mkdirSync(evidence,{recursive:true});writeFileSync(`${evidence}/touch-${width}x${height}-swap${swapped}-offset${bottomOffset}-scale${scale}-dpr1.25.png`,canvas.toBuffer('image/png'));}}
    }finally{controls.dispose();tracker.dispose();}
@@ -246,7 +247,7 @@ describe('BUG-029 combined compact touch and HUD', () => {
    const layout=touchControlLayout(width,height,{swapped,bottomOffset}),r=layout.joystickRadius+8,thumbs=[{x:layout.joystickCenter.x-r,y:layout.joystickCenter.y-r,width:r*2,height:r*2},layout.blockButton,layout.dodgeButton,layout.interactButton,layout.jumpButton,layout.secondaryButton];
    for(const surface of Object.keys(f.host.roots) as GameHudSurface[])for(const {element} of f.host.roots[surface].entries())if(element.focusable)for(const thumb of thumbs)expect(intersects(element.clip,thumb),`${width}×${height} swap${swapped} offset${bottomOffset}: ${element.id}`).toBe(false);
    const zoneNodes=f.host.roots.zoneMinimap.entries().filter(({element})=>['hud.zone','hud.online-players','hud.minimap','hud.minimap.expand'].includes(element.id));
-   for(const [surface,id] of [['hotbarVitals','game.hud.character'],['hotbarVitals','game.hud.hunger'],['targetEffects','game.hud.target'],['targetEffects','game.hud.target-name'],['targetEffects','game.hud.clear-target']] as const){const element=f.host.roots[surface].entries().find(row=>row.element.id===id)?.element;if(element)for(const zone of zoneNodes)expect(intersects(element.clip,zone.element.clip),`${id} versus ${zone.element.id}`).toBe(false);}
+   for(const [surface,id] of [['hotbarVitals','game.hud.character'],['hotbarVitals','game.hud.hunger'],['targetEffects','game.hud.target'],['targetEffects','game.hud.target-name']] as const){const element=f.host.roots[surface].entries().find(row=>row.element.id===id)?.element;if(element)for(const zone of zoneNodes)expect(intersects(element.clip,zone.element.clip),`${id} versus ${zone.element.id}`).toBe(false);}
    quest.update({width,height,anchorRect:f.host.minimapBounds,layoutRegion:f.host.questTrackerRegion,visible:f.host.questTrackerVisible,entries:[{id:'q0',title:'Boundary quest',complete:false,objectives:['Reach every line']}]});
    for(const thumb of thumbs)expect(intersects(quest.currentBounds,thumb)).toBe(false);
   }}finally{quest.dispose();}
@@ -258,8 +259,8 @@ describe('BUG-029 combined compact touch and HUD', () => {
    const status=f.point(f.node('zoneMinimap','game.hud.compact.tab.status'));
    runtime.pointer({type:'down',point:status,pointerId:1,button:0,pointerType:'mouse'});runtime.pointer({type:'up',point:status,pointerId:1,button:0,pointerType:'mouse'});
    expect(f.callbacks.focusSurface).toHaveBeenLastCalledWith('targetEffects');
-   for(let i=0;i<12&&runtime.focusedElement?.id!=='game.hud.clear-target';i++)runtime.key({key:'Tab'});
-   expect(runtime.focusedElement?.id).toBe('game.hud.clear-target');runtime.key({key:'Enter'});expect(f.callbacks.clearTarget).toHaveBeenCalledExactlyOnceWith('target-a');
+   for(let i=0;i<12&&runtime.focusedElement?.id!=='game.hud.target-name';i++)runtime.key({key:'Tab'});
+   expect(runtime.focusedElement?.id).toBe('game.hud.target-name');
    expect(runtime.key({key:'Escape'})).toBe(true);expect(runtime.focusedElement?.id).toBe('game.hud.compact.tab.status');
    runtime.key({key:'Tab',shiftKey:true});expect(runtime.focusedElement?.id).toBe('game.hud.compact.tab.you');runtime.key({key:'Enter'});expect(f.callbacks.focusSurface).toHaveBeenLastCalledWith('hotbarVitals');
    for(let i=0;i<16&&runtime.focusedElement?.id!=='game.hud.purse:button';i++)runtime.key({key:'Tab'});
