@@ -11,6 +11,7 @@ import { uiText } from './text.js';
 import { uiButton } from './button.js';
 import { uiSlot, type UiSlotOptions } from './inventory.js';
 import { uiSkillGraph } from './skill-graph.js';
+import { uiBookWindow, type UiBookWindowElement } from './book-window.js';
 
 /** Book inks: dark plum body, warm muted brown, and success/danger for gains and shortfalls. */
 const INK = '#3f2832', MUTED = '#9e5f45', GOOD = '#265c42', BAD = '#9e2835';
@@ -48,7 +49,7 @@ export function uiLedgerRow(label: string, value: string, options: { readonly de
 /** Labelled bar in the pack's meter colours: name, current/max and a thin track. */
 export function uiBookBar(label: string, current: number, maximum: number, colour: 'red' | 'blue' | 'green' | 'gold', right?: string): UiElement {
   const fills = { red: '#e43b44', blue: '#0095e9', green: '#63c74d', gold: '#feae34' } as const;
-  return new UiElement({ kind: 'book-bar', label: `${label} ${current}/${maximum}`, style: { height: uiFixed(15), shrink: 0, alignSelf: 'stretch' },
+  return new UiElement({ kind: 'book-bar', label: `${label} ${right ?? `${current}/${maximum}`}`, style: { height: uiFixed(15), shrink: 0, alignSelf: 'stretch' },
     paint(element, { context, art }) {
       if (!art) return; const r = element.rect, text = right ?? `${current}/${maximum}`;
       drawPixelText(context, art.pixel, label, r.x, r.y, { color: INK });
@@ -60,11 +61,14 @@ export function uiBookBar(label: string, current: number, maximum: number, colou
 }
 
 /** Selectable page line: optional item icon, text, right-hand note, current-row highlight. */
-export function uiPageRow(options: { readonly id?: string; readonly label: string; readonly note?: string; readonly icon?: () => { readonly asset: LoadedAsset; readonly animation?: string } | undefined; readonly glyph?: string;
-  readonly selected?: boolean; readonly muted?: boolean; readonly onPress?: () => void }): UiElement {
+export function uiPageRow(options: { readonly id?: string; readonly label: string; readonly note?: string | (() => string); readonly icon?: () => { readonly asset: LoadedAsset; readonly animation?: string } | undefined; readonly glyph?: string;
+  readonly selected?: boolean | (() => boolean); readonly muted?: boolean; readonly onPress?: () => void }): UiElement {
   let pressed = false;
-  return new UiElement({ id: options.id, kind: 'page-row', label: options.label, focusable: Boolean(options.onPress), pointerMode: options.onPress ? 'capture' : 'passthrough', props: { selected: options.selected ?? false },
+  const selected = () => typeof options.selected === 'function' ? options.selected() : options.selected ?? false;
+  return new UiElement({ id: options.id, kind: 'page-row', label: options.label, focusable: Boolean(options.onPress), pointerMode: options.onPress ? 'capture' : 'passthrough', props: { selected: selected() },
     style: { height: uiFixed(16), shrink: 0, alignSelf: 'stretch' },
+    // A live selection keeps the row's selected prop current for assistive text and hosts.
+    onArrange(element) { const current = selected(); if (element.props['selected'] !== current) element.setProps({ selected: current }, false); },
     onPointer(event, element) {
       if (!options.onPress) return false;
       if (event.type === 'down' && event.button === 0) { pressed = true; event.capture(); return true; }
@@ -75,15 +79,30 @@ export function uiPageRow(options: { readonly id?: string; readonly label: strin
     onKey(event) { if (options.onPress && (event.key === 'Enter' || event.key === ' ')) { options.onPress(); return true; } return false; },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; const r = element.rect;
-      if (options.selected || hovered || focused) { context.fillStyle = options.selected ? '#e4a672' : 'rgba(228, 166, 114, 0.45)'; context.fillRect(r.x, r.y, r.width, r.height); }
+      const current = selected(); if (element.props['selected'] !== current) element.setProps({ selected: current }, false);
+      if (current || hovered || focused) { context.fillStyle = current ? '#e4a672' : 'rgba(228, 166, 114, 0.45)'; context.fillRect(r.x, r.y, r.width, r.height); }
       if (focused) { context.fillStyle = '#fff6e0'; context.fillRect(r.x, r.y + r.height - 1, r.width, 1); }
       let x = r.x + 2;
       const icon = options.icon?.();
       if (icon) { const frame = selectAtlasFrame(icon.asset.metadata, icon.animation ?? 'base', 0) ?? selectAtlasFrame(icon.asset.metadata, 'base', 0); if (frame) { const f = Math.min(1, 16 / frame.width, 16 / frame.height); context.drawImage(icon.asset.image, frame.x, frame.y, frame.width, frame.height, x, r.y + Math.floor((16 - frame.height * f) / 2), Math.round(frame.width * f), Math.round(frame.height * f)); } x += 18; }
       else if (options.glyph) { paintUiSkin(context, art.skin.icon, options.glyph, { x, y: r.y, width: 16, height: 16 }); x += 18; }
-      const note = options.note ?? '', noteWidth = note ? measurePixelText(note, 1, art.pixel.font) + 4 : 0;
+      const note = (typeof options.note === 'function' ? options.note() : options.note) ?? '', noteWidth = note ? measurePixelText(note, 1, art.pixel.font) + 4 : 0;
       drawPixelText(context, art.pixel, fitPixelText(options.label, r.x + r.width - x - noteWidth - 2, 1, art.pixel.font), x, r.y + 4, { color: options.muted ? MUTED : INK });
       if (note) drawPixelText(context, art.pixel, note, r.x + r.width - noteWidth + 2, r.y + 4, { color: MUTED });
+    } });
+}
+
+/** A live book bar: label, right-hand text and fill fraction are read at paint time; the element's label is `label()`. */
+export function uiLiveBookBar(options: { readonly id?: string; readonly label: () => string; readonly right: () => string; readonly fraction: () => number; readonly colour: 'red' | 'blue' | 'green' | 'gold' }): UiElement {
+  const fills = { red: '#e43b44', blue: '#0095e9', green: '#63c74d', gold: '#feae34' } as const;
+  return new UiElement({ id: options.id, kind: 'book-bar', label: options.label(), style: { height: uiFixed(15), shrink: 0, alignSelf: 'stretch' },
+    paint(element, { context, art }) {
+      if (!art) return; const r = element.rect, label = options.label(), text = options.right(); element.label = label;
+      drawPixelText(context, art.pixel, fitPixelText(label, r.width - measurePixelText(text, 1, art.pixel.font) - 6, 1, art.pixel.font), r.x, r.y, { color: INK });
+      drawPixelText(context, art.pixel, text, r.x + r.width - measurePixelText(text, 1, art.pixel.font), r.y, { color: MUTED });
+      context.fillStyle = INK; context.fillRect(r.x, r.y + 10, r.width, 4);
+      context.fillStyle = '#743f39'; context.fillRect(r.x + 1, r.y + 11, r.width - 2, 2);
+      context.fillStyle = fills[options.colour]; context.fillRect(r.x + 1, r.y + 11, Math.round((r.width - 2) * Math.max(0, Math.min(1, options.fraction()))), 2);
     } });
 }
 
@@ -127,4 +146,34 @@ export function uiSkillDetail(options: { readonly node: SkillNodeDefinition; rea
       uiButton({ id: 'skills.learn', label: options.rank >= options.node.maxRank ? 'Mastered' : 'Learn', tone: 'success', disabled: !options.canLearn, onPress: options.onLearn }),
     ]),
   ]);
+}
+
+/** The player's book: one set of chapter tabs shared by the character, skills, quests and records hosts. */
+export type UiGameBookChapter = 'character' | 'skills' | 'quests' | 'statistics';
+export const UI_GAME_BOOK_CHAPTERS: readonly { readonly id: UiGameBookChapter; readonly label: string; readonly icon: string; readonly hotkey?: string }[] = [
+  { id: 'character', label: 'Character', icon: 'chapter.character', hotkey: 'P' },
+  { id: 'skills', label: 'Skills', icon: 'chapter.skills', hotkey: 'K' },
+  { id: 'quests', label: 'Quests', icon: 'chapter.quests', hotkey: 'L' },
+  { id: 'statistics', label: 'Records', icon: 'chapter.statistics' },
+];
+/** Leaf size for a viewport: the approved 200×248 spread on wide screens, 160-wide leaves on phones,
+ * shrinking to fit whatever height is left (tabs 24, cover 32, margins 16). */
+export function uiGameBookPage(viewportWidth: number, viewportHeight: number): { readonly width: number; readonly height: number } {
+  // The spread is two leaves, a 24px spine gap and 32px of cover; 16px more keeps it inside the host's margin.
+  const width = viewportWidth >= 480 ? 200 : Math.max(96, Math.min(160, Math.floor((viewportWidth - 72) / 2)));
+  const tall = viewportWidth < 480 ? 300 : 248;
+  return { width, height: Math.max(96, Math.min(tall, viewportHeight - 72)) };
+}
+export interface UiGameBookOptions {
+  readonly id: string; readonly active: UiGameBookChapter;
+  readonly left: UiElement; readonly right: UiElement;
+  readonly page: { readonly width: number; readonly height: number };
+  readonly onNavigate?: (chapter: UiGameBookChapter) => void; readonly onClose?: () => void;
+}
+/** One open spread of the player's book. Other chapters are tabs that ask the host to navigate. */
+export function uiGameBook(options: UiGameBookOptions): UiBookWindowElement {
+  const chapters = UI_GAME_BOOK_CHAPTERS.map(chapter => ({ ...chapter,
+    left: () => chapter.id === options.active ? options.left : uiFlex({}, []), right: () => chapter.id === options.active ? options.right : uiFlex({}, []) }));
+  return uiBookWindow({ id: options.id, chapters, active: options.active, page: options.page,
+    onChapter: id => { if (id !== options.active) options.onNavigate?.(id as UiGameBookChapter); }, onClose: options.onClose });
 }

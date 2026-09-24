@@ -9,11 +9,11 @@ it('guards learning and reset from authoritative points and balance while retain
  const frame=uiSkills({model,purchase,reset});root.mount(frame);root.arrange();
  const find=(id:string)=>root.entries().map(e=>e.element).find(e=>e.id===id)!;
  const press=(label:string)=>{const node=root.entries().map(e=>e.element).find(e=>e.props['label']===label)!;root.focus.set(node,'keyboard');root.key({key:'Enter'});};
- const cell=find('skill:trailblazer');root.focus.set(cell,'keyboard');root.key({key:'Enter'});root.arrange();press('LEARN 1 RANK');expect(purchase).toHaveBeenCalledWith('trailblazer');
+ const cell=find('skill:trailblazer');root.focus.set(cell,'keyboard');root.key({key:'Enter'});root.arrange();press('Learn');expect(purchase).toHaveBeenCalledWith('trailblazer');
  const graph=root.entries().map(e=>e.element).find(e=>e.kind==='skill-graph')!;root.focus.set(graph,'keyboard');root.key({key:'ArrowRight'});root.arrange();const pan=graph.props['pan'];
- const spent:SkillTreeModel={...model,tracks:[{...model.tracks[0]!,spentPoints:1,respecCount:1}],ranks:[{nodeId:'trailblazer',rank:1}]};frame.updateSkills(spent);root.arrange();expect(graph.props['pan']).toEqual(pan);expect(root.entries().map(e=>e.element).find(e=>e.props['label']==='LEARN 1 RANK')!.disabled).toBe(true);
- let resetButton=root.entries().map(e=>e.element).find(e=>String(e.props['label']).startsWith('RESET TREE'))!;expect(resetButton.disabled).toBe(true);
- frame.updateSkills({...spent,balanceBronze:1000000n});root.arrange();resetButton=root.entries().map(e=>e.element).find(e=>String(e.props['label']).startsWith('RESET TREE'))!;expect(resetButton.disabled).toBe(false);root.focus.set(resetButton,'keyboard');root.key({key:'Enter'});expect(reset).toHaveBeenCalledWith('explorer');
+ const spent:SkillTreeModel={...model,tracks:[{...model.tracks[0]!,spentPoints:1,respecCount:1}],ranks:[{nodeId:'trailblazer',rank:1}]};frame.updateSkills(spent);root.arrange();expect(graph.props['pan']).toEqual(pan);expect(root.entries().map(e=>e.element).find(e=>e.id==='skills.learn')!.disabled).toBe(true);
+ let resetButton=root.entries().map(e=>e.element).find(e=>e.id==='skills.reset')!;expect(resetButton.disabled).toBe(true);
+ frame.updateSkills({...spent,balanceBronze:1000000n});root.arrange();resetButton=root.entries().map(e=>e.element).find(e=>e.id==='skills.reset')!;expect(resetButton.disabled).toBe(false);root.focus.set(resetButton,'keyboard');root.key({key:'Enter'});expect(reset).toHaveBeenCalledWith('explorer');
  frame.selectTrack('combat');root.arrange();expect(frame.selectedTrack).toBe('combat');expect(find('skill:combat_root')).toBeDefined();root.dispose();
 });
 
@@ -27,7 +27,7 @@ it('distinguishes owned, available, locked and placeholder nodes without blockin
  expect(trail.props['tone']).toBe('warning');
  for (const cell of cells().filter(cell => ['locked', 'placeholder'].includes(String(cell.props['skillState'])))) {
   expect(cell.disabled).toBe(false); expect(root.focus.set(cell)).toBe(true); root.key({ key: 'Enter' });
-  const learn = root.entries().find(entry => entry.element.props['label'] === 'LEARN 1 RANK')!.element;
+  const learn = root.entries().find(entry => entry.element.id === 'skills.learn')!.element;
   if (cell.props['skillState'] === 'locked') expect(learn.disabled).toBe(true);
  }
  expect(purchase).not.toHaveBeenCalled();
@@ -46,7 +46,7 @@ it('uses the supplied skill catalog and refreshes it when authored nodes change'
  const cells = () => root.entries().map(entry => entry.element).filter(node => node.id.startsWith('skill:'));
  expect(cells().map(node => node.id)).toEqual(['skill:explorer_root','skill:authored_trail']);
  root.focus.set(cells().find(node => node.id === 'skill:authored_trail')!, 'keyboard'); root.key({key:'Enter'}); root.arrange();
- const learn = root.entries().find(entry => entry.element.props['label'] === 'LEARN 1 RANK')!.element;
+ const learn = root.entries().find(entry => entry.element.id === 'skills.learn')!.element;
  expect(learn.disabled).toBe(false); root.focus.set(learn, 'keyboard'); root.key({key:'Enter'});
  expect(purchase).toHaveBeenCalledWith('authored_trail');
  frame.updateSkills({...model,nodes:[]}); root.arrange(); expect(cells()).toEqual([]);

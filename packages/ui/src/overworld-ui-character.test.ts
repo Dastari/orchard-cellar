@@ -85,5 +85,5 @@ it('preserves parent shortcuts, shared navigation and compact bounds without leg
     const canvas = createCanvas(320, 180); (f.ui as unknown as { drawWindow(ctx: CanvasRenderingContext2D, name: string): void }).drawWindow(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, window);
     f.runtime.key({ key: 'i' }); expect(f.ui.openWindow).toBe('inventory');
   }
-  f.ui.openWindow = 'statistics'; f.roots.statistics.focus.set(element(f.roots.statistics, 'statistics.navigate.character')); f.runtime.key({ key: 'Enter' }); expect(f.ui.openWindow).toBe('character');
+  f.ui.openWindow = 'statistics'; f.roots.statistics.focus.set(element(f.roots.statistics, 'book.tab.character')); f.runtime.key({ key: 'Enter' }); expect(f.ui.openWindow).toBe('character');
 });

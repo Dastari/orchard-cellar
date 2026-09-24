@@ -54,7 +54,7 @@ describe('production retained skills adapter', () => {
     const p = f.point('skills.learn'); root.pointer({ type: 'down', point: p, button: 0, pointerId: 1 });
     f.ui.update(null); expect(f.ui.active).toBe(false); f.ui.update(model()); f.ui.setBounds(frame(800,500),800,500); f.ui.focus();
     root.pointer({ type: 'up', point: p, button: 0, pointerId: 1 }); expect(f.purchase).not.toHaveBeenCalled(); expect(f.ui.root).toBe(root);
-    const stats = root.entries().find(entry => entry.element.label === 'STATISTICS')!.element; root.focus.set(stats); root.key({ key: 'Enter' }); expect(f.navigate).toHaveBeenCalledWith('statistics'); root.key({ key: 'Escape' }); expect(f.close).toHaveBeenCalledOnce();
+    const stats = root.entries().find(entry => entry.element.id === 'book.tab.statistics')!.element; root.focus.set(stats); root.key({ key: 'Enter' }); expect(f.navigate).toHaveBeenCalledWith('statistics'); root.key({ key: 'Escape' }); expect(f.close).toHaveBeenCalledOnce();
   });
   it('never retargets an action release after selection, authority or catalog changes', () => {
     const f = fixture(); f.press('skill:measured_stride'); const p = f.point('skills.learn');

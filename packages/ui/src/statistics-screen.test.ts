@@ -78,123 +78,155 @@ describe('statistics screen', () => {
 
 import { afterEach, beforeAll, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
-import { StatisticsScreen } from './statistics-screen.js';
+import { StatisticsScreen, type PlayerStatisticModel } from './statistics-screen.js';
 import { progressionWindowRect } from './character-screen.js';
+import { uiGameBookPage } from './kit/components/character-book.js';
 import { uiTestArt } from './kit/lab/testing/art.js';
 import type { UiKitArt } from './kit/components/art.js';
+import type { UiElement } from './kit/runtime/element.js';
 import { scrollUiElement } from './kit/layout/scroll.js';
 import { UI_TEXT_METRICS } from './kit/tokens.js';
 let art: UiKitArt;
 beforeAll(async () => { art = await uiTestArt(); });
 const screens: StatisticsScreen[] = [];
 afterEach(() => { screens.splice(0).forEach(screen => screen.dispose()); vi.unstubAllGlobals(); });
-const records = Array.from({ length: 18 }, (_, index) => ({ statisticKind: 'items_obtained', subjectKind: `item_${String(index).padStart(2, '0')}`, value: 9007199254740993n + BigInt(index) }));
+/** Eighteen per-item records (Crafting) plus two General records, so the book opens on General with two categories. */
+const records: PlayerStatisticModel[] = [
+  { statisticKind: 'time_played', subjectKind: '', value: 400n },
+  { statisticKind: 'world_entries', subjectKind: '', value: 3n },
+  ...Array.from({ length: 18 }, (_, index) => ({ statisticKind: 'items_obtained', subjectKind: `item_${String(index).padStart(2, '0')}`, value: 9007199254740993n + BigInt(index) })),
+];
+const tick = (rows: readonly PlayerStatisticModel[], by = 1n) => rows.map(row => ({ ...row, value: row.value + by }));
 function fixture(width = 640, height = 400) {
   const navigate = vi.fn(), close = vi.fn(), screen = new StatisticsScreen(art, { onNavigate: navigate, onClose: close }); screens.push(screen);
   screen.update({ statistics: records }); screen.setBounds(progressionWindowRect(width, height), width, height); screen.focus();
-  const node = (id: string) => { screen.root.arrange(); return screen.root.entries().find(entry => entry.element.id === id)!.element; };
-  const byLabel = (label: string) => { screen.root.arrange(); return screen.root.entries().find(entry => entry.element.label === label)!.element; };
-  const press = (label: string) => { screen.root.focus.set(byLabel(label)); screen.root.key({ key: 'Enter' }); screen.root.arrange(); };
-  return { screen, node, byLabel, press, navigate, close };
+  const root = screen.root;
+  const find = (id: string) => { root.arrange(); return root.entries().find(entry => entry.element.id === id)?.element; };
+  const node = (id: string) => find(id)!;
+  const byLabel = (label: string) => { root.arrange(); return root.entries().find(entry => entry.element.label === label)?.element; };
+  const press = (id: string) => { root.focus.set(node(id)); root.key({ key: 'Enter' }); root.arrange(); };
+  const heading = () => { root.arrange(); return root.entries().filter(entry => entry.element.kind === 'page-heading').map(entry => entry.element.label).find(label => label !== 'Records'); };
+  const recordIds = () => { root.arrange(); return root.entries().filter(entry => entry.element.kind === 'ledger-row').map(entry => entry.element.id); };
+  const tap = (element: UiElement, pointerId: number, finish: 'up' | 'cancel' = 'up', between?: () => void) => {
+    const point = { x: element.clip.x + 8, y: element.clip.y + Math.floor(element.clip.height / 2) };
+    root.pointer({ type: 'down', point, pointerId, button: 0 }); between?.(); root.pointer({ type: finish, point, pointerId, button: 0 }); root.arrange();
+  };
+  return { screen, root, find, node, byLabel, press, heading, recordIds, tap, navigate, close };
 }
+const item = (index: number) => `statistics.record:items_obtained:item_${String(index).padStart(2, '0')}`;
 describe('production retained statistics adapter', () => {
-  it('keeps the table, focus, page, sort and exact bigint totals through authoritative counter ticks', () => {
-    const f = fixture(); f.press('Next'); const table = f.node('statistics.table'), list = f.node('statistics.table:rows');
-    f.screen.root.focus.set(list); f.screen.root.key({ key: 'ArrowDown' }); const focus = f.screen.root.focus.current;
-    expect((table.props['state'] as { page: number }).page).toBe(1);
-    f.screen.update({ statistics: records.map(row => ({ ...row, value: row.value + 1n })) });
-    expect(f.node('statistics.table')).toBe(table); expect(f.node('statistics.table:rows')).toBe(list); expect(f.screen.root.focus.current).toBe(focus);
-    expect(list.props['active']).toBe(1); expect((table.props['state'] as { page: number }).page).toBe(1);
-    expect(f.screen.root.entries().some(entry => entry.element.label === '9,007,199,254,741,000')).toBe(true);
+  it('opens the Records chapter on the first category and groups only categories that have records', () => {
+    const f = fixture();
+    expect(f.node('game.statistics.host').kind).toBe('statistics-screen');
+    expect(f.root.focus.current?.id).toBe('statistics.category.general');
+    expect(f.node('statistics.category.general').props['selected']).toBe(true);
+    expect(f.find('statistics.category.crafting')).toBeDefined();
+    expect(['farming', 'world', 'economy', 'adventure'].map(id => f.find(`statistics.category.${id}`))).toEqual([undefined, undefined, undefined, undefined]);
+    expect(f.heading()).toBe('General');
+    expect(f.recordIds()).toEqual(['statistics.record:time_played:', 'statistics.record:world_entries:']);
+    expect(f.byLabel('Time Played 20s')).toBeDefined();
   });
-  it('preserves captured sorting controls across value updates and cancellation prevents sorting', () => {
-    const f = fixture(), root = f.screen.root, sort = f.node('statistics.table:sort:subject');
-    root.focus.set(sort); root.arrange(); const point = { x: sort.clip.x + 8, y: sort.clip.y + 8 };
-    root.pointer({ type: 'down', point, pointerId: 1, button: 0 });
-    f.screen.update({ statistics: records.map(row => ({ ...row, value: row.value + 1n })) });
-    expect(f.node('statistics.table:sort:subject')).toBe(sort);
-    root.pointer({ type: 'up', point, pointerId: 1, button: 0 });
-    expect(f.node('statistics.table').props['sort']).toEqual([{ column: 'subject', direction: 'asc' }]);
-    root.pointer({ type: 'down', point, pointerId: 2, button: 0 }); root.pointer({ type: 'cancel', point, pointerId: 2, button: 0 });
-    expect(f.node('statistics.table').props['sort']).toEqual([{ column: 'subject', direction: 'asc' }]);
+  it('keeps the chapter, rows, focus, scroll and exact bigint totals through authoritative counter ticks', () => {
+    const f = fixture(); f.press('statistics.category.crafting');
+    expect(f.heading()).toBe('Crafting'); expect(f.root.focus.current?.id).toBe('statistics.category.crafting');
+    const area = f.node('statistics.rows'), row = f.node(item(17)); f.root.focus.set(row); f.root.arrange();
+    const scroll = area.scroll.y; expect(scroll).toBeGreaterThan(0);
+    const ids = f.recordIds();
+    f.screen.update({ statistics: tick(records) });
+    expect(f.node('statistics.rows')).toBe(area); expect(f.node(item(17))).toBe(row); expect(f.root.focus.current).toBe(row);
+    expect(area.scroll.y).toBe(scroll); expect(f.recordIds()).toEqual(ids);
+    expect(row.label).toBe('Item 17 9,007,199,254,741,011');
+    expect(f.byLabel('Item 00 9,007,199,254,740,994')).toBeDefined();
   });
-  it('clamps a disappearing page, restores list focus, and never activates replacement rows on release', () => {
-    const f = fixture(); f.press('Next'); f.press('Next'); const root = f.screen.root, list = f.node('statistics.table:rows'); root.focus.set(list); root.arrange();
-    const row = root.entries().find(entry => entry.element.kind === 'list-row' && entry.element.clip.height > 0)!.element;
-    const point = { x: row.clip.x + 8, y: row.clip.y + 8 };
-    root.pointer({ type: 'down', point, pointerId: 3, button: 0 });
-    f.screen.update({ statistics: records.slice(0, 2) }); root.pointer({ type: 'up', point, pointerId: 3, button: 0 });
-    expect((f.node('statistics.table').props['state'] as { page: number }).page).toBe(0);
-    expect(root.focus.current?.id).toBe('statistics.table:rows');
-    expect(f.node('statistics.table:rows').props['selected']).toEqual([]);
+  it('lists one small-caps heading per statistic with its subjects beneath, in the shared sort order', () => {
+    const f = fixture(); f.screen.update({ statistics: [...records,
+      { statisticKind: 'items_dropped', subjectKind: 'wood', value: 2n }, { statisticKind: 'crafting_actions', subjectKind: '', value: 5n }] });
+    f.press('statistics.category.crafting');
+    const area = f.node('statistics.rows');
+    const lines = area.children.map(line => line.kind === 'text' ? `# ${line.label}` : (line.kind === 'ledger-row' ? line : line.children[0]!).id);
+    expect(lines.slice(0, 5)).toEqual(['statistics.record:crafting_actions:', '# ITEMS DROPPED', 'statistics.record:items_dropped:wood', '# ITEMS OBTAINED', item(0)]);
+    expect(lines.filter(line => line === '# ITEMS OBTAINED')).toHaveLength(1);
+    expect(f.node('statistics.record:items_dropped:wood').label).toBe('Wood 2');
+  });
+  it('preserves a captured category press across value updates and cancellation prevents selection', () => {
+    const f = fixture(), crafting = f.node('statistics.category.crafting');
+    f.tap(crafting, 1, 'cancel', () => f.screen.update({ statistics: tick(records) }));
+    expect(f.heading()).toBe('General');
+    f.tap(crafting, 2, 'up', () => { f.screen.update({ statistics: tick(records, 2n) }); expect(f.node('statistics.category.crafting')).toBe(crafting); });
+    expect(f.heading()).toBe('Crafting');
+    expect(f.node('statistics.category.crafting').props['selected']).toBe(true);
+  });
+  it('falls back to the first category when the selected one empties and restores focus to a category row', () => {
+    const f = fixture(); f.press('statistics.category.crafting');
+    f.screen.update({ statistics: records.slice(0, 2) });
+    expect(f.heading()).toBe('General'); expect(f.find('statistics.category.crafting')).toBeUndefined();
+    expect(f.root.focus.current?.id).toBe('statistics.category.general');
   });
   it('uses current authored subject labels and updates registry-only label changes', () => {
     const source = bootstrapContentRegistry();
     const registry = (displayName: string) => buildContentRegistry(bootstrapContentRows().map(row => row.id === 'item:wood' ? { ...row, json: { ...source.items.get('item:wood')!, displayName } } : row)).registry;
     const f = fixture(); const statistics = [{ statisticKind: 'items_obtained', subjectKind: 'wood', value: 9007199254740993n }];
-    f.screen.update({ statistics, contentRegistry: registry('Old Authored Name') }); expect(f.byLabel('OLD AUTHORED NAME')).toBeDefined();
-    f.screen.update({ statistics, contentRegistry: registry('New Authored Name') }); expect(f.byLabel('NEW AUTHORED NAME')).toBeDefined();
+    f.screen.update({ statistics, contentRegistry: registry('Old Authored Name') }); expect(f.byLabel('Old Authored Name 9,007,199,254,740,993')).toBeDefined();
+    f.screen.update({ statistics, contentRegistry: registry('New Authored Name') }); expect(f.byLabel('New Authored Name 9,007,199,254,740,993')).toBeDefined();
+    expect(f.byLabel('Old Authored Name 9,007,199,254,740,993')).toBeUndefined();
   });
-  it('restores focused pagination by role when membership changes and preserves updated values on later pages', () => {
-    const f = fixture(); const next = f.byLabel('Next'); f.screen.root.focus.set(next);
-    f.screen.update({ statistics: [...records, { ...records[0]!, subjectKind: 'last_item', value: 44n }] });
-    expect(f.screen.root.focus.current?.label).toBe('Next');
-    f.screen.update({ statistics: [...records.map(row => ({ ...row, value: 77n })), { ...records[0]!, subjectKind: 'last_item', value: 77n }] });
-    f.press('Next'); expect(f.screen.root.entries().filter(entry => entry.element.label === '77')).toHaveLength(6);
-  });
-  it('retains a selected record identity when unrelated rows arrive', () => {
-    const f = fixture(), list = f.node('statistics.table:rows');
-    f.screen.root.focus.set(list); f.screen.root.key({ key: 'ArrowDown' }); f.screen.root.key({ key: 'Enter' });
-    const selected = list.props['selected'];
-    f.screen.update({ statistics: [...records, { ...records[0]!, subjectKind: 'last_item', value: 1n }] });
-    expect(f.node('statistics.table:rows').props['selected']).toEqual(selected);
-    expect(f.node('statistics.table:rows').props['active']).toBe(1);
+  it('restores a focused record by identity and keeps its scroll when unrelated records arrive', () => {
+    const f = fixture(); f.press('statistics.category.crafting');
+    f.root.focus.set(f.node(item(17))); f.root.arrange(); const scroll = f.node('statistics.rows').scroll.y; expect(scroll).toBeGreaterThan(0);
+    f.screen.update({ statistics: [...tick(records, 76n), { statisticKind: 'items_obtained', subjectKind: 'zz_last', value: 44n }] });
+    expect(f.root.focus.current?.id).toBe(item(17)); expect(f.heading()).toBe('Crafting');
+    expect(f.node('statistics.rows').scroll.y).toBe(scroll);
+    expect(f.root.focus.current?.label).toBe('Item 17 9,007,199,254,741,086');
+    expect(f.recordIds()).toContain('statistics.record:items_obtained:zz_last');
   });
   it('keeps compact touch scroll, keyboard browsing and resize state independent from totals', () => {
-    const f = fixture(320, 180), root = f.screen.root, list = f.node('statistics.table:rows');
-    root.focus.set(list); root.arrange(); scrollUiElement(list, 0, 0); root.arrange();
-    const point = { x: list.clip.x + 10, y: list.clip.y + Math.min(20, list.clip.height / 2) };
+    const f = fixture(320, 180), root = f.root; f.press('statistics.category.crafting');
+    const area = f.node('statistics.rows'); scrollUiElement(area, 0, 0); root.arrange();
+    const point = { x: area.clip.x + 10, y: area.clip.y + Math.min(20, area.clip.height / 2) };
     root.pointer({ type: 'down', point, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
     root.pointer({ type: 'move', point: { x: point.x, y: point.y - 12 }, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
-    expect(list.scroll.y).toBeGreaterThan(0);
+    expect(area.scroll.y).toBeGreaterThan(0);
     root.pointer({ type: 'up', point: { x: point.x, y: point.y - 12 }, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
-    expect(list.props['selected']).toEqual([]); root.focus.set(list); root.key({ key: 'End' }); expect(list.props['active']).toBe(5);
-    f.screen.setBounds(progressionWindowRect(640, 400), 640, 400); expect(f.node('statistics.table:rows')).toBe(list); expect(root.focus.current).toBe(list);
-    root.key({ key: 'Home' }); expect(list.props['active']).toBe(0);
+    expect(f.heading()).toBe('Crafting');
+    root.focus.set(f.node(item(0))); root.key({ key: 'ArrowDown' }); expect(root.focus.current?.id).toBe(item(1));
+    root.key({ key: 'End' }); expect(root.focus.current?.id).toBe(item(17));
+    const row = root.focus.current!;
+    f.screen.setBounds(progressionWindowRect(640, 400), 640, 400);
+    expect(f.node('statistics.rows')).toBe(area); expect(root.focus.current).toBe(row);
+    root.key({ key: 'Home' }); expect(root.focus.current?.id).toBe(item(0));
   });
-  it('keeps a full compact row, header and pointer pager through resize without replacing browsing state', () => {
-    const f = fixture(320, 180), root = f.screen.root;
-    const table = f.node('statistics.table');
-    root.focus.set(f.node('statistics.table:sort:subject')); root.key({ key: 'Enter' }); root.arrange();
-    const sort = table.props['sort'];
-    f.press('Next'); root.focus.set(f.node('statistics.table:sort:subject')); root.arrange();
-    for (const [width, height] of [[320, 180], [800, 600], [320, 180]]) {
-      const list = f.node('statistics.table:rows');
-      f.screen.setBounds(progressionWindowRect(width!, height!), width!, height!);
-      expect((table.props['state'] as { page: number }).page).toBe(1);
-      scrollUiElement(table, 0, 0); scrollUiElement(list, 0, 0); root.arrange();
-      expect(f.node('statistics.table')).toBe(table); expect(f.node('statistics.table:rows')).toBe(list);
-      expect(root.focus.current?.id).toBe('statistics.table:sort:subject');
-      expect(table.props['sort']).toEqual(sort);
-      const row = root.entries().find(entry => entry.element.kind === 'list-row')!.element;
-      expect(row.rect.height).toBe(24); expect(row.clip.height).toBe(row.rect.height);
-      const header = f.node('statistics.table:sort:record');
-      expect(header.clip.height).toBe(header.rect.height);
-      const next = f.byLabel('Next'), point = { x: next.rect.x + next.rect.width / 2, y: next.rect.y + next.rect.height / 2 };
-      const page = (table.props['state'] as { page: number }).page;
-      root.pointer({ type: 'down', point, pointerId: 10, button: 0 }); root.pointer({ type: 'up', point, pointerId: 10, button: 0 }); root.arrange();
-      expect((table.props['state'] as { page: number }).page).toBe(page + 1);
-      const previous = f.byLabel('Previous'), back = { x: previous.rect.x + previous.rect.width / 2, y: previous.rect.y + previous.rect.height / 2 };
-      root.pointer({ type: 'down', point: back, pointerId: 11, button: 0 }); root.pointer({ type: 'up', point: back, pointerId: 11, button: 0 }); root.arrange();
-      expect((table.props['state'] as { page: number }).page).toBe(page);
-      root.focus.set(f.node('statistics.table:sort:subject')); root.arrange();
+  it('sizes the spread from the viewport, resizes it in place and centres it in the host bounds', () => {
+    const f = fixture(640, 400), root = f.root, book = f.node('game.statistics'), tab = f.node('book.tab.skills');
+    for (const [width, height] of [[960, 540], [390, 797], [640, 400]] as const) {
+      f.screen.setBounds(progressionWindowRect(width, height), width, height); root.arrange();
+      const page = uiGameBookPage(width, height), bounds = progressionWindowRect(width, height);
+      expect(f.node('game.statistics')).toBe(book); expect(f.node('book.tab.skills')).toBe(tab);
+      expect(book.rect.width).toBe(page.width * 2 + 56); expect(book.rect.height).toBe(page.height + 32);
+      const host = f.node('game.statistics.host');
+      expect(host.rect).toEqual(bounds);
+      const window = f.node('game.statistics.window');
+      expect(Math.abs(window.rect.x - bounds.x - (bounds.width - window.rect.width) / 2)).toBeLessThanOrEqual(1);
+      expect(window.rect.y).toBeGreaterThanOrEqual(bounds.y);
+      expect(window.rect.y + window.rect.height).toBeLessThanOrEqual(bounds.y + bounds.height);
+      const area = f.node('statistics.rows');
+      expect(area.rect.y + area.rect.height).toBeLessThanOrEqual(book.rect.y + book.rect.height);
     }
   });
-  it('delegates navigation and close, resets on disconnect and paints real kit art', () => {
-    const f = fixture(); f.press('CHARACTER'); expect(f.navigate).toHaveBeenCalledExactlyOnceWith('character');
-    f.screen.root.key({ key: 'Escape' }); expect(f.close).toHaveBeenCalledOnce();
+  it('reserves the rail gutter only when a chapter overflows its page', () => {
+    const f = fixture(960, 540);
+    expect(f.node('statistics.rows').props['gutter']).toBe(0); expect(f.node('statistics.rows').scroll.maxY).toBe(0);
+    f.press('statistics.category.crafting');
+    const area = f.node('statistics.rows'); expect(area.props['gutter']).toBe(24); expect(area.scroll.maxY).toBeGreaterThan(0);
+    const row = f.node(item(0)); expect(row.rect.x + row.rect.width).toBeLessThanOrEqual(area.rect.x + area.rect.width - 24);
+  });
+  it('delegates chapter navigation and close, resets on disconnect and paints real kit art', () => {
+    const f = fixture(); f.press('book.tab.character'); expect(f.navigate).toHaveBeenCalledExactlyOnceWith('character');
+    f.press('book.tab.quests'); expect(f.navigate).toHaveBeenLastCalledWith('quests');
+    f.press('book.tab.statistics'); expect(f.navigate).toHaveBeenCalledTimes(2);
+    f.root.key({ key: 'Escape' }); expect(f.close).toHaveBeenCalledOnce();
+    f.press('book.tab.skills'); expect(f.navigate).toHaveBeenLastCalledWith('skills');
     const root = f.screen.root; f.screen.update(null); expect(f.screen.active).toBe(false);
-    f.screen.update({ statistics: [] }); f.screen.focus(); expect(f.screen.root).toBe(root); expect(f.byLabel('NO LIFETIME RECORDS YET')).toBeDefined();
+    f.screen.update({ statistics: [] }); f.screen.focus(); expect(f.screen.root).toBe(root); expect(f.byLabel('No lifetime records yet')).toBeDefined();
     vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
     f.screen.draw(createCanvas(640, 400).getContext('2d') as unknown as CanvasRenderingContext2D);
     f.screen.dispose(); expect(root.disposed).toBe(true);
@@ -202,9 +234,9 @@ describe('production retained statistics adapter', () => {
   it.each([1, 2, 3])('renders compact/wide records at UI scale %s and fractional DPR', scale => {
     vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
     for (const [width, height] of [[320, 180], [640, 400]]) {
-      const f = fixture(width!, height!), root = f.screen.root;
-      const next = f.byLabel('Next'); root.focus.set(next); root.arrange();
-      expect(next.clip.height).toBe(next.rect.height); expect(next.clip.width).toBe(next.rect.width);
+      const f = fixture(width!, height!), root = f.root;
+      const category = f.node('statistics.category.crafting');
+      expect(category.clip.height).toBe(category.rect.height); expect(category.clip.width).toBe(category.rect.width);
       const canvas = createCanvas(Math.round(width! * scale * 1.25), Math.round(height! * scale * 1.25)), context = canvas.getContext('2d');
       context.scale(scale * 1.25, scale * 1.25); f.screen.draw(context as unknown as CanvasRenderingContext2D);
       expect(root.scale).toBe(1);

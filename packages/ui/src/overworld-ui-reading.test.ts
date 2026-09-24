@@ -53,11 +53,11 @@ function point(root: UiRoot, id: string) { const node = element(root, id); expec
 it('deep-links real quests, retains focus through resize and emits one pinned command per activation', () => {
   const { ui, roots, runtime, handlers, model } = fixture();
   expect(ui.openQuest('missing')).toBe(false); expect(ui.openQuest('quest23')).toBe(true);
-  expect(roots.quests.focus.current?.id).toBe('quests.list');
-  expect(element(roots.quests, 'quests.list').props['selected']).toEqual(['quest23']);
+  expect(roots.quests.focus.current?.id).toBe('quests.row.quest23');
+  expect(element(roots.quests, 'quests.row.quest23').props['selected']).toBe(true);
   const root = roots.quests;
   ui.update({ ...model, width: 360, height: 270, quests: quests.map(q => ({ ...q, pinned: true })) });
-  expect(root.focus.current?.id).toBe('quests.list');
+  expect(root.focus.current?.id).toBe('quests.row.quest23');
   root.focus.set(element(root, 'quests.pin'));
   runtime.key({ key: 'Enter' }); runtime.key({ key: 'Enter', repeat: true });
   expect(handlers.setQuestPinned).toHaveBeenCalledExactlyOnceWith('quest23', false);
@@ -68,10 +68,10 @@ it('deep-links real quests, retains focus through resize and emits one pinned co
 
 it('keeps guide navigation and parent back policy in the retained host', () => {
   const { ui, roots, runtime, model } = fixture(); ui.openWindow = 'help';
-  expect(roots.help.focus.current?.id).toBe('game.help.pages');
+  expect(roots.help.focus.current?.id).toBe('game.help.topic.movement');
   runtime.key({ key: 'e' }); runtime.key({ key: 'q' });
   ui.update({ ...model, width: 360, height: 270 });
-  expect(roots.help.focus.current?.id).toBe('game.help.pages');
+  expect(roots.help.focus.current?.id).toBe('game.help.topic.movement');
   runtime.key({ key: 'Escape' }); expect(ui.openWindow).toBe('system');
   ui.openWindow = 'help'; runtime.key({ key: 'x' }); expect(ui.openWindow).toBe('system');
   ui.openWindow = 'help'; runtime.key({ key: 'l' }); expect(ui.openWindow).toBe('quests');
@@ -104,7 +104,8 @@ it('keeps quest actions fully reachable inside the actual short game viewport', 
   const { ui, roots, model } = fixture(); ui.openQuest('quest23');
   ui.update({ ...model, width: 320, height: 180 });
   for (const id of ['quests.list', 'quests.pin', 'quests.drop']) {
-    const control = element(roots.quests, id);
+    // Reachable means a keyboard focus scrolls the control fully into the page.
+    const control = element(roots.quests, id); roots.quests.focus.set(control, 'keyboard'); roots.quests.arrange();
     expect(control.clip.height).toBe(control.rect.height); expect(control.clip.width).toBe(control.rect.width);
     expect(control.clip.height).toBeGreaterThan(0);
     expect(control.rect.x).toBeGreaterThanOrEqual(0); expect(control.rect.y).toBeGreaterThanOrEqual(0);

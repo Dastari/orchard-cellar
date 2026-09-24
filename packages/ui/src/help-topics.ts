@@ -163,7 +163,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   {
     title: 'HELP BOOK',
     entries: [
-      'Use Left / Right, Q / E, or the page buttons to turn spreads.',
+      'Pick a chapter tab along the top and a topic on the left page. Left / Right or Q / E turn to the previous or next topic; Up / Down move through the list.',
       'Escape or X returns to the menu.',
       'This book describes implemented controls and rules, not planned features.',
     ],

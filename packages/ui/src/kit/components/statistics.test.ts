@@ -1,15 +1,21 @@
 import {expect,it,vi} from 'vitest';
 import {UiRoot} from '../runtime/root.js';
 import {uiStatistics} from './statistics.js';
-it('paginates lifetime totals, preserves the page on updates and exposes progression navigation',()=>{
+it('opens the Records chapter, keeps rows live through counter ticks and exposes book navigation',()=>{
   const navigate=vi.fn(), close=vi.fn(), root=new UiRoot({scale:1});root.resize(640,480);
-  const statistics=Array.from({length:12},(_,index)=>({statisticKind:'items_obtained',subjectKind:`item_${index}`,value:12345678901234567890n}));
-  const frame=uiStatistics({model:{statistics},onNavigate:navigate,onClose:close});root.mount(frame);root.arrange();
-  const nodes=()=>root.entries().map(e=>e.element);
-  expect(nodes().some(n=>n.label==='12,345,678,901,234,567,890')).toBe(true);
-  const next=nodes().find(n=>n.label==='Next')!; expect(next).toBeDefined();root.focus.set(next,'keyboard');root.key({key:'Enter'});root.arrange();
-  const table=nodes().find(n=>n.kind==='table')!;expect((table.props['state'] as {page:number}).page).toBe(1);
-  frame.updateStatistics({statistics:statistics.map(row=>({...row,value:row.value+1n}))});root.arrange();
-  expect((nodes().find(n=>n.kind==='table')!.props['state'] as {page:number}).page).toBe(1);
-  const skills=nodes().find(n=>n.label==='SKILLS')!;root.focus.set(skills,'keyboard');root.key({key:'Enter'});expect(navigate).toHaveBeenCalledWith('skills');root.dispose();
+  const statistics=[{statisticKind:'time_played',subjectKind:'',value:20n},...Array.from({length:12},(_,index)=>({statisticKind:'items_obtained',subjectKind:`item_${index}`,value:12345678901234567890n}))];
+  const frame=uiStatistics({model:{statistics},onNavigate:navigate,onClose:close,page:{width:200,height:248}});root.mount(frame);root.arrange();
+  const nodes=()=>{root.arrange();return root.entries().map(e=>e.element);};
+  const node=(id:string)=>nodes().find(n=>n.id===id)!;
+  expect(node('game.statistics.host').kind).toBe('statistics-screen');
+  expect(nodes().filter(n=>n.kind==='page-heading').map(n=>n.label)).toEqual(['Records','General']);
+  const crafting=node('statistics.category.crafting');root.focus.set(crafting,'keyboard');root.key({key:'Enter'});
+  expect(nodes().filter(n=>n.kind==='page-heading').map(n=>n.label)).toEqual(['Records','Crafting']);
+  expect(root.focus.current?.id).toBe('statistics.category.crafting');
+  const row=node('statistics.record:items_obtained:item_0');expect(row.label).toBe('Item 0 12,345,678,901,234,567,890');
+  frame.updateStatistics({statistics:statistics.map(entry=>({...entry,value:entry.value+1n}))});
+  expect(node('statistics.record:items_obtained:item_0')).toBe(row);expect(row.label).toBe('Item 0 12,345,678,901,234,567,891');
+  expect(nodes().filter(n=>n.kind==='page-heading').map(n=>n.label)).toEqual(['Records','Crafting']);
+  root.focus.set(node('book.tab.skills'),'keyboard');root.key({key:'Enter'});expect(navigate).toHaveBeenCalledWith('skills');
+  root.key({key:'Escape'});expect(close).toHaveBeenCalledOnce();root.dispose();
 });

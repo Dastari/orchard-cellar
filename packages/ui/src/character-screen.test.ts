@@ -181,7 +181,7 @@ describe('production retained character adapter', () => {
   it('delegates navigation/close and preserves compact scrolling and long labels', () => {
     const f = fixture(undefined, 320, 180); f.screen.update({ ...model(), displayName: 'A very long character name '.repeat(3), effects: ['A long effect '.repeat(10)] }); f.screen.root.arrange();
     expect(f.node('character.content').scroll.maxY).toBeGreaterThan(0);
-    const stats = f.screen.root.entries().find(entry => entry.element.label === 'STATISTICS')!.element;
+    const stats = f.screen.root.entries().find(entry => entry.element.id === 'book.tab.statistics')!.element;
     f.screen.root.focus.set(stats); f.screen.root.key({ key: 'Enter' }); expect(f.navigate).toHaveBeenCalledExactlyOnceWith('statistics');
     f.screen.root.key({ key: 'Escape' }); expect(f.close).toHaveBeenCalledOnce();
   });
@@ -190,7 +190,7 @@ describe('production retained character adapter', () => {
     f.press(nextHair); root.key({ key: 'Enter', repeat: true }); expect(f.setAppearance).toHaveBeenCalledOnce();
     const point = f.point(nextHair), focused = root.focus.current;
     root.pointer({ type: 'down', point, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
-    const close = root.entries().find(entry => entry.element.label === 'X')!.element;
+    const close = root.entries().find(entry => entry.element.label === 'Close book')!.element;
     const other = { x: close.clip.x + 5, y: close.clip.y + 5 };
     root.pointer({ type: 'down', point: other, pointerId: 2, button: 0, pointerType: 'touch', isPrimary: false });
     expect(root.focus.current).toBe(focused);

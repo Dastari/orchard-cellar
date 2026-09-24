@@ -247,7 +247,7 @@ describe('overworld retained UI layout', () => {
       },
     });
     ui.openWindow = 'character';
-    const tab = roots.character.entries().find(({ element }) => element.label === 'STATISTICS')!.element;
+    const tab = roots.character.entries().find(({ element }) => element.id === 'book.tab.statistics')!.element;
     roots.character.focus.set(tab); roots.character.arrange();
     const point = { x: tab.clip.x + tab.clip.width / 2, y: tab.clip.y + tab.clip.height / 2 };
     expect(roots.character.pointer({ type: 'down', point, button: 0, pointerId: 1 })).toBe(true);
