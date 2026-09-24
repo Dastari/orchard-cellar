@@ -38,7 +38,7 @@ export function uiCharacter(options:UiCharacterOptions):UiCharacterElement {
     (Object.keys(a) as (keyof PlayerAppearanceSelection)[]).every(key => a[key] === b[key]);
   const facings:readonly Direction[]=['down','right','up','left'];
   const name=uiText(model.displayName,{role:'header',wrap:true}), details=uiFlex({width:'grow',basis:uiFixed(220),gap:8});
-  const portrait=uiViewport({label:'Character preview',layout:{width:uiFixed(100),height:uiFixed(120),shrink:0},render:(context,bounds)=>{if(options.renderPortrait)options.renderPortrait(context,preview,facings[facing]!,bounds);else if(options.asset)paintUiCharacterPortrait(context,preview,facings[facing]!,bounds,options.asset);}});
+  const portrait=uiViewport({label:'Character preview',render:(context,bounds)=>{if(options.renderPortrait)options.renderPortrait(context,preview,facings[facing]!,bounds);else if(options.asset)paintUiCharacterPortrait(context,preview,facings[facing]!,bounds,options.asset);}});
   const labels=new Map<keyof PlayerAppearanceSelection,UiElement>();
   const refreshAppearance=()=>{for(const [kind,node] of labels) node.setProps({text:preview[kind].replace(/^hair_\d+_/, '').replace(/^farmer_/, '').replaceAll('_',' ').toUpperCase()});portrait.invalidate();};
   const controls=uiFlex({width:'grow',gap:4}, ([['hairKind','HAIR'],['shirtKind','CHEST'],['pantsKind','LEGS'],['shoesKind','BOOTS']] as const).map(([kind,label])=>{
@@ -53,7 +53,8 @@ export function uiCharacter(options:UiCharacterOptions):UiCharacterElement {
     };
     return uiFlex({width:'grow',gap:2},[uiText(label),uiFlex({direction:'row',width:'grow',gap:4},[characterButton({id:`character.appearance.${kind}.previous`,label:'<',ariaLabel:`Previous ${label}`,size:'sm',onPress:()=>cycle(-1)}),value,characterButton({id:`character.appearance.${kind}.next`,label:'>',ariaLabel:`Next ${label}`,size:'sm',onPress:()=>cycle(1)})])]);
   }));
-  const equipment=uiPaperDoll({id:'character.equipment',container:'equipment',slotSize:'sm',artwork:options.artwork,
+  // The wearer stands in the paper doll's own well, between the armour and accessory columns.
+  const equipment=uiPaperDoll({id:'character.equipment',container:'equipment',slotSize:'sm',artwork:options.artwork,portrait,
     stack:index=>model.equipment.find(item=>item.slot===index)??null,
     renderContent: options.renderEquipment ? (context, bounds, _stack, index) => {
       const item = model.equipment.find(item => item.slot === index);
@@ -61,12 +62,13 @@ export function uiCharacter(options:UiCharacterOptions):UiCharacterElement {
     } : undefined,
   });
   // Equipment remains read-only, including slots with no authored insertion kinds.
-  if (options.renderEquipment) for (const slot of equipment.children) slot.setDisabled(false);
+  const slots = (node: UiElement): UiElement[] => node.kind === 'slot' ? [node] : node.children.flatMap(slots);
+  if (options.renderEquipment) for (const slot of slots(equipment)) slot.setDisabled(false);
   const turn=(step:number)=>{facing=(facing+step+4)%4;portrait.invalidate();};
   const base=uiFrame({id:'game.character',blockInput:true,header:{title:'CHARACTER',closable:true,onClose:options.onClose},layout:{width:'grow',height:'grow',...options.layout},children:[
     uiFlex({direction:'row',width:'grow',gap:4,shrink:0},(['character','skills','statistics']as const).map(page=>characterButton({label:page.toUpperCase(),size:'sm',tone:page==='character'?'primary':'neutral',onPress:()=>options.onNavigate?.(page)}))),
     uiScrollArea({id:'character.content',width:'grow',height:'grow'},[uiFlex({direction:'row',wrap:true,width:'grow',gap:8},[
-      uiFlex({width:'grow',basis:uiFixed(220),gap:8},[name,uiText('EQUIPMENT'),uiFlex({direction:'row',wrap:true,width:'grow',gap:8},[portrait,equipment]),uiFlex({direction:'row',gap:4},[characterButton({label:'Turn left',size:'sm',onPress:()=>turn(-1)}),characterButton({label:'Turn right',size:'sm',onPress:()=>turn(1)})]),controls]),details,
+      uiFlex({width:'grow',basis:uiFixed(220),gap:8},[name,uiText('EQUIPMENT'),equipment,uiFlex({direction:'row',gap:4},[characterButton({label:'Turn left',size:'sm',onPress:()=>turn(-1)}),characterButton({label:'Turn right',size:'sm',onPress:()=>turn(1)})]),controls]),details,
     ])]),
   ]});
   const frame = new UiElement({ id: 'game.character.host', kind: 'character-screen', children: [base],

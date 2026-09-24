@@ -65,30 +65,21 @@ function ingredientRow(ingredient: UiRecipeBookEntry['ingredients'][number], opt
   });
 }
 
-export function uiRecipeBook(options: UiRecipeBookOptions): UiElement {
-  let page = 0, query = options.query ?? '';
-  const selectedId = () => options.selected ?? null;
-  const visible = () => options.recipes.filter(entry => entry.name.toLowerCase().includes(query.trim().toLowerCase()));
+export interface UiRecipeBookElement extends UiElement {
+  /** Refresh recipes in place; the search field, its focus and the current page survive. */
+  updateRecipeBook(recipes: readonly UiRecipeBookEntry[]): void;
+}
+export function uiRecipeBook(options: UiRecipeBookOptions): UiRecipeBookElement {
+  let page = 0, query = options.query ?? '', recipes = options.recipes, selected = options.selected ?? options.recipes[0]?.id ?? null;
+  const selectedId = () => selected;
+  const visible = () => recipes.filter(entry => entry.name.toLowerCase().includes(query.trim().toLowerCase()));
+  // Selection is the book's own state; choosing a line only turns the right-hand page.
+  const choose = (id: string) => { selected = id; refresh(); options.onSelect(id); };
+  const rowOptions = { ...options, onSelect: choose };
   const list = uiFlex({ direction: 'column', gap: 0, height: uiFixed(ROWS_PER_PAGE * 16), shrink: 0 }, []);
   const pager = uiText('', { align: 'center', layout: { width: 'grow' } });
-  const refresh = () => {
-    const rows = visible(), pages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE)); page = Math.min(page, pages - 1);
-    for (const child of [...list.children]) child.dispose();
-    list.replaceChildren(rows.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE).map(entry => recipeRow(entry, () => entry.id === selectedId(), options)));
-    pager.setProps({ text: `${page + 1} / ${pages}` });
-  };
-  const search = uiInput({ id: options.id ? `${options.id}.search` : undefined, label: 'Search recipes', placeholder: 'Search', value: query, maxLength: 24, clearable: true, leading: uiGlyph('glyph.search'),
-    onChange(value) { query = value; page = 0; refresh(); options.onQuery?.(value); } });
-  const turn = (step: number) => { page = Math.max(0, page + step); refresh(); };
-  const left = uiFlex({ direction: 'column', gap: 4, width: uiFixed(128), shrink: 0 }, [
-    search, list,
-    uiFlex({ direction: 'row', align: 'center', alignSelf: 'stretch' }, [
-      uiGlyphButton({ glyph: 'glyph.previous', chrome: 'none', label: 'Previous page', onPress: () => turn(-1) }), pager,
-      uiGlyphButton({ glyph: 'glyph.next', chrome: 'none', label: 'Next page', onPress: () => turn(1) }),
-    ]),
-  ]);
-  const entry = options.recipes.find(recipe => recipe.id === selectedId()) ?? null;
-  const right = uiFlex({ direction: 'column', gap: 4, width: uiFixed(128), shrink: 0 }, entry ? [
+  const right = uiFlex({ direction: 'column', gap: 4, width: uiFixed(128), shrink: 0 }, []);
+  const detail = (entry: UiRecipeBookEntry | null): UiElement[] => entry ? [
     uiFlex({ direction: 'row', gap: 6, align: 'center' }, [
       uiSlot({ label: entry.name, stack: entry.output, artwork: options.artwork }),
       uiFlex({ direction: 'column', gap: 2, width: uiFixed(94) }, [
@@ -102,7 +93,27 @@ export function uiRecipeBook(options: UiRecipeBookOptions): UiElement {
     uiFlex({ direction: 'row', justify: 'end', alignSelf: 'stretch' }, [
       uiButton({ id: options.id ? `${options.id}.place` : undefined, label: 'Place in grid', tone: 'primary', size: 'md', disabled: entry.status === 'locked' || entry.status === 'station', onPress: () => options.onPlace(entry.id) }),
     ]),
-  ] : [uiText('Choose a recipe to see what it needs.', { wrap: true })]);
+  ] : [uiText('Choose a recipe to see what it needs.', { wrap: true })];
+  let shown = '';
+  const refresh = () => {
+    const rows = visible(), pages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE)); page = Math.min(page, pages - 1);
+    for (const child of [...list.children]) child.dispose();
+    list.replaceChildren(rows.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE).map(entry => recipeRow(entry, () => entry.id === selectedId(), rowOptions)));
+    pager.setProps({ text: `${page + 1} / ${pages}` });
+    // The detail page only rebuilds when its recipe or that recipe's needs change, keeping button presses alive.
+    const entry = recipes.find(recipe => recipe.id === selectedId()) ?? null, key = JSON.stringify(entry);
+    if (key !== shown) { shown = key; const previous = [...right.children]; right.replaceChildren(detail(entry)); for (const child of previous) child.dispose(); }
+  };
+  const search = uiInput({ id: options.id ? `${options.id}.search` : undefined, label: 'Search recipes', placeholder: 'Search', value: query, maxLength: 24, clearable: true, leading: uiGlyph('glyph.search'),
+    onChange(value) { query = value; page = 0; refresh(); options.onQuery?.(value); } });
+  const turn = (step: number) => { page = Math.max(0, page + step); refresh(); };
+  const left = uiFlex({ direction: 'column', gap: 4, width: uiFixed(128), shrink: 0 }, [
+    search, list,
+    uiFlex({ direction: 'row', align: 'center', alignSelf: 'stretch' }, [
+      uiGlyphButton({ glyph: 'glyph.previous', chrome: 'none', label: 'Previous page', onPress: () => turn(-1) }), pager,
+      uiGlyphButton({ glyph: 'glyph.next', chrome: 'none', label: 'Next page', onPress: () => turn(1) }),
+    ]),
+  ]);
   refresh();
   // Books close with a page tab standing on the top edge, the pack's icon-tab idiom.
   const close = options.onClose ? uiBookTabClose({ label: 'Close recipe book', onPress: options.onClose }) : null;
@@ -112,8 +123,9 @@ export function uiRecipeBook(options: UiRecipeBookOptions): UiElement {
   book.setProps({ label: 'Recipe book' });
   // The tab rises 16px above the cover; its foot tucks behind the book's top edge.
   // Chrome offsets resolve against the content box, so the cover sits in a padded column and the tab stays unclipped.
-  return new UiElement({ kind: 'recipe-book', label: 'Recipe book', style: { display: 'stack' }, children: [...(close ? [close] : []), uiFlex({ direction: 'column', padding: { top: 24 } }, [book])],
+  const element = new UiElement({ kind: 'recipe-book', label: 'Recipe book', style: { display: 'stack' }, children: [...(close ? [close] : []), uiFlex({ direction: 'column', padding: { top: 24 } }, [book])],
     onKey(event) { if (event.key === 'PageDown') { turn(1); return true; } if (event.key === 'PageUp') { turn(-1); return true; } return false; } });
+  return Object.assign(element, { updateRecipeBook(next: readonly UiRecipeBookEntry[]) { recipes = next; refresh(); } });
 }
 
 /** Draws an upright page tab `height` px tall whose foot sits at `bottom`: the rounded head keeps
