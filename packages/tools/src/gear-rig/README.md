@@ -5,7 +5,8 @@ modular Cute Fantasy player without drawing every frame by hand. It is not
 wired into the game yet.
 
 ```sh
-npm run render:gear-samples -w @orchard/tools
+npm run render:gear-samples -w @orchard/tools     # rig check, loadouts, heads, held weapons, arrows
+npm run render:gear-catalogue -w @orchard/tools   # item cards with tooltips, rarity ladders, showcase, catalogue.md
 ```
 
 The command reads the licensed sheets under `references/` and writes the review
@@ -18,6 +19,33 @@ PNGs below to `output/gear-rig/` (git-ignored). It also prints the rig check.
 | `heads-by-material.png` | Two basic Kenmi helmets and five ornate designs in all ten icon materials |
 | `held-weapons.png` | Inventory icon → automatic upright sprite → held in every facing |
 | `arrows.png` | An exact 8-way arrow set derived from icons, compared with today's screen-scale free rotation |
+| `cards-*.png` | WoW-style tooltips in the game's 5×7 font and coin icons, beside the item on the paper doll, by rarity |
+| `rarity-ladders.png` | Swords, helms, shields, staffs and chest pieces from poor to legendary |
+| `showcase-outfits.png`, `showcase-ingame-3x.png` | Full outfits built only from catalogue items |
+| `catalogue.md` | The generated list: naming grammar, rarities, materials, base types, affixes, lineages, legendaries |
+
+## Catalogue
+
+`catalogue.ts` is the single source for rarities, material ladders (metal,
+cloth, leather, gem, wood), 61 base types across every slot, 11 prefixes,
+16 suffixes, 6 epic lineages and 12 legendary uniques. `items.ts` derives each
+item's name, icon, paper-doll pieces, tooltip lines and sell price from it.
+`tooltip.ts` renders the tooltip with the game's bitmap font and coins.
+[`CATALOGUE.md`](CATALOGUE.md) is the generated listing, committed for review;
+regenerate it with the catalogue command.
+
+- **Naming:** poor `{Damage} {Material} {Base}`; common `{Material} {Base}`;
+  uncommon adds one affix; rare `{Prefix} {Base} {Suffix}`; epic
+  `{Lineage} {Base}`; legendary unique names.
+- **Stats:** affix stats map to the simulation's `STAT_TARGETS` or to the eight
+  gear-boostable skill nodes (tested). Attributes, mana and regeneration need
+  `EQUIPMENT_STAT_BUDGETS` extended.
+- **Icons get more ornate with rarity.** Each base ranks its premium icon rows
+  by measured ornateness (accent pixels and area); rarer items take more ornate
+  rows.
+- **Staffs** are Kenmi mace silhouettes with the head recoloured into a gem
+  ramp and a gilded collar.
+- **Crowns** have no premium icon; their icon is painted from the worn design.
 
 ## What the spike established
 

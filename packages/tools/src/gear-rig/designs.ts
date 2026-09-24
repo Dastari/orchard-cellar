@@ -223,6 +223,11 @@ const perFacing = (build: (facing: Facing) => readonly Part[]): Record<Facing, r
 
 export const HEAD_DESIGNS: readonly HeadDesign[] = [
   {
+    name: 'greathelm',
+    hidesHair: true,
+    parts: perFacing((facing) => [dome(facing)]),
+  },
+  {
     name: 'horned_warhelm',
     hidesHair: true,
     parts: perFacing((facing) => [
