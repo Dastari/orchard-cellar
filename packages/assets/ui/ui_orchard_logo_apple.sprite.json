@@ -1,0 +1,57 @@
+{
+  "name": "ui_orchard_logo_apple",
+  "category": "ui",
+  "size": [
+    12,
+    12
+  ],
+  "anchor": [
+    6,
+    11
+  ],
+  "sourcePalette": {
+    "0": "#1a1210",
+    "1": "#6b4423",
+    "2": "#58a346",
+    "3": "#7ec850",
+    "4": "#c03a2b",
+    "5": "#ff8f5e",
+    "6": "#e85d3d",
+    "7": "#8c2333",
+    "8": "#5c1423"
+  },
+  "sourcePaletteMode": "exact",
+  "notes": "The Orchard & Cellar brand apple, sampled cell by cell from the PWA app icon (packages/client/public/pwa/icons/apple-512.png, 24-cell grid) for the title sign.",
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "tags": [
+    "ui.logo"
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....000000.",
+        ".....112330.",
+        ".....112220.",
+        "..0001140...",
+        ".0455544400.",
+        "044555444440",
+        "046644444440",
+        "046644444440",
+        "044444477740",
+        "044444477740",
+        ".0044888400.",
+        "...000000..."
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "importedFrom": "ui_orchard_logo_apple.png",
+  "sourcePath": "art/custom/ui-redesign/ui_orchard_logo_apple.png"
+}

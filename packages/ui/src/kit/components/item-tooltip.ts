@@ -5,7 +5,7 @@ import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { UI_ITEM_INKS, UI_TEXT_METRICS, type UiItemQuality } from '../tokens.js';
 import { paintUiMissingArt, paintUiSkin } from './art.js';
-import { uiCurrency } from './currency.js';
+import { uiCurrency, uiCurrencyWidth } from './currency.js';
 import { uiFlex } from './layout.js';
 import { uiIcon, type UiIconSource } from './media.js';
 import { uiTextLines } from './text.js';
@@ -34,8 +34,9 @@ export interface UiItemTooltipModel {
 }
 export interface UiItemTooltipOptions extends UiItemTooltipModel { readonly id?: string; readonly layout?: UiStyle }
 
-/** Fixed logical width, matching the approved Gear-D4 mockups. */
+/** Maximum logical width, matching the approved Gear-D4 mockups; shorter tooltips shrink to their content. */
 export const UI_ITEM_TOOLTIP_WIDTH = 204;
+export const UI_ITEM_TOOLTIP_MIN_WIDTH = 96;
 const PADDING = 6, WELL = 20, WELL_GAP = 4, RIGHT_GAP = 6;
 const glyph = UI_TEXT_METRICS.body;
 const textWidth = (text: string) => Math.max(0, text.length * (glyph.glyphWidth + 1) - 1);
@@ -52,6 +53,15 @@ export function uiItemTooltipFrame(quality: UiItemQuality): `tooltip_dark.${'neu
 export function uiItemTooltipLineRows(line: Pick<UiItemTooltipLine, 'text' | 'right'>, width: number): string[] {
   const left = line.right ? Math.max(0, width - textWidth(line.right) - RIGHT_GAP) : width;
   return uiTextLines(line.text, left, 'body');
+}
+
+/** Content-fitted width between the minimum and the Gear-D4 maximum; long lines wrap at the maximum. */
+export function uiItemTooltipWidth(model: UiItemTooltipModel): number {
+  const lines = [...(model.unique ? [{ text: 'Unique' }] : []), ...model.lines] as readonly Pick<UiItemTooltipLine, 'text' | 'right'>[];
+  const natural = Math.max(WELL + WELL_GAP + textWidth(model.name),
+    ...lines.map(line => textWidth(line.text) + (line.right ? RIGHT_GAP + textWidth(line.right) : 0)),
+    model.sellBronze !== undefined ? textWidth('Sell Price:') + 6 + uiCurrencyWidth(model.sellBronze) : 0);
+  return Math.max(UI_ITEM_TOOLTIP_MIN_WIDTH, Math.min(UI_ITEM_TOOLTIP_WIDTH, natural + PADDING * 2));
 }
 
 function inkLine(kind: string, line: Pick<UiItemTooltipLine, 'text' | 'right'>, ink: string, role: string): UiElement {
@@ -131,7 +141,7 @@ export function uiItemTooltip(options: UiItemTooltipOptions) {
   let model: UiItemTooltipModel = options;
   const element = new UiElement({ id: options.id, kind: 'item-tooltip', label: options.name,
     props: { quality: options.quality, frame: uiItemTooltipFrame(options.quality), itemInks: true },
-    style: { width: uiFixed(UI_ITEM_TOOLTIP_WIDTH), height: 'fit', display: 'flex', direction: 'column', gap: 4, padding: PADDING, overflow: 'clip', shrink: 0, ...options.layout },
+    style: { width: uiFixed(uiItemTooltipWidth(options)), height: 'fit', display: 'flex', direction: 'column', gap: 4, padding: PADDING, overflow: 'clip', shrink: 0, ...options.layout },
     children: sections(options),
     paint(self, { context, art }) {
       if (!art) return;
@@ -145,6 +155,7 @@ export function uiItemTooltip(options: UiItemTooltipOptions) {
       if (next === model) return;
       model = next; element.label = next.name;
       element.setProps({ quality: next.quality, frame: uiItemTooltipFrame(next.quality) });
+      element.setStyle({ width: uiFixed(uiItemTooltipWidth(next)) });
       const previous = [...element.children];
       element.replaceChildren(sections(next));
       for (const child of previous) child.dispose();

@@ -46,6 +46,8 @@ function currencyInk(element: UiElement): string {
   return uiElementTextContrast(element).color;
 }
 /** An amount shown as number-then-coin groups, omitting leading zero units. */
+/** Painted width of a coin amount, for callers that fit a container to it. */
+export function uiCurrencyWidth(bronze: bigint | number): number { return measureParts(uiCurrencyParts(bronze)); }
 export function uiCurrency(options: UiCurrencyOptions): UiElement {
   return new UiElement({ id: options.id, kind: 'currency', label: uiCurrencyLabel(options.bronze), props: { bronze: canonicalBronze(options.bronze) },
     style: { height: uiFixed(UI_COIN_SIZE), shrink: 0, ...options.layout },

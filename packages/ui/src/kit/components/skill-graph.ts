@@ -1,12 +1,12 @@
+import { paintUiSelector } from './window.js';
+import { paintUiSkin } from './art.js';
 import { skillNodeIsImplemented, type SkillNodeDefinition } from '@orchard/sim';
 import type { LoadedAsset } from '../../assets.js';
 import { containsPoint, type UiPoint } from '../../geometry.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, uiOffset, type UiStyle } from '../layout/box.js';
-import { resolveUiTextContrast } from '../skin/contrast.js';
 import { uiButton } from './button.js';
 import { selectAtlasFrame } from '../../sprite.js';
-import { UI_TONE_FACES } from '../skin/contrast.js';
 import { uiText } from './text.js';
 export interface UiSkillGraphOptions {
  readonly nodes:readonly SkillNodeDefinition[];readonly ranks:Readonly<Record<string,number>>;readonly selected?:string|null;
@@ -17,6 +17,8 @@ export interface UiSkillGraphView { readonly zoom: number; readonly pan: UiPoint
 export interface UiSkillGraphElement extends UiElement { readonly view: UiSkillGraphView; center():void; zoomBy(delta: number): void; updateRanks(ranks:Readonly<Record<string,number>>,selected:string|null):void }
 /** Skills retain their authored graph coordinates. Arranged slot rectangles also
  * define the connector endpoints; hit testing never uses a second projection. */
+/** Connector inks on parchment: learned paths green, open paths warm brown, unbuilt paths dotted and faint. */
+export const SKILL_LINK_INKS = Object.freeze({ owned: '#3e8948', open: '#b86f50', planned: '#d9a47a' });
 export function uiSkillGraph(options:UiSkillGraphOptions):UiSkillGraphElement {
  let ranks=options.ranks, selected=options.selected??null, zoom=options.view?.zoom??.65, pan:UiPoint=options.view?.pan??{x:0,y:0},fit=options.view?.fit??true;
  let drag:{start:UiPoint;pan:UiPoint;pointer: number}|null=null,layoutKey='';
@@ -43,7 +45,7 @@ export function uiSkillGraph(options:UiSkillGraphOptions):UiSkillGraphElement {
    const delta=event.key==='ArrowLeft'?[-20,0]:event.key==='ArrowRight'?[20,0]:event.key==='ArrowUp'?[0,-20]:event.key==='ArrowDown'?[0,20]:null;
    if(!delta)return false;fit=false;pan={x:pan.x+delta[0]!,y:pan.y+delta[1]!};graph.invalidate();return true;
   },
-  paint(_element,{context}){for(const node of nodes){const from=cells.get(node.id)!;for(const id of node.connects){if(node.id.localeCompare(id)>=0)continue;const to=cells.get(id),other=nodes.find(n=>n.id===id);if(!to||!other)continue;const live=skillNodeIsImplemented(node)&&skillNodeIsImplemented(other),owned=(node.root||(ranks[node.id]??0)>0)&&(other.root||(ranks[id]??0)>0);context.strokeStyle=resolveUiTextContrast(live?(owned?'success':'neutral'):'muted').color;context.lineWidth=owned?3:2;context.setLineDash(live?[]:[3,3]);context.beginPath();context.moveTo(Math.round(from.rect.x+from.rect.width/2),Math.round(from.rect.y+from.rect.height/2));context.lineTo(Math.round(to.rect.x+to.rect.width/2),Math.round(to.rect.y+to.rect.height/2));context.stroke();}}context.setLineDash([]);},
+  paint(_element,{context}){for(const node of nodes){const from=cells.get(node.id)!;for(const id of node.connects){if(node.id.localeCompare(id)>=0)continue;const to=cells.get(id),other=nodes.find(n=>n.id===id);if(!to||!other)continue;const live=skillNodeIsImplemented(node)&&skillNodeIsImplemented(other),owned=(node.root||(ranks[node.id]??0)>0)&&(other.root||(ranks[id]??0)>0);context.strokeStyle=live?(owned?SKILL_LINK_INKS.owned:SKILL_LINK_INKS.open):SKILL_LINK_INKS.planned;context.lineWidth=2;context.setLineDash(live?[]:[3,3]);context.beginPath();context.moveTo(Math.round(from.rect.x+from.rect.width/2),Math.round(from.rect.y+from.rect.height/2));context.lineTo(Math.round(to.rect.x+to.rect.width/2),Math.round(to.rect.y+to.rect.height/2));context.stroke();}}context.setLineDash([]);},
  });
  for (const node of nodes) {
   const icon = new UiElement({ kind: 'skill-icon', style: { position: 'absolute', width: 'grow', height: 'grow' },
@@ -61,8 +63,6 @@ export function uiSkillGraph(options:UiSkillGraphOptions):UiSkillGraphElement {
       Math.round(r.x + (r.width - width) / 2), r.y + 4, width, height);
      context.restore();
     }
-    context.fillStyle = UI_TONE_FACES[state === 'placeholder' ? 'danger' : 'success'].frame.face;
-    context.fillRect(r.x + r.width - 7, r.y + 3, 4, 4);
    },
   });
   const button = uiButton({ id: `skill:${node.id}`, label: '', ariaLabel: node.name,
@@ -80,7 +80,15 @@ export function uiSkillGraph(options:UiSkillGraphOptions):UiSkillGraphElement {
     if (containsPoint(clip, { x: r.x, y: r.y }) && containsPoint(clip, { x: r.x + r.width - 1, y: r.y + r.height - 1 })) return;
     fit = false; pan = { x: pan.x + clip.x + clip.width / 2 - r.x - r.width / 2, y: pan.y + clip.y + clip.height / 2 - r.y - r.height / 2 }; graph.invalidate();
    },
-   paint(element, paint) { button.hooks.paint?.(element, { ...paint, focused: paint.focused || element.props['selected'] === true }); },
+   // Nodes are item slots: green once learned, gold when learnable, plain when locked, faded while unbuilt.
+   paint(element, { context, art, hovered, focused }) {
+    if (!art) return; const state = element.props['skillState'], r = element.rect;
+    context.save(); if (state === 'placeholder') context.globalAlpha *= .45;
+    paintUiSkin(context, art.skin.slot, state === 'owned' ? 'slot.uncommon.0' : state === 'available' ? 'slot.legendary.0' : 'slot.idle.0', r);
+    context.restore();
+    if (element.props['selected']) paintUiSelector(context, art.skin.selector, 'confirm', r);
+    else if (hovered || focused) paintUiSelector(context, art.skin.selector, 'neutral', r);
+   },
   });
   cells.set(node.id, slot);
   if (node.maxRank > 1) slot.append(uiText('', { id: `skill-rank:${node.id}`, align: 'center', outline: true,

@@ -9,7 +9,7 @@ import { UI_ITEM_INKS, UI_ITEM_QUALITIES } from '../tokens.js';
 import { uiTestArt, uiTestAsset } from '../lab/testing/art.js';
 import { ui } from './index.js';
 import {
-  UI_ITEM_TOOLTIP_LINE_ROLES, UI_ITEM_TOOLTIP_WIDTH, uiItemTooltip, uiItemTooltipFrame, uiItemTooltipInk,
+  UI_ITEM_TOOLTIP_LINE_ROLES, UI_ITEM_TOOLTIP_MIN_WIDTH, UI_ITEM_TOOLTIP_WIDTH, uiItemTooltip, uiItemTooltipFrame, uiItemTooltipInk, uiItemTooltipWidth,
   type UiItemTooltipModel,
 } from './item-tooltip.js';
 
@@ -37,10 +37,12 @@ describe('item tooltip', () => {
   it('is registered as ui.itemTooltip', () => {
     expect(ui.itemTooltip).toBe(uiItemTooltip);
   });
-  it('keeps a fixed width while its height grows with lines', () => {
+  it('fits its content between the minimum and maximum width while its height grows with lines', () => {
     const short = mount({ name: 'Iron Sallet', quality: 'common', lines: [{ role: 'body', text: 'Head', right: 'Plate' }] });
     const long = mount({ ...bonecrippler, lines: [...bonecrippler.lines, ...bonecrippler.lines] });
-    expect(short.tooltip.rect.width).toBe(UI_ITEM_TOOLTIP_WIDTH);
+    expect(short.tooltip.rect.width).toBe(uiItemTooltipWidth({ name: 'Iron Sallet', quality: 'common', lines: [{ role: 'body', text: 'Head', right: 'Plate' }] }));
+    expect(short.tooltip.rect.width).toBeGreaterThanOrEqual(UI_ITEM_TOOLTIP_MIN_WIDTH);
+    expect(short.tooltip.rect.width).toBeLessThan(UI_ITEM_TOOLTIP_WIDTH);
     expect(long.tooltip.rect.width).toBe(UI_ITEM_TOOLTIP_WIDTH);
     expect(long.tooltip.rect.height).toBeGreaterThan(short.tooltip.rect.height);
     const one = mount({ name: 'X', quality: 'common', lines: [{ role: 'body', text: 'a' }] }).tooltip.rect.height;

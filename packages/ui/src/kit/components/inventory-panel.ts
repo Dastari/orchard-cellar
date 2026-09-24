@@ -1,10 +1,11 @@
 import { itemDefinition, type ItemStack } from '@orchard/sim';
 import { UiElement } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
-import { uiFlex } from './layout.js';
+import { uiFlex, uiScrollArea } from './layout.js';
 import { uiInput } from './input.js';
-import { uiIconButton } from './media.js';
+import { uiGlyph, uiGlyphButton } from './window.js';
 import { uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
+import { uiFixed } from '../layout/box.js';
 
 export interface UiInventoryControls {
   readonly filterModel?: UiInventoryFilter;
@@ -14,6 +15,8 @@ export interface UiInventoryControls {
   readonly onFilter?: (value: string) => void;
   readonly onSort?: () => void;
   readonly itemLabel?: (item: ItemStack) => string;
+  /** Rows shown before the grid scrolls. */
+  readonly visibleRows?: number;
   /** Capacity belongs to the host; filtering never renumbers slot bindings. */
   readonly capacity?: () => number;
 }
@@ -35,9 +38,11 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   const cells = (options.cells ?? Array.from({ length: options.count ?? 6 }, (_, index) => ({ id: String(index), index })))
     .map((cell, index) => ({ ...cell, index: cell.index ?? index }));
   const grid = uiInventoryGrid({ ...options, cells });
-  const body = uiFlex({ width: 'grow' }, [grid]);
-  const sort = options.onSort ? uiIconButton({ lucide: 'sort' }, { id: options.id ? `${options.id}.sort` : undefined,
-    label: 'Sort inventory', size: 'sm', onPress: () => { if (options.sortEnabled?.() !== false) options.onSort?.(); } }) : null;
+  // Large packs scroll inside a fixed number of rows; the scrollbar gutter is always reserved so slots never shift.
+  const body = options.visibleRows ? uiScrollArea({ scrollStyle: 'wood', label: `${options.container} slots`, height: uiFixed(options.visibleRows * 33 - 2), padding: { right: 24 }, overflow: 'scroll-y' }, [grid])
+    : uiFlex({ width: 'grow' }, [grid]);
+  const sort = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
+    label: 'Sort inventory', onPress: () => { if (options.sortEnabled?.() !== false) options.onSort?.(); } }) : null;
   let previous = '';
   const refresh = () => {
     sort?.setDisabled(options.sortEnabled?.() === false);
@@ -56,8 +61,8 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
     const indexes = new Set(visible.map(cell => cell.index));
     grid.children.forEach((child, index) => child.setStyle({ display: indexes.has(cells[index]!.index) ? 'stack' : 'none' }));
   };
-  const filter = options.showFilter === false ? null : uiInput({ id: options.id ? `${options.id}.filter` : undefined, label: 'Filter items', placeholder: 'FILTER ITEMS', editor,
-    clearable: true, size: 'sm', onChange(value) { options.onFilter?.(value); filterModel.refresh(); },
+  const filter = options.showFilter === false ? null : uiInput({ id: options.id ? `${options.id}.filter` : undefined, label: 'Filter items', placeholder: 'Filter', editor,
+    clearable: true, size: 'md', leading: uiGlyph('glyph.search'), onChange(value) { options.onFilter?.(value); filterModel.refresh(); },
   });
   const toolbar = uiFlex({ direction: 'row', width: 'grow', gap: 4 }, [
     ...(filter ? [filter] : []), ...(sort ? [sort] : []),
@@ -65,7 +70,7 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   const unsubscribe = options.controller?.subscribe(refresh);
   const unsubscribeFilter = filterModel.subscribe(refresh);
   refresh();
-  return new UiElement({ kind: 'inventory-panel', style: { direction: 'column', width: 'grow', gap: 4 }, children: [toolbar, body],
+  return new UiElement({ kind: 'inventory-panel', style: { direction: 'column', width: 'grow', gap: 4, ...options.layout }, children: [toolbar, body],
     onDispose() { unsubscribe?.(); unsubscribeFilter(); },
   });
 }

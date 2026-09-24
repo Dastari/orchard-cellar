@@ -1,0 +1,487 @@
+{
+  "name": "ui_cf_book_bookmarks",
+  "category": "ui",
+  "size": [
+    28,
+    18
+  ],
+  "anchor": [
+    14,
+    9
+  ],
+  "frames": {
+    "red": [
+      [
+        "5555555555555555555555......",
+        "dddddddddddddddddddda5......",
+        "aaaaaaaaaaaaaaaaaaa75.......",
+        "aaaaaaaaaaaaaaaaaa75........",
+        "aaaaaaaaaaaaaaaaa75.........",
+        "aaaaaaaaaaaaaaaaa5..........",
+        "aaaaaaaaaaaaaaaa75..........",
+        "aaaaaaaaaaaaaaaa5...........",
+        "aaaaaaaaaaaaaaaa5...........",
+        "aaaaaaaaaaaaaaaa5...........",
+        "aaaaaaaaaaaaaaaa5...........",
+        "aaaaaaaaaaaaaaaad5..........",
+        "aaaaaaaaaaaaaaaaa5..........",
+        "aaaaaaaaaaaaaaaaad5.........",
+        "aaaaaaaaaaaaaaaaaad5........",
+        "aaaaaaaaaaaaaaaaaaad5.......",
+        "aaaaaaaaaaaadaddadddd5......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "red_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5ddddddddddddddddddddddddda5",
+        "7aaaaaaaaaaaaaaaaaaaaaaaa75.",
+        "7aaaaaaaaaaaaaaaaaaaaaaa75..",
+        "7aaaaaaaaaaaaaaaaaaaaaa75...",
+        "7aaaaaaaaaaaaaaaaaaaaaa5....",
+        "7aaaaaaaaaaaaaaaaaaaaa75....",
+        "7aaaaaaaaaaaaaaaaaaaaa5.....",
+        "7aaaaaaaaaaaaaaaaaaaaa5.....",
+        "7aaaaaaaaaaaaaaaaaaaaa5.....",
+        "7aaaaaaaaaaaaaaaaaaaaa5.....",
+        "7aaaaaaaaaaaaaaaaaaaaad5....",
+        "7aaaaaaaaaaaaaaaaaaaaaa5....",
+        "7aaaaaaaaaaaaaaaaaaaaaad5...",
+        "7aaaaaaaaaaaaaaaaaaaaaaad5..",
+        "7aaaaaaaaaaaaaaaaaaaaaaaad5.",
+        "5aaaaaaaaaaaaaaaaadaddadddd5",
+        ".555555555555555555555555555"
+      ]
+    ],
+    "blue": [
+      [
+        "5555555555555555555555......",
+        "2222222222222222222215......",
+        "111111111111111111105.......",
+        "11111111111111111105........",
+        "1111111111111111105.........",
+        "111111111111111115..........",
+        "111111111111111105..........",
+        "11111111111111115...........",
+        "11111111111111115...........",
+        "11111111111111115...........",
+        "11111111111111115...........",
+        "111111111111111125..........",
+        "111111111111111115..........",
+        "1111111111111111125.........",
+        "11111111111111111125........",
+        "111111111111111111125.......",
+        "1111111111112122122225......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "blue_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5222222222222222222222222215",
+        "011111111111111111111111105.",
+        "01111111111111111111111105..",
+        "0111111111111111111111105...",
+        "011111111111111111111115....",
+        "011111111111111111111105....",
+        "01111111111111111111115.....",
+        "01111111111111111111115.....",
+        "01111111111111111111115.....",
+        "01111111111111111111115.....",
+        "011111111111111111111125....",
+        "011111111111111111111115....",
+        "0111111111111111111111125...",
+        "01111111111111111111111125..",
+        "011111111111111111111111125.",
+        "5111111111111111112122122225",
+        ".555555555555555555555555555"
+      ]
+    ],
+    "green": [
+      [
+        "5555555555555555555555......",
+        "6666666666666666666645......",
+        "444444444444444444435.......",
+        "44444444444444444435........",
+        "4444444444444444435.........",
+        "444444444444444445..........",
+        "444444444444444435..........",
+        "44444444444444445...........",
+        "44444444444444445...........",
+        "44444444444444445...........",
+        "44444444444444445...........",
+        "444444444444444465..........",
+        "444444444444444445..........",
+        "4444444444444444465.........",
+        "44444444444444444465........",
+        "444444444444444444465.......",
+        "4444444444446466466665......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "green_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5666666666666666666666666645",
+        "344444444444444444444444435.",
+        "34444444444444444444444435..",
+        "3444444444444444444444435...",
+        "344444444444444444444445....",
+        "344444444444444444444435....",
+        "34444444444444444444445.....",
+        "34444444444444444444445.....",
+        "34444444444444444444445.....",
+        "34444444444444444444445.....",
+        "344444444444444444444465....",
+        "344444444444444444444445....",
+        "3444444444444444444444465...",
+        "34444444444444444444444465..",
+        "344444444444444444444444465.",
+        "5444444444444444446466466665",
+        ".555555555555555555555555555"
+      ]
+    ],
+    "gold": [
+      [
+        "5555555555555555555555......",
+        "iiiiiiiiiiiiiiiiiiiih5......",
+        "hhhhhhhhhhhhhhhhhhhe5.......",
+        "hhhhhhhhhhhhhhhhhhe5........",
+        "hhhhhhhhhhhhhhhhhe5.........",
+        "hhhhhhhhhhhhhhhhh5..........",
+        "hhhhhhhhhhhhhhhhe5..........",
+        "hhhhhhhhhhhhhhhh5...........",
+        "hhhhhhhhhhhhhhhh5...........",
+        "hhhhhhhhhhhhhhhh5...........",
+        "hhhhhhhhhhhhhhhh5...........",
+        "hhhhhhhhhhhhhhhhi5..........",
+        "hhhhhhhhhhhhhhhhh5..........",
+        "hhhhhhhhhhhhhhhhhi5.........",
+        "hhhhhhhhhhhhhhhhhhi5........",
+        "hhhhhhhhhhhhhhhhhhhi5.......",
+        "hhhhhhhhhhhhihiihiiii5......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "gold_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5iiiiiiiiiiiiiiiiiiiiiiiiih5",
+        "ehhhhhhhhhhhhhhhhhhhhhhhhe5.",
+        "ehhhhhhhhhhhhhhhhhhhhhhhe5..",
+        "ehhhhhhhhhhhhhhhhhhhhhhe5...",
+        "ehhhhhhhhhhhhhhhhhhhhhh5....",
+        "ehhhhhhhhhhhhhhhhhhhhhe5....",
+        "ehhhhhhhhhhhhhhhhhhhhh5.....",
+        "ehhhhhhhhhhhhhhhhhhhhh5.....",
+        "ehhhhhhhhhhhhhhhhhhhhh5.....",
+        "ehhhhhhhhhhhhhhhhhhhhh5.....",
+        "ehhhhhhhhhhhhhhhhhhhhhi5....",
+        "ehhhhhhhhhhhhhhhhhhhhhh5....",
+        "ehhhhhhhhhhhhhhhhhhhhhhi5...",
+        "ehhhhhhhhhhhhhhhhhhhhhhhi5..",
+        "ehhhhhhhhhhhhhhhhhhhhhhhhi5.",
+        "5hhhhhhhhhhhhhhhhhihiihiiii5",
+        ".555555555555555555555555555"
+      ]
+    ],
+    "cream": [
+      [
+        "5555555555555555555555......",
+        "ggggggggggggggggggggf5......",
+        "fffffffffffffffffffc5.......",
+        "ffffffffffffffffffc5........",
+        "fffffffffffffffffc5.........",
+        "fffffffffffffffff5..........",
+        "ffffffffffffffffc5..........",
+        "ffffffffffffffff5...........",
+        "ffffffffffffffff5...........",
+        "ffffffffffffffff5...........",
+        "ffffffffffffffff5...........",
+        "ffffffffffffffffg5..........",
+        "fffffffffffffffff5..........",
+        "fffffffffffffffffg5.........",
+        "ffffffffffffffffffg5........",
+        "fffffffffffffffffffg5.......",
+        "ffffffffffffgfggfgggg5......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "cream_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5gggggggggggggggggggggggggf5",
+        "cffffffffffffffffffffffffc5.",
+        "cfffffffffffffffffffffffc5..",
+        "cffffffffffffffffffffffc5...",
+        "cffffffffffffffffffffff5....",
+        "cfffffffffffffffffffffc5....",
+        "cfffffffffffffffffffff5.....",
+        "cfffffffffffffffffffff5.....",
+        "cfffffffffffffffffffff5.....",
+        "cfffffffffffffffffffff5.....",
+        "cfffffffffffffffffffffg5....",
+        "cffffffffffffffffffffff5....",
+        "cffffffffffffffffffffffg5...",
+        "cfffffffffffffffffffffffg5..",
+        "cffffffffffffffffffffffffg5.",
+        "5fffffffffffffffffgfggfgggg5",
+        ".555555555555555555555555555"
+      ]
+    ],
+    "peach": [
+      [
+        "5555555555555555555555......",
+        "ffffffffffffffffffffc5......",
+        "ccccccccccccccccccc95.......",
+        "cccccccccccccccccc95........",
+        "ccccccccccccccccc95.........",
+        "ccccccccccccccccc5..........",
+        "cccccccccccccccc95..........",
+        "cccccccccccccccc5...........",
+        "cccccccccccccccc5...........",
+        "cccccccccccccccc5...........",
+        "cccccccccccccccc5...........",
+        "ccccccccccccccccf5..........",
+        "ccccccccccccccccc5..........",
+        "cccccccccccccccccf5.........",
+        "ccccccccccccccccccf5........",
+        "cccccccccccccccccccf5.......",
+        "ccccccccccccfcffcffff5......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "peach_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5fffffffffffffffffffffffffc5",
+        "9cccccccccccccccccccccccc95.",
+        "9ccccccccccccccccccccccc95..",
+        "9cccccccccccccccccccccc95...",
+        "9cccccccccccccccccccccc5....",
+        "9ccccccccccccccccccccc95....",
+        "9ccccccccccccccccccccc5.....",
+        "9ccccccccccccccccccccc5.....",
+        "9ccccccccccccccccccccc5.....",
+        "9ccccccccccccccccccccc5.....",
+        "9cccccccccccccccccccccf5....",
+        "9cccccccccccccccccccccc5....",
+        "9ccccccccccccccccccccccf5...",
+        "9cccccccccccccccccccccccf5..",
+        "9ccccccccccccccccccccccccf5.",
+        "5cccccccccccccccccfcffcffff5",
+        ".555555555555555555555555555"
+      ]
+    ],
+    "white": [
+      [
+        "5555555555555555555555......",
+        "jjjjjjjjjjjjjjjjjjjjb5......",
+        "bbbbbbbbbbbbbbbbbbb85.......",
+        "bbbbbbbbbbbbbbbbbb85........",
+        "bbbbbbbbbbbbbbbbb85.........",
+        "bbbbbbbbbbbbbbbbb5..........",
+        "bbbbbbbbbbbbbbbb85..........",
+        "bbbbbbbbbbbbbbbb5...........",
+        "bbbbbbbbbbbbbbbb5...........",
+        "bbbbbbbbbbbbbbbb5...........",
+        "bbbbbbbbbbbbbbbb5...........",
+        "bbbbbbbbbbbbbbbbj5..........",
+        "bbbbbbbbbbbbbbbbb5..........",
+        "bbbbbbbbbbbbbbbbbj5.........",
+        "bbbbbbbbbbbbbbbbbbj5........",
+        "bbbbbbbbbbbbbbbbbbbj5.......",
+        "bbbbbbbbbbbbjbjjbjjjj5......",
+        "5555555555555555555555......"
+      ]
+    ],
+    "white_pulled": [
+      [
+        ".555555555555555555555555555",
+        "5jjjjjjjjjjjjjjjjjjjjjjjjjb5",
+        "8bbbbbbbbbbbbbbbbbbbbbbbb85.",
+        "8bbbbbbbbbbbbbbbbbbbbbbb85..",
+        "8bbbbbbbbbbbbbbbbbbbbbb85...",
+        "8bbbbbbbbbbbbbbbbbbbbbb5....",
+        "8bbbbbbbbbbbbbbbbbbbbb85....",
+        "8bbbbbbbbbbbbbbbbbbbbb5.....",
+        "8bbbbbbbbbbbbbbbbbbbbb5.....",
+        "8bbbbbbbbbbbbbbbbbbbbb5.....",
+        "8bbbbbbbbbbbbbbbbbbbbb5.....",
+        "8bbbbbbbbbbbbbbbbbbbbbj5....",
+        "8bbbbbbbbbbbbbbbbbbbbbb5....",
+        "8bbbbbbbbbbbbbbbbbbbbbbj5...",
+        "8bbbbbbbbbbbbbbbbbbbbbbbj5..",
+        "8bbbbbbbbbbbbbbbbbbbbbbbbj5.",
+        "5bbbbbbbbbbbbbjbjjjbjjbjjjj5",
+        ".555555555555555555555555555"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "red": "state",
+    "red_pulled": "state",
+    "blue": "state",
+    "blue_pulled": "state",
+    "green": "state",
+    "green_pulled": "state",
+    "gold": "state",
+    "gold_pulled": "state",
+    "cream": "state",
+    "cream_pulled": "state",
+    "peach": "state",
+    "peach_pulled": "state",
+    "white": "state",
+    "white_pulled": "state"
+  },
+  "sourcePalette": {
+    "0": "#0069aa",
+    "1": "#0098dc",
+    "2": "#00cdf9",
+    "3": "#1e6f50",
+    "4": "#33984b",
+    "5": "#3f2832",
+    "6": "#5ac54f",
+    "7": "#891e2b",
+    "8": "#b4b4b4",
+    "9": "#bf6f4a",
+    "a": "#c42430",
+    "b": "#dbdbdb",
+    "c": "#e69c69",
+    "d": "#ea323c",
+    "e": "#ed7614",
+    "f": "#f6ca9f",
+    "g": "#f9e6cf",
+    "h": "#ffa214",
+    "i": "#ffc825",
+    "j": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Book_UI.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/ui/UI/Book_UI.png",
+  "sourceRegions": {
+    "red": [
+      [
+        752,
+        31,
+        28,
+        18
+      ]
+    ],
+    "red_pulled": [
+      [
+        750,
+        79,
+        28,
+        18
+      ]
+    ],
+    "blue": [
+      [
+        800,
+        31,
+        28,
+        18
+      ]
+    ],
+    "blue_pulled": [
+      [
+        798,
+        79,
+        28,
+        18
+      ]
+    ],
+    "green": [
+      [
+        848,
+        31,
+        28,
+        18
+      ]
+    ],
+    "green_pulled": [
+      [
+        846,
+        79,
+        28,
+        18
+      ]
+    ],
+    "gold": [
+      [
+        896,
+        31,
+        28,
+        18
+      ]
+    ],
+    "gold_pulled": [
+      [
+        894,
+        79,
+        28,
+        18
+      ]
+    ],
+    "cream": [
+      [
+        944,
+        31,
+        28,
+        18
+      ]
+    ],
+    "cream_pulled": [
+      [
+        942,
+        79,
+        28,
+        18
+      ]
+    ],
+    "peach": [
+      [
+        992,
+        31,
+        28,
+        18
+      ]
+    ],
+    "peach_pulled": [
+      [
+        990,
+        79,
+        28,
+        18
+      ]
+    ],
+    "white": [
+      [
+        1040,
+        31,
+        28,
+        18
+      ]
+    ],
+    "white_pulled": [
+      [
+        1038,
+        79,
+        28,
+        18
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.book",
+    "ui.tab"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}
