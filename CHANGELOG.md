@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.40.2 / UI 0.41.2 / Studio 0.15.2 — Passive chat scrollbar
+
+- Hide the closed chat history scrollbar and its thumb hit area together when history is not expanded. Preserve recent passive messages, stored history, draft, focus and scroll offset; show normal scroll controls on desktop hover or open input.
+- Workspace0.46.5. Regression coverage exercises actual chat drawing and touch input. No world module, content, schema or inventory-command changes.
+- The preceding coordinated release is now live from mergedfc1a7b7f: Game0.40.1, Studio0.15.1, world0.25.0/contentR18/hash3cc75c4a. Its older preparation headings below retain their historical status wording; current installation and rollback evidence are recorded in the wiki and local installed-release records.
+
 ## Workspace 0.46.4 — Accurate production guide recipes
 
 - Read the guide's crafting costs, outputs and shaped patterns from the same reviewed content used by the game. Show the Greenhouse's five Timber Frames, two Iron Fittings and two Stone Foundations, plus component procurement patterns.
