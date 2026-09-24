@@ -1,12 +1,12 @@
 import { drawPixelText } from '../../pixel-ui.js';
 import { containsPoint, type UiPoint } from '../../geometry.js';
 import { paintUiHudPlaque } from './hud-game.js';
+import { paintUiDarkFrame } from './feedback-game.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import type { UiTone } from '../tokens.js';
+import { UI_ITEM_INKS, type UiTone } from '../tokens.js';
 import { scrollUiElement } from '../layout/scroll.js';
-import { paintUiSkin } from './art.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText, uiTextLines } from './text.js';
 import { uiInput } from './input.js';
@@ -66,7 +66,8 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     },
     render(line) {
       const text = uiText(line.text, { outline: true, layout: { width: 'grow' } });
-      const plain = uiText(line.text, { layout: { width: 'grow' } });
+      // On the dark panel, lines read in the dark-frame body ink.
+      const plain = uiText(line.text, { layout: { width: 'grow' } }).setProps({ ink: UI_ITEM_INKS.body });
       return new UiElement({ ...text.hooks, id: `chat.message.${line.id}`, animated: true,
         paint(element, state) {
           const expanded = uiChatHistoryExpanded(model.touch, model.open, model.hovered); state.context.globalAlpha *= uiChatLineAlpha(state.now - line.arrivedAt, expanded);
@@ -82,10 +83,10 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     style: { width: 'grow', height: 'grow', minHeight: uiFixed(0), padding: 8 }, children: [history],
     onPointer(event) { if (event.type === 'down' && event.button === 0) { event.capture(); return true; } if (event.type === 'up' && event.button === 0) { activateHistory(); event.release(); } return true; },
     paint(element, { context, art }) {
-      if (art && (uiChatHistoryExpanded(model.touch, model.open, model.hovered))) paintUiSkin(context, art.skin.frame, 'primary.idle', element.rect);
+      if (art && (uiChatHistoryExpanded(model.touch, model.open, model.hovered))) { context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); }
     },
   });
-  const baseInput = uiInput({ id: 'chat.input', label: 'Chat message or command', editor, placeholder: 'SAY [General]: MESSAGE',
+  const baseInput = uiInput({ id: 'chat.input', label: 'Chat message or command', editor, placeholder: 'Say to General',
     onChange: () => { historyNavigation = false; options.onChange(); }, onSubmit: value => { if (!editor.snapshot().composing) options.onSubmit(value); }, layout: { width: 'grow', shrink: 0 } });
   const input = new UiElement({ ...baseInput.hooks, onPointer(event, element) {
     if (event.type === 'down') historyNavigation = false;
@@ -103,7 +104,7 @@ export function uiChat(options: UiChatOptions): UiChatElement {
   suggestions.setProps({ singlePointer: true }); suggestions.pointerMode = 'capture';
   const inputPanel = new UiElement({ kind: 'chat-editor-panel', props: { tone: 'primary', singlePointer: true },
     style: { display: 'stack', width: 'grow', height: uiFixed(24), shrink: 0 }, children: [input],
-    paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, 'primary.idle', element.rect); },
+    paint(element, { context, art }) { if (art) { context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); } },
   });
   // The HUD plaque with the speech symbol, like the other HUD shortcuts but 24px tall so the compact
   // keyboard-inset layout keeps its editor; a green pip marks unread messages.

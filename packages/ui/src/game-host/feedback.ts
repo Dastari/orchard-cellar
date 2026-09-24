@@ -1,10 +1,13 @@
 import type { UiPoint } from '../geometry.js';
 import { uiActionNotice } from '../kit/components/action-notice.js';
 import type { UiKitArt } from '../kit/components/art.js';
-import { uiFrame } from '../kit/components/frame.js';
+import { paintUiDarkFrame } from '../kit/components/feedback-game.js';
+import { paintUiSkin } from '../kit/components/art.js';
+import { UI_ITEM_INKS } from '../kit/tokens.js';
 import { uiMeter } from '../kit/components/meter.js';
 import { uiNameplates, type UiNameplateLabel } from '../kit/components/nameplates.js';
 import { uiText } from '../kit/components/text.js';
+import { uiFlex } from '../kit/components/layout.js';
 import { uiWorldFeedback, type UiWorldFeedbackEntry } from '../kit/components/world-feedback.js';
 import { uiWorldHint, type UiWorldHint } from '../kit/components/world-hint.js';
 import { uiWorldSpeech, type UiWorldSpeechMessage } from '../kit/components/world-speech.js';
@@ -120,10 +123,9 @@ export class GameFeedback {
       this.notice?.dispose(); this.notice = null;
       if (notice) {
         const scope: GameSkillNoticeScope = { sessionKey: model.sessionKey, noticeId: notice.id, track: notice.track, points: notice.points };
-        const message = notice.points === 1 ? `NEW ${notice.track.toUpperCase()} SKILL POINT · OPEN`
-          : `${notice.points} NEW ${notice.track.toUpperCase()} SKILL POINTS · OPEN`;
+        const message = notice.points === 1 ? `New ${notice.track} skill point` : `${notice.points} new ${notice.track} skill points`;
         let dense = false, normalHeight = 0;
-        const makePanel = () => uiActionNotice({ id: 'game.feedback.notice', message, tone: 'success', activateOn: 'up', compact: true, dense,
+        const makePanel = () => uiActionNotice({ id: 'game.feedback.notice', message, detail: 'Spend it in the Skills chapter.', tone: 'success', activateOn: 'up', compact: true, dense,
           onOpen: () => this.activate(key, scope, true), onDismiss: () => this.activate(key, scope, false),
           layout: { position: 'absolute', width: 'grow', height: 'fit' } });
         let panel = makePanel();
@@ -131,7 +133,7 @@ export class GameFeedback {
           style: { display: 'stack', width: 'grow', height: 'grow' }, props: { singlePointer: true }, children: [panel],
           onKeyCapture: event => !!event.repeat && ['Enter', ' ', 'ContextMenu'].includes(event.key),
           measure: (element, available) => {
-            const width = Math.max(0, Math.min(390, available.width - 12));
+            const width = Math.max(0, Math.min(260, available.width - 12));
             panel.setStyle({ visible: true, width: uiFixed(width), height: 'fit' });
             if (!dense) normalHeight = measureUiElement(panel, { width, height: Math.max(100, available.height) }).preferred.height;
             // HUD is arranged first. Rejection text has priority over the optional notice.
@@ -148,7 +150,7 @@ export class GameFeedback {
             if (this.noticeFits && !fits) { this.roots.notice.input.cancelPointers(); this.roots.notice.focus.set(null); }
             this.noticeFits = fits;
             const open = this.roots.notice.entries().find(({ element }) => element.id === 'game.feedback.notice:open')?.element;
-            open?.setProps({ label: dense || width < 120 ? 'OPEN' : width < 200 ? `SKILLS +${notice.points}` : message });
+            open?.setProps({ label: dense || width < 120 ? 'Open skills' : width < 200 ? `Skills +${notice.points}` : message });
             panel.setStyle({ visible: fits, width: uiFixed(width), height: 'fit' });
             const height = Math.min(budget, measureUiElement(panel, { width, height: available.height }).preferred.height);
             const y = this.model?.hud.notice?.y ?? 0;
@@ -173,13 +175,34 @@ export class GameFeedback {
   dispose(): void { for (const root of Object.values(this.roots)) root.dispose(); this.model = null; this.notice = null; }
 }
 
+/** The approved dark notice: rejections in red with a cross, successes in green with a tick,
+ * prompts, info toasts and tooltips in cream on the neutral dark frame. */
+const NOTICE_STYLE: Partial<Record<UiTone, { readonly frame: string; readonly ink: string; readonly glyph?: string }>> = {
+  danger: { frame: 'tooltip_dark.poor', ink: UI_ITEM_INKS.unmet, glyph: 'glyph.cross.red' },
+  success: { frame: 'tooltip_dark.uncommon', ink: UI_ITEM_INKS.equip, glyph: 'glyph.check' },
+};
 /** Shared frame/text composition; no legacy pixel painter or pointer handlers. */
 function feedbackLabel(kind: string) {
   let model: GameFeedbackLabel | null = null;
-  const textNode = () => uiText('', { id: `game.feedback.${kind}.text`, wrap: true, align: 'center', layout: { width: 'grow' } });
-  let text = textNode(), tone: UiTone = 'primary';
-  const makeFrame = () => uiFrame({ id: `game.feedback.${kind}.frame`, tone, padding: 4,
-    children: [text], layout: { position: 'absolute', height: 'fit' } });
+  const style = () => NOTICE_STYLE[tone] ?? { frame: 'tooltip_dark.neutral', ink: UI_ITEM_INKS.body, glyph: kind === 'toast' ? 'notice.info' : undefined };
+  const textNode = () => uiText('', { id: `game.feedback.${kind}.text`, wrap: true, align: kind === 'tooltip' ? 'left' : 'center', layout: { width: 'grow' } }).setProps({ ink: style().ink });
+  let text: UiElement, tone: UiTone = 'primary';
+  text = textNode();
+  // Tooltips title their first line in gold like the item tooltip; the rest reads in the body ink.
+  const detailNode = () => uiText('', { id: `game.feedback.${kind}.detail`, wrap: true, align: 'left', layout: { width: 'grow', visible: false } }).setProps({ ink: UI_ITEM_INKS.body });
+  let detail = detailNode();
+  let glyph: UiElement | null = null;
+  const makeFrame = () => {
+    const look = style();
+    glyph = look.glyph ? new UiElement({ kind: 'glyph', style: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.icon, look.glyph!, element.rect); } }) : null;
+    return new UiElement({ id: `game.feedback.${kind}.frame`, kind: 'notice', props: { itemInks: true },
+      style: { display: 'flex', direction: 'row', gap: 4, align: 'center', padding: { left: glyph ? 4 : 8, right: 8, top: 4, bottom: 4 }, position: 'absolute', height: 'fit' },
+      children: [...(glyph ? [glyph] : []), kind === 'tooltip' ? uiFlex({ direction: 'column', gap: 2, grow: 1 }, [text, detail]) : text],
+      paint(element, { context, art }) { paintUiDarkFrame(element, context, art, look.frame); } });
+  };
+  // Very narrow screens drop the glyph so the words keep their room.
+  const glyphShown = (width: number) => { const shown = glyph !== null && width >= 160; glyph?.setStyle({ visible: shown }); frame.setStyle({ padding: { left: shown ? 4 : 8, right: 8, top: 4, bottom: 4 } }); return shown;
+  };
   let frame = makeFrame();
   const element = new UiElement({ id: `game.feedback.${kind}`, style: { display: 'stack', width: 'grow', height: 'grow' }, children: [frame],
     measure(_element, available) {
@@ -187,12 +210,15 @@ function feedbackLabel(kind: string) {
       const visible = value !== null && value.text.length > 0 && Number.isFinite(value.anchor.x + value.anchor.y);
       frame.setStyle({ visible });
       if (visible) {
-        text.setProps({ text: value.text });
+        const [title = '', ...rest] = kind === 'tooltip' ? value.text.split('\n') : [value.text];
+        text.setProps({ text: title });
+        if (kind === 'tooltip') { text.setProps({ ink: rest.length ? UI_ITEM_INKS.flavour : UI_ITEM_INKS.body }); detail.setProps({ text: rest.join('\n') }).setStyle({ visible: rest.length > 0 }); }
         const maximum = Math.max(0, Math.min(kind === 'tooltip' ? 390 : 320, available.width - 12));
-        text.setStyle({ width: 'fit' });
-        const natural = measureUiElement(text, { width: Math.max(0, maximum - 8), height: available.height }).preferred;
-        const width = Math.min(maximum, Math.max(104, natural.width + 8));
-        text.setStyle({ width: 'grow' });
+        text.setStyle({ width: 'fit' }); detail.setStyle({ width: 'fit' });
+        const inset = glyphShown(available.width) ? 36 : 16, room = { width: Math.max(0, maximum - inset), height: available.height };
+        const natural = { width: Math.max(measureUiElement(text, room).preferred.width, rest.length ? measureUiElement(detail, room).preferred.width : 0) };
+        const width = Math.min(maximum, Math.max(kind === 'tooltip' ? 48 : 104, natural.width + inset));
+        text.setStyle({ width: 'grow' }); detail.setStyle({ width: 'grow' });
         frame.setStyle({ width: uiFixed(width), height: 'fit' });
         const maximumHeight = value.maxHeight !== undefined && Number.isFinite(value.maxHeight) ? Math.max(0, value.maxHeight) : available.height;
         const height = Math.min(available.height, maximumHeight, measureUiElement(frame, { width, height: available.height }).preferred.height);
@@ -206,7 +232,7 @@ function feedbackLabel(kind: string) {
   });
   return Object.assign(element, { bounds: () => frame.visible ? frame.rect : null, update(next: GameFeedbackLabel | null) {
     const nextTone = next?.tone ?? 'primary';
-    if (nextTone !== tone) { frame.dispose(); tone = nextTone; text = textNode(); frame = makeFrame(); element.append(frame); }
+    if (nextTone !== tone) { frame.dispose(); tone = nextTone; text = textNode(); detail = detailNode(); frame = makeFrame(); element.append(frame); }
     model = next; element.invalidate();
   } });
 }
