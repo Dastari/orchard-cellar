@@ -12,7 +12,7 @@ import { uiStatusEffects, type UiStatusEffect } from '../kit/components/status-e
 import { uiTooltip } from '../kit/components/tooltip.js';
 import { uiScrollArea } from '../kit/components/layout.js';
 import { uiText } from '../kit/components/text.js';
-import { hudHotbarSize, touchControlLayout, touchControlsUseCompactLayout, type TouchControlPreferences } from '../touch-control-layout.js';
+import { HUD_SHORTCUT, hudHotbarSize, hudShortcutGrid, touchControlLayout, touchControlsUseCompactLayout, type TouchControlPreferences } from '../touch-control-layout.js';
 import { uiViewport } from '../kit/components/viewport.js';
 import { UI_CLASSIC_VITALS, uiVitals, uiVitalFraction, type UiVitalKind, type UiVitalValues } from '../kit/components/vitals.js';
 import { uiFixed } from '../kit/layout/box.js';
@@ -122,6 +122,8 @@ export class GameHud {
   private readonly effectViewport: UiElement;
   private compactPage: 'you' | 'status' | 'zone' | 'map' = 'you';
   private compactMounted = false;
+  private shortcutsDocked = true;
+  private shortcutsMountedDocked = true;
   private readonly compactViews: Record<'you' | 'status' | 'zone' | 'map', UiElement>;
   private readonly compactBodies: Record<'you' | 'status' | 'zone' | 'map', UiElement>;
   private readonly compactTabs: readonly UiElement[];
@@ -383,14 +385,15 @@ export class GameHud {
     // Touch play keeps the one-row hotbar when it fits in the lane between the thumb banks.
     const arrangement = gameHudArrangement(width, false) === 'row' && barHeight === 31 && (!touch || barWidth + 16 <= lane.width) ? 'row' : 'stacked';
     const card = { width: UI_CLASSIC_VITALS.width, height: UI_CLASSIC_VITALS.height }, cardY = barY - 4 - card.height;
-    // The round shortcuts anchor to the bottom-left corner: one row when it clears the centred hotbar, else two
-    // columns. On touch screens they stand just above the left thumb control instead.
-    const centredBar = Math.max(4, Math.floor((width - barWidth) / 2));
-    const columns = Math.max(1, touch || 6 + shortcuts.length * 28 + 6 <= centredBar ? shortcuts.length : Math.min(2, shortcuts.length));
-    const clusterRows = Math.ceil(shortcuts.length / columns), clusterRight = shortcuts.length ? 6 + columns * 28 : 0;
-    const leftThumbs = thumbs.filter(t => t.x + t.width / 2 < width / 2), clusterBottom = leftThumbs.length ? Math.min(...leftThumbs.map(t => t.y)) - 4 : height - 6;
-    shortcuts.forEach((node, index) => place(node, { x: 6 + (index % columns) * 28, y: clusterBottom - (clusterRows - Math.floor(index / columns)) * 30 + 2, width: 26, height: 28 }));
-    const minX = touch ? 4 : clusterRight + 6;
+    // The round shortcuts always sit in the bottom-left corner (one row when it clears the centred hotbar, else two
+    // columns); the thumb controls, and their height preference, stand above them.
+    const centredBar = Math.max(4, Math.floor((width - barWidth) / 2)), grid = hudShortcutGrid(width, shortcuts.length, this.compactTouchLayout);
+    this.shortcutsDocked = grid.docked;
+    if (grid.docked) shortcuts.forEach((node, index) => place(node, { x: HUD_SHORTCUT.margin + (index % grid.columns) * HUD_SHORTCUT.pitch,
+      y: height - HUD_SHORTCUT.margin - (grid.rows - Math.floor(index / grid.columns)) * HUD_SHORTCUT.rowPitch + 2, width: HUD_SHORTCUT.width, height: HUD_SHORTCUT.height }));
+    // The hotbar keeps clear of the shortcuts and of any left thumb control beside its rows.
+    const besideThumbs = thumbs.filter(t => t.x + t.width / 2 < width / 2 && t.y < barY + barHeight && t.y + t.height > barY);
+    const minX = Math.max(shortcuts.length && grid.docked ? grid.right + 6 : 4, ...besideThumbs.map(t => t.x + t.width + 4));
     // The classic frames sit directly above the hotbar's ends: the player on the left under its hunger strip and
     // the mirrored target on the right with its name just above it.
     const frameRects: UiRect[] = [];
@@ -417,8 +420,9 @@ export class GameHud {
       // the purse sits beside its last row in the bottom-right corner (the hotbar slides to make room). Touch keeps
       // the hotbar centred, as the thumb layout expects, and shortens the purse's coins to fit.
       const besideX = width - 6 - purseWidth - 4 - barWidth;
-      let purseBeside = besideX >= minX && !touch, plate = purseWidth;
-      const hotbarX = purseBeside ? Math.max(minX, Math.min(centredBar, besideX)) : Math.max(touch ? 4 : minX, centredBar);
+      let purseBeside = besideX >= minX, plate = purseWidth;
+      // Short of room, the hotbar slides as far left as it can so the purse keeps as many coins as possible.
+      const hotbarX = Math.max(minX, Math.min(centredBar, besideX));
       if (!purseBeside) { const room = width - 6 - (hotbarX + barWidth + 4); if (room >= 64 || (touch && room >= 40)) { plate = Math.min(purseWidth, room); purseBeside = true; } }
       place(this.hotbarPanel, { x: hotbarX, y: barY, width: Math.min(barWidth, width - 8), height: barHeight });
       frames(hotbarX, hotbarX + barWidth);
@@ -450,15 +454,18 @@ export class GameHud {
   }
   private layoutCompact(): void {
     const compact = this.compactTouchLayout;
-    const groups = { you: [this.hunger, this.player, this.system, this.build, this.crafting, this.weapon, this.purse],
+    const shortcuts = [this.system, this.build, this.crafting, this.weapon];
+    const groups = { you: [this.hunger, this.player, ...(this.shortcutsDocked ? [] : shortcuts), this.purse],
       status: [this.target, this.targetName, this.effectViewport], zone: [this.zonePanel], map: [this.map] };
-    if (compact !== this.compactMounted) {
+    if (compact !== this.compactMounted || (compact && this.shortcutsDocked !== this.shortcutsMountedDocked)) {
       for (const root of Object.values(this.roots)) root.input.cancelPointers();
       for (const page of ['you', 'status', 'zone', 'map'] as const) {
         const parent = compact ? this.compactBodies[page] : this.roots[page === 'you' ? 'hotbarVitals' : page === 'status' ? 'targetEffects' : 'zoneMinimap'].tree.children[0]!;
         for (const node of groups[page]) parent.append(node);
       }
-      this.compactMounted = compact;
+      // Docked shortcuts belong to the HUD root in the bottom-left corner, not the YOU page.
+      if (this.shortcutsDocked) for (const node of shortcuts) this.roots.hotbarVitals.tree.children[0]!.append(node);
+      this.compactMounted = compact; this.shortcutsMountedDocked = this.shortcutsDocked;
     }
     for (const page of ['you', 'status', 'zone', 'map'] as const) this.compactViews[page].setStyle({ visible: compact && this.compactPage === page });
     for (const node of [...this.compactTabs, this.compactZone, this.compactMap]) node.setStyle({ visible: compact });
@@ -476,18 +483,18 @@ export class GameHud {
     this.moon.setStyle({ visible: Boolean(this.model?.zone.moon) });
     const contentWidth = Math.max(0, center.width - 16), zoneHeight = this.model ? uiZoneHeaderHeight({ ...this.model.zone, collapsed: false }) : UI_ZONE_BANNER_HEIGHT;
     place(this.compactEmptyStatus, { x: 0, y: 0, width: contentWidth, height: 24 });
-    // YOU: the hunger strip over the frame, then the shortcuts and the purse.
+    // YOU: the hunger strip over the frame, the shortcuts when the corner has no room for them, then the purse.
     place(this.hunger, { x: 4, y: 0, width: 64, height: 9 });
     place(this.player, { x: 0, y: 11, width: 72, height: 29 });
-    [this.system, this.build, this.crafting, this.weapon].forEach((node, index) => place(node, { x: index * 28, y: 44, width: 26, height: 28 }));
-    place(this.purse, { x: 0, y: 79, width: Math.min(contentWidth, this.model ? uiPurseWidth(this.model.inventory.balanceBronze) : contentWidth), height: 26 });
+    if (!this.shortcutsDocked) shortcuts.forEach((node, index) => place(node, { x: index * HUD_SHORTCUT.pitch, y: 44, width: HUD_SHORTCUT.width, height: HUD_SHORTCUT.height }));
+    place(this.purse, { x: 0, y: this.shortcutsDocked ? 44 : 79, width: Math.min(contentWidth, this.model ? uiPurseWidth(this.model.inventory.balanceBronze) : contentWidth), height: 26 });
     // STATUS: the target's name just above its frame, then the effect strip.
     place(this.targetName, { x: 0, y: 0, width: 72, height: 9 });
     place(this.target, { x: 0, y: 11, width: 72, height: 29 });
     place(this.effectViewport, { x: 0, y: 44, width: contentWidth, height: 28 });
     place(this.zonePanel, { x: 0, y: 0, width: contentWidth, height: zoneHeight });
     place(this.map, { x: 0, y: 0, width: Math.min(contentWidth, 128), height: 112 });
-    this.compactBodies.you.setStyle({ height: uiFixed(105) });
+    this.compactBodies.you.setStyle({ height: uiFixed(this.shortcutsDocked ? 70 : 105) });
     this.compactBodies.status.setStyle({ height: uiFixed(72) });
     this.compactBodies.zone.setStyle({ height: uiFixed(zoneHeight) });
     this.compactBodies.map.setStyle({ height: uiFixed(112) });

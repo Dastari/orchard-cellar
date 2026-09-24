@@ -56,6 +56,24 @@ export function hudHotbarSize(width: number, compactTouch = false): { readonly w
   return width >= (compactTouch ? 306 : 420) ? { width: 298, height: 31 } : { width: 148, height: 64 };
 }
 
+/** The HUD's round shortcut buttons (menu, build, crafting, main hand) always sit in the bottom-left corner:
+ * one row when it clears the centred hotbar, otherwise two columns. The thumb controls stand above them. */
+export const HUD_SHORTCUT = Object.freeze({ width: 25, height: 28, pitch: 27, rowPitch: 30, margin: 6 });
+export function hudShortcutGrid(width: number, count: number, compactTouch = false): { readonly docked: boolean; readonly columns: number; readonly rows: number; readonly right: number; readonly height: number } {
+  const bar = hudHotbarSize(width, compactTouch), centredBar = Math.max(4, Math.floor((width - bar.width) / 2));
+  const oneRow = HUD_SHORTCUT.margin + count * HUD_SHORTCUT.pitch + HUD_SHORTCUT.margin <= centredBar;
+  // The short-screen compact touch HUD has no corner to spare beside a full-width hotbar: there the shortcuts
+  // live on its YOU page instead.
+  if (compactTouch && !oneRow) return { docked: false, columns: 0, rows: 0, right: 0, height: 0 };
+  const columns = Math.max(1, oneRow ? count : Math.min(2, count)), rows = count ? Math.ceil(count / columns) : 0;
+  return { docked: true, columns, rows, right: count ? HUD_SHORTCUT.margin + columns * HUD_SHORTCUT.pitch - 2 : 0, height: rows ? rows * HUD_SHORTCUT.rowPitch - 2 : 0 };
+}
+/** Top edge of the bottom-left shortcut block plus a 4px gap: thumb controls over those columns stay above it. */
+function shortcutCeiling(width: number, height: number, compactTouch: boolean): { readonly right: number; readonly top: number } {
+  const grid = hudShortcutGrid(width, 4, compactTouch);
+  return grid.docked ? { right: grid.right, top: height - HUD_SHORTCUT.margin - grid.height - 4 } : { right: 0, top: height };
+}
+
 export function touchControlsUseCompactLayout(width: number, height: number): boolean {
   // A full status row, readable tracker and top chrome need 295px. Below
   // 382px wide the two 96px status panels stack and need another 60px.
@@ -79,7 +97,8 @@ export function touchControlLayout(
     // Preserve the saved preference, but fit its applied offset between chrome.
     const bankHeight = BUTTON_HEIGHT * 2 + 37;
     const offset = Math.min(bottomOffset, Math.max(0, bottom - bankHeight - top));
-    const end = bottom - offset;
+    // The bottom-left shortcuts stay below whichever control bank sits on the left.
+    const end = Math.min(bottom, shortcutCeiling(width, height, true).top) - offset;
     const right = width - 10;
     const mirror = (rect: UiRect): UiRect => ({ ...rect, x: swapped ? width - rect.x - rect.width : rect.x });
     return {
@@ -111,7 +130,10 @@ export function touchControlLayout(
   // When the button bank shares columns with the (two-row) hotbar, it stands above the hotbar instead.
   const bankLeft = swapped ? width - right : right - BUTTON_WIDTH * 2 - 8, bankRight = bankLeft + BUTTON_WIDTH * 2 + 8;
   const bankOverBar = bankRight > barX && bankLeft < barX + barWidth;
-  const buttonCenterY = Math.min(desiredButtonCenterY, height - 47, bankOverBar ? height - 6 - barHeight - 4 - BUTTON_HEIGHT / 2 : Infinity);
+  const ceiling = shortcutCeiling(width, height, false);
+  // A left-hand (swapped) button bank stands above the bottom-left shortcuts.
+  const buttonCenterY = Math.min(desiredButtonCenterY, height - 47, bankOverBar ? height - 6 - barHeight - 4 - BUTTON_HEIGHT / 2 : Infinity,
+    swapped && bankLeft < ceiling.right ? ceiling.top - 1 - BUTTON_HEIGHT / 2 : Infinity);
   const offset = Math.min(bottomOffset, Math.max(0, Math.min(centerY - 38, buttonCenterY - (BUTTON_HEIGHT * 2 + 22) - 100)));
   const mirror = (rect: UiRect): UiRect => ({
     ...rect, x: swapped ? width - rect.x - rect.width : rect.x, y: rect.y - offset,
@@ -119,7 +141,9 @@ export function touchControlLayout(
   const joystickX = swapped ? width - JOYSTICK_RADIUS - 12 : JOYSTICK_RADIUS + 12;
   const captureRadius = JOYSTICK_RADIUS + 8;
   const intersectsBarColumns = joystickX + captureRadius > barX && joystickX - captureRadius < barX + barWidth;
-  const joystickY = intersectsBarColumns ? Math.min(centerY - offset, height - 6 - barHeight - 4 - captureRadius) : centerY - offset;
+  const joystickY = Math.min(intersectsBarColumns ? Math.min(centerY - offset, height - 6 - barHeight - 4 - captureRadius) : centerY - offset,
+    // A left-hand joystick stands above the bottom-left shortcuts.
+    !swapped && joystickX - captureRadius < ceiling.right ? ceiling.top - captureRadius - offset : Infinity);
   return {
     joystickCenter: { x: joystickX, y: joystickY },
     joystickRadius: JOYSTICK_RADIUS,

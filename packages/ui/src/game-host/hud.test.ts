@@ -148,7 +148,7 @@ describe('desktop HUD arrangement', () => {
     const f = fixture(width, height), node = (id: string) => f.node('hotbarVitals', id);
     const slot = node('game.hud.hotbar.slot.0'), system = node('game.hud.system'), crafting = node('game.hud.crafting'), weapon = node('game.hud.weapon');
     // The shortcuts are small round buttons anchored to the bottom-left corner, clear of the hotbar.
-    for (const control of [system, crafting, weapon]) { expect(control.rect, control.id).toMatchObject({ width: 26, height: 28 }); expect(control.rect.x + control.rect.width).toBeLessThan(slot.rect.x); }
+    for (const control of [system, crafting, weapon]) { expect(control.rect, control.id).toMatchObject({ width: 25, height: 28 }); expect(control.rect.x + control.rect.width).toBeLessThan(slot.rect.x); }
     expect(system.rect.x).toBe(6); expect(Math.max(...[system, crafting, weapon].map(control => control.rect.y + control.rect.height))).toBe(height - 6);
     // The character card and purse never overlap the row.
     const intersects = (a: UiElement, b: UiElement) => a.rect.x < b.rect.x + b.rect.width && a.rect.x + a.rect.width > b.rect.x && a.rect.y < b.rect.y + b.rect.height && a.rect.y + a.rect.height > b.rect.y;
@@ -179,9 +179,13 @@ describe('desktop HUD arrangement', () => {
     const wide = fixture(844, 390); wide.host.update(touch);
     const wideSlots = [0, 9].map(index => wide.node('hotbarVitals', `game.hud.hotbar.slot.${index}`));
     expect(wideSlots[0]!.rect.y).toBe(wideSlots[1]!.rect.y);
-    // The round shortcuts stand just above the left thumb control.
-    const joystick = touchControlLayout(844, 390).joystickCenter, system = wide.node('hotbarVitals', 'game.hud.system');
-    expect(system.rect.x).toBe(6); expect(system.rect.y + system.rect.height).toBeLessThanOrEqual(joystick.y - touchControlLayout(844, 390).joystickRadius - 8);
+    // The round shortcuts stay in the bottom-left corner with the thumb controls (and their offset) above them.
+    for (const bottomOffset of [0, 120]) {
+      wide.host.update({ ...touch, touchControls: { enabled: true, preferences: { swapped: false, bottomOffset } } });
+      const layout = touchControlLayout(844, 390, { swapped: false, bottomOffset }), system = wide.node('hotbarVitals', 'game.hud.system');
+      expect(system.rect.x).toBe(6); expect(system.rect.y + system.rect.height).toBe(390 - 6);
+      expect(system.rect.y).toBeGreaterThanOrEqual(layout.joystickCenter.y + layout.joystickRadius + 8);
+    }
     const phone = fixture(390, 844); phone.host.update(touch);
     const first = phone.node('hotbarVitals', 'game.hud.hotbar.slot.0'), sixth = phone.node('hotbarVitals', 'game.hud.hotbar.slot.5');
     expect(sixth.rect.x).toBe(first.rect.x); expect(sixth.rect.y).toBeGreaterThan(first.rect.y);
