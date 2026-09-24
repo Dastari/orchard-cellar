@@ -41,15 +41,16 @@ export function uiToastCard(options: { readonly title: string; readonly detail?:
 }
 
 export type UiNameplateKind = 'self' | 'player' | 'friend' | 'npc' | 'offline';
-const PLATE_INKS: Readonly<Record<UiNameplateKind, string>> = { self: UI_ITEM_INKS.body, player: UI_ITEM_INKS.body, friend: UI_ITEM_INKS.equip, npc: UI_ITEM_INKS.flavour, offline: UI_ITEM_INKS.muted };
-/** A slim dark plate over a character's head; NPCs in gold, friends in green, offline in grey. */
+const PLATE_INKS: Readonly<Record<UiNameplateKind, string>> = { self: '#ffffff', player: '#ffffff', friend: UI_ITEM_INKS.equip, npc: UI_ITEM_INKS.flavour, offline: UI_ITEM_INKS.muted };
+/** The classic nameplate: white pixel text on a plain semi-transparent black strip over a character's head
+ * (friends in green, NPCs in gold and offline players in grey where the host distinguishes them). */
 export function uiNameplate(options: { readonly id?: string; readonly name: string; readonly kind?: UiNameplateKind; readonly detail?: string }): UiElement {
   const kind = options.kind ?? 'player';
   return new UiElement({ id: options.id, kind: 'nameplate', label: options.name, style: { height: uiFixed(options.detail ? 22 : 13), shrink: 0 },
     measure() { const width = Math.max(options.name.length, options.detail?.length ?? 0) * 6 + 7; return { min: { width, height: 13 }, preferred: { width, height: options.detail ? 22 : 13 } }; },
     paint(element, { context, art }) {
       if (!art) return; const r = element.rect;
-      context.fillStyle = 'rgba(14, 7, 27, 0.72)'; context.fillRect(r.x + 1, r.y, r.width - 2, r.height); context.fillRect(r.x, r.y + 1, r.width, r.height - 2);
+      context.fillStyle = 'rgba(0, 0, 0, 0.6)'; context.fillRect(r.x, r.y, r.width, r.height);
       const w = measurePixelText(options.name, 1, art.pixel.font);
       drawPixelText(context, art.pixel, options.name, r.x + Math.floor((r.width - w) / 2), r.y + 3, { color: PLATE_INKS[kind] });
       if (options.detail) { const dw = measurePixelText(options.detail, 1, art.pixel.font); drawPixelText(context, art.pixel, options.detail, r.x + Math.floor((r.width - dw) / 2), r.y + 12, { color: UI_ITEM_INKS.muted }); }
