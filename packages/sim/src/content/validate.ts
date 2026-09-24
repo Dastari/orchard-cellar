@@ -1,5 +1,5 @@
 import { delveCompletionRewardError } from '../delve-keepsake.js';
-import { equipmentModifierAllowed } from '../equipment-budget.js';
+import { equipmentItemBudgetViolations, equipmentModifierAllowed } from '../equipment-budget.js';
 import {
   type ItemContentDefinition,
   type ItemDefinitionId,
@@ -1912,6 +1912,12 @@ export function validateContentDefinitions(
       if (definition.equip !== undefined) for (const modifier of definition.modifiers ?? []) {
         if (!equipmentModifierAllowed(modifier)) errors.push(issue(
           'error', 'invalid_component_set', `unsupported equipment modifier or budget: ${modifier.id}`,
+          definition.id, 'modifiers',
+        ));
+      }
+      if (definition.equip !== undefined) for (const rule of equipmentItemBudgetViolations(definition.modifiers ?? [])) {
+        errors.push(issue(
+          'error', 'invalid_component_set', `equipment modifiers for ${rule.key} exceed the per-item budget`,
           definition.id, 'modifiers',
         ));
       }

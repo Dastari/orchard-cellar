@@ -4,13 +4,29 @@ import {
   type ContentRegistry, type EquippedInventoryEntry, type Modifier,
 } from '@orchard/sim';
 const labels: Partial<Record<Modifier['target'],string>> = {
-  attackPower:'MELEE POWER',rangedPower:'RANGED POWER',maxHealth:'MAX HEALTH',maxVigour:'MAX VIGOUR',
+  attackPower:'MELEE POWER',rangedPower:'RANGED POWER',maxHealth:'MAX HEALTH',maxVigour:'MAX VIGOUR',maxMana:'MAX MANA',
   criticalChance:'CRITICAL CHANCE',armor:'ARMOR',armorPct:'DAMAGE REDUCTION',
   toolVigourCost:'ACTION VIGOUR COST',sprintVigourCost:'SPRINT VIGOUR COST',swingSpeed:'ATTACK INTERVAL',
 };
-function modifierLabel(mod:Modifier):string {
+/** Attribute modifiers are whole points, not centi-units (Gear-D3). */
+const attributeLabels: Partial<Record<Modifier['target'],string>> = {
+  str:'STRENGTH',dex:'DEXTERITY',con:'CONSTITUTION',int:'INTELLIGENCE',wis:'WISDOM',cha:'CHARISMA',
+};
+/** Flat regeneration is centi-units per second. */
+const regenLabels: Partial<Record<Modifier['target'],string>> = {
+  healthRegen:'HEALTH / SEC',manaRegen:'MANA / SEC',vigourRegen:'VIGOUR / SEC',
+};
+const centi=(value:number)=>Number((value/100).toFixed(2));
+/** One tooltip line per authored modifier, in the unit its target is stored in. */
+export function equipmentModifierLabel(mod:Modifier):string {
+  const sign=mod.value>=0?'+':'';
+  const attribute=attributeLabels[mod.target];
+  if (attribute!==undefined && mod.layer==='flat') return `${sign}${mod.value} ${attribute}`;
+  const regen=regenLabels[mod.target];
+  if (regen!==undefined && mod.layer==='flat') return `${sign}${centi(mod.value)} ${regen}`;
+  if (mod.target==='maxHealth' && mod.layer==='flat') return `${sign}${centi(mod.value)} HEALTH`;
   const unit=mod.target==='criticalChance' ? ' POINTS' : mod.layer==='pctAdd' || mod.target==='armorPct' ? '%' : '';
-  return `${mod.value>=0?'+':''}${Number((mod.value/100).toFixed(2))}${unit} ${labels[mod.target]??mod.target.toUpperCase()}`;
+  return `${sign}${centi(mod.value)}${unit} ${labels[mod.target]??mod.target.toUpperCase()}`;
 }
 /** The same preview serves inventory and purchase/crafting cards. It never
  * changes the player's trained ranks, selected item or inventory custody. */
@@ -40,7 +56,7 @@ export function equipmentDescriptionLines(
     lines.push(`BASE DAMAGE ${item.combat.baseDamageCenti/100}${change}`);
     lines.push('BONUSES APPLY WHEN EQUIPPED AND SELECTED');
   }
-  lines.push(...(item.modifiers??[]).map(modifierLabel));
+  lines.push(...(item.modifiers??[]).map(equipmentModifierLabel));
   if (item.tool?.swing !== undefined) {
     if (item.combat === undefined && item.tool.swing.baseDamageCenti !== undefined) lines.push(`BASE DAMAGE ${item.tool.swing.baseDamageCenti / 100}`);
     lines.push('F: SWING IN FACING DIRECTION');
