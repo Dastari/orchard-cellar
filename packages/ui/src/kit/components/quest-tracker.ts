@@ -4,7 +4,8 @@ import { uiButton, type UiButtonDrag } from './button.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { drawOutlinedPixelText, fitPixelText } from '../../pixel-ui.js';
 import { paintUiSkin } from './art.js';
-import { UI_HUD_INK } from './hud-game.js';
+/** The tracker's inks: yellow text with a black outline, paler for objectives and darker once done. */
+export const UI_QUEST_INK = Object.freeze({ outline: '#000000', header: '#ffe36e', title: '#ffe36e', objective: '#fff3a0', done: '#d9bd5c', lit: '#fffbe0' });
 export interface UiQuestTrackerEntry {
   readonly id: string; readonly title: string; readonly complete: boolean; readonly objectives: readonly string[];
 }
@@ -26,16 +27,16 @@ export interface UiQuestTrackerElement extends UiElement {
 }
 /** The host persists position/collapse and owns quest authority. Rows are the
  * same clipped, focusable composition in the live HUD and migration gallery.
- * Everything is outlined text straight on the world, right-aligned under the minimap:
- * a gold QUESTS header with its chevron, cream quest titles and tan objectives (green when done). */
+ * Everything is yellow pixel text with a black outline straight on the world, left-aligned like the
+ * classic tracker: the collapse chevron left of QUESTS, quest titles, then "- objective" lines. */
 export function uiQuestTracker(options: UiQuestTrackerOptions): UiQuestTrackerElement {
   let collapsedNow = options.collapsed ?? false;
   const header = uiButton({ id: 'quest-tracker.header', label: 'QUESTS', size: 'sm', tone: 'primary', onPress: options.onToggle, drag: options.drag,
     layout: { width: 'grow', height: uiFixed(UI_QUEST_TRACKER_METRICS.header), shrink: 0, padding: 0 },
     face: (element, { context, art, hovered, focused }) => {
       const r = element.rect;
-      paintUiSkin(context, art.skin.feedback, collapsedNow ? 'quest_chevron.collapsed' : 'quest_chevron.expanded', { x: r.x + r.width - 14, y: r.y, width: 16, height: 16 });
-      drawOutlinedPixelText(context, art.pixel, 'QUESTS', r.x + r.width - 17, r.y + 5, { align: 'right', color: hovered || focused ? UI_HUD_INK.cream : UI_HUD_INK.gold, outlineColor: UI_HUD_INK.outline });
+      paintUiSkin(context, art.skin.feedback, collapsedNow ? 'quest_chevron.collapsed' : 'quest_chevron.expanded', { x: r.x - 1, y: r.y, width: 16, height: 16 });
+      drawOutlinedPixelText(context, art.pixel, 'QUESTS', r.x + 15, r.y + 5, { color: hovered || focused ? UI_QUEST_INK.lit : UI_QUEST_INK.header, outlineColor: UI_QUEST_INK.outline });
     },
   });
   const list = uiScrollArea({ width: 'grow', height: 'grow', gap: 2 }, []);
@@ -55,11 +56,11 @@ export function uiQuestTracker(options: UiQuestTrackerOptions): UiQuestTrackerEl
           onPress: () => { if (rows.has(id)) options.onOpenQuest?.(id); },
           layout: { width: 'grow', padding: 0, shrink: 0 }, children: [content],
           face: (element, { context, art, hovered, focused }) => {
-            const r = element.rect, font = art.pixel.font, line = UI_QUEST_TRACKER_METRICS.line, right = r.x + r.width - 2, lit = hovered || focused;
+            const r = element.rect, font = art.pixel.font, line = UI_QUEST_TRACKER_METRICS.line, lit = hovered || focused;
             const quest = current.entry, objectives = quest.objectives.length ? quest.objectives : ['No objectives'];
             let y = r.y + UI_QUEST_TRACKER_METRICS.rowPadding + 2;
-            drawOutlinedPixelText(context, art.pixel, fitPixelText(quest.title.toUpperCase(), r.width - 4, 1, font), right, y, { align: 'right', color: lit ? UI_HUD_INK.gold : UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
-            for (const text of objectives) { y += line; drawOutlinedPixelText(context, art.pixel, fitPixelText(text, r.width - 4, 1, font), right, y, { align: 'right', color: quest.complete ? UI_HUD_INK.done : UI_HUD_INK.tan, outlineColor: UI_HUD_INK.outline }); }
+            drawOutlinedPixelText(context, art.pixel, fitPixelText(quest.title.toUpperCase(), r.width - 4, 1, font), r.x + 2, y, { color: lit ? UI_QUEST_INK.lit : UI_QUEST_INK.title, outlineColor: UI_QUEST_INK.outline });
+            for (const text of objectives) { y += line; drawOutlinedPixelText(context, art.pixel, fitPixelText(`- ${text}`, r.width - 8, 1, font), r.x + 6, y, { color: quest.complete ? UI_QUEST_INK.done : UI_QUEST_INK.objective, outlineColor: UI_QUEST_INK.outline }); }
           } });
         row = { button, content, key: '', current }; rows.set(id, row);
       }
