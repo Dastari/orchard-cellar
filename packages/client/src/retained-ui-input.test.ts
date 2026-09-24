@@ -1,3 +1,5 @@
+import { TouchControls, touchControlLayout } from '../../ui/src/touch-controls.js';
+import type { UiKitArt } from '../../ui/src/kit/components/art.js';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
@@ -24,9 +26,9 @@ findPointerDown(mainSource);
 if(!pointerDownBody)throw Error('Missing actual canvas pointerdown listener');
 const productionPointerDown=ts.transpileModule(pointerDownBody,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 
-function pointer(type: string, id = 1, x = 10): PointerEvent {
+function pointer(type: string, id = 1, x = 10, y = 10): PointerEvent {
   return Object.assign(new Event(type, { cancelable: true }), {
-    pointerId: id, clientX: x, clientY: 10, pointerType: 'touch', isPrimary: true,
+    pointerId: id, clientX: x, clientY: y, pointerType: 'touch', isPrimary: true,
     button: 0, shiftKey: false, altKey: true, ctrlKey: false, metaKey: false,
   }) as PointerEvent;
 }
@@ -143,7 +145,7 @@ describe('retained UI DOM boundary', () => {
         shiftKey:false,altKey:false,ctrlKey:false,metaKey:false,
       }) as PointerEvent;
       const deps={event,retainedUi:runtime,syncRetainedText:sync,chatOverlay:chat,
-        audio:{unlock:async()=>{}},touchControls:{notePointerType(){},pointerDown:()=>null},
+        audio:{unlock:async()=>{}},touchControls:{notePointerType(){}},syncTouchControls(){},
         pointerUiPosition:()=>[437,313],pointerCanvasPosition:()=>[437,313],worldTouchInput:{pinching:false},
         interfaceHidden:false,overworldUi:{systemCursorDown(){},pointerBuildControl:()=>false,pointerDown:()=>false,openWindow:null},
         retainedPointers:adapter,terrainInspectorPointerDown:()=>false,touchControlViewport:()=>[800,600],
@@ -237,4 +239,57 @@ describe('retained UI DOM boundary', () => {
       expect(box.height).toBeCloseTo(20 * scale * dom.height / (bitmap.height / dpr));
     }
   });
+});
+
+it.each([1,2,3])('keeps independent native captures for movement/action/block and cancels them on a modal at scale%s', scale => {
+ const target=new EventTarget(),captures=new Set<number>(),actions=vi.fn(),legacy=vi.fn();
+ const canvas=Object.assign(new EventTarget(),{focus(){},setPointerCapture:(id:number)=>captures.add(id),hasPointerCapture:(id:number)=>captures.has(id),releasePointerCapture:(id:number)=>captures.delete(id)});
+ const runtime=new GameUiRuntime(),controls=new TouchControls({} as UiKitArt,actions,true);controls.setBounds(320,180);
+ runtime.register({id:'touch',root:controls.root,priority:25,active:()=>controls.visible,blocking:()=>false});
+ const modal=new UiRoot({scale:1});modal.resize(320,180);modal.mount(new UiElement({style:{width:'grow',height:'grow',zLayer:'modal'}}));let blocked=false;
+ runtime.register({id:'modal',root:modal,priority:500,active:()=>blocked,blocking:()=>true});
+ const adapter=new RetainedUiPointers(canvas as unknown as HTMLCanvasElement,target as unknown as Window,runtime,e=>({x:(e.clientX-13)/scale,y:(e.clientY-29)/scale}),()=>{},()=>{});
+ const event=(type:string,id:number,p:{x:number;y:number})=>pointer(type,id,13+p.x*scale,29+p.y*scale);
+ const layout=touchControlLayout(320,180),center=(r:{x:number;y:number;width:number;height:number})=>({x:r.x+r.width/2,y:r.y+r.height/2});
+ try {
+  adapter.dispatch('down',event('pointerdown',1,layout.joystickCenter),'touch');
+  target.dispatchEvent(event('pointermove',1,{x:layout.joystickCenter.x+20,y:layout.joystickCenter.y}));expect(controls.direction).toBe('right');
+  adapter.dispatch('down',event('pointerdown',2,center(layout.jumpButton)),'touch');expect(actions).toHaveBeenCalledExactlyOnceWith('jump');expect(captures.size).toBe(2);
+  target.dispatchEvent(event('pointerup',2,{x:-20,y:250}));expect(captures.has(1)).toBe(true);expect(captures.has(2)).toBe(false);expect(controls.direction).toBe('right');
+  adapter.dispatch('down',event('pointerdown',3,center(layout.blockButton)),'touch');expect(controls.blockHeld).toBe(true);
+  blocked=true;runtime.reconcile();expect(controls.direction).toBe('idle');expect(controls.blockHeld).toBe(false);
+  target.addEventListener('pointerup',legacy);
+  target.dispatchEvent(event('pointerup',3,center(layout.interactButton)));target.dispatchEvent(event('pointerup',1,center(layout.dodgeButton)));
+  expect(legacy).not.toHaveBeenCalled();expect(captures.size).toBe(0);expect(actions.mock.calls.map(c=>c[0])).toEqual(['jump','block']);
+ }finally{adapter.dispose();runtime.dispose();controls.dispose();modal.dispose();}
+});
+
+it.each(['quest-tracker','hud-hotbarVitals'])('gives %s the compact overlap before touch movement in the actual production listener', host => {
+ const target=new EventTarget(),captures=new Set<number>(),actions=vi.fn(),world=vi.fn(),refresh=vi.fn(),commands=vi.fn();
+ const canvas=Object.assign(new EventTarget(),{focus(){},setPointerCapture:(id:number)=>captures.add(id),hasPointerCapture:(id:number)=>captures.has(id),releasePointerCapture:(id:number)=>captures.delete(id)});
+ const runtime=new GameUiRuntime(),controls=new TouchControls({} as UiKitArt,actions,true);controls.setBounds(320,180);
+ let modal=false;
+ runtime.register({id:'touch-controls',root:controls.root,priority:25,active:()=>controls.visible&&!modal,blocking:()=>false});
+ const foreground=new UiRoot({scale:1});foreground.resize(320,180);
+ foreground.mount(uiButton({label:'HUD action',layout:{position:'absolute',inset:{left:uiFixed(11),top:uiFixed(143)},width:uiFixed(298),height:uiFixed(31)},onPress(){commands();modal=true;runtime.reconcile();}}));
+ runtime.register({id:host,root:foreground,priority:host==='quest-tracker'?100:50,active:()=>true,blocking:()=>false});
+ const adapter=new RetainedUiPointers(canvas as unknown as HTMLCanvasElement,target as unknown as Window,runtime,e=>({x:e.clientX,y:e.clientY}),()=>{},()=>{});
+ const down=(id:number,x:number,y:number)=>{
+  const event=pointer('pointerdown',id,x,y);
+  const deps={event,retainedUi:runtime,syncRetainedText(){},chatOverlay:{isOpen:false},audio:{unlock:async()=>{}},touchControls:controls,
+   syncTouchControls(){controls.setBlocked(modal);},touchControlsBlocked:()=>modal,pointerUiPosition:()=>[x,y],pointerCanvasPosition:()=>[x,y],worldTouchInput:{pinching:false},
+   interfaceHidden:false,overworldUi:{systemCursorDown(){},pointerBuildControl:()=>false,pointerDown:()=>false,openWindow:null},retainedPointers:adapter,
+   terrainInspectorPointerDown:()=>false,characterNamePrompt:{isActive:false},npcInteractionUi:{active:false},debugCollision:false,
+   refreshHoveredInteractionTile:refresh,canvas,performWorldPointerAction:world};
+  new Function(...Object.keys(deps),`let worldPointer=null;${productionPointerDown}`)(...Object.values(deps));
+ };
+ try {
+  down(1,42,150);expect(controls.direction).toBe('idle');expect(actions).not.toHaveBeenCalled();
+  target.dispatchEvent(pointer('pointerup',1,42,150));expect(commands).toHaveBeenCalledTimes(1);
+  modal=false;controls.setBlocked(false);
+  down(2,42,120);expect(controls.direction).toBe('up');expect(captures.has(2)).toBe(true);
+  down(3,42,150);target.dispatchEvent(pointer('pointerup',3,42,150));expect(commands).toHaveBeenCalledTimes(2);
+  expect(controls.direction).toBe('idle');target.dispatchEvent(pointer('pointerup',2,42,120));
+  expect(captures.size).toBe(0);expect(world).not.toHaveBeenCalled();expect(refresh).not.toHaveBeenCalled();
+ }finally{adapter.dispose();runtime.dispose();controls.dispose();foreground.dispose();}
 });

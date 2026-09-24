@@ -1086,8 +1086,8 @@ describe('overworld retained UI layout', () => {
     ))).toEqual([0, 1, 2, 3, 0]);
   });
 
-  it('places a close button inside the online-player frame and closes through the shared toggle', () => {
-    const handlers = callbacks();
+  it('keeps retired roster hit geometry from dispatching through legacy input', () => {
+    const handlers = {...callbacks(), manageHomesteadMember: vi.fn()};
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     const frame = { x: 125, y: 12, width: 230, height: 65 };
     const close = onlinePlayerListCloseButtonRect(frame);
@@ -1097,8 +1097,9 @@ describe('overworld retained UI layout', () => {
       onlinePlayerListRect: frame,
       onlinePlayerListCloseButton: close,
     });
-    expect(ui.pointerDown({ x: close.x + 8, y: close.y + 8 }, 0)).toBe(true);
-    expect(handlers.toggleOnlinePlayers).toHaveBeenCalledOnce();
+    ui.pointerDown({ x: close.x + 8, y: close.y + 8 }, 0);
+    expect(handlers.toggleOnlinePlayers).not.toHaveBeenCalled();
+    expect(handlers.manageHomesteadMember).not.toHaveBeenCalled();
   });
 
   it('keeps stack counts above and inside the slot bevel', () => {

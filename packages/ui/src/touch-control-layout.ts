@@ -11,7 +11,24 @@ export type TouchDirection =
   | 'downLeft'
   | 'downRight';
 
-export type TouchControlAction = 'movement' | 'interact' | 'secondary' | 'jump';
+export type TouchControlAction = 'movement' | 'interact' | 'secondary' | 'jump' | 'dodge' | 'block';
+
+export interface TouchControlPreferences {
+  readonly swapped: boolean;
+  /** Additional clearance in logical UI pixels, independent of device DPR. */
+  readonly bottomOffset: number;
+}
+
+export const MAX_TOUCH_BOTTOM_OFFSET = 120;
+export const DEFAULT_TOUCH_CONTROL_PREFERENCES: TouchControlPreferences = { swapped: false, bottomOffset: 0 };
+
+export function normalizeTouchControlPreferences(value: Partial<TouchControlPreferences>): TouchControlPreferences {
+  return {
+    swapped: value.swapped === true,
+    bottomOffset: Number.isFinite(value.bottomOffset)
+      ? Math.round(Math.max(0, Math.min(MAX_TOUCH_BOTTOM_OFFSET, value.bottomOffset!))) : 0,
+  };
+}
 
 export interface TouchControlLayout {
   readonly joystickCenter: UiPoint;
@@ -19,6 +36,8 @@ export interface TouchControlLayout {
   readonly interactButton: UiRect;
   readonly secondaryButton: UiRect;
   readonly jumpButton: UiRect;
+  readonly dodgeButton: UiRect;
+  readonly blockButton: UiRect;
 }
 
 const JOYSTICK_RADIUS = 30;
@@ -30,11 +49,17 @@ const BUTTON_HEIGHT = 30;
  * Keep the controls clear of the centred hotbar on narrow/portrait screens.
  * On landscape screens they sit in the otherwise-unused thumb corners.
  */
-export function touchControlLayout(width: number, height: number): TouchControlLayout {
+export function touchControlLayout(
+  width: number, height: number,
+  preferences: TouchControlPreferences = DEFAULT_TOUCH_CONTROL_PREFERENCES,
+): TouchControlLayout {
   const portrait = height > width;
-  const radius = width < 360 ? 24 : JOYSTICK_RADIUS;
   const bottomClearance = portrait ? 44 : 10;
-  const centerY = Math.max(radius + 8, height - bottomClearance - radius);
+  const { swapped, bottomOffset } = normalizeTouchControlPreferences(preferences);
+  const centerY = Math.max(JOYSTICK_RADIUS + 8, Math.min(
+    height - bottomClearance - JOYSTICK_RADIUS,
+    swapped ? height - 70 : height,
+  ));
   const desiredButtonCenterY = portrait
     ? Math.min(height - BUTTON_HEIGHT / 2 - 2, centerY + 8)
     : centerY;
@@ -43,27 +68,33 @@ export function touchControlLayout(width: number, height: number): TouchControlL
   // overlap, while leaving the joystick itself at its established position.
   const buttonCenterY = Math.min(desiredButtonCenterY, height - 47);
   const right = Math.max(BUTTON_WIDTH + 8, width - 10);
+  const offset = Math.min(bottomOffset, Math.max(0, Math.min(centerY - 38, buttonCenterY - (BUTTON_HEIGHT * 2 + 22))));
+  const mirror = (rect: UiRect): UiRect => ({
+    ...rect, x: swapped ? width - rect.x - rect.width : rect.x, y: rect.y - offset,
+  });
   return {
-    joystickCenter: { x: radius + (width < 360 ? 6 : 12), y: centerY },
-    joystickRadius: radius,
-    interactButton: {
+    joystickCenter: { x: swapped ? width - JOYSTICK_RADIUS - 12 : JOYSTICK_RADIUS + 12, y: centerY - offset },
+    joystickRadius: JOYSTICK_RADIUS,
+    interactButton: mirror({
       x: right - BUTTON_WIDTH,
       y: buttonCenterY - BUTTON_HEIGHT / 2,
       width: BUTTON_WIDTH,
       height: BUTTON_HEIGHT,
-    },
-    secondaryButton: {
+    }),
+    secondaryButton: mirror({
       x: right - BUTTON_WIDTH * 2 - 8,
       y: buttonCenterY - BUTTON_HEIGHT - 18,
       width: BUTTON_WIDTH,
       height: BUTTON_HEIGHT,
-    },
-    jumpButton: {
+    }),
+    dodgeButton: mirror({x: right-BUTTON_WIDTH*2-8, y: buttonCenterY-BUTTON_HEIGHT/2, width:BUTTON_WIDTH, height:BUTTON_HEIGHT}),
+    blockButton: mirror({x: right-BUTTON_WIDTH, y: buttonCenterY-BUTTON_HEIGHT*2-22, width:BUTTON_WIDTH, height:BUTTON_HEIGHT}),
+    jumpButton: mirror({
       x: right - BUTTON_WIDTH,
       y: buttonCenterY - BUTTON_HEIGHT - 18,
       width: BUTTON_WIDTH,
       height: BUTTON_HEIGHT,
-    },
+    }),
   };
 }
 

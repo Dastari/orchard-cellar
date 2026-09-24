@@ -289,7 +289,7 @@ const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
 const keys = new Set<string>();
-const touchControls = new TouchControls();
+const touchControls = new TouchControls(kitArt, dispatchTouchControlAction);
 let touchControlPreferences = readTouchControlPreferences(localStorage);
 touchControls.setPreferences(touchControlPreferences);
 const worldTouchInput = new WorldTouchInput({
@@ -1189,6 +1189,8 @@ retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.roo
   active: () => retainedUiAvailable() && questTracker.isActive && overworldUi.questTrackerVisible && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
   blocking: () => false });
+retainedUi.register({ id: 'touch-controls', priority: 25, root: touchControls.root,
+  active: () => touchControls.visible && !touchControlsBlocked(), blocking: () => false });
 retainedUi.register({ id: 'chat', priority: 150, root: chatOverlay.root,
   active: () => retainedUiAvailable() && chatOverlay.active && !chatInteractionBlocked(), blocking: () => false });
 const retainedText = new UiTextBridge(canvas, () => retainedUi.focusedElement,
@@ -1219,7 +1221,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
-  disposeInitialWorldLoading(renderer); onlineRoster.dispose(); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
+  disposeInitialWorldLoading(renderer); touchControls.dispose(); onlineRoster.dispose(); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
   retainedText.input.removeEventListener('blur', handleRetainedTextBlur);
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose(); chatOverlay.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
@@ -2284,15 +2286,7 @@ function update(): void {
     environmentReady: snapshot.environment !== null,
     playerReady: authoritativePosition !== null,
   })) refreshCollision(snapshot);
-  touchControls.setBlocked(
-    interfaceHidden
-    || overworldUi.openWindow !== null
-    || characterNamePrompt.isActive
-    || npcInteractionUi.active
-    || snapshot.tradeSession !== null
-    || chatOverlay.isOpen
-    || snapshot.rogueRun?.phase === 'reward',
-  );
+  syncTouchControls();
   if (!worldTouchActionAvailable()) worldTouchInput.reset();
   updateDefenseHold();
   const defending = snapshot.combatState?.kind === 'dodge' || snapshot.combatState?.kind === 'block';
@@ -4209,12 +4203,11 @@ function drawCollisionOverlay(
     );
   }
   context.save();
-  context.font = `${Math.max(8, Math.round(8 * scale))}px monospace`;
-  context.textBaseline = 'top';
+  const label = `HEIGHT ${activeElevation}`;
+  const labelScale = Math.max(1, Math.round(scale));
   context.fillStyle = '#07120ddd';
-  context.fillRect(4, 4, Math.max(96, 58 * scale), Math.max(14, 11 * scale));
-  context.fillStyle = '#f6f0d8';
-  context.fillText(`HEIGHT ${activeElevation}`, 8, 6);
+  context.fillRect(4, 4, Math.max(96, measurePixelText(label, labelScale, art.ui.font) + 8), 7 * labelScale + 4);
+  drawPixelText(context, art.ui, label, 8, 6, { color: '#f6f0d8', scale: labelScale });
   context.restore();
 }
 
@@ -5908,6 +5901,7 @@ function renderFrame(alpha = 1): void {
     }
     uiContext.save();
     uiContext.translate(uiOriginX, uiOriginY);
+    touchControls.draw(uiContext);
     overworldUi.drawHud(uiContext);
     questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
@@ -5919,7 +5913,6 @@ function renderFrame(alpha = 1): void {
     npcInteractionUi.draw(uiContext);
     tradeUi.draw(uiContext, uiWidth, uiHeight);
     characterNamePrompt.draw(uiContext);
-    touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
     if (!characterNamePrompt.isActive && !npcInteractionUi.active && !chatOverlay.isOpen
       && snapshot.tradeSession === null) overworldUi.drawBuildControl(uiContext);
     delveRewards.drawRewards(uiContext); delveRewards.drawHud(uiContext);
@@ -6968,15 +6961,26 @@ function dispatchTouchControlAction(action: TouchControlAction): void {
   }));
 }
 
+function touchControlsBlocked(): boolean {
+  return !retainedUiAvailable() || overworldUi.openWindow !== null || onlinePlayersVisible
+    || characterNamePrompt.isActive || npcInteractionUi.active || tradeUi.active || chatOverlay.isOpen
+    || overworldUi.retainedConfirmationActive;
+}
+function syncTouchControls(): void {
+  const [width, height] = touchControlViewport();
+  touchControls.setBounds(width, height);
+  touchControls.setBlocked(touchControlsBlocked());
+}
+
 function touchControlViewport(): readonly [number, number] {
   const viewport = hudViewportCss();
   const uiScale = fittedUiScale(desiredUiScale, viewport.width, viewport.height);
   return [viewport.width / uiScale, viewport.height / uiScale];
 }
 
-// Keep tracking an active thumb at the window capture phase. In particular,
-// mobile Safari can retarget a downward drag once it crosses the canvas edge;
-// relying only on canvas listeners would make the joystick appear to let go.
+// Unowned world gestures retain their separate pinch/hold authority. Retained
+// thumb-control tails are captured earlier by RetainedUiPointers, including
+// outside-canvas releases and lost capture.
 window.addEventListener('pointermove', (event) => {
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   if (worldTouchInput.pointerMove({ pointerId: event.pointerId, x: canvasX, y: canvasY })) {
@@ -6984,12 +6988,6 @@ window.addEventListener('pointermove', (event) => {
     event.stopPropagation();
     return;
   }
-  if (!touchControls.ownsPointer(event.pointerId)) return;
-  const [x, y] = pointerUiPosition(event);
-  const [uiWidth, uiHeight] = touchControlViewport();
-  touchControls.pointerMove({ x, y }, event.pointerId, uiWidth, uiHeight);
-  if (event.cancelable) event.preventDefault();
-  event.stopPropagation();
 }, { capture: true });
 window.addEventListener('pointerup', (event) => {
   const [canvasX, canvasY] = pointerCanvasPosition(event);
@@ -6999,10 +6997,6 @@ window.addEventListener('pointerup', (event) => {
     event.stopPropagation();
     return;
   }
-  if (!touchControls.pointerUp(event.pointerId)) return;
-  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  if (event.cancelable) event.preventDefault();
-  event.stopPropagation();
 }, { capture: true });
 window.addEventListener('pointercancel', (event) => {
   const [canvasX, canvasY] = pointerCanvasPosition(event);
@@ -7012,13 +7006,10 @@ window.addEventListener('pointercancel', (event) => {
     event.stopPropagation();
     return;
   }
-  if (!touchControls.pointerCancel(event.pointerId)) return;
-  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  if (event.cancelable) event.preventDefault();
-  event.stopPropagation();
 }, { capture: true });
 canvas.addEventListener('pointermove', (event) => {
   touchControls.notePointerType(event.pointerType);
+  syncTouchControls();
   const [x, y] = pointerUiPosition(event);
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
@@ -7037,6 +7028,7 @@ canvas.addEventListener('pointermove', (event) => {
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
   if (overworldUi.openWindow === null && !chatOverlay.isHovered && retainedPointers.dispatch('move', event, 'quest-tracker')) return;
   if (retainedPointers.dispatch('move', event, 'hud-zoneMinimap') || retainedPointers.dispatch('move', event, 'hud-hotbarVitals') || retainedPointers.dispatch('move', event, 'hud-targetEffects')) return;
+  if (retainedPointers.dispatch('move', event, 'touch-controls')) return;
 });
 canvas.addEventListener('pointerleave', (event) => {
   // A captured retained gesture can finish outside the canvas. Legacy leave
@@ -7052,6 +7044,7 @@ canvas.addEventListener('pointerdown', (event) => {
   if (!wasChatOpen) { retainedUi.clearFocus(); syncRetainedText(); }
   void audio.unlock().catch(() => undefined);
   touchControls.notePointerType(event.pointerType);
+  syncTouchControls();
   const [x, y] = pointerUiPosition(event);
   if (event.pointerType === 'touch' && worldTouchInput.pinching) {
     const [canvasX, canvasY] = pointerCanvasPosition(event);
@@ -7074,25 +7067,25 @@ canvas.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     return;
   }
-  const [uiWidth, uiHeight] = touchControlViewport();
   if (!interfaceHidden && !characterNamePrompt.isActive && !npcInteractionUi.active
     && !chatOverlay.isOpen && overworldUi.pointerBuildControl({ x, y }, event.button)) {
     canvas.setPointerCapture(event.pointerId);
     event.preventDefault();
     return;
   }
-  const touchAction = touchControls.pointerDown(
-    { x, y },
-    event.pointerId,
-    event.pointerType,
-    uiWidth,
-    uiHeight,
-  );
-  if (touchAction !== null) {
-    canvas.setPointerCapture(event.pointerId);
-    dispatchTouchControlAction(touchAction);
-    event.preventDefault();
-    return;
+  // Scoped dispatch does not sort passive hosts. Match paint order before a
+  // thumb control can claim a compact HUD overlap or mutate the world target.
+  const passiveHudRouted = touchControls.visible && !touchControlsBlocked();
+  if (passiveHudRouted) {
+    if (retainedPointers.dispatch('down', event, 'quest-tracker')
+      || retainedPointers.dispatch('down', event, 'hud-zoneMinimap')
+      || retainedPointers.dispatch('down', event, 'hud-hotbarVitals')
+      || retainedPointers.dispatch('down', event, 'hud-targetEffects')) {
+      event.preventDefault(); return;
+    }
+  }
+  if (retainedPointers.dispatch('down', event, 'touch-controls')) {
+    event.preventDefault(); return;
   }
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
@@ -7143,11 +7136,11 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (overworldUi.openWindow === null && retainedPointers.dispatch('down', event, 'quest-tracker')) {
+    if (!passiveHudRouted && overworldUi.openWindow === null && retainedPointers.dispatch('down', event, 'quest-tracker')) {
       event.preventDefault();
       return;
     }
-    if (!interfaceHidden && (retainedPointers.dispatch('down', event, 'hud-zoneMinimap') || retainedPointers.dispatch('down', event, 'hud-hotbarVitals') || retainedPointers.dispatch('down', event, 'hud-targetEffects'))) {
+    if (!passiveHudRouted && !interfaceHidden && (retainedPointers.dispatch('down', event, 'hud-zoneMinimap') || retainedPointers.dispatch('down', event, 'hud-hotbarVitals') || retainedPointers.dispatch('down', event, 'hud-targetEffects'))) {
       event.preventDefault(); return;
     }
   }
