@@ -2,6 +2,7 @@ import type { TimingProjection } from '@orchard/sim';
 import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { UiRoot } from './kit/runtime/root.js';
+import { UiElement } from './kit/runtime/element.js';
 import type { UiInventorySlotRef } from './kit/runtime/inventory.js';
 import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
@@ -1215,13 +1216,70 @@ export class OverworldUi {
 
   disposeRetainedInventory(): void { this.retainedMenus?.dispose(); this.retainedMenus = null; }
 
+  /** Reading hosts share the same central canvas input and frame loop. */
+  enableRetainedReading(art: UiKitArt): { readonly quests: UiRoot; readonly help: UiRoot } {
+    if (!this.questLog || !this.helpBook) {
+      this.questLog = new QuestLog(art, {
+        setPinned: (id, pinned) => this.callbacks.setQuestPinned(id, pinned),
+        drop: id => this.callbacks.abandonQuest(id),
+      }, () => { this.openWindow = null; });
+      this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; });
+      for (const root of [this.questLog.root, this.helpBook.root]) {
+        for (const { element } of root.entries()) if (element.id === 'game.quests' || element.id === 'game.help.frame') {
+          element.setProps({ touchScroll: true, singlePointer: true });
+          element.setStyle({ zLayer: 'modal' });
+        }
+        const children = [...root.tree.children];
+        root.mount(new UiElement({ id: 'reading-host', style: { display: 'stack', width: 'grow', height: 'grow' },
+          props: { touchScroll: true, singlePointer: true }, children,
+          onKeyCapture: event => {
+            const key = event.key.toLowerCase();
+            if (event.key !== 'Escape' && !['i', 'c', 'p', 'k', 'o', 'l'].includes(key)) return false;
+            if (event.repeat) return true;
+            return this.handleKeyDown(event.key === 'Escape' ? 'Escape' : `Key${key.toUpperCase()}`, false);
+          },
+        }));
+      }
+      this.questLog.update(this.model.quests ?? []);
+      this.syncRetainedReading();
+    }
+    return { quests: this.questLog.root, help: this.helpBook.root };
+  }
+
+  get retainedReadingActive(): boolean {
+    return this.openWindowValue === 'quests' && this.questLog !== null
+      || this.openWindowValue === 'help' && this.helpBook !== null;
+  }
+
+  private syncRetainedReading(): void {
+    for (const [window, view] of [['quests', this.questLog], ['help', this.helpBook]] as const) {
+      if (!view) continue;
+      const active = this.openWindowValue === window;
+      if (!active) { view.root.input.cancelPointers(); view.root.focus.set(null); }
+      if (view.root.tree.visible !== active) view.root.tree.setStyle({ visible: active });
+      const width = Math.max(0, Math.min(this.layout.progressionWindow.width, this.model.width - 8));
+      const height = Math.max(0, Math.min(this.layout.progressionWindow.height, this.model.height - 8));
+      view.setBounds(window === 'quests'
+        ? { x: (this.model.width - width) / 2, y: (this.model.height - height) / 2, width, height }
+        : { x: 4, y: 4, width: Math.max(0, this.model.width - 8), height: Math.max(0, this.model.height - 8) },
+      this.model.width, this.model.height);
+    }
+  }
+
+  disposeRetainedReading(): void {
+    this.questLog?.dispose(); this.helpBook?.dispose(); this.questLog = null; this.helpBook = null;
+  }
+
   private retainedFrame(): ContentFrameLayout | null {
     if (!this.retainedMenus) return null;
     const frame = this.activeContentFrame();
     // Authored placeables enter through the generic content window. Adopt only
-    // the reviewed barrel frame here; processors and stash keep their own path.
-    if (this.openWindowValue === 'content') return frame?.definition.id === 'frame:barrel' ? frame : null;
-    return ['inventory', 'crafting', 'chest', 'barrel'].includes(this.openWindowValue ?? '') ? frame : null;
+    // reviewed frame IDs; stash and other authored content keep their own path.
+    if (this.openWindowValue === 'content') return frame && [
+      'frame:barrel', 'frame:furnace', 'frame:cooking', 'frame:press', 'frame:fermentation',
+    ].includes(frame.definition.id) ? frame : null;
+    return ['inventory', 'crafting', 'chest', 'barrel', 'furnace', 'cooking', 'press', 'fermentation']
+      .includes(this.openWindowValue ?? '') ? frame : null;
   }
 
   /** Complete authored bindings, independent of filter, clipping and scrolling. */
@@ -1255,7 +1313,7 @@ export class OverworldUi {
     this.retainedMenus.update({ width: this.model.width, height: this.model.height, definition: frame.definition,
       aliases: { backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting',
         entity: frame.definition.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable' },
-      registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming,
+      registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
       backpackCapacity: this.model.backpackSlotCapacity ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
       ...(this.openWindowValue === 'crafting' ? { crafting: {
@@ -1369,7 +1427,7 @@ export class OverworldUi {
   private readonly touchBottomOffsetSlider: Slider;
   private readonly windowRibbon: Ribbon;
   private readonly zoneRibbon: Ribbon;
-  private readonly helpBook: HelpBook;
+  private helpBook: HelpBook | null = null;
   private readonly onlinePlayersScrollBar: ScrollBar;
   private readonly inventoryScrollBar: ScrollBar;
   private readonly craftingRecipeScrollBar: ScrollBar;
@@ -1385,7 +1443,7 @@ export class OverworldUi {
   private readonly characterScreen: CharacterScreen;
   private readonly skillTree: SkillTreeUi;
   private readonly statisticsScreen: StatisticsScreen;
-  private readonly questLog: QuestLog;
+  private questLog: QuestLog | null = null;
   private readonly ferryMenu:FerryMenu;
   private readonly outdoorRewards:OutdoorRewards;
   private readonly outdoorRewardsNode:WidgetNode;
@@ -1461,15 +1519,10 @@ export class OverworldUi {
     this.root = widget('root', 'overworld.ui.root');
     this.windowRibbon = new Ribbon(skin.banner, fonts);
     this.zoneRibbon = new Ribbon(skin.banner, fonts);
-    this.helpBook = new HelpBook(skin, fonts);
     this.ferryMenu=new FerryMenu(skin,fonts,(from,to)=>this.callbacks.travelHearthFerry?.(from,to)??Promise.reject(new Error('ferry_unavailable')),
       ()=>{if(this.openWindowValue==='ferry')this.openWindow=null;},()=>this.model.contentRegistry);
     this.outdoorRewards=new OutdoorRewards(skin,fonts,id=>this.callbacks.claimOutdoorReward?.(id)??Promise.reject(new Error('reward_unavailable')),
       (context,rect,kind)=>this.drawInventoryItem(context,rect,kind,1));
-    this.questLog = new QuestLog(skin, fonts, {
-      setPinned: (questId, pinned) => this.callbacks.setQuestPinned(questId, pinned),
-      drop: (questId) => this.callbacks.abandonQuest(questId),
-    });
     this.onlinePlayersScrollBar = new ScrollBar(skin);
     this.inventoryScrollBar = new ScrollBar(skin);
     this.craftingRecipeScrollBar = new ScrollBar(skin, {
@@ -2056,7 +2109,7 @@ export class OverworldUi {
   }
 
   openQuest(questId: string): boolean {
-    if (!this.questLog.select(questId)) return false;
+    if (!this.questLog?.select(questId)) return false;
     this.openWindow = 'quests';
     return true;
   }
@@ -2066,6 +2119,7 @@ export class OverworldUi {
     this.openWindow = 'skills';
   }
   set openWindow(window: OverworldWindow | null) {
+    const previousWindow = this.openWindowValue;
     const requestedWindow = window === 'pack' ? 'inventory' : window;
     const nextWindow = requestedWindow === 'developer' && !this.model.canAdministerWorld ? 'system' : requestedWindow;
     if (nextWindow !== this.openWindowValue) {
@@ -2087,11 +2141,15 @@ export class OverworldUi {
       this.inventoryOutsidePress = null;
       this.callbacks.returnInventoryCursor();
     }
-    if (nextWindow === 'help' && this.openWindowValue !== 'help') this.helpBook.reset();
+    if (nextWindow === 'help' && this.openWindowValue !== 'help') this.helpBook?.reset();
     if (this.openWindowValue === 'skills' && nextWindow !== 'skills') this.skillTree.pointerLeave();
     if (this.openWindowValue === 'statistics' && nextWindow !== 'statistics') this.statisticsScreen.pointerLeave();
     this.openWindowValue = nextWindow;
     this.syncActiveWindow();
+    if (previousWindow !== nextWindow) {
+      if (nextWindow === 'quests') this.questLog?.focus();
+      if (nextWindow === 'help') this.helpBook?.focus();
+    }
   }
 
   update(model: OverworldUiModel): void {
@@ -2120,7 +2178,7 @@ export class OverworldUi {
       ...(model.statistics ?? { statistics: [] }),
       ...(model.contentRegistry === undefined ? {} : { contentRegistry: model.contentRegistry }),
     });
-    this.questLog.update(model.quests ?? []);
+    this.questLog?.update(model.quests ?? []);
     this.outdoorRewards.update(model.outdoorRewards??[],model.delveActive===true);
     if (this.openWindowValue === 'developer' && !model.canAdministerWorld) this.openWindowValue = 'system';
     if (this.openWindowValue === 'delve-confirmation' && model.delveActive === true) {
@@ -2341,11 +2399,8 @@ export class OverworldUi {
       } else if (code === 'Enter' || code === 'Space') this.callbacks.applyClientUpdate();
       return true;
     }
-    if (this.openWindowValue === 'help' && this.helpBook.handleKeyDown(code)) return true;
     if(this.openWindowValue==='ferry'&&this.ferryMenu.key(code))return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.handleKeyDown(code,this.layout.progressionWindow))return true;
-    if (this.openWindowValue === 'quests'
-      && this.questLog.handleKeyDown(code, this.layout.progressionWindow)) return true;
     if (this.openWindowValue === 'settings' && (code === 'ArrowUp' || code === 'ArrowDown')) {
       const current = SETTINGS_TABS.indexOf(this.settingsTab);
       const delta = code === 'ArrowUp' ? -1 : 1;
@@ -2420,7 +2475,7 @@ export class OverworldUi {
   }
 
   pointerMove(point: UiPoint, _modifiers: { readonly shift?: boolean } = {}): void {
-    if (this.retainedInventoryActive && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedInventoryActive || this.retainedReadingActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorMove(point);
       if (this.onlinePlayerListActive) {
         this.onlinePlayersScrollBar.pointerMove(point);
@@ -2433,7 +2488,6 @@ export class OverworldUi {
     if (this.blockingUpdatePromptVisible) return;
     if (this.openWindowValue === 'skills') this.skillTree.pointerMove(point, this.progressionContentRect());
     if (this.openWindowValue === 'statistics') this.statisticsScreen.pointerMove(point);
-    if (this.openWindowValue === 'quests') this.questLog.pointerMove(point, this.layout.progressionWindow);
     if(this.openWindowValue==='outdoor-rewards')this.outdoorRewards.pointerMove(point,this.layout.progressionWindow);
     if (this.onlinePlayerListActive) this.onlinePlayersScrollBar.pointerMove(point);
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
@@ -2507,7 +2561,7 @@ export class OverworldUi {
     readonly shift?: boolean;
     readonly pointerType?: string;
   } = {}): boolean {
-    if (this.retainedInventoryActive && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedInventoryActive || this.retainedReadingActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorDown(point);
       this.pointerOnlinePlayersDown(point, button, modifiers.pointerType);
       return true;
@@ -2568,11 +2622,6 @@ export class OverworldUi {
     }
     if (this.openWindowValue === null && this.model.targetVitals !== undefined
       && containsPoint(this.layout.targetVitals, point)) return true;
-    if (this.openWindowValue === 'help') {
-      const result = this.helpBook.pointerDown(point);
-      if (result === 'back') this.openWindow = 'system';
-      if (result !== null) return true;
-    }
     if (button === 0 && (this.openWindowValue === 'character' || this.openWindowValue === 'skills'
       || this.openWindowValue === 'statistics')) {
       const tabs = progressionTabsLayout(this.layout.progressionWindow).tabs;
@@ -2593,8 +2642,6 @@ export class OverworldUi {
       &&this.ferryMenu.pointerDown(point,button,this.layout.progressionWindow))return true;
     if(this.openWindowValue==='outdoor-rewards'&&!containsPoint(this.closeNode.bounds,point)
       &&this.outdoorRewards.pointerDown(point,button,this.layout.progressionWindow,modifiers.pointerType))return true;
-    if (this.openWindowValue === 'quests' && !containsPoint(this.closeNode.bounds, point)
-      && this.questLog.pointerDown(point, button, this.layout.progressionWindow, modifiers.pointerType)) return true;
     if (this.openWindowValue === 'crafting' && button === 0 && containsPoint(this.layout.craftingResult, point)) {
       const recipeId = this.currentRecipeId();
       if (recipeId !== null && !this.currentRecipeLocked()) {
@@ -2647,7 +2694,7 @@ export class OverworldUi {
   }
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
-    if (this.retainedInventoryActive && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedInventoryActive || this.retainedReadingActive) && !this.blockingUpdatePromptVisible) {
       this.onlinePlayersScrollBar.endSwipe();
       this.onlinePlayersScrollBar.pointerUp();
       return true;
@@ -2677,7 +2724,6 @@ export class OverworldUi {
     }
     if (this.openWindowValue === 'skills' && this.skillTree.pointerUp()) return true;
     if (this.openWindowValue === 'statistics' && this.statisticsScreen.pointerUp()) return true;
-    if (this.openWindowValue === 'quests' && this.questLog.pointerUp()) return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.pointerUp())return true;
     if (this.onlinePlayersScrollBar.pointerUp()) return true;
     if (this.inventoryScrollBar.pointerUp()) return true;
@@ -2853,7 +2899,6 @@ export class OverworldUi {
     this.onlinePlayersScrollBar.pointerLeave();
     this.skillTree.pointerLeave();
     this.statisticsScreen.pointerLeave();
-    this.questLog.pointerLeave();
     this.outdoorRewards.pointerLeave();
     this.inventoryScrollBar.pointerLeave();
     this.craftingRecipeScrollBar.pointerLeave();
@@ -2867,13 +2912,11 @@ export class OverworldUi {
     if (this.openWindowValue === 'statistics'
       && this.statisticsScreen.wheel(point, deltaY, this.progressionContentRect())) return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.wheel(point,deltaY,this.layout.progressionWindow))return true;
-    if (this.openWindowValue === 'quests'
-      && this.questLog.wheel(point, deltaY, this.layout.progressionWindow)) return true;
     if (this.onlinePlayerListActive && containsPoint(this.onlinePlayerListRect, point) && deltaY !== 0) {
       this.onlinePlayersScrollBar.wheel(deltaY, 1);
       return true;
     }
-    if (this.retainedInventoryActive) return true;
+    if (this.retainedInventoryActive || this.retainedReadingActive) return true;
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation')
@@ -2935,7 +2978,7 @@ export class OverworldUi {
     }
     this.drawCraftingControl(context);
     this.drawBuildControl(context);
-    if (this.openWindowValue === 'help') this.helpBook.draw(context, this.model.width, this.model.height);
+    if (this.openWindowValue === 'help') this.helpBook?.draw(context);
     else if (this.openWindowValue) {
       if (this.openWindowValue === 'delve-confirmation') {
         context.save();
@@ -3427,6 +3470,9 @@ export class OverworldUi {
     }
     this.applyContentFrameBindings();
     this.syncRetainedInventory();
+    this.syncRetainedReading();
+    if (this.retainedReadingActive) { this.windowNode.visible = false; this.closeNode.visible = false; }
+    else this.closeNode.visible = true;
     if (this.retainedInventoryActive) {
       if (this.inventoryFilterInput) { this.inventoryFilterInput.hidden = true; this.inventoryFilterInput.blur(); }
       if (this.recipeFilterInput) { this.recipeFilterInput.hidden = true; this.recipeFilterInput.blur(); }
@@ -3920,6 +3966,7 @@ export class OverworldUi {
   }
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
+    if (window === 'quests') { this.questLog?.draw(context); return; }
     if (this.retainedInventoryActive) {
       this.retainedMenus!.draw(context);
       // The existing single cursor/tooltip overlay uses the kit's real bounds.
@@ -3985,7 +4032,6 @@ export class OverworldUi {
           : window === 'character' || window === 'skills' || window === 'statistics' ? 'CHARACTER'
           : window === 'ferry' ? 'ISLAND FERRY'
           : window === 'outdoor-rewards' ? 'EXPEDITION REWARDS'
-          : window === 'quests' ? 'QUEST LOG'
           : window === 'delve-confirmation' ? 'START DELVE'
           : window === 'settings' ? 'SETTINGS'
             : window === 'developer' ? 'DEVELOPER TOOLS' : SYSTEM_MENU_TITLE);
@@ -4030,7 +4076,6 @@ export class OverworldUi {
       else if (window === 'skills') this.skillTree.draw(context, progression.content);
       else this.statisticsScreen.draw(context, progression.content);
     }
-    else if (window === 'quests') this.questLog.draw(context, rect);
     else if(window==='outdoor-rewards')this.outdoorRewards.draw(context,rect);
     else if(window==='ferry')this.ferryMenu.draw(context,rect);
     else if (window === 'delve-confirmation') this.drawDelveConfirmation(context, rect);

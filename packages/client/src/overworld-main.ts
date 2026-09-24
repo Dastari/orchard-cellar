@@ -773,6 +773,7 @@ function toggleHomesteadBuildMode(): void {
   } else {
     homesteadBuildMode = true;
     homesteadBuildPalette.showCatalogue();
+    retainedUi.focus('build-palette');
     setToast(activeSpaceDefinition.generator === 'residence'
       ? 'FURNISH — CHOOSE AN ITEM, THEN CLICK FLOOR, WALL OR TABLETOP'
       : 'BUILD MODE — PICK FROM THE PALETTE, THEN CLICK A TILE', 'info', 150);
@@ -996,7 +997,20 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   }
   marker(centerWorldX, centerWorldY, '#fff3be', 4);
 });
-const homesteadBuildPalette = new HomesteadBuildPalette(art.uiSkin, art.ui, itemArt);
+const homesteadBuildPalette = new HomesteadBuildPalette(kitArt, itemArt, drainBuildPaletteActions);
+function drainBuildPaletteActions(): void {
+  if (homesteadBuildPalette.takeConstructionApply()) applyConstructionProposal();
+  if (homesteadBuildPalette.takeConstructionCancel()) constructionProposal = null;
+  const expansion = homesteadBuildPalette.takeExpansionRequest();
+  if (expansion !== null) showResult(network.purchaseResidenceExpansion(expansion.rank).catch(error => {
+    homesteadBuildPalette.expansionFailed(expansion.scope, expansion.rank, expansion.token); throw error;
+  }), 'ROOM EXPANSION PURCHASED');
+  const upgrade = homesteadBuildPalette.takePurchaseRequest();
+  furnitureMoves.cancel();
+  if (homesteadBuildPalette.takeUndoMoveRequest()) showResult(furnitureMoves.undo(), 'FURNITURE MOVE UNDONE');
+  if (upgrade !== null) showResult(network.purchaseHomesteadUpgrade(upgrade),
+    `${upgrade.replaceAll('_', ' ').toUpperCase()} UPGRADED`);
+}
 let homesteadPaletteRegistry: OverworldView['content']['registry'] | null = null;
 let homesteadPaletteEntries: HomesteadBuildPaletteModel['entries'] = [];
 let furnishingPaletteEntries: HomesteadBuildPaletteModel['entries'] = [];
@@ -1107,12 +1121,19 @@ function retainedUiAvailable(): boolean {
 retainedUi.register({ id: 'character-name', priority: 1000, root: characterNamePrompt.root,
   active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
+const readingRoots = overworldUi.enableRetainedReading(kitArt);
 retainedUi.register({ id: 'inventory-menus', priority: 500, root: inventoryMenuRoot,
   active: () => retainedUiAvailable() && overworldUi.retainedInventoryActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible,
   blocking: () => true });
+for (const window of ['quests', 'help'] as const) retainedUi.register({ id: `reading-${window}`, priority: 500,
+  root: readingRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
 retainedUi.register({ id: 'player-trade', priority: 900, root: tradeUi.root,
   active: () => retainedUiAvailable() && tradeUi.active, blocking: () => true });
+retainedUi.register({ id: 'build-palette', priority: 200, root: homesteadBuildPalette.root,
+  active: () => retainedUiAvailable() && homesteadBuildMode && overworldUi.openWindow === null
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => false });
 retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.root,
   active: () => retainedUiAvailable() && questTracker.isActive && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
@@ -1134,7 +1155,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
 });
 import.meta.hot?.dispose(() => {
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
-  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); overworldUi.disposeRetainedInventory();
+  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading();
 });
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
@@ -6144,7 +6165,6 @@ function setInterfaceHidden(hidden: boolean): void {
   npcInteractionUi.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
-  homesteadBuildPalette.pointerLeave();
   touchControls.setBlocked(hidden);
   if (!hidden) return;
   chatOverlay.dismiss();
@@ -6328,6 +6348,9 @@ window.addEventListener('keydown', (event) => {
       syncRetainedText(); event.preventDefault();
       return;
     }
+    if (!chatOverlay.isOpen && retainedUi.key(event, 'build-palette')) {
+      syncRetainedText(); event.preventDefault(); return;
+    }
     if (!chatOverlay.isOpen && retainedUi.key(event, 'quest-tracker')) {
       syncRetainedText(); event.preventDefault();
       return;
@@ -6340,6 +6363,9 @@ window.addEventListener('keydown', (event) => {
     if (npcInteractionUi.handleKeyDown(event.code, event.repeat)) {
       event.preventDefault();
       return;
+    }
+    if (retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
+      syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'inventory-menus')) {
       syncRetainedText(); event.preventDefault(); return;
@@ -6959,10 +6985,11 @@ canvas.addEventListener('pointermove', (event) => {
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
   if (npcInteractionUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
+  if (retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
+  if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.pointerLeave(); return; }
   if (chatInteractionBlocked()) chatOverlay.pointerLeave();
   else chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
-  if (homesteadBuildMode && overworldUi.openWindow === null) homesteadBuildPalette.pointerMove({ x, y });
   if (overworldUi.openWindow === null && !chatOverlay.isHovered) retainedPointers.dispatch('move', event, 'quest-tracker');
   else retainedUi.clearHover();
 });
@@ -7074,24 +7101,11 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (homesteadBuildMode && overworldUi.openWindow === null
-      && homesteadBuildPalette.pointerDown({ x, y }, event.button)) {
-      if(homesteadBuildPalette.takeConstructionApply())applyConstructionProposal();
-      if(homesteadBuildPalette.takeConstructionCancel())constructionProposal=null;
-      const expansion = homesteadBuildPalette.takeExpansionRequest();
-      if(expansion!==null) showResult(network.purchaseResidenceExpansion(expansion.rank).catch(error=>{
-        homesteadBuildPalette.expansionFailed(expansion.scope, expansion.rank, expansion.token);throw error;
-      }), 'ROOM EXPANSION PURCHASED');
-      const upgrade = homesteadBuildPalette.takePurchaseRequest();
-      furnitureMoves.cancel();
-      if (homesteadBuildPalette.takeUndoMoveRequest()) showResult(furnitureMoves.undo(), 'FURNITURE MOVE UNDONE');
-      if (upgrade !== null) showResult(
-        network.purchaseHomesteadUpgrade(upgrade),
-        `${upgrade.replaceAll('_', ' ').toUpperCase()} UPGRADED`,
-      );
-      canvas.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      return;
+    if (retainedPointers.dispatch('down', event, 'build-palette')) {
+      event.preventDefault(); return;
+    }
+    if (retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
+      event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'inventory-menus')) {
       event.preventDefault(); return;
@@ -7199,7 +7213,7 @@ function performWorldPointerAction(
           if (failure) setToast(failure.toUpperCase(), 'failure', 120);
           else showResult(network.pickupHearthFurniture(BigInt(item.id)), 'FURNITURE RETURNED TO YOUR BAG');
         }
-      } else {
+      } else if (selection.kind === 'place') {
         const preview = furniturePreviewAt(tile, selection.itemKind);
         if (preview.failure !== null || !preview.candidate) setToast(preview.failure?.toUpperCase() ?? 'CHOOSE FURNITURE', 'failure', 120);
         else showResult(network.placeHearthFurniture(selection.itemKind, tile.tileX, tile.tileY,
@@ -7464,6 +7478,12 @@ canvas.addEventListener('wheel', (event) => {
     const wheelUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1;
     const retainedWheel = { point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
       deltaY: event.deltaY * wheelUnit / currentUiScale() };
+    if (retainedUi.wheel(retainedWheel, 'build-palette')) {
+      event.preventDefault(); return;
+    }
+    if (retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
+      event.preventDefault(); return;
+    }
     if (retainedUi.wheel(retainedWheel, 'inventory-menus')) {
       event.preventDefault(); return;
     }

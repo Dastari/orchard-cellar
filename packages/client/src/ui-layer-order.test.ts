@@ -26,9 +26,12 @@ describe('overworld UI compositing order', () => {
     const input = main.slice(start, end);
     const build = input.indexOf('overworldUi.pointerBuildControl');
     expect(build).toBeGreaterThan(input.indexOf('overworldUi.blockingUpdatePromptVisible'));
-    expect(build).toBeGreaterThan(input.indexOf('tradeUi.pointerDown'));
+    const trade = input.indexOf("retainedPointers.dispatch('down', event, 'player-trade')");
+    const palette = input.indexOf("retainedPointers.dispatch('down', event, 'build-palette')");
+    expect(trade).toBeGreaterThan(0); expect(palette).toBeGreaterThan(0);
+    expect(build).toBeGreaterThan(trade);
     expect(build).toBeLessThan(input.indexOf('touchControls.pointerDown'));
-    expect(build).toBeLessThan(input.indexOf('homesteadBuildPalette.pointerDown'));
+    expect(build).toBeLessThan(palette);
     const frame = main.slice(main.indexOf('questTracker.draw(uiContext)'));
     expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('touchControls.draw'));
     expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('homesteadBuildPalette.draw'));
