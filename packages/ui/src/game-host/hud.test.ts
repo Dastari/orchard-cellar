@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { GameHud, type GameHudModel, type GameHudSurface } from './hud.js';
+import { uiPurseWidth } from '../kit/components/purse.js';
 import { touchControlLayout } from '../touch-control-layout.js';
 import { TouchControls } from '../touch-controls.js';
 import { QuestTracker } from '../quest-tracker.js';
@@ -154,6 +155,25 @@ describe('desktop HUD arrangement', () => {
     // The character card and purse never overlap the row.
     const intersects = (a: UiElement, b: UiElement) => a.rect.x < b.rect.x + b.rect.width && a.rect.x + a.rect.width > b.rect.x && a.rect.y < b.rect.y + b.rect.height && a.rect.y + a.rect.height > b.rect.y;
     for (const id of ['game.hud.character', 'game.hud.purse']) for (const control of [system, crafting, slot, weapon]) expect(intersects(node(id), control), `${id}/${control.id}`).toBe(false);
+  });
+  it.each([[480, 270], [640, 360], [960, 540]])('keeps the classic placement at %sx%s: cards over the hotbar ends, purse in the corner', (width, height) => {
+    const f = fixture(width, height), node = (id: string) => f.node('hotbarVitals', id);
+    f.host.update({ ...model(), inventory: { ...model().inventory, balanceBronze: 33_912n } });
+    const first = node('game.hud.hotbar.slot.0'), last = node('game.hud.hotbar.slot.9');
+    const card = node('game.hud.character'), target = f.node('targetEffects', 'game.hud.target'), purse = node('game.hud.purse');
+    // Player card directly above the hotbar's left end, target card level with it above the right end.
+    expect(card.rect.x).toBe(first.rect.x); expect(card.rect.y + card.rect.height).toBe(first.rect.y - 6);
+    expect(target.rect.y).toBe(card.rect.y); expect(target.rect.x + target.rect.width).toBeLessThanOrEqual(last.rect.x + last.rect.width);
+    expect(target.rect.x).toBeGreaterThanOrEqual(card.rect.x + card.rect.width);
+    // Purse and bag button hug the right edge with every coin shown; it only rises above the row when the corner is too narrow.
+    expect(purse.rect.x + purse.rect.width).toBe(width - 8); expect(purse.rect.width).toBe(uiPurseWidth(33_912n));
+    if (width >= 640) expect(purse.rect.y + purse.rect.height).toBe(height - 8);
+    else expect(purse.rect.y + purse.rect.height).toBeLessThanOrEqual(first.rect.y - 6);
+    for (const other of [card, target, first, last]) expect(purse.rect.x >= other.rect.x + other.rect.width || purse.rect.y >= other.rect.y + other.rect.height || purse.rect.y + purse.rect.height <= other.rect.y, other.id).toBe(true);
+  });
+  it('caps a huge balance at a plate that still clears the target card', () => {
+    const f = fixture(480, 270), purse = f.node('hotbarVitals', 'game.hud.purse'), target = f.node('targetEffects', 'game.hud.target');
+    expect(purse.rect.x + purse.rect.width).toBe(472); expect(purse.rect.x).toBeGreaterThanOrEqual(target.rect.x + target.rect.width);
   });
   it('keeps touch play on the stacked arrangement', () => {
     const f = fixture(844, 390); f.host.update({ ...model(), touchControls: { enabled: true, preferences: { swapped: false, bottomOffset: 0 } } });

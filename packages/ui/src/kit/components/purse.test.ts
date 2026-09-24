@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { uiPurse, uiPurseLabel } from './purse.js';
+import { uiPurse, uiPurseCoins, uiPurseLabel, uiPurseWidth } from './purse.js';
 import { UiRoot } from '../runtime/root.js';
 import { uiButton } from './button.js';
 
@@ -8,6 +8,13 @@ describe('purse', () => {
     expect(uiPurseLabel(-1n)).toBe('0g 0s 0b');
     expect(uiPurseLabel(123456n)).toBe('12g 34s 56b');
     expect(uiPurseLabel(123456789012345678901234n)).toBe('12345678901234567890g 12s 34b');
+  });
+  it('shows every coin whole at its preferred width and shortens instead of cutting a number off', () => {
+    // The live purse once read "3g 39..." (owner report, 2026-09-25): the plate must fit every coin.
+    const text = (balance: bigint, width: number) => uiPurseCoins(balance, width).map(([coin, value]) => `${value}${coin[0]}`).join(' ');
+    for (const balance of [33_912n, 123_456n, 99_999_999n]) expect(text(balance, uiPurseWidth(balance) - 38)).toBe(uiPurseLabel(balance));
+    expect(text(33_912n, 60)).toBe('3g 39s');
+    expect(text(123_456_789_012n, 40)).toBe('12Mg');
   });
   it('retains the focused inventory action while the balance changes', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(112,24); const open = vi.fn();

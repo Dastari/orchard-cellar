@@ -75,21 +75,18 @@ const compactTab: NonNullable<Parameters<typeof uiButton>[0]['face']> = (element
 };
 /** The approved desktop row: three shortcuts, the ten-slot hotbar and the main hand. */
 const HUD_ROW_WIDTH = 3 * 30 + 298 + 34;
-/** Room each side of the row needs before the character card and purse stand beside it rather than above its ends. */
-const HUD_SIDE = 160;
-export type GameHudArrangement = 'row-beside' | 'row-above' | 'stacked';
-/** Keyboard-and-mouse play always gets the approved one-row HUD when the row fits (the game's desktop logical
- * viewport is about 480x270 or 640x360); the card and purse go beside the row on roomy screens and above its
- * ends otherwise. Touch play and screens too narrow for the row keep the stacked phone arrangement. */
+/** Widest purse plate: every coin of a five-digit gold balance; beyond that the plate shortens its coins. */
+const HUD_PURSE_MAX = 150;
+export type GameHudArrangement = 'row' | 'stacked';
+/** Keyboard-and-mouse play always gets the one-row HUD when the row fits (the game's desktop logical viewport is
+ * about 480x270 or 640x360). Touch play and screens too narrow for the row keep the stacked phone arrangement. */
 export function gameHudArrangement(width: number, touch: boolean): GameHudArrangement {
-  if (touch || width < HUD_ROW_WIDTH + 8) return 'stacked';
-  return (width - HUD_ROW_WIDTH) / 2 >= HUD_SIDE ? 'row-beside' : 'row-above';
+  return touch || width < HUD_ROW_WIDTH + 8 ? 'stacked' : 'row';
 }
 /** Top of the character card's hunger line in the non-touch HUD; chat sits above it. */
 export function gameHudCharacterTop(width: number, height: number): number {
-  const barY = Math.max(0, height - 6 - (width >= 306 ? 31 : 64)), arrangement = gameHudArrangement(width, false);
-  if (arrangement === 'row-beside') return height - 8 - 48 - 13;
-  return Math.max(0, barY - (arrangement === 'row-above' ? 6 : 4) - 48) - 13;
+  const barY = Math.max(0, height - 6 - (width >= 306 ? 31 : 64));
+  return Math.max(0, barY - (gameHudArrangement(width, false) === 'row' ? 6 : 4) - 48) - 13;
 }
 function scoped(node: UiElement): UiElement { node.setProps({ singlePointer: true }); return node; }
 function vitalLabel(kind: UiVitalKind, value: UiVitalValues | undefined, centi: boolean): string {
@@ -366,27 +363,30 @@ export class GameHud {
     const width = this.width, height = this.height, barWidth = width >= 306 ? 298 : 148, barHeight = width >= 306 ? 31 : 64;
     const bottom = height - 6, barY = Math.max(0, bottom - barHeight);
     const actions = [this.system, this.build, this.crafting].filter(node => node.style.visible !== false);
-    const weaponShown = this.weapon.style.visible !== false, purseWidth = Math.min(uiPurseWidth(model.inventory.balanceBronze), Math.max(0, width - 16));
+    const weaponShown = this.weapon.style.visible !== false, purseWidth = Math.min(uiPurseWidth(model.inventory.balanceBronze), HUD_PURSE_MAX, Math.max(0, width - 16));
     const zoneModel = { ...model.zone, collapsed: this.zoneCollapsed }, zoneHeight = uiZoneHeaderHeight(zoneModel);
     const zoneWidth = this.zoneCollapsed ? 28 : Math.min(uiZoneFlagWidth(model.zone.title) + 60, Math.max(156, width - 140)), flagWidth = Math.max(0, zoneWidth - 60);
     const touch = model.touchControls?.enabled === true;
     const arrangement = gameHudArrangement(width, touch);
-    if (arrangement !== 'stacked') {
-      // Approved desktop HUD: shortcuts, hotbar and main hand in one centred row; the character card
-      // bottom-left under its hunger line, the purse bottom-right with the target card above it. On the
-      // game's small desktop viewports the card and purse stand just above the row's ends instead.
-      const above = arrangement === 'row-above', cardY = above ? barY - 6 - 48 : height - 8 - 48, purseY = above ? barY - 6 - 26 : height - 8 - 26;
-      const row = actions.length * 30 + barWidth + (weaponShown ? 34 : 0), x0 = Math.floor((width - row) / 2) + actions.length * 30;
+    if (arrangement === 'row') {
+      // Classic desktop HUD: shortcuts, hotbar and main hand in one centred row; the character card sits
+      // directly above the hotbar's left end under its hunger line and the target card above its right end.
+      // The purse (also the bag button) takes the bottom-right corner: the row slides left of centre to make
+      // room for every coin, and the purse rises above the row only when even that is too narrow.
+      const row = actions.length * 30 + barWidth + (weaponShown ? 34 : 0), purseX = width - 8 - purseWidth;
+      const centred = Math.floor((width - row) / 2), purseBeside = row + 8 <= purseX - 8;
+      const rowX = purseBeside ? Math.max(8, Math.min(centred, purseX - 8 - row)) : centred, x0 = rowX + actions.length * 30;
+      const cardY = barY - 6 - 48;
       place(this.hotbarPanel, { x: x0, y: barY, width: barWidth, height: barHeight });
       actions.forEach((node, index) => place(node, { x: x0 - (actions.length - index) * 30, y: barY, width: 28, height: 31 }));
       place(this.weapon, { x: x0 + barWidth + 6, y: barY, width: 28, height: 31 });
-      place(this.player, { x: 8, y: cardY, width: 96, height: 48 });
-      place(this.hunger, { x: 8, y: cardY - 13, width: 96, height: 11 });
-      place(this.purse, { x: width - 8 - purseWidth, y: purseY, width: purseWidth, height: 26 });
-      const targetY = purseY - 8 - 48;
-      place(this.target, { x: width - 8 - 96, y: targetY, width: 96, height: 48 });
-      place(this.targetName, { x: width - 8 - 96, y: targetY - 14, width: 74, height: 12 });
-      place(this.clear, { x: width - 8 - 20, y: targetY - 17, width: 20, height: 16 });
+      place(this.player, { x: x0, y: cardY, width: 96, height: 48 });
+      place(this.hunger, { x: x0, y: cardY - 13, width: 96, height: 11 });
+      place(this.purse, { x: purseX, y: purseBeside ? height - 8 - 26 : barY - 6 - 26, width: purseWidth, height: 26 });
+      const targetX = Math.max(x0 + 100, Math.min(x0 + barWidth, purseBeside ? width : purseX - 6) - 96);
+      place(this.target, { x: targetX, y: cardY, width: 96, height: 48 });
+      place(this.targetName, { x: targetX, y: cardY - 14, width: 74, height: 12 });
+      place(this.clear, { x: targetX + 76, y: cardY - 17, width: 20, height: 16 });
     } else {
       // Narrow screens stack over the hotbar: card left, target right, shortcuts over the purse between.
       place(this.hotbarPanel, { x: Math.max(4, Math.floor((width - barWidth) / 2)), y: barY, width: Math.min(barWidth, width - 8), height: barHeight });
@@ -396,15 +396,18 @@ export class GameHud {
       place(this.target, { x: width - 100, y: cardY, width: 96, height: 48 });
       place(this.targetName, { x: width - 100, y: cardY - 14, width: 74, height: 12 });
       place(this.clear, { x: width - 24, y: cardY - 17, width: 20, height: 16 });
-      const middle = Math.max(0, Math.min(width - 208, 4 * 28 + 3 * gap));
-      place(this.purse, { x: middleX, y: barY - 30, width: Math.min(purseWidth, middle), height: 26 });
+      // The purse gets its full coin width centred between the cards, or its own line above them, kept clear
+      // of the thumb banks on touch screens (the purse face shortens its coins rather than cut them off).
+      const purseFits = purseWidth <= width - 208, lane = touch ? this.compactCenter : { x: 4, width: width - 8 };
+      const plate = purseFits ? purseWidth : Math.min(purseWidth, lane.width);
+      place(this.purse, { x: purseFits ? Math.floor((width - plate) / 2) : lane.x + Math.floor((lane.width - plate) / 2), y: purseFits ? barY - 30 : cardY - 13 - 30, width: plate, height: 26 });
       actions.forEach((node, index) => place(node, { x: middleX + index * (28 + gap), y: barY - 65, width: 28, height: 31 }));
       place(this.weapon, { x: middleX + actions.length * (28 + gap), y: barY - 65, width: 28, height: 31 });
     }
     place(this.zonePanel, { x: 4, y: 4, width: zoneWidth, height: zoneHeight });
     place(this.moon, { x: 4 + flagWidth + 3, y: 4, width: 24, height: 24 });
     this.moon.setStyle({ visible: Boolean(model.zone.moon) && !this.zoneCollapsed });
-    const mapHeight = Math.min(touch ? 92 : 112, Math.max(56, (arrangement === 'row-beside' ? height - 100 : barY - 70) - 8));
+    const mapHeight = Math.min(touch ? 92 : 112, Math.max(56, barY - 70 - 8));
     place(this.map, { x: width - (this.effectiveMapCollapsed ? 28 : 128) - 4, y: 4, width: this.effectiveMapCollapsed ? 28 : 128, height: this.effectiveMapCollapsed ? 24 : mapHeight });
     place(this.effectViewport, { x: 4, y: zoneHeight + 8, width: Math.max(24, Math.min(height < 230 ? 104 : zoneWidth + 36, width - 140)), height: 28 });
     if (model.touchControls?.enabled && !this.compactTouchLayout) {

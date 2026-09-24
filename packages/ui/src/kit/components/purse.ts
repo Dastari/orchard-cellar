@@ -23,6 +23,21 @@ export function uiPurseCoinsWidth(balance: bigint): number {
 }
 /** Preferred purse plate width: coins, the pack button and the plate's padding. */
 export function uiPurseWidth(balance: bigint): number { return uiPurseCoinsWidth(balance) + 20 + 18; }
+type PurseCoin = readonly ['gold' | 'silver' | 'bronze', string];
+const coinWidth = (coins: readonly PurseCoin[]) => coins.reduce((sum, [, text]) => sum + 14 + text.length * 6 + 4, 0);
+const shortCount = (value: bigint): string => {
+  for (const [unit, size] of [['B', 1_000_000_000n], ['M', 1_000_000n], ['K', 1_000n]] as const) if (value >= size * 10n) return `${value / size}${unit}`;
+  return String(value);
+};
+/** The coins that fit `width` whole: every denomination when there is room, otherwise the lowest ones drop
+ * away and then the gold count shortens (12K, 3M), so a narrow purse never cuts a number in half. */
+export function uiPurseCoins(balance: bigint, width: number): readonly PurseCoin[] {
+  const purse = coinPurseFromBronze(balance);
+  let coins: PurseCoin[] = [['gold', String(purse.gold)], ['silver', String(purse.silver)], ['bronze', String(purse.bronze)]];
+  while (coins.length > 1 && coinWidth(coins) > width) coins = coins.slice(0, -1);
+  if (coinWidth(coins) > width) coins = [['gold', shortCount(BigInt(purse.gold))]];
+  return coins;
+}
 /** Canonical bronze remains bigint; denominations are presentation only.
  * Coins sit on a thin parchment plate beside the pack symbol: the purse is also the inventory shortcut. */
 export function uiPurse(options: UiPurseOptions): UiElement {
@@ -33,12 +48,12 @@ export function uiPurse(options: UiPurseOptions): UiElement {
     layout: { width: 'grow', height: 'grow', padding: 0 },
     face: (element, { context, art, hovered, focused, pressed }) => {
       const r = element.rect; paintUiSkin(context, art.skin.frame, 'thin', r);
-      const purse = coinPurseFromBronze(balance), y = r.y + Math.floor((r.height - 14) / 2);
+      const y = r.y + Math.floor((r.height - 14) / 2);
       context.save(); context.beginPath(); context.rect(r.x + 4, r.y, Math.max(0, r.width - 28), r.height); context.clip();
       let x = r.x + 7;
-      for (const [coin, value] of [['gold', purse.gold], ['silver', purse.silver], ['bronze', purse.bronze]] as const) {
+      for (const [coin, text] of uiPurseCoins(balance, r.width - 38)) {
         paintUiSkin(context, art.skin.icon, `coin.${coin}`, { x, y, width: 14, height: 14 });
-        drawPixelText(context, art.pixel, String(value), x + 15, y + 4, { color: '#3f2832' }); x += 14 + String(value).length * 6 + 4;
+        drawPixelText(context, art.pixel, text, x + 15, y + 4, { color: '#3f2832' }); x += 14 + text.length * 6 + 4;
       }
       context.restore();
       paintUiSkin(context, art.skin.icon, 'hud.backpack', { x: r.x + r.width - 22, y: r.y + Math.floor((r.height - 16) / 2) + (hovered || focused ? -1 : 0) + (pressed ? 1 : 0), width: 16, height: 16 });
