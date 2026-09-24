@@ -62,6 +62,7 @@ import { authoredNpcArt, loadAuthoredNpcArt } from '@orchard/engine/authored-npc
 import {
   STUDIO_SKIN_TOKENS,
   loadGeneratedAsset,
+  selectAtlasFrame,
   type LoadedAsset,
   type StudioSpatialArt,
   type UiIconName,
@@ -100,6 +101,16 @@ import {
   type TerrainAuthoringPalette,
 } from './terrain-authoring-palette.js';
 import { resolveStudioLiveMarkerPresentation } from './live-marker-presentation.js';
+import { resolveMapLampPresentation } from './lamp-presentation.js';
+
+function liveObjectAnimation(marker: MapEditorLiveMarker, animationByState: Readonly<Record<string, string>> | undefined): string {
+  const stateAnimation = animationByState === undefined ? undefined
+    : Object.entries(marker.state ?? {}).sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, value]) => value === true ? animationByState[name]
+        : typeof value === 'string' ? animationByState[`${name}.${value}`] ?? animationByState[value]
+          : undefined).find(value => value !== undefined);
+  return stateAnimation ?? animationByState?.default ?? 'base';
+}
 
 export {
   mapEditorAuthoredObjectFootprint,
@@ -612,6 +623,7 @@ export class MapEditorRenderer {
     const document:MapDocumentV3 = drag===null?sourceDocument:{...sourceDocument,
       objects:drag.kind==='object'?sourceDocument.objects.map(object=>object.id===drag.id?{...object,tileX:drag.tileX,tileY:drag.tileY,elevation:drag.elevation}:object):sourceDocument.objects,
       landmarks:drag.kind==='landmark'?sourceDocument.landmarks.map(object=>object.id===drag.id?{...object,tileX:drag.tileX,tileY:drag.tileY,elevation:drag.elevation}:object):sourceDocument.landmarks};
+    const lamps = resolveMapLampPresentation(document, model.publishedDocument(), interaction.liveMarkers());
     const {
       camera,
       viewport,
@@ -775,13 +787,17 @@ export class MapEditorRenderer {
         'map-object', 0, artworkVisible && landmark.enabled);
     }
     for (const object of document.objects) {
+      if (lamps.disabledAuthoredIds.has(object.id)) continue;
       if (!model.isLayerVisible(object.layer)) continue;
       if (object.tileX < range.minimumX || object.tileX >= range.maximumX
         || object.tileY < range.minimumY || object.tileY >= range.maximumY) continue;
-      marker(object.id, object.tileX, object.tileY, MAP_SPATIAL_COLOURS.authoredObject, object.enabled,
-        'map-object', 0, prefabArtworkVisible && object.enabled);
+      const replacement = lamps.replacements.get(object.id);
+      const liveArtwork = replacement !== undefined && artworkVisible && this.liveLampHasArtwork(replacement);
+      marker(object.id, replacement?.tileX ?? object.tileX, replacement?.tileY ?? object.tileY,
+        MAP_SPATIAL_COLOURS.authoredObject, object.enabled, 'map-object', 0,
+        (liveArtwork || prefabArtworkVisible) && object.enabled, replacement?.worldX, replacement?.worldY);
     }
-    for (const live of interaction.liveMarkers()) {
+    for (const live of lamps.liveMarkers) {
       const selectedAtOverview = selection.kind === 'player'
         ? live.entityKind === 'player' && live.id === selection.identity
           && (selection.spaceId === null || live.spaceId === selection.spaceId)
@@ -794,7 +810,7 @@ export class MapEditorRenderer {
       marker(live.id, live.tileX, live.tileY, live.color, true, live.entityKind,
         live.spaceId, artworkVisible && this.liveMarkerHasArtwork(live), live.worldX, live.worldY);
     }
-    if(wantsObjectSprites&&terrain!==null)this.drawSelectedSilhouette(context,model,interaction,terrain,viewport,camera);
+    if(wantsObjectSprites&&terrain!==null)this.drawSelectedSilhouette(context,model,interaction,terrain,viewport,camera,document);
     if (dragDestination !== null) {
       context.setLineDash([5, 3]);
       const draggedObject = dragDestination.kind === 'object'
@@ -1116,12 +1132,16 @@ export class MapEditorRenderer {
       });
     };
 
+    const lamps = resolveMapLampPresentation(mapDocument, model.publishedDocument(), interaction.liveMarkers());
+    const replacements = new Map([...lamps.replacements].filter(([, marker]) => (
+      drawLiveArtwork && this.liveLampHasArtwork(marker)
+    )));
     if (drawPrefabs) {
       const visibleObjects = mapDocument.objects.filter((object) => pointInsideCull(
         cull,
         object.tileX * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS / 2,
         (object.tileY + 1) * TILE_SIZE_PIXELS,
-      ) && model.isLayerVisible(object.layer));
+      ) && model.isLayerVisible(object.layer) && !replacements.has(object.id));
       enqueueLiveMapObjects({ ...mapDocument, objects: visibleObjects }, {
         connectionDocument: mapDocument,
         context,
@@ -1174,15 +1194,22 @@ export class MapEditorRenderer {
 
     if (drawLiveArtwork) {
       const liveAnimationFrame = Math.floor(performance.now() / 125);
+      for (const [objectId, marker] of replacements) {
+        if (!model.isLayerVisible(marker.layer) || !pointInsideCull(cull, marker.worldX, marker.worldY)) continue;
+        this.enqueueLiveMarker((x, y, item) => enqueueProjected(x, y, {
+          ...item, depthPhase: marker.layer === 'ground' ? 'surface' : 'entity',
+          tie: authoredMapContentPainterTie(mapDocument, marker.layer, 'object', objectId),
+        }), context, art, marker, marker.worldX, marker.worldY, camera, liveAnimationFrame);
+      }
       const connectionCatalogue=connectedObjectCatalogue(this.#liveRegistry?.tilesets);
-      const connections = interaction.liveMarkers().flatMap(marker=>{
+      const connections = lamps.liveMarkers.flatMap(marker=>{
         const presentation=resolveStudioLiveMarkerPresentation(this.#liveRegistry,marker);
         const family=presentation.kind==='object'?connectedObjectDefinitionFamily(presentation.definition,connectionCatalogue):null;
         return family?[{marker,family,tileX:marker.tileX,tileY:marker.tileY,elevation:marker.elevation??terrainElevationAtWorldFoot(terrain,marker.worldX,marker.worldY),space:marker.spaceId,...(presentation.kind==='object'?{definition:presentation.definition}:{})}]:[];
       });
       const masks=connectedObjectIndex(connections,connectionCatalogue);
       const byId=new Map(connections.map(cell=>[cell.marker.id,{family:cell.family,mask:masks(cell)}]));
-      for (const marker of interaction.liveMarkers()) {
+      for (const marker of lamps.liveMarkers) {
         if (!model.isLayerVisible(marker.layer)
           || !pointInsideCull(cull, marker.worldX, marker.worldY)) continue;
         this.enqueueLiveMarker(
@@ -1259,8 +1286,20 @@ export class MapEditorRenderer {
     return true;
   }
 
+  /** Replacing authored art requires an actual live frame. Other live objects
+   * retain their existing legacy fallback behavior when native art is absent. */
+  private liveLampHasArtwork(marker: MapEditorLiveMarker): boolean {
+    if (!this.liveMarkerHasArtwork(marker)) return false;
+    const presentation = resolveStudioLiveMarkerPresentation(this.#liveRegistry, marker);
+    if (presentation.kind !== 'object') return false;
+    const sprite = presentation.definition.components.sprite;
+    const asset = sprite === undefined ? undefined : this.#liveObjectAssets.get(sprite.asset);
+    return sprite !== undefined && asset !== undefined && asset !== null
+      && selectAtlasFrame(asset.metadata, liveObjectAnimation(marker, sprite.animationByState)) !== null;
+  }
+
   private drawSelectedSilhouette(context:CanvasRenderingContext2D,model:MapEditorModel,interaction:MapEditorController,
-    terrain:TerrainArray,viewport:UiRect,camera:ReturnType<MapEditorController['snapshot']>['camera']):void {
+    terrain:TerrainArray,viewport:UiRect,camera:ReturnType<MapEditorController['snapshot']>['camera'],document:MapDocumentV3):void {
     const selection=model.selection();if(selection.kind!=='entity'&&selection.kind!=='player')return;
     if(typeof globalThis.document==='undefined'||!this.#art)return;
     const canvas=this.#selectionMask??=globalThis.document.createElement('canvas');
@@ -1269,11 +1308,16 @@ export class MapEditorRenderer {
     const mask=canvas.getContext('2d');if(!mask)return;
     mask.clearRect(0,0,canvas.width,canvas.height);mask.imageSmoothingEnabled=false;
     const enqueue=(x:number,y:number,item:WorldDepthItem)=>{mask.save();mask.translate(0,-terrainProjectedDepthAtFoot(terrain,x,y)*camera.zoom);item.draw();mask.restore();};
-    const document=model.document();
+    const lamps = resolveMapLampPresentation(document, model.publishedDocument(), interaction.liveMarkers());
     const object=selection.kind==='entity'&&selection.entityKind==='map-object'?document.objects.find(value=>value.id===selection.id):undefined;
     const landmark=selection.kind==='entity'&&selection.entityKind==='map-object'?document.landmarks.find(value=>value.id===selection.id):undefined;
     if(object&&model.isLayerVisible(object.layer)) {
-      enqueueLiveMapObjects({...document,objects:[object]},{connectionDocument:document,context:mask,cameraX:camera.x,cameraY:camera.y,scale:camera.zoom,timeMs:performance.now(),visible:()=>true,enqueue});
+      const replacement = lamps.replacements.get(object.id);
+      if (replacement !== undefined && this.liveLampHasArtwork(replacement)) {
+        this.enqueueLiveMarker(enqueue,mask,this.#art,replacement,replacement.worldX,replacement.worldY,camera,Math.floor(performance.now()/125));
+      } else if (!lamps.disabledAuthoredIds.has(object.id)) {
+        enqueueLiveMapObjects({...document,objects:[object]},{connectionDocument:document,context:mask,cameraX:camera.x,cameraY:camera.y,scale:camera.zoom,timeMs:performance.now(),visible:()=>true,enqueue});
+      }
     } else if(landmark&&model.isLayerVisible(landmark.layer)) {
       const x=landmark.tileX*16+8,y=(landmark.tileY+1)*16;
       const sx=Math.round((x-camera.x)*camera.zoom),sy=Math.round((y-camera.y)*camera.zoom);
@@ -1281,7 +1325,7 @@ export class MapEditorRenderer {
       mask.scale((landmark.flipX?-1:1)*(landmark.scale??1),landmark.scale??1);mask.translate(-sx,-sy);
       drawOverworldPoiDecoration(mask,this.#art,landmark.kind,x,y,camera.x,camera.y,camera.zoom,landmark.variant,0);mask.restore();
     } else {
-      const marker=interaction.liveMarkers().find(value=>selection.kind==='player'?value.entityKind==='player'&&value.id===selection.identity:value.entityKind===selection.entityKind&&value.id===selection.id&&value.spaceId===selection.spaceId);
+      const marker=[...lamps.liveMarkers,...lamps.replacements.values()].find(value=>selection.kind==='player'?value.entityKind==='player'&&value.id===selection.identity:value.entityKind===selection.entityKind&&value.id===selection.id&&value.spaceId===selection.spaceId);
       if(marker&&model.isLayerVisible(marker.layer))this.enqueueLiveMarker(enqueue,mask,this.#art,marker,marker.worldX,marker.worldY,camera,Math.floor(performance.now()/125));
     }
     mask.save();mask.globalCompositeOperation='source-in';mask.fillStyle=MAP_SPATIAL_COLOURS.liveSelectionMask;mask.fillRect(0,0,canvas.width,canvas.height);mask.restore();
@@ -1337,14 +1381,7 @@ export class MapEditorRenderer {
         const sprite = presentation.definition.components.sprite;
         const asset = sprite === undefined ? undefined : this.#liveObjectAssets.get(sprite.asset);
         if (sprite !== undefined && asset !== undefined && asset !== null) {
-          const state = marker.state ?? {};
-          const animationByState = sprite.animationByState;
-          const stateAnimation = animationByState === undefined ? undefined
-            : Object.entries(state).sort(([left], [right]) => left.localeCompare(right))
-              .map(([name, value]) => value === true ? animationByState[name]
-                : typeof value === 'string' ? animationByState[`${name}.${value}`] ?? animationByState[value]
-                  : undefined).find((value) => value !== undefined);
-          const animation = stateAnimation ?? animationByState?.default ?? 'base';
+          const animation = liveObjectAnimation(marker, sprite.animationByState);
           if (drawAuthoredOverworldObject(
             context, asset, animation, animationFrame, worldX, worldY,
             camera.x, camera.y, camera.zoom, sprite.scale ?? 1,

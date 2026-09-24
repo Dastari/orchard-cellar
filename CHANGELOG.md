@@ -2,6 +2,14 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.24.0 / UI 0.26.0 — Shared inventory and storage windows (not yet deployed)
+
+- Bind inventory, crafting, chest and barrel windows to the shared kit compositions while retaining the existing inventory authority, cursor prediction and command transport.
+- Keep the crafting grid at 3×3, chest at 16 slots and barrel at 8. Search never renumbers slots; shared chest filtering, cursor-aware sort, restrictions and authoritative timing remain intact.
+- Resolve touch scrolling before pickup, preserve one pointer owner across slots and background, and retain filter Escape/Enter behavior through resize and reconnect.
+- Keep roster controls responsive above inventory and suppress repeated activation keys without affecting text editing.
+- Workspace 0.30.0. Six of 33 surfaces are wired in the combined source; final checks and live acceptance remain pending in the [release ledger](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24).
+
 ## Client 0.23.0 / UI 0.25.0 — Retained name gate and quest tracker (not yet deployed)
 
 - Use the shared kit's character-name gate and quest tracker in the game with real naming and pinned-quest models. Keep pending/error handling, required naming, focus, tracker collapse and saved position across resizing.
@@ -23,6 +31,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 ## Client 0.22.2 / UI 0.23.1 — 2026-09-24
 
 - Version mutable atlas index requests by client build so returning players controlled by an older service worker load matching index/category metadata after deployment. Keep existing revision checks and immutable asset caching.
+
+### Studio 0.14.2 — lamp presentation fix (not yet deployed)
+
+- Draw a materialized town lamp once in Studio using its authoritative live state at the authored draft position. Preserve both records and use the verified published map binding for draft moves, picking and fallback behavior.
+- Regression and local visual evidence: [BUG-010](https://wiki.orchard.dastari.net/Bugs/BUG-010%20Studio%20draws%20both%20copies%20of%20a%20streetlamp).
 
 ## 0.27.2 — 2026-09-23 — integrated runtime release
 

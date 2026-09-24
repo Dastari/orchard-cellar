@@ -137,6 +137,7 @@ function initialDocument(mapId: string): MapDocumentV3 {
 
 export class MapEditorModel {
   #document: MapDocumentV3;
+  #publishedDocument: MapDocumentV3 | null = null;
   #publishedEntityStates: readonly MapEntityStateEdit[] = [];
   #past: MapDocumentV3[] = [];
   #future: MapDocumentV3[] = [];
@@ -199,6 +200,8 @@ export class MapEditorModel {
   }
 
   document(): MapDocumentV3 { return this.#document; }
+  /** Newest verified authority document, independent of the editable draft. */
+  publishedDocument(): MapDocumentV3 | null { return this.#publishedDocument; }
   /** Stable across content-only edits so render caches do not rebuild the
    * 832x832 terrain merely because an object moved. Biome paint invalidates
    * this visual identity without invalidating terrain-structure validation. */
@@ -621,8 +624,22 @@ export class MapEditorModel {
       this.markConflict(head.revision, `Live map revision ${head.revision} could not be verified; local edits were preserved.`);
       return;
     }
-    this.#publishedEntityStates=remoteDocument.entityStates??[];
     const remoteSemanticHash = editorMapSemanticHash(remoteDocument);
+    // A stale subscription must not roll back associations even while a newer
+    // verified head is in conflict with this draft's older checkout base.
+    if (head.revision < Math.max(this.#baseRevision, this.#publishedDocument?.revision ?? 0)) return;
+    if (this.#publishedDocument?.revision === head.revision
+      && editorMapSemanticHash(this.#publishedDocument) !== remoteSemanticHash) {
+      this.markConflict(head.revision);
+      return;
+    }
+    if (head.revision === this.#baseRevision && this.#baseSemanticHash !== null
+      && this.#baseSemanticHash !== remoteSemanticHash) {
+      this.markConflict(head.revision);
+      return;
+    }
+    this.#publishedDocument = remoteDocument;
+    this.#publishedEntityStates = remoteDocument.entityStates ?? [];
     const localSemanticHash = editorMapSemanticHash(this.#document);
 
     if (this.#publishing !== null && head.revision > this.#baseRevision) {
@@ -648,15 +665,7 @@ export class MapEditorModel {
       return;
     }
 
-    // An older subscription snapshot can arrive after a newer one. It cannot
-    // change the checked-out base or prove anything about the local draft.
-    if (head.revision < this.#baseRevision) return;
-
     if (head.revision === this.#baseRevision) {
-      if (this.#baseSemanticHash !== null && remoteSemanticHash !== this.#baseSemanticHash) {
-        this.markConflict(head.revision);
-        return;
-      }
       const stateChanged = this.#baseSemanticHash === null || this.#conflictRevision !== null;
       const wasDirty = this.#dirty;
       this.#baseSemanticHash = remoteSemanticHash;
@@ -701,6 +710,13 @@ export class MapEditorModel {
     try {
       document = parseVerifiedStudioMapHead(head, this.mapId);
     } catch {
+      throw new Error('live_map_head_unverified');
+    }
+    if (document.revision < Math.max(this.#baseRevision, this.#publishedDocument?.revision ?? 0)) {
+      throw new Error('live_map_head_stale');
+    }
+    if (this.#publishedDocument?.revision === document.revision
+      && editorMapSemanticHash(this.#publishedDocument) !== editorMapSemanticHash(document)) {
       throw new Error('live_map_head_unverified');
     }
     this.#reconciledLiveHead = head;
@@ -834,6 +850,8 @@ export class MapEditorModel {
   }
 
   private acceptLiveDocument(document: MapDocumentV3, clearHistory: boolean): void {
+    this.#publishedDocument = document;
+    this.#publishedEntityStates = document.entityStates ?? [];
     if (clearHistory) {
       this.#past = [];
       this.#future = [];
