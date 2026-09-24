@@ -7,7 +7,7 @@ import { uiButton } from './button.js';
 import { uiText } from './text.js';
 import { uiTable, type UiTableState } from './collections.js';
 export interface UiStatisticsOptions { readonly onKey?: (key: string, repeat: boolean) => boolean; readonly model: StatisticsScreenModel; readonly onClose?: () => void; readonly onNavigate?: (page: 'character'|'skills'|'statistics') => void; readonly layout?: UiStyle }
-export interface UiStatisticsElement extends UiElement { updateStatistics(model: StatisticsScreenModel): void; focusStatistics(): void }
+export interface UiStatisticsElement extends UiElement { updateStatistics(model: StatisticsScreenModel): void; focusStatistics(): void; setCompactStatistics(compact: boolean): void }
 export function uiStatistics(options: UiStatisticsOptions): UiStatisticsElement {
   let state: UiTableState | undefined, key = '', model = options.model;
   let current = new Map<string, StatisticsScreenRow>();
@@ -18,6 +18,14 @@ export function uiStatistics(options: UiStatisticsOptions): UiStatisticsElement 
     layout: {width:'grow',height:'grow',...options.layout}, children: [
       uiFlex({direction:'row',wrap:true,width:'grow',gap:4,shrink:0}, (['character','skills','statistics'] as const).map(page => uiButton({id:`statistics.navigate.${page}`,label:page.toUpperCase(),size:'sm',tone:page==='statistics'?'primary':'neutral',onPress:()=>options.onNavigate?.(page)}))), body,
     ] });
+  // Keep the composition's chrome stable while its production host changes bounds.
+  const chrome = base.children[0]!;
+  let compact = false;
+  const setCompactStatistics = (next: boolean): void => {
+    if (next === compact) return;
+    compact = next;
+    chrome.setStyle({ padding: compact ? 8 : 16 });
+  };
   const frame = new UiElement({ id: 'game.statistics.host', kind: 'statistics-screen', children: [base],
     style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' }, props: { touchScroll: true, singlePointer: true },
     onKeyCapture(event) { if (options.onKey?.(event.key, event.repeat === true)) return true; if (event.key !== 'Escape') return false; if (!event.repeat) options.onClose?.(); return true; } });
@@ -66,7 +74,7 @@ export function uiStatistics(options: UiStatisticsOptions): UiStatisticsElement 
     if (focus) descendants(table).find(node => node.id === focus)?.requestFocus();
   };
   updateStatistics(options.model);
-  return Object.assign(frame, { updateStatistics, focusStatistics: () => {
+  return Object.assign(frame, { updateStatistics, setCompactStatistics, focusStatistics: () => {
     base.setStyle({ visible: true });
     (descendants(frame).find(node => node.id === 'statistics.table:rows') ?? descendants(frame).find(node => node.focusable))?.requestFocus();
   } });

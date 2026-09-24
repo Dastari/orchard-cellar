@@ -162,6 +162,34 @@ describe('production retained statistics adapter', () => {
     f.screen.setBounds(progressionWindowRect(640, 400), 640, 400); expect(f.node('statistics.table:rows')).toBe(list); expect(root.focus.current).toBe(list);
     root.key({ key: 'Home' }); expect(list.props['active']).toBe(0);
   });
+  it('keeps a full compact row, header and pointer pager through resize without replacing browsing state', () => {
+    const f = fixture(320, 180), root = f.screen.root;
+    const table = f.node('statistics.table');
+    root.focus.set(f.node('statistics.table:sort:subject')); root.key({ key: 'Enter' }); root.arrange();
+    const sort = table.props['sort'];
+    f.press('Next'); root.focus.set(f.node('statistics.table:sort:subject')); root.arrange();
+    for (const [width, height] of [[320, 180], [800, 600], [320, 180]]) {
+      const list = f.node('statistics.table:rows');
+      f.screen.setBounds(progressionWindowRect(width!, height!), width!, height!);
+      expect((table.props['state'] as { page: number }).page).toBe(1);
+      scrollUiElement(table, 0, 0); scrollUiElement(list, 0, 0); root.arrange();
+      expect(f.node('statistics.table')).toBe(table); expect(f.node('statistics.table:rows')).toBe(list);
+      expect(root.focus.current?.id).toBe('statistics.table:sort:subject');
+      expect(table.props['sort']).toEqual(sort);
+      const row = root.entries().find(entry => entry.element.kind === 'list-row')!.element;
+      expect(row.rect.height).toBe(24); expect(row.clip.height).toBe(row.rect.height);
+      const header = f.node('statistics.table:sort:record');
+      expect(header.clip.height).toBe(header.rect.height);
+      const next = f.byLabel('Next'), point = { x: next.rect.x + next.rect.width / 2, y: next.rect.y + next.rect.height / 2 };
+      const page = (table.props['state'] as { page: number }).page;
+      root.pointer({ type: 'down', point, pointerId: 10, button: 0 }); root.pointer({ type: 'up', point, pointerId: 10, button: 0 }); root.arrange();
+      expect((table.props['state'] as { page: number }).page).toBe(page + 1);
+      const previous = f.byLabel('Previous'), back = { x: previous.rect.x + previous.rect.width / 2, y: previous.rect.y + previous.rect.height / 2 };
+      root.pointer({ type: 'down', point: back, pointerId: 11, button: 0 }); root.pointer({ type: 'up', point: back, pointerId: 11, button: 0 }); root.arrange();
+      expect((table.props['state'] as { page: number }).page).toBe(page);
+      root.focus.set(f.node('statistics.table:sort:subject')); root.arrange();
+    }
+  });
   it('delegates navigation and close, resets on disconnect and paints real kit art', () => {
     const f = fixture(); f.press('CHARACTER'); expect(f.navigate).toHaveBeenCalledExactlyOnceWith('character');
     f.screen.root.key({ key: 'Escape' }); expect(f.close).toHaveBeenCalledOnce();

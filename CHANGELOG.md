@@ -28,6 +28,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 - Preserve recipe exchanges, village orders and furniture inspection. Cancel stale held gestures when the session, selected cart or offer changes; fix pending transactions locking a reopened conversation (BUG-020).
 - Retire replaced NPC drawing and input paths together. Workspace 0.37.0. Browser acceptance and final CI remain release gates.
 
+## Client 0.30.1 / UI 0.32.1 — Readable compact statistics and table paging (not yet deployed)
+
+- Keep horizontal table scrollbar hit areas below the pagination controls, so native center pointer/touch presses reach Next and Previous (BUG-025).
+- Reclaim compact statistics frame padding to retain a complete readable row alongside its header and pager. Preserve table identity, sort, page, focus and saved browsing state through resizing. Workspace 0.36.1.
+
 ## Client 0.30.0 / UI 0.32.0 — Shared character and lifetime records (not yet deployed)
 
 - Adopt the shared character and statistics windows with real appearance, equipment, authored attributes and bigint lifetime records. Preserve navigation, focus and responsive scrolling through the central input runtime.
