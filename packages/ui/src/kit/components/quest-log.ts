@@ -10,7 +10,7 @@ import { uiButton } from './button.js';
 
 export interface UiQuestLogOptions extends QuestLogCallbacks {
   readonly entries: readonly QuestLogEntry[]; readonly selected?: string | null;
-  readonly onClose?: () => void; readonly layout?: UiStyle;
+  readonly onClose?: () => void; readonly layout?: UiStyle; readonly resizable?: boolean;
 }
 export interface UiQuestLogElement extends UiElement {
   select(id: string): boolean; updateQuests(entries: readonly QuestLogEntry[]): void;
@@ -86,7 +86,7 @@ export function uiQuestLog(options: UiQuestLogOptions): UiQuestLogElement {
     },
   }, [listHost, detailHost]);
   const frame = uiFrame({ id: 'game.quests', blockInput: true, header: { title: 'QUEST LOG', closable: true, onClose: options.onClose },
-    resizable: { handles: 'all', min: { width: 240, height: 200 } }, layout: { width: 'grow', height: 'grow', ...options.layout }, children: [panes] });
+    resizable: options.resizable === false ? undefined : { handles: 'all', min: { width: 240, height: 200 } }, layout: { width: 'grow', height: 'grow', ...options.layout }, children: [panes] });
   updateQuests(entries);
   return Object.defineProperty(Object.assign(frame, { select, updateQuests, focusQuests: (): void => { list.requestFocus(); } }), 'selectedQuest', { get: () => selected }) as UiQuestLogElement;
 }
