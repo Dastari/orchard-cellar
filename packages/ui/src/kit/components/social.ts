@@ -62,19 +62,22 @@ export function uiFolderTabs(options: { readonly id?: string; readonly tabs: rea
 
 /** A dialogue or menu choice: the peach button face, a number key badge and left-set wording. */
 export function uiChoiceButton(options: { readonly id?: string; readonly index?: number; readonly label: string; readonly tone?: 'primary' | 'success' | 'danger'; readonly disabled?: boolean; readonly onPress: () => void; readonly layout?: UiStyle }): UiElement {
-  const tone = options.tone ?? 'primary', hooks = pressHooks(options.onPress, () => !options.disabled);
-  return new UiElement({ id: options.id, kind: 'button', label: options.index !== undefined ? `${options.index}. ${options.label}` : options.label, focusable: true, disabled: options.disabled, pointerMode: 'capture',
-    props: { tone, buttonSurface: true }, style: { height: uiFixed(20), alignSelf: 'stretch', shrink: 0, ...options.layout }, ...hooks,
+  const hooks = pressHooks(options.onPress, () => node.disabled !== true);
+  const node: UiElement = new UiElement({ id: options.id, kind: 'button', label: options.index !== undefined ? `${options.index}. ${options.label}` : options.label, focusable: true, disabled: options.disabled, pointerMode: 'capture',
+    props: { tone: options.tone ?? 'primary', buttonSurface: true, label: options.label }, style: { height: uiFixed(20), alignSelf: 'stretch', shrink: 0, ...options.layout }, ...hooks,
     paint(element, { context, art, hovered, focused }) {
       if (!art) return;
+      // Label and tone are live props so hosts can relabel a retained button.
+      const tone = (element.props['tone'] as 'primary' | 'success' | 'danger' | undefined) ?? 'primary', label = String(element.props['label'] ?? options.label);
       const r = element.rect, state = element.disabled ? 'disabled' : hooks.pressed() ? 'pressed' : 'idle', drop = hooks.pressed() ? 1 : 0;
       paintUiSkin(context, art.skin.button, `${element.disabled ? 'muted' : tone}.md.chamfered.${state}`, r);
       const ink = tone === 'primary' ? INK : '#fff6e0';
       let x = r.x + 8;
       if (options.index !== undefined) { drawPixelText(context, art.pixel, `${options.index}.`, x, r.y + 6 + drop, { color: tone === 'primary' ? MUTED : ink }); x += 16; }
-      drawPixelText(context, art.pixel, fitPixelText(options.label, r.x + r.width - x - 8, 1, art.pixel.font), x, r.y + 6 + drop, { color: ink });
+      drawPixelText(context, art.pixel, fitPixelText(label, r.x + r.width - x - 8, 1, art.pixel.font), x, r.y + 6 + drop, { color: ink });
       if ((hovered || focused) && !element.disabled) paintUiSkin(context, art.skin.button, `outline.md.chamfered.${state}.${focused ? 'white' : 'gold'}`, r);
     } });
+  return node;
 }
 
 /** A framed portrait well for dialogue and trade partners. */
@@ -153,16 +156,16 @@ export function uiSettingRow(label: string, control: UiElement, hint?: string): 
 
 /** Vertical menu tab in the legacy settings idiom: peach chamfered at rest, a green square face when current,
  * with its authored button glyph leading the label. */
-export function uiMenuTab(options: { readonly id?: string; readonly label: string; readonly glyph: string; readonly active: boolean; readonly onPress: () => void; readonly width?: number }): UiElement {
+export function uiMenuTab(options: { readonly id?: string; readonly label: string; readonly glyph: string; readonly active: boolean; readonly onPress: () => void; readonly width?: number; /** Glyph only, for narrow screens; the label stays the accessible name. */ readonly iconOnly?: boolean }): UiElement {
   const hooks = pressHooks(options.onPress);
   return new UiElement({ id: options.id, kind: 'tab', label: options.label, focusable: true, pointerMode: 'capture', props: { selected: options.active, tone: options.active ? 'success' : 'primary', buttonSurface: true },
-    style: { width: uiFixed(options.width ?? 88), height: uiFixed(22), shrink: 0 }, ...hooks,
+    style: { width: uiFixed(options.width ?? (options.iconOnly ? 22 : 88)), height: uiFixed(22), shrink: 0 }, ...hooks,
     paint(element, { context, art, hovered, focused }) {
       if (!art) return;
       const r = element.rect, tone = options.active ? 'success' : 'primary', shape = options.active ? 'square' : 'chamfered', state = hooks.pressed() ? 'pressed' : 'idle', drop = hooks.pressed() ? 1 : 0;
       paintUiSkin(context, art.skin.button, `${tone}.md.${shape}.${state}`, r);
       paintUiSkin(context, art.skin.icon, `bglyph.${options.glyph}.${tone}`, { x: r.x + 3, y: r.y + 3 + drop, width: 16, height: 16 });
-      drawPixelText(context, art.pixel, fitPixelText(options.label, r.width - 26, 1, art.pixel.font), r.x + 21, r.y + 8 + drop, { color: options.active ? '#fff6e0' : INK });
+      if (!options.iconOnly) drawPixelText(context, art.pixel, fitPixelText(options.label, r.width - 26, 1, art.pixel.font), r.x + 21, r.y + 8 + drop, { color: options.active ? '#fff6e0' : INK });
       if (hovered || focused) paintUiSkin(context, art.skin.button, `outline.md.${shape}.${state}.${focused ? 'white' : 'gold'}`, r);
     } });
 }
@@ -180,15 +183,16 @@ function creamGlyph(family: UiLoadedSkinFamily, key: string): CanvasImageSource 
 }
 
 /** Square mute toggle: green with the live speaker or note, red with the struck-out one when muted. */
-export function uiMuteButton(options: { readonly label: string; readonly kind: 'sound' | 'music'; readonly muted: boolean; readonly onToggle: () => void }): UiElement {
+export function uiMuteButton(options: { readonly id?: string; readonly label: string; readonly kind: 'sound' | 'music'; readonly muted: boolean | (() => boolean); readonly onToggle: () => void }): UiElement {
+  const muted = () => typeof options.muted === 'function' ? options.muted() : options.muted;
   const hooks = pressHooks(options.onToggle);
-  return new UiElement({ kind: 'button', label: `${options.muted ? 'Unmute' : 'Mute'} ${options.label}`, focusable: true, pointerMode: 'capture', props: { tone: options.muted ? 'danger' : 'success', buttonSurface: true },
+  return new UiElement({ id: options.id, kind: 'button', label: `${muted() ? 'Unmute' : 'Mute'} ${options.label}`, focusable: true, pointerMode: 'capture', props: { tone: muted() ? 'danger' : 'success', buttonSurface: true, label: muted() ? 'UNMUTE' : 'MUTE' },
     style: { width: uiFixed(20), height: uiFixed(20), shrink: 0 }, ...hooks,
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; const r = element.rect, face = { x: r.x + 2, y: r.y + 2, width: 16, height: 16 }, state = hooks.pressed() ? 'pressed' : 'idle';
-      paintUiSkin(context, art.skin.button, `${options.muted ? 'danger' : 'success'}.sm.square.${state}`, face);
+      const off = muted(); paintUiSkin(context, art.skin.button, `${off ? 'danger' : 'success'}.sm.square.${state}`, face);
       const glyph = creamGlyph(art.skin.icon, `audio.${options.kind}.success`); if (glyph) context.drawImage(glyph, face.x, face.y + (hooks.pressed() ? 1 : 0));
-      if (options.muted) { context.fillStyle = '#fff6e0'; for (let i = 0; i < 10; i++) context.fillRect(face.x + 3 + i, face.y + 3 + i, 1, 1); }
+      if (off) { context.fillStyle = '#fff6e0'; for (let i = 0; i < 10; i++) context.fillRect(face.x + 3 + i, face.y + 3 + i, 1, 1); }
       if (hovered || focused) paintUiSkin(context, art.skin.button, `outline.sm.square.${state}.${focused ? 'white' : 'gold'}`, face);
     } });
 }

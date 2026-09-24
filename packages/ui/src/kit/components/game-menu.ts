@@ -1,10 +1,14 @@
 import { pwaUpdateLabel, type PwaUpdateStatus } from '../../pwa-update.js';
 import type { UiStyle } from '../layout/box.js';
 import type { UiElement } from '../runtime/element.js';
-import type { UiTone } from '../tokens.js';
-import { uiButton } from './button.js';
-import { uiFrame } from './frame.js';
-import { uiScrollArea } from './layout.js';
+import { uiFixed } from '../layout/box.js';
+import { uiChoiceButton } from './social.js';
+import { uiWindow } from './window.js';
+type UiMenuTone = 'primary' | 'success' | 'danger';
+/** The update action in the menu's sentence case (the approved mock reads "Check for update"). */
+function menuUpdateLabel(status: PwaUpdateStatus): string {
+  return ({ available: 'Update now', checking: 'Checking', updating: 'Updating', current: 'Check for update', error: 'Retry update', unsupported: 'Update unavailable' } as const)[status] ?? pwaUpdateLabel(status);
+}
 
 export type UiGameMenuAction = 'resume' | 'settings' | 'help' | 'developer' | 'fullscreen'
   | 'check-update' | 'apply-update' | 'exit-delve' | 'sign-out' | 'quit' | 'outdoor-rewards';
@@ -23,34 +27,34 @@ export interface UiGameMenuOptions {
 }
 export interface UiGameMenuElement extends UiElement { updateGameMenu(model: UiGameMenuModel): void }
 
-/** Stable controls read current authority when activated, including after focus changes. */
+/** Approved game menu: a compact MENU window of choice buttons (Resume in green, leaving actions in red).
+ * Stable controls read current authority when activated, including after focus changes. */
 export function uiGameMenu(options: UiGameMenuOptions): UiGameMenuElement {
   let model = options.model;
   const status = () => model.pwaUpdateStatus ?? 'unsupported';
-  const definitions: readonly { id: string; label: () => string; tone: () => UiTone;
+  const definitions: readonly { id: string; label: () => string; tone: () => UiMenuTone;
     action: () => UiGameMenuAction; visible?: () => boolean; disabled?: () => boolean }[] = [
-    { id: 'resume', label: () => 'RETURN TO WORLD', tone: () => 'success', action: () => 'resume' },
-    { id: 'outdoor-rewards', label: () => `REWARDS (${model.outdoorRewardCount ?? 0}) [O]`, tone: () => 'warning', action: () => 'outdoor-rewards', visible: () => model.outdoorRewardCount !== undefined },
-    { id: 'settings', label: () => 'SETTINGS', tone: () => 'primary', action: () => 'settings' },
-    { id: 'help', label: () => 'HELP', tone: () => 'primary', action: () => 'help' },
-    { id: 'developer', label: () => 'DEVELOPER', tone: () => 'warning', action: () => 'developer', visible: () => model.canAdministerWorld === true },
-    { id: 'fullscreen', label: () => model.fullscreen && model.fullscreenAvailable !== false ? 'WINDOWED' : 'FULLSCREEN', tone: () => 'info', action: () => 'fullscreen', disabled: () => model.fullscreenAvailable === false },
-    { id: 'update', label: () => pwaUpdateLabel(status()), tone: () => status() === 'available' ? 'success' : 'primary', action: () => status() === 'available' ? 'apply-update' : 'check-update', visible: () => status() !== 'unsupported', disabled: () => status() === 'checking' || status() === 'updating' },
-    { id: 'exit-delve', label: () => 'EXIT DELVE', tone: () => 'danger', action: () => 'exit-delve', visible: () => model.delveActive === true },
-    { id: 'sign-out', label: () => 'SIGN OUT', tone: () => 'danger', action: () => 'sign-out' },
-    { id: 'quit', label: () => 'QUIT TO TITLE', tone: () => 'danger', action: () => 'quit' },
+    { id: 'resume', label: () => 'Resume', tone: () => 'success', action: () => 'resume' },
+    { id: 'outdoor-rewards', label: () => `Rewards (${model.outdoorRewardCount ?? 0})`, tone: () => 'success', action: () => 'outdoor-rewards', visible: () => model.outdoorRewardCount !== undefined },
+    { id: 'settings', label: () => 'Settings', tone: () => 'primary', action: () => 'settings' },
+    { id: 'help', label: () => 'Help', tone: () => 'primary', action: () => 'help' },
+    { id: 'developer', label: () => 'Developer', tone: () => 'primary', action: () => 'developer', visible: () => model.canAdministerWorld === true },
+    { id: 'fullscreen', label: () => model.fullscreen && model.fullscreenAvailable !== false ? 'Windowed' : 'Fullscreen', tone: () => 'primary', action: () => 'fullscreen', disabled: () => model.fullscreenAvailable === false },
+    { id: 'update', label: () => menuUpdateLabel(status()), tone: () => status() === 'available' ? 'success' : 'primary', action: () => status() === 'available' ? 'apply-update' : 'check-update', visible: () => status() !== 'unsupported', disabled: () => status() === 'checking' || status() === 'updating' },
+    { id: 'exit-delve', label: () => 'Exit delve', tone: () => 'danger', action: () => 'exit-delve', visible: () => model.delveActive === true },
+    { id: 'sign-out', label: () => 'Sign out', tone: () => 'danger', action: () => 'sign-out' },
+    { id: 'quit', label: () => 'Quit to title', tone: () => 'danger', action: () => 'quit' },
   ];
-  const buttons = definitions.map(definition => uiButton({ id: `game-menu.${definition.id}`,
-    label: definition.label(), tone: definition.tone(), layout: { width: 'grow', shrink: 0 },
+  const buttons = definitions.map(definition => uiChoiceButton({ id: `game-menu.${definition.id}`,
+    label: definition.label(), tone: definition.tone(), layout: { width: 'grow' },
     onPress: () => {
       if (definition.visible?.() === false || definition.disabled?.()) return;
       options.onAction(definition.action());
     },
   }));
-  const frame = uiFrame({ id: 'game.menu', header: { title: 'GAME MENU', closable: true, onClose: () => options.onAction('resume') },
-    layout: { width: 'grow', height: 'grow', ...options.layout },
-    children: [uiScrollArea({ gap: 4 }, buttons)],
-  });
+  const frame = uiWindow({ id: 'game.menu', title: 'MENU', closeLabel: 'Resume', onClose: () => options.onAction('resume'),
+    layout: { direction: 'column', gap: 2, width: uiFixed(150) }, children: buttons });
+  if (options.layout) frame.setStyle(options.layout);
   const updateGameMenu = (next: UiGameMenuModel) => {
     model = next;
     definitions.forEach((definition, index) => {

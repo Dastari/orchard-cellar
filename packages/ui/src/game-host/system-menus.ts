@@ -72,7 +72,7 @@ export class SystemMenus {
         onTab: tab => { if (tab === 'world' || tab === 'render') this.developerTab = tab; },
         onBack: this.commands.back, onAction: action => { if (this.model?.canAdministerWorld) this.commands.action(action); },
         onTime: value => { if (this.model?.canAdministerWorld) this.commands.time(value); } });
-      this.root.mount(new UiElement({ id: 'game.system-host', style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal' },
+      this.root.mount(new UiElement({ id: 'game.system-host', style: { display: window === 'developer' ? 'stack' : 'flex', justify: 'center', align: 'center', width: 'grow', height: 'grow', zLayer: 'modal' },
         props: { singlePointer: true, touchScroll: true }, children: [this.view], pointerMode: 'capture', onPointer: () => true,
         onKeyCapture: event => {
           if (event.repeat && (event.key === 'Enter' || event.key === ' ')) return true;
@@ -98,13 +98,16 @@ export class SystemMenus {
       }));
     }
     if (window === 'system') (this.view as UiGameMenuElement).updateGameMenu(model);
-    else if (window === 'settings') (this.view as UiSettingsElement).updateSettings(model);
+    else if (window === 'settings') { (this.view as UiSettingsElement).updateSettings(model); (this.view as UiSettingsElement).setSettingsViewport(model.width, model.height); }
     else (this.view as UiDeveloperElement).updateDeveloper(model);
     const width = Math.max(0, Math.min(model.frame.width, model.width - 8)), height = Math.max(0, Math.min(model.frame.height, model.height - 8));
     const frame = { x: Math.max(0, (model.width - width) / 2), y: Math.max(0, (model.height - height) / 2), width, height };
     if (!this.bounds || Object.keys(frame).some(key => frame[key as keyof UiRect] !== this.bounds![key as keyof UiRect])) {
       this.bounds = frame;
-      this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) }, width: uiFixed(frame.width), height: uiFixed(frame.height) });
+      // The approved menu and settings windows fit their content, centred and capped by the viewport;
+      // the developer tools keep the fixed progression frame.
+      if (window === 'developer') this.view.setStyle({ position: 'absolute', inset: { left: uiFixed(frame.x), top: uiFixed(frame.y) }, width: uiFixed(frame.width), height: uiFixed(frame.height) });
+      else this.view.setStyle({ maxWidth: uiFixed(Math.max(0, model.width - 8)), maxHeight: uiFixed(Math.max(0, model.height - 8)) });
     }
     this.root.arrange();
     if (changed) this.focus();
