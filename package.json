@@ -1,6 +1,6 @@
 {
   "name": "orchard-cellar",
-  "version": "0.46.5",
+  "version": "0.47.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -18,6 +18,7 @@
     "assets:validate": "npm run validate -w @orchard/tools",
     "assets:build": "npm run atlas -w @orchard/tools && npm run ui:assets -w @orchard/tools",
     "client:chunks:check": "tsx scripts/check-client-build-chunks.ts",
+    "world:static:readiness": "tsx scripts/static-world-readiness.ts",
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
     "music:render": "npm run music:render -w @orchard/tools --",

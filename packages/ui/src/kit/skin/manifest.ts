@@ -120,6 +120,14 @@ export const UI_SKIN_MANIFEST = {
     "wood": {"asset":"ui_cf_panel_wood","group":"base","index":0,"sizing":"nine_slice","size":[42,41],"slice":[13,12,11,13]},
     "parchment": {"asset":"ui_cf_panel_parchment","group":"base","index":0,"sizing":"nine_slice","size":[32,32],"slice":[8,8,8,8]},
     "thin": {"asset":"ui_cf_frame_thin","group":"base","index":0,"sizing":"nine_slice","size":[28,31],"slice":[6,6,6,7]},
+    // Orchard-authored dark item tooltip in Kenmi frame anatomy; one rim per item quality.
+    "tooltip_dark.neutral": {"asset":"ui_orchard_tooltip_dark","group":"neutral","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
+    "tooltip_dark.poor": {"asset":"ui_orchard_tooltip_dark","group":"poor","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
+    "tooltip_dark.common": {"asset":"ui_orchard_tooltip_dark","group":"common","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
+    "tooltip_dark.uncommon": {"asset":"ui_orchard_tooltip_dark","group":"uncommon","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
+    "tooltip_dark.rare": {"asset":"ui_orchard_tooltip_dark","group":"rare","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
+    "tooltip_dark.epic": {"asset":"ui_orchard_tooltip_dark","group":"epic","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
+    "tooltip_dark.legendary": {"asset":"ui_orchard_tooltip_dark","group":"legendary","index":0,"sizing":"nine_slice","size":[24,26],"slice":[4,4,4,5]},
   },
   feedback: {
     "primary.tail.down": {"asset":"ui_cf_kit_tag_orange","group":"down_right","index":0,"sizing":"fixed","size":[32,36],"crop":[14,26,10,9]},
@@ -537,6 +545,10 @@ export const UI_SKIN_MANIFEST = {
     "button_glyphs.palette_11.0": {"asset":"ui_cf_button_glyphs","group":"palette_11","index":0,"sizing":"fixed","size":[16,16]},
     "button_glyphs.palette_12.0": {"asset":"ui_cf_button_glyphs","group":"palette_12","index":0,"sizing":"fixed","size":[16,16]},
     "button_glyphs.palette_13.0": {"asset":"ui_cf_button_glyphs","group":"palette_13","index":0,"sizing":"fixed","size":[16,16]},
+    // Coin faces for ui.currency; the crop removes the 16×16 cell's empty border.
+    "coin.gold": {"asset":"ui_cf_coin_gold","group":"base","index":0,"sizing":"fixed","size":[16,16],"crop":[1,1,14,14]},
+    "coin.silver": {"asset":"ui_cf_coin_silver","group":"base","index":0,"sizing":"fixed","size":[16,16],"crop":[1,1,14,14]},
+    "coin.bronze": {"asset":"ui_cf_coin_bronze","group":"base","index":0,"sizing":"fixed","size":[16,16],"crop":[1,1,14,14]},
   },
   selector: {
     "selector_catalog.catalog.0": {"asset":"ui_cf_selector_catalog","group":"catalog","index":0,"sizing":"corners","size":[48,48]},

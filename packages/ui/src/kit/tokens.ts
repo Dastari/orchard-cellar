@@ -30,5 +30,24 @@ export const UI_SIZE_METRICS = Object.freeze({
   lg: { controlHeight: 32, iconSize: 24, padding: 6 },
 } as const);
 /** Shape selects authored corners; there is no synthetic border radius. */
+/** Item qualities, poor to legendary, as shown by item tooltips and slots. */
+export const UI_ITEM_QUALITIES = ['poor', 'common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
+export type UiItemQuality = typeof UI_ITEM_QUALITIES[number];
+/**
+ * Inks for text on the dark item tooltip frame (`frame.tooltip_dark.*`). They are
+ * the only text colours allowed there, and each clears 4.5:1 against its face
+ * (see item-inks.test.ts). Tooltip components choose an ink by role; callers never
+ * pass raw colours.
+ */
+export const UI_ITEM_INKS = Object.freeze({
+  quality: Object.freeze({
+    poor: '#9d9d9d', common: '#f4f1e8', uncommon: '#63c74d', rare: '#5a8ee0', epic: '#b56be0', legendary: '#f6b83f',
+  } satisfies Record<UiItemQuality, string>),
+  body: '#f4f1e8',
+  muted: '#a9a3b8',
+  equip: '#63c74d',
+  flavour: '#fee761',
+  unmet: '#f5555d',
+});
 export const UI_MOTION = Object.freeze({ pressedMs: 120, tooltipDelayMs: 500, toastMs: 4000, toggleMs: 160 });
 export const UI_TABLE_DEFAULTS = Object.freeze({ studio: 'virtual', game: 'pagination' } as const);

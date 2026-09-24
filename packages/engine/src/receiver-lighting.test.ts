@@ -13,42 +13,46 @@ const fixed: DirectionalCaster[] = [{ owner: 'tree', worldX: 100, worldY: 100, b
 const moving: DirectionalCaster = { ...fixed[0]!, owner: 'player', worldX: 120, heightSubunits: 5 };
 
 describe('retained static and moving receiver coverage', () => {
-  it('preserves static bytes and every backing array over 600 walking frames inside one retained window', () => {
+  it('keeps the static plane and its bytes untouched over 600 walking frames inside one retained window', () => {
     const scene = new CelestialReceiverScene(4);
     const actor = [moving];
     scene.prepareSplit(sky, fixed, actor, 77);
     const raster = scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4);
     const first = scene.coverageSnapshot()[0]!;
     const staticBytes = { sun: first.static.sun.slice(), moon: first.static.moon.slice(), contact: first.static.contact.slice() };
-    const reference = new CelestialReceiverScene(4);
+    const pixels = raster.pixels.slice(), revision = raster.revision, merges = scene.diagnostics.rgbMerges;
     const warmBuilds = scene.diagnostics.staticCoverageBuilds;
     const warmCounter = renderOperationCounters.coverageFieldRebuilds;
     for (let frame = 0; frame < 600; frame++) {
       actor[0] = { ...moving, worldX: 120 + Math.sin(frame / 60) * 32, worldY: 100 + Math.cos(frame / 60) * 32 };
       scene.prepareSplit(sky, fixed, actor, 77);
       expect(scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4)).toBe(raster);
+      expect(scene.actorShadowStamps(raster, 0).length).toBeGreaterThan(0);
     }
     expect(renderOperationCounters.coverageFieldRebuilds - warmCounter).toBe(0);
     expect(scene.diagnostics.staticCoverageBuilds - warmBuilds).toBe(0);
-    expect(scene.diagnostics.movingCoverageBlits).toBe(601);
-    expect(scene.diagnostics.movingCastersBlitted).toBe(601);
+    expect(scene.diagnostics.rgbMerges).toBe(merges); expect(raster.revision).toBe(revision);
+    expect(scene.diagnostics.movingCoverageBlits).toBe(0);
     const last = scene.coverageSnapshot()[0]!;
-    expect(last.static).toBe(first.static); expect(last.working).toBe(first.working);
-    expect(last.static).toEqual(staticBytes);
-    reference.prepare(sky, [...fixed, ...actor]);
+    expect(last.static).toBe(first.static); expect(last.static).toEqual(staticBytes);
+    expect(raster.pixels).toEqual(pixels);
+    const reference = new CelestialReceiverScene(4);
+    reference.prepare(sky, fixed);
     expect(raster.pixels).toEqual(reference.rasterize(0, 0, 64, 64, 0, 4).pixels);
     // A real window change is a separate, legitimate static invalidation.
     scene.rasterizeCached(1, 128, 0, 64, 64, 0, 4);
     expect(scene.diagnostics.staticCoverageBuilds).toBe(warmBuilds + 1);
   });
 
-  it('blits only moving actors and removes the previous moving contact/shadow when the cohort empties', () => {
+  it('blits moving actors only into raw GPU fields and removes them when the cohort empties', () => {
     const scene = new CelestialReceiverScene(4);
     scene.prepareSplit(sky, fixed, [moving], 1);
     scene.rasterizeCached(1, 64, 64, 32, 32, 0, 4);
+    expect(scene.diagnostics.movingCastersBlitted).toBe(0);
+    scene.rawFieldCached(1, 64, 64, 32, 32, 0, 4);
     expect(scene.diagnostics.movingCastersBlitted).toBe(1);
     scene.prepareSplit(sky, fixed, [], 1);
-    scene.rasterizeCached(1, 64, 64, 32, 32, 0, 4);
+    scene.rawFieldCached(1, 64, 64, 32, 32, 0, 4);
     const coverage = scene.coverageSnapshot()[0]!;
     expect(coverage.working).toEqual(coverage.static);
     expect(scene.diagnostics.staticCoverageBuilds).toBe(1);
@@ -86,6 +90,56 @@ describe('retained static and moving receiver coverage', () => {
       }
       expect(scene.sample({ worldX: x, worldY: y, heightSubunits: 0, receiver: 'flat', owner })).toEqual(resolveReceiverLight(sky, 'flat', 1 - sun, 1 - moon, undefined, contact));
     }
+  });
+
+  it('prepares a new sun angle across frames, then crossfades it in quantized merges', () => {
+    let now = 0;
+    const scene = new CelestialReceiverScene(4, undefined, undefined, { budgetMs: 0, fadeMs: 800, fadeSteps: 4, clock: () => now });
+    const trees = Array.from({ length: 6 }, (_, index) => ({ ...fixed[0]!, owner: index, worldX: 40 + index * 24, heightSubunits: 16 }));
+    const morning = celestialLightingAtCalendar({ continuousDay: 3.5, clockHours: 9, lunarProgress: 0, lunarIllumination: 1 });
+    const afternoon = celestialLightingAtCalendar({ continuousDay: 3.5, clockHours: 15, lunarProgress: 0, lunarIllumination: 1 });
+    // Same RGB, different geometry: only the angle transition may change bytes.
+    const moved = { ...morning, sun: { ...morning.sun, direction: afternoon.sun.direction, altitude: afternoon.sun.altitude } };
+    scene.prepareSplit(morning, trees, [], 1);
+    const before = scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4).pixels.slice();
+    const mergesBefore = scene.diagnostics.rgbMerges, buildsBefore = scene.diagnostics.staticCoverageBuilds;
+    let frames = 0;
+    while (scene.diagnostics.geometrySwaps === 0) {
+      const builds = scene.cache.builds;
+      scene.prepareSplit(moved, trees, [], 1);
+      expect(scene.cache.builds - builds).toBeLessThanOrEqual(2);
+      if (scene.diagnostics.geometrySwaps === 0) expect(scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4).pixels).toEqual(before);
+      expect(++frames).toBeLessThan(20);
+    }
+    // One caster per frame for masks, one clear, then one caster per frame blitted.
+    expect(frames).toBe(trees.length * 2 + 1);
+    expect(scene.diagnostics.geometryBlittedCasters).toBe(trees.length);
+    // The swap flips buffers: no synchronous coverage build or RGB merge.
+    expect(scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4).pixels).toEqual(before);
+    expect(scene.diagnostics.rgbMerges).toBe(mergesBefore);
+    expect(scene.diagnostics.staticCoverageBuilds).toBe(buildsBefore);
+    const reference = new CelestialReceiverScene(4);
+    reference.prepare(moved, trees);
+    const final = reference.rasterize(0, 0, 64, 64, 0, 4).pixels;
+    expect(final).not.toEqual(before);
+    const merges = scene.diagnostics.rgbMerges, seen: Uint8ClampedArray[] = [];
+    for (let frame = 1; frame <= 40; frame++) {
+      now += 25; scene.prepareSplit(moved, trees, [], 1);
+      seen.push(scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4).pixels.slice());
+    }
+    expect(scene.diagnostics.rgbMerges - merges).toBe(4);
+    expect(scene.diagnostics.geometryFadeSteps).toBe(4);
+    // The unchanged step-zero view plus four distinct blend steps.
+    expect(new Set(seen.map((pixels) => pixels.reduce((sum, value, index) => sum + value * (index + 1), 0))).size).toBe(5);
+    expect(seen.at(-1)).toEqual(final);
+    // Target plus the recycled fade buffers are retained for the next angle.
+    expect(scene.retainedCoverageBytes).toBe(64 * 64 * 3 * 3);
+    // A new static set has nothing to fade from and is adopted immediately.
+    scene.prepareSplit(morning, trees.slice(1), [], 2);
+    expect(scene.diagnostics.geometrySwaps).toBe(1);
+    const adopted = new CelestialReceiverScene(4);
+    adopted.prepare(morning, trees.slice(1));
+    expect(scene.rasterizeCached(1, 0, 0, 64, 64, 0, 4).pixels).toEqual(adopted.rasterize(0, 0, 64, 64, 0, 4).pixels);
   });
 
   it('cancels height preparation when a moving generation changes and releases every retained byte', async () => {

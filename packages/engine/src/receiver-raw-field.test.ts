@@ -29,15 +29,18 @@ describe('raw GPU lighting inputs', () => {
     const revision = first.revision;
     expect(scene.rawFieldCached(2, 0, 0, 16, 16, 0, 4, local).revision).toBe(revision + 1);
     expect(local).toHaveBeenCalledTimes(512);
+    // Canvas RGB planes resolve static coverage only; moving bodies are stamps.
     const merged = scene.rasterizeCached(2, 0, 0, 16, 16, 0, 4, local);
+    const fixed = scene.coverageSnapshot()[0]!.static;
+    expect(coverage.sun.some((value, index) => value !== fixed.sun[index])).toBe(true);
     for (let i = 0; i < 256; i++) {
-      const transmission = 1 - coverage.contact[i]! / 255 * 0.18;
+      const transmission = 1 - fixed.contact[i]! / 255 * 0.18;
       for (const [channel, component] of ['r', 'g', 'b'].entries()) {
         const color = component as 'r' | 'g' | 'b';
         expect(merged.pixels[i * 4 + channel]).toBe(Math.max(
           Math.round(first.diffuse[color] * transmission),
-          Math.round(first.sunLight[color] * (1 - coverage.sun[i]! / 255) * transmission),
-          Math.round(first.moonLight[color] * (1 - coverage.moon[i]! / 255) * transmission), pixels[i * 4 + channel]!));
+          Math.round(first.sunLight[color] * (1 - fixed.sun[i]! / 255) * transmission),
+          Math.round(first.moonLight[color] * (1 - fixed.moon[i]! / 255) * transmission), pixels[i * 4 + channel]!));
       }
     }
     for (let left = 0; left < 20; left++) scene.rawFieldCached(1, left * 100, 0, 16, 16, 0, 4, local);
@@ -45,7 +48,7 @@ describe('raw GPU lighting inputs', () => {
     expect(revisited.coverage.sun).toBe(coverage.sun);
     expect(revisited.revision).toBeGreaterThan(first.revision);
     expect(revisited.localPixels[0]).toBe(200);
-    expect(scene.retainedRasterBytes).toBeLessThanOrEqual(8 * 16 * 16 * 7 + merged.pixels.byteLength);
+    expect(scene.retainedRasterBytes).toBeLessThanOrEqual(8 * 16 * 16 * 7 + merged.pixels.byteLength + merged.local.byteLength);
     scene.reset(); expect(scene.retainedRasterBytes + scene.retainedCoverageBytes + scene.retainedMaskBytes).toBe(0);
   });
   it('routes immutable receiver/ground sources and releases page textures on every cohort revision', () => {
@@ -62,7 +65,7 @@ describe('raw GPU lighting inputs', () => {
     world.begin(sky, [], [], new TileLightmap(), 0, 0, 64, 64, 1);
     world.drawReceiver(context, 0, 0, 0, 'flat', () => expect(groundSpriteSource(context, source, 12, 13)).toBe(source));
     expect(associateSource.mock.lastCall?.[1]).toMatchObject({ ground: { worldX: 12, worldY: 13,
-      field: { width: 19, height: 19, step: 4 } } });
+      field: { width: 64, height: 64, step: 4 } } });
     expect(world.scene.diagnostics.rgbMerges).toBe(0); expect(create).not.toHaveBeenCalled();
     expect(() => world.compositeGround(context, 1)).toThrow('webgl_accuracy_unverified_ground_composite');
     const pages = { revision: 1, source: () => source.image };
