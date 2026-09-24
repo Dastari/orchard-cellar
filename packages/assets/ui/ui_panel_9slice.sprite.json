@@ -15,6 +15,10 @@
     4,
     4
   ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "uiSizing": "nine_slice",
   "frames": {
     "base": [
       [

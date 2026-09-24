@@ -2,8 +2,7 @@ import type { LoadedAsset } from '../../assets.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, uiOffset, type UiStyle } from '../layout/box.js';
 import type { UiTone } from '../tokens.js';
-import { paintUiDarkFrame } from './feedback-game.js';
-import { UI_ITEM_INKS } from '../tokens.js';
+import { paintUiSkin } from './art.js';
 import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiSprite } from './media.js';
@@ -12,7 +11,15 @@ export interface UiWorldHint {
   readonly tone: UiTone; readonly progress?: number; readonly artwork?: LoadedAsset;
 }
 export interface UiWorldHintOptions { readonly hint?: UiWorldHint | null; readonly layout?: UiStyle }
-/** A projected anchor is data; the kit owns wrapping, frame geometry and clipping. */
+/** The classic hover card inks: dark title, then a brown class line, the green status and muted odds/detail. */
+export const UI_WORLD_HINT_INKS = Object.freeze({ title: '#2b1d0e', subtitle: '#8a5a2b', status: '#315c35', muted: '#836f58' });
+function lineInks(count: number): readonly string[] {
+  // Mining and fishing read class, status, odds; crops and machines read status, time, detail.
+  return count >= 3 ? [UI_WORLD_HINT_INKS.subtitle, UI_WORLD_HINT_INKS.status, UI_WORLD_HINT_INKS.muted] : [UI_WORLD_HINT_INKS.status, UI_WORLD_HINT_INKS.subtitle, UI_WORLD_HINT_INKS.muted];
+}
+/** A projected anchor is data; the kit owns wrapping, frame geometry and clipping. The card is the classic
+ * wood-rimmed parchment panel: an icon well on the left (the object's art, or the crop timer filling with its
+ * progress), a dark caps title and role-coloured detail lines, and a slim progress track at its foot. */
 export function uiWorldHint(options: UiWorldHintOptions = {}): UiElement {
   let key = '', artwork: LoadedAsset | undefined, panel: UiElement | undefined, meter: UiElement | undefined;
   return new UiElement({ kind: 'world-hint', props: { hint: options.hint ?? null },
@@ -21,25 +28,37 @@ export function uiWorldHint(options: UiWorldHintOptions = {}): UiElement {
       const hint = element.props['hint'] as UiWorldHint | null;
       if (!hint || !Number.isFinite(hint.x + hint.y)) { panel?.setStyle({ visible: false }); return { min: { width: 0, height: 0 }, preferred: available }; }
       const compact = available.width < 280 || available.height < 160;
-      const next = JSON.stringify([hint.title, hint.lines, hint.tone, hint.progress !== undefined, compact]);
+      const next = JSON.stringify([hint.title, hint.lines, hint.tone, hint.progress !== undefined, compact, Boolean(hint.artwork)]);
       if (!panel || key !== next || artwork !== hint.artwork) {
         panel?.dispose(); key = next; artwork = hint.artwork;
-        // The approved dark hover card: gold title, cream lines, an optional item and a thin progress bar.
         const fill = hint.tone === 'danger' ? '#e43b44' : hint.tone === 'warning' ? '#feae34' : '#63c74d';
-        meter = hint.progress === undefined ? undefined : new UiElement({ kind: 'meter', label: 'Progress', props: { value: hint.progress }, style: { height: uiFixed(4), alignSelf: 'stretch', shrink: 0 },
-          paint(element, { context }) { const r = element.rect, value = Math.max(0, Math.min(1, Number(element.props['value']) || 0)); context.fillStyle = '#3a3150'; context.fillRect(r.x, r.y, r.width, r.height); context.fillStyle = fill; context.fillRect(r.x, r.y, Math.round(r.width * value), r.height); } });
-        const inked = (text: string, ink: string) => uiText(text, { wrap: true, layout: { alignSelf: 'stretch' } }).setProps({ ink });
-        panel = new UiElement({ kind: 'world-hover', label: hint.title, props: { itemInks: true },
-          style: { display: 'flex', direction: 'column', gap: compact ? 2 : 4, padding: 6, position: 'absolute', height: 'fit', anchor: { target: 'top_left', self: 'bottom' } },
-          children: [uiFlex({ direction: 'row', gap: 4, align: 'center', alignSelf: 'stretch' }, [
-            ...(hint.artwork ? [uiSprite(hint.artwork, { label: hint.title, animation: 'base', playing: false, layout: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, fit: 'contain' })] : []),
-            inked(hint.title, UI_ITEM_INKS.flavour)]),
-            ...hint.lines.map(line => inked(line, UI_ITEM_INKS.body)), ...(meter ? [meter] : [])],
-          paint(element, { context, art }) { paintUiDarkFrame(element, context, art); } });
+        meter = hint.progress === undefined ? undefined : new UiElement({ kind: 'meter', label: 'Progress', props: { value: hint.progress },
+          style: { height: uiFixed(4), alignSelf: 'stretch', shrink: 0 },
+          paint(element, { context }) {
+            const r = element.rect, value = Math.max(0, Math.min(1, Number(element.props['value']) || 0));
+            context.fillStyle = '#6b4423'; context.fillRect(r.x, r.y, r.width, r.height);
+            context.fillStyle = '#c9a57a'; context.fillRect(r.x + 1, r.y + 1, r.width - 2, r.height - 2);
+            context.fillStyle = fill; context.fillRect(r.x + 1, r.y + 1, Math.round((r.width - 2) * value), r.height - 2);
+          } });
+        const inked = (text: string, ink: string) => uiText(text.toUpperCase(), { wrap: true, layout: { alignSelf: 'stretch' } }).setProps({ ink });
+        const inks = lineInks(hint.lines.length);
+        const icon = hint.artwork
+          ? uiSprite(hint.artwork, { label: hint.title, animation: 'base', playing: false, layout: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, fit: 'contain' })
+          : hint.progress !== undefined ? new UiElement({ kind: 'glyph', label: 'Progress timer', style: { width: uiFixed(16), height: uiFixed(16), shrink: 0 },
+            paint(element, { context, art }) {
+              const value = Math.max(0, Math.min(1, Number(meter?.props['value']) || 0));
+              if (art) paintUiSkin(context, art.skin.feedback, `crop_timer.base.${Math.min(15, Math.floor(value * 16))}`, element.rect);
+            } }) : undefined;
+        panel = new UiElement({ kind: 'world-hover', label: hint.title,
+          style: { display: 'flex', direction: 'row', gap: 4, align: 'center', padding: { left: 6, right: 8, top: 6, bottom: 6 }, position: 'absolute', height: 'fit', anchor: { target: 'top_left', self: 'bottom' } },
+          children: [...(icon ? [icon] : []), uiFlex({ direction: 'column', gap: compact ? 0 : 2, grow: 1, shrink: 1, alignSelf: 'stretch', justify: 'center' }, [
+            inked(hint.title, UI_WORLD_HINT_INKS.title), ...hint.lines.map((line, index) => inked(line, inks[Math.min(index, inks.length - 1)]!)), ...(meter ? [meter] : [])])],
+          paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.feedback, 'panel_classic.base.0', element.rect); } });
         element.append(panel);
       }
-      if (meter && meter.props['value'] !== hint.progress) meter.setProps({ value: hint.progress }, false);
-      const width = Math.min(160, Math.max(72, Math.max(hint.title.length + (hint.artwork ? 3 : 0), ...hint.lines.map(line => line.length)) * 6 + 13));
+      if (meter && meter.props['value'] !== hint.progress) { meter.setProps({ value: hint.progress }, false); panel.invalidate(); }
+      const chars = Math.max(hint.title.length, ...hint.lines.map(line => line.length));
+      const width = Math.min(220, Math.max(96, chars * 6 + (hint.artwork || hint.progress !== undefined ? 36 : 15)));
       panel.setStyle({ visible: true, width: uiFixed(Math.max(0, Math.min(width, available.width))), maxHeight: uiFixed(available.height),
         inset: { left: uiOffset(hint.x), top: uiOffset(hint.y) } });
       return { min: { width: 0, height: 0 }, preferred: available };
