@@ -28,9 +28,18 @@ mkdir -p -- "$work"
 for file in package.json package-lock.json tsconfig.base.json vitest.config.ts eslint.config.js; do
   cp -- "$repository/$file" "$work/$file"
 done
-for tree in packages scripts ui ops; do
+for tree in packages scripts ops; do
   rsync -a --exclude=node_modules --exclude=dist "$repository/$tree/" "$work/$tree/"
 done
+# Older reviewed revisions may include this reference tree. Documentation
+# retirement removed it from current source; keep it covered when it exists.
+if [[ -e "$repository/ui" || -L "$repository/ui" ]]; then
+  if [[ ! -d "$repository/ui" || -L "$repository/ui" ]]; then
+    printf 'Legacy ui source must be a real directory.\n' >&2
+    exit 65
+  fi
+  rsync -a --exclude=node_modules --exclude=dist "$repository/ui/" "$work/ui/"
+fi
 # Materialize only the known shared public-resource links inside the snapshot.
 # The manifest rejects any other symlinks instead of reading an external source.
 for app in client studio; do

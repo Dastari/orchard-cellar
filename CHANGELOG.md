@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Workspace 0.46.2 — Studio staging after documentation retirement (not yet deployed)
+
+- Allow guarded Studio staging from current reviewed source without the retired root UI reference directory. If legacy references are present, copy and fingerprint them with symlink and mutation checks intact.
+- Preserve mandatory source trees, the UI-kit guard, locked dependencies and source-before/after equality. Game0.40.1, Studio0.15.1 and world0.25.0 remain the proposed application versions.
+
 ## Client 0.40.1 / UI 0.41.1 / Studio 0.15.1 — Compact chat keyboard clearance (not yet deployed)
 
 - Keep the complete native chat editor and command suggestion row visible when compact touch controls and the software keyboard share a short viewport. Preserve active composition, completion, dismissal and command ownership.
