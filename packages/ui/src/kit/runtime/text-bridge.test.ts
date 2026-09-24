@@ -2,7 +2,57 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { CanvasTextEditor } from '../../studio/canvas-text-editor.js';
 import { uiInput } from '../components/input.js';
 import { UiTextBridge } from './text-bridge.js';
+import { UiRoot } from './root.js';
+import { uiTrade } from '../components/trade.js';
+import { bootstrapContentRegistry, BRONZE_PER_GOLD } from '@orchard/sim';
 afterEach(() => vi.unstubAllGlobals());
+
+it('sets each trade money keyboard hint before native focus and resets it for ordinary text', () => {
+  const focusModes: string[] = [];
+  const documentStub = { activeElement: null as unknown, body: { append() {} }, createElement: () => new Input() };
+  class Input extends EventTarget {
+    style = {}; dataset = {}; value = ''; inputMode = ''; tabIndex = 0; spellcheck = false; readOnly = false;
+    focus() { focusModes.push(this.inputMode); documentStub.activeElement = this; }
+    setAttribute() {} setSelectionRange() {} remove() {}
+  }
+  const canvas = { focus() { documentStub.activeElement = canvas; } } as unknown as HTMLCanvasElement;
+  vi.stubGlobal('document', documentStub);
+  const root = new UiRoot({ scale: 1 }); root.resize(800, 600);
+  const offerBronze = vi.fn(), self = { toHexString: () => 'self' }, peer = { toHexString: () => 'peer' };
+  const frame = root.mount(uiTrade({ model: {
+    contentRegistry: bootstrapContentRegistry(), identityHex: 'self', requesterName: 'Mara', recipientName: 'Toby',
+    walletBronze: 1_000_000n, offers: [], inventorySlots: [], session: { id: 'trade', requester: self, recipient: peer,
+      state: 'active', requesterAccepted: false, recipientAccepted: false, requesterBronze: 0n, recipientBronze: 0n, revision: 0n, createdTick: 0n },
+  }, callbacks: { offerBronze, acceptRequest: vi.fn(), declineRequest: vi.fn(), cancel: vi.fn(),
+    offerItem: vi.fn(), removeItem: vi.fn(), setAccepted: vi.fn() } }));
+  root.arrange();
+  const bridge = new UiTextBridge(canvas, () => root.focus.current, event => root.key(event), node => node.rect, () => root.invalidate());
+  try {
+    for (const denomination of ['gold', 'silver', 'bronze']) {
+      const field = root.entries().find(entry => entry.element.id === `trade.money.${denomination}`)!.element;
+      root.focus.set(field); bridge.sync(); expect(bridge.input.inputMode).toBe('numeric');
+      expect(focusModes.at(-1)).toBe('numeric');
+      if (denomination === 'gold') {
+        const editor = field.props['editor'] as CanvasTextEditor; editor.setSelection(0, 1);
+        const paste = Object.assign(new Event('paste', { bubbles: true, cancelable: true }), {
+          clipboardData: { getData: () => '12x', setData() {} },
+        });
+        bridge.input.dispatchEvent(paste); expect(paste.defaultPrevented).toBe(true);
+        expect(editor.snapshot().value).toBe('12'); expect(offerBronze).not.toHaveBeenCalled();
+        bridge.input.dispatchEvent(Object.assign(new Event('keydown', { bubbles: true, cancelable: true }), { key: 'Enter' }));
+        expect(offerBronze).toHaveBeenCalledExactlyOnceWith('trade', 12n * BRONZE_PER_GOLD);
+      }
+    }
+    frame.dispose();
+    const name = root.mount(uiInput({ label: 'Name', value: 'Mara' })); root.arrange(); root.focus.set(name); bridge.sync();
+    expect(bridge.input.inputMode).toBe('text'); expect(focusModes.at(-1)).toBe('text');
+    expect(bridge.input.value).toBe('Mara');
+    name.setProps({ inputMode: 'search' }); bridge.sync(); expect(bridge.input.inputMode).toBe('search');
+    name.setProps({ inputMode: undefined }); bridge.sync(); expect(bridge.input.inputMode).toBe('text');
+    name.setProps({ inputMode: 'numeric' }); bridge.sync();
+    root.focus.set(null); bridge.sync(); expect(bridge.input.inputMode).toBe('text'); expect(documentStub.activeElement).toBe(canvas);
+  } finally { bridge.dispose(); root.dispose(); }
+});
 
 function editingFixture() {
   const documentStub = { activeElement: null as unknown, body: { append() {} }, createElement: () => new Input() };

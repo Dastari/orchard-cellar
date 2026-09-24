@@ -49,7 +49,8 @@ describe('overworld UI compositing order', () => {
     const pointerMoveStart = main.indexOf("canvas.addEventListener('pointermove'");
     const pointerMoveEnd = main.indexOf("canvas.addEventListener('pointerleave'", pointerMoveStart);
     const pointerMove = main.slice(pointerMoveStart, pointerMoveEnd);
-    expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf('tradeUi.pointerMove'));
+    expect(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'player-trade')")).toBeGreaterThan(0);
+    expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf("retainedPointers.dispatch('move', event, 'player-trade')"));
     expect(pointerMove.indexOf('overworldUi.systemCursorMove')).toBeLessThan(pointerMove.indexOf('npcInteractionUi.pointerMove'));
 
     const blurStart = main.indexOf("window.addEventListener('blur'");

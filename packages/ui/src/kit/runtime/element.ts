@@ -9,7 +9,7 @@ export interface UiElementPointer {
   capture(): void; release(): void;
 }
 export interface UiElementWheel { readonly point: UiPoint; readonly deltaX: number; readonly deltaY: number }
-export interface UiElementKey { readonly key: string; readonly shiftKey?: boolean; readonly altKey?: boolean; readonly ctrlKey?: boolean; readonly metaKey?: boolean }
+export interface UiElementKey { readonly key: string; readonly repeat?: boolean; readonly shiftKey?: boolean; readonly altKey?: boolean; readonly ctrlKey?: boolean; readonly metaKey?: boolean }
 export interface UiPaintContext {
   readonly art?: UiKitArt; readonly context: CanvasRenderingContext2D; readonly now: number; readonly focused: boolean;
   readonly hovered: boolean; readonly reducedMotion: boolean;
