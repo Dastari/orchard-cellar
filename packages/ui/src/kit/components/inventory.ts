@@ -76,6 +76,8 @@ export interface UiInventoryCell { readonly id: string; readonly index?: number;
 export interface UiInventoryGridOptions {
   readonly id?: string; readonly container: string; readonly cells?: readonly UiInventoryCell[]; readonly count?: number;
   readonly columns?: number | 'auto'; readonly slotSize?: UiControlSize | 'auto'; readonly gap?: 0 | 2 | 4;
+  /** Logical recipes must retain their authored rows/columns when compact. */
+  readonly fixedColumns?: boolean;
   readonly controller?: UiInventoryController; readonly artwork?: UiSlotOptions['artwork']; readonly layout?: UiStyle; readonly hotkeys?: boolean;
   /** Read-only HUD snapshots do not own an inventory transfer controller. */
   readonly stack?: (index: number) => ItemStack | null;
@@ -89,22 +91,24 @@ export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
   const gap = options.gap ?? 2; let previous = '';
   const grid = new UiElement({ id: options.id, kind: 'inventory-grid', props: { container: options.container }, style: { display: 'grid', columns: 'auto', columnWidth: uiFixed(28), minColumnWidth: uiFixed(28), rowHeight: uiFixed(31), width: 'grow', ...options.layout, gap, columnGap: gap, rowGap: gap },
     measure(element, available) {
+      const count = element.children.filter(child => child.visible).length;
       const requested = options.columns === undefined || options.columns === 'auto' ? Infinity : Math.max(1, options.columns);
       let factor = options.slotSize === 'lg' ? 3 : options.slotSize === 'md' ? 2 : 1;
       if (options.slotSize === 'auto' && Number.isFinite(available.height)) for (const candidate of [3, 2, 1]) {
         const width = 28 * candidate, height = 31 * candidate;
         const columns = Math.max(1, Math.min(requested, Math.floor((available.width + gap) / (width + gap))));
-        if (Math.ceil(cells.length / columns) * (height + gap) - gap <= available.height && width <= available.width) { factor = candidate; break; }
+        if (Math.ceil(count / columns) * (height + gap) - gap <= available.height && width <= available.width) { factor = candidate; break; }
       }
       const width = 28 * factor, slotHeight = 31 * factor;
-      const columns = Math.max(1, Math.min(cells.length || 1, requested, Math.floor((available.width + gap) / (width + gap))));
+      const columns = options.fixedColumns && Number.isFinite(requested) ? requested
+        : Math.max(1, Math.min(count || 1, requested, Math.floor((available.width + gap) / (width + gap))));
       const key = `${factor}:${columns}`;
       if (key !== previous) { previous = key; element.setStyle({ columns, columnWidth: uiFixed(width), minColumnWidth: uiFixed(width), rowHeight: uiFixed(slotHeight) });
         for (const child of element.children) child.setStyle({ width: uiFixed(width), height: uiFixed(slotHeight) });
         element.setProps({ columns, slotScale: factor, slotWidth: width, slotHeight }, false);
       }
-      const height = Math.max(0, Math.ceil(cells.length / columns) * (slotHeight + gap) - gap);
-      return { min: { width: Math.min(width, available.width), height: slotHeight }, preferred: { width: columns * (width + gap) - gap, height } };
+      const height = Math.max(0, Math.ceil(count / columns) * (slotHeight + gap) - gap);
+      return { min: { width: options.fixedColumns ? columns * (width + gap) - gap : Math.min(width, available.width), height: slotHeight }, preferred: { width: columns * (width + gap) - gap, height } };
     }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
   }); return grid;
 }

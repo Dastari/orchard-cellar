@@ -2,6 +2,37 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.2 / UI 0.27.2 — Cancelled pointer ownership (not yet deployed)
+
+- Fix BUG-019: a captured list row that disappears or moves during an update cannot pass its old release to a replacement row. Explicit scope/reconnect cancellation also suppresses the old pointer tail.
+- Keep suppression per pointer until release, cancellation or a fresh press; retain valid scrollbar and touch-scroll ownership. Workspace 0.31.2.
+
+## Client 0.25.0 / UI 0.27.0 — Shared player trade (not yet deployed)
+
+- Use the shared trade composition with live escrow, revision and wallet models; retain server authority and one command per gesture.
+- Preserve exact bigint money, draft focus through ordinary updates, stale-revision rejection, touch ownership and reconnect draft reset. Remove the old trade renderer and three native input paths.
+- Exclude inaccessible equipment/crafting/backpack slots from trade offers (BUG-018). The actual production wrapper is checked against a two-identity reducer harness.
+- Workspace 0.31.0. Seven of 33 surfaces are wired in the combined source; browser, final CI and live acceptance remain pending.
+
+## Client 0.24.0 / UI 0.26.0 — Shared inventory and storage windows (not yet deployed)
+
+- Bind inventory, crafting, chest and barrel windows to the shared kit compositions while retaining the existing inventory authority, cursor prediction and command transport.
+- Keep the crafting grid at 3×3, chest at 16 slots and barrel at 8. Search never renumbers slots; shared chest filtering, cursor-aware sort, restrictions and authoritative timing remain intact.
+- Resolve touch scrolling before pickup, preserve one pointer owner across slots and background, and retain filter Escape/Enter behavior through resize and reconnect.
+- Keep roster controls responsive above inventory and suppress repeated activation keys without affecting text editing.
+- Workspace 0.30.0. Six of 33 surfaces are wired in the combined source; final checks and live acceptance remain pending in the [release ledger](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24).
+
+## Client 0.23.0 / UI 0.25.0 — Retained name gate and quest tracker (not yet deployed)
+
+- Use the shared kit's character-name gate and quest tracker in the game with real naming and pinned-quest models. Keep pending/error handling, required naming, focus, tracker collapse and saved position across resizing.
+- Route retained input within the existing game canvas and frame loop, preserve native IME/clipboard, and cancel captured gestures without replaying releases through recovery or other overlays.
+- Game 0.23.0 / UI 0.25.0. These are the first two production hosts in the [33-surface migration](https://wiki.orchard.dastari.net/Roadmap/UI%20UX%20Release%20Acceptance%202026-09-24); remaining hosts and live acceptance are pending.
+
+## 0.28.1 — Touch inventory fix (not yet deployed)
+
+- Fixed gradual vertical touch swipes picking up an inventory item before scrolling began. Horizontal dragging, taps, scroll boundaries and held-cursor interactions retain one command per gesture.
+- Game 0.22.3 / UI 0.24.1. Regression and local reproduction tracked in [BUG-017](https://wiki.orchard.dastari.net/Bugs/BUG-017%20Inventory%20pickup%20can%20precede%20touch%20scroll%20ownership).
+
 ## 0.28.0 — UI release integration (not yet deployed)
 
 - Preserve pointer type and modifiers, scope dispatch around remaining legacy surfaces, and admit concrete shared kit modules while excluding Studio and lab factories from game bundles.
