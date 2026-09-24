@@ -161,6 +161,24 @@ describe('production build palette retained host', () => {
     unregister(); runtime.dispose(); palette.dispose(); expect(palette.root.disposed).toBe(true);
   });
 
+  it('drains one purchase for a held activation key through the production runtime', () => {
+    const upgrade = Object.values(bootstrapContentRegistry().compiled.upgrades)[0]!, requests: string[] = [];
+    const palette = fixture({ ...base, furnishing: false, upgrades: [upgrade] }, () => {
+      const request = palette.takePurchaseRequest(); if (request) requests.push(request);
+    });
+    const runtime = new GameUiRuntime();
+    runtime.register({ id: 'build-palette', priority: 200, root: palette.root, active: () => true, blocking: () => false });
+    runtime.focus('build-palette'); palette.root.focus.set(control(palette, `upgrade.${upgrade.kind}`));
+    try {
+      expect(runtime.key({ key: 'Enter' }, 'build-palette')).toBe(true);
+      expect(runtime.key({ key: 'Enter', repeat: true }, 'build-palette')).toBe(true);
+      expect(runtime.key({ key: 'Enter', repeat: true }, 'build-palette')).toBe(true);
+      expect(requests).toEqual([upgrade.kind]);
+      runtime.key({ key: 'Enter', repeat: false }, 'build-palette');
+      expect(requests).toEqual([upgrade.kind, upgrade.kind]);
+    } finally { runtime.dispose(); }
+  });
+
   it.each(['catalogue', 'empty', 'construction', 'review', 'pending', 'expansion', 'locked', 'error'] as const)('renders real %s art with 5x7 glyphs across compact/wide scales and fractional DPR', view => {
     const directory = process.env['ORCHARD_BUILD_PALETTE_EVIDENCE'];
     for (const scale of [1, 2, 3]) for (const dpr of [1, 1.25]) for (const width of [320, 640]) {

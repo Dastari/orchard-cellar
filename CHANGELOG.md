@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.27.0 / UI 0.29.0 — Shared build palette (not yet deployed)
+
+- Adopt the shared build palette using real furniture, construction, upgrade and residence models; preserve existing transport and authoritative rejection handling.
+- Route pointer, touch, wheel and keyboard actions through the common retained runtime, including held-key deduplication and scope cancellation. Retire the legacy palette draw/input paths together.
+- Preserve compact/wide layout, font_5x7 chrome and world input outside the palette. Workspace0.33.0.
+
 ## Client 0.26.0 / UI 0.28.0 — Shared processor windows (not yet deployed)
 
 - Adopt the shared authored furnace, cooking, press and fermentation compositions through their actual content-window routes, retaining the existing inventory authority and slot restrictions.

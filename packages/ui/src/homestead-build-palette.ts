@@ -49,7 +49,7 @@ export class HomesteadBuildPalette {
     this.palette = this.createPalette(); this.root.mount(this.palette); this.refresh();
   }
   private createPalette(): ReturnType<typeof uiBuildPalette> {
-    return uiBuildPalette({ model: { ...this.model, selection: this.selected }, artwork: this.itemArt,
+    const palette = uiBuildPalette({ model: { ...this.model, selection: this.selected }, artwork: this.itemArt,
       onSelect: selection => {
         if (this.model.constructionPending || selection.kind === 'move' && !this.model.furnishing) return;
         if (selection.kind === 'place' && !this.model.entries.some(entry => entry.itemKind === selection.itemKind)) return;
@@ -70,6 +70,8 @@ export class HomesteadBuildPalette {
       },
       onAction: action => this.action(action),
     });
+    palette.setProps({ touchScroll: true, singlePointer: true }, false);
+    return palette;
   }
 
   get selection(): HomesteadBuildSelection { return this.selected; }
@@ -98,7 +100,7 @@ export class HomesteadBuildPalette {
     }
     if (scopeChanged) {
       this.purchaseRequest = null; this.undoMoveRequested = false; this.constructionApply = false; this.constructionCancel = false;
-      this.root.input.clearHover(); this.root.focus.set(null);
+      this.root.input.cancelPointers(); this.root.input.clearHover(); this.root.focus.set(null);
     }
     this.model = model;
     // A new identity/session/space invalidates captured controls from the old scope.
