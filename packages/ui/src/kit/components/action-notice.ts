@@ -11,16 +11,17 @@ export interface UiActionNoticeOptions {
   readonly onDismiss: () => void;
   readonly activateOn?: 'down' | 'up';
   readonly compact?: boolean;
+  readonly dense?: boolean;
   readonly layout?: UiStyle;
 }
 /** A controlled announcement: the host owns its lifetime and action. */
 export function uiActionNotice(options: UiActionNoticeOptions) {
   const tone = options.tone ?? 'info';
-  return uiFrame({ id: options.id, tone, style: 'thin', blockInput: true,
+  return uiFrame({ id: options.id, tone, style: 'thin', blockInput: true, padding: options.dense ? 0 : undefined,
     layout: { direction: 'row', gap: 4, width: 'grow', height: 'fit', ...options.layout },
-    children: [uiButton({ id: `${options.id}:open`, label: options.message, tone, activateOn: options.activateOn ?? 'down',
+    children: [uiButton({ id: `${options.id}:open`, label: options.message, tone, size: options.dense ? 'sm' : undefined, activateOn: options.activateOn ?? 'down',
       onPress: options.onOpen, layout: { width: 'grow' } }),
-    uiButton({ id: `${options.id}:dismiss`, label: options.compact ? 'X' : 'Dismiss', ariaLabel: 'Dismiss notice', tone,
+    uiButton({ id: `${options.id}:dismiss`, label: options.compact ? 'X' : 'Dismiss', ariaLabel: 'Dismiss notice', tone, size: options.dense ? 'sm' : undefined,
       activateOn: options.activateOn ?? 'down', onPress: options.onDismiss, layout: { width: uiFixed(options.compact ? 28 : 64), shrink: 0 } })],
   });
 }

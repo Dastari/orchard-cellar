@@ -20,6 +20,8 @@ export interface GameFeedbackLabel {
   /** Bottom-center in the safe-area logical viewport. */
   readonly anchor: UiPoint;
   readonly tone?: UiTone;
+  /** Optional projected clearance above equipment slots. */
+  readonly maxHeight?: number;
 }
 export interface GameSkillNotice {
   readonly id: string; readonly track: string; readonly points: number;
@@ -67,7 +69,8 @@ export class GameFeedback {
   readonly roots: Readonly<Record<'world' | 'hud' | 'notice', UiRoot>>;
   private model: GameFeedbackModel | null = null;
   private readonly names = uiNameplates();
-  private readonly feedback = uiWorldFeedback();
+  private readonly quests = uiWorldFeedback();
+  private readonly damage = uiWorldFeedback();
   private readonly speech = uiWorldSpeech();
   private readonly hint = uiWorldHint();
   private readonly fishing = uiMeter({ id: 'game.feedback.fishing', label: 'Fishing cast', value: 0, variant: 'resource', tone: 'success',
@@ -76,6 +79,7 @@ export class GameFeedback {
   private notice: UiElement | null = null;
   private noticeKey = '';
   private noticeUsed = false;
+  private noticeFits = true;
   constructor(art: UiKitArt, private readonly callbacks: GameFeedbackCallbacks) {
     this.roots = {
       world: new UiRoot({ art, scale: 1, label: 'World feedback' }),
@@ -83,11 +87,11 @@ export class GameFeedback {
       notice: new UiRoot({ art, scale: 1, label: 'Skill point notice' }),
     };
     this.roots.world.mount(new UiElement({ kind: 'feedback-world', style: { display: 'stack', width: 'grow', height: 'grow' },
-      children: [this.names, this.fishing, this.feedback, this.hint, this.speech] }));
+      children: [this.names, this.fishing, this.quests, this.hint, this.damage, this.speech] }));
     this.labels = { prompt: feedbackLabel('prompt'), toast: feedbackLabel('toast'), tooltip: feedbackLabel('tooltip') };
     for (const label of Object.values(this.labels)) this.roots.hud.mount(label);
   }
-  get noticeVisible(): boolean { return this.notice !== null; }
+  get noticeVisible(): boolean { return this.notice !== null && this.noticeFits; }
   get noticeActive(): boolean { return this.noticeVisible && !this.noticeUsed; }
   setBounds(bounds: GameFeedbackBounds, dpr = 1): void {
     this.roots.world.resize(bounds.worldWidth, bounds.worldHeight, dpr);
@@ -99,7 +103,8 @@ export class GameFeedback {
     this.model = model;
     for (const root of Object.values(this.roots)) root.reducedMotion = model.reducedMotion ?? false;
     this.names.setProps({ labels: model.world.nameplates });
-    this.feedback.setProps({ entries: model.world.feedback });
+    this.quests.setProps({ entries: model.world.feedback.filter(entry => entry.kind === 'quest') });
+    this.damage.setProps({ entries: model.world.feedback.filter(entry => entry.kind === 'damage') });
     this.speech.setProps({ messages: model.world.speech });
     this.hint.setProps({ hint: model.world.hint });
     const fishing = model.world.fishing;
@@ -110,33 +115,52 @@ export class GameFeedback {
     const notice = model.hud.notice;
     const key = JSON.stringify([model.sessionKey, notice?.id, notice?.track, notice?.points]);
     if (key !== this.noticeKey) {
-      this.noticeKey = key; this.noticeUsed = false;
+      this.noticeKey = key; this.noticeUsed = false; this.noticeFits = true;
       this.roots.notice.input.cancelPointers(); this.roots.notice.focus.set(null);
       this.notice?.dispose(); this.notice = null;
       if (notice) {
         const scope: GameSkillNoticeScope = { sessionKey: model.sessionKey, noticeId: notice.id, track: notice.track, points: notice.points };
         const message = notice.points === 1 ? `NEW ${notice.track.toUpperCase()} SKILL POINT · OPEN`
           : `${notice.points} NEW ${notice.track.toUpperCase()} SKILL POINTS · OPEN`;
-        const panel = uiActionNotice({ id: 'game.feedback.notice', message, tone: 'success', activateOn: 'up', compact: true,
+        let dense = false, normalHeight = 0;
+        const makePanel = () => uiActionNotice({ id: 'game.feedback.notice', message, tone: 'success', activateOn: 'up', compact: true, dense,
           onOpen: () => this.activate(key, scope, true), onDismiss: () => this.activate(key, scope, false),
           layout: { position: 'absolute', width: 'grow', height: 'fit' } });
+        let panel = makePanel();
         this.notice = this.roots.notice.mount(new UiElement({ id: 'game.feedback.notice-host',
           style: { display: 'stack', width: 'grow', height: 'grow' }, props: { singlePointer: true }, children: [panel],
           onKeyCapture: event => !!event.repeat && ['Enter', ' ', 'ContextMenu'].includes(event.key),
-          measure: (_element, available) => {
+          measure: (element, available) => {
             const width = Math.max(0, Math.min(390, available.width - 12));
+            panel.setStyle({ visible: true, width: uiFixed(width), height: 'fit' });
+            if (!dense) normalHeight = measureUiElement(panel, { width, height: Math.max(100, available.height) }).preferred.height;
+            // HUD is arranged first. Rejection text has priority over the optional notice.
+            const toast = this.model?.hud.toast ? this.labels.toast.bounds() : null;
+            const budget = Math.max(0, Math.min(available.height, toast ? toast.y - 4 : available.height));
+            const nextDense = budget < normalHeight;
+            if (nextDense !== dense) {
+              const focusId = this.roots.notice.focus.current?.id;
+              this.roots.notice.input.cancelPointers(); panel.dispose();
+              dense = nextDense; panel = makePanel(); element.append(panel);
+              if (focusId) this.roots.notice.entries().find(row => row.element.id === focusId)?.element.requestFocus();
+            }
+            const fits = budget >= 16;
+            if (this.noticeFits && !fits) { this.roots.notice.input.cancelPointers(); this.roots.notice.focus.set(null); }
+            this.noticeFits = fits;
             const open = this.roots.notice.entries().find(({ element }) => element.id === 'game.feedback.notice:open')?.element;
-            open?.setProps({ label: width < 120 ? 'OPEN' : width < 200 ? `SKILLS +${notice.points}` : message });
-            panel.setStyle({ width: uiFixed(width), height: 'fit' });
-            const height = Math.min(available.height, measureUiElement(panel, { width, height: available.height }).preferred.height);
+            open?.setProps({ label: dense || width < 120 ? 'OPEN' : width < 200 ? `SKILLS +${notice.points}` : message });
+            panel.setStyle({ visible: fits, width: uiFixed(width), height: 'fit' });
+            const height = Math.min(budget, measureUiElement(panel, { width, height: available.height }).preferred.height);
             const y = this.model?.hud.notice?.y ?? 0;
             panel.setStyle({ height: uiFixed(height), inset: { left: uiFixed((available.width - width) / 2),
-              top: uiFixed(Math.max(0, Math.min(available.height - height, Number.isFinite(y) ? y : 0))) } });
+              top: uiFixed(Math.max(0, Math.min(available.height - height, toast ? toast.y - height - 4 : Infinity, Number.isFinite(y) ? y : 0))) } });
             return { min: { width: 0, height: 0 }, preferred: available };
           },
         }));
       }
     }
+    // Notice placement depends on the HUD's newly arranged toast, not only its own scope.
+    this.notice?.invalidate();
     this.arrange();
   }
   private activate(key: string, scope: GameSkillNoticeScope, open: boolean): void {
@@ -170,7 +194,8 @@ function feedbackLabel(kind: string) {
         const width = Math.min(maximum, Math.max(104, natural.width + 8));
         text.setStyle({ width: 'grow' });
         frame.setStyle({ width: uiFixed(width), height: 'fit' });
-        const height = Math.min(available.height, measureUiElement(frame, { width, height: available.height }).preferred.height);
+        const maximumHeight = value.maxHeight !== undefined && Number.isFinite(value.maxHeight) ? Math.max(0, value.maxHeight) : available.height;
+        const height = Math.min(available.height, maximumHeight, measureUiElement(frame, { width, height: available.height }).preferred.height);
         frame.setStyle({ height: uiFixed(height), inset: {
           left: uiFixed(Math.max(0, Math.min(available.width - width, value.anchor.x - width / 2))),
           top: uiFixed(Math.max(0, Math.min(available.height - height, value.anchor.y - height))),
@@ -179,7 +204,7 @@ function feedbackLabel(kind: string) {
       return { min: { width: 0, height: 0 }, preferred: available };
     },
   });
-  return Object.assign(element, { update(next: GameFeedbackLabel | null) {
+  return Object.assign(element, { bounds: () => frame.visible ? frame.rect : null, update(next: GameFeedbackLabel | null) {
     const nextTone = next?.tone ?? 'primary';
     if (nextTone !== tone) { frame.dispose(); tone = nextTone; text = textNode(); frame = makeFrame(); element.append(frame); }
     model = next; element.invalidate();

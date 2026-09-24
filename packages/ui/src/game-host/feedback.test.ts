@@ -51,6 +51,81 @@ async function fixture() {
   return { host, callbacks, art, node, point };
 }
 describe('production feedback compositions', () => {
+  it('paints quest indicators behind a hover hint but damage above it, with speech last', async () => {
+    const f = await fixture(), m = model();
+    f.host.update({ ...m, world: { ...m.world, nameplates: [], fishing: null,
+      feedback: [{ ...m.world.feedback[0]!, x: 100, y: 40 }, { ...m.world.feedback[1]!, x: 100, y: 45 }],
+      hint: { x: 100, y: 100, title: 'APPLE TREE', lines: ['NEEDS WATER'], tone: 'neutral' },
+      speech: [{ id: 'speech', x: 270, y: 170, kind: 'say', text: 'Hello' }],
+    } });
+    const root = f.host.roots.world, paints: string[] = [];
+    const target = (id: string) => root.entries().find(row => row.element.id === id)!.element;
+    const hint = root.entries().find(row => row.element.kind === 'world-hint')!.element.children[0]!;
+    for (const [name, node] of [['quest', target('world-feedback:quest')], ['hint', hint],
+      ['damage', target('world-feedback:damage')], ['speech', target('world-speech:speech')]] as const) {
+      const paint = node.hooks.paint!;
+      vi.spyOn(node.hooks, 'paint').mockImplementation((...args) => { paints.push(name); paint(...args); });
+    }
+    const damage = target('world-feedback:damage');
+    expect(damage.rect.x).toBeGreaterThanOrEqual(hint.rect.x);
+    expect(damage.rect.y).toBeGreaterThanOrEqual(hint.rect.y);
+    expect(damage.rect.y + damage.rect.height).toBeLessThanOrEqual(hint.rect.y + hint.rect.height);
+    const canvas = createCanvas(320,180), context = canvas.getContext('2d');
+    root.drawInContext(context as unknown as CanvasRenderingContext2D, 500);
+    expect(paints).toEqual(['quest', 'hint', 'damage', 'speech']);
+    const pixels = context.getImageData(damage.rect.x, damage.rect.y, damage.rect.width, damage.rect.height).data;
+    let yellow = 0;
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i] === 255 && pixels[i + 1] === 211 && pixels[i + 2] === 78) yellow++;
+    expect(yellow).toBeGreaterThan(0);
+  });
+  it('respects projected equipment clearance for an oversized multiline tooltip', async () => {
+    const f = await fixture(), m = model();
+    f.host.setBounds({ worldWidth: 160, worldHeight: 90, hudWidth: 160, hudHeight: 90 });
+    f.host.update({ ...m, hud: { ...m.hud, tooltip: { text: Array.from({ length: 20 }, (_, i) => `EQUIPMENT DETAIL ${i}`).join('\n'),
+      anchor: { x: 80, y: 54 }, maxHeight: 50 } } });
+    const frame = f.host.roots.hud.entries().find(row => row.element.id === 'game.feedback.tooltip.frame')!.element;
+    expect(frame.rect.height).toBeLessThanOrEqual(50);
+    expect(frame.rect.y).toBeGreaterThanOrEqual(4);
+    expect(frame.rect.y + frame.rect.height).toBeLessThanOrEqual(54);
+    expect(frame.rect).toEqual(frame.clip);
+  });
+  it.each([[106,60,48], [320,180,55], [800,600,506]])('keeps simultaneous toast and notice separated at %ix%i', async (width, height, bottom) => {
+    const f = await fixture(), m = model();
+    f.host.setBounds({ worldWidth: width, worldHeight: height, hudWidth: width, hudHeight: height });
+    f.host.update({ ...m, hud: { ...m.hud, prompt: null, tooltip: null, toast: { text: 'NOT ENOUGH SPACE', tone: 'danger', anchor: { x: width / 2, y: bottom } },
+      notice: { ...m.hud.notice!, y: bottom - 36 } } });
+    const toast = f.host.roots.hud.entries().find(row => row.element.id === 'game.feedback.toast.frame')!.element;
+    const notice = f.node('game.feedback.notice');
+    expect(f.host.noticeVisible).toBe(true); expect(f.host.noticeActive).toBe(true);
+    expect(notice.rect.y + notice.rect.height).toBeLessThanOrEqual(toast.rect.y - 4);
+    expect(notice.rect).toEqual(notice.clip);
+    for (const id of ['game.feedback.notice:open', 'game.feedback.notice:dismiss']) {
+      const control = f.node(id); expect(control.rect).toEqual(control.clip); expect(control.rect.height).toBeGreaterThanOrEqual(16);
+    }
+    const directory = process.env['ORCHARD_FEEDBACK_EVIDENCE'];
+    if (directory) {
+      const scale = width === 106 ? 3 : 1, canvas = createCanvas(Math.ceil(width * scale * 1.25), Math.ceil(height * scale * 1.25));
+      const context = canvas.getContext('2d') as unknown as CanvasRenderingContext2D; context.scale(scale * 1.25, scale * 1.25);
+      f.host.roots.hud.drawInContext(context, 500); f.host.roots.notice.drawInContext(context, 500);
+      mkdirSync(directory, { recursive: true }); writeFileSync(`${directory}/notice-toast-${width}x${height}.png`, canvas.toBuffer('image/png'));
+    }
+  });
+  it('temporarily hides a notice for a large rejection toast, cancels its held tail and restores unchanged authority', async () => {
+    const f = await fixture(), m = model(), root = f.host.roots.notice;
+    f.host.setBounds({ worldWidth: 106, worldHeight: 60, hudWidth: 106, hudHeight: 60 });
+    f.host.update({ ...m, hud: { ...m.hud, toast: null } });
+    const point = f.point(f.node('game.feedback.notice:open'));
+    root.pointer({ type: 'down', point, pointerId: 1, button: 0 });
+    const longToast = { text: 'NOT ENOUGH SPACE IN THIS FULL INVENTORY', tone: 'danger' as const, anchor: { x: 53, y: 48 } };
+    f.host.update({ ...m, hud: { ...m.hud, toast: longToast } });
+    expect(f.host.noticeVisible).toBe(false); expect(f.host.noticeActive).toBe(false);
+    root.pointer({ type: 'up', point, pointerId: 1, button: 0 }); root.key({ key: 'Enter' });
+    expect(f.callbacks.onOpenSkillNotice).not.toHaveBeenCalled(); expect(f.callbacks.onDismissSkillNotice).not.toHaveBeenCalled();
+    f.host.update({ ...m, hud: { ...m.hud, toast: null } });
+    expect(f.host.noticeVisible).toBe(true); expect(f.host.noticeActive).toBe(true);
+    root.focus.set(f.node('game.feedback.notice:open')); root.key({ key: 'Enter' });
+    expect(f.callbacks.onOpenSkillNotice).toHaveBeenCalledExactlyOnceWith({ sessionKey: m.sessionKey, noticeId: m.hud.notice!.id, track: 'farming', points: 2 });
+  });
   it('uses stable roots, separate world/safe viewports and no passive input interception', async () => {
     const f = await fixture(), roots = f.host.roots;
     expect(roots.world.viewport.width).toBe(320); expect(roots.hud.viewport.width).toBe(300);
