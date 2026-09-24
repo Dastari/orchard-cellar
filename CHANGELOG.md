@@ -4,6 +4,11 @@ One heading per game version, newest first. Parallel branches that bumped to the
 
 ## Client 0.25.2 / UI 0.27.2 — Cancelled pointer ownership (not yet deployed)
 
+### Workspace 0.32.0 / Engine 0.23.0 — Terrain plan recorder (PR113; source only)
+
+- Expose the real game/Studio terrain draw plan to wiki tooling through a recording canvas, including projected walls, raised ground and stair courses.
+- Add a browser bundle and matching atlas manifest so wiki tile layouts use the engine's rules. The optional engine canvas factory preserves default runtime behavior. No world, map or content publication.
+
 - Fix BUG-019: a captured list row that disappears or moves during an update cannot pass its old release to a replacement row. Explicit scope/reconnect cancellation also suppresses the old pointer tail.
 - Keep suppression per pointer until release, cancellation or a fresh press; retain valid scrollbar and touch-scroll ownership. Workspace 0.31.2.
 
