@@ -1,3 +1,4 @@
+import { SystemMenus } from './game-host/system-menus.js';
 import type { TimingProjection } from '@orchard/sim';
 import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
 import type { UiKitArt } from './kit/components/art.js';
@@ -1164,6 +1165,54 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 }
 
 export class OverworldUi {
+  private systemMenus: SystemMenus | null = null;
+  get retainedSystemActive(): boolean { return this.systemMenus?.active === true; }
+  enableRetainedSystem(art: UiKitArt): UiRoot {
+    if (!this.systemMenus) this.systemMenus = new SystemMenus(art, {
+      close: () => { this.openWindow = null; }, back: () => { this.openWindow = 'system'; },
+      key: code => this.handleKeyDown(code, false),
+      volume: (bus, value) => this.callbacks.setAudioVolume(bus, value), mute: bus => this.toggleAudioMute(bus),
+      background: (bus, value) => this.callbacks.setAudioBackground(bus, value),
+      nameplates: value => this.callbacks.setNameplatesVisible?.(value),
+      lighting: mode => this.selectLightingMode(mode), worldScale: changeWorldScale,
+      presentationCap: changePresentationCap, experimentalWebGL: changeExperimentalWebGL,
+      touch: value => this.callbacks.setTouchControlPreferences?.(value),
+      time: value => { if (this.model.canAdministerWorld) this.callbacks.setTimeFraction(value); },
+      action: action => {
+        switch (action) {
+          case 'resume': this.openWindow = null; break;
+          case 'settings': case 'help': case 'developer': case 'outdoor-rewards': this.openWindow = action; break;
+          case 'fullscreen': if (this.model.fullscreenAvailable !== false) this.callbacks.toggleFullscreen(); break;
+          case 'check-update': if (this.model.pwaUpdateStatus !== 'checking' && this.model.pwaUpdateStatus !== 'updating') this.callbacks.checkForClientUpdate(); break;
+          case 'apply-update': if (this.model.pwaUpdateStatus === 'available') this.callbacks.applyClientUpdate(); break;
+          case 'exit-delve': if (this.model.delveActive) { this.openWindow = null; this.callbacks.exitDelve(); } break;
+          case 'sign-out': this.callbacks.signOut(); break;
+          case 'quit': this.callbacks.quitToTitle(); break;
+          default:
+            if (!this.model.canAdministerWorld) break;
+            if (action === 'previous-day' || action === 'next-day') this.callbacks.shiftDay(action === 'previous-day' ? -1 : 1);
+            else if (action === 'weather') this.callbacks.cycleWeather();
+            else if (action === 'wind') this.callbacks.cycleWindDirection();
+            else if (action === 'lighting-effects') this.selectLightingMode(lightingSettingsMode(this.model) === 'dynamic' ? 'classic' : 'dynamic');
+            else if (action === 'ore-preview') this.callbacks.toggleCellarOrePreview?.();
+            else if (action === 'render-protocol') { renderProtocolAction.run(); this.openWindow = null; }
+        }
+      },
+    });
+    this.syncRetainedSystem(); return this.systemMenus.root;
+  }
+  private syncRetainedSystem(): void {
+    const window = this.openWindowValue === 'system' || this.openWindowValue === 'settings' || this.openWindowValue === 'developer' ? this.openWindowValue : null;
+    this.systemMenus?.update({ ...this.model, window,
+      frame: window === 'settings' ? this.layout.settingsWindow : window === 'developer' ? this.layout.developerWindow : this.layout.systemWindow,
+      outdoorRewardCount: this.model.outdoorRewards?.length ?? 0,
+      lightingMode: lightingSettingsMode(this.model), dynamicLighting: lightingSettingsMode(this.model) === 'dynamic',
+      worldScale: readWorldScale(), presentationCap: readPresentationCap(), experimentalWebGL: readExperimentalWebGL(),
+      touchPreferences: this.model.touchControlPreferences ?? DEFAULT_TOUCH_CONTROL_PREFERENCES,
+      renderProtocolLabel: renderProtocolAction.label,
+    });
+  }
+  disposeRetainedSystem(): void { this.systemMenus?.dispose(); this.systemMenus = null; }
   private retainedMenus: InventoryMenus | null = null;
   private retainedArtwork: OverworldUiItemArt | null = null;
   get retainedInventoryRoot(): UiRoot | null { return this.retainedMenus?.root ?? null; }
@@ -2059,8 +2108,8 @@ export class OverworldUi {
     this.callbacks.setLightingQuality?.(mode === 'basic' ? 'basic' : 'dynamic');
   }
 
-  get selectedSettingsTab(): SettingsTab { return this.settingsTab; }
-  get selectedDeveloperTab(): DeveloperTab { return this.developerTab; }
+  get selectedSettingsTab(): SettingsTab { return this.systemMenus?.selectedSettingsTab ?? this.settingsTab; }
+  get selectedDeveloperTab(): DeveloperTab { return this.systemMenus?.selectedDeveloperTab ?? this.developerTab; }
   get blockingUpdatePromptVisible(): boolean {
     return this.model.pwaUpdateStatus === 'available' && !this.updatePromptDismissed;
   }
@@ -2071,6 +2120,7 @@ export class OverworldUi {
     const previous = this.model.pwaUpdateStatus;
     this.model = { ...this.model, ...viewport, pwaUpdateStatus: status };
     this.syncPwaUpdatePrompt(previous);
+    this.syncRetainedSystem();
   }
 
   private syncPwaUpdatePrompt(previous: PwaUpdateStatus | undefined): void {
@@ -2401,18 +2451,18 @@ export class OverworldUi {
     }
     if(this.openWindowValue==='ferry'&&this.ferryMenu.key(code))return true;
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.handleKeyDown(code,this.layout.progressionWindow))return true;
-    if (this.openWindowValue === 'settings' && (code === 'ArrowUp' || code === 'ArrowDown')) {
+    if (!this.systemMenus && this.openWindowValue === 'settings' && (code === 'ArrowUp' || code === 'ArrowDown')) {
       const current = SETTINGS_TABS.indexOf(this.settingsTab);
       const delta = code === 'ArrowUp' ? -1 : 1;
       this.settingsTab = SETTINGS_TABS[(current + delta + SETTINGS_TABS.length) % SETTINGS_TABS.length]!;
       this.syncActiveWindow();
       return true;
     }
-    if (this.openWindowValue === 'settings' && this.settingsTab === 'gameplay' && code === 'KeyN') {
+    if (!this.systemMenus && this.openWindowValue === 'settings' && this.settingsTab === 'gameplay' && code === 'KeyN') {
       this.nameplatesToggle.toggle();
       return true;
     }
-    if (this.openWindowValue === 'developer' && (code === 'ArrowUp' || code === 'ArrowDown')) {
+    if (!this.systemMenus && this.openWindowValue === 'developer' && (code === 'ArrowUp' || code === 'ArrowDown')) {
       const current = DEVELOPER_TABS.indexOf(this.developerTab);
       const delta = code === 'ArrowUp' ? -1 : 1;
       this.developerTab = DEVELOPER_TABS[(current + delta + DEVELOPER_TABS.length) % DEVELOPER_TABS.length]!;
@@ -2475,7 +2525,7 @@ export class OverworldUi {
   }
 
   pointerMove(point: UiPoint, _modifiers: { readonly shift?: boolean } = {}): void {
-    if ((this.retainedInventoryActive || this.retainedReadingActive) && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedInventoryActive || this.retainedReadingActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorMove(point);
       if (this.onlinePlayerListActive) {
         this.onlinePlayersScrollBar.pointerMove(point);
@@ -2561,7 +2611,7 @@ export class OverworldUi {
     readonly shift?: boolean;
     readonly pointerType?: string;
   } = {}): boolean {
-    if ((this.retainedInventoryActive || this.retainedReadingActive) && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedInventoryActive || this.retainedReadingActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.systemCursorDown(point);
       this.pointerOnlinePlayersDown(point, button, modifiers.pointerType);
       return true;
@@ -2694,7 +2744,7 @@ export class OverworldUi {
   }
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
-    if ((this.retainedInventoryActive || this.retainedReadingActive) && !this.blockingUpdatePromptVisible) {
+    if ((this.retainedInventoryActive || this.retainedReadingActive || this.retainedSystemActive) && !this.blockingUpdatePromptVisible) {
       this.onlinePlayersScrollBar.endSwipe();
       this.onlinePlayersScrollBar.pointerUp();
       return true;
@@ -2916,7 +2966,7 @@ export class OverworldUi {
       this.onlinePlayersScrollBar.wheel(deltaY, 1);
       return true;
     }
-    if (this.retainedInventoryActive || this.retainedReadingActive) return true;
+    if (this.retainedInventoryActive || this.retainedReadingActive || this.retainedSystemActive) return true;
     if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
       || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation')
@@ -3371,9 +3421,9 @@ export class OverworldUi {
     const pressVisible = this.openWindowValue === 'press';
     const fermentationVisible = this.openWindowValue === 'fermentation';
     const delveConfirmationVisible = this.openWindowValue === 'delve-confirmation';
-    const systemVisible = this.openWindowValue === 'system';
-    const settingsVisible = this.openWindowValue === 'settings';
-    const developerVisible = this.openWindowValue === 'developer' && this.model.canAdministerWorld;
+    const systemVisible = !this.systemMenus && this.openWindowValue === 'system';
+    const settingsVisible = !this.systemMenus && this.openWindowValue === 'settings';
+    const developerVisible = !this.systemMenus && this.openWindowValue === 'developer' && this.model.canAdministerWorld;
     this.windowNode.setBounds(activeWindow);
     this.windowNode.visible = this.openWindowValue !== null;
     this.closeNode.setBounds({ x: activeWindow.x + activeWindow.width - 17, y: activeWindow.y + 7, width: 16, height: 16 });
@@ -3471,7 +3521,8 @@ export class OverworldUi {
     this.applyContentFrameBindings();
     this.syncRetainedInventory();
     this.syncRetainedReading();
-    if (this.retainedReadingActive) { this.windowNode.visible = false; this.closeNode.visible = false; }
+    this.syncRetainedSystem();
+    if (this.retainedReadingActive || this.retainedSystemActive) { this.windowNode.visible = false; this.closeNode.visible = false; }
     else this.closeNode.visible = true;
     if (this.retainedInventoryActive) {
       if (this.inventoryFilterInput) { this.inventoryFilterInput.hidden = true; this.inventoryFilterInput.blur(); }
@@ -3966,6 +4017,7 @@ export class OverworldUi {
   }
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
+    if (this.retainedSystemActive) { this.systemMenus!.draw(context); return; }
     if (window === 'quests') { this.questLog?.draw(context); return; }
     if (this.retainedInventoryActive) {
       this.retainedMenus!.draw(context);

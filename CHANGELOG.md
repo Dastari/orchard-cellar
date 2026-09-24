@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.29.0 / UI 0.31.0 — Shared game settings and developer menus (not yet deployed)
+
+- Mount the shared game menu, all six settings pages, and current world/render developer controls through the central canvas input runtime.
+- Preserve audio restore, touch placement, lighting quality/model, world scale, presentation cap, experimental backend, updates, fullscreen and administration callbacks. Cancel stale held actions on permission or availability changes.
+- Use font_5x7 and scrollable bounded layouts; retire production legacy menu drawing and hits together. Workspace0.35.0.
+
 ## Client 0.28.0 / UI 0.30.0 — Shared quests and guide (not yet deployed)
 
 - Render the production quest log and help guide with the shared kit, preserving real quest pin/drop callbacks, deep links, selection, reading navigation and parent close policies.
