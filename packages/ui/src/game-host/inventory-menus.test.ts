@@ -439,7 +439,7 @@ describe('production retained inventory authority bridge', () => {
       expect(f.handlers.manageHomesteadMember).toHaveBeenCalledExactlyOnceWith('player-0','worker',false);
       f.rpointer('down',point,{button:2});f.rpointer('up',point,{button:2});
       expect(f.handlers.manageHomesteadMember).toHaveBeenLastCalledWith('player-0',null,true);
-      const close=f.roster.root.entries().find(e=>e.element.label==='X')!.element;
+      const close=f.roster.root.entries().find(e=>e.element.id==='game.online-players.close')!.element;
       f.rpointer('down',f.point(close));f.rpointer('up',f.point(close));expect(f.handlers.toggleOnlinePlayers).toHaveBeenCalledExactlyOnceWith();
       expect(f.ui.openWindow).toBe('inventory');expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
     } finally { f.dispose(); }

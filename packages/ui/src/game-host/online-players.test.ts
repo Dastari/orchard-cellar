@@ -115,11 +115,22 @@ it('preserves YOU/idle/role labels and actual status dots, with all long-row act
 
 it('reopens visible frame chrome and commands after the real close button hides its frame', () => {
  const {host,onClose,onManage}=fixture();
- const close=()=>{host.root.arrange();const button=host.root.entries().find(e=>e.element.label==='X')!.element;
+ const close=()=>{host.root.arrange();const button=host.root.entries().find(e=>e.element.id==='game.online-players.close')!.element;
  const p={x:button.rect.x+button.rect.width/2,y:button.rect.y+button.rect.height/2};
  host.root.pointer({type:'down',point:p,pointerId:20,button:0});host.root.pointer({type:'up',point:p,pointerId:20,button:0});};
  close();expect(host.active).toBe(false);expect(onClose).toHaveBeenCalledOnce();
  host.update(model);expect(host.active).toBe(false);
  host.update({...model,visible:false});host.update(model);expect(host.active).toBe(true);
  tap(host.root,row('peer'));expect(onManage).toHaveBeenCalledOnce();close();expect(onClose).toHaveBeenCalledTimes(2);
+});
+
+it('offers a whisper glyph for other players only and passes their display name', () => {
+  const onWhisper = vi.fn(), host = new GameOnlinePlayers(art, { onManage: vi.fn(), onClose: vi.fn(), onWhisper }); hosts.push(host);
+  host.setBounds({ x: 10, y: 10, width: 300, height: 250 }, 640, 400); host.update(model);
+  expect(node(host.root, 'game.online-players.title').label).toBe('ONLINE  2');
+  expect(node(host.root, 'game.online-players:whisper:owner').disabled).toBe(true);
+  tap(host.root, 'game.online-players:whisper:peer'); expect(onWhisper).toHaveBeenCalledExactlyOnceWith('Toby');
+  focus(host.root, 'game.online-players:whisper:peer'); host.root.key({ key: 'Enter' }); expect(onWhisper).toHaveBeenCalledTimes(2);
+  // The window fits its rows inside the host bounds rather than filling them.
+  const window = node(host.root, 'game.online-players'); expect(window.rect.width).toBeLessThan(300); expect(window.rect.height).toBeLessThan(250);
 });

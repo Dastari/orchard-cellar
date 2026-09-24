@@ -50,7 +50,7 @@ it('updates PWA decisions synchronously without a render tick and retains Later 
 });
 it('routes one confirmation command and closes the actual parent before start, with stale reconnect capture cancelled', () => {
   const f = fixture(); f.ui.openWindow = 'delve-confirmation';
-  const button = f.roots.confirmation.entries().find(entry => entry.element.label === 'BEGIN DELVE')!.element;
+  const button = f.roots.confirmation.entries().find(entry => entry.element.id === 'delve-confirmation.begin')!.element;
   const p = point(f.roots.confirmation, button.id);
   f.runtime.pointer({ type: 'down', point: p, pointerId: 1, button: 0 });
   f.update({ connected: false }); f.update({ connected: true, interactionSessionKey: 'player:generation2' });
@@ -60,7 +60,7 @@ it('routes one confirmation command and closes the actual parent before start, w
 });
 it('update modal takeover cancels a held confirmation and compact painting uses the shared host', () => {
   const f = fixture(); f.ui.openWindow = 'delve-confirmation';
-  const button = f.roots.confirmation.entries().find(entry => entry.element.label === 'BEGIN DELVE')!.element;
+  const button = f.roots.confirmation.entries().find(entry => entry.element.id === 'delve-confirmation.begin')!.element;
   const p = point(f.roots.confirmation, button.id);
   f.runtime.pointer({ type: 'down', point: p, pointerId: 4, button: 0 });
   f.ui.setPwaUpdateStatus('available'); f.runtime.reconcile();

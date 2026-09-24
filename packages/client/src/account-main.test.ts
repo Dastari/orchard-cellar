@@ -23,7 +23,7 @@ let art:UiKitArt;
 beforeAll(async()=>{art=await uiTestArt();});
 function fixture(options={signedIn:false,local:false,oidc:true,allowLocal:false}) {
  const values=new Map<string,string>();const localStorage={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>values.set(k,v)};
- const deps={options,localStorage,GameGateway,GameUiRuntime,gameGatewayLayout,kitArt:art,orchardEmblem:undefined,resize:vi.fn(),
+ const deps={options,localStorage,GameGateway,GameUiRuntime,gameGatewayLayout,kitArt:art,orchardEmblem:undefined,cellarCask:undefined,resize:vi.fn(),
   readLocalProfiles,rememberLocalProfile,localProfileWorldUrl,validLocalProfileName,
   audio:{fadeOutForNavigation:vi.fn(()=>Promise.resolve())},location:{origin:'https://example.invalid',pathname:'/',search:'',hash:'',assign:vi.fn(),reload:vi.fn()},
   beginOidcLogin:vi.fn<(intent:string)=>Promise<void>>(async()=>{}),signOutOidc:vi.fn(async()=>{})};
@@ -36,7 +36,7 @@ it.each([['gateway.sign-in','login'],['gateway.register','register'],['gateway.r
 });
 it('actual account callback exposes rejection and allows a fresh scoped retry',async()=>{
  const f=fixture();try{f.beginOidcLogin.mockRejectedValueOnce(new Error('Provider unavailable'));await f.submitAccount('recover');expect(f.state().authBusy).toBe(false);
- expect(f.gateway.root.entries().some(e=>e.element.props['text']==='PROVIDER UNAVAILABLE')).toBe(true);await f.submitAccount('recover');expect(f.beginOidcLogin).toHaveBeenCalledTimes(2);}finally{f.dispose();}
+ expect(f.gateway.root.entries().some(e=>e.element.props['text']==='Provider unavailable')).toBe(true);await f.submitAccount('recover');expect(f.beginOidcLogin).toHaveBeenCalledTimes(2);}finally{f.dispose();}
 });
 it('preserves validation/storage and schedules local navigation only once',async()=>{
  const f=fixture({signedIn:false,local:true,oidc:false,allowLocal:true});try{

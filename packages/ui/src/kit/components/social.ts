@@ -198,8 +198,12 @@ export function uiMuteButton(options: { readonly id?: string; readonly label: st
 }
 
 /** Reward offer on the dark item frame, rimmed by rarity: label in quality ink, name, effect and its price. */
-export function uiOfferCard(options: { readonly rarity: 'uncommon' | 'rare' | 'epic' | 'legendary'; readonly name: string; readonly effect: string; readonly price: string; readonly affordable: boolean; readonly hotkey?: string; readonly onBuy: () => void }): UiElement {
-  const inks = { uncommon: '#63c74d', rare: '#5a8ee0', epic: '#b56be0', legendary: '#f6b83f' } as const;
+export function uiOfferCard(options: { readonly rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'; readonly name: string; readonly effect: string; readonly price: string; readonly affordable: boolean; readonly hotkey?: string; readonly onBuy: () => void;
+  /** Card and buy-button ids; `disabled` locks an affordable offer (for example while a choice is pending). */
+  readonly id?: string; readonly buyId?: string; readonly disabled?: boolean;
+  /** Replaces the price on an affordable button, such as `Choose` for a free boon. */
+  readonly buyLabel?: string; readonly layout?: UiStyle }): UiElement {
+  const inks = { common: '#b7aa91', uncommon: '#63c74d', rare: '#5a8ee0', epic: '#b56be0', legendary: '#f6b83f' } as const;
   const line = (text: string, ink: string) => new UiElement({ kind: 'text', label: text, props: { text, ink }, style: { alignSelf: 'stretch', shrink: 0 },
     measure(_element, available) { const rows = Math.max(1, Math.ceil(text.length * 6 / Math.max(6, available.width))); return { min: { width: 0, height: rows * 10 }, preferred: { width: available.width, height: rows * 10 } }; },
     paint(element, { context, art }) {
@@ -207,17 +211,17 @@ export function uiOfferCard(options: { readonly rarity: 'uncommon' | 'rare' | 'e
       for (const word of words) { const next = row ? `${row} ${word}` : word; if (measurePixelText(next, 1, art.pixel.font) > r.width && row) { drawPixelText(context, art.pixel, row, r.x, y, { color: ink }); y += 10; row = word; } else row = next; }
       if (row) drawPixelText(context, art.pixel, row, r.x, y, { color: ink });
     } });
-  const hooks = pressHooks(options.onBuy, () => options.affordable);
-  const buy = new UiElement({ kind: 'button', label: `Buy ${options.name} for ${options.price}`, focusable: true, disabled: !options.affordable, pointerMode: 'capture', props: { tone: options.affordable ? 'success' : 'muted', buttonSurface: true },
+  const hooks = pressHooks(options.onBuy, () => options.affordable && !buy.disabled);
+  const buy: UiElement = new UiElement({ id: options.buyId, kind: 'button', label: options.buyLabel ? `${options.buyLabel} ${options.name}` : `Buy ${options.name} for ${options.price}`, focusable: true, disabled: !options.affordable || options.disabled, pointerMode: 'capture', props: { tone: options.affordable ? 'success' : 'muted', buttonSurface: true },
     style: { height: uiFixed(20), alignSelf: 'stretch' }, ...hooks,
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; const r = element.rect, tone = options.affordable ? 'success' : 'muted', state = element.disabled ? 'disabled' : hooks.pressed() ? 'pressed' : 'idle';
       paintUiSkin(context, art.skin.button, `${tone}.md.chamfered.${state}`, r);
-      const text = options.affordable ? options.price : `Needs ${options.price}`, w = measurePixelText(text, 1, art.pixel.font);
+      const text = options.affordable ? options.buyLabel ?? options.price : `Needs ${options.price}`, w = measurePixelText(text, 1, art.pixel.font);
       drawPixelText(context, art.pixel, text, r.x + Math.floor((r.width - w) / 2), r.y + 6, { color: options.affordable ? '#fff6e0' : '#3f2832' });
-      if ((hovered || focused) && options.affordable) paintUiSkin(context, art.skin.button, `outline.md.chamfered.${state}.${focused ? 'white' : 'gold'}`, r);
+      if ((hovered || focused) && !element.disabled) paintUiSkin(context, art.skin.button, `outline.md.chamfered.${state}.${focused ? 'white' : 'gold'}`, r);
     } });
-  return new UiElement({ kind: 'offer-card', label: `${options.rarity} ${options.name}`, props: { itemInks: true }, style: { display: 'flex', direction: 'column', gap: 4, padding: 6, width: uiFixed(116), height: uiFixed(104), shrink: 0 },
+  return new UiElement({ id: options.id, kind: 'offer-card', label: `${options.rarity} ${options.name}`, props: { itemInks: true }, style: { display: 'flex', direction: 'column', gap: 4, padding: 6, width: uiFixed(116), height: uiFixed(104), shrink: 0, ...options.layout },
     // A growing spacer keeps every card's price button on the same baseline.
     children: [line(`${options.hotkey ? `${options.hotkey}  ` : ''}${options.rarity.toUpperCase()}`, inks[options.rarity]), line(options.name, '#f4f1e8'), line(options.effect, '#a9a3b8'), uiFlex({ grow: 1 }, []), buy],
     paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.frame, `tooltip_dark.${options.rarity}`, element.rect); } });

@@ -79,7 +79,7 @@ describe('authoritative reward host', () => {
     ui.rewardsRoot.key({ key: '1' }); await settle(); expect(ui.submissionPending).toBe(false); expect(node(ui.rewardsRoot, 'delve.notice').label).toBe('Offer expired');
     ui.rewardsRoot.key({ key: '1' }); expect(ui.submissionPending).toBe(true);
     ui.update({ ...model, sessionKey: 'next room' }); ui.rewardsRoot.key({ key: '2' }); reject(new Error('Old failure')); await settle();
-    expect(ui.submissionPending).toBe(true); expect(node(ui.rewardsRoot, 'delve.notice').label).toBe('WAITING FOR THE DELVE...'); expect(choose).toHaveBeenCalledTimes(3);
+    expect(ui.submissionPending).toBe(true); expect(node(ui.rewardsRoot, 'delve.notice').label).toBe('Waiting for the Delve...'); expect(choose).toHaveBeenCalledTimes(3);
   });
   it('uses one primary touch release and rejects secondary-first release', () => {
     const { ui, choose } = reward(); const root = ui.rewardsRoot, position = point(root, 'delve.choose.0');
@@ -90,7 +90,7 @@ describe('authoritative reward host', () => {
   });
   it('scrolls compact touch gestures without choosing and preserves focused action through resize', () => {
     const { ui, model, choose } = reward({ width: 320, height: 180 }); const root = ui.rewardsRoot;
-    const button = focus(root, 'delve.choose.1'), scroll = node(root, 'delve.scroll'); const before = scroll.scroll.y;
+    const button = focus(root, 'delve.choose.1'), scroll = node(root, 'delve.rewards.frame').children[0]!; const before = scroll.scroll.y;
     const start = { x: button.rect.x + button.rect.width / 2, y: button.rect.y + button.rect.height / 2 };
     root.pointer({ type: 'down', point: start, button: 0, pointerId: 3, pointerType: 'touch' });
     root.pointer({ type: 'move', point: { x: start.x, y: start.y - 50 }, button: 0, pointerId: 3, pointerType: 'touch' });
@@ -133,6 +133,24 @@ describe('confirmation and update lifecycle', () => {
     ui.update({ ...model, width: 640 }); expect(ui.active).toBe(false);
     ui.update({ ...model, status: 'checking' }); ui.update(model); expect(ui.active).toBe(true);
     ui.root.key({ key: 'Enter', repeat: true }); expect(refresh).not.toHaveBeenCalled(); ui.root.key({ key: 'Enter' }); ui.root.key({ key: 'Enter' }); expect(refresh).toHaveBeenCalledOnce();
+  });
+  it('treats the wooden close and Escape as Stay and Later', () => {
+    const begin = vi.fn(), cancel = vi.fn(), confirmation = new DelveConfirmationUi(art, { begin, cancel }); hosts.push(confirmation);
+    confirmation.update({ sessionKey: 'close', visible: true, canBegin: true, width: 390, height: 797 });
+    expect(node(confirmation.root, 'game.delve-confirmation.title').label).toBe('THE CELLAR DELVE');
+    tap(confirmation.root, 'game.delve-confirmation.close'); expect(cancel).toHaveBeenCalledOnce(); expect(begin).not.toHaveBeenCalled(); expect(confirmation.active).toBe(false);
+    const refresh = vi.fn(), later = vi.fn(), update = new UpdateReadyUi(art, { refresh, later }); hosts.push(update);
+    update.update({ status: 'available', width: 390, height: 797 });
+    const window = node(update.root, 'game.update-ready'); expect(window.rect.width).toBeLessThan(390);
+    update.root.key({ key: 'Escape' }); expect(later).toHaveBeenCalledOnce(); expect(refresh).not.toHaveBeenCalled(); expect(update.active).toBe(false);
+  });
+  it('offers the trader close and Leave shop only in shops', () => {
+    const { ui, model, leaveShop } = reward();
+    expect(node(ui.rewardsRoot, 'delve.rewards.frame.title').label).toBe('CHOOSE A BOON');
+    expect(ui.rewardsRoot.entries().some(({ element }) => element.id === 'delve.close' || element.id === 'delve.leave')).toBe(false);
+    ui.update({ ...model, sessionKey: 'shop', run: { ...model.run, roomKind: 'shop' } });
+    expect(node(ui.rewardsRoot, 'delve.rewards.frame.title').label).toBe('THE CELLAR TRADER');
+    tap(ui.rewardsRoot, 'delve.close'); expect(leaveShop).toHaveBeenCalledOnce();
   });
   it('cancels an obsolete update gesture and blocks rewards when update takes over', () => {
     const { ui: rewards, choose } = reward(); const refresh = vi.fn(), update = new UpdateReadyUi(art, { refresh }); hosts.push(update);

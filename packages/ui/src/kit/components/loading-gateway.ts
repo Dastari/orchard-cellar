@@ -1,13 +1,8 @@
-import { uiRibbon } from './anchors.js';
 import type { LoadedAsset } from '../../assets.js';
 import type { UiStyle } from '../layout/box.js';
-import { uiFixed } from '../layout/box.js';
 import type { UiElement } from '../runtime/element.js';
-import { uiFrame } from './frame.js';
-import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText } from './text.js';
-import { uiSprite } from './media.js';
-import { uiProgressBar } from './meter.js';
+import { uiLoadingBar, uiTitleFrame, uiTitleNotice, uiTitleSentence } from './gateway-game.js';
 
 export interface UiLoadingGatewayModel {
   readonly title: string;
@@ -18,36 +13,30 @@ export interface UiLoadingGatewayModel {
 export interface UiLoadingGatewayOptions {
   readonly model: UiLoadingGatewayModel;
   readonly emblem?: LoadedAsset;
+  readonly cask?: LoadedAsset;
   readonly version?: string;
   readonly layout?: UiStyle;
 }
 export interface UiLoadingGatewayElement extends UiElement {
   updateLoading(model: UiLoadingGatewayModel): void;
 }
-/** The same account frame carries loading stages; hosts own connection state. */
+/** Loading stages share the title flow's constant frame: LOADING with the stage, the gold bar and its
+ * detail; a failed stage becomes CONNECTION LOST with a dark error notice. Hosts own connection state. */
 export function uiLoadingGateway(options: UiLoadingGatewayOptions): UiLoadingGatewayElement {
-  const title = uiText('', { role: 'header', wrap: true, align: 'center' });
-  const detail = uiText('', { wrap: true, align: 'center' });
-  const percentage = uiText('', { align: 'center' });
-  const progress = uiProgressBar({ id: 'gateway.loading.progress', label: 'Loading progress', value: 0 });
-  const emblem = options.emblem ? uiSprite(options.emblem, {
-    animation: Object.keys(options.emblem.metadata.animations)[0] ?? 'base', playing: false,
-    label: 'Orchard emblem', layout: { width: uiFixed(16), height: uiFixed(16), shrink: 0 },
-  }) : undefined;
-  const frame = uiFrame({ id: 'game.loading', header: { title: 'ORCHARD & CELLAR', content: uiRibbon({ label: 'ORCHARD & CELLAR', layout: { width: 'grow' } }) },
-    layout: { width: 'grow', height: 'grow', ...options.layout }, children: [
-      uiScrollArea({ gap: 8 }, [
-        uiFlex({ direction: 'row', width: 'grow', align: 'center', gap: 4 }, [
-          ...(emblem ? [emblem] : []), uiText(options.version ? `V${options.version}` : '', { role: 'caption', align: 'right' }),
-        ]), title, detail, progress, percentage,
-      ]),
-    ],
-  });
+  const notice = uiTitleNotice({ id: 'gateway.loading.error' });
+  const status = uiText('', { id: 'gateway.loading.status', wrap: true, align: 'center', layout: { width: 'grow' } });
+  const progress = uiLoadingBar({ id: 'gateway.loading.progress', width: 200 });
+  const detail = uiText('', { id: 'gateway.loading.detail', role: 'caption', wrap: true, align: 'center', layout: { width: 'grow' } });
+  const frame = uiTitleFrame({ id: 'game.loading', title: 'LOADING', apple: options.emblem, cask: options.cask, version: options.version,
+    layout: options.layout, body: [notice, status, progress, detail] });
   const updateLoading = (model: UiLoadingGatewayModel): void => {
-    const value = Number.isFinite(model.progress) ? Math.max(0, Math.min(100, model.progress)) : 0;
-    title.setProps({ text: model.title }); detail.setProps({ text: model.detail });
-    progress.setProps({ value: value / 100, tone: model.error ? 'danger' : 'success' });
-    percentage.setProps({ text: `${Math.round(value)}%` });
+    const value = Number.isFinite(model.progress) ? Math.max(0, Math.min(100, model.progress)) : 0, error = model.error === true;
+    const title = uiTitleSentence(model.title), text = uiTitleSentence(model.detail);
+    frame.setTitle(error ? 'CONNECTION LOST' : 'LOADING');
+    notice.setText(error ? title : ''); notice.setStyle({ visible: error });
+    status.setProps({ text: error ? text : value < 100 && title ? `${title.replace(/[.\s]+$/u, '')}...` : title });
+    progress.setProps({ value: value / 100, tone: error ? 'danger' : 'success', label: `Loading ${Math.round(value)}%` }).setStyle({ visible: !error });
+    detail.setProps({ text: error ? '' : text }).setStyle({ visible: !error && text !== '' });
   };
   updateLoading(options.model);
   return Object.assign(frame, { updateLoading });
