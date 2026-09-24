@@ -1,0 +1,23 @@
+name: nightly
+
+# Transitional generator/parity tests and the legacy cooking release-gate test,
+# moved out of per-PR CI (owner decision 2026-09-25, wiki Roadmap/Test Suite
+# Review). They still run in `npm run check`, so every release gate covers them.
+# Failures are loud: no continue-on-error.
+
+on:
+  schedule:
+    - cron: '17 16 * * *'
+  workflow_dispatch:
+
+env:
+  ORCHARD_TEST_LICENSED_ART: '0'
+
+jobs:
+  transitional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: npm run test:nightly

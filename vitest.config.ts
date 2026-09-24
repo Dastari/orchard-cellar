@@ -23,7 +23,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['packages/sim/src/**/*.ts'],
-      thresholds: { lines: 80, functions: 80, statements: 80, branches: 70 },
+      // CI shards each see part of the suite; thresholds are enforced once, on the
+      // merged report (vitest --merge-reports --coverage). Local runs and release
+      // gates (npm run check) never set ORCHARD_COVERAGE_SHARD.
+      thresholds: process.env.ORCHARD_COVERAGE_SHARD === '1'
+        ? undefined
+        : { lines: 80, functions: 80, statements: 80, branches: 70 },
     },
   },
 });
