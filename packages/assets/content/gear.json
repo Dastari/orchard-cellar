@@ -2093,7 +2093,7 @@
         "label": "Armor",
         "line": "primary",
         "display": "points",
-        "perLevel": 1,
+        "perLevel": 0.05,
         "modifier": {
           "target": "armor",
           "layer": "flat",
