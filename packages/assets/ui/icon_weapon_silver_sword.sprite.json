@@ -1,0 +1,68 @@
+{
+  "name": "icon_weapon_silver_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............0000",
+        "...........01110",
+        "..........011110",
+        ".........0111210",
+        "........0111220.",
+        ".......0111230..",
+        ".00...0111230...",
+        ".040.0113230....",
+        ".0440213250.....",
+        "..04053250......",
+        "..0640550.......",
+        "...07600........",
+        "..0807760.......",
+        "0090.00760......",
+        "060....000......",
+        "000............."
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#ffffff",
+    "2": "#c0cbdc",
+    "3": "#8b9bb4",
+    "4": "#fff7d2",
+    "5": "#5a6988",
+    "6": "#fee761",
+    "7": "#feae34",
+    "8": "#8a4836",
+    "9": "#bf6f4a"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Weapons_all_16x16.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "ui.icon",
+    "item.weapon",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

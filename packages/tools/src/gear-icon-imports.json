@@ -1,0 +1,271 @@
+{
+  "note": "Owner request 2026-09-24: weapon material tiers, real bow icons, structure components. Crops from the licensed Kenmi Cute Fantasy icon sheets.",
+  "imports": [
+    {
+      "item": "item:silver_sword",
+      "asset": "icon_weapon_silver_sword",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1,
+      "group": "weapon"
+    },
+    {
+      "item": "item:sword",
+      "asset": "icon_weapon_iron_sword",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        16,
+        0,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 2,
+      "group": "weapon"
+    },
+    {
+      "item": "item:wooden_sword",
+      "asset": "icon_weapon_wooden_sword",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        32,
+        0,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 3,
+      "group": "weapon"
+    },
+    {
+      "item": "item:gold_sword",
+      "asset": "icon_weapon_gold_sword",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        48,
+        0,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 4,
+      "group": "weapon"
+    },
+    {
+      "item": "item:copper_sword",
+      "asset": "icon_weapon_copper_sword",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        96,
+        0,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 7,
+      "group": "weapon"
+    },
+    {
+      "item": "item:stone_sword",
+      "asset": "icon_weapon_stone_sword",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        144,
+        0,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 10,
+      "group": "weapon"
+    },
+    {
+      "item": "item:bow",
+      "asset": "icon_weapon_wooden_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        32,
+        1744,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1093,
+      "group": "weapon"
+    },
+    {
+      "item": "item:copper_bow",
+      "asset": "icon_weapon_copper_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        96,
+        1744,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1097,
+      "group": "weapon"
+    },
+    {
+      "item": "item:iron_bow",
+      "asset": "icon_weapon_iron_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        16,
+        1744,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1092,
+      "group": "weapon"
+    },
+    {
+      "item": "item:silver_bow",
+      "asset": "icon_weapon_silver_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        0,
+        1744,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1091,
+      "group": "weapon"
+    },
+    {
+      "item": "item:gold_bow",
+      "asset": "icon_weapon_gold_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        48,
+        1744,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1094,
+      "group": "weapon"
+    },
+    {
+      "item": "item:hearth_common_bow",
+      "asset": "icon_weapon_hearth_common_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        16,
+        1776,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1112,
+      "group": "weapon"
+    },
+    {
+      "item": "item:hearth_uncommon_bow",
+      "asset": "icon_weapon_hearth_uncommon_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        0,
+        1792,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1121,
+      "group": "weapon"
+    },
+    {
+      "item": "item:hearth_rare_bow",
+      "asset": "icon_weapon_hearth_rare_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        64,
+        1824,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1145,
+      "group": "weapon"
+    },
+    {
+      "item": "item:hearth_epic_bow",
+      "asset": "icon_weapon_hearth_epic_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        80,
+        1840,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1156,
+      "group": "weapon"
+    },
+    {
+      "item": "item:hearth_legendary_bow",
+      "asset": "icon_weapon_hearth_legendary_bow",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "crop": [
+        48,
+        1856,
+        16,
+        16
+      ],
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "vendorNumber": 1164,
+      "group": "weapon"
+    },
+    {
+      "item": "item:iron_fittings",
+      "asset": "icon_part_iron_fittings",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        16,
+        688,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 432,
+      "group": "material"
+    },
+    {
+      "item": "item:timber_frame",
+      "asset": "icon_part_timber_frame",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        16,
+        1504,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 942,
+      "group": "material"
+    },
+    {
+      "item": "item:stone_foundation",
+      "asset": "icon_part_stone_foundation",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "crop": [
+        64,
+        1504,
+        16,
+        16
+      ],
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "vendorNumber": 945,
+      "group": "material"
+    }
+  ]
+}
