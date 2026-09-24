@@ -524,6 +524,19 @@ describe('production retained processor authority bridge',()=>{
     } finally { f.dispose(); }
   });
 
+  it('keeps a touch-reachable sort for the preserving barrel',()=>{
+    const f=fixture('content',{activeFrameId:'frame:barrel',openPlaceableInventory:[{slot:0,itemKind:'apple',quantity:3},{slot:2,itemKind:'apple',quantity:2}]});
+    try {
+      const sort=f.root.entries().find(({element})=>element.id==='frame:barrel.pane.contents.sort'||(element.label==='Sort & stack'&&element.kind==='button'))?.element;
+      expect(sort,'barrel sort glyph').toBeDefined();
+      f.root.focus.set(sort!,'keyboard'); f.root.arrange();
+      const point={x:sort!.clip.x+sort!.clip.width/2,y:sort!.clip.y+sort!.clip.height/2};
+      f.root.pointer({type:'down',point,pointerId:9,button:0,pointerType:'touch',isPrimary:true});
+      f.root.pointer({type:'up',point,pointerId:9,button:0,pointerType:'touch',isPrimary:true});
+      expect(f.handlers.sortInventoryContainer).toHaveBeenCalledOnce();
+    } finally { f.dispose(); }
+  });
+
   it.each(processorCases)('allows output extraction but rejects insertion in $frame',spec=>{
     const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:spec.outputIndex,itemKind:spec.output,quantity:2}]});
     try {

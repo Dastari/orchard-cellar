@@ -18,6 +18,8 @@ export interface UiRecipeBookEntry {
   readonly id: string; readonly name: string; readonly output: ItemStack; readonly status: UiRecipeStatus;
   /** Station the recipe needs, when it is not the open one. */
   readonly station?: string;
+  /** Why the recipe cannot be placed yet; shown on its page in warning ink. */
+  readonly reason?: string;
   readonly ingredients: readonly { readonly itemKind: string; readonly name: string; readonly need: number; readonly have: number }[];
 }
 export interface UiRecipeBookOptions {
@@ -89,7 +91,8 @@ export function uiRecipeBook(options: UiRecipeBookOptions): UiRecipeBookElement 
     ]),
     uiText('NEEDS', { role: 'label' }),
     ...entry.ingredients.map(ingredient => ingredientRow(ingredient, options)),
-    ...(entry.station ? [uiText(`Use a ${entry.station}`, { wrap: true })] : []),
+    ...((entry.status === 'locked' || entry.status === 'station') ? [uiText(entry.reason ?? (entry.station ? `Use a ${entry.station}` : 'Not available yet'), { wrap: true, layout: { alignSelf: 'stretch' } }).setProps({ ink: '#9e2835' })]
+      : entry.station ? [uiText(`Use a ${entry.station}`, { wrap: true })] : []),
     uiFlex({ direction: 'row', justify: 'end', alignSelf: 'stretch' }, [
       uiButton({ id: options.id ? `${options.id}.place` : undefined, label: 'Place in grid', tone: 'primary', size: 'md', disabled: entry.status === 'locked' || entry.status === 'station', onPress: () => options.onPlace(entry.id) }),
     ]),

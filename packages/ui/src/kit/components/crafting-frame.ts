@@ -13,6 +13,8 @@ export interface UiCraftingRecipe {
   readonly id: string; readonly label: string; readonly detail?: string; readonly pattern?: readonly (string | null)[];
   /** Recipe-book presentation: what it makes, whether it can be made here and what it needs. */
   readonly output?: ItemStack; readonly status?: UiRecipeStatus;
+  /** Why the recipe cannot be placed (skill rank or missing station), shown visibly in the book. */
+  readonly reason?: string;
   readonly ingredients?: readonly { readonly itemKind: string; readonly name: string; readonly need: number; readonly have: number }[];
 }
 export interface UiCraftingSnapshot {
@@ -42,7 +44,7 @@ const RESULT_HINT = 'Take the result. Shift-click to craft as many as you can.';
  * ghost-fills the pattern. The book and bench share one host root and one input scope. */
 export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFrameElement {
   let snapshot = options.crafting, query = options.recipeFilter ?? '', open = options.bookOpen ?? false, selected = snapshot.selected ?? snapshot.recipes[0]?.id ?? null;
-  const grids: UiElement[] = [], results: UiElement[] = [];
+  const grids: UiElement[] = [], results: UiElement[] = [], reasons: UiElement[] = [];
   const toggle = uiGlyphButton({ id: 'crafting.recipe-book', glyph: 'glyph.recipe_book', label: 'Recipe book', onPress: () => setRecipeBook(!open) });
   const frame = uiContentFrame({ ...options, renderPane: pane => {
     const custom = options.renderPane?.(pane); if (custom) return custom;
@@ -56,21 +58,25 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
       const result = uiSlot({ label: 'Craft result', activateOn: 'up', artwork: options.artwork, iconAnimation: options.iconAnimation, stack: () => snapshot.output,
         onPress: event => { if (snapshot.output && !snapshot.requirement) options.onCraft(event.shiftKey === true); },
       }); results.push(result);
+      // A locked result says why in words under the grid (touch has no hover); the tooltip keeps the full hint.
+      const reason = uiText('', { wrap: true, layout: { alignSelf: 'stretch', visible: false } }).setProps({ ink: '#9e2835' }); reasons.push(reason);
+      // The window's ribbon already names the bench, so its header only labels the recipe book button.
       return uiFlex({ id: `pane:${pane.id}`, direction: 'column', gap: 4, shrink: 0 }, [
-        // The bench section reads CRAFTING under a station's title; the hand-crafting window says BY HAND instead of repeating itself.
-        uiFlex({ direction: 'row', align: 'center', gap: 4, alignSelf: 'stretch' }, [uiText(options.definition.title.toUpperCase() === 'CRAFTING' ? 'BY HAND' : 'CRAFTING', { role: 'label', layout: { grow: 1 } }), toggle]),
+        uiFlex({ direction: 'row', align: 'center', justify: 'end', gap: 4, alignSelf: 'stretch' }, [uiText('Recipe book', { role: 'caption' }), toggle]),
         uiFlex({ direction: 'row', align: 'center', gap: 6 }, [grid, uiGlyph('glyph.play'), uiTooltip(() => snapshot.requirement ?? RESULT_HINT, result)]),
+        reason,
       ]);
     }
     return undefined;
   } });
   const entries = (): UiRecipeBookEntry[] => snapshot.recipes.map(recipe => ({ id: recipe.id, name: recipe.label,
     output: recipe.output ?? { itemKind: recipe.id, quantity: 1 }, status: recipe.status ?? 'ready',
-    ...(recipe.status === 'station' && recipe.detail ? { station: recipe.detail } : {}), ingredients: recipe.ingredients ?? [] }));
+    ...(recipe.status === 'station' && recipe.detail ? { station: recipe.detail } : {}), ...(recipe.reason ? { reason: recipe.reason } : {}), ingredients: recipe.ingredients ?? [] }));
   let book: UiRecipeBookElement | null = null;
   const createBook = () => uiRecipeBook({ id: 'crafting.recipes', recipes: entries(), selected, artwork: options.artwork, query,
     onSelect: id => { selected = id; },
-    onPlace: id => { selected = id; options.onRecipe(id); if (crowded) setRecipeBook(false); },
+    // Choosing the recipe that is already placed keeps it (the host's selection toggles off on a repeat).
+    onPlace: id => { if (snapshot.selected !== id) options.onRecipe(id); selected = id; if (crowded) setRecipeBook(false); },
     onQuery: value => { query = value; options.onRecipeFilter(value); },
     onClose: () => setRecipeBook(false) });
   // Desktop sets the book beside the bench; tall narrow screens stack it above. When neither fits (the
@@ -103,6 +109,8 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
     snapshot = next; if (next.selected) selected = next.selected;
     for (const grid of grids) grid.invalidate();
     for (const result of results) { result.setDisabled(!next.output || Boolean(next.requirement)); result.invalidate(); }
+    const reasonText = next.requirement ? next.requirement.charAt(0) + next.requirement.slice(1).toLowerCase() : '';
+    for (const reason of reasons) { if (reason.props['text'] !== reasonText) reason.setProps({ text: reasonText }); reason.setStyle({ visible: Boolean(reasonText) }); }
     if (changed) book?.updateRecipeBook(entries());
   };
   rebuild(); updateCrafting(snapshot);
