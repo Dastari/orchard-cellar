@@ -30,6 +30,8 @@ interface PlayerTradeOffer {
 }
 
 export interface TradeUiModel {
+  /** Connection generation; reconnect discards drafts and pending gestures. */
+  readonly connectionScope?: string;
   readonly contentRegistry: ContentRegistry;
   readonly identityHex: string;
   readonly session: PlayerTradeSession;
@@ -64,4 +66,3 @@ export function tradeItemIsOfferable(registry: ContentRegistry, itemKind: string
     && !definition.tags.includes('item.quest_unique')
     && !definition.tags.includes('container.backpack');
 }
-

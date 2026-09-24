@@ -21,6 +21,7 @@ export class TradeUi {
     private readonly callbacks: TradeUiCallbacks) {
     this.root = new UiRoot({ art, scale: 1, label: 'Player trade' });
     this.modal = new UiElement({ id: 'game.player-trade', kind: 'trade-modal',
+      props: { touchScroll: true, singlePointer: true },
       style: { display: 'stack', width: 'grow', height: 'grow', zLayer: 'modal', visible: false },
       pointerMode: 'capture', onPointer: () => true,
       measure: (_element, available) => {
@@ -44,10 +45,11 @@ export class TradeUi {
     // A stale or unrelated session is never an actionable trade.
     if (model && (!['requested', 'active'].includes(model.session.state)
       || ![model.session.requester.toHexString(), model.session.recipient.toHexString()].includes(model.identityHex))) model = null;
-    const key = model ? `${model.session.id}:${model.identityHex}:${model.session.state}` : null;
+    const key = model ? `${model.connectionScope ?? ''}:${model.session.id}:${model.identityHex}:${model.session.state}` : null;
     if (key !== this.sessionKey) {
       // Deactivate before clearing focus so teardown cannot publish an unfinished draft.
       this.trade?.deactivateTrade();
+      this.root.input.cancelPointers();
       this.root.focus.set(null);
       this.trade?.dispose(); this.trade = null;
       this.root.input.clearHover();

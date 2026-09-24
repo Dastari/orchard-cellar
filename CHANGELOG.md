@@ -2,6 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.25.0 / UI 0.27.0 — Shared player trade (not yet deployed)
+
+- Use the shared trade composition with live escrow, revision and wallet models; retain server authority and one command per gesture.
+- Preserve exact bigint money, draft focus through ordinary updates, stale-revision rejection, touch ownership and reconnect draft reset. Remove the old trade renderer and three native input paths.
+- Exclude inaccessible equipment/crafting/backpack slots from trade offers (BUG-018). The actual production wrapper is checked against a two-identity reducer harness.
+- Workspace 0.31.0. Seven of 33 surfaces are wired in the combined source; browser, final CI and live acceptance remain pending.
+
 ## Client 0.24.0 / UI 0.26.0 — Shared inventory and storage windows (not yet deployed)
 
 - Bind inventory, crafting, chest and barrel windows to the shared kit compositions while retaining the existing inventory authority, cursor prediction and command transport.

@@ -30,6 +30,34 @@ function setup(initial = model()) {
 }
 
 describe('production retained trade host', () => {
+  it('keeps secondary touch from moving focus or issuing a second offer', () => {
+    const h = setup(), slot = h.point('trade.inventory.slot.0');
+    h.ui.root.pointer({ type: 'down', point: slot, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
+    const focused = h.ui.root.focus.current, money = h.node('trade.money.gold').rect;
+    h.ui.root.pointer({ type: 'down', point: { x: money.x + 2, y: money.y + 2 }, pointerId: 2,
+      button: 0, pointerType: 'touch', isPrimary: false });
+    expect(h.ui.root.focus.current).toBe(focused);
+    h.ui.root.pointer({ type: 'up', point: slot, pointerId: 2, button: 0, pointerType: 'touch', isPrimary: false });
+    expect(h.handlers.offerItem).not.toHaveBeenCalled();
+    h.ui.root.pointer({ type: 'up', point: slot, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
+    expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', 0, 0, 12);
+    expect(h.handlers.offerBronze).not.toHaveBeenCalled(); h.ui.dispose();
+  });
+
+  it('discards unsubmitted money when the same trade returns on a new connection', () => {
+    const initial = { ...model(), connectionScope: 'self:1' }, h = setup(initial);
+    h.edit('trade.money.gold', '7');
+    const oldEditor = h.node('trade.money.gold');
+    const p = h.point('trade.accept');
+    h.ui.root.pointer({ type: 'down', point: p, pointerId: 4, button: 0 });
+    h.ui.update({ ...initial, connectionScope: 'self:2' }); h.ui.root.arrange();
+    h.ui.root.pointer({ type: 'up', point: p, pointerId: 4, button: 0 });
+    expect(oldEditor.disposed).toBe(true);
+    expect((h.node('trade.money.gold').props['editor'] as CanvasTextEditor).snapshot().value).toBe('0');
+    expect(h.handlers.offerBronze).not.toHaveBeenCalled();
+    expect(h.handlers.setAccepted).not.toHaveBeenCalled();
+    h.ui.dispose();
+  });
   it('accepts/declines only incoming requests and waits for authority to close', () => {
     const incoming = { ...model('requested'), identityHex: 'peer' };
     const h = setup(incoming); h.click('trade.request.accept');

@@ -176,7 +176,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // September24 inventory/storage adoption extracts the existing gesture authority
 // into shared helpers and binds four retained compositions. Actual-host regressions
 // cover cursor custody, restrictions, touch/focus and reconnect; other seams remain unchanged.
-const STRUCTURAL_SEAM_DIGEST = 'f1f4a340418ed9930ab32c45e9ca935a5b49b7dbb108e7dbc7877bd57457eceb';
+// Trade adoption retires the old drawing/native input paths; two-identity reducer,
+// revision, money and reconnect tests cover the replacement wrapper.
+const STRUCTURAL_SEAM_DIGEST = '793898eeb55189927394666263b3a42b29caf0fca9aa1f25dad01f4943a30581';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
