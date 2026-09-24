@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.33.0 / UI 0.35.0 — Shared Delve and update overlays (not yet deployed)
+
+- Adopt shared Delve confirmation, current run rewards/status and update-ready compositions. Reward commands remain pending until authoritative state changes; rejection permits a scoped retry without fabricating currency or progression.
+- Give update decisions their own highest input priority and synchronous service-worker readiness, even while rendering is paused. Preserve Later for the current availability interval, cancel superseded gestures and retire replaced production overlay input/drawing together. Workspace 0.39.0.
+
 ## Client 0.32.0 / UI 0.34.0 — Shared skill tree (not yet deployed)
 
 - Adopt the shared skill graph, authored node art, details, track navigation and progression actions using subscribed ranks, requirements, equipment contributions and reset costs.

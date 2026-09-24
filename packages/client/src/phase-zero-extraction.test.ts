@@ -185,7 +185,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Reviewed system-menu command adapter and retirement of its production legacy dispatch.
 // Reviewed shared character/statistics adapters, appearance rejection and legacy path retirement.
 // Reviewed skills host: shared navigation, actual parent deep links and captured reconnect tails.
-const STRUCTURAL_SEAM_DIGEST = 'ef31dd9105daaafb568cdff0c6e57be2fba84d16c1cff858012b3a2d6e9dab31';
+// Reviewed shared overlay lifecycle: synchronous PWA readiness, input priority and confirmation scope.
+const STRUCTURAL_SEAM_DIGEST = 'ccb2b0795ee727e2847905d706233c3db85fd0a81330ee010c6f24d4e4aeef7b';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

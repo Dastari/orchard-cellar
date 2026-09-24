@@ -1,4 +1,4 @@
-import { GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { DelveRewardsUi, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
@@ -229,13 +229,6 @@ import {
   type SkillPointNotice,
 } from '@orchard/ui';
 import { TouchControls, type TouchControlAction } from '@orchard/ui';
-import {
-  drawRogueRewardOverlay,
-  drawRogueRunHud,
-  rogueRewardHit,
-  rogueRewardLayout,
-  type RogueUiOffer,
-} from '@orchard/ui';
 import {
   facedResource,
   facedInteractionTile,
@@ -620,8 +613,6 @@ let nameplatesVisible = true;
 let nameplatesPreferenceIdentity: string | null = null;
 let onlinePlayersVisible = false;
 let homesteadBuildMode = false;
-let rogueUiPointer: { readonly x: number; readonly y: number } | null = null;
-let rogueUiPointerId: number | null = null;
 const unknownActionKinds = new Set<string>();
 const remoteBuffers = new Map<string, RemoteSnapshotBuffer>();
 const remoteDisplay = new Map<string, SampledRemote>();
@@ -1118,6 +1109,20 @@ function retainedUiAvailable(): boolean {
 }
 retainedUi.register({ id: 'character-name', priority: 1000, root: characterNamePrompt.root,
   active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
+const overlayRoots = overworldUi.enableRetainedOverlays(kitArt);
+const delveRewards = new DelveRewardsUi(kitArt, {
+  choose: slot => showPredictedInventoryResult(network.chooseRogueReward(slot),
+    latestSnapshot.rogueRun ? rogueRewardClaimedMessage(latestSnapshot.rogueRun) : 'BOON CHOSEN'),
+  leaveShop: () => showPredictedInventoryResult(network.skipRogueReward(), 'THE TRADER FADES INTO THE DARK'),
+});
+retainedUi.register({ id: 'update-ready', priority: 1200, root: overlayRoots.update,
+  active: () => !interfaceHidden && overworldUi.blockingUpdatePromptVisible, blocking: () => true });
+retainedUi.register({ id: 'delve-rewards', priority: 1100, root: delveRewards.rewardsRoot,
+  active: () => !interfaceHidden && worldClientReady() && !overworldUi.blockingUpdatePromptVisible && delveRewards.active,
+  blocking: () => true });
+retainedUi.register({ id: 'delve-confirmation', priority: 700, root: overlayRoots.confirmation,
+  active: () => retainedUiAvailable() && overworldUi.retainedConfirmationActive
+    && !npcInteractionUi.active && !tradeUi.active && !onlinePlayersVisible, blocking: () => true });
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
 const readingRoots = overworldUi.enableRetainedReading(kitArt);
 const characterRoots = overworldUi.enableRetainedCharacter(kitArt);
@@ -1162,6 +1167,7 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
+  delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
   retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
   npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
 });
@@ -5306,6 +5312,7 @@ function renderFrame(alpha = 1): void {
     fullscreen: standaloneWebApp || documentIsFullscreen(),
     fullscreenAvailable: webFullscreenAvailable,
     pwaUpdateStatus: pwaClient.status,
+    interactionSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
     toastKind,
@@ -5366,6 +5373,11 @@ function renderFrame(alpha = 1): void {
         })),
     } }),
   });
+  delveRewards.update(snapshot.rogueRun && network.gameplayReady ? {
+    sessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.rogueRun.id}:${snapshot.rogueRun.roomNumber}`,
+    visible: overworldUi.openWindow === null, run: snapshot.rogueRun,
+    offers: [...snapshot.rogueRewardOffers], registry: snapshot.content.registry, width: uiWidth, height: uiHeight,
+  } : null);
   canvas.classList.toggle('update-prompt-active', overworldUi.blockingUpdatePromptVisible);
   if (homesteadPaletteRegistry !== snapshot.content.registry) {
     homesteadPaletteRegistry = snapshot.content.registry;
@@ -5848,19 +5860,7 @@ function renderFrame(alpha = 1): void {
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
     if (!characterNamePrompt.isActive && !npcInteractionUi.active && !chatOverlay.isOpen
       && snapshot.tradeSession === null) overworldUi.drawBuildControl(uiContext);
-    if (snapshot.rogueRun !== null && overworldUi.openWindow === null) {
-      if (snapshot.rogueRun.phase === 'reward') drawRogueRewardOverlay(
-        snapshot.content.registry,
-        uiContext,
-        art.ui,
-        snapshot.rogueRun,
-        [...snapshot.rogueRewardOffers] as readonly RogueUiOffer[],
-        uiWidth,
-        uiHeight,
-        rogueUiPointer,
-      );
-      drawRogueRunHud(uiContext, art.ui, snapshot.rogueRun, uiWidth);
-    }
+    delveRewards.drawRewards(uiContext); delveRewards.drawHud(uiContext);
     overworldUi.drawBlockingOverlay(uiContext);
     overworldUi.drawCursorOverlay(uiContext);
     uiContext.restore();
@@ -6243,7 +6243,6 @@ pwaClient.subscribe((status) => {
   setInterfaceHidden(false);
   canvas.classList.add('update-prompt-active');
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-  rogueUiPointerId = null;
   cancelBowChargePresentation();
   overworldUi.pointerLeave();
   keys.clear();
@@ -6329,25 +6328,9 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keydown', (event) => {
   if (event.target === retainedText.input) return;
   void audio.unlock().catch(() => undefined);
-  const rogueRun = latestSnapshot.rogueRun;
-  if (!interfaceHidden && overworldUi.openWindow === null && rogueRun !== null && !event.repeat) {
-    if (rogueRun.phase === 'reward') {
-      const offerIndex = event.code === 'Digit1' || event.code === 'Numpad1' ? 0
-        : event.code === 'Digit2' || event.code === 'Numpad2' ? 1
-          : event.code === 'Digit3' || event.code === 'Numpad3' ? 2 : -1;
-      const offer = offerIndex < 0 ? undefined : [...latestSnapshot.rogueRewardOffers][offerIndex];
-      if (offer !== undefined) showResult(
-        network.chooseRogueReward(offer.slot), rogueRewardClaimedMessage(rogueRun),
-      );
-      event.preventDefault();
-      return;
-    }
-  }
   if (!interfaceHidden) {
-    if (overworldUi.blockingUpdatePromptVisible
-      && overworldUi.handleKeyDown(event.code, event.repeat, { ctrl: event.ctrlKey })) {
-      event.preventDefault();
-      return;
+    if (retainedUi.key(event, 'update-ready') || retainedUi.key(event, 'delve-rewards') || retainedUi.key(event, 'delve-confirmation')) {
+      syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'character-name')) {
       syncRetainedText(); event.preventDefault();
@@ -6898,7 +6881,6 @@ window.addEventListener('keyup', (event) => keys.delete(event.code));
 function clearPointerPresentation(): void {
   worldPointer = null;
   hoveredInteractionTile = null;
-  rogueUiPointer = null;
   retainedUi.clearHover();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
@@ -6980,16 +6962,12 @@ window.addEventListener('pointercancel', (event) => {
 canvas.addEventListener('pointermove', (event) => {
   touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
-  rogueUiPointer = { x, y };
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   refreshHoveredInteractionTile();
   if (interfaceHidden) return;
   overworldUi.systemCursorMove({ x, y });
-  if (overworldUi.blockingUpdatePromptVisible) {
-    overworldUi.pointerMove({ x, y });
-    return;
-  }
+  if (retainedPointers.dispatch('move', event, 'update-ready') || retainedPointers.dispatch('move', event, 'delve-rewards') || retainedPointers.dispatch('move', event, 'delve-confirmation')) return;
   if (retainedPointers.dispatch('move', event, 'character-name')) return;
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
   if (retainedPointers.dispatch('move', event, 'npc-interaction')) return;
@@ -7021,34 +6999,8 @@ canvas.addEventListener('pointerdown', (event) => {
     return;
   }
   if (!interfaceHidden) overworldUi.systemCursorDown({ x, y });
-  if (!interfaceHidden && overworldUi.blockingUpdatePromptVisible) {
-    overworldUi.pointerDown({ x, y }, event.button, { shift: event.shiftKey });
-    canvas.setPointerCapture(event.pointerId);
-    event.preventDefault();
-    return;
-  }
-  const rogueRun = latestSnapshot.rogueRun;
-  if (!interfaceHidden && overworldUi.openWindow === null && event.button === 0 && rogueRun !== null) {
-    const [uiWidth, uiHeight] = touchControlViewport();
-    if (rogueRun.phase === 'reward') {
-      const offers = [...latestSnapshot.rogueRewardOffers];
-      const hit = rogueRewardHit(
-        rogueRewardLayout(uiWidth, uiHeight, offers.length, rogueRun.roomKind === 'shop'),
-        { x, y },
-      );
-      rogueUiPointerId = event.pointerId;
-      if (hit?.kind === 'offer') {
-        const offer = offers[hit.index];
-        if (offer !== undefined) showResult(
-          network.chooseRogueReward(offer.slot), rogueRewardClaimedMessage(rogueRun),
-        );
-      } else if (hit?.kind === 'skip') {
-        showResult(network.skipRogueReward(), 'THE TRADER FADES INTO THE DARK');
-      }
-      canvas.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      return;
-    }
+  if (!interfaceHidden && (retainedPointers.dispatch('down', event, 'update-ready') || retainedPointers.dispatch('down', event, 'delve-rewards') || retainedPointers.dispatch('down', event, 'delve-confirmation'))) {
+    event.preventDefault(); return;
   }
   if (!interfaceHidden && retainedPointers.dispatch('down', event, 'player-trade')) {
     event.preventDefault();
@@ -7393,21 +7345,13 @@ function performWorldPointerAction(
 }
 
 canvas.addEventListener('pointerup', (event) => {
+  if (!interfaceHidden && (overworldUi.blockingUpdatePromptVisible || delveRewards.active || overworldUi.retainedConfirmationActive)) {
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    event.preventDefault(); return;
+  }
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   const [x, y] = pointerUiPosition(event);
-  if (rogueUiPointerId === event.pointerId) {
-    rogueUiPointerId = null;
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    event.preventDefault();
-    return;
-  }
-  if (!interfaceHidden && overworldUi.blockingUpdatePromptVisible) {
-    overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    event.preventDefault();
-    return;
-  }
   if (!interfaceHidden) {
     if (characterNamePrompt.isActive) {
       event.preventDefault();
@@ -7449,7 +7393,6 @@ canvas.addEventListener('lostpointercapture', (event) => {
 });
 canvas.addEventListener('pointercancel', () => {
   cancelBowChargePresentation();
-  rogueUiPointerId = null;
   worldPointer = null;
   hoveredInteractionTile = null;
   chatOverlay.pointerCancel();
@@ -7458,9 +7401,11 @@ canvas.addEventListener('pointercancel', () => {
 canvas.addEventListener('wheel', (event) => {
   const [x, y] = pointerUiPosition(event);
   if (!interfaceHidden) {
-    if (overworldUi.blockingUpdatePromptVisible) {
-      event.preventDefault();
-      return;
+    const overlayWheel = { point: { x, y },
+      deltaX: event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+      deltaY: event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale() };
+    if (retainedUi.wheel(overlayWheel, 'update-ready') || retainedUi.wheel(overlayWheel, 'delve-rewards') || retainedUi.wheel(overlayWheel, 'delve-confirmation')) {
+      event.preventDefault(); return;
     }
     if (retainedUi.wheel({ point: { x, y }, deltaX: event.deltaX, deltaY: event.deltaY }, 'character-name')) {
       event.preventDefault(); return;
