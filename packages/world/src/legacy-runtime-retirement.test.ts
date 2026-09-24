@@ -79,7 +79,7 @@ describe('Phase 6 legacy runtime retirement', () => {
   });
 
   it('uses the committed pack loader as the sole runtime bootstrap seed', () => {
-    expect(bootstrapLoaderSource.match(/\.json' with \{ type: 'json' \}/gu)).toHaveLength(27);
+    expect(bootstrapLoaderSource.match(/\.json' with \{ type: 'json' \}/gu)).toHaveLength(28);
     expect(bootstrapRegistrySource).toContain('deepFreeze([...loadBootstrapPackDefinitions()])');
     for (const literal of [
       'ITEM_DEFINITIONS', 'ITEM_ECONOMY', 'MERCHANT_OFFERS', 'RECIPES',

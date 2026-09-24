@@ -12,7 +12,7 @@ export const CONTENT_KIND_SCOPE: Readonly<Record<SupportedContentKind, StudioSco
   world_rules: 'world_rules', balance: 'world_rules', balance_group: 'world_rules', crop: 'world_rules',
   creature: 'actors', spawn: 'actors', enemy: 'actors', encounter: 'actors',
   space: 'map', skill_tree: 'loot_progression', effect: 'loot_progression',
-  statistic: 'loot_progression', upgrade: 'loot_progression', loadout: 'items_economy',
+  statistic: 'loot_progression', upgrade: 'loot_progression', loadout: 'items_economy', gear: 'items_economy',
 };
 export const CONTENT_SCOPES = [...new Set(Object.values(CONTENT_KIND_SCOPE))];
 export const STUDIO_ROLE_PRESETS: Readonly<Record<string, readonly StudioScope[]>> = {

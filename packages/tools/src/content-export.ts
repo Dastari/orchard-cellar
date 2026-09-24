@@ -42,6 +42,7 @@ const FILE_BY_KIND = {
   enemy: 'enemies.json',
   encounter: 'encounters.json',
   world_rules: 'world-rules.json',
+  gear: 'gear.json',
 } as const satisfies Readonly<Record<BootstrapContentKind, string>>;
 
 export interface BootstrapContentFile {

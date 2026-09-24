@@ -1,6 +1,7 @@
 import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
 import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import type { Modifier } from './modifiers.js';
+import { compareGearInstanceIds, type ItemGear } from './item-gear.js';
 import type { ContentRegistry } from './content/registry.js';
 import {
   RECIPES,
@@ -101,6 +102,10 @@ export interface ItemStack {
   /** Item power state. Storage is deliberately definition-agnostic and must
    * preserve this metadata through moves, drops, and container swaps. */
   readonly lit?: boolean;
+  /** Per-copy gear record (Gear-D2). A gear stack is exactly one copy: it
+   * never merges, splits or sorts together with any other stack, and every
+   * move or `{ ...stack }` copy must carry it. */
+  readonly gear?: ItemGear;
 }
 
 export function isUniqueQuestItemKind(itemKind: string): boolean {
@@ -108,6 +113,9 @@ export function isUniqueQuestItemKind(itemKind: string): boolean {
 }
 
 export function stackMetadataMatches(left: ItemStack, right: ItemStack): boolean {
+  // Each gear copy is unique, even against a clone of itself: merging would
+  // destroy one copy's record or duplicate its instance id.
+  if (left.gear !== undefined || right.gear !== undefined) return false;
   // Omitted power state has the same true default used by durable storage.
   // Fresh authored outputs and grants must merge with their persisted form;
   // explicitly switched-off items and different durability remain distinct.
@@ -363,7 +371,8 @@ export function slotAcceptsItem(
 export function insertItemStack(container: ContainerSnapshot, item: ItemStack): InsertItemResult {
   const maxStack = maxStackFor(item.itemKind);
   if (maxStack === null) return failure('unknown_item_kind');
-  if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) return failure('invalid_quantity');
+  if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0
+    || (item.gear !== undefined && item.quantity !== 1)) return failure('invalid_quantity');
   const normalized = normalizeContainer(container);
   let available = 0;
   for (let index = 0; index < normalized.capacity; index += 1) {
@@ -406,7 +415,8 @@ export function insertItemStackPartial(
 ): InsertItemPartialResult {
   const maxStack = content.maxStackFor(item.itemKind);
   if (maxStack === null) return failure('unknown_item_kind');
-  if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) return failure('invalid_quantity');
+  if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0
+    || (item.gear !== undefined && item.quantity !== 1)) return failure('invalid_quantity');
   const normalized = normalizeContainer(container);
   const slots = [...normalized.slots];
   let remaining = item.quantity;
@@ -441,7 +451,8 @@ function validStack(
 ): stack is ItemStack {
   if (!stack) return false;
   const maxStack = content.maxStackFor(stack.itemKind);
-  return maxStack !== null && Number.isSafeInteger(stack.quantity) && stack.quantity > 0 && stack.quantity <= maxStack;
+  return maxStack !== null && Number.isSafeInteger(stack.quantity) && stack.quantity > 0 && stack.quantity <= maxStack
+    && (stack.gear === undefined || stack.quantity === 1);
 }
 
 function normalizeContainer(container: ContainerSnapshot): ContainerSnapshot {
@@ -492,7 +503,13 @@ export function sortAndStackContainer(
     const leftDurability = left.exemplar.durability ?? -1;
     const rightDurability = right.exemplar.durability ?? -1;
     if (leftDurability !== rightDurability) return rightDurability - leftDurability;
-    return Number(right.exemplar.lit ?? false) - Number(left.exemplar.lit ?? false);
+    const litOrder = Number(right.exemplar.lit ?? false) - Number(left.exemplar.lit ?? false);
+    if (litOrder !== 0) return litOrder;
+    // Plain stacks first, then gear copies by instance id, so sorting is stable
+    // whatever order the copies arrived in.
+    const leftGear = left.exemplar.gear, rightGear = right.exemplar.gear;
+    if (leftGear === undefined || rightGear === undefined) return Number(leftGear !== undefined) - Number(rightGear !== undefined);
+    return compareGearInstanceIds(leftGear.instanceId, rightGear.instanceId);
   });
 
   const stacks: ItemStack[] = [];
@@ -900,6 +917,11 @@ export function distributeItemStack(
   if (!Number.isSafeInteger(requestedQuantity) || requestedQuantity <= 0 || requestedQuantity > source.quantity) {
     return failure('invalid_quantity');
   }
+  // A gear copy is one unique item: it only ever moves whole into one empty
+  // slot, never merges into another stack and never splits (which would
+  // duplicate or drop its record).
+  const instanced = source.gear !== undefined;
+  if (instanced && source.quantity !== 1) return failure('invalid_quantity');
 
   const seen = new Set<string>();
   const targets = request.targets.filter((target) => {
@@ -914,9 +936,9 @@ export function distributeItemStack(
     if (!Number.isSafeInteger(target.index) || target.index < 0 || target.index >= container.capacity) return [];
     if (!slotAcceptsItem(container, target.index, source.itemKind, content)) return [];
     const stack = container.slots[target.index] ?? null;
-    if (stack !== null && stack.itemKind !== source.itemKind) return [];
+    if (stack !== null && (stack.itemKind !== source.itemKind || instanced || stack.gear !== undefined)) return [];
     return [{ ...target, available: (content.maxStackFor(source.itemKind) ?? 0) - (stack?.quantity ?? 0) }];
-  }).filter((target) => target.available > 0);
+  }).filter((target) => target.available > 0).slice(0, instanced ? 1 : undefined);
   if (capacities.length === 0) return failure('container_full');
   const movedQuantity = Math.min(requestedQuantity, capacities.reduce((sum, target) => sum + target.available, 0));
   if (movedQuantity <= 0) return failure('container_full');
