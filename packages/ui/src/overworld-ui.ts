@@ -68,6 +68,7 @@ import {
 } from './skin.js';
 import { widget, type WidgetNode } from './widget.js';
 import { CharacterScreen, progressionWindowRect, type CharacterScreenModel } from './character-screen.js';
+import type { UiGameBookChapter } from './kit/components/character-book.js';
 import { SkillTreeUi, type SkillTreeModel } from './skill-tree-ui.js';
 import type { SkillPointNotice } from './skill-point-notice.js';
 import { StatisticsScreen, type StatisticsScreenModel } from './statistics-screen.js';
@@ -1334,7 +1335,7 @@ export class OverworldUi {
   }
   disposeRetainedSystem(): void { this.systemMenus?.dispose(); this.systemMenus = null; }
   enableRetainedCharacter(art: UiKitArt): { readonly character: UiRoot; readonly statistics: UiRoot; readonly skills: UiRoot } {
-    const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: 'character' | 'skills' | 'statistics') => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
+    const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: UiGameBookChapter) => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
     if (!this.characterScreen || !this.statisticsScreen || !this.skillTree) {
       this.characterScreen = new CharacterScreen(art, { setAppearance: appearance => this.callbacks.setAppearance?.(appearance) },
         this.drawPlayerDoll, (context, rect, item) => this.drawInventoryItem(context, rect, item.itemKind, item.quantity, item.durability, item.lit), navigation);
@@ -1419,7 +1420,7 @@ export class OverworldUi {
       this.questLog = new QuestLog(art, {
         setPinned: (id, pinned) => this.callbacks.setQuestPinned(id, pinned),
         drop: id => this.callbacks.abandonQuest(id),
-      }, () => { this.openWindow = null; });
+      }, () => { this.openWindow = null; }, page => { this.openWindow = page; });
       this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; });
       for (const root of [this.questLog.root, this.helpBook.root]) {
         for (const { element } of root.entries()) if (element.id === 'game.quests' || element.id === 'game.help.frame') {

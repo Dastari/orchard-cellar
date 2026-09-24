@@ -1,22 +1,27 @@
 import { afterEach, beforeAll, expect, it } from 'vitest';
-import { StatisticsScreen, type StatisticsScreenModel } from '../../statistics-screen.js';
-import { progressionWindowRect } from '../../character-screen.js';
+import type { StatisticsScreenModel } from '../../statistics-screen.js';
 import { uiTestArt } from '../lab/testing/art.js';
 import { UiRoot } from '../runtime/root.js';
 import { UiElement } from '../runtime/element.js';
 import { scrollUiElement, uiScrollThumb } from '../layout/scroll.js';
 import { uiFixed } from '../layout/box.js';
 import { uiTable } from './collections.js';
+import { uiFlex } from './layout.js';
 import type { UiKitArt } from './art.js';
 let art: UiKitArt;
 beforeAll(async () => { art = await uiTestArt(); });
 const cleanup: (() => void)[] = [];
 afterEach(() => cleanup.splice(0).forEach(dispose => dispose()));
 const records: StatisticsScreenModel = { statistics: Array.from({ length: 18 }, (_, i) => ({ statisticKind: 'items_obtained', subjectKind: `subject_${i}`, value: 9007199254740993n + BigInt(i) })) };
+// A compact game table as the records screen used to host it: three columns wider than the frame.
 function fixture() {
-  const screen = new StatisticsScreen(art); cleanup.push(() => screen.dispose());
-  screen.update(records); screen.setBounds(progressionWindowRect(320, 180), 320, 180); screen.focus();
-  const root = screen.root, node = (id: string) => root.entries().find(entry => entry.element.id === id)!.element;
+  const root = new UiRoot({ art, scale: 1 }); cleanup.push(() => root.dispose()); root.resize(320, 180);
+  const table = uiTable({ id: 'statistics.table', label: 'Lifetime records', surface: 'game', pageSize: 6, rows: records.statistics, key: row => row.subjectKind,
+    layout: { height: 'grow', minHeight: uiFixed(28) }, columns: [{ id: 'record', label: 'Record', value: row => row.statisticKind },
+      { id: 'subject', label: 'Subject', value: row => row.subjectKind }, { id: 'value', label: 'Total', width: uiFixed(180), sortable: false, value: row => row.value.toString() }] });
+  root.mount(uiFlex({ width: uiFixed(284), height: uiFixed(150), padding: 8 }, [table]).setProps({ touchScroll: true, singlePointer: true })); root.arrange();
+  const screen = { root };
+  const node = (id: string) => root.entries().find(entry => entry.element.id === id)!.element;
   const button = (label: string) => root.entries().find(entry => entry.element.label === label && entry.element.kind === 'button')!.element;
   const reveal = (label: string) => { const target = button(label); root.focus.set(target); root.arrange(); return target; };
   const center = (element: UiElement) => ({ x: element.rect.x + element.rect.width / 2, y: element.rect.y + element.rect.height / 2 });

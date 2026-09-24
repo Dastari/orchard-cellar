@@ -197,7 +197,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Game UI redesign: the retained inventory snapshot passes the paper-doll portrait painter (drawPlayerDoll);
 // inventory-menus host and container-binding tests cover fitted windows and bindings.
 // Recipe-book rows carry output, status and per-ingredient need/have; crafting-frame and host tests cover the book.
-const STRUCTURAL_SEAM_DIGEST = '5ac09595fa8c57afe6c1c1f0263783d534370206342857978dcd3bb2cab7e88e';
+// Player book: character, skills and records navigate across all four chapters (UiGameBookChapter, now including quests)
+// and the quest log's chapter tabs open them; character, skill, records, quest and reading host tests cover the tabs.
+const STRUCTURAL_SEAM_DIGEST = '6735909d2a880b1cc139bb2b8bdf635183654f7274808bc9f191060ce4cbc97b';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

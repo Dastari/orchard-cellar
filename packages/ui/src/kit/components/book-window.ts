@@ -45,7 +45,11 @@ function chapterTab(chapter: UiBookChapter, active: () => boolean, onPress: () =
 
 /** A book-bound window: chapter tabs stand on the top edge, a close tab at the far right,
  * and each chapter fills the two leaves. Arrow keys on a tab move between chapters. */
-export function uiBookWindow(options: UiBookWindowOptions): UiElement {
+export interface UiBookWindowElement extends UiElement {
+  /** Resize both leaves in place (for example when the viewport changes), keeping every node and its focus. */
+  setBookPage(page: { readonly width: number; readonly height: number }): void;
+}
+export function uiBookWindow(options: UiBookWindowOptions): UiBookWindowElement {
   const chapter = options.chapters.find(entry => entry.id === options.active) ?? options.chapters[0]!;
   const tabs = options.chapters.map(entry => chapterTab(entry, () => entry.id === options.active, () => options.onChapter(entry.id)));
   // The book art's top edge sits 4px inside its frame, so tabs start 4px lower to tuck under it.
@@ -58,7 +62,7 @@ export function uiBookWindow(options: UiBookWindowOptions): UiElement {
   const width = options.page.width * 2 + 24 + 32;
   const book = uiFrame({ id: options.id, style: 'book', padding: 16, layout: { direction: 'row', gap: 24, width: uiFixed(width), height: uiFixed(options.page.height + 32) }, children: leaves });
   book.setProps({ label: chapter.label });
-  return new UiElement({ id: options.id ? `${options.id}.window` : undefined, kind: 'book-window', label: chapter.label, style: { display: 'stack', ...options.layout },
+  const window = new UiElement({ id: options.id ? `${options.id}.window` : undefined, kind: 'book-window', label: chapter.label, style: { display: 'stack', ...options.layout },
     // Tabs stand behind the cover so their feet tuck under its top edge.
     children: [tabRow, ...(close ? [close] : []), uiFlex({ direction: 'column', padding: { top: 24 } }, [book])],
     onKey(event) {
@@ -68,4 +72,9 @@ export function uiBookWindow(options: UiBookWindowOptions): UiElement {
       return false;
     },
   });
+  const setBookPage = (page: { readonly width: number; readonly height: number }) => {
+    for (const leaf of leaves) leaf.setStyle({ width: uiFixed(page.width), height: uiFixed(page.height) });
+    book.setStyle({ width: uiFixed(page.width * 2 + 24 + 32), height: uiFixed(page.height + 32) });
+  };
+  return Object.assign(window, { setBookPage });
 }

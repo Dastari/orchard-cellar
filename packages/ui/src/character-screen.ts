@@ -2,6 +2,7 @@ import type { Attributes, Direction, PlayerAppearanceCatalogDefinition, PlayerAp
 import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiCharacter, type UiCharacterElement } from './kit/components/character.js';
+import { uiGameBookPage, type UiGameBookChapter } from './kit/components/character-book.js';
 import { uiFixed } from './kit/layout/box.js';
 import { UiRoot } from './kit/runtime/root.js';
 
@@ -67,7 +68,7 @@ export function cycleAppearanceValue(
 
 export interface CharacterScreenNavigation {
   readonly onKey?: (key: string, repeat: boolean) => boolean;
-  readonly onNavigate?: (page: 'character' | 'skills' | 'statistics') => void;
+  readonly onNavigate?: (page: UiGameBookChapter) => void;
   readonly onClose?: () => void;
 }
 
@@ -77,6 +78,7 @@ export class CharacterScreen {
   private view: UiCharacterElement | null = null;
   private model: CharacterScreenModel | null = null;
   private bounds: UiRect | undefined;
+  private page = { width: 200, height: 248 };
   constructor(art: UiKitArt, private readonly callbacks: CharacterScreenCallbacks,
     private readonly drawDoll: (context: CanvasRenderingContext2D, appearance: PlayerAppearanceSelection, facing: Direction, rect: UiRect) => void,
     private readonly drawItem: (context: CanvasRenderingContext2D, rect: UiRect, item: CharacterEquipmentItem) => void,
@@ -90,11 +92,13 @@ export class CharacterScreen {
     }
     if (this.model && this.model.playerId !== model.playerId) this.root.input.cancelPointers();
     this.model = model;
-    if (!this.view) {
-      this.view = uiCharacter({ model, onAppearance: appearance => this.callbacks.setAppearance(appearance),
-        renderPortrait: this.drawDoll, renderEquipment: this.drawItem, ...this.navigation });
-      this.root.mount(this.view); this.applyBounds();
-    } else this.view.updateCharacter(model);
+    if (!this.view) this.mountView(model);
+    else this.view.updateCharacter(model);
+  }
+  private mountView(model: CharacterScreenModel): void {
+    this.view = uiCharacter({ model, onAppearance: appearance => this.callbacks.setAppearance(appearance),
+      renderPortrait: this.drawDoll, renderEquipment: this.drawItem, page: this.page, ...this.navigation });
+    this.root.mount(this.view); this.applyBounds();
   }
   private applyBounds(): void {
     if (!this.view || !this.bounds) return;
@@ -103,6 +107,9 @@ export class CharacterScreen {
   }
   setBounds(frame: UiRect, viewportWidth: number, viewportHeight: number): void {
     this.root.resize(viewportWidth, viewportHeight);
+    // The book's leaves follow the viewport, resized in place so focus and drafts survive.
+    const page = uiGameBookPage(viewportWidth, viewportHeight);
+    if (page.width !== this.page.width || page.height !== this.page.height) { this.page = page; this.view?.setPage(page); }
     if (!this.bounds || Object.keys(frame).some(key => frame[key as keyof UiRect] !== this.bounds![key as keyof UiRect])) {
       this.bounds = { ...frame }; this.applyBounds();
     }
