@@ -1,9 +1,7 @@
-import { centeredFixedSceneLayout } from './display.js';
+import { canvasHostViewport, canvasSafeAreaInsets, insetCanvasViewport } from './display.js';
+import { GameGatewayLoading, gameGatewayLayout, loadUiKitArt, type UiKitArt } from '@orchard/ui/game';
 import { loadGeneratedAsset, type LoadedAsset } from '@orchard/ui';
-import { loadPixelUi, type PixelUi } from '@orchard/ui';
 import { drawOrchardBackdrop, loadOrchardBackdrop } from '@orchard/ui';
-import { drawGatewayLoading, type GatewayFrameSkin } from '@orchard/ui';
-import type { UiSkin } from '@orchard/ui';
 
 export interface LoadingScreenStage {
   readonly title: string;
@@ -29,6 +27,7 @@ let currentStage: LoadingScreenStage = {
 };
 let pixelFrameRequest: number | null = null;
 let initializationPromise: Promise<void> | null = null;
+let loadingView: GameGatewayLoading | null = null;
 let resizeListener: (() => void) | null = null;
 const clientVersion = import.meta.env.VITE_CLIENT_VERSION;
 
@@ -81,21 +80,15 @@ export function setLoadingScreenStage(stage: LoadingScreenStage): void {
 export function initializeLoadingScreen(): Promise<void> {
   void loadOrchardBackdrop();
   initializationPromise ??= Promise.all([
-    loadPixelUi(),
-    loadGeneratedAsset('ui_cf_panel_wood', 'summer'),
-    loadGeneratedAsset('ui_cf_panel_parchment', 'summer'),
-    loadGeneratedAsset('ui_cf_banner', 'summer'),
+    loadUiKitArt({ families: ['frame', 'meter', 'feedback', 'slider'], icons: [] }),
     loadGeneratedAsset('icon_resource_fruit', 'summer'),
-  ]).then(([ui, panelWood, panelParchment, banner, apple]) => {
-    upgradeLoadingScreen(ui, { panelWood, panelParchment, banner }, apple);
-  });
+  ]).then(([kitArt, apple]) => { upgradeLoadingScreen(kitArt, apple); });
   return initializationPromise;
 }
 
 /** Render loading directly into the permanent game canvas. */
 export function upgradeLoadingScreen(
-  ui: PixelUi,
-  skin: UiSkin | GatewayFrameSkin,
+  kitArt: UiKitArt,
   emblem: LoadedAsset,
 ): void {
   if (dismissed || pixelFrameRequest !== null) return;
@@ -104,10 +97,10 @@ export function upgradeLoadingScreen(
   if (root === null || canvas === null) return;
   const context = canvas.getContext('2d');
   if (context === null) return;
+  loadingView = new GameGatewayLoading(kitArt, { emblem, version: clientVersion });
 
   const resize = (): void => {
-    const width = Math.max(1, Math.floor(innerWidth));
-    const height = Math.max(1, Math.floor(innerHeight));
+    const { width, height } = canvasHostViewport(canvas);
     const dpr = Math.max(1, devicePixelRatio);
     const backingWidth = Math.round(width * dpr);
     const backingHeight = Math.round(height * dpr);
@@ -129,18 +122,12 @@ export function upgradeLoadingScreen(
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawOrchardBackdrop(context, width, height);
 
-    const scene = centeredFixedSceneLayout(width, height);
+    const safe = canvasSafeAreaInsets(canvas), viewport = insetCanvasViewport(width, height, safe);
+    const scene = gameGatewayLayout(viewport.width, viewport.height);
     context.save();
-    context.translate(scene.x, scene.y);
-    context.scale(scene.scale, scene.scale);
-    drawGatewayLoading(
-      context,
-      { ui, skin, apple: emblem },
-      currentStage.title,
-      currentStage.progress,
-      currentStage.error === true,
-      clientVersion,
-    );
+    context.translate(safe.left, safe.top); context.scale(scene.scale, scene.scale);
+    loadingView!.setBounds(scene.frame, scene.width, scene.height);
+    loadingView!.update(currentStage); loadingView!.draw(context);
     context.restore();
     pixelFrameRequest = requestAnimationFrame(draw);
   };
@@ -154,6 +141,7 @@ export function dismissLoadingScreen(): void {
   pixelFrameRequest = null;
   if (resizeListener !== null) window.removeEventListener('resize', resizeListener);
   resizeListener = null;
+  loadingView?.dispose(); loadingView = null;
   const root = document.querySelector<HTMLElement>('#loading-screen');
   document.querySelector<HTMLElement>('#game-shell')?.setAttribute('aria-busy', 'false');
   if (root === null) return;

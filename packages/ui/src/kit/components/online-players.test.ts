@@ -55,3 +55,18 @@ describe('online-player roster', () => {
     root.key({ key: 'Escape' }); root.arrange(); expect(root.focus.current).toBe(opener); root.dispose();
   });
 });
+
+it('uses one primary touch owner for remove-button scrolling without a removal or role command', () => {
+  const root = new UiRoot({ scale: 1 }); root.resize(300, 200);
+  const cycle = vi.fn(), remove = vi.fn();
+  const roster = root.mount(uiOnlinePlayers({ id: 'roster', players: Array.from({ length: 20 }, (_, id) => ({ id: String(id), label: `Farmer ${id}`, manageable: true })),
+    onClose: vi.fn(), onCycleRole: cycle, onRemove: remove })); root.arrange();
+  const button = root.entries().find(entry => entry.element.id === `${roster.id}:remove:1`)!.element;
+  const point = { x: button.rect.x + 5, y: button.rect.y + 10 };
+  const send = (type: 'down'|'move'|'up', dy: number, pointerId = 1, isPrimary = true) => root.pointer({ type, point: { x: point.x, y: point.y - dy }, pointerType: 'touch', button: 0, pointerId, isPrimary });
+  send('down', 0); const focused = root.focus.current;
+  send('down', 2, 2, false); expect(root.focus.current).toBe(focused);
+  send('move', 4); send('move', 24); send('up', 24); send('up', 2, 2, false);
+  const list = root.entries().find(entry => entry.element.kind === 'scroll-area')!.element;
+  expect(list.scroll.y).toBe(24); expect(remove).not.toHaveBeenCalled(); expect(cycle).not.toHaveBeenCalled(); root.dispose();
+});

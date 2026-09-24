@@ -1,7 +1,7 @@
 import { paintUiScrollbar } from './scroll-art.js';
 import { paintUiSkin } from './art.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
-import { uiFixed, type UiStyle, type UiDimension } from '../layout/box.js';
+import { uiFixed, uiPaddingInsets, type UiStyle, type UiDimension } from '../layout/box.js';
 import { scrollUiElement } from '../layout/scroll.js';
 import { UI_SIZE_METRICS, UI_TABLE_DEFAULTS, type UiControlSize, type UiTone } from '../tokens.js';
 import { uiFlex, uiScrollArea } from './layout.js';
@@ -37,6 +37,9 @@ export function uiList<T>(options: UiListOptions<T>): UiElement {
     else if (y + rowHeight > list.scroll.y + list.contentRect.height) scrollUiElement(list, list.scroll.x, y + rowHeight - list.contentRect.height);
   };
   const rebuild = (element: UiElement) => {
+    // Controlled owners can update selection without replacing the focused list.
+    selected.clear();
+    for (const key of element.props['selected'] as readonly string[] ?? []) selected.add(key);
     active = Math.max(0, Math.min(items().length - 1, Number(element.props['active']) || 0));
     const all = items(), height = Math.max(rowHeight, element.contentRect.height || 240);
     const start = options.virtual === false ? 0 : Math.max(0, Math.floor(element.scroll.y / rowHeight) - 2);
@@ -158,7 +161,11 @@ export function uiTable<T>(options: UiTableOptions<T>): UiElement {
   let page = options.state?.page ?? 0, sort = [...options.sort ?? options.state?.sort ?? []], selected = [...options.selected ?? []], requestedFocus = '';
   let scrollY = options.state?.scrollY ?? 0, active = options.state?.active ?? 0;  const pageSize = Math.max(1, options.pageSize ?? 20), widths = new Map(options.columns.map(column => [column.id, column.width ?? 'grow']));
   const mode = options.mode ?? UI_TABLE_DEFAULTS[options.surface ?? 'studio'];
-  const shell = uiScrollArea({ id: options.id, label: options.label, width: 'grow', height: 'grow', ...options.layout, overflow: 'scroll-x' });
+  // The horizontal scrollbar paints/hits inside the outer rect. Keep the
+  // table's last row (including pagination) above that gutter at every width.
+  const padding = uiPaddingInsets(options.layout?.padding ?? { right: 16 });
+  const shell = uiScrollArea({ id: options.id, label: options.label, width: 'grow', height: 'grow', ...options.layout,
+    padding: { ...padding, bottom: padding.bottom < 16 ? 16 : padding.bottom }, overflow: 'scroll-x' });
   const outer = new UiElement({ ...shell.hooks, kind: 'table' });
   const table = uiFlex({ width: 'grow', height: 'grow', gap: 4 }); outer.append(table);
   const publishState = () => { const state = { sort: [...sort], page, scrollY, active }; outer.setProps({ state }, false); options.onStateChange?.(state); };

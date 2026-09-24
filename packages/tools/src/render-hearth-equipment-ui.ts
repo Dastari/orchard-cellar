@@ -33,8 +33,9 @@ const output=resolve(root,process.argv.slice(2).find(argument=>!argument.startsW
 const settings={width:(furnishing||orders||seals||(danger&&!compact))?960:compact?1080:1440,height:(furnishing||orders||seals||(danger&&!compact))?540:810,uiWidth:(furnishing||orders||seals||(danger&&!compact))?320:compact?360:480,uiHeight:(furnishing||orders||seals||(danger&&!compact))?180:270,scale:3,danger,seals,skills,rewards,rewardState,ferry,stash,furniture,furnishing,seating,expansion,construction,constructionReview,intro,rowan,furnishContract,expeditionContract,orders,orderReview,orderPending};
 const scene=`
 import { villageOrders,villageOrderQuote,bootstrapContentRegistry,hearthFurnitureDefinition,compileEquipmentLoadout,MAIN_HAND_INVENTORY_SLOT } from '/packages/sim/src/index.ts';
-import { HomesteadBuildPalette,homesteadBuildPaletteCells,constructionToolRect } from '/packages/ui/src/homestead-build-palette.ts';
-import { NpcInteractionUi,npcInteractionLayout } from '/packages/ui/src/npc-interaction-ui.ts';
+import { HomesteadBuildPalette } from '/packages/ui/src/homestead-build-palette.ts';
+import { loadUiKitArt } from '/packages/ui/src/kit/components/art.ts';
+import { NpcInteractionUi } from '/packages/ui/src/npc-interaction-ui.ts';
 import { OverworldUi,overworldUiLayout } from '/packages/ui/src/overworld-ui.ts';
 import {drawHearthSeatedGroup} from '/packages/engine/src/hearth-seating-scene.ts';
 import {HEARTH_FURNITURE_SHAPES} from '/packages/sim/src/index.ts';
@@ -67,27 +68,32 @@ try {
  ui.openWindow=settings.stash?'content':settings.ferry?'ferry':settings.rewards?'outdoor-rewards':settings.skills?'skills':'inventory';ui.update(model);
  if(settings.ferry)ui.openFerry('orchard');
  if(settings.rewards&&settings.rewardState==='full-bags'){ui.handleKeyDown('Enter',false);for(let i=0;i<5;i++)await Promise.resolve();}
- if(settings.skills) {ui.skillTree.selectTrack('combat');ui.skillTree.selectedNodeId='blade_training';}
+ if(settings.skills) {
+  const roots=ui.enableRetainedCharacter(await loadUiKitArt());ui.openSkillTrack('combat');
+  const node=roots.skills.entries().find(entry=>entry.element.id==='skill:blade_training')?.element;
+  if(!node)throw new Error('Missing authored blade training node');
+  roots.skills.focus.set(node);roots.skills.key({key:'Enter'});
+ }
  else if(!settings.stash&&!settings.rewards&&!settings.ferry) {const slot=overworldUiLayout(settings.uiWidth,settings.uiHeight).backpackSlots[0];ui.pointerMove({x:slot.x+8,y:slot.y+8});}
  if(settings.danger){ui.openWindow=null;model.dangerNotice=settings.danger;model.zoneName='Overworld';ui.update(model);ui.pointerMove({x:-100,y:-100});}
  const canvas=document.createElement('canvas');canvas.width=settings.width;canvas.height=settings.height;
  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.scale(settings.scale,settings.scale);ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);ui.draw(ctx);
  if(settings.seals){
-  const shop=new NpcInteractionUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,unlockHearthLegendaryRecipe:async()=>{}});
-  const model={width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get('npc:willow_archivist').runtimeId),
+  const shop=new NpcInteractionUi(await loadUiKitArt(),{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,unlockHearthLegendaryRecipe:async()=>{}});
+  const model={interactionSessionKey:'offline',width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get('npc:willow_archivist').runtimeId),
    dialogueId:'willow_archivist',shopId:'willow_archivist',nodeId:'shop',balanceBronze:1000n,inventory:[],contentRegistry:registry,sealSessionKey:'offline',knownRecipeIds:[]};
   shop.update(model);
-  if(settings.seals!=='shop')shop.handleKeyDown('KeyL',false);
-  if(settings.seals==='page2')shop.handleKeyDown('ArrowRight',false);
-  if(['review','pending','learned'].includes(settings.seals))shop.handleKeyDown('Digit1',false);
-  if(['pending','learned'].includes(settings.seals)){shop.handleKeyDown('Enter',false);await Promise.resolve();}
+  if(settings.seals!=='shop')shop.root.key({key:'l'});
+  if(settings.seals==='page2')shop.root.key({key:'ArrowRight'});
+  if(['review','pending','learned'].includes(settings.seals))shop.root.key({key:'1'});
+  if(['pending','learned'].includes(settings.seals)){shop.root.key({key:'Enter'});await Promise.resolve();}
   if(settings.seals==='learned')shop.update({...model,knownRecipeIds:['hearth_legendary_body']});
   ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);shop.draw(ctx);
  }
  if(settings.intro){
-  const dialogue=new NpcInteractionUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,fulfillVillageOrder:async()=>{}});
+  const dialogue=new NpcInteractionUi(await loadUiKitArt(),{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},{...callbacks,fulfillVillageOrder:async()=>{}});
   const npcId=settings.orders?'npc:willow_storekeeper':settings.expeditionContract?(settings.expeditionContract==='prepare'?'npc:willow_smith':'npc:willow_archivist'):settings.rowan?'npc:willow_carpenter':'npc:willow_harbour_guide';
-  dialogue.update({width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get(npcId).runtimeId),
+  dialogue.update({interactionSessionKey:'offline',width:settings.uiWidth,height:settings.uiHeight,npcId:BigInt(registry.npcs.get(npcId).runtimeId),
     dialogueId:npcId.slice(4),nodeId:settings.orders?'greeting':settings.expeditionContract?'hearth_'+settings.expeditionContract+'_request':settings.furnishContract?'hearth_furnish_request':settings.rowan?'hearth_carpenter_accepted':'hearth_arrival_accepted',
     balanceBronze:0n,inventory:[],touchControls:true,contentRegistry:registry,orderSessionKey:'offline',
     villageOrders:settings.orders?villageOrders(registry).filter(order=>order.npc===npcId).map(order=>({...villageOrderQuote(registry,order.id,0),npcId:BigInt(registry.npcs.get(npcId).runtimeId),revision:0n,contentHash:registry.contentHash})):[],
@@ -95,38 +101,41 @@ try {
       ...(settings.expeditionContract==='outpost'||settings.expeditionContract==='basalt'?[{questId:'hearth_prepare_expedition',state:'turned_in'}]:[]),
       ...(settings.expeditionContract==='basalt'?[{questId:'hearth_clear_ash_shore',state:'turned_in'}]:[]),
       ...(settings.rowan?[{questId:'hearth_meet_carpenter',state:settings.furnishContract?'turned_in':'complete'}]:[])]});
-  if(settings.orders){dialogue.handleKeyDown('Digit1',false);if(settings.orderReview)dialogue.handleKeyDown('Digit1',false);if(settings.orderPending){dialogue.handleKeyDown('Enter',false);await Promise.resolve();}}
+  if(settings.orders){dialogue.root.key({key:'1'});if(settings.orderReview)dialogue.root.key({key:'1'});if(settings.orderPending){dialogue.root.key({key:'Enter'});await Promise.resolve();}}
   ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);dialogue.draw(ctx);
  }
  if(settings.furniture){
-  const shop=new NpcInteractionUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
-  shop.update({width:settings.uiWidth,height:settings.uiHeight,npcId:1n,dialogueId:'willow_furnisher',shopId:'willow_furnisher',nodeId:'shop',balanceBronze:10000n,inventory:[],contentRegistry:registry});
+  const shop=new NpcInteractionUi(await loadUiKitArt(),{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
+  shop.update({interactionSessionKey:'offline',width:settings.uiWidth,height:settings.uiHeight,npcId:1n,dialogueId:'willow_furnisher',shopId:'willow_furnisher',nodeId:'shop',balanceBronze:10000n,inventory:[],contentRegistry:registry});
   shop.setFilterText('Wall Mirror Plan');
-  const layout=npcInteractionLayout(settings.uiWidth,settings.uiHeight,true);
-  shop.pointerDown({x:layout.list.x+5,y:layout.list.y+5},0);
+  const inspect=shop.root.entries().find(entry=>entry.element.id.startsWith('merchant.inspect:'))?.element;
+  if(!inspect)throw new Error('Missing furniture inspect control');
+  shop.root.focus.set(inspect);shop.root.key({key:'Enter'});
   ctx.fillStyle='#3f7550';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);shop.draw(ctx);
  }
  if(settings.furnishing){
-  const palette=new HomesteadBuildPalette(art.uiSkin,art.ui,art.itemIcons);
+  const palette=new HomesteadBuildPalette(await loadUiKitArt(),art.itemIcons);
+  const activate=id=>{palette.root.arrange();const node=palette.root.entries().find(entry=>entry.element.id===id)?.element;
+    if(!node)throw new Error('Missing build control '+id);palette.root.focus.set(node);palette.root.key({key:'Enter'});};
   const entries=[...registry.objects.values()].filter(d=>d.retired!==true&&d.components.placement&&hearthFurnitureDefinition(registry,d.components.placement.item.slice(5))?.definition.id===d.id)
    .map(d=>({itemKind:d.components.placement.item.slice(5),displayName:d.displayName,layer:'prop',iconAnimation:'base'}));
-  if(entries.length!==32)throw new Error('Expected full base catalogue, got '+entries.length);
+  const expectedFurniture=[...registry.items.values()].filter(item=>hearthFurnitureDefinition(registry,item.id.slice(5))!==null).map(item=>item.id.slice(5)).sort();
+  if(expectedFurniture.length===0||JSON.stringify(entries.map(entry=>entry.itemKind).sort())!==JSON.stringify(expectedFurniture))
+    throw new Error('Palette does not contain exactly the current eligible furnishing catalogue');
   const model={width:320,height:180,furnishing:true,entries,counts:{},upgrades:[],upgradeRanks:{},balanceBronze:10000n,residenceRank:0,residenceOwner:true};
   palette.setModel(model);
   if(settings.construction){
-    const bounds=palette.bounds;palette.pointerDown({x:bounds.x+bounds.width-40,y:bounds.y+10},0);
+    activate('build.construction');
     if(settings.constructionReview){
-      const tool=constructionToolRect(palette.bounds,4);palette.pointerDown({x:tool.x+10,y:tool.y+10},0);
+      activate('build.tool.doorway_ew');
       palette.setModel({...model,constructionCanApply:true,constructionStatus:{footprint:4,
         materials:['USE 16 WOOD','USE 4 STONE','RETURN 2 COPPER PIECE'],notice:'REACH, SPACE AND BAGS CHECKED ON APPLY'}});
     }
   }
   else {
-  const index=settings.expansion?entries.length+3:entries.findIndex(e=>e.itemKind.includes('dining_table'));
-  const cell=homesteadBuildPaletteCells(palette.bounds,entries.length,4)[index];
-  palette.pointerDown({x:cell.x+1,y:cell.y+1},0);
+  activate(settings.expansion?'build.expansion':'build.item.'+entries.find(e=>e.itemKind.includes('dining_table')).itemKind);
   }
-  ctx.fillStyle='#3f7550';ctx.fillRect(0,0,320,180);palette.draw(ctx);
+  ctx.fillStyle='#3f7550';ctx.fillRect(0,0,320,180);palette.draw(ctx);palette.dispose();
  }
  if(settings.seating){
   ctx.fillStyle='#b18057';ctx.fillRect(0,0,settings.uiWidth,settings.uiHeight);
@@ -181,6 +190,7 @@ try {
  await writeFile(output, png);
  const atlas = JSON.parse(await readFile(resolve(root, 'packages/client/public/generated/atlas.meta.json'), 'utf8')) as { revision: string };
  const sourcePaths = ['packages/ui/src/hearth-seal-flow.ts','packages/ui/src/hearth-seal-panel.ts','packages/sim/src/hearth-seal-exchange.ts','packages/sim/src/village-orders.ts','packages/ui/src/village-order-flow.ts','packages/ui/src/village-order-panel.ts','packages/assets/content/quests.json','packages/assets/content/dialogues.json','packages/assets/content/npcs.json','packages/engine/src/hearth-seating-scene.ts','packages/sim/src/character-animation.ts','packages/ui/src/homestead-build-palette.ts','packages/ui/src/npc-interaction-ui.ts','packages/ui/src/furniture-shop-details.ts','packages/assets/content/recipes.json','packages/assets/content/shops.json','packages/tools/src/render-hearth-equipment-ui.ts','packages/ui/src/overworld-ui.ts','packages/ui/src/item-slot.ts','packages/ui/src/content-frame.ts','packages/sim/src/content/frame-definition.ts','packages/assets/content/frames.json','packages/ui/src/skill-tree-ui.ts','packages/ui/src/equipment-description.ts','packages/ui/src/outdoor-rewards.ts','packages/ui/src/ferry-menu.ts','packages/sim/src/equipment-loadout.ts','packages/assets/content/items.json','packages/client/public/generated/atlas.meta.json'];
+ sourcePaths.push('packages/ui/src/kit/components/build-palette.ts');
  const sourceSha256 = Object.fromEntries(await Promise.all(sourcePaths.map(async (path) => [
   path, createHash('sha256').update(await readFile(resolve(root, path))).digest('hex'),
  ])));

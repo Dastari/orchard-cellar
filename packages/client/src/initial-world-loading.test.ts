@@ -2,9 +2,12 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
-import { drawGatewayLoading, drawOrchardBackdrop, type LoadedAsset, type PixelUi, type UiSkin } from '@orchard/ui';
+import { drawOrchardBackdrop, type LoadedAsset } from '@orchard/ui';
+import type { UiKitArt } from '@orchard/ui/game';
 
-vi.mock('@orchard/ui', () => ({ drawGatewayLoading: vi.fn(), drawOrchardBackdrop: vi.fn() }));
+vi.mock('@orchard/ui', () => ({ drawOrchardBackdrop: vi.fn() }));
+vi.mock('@orchard/ui/game', async importOriginal => { const real = await importOriginal<typeof import('@orchard/ui/game')>(); return {...real, GameGatewayLoading: class {setBounds=vi.fn();update=vi.fn();draw=vi.fn();dispose=vi.fn();constructor(){ loadingViews.push(this); }}}; });
+const loadingViews = vi.hoisted(() => [] as {setBounds:ReturnType<typeof vi.fn>;update:ReturnType<typeof vi.fn>;draw:ReturnType<typeof vi.fn>;dispose:ReturnType<typeof vi.fn>}[]);
 const source = ts.createSourceFile('overworld-main.ts', readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 function declaration(name: string) {
   const node = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
@@ -23,7 +26,7 @@ function fixture() {
     hudViewportCss: () => ({ width: 800, height: 600 }), fittedUiScale: () => 2, desiredUiScale: 2,
     overworldUi: { setPwaUpdateStatus: vi.fn(), blockingUpdatePromptVisible: false }, pwaClient: { status: {} },
     canvas: { classList: { add: vi.fn() } }, dismissLoadingScreen: vi.fn(),
-    safeAreaInsets: { left: 0, top: 0 }, renderer: {},
+    safeAreaInsets: { left: 0, top: 0, right:0, bottom:0 }, renderer: {}, kitArt:{},
     worldUpdateOverlay: { draw: vi.fn(), reset: vi.fn() },
     connectionRecoveryOverlay: { composite: vi.fn() }, drawInitialWorldLoading: vi.fn(),
     art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, missingItem: {} },
@@ -36,7 +39,7 @@ describe('initial world loading versus reconnection', () => {
   it.each(['connecting', 'ready', 'reconnecting'])('keeps initial %s/hydration in the normal gateway, including handshake retries', state => {
     const f = fixture(); f.deps.network.recoveryState = state;
     f.render();
-    expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), f.deps.loadingStage, 'test');
+    expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), f.deps.loadingStage, 'test', f.deps.safeAreaInsets);
     expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
   });
   it('shows recovery after the player has entered the world', () => {
@@ -73,12 +76,16 @@ describe('initial world loading versus reconnection', () => {
   it('uses the same gateway window and live progress as startup, closing the UI render pass', () => {
     const context = { save: vi.fn(), restore: vi.fn(), translate: vi.fn(), scale: vi.fn() };
     const renderer = { beginUi: vi.fn(() => context as unknown as CanvasRenderingContext2D), endUi: vi.fn(), cssWidth: 800, cssHeight: 600 };
-    const assets = { ui: {} as PixelUi, skin: {} as UiSkin, apple: {} as LoadedAsset };
+    const assets = { kitArt: {} as UiKitArt, apple: {} as LoadedAsset };
     const stage = { title: 'UNPACKING YOUR THINGS', detail: '', progress: 95 };
     drawInitialWorldLoading(renderer, assets, stage, '0.8.2');
     expect(drawOrchardBackdrop).toHaveBeenCalledWith(context, 800, 600);
-    expect(drawGatewayLoading).toHaveBeenCalledWith(context, assets, stage.title, 95, false, '0.8.2');
-    expect(renderer.endUi).toHaveBeenCalledOnce();
-    expect(context.restore).toHaveBeenCalledOnce();
+    expect(loadingViews.at(-1)!.update).toHaveBeenCalledWith(stage);
+    expect(loadingViews.at(-1)!.draw).toHaveBeenCalledWith(context);
+    const count = loadingViews.length; drawInitialWorldLoading(renderer,assets,{...stage,progress:99},'0.8.2');
+    expect(loadingViews).toHaveLength(count);
+    expect(loadingViews.at(-1)!.update).toHaveBeenLastCalledWith({...stage,progress:99});
+    expect(renderer.endUi).toHaveBeenCalledTimes(2);
+    expect(context.restore).toHaveBeenCalledTimes(2);
   });
 });

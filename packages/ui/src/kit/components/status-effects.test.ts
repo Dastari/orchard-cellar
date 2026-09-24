@@ -27,3 +27,16 @@ describe('status effects', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+it('keeps effect identity and authored order while custom production artwork replaces generic icons', () => {
+  const paint = vi.fn(), root = new UiRoot({ scale: 1 }); root.resize(150, 60);
+  const second = { ...effect, id: 'rest', name: 'Rested', icon: undefined };
+  const row = root.mount(uiStatusEffects({ id: 'effects', effects: [effect, second], ticksPerSecond: 20, renderIcon: paint })); root.arrange();
+  const first = row.children[0], next = row.children[1]; root.focus.set(next!.children[0]!);
+  row.setProps({ effects: [second, { ...effect, remainingTicks: 180 }] }); root.arrange();
+  expect(row.children).toEqual([next, first]); expect(root.focus.current).toBe(next!.children[0]);
+  const context = { fillRect: vi.fn() } as unknown as CanvasRenderingContext2D;
+  const cell = next!.children[0]!;
+  cell.hooks.paint!(cell, { context, now: 0, hovered: false, focused: false, reducedMotion: false });
+  expect(paint).toHaveBeenCalledExactlyOnceWith(context, cell.rect, second); root.dispose();
+});

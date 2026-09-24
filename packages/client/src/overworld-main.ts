@@ -1,4 +1,4 @@
-import { GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
@@ -15,7 +15,7 @@ import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
 import { orchardHarvestPrompt } from './orchard-presentation.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
-import { drawInitialWorldLoading } from './initial-world-loading.js';
+import { drawInitialWorldLoading, disposeInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
@@ -203,6 +203,7 @@ import {
   isInterfaceVisibilityToggle,
   isNameplateToggle,
   onlinePlayerIdleMinutes,
+  nextHomesteadMemberRole,
   OverworldUi,
   type OverworldUiTargetVitals,
 } from '@orchard/ui';
@@ -230,13 +231,6 @@ import {
 } from '@orchard/ui';
 import { TouchControls, type TouchControlAction } from '@orchard/ui';
 import {
-  drawRogueRewardOverlay,
-  drawRogueRunHud,
-  rogueRewardHit,
-  rogueRewardLayout,
-  type RogueUiOffer,
-} from '@orchard/ui';
-import {
   facedResource,
   facedInteractionTile,
   interactionTileAtProjectedWorldPoint,
@@ -259,10 +253,6 @@ const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 if (canvasElement === null) throw new Error('Missing overworld canvas');
 const canvas: HTMLCanvasElement = canvasElement;
 const renderer = createGameplayRenderer(canvas);
-const chatInputElement = document.querySelector<HTMLInputElement>('#account-name');
-if (chatInputElement === null) throw new Error('Missing overworld text input');
-const shopFilterInputElement = document.querySelector<HTMLInputElement>('#shop-filter');
-if (shopFilterInputElement === null) throw new Error('Missing shop filter input');
 const inventoryFilterInputElement = document.querySelector<HTMLInputElement>('#inventory-filter');
 if (inventoryFilterInputElement === null) throw new Error('Missing inventory filter input');
 setLoadingScreenStage({
@@ -270,7 +260,7 @@ setLoadingScreenStage({
 });
 const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
 const retainedUi = new GameUiRuntime();
-upgradeLoadingScreen(art.ui, art.uiSkin, art.fruitItems['apple'] ?? art.missingItem);
+upgradeLoadingScreen(kitArt, art.fruitItems['apple'] ?? art.missingItem);
 setLoadingScreenStage({
   title: 'SAILING TO YOUR ISLAND', detail: 'CONNECTING TO THE SHARED WORLD', progress: 58,
 });
@@ -332,9 +322,7 @@ const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
 const GENERAL_CHAT_CHANNEL_ID = 1n;
 const chatOverlay = new ChatOverlay(
-  art.uiSkin,
-  art.ui,
-  chatInputElement,
+  kitArt,
   (body) => submitChatInput(body),
   (open) => {
     if (!open) return;
@@ -621,9 +609,8 @@ let interfaceHidden = false;
 let nameplatesVisible = true;
 let nameplatesPreferenceIdentity: string | null = null;
 let onlinePlayersVisible = false;
+let rosterOpenedByHeldTab = false;
 let homesteadBuildMode = false;
-let rogueUiPointer: { readonly x: number; readonly y: number } | null = null;
-let rogueUiPointerId: number | null = null;
 const unknownActionKinds = new Set<string>();
 const remoteBuffers = new Map<string, RemoteSnapshotBuffer>();
 const remoteDisplay = new Map<string, SampledRemote>();
@@ -773,6 +760,7 @@ function toggleHomesteadBuildMode(): void {
   } else {
     homesteadBuildMode = true;
     homesteadBuildPalette.showCatalogue();
+    retainedUi.focus('build-palette');
     setToast(activeSpaceDefinition.generator === 'residence'
       ? 'FURNISH — CHOOSE AN ITEM, THEN CLICK FLOOR, WALL OR TABLETOP'
       : 'BUILD MODE — PICK FROM THE PALETTE, THEN CLICK A TILE', 'info', 150);
@@ -782,6 +770,7 @@ function toggleHomesteadBuildMode(): void {
 const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   toggleBuild: () => toggleHomesteadBuildMode(),
   selectHotbar: (slot) => selectSlotOptimistically(slot),
+  clearTarget: id => { if (selectedEntityTarget && targetKey(selectedEntityTarget) === id) selectedEntityTarget = null; },
   setTimeFraction: (fraction) => sendOwnerWorldUpdate(
     network.setWorldTime(authorityTickAtDayProgress(worldCalendarTick(), fraction)),
   ),
@@ -810,7 +799,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   travelHearthFerry:(from,to)=>network.travelHearthFerry(from,to),
   claimOutdoorReward: (id) => network.claimOutdoorReward(id),
   abandonQuest: (questId) => showResult(network.abandonQuest(questId), 'QUEST DROPPED'),
-  setAppearance: (appearance) => showResult(network.setAppearance(appearance), 'APPEARANCE UPDATED'),
+  setAppearance: (appearance) => showPredictedInventoryResult(network.setAppearance(appearance), 'APPEARANCE UPDATED'),
   prioritizeEquipmentSkill:(nodeId)=>showResult(network.prioritizeEquipmentSkill(nodeId),'EQUIPMENT SKILL PRIORITY UPDATED'),
   purchaseSkillNode: (nodeId) => showResult(network.purchaseSkillNode(nodeId), 'SKILL RANK LEARNED'),
   resetSkillTree: (track) => showResult(network.resetSkillTree(track), `${track.toUpperCase()} TREE RESET`),
@@ -836,22 +825,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   toggleFullscreen,
   checkForClientUpdate: () => { void pwaClient.checkForUpdate(); },
   applyClientUpdate: () => pwaClient.applyUpdate(),
-  toggleOnlinePlayers: () => { onlinePlayersVisible = !onlinePlayersVisible; },
-  manageHomesteadMember: (identityHex, role, kick) => {
-    const profile = latestSnapshot.profiles.get(identityHex);
-    if (profile === undefined) {
-      setToast('PLAYER IS NO LONGER ONLINE', 'failure', 90);
-      return;
-    }
-    if (role === null) showResult(
-      network.removeHomesteadMember(profile.identity, kick),
-      kick ? 'HOMESTEAD MEMBER REMOVED AND KICKED' : 'HOMESTEAD MEMBER REMOVED',
-    );
-    else showResult(
-      network.setHomesteadMemberRole(profile.identity, role),
-      `HOMESTEAD ROLE: ${role.toUpperCase()}`,
-    );
-  },
+  toggleOnlinePlayers: () => setOnlinePlayersVisible(!onlinePlayersVisible),
   moveInventoryItem: (request) => showResult(network.moveInventoryItem(request), 'ITEM MOVED'),
   quickMoveInventoryItem: (fromContainer, fromIndex, toContainers) => showResult(
     network.quickMoveInventoryItem(fromContainer, fromIndex, toContainers), 'ITEMS MOVED',
@@ -996,7 +970,20 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   }
   marker(centerWorldX, centerWorldY, '#fff3be', 4);
 });
-const homesteadBuildPalette = new HomesteadBuildPalette(art.uiSkin, art.ui, itemArt);
+const homesteadBuildPalette = new HomesteadBuildPalette(kitArt, itemArt, drainBuildPaletteActions);
+function drainBuildPaletteActions(): void {
+  if (homesteadBuildPalette.takeConstructionApply()) applyConstructionProposal();
+  if (homesteadBuildPalette.takeConstructionCancel()) constructionProposal = null;
+  const expansion = homesteadBuildPalette.takeExpansionRequest();
+  if (expansion !== null) showResult(network.purchaseResidenceExpansion(expansion.rank).catch(error => {
+    homesteadBuildPalette.expansionFailed(expansion.scope, expansion.rank, expansion.token); throw error;
+  }), 'ROOM EXPANSION PURCHASED');
+  const upgrade = homesteadBuildPalette.takePurchaseRequest();
+  furnitureMoves.cancel();
+  if (homesteadBuildPalette.takeUndoMoveRequest()) showResult(furnitureMoves.undo(), 'FURNITURE MOVE UNDONE');
+  if (upgrade !== null) showResult(network.purchaseHomesteadUpgrade(upgrade),
+    `${upgrade.replaceAll('_', ' ').toUpperCase()} UPGRADED`);
+}
 let homesteadPaletteRegistry: OverworldView['content']['registry'] | null = null;
 let homesteadPaletteEntries: HomesteadBuildPaletteModel['entries'] = [];
 let furnishingPaletteEntries: HomesteadBuildPaletteModel['entries'] = [];
@@ -1061,7 +1048,7 @@ function cropGreenhouseProtectedForSnapshot(
       && placeable.carriedBy === undefined);
 }
 
-const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
+const npcInteractionUi = new NpcInteractionUi(kitArt, itemArt, {
   unlockHearthLegendaryRecipe: offer => network.unlockHearthLegendaryRecipe(offer.recipeId, offer.expectedContentHash, offer.expectedSeals),
   fulfillVillageOrder:offer=>network.fulfillVillageOrder(offer.id,offer.revision,offer.contentHash,offer.totalBronze),
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
@@ -1077,7 +1064,7 @@ const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
     ...(profile === undefined ? {} : { species: profile.species }),
     variant: profile?.variant ?? 0,
   }, rect);
-}, shopFilterInputElement);
+});
 const tradeUi = new TradeUi(kitArt, itemArt, {
   acceptRequest: (tradeId) => showResult(network.acceptTradeRequest(tradeId), 'TRADE OPENED'),
   declineRequest: (tradeId) => showResult(network.declineTrade(tradeId), 'TRADE DECLINED'),
@@ -1100,29 +1087,128 @@ const questTracker = new QuestTracker(
   (questId) => { overworldUi.openQuest(questId); },
 );
 
+const onlineRoster = new GameOnlinePlayers(kitArt, {
+  onManage: manageOnlinePlayer,
+  onClose: () => setOnlinePlayersVisible(false),
+});
+function onlinePlayersScope(): string {
+  return `${latestSnapshot.identityHex}:${network.sessionGeneration}:${activeSpaceDefinition.spaceId}`;
+}
+function canManageOnlinePlayers(): boolean {
+  return latestSnapshot.connected && latestSnapshot.identityHex !== null
+    && latestSnapshot.homesteads.get(activeSpaceDefinition.spaceId)?.owner.toHexString() === latestSnapshot.identityHex;
+}
+function updateOnlinePlayers(): void {
+  const [width, height] = touchControlViewport();
+  const frameWidth = Math.min(400, Math.max(0, width - 8));
+  const frameHeight = Math.min(330, Math.max(0, height - 8));
+  onlineRoster.setBounds({ x: Math.round((width-frameWidth)/2), y: Math.round((height-frameHeight)/2), width: frameWidth, height: frameHeight }, width, height);
+  onlineRoster.update({ scopeKey: onlinePlayersScope(), identityHex: latestSnapshot.identityHex,
+    visible: onlinePlayersVisible && retainedUiAvailable() && !characterNamePrompt.isActive && !npcInteractionUi.active && !tradeUi.active,
+    canManage: canManageOnlinePlayers(), players: onlinePlayerEntries(latestSnapshot) });
+}
+function setOnlinePlayersVisible(visible: boolean, heldTab = false): void {
+  onlinePlayersVisible = visible;
+  rosterOpenedByHeldTab = visible && heldTab;
+  updateOnlinePlayers(); retainedUi.reconcile(); syncRetainedText();
+}
+function releaseOnlinePlayersTab(): boolean {
+  if (!rosterOpenedByHeldTab) return false;
+  setOnlinePlayersVisible(false); return true;
+}
+function manageOnlinePlayer(request: OnlinePlayerManagementRequest): void {
+  if (!onlinePlayersVisible || !retainedUiAvailable() || characterNamePrompt.isActive || npcInteractionUi.active || tradeUi.active || !canManageOnlinePlayers()
+    || request.scopeKey !== onlinePlayersScope() || request.expectedIdentityHex === latestSnapshot.identityHex) return;
+  const profile = latestSnapshot.profiles.get(request.expectedIdentityHex);
+  if (profile === undefined || !profile.online) return;
+  const member = [...latestSnapshot.homesteadMembers].find(row => row.guest.toHexString() === request.expectedIdentityHex);
+  const currentRole = member !== undefined && isHomesteadMemberRole(member.role) ? member.role : null;
+  if (currentRole !== request.expectedRole) return;
+  const kick = request.intent === 'remove';
+  const role = kick ? null : nextHomesteadMemberRole(currentRole);
+  if (role === null) showResult(network.removeHomesteadMember(profile.identity, kick),
+    kick ? 'HOMESTEAD MEMBER REMOVED AND KICKED' : 'HOMESTEAD MEMBER REMOVED');
+  else showResult(network.setHomesteadMemberRole(profile.identity, role), `HOMESTEAD ROLE: ${role.toUpperCase()}`);
+}
+
 function retainedUiAvailable(): boolean {
   return !interfaceHidden && worldClientReady() && !overworldUi.blockingUpdatePromptVisible
     && latestSnapshot.rogueRun?.phase !== 'reward';
 }
 retainedUi.register({ id: 'character-name', priority: 1000, root: characterNamePrompt.root,
   active: () => retainedUiAvailable() && characterNamePrompt.isActive, blocking: () => true });
+const overlayRoots = overworldUi.enableRetainedOverlays(kitArt);
+const delveRewards = new DelveRewardsUi(kitArt, {
+  choose: slot => showPredictedInventoryResult(network.chooseRogueReward(slot),
+    latestSnapshot.rogueRun ? rogueRewardClaimedMessage(latestSnapshot.rogueRun) : 'BOON CHOSEN'),
+  leaveShop: () => showPredictedInventoryResult(network.skipRogueReward(), 'THE TRADER FADES INTO THE DARK'),
+});
+retainedUi.register({ id: 'update-ready', priority: 1200, root: overlayRoots.update,
+  active: () => !interfaceHidden && overworldUi.blockingUpdatePromptVisible, blocking: () => true });
+retainedUi.register({ id: 'delve-rewards', priority: 1100, root: delveRewards.rewardsRoot,
+  active: () => !interfaceHidden && worldClientReady() && !overworldUi.blockingUpdatePromptVisible && delveRewards.active,
+  blocking: () => true });
+retainedUi.register({ id: 'delve-confirmation', priority: 700, root: overlayRoots.confirmation,
+  active: () => retainedUiAvailable() && overworldUi.retainedConfirmationActive
+    && !npcInteractionUi.active && !tradeUi.active && !onlinePlayersVisible, blocking: () => true });
+const hudRoots = overworldUi.enableRetainedHud(kitArt);
+for (const surface of ['zoneMinimap', 'hotbarVitals', 'targetEffects'] as const) retainedUi.register({
+  id: `hud-${surface}`, root: hudRoots[surface], priority: 50,
+  active: () => retainedUiAvailable() && overworldUi.retainedHudVisible(surface) && overworldUi.openWindow === null
+    && !characterNamePrompt.isActive && !npcInteractionUi.active && !tradeUi.active && !onlinePlayersVisible && !chatOverlay.isOpen,
+  blocking: () => false,
+});
 const inventoryMenuRoot = overworldUi.enableRetainedInventory(kitArt);
+const readingRoots = overworldUi.enableRetainedReading(kitArt);
+const characterRoots = overworldUi.enableRetainedCharacter(kitArt);
+for (const window of ['character', 'statistics', 'skills'] as const) retainedUi.register({ id: `character-${window}`, priority: 500,
+  root: characterRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window && overworldUi.retainedCharacterActive
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
+const systemMenuRoot = overworldUi.enableRetainedSystem(kitArt);
+retainedUi.register({ id: 'system-menus', priority: 500, root: systemMenuRoot,
+  active: () => retainedUiAvailable() && overworldUi.retainedSystemActive
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
 retainedUi.register({ id: 'inventory-menus', priority: 500, root: inventoryMenuRoot,
   active: () => retainedUiAvailable() && overworldUi.retainedInventoryActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible,
   blocking: () => true });
+for (const window of ['quests', 'help'] as const) retainedUi.register({ id: `reading-${window}`, priority: 500,
+  root: readingRoots[window], active: () => retainedUiAvailable() && overworldUi.openWindow === window
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => true });
+retainedUi.register({ id: 'npc-interaction', priority: 800, root: npcInteractionUi.root,
+  active: () => retainedUiAvailable() && npcInteractionUi.active && !tradeUi.active, blocking: () => true });
 retainedUi.register({ id: 'player-trade', priority: 900, root: tradeUi.root,
   active: () => retainedUiAvailable() && tradeUi.active, blocking: () => true });
+retainedUi.register({ id: 'online-players', priority: 750, root: onlineRoster.root,
+  active: () => retainedUiAvailable() && onlineRoster.active && !characterNamePrompt.isActive && !tradeUi.active && !npcInteractionUi.active,
+  blocking: () => true });
+retainedUi.register({ id: 'build-palette', priority: 200, root: homesteadBuildPalette.root,
+  active: () => retainedUiAvailable() && homesteadBuildMode && overworldUi.openWindow === null
+    && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible, blocking: () => false });
 retainedUi.register({ id: 'quest-tracker', priority: 100, root: questTracker.root,
-  active: () => retainedUiAvailable() && questTracker.isActive && !characterNamePrompt.isActive
+  active: () => retainedUiAvailable() && questTracker.isActive && overworldUi.questTrackerVisible && !characterNamePrompt.isActive
     && !tradeUi.active && !npcInteractionUi.active && !onlinePlayersVisible && overworldUi.openWindow === null,
   blocking: () => false });
+retainedUi.register({ id: 'chat', priority: 150, root: chatOverlay.root,
+  active: () => retainedUiAvailable() && chatOverlay.active && !chatInteractionBlocked(), blocking: () => false });
 const retainedText = new UiTextBridge(canvas, () => retainedUi.focusedElement,
   event => retainedUi.key(event), element => retainedUiClientRect(element.rect, canvas.getBoundingClientRect(),
     { width: renderer.cssWidth, height: renderer.cssHeight }, safeAreaInsets, currentUiScale()), () => {});
+let nativeChatOwner = false;
+function handleRetainedTextBlur(): void {
+  if (nativeChatOwner && !retainedPointers.hasCapture) chatOverlay.blurInput();
+  nativeChatOwner = false;
+}
+retainedText.input.addEventListener('blur', handleRetainedTextBlur);
 function syncRetainedText(): void {
   // Both event and frame synchronization obey the Safari capture boundary.
-  if (!retainedPointers.hasCapture) retainedText.sync();
+  if (retainedPointers.hasCapture) return;
+  retainedText.sync();
+  nativeChatOwner = retainedUi.focusedElement?.props['editor'] === chatOverlay.editor;
+}
+function openRetainedChat(event: Pick<KeyboardEvent, 'key' | 'repeat'> & Partial<Pick<KeyboardEvent, 'isComposing' | 'ctrlKey' | 'metaKey' | 'altKey'>>): boolean {
+  if (chatInteractionBlocked() || !chatOverlay.handleGlobalKeyDown(event)) return false;
+  retainedUi.focus('chat'); syncRetainedText(); return true;
 }
 // Install before recovery and legacy capture listeners so cancelled tails cannot
 // become a new command on whichever modal appeared during the gesture.
@@ -1133,8 +1219,10 @@ const retainedPointers = new RetainedUiPointers(canvas, window, retainedUi, even
   overworldUi.systemCursorMove({ x, y });
 });
 import.meta.hot?.dispose(() => {
-  retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose();
-  characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); overworldUi.disposeRetainedInventory();
+  disposeInitialWorldLoading(renderer); onlineRoster.dispose(); overworldUi.disposeRetainedHud(); delveRewards.dispose(); overworldUi.disposeRetainedOverlays();
+  retainedText.input.removeEventListener('blur', handleRetainedTextBlur);
+  retainedPointers.dispose(); retainedText.dispose(); retainedUi.dispose(); chatOverlay.dispose();
+  npcInteractionUi.dispose(); characterNamePrompt.dispose(); questTracker.dispose(); tradeUi.dispose(); homesteadBuildPalette.dispose(); overworldUi.disposeRetainedInventory(); overworldUi.disposeRetainedReading(); overworldUi.disposeRetainedCharacter(); overworldUi.disposeRetainedSystem();
 });
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
@@ -4493,8 +4581,8 @@ function renderFrame(alpha = 1): void {
       const recoveryState = connectionRecoveryState();
       if (recoveryState === null) {
         drawInitialWorldLoading(renderer, {
-          ui: art.ui, skin: art.uiSkin, apple: art.fruitItems['apple'] ?? art.missingItem,
-        }, loadingStage, import.meta.env.VITE_CLIENT_VERSION);
+          kitArt, apple: art.fruitItems['apple'] ?? art.missingItem,
+        }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
       } else {
         connectionRecoveryOverlay.composite(renderer, overlayViewport, recoveryState, hasRenderedWorldFrame);
       }
@@ -5149,6 +5237,7 @@ function renderFrame(alpha = 1): void {
       };
     }).filter((effect): effect is NonNullable<typeof effect> => effect !== null);
   const quests = questLogEntries(snapshot);
+  const trackedQuests = questTrackerEntries(quests);
   const hunger = snapshot.survival === null
     ? HUNGER_MAX_CENTI
     : Math.max(0, Math.min(HUNGER_MAX_CENTI, snapshot.survival.hungerCenti));
@@ -5181,6 +5270,7 @@ function renderFrame(alpha = 1): void {
   renderMetrics.recordStage('uiModel', performance.now() - uiModelStartedAt);
   const uiLayoutStartedAt = performance.now();
   overworldUi.update({
+    trackedQuestCount: trackedQuests.length,
     outdoorRewardCount: snapshot.outdoorRewards?.size ?? 0,
     outdoorRewards: outdoorRewardsModel.entries(snapshot.outdoorRewards, snapshot.outdoorRewardsRevision, snapshot.content.registry),
     width: uiWidth,
@@ -5277,6 +5367,7 @@ function renderFrame(alpha = 1): void {
     fullscreen: standaloneWebApp || documentIsFullscreen(),
     fullscreenAvailable: webFullscreenAvailable,
     pwaUpdateStatus: pwaClient.status,
+    interactionSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
     toastKind,
@@ -5337,6 +5428,11 @@ function renderFrame(alpha = 1): void {
         })),
     } }),
   });
+  delveRewards.update(snapshot.rogueRun && network.gameplayReady ? {
+    sessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.rogueRun.id}:${snapshot.rogueRun.roomNumber}`,
+    visible: overworldUi.openWindow === null, run: snapshot.rogueRun,
+    offers: [...snapshot.rogueRewardOffers], registry: snapshot.content.registry, width: uiWidth, height: uiHeight,
+  } : null);
   canvas.classList.toggle('update-prompt-active', overworldUi.blockingUpdatePromptVisible);
   if (homesteadPaletteRegistry !== snapshot.content.registry) {
     homesteadPaletteRegistry = snapshot.content.registry;
@@ -5397,7 +5493,9 @@ function renderFrame(alpha = 1): void {
     requesterName: snapshot.profiles.get(tradeSession.requester.toHexString())?.displayName ?? 'Player',
     recipientName: snapshot.profiles.get(tradeSession.recipient.toHexString())?.displayName ?? 'Player',
   });
-  npcInteractionUi.update(snapshot.activeDialogue === null ? null : {
+  const npcWasActive = npcInteractionUi.active;
+  npcInteractionUi.update(snapshot.activeDialogue === null || !network.gameplayReady ? null : {
+    interactionSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     ...(network.gameplayReady ? { sealSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}`,
       knownRecipeIds: [...snapshot.knownRecipes].map(row => row.recipeId) } : {}),
     orderSessionKey:`${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
@@ -5428,14 +5526,19 @@ function renderFrame(alpha = 1): void {
     touchControls: touchControls.available,
     contentRegistry: snapshot.content.registry,
   });
+  if (!npcWasActive && npcInteractionUi.active) npcInteractionUi.focus();
   questTracker.update({
     width: uiWidth,
     height: uiHeight,
     anchorRect: overworldUi.minimapBounds,
-    entries: questTrackerEntries(quests),
+    entries: trackedQuests,
+    layoutRegion: overworldUi.questTrackerRegion,
+    visible: overworldUi.questTrackerVisible,
   });
   const channelNames = new Map([...snapshot.chatChannels].map((channel) => [channel.id, channel.displayName]));
+  const chatWasActive = chatOverlay.active;
   chatOverlay.update({
+    sessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     width: uiWidth,
     height: uiHeight,
     connected: snapshot.connected,
@@ -5486,11 +5589,13 @@ function renderFrame(alpha = 1): void {
       })),
     ],
   });
+  if (!chatWasActive && chatOverlay.active && chatOverlay.isOpen) { chatOverlay.open(); retainedUi.focus('chat'); }
   characterNamePrompt.update(
     uiWidth,
     uiHeight,
     snapshot.connected && snapshot.characterProfile?.nameChosen === false,
   );
+  updateOnlinePlayers();
   retainedUi.resize(uiWidth, uiHeight);
   retainedUi.reconcile(); syncRetainedText();
   renderMetrics.recordStage('uiLayout', performance.now() - uiLayoutStartedAt);
@@ -5803,32 +5908,21 @@ function renderFrame(alpha = 1): void {
     }
     uiContext.save();
     uiContext.translate(uiOriginX, uiOriginY);
+    overworldUi.drawHud(uiContext);
     questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
-    overworldUi.draw(uiContext);
+    overworldUi.draw(uiContext, false);
     if (homesteadBuildMode && overworldUi.openWindow === null) {
       homesteadBuildPalette.draw(uiContext);
     }
-    if (onlinePlayersVisible) overworldUi.drawOnlinePlayers(uiContext, onlinePlayers);
+    onlineRoster.draw(uiContext);
     npcInteractionUi.draw(uiContext);
     tradeUi.draw(uiContext, uiWidth, uiHeight);
     characterNamePrompt.draw(uiContext);
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
     if (!characterNamePrompt.isActive && !npcInteractionUi.active && !chatOverlay.isOpen
       && snapshot.tradeSession === null) overworldUi.drawBuildControl(uiContext);
-    if (snapshot.rogueRun !== null && overworldUi.openWindow === null) {
-      if (snapshot.rogueRun.phase === 'reward') drawRogueRewardOverlay(
-        snapshot.content.registry,
-        uiContext,
-        art.ui,
-        snapshot.rogueRun,
-        [...snapshot.rogueRewardOffers] as readonly RogueUiOffer[],
-        uiWidth,
-        uiHeight,
-        rogueUiPointer,
-      );
-      drawRogueRunHud(uiContext, art.ui, snapshot.rogueRun, uiWidth);
-    }
+    delveRewards.drawRewards(uiContext); delveRewards.drawHud(uiContext);
     overworldUi.drawBlockingOverlay(uiContext);
     overworldUi.drawCursorOverlay(uiContext);
     uiContext.restore();
@@ -6139,16 +6233,13 @@ function setInterfaceHidden(hidden: boolean): void {
   interfaceHidden = hidden;
   retainedPointers.cancel();
   worldTouchInput.reset();
-  onlinePlayersVisible = false;
+  setOnlinePlayersVisible(false);
   retainedUi.clearHover();
-  npcInteractionUi.pointerLeave();
-  chatOverlay.pointerLeave();
+  chatOverlay.root.input.clearHover();
   overworldUi.pointerLeave();
-  homesteadBuildPalette.pointerLeave();
   touchControls.setBlocked(hidden);
   if (!hidden) return;
   chatOverlay.dismiss();
-  shopFilterInputElement?.blur();
 }
 
 function chatInteractionBlocked(): boolean {
@@ -6214,7 +6305,6 @@ pwaClient.subscribe((status) => {
   setInterfaceHidden(false);
   canvas.classList.add('update-prompt-active');
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-  rogueUiPointerId = null;
   cancelBowChargePresentation();
   overworldUi.pointerLeave();
   keys.clear();
@@ -6300,25 +6390,9 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keydown', (event) => {
   if (event.target === retainedText.input) return;
   void audio.unlock().catch(() => undefined);
-  const rogueRun = latestSnapshot.rogueRun;
-  if (!interfaceHidden && overworldUi.openWindow === null && rogueRun !== null && !event.repeat) {
-    if (rogueRun.phase === 'reward') {
-      const offerIndex = event.code === 'Digit1' || event.code === 'Numpad1' ? 0
-        : event.code === 'Digit2' || event.code === 'Numpad2' ? 1
-          : event.code === 'Digit3' || event.code === 'Numpad3' ? 2 : -1;
-      const offer = offerIndex < 0 ? undefined : [...latestSnapshot.rogueRewardOffers][offerIndex];
-      if (offer !== undefined) showResult(
-        network.chooseRogueReward(offer.slot), rogueRewardClaimedMessage(rogueRun),
-      );
-      event.preventDefault();
-      return;
-    }
-  }
   if (!interfaceHidden) {
-    if (overworldUi.blockingUpdatePromptVisible
-      && overworldUi.handleKeyDown(event.code, event.repeat, { ctrl: event.ctrlKey })) {
-      event.preventDefault();
-      return;
+    if (retainedUi.key(event, 'update-ready') || retainedUi.key(event, 'delve-rewards') || retainedUi.key(event, 'delve-confirmation')) {
+      syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'character-name')) {
       syncRetainedText(); event.preventDefault();
@@ -6328,28 +6402,32 @@ window.addEventListener('keydown', (event) => {
       syncRetainedText(); event.preventDefault();
       return;
     }
+    if (retainedUi.key(event, 'online-players')) { syncRetainedText(); event.preventDefault(); return; }
+    if (!chatOverlay.isOpen && retainedUi.key(event, 'build-palette')) {
+      syncRetainedText(); event.preventDefault(); return;
+    }
     if (!chatOverlay.isOpen && retainedUi.key(event, 'quest-tracker')) {
       syncRetainedText(); event.preventDefault();
       return;
     }
-    if (!chatInteractionBlocked() && chatOverlay.handleGlobalKeyDown(event)) {
-      retainedUi.clearFocus(); syncRetainedText();
+    if (retainedUi.key(event, 'chat')) { syncRetainedText(); event.preventDefault(); return; }
+    if (openRetainedChat(event)) { event.preventDefault(); return; }
+    if (retainedUi.key(event, 'npc-interaction')) {
+      syncRetainedText();
       event.preventDefault();
       return;
     }
-    if (npcInteractionUi.handleKeyDown(event.code, event.repeat)) {
-      event.preventDefault();
-      return;
+    if (retainedUi.key(event, 'character-skills') || retainedUi.key(event, 'character-character') || retainedUi.key(event, 'character-statistics') || retainedUi.key(event, 'system-menus') || retainedUi.key(event, 'reading-quests') || retainedUi.key(event, 'reading-help')) {
+      syncRetainedText(); event.preventDefault(); return;
     }
     if (retainedUi.key(event, 'inventory-menus')) {
       syncRetainedText(); event.preventDefault(); return;
     }
-    if (event.code === 'Tab') {
-      onlinePlayersVisible = true;
-      event.preventDefault();
-      return;
+    if (retainedUi.key(event, 'hud-zoneMinimap') || retainedUi.key(event, 'hud-hotbarVitals') || retainedUi.key(event, 'hud-targetEffects')) {
+      syncRetainedText(); event.preventDefault(); return;
     }
-    if (onlinePlayersVisible && overworldUi.handleOnlinePlayersKeyDown(event.code)) {
+    if (event.code === 'Tab') {
+      setOnlinePlayersVisible(true, true);
       event.preventDefault();
       return;
     }
@@ -6849,8 +6927,7 @@ window.addEventListener('keydown', (event) => {
   keys.add(event.code);
 });
 window.addEventListener('keyup', (event) => {
-  if (event.code !== 'Tab') return;
-  onlinePlayersVisible = false;
+  if (event.code !== 'Tab' || !releaseOnlinePlayersTab()) return;
   event.preventDefault();
 });
 document.addEventListener('visibilitychange', () => {
@@ -6862,17 +6939,15 @@ window.addEventListener('keyup', (event) => keys.delete(event.code));
 function clearPointerPresentation(): void {
   worldPointer = null;
   hoveredInteractionTile = null;
-  rogueUiPointer = null;
   retainedUi.clearHover();
-  npcInteractionUi.pointerLeave();
-  chatOverlay.pointerLeave();
+  chatOverlay.root.input.clearHover();
   overworldUi.pointerLeave();
 }
 
 window.addEventListener('blur', () => {
   retainedPointers.cancel();
   releaseDefenseHold();
-  onlinePlayersVisible = false;
+  setOnlinePlayersVisible(false);
   keys.clear();
   touchControls.reset();
   worldTouchInput.reset();
@@ -6945,26 +7020,23 @@ window.addEventListener('pointercancel', (event) => {
 canvas.addEventListener('pointermove', (event) => {
   touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
-  rogueUiPointer = { x, y };
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   refreshHoveredInteractionTile();
   if (interfaceHidden) return;
   overworldUi.systemCursorMove({ x, y });
-  if (overworldUi.blockingUpdatePromptVisible) {
-    overworldUi.pointerMove({ x, y });
-    return;
-  }
+  if (retainedPointers.dispatch('move', event, 'update-ready') || retainedPointers.dispatch('move', event, 'delve-rewards') || retainedPointers.dispatch('move', event, 'delve-confirmation')) return;
   if (retainedPointers.dispatch('move', event, 'character-name')) return;
   if (retainedPointers.dispatch('move', event, 'player-trade')) return;
-  if (npcInteractionUi.pointerMove({ x, y })) { retainedUi.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'npc-interaction')) return;
+  if (retainedPointers.dispatch('move', event, 'online-players')) return;
   if (retainedPointers.dispatch('move', event, 'inventory-menus')) return;
-  if (chatInteractionBlocked()) chatOverlay.pointerLeave();
-  else chatOverlay.pointerMove({ x, y });
+  if (retainedPointers.dispatch('move', event, 'character-skills') || retainedPointers.dispatch('move', event, 'character-character') || retainedPointers.dispatch('move', event, 'character-statistics') || retainedPointers.dispatch('move', event, 'system-menus') || retainedPointers.dispatch('move', event, 'reading-quests') || retainedPointers.dispatch('move', event, 'reading-help')) return;
+  if (retainedPointers.dispatch('move', event, 'build-palette')) { chatOverlay.root.input.clearHover(); return; }
+  if (retainedPointers.dispatch('move', event, 'chat')) return;
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
-  if (homesteadBuildMode && overworldUi.openWindow === null) homesteadBuildPalette.pointerMove({ x, y });
-  if (overworldUi.openWindow === null && !chatOverlay.isHovered) retainedPointers.dispatch('move', event, 'quest-tracker');
-  else retainedUi.clearHover();
+  if (overworldUi.openWindow === null && !chatOverlay.isHovered && retainedPointers.dispatch('move', event, 'quest-tracker')) return;
+  if (retainedPointers.dispatch('move', event, 'hud-zoneMinimap') || retainedPointers.dispatch('move', event, 'hud-hotbarVitals') || retainedPointers.dispatch('move', event, 'hud-targetEffects')) return;
 });
 canvas.addEventListener('pointerleave', (event) => {
   // A captured retained gesture can finish outside the canvas. Legacy leave
@@ -6973,7 +7045,11 @@ canvas.addEventListener('pointerleave', (event) => {
   clearPointerPresentation();
 });
 canvas.addEventListener('pointerdown', (event) => {
-  retainedUi.clearFocus(); syncRetainedText();
+  // Scoped pointer misses can synchronously blur native editing. Preserve the
+  // gesture's original dismissal ownership before any dispatch or text sync.
+  const wasChatOpen = chatOverlay.isOpen;
+  // Keep an existing chat draft while its own retained controls take capture.
+  if (!wasChatOpen) { retainedUi.clearFocus(); syncRetainedText(); }
   void audio.unlock().catch(() => undefined);
   touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
@@ -6985,39 +7061,14 @@ canvas.addEventListener('pointerdown', (event) => {
     return;
   }
   if (!interfaceHidden) overworldUi.systemCursorDown({ x, y });
-  if (!interfaceHidden && overworldUi.blockingUpdatePromptVisible) {
-    overworldUi.pointerDown({ x, y }, event.button, { shift: event.shiftKey });
-    canvas.setPointerCapture(event.pointerId);
-    event.preventDefault();
-    return;
-  }
-  const rogueRun = latestSnapshot.rogueRun;
-  if (!interfaceHidden && overworldUi.openWindow === null && event.button === 0 && rogueRun !== null) {
-    const [uiWidth, uiHeight] = touchControlViewport();
-    if (rogueRun.phase === 'reward') {
-      const offers = [...latestSnapshot.rogueRewardOffers];
-      const hit = rogueRewardHit(
-        rogueRewardLayout(uiWidth, uiHeight, offers.length, rogueRun.roomKind === 'shop'),
-        { x, y },
-      );
-      rogueUiPointerId = event.pointerId;
-      if (hit?.kind === 'offer') {
-        const offer = offers[hit.index];
-        if (offer !== undefined) showResult(
-          network.chooseRogueReward(offer.slot), rogueRewardClaimedMessage(rogueRun),
-        );
-      } else if (hit?.kind === 'skip') {
-        showResult(network.skipRogueReward(), 'THE TRADER FADES INTO THE DARK');
-      }
-      canvas.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      return;
-    }
+  if (!interfaceHidden && (retainedPointers.dispatch('down', event, 'update-ready') || retainedPointers.dispatch('down', event, 'delve-rewards') || retainedPointers.dispatch('down', event, 'delve-confirmation'))) {
+    event.preventDefault(); return;
   }
   if (!interfaceHidden && retainedPointers.dispatch('down', event, 'player-trade')) {
     event.preventDefault();
     return;
   }
+  if (!interfaceHidden && retainedPointers.dispatch('down', event, 'online-players')) { event.preventDefault(); return; }
   if (event.button === 0 && terrainInspectorPointerDown(x, y)) {
     canvas.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -7065,33 +7116,14 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (npcInteractionUi.pointerDown({ x, y }, event.button, {
-      shift: event.shiftKey,
-      control: event.ctrlKey,
-      pointerType: event.pointerType,
-    })) {
-      canvas.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      return;
+    if (retainedPointers.dispatch('down', event, 'npc-interaction')) {
+      event.preventDefault(); return;
     }
-    if (homesteadBuildMode && overworldUi.openWindow === null
-      && homesteadBuildPalette.pointerDown({ x, y }, event.button)) {
-      if(homesteadBuildPalette.takeConstructionApply())applyConstructionProposal();
-      if(homesteadBuildPalette.takeConstructionCancel())constructionProposal=null;
-      const expansion = homesteadBuildPalette.takeExpansionRequest();
-      if(expansion!==null) showResult(network.purchaseResidenceExpansion(expansion.rank).catch(error=>{
-        homesteadBuildPalette.expansionFailed(expansion.scope, expansion.rank, expansion.token);throw error;
-      }), 'ROOM EXPANSION PURCHASED');
-      const upgrade = homesteadBuildPalette.takePurchaseRequest();
-      furnitureMoves.cancel();
-      if (homesteadBuildPalette.takeUndoMoveRequest()) showResult(furnitureMoves.undo(), 'FURNITURE MOVE UNDONE');
-      if (upgrade !== null) showResult(
-        network.purchaseHomesteadUpgrade(upgrade),
-        `${upgrade.replaceAll('_', ' ').toUpperCase()} UPGRADED`,
-      );
-      canvas.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      return;
+    if (retainedPointers.dispatch('down', event, 'build-palette')) {
+      event.preventDefault(); return;
+    }
+    if (retainedPointers.dispatch('down', event, 'character-skills') || retainedPointers.dispatch('down', event, 'character-character') || retainedPointers.dispatch('down', event, 'character-statistics') || retainedPointers.dispatch('down', event, 'system-menus') || retainedPointers.dispatch('down', event, 'reading-quests') || retainedPointers.dispatch('down', event, 'reading-help')) {
+      event.preventDefault(); return;
     }
     if (retainedPointers.dispatch('down', event, 'inventory-menus')) {
       event.preventDefault(); return;
@@ -7107,8 +7139,7 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (!chatInteractionBlocked() && chatOverlay.pointerDown({ x, y }, event.button, event.pointerType)) {
-      canvas.setPointerCapture(event.pointerId);
+    if (retainedPointers.dispatch('down', event, 'chat')) {
       event.preventDefault();
       return;
     }
@@ -7116,7 +7147,12 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
+    if (!interfaceHidden && (retainedPointers.dispatch('down', event, 'hud-zoneMinimap') || retainedPointers.dispatch('down', event, 'hud-hotbarVitals') || retainedPointers.dispatch('down', event, 'hud-targetEffects'))) {
+      event.preventDefault(); return;
+    }
   }
+  retainedUi.clearFocus(); syncRetainedText();
+  if (wasChatOpen) { chatOverlay.blurInput(); event.preventDefault(); return; }
   const worldPointerAvailable = interfaceHidden
     || (overworldUi.openWindow === null && !chatOverlay.isOpen);
   if (event.pointerType === 'touch' && event.button === 0 && worldPointerAvailable) {
@@ -7199,7 +7235,7 @@ function performWorldPointerAction(
           if (failure) setToast(failure.toUpperCase(), 'failure', 120);
           else showResult(network.pickupHearthFurniture(BigInt(item.id)), 'FURNITURE RETURNED TO YOUR BAG');
         }
-      } else {
+      } else if (selection.kind === 'place') {
         const preview = furniturePreviewAt(tile, selection.itemKind);
         if (preview.failure !== null || !preview.candidate) setToast(preview.failure?.toUpperCase() ?? 'CHOOSE FURNITURE', 'failure', 120);
         else showResult(network.placeHearthFurniture(selection.itemKind, tile.tileX, tile.tileY,
@@ -7376,21 +7412,13 @@ function performWorldPointerAction(
 }
 
 canvas.addEventListener('pointerup', (event) => {
+  if (!interfaceHidden && (overworldUi.blockingUpdatePromptVisible || delveRewards.active || overworldUi.retainedConfirmationActive)) {
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    event.preventDefault(); return;
+  }
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   const [x, y] = pointerUiPosition(event);
-  if (rogueUiPointerId === event.pointerId) {
-    rogueUiPointerId = null;
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    event.preventDefault();
-    return;
-  }
-  if (!interfaceHidden && overworldUi.blockingUpdatePromptVisible) {
-    overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    event.preventDefault();
-    return;
-  }
   if (!interfaceHidden) {
     if (characterNamePrompt.isActive) {
       event.preventDefault();
@@ -7402,7 +7430,6 @@ canvas.addEventListener('pointerup', (event) => {
       return;
     }
     if (npcInteractionUi.active) {
-      npcInteractionUi.pointerUp();
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       event.preventDefault();
       return;
@@ -7422,30 +7449,27 @@ canvas.addEventListener('pointerup', (event) => {
   // text input. Mobile Safari otherwise may discard the just-opened keyboard
   // when it completes this captured pointer gesture.
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  let chatConsumed = false;
-  if (chatInteractionBlocked()) chatOverlay.pointerCancel();
-  else chatConsumed = chatOverlay.pointerUp();
   const consumed = overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
-  if (chatConsumed || consumed) event.preventDefault();
+  if (consumed) event.preventDefault();
 });
 canvas.addEventListener('lostpointercapture', (event) => {
   worldTouchInput.pointerUp({ pointerId: event.pointerId, x: 0, y: 0 }, true);
 });
 canvas.addEventListener('pointercancel', () => {
   cancelBowChargePresentation();
-  rogueUiPointerId = null;
   worldPointer = null;
   hoveredInteractionTile = null;
-  chatOverlay.pointerCancel();
-  npcInteractionUi.pointerLeave();
+  chatOverlay.root.input.cancelPointers();
   overworldUi.pointerLeave();
 });
 canvas.addEventListener('wheel', (event) => {
   const [x, y] = pointerUiPosition(event);
   if (!interfaceHidden) {
-    if (overworldUi.blockingUpdatePromptVisible) {
-      event.preventDefault();
-      return;
+    const overlayWheel = { point: { x, y },
+      deltaX: event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+      deltaY: event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale() };
+    if (retainedUi.wheel(overlayWheel, 'update-ready') || retainedUi.wheel(overlayWheel, 'delve-rewards') || retainedUi.wheel(overlayWheel, 'delve-confirmation')) {
+      event.preventDefault(); return;
     }
     if (retainedUi.wheel({ point: { x, y }, deltaX: event.deltaX, deltaY: event.deltaY }, 'character-name')) {
       event.preventDefault(); return;
@@ -7457,13 +7481,23 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
-    if (npcInteractionUi.wheel({ x, y }, event.deltaY) || npcInteractionUi.active) {
+    if (retainedUi.wheel({ point: { x, y },
+      deltaX: event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+      deltaY: event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1) / currentUiScale(),
+    }, 'npc-interaction')) {
       event.preventDefault();
       return;
     }
     const wheelUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.cssHeight : 1;
     const retainedWheel = { point: { x, y }, deltaX: event.deltaX * wheelUnit / currentUiScale(),
       deltaY: event.deltaY * wheelUnit / currentUiScale() };
+    if (retainedUi.wheel(retainedWheel, 'online-players')) { event.preventDefault(); return; }
+    if (retainedUi.wheel(retainedWheel, 'build-palette')) {
+      event.preventDefault(); return;
+    }
+    if (retainedUi.wheel(retainedWheel, 'character-skills') || retainedUi.wheel(retainedWheel, 'character-character') || retainedUi.wheel(retainedWheel, 'character-statistics') || retainedUi.wheel(retainedWheel, 'system-menus') || retainedUi.wheel(retainedWheel, 'reading-quests') || retainedUi.wheel(retainedWheel, 'reading-help')) {
+      event.preventDefault(); return;
+    }
     if (retainedUi.wheel(retainedWheel, 'inventory-menus')) {
       event.preventDefault(); return;
     }
@@ -7471,10 +7505,11 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
-    if (!chatInteractionBlocked() && chatOverlay.wheel({ x, y }, event.deltaY)) {
-      retainedUi.clearHover(); event.preventDefault(); return;
-    }
+    if (retainedUi.wheel(retainedWheel, 'chat')) { event.preventDefault(); return; }
     if (retainedUi.wheel(retainedWheel, 'quest-tracker')) {
+      event.preventDefault(); return;
+    }
+    if (retainedUi.wheel(retainedWheel, 'hud-zoneMinimap') || retainedUi.wheel(retainedWheel, 'hud-hotbarVitals') || retainedUi.wheel(retainedWheel, 'hud-targetEffects')) {
       event.preventDefault(); return;
     }
   }
@@ -7592,7 +7627,7 @@ Object.assign(window, {
     setNameplatesVisible,
     setInterfaceHidden,
     interfaceHidden: () => interfaceHidden,
-    openChat: () => chatOverlay.handleGlobalKeyDown(new KeyboardEvent('keydown', { key: 'Enter' })),
+    openChat: () => openRetainedChat({ key: 'Enter', repeat: false }),
     openWindow: (window: 'inventory' | 'pack' | 'crafting' | 'barrel' | 'furnace' | 'cooking' | 'delve-confirmation' | 'system' | 'settings' | null) => { overworldUi.openWindow = window; },
     uiWindow: () => overworldUi.openWindow,
   },

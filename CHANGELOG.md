@@ -2,7 +2,93 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
-## Client 0.25.3 / Studio 0.14.3 — Full-height terrain stairs (not yet deployed)
+## Client 0.37.0 / UI 0.39.0 — Shared online-player roster (not yet deployed)
+
+- Adopt the shared roster with real identities, online/idle status, roles and owner permissions. Keep role cycling distinct from remove-and-kick and recheck current scope, role and authority before transport.
+- Resolve touch scrolling before membership commands (BUG-026); retain scroll/focus on harmless updates, cancel stale gestures and preserve hold-Tab versus sticky HUD opening. Retire legacy roster drawing/input together. Workspace0.43.0.
+- Fix BUG-028: preserve chat dismissal ownership before synchronous native blur, so the first outside click closes chat without also triggering a world action.
+
+## Client 0.36.0 / UI 0.38.0 — Shared account and loading gateways (not yet deployed)
+
+- Adopt the shared account composition and all three loading hosts with responsive safe-area bounds and font_5x7. Keep native name editing, profile validation, OIDC navigation and music under their existing authorities; cancel duplicate and stale commands while busy.
+- Preserve the permanent startup canvas, one animation loop, loading-stage projection and accessible pre-asset status. Retire the account's legacy input and drawing together. Workspace 0.42.0 / Engine 0.24.0.
+
+## Client 0.35.0 / UI 0.37.0 — Shared chat and native editing (not yet deployed)
+
+- Adopt the shared chat composition with existing message/whisper commands, arrival-based fade, history, unread state, draggable position, suggestions and 240-character editor. Preserve drafts through deferred failures, touch keyboard transitions and harmless authority updates.
+- Use the central native editing and retained pointer ownership for IME, clipboard and captured gesture completion. Keep desktop dismissal and touch continuity scoped to chat; retire its separate HTML input and legacy drawing/pointer path together. Workspace 0.41.0.
+
+## Client 0.34.0 / UI 0.36.0 — Shared game HUD (not yet deployed)
+
+- Adopt shared zone/minimap, hotbar/resources, target/effects compositions using existing inventory selection commands, actual registry art, equipped-watch authority and projected status timers.
+- Preserve keyboard/pointer/touch and cancel stale gestures across target, connection or modal changes. Retire the replaced legacy drawing and hit paths together.
+- Give default tracked quests compact space above target controls; temporarily collapse the map, let explicit map inspection hide quests, restore wide layout and preserve saved tracker anchors during resize. Match foreground paint and input ordering. Workspace 0.40.0.
+
+## Client 0.33.0 / UI 0.35.0 — Shared Delve and update overlays (not yet deployed)
+
+- Adopt shared Delve confirmation, current run rewards/status and update-ready compositions. Reward commands remain pending until authoritative state changes; rejection permits a scoped retry without fabricating currency or progression.
+- Give update decisions their own highest input priority and synchronous service-worker readiness, even while rendering is paused. Preserve Later for the current availability interval, cancel superseded gestures and retire replaced production overlay input/drawing together. Workspace 0.39.0.
+
+## Client 0.32.0 / UI 0.34.0 — Shared skill tree (not yet deployed)
+
+- Adopt the shared skill graph, authored node art, details, track navigation and progression actions using subscribed ranks, requirements, equipment contributions and reset costs.
+- Keep pan, zoom, selection and focus through harmless updates and resize. Cancel stale held actions when selection, authority or connection changes; retire legacy skill drawing and input together. Workspace 0.38.0.
+
+## Client 0.29.1 / UI 0.31.1 — Touch slider intent (not yet deployed)
+
+- Prevent vertical touch scrolling over audio or developer time sliders from sending a preference or world command before scroll intent is resolved (BUG-024). Intentional taps and horizontal drags retain their commands; desktop drag, keyboard and wheel controls are unchanged. Workspace 0.35.1.
+
+## Client 0.31.0 / UI 0.33.0 — Shared dialogue and merchant windows (not yet deployed)
+
+- Adopt the shared NPC dialogue and merchant compositions with authoritative offers, inventory capacity, currency and transaction results. Native filter editing uses the central text bridge.
+- Preserve recipe exchanges, village orders and furniture inspection. Cancel stale held gestures when the session, selected cart or offer changes; fix pending transactions locking a reopened conversation (BUG-020).
+- Retire replaced NPC drawing and input paths together. Workspace 0.37.0. Browser acceptance and final CI remain release gates.
+
+## Client 0.30.1 / UI 0.32.1 — Readable compact statistics and table paging (not yet deployed)
+
+- Keep horizontal table scrollbar hit areas below the pagination controls, so native center pointer/touch presses reach Next and Previous (BUG-025).
+- Reclaim compact statistics frame padding to retain a complete readable row alongside its header and pager. Preserve table identity, sort, page, focus and saved browsing state through resizing. Workspace 0.36.1.
+
+## Client 0.30.0 / UI 0.32.0 — Shared character and lifetime records (not yet deployed)
+
+- Adopt the shared character and statistics windows with real appearance, equipment, authored attributes and bigint lifetime records. Preserve navigation, focus and responsive scrolling through the central input runtime.
+- Fix BUG-022: follow authoritative appearance changes and roll rejected current previews back without allowing stale completions to overwrite newer intent. Keep equipment read-only and draw authoritative durability once.
+- Retire legacy character/statistics drawing and pointer paths together. Workspace0.36.0.
+
+## Client 0.29.0 / UI 0.31.0 — Shared game settings and developer menus (not yet deployed)
+
+- Mount the shared game menu, all six settings pages, and current world/render developer controls through the central canvas input runtime.
+- Preserve audio restore, touch placement, lighting quality/model, world scale, presentation cap, experimental backend, updates, fullscreen and administration callbacks. Cancel stale held actions on permission or availability changes.
+- Use font_5x7 and scrollable bounded layouts; retire production legacy menu drawing and hits together. Workspace0.35.0.
+
+## Client 0.28.1 / UI 0.30.1 — Quest window bounds (not yet deployed)
+
+- Fix BUG-023: the production quest window uses host-owned responsive bounds. Remove its manual resize handles so edge drags cannot push Track/Drop outside compact viewports; lab resizing remains explicitly available. Workspace0.34.1.
+
+## Client 0.28.0 / UI 0.30.0 — Shared quests and guide (not yet deployed)
+
+- Render the production quest log and help guide with the shared kit, preserving real quest pin/drop callbacks, deep links, selection, reading navigation and parent close policies.
+- Keep stable roots and focus across authoritative updates and resizing; retire old frame drawing and coordinate input together. Preserve captured-pointer cancellation, secondary-touch rejection and repeated activation guards.
+- Use font_5x7 for ordinary chrome and quest text; book page headings retain their explicit long-form reading role. Workspace0.34.0.
+
+## Client 0.27.1 / UI 0.29.1 — Nonmodal pointer ownership (not yet deployed)
+
+- Honor single-pointer ownership within nonmodal palette controls while preserving fresh outside world gestures and independent scopes (BUG-021).
+- Keep cancelled tails owned through release, clear retired ownership, and handle fresh presses after a missing release without sending a second command. Workspace0.33.1.
+
+## Client 0.27.0 / UI 0.29.0 — Shared build palette (not yet deployed)
+
+- Adopt the shared build palette using real furniture, construction, upgrade and residence models; preserve existing transport and authoritative rejection handling.
+- Route pointer, touch, wheel and keyboard actions through the common retained runtime, including held-key deduplication and scope cancellation. Retire the legacy palette draw/input paths together.
+- Preserve compact/wide layout, font_5x7 chrome and world input outside the palette. Workspace0.33.0.
+
+## Client 0.26.0 / UI 0.28.0 — Shared processor windows (not yet deployed)
+
+- Adopt the shared authored furnace, cooking, press and fermentation compositions through their actual content-window routes, retaining the existing inventory authority and slot restrictions.
+- Preserve extraction-only outputs, furnace fuel, cooking batch actions and authoritative running/paused/settlement timing. Keep sorting on the backpack; processor output panes do not offer unsupported sorting.
+- Forward authored process progress without creating client deadlines or granting outputs locally. Workspace 0.32.0; 11 of 33 surfaces are wired in combined source, with browser/final CI/live acceptance pending.
+
+## Client 0.25.3 / Studio 0.14.3 — Full-height terrain stairs (deployed 2026-09-24)
 
 - Draw stair flights continuously from the cliff rim through its visible wall to the ground contact row; restore the basic terrain family's matching two-lane brown-rim stair block.
 - Studio permits new stairs only along a straight cliff edge with room beside the bank. Existing courses still load and report placement warnings; this release does not move live stairs or publish world, map or content changes.

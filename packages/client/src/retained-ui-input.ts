@@ -62,9 +62,11 @@ export class RetainedUiPointers {
       button: event.button, shiftKey: event.shiftKey, altKey: event.altKey,
       ctrlKey: event.ctrlKey, metaKey: event.metaKey }, hostId === undefined ? undefined : { hostId });
     if (consumed && type === 'down') {
-      this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(event.pointerId);
       this.captures.add(event.pointerId);
+      // Native editor blur can run synchronously during focus. Its owner must
+      // already observe capture and preserve an in-progress text gesture.
+      this.canvas.focus({ preventScroll: true });
     }
     this.sync();
     return consumed;

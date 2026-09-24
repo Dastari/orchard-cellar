@@ -122,3 +122,32 @@ describe('production retained quest tracker', () => {
     tracker.dispose();
   });
 });
+
+it('uses temporary HUD space without overwriting saved anchors and cancels hidden gestures', () => {
+  const saved = storage(), open = vi.fn(), tracker = new QuestTracker(art, open, saved);
+  const model = { width: 640, height: 360, entries: [entry] };
+  tracker.update(model);
+  tracker.update({ ...model, width: 320, height: 180, layoutRegion: { x:160,y:40,width:156,height:38 } });
+  expect(tracker.currentBounds).toEqual({ x:160,y:40,width:156,height:38 });
+  const p = point(tracker, 'quest-tracker.quest.book'); pointer(tracker, 'down', p);
+  tracker.update({ ...model, visible:false }); pointer(tracker, 'up', p);
+  expect(open).not.toHaveBeenCalled(); expect(tracker.isActive).toBe(false);
+  tracker.update(model); expect(tracker.isActive).toBe(true); expect(tracker.currentBounds.width).toBe(170);
+  expect(saved.values.size).toBe(0); tracker.dispose();
+  saved.setItem('orchard:quest-tracker:position', JSON.stringify({ right:30,y:240 }));
+  const anchored = new QuestTracker(art,open,saved); anchored.update(model);
+  const original = anchored.currentBounds;
+  anchored.update({ ...model,width:320,height:180,layoutRegion:{x:160,y:40,width:156,height:38} });
+  expect(anchored.currentBounds.width).toBe(170);
+  anchored.update(model); expect(anchored.currentBounds).toEqual(original);
+  expect(JSON.parse(saved.getItem('orchard:quest-tracker:position')!)).toEqual({right:30,y:240}); anchored.dispose();
+});
+
+it('does not jump sideways while dragging out of a temporary narrow HUD region', () => {
+  const tracker = new QuestTracker(art,()=>{},null);
+  tracker.update({width:320,height:180,entries:[entry],layoutRegion:{x:160,y:40,width:156,height:38}});
+  const start = point(tracker); pointer(tracker,'down',start);
+  const next = {x:start.x-20,y:start.y+12}; pointer(tracker,'move',next);
+  expect(tracker.currentBounds).toEqual({x:140,y:52,width:170,height:52});
+  pointer(tracker,'up',next); expect(tracker.currentBounds).toEqual({x:140,y:52,width:170,height:52}); tracker.dispose();
+});

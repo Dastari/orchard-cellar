@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { bootstrapContentRows, buildContentRegistry, BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS, MAIN_HAND_INVENTORY_SLOT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT } from '@orchard/sim';
+import { bootstrapContentRows, buildContentRegistry, bootstrapContentRegistry, runtimePlayerAppearanceCatalog, SKILL_NODE_DEFINITIONS, BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS, MAIN_HAND_INVENTORY_SLOT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import type { PixelUi } from './pixel-ui.js';
 import {
   DEVELOPER_TABS,
@@ -36,7 +36,8 @@ import {
 } from './overworld-ui.js';
 import type { UiSkin } from './skin.js';
 import { RIBBON_TEXT_TOP_OFFSET, ribbonWidth } from './ribbon.js';
-import { progressionTabsLayout } from './progression-tabs.js';
+import type { UiKitArt } from './kit/components/art.js';
+import type { SkillTreeModel } from './skill-tree-ui.js';
 
 describe('homestead member role controls', () => {
   it('cycles invite roles before returning to revoked', () => {
@@ -109,6 +110,10 @@ function callbacks(): OverworldUiCallbacks {
   };
 }
 
+function retainedSkillModel(): SkillTreeModel {
+  return { nodes: SKILL_NODE_DEFINITIONS, tracks: [{ track: 'explorer', experience: 10000n, spentPoints: 0, bonusPoints: 1, respecCount: 0 }], ranks: [], balanceBronze: 100n };
+}
+
 describe('overworld retained UI layout', () => {
   it('marks players idle only after ten complete minutes and formats the roster suffix', () => {
     const nowMillis = 1_000_000;
@@ -178,18 +183,21 @@ describe('overworld retained UI layout', () => {
   it('opens the notified skill tree when clicked and provides a separate dismiss target', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const roots = ui.enableRetainedCharacter({} as UiKitArt);
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
+      skills: retainedSkillModel(),
       skillPointNotice: { track: 'farming', points: 1 },
     });
     const notice = ui.skillPointNoticeLayout()!;
     expect(ui.pointerDown({ x: notice.frame.x + 4, y: notice.frame.y + 4 }, 0)).toBe(true);
     expect(ui.openWindow).toBe('skills');
     expect(ui.activeSkillTrack).toBe('farming');
+    expect(roots.skills.entries().some(({ element }) => element.id === 'skill:farming_root')).toBe(true);
     expect(handlers.dismissSkillPointNotice).toHaveBeenCalledOnce();
 
     ui.openWindow = null;
@@ -197,44 +205,82 @@ describe('overworld retained UI layout', () => {
     expect(ui.pointerDown({ x: notice.dismiss.x + 4, y: notice.dismiss.y + 4 }, 0)).toBe(true);
     expect(ui.openWindow).toBeNull();
     expect(handlers.dismissSkillPointNotice).toHaveBeenCalledOnce();
+    ui.disposeRetainedCharacter();
   });
 
   it('opens the notified tree with the existing K keyboard shortcut', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const roots = ui.enableRetainedCharacter({} as UiKitArt);
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
+      skills: retainedSkillModel(),
       skillPointNotice: { track: 'combat', points: 1 },
     });
     expect(ui.handleKeyDown('KeyK', false)).toBe(true);
     expect(ui.openWindow).toBe('skills');
     expect(ui.activeSkillTrack).toBe('combat');
+    expect(roots.skills.entries().some(({ element }) => element.id === 'skill:combat_root')).toBe(true);
     expect(handlers.dismissSkillPointNotice).toHaveBeenCalledOnce();
+    ui.disposeRetainedCharacter();
   });
 
   it('switches the shared character frame between character, skills, and statistics tabs', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    const roots = ui.enableRetainedCharacter({} as UiKitArt);
     ui.update({
       width: 800, height: 500, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
-      statistics: { statistics: [] },
+      statistics: { statistics: [] }, skills: retainedSkillModel(),
+      character: {
+        playerId: 'self', displayName: 'Farmer', appearance: { hairKind: 'hair_1_brown', shirtKind: 'farmer_green', pantsKind: 'farmer_white_brown', shoesKind: 'brown' },
+        appearanceCatalog: runtimePlayerAppearanceCatalog(bootstrapContentRegistry())!,
+        baseAttributes: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, resolvedAttributes: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        health: 100, maxHealth: 100, mana: 100, maxMana: 100, vigour: 100, maxVigour: 100, tracks: [], effects: [], equipment: [],
+      },
     });
     ui.openWindow = 'character';
-    const tabs = progressionTabsLayout(overworldUiLayout(800, 500).progressionWindow).tabs;
-    expect(ui.pointerDown({
-      x: tabs.statistics.x + tabs.statistics.width / 2,
-      y: tabs.statistics.y + tabs.statistics.height / 2,
-    }, 0)).toBe(true);
+    const tab = roots.character.entries().find(({ element }) => element.label === 'STATISTICS')!.element;
+    roots.character.focus.set(tab); roots.character.arrange();
+    const point = { x: tab.clip.x + tab.clip.width / 2, y: tab.clip.y + tab.clip.height / 2 };
+    expect(roots.character.pointer({ type: 'down', point, button: 0, pointerId: 1 })).toBe(true);
+    expect(ui.openWindow).toBe('character');
+    expect(roots.character.pointer({ type: 'up', point, button: 0, pointerId: 1 })).toBe(true);
     expect(ui.openWindow).toBe('statistics');
     expect(ui.handleKeyDown('KeyK', false)).toBe(true);
     expect(ui.openWindow).toBe('skills');
+    expect(ui.retainedCharacterActive).toBe(true);
+    ui.disposeRetainedCharacter();
+  });
+
+  it('cancels retained skill custody on parent disconnect and keeps navigation on the real root', () => {
+    const handlers = callbacks(), ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const roots = ui.enableRetainedCharacter({} as UiKitArt), root = roots.skills;
+    const model = { width: 640, height: 400, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false, audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0, raining: false, weatherMode: 'auto' as const,
+      prompt: null, toast: null, skills: retainedSkillModel() };
+    ui.update(model); ui.openSkillTrack('explorer');
+    const node = (id: string) => { root.arrange(); const element = root.entries().find(entry => entry.element.id === id)?.element; expect(element, id).toBeDefined(); return element!; };
+    const press = (id: string) => { root.focus.set(node(id)); root.key({ key: 'Enter' }); root.arrange(); };
+    press('skill:measured_stride'); const button = node('skills.learn'); root.focus.set(button); root.arrange();
+    const point = { x: button.clip.x + button.clip.width / 2, y: button.clip.y + button.clip.height / 2 };
+    root.pointer({ type: 'down', point, button: 0, pointerId: 1, pointerType: 'touch' });
+    ui.update({ ...model, connected: false }); expect(ui.retainedCharacterActive).toBe(false);
+    ui.update(model); expect(ui.retainedCharacterActive).toBe(true);
+    root.pointer({ type: 'up', point, button: 0, pointerId: 1, pointerType: 'touch' }); expect(handlers.purchaseSkillNode).not.toHaveBeenCalled();
+    press('skill:measured_stride'); press('skills.learn'); expect(handlers.purchaseSkillNode).toHaveBeenCalledExactlyOnceWith('measured_stride');
+    root.key({ key: 'Enter', repeat: true }); expect(handlers.purchaseSkillNode).toHaveBeenCalledOnce();
+    root.key({ key: 'l' }); expect(ui.openWindow).toBe('quests'); expect(ui.retainedCharacterActive).toBe(false);
+    ui.openWindow = 'skills'; root.key({ key: 'Escape' }); expect(ui.openWindow).toBeNull();
+    expect(roots.skills).toBe(root); ui.disposeRetainedCharacter();
   });
 
   it('uses the authored closed chest animation for chest slot icons', () => {

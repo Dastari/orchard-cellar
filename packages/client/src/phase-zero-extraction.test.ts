@@ -178,7 +178,18 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // cover cursor custody, restrictions, touch/focus and reconnect; other seams remain unchanged.
 // Trade adoption retires the old drawing/native input paths; two-identity reducer,
 // revision, money and reconnect tests cover the replacement wrapper.
-const STRUCTURAL_SEAM_DIGEST = '793898eeb55189927394666263b3a42b29caf0fca9aa1f25dad01f4943a30581';
+// Processor adoption extends only reviewed frame routes and forwards authoritative
+// process progress; actual frame/slot/timing/command regressions cover the seam.
+// Reviewed quest/help host integration removes both legacy draw/input paths; actual host tests
+// cover deep links, parent shortcuts, focus/resize, one command and cancelled touch custody.
+// Reviewed system-menu command adapter and retirement of its production legacy dispatch.
+// Reviewed shared character/statistics adapters, appearance rejection and legacy path retirement.
+// Reviewed skills host: shared navigation, actual parent deep links and captured reconnect tails.
+// Reviewed shared overlay lifecycle: synchronous PWA readiness, input priority and confirmation scope.
+// Reviewed shared HUD projections, legacy hit-path retirement and foreground tracker ordering.
+// Reviewed roster replacement removes legacy rendering, scroll/role hit paths together.
+// Actual inventory coexistence, scoped management and touch-release regressions cover this seam.
+const STRUCTURAL_SEAM_DIGEST = '10fed0daa4dfe384a34e5f672bd5aa0c76c23c6d32c947d81eee42b4ca6fb19a';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
