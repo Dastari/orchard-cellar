@@ -1,5 +1,5 @@
 import { delveCompletionRewardError } from '../delve-keepsake.js';
-import { equipmentModifierAllowed } from '../equipment-budget.js';
+import { equipmentItemBudgetViolations, equipmentModifierAllowed } from '../equipment-budget.js';
 import {
   type ItemContentDefinition,
   type ItemDefinitionId,
@@ -17,6 +17,7 @@ import type { LootCondition, LootContentDefinition } from './loot-definition.js'
 import type { ResourceContentDefinition } from './resource-definition.js';
 import type { LoadoutContentDefinition } from './loadout-definition.js';
 import type { SupportCapCapability } from './balance-definition.js';
+import { gearCatalogueIssues } from './gear-catalogue.js';
 
 export const MAX_CONTENT_DEFINITION_BYTES = 64 * 1024;
 export const MAX_CONTENT_PACK_BYTES = 8 * 1024 * 1024;
@@ -54,6 +55,7 @@ export const CONTENT_VALIDATION_ERROR_CODES = [
   'invalid_asset_reference',
   'invalid_terrain_reference',
   'invalid_world_definition',
+  'invalid_gear_definition',
 ] as const;
 
 export type ContentValidationCode = typeof CONTENT_VALIDATION_ERROR_CODES[number];
@@ -1588,6 +1590,10 @@ export function validateContentDefinitions(
   )));
   const gearSkillNodes = new Map(definitions.flatMap(definition => definition.kind === 'skill_tree' && definition.retired !== true
     ? definition.nodes.map(node => [node.id, node] as const) : []));
+  const gearBoostableNodes = new Set([...gearSkillNodes.values()].filter(node => node.gearBoostable === true).map(node => node.id));
+  for (const gearIssue of gearCatalogueIssues(definitions, gearBoostableNodes)) {
+    errors.push(issue('error', gearIssue.code, gearIssue.message, gearIssue.definitionId, gearIssue.path));
+  }
   const skillNodeOwners = new Map<string, string>();
   for (const definition of definitions) {
     if (definition.kind !== 'skill_tree') continue;
@@ -1912,6 +1918,12 @@ export function validateContentDefinitions(
       if (definition.equip !== undefined) for (const modifier of definition.modifiers ?? []) {
         if (!equipmentModifierAllowed(modifier)) errors.push(issue(
           'error', 'invalid_component_set', `unsupported equipment modifier or budget: ${modifier.id}`,
+          definition.id, 'modifiers',
+        ));
+      }
+      if (definition.equip !== undefined) for (const rule of equipmentItemBudgetViolations(definition.modifiers ?? [])) {
+        errors.push(issue(
+          'error', 'invalid_component_set', `equipment modifiers for ${rule.key} exceed the per-item budget`,
           definition.id, 'modifiers',
         ));
       }

@@ -1,3 +1,4 @@
+import { parseGearDefinition, type GearContentDefinition, type GearDefinitionId } from './gear-definition.js';
 import { parseWorldRulesDefinition, type WorldRulesContentDefinition, type WorldRulesDefinitionId } from './world-rules-definition.js';
 import { parseRuleCatalogue, type RuleCatalogue } from '../rule-catalogue.js';
 import { BALANCE_FIELD_METADATA, balanceTupleFields } from './balance-fields.js';
@@ -98,7 +99,7 @@ export const SUPPORTED_CONTENT_KINDS = [
   'npc', 'dialogue', 'quest', 'balance', 'progression',
   'crop', 'creature', 'spawn', 'space', 'skill_tree', 'effect', 'statistic',
   'upgrade', 'balance_group', 'resource',
-  'loadout', 'enemy', 'encounter', 'world_rules',
+  'loadout', 'enemy', 'encounter', 'world_rules', 'gear',
 ] as const;
 export type SupportedContentKind = typeof SUPPORTED_CONTENT_KINDS[number];
 
@@ -134,7 +135,8 @@ export type ContentDefinitionId =
   | LoadoutDefinitionId
   | EnemyDefinitionId
   | EncounterDefinitionId
-  | WorldRulesDefinitionId;
+  | WorldRulesDefinitionId
+  | GearDefinitionId;
 
 export interface ContentDefinitionRow {
   readonly id: string;
@@ -406,7 +408,8 @@ export type SupportedContentDefinition =
   | LoadoutContentDefinition
   | EnemyContentDefinition
   | EncounterContentDefinition
-  | WorldRulesContentDefinition;
+  | WorldRulesContentDefinition
+  | GearContentDefinition;
 
 /** Canonical durable/wire shape. Parser defaults remain enumerable in the
  * runtime model; only redundant default-equal source bytes are omitted. */
@@ -1188,6 +1191,7 @@ export function parseContentDefinition(kind: string, json: string | unknown): Su
     case 'enemy': return parseEnemyDefinition(json);
     case 'encounter': return parseEncounterDefinition(json);
     case 'world_rules': return parseWorldRulesDefinition(json);
+    case 'gear': return parseGearDefinition(json);
     default: return fail('kind_mismatch', '$.kind', `unsupported definition kind ${kind}`);
   }
 }

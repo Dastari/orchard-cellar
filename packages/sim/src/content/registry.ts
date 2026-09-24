@@ -1,5 +1,6 @@
 import type { ProgressionContentDefinition } from './progression-definition.js';
 import type { WorldRulesContentDefinition } from './world-rules-definition.js';
+import type { GearContentDefinition } from './gear-definition.js';
 import { naturalObjectProjections } from './natural-object.js';
 import { contentDefinitionsHash, contentDefinitionRowIdentityHash } from './payload-hash.js';
 export { contentDefinitionsHash, contentDefinitionRowIdentityHash, contentDefinitionRowsHash } from './payload-hash.js';
@@ -96,6 +97,8 @@ export interface ContentRegistry {
   readonly enemies: ReadonlyMap<string, EnemyContentDefinition>;
   readonly encounters: ReadonlyMap<string, EncounterContentDefinition>;
   readonly worldRules: ReadonlyMap<string, WorldRulesContentDefinition>;
+  /** Gear catalogue rows (Gear-D1/D2); compileGearCatalogue builds the keyed view. */
+  readonly gear: ReadonlyMap<string, GearContentDefinition>;
   readonly contentHash: string;
   /** Temporary Phase-0 parity view. Runtime consumers can migrate one table at
    * a time without maintaining a second authored source. */
@@ -193,6 +196,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
   const enemies = sorted.filter((definition): definition is EnemyContentDefinition => definition.kind === 'enemy');
   const encounters = sorted.filter((definition): definition is EncounterContentDefinition => definition.kind === 'encounter');
   const worldRules = sorted.filter((definition): definition is WorldRulesContentDefinition => definition.kind === 'world_rules');
+  const gear = sorted.filter((definition): definition is GearContentDefinition => definition.kind === 'gear');
   const registry: ContentRegistry = Object.freeze({
     definitions: new ImmutableMap(sorted.map((definition) => [definition.id, definition] as const)),
     items: new ImmutableMap(items.map((definition) => [definition.id, definition] as const)),
@@ -222,6 +226,7 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
     enemies: new ImmutableMap(enemies.map((definition) => [definition.id, definition] as const)),
     encounters: new ImmutableMap(encounters.map((definition) => [definition.id, definition] as const)),
     worldRules: new ImmutableMap(worldRules.map(definition => [definition.id, definition] as const)),
+    gear: new ImmutableMap(gear.map(definition => [definition.id, definition] as const)),
     contentHash: contentDefinitionsHash(sorted),
     compiled: compiledProjection(items, recipes, processes, shops, crops, creatures, spawns, spaces,
       skillTrees, effects, statistics, upgrades),
