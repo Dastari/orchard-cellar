@@ -200,9 +200,13 @@ describe('production retained inventory authority bridge', () => {
       openRecipeBook(f);
       const input = f.root.entries().find(({element}) => element.label === 'Search recipes')!.element;
       f.root.focus.set(input, 'keyboard'); f.root.text('plank');
+      for (const width of [390, 800, 320, 960]) { f.update({ width }); f.root.arrange(); f.root.arrange(); expect(f.root.focus.current).toBe(input); }
+      // Small screens let the open book take the bench's place; with the book closed the grid is always 3x3.
+      const toggle = f.root.entries().find(({ element }) => element.id === 'crafting.recipe-book')?.element;
+      if (toggle) { f.root.focus.set(toggle, 'keyboard'); f.root.key({ key: 'Enter' }); }
+      else { const close = f.root.entries().find(({ element }) => element.label === 'Close recipe book')!.element; f.root.focus.set(close, 'keyboard'); f.root.key({ key: 'Enter' }); }
       for (const width of [390, 800, 320, 960]) {
-        f.update({ width }); f.root.arrange();
-        expect(f.root.focus.current).toBe(input);
+        f.update({ width }); f.root.arrange(); f.root.arrange();
         const slots = Array.from({length:9},(_,i)=>f.slot('crafting',i));
         expect(new Set(slots.map(node=>node.rect.x)).size).toBe(3);
         expect(new Set(slots.map(node=>node.rect.y)).size).toBe(3);

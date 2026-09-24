@@ -123,7 +123,7 @@ export class InventoryMenus {
     this.frame!.updateState(snapshot.state);
     this.frame!.updateTiming(snapshot.timing ?? { status: 'idle', reason: null, stage: null, progress: 0,
       remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' });
-    if (snapshot.crafting && 'updateCrafting' in this.frame!) this.frame.updateCrafting(snapshot.crafting);
+    if (snapshot.crafting && 'updateCrafting' in this.frame!) { this.frame.updateCrafting(snapshot.crafting); this.frame.setCraftingViewport(snapshot.width - 8, snapshot.height - 8); }
     // Windows fit their content (approved redesign); the centring wrapper places them.
     this.controller.refresh();
     this.root.arrange();
