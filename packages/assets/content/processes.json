@@ -710,6 +710,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],
@@ -735,6 +736,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],
@@ -760,6 +762,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],
@@ -785,6 +788,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],
@@ -810,6 +814,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],
@@ -835,6 +840,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],
@@ -860,6 +866,7 @@
     "ticksPerUnit": 6000,
     "fuelPolicy": {
       "acceptedItems": [
+        "item:coal",
         "item:wood",
         "item:plank"
       ],

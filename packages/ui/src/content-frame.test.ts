@@ -109,7 +109,7 @@ describe('content frame runtime', () => {
     const furnace = frame('furnace');
     const restrictions = frameRestrictions(furnace, registry);
     expect(restrictions[0]).toEqual({ acceptedKinds: ['clay', 'copper_ore', 'gold_ore', 'iron_ore', 'sand', 'silver_ore', 'tin_ore'] });
-    expect(restrictions[1]).toEqual({ acceptedKinds: ['plank', 'wood'] });
+    expect(restrictions[1]).toEqual({ acceptedKinds: ['coal', 'plank', 'wood'] });
     expect(restrictions[2]).toEqual({ readOnly: true });
 
     const derivedOutput = resolveFrameSlotRestriction({

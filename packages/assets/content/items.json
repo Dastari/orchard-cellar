@@ -634,7 +634,7 @@
     ],
     "economy": {
       "buy": null,
-      "sell": 120
+      "sell": 200
     }
   },
   {
@@ -1109,6 +1109,9 @@
     "economy": {
       "buy": 24,
       "sell": 6
+    },
+    "fuel": {
+      "smelts": 2
     }
   },
   {

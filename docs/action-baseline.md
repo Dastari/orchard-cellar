@@ -34,7 +34,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:bottles | inert: cellar_intermediate | — | economy.sell=5000; maxStack=99; schemaVersion=1 |
 | item:bow | callback | aimedUse, useWith | combat.baseDamageCenti=1250; durability.max=180; durability.repairCost=5; economy.buy=300; economy.sell=21; maxStack=1; schemaVersion=1; tool.reachTiles=1; tool.swingTicks=6; tool.tier=0; vigour.costCenti=3000; vigour.minimumSwingTicks=6 |
 | item:brick | inert: crafting_material | — | economy.sell=3; maxStack=99; schemaVersion=1 |
-| item:bronze_bar | inert: crafting_material | — | economy.sell=120; maxStack=99; schemaVersion=1 |
+| item:bronze_bar | inert: crafting_material | — | economy.sell=200; maxStack=99; schemaVersion=1 |
 | item:cabbage | callback | secondary | economy.sell=22; food.restoreCenti=900; maxStack=99; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=900; schemaVersion=1 |
 | item:cabbage_seeds | callback | place | economy.buy=24; economy.sell=6; maxStack=99; schemaVersion=1 |
 | item:cactus | inert: crafting_material | — | economy.sell=3; maxStack=99; schemaVersion=1 |
@@ -50,7 +50,7 @@ This records bootstrap content, not the published database head. Numeric paths i
 | item:chitin | inert: crafting_material_pending_source | — | economy.buy=16; economy.sell=3; maxStack=99; schemaVersion=1 |
 | item:cinder_ore | inert: crafting_material | — | economy.sell=30; maxStack=99; schemaVersion=1 |
 | item:clay | inert: crafting_material | — | economy.buy=4; economy.sell=1; maxStack=99; schemaVersion=1 |
-| item:coal | inert: crafting_material | — | economy.buy=24; economy.sell=6; maxStack=99; schemaVersion=1 |
+| item:coal | inert: crafting_material | — | economy.buy=24; economy.sell=6; fuel.smelts=2; maxStack=99; schemaVersion=1 |
 | item:compost | callback | place | economy.sell=4; maxStack=99; schemaVersion=1 |
 | item:cooked_beef | callback | secondary | economy.buy=88; economy.sell=44; food.restoreCenti=4000; maxStack=32; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=4000; schemaVersion=1 |
 | item:cooked_chicken | callback | secondary | economy.buy=56; economy.sell=28; food.restoreCenti=2800; maxStack=32; onUse.0.conditions.0.vitals.hunger.atLeast=10000; onUse.0.priority=10; onUse.1.effects.0.consumeSelected=1; onUse.1.effects.1.restoreHunger=2800; schemaVersion=1 |

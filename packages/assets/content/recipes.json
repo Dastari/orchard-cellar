@@ -306,7 +306,7 @@
     "schemaVersion": 1,
     "output": {
       "item": "item:bronze_bar",
-      "count": 2
+      "count": 1
     },
     "stationRequirement": {
       "objectTag": "station.anvil"
