@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { validChunkRuntimeBuildAudit } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 const assetsDirectory = resolve('packages/client/dist/assets');
 const JavaScriptFiles = readdirSync(assetsDirectory).filter((file) => file.endsWith('.js'));
@@ -86,8 +87,12 @@ if (!staticImports(readFileSync(resolve(assetsDirectory, backendEntry), 'utf8'))
 
 console.log(`Client chunk boundaries verified: ${stableChunks.join(', ')}; diagnostics and experimental WebGL remain lazy.`);
 
+// dist is the production artifact: an unapproved `on` build (static world S4a) never passes.
+const audit = JSON.parse(readFileSync(resolve('packages/client/dist/chunk-runtime-audit.json'), 'utf8')) as unknown;
+if (!validChunkRuntimeBuildAudit(audit, 'production')) throw new Error('Chunk runtime build audit is not a releasable production build (unapproved on mode?)');
+console.log(`Chunk runtime build audit verified: mode ${audit.mode}, activationAllowed ${audit.activationAllowed}.`);
+
 // Explicit future retirement gate; shadow builds intentionally retain the generator.
-if (process.env['ORCHARD_REQUIRE_GENERATOR_FREE'] === '1') {
-  const audit = JSON.parse(readFileSync(resolve('packages/client/dist/chunk-runtime-audit.json'), 'utf8')) as {legacyModules?:unknown};
-  if (!Array.isArray(audit.legacyModules) || audit.legacyModules.length !== 0) throw new Error('Chunk generator retirement gate failed; legacy runtime modules remain');
+if (process.env['ORCHARD_REQUIRE_GENERATOR_FREE'] === '1' && audit.legacyModules.length !== 0) {
+  throw new Error('Chunk generator retirement gate failed; legacy runtime modules remain');
 }

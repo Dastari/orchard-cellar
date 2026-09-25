@@ -1,6 +1,6 @@
 {
   "name": "@orchard/client",
-  "version": "0.41.1",
+  "version": "0.41.3",
   "private": true,
   "type": "module",
   "scripts": {

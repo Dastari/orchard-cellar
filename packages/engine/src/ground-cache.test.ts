@@ -50,6 +50,42 @@ describe('chunked ground cache', () => {
     draw(next,10,10);expect(render).toHaveBeenCalledTimes(3);
   });
 
+  it('sizes sparse-edit invalidation from the edited tile\'s own old and new elevation', () => {
+    const width = 64;
+    const flat = (): TerrainArray => ({ spaceId: 1, seed: 1, version: 0, width, height: 64, generator: 'debug_flat',
+      biomes: new Uint8Array(width * 64), blocked: [], horseJumpableTerrain: [], elevations: new Int16Array(width * 64),
+      dirtTerraces: new Uint8Array(width * 64), dirtCliffRoles: new Uint8Array(width * 64) });
+    // Distinct heights on the edited tile and each orthogonal neighbour, so
+    // reading any other cell changes the invalidated rows.
+    const withHeights = (version: number, centre: number): TerrainArray => {
+      const terrain = { ...flat(), version };
+      const at = (x: number, y: number, value: number) => { terrain.elevations[y * width + x] = value; };
+      at(20, 30, centre); at(21, 30, 1); at(19, 30, 2); at(20, 29, 5); at(20, 31, 6);
+      return terrain;
+    };
+    const invalidated = (previous: TerrainArray, next: TerrainArray, points: readonly { tileX: number; tileY: number }[]) => {
+      const cache = new GroundChunkCache();
+      const calls: [number, number][] = [];
+      vi.spyOn(cache, 'invalidateResource').mockImplementation((x, y) => { calls.push([x, y]); });
+      cache.adoptSparseTerrain(previous, next, points);
+      const ys = calls.map(([, y]) => y);
+      const xs = calls.map(([x]) => x);
+      return `${calls.length}:x${Math.min(...xs)}..${Math.max(...xs)}:y${Math.min(...ys)}..${Math.max(...ys)}`;
+    };
+    expect({
+      raised: invalidated(withHeights(0, 0), withHeights(1, 3), [{ tileX: 20, tileY: 30 }]),
+      lowered: invalidated(withHeights(0, 4), withHeights(1, 0), [{ tileX: 20, tileY: 30 }]),
+      corner: invalidated(flat(), { ...flat(), version: 1, elevations: Int16Array.from({ length: width * 64 }, (_, index) => index === 63 * width + 63 ? 2 : index % 3) },
+        [{ tileX: 63, tileY: 63 }, { tileX: 0, tileY: 0 }]),
+    }).toMatchInlineSnapshot(`
+      {
+        "corner": "110:x-2..65:y-4..69",
+        "lowered": "85:x18..22:y22..38",
+        "raised": "75:x18..22:y23..37",
+      }
+    `);
+  });
+
   it('leaves unused cells in a partial boundary chunk transparent', () => {
     const terrain = { width: 80, height: 56 };
     expect(groundTileInsideTerrain(terrain, 79, 55)).toBe(true);

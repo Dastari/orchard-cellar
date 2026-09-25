@@ -1,4 +1,5 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
@@ -76,6 +77,49 @@ describe('game static deployment validator', () => {
     expect(result.stderr).toContain('must never serve source');
   });
 
+  it('rejects a unit that serves the chunk runtime preview build', () => {
+    const root = fixture();
+    writeFileSync(join(root, 'ops/orchard-runtime/systemd/orchard-frontend.service'), [
+      `ConditionPathExists=${root}/packages/client/dist/index.html`,
+      'ExecStart=npm run preview -w @orchard/client -- --mode chunk-runtime-preview',
+      '',
+    ].join('\n'));
+    const result = validate(root);
+    expect(result.status).toBe(65);
+    expect(result.stderr).toContain('chunk runtime preview');
+  });
+
+  describe('chunk runtime build audit (static world S4a)', () => {
+    const shadow = { schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false, activationRelease: null };
+    const withAudit = (audit: string) => {
+      const root = fixture();
+      writeFileSync(join(root, 'packages/client/dist/chunk-runtime-audit.json'), audit);
+      return validate(root);
+    };
+
+    it('accepts off and shadow artifacts, and artifacts built before the audit existed', () => {
+      expect(validate(fixture()).status).toBe(0);
+      for (const mode of ['off', 'shadow']) {
+        const result = withAudit(JSON.stringify({ ...shadow, mode }));
+        expect(result.status, result.stderr).toBe(0);
+      }
+    });
+
+    it.each([
+      ['an unapproved on build', { ...shadow, mode: 'on' }],
+      ['an on build claiming activation without the committed release', { ...shadow, mode: 'on', activationAllowed: true, activationRelease: 'static-world-s5c' }],
+      ['an unknown mode', { ...shadow, mode: 'live' }],
+    ])('rejects %s', (_label, audit) => {
+      const result = withAudit(JSON.stringify(audit));
+      expect(result.status).toBe(65);
+      expect(result.stderr).toContain('not a releasable production build');
+    });
+
+    it('rejects an unreadable audit', () => {
+      expect(withAudit('not json').status).toBe(65);
+    });
+  });
+
   it('requires the exact canonical HTTPS public origin before making a request', () => {
     const result = validate(fixture(), {
       CLIENT_STATIC_DRY_RUN: 'false',
@@ -118,5 +162,154 @@ cp "$MOCK_PUBLIC_HTML" "$output"
     });
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('canonical public route validation passed');
+  });
+
+  describe('optional world chunk check', () => {
+    /** Minimal chunk envelope: OCCHNK magic, sha256(bytes[40:]) at 8..40. */
+    function chunkBytes(seed: string): { bytes: Buffer; hash: string } {
+      const bytes = Buffer.alloc(44 + seed.length);
+      Buffer.from([79, 67, 67, 72, 78, 75, 1, 0]).copy(bytes);
+      bytes.writeUInt32LE(seed.length, 40);
+      bytes.write(seed, 44);
+      const digest = createHash('sha256').update(bytes.subarray(40)).digest();
+      digest.copy(bytes, 8);
+      return { bytes, hash: digest.toString('hex') };
+    }
+
+    function worldFixture(options: { spaFallback?: boolean; tamper?: boolean } = {}): { root: string; heads: string; env: NodeJS.ProcessEnv } {
+      const root = fixture();
+      const bin = join(root, 'bin');
+      const world = join(root, 'world');
+      const publicHtml = join(root, 'public.html');
+      mkdirSync(bin);
+      mkdirSync(join(world, '1'), { recursive: true });
+      writeFileSync(publicHtml, validHtml);
+      const lines = ['# space hash bytes'];
+      for (const seed of ['{"cx":0}', '{"cx":1}']) {
+        const chunk = chunkBytes(seed);
+        if (options.tamper && seed.endsWith('1}')) chunk.bytes[chunk.bytes.length - 1] = (chunk.bytes[chunk.bytes.length - 1] ?? 0) ^ 1;
+        writeFileSync(join(world, '1', `${chunk.hash}.bin`), chunk.bytes);
+        lines.push(`1 ${chunk.hash} ${chunk.bytes.length}`);
+      }
+      const heads = join(root, 'heads.txt');
+      writeFileSync(heads, `${lines.join('\n')}\n\n`);
+      const mockCurl = join(bin, 'curl');
+      writeFileSync(mockCurl, `#!/usr/bin/env bash
+set -euo pipefail
+headers=/dev/null
+output=/dev/null
+url=
+fail=false
+while (($#)); do
+  case "$1" in
+    -D) headers=$2; shift 2 ;;
+    -o) output=$2; shift 2 ;;
+    --max-filesize|--max-time) printf '%s %s\\n' "$1" "$2" >> "$MOCK_CURL_LIMITS"; shift 2 ;;
+    -f*) fail=true; shift ;;
+    -*) shift ;;
+    *) url=$1; shift ;;
+  esac
+done
+if [[ "$url" = */v1/ping ]]; then printf 'pong'; exit 0; fi
+if [[ "$url" =~ /world/([0-9]+)/([a-f0-9]{64})[.]bin$ ]]; then
+  file="$MOCK_WORLD/\${BASH_REMATCH[1]}/\${BASH_REMATCH[2]}.bin"
+  if [[ -f "$file" ]]; then
+    printf 'HTTP/2 200\\r\\ncontent-type: application/octet-stream\\r\\ncache-control: public, max-age=31536000, immutable\\r\\ncontent-encoding: br\\r\\n\\r\\n' > "$headers"
+    cp "$file" "$output"; exit 0
+  fi
+  if [[ "\${MOCK_SPA_FALLBACK:-0}" = 1 ]]; then
+    printf 'HTTP/2 200\\r\\ncontent-type: text/html\\r\\n\\r\\n' > "$headers"; cp "$MOCK_PUBLIC_HTML" "$output"; exit 0
+  fi
+  printf 'HTTP/2 404\\r\\ncache-control: no-store\\r\\n\\r\\n' > "$headers"
+  if [[ "$fail" = true ]]; then exit 22; fi
+  exit 0
+fi
+printf 'HTTP/2 200\\ncontent-type: text/html; charset=utf-8\\n\\n' > "$headers"
+cp "$MOCK_PUBLIC_HTML" "$output"
+`);
+      chmodSync(mockCurl, 0o755);
+      return {
+        root,
+        heads,
+        env: {
+          CLIENT_STATIC_DRY_RUN: 'false',
+          CLIENT_VALIDATE_ORIGIN: 'https://orchard.dastari.net',
+          CLIENT_VALIDATE_WORLD_CHUNKS: '1',
+          CLIENT_VALIDATE_WORLD_CHUNK_HEADS: heads,
+          MOCK_PUBLIC_HTML: publicHtml,
+          MOCK_WORLD: world,
+          MOCK_CURL_LIMITS: join(root, 'curl-limits.log'),
+          MOCK_SPA_FALLBACK: options.spaFallback ? '1' : '0',
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+        },
+      };
+    }
+
+    it('stays off unless explicitly enabled', () => {
+      const { root, env } = worldFixture();
+      const result = validate(root, { ...env, CLIENT_VALIDATE_WORLD_CHUNKS: undefined });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).not.toContain('World chunk');
+    });
+
+    it('rejects an unknown switch value or a missing heads file', () => {
+      expect(validate(fixture(), { CLIENT_VALIDATE_WORLD_CHUNKS: 'yes' }).status).toBe(64);
+      const missing = validate(fixture(), { CLIENT_VALIDATE_WORLD_CHUNKS: '1' });
+      expect(missing.status).toBe(64);
+      expect(missing.stderr).toContain('CLIENT_VALIDATE_WORLD_CHUNK_HEADS');
+      expect(validate(fixture(), { CLIENT_VALIDATE_WORLD_CHUNKS: '1', CLIENT_VALIDATE_WORLD_CHUNK_HEADS: 'heads.txt' }).status).toBe(64);
+    });
+
+    it.each([
+      `1 ${'a'.repeat(63)} 10`, `01 ${'a'.repeat(64)} 10`, `1 ${'A'.repeat(64)} 10`, `1 ${'a'.repeat(64)} 0`,
+      `1 ${'a'.repeat(64)} 1048577`, `1 ${'a'.repeat(64)}`, `1 ../${'a'.repeat(61)} 10`,
+    ])('rejects an invalid heads line: %s', (line) => {
+      const root = fixture();
+      const heads = join(root, 'heads.txt');
+      writeFileSync(heads, `${line}\n`);
+      const result = validate(root, { CLIENT_VALIDATE_WORLD_CHUNKS: '1', CLIENT_VALIDATE_WORLD_CHUNK_HEADS: heads });
+      expect(result.status).toBe(65);
+      expect(result.stderr).toContain('invalid line');
+    });
+
+    it('parses the heads file during a dry run', () => {
+      const { root, heads } = worldFixture();
+      const result = validate(root, { CLIENT_VALIDATE_WORLD_CHUNKS: '1', CLIENT_VALIDATE_WORLD_CHUNK_HEADS: heads });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('parsed (2 heads)');
+    });
+
+    it('verifies every head is served, immutable and hash-exact, and that misses are 404', () => {
+      const { root, env } = worldFixture();
+      const result = validate(root, env);
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('World chunk validation passed: 2 heads served and verified (encodings: br=2)');
+      // Two blobs plus the 404 probe, each bounded by size and time.
+      const limits = readFileSync(join(root, 'curl-limits.log'), 'utf8').trim().split('\n');
+      expect(limits.filter(line => line === '--max-filesize 1048576')).toHaveLength(3);
+      expect(limits.filter(line => line === '--max-time 30')).toHaveLength(3);
+    });
+
+    it('rejects a served blob whose bytes do not match its address', () => {
+      const { root, env } = worldFixture({ tamper: true });
+      const result = validate(root, env);
+      expect(result.status).toBe(69);
+      expect(result.stderr).toContain('do not match its content hash');
+    });
+
+    it('rejects an unpublished head', () => {
+      const { root, env, heads } = worldFixture();
+      writeFileSync(heads, `1 ${'f'.repeat(64)} 100\n`);
+      const result = validate(root, env);
+      expect(result.status).toBe(69);
+      expect(result.stderr).toContain('is not served');
+    });
+
+    it('rejects an SPA fallback for a missing blob', () => {
+      const { root, env } = worldFixture({ spaFallback: true });
+      const result = validate(root, env);
+      expect(result.status).toBe(69);
+      expect(result.stderr).toContain('not answered with 404');
+    });
   });
 });

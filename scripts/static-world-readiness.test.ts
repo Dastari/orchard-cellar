@@ -15,6 +15,30 @@ describe('static-world readiness', () => {
     expect(byId.get('server.whole-map-compile')!.files).toContain('packages/world/src/index.ts');
     expect(byId.get('client.live-map-document')!.count).toBeGreaterThan(0);
     expect(byId.get('studio.document-json')!.count).toBeGreaterThan(0);
+    // Step-6 baseline: studio-connection.ts (3) and admin/live-services.ts (1). S7b/S7c drive it to zero.
+    expect(byId.get('studio.live-map-document-table')!).toMatchObject({
+      count: 4, files: ['packages/studio/src/admin/live-services.ts', 'packages/studio/src/shell/studio-connection.ts'],
+    });
+  });
+
+  it('keeps every guard probe at zero', () => {
+    const guards = READINESS_PROBES.filter((probe) => probe.guard === true);
+    expect(guards.map((probe) => probe.id)).toEqual(['client.whole-world-chunk-store']);
+    for (const probe of guards) expect(runProbe(probe, process.cwd())).toMatchObject({ count: 0, files: [] });
+  });
+
+  it('counts the whole-world chunk store but not the bounded client store', () => {
+    const root = mkdtempSync(join(tmpdir(), 'static-world-readiness-probe-'));
+    try {
+      mkdirSync(join(root, 'packages/client/src'), { recursive: true });
+      const probe = READINESS_PROBES.find((candidate) => candidate.id === 'client.whole-world-chunk-store')!;
+      writeFileSync(join(root, 'packages/client/src/bounded.ts'),
+        "import { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';\nnew BoundedChunkTerrainStore(m);\n");
+      expect(runProbe(probe, root).count).toBe(0);
+      writeFileSync(join(root, 'packages/client/src/whole.ts'),
+        "import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';\nnew ChunkTerrainStore(m);\n");
+      expect(runProbe(probe, root)).toMatchObject({ count: 3, files: ['packages/client/src/whole.ts'] });
+    } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
   it('blocks a step on its own probes and every earlier step', () => {
@@ -48,16 +72,28 @@ describe('static-world readiness', () => {
   });
 
   // Exactly what chunkRuntimeBuildAudit emits for a generator-free shadow build.
-  const emitted = { schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false };
+  const emitted = { schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false, activationRelease: null };
 
   it('accepts only the envelope the client build gate emits', () => {
     expect(validClientBuildAudit(emitted)).toBe(true);
     expect(validClientBuildAudit({ ...emitted, mode: 'off' })).toBe(true);
+    // dist is a production artifact: an unapproved `on` build is rejected there, and only
+    // the preview path accepts it.
+    expect(validClientBuildAudit({ ...emitted, mode: 'on' })).toBe(false);
+    expect(validClientBuildAudit({ ...emitted, mode: 'on' }, 'preview')).toBe(true);
+    // Audits written before S4a had no activationRelease field.
+    expect(validClientBuildAudit({ schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false })).toBe(true);
     // Stays in lockstep with the real emitter.
-    for (const mode of ['off', 'shadow']) expect(validClientBuildAudit(chunkRuntimeBuildAudit(mode, []))).toBe(true);
+    for (const mode of ['off', 'shadow']) expect(validClientBuildAudit(chunkRuntimeBuildAudit(mode, [], { production: true }))).toBe(true);
+    expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }))).toBe(false);
+    expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }), 'preview')).toBe(true);
     for (const bad of [
-      null, [], { legacyModules: [] }, { ...emitted, schema: 2 }, { ...emitted, mode: 'on' }, { ...emitted, mode: 'banana' },
-      { ...emitted, activationAllowed: true }, { ...emitted, legacyModules: null }, { ...emitted, legacyModules: [1] },
+      null, [], { legacyModules: [] }, { ...emitted, schema: 2 }, { ...emitted, mode: 'banana' }, { ...emitted, mode: 'live' },
+      { ...emitted, activationAllowed: true }, { ...emitted, mode: 'on', activationAllowed: true },
+      // No release is approved yet (CHUNK_RUNTIME_ACTIVATION_RELEASE is null), so no id can make activation valid.
+      { ...emitted, mode: 'on', activationAllowed: true, activationRelease: 'static-world-s5c' },
+      { ...emitted, activationRelease: 'static-world-s5c' }, { ...emitted, activationAllowed: 'false' },
+      { ...emitted, legacyModules: null }, { ...emitted, legacyModules: [1] },
     ]) expect(validClientBuildAudit(bad)).toBe(false);
   });
 
@@ -88,6 +124,8 @@ describe('static-world readiness', () => {
       expect(run(['--require', 'step5'])).toBe(1);
       audit(JSON.stringify({ schema: 999, mode: 'banana', activationAllowed: true, legacyModules: [] }));
       expect(run(['--require', 'step6'])).toBe(1);
+      audit(JSON.stringify({ ...emitted, mode: 'on' }));
+      expect(run(['--require', 'step5'])).toBe(1);
       audit(JSON.stringify(emitted));
       expect(run(['--require', 'step6'])).toBe(0);
     });
