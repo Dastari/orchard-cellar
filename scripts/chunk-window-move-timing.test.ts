@@ -1,3 +1,5 @@
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   activeSurvivalLandmarks, bootstrapContentRegistry, createLiveIslandMapDocument, createMapPrefabDocument, generateSurvivalResources,
@@ -7,7 +9,8 @@ import {
 import { buildChunkWindowCollision } from '@orchard/sim/chunk-collision';
 import { WORLD_CHUNK_SIZE } from '@orchard/sim/world-chunk';
 import { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
-import { buildChunkTerrainWindow, type ChunkTerrainWindow, type TileBounds } from '@orchard/engine/chunk-terrain-window';
+import { buildChunkTerrainWindow, CHUNK_WINDOW_MARGIN_TILES, type ChunkTerrainWindow, type TileBounds } from '@orchard/engine/chunk-terrain-window';
+import { terrainRaisedFaceReach } from '@orchard/engine/terrain';
 import { prepareLightTerrainOcclusion, type PreparedLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
 import { clientLiveRowObstacles } from '@orchard/engine/collision';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
@@ -111,7 +114,24 @@ interface RunResult {
   readonly checked: number;
 }
 
-function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live: LiveRowsFixture, staged: boolean, check = false): RunResult {
+/** Forces a full GC (the flag can be set at run time; the function comes from a fresh context). */
+function collector(): () => void {
+  v8.setFlagsFromString('--expose-gc');
+  return vm.runInNewContext('gc') as () => void;
+}
+const retainedBytes = (gc: () => void): number => { gc(); gc(); const usage = process.memoryUsage(); return usage.heapUsed + usage.arrayBuffers; };
+
+interface RunOptions {
+  readonly check?: boolean;
+  /** Called after a frame in which a window was served or a prepared window became ready. */
+  readonly probe?: (source: WorldSource, store: BoundedChunkTerrainStore) => void;
+  /** Keep a WeakRef to every served window. (A WeakRef keeps its target alive until the
+   * current job ends, so never together with `probe`.) */
+  readonly track?: boolean;
+}
+
+function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live: LiveRowsFixture, staged: boolean,
+  { check = false, probe, track = false }: RunOptions = {}): RunResult & { readonly windows: readonly WeakRef<object>[]; readonly source: WorldSource } {
   const { published, blobs } = fixture;
   const store = new BoundedChunkTerrainStore(published.manifest);
   const heads = new Map(published.manifest.chunks.map(head => [`${head.cx}:${head.cy}`, head]));
@@ -134,7 +154,7 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
   const projection = new WorldStaticProjectionCache();
   const source = new WorldSource({ store: () => store, pin, authorityGate: () => null,
     prewarm: [
-      ({ window, previous }) => { projection.prepareWindowLight(window, previous); },
+      ({ window }) => { projection.prepareWindowLight(window); },
       ({ collision }, stepRegistry) => {
         if (collision !== undefined) composeChunkCollisionMaps({ registry: stepRegistry, collision, liveBase: [], furniture: [], dynamic: [],
           tick: 0n, projectile: (ground, water) => projection.projectile(ground, water) });
@@ -146,9 +166,9 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
       liveBase: rows.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle),
       furniture: rows.entries.filter(({ furniture }) => furniture).map(({ obstacle }) => obstacle), dynamic: [],
       projectile: (ground, water) => projection.projectile(ground, water) });
-    return projection.prepareWindowLight(chunks.window, chunks.previous);
+    return projection.prepareWindowLight(chunks.window);
   };
-  const workFrames: number[] = [], moveFrames: number[] = [];
+  const workFrames: number[] = [], moveFrames: number[] = [], windows: WeakRef<object>[] = [];
   let serial = 0, served: ChunkTerrainWindow | undefined, checked = 0;
   const views = walk();
   // Spawn: the first window's chunks are resident before play starts (spawn readiness).
@@ -172,6 +192,8 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
     if (served !== undefined && (moved || changed || status !== source.stagingStatus.pending)) workFrames.push(elapsed);
     if (moved && served !== undefined) moveFrames.push(elapsed);
     if (changed) serial = chunks.serial;
+    if (track && moved && window !== undefined) windows.push(new WeakRef(window));
+    if (probe !== undefined && (moved || (status !== source.stagingStatus.pending && source.stagingStatus.pending?.endsWith(':ready') === true))) probe(source, store);
     if (moved && window !== undefined && !check) served = window;
     else if (moved && window !== undefined) {
       // Same results as a synchronous build of this rect from the same resident chunks.
@@ -186,12 +208,12 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
       expect(chunks!.collision.ground.blocked).toEqual(collision.ground.blocked);
       expect(chunks!.collision.ground.obstacles).toEqual(collision.ground.obstacles);
       expect(chunks!.collision.baseObstacles).toEqual(collision.baseObstacles);
-      expectSameLight(`window ${window.rect.cx}:${window.rect.cy}`, light ?? projection.prepareWindowLight(window, undefined), prepareLightTerrainOcclusion(fresh.terrain));
+      expectSameLight(`window ${window.rect.cx}:${window.rect.cy}`, light ?? projection.prepareWindowLight(window), prepareLightTerrainOcclusion(fresh.terrain));
       checked++;
       served = window;
     }
   }
-  return { workFrames, moveFrames, staged: source.stagingStatus.staged, synchronous: source.stagingStatus.synchronous, checked };
+  return { workFrames, moveFrames, staged: source.stagingStatus.staged, synchronous: source.stagingStatus.synchronous, checked, windows, source };
 }
 
 function describeTiming(label: string, row: (registry: ContentRegistry) => LiveMapDocumentRow): void {
@@ -205,22 +227,52 @@ function describeTiming(label: string, row: (registry: ContentRegistry) => LiveM
 
     it('serves every window move within the 8 ms p95 frame budget when staged, with identical results', () => {
       // Checked runs (untimed): every served window equals a fresh synchronous build.
-      const checkedSynchronous = run(fixture, registry, live, false, true), checked = run(fixture, registry, live, true, true);
+      const checkedSynchronous = run(fixture, registry, live, false, { check: true }), checked = run(fixture, registry, live, true, { check: true });
       expect(checkedSynchronous.checked).toBeGreaterThanOrEqual(50);
       expect(checked.checked).toBe(checkedSynchronous.checked);
       // Timed runs: the verification's own allocations would otherwise show up as GC pauses.
       const synchronous = run(fixture, registry, live, false);
-      const staged = run(fixture, registry, live, true);
-      console.info(`[S4f] ${label}: synchronous moves ${summary(synchronous.moveFrames)}; staged window-work frames ${summary(staged.workFrames)}, `
-        + `serving frames ${summary(staged.moveFrames)}; ${staged.staged} staged / ${staged.synchronous} synchronous, ${checked.checked} windows checked`);
+      // Three staged runs: the median p95 is the budget figure (a stray major GC of the fixture-laden
+      // test heap cannot move it).
+      const stagedRuns = [run(fixture, registry, live, true), run(fixture, registry, live, true), run(fixture, registry, live, true)];
+      const p95s = stagedRuns.map(result => percentile(result.workFrames, 0.95)).sort((a, b) => a - b);
+      const staged = stagedRuns.find(result => percentile(result.workFrames, 0.95) === p95s[1])!;
+      console.info(`[S4f] ${label}: synchronous moves ${summary(synchronous.moveFrames)}; staged window-work frames ${summary(staged.workFrames)} `
+        + `(p95 of 3 runs ${p95s.map(value => value.toFixed(2)).join(' / ')} ms), serving frames ${summary(staged.moveFrames)}; `
+        + `${staged.staged} staged / ${staged.synchronous} synchronous, ${checked.checked} windows checked`);
       expect(synchronous.moveFrames.length).toBeGreaterThanOrEqual(50);
       expect(staged.moveFrames.length).toBeGreaterThanOrEqual(50);
       // The walk never outruns the lookahead: every move after the first is staged.
       expect(staged.synchronous).toBe(0);
       expect(staged.staged).toBe(staged.moveFrames.length);
-      // Loose bound only (the shared host is noisy); the measured figures go in the PR.
-      expect(percentile(staged.workFrames, 0.5)).toBeLessThan(50);
-    }, 600_000);
+      // The S4d hard gate: every frame of a window move within 8 ms at p95 (median of three runs).
+      expect(p95s[1]).toBeLessThanOrEqual(8);
+    }, 900_000);
+
+    it('keeps at most three windows alive and reports the peak memory of the window pipeline', async () => {
+      const gc = collector();
+      // The island's raised faces read well within the reuse radius (terrainRaisedFaceReach <= 32).
+      expect(terrainRaisedFaceReach(buildChunkTerrainWindow({ manifest: fixture.published.manifest, peekChunk: () => undefined },
+        { cx: 4, cy: 4, columns: 5, rows: 5 }).terrain)).toBeLessThanOrEqual(CHUNK_WINDOW_MARGIN_TILES);
+      const baseline = retainedBytes(gc);
+      let peak = 0, peakStore = 0, samples = 0;
+      run(fixture, registry, live, true, { probe: (_source, store) => {
+        if (samples++ % 3 !== 0) return;
+        const bytes = retainedBytes(gc) - baseline;
+        if (bytes > peak) { peak = bytes; peakStore = store.residentBytes; }
+      } });
+      const result = run(fixture, registry, live, true, { track: true });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      gc(); await new Promise(resolve => setTimeout(resolve, 0)); gc();
+      // Counted while the source is still in use (it holds the served and any pending window).
+      const alive = result.windows.filter(ref => ref.deref() !== undefined).length;
+      expect(result.source.stagingStatus.staged).toBeGreaterThan(0);
+      const mib = (bytes: number) => (bytes / 1024 / 1024).toFixed(1);
+      console.info(`[S4f] ${label} memory: peak ${mib(peak)} MiB retained by the store, windows and caches over ${samples} samples `
+        + `(store ${mib(peakStore)} MiB encoded then); ${alive} of ${result.windows.length} windows alive after the walk`);
+      expect(result.windows.length).toBeGreaterThanOrEqual(50);
+      expect(alive).toBeLessThanOrEqual(3);
+    }, 900_000);
   });
 }
 

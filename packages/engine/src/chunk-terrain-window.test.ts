@@ -3,13 +3,13 @@ import { applyMapEdit, createEmptyMapDocument, SURVIVAL_BIOMES, type MapCellPatc
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import {
   buildChunkTerrainWindow, CHUNK_WINDOW_MARGIN_TILES, chunkWindowForView, chunkWindowPinBounds, chunkWindowTileBounds,
-  chunkWindowTileReuse, ChunkTerrainWindowTracker, type ChunkTerrainWindow, type ChunkWindowStore,
+  chunkWindowReuseSource, chunkWindowTileReuse, ChunkTerrainWindowTracker, type ChunkTerrainWindow, type ChunkWindowStore,
 } from './chunk-terrain-window.js';
 import { prepareLightTerrainOcclusion, type PreparedLightTerrainOcclusion } from './light-occlusion.js';
 import { terrainArrayForMapDocument } from './editor-terrain.js';
 import { GroundChunkCache } from './ground-cache.js';
 import {
-  plateauLayerPlansAt, terrainBiomeAt, terrainContourBoundaryBetween, terrainElevationAt, terrainMinimumElevation, terrainPlaneCollisionCellAt, type TerrainArray,
+  plateauLayerPlansAt, terrainBiomeAt, terrainContourBoundaryBetween, terrainElevationAt, terrainMinimumElevation, terrainPlaneCollisionCellAt, terrainRaisedFaceReach, type TerrainArray,
 } from './terrain.js';
 import { terrainIndexAt, terrainIsWindow, terrainSparseKey, terrainSparseKeyTile } from './terrain-index.js';
 import { recordGroundDrawList, recordingArt, recordingCanvasFactory, recordingGroundCache } from './testing/draw-list-recorder.js';
@@ -288,6 +288,18 @@ describe('chunk window reuse (static world S4f)', () => {
     // Another manifest (revision) or tileset resolver: nothing is reused.
     expect(chunkWindowTileReuse(previous, buildChunkTerrainWindow(source({ ...manifest }, chunks), { cx: 2, cy: 1, columns: 3, rows: 3 }))).toBeUndefined();
     expect(() => chunkWindowTileReuse(previous, next, 33)).toThrow('invalid_chunk_reuse_radius');
+    // Without the map-wide elevation range a window's contours are local: nothing is reused.
+    const local = { ...next, terrain: { ...next.terrain, elevationRange: undefined } };
+    expect(chunkWindowTileReuse(previous, local)).toBeUndefined();
+    expect(chunkWindowTileReuse(local, next)).toBeUndefined();
+    // A lightweight source (no terrain arrays) gives the same answer as the window.
+    expect(chunkWindowTileReuse(chunkWindowReuseSource(previous), next)!.reusableRuns(100, 128, 256)).toEqual(reuse.reusableRuns(100, 128, 256));
+    // Raised faces that could read farther than the radius disable reuse.
+    const reach = terrainRaisedFaceReach(next.terrain);
+    expect(reach).toBeGreaterThan(0);
+    expect(reach).toBeLessThanOrEqual(CHUNK_WINDOW_MARGIN_TILES);
+    expect(chunkWindowTileReuse(previous, next, reach - 1)).toBeUndefined();
+    expect(chunkWindowTileReuse(previous, next, reach)).toBeDefined();
   });
 
   it('prepares light identically with reuse, across moves, jumps and missing chunks', () => {
