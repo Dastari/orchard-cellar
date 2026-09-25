@@ -203,7 +203,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // sizes its window (it centres and the window caps itself). NPC, merchant, seal-panel and trade host tests cover the seam.
 // Review fixes: crafting recipes carry a visible reason (skill rank or station), the game menu opens the character
 // book, and the client's dodge key reads the shared TOUCH_ACTION_KEY_CODES; crafting, menu and touch tests cover them.
-const STRUCTURAL_SEAM_DIGEST = 'b2f14984903caf28e91ce4140a2e0e861ca906a20dbfe091592ea490f29030c6';
+// Static world S4e moves map-object drawing, lights and occluders out of engine/live-map-runtime.ts into
+// engine/map-object-presentation.ts (plain object records, injected terrain sampler); live-map-runtime keeps
+// document-based adapters with unchanged names. Parity and import-boundary tests cover the move; no behaviour change.
+const STRUCTURAL_SEAM_DIGEST = 'c6370a9ad3a19290e8da6105bfa5f71a34b72c67f3e8b0656e8f947574ab8840';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
