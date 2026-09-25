@@ -590,8 +590,10 @@ export function moveItemStacks(
 
 /** Atomically fills every available ingredient for a recipe from carried
  * storage. Missing ingredients deliberately leave empty cells for the client
- * ghost preview; incompatible crafting cells reject the whole operation so a
- * recipe-book shortcut can never overwrite or displace player items. */
+ * ghost preview. Grid cells holding something the recipe doesn't want are first
+ * returned to carried storage (owner decision, 2026-09-25); if any of them
+ * doesn't fit, the whole operation fails with `container_full` and nothing
+ * moves, so the shortcut never drops or overwrites player items. */
 export function fillCraftingRecipeFromInventory(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   recipeId: string,
@@ -604,15 +606,16 @@ export function fillCraftingRecipeFromInventory(
   const desired = recipeGridStacks(recipe, crafting.capacity, kind => content.maxStackFor(kind));
   if (desired === null) return failure('recipe_not_found');
 
-  for (let index = 0; index < desired.length; index += 1) {
-    const current = crafting.slots[index] ?? null;
-    const expected = desired[index];
-    if (current !== null && (expected === null || current.itemKind !== expected?.itemKind || current.quantity <= 0)) {
-      return failure('recipe_inputs_missing');
-    }
-  }
-
   let next: Readonly<Record<string, ContainerSnapshot>> = containers;
+  const carried = (['hotbar', 'backpack'] as const).filter((id) => containers[id] !== undefined);
+  for (let index = 0; index < crafting.capacity; index += 1) {
+    const current = next.crafting?.slots[index] ?? null;
+    const expected = desired[index] ?? null;
+    if (current === null || (expected !== null && current.itemKind === expected.itemKind && current.quantity > 0)) continue;
+    const returned = quickMoveItemStack(next, { fromContainer: 'crafting', fromIndex: index, toContainers: carried }, content);
+    if (!returned.ok || (returned.containers.crafting?.slots[index] ?? null) !== null) return failure('container_full');
+    next = returned.containers;
+  }
   let movedQuantity = 0;
   for (let targetIndex = 0; targetIndex < desired.length; targetIndex += 1) {
     const target = desired[targetIndex];

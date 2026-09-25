@@ -329,6 +329,28 @@ describe('production retained inventory authority bridge', () => {
     }
   });
 
+  it('falls back to the last confirmed recipe when the latest placement is refused, even with overlapping presses (BUG-037)', async () => {
+    const f=fixture('crafting',{knownRecipeIds:['planks','sticks','torch']});
+    const settle=async()=>{ for(let i=0;i<4;i+=1) await Promise.resolve(); };
+    const deferred=()=>{ let resolve!:()=>void, reject!:(e:unknown)=>void; const promise=new Promise<void>((a,b)=>{resolve=a;reject=b;}); return {promise,resolve,reject}; };
+    try {
+      const recipe=(id:string)=>(f.ui as unknown as {retainedMenus:{authority:{recipe(id:string):void}}}).retainedMenus.authority.recipe(id);
+      const selected=()=>(f.ui as unknown as {selectedCraftingRecipeId:string|null}).selectedCraftingRecipeId;
+      const fill=vi.mocked(f.handlers.ghostFillCraftingRecipe);
+      fill.mockReturnValueOnce(Promise.resolve()); recipe('planks'); await settle();
+      expect(selected()).toBe('planks');
+      // Two overlapping presses: the older refusal is ignored, the latest falls back to the confirmed pattern.
+      const sticks=deferred(), torch=deferred();
+      fill.mockReturnValueOnce(sticks.promise).mockReturnValueOnce(torch.promise);
+      recipe('sticks'); recipe('torch'); expect(selected()).toBe('torch');
+      sticks.reject(new Error('container_full')); await settle(); expect(selected()).toBe('torch');
+      torch.reject(new Error('container_full')); await settle(); expect(selected()).toBe('planks');
+      // A repeat press still asks the authority rather than toggling off.
+      fill.mockReturnValueOnce(Promise.reject(new Error('container_full'))); recipe('torch'); await settle();
+      expect(fill).toHaveBeenCalledTimes(4); expect(selected()).toBe('planks');
+    } finally { f.dispose(); }
+  });
+
   it('retains recipe pointer ownership across equivalent live snapshots', () => {
     const f=fixture('crafting');
     try {

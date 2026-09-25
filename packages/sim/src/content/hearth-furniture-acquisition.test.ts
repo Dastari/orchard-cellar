@@ -23,7 +23,11 @@ describe('furniture acquisition', () => {
     expect(runtimeRecipeMatchesGrid(registry, placed.containers.crafting!, id)).toBe(true);
     expect(JSON.stringify(shaped)).toBe(shapedBefore);
     const occupied = { ...shaped, crafting: { ...shaped.crafting!, slots: [{ itemKind: 'stone', quantity: 1 }, ...Array(8).fill(null)] } };
-    expect(fillCraftingRecipeFromInventory(occupied, id, content, recipe)).toMatchObject({ ok: false, code: 'recipe_inputs_missing' });
+    // A cell the recipe doesn't want is returned to carried storage first (owner decision, 2026-09-25).
+    const cleared = fillCraftingRecipeFromInventory(occupied, id, content, recipe);
+    if (!cleared.ok) throw new Error(cleared.code);
+    expect(cleared.containers.backpack!.slots[0]).toEqual({ itemKind: 'stone', quantity: 1 });
+    expect(runtimeRecipeMatchesGrid(registry, cleared.containers.crafting!, id)).toBe(true);
     // Shapeless recipes (mixing and processing) still fill by count from split stacks.
     const containers: Record<string, ContainerSnapshot> = {
       hotbar: { id: 'hotbar', capacity: 3, slots: [{ itemKind: 'wood', quantity: 10 }, { itemKind: 'wood', quantity: 20 }, { itemKind: 'fiber', quantity: 40 }] },
@@ -31,9 +35,13 @@ describe('furniture acquisition', () => {
       crafting: { id: 'crafting', capacity: 9, slots: [{ itemKind: 'wood', quantity: 4 }, ...Array(8).fill(null)] },
     };
     const before = JSON.stringify(containers);
-    const blocked = { ...containers, crafting: { ...containers.crafting!, slots: [{ itemKind: 'wood', quantity: 4 }, { itemKind: 'stone', quantity: 1 }, ...Array(7).fill(null)] } };
+    // With nowhere to put the stray stone, nothing moves and the player is told.
+    const blocked = { ...containers, backpack: { id: 'backpack', capacity: 1, slots: [{ itemKind: 'fiber', quantity: 99 }] },
+      crafting: { ...containers.crafting!, slots: [{ itemKind: 'wood', quantity: 4 }, { itemKind: 'stone', quantity: 1 }, ...Array(7).fill(null)] } };
+    const blockedBefore = JSON.stringify(blocked);
     expect(fillCraftingRecipeFromInventory(blocked, id, content, { ...recipe, kind: 'shapeless', inputs: { wood: 24, fiber: 40 } }))
-      .toMatchObject({ ok: false, code: 'recipe_inputs_missing' });
+      .toMatchObject({ ok: false, code: 'container_full' });
+    expect(JSON.stringify(blocked)).toBe(blockedBefore);
     expect(JSON.stringify(containers)).toBe(before);
     const liveRecipe = { ...recipe, kind: 'shapeless' as const, inputs: { wood: 30, fiber: 35 } };
     const live = fillCraftingRecipeFromInventory(containers, id, content, liveRecipe);

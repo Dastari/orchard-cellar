@@ -1653,6 +1653,9 @@ export class OverworldUi {
   private inventoryFilterText = '';
   private recipeFilterText = '';
   private selectedCraftingRecipeId: string | null = null;
+  /** The pattern the authority last confirmed; a refused placement falls back to it (BUG-037). */
+  private confirmedCraftingRecipeId: string | null = null;
+  private craftingPlacementSequence = 0;
   private readonly currencyDisplay: CurrencyDisplay;
   private readonly playerResourceFrame: PlayerResourceFrame;
   private readonly targetResourceFrame: PlayerResourceFrame;
@@ -2330,6 +2333,7 @@ export class OverworldUi {
       && nextWindow !== this.openWindowValue) this.callbacks.closePlaceable();
     if (this.openWindowValue === 'crafting' && nextWindow !== 'crafting') {
       this.selectedCraftingRecipeId = null;
+      this.confirmedCraftingRecipeId = null;
       this.callbacks.closeCrafting();
     }
     if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
@@ -4932,27 +4936,28 @@ export class OverworldUi {
     });
   }
 
-  /** The recipe book's Place: never toggles, and a refused placement restores the previous selection so
-   * the grid, the ghost pattern and the next press all agree with what the authority holds (BUG-037). */
+  /** The recipe book's Place: never toggles. Only the latest request may roll back, and it falls back to the
+   * pattern the authority last confirmed, so the grid, the ghost pattern and the next press all agree with
+   * what the authority holds even when presses overlap (BUG-037). */
   private placeCraftingRecipe(recipeId: string): void {
-    const previous = this.selectedCraftingRecipeId;
+    const sequence = ++this.craftingPlacementSequence;
     this.selectedCraftingRecipeId = recipeId;
-    const result = this.callbacks.ghostFillCraftingRecipe(recipeId);
-    if (result instanceof Promise) void result.catch(() => {
-      if (this.selectedCraftingRecipeId !== recipeId) return;
-      this.selectedCraftingRecipeId = previous;
+    void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).then(() => {
+      this.confirmedCraftingRecipeId = recipeId;
+    }, () => {
+      if (sequence !== this.craftingPlacementSequence || this.selectedCraftingRecipeId !== recipeId) return;
+      this.selectedCraftingRecipeId = this.confirmedCraftingRecipeId;
       this.syncRetainedInventory();
     });
   }
 
+  /** The legacy canvas row: a second click on the selected recipe clears it; any other click places it. */
   private selectCraftingRecipe(recipeId: string): void {
     if (this.selectedCraftingRecipeId === recipeId) {
       this.selectedCraftingRecipeId = null;
       return;
     }
-    this.selectedCraftingRecipeId = recipeId;
-    // The host already reports a refusal; don't leave its rejection unhandled.
-    void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).catch(() => undefined);
+    this.placeCraftingRecipe(recipeId);
   }
 
   private craftingRecipeEntryAt(point: UiPoint) {
