@@ -106,3 +106,13 @@ export function preserveOwnerOnlySpaceFlags<T extends FlagObject>(next: T, curre
   }
   return result as T;
 }
+
+/** The admin world view (validation, repair previews, world version) of one
+ * space's flags. Owner-only keys are hidden from it, and a row that holds only
+ * owner-only keys (for example one first created by setChunkAuthority) reads
+ * as no row, so the authored defaults show exactly as they did before. */
+export function adminVisibleSpaceFlags<T extends FlagObject>(stored: T | undefined, defaults: T): T {
+  if (stored === undefined) return defaults;
+  const visible = withoutOwnerOnlySpaceFlags(stored);
+  return Object.keys(visible).length === 0 && Object.keys(stored).length > 0 ? defaults : visible;
+}

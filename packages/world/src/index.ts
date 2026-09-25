@@ -2,7 +2,7 @@ import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversal
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
-import { CHUNK_AUTHORITY_SPACE_ID, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
+import { CHUNK_AUTHORITY_SPACE_ID, adminVisibleSpaceFlags, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
 import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
@@ -8538,9 +8538,9 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
   }));
   const spaces = [...registry.spaces.values()].map((space) => ({
     spaceId: String(space.spaceId), sizeTiles: space.sizeTiles,
-    flags: flagsBySpace.get(String(space.spaceId)) ?? {
+    flags: adminVisibleSpaceFlags<AdminJsonObject>(flagsBySpace.get(String(space.spaceId)), {
       ownerOnly: space.ownerOnly ?? false, weather: space.weather,
-    },
+    }),
   }));
   for (const home of take(ctx.db.homestead.iter())) {
     const candidates = [home.spaceId, home.residenceSpaceId].filter((id): id is number => id !== undefined);
@@ -8549,9 +8549,9 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
       const definition = activeSpaceDefinition(ctx, spaceId, home);
       if (definition !== undefined) spaces.push({
         spaceId: String(spaceId), sizeTiles: definition.sizeTiles,
-        flags: flagsBySpace.get(String(spaceId)) ?? {
+        flags: adminVisibleSpaceFlags<AdminJsonObject>(flagsBySpace.get(String(spaceId)), {
           ownerOnly: definition.ownerOnly ?? false, weather: definition.weather,
-        },
+        }),
       });
     }
   }

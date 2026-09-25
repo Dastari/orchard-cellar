@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { authenticationRejection, isWorldOwnerRole, membershipRejection, OIDC_ISSUER } from './auth-policy.js';
 import {
   CHUNK_AUTHORITY_SPACE_ID,
+  adminVisibleSpaceFlags,
   chunkAuthorityMode,
   chunkAuthorityModeFromFlagsJson,
   parseChunkAuthorityMode,
@@ -13,6 +14,7 @@ import {
 } from './chunk-authority-setting.js';
 import { planAdminWorldMutation, adminWorldVersion, type AdminWorldRepairMutation, type AdminWorldState } from './admin/world-repair.js';
 import { parseAdminReason } from './admin/contracts.js';
+import type { AdminJsonObject } from '@orchard/sim';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 
@@ -203,5 +205,59 @@ describe('admin space flag writes keep the owner chunkAuthority switch', () => {
       expect(JSON.parse(state.row()?.flagsJson ?? '')).toEqual({ ownerOnly: false, weather: true, chunkAuthority: 'on' });
       expect(chunkAuthorityMode(state.ctx)).toBe('on');
     }
+  });
+});
+
+describe('the admin world view keeps showing Topside defaults after a first-time owner switch', () => {
+  const topsideDefaults: AdminJsonObject = { ownerOnly: false, weather: true };
+  const reason = (() => {
+    const parsed = parseAdminReason('Disable building ticket 91');
+    if (!parsed.ok) throw new Error('invalid reason');
+    return parsed.value;
+  })();
+  /** Mirrors loadAdminWorldState: parsed row (or none) plus authored defaults. */
+  function adminTopside(row: { flagsJson: string } | null): AdminWorldState {
+    const stored = row === null ? undefined : JSON.parse(row.flagsJson) as AdminJsonObject;
+    return {
+      spaces: [{ spaceId: '0', sizeTiles: 64, flags: adminVisibleSpaceFlags(stored, topsideDefaults) }],
+      portals: [], players: [], rowReferences: [], custody: [], contentReferences: [],
+    };
+  }
+
+  it('loadAdminWorldState resolves every space through the owner-key-hiding view', () => {
+    const body = declarationCode('loadAdminWorldState');
+    expect(body.match(/adminVisibleSpaceFlags\(flagsBySpace\.get\(/gu)).toHaveLength(2);
+    expect(body).not.toMatch(/flagsBySpace\.get\([^)]*\)\)\s*\?\?/u);
+  });
+
+  it('shows the same flags and world version as before the switch, and admin patches still start from the defaults', () => {
+    const state = world({ role: 'owner', blocked: false });
+    const before = adminTopside(state.row());
+    setChunkAuthority(state.ctx, { mode: 'on' });
+    expect(state.row()?.flagsJson).toBe('{"chunkAuthority":"on"}');
+    const after = adminTopside(state.row());
+    expect(after.spaces[0]?.flags).toEqual(topsideDefaults);
+    expect(adminWorldVersion(after)).toBe(adminWorldVersion(before));
+
+    const plan = planAdminWorldMutation(after, {
+      mutation: { operation: 'set_space_flags', spaceId: '0', patch: { buildAllowed: false }, dryRun: true,
+        reason, clientMutationId: 'chunk-authority-defaults-1' } as AdminWorldRepairMutation,
+      expectedWorldVersion: adminWorldVersion(after), previewFingerprint: null,
+      report: null, reportFingerprint: null, nowMicros: 1n,
+    });
+    expect(plan.after.spaces[0]?.flags).toEqual({ ...topsideDefaults, buildAllowed: false });
+    const writeAdminWorldRepairAction = compile<(ctx: unknown, action: unknown) => void>('writeAdminWorldRepairAction', {
+      adminWorldSpaceId: Number, spaceAdminFlags: compile('spaceAdminFlags', {}), preserveOwnerOnlySpaceFlags, SenderError,
+    });
+    for (const action of plan.actions) writeAdminWorldRepairAction(state.ctx, action);
+    expect(JSON.parse(state.row()?.flagsJson ?? '')).toEqual({ ...topsideDefaults, buildAllowed: false, chunkAuthority: 'on' });
+    expect(adminTopside(state.row()).spaces[0]?.flags).toEqual({ ...topsideDefaults, buildAllowed: false });
+  });
+
+  it('leaves rows that already hold admin flags exactly as stored', () => {
+    expect(adminVisibleSpaceFlags(undefined, topsideDefaults)).toEqual(topsideDefaults);
+    expect(adminVisibleSpaceFlags({ buildAllowed: false }, topsideDefaults)).toEqual({ buildAllowed: false });
+    expect(adminVisibleSpaceFlags({ weather: false, chunkAuthority: 'shadow' }, topsideDefaults)).toEqual({ weather: false });
+    expect(adminVisibleSpaceFlags({}, topsideDefaults)).toEqual({});
   });
 });
