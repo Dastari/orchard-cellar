@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHasAuthority, WORLD_CHUNK_AUTHORITY_CHANNELS, WORLD_CHUNK_OBSTACLE_TILE_UNITS,
+import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHasAuthority, WORLD_CHUNK_AUTHORITY_CHANNELS, WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS, WORLD_CHUNK_OBSTACLE_TILE_UNITS,
   WORLD_CHUNK_STRIDE, type ChunkJson, type WorldChunk, type WorldChunkRecord, worldChunkHash } from './world-chunk.js';
 import { authorityChunkFixture } from './chunk-runtime.fixture.js';
 import { TILE_SIZE_FIXED } from './state.js';
@@ -252,6 +252,43 @@ describe('authority schema 2: the obstacle table (BUG-044)', () => {
     expect(() => encodeWorldChunk({ ...decoded, authoritySchema: 3 })).toThrow(/Unsupported authority schema/u);
     // Unlike the authority version, an unknown table version is never skipped: it replaces records.
     expect(() => decodeWorldChunk(withHeader(later, value => { (value['obstacleTable'] as Record<string, unknown>)['schema'] = 2; }))).toThrow(/Unsupported obstacle table/u);
+  });
+  it('bounds record amplification: the declared rows and boxes are capped before any record is built', () => {
+    const bytes = encodeWorldChunk({ ...denseChunk(4), authoritySchema: 2 });
+    const table = header(bytes)['obstacleTable'] as Table;
+    const others = table.lists.slice(1).reduce((sum, list) => sum + list.rows.length / (list.kind.startsWith('authority.ground') ? 5 : list.kind.includes('suppressed') ? 3 : 2), 0);
+    // Minimal rows: every row repeats the first record (ordinal delta 0, box delta 0).
+    const rows = (count: number) => (value: Record<string, unknown>) => {
+      const lists = (value['obstacleTable'] as Table).lists, added = count - lists[0]!.rows.length / 2;
+      lists[0]!.rows = [...lists[0]!.rows.slice(0, 2), ...new Array<number>(2 * (count - 1)).fill(0)];
+      for (const list of lists.slice(1)) list.at += added; // later blocks start after the longer one
+    };
+    expect(decodeWorldChunk(withHeader(bytes, rows(WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS - others))).records).toHaveLength(WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS + 5);
+    expect(() => decodeWorldChunk(withHeader(bytes, rows(WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS - others + 1)))).toThrow(/too large/u);
+    expect(() => decodeWorldChunk(withHeader(bytes, rows(250_000)))).toThrow(/too large/u);
+    expect(() => decodeWorldChunk(withHeader(bytes, value => {
+      const table = value['obstacleTable'] as Table;
+      table.boxes = table.boxes.concat(new Array<number>(4 * WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS).fill(0));
+    }))).toThrow(/too large/u);
+    // The encoder never writes past the cap: a kind that would exceed it stays JSON records.
+    const count = 40_000, x = 128 * 256, y = 384 * 256;
+    const box = { left: x, top: y, right: x + 63, bottom: y + 63 };
+    const many = (kind: string) => Array.from({ length: count }, (_, ordinal) => ({ kind, ordinal, tileX: 128, tileY: 384, value: box }));
+    const input = { ...denseChunk(0), authoritySchema: 2 as const, records: [...many('clientGround.obstacle'), ...many('clientWater.obstacle')] };
+    const encoded = encodeWorldChunk(input);
+    expect((header(encoded)['obstacleTable'] as Table).lists.map(({ kind }) => kind)).toEqual(['clientGround.obstacle']);
+    expect(decodeWorldChunk(encoded)).toEqual({ ...input, contentHash: expect.any(String) });
+  });
+  it('keeps a kind as JSON records when its coordinates or ordinals are too large to delta-code safely', () => {
+    const big = Number.MAX_SAFE_INTEGER;
+    const v1 = denseChunk(4);
+    const records = v1.records.map(record => record.kind === 'clientGround.obstacle' && record.ordinal === 40
+      ? { ...record, value: { left: -big, top: -big, right: big, bottom: big } }
+      : record.kind === 'authority.ground.obstacle' && record.ordinal === 3 ? { ...record, value: { ...(record.value as Record<string, ChunkJson>), ordinal: big } } : record);
+    const input = { ...v1, authoritySchema: 2 as const, records };
+    const bytes = encodeWorldChunk(input);
+    expect((header(bytes)['obstacleTable'] as Table).lists.map(({ kind }) => kind)).toEqual(['clientWater.obstacle', 'authority.suppressedObstacleKey']);
+    expect(decodeWorldChunk(bytes)).toEqual({ ...input, contentHash: expect.any(String) });
   });
   it('fails closed on a malformed table', () => {
     const bytes = encodeWorldChunk({ ...denseChunk(4), authoritySchema: 2 });

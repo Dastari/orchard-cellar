@@ -353,6 +353,16 @@ export const WORLD_CHUNK_OBSTACLE_TILE_UNITS = 256;
  * cannot expand it must not decode the chunk at all: an unknown version is rejected
  * whatever the authority version. A changed table format bumps this, never the key. */
 export const WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA = 1 as const;
+/** Most rows (records) one chunk's table may declare, over all its lists, and most
+ * distinct boxes. A row costs a few bytes, so without a cap a 1 MiB blob could expand
+ * into about 250k records; JSON records (version 1) reach roughly 9-18k. Production's
+ * densest chunk, (2,6) on 2026-09-22, needs about 15k. The decoder checks the declared
+ * counts before building any record; the encoder keeps any kind that would exceed the
+ * cap as JSON records. */
+export const WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS = 65_536;
+/** Largest |coordinate| and ordinal a table row holds: every delta then stays far inside
+ * the safe-integer range. A record beyond it keeps its kind as JSON records. */
+const TABLE_MAX_MAGNITUDE = 2 ** 31;
 /**
  * The header's `obstacleTable` (`schema`: WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA). Every integer column is a delta from the previous
  * row of the same list (the first row from 0), so runs of neighbouring sub-cell
@@ -384,10 +394,13 @@ function tableShape(kind: string): ObstacleShape | undefined {
     ? WORLD_CHUNK_OBSTACLE_TABLE_KINDS[kind as keyof typeof WORLD_CHUNK_OBSTACLE_TABLE_KINDS] : undefined;
 }
 /** Exactly the value a table row reproduces: the shape's keys, integer boxes, known enums. */
-function tableValue(shape: ObstacleShape, value: ChunkJson): value is Record<string, ChunkJson> {
-  if (!object(value) || Object.keys(value).sort().join(',') !== SHAPE_KEYS[shape] || !box(value)) return false;
+function tableValue(shape: ObstacleShape, record: WorldChunkRecord): boolean {
+  const value = record.value;
+  if (!object(value) || Object.keys(value).sort().join(',') !== SHAPE_KEYS[shape] || !box(value)
+    || record.ordinal > TABLE_MAX_MAGNITUDE
+    || ['left', 'top', 'right', 'bottom'].some(key => Math.abs(value[key] as number) > TABLE_MAX_MAGNITUDE)) return false;
   if (shape === 'authority') return (value['group'] === 'base' || value['group'] === 'authored') && validInteger(value['ordinal']) && value['ordinal'] >= 0
-    && typeof value['sourceId'] === 'string' && value['sourceId'].length > 0;
+    && value['ordinal'] <= TABLE_MAX_MAGNITUDE && typeof value['sourceId'] === 'string' && value['sourceId'].length > 0;
   if (shape === 'suppressed') return value['medium'] === 'ground' || value['medium'] === 'water';
   return true;
 }
@@ -403,8 +416,14 @@ function compactObstacles(records: readonly WorldChunkRecord[]): { records: Worl
     if (run === undefined) { runs.set(record.kind, { start: index, end: index + 1 }); eligible.add(record.kind); }
     else if (run.end === index) run.end = index + 1;
     else eligible.delete(record.kind); // not contiguous: keep this kind as JSON records
-    if (!tableValue(shape, record.value)) eligible.delete(record.kind);
+    if (!tableValue(shape, record)) eligible.delete(record.kind);
   });
+  // Within the decoder's row cap, in record order; a kind that would exceed it stays JSON.
+  let total = 0;
+  for (const [kind, { start, end }] of runs) {
+    if (!eligible.has(kind)) continue;
+    if (total + end - start > WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS) eligible.delete(kind); else total += end - start;
+  }
   if (eligible.size === 0) return undefined;
   const boxIndex = new Map<string, number>(), boxes: number[] = [];
   const sourceIndex = new Map<string, number>(), sources: string[] = [];
@@ -463,6 +482,14 @@ function expandObstacles(records: readonly WorldChunkRecord[], table: unknown, c
   if (object(table) && table['schema'] !== WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA) throw new TypeError('Unsupported obstacle table');
   if (!object(table) || !tableIntegers(table['boxes'], 4) || !Array.isArray(table['lists']) || table['lists'].length === 0
     || (table['sources'] !== undefined && (!strings(table['sources']) || table['sources'].some(id => id.length === 0)))) throw new TypeError('Invalid obstacle table');
+  // Amplification bound: check every declared count before building anything.
+  let declared = 0;
+  for (const list of table['lists'] as unknown[]) {
+    const shape = object(list) && typeof list['kind'] === 'string' ? tableShape(list['kind']) : undefined;
+    if (shape === undefined || !Array.isArray((list as Record<string, unknown>)['rows'])) throw new TypeError('Invalid obstacle table list');
+    declared += ((list as Record<string, unknown[]>)['rows']!.length) / SHAPE_WIDTH[shape];
+  }
+  if (declared > WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS || table['boxes'].length / 4 > WORLD_CHUNK_OBSTACLE_TABLE_MAX_ROWS) throw new TypeError('Obstacle table too large');
   const rawBoxes = table['boxes'], sources: readonly string[] = (table['sources'] as string[] | undefined) ?? [];
   const boxes: { left: number; top: number; right: number; bottom: number }[] = [];
   let left = 0, top = 0;
@@ -484,7 +511,7 @@ function expandObstacles(records: readonly WorldChunkRecord[], table: unknown, c
     kinds.add(kind); // a kind appears once, and never also as JSON records
     while (result.length < list['at']) result.push(records[kept++]!);
     const rows = list['rows'], anchors = (list['anchors'] as number[] | undefined) ?? [], width = SHAPE_WIDTH[shape];
-    let ordinal = 0, boxAt = 0, offset = 0, source = 0, anchor = 0, previousAnchor = -1;
+    let ordinal = 0, boxAt = 0, offset = 0, source = 0, anchor = 0;
     for (let row = 0; row * width < rows.length; row++) {
       const at = row * width;
       ordinal += rows[at]!; boxAt += rows[at + 1]!;
@@ -492,10 +519,8 @@ function expandObstacles(records: readonly WorldChunkRecord[], table: unknown, c
       if (item === undefined || !validInteger(ordinal)) throw new TypeError('Invalid obstacle table row');
       if (ordinal < 0) throw new TypeError('Invalid chunk record anchor');
       let tileX = Math.floor(item.left / WORLD_CHUNK_OBSTACLE_TILE_UNITS), tileY = Math.floor(item.top / WORLD_CHUNK_OBSTACLE_TILE_UNITS);
-      if (anchor < anchors.length && anchors[anchor] === row) {
-        if (row <= previousAnchor) throw new TypeError('Invalid obstacle table anchor');
-        previousAnchor = row; tileX = anchors[anchor + 1]!; tileY = anchors[anchor + 2]!; anchor += 3;
-      }
+      // Anchors are consumed in row order: any out-of-order or unused entry is left over below.
+      if (anchor < anchors.length && anchors[anchor] === row) { tileX = anchors[anchor + 1]!; tileY = anchors[anchor + 2]!; anchor += 3; }
       if (Math.floor(tileX / WORLD_CHUNK_SIZE) !== cx || Math.floor(tileY / WORLD_CHUNK_SIZE) !== cy) throw new TypeError('Invalid chunk record anchor');
       let value: Record<string, ChunkJson>;
       if (shape === 'authority') {
