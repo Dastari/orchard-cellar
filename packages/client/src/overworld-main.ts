@@ -125,7 +125,7 @@ import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, ty
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
-import { topsideDecorationLightCasters, topsideDecorations as topsideDecorationsFrom, topsideMapRecords as topsideMapRecordsFrom, type TopsideMapRecords } from './topside-map-records.js';
+import { topsideDecorationLightCasters, topsideDecorationsFor, topsideMapRecords as topsideMapRecordsFrom, type TopsideMapRecords } from './topside-map-records.js';
 import { SpawnReadinessGate, type SpawnReadiness } from './spawn-readiness.js';
 import type { ChunkTerrainWindow, TileBounds } from '@orchard/engine/chunk-terrain-window';
 import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
@@ -336,6 +336,8 @@ const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pi
       if (collision !== undefined) composeChunkCollisionMaps({ registry, collision, liveBase: [], furniture: [], dynamic: [],
         tick: latestSnapshot.clock?.authorityTick ?? 0n, projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
     },
+    // Static world S4e: the elevated decoration casters of the window's records.
+    ({ records }, registry) => { if (records !== undefined) topsideDecorationLightCasters(records.decorations, records, registry, TOPSIDE_SPACE_ID); },
   ] });
 /** Static world S4f: in chunk mode `on`, movement waits for the terrain around the player. */
 const spawnReadiness = new SpawnReadinessGate();
@@ -1650,11 +1652,20 @@ function liveIslandDocumentFor(snapshot: OverworldView): MapDocumentV3 | null {
   return liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry);
 }
 
+/** Topside's map source, resolved once per frame section (static world S4e). Reset
+ * at the start of update and render and after the chunk window may move. */
+let topsideMapResolution: { readonly snapshot: OverworldView; readonly spaceId: number; readonly records: TopsideMapRecords | null } | null = null;
+function resetTopsideMapResolution(): void { topsideMapResolution = null; }
+
 /** Topside's authored map content (static world S4e): the chunk window's records in
  * chunk mode `on` while its collision serves, else the live map document; null off topside. */
 function topsideMapRecords(snapshot: OverworldView): TopsideMapRecords | null {
-  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return null;
-  return topsideMapRecordsFrom(worldSource, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
+  const resolved = topsideMapResolution;
+  if (resolved !== null && resolved.snapshot === snapshot && resolved.spaceId === activeSpaceDefinition.spaceId) return resolved.records;
+  const records = activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID ? null
+    : topsideMapRecordsFrom(worldSource, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
+  topsideMapResolution = { snapshot, spaceId: activeSpaceDefinition.spaceId, records };
+  return records;
 }
 
 /** Topside decorations, unsuppressed: the chunk window's records in chunk mode `on`
@@ -1663,8 +1674,7 @@ function topsideDecorations(
   snapshot: OverworldView,
   seed: number,
 ): readonly RuntimeSurvivalDecoration[] {
-  const chunks = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? worldSource : { mapRecords: () => undefined };
-  return topsideDecorationsFrom(chunks, snapshot.content.registry, seed, () => liveIslandDocumentFor(snapshot));
+  return topsideDecorationsFor(topsideMapRecords(snapshot), seed, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
 }
 
 function elevatedLightOccluders(
@@ -2274,6 +2284,7 @@ function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceColli
 }
 
 function update(): void {
+  resetTopsideMapResolution();
   let previous = predicted;
   effectPhase = (effectPhase + 1) % 4;
   worldZoom = easeWorldZoom(worldZoom, worldZoomTarget);
@@ -4706,6 +4717,7 @@ function render(alpha = 1): void {
 }
 
 function renderFrame(alpha = 1): void {
+  resetTopsideMapResolution();
   const renderStarted = performance.now();
   let renderItems = 0;
   const snapshot = latestSnapshot;
@@ -4806,6 +4818,7 @@ function renderFrame(alpha = 1): void {
     worldSource.setView(estimatedCameraTiles(localX, localY));
     // One stage of the window prepared ahead of the view (S4f), before this frame's terrain.
     worldSource.advance(snapshot.content.registry);
+    resetTopsideMapResolution();
   }
   const terrain = terrainForSnapshot(snapshot);
   // Chunk window moves (S4c) drop only the ground chunks whose data changed.

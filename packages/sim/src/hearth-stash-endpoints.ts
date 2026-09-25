@@ -44,8 +44,8 @@ export function runtimeHearthSupplyCache(
 }
 
 /** A named object is insufficient: require the reviewed chest visual, physical
- * base and untransformed placement. No arbitrary map object grants storage. */
-/** `document` needs only the map id, objects, prefabs and combat regions: a whole
+ * base and untransformed placement. No arbitrary map object grants storage.
+ * `document` needs only the map id, objects, prefabs and combat regions: a whole
  * document, or (client chunk mode `on`, static world S4e) the render window's records. */
 export function hearthSupplyCacheInstalled(cache: HearthSupplyCacheDefinition,
   document: Pick<MapDocumentV3, 'id' | 'objects' | 'prefabs' | 'combatRegions'> | null): boolean {

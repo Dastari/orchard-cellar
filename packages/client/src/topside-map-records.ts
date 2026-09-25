@@ -31,10 +31,16 @@ export function topsideMapRecords(source: TopsideMapSource, registry: ContentReg
   return source.mapRecords(registry) ?? legacyDocument();
 }
 
-/** The topside decorations (unsuppressed): the chunk window's, else the legacy composition. */
-export function topsideDecorations(source: TopsideMapSource, registry: ContentRegistry, seed: number,
+/** True for a chunk window's records (mode `on`), false for the legacy document. */
+export function isChunkMapRecords(records: TopsideMapRecords | null): records is ChunkWindowMapRecords {
+  return records !== null && (records as Partial<ChunkWindowMapRecords>).source === 'chunks';
+}
+
+/** The topside decorations (unsuppressed) of resolved records: the chunk window's,
+ * else the legacy composition over the document. */
+export function topsideDecorationsFor(records: TopsideMapRecords | null, seed: number, registry: ContentRegistry,
   legacyDocument: () => MapDocumentV3 | null): readonly RuntimeSurvivalDecoration[] {
-  return source.mapRecords(registry)?.decorations ?? legacyTopsideDecorations(legacyDocument(), seed, registry);
+  return isChunkMapRecords(records) ? records.decorations : legacyTopsideDecorations(legacyDocument(), seed, registry);
 }
 
 const legacyDecorationCache = new WeakMap<MapDocumentV3, Map<number, readonly RuntimeSurvivalDecoration[]>>();
@@ -71,10 +77,26 @@ export interface TopsideDecorationCaster {
   readonly painterFootY: number;
 }
 
+const casterCache = new WeakMap<readonly RuntimeSurvivalDecoration[], {
+  readonly records: TopsideMapRecords | null; readonly registry: ContentRegistry; readonly spaceId: number;
+  readonly casters: readonly TopsideDecorationCaster[];
+}>();
+
 /** The topside decorations that occlude light (overworld-main's elevated light
- * occluders add their sprite silhouettes), in decoration order. */
+ * occluders add their sprite silhouettes), in decoration order. Retained per
+ * decoration list, records, registry and space: a chunk window's are computed
+ * ahead of time by a staged prewarm step (S4e), the legacy lists once per revision. */
 export function topsideDecorationLightCasters(decorations: readonly RuntimeSurvivalDecoration[], records: TopsideMapRecords | null,
-  registry: ContentRegistry, spaceId: number): TopsideDecorationCaster[] {
+  registry: ContentRegistry, spaceId: number): readonly TopsideDecorationCaster[] {
+  const cached = casterCache.get(decorations);
+  if (cached !== undefined && cached.records === records && cached.registry === registry && cached.spaceId === spaceId) return cached.casters;
+  const casters = decorationLightCasters(decorations, records, registry, spaceId);
+  casterCache.set(decorations, { records, registry, spaceId, casters });
+  return casters;
+}
+
+function decorationLightCasters(decorations: readonly RuntimeSurvivalDecoration[], records: TopsideMapRecords | null,
+  registry: ContentRegistry, spaceId: number): readonly TopsideDecorationCaster[] {
   const result: TopsideDecorationCaster[] = [];
   const suppressions = new Set(records?.generatedSuppressions ?? []);
   const landmarkCampfires = new Set(runtimeLandmarkCampfirePlans(registry)

@@ -11,7 +11,7 @@ import type { TerrainArray } from '@orchard/engine/terrain';
 import { enqueueGameplayDecorations } from './gameplay-painter-decorations.js';
 import { protocolPondTies } from './render-protocol-ponds.js';
 import { topsideAuthoredFixture, topsideFixtureRow } from './topside-map-records.fixture.js';
-import { legacyTopsideDecorations, topsideDecorationLightCasters, topsideDecorations, topsideMapRecords } from './topside-map-records.js';
+import { legacyTopsideDecorations, topsideDecorationLightCasters, topsideDecorationsFor, topsideMapRecords } from './topside-map-records.js';
 import { WorldSource } from './world-source.js';
 
 const terrainFormulas = vi.hoisted(() => ({
@@ -101,7 +101,7 @@ async function legacyOutputs(document: MapDocumentV3) {
   // The same document object as before S4e, so every retained cache keeps its identity.
   expect(records).toBe(live);
   await preloadMapObjectAssets(records!);
-  const decorations = topsideDecorations(offOrShadow, registry, SURVIVAL_WORLD_SEED, () => liveIslandDocument(row, registry));
+  const decorations = topsideDecorationsFor(records, SURVIVAL_WORLD_SEED, registry, () => liveIslandDocument(row, registry));
   expect(decorations).toBe(legacyTopsideDecorations(live, SURVIVAL_WORLD_SEED, registry));
   const outputs: Record<string, unknown> = { decorations };
   for (const hour of [12, 22]) {
