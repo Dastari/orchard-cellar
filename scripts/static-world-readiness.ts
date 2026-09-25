@@ -10,6 +10,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { CHUNK_RUNTIME_ACTIVATION_RELEASE } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 export type MigrationStep = 'step4' | 'step5' | 'step6';
 
@@ -20,6 +21,8 @@ export interface ReadinessProbe {
   readonly roots: readonly string[];
   /** Each match of any pattern counts once. */
   readonly patterns: readonly RegExp[];
+  /** Already at zero and must stay there: a regression guard rather than a count to burn down. */
+  readonly guard?: true;
 }
 
 export interface ManualGate {
@@ -42,6 +45,15 @@ const STUDIO = ['packages/studio/src'];
 
 /** Target for every probe is zero remaining references. */
 export const READINESS_PROBES: readonly ReadinessProbe[] = [
+  {
+    id: 'client.whole-world-chunk-store',
+    step: 'step4',
+    description: 'Client use of the whole-world ChunkTerrainStore adapter (the bounded store is the client runtime)',
+    roots: CLIENT,
+    guard: true,
+    // Word boundaries leave BoundedChunkTerrainStore and bounded-chunk-terrain-store alone.
+    patterns: [/\bChunkTerrainStore\b/gu, /(?<![\w-])chunk-terrain-store\b/gu],
+  },
   {
     id: 'server.whole-map-compile',
     step: 'step4',
@@ -89,6 +101,13 @@ export const READINESS_PROBES: readonly ReadinessProbe[] = [
     description: 'Studio reads or writes of the whole-document map (documentJson / publishLiveMapDocument)',
     roots: STUDIO,
     patterns: [/\bdocumentJson\b/gu, /\bpublishLiveMapDocument\b/gu],
+  },
+  {
+    id: 'studio.live-map-document-table',
+    step: 'step6',
+    description: 'Studio direct reads of or subscriptions to the live_map_document table',
+    roots: STUDIO,
+    patterns: [/\bliveMapDocument\b/gu, /\blive_map_document\b/gu],
   },
   {
     id: 'server.document-json',
@@ -146,9 +165,9 @@ export function runProbe(probe: ReadinessProbe, repoRoot: string): ProbeResult {
 /**
  * Legacy modules recorded by the last client build, or null when the audit is
  * missing or is not exactly the envelope `chunkRuntimeBuildAudit`
- * (packages/client/src/chunk-shadow-build-gate.ts) emits today: schema 1,
- * mode off|shadow, activationAllowed false, string legacyModules. S4/S5 must
- * extend this check alongside the emitter when an activation mode exists.
+ * (packages/client/src/chunk-shadow-build-gate.ts) emits: schema 1, mode
+ * off|shadow|on and string legacyModules. activationAllowed is true only for an
+ * `on` build carrying the reviewed CHUNK_RUNTIME_ACTIVATION_RELEASE (null until S5c).
  */
 export function clientBuildLegacyModules(repoRoot: string): readonly string[] | null {
   const path = resolve(repoRoot, 'packages/client/dist/chunk-runtime-audit.json');
@@ -164,10 +183,14 @@ export function clientBuildLegacyModules(repoRoot: string): readonly string[] | 
 
 export function validClientBuildAudit(audit: unknown): audit is { readonly legacyModules: readonly string[] } {
   if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) return false;
-  const { schema, mode, activationAllowed, legacyModules } = audit as Record<string, unknown>;
+  const { schema, mode, activationAllowed, activationRelease, legacyModules } = audit as Record<string, unknown>;
+  const activation = activationAllowed === false
+    ? activationRelease === undefined || activationRelease === null
+    : activationAllowed === true && mode === 'on' && CHUNK_RUNTIME_ACTIVATION_RELEASE !== null
+      && activationRelease === CHUNK_RUNTIME_ACTIVATION_RELEASE;
   return schema === 1
-    && (mode === 'off' || mode === 'shadow')
-    && activationAllowed === false
+    && (mode === 'off' || mode === 'shadow' || mode === 'on')
+    && activation
     && Array.isArray(legacyModules)
     && legacyModules.every((id) => typeof id === 'string');
 }
@@ -241,7 +264,8 @@ export function main(argv: readonly string[], repoRoot = resolve('.')): number {
     for (const step of STEP_ORDER) {
       console.log(`${step}`);
       for (const result of results.filter((r) => r.step === step)) {
-        console.log(`  ${String(result.count).padStart(4)}  ${result.id} — ${result.description}`);
+        const guard = READINESS_PROBES.find((probe) => probe.id === result.id)?.guard === true ? ' (guard: must stay 0)' : '';
+        console.log(`  ${String(result.count).padStart(4)}  ${result.id}${guard} — ${result.description}`);
       }
       for (const gate of MANUAL_GATES.filter((g) => g.step === step)) {
         console.log(`  manual  ${gate.id} — ${gate.evidence}`);
