@@ -126,7 +126,7 @@ import { ConnectionRecoveryOverlay, worldGapPresentation, type ConnectionRecover
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
-import type { TileBounds } from '@orchard/engine/chunk-terrain-window';
+import type { ChunkTerrainWindow, TileBounds } from '@orchard/engine/chunk-terrain-window';
 import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
@@ -152,7 +152,7 @@ import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortra
 import { cameraAxisOffset } from '@orchard/engine/camera';
 import { snapGameplayCamera } from './gameplay-camera.js';
 import { clientLiveRowObstacles, createClientCollisionMap } from '@orchard/engine/collision';
-import { composeChunkWindowCollision } from '@orchard/sim/chunk-collision';
+import { composeChunkCollisionMaps } from './chunk-collision-composition.js';
 import { drawAnimatedTerrain } from '@orchard/engine/animated-terrain';
 import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from '@orchard/engine/farmland';
 
@@ -324,7 +324,16 @@ let connectionInputCleared = false;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 /** Topside terrain source: the legacy whole map, or the chunk window in chunk mode `on` (S4c). */
 const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds),
-  authorityGate: () => network.chunkAuthorityGate() });
+  authorityGate: () => network.chunkAuthorityGate(),
+  // Static world S4f: a window prepared ahead of the view does its lighting and
+  // traversal work over earlier frames; the frame that serves it hits these caches.
+  prewarm: [
+    ({ window, previous }) => { prepareChunkWindowLight(window, previous); },
+    ({ collision }, registry) => {
+      if (collision !== undefined) composeChunkCollisionMaps({ registry, collision, liveBase: [], furniture: [], dynamic: [],
+        tick: latestSnapshot.clock?.authorityTick ?? 0n, projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
+    },
+  ] });
 const furnitureMoves = new FurnitureMoveController((...args) => network.moveHearthFurniture(...args));
 const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty = true; });
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
@@ -2259,6 +2268,12 @@ function dynamicCollisionOverlays(snapshot: OverworldView): CollisionObstacle[] 
  * The maps are windowed (origin set): tiles outside the window, and cells of
  * window chunks that are not resident, are blocked.
  */
+/** A chunk window's light preparation, reusing the tiles it shares unchanged with
+ * the window served before it (static world S4f); identical to a full preparation. */
+function prepareChunkWindowLight(window: ChunkTerrainWindow, previous: ChunkTerrainWindow | undefined) {
+  return worldStaticProjection.prepareWindowLight(window, previous, art.cliff, !lightingEffectsDisabled);
+}
+
 function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceCollision): void {
   const registry = snapshot.content.registry;
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
@@ -2267,18 +2282,15 @@ function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceColli
   const live = clientLiveRowObstacles(snapshot.resources, snapshot.chests, snapshot.placeables,
     chunks.collision.generatedSuppressions, registry);
   resourceCollisionObstacles = live.resourceObstacles;
-  const ground = composeChunkWindowCollision(chunks.collision, 'ground',
-    live.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle));
-  worldCollision = { ...ground, obstacles: [...(ground.obstacles ?? []),
-    ...live.entries.filter(({ furniture }) => furniture).map(({ obstacle }) => obstacle),
-    ...dynamicCollisionOverlays(snapshot)] };
-  furnitureCollision = worldCollision;
-  boatCollision = composeChunkWindowCollision(chunks.collision, 'water');
-  const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
-  worldCollision = runtimeActorCollision(registry, worldCollision, { kind: 'placement', medium: 'ground' }, tick, solidGeometry);
-  boatCollision = runtimeActorCollision(registry, boatCollision, { kind: 'placement', medium: 'water' }, tick, solidGeometry);
-  projectileCollision = runtimeActorCollision(registry, worldStaticProjection.projectile(worldCollision, boatCollision),
-    { kind: 'projectile' }, tick, traversalSolidGeometry(worldCollision, boatCollision));
+  const maps = composeChunkCollisionMaps({ registry, collision: chunks.collision, tick,
+    liveBase: live.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle),
+    furniture: live.entries.filter(({ furniture }) => furniture).map(({ obstacle }) => obstacle),
+    dynamic: dynamicCollisionOverlays(snapshot),
+    projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
+  worldCollision = maps.world;
+  furnitureCollision = maps.furniture;
+  boatCollision = maps.boat;
+  projectileCollision = maps.projectile;
   // Lighting reads the render window, the terrain this frame draws.
   const terrain = chunks.terrain;
   baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
@@ -2287,7 +2299,7 @@ function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceColli
     [],
     [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
     art.cliff,
-    worldStaticProjection.prepareLight(terrain, art.cliff, !lightingEffectsDisabled),
+    prepareChunkWindowLight(chunks.window, chunks.previous),
   );
   lightOcclusion = baseLightOcclusion;
   authoredLightFrameKey = '';
@@ -4810,7 +4822,11 @@ function renderFrame(alpha = 1): void {
   // The camera's tiles choose the chunk window (and what the chunk runtime pins)
   // before this frame's terrain is served (S4c), so a teleport, a return to
   // topside or a newly serving store never draws from the previous window.
-  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) worldSource.setView(estimatedCameraTiles(localX, localY));
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    worldSource.setView(estimatedCameraTiles(localX, localY));
+    // One stage of the window prepared ahead of the view (S4f), before this frame's terrain.
+    worldSource.advance(snapshot.content.registry);
+  }
   const terrain = terrainForSnapshot(snapshot);
   // Chunk window moves (S4c) drop only the ground chunks whose data changed.
   worldSource.drainGroundInvalidations((region) => {
@@ -7760,7 +7776,8 @@ Object.assign(window, {
     diagnostics: () => gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
       lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
       activeSpaceDefinition, latestLightCount, rain, groundCache,
-      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus } }),
+      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus,
+        staging: worldSource.stagingStatus } }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,

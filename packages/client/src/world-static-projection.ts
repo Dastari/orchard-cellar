@@ -1,7 +1,8 @@
 import { type CollisionMap } from '@orchard/sim';
 import { prepareClientTerrainCollision, type PreparedClientTerrainCollision } from '@orchard/engine/collision';
-import { prepareLightTerrainOcclusion, type PreparedLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
+import { prepareLightTerrainOcclusion, type LightTerrainReuse, type PreparedLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
 import type { TerrainArray } from '@orchard/engine/terrain';
+import { chunkWindowTileReuse, type ChunkTerrainWindow } from '@orchard/engine/chunk-terrain-window';
 import type { LoadedAsset } from '@orchard/ui';
 
 interface StaticProjection {
@@ -19,9 +20,10 @@ export class WorldStaticProjectionCache {
   private dockKey = '';
   private asset: LoadedAsset | undefined;
   private projection: StaticProjection | null = null;
-  private groundBlocked: CollisionMap['blocked'] | null = null;
-  private waterBlocked: CollisionMap['blocked'] | null = null;
-  private projectileBlocked: CollisionMap['blocked'] | null = null;
+  /** Combined projectile planes by their ground and water inputs (identity). */
+  private readonly projectileBlocked = new WeakMap<CollisionMap['blocked'], {
+    readonly water: CollisionMap['blocked']; readonly blocked: CollisionMap['blocked'];
+  }>();
 
   prepare(
     terrain: TerrainArray,
@@ -53,38 +55,53 @@ export class WorldStaticProjectionCache {
     return projection;
   }
 
-  private lightTerrain: TerrainArray | null = null;
   private lightAsset: LoadedAsset | undefined;
-  private lightOnly: PreparedLightTerrainOcclusion | undefined;
+  /** At most two window preparations: the serving window's and the next one's. */
+  private readonly lightOnly = new Map<TerrainArray, PreparedLightTerrainOcclusion>();
 
   /** Light occlusion only, for a chunk window whose collision comes from chunk
    * authority channels (static world S4d): windows are immutable, so the
-   * window object and asset are the whole key. */
-  prepareLight(terrain: TerrainArray, asset?: LoadedAsset, dynamicLighting = true): PreparedLightTerrainOcclusion | undefined {
+   * window object and asset are the whole key. `reuse` names the previous window
+   * and the tiles whose preparation carries over unchanged (static world S4f,
+   * chunkWindowTileReuse); the result is identical to a full preparation. */
+  prepareLight(terrain: TerrainArray, asset?: LoadedAsset, dynamicLighting = true,
+    reuse?: { readonly terrain: TerrainArray; readonly reusableRuns: LightTerrainReuse['reusableRuns'] }): PreparedLightTerrainOcclusion | undefined {
     if (!dynamicLighting) return undefined;
-    if (this.lightOnly === undefined || this.lightTerrain !== terrain || this.lightAsset !== asset) {
-      this.lightOnly = prepareLightTerrainOcclusion(terrain, asset);
-      this.lightTerrain = terrain;
-      this.lightAsset = asset;
-    }
-    return this.lightOnly;
+    if (this.lightAsset !== asset) { this.lightOnly.clear(); this.lightAsset = asset; }
+    let prepared = this.lightOnly.get(terrain);
+    if (prepared === undefined) {
+      const previous = reuse === undefined ? undefined : this.lightOnly.get(reuse.terrain);
+      prepared = prepareLightTerrainOcclusion(terrain, asset,
+        previous === undefined ? undefined : { prepared: previous, reusableRuns: reuse!.reusableRuns });
+      if (this.lightOnly.size >= 2) this.lightOnly.delete(this.lightOnly.keys().next().value!);
+    } else this.lightOnly.delete(terrain);
+    this.lightOnly.set(terrain, prepared);
+    return prepared;
+  }
+
+  /** A chunk window's light preparation, reusing the tiles it shares unchanged
+   * with `previous` (static world S4f); identical to a full preparation. */
+  prepareWindowLight(window: ChunkTerrainWindow, previous: ChunkTerrainWindow | undefined, asset?: LoadedAsset,
+    dynamicLighting = true): PreparedLightTerrainOcclusion | undefined {
+    const reuse = previous === undefined ? undefined : chunkWindowTileReuse(previous, window);
+    return this.prepareLight(window.terrain, asset, dynamicLighting,
+      reuse === undefined ? undefined : { terrain: previous!.terrain, reusableRuns: reuse.reusableRuns });
   }
 
   releaseLighting(): void {
-    this.lightOnly = undefined;
-    this.lightTerrain = null;
+    this.lightOnly.clear();
     if (this.projection !== null) this.projection = { ...this.projection, light: undefined };
   }
 
   projectile(ground: CollisionMap, water: CollisionMap): CollisionMap {
     if (ground.width !== water.width || ground.height !== water.height) throw new Error('collision_map_size_mismatch');
-    if (this.projectileBlocked === null || this.groundBlocked !== ground.blocked || this.waterBlocked !== water.blocked) {
-      this.projectileBlocked = ground.blocked.map((blocked, index) => blocked && (water.blocked[index] ?? true));
-      this.groundBlocked = ground.blocked;
-      this.waterBlocked = water.blocked;
+    let combined = this.projectileBlocked.get(ground.blocked);
+    if (combined === undefined || combined.water !== water.blocked) {
+      combined = { water: water.blocked, blocked: ground.blocked.map((blocked, index) => blocked && (water.blocked[index] ?? true)) };
+      this.projectileBlocked.set(ground.blocked, combined);
     }
     // Obstacles, elevations and all other live map channels always come from
     // this refresh. Only the immutable combined terrain plane is retained.
-    return { ...ground, blocked: this.projectileBlocked };
+    return { ...ground, blocked: combined.blocked };
   }
 }

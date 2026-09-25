@@ -111,4 +111,30 @@ describe('instance-owned static world projection', () => {
     expect(createLightOcclusionMap(source).hardBlocked[1]).toBe(1);
     expect(before.hardBlocked[1]).toBe(0);
   });
+
+  it('keeps the serving and the next window light preparations and combined projectile planes per input (static world S4f)', () => {
+    const cache = new WorldStaticProjectionCache();
+    const a = terrain(), b = terrain(), c = terrain();
+    const first = cache.prepareLight(a)!, second = cache.prepareLight(b)!;
+    expect(cache.prepareLight(a)).toBe(first);
+    expect(cache.prepareLight(b)).toBe(second);
+    // A third window evicts the least recently used one.
+    cache.prepareLight(c);
+    expect(cache.prepareLight(b)).toBe(second);
+    expect(cache.prepareLight(a)).not.toBe(first);
+    // A different asset starts over; Basic lighting prepares nothing.
+    expect(cache.prepareLight(b, {} as LoadedAsset)).not.toBe(second);
+    expect(cache.prepareLight(b, undefined, false)).toBeUndefined();
+    // Reuse from a window whose preparation is cached gives the same result as a full one.
+    const reused = cache.prepareLight(terrain(), undefined, true, { terrain: b, reusableRuns: (_y, minX, maxX) => [[minX, maxX]] })!;
+    expect(reused.hardBlocked).toEqual(cache.prepareLight(b)!.hardBlocked);
+    const ground: CollisionMap = { width: 2, height: 1, blocked: [true, true] }, water: CollisionMap = { width: 2, height: 1, blocked: [true, false] };
+    const other: CollisionMap = { width: 2, height: 1, blocked: [false, true] };
+    const combined = cache.projectile(ground, water).blocked;
+    expect(combined).toEqual([true, false]);
+    expect(cache.projectile(other, water).blocked).toEqual([false, false]);
+    // Both kept: the serving window's plane survives preparing the next one.
+    expect(cache.projectile({ ...ground }, water).blocked).toBe(combined);
+    expect(cache.projectile(ground, { ...water, blocked: [false, false] }).blocked).toEqual([false, false]);
+  });
 });

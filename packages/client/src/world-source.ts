@@ -8,8 +8,8 @@ import {
 } from '@orchard/sim/chunk-collision';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import {
-  CHUNK_WINDOW_CHUNKS, ChunkTerrainWindowTracker, chunkWindowForView, chunkWindowKey, chunkWindowPinBounds,
-  type ChunkTerrainWindow, type ChunkWindowInvalidation, type ChunkWindowRect, type TileBounds,
+  CHUNK_WINDOW_CHUNKS, CHUNK_WINDOW_MARGIN_TILES, ChunkTerrainWindowTracker, buildChunkTerrainWindow, chunkWindowForView, chunkWindowKey,
+  chunkWindowPinBounds, type ChunkTerrainWindow, type ChunkWindowInvalidation, type ChunkWindowRect, type TileBounds,
 } from '@orchard/engine/chunk-terrain-window';
 import type { TerrainArray } from '@orchard/engine/terrain';
 
@@ -28,6 +28,44 @@ export interface WorldSourceDependencies {
   readonly authorityGate?: () => string | null;
   /** The live island's size (the dispatcher's `guard_size`); SURVIVAL_WORLD_SIZE by default. */
   readonly worldSize?: { readonly width: number; readonly height: number };
+  /** Work the client derives from a window before it is served (static world S4f:
+   * the light preparation, the traversal projections), one step per frame. The
+   * results must be caches the serving frame hits, never state of their own. */
+  readonly prewarm?: readonly WorldSourcePrewarmStep[];
+  /** Milliseconds, for the staging diagnostics (performance.now by default). */
+  readonly now?: () => number;
+}
+
+/** A window about to be served, handed to each prewarm step. */
+export interface WorldSourcePrewarm {
+  readonly window: ChunkTerrainWindow;
+  /** The window it replaces, for per-tile reuse (chunkWindowTileReuse). */
+  readonly previous: ChunkTerrainWindow | undefined;
+  /** Its authority collision, when the chunk collision will serve it. */
+  readonly collision: ChunkWindowCollision | undefined;
+}
+export type WorldSourcePrewarmStep = (prewarm: WorldSourcePrewarm, registry: ContentRegistry) => void;
+
+/**
+ * How far ahead of S4c's margin the next window is prepared (static world S4f).
+ * The served window must keep the camera view plus CHUNK_WINDOW_MARGIN_TILES
+ * inside it; once the view comes within this many further tiles of breaking
+ * that, the next window's chunks are pinned and it is built over the following
+ * frames, one stage per frame, then served in one assignment. The served window
+ * still satisfies the margin at that moment, so every frame draws exactly what a
+ * synchronous rebuild would. Outrunning it (or a teleport) falls back to today's
+ * synchronous rebuild.
+ */
+export const CHUNK_WINDOW_LOOKAHEAD_TILES = 16;
+
+/** Staged window diagnostics (static world S4f). */
+export interface WorldSourceStagingStatus {
+  /** Windows served after being prepared ahead of time. */
+  readonly staged: number;
+  /** Window moves that had to be built synchronously (first window, teleport, outrun). */
+  readonly synchronous: number;
+  /** The pending window's rect key and stage, or null. */
+  readonly pending: string | null;
 }
 
 /** Why topside collision currently uses the legacy source in chunk mode `on`
@@ -50,6 +88,9 @@ export interface WorldSourceCollisionStatus {
 export interface WorldSourceCollision {
   readonly collision: ChunkWindowCollision;
   readonly terrain: TerrainArray;
+  /** The render window the collision was built from, and the one served before it. */
+  readonly window: ChunkTerrainWindow;
+  readonly previous: ChunkTerrainWindow | undefined;
   /** Changes whenever the collision (window, revision or resident chunks) changes. */
   readonly serial: number;
 }
@@ -89,6 +130,21 @@ export interface WorldSourceStatus {
   readonly fallback: boolean;
 }
 
+interface PendingWindow {
+  readonly store: BoundedChunkTerrainStore;
+  readonly tilesets: RuntimeTilesetResolver;
+  readonly rect: ChunkWindowRect;
+  readonly key: string;
+  window?: ChunkTerrainWindow;
+  /** store.installs when the window was built (a later arrival rebuilds it). */
+  installs: number;
+  buildMs: number;
+  collisionDone: boolean;
+  collision?: ChunkWindowCollision;
+  step: number;
+  ready: boolean;
+}
+
 export class WorldSource {
   readonly #tracker = new ChunkTerrainWindowTracker();
   readonly #collisions = new WeakMap<ChunkTerrainWindow, WorldSourceCollision | null>();
@@ -105,6 +161,12 @@ export class WorldSource {
   #lastError: string | null = null;
   /** The inputs of the last failed build: not retried until one of them changes. */
   #failed: { readonly store: BoundedChunkTerrainStore; readonly rect: string; readonly installs: number } | undefined;
+  /** The next window, prepared ahead of the view (S4f), and the served windows. */
+  #pending: PendingWindow | undefined;
+  #served: ChunkTerrainWindow | undefined;
+  #previousServed: ChunkTerrainWindow | undefined;
+  #staged = 0;
+  #synchronous = 0;
   constructor(private readonly dependencies: WorldSourceDependencies) {}
 
   get status(): WorldSourceStatus {
@@ -114,6 +176,13 @@ export class WorldSource {
   get collisionStatus(): WorldSourceCollisionStatus {
     return { failures: this.#collisionFailures, lastError: this.#lastCollisionError, fallbackReason: this.#collisionFallback,
       authorityIncomplete: this.#authorityIncomplete, missingChunks: this.#missingChunks };
+  }
+
+  get stagingStatus(): WorldSourceStagingStatus {
+    const pending = this.#pending;
+    return { staged: this.#staged, synchronous: this.#synchronous,
+      pending: pending === undefined ? null : `${pending.key}:${pending.window === undefined ? 'resident' : pending.ready ? 'ready'
+        : !pending.collisionDone ? 'collision' : `prewarm${pending.step}`}` };
   }
 
   /**
@@ -147,7 +216,7 @@ export class WorldSource {
    * chunk; blob_missing / blob_invalid of chunks never fetched cannot be seen
    * here, which is unavoidable). A window chunk that is merely not resident yet stays solid instead:
    * the publication is fine, and waiting for it is spawn readiness (S4f).
-   * Built once per window.
+   * Built once per window (ahead of time for a staged window, S4f).
    */
   collision(registry: ContentRegistry): WorldSourceCollision | undefined {
     const store = this.dependencies.store();
@@ -156,22 +225,7 @@ export class WorldSource {
     if (reason !== null) return this.#fallback(reason);
     const window = this.window(registry);
     if (window === undefined) return this.#fallback('window_unavailable');
-    let cached = this.#collisions.get(window);
-    if (cached === undefined) {
-      try {
-        // Exactly the chunks the render window used: a chunk that arrived since is
-        // picked up when the window rebuilds for it.
-        const collision = buildChunkWindowCollision({ manifest: store.manifest,
-          peekChunk: (cx, cy) => window.present.has(`${cx}:${cy}`) ? store.peekChunk(cx, cy) : undefined }, window.rect);
-        cached = { collision, terrain: window.terrain, serial: ++this.#collisionSerial };
-      } catch (error) {
-        this.#collisionFailures += 1;
-        this.#lastCollisionError = error instanceof Error ? error.message : String(error);
-        console.warn('Chunk collision failed; using the legacy collision', error);
-        cached = null;
-      }
-      this.#collisions.set(window, cached);
-    }
+    const cached = this.#collisionFor(store, window);
     if (cached === null) return this.#fallback('collision_build_failed');
     const incomplete = cached.collision.issues.filter(issue => issue.kind !== 'chunk_missing');
     this.#authorityIncomplete = incomplete.length > 0;
@@ -181,6 +235,27 @@ export class WorldSource {
       return this.#fallback(`incomplete: ${first.kind}${first.cx === undefined ? '' : `@${first.cx},${first.cy}`}${first.detail === undefined ? '' : `:${first.detail}`}`, true);
     }
     this.#collisionFallback = null;
+    return cached;
+  }
+
+  /** The window's collision, built once from exactly the chunks the window used
+   * (a chunk that arrived since is picked up when the window rebuilds for it). */
+  #collisionFor(store: BoundedChunkTerrainStore, window: ChunkTerrainWindow): WorldSourceCollision | null {
+    let cached = this.#collisions.get(window);
+    if (cached === undefined) {
+      try {
+        const collision = buildChunkWindowCollision({ manifest: store.manifest,
+          peekChunk: (cx, cy) => window.present.has(`${cx}:${cy}`) ? store.peekChunk(cx, cy) : undefined }, window.rect);
+        cached = { collision, terrain: window.terrain, window, previous: window === this.#served ? this.#previousServed : this.#served,
+          serial: ++this.#collisionSerial };
+      } catch (error) {
+        this.#collisionFailures += 1;
+        this.#lastCollisionError = error instanceof Error ? error.message : String(error);
+        console.warn('Chunk collision failed; using the legacy collision', error);
+        cached = null;
+      }
+      this.#collisions.set(window, cached);
+    }
     return cached;
   }
 
@@ -224,6 +299,7 @@ export class WorldSource {
     const store = this.dependencies.store();
     if (store === undefined || store.manifest.spaceId !== TOPSIDE_SPACE_ID) {
       this.#tracker.reset();
+      this.#pending = undefined; this.#served = undefined; this.#previousServed = undefined;
       return undefined;
     }
     const rect = this.#rect ?? pinnedRect(store);
@@ -231,7 +307,18 @@ export class WorldSource {
     const failed = this.#failed;
     if (failed !== undefined && failed.store === store && failed.rect === chunkWindowKey(rect) && failed.installs === store.installs) return undefined;
     try {
-      const window = this.#tracker.update(store, rect, tilesetsFor(registry));
+      const tilesets = tilesetsFor(registry), key = chunkWindowKey(rect);
+      const pending = this.#pending, served = this.#tracker.window;
+      let window: ChunkTerrainWindow;
+      if (pending !== undefined && pending.key === key && (served === undefined || chunkWindowKey(served.rect) !== key)) {
+        // The prepared window (S4f); a view that outran its stages serves what is built.
+        this.#pending = undefined;
+        if (pending.window !== undefined && pending.store === store && pending.tilesets === tilesets) {
+          window = this.#tracker.adopt(store, pending.window, tilesets, pending.installs, pending.buildMs);
+          if (pending.ready) this.#staged++; else this.#synchronous++;
+        } else window = this.#update(store, rect, tilesets);
+      } else window = this.#update(store, rect, tilesets);
+      if (window !== this.#served) { this.#previousServed = this.#served; this.#served = window; }
       if (this.#failed !== undefined) { this.#failed = undefined; this.#lastError = null; }
       return window;
     } catch (error) {
@@ -241,22 +328,101 @@ export class WorldSource {
       this.#lastError = error instanceof Error ? error.message : String(error);
       this.#failed = { store, rect: chunkWindowKey(rect), installs: store.installs };
       this.#tracker.reset();
+      this.#pending = undefined; this.#served = undefined;
       console.warn('Chunk terrain window failed; drawing the legacy terrain', error);
       return undefined;
     }
   }
 
+  #update(store: BoundedChunkTerrainStore, rect: ChunkWindowRect, tilesets: RuntimeTilesetResolver): ChunkTerrainWindow {
+    const builds = this.#tracker.builds, moved = this.#tracker.window !== undefined;
+    const window = this.#tracker.update(store, rect, tilesets);
+    if (moved && this.#tracker.builds !== builds) this.#synchronous++;
+    return window;
+  }
+
   /** The camera's visible topside tiles, once per rendered frame. */
   setView(view: TileBounds): void {
-    const manifest = this.dependencies.store()?.manifest;
-    const width = manifest?.spaceId === TOPSIDE_SPACE_ID ? manifest.width : SURVIVAL_WORLD_SIZE;
-    const height = manifest?.spaceId === TOPSIDE_SPACE_ID ? manifest.height : SURVIVAL_WORLD_SIZE;
+    const store = this.dependencies.store();
+    const manifest = store?.manifest;
+    const topside = manifest?.spaceId === TOPSIDE_SPACE_ID;
+    const width = topside ? manifest.width : SURVIVAL_WORLD_SIZE;
+    const height = topside ? manifest.height : SURVIVAL_WORLD_SIZE;
     const rect = chunkWindowForView(view, width, height, this.#rect);
     this.#rect = rect;
-    const key = chunkWindowKey(rect);
-    if (key === this.#pinKey) return;
-    this.#pinKey = key;
-    this.dependencies.pin(chunkWindowPinBounds(rect));
+    const key = chunkWindowKey(rect), served = this.#tracker.window;
+    let pin = rect;
+    if (!topside || served === undefined) this.#pending = undefined;
+    else if (chunkWindowKey(served.rect) !== key) {
+      // The view left the served window's margin: window() switches this frame,
+      // serving the prepared window if it is this one.
+      if (this.#pending?.key !== key) this.#pending = undefined;
+    } else {
+      // Look ahead (S4f): pin and prepare the window the view is heading for.
+      const ahead = chunkWindowForView(view, width, height, rect, CHUNK_WINDOW_MARGIN_TILES + CHUNK_WINDOW_LOOKAHEAD_TILES);
+      const aheadKey = chunkWindowKey(ahead);
+      if (aheadKey === key) this.#pending = undefined;
+      else {
+        if (this.#pending?.key !== aheadKey || this.#pending.store !== store) {
+          this.#pending = { store: store!, tilesets: served.terrain.tilesets as RuntimeTilesetResolver, rect: ahead, key: aheadKey,
+            installs: -1, buildMs: 0, collisionDone: false, step: 0, ready: false };
+        }
+        pin = ahead;
+      }
+    }
+    const pinKey = chunkWindowKey(pin);
+    if (pinKey === this.#pinKey) return;
+    this.#pinKey = pinKey;
+    this.dependencies.pin(chunkWindowPinBounds(pin));
+  }
+
+  /**
+   * Advances the window prepared ahead of the view by one stage (static world
+   * S4f); call once per frame after setView. Stages: wait until its published
+   * chunks are resident, build the window, build its collision, run each prewarm
+   * step, then serve it. Each frame so does at most one of them, and the frame
+   * that serves it finds every derived result cached.
+   */
+  advance(registry: ContentRegistry): void {
+    const pending = this.#pending;
+    if (pending === undefined || pending.ready) return;
+    const store = this.dependencies.store();
+    if (store !== pending.store || tilesetsFor(registry) !== pending.tilesets) { this.#pending = undefined; return; }
+    if (pending.window === undefined) {
+      if (!windowResident(store, pending.rect)) return;
+      const now = this.dependencies.now ?? (() => performance.now());
+      const startedAt = now();
+      try {
+        pending.window = buildChunkTerrainWindow(store, pending.rect, { tilesets: pending.tilesets });
+      } catch {
+        // Left to the synchronous path and its failure handling when the view needs it.
+        this.#pending = undefined; return;
+      }
+      pending.buildMs = now() - startedAt;
+      pending.installs = store.installs;
+      return;
+    }
+    const window = pending.window;
+    if (window.missing > 0 && store.installs !== pending.installs
+      && [...windowChunkKeys(pending.rect)].some(([cx, cy]) => !window.present.has(`${cx}:${cy}`) && store.peekChunk(cx, cy) !== undefined)) {
+      // A chunk arrived after the build: build again, as the tracker would.
+      pending.window = undefined; pending.collisionDone = false; pending.collision = undefined; pending.step = 0;
+      return;
+    }
+    if (!pending.collisionDone) {
+      pending.collisionDone = true;
+      if (this.#authorityReason(store, registry) === null) pending.collision = this.#collisionFor(store, window)?.collision ?? undefined;
+      return;
+    }
+    const steps = this.dependencies.prewarm ?? [];
+    if (pending.step < steps.length) {
+      const step = steps[pending.step++]!;
+      step({ window, previous: this.#served, collision: pending.collision }, registry);
+      return;
+    }
+    // Prepared: served from this frame on (window() adopts it).
+    pending.ready = true;
+    this.#rect = pending.rect;
   }
 
   /** Hands the ground cache the tile regions whose window data changed. */
@@ -266,6 +432,18 @@ export class WorldSource {
 
   get lastBuildMs(): number { return this.#tracker.lastBuildMs; }
   get builds(): number { return this.#tracker.builds; }
+}
+
+/** Every published chunk of `rect` is resident. */
+function windowResident(store: BoundedChunkTerrainStore, rect: ChunkWindowRect): boolean {
+  for (const [cx, cy] of windowChunkKeys(rect)) {
+    if (store.peekChunk(cx, cy) === undefined && store.manifest.chunks.some(head => head.cx === cx && head.cy === cy)) return false;
+  }
+  return true;
+}
+
+function* windowChunkKeys(rect: ChunkWindowRect): Generator<readonly [number, number]> {
+  for (let cy = rect.cy; cy < rect.cy + rect.rows; cy++) for (let cx = rect.cx; cx < rect.cx + rect.columns; cx++) yield [cx, cy];
 }
 
 /** Before the first topside frame: the window the runtime already pinned. */
