@@ -59,7 +59,10 @@ mkdir -p "${work_dir}/packages"
 cp -a "${repo_root}/packages/world" "${work_dir}/packages/world"
 rm -rf "${work_dir}/packages/world/node_modules"
 ln -s "${repo_root}/packages/world/node_modules" "${work_dir}/packages/world/node_modules"
-ln -s "${repo_root}/packages/sim" "${work_dir}/packages/sim"
+for package_dir in "${repo_root}"/packages/*; do
+  name="$(basename "${package_dir}")"
+  [[ "${name}" == "world" ]] || ln -s "${package_dir}" "${work_dir}/packages/${name}"
+done
 ln -s "${repo_root}/node_modules" "${work_dir}/node_modules"
 find "${work_dir}/packages/world/src" -type f -name '*.test.ts' -delete
 
@@ -108,6 +111,9 @@ export const soakProbeGlobals = spacetimedb.reducer({}, () => {
   soakProbeCounter += 1;
   console.info(JSON.stringify({ event: 'soak_probe_globals', counter: soakProbeCounter }));
 });
+export const soakProbeThrow = spacetimedb.reducer({}, () => {
+  throw new Error('soak_probe_plain_error');
+});
 export const soakProbeBusy = spacetimedb.reducer({ millis: t.u32() }, (_ctx, { millis }) => {
   const clock = typeof globalThis.performance?.now === 'function' ? () => globalThis.performance.now() : () => Date.now();
   const start = clock();
@@ -119,14 +125,14 @@ export const soakProbeBusy = spacetimedb.reducer({ millis: t.u32() }, (_ctx, { m
 PROBES
 fi
 
-if ! spacetime publish "${database}" --server "${host}" --module-path "${work_dir}/packages/world" --delete-data=never --yes=remote,migrate,break-clients >"${work_dir}/publish.log" 2>&1; then
+if ! spacetime publish "${database}" --no-config --server "${host}" --module-path "${work_dir}/packages/world" --delete-data=never --yes=remote,migrate,break-clients >"${work_dir}/publish.log" 2>&1; then
   echo "chunk_soak_disposable_publish_failed" >&2
   tail -100 "${work_dir}/publish.log" >&2
   exit 1
 fi
 
 soak_args=(--host "${host}" --database "${database}" --token-file "${work_dir}/soak-token"
-  --evidence "${evidence_dir}/evidence.json" --work-dir "${work_dir}/soak")
+  --evidence "${evidence_dir}/evidence.json" --work-dir "${work_dir}/soak" --host-log "${work_dir}/host.log")
 if [[ "${probes}" == "1" ]]; then soak_args+=(--probes); fi
 status=0
 (cd "${repo_root}" && node node_modules/tsx/dist/cli.mjs scripts/chunk-authority-soak.ts "${soak_args[@]}" "$@") || status=$?

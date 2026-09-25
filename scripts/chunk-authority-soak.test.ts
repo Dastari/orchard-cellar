@@ -17,7 +17,7 @@ describe('chunk-authority soak: target guards', () => {
       expect(() => assertSoakTarget({ host, database: 'orchard-chunk-soak-local01' })).not.toThrow();
     }
     expect(parseSoakArgs(LOCAL)).toMatchObject({ target: { host: 'http://127.0.0.1:3470', database: 'orchard-chunk-soak-local01' },
-      allowRemoteHost: false, withOn: false, dwellMs: 1_300, walkLimit: null });
+      allowRemoteHost: false, withOn: false, dwellMs: 1_300, walkLimit: null, settleMs: 62_000, hostLogFile: null });
   });
 
   it('refuses a non-local host unless explicitly allowed', () => {
@@ -60,6 +60,7 @@ describe('chunk-authority soak: target guards', () => {
     expect(script).toContain('^orchard-chunk-soak-');
     expect(script).toContain('--listen-addr "127.0.0.1:${listen_port}"');
     expect(script).toContain('--in-memory');
+    expect(script).toContain('spacetime publish "${database}" --no-config');
     expect(script).not.toMatch(/pkill|killall/u);
     expect(script).toContain('kill "${host_pid}"');
   });
@@ -82,11 +83,13 @@ const CLEAN_LOG = [
   'INFO chunk_authority.assemble: 180.5ms',
   'INFO {"event":"chunk_authority_shadow_compare","key":"k|c","equal":true,"total":0}',
   'INFO {"event":"chunk_authority_sample_window","window":"0","sampledTicks":50,"sampledPositions":50,"disagreements":0,"logged":0,"suppressed":0}',
+  '2026-09-25T07:41:17Z  INFO crates/core/src/host/v8/error.rs:618: reducer "publish_world_chunk_shadow" runtime error: Uncaught Error: chunk_shadow_revision_conflict',
 ].join('\n');
 
-function fakeWorld(overrides: Partial<SoakApi> & { failOffAttempts?: number } = {}): FakeWorld {
+function fakeWorld(overrides: Partial<SoakApi> & { failOffAttempts?: number; acceptStaleCas?: boolean } = {}): FakeWorld {
   let failOff = overrides.failOffAttempts ?? 0;
   let shadowRevision: number | null = null;
+  let clock = 1_790_000_000_000;
   const world: FakeWorld = {
     modes: [],
     current: 'off',
@@ -102,8 +105,8 @@ function fakeWorld(overrides: Partial<SoakApi> & { failOffAttempts?: number } = 
       publishLiveMap: async () => {},
       stageBlob: async () => {},
       publishShadow: async ({ expectedRevision }) => {
-        if ((shadowRevision ?? 0) !== expectedRevision) throw new Error('chunk_shadow_revision_conflict');
-        shadowRevision = expectedRevision + 1;
+        if ((shadowRevision ?? 0) !== expectedRevision && overrides.acceptStaleCas !== true) throw new Error('chunk_shadow_revision_conflict');
+        shadowRevision = (shadowRevision ?? 0) + 1;
       },
       setChunkAuthority: async mode => {
         world.modes.push(mode);
@@ -113,8 +116,8 @@ function fakeWorld(overrides: Partial<SoakApi> & { failOffAttempts?: number } = 
       audit: async () => okReport(),
       teleport: async () => null,
       heartbeat: async () => {},
-      sleep: async () => {},
-      now: () => 1_790_000_000_000,
+      sleep: async ms => { clock += Math.max(1, ms); },
+      now: () => clock,
       hostLog: async () => CLEAN_LOG,
       probe: async () => ({ ok: true, ms: 1 }),
       ...overrides,
@@ -137,7 +140,7 @@ const deps = {
   log: () => {},
   walkTargets: () => [{ cx: 0, cy: 0, candidates: [{ tileX: 32, tileY: 32 }] }],
 };
-const soakOptions = { target: { host: 'http://127.0.0.1:3470', database: 'orchard-chunk-soak-local01' }, withOn: false, dwellMs: 1_300, walkLimit: null, probes: false, readLogs: true };
+const soakOptions = { target: { host: 'http://127.0.0.1:3470', database: 'orchard-chunk-soak-local01' }, withOn: false, dwellMs: 1_300, walkLimit: null, probes: false, readLogs: true, settleMs: 5_000 };
 
 describe('chunk-authority soak: always restores off', () => {
   it('passes a clean run and ends off after shadow (and on)', async () => {
@@ -181,6 +184,16 @@ describe('chunk-authority soak: always restores off', () => {
     expect(sampled.current).toBe('off');
   });
 
+  it('fails when a stale CAS publish is accepted or its refusal is not the revision conflict', async () => {
+    const accepting = fakeWorld({ acceptStaleCas: true });
+    const accepted = await runSoak(accepting.api, soakOptions, deps);
+    expect(accepted.failures).toContain('a stale CAS publish was accepted');
+    expect(accepting.current).toBe('off');
+    const otherError = fakeWorld({ hostLog: async () => CLEAN_LOG.replace('chunk_shadow_revision_conflict', 'chunk_shadow_source_conflict') });
+    const refused = await runSoak(otherError.api, soakOptions, deps);
+    expect(refused.failures).toContain('the stale CAS refusal was not logged as chunk_shadow_revision_conflict');
+  });
+
   it('fails when the sampler never ran', async () => {
     const world = fakeWorld({ hostLog: async () => 'INFO {"event":"chunk_authority_shadow_compare","key":"k","equal":true,"total":0}' });
     const evidence = await runSoak(world.api, soakOptions, deps);
@@ -217,6 +230,7 @@ describe('chunk-authority soak: helpers', () => {
       compares: [{ key: 'k|c', equal: true, total: 0 }],
       timings: { assembleMs: [180.5], compareMs: [1200] },
       limitLines: ['WARN reducer ran out of energy'],
+      reducerErrors: [{ reducer: 'publish_world_chunk_shadow', error: 'Uncaught Error: chunk_shadow_revision_conflict' }],
       events: { chunk_authority_assembled: 1, chunk_authority_shadow_compare: 1, chunk_authority_sample_window: 1 },
     });
   });

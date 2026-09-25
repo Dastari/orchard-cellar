@@ -22,6 +22,10 @@ import {
  *   (`manifest.json` and blobs), chunk by chunk and by map source; and
  * - the heads currently published on the world (reported; a first publish has none).
  *
+ * Connecting is an ordinary client session: the world's `client_connected` runs for
+ * that identity (presence, and a first-time identity gets a character), exactly as when
+ * the owner signs in. Use the owner's existing credential; nothing else is written.
+ *
  * The token comes from the file named by `CHUNK_PARITY_TOKEN_FILE` (optionally
  * `CHUNK_PARITY_TOKEN_LABEL` for a rejoin credential file). It is never printed.
  *

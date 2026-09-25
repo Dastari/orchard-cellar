@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -57,6 +58,10 @@ export interface SoakOptions {
   readonly mapDocumentPath: string | null;
   /** Read the host log with `spacetime logs` (the CLI identity must own the disposable database). */
   readonly readLogs: boolean;
+  /** The host process log (runtime errors are there, not in `spacetime logs`); appended to the database log. */
+  readonly hostLogFile: string | null;
+  /** Milliseconds to stay online after the walk: the sampler logs its summary when a 60 s window closes. */
+  readonly settleMs: number;
 }
 
 export class SoakUsageError extends Error {}
@@ -70,8 +75,8 @@ function flagValue(argv: readonly string[], flag: string): string | undefined {
 }
 
 const KNOWN_FLAGS = new Set(['--host', '--database', '--token-file', '--evidence', '--work-dir', '--allow-remote-host', '--with-on',
-  '--dwell-ms', '--walk-limit', '--probes', '--map-document', '--no-logs']);
-const VALUE_FLAGS = new Set(['--host', '--database', '--token-file', '--evidence', '--work-dir', '--dwell-ms', '--walk-limit', '--map-document']);
+  '--dwell-ms', '--walk-limit', '--probes', '--map-document', '--no-logs', '--settle-ms', '--host-log']);
+const VALUE_FLAGS = new Set(['--host', '--database', '--token-file', '--evidence', '--work-dir', '--dwell-ms', '--walk-limit', '--map-document', '--settle-ms', '--host-log']);
 
 /** Parses and guards the command line. Refuses any unsafe target before anything connects. */
 export function parseSoakArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>> = {}): SoakOptions {
@@ -110,6 +115,8 @@ export function parseSoakArgs(argv: readonly string[], env: Readonly<Record<stri
     probes: argv.includes('--probes'),
     mapDocumentPath: flagValue(argv, '--map-document') ?? null,
     readLogs: !argv.includes('--no-logs'),
+    settleMs: number('--settle-ms', 62_000, 0)!,
+    hostLogFile: flagValue(argv, '--host-log') ?? null,
   };
 }
 
@@ -156,6 +163,8 @@ export interface HostLogSummary {
   readonly probes: readonly Record<string, unknown>[];
   /** Host lines mentioning a time or energy budget, a heap limit or a cancelled call. */
   readonly limitLines: readonly string[];
+  /** `reducer "name" runtime error: Uncaught Error: code` lines (the code a client only sees as a fatal error). */
+  readonly reducerErrors: readonly { readonly reducer: string; readonly error: string }[];
 }
 
 const LIMIT_PATTERN = /energy|budget|heap limit|timed out|timeout|exceeded|too long|cancel/iu;
@@ -165,6 +174,7 @@ export function summarizeHostLog(text: string): HostLogSummary {
   const events: Record<string, number> = {};
   const sampleWindows: Record<string, unknown>[] = [], fallbacks: Record<string, unknown>[] = [], errors: Record<string, unknown>[] = [];
   const probes: Record<string, unknown>[] = [], limitLines: string[] = [];
+  const reducerErrors: { reducer: string; error: string }[] = [];
   const compares: { key: unknown; equal: unknown; total: unknown }[] = [];
   const assembleMs: number[] = [], compareMs: number[] = [];
   const lines = text.split('\n').filter(line => line.trim().length > 0);
@@ -188,6 +198,11 @@ export function summarizeHostLog(text: string): HostLogSummary {
         continue;
       }
     }
+    const runtimeError = /(?:reducer|procedure) "([^"]+)" runtime error: (.*)$/u.exec(line);
+    if (runtimeError !== null) {
+      if (reducerErrors.length < 64) reducerErrors.push({ reducer: runtimeError[1]!, error: runtimeError[2]!.slice(0, 200) });
+      continue;
+    }
     const timer = /chunk_authority\.(assemble|compare)\D*?(\d+(?:\.\d+)?)\s*(ms|s|µs|us)\b/u.exec(line);
     if (timer !== null) {
       const value = Number(timer[2]) * (timer[3] === 's' ? 1000 : timer[3] === 'ms' ? 1 : 0.001);
@@ -201,7 +216,7 @@ export function summarizeHostLog(text: string): HostLogSummary {
     lines: lines.length, events, sampleWindows,
     sampledTicks: sum('sampledTicks'), sampledPositions: sum('sampledPositions'),
     sampleDisagreements: sum('disagreements'),
-    compares, fallbacks, errors, timings: { assembleMs, compareMs }, probes, limitLines,
+    compares, fallbacks, errors, timings: { assembleMs, compareMs }, probes, limitLines, reducerErrors,
   };
 }
 
@@ -296,7 +311,7 @@ export async function withChunkAuthorityRestoredOff<T>(api: Pick<SoakApi, 'setCh
   }
 }
 
-export async function runSoak(api: SoakApi, options: Pick<SoakOptions, 'withOn' | 'dwellMs' | 'walkLimit' | 'probes' | 'readLogs'> & { target: SoakTarget },
+export async function runSoak(api: SoakApi, options: Pick<SoakOptions, 'withOn' | 'dwellMs' | 'walkLimit' | 'probes' | 'readLogs' | 'settleMs'> & { target: SoakTarget },
   deps: SoakDeps): Promise<SoakEvidence> {
   const evidence: SoakEvidence = {
     schema: 1, result: 'failed', failures: [], target: options.target, soakIdentity: api.identityHex,
@@ -368,7 +383,9 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
   }
   evidence.publish = { expectedRevision, revision: published.shadow?.revision, publishMs, heads: published.heads.length,
     headsAtRevision: published.heads.filter(head => head.revision === expectedRevision + 1).length, staleCasRefusal: staleCas };
-  if (staleCas === null || !staleCas.includes('chunk_shadow_revision_conflict')) fail(`stale CAS publish was not refused as a revision conflict: ${staleCas ?? 'accepted'}`);
+  // The reducer throws a plain Error, which a 2.8.2 client only sees as a generic fatal error; the
+  // host log carries the code (checked with the log below).
+  if (staleCas === null) fail('a stale CAS publish was accepted');
 
   // 5. Shadow, then the audit must be clean and complete.
   await api.setChunkAuthority('shadow');
@@ -410,8 +427,12 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
   }
   evidence.walk = { chunks: walk.length, visited: visited.length, noWalkableGround: noGround, unreachable, walkMs: api.now() - walkStarted, dwellMs: options.dwellMs };
   if (visited.length === 0) fail('walk visited no chunk');
-  // Let the current sampler window close so its summary is logged.
-  await api.sleep(1_000);
+  // Stay online until the sampler window that covers the walk closes, so its summary is logged.
+  const settleUntil = api.now() + options.settleMs;
+  while (api.now() < settleUntil) {
+    await api.heartbeat();
+    await api.sleep(Math.min(4_000, Math.max(0, settleUntil - api.now())));
+  }
   evidence.audits['afterWalk'] = { report: JSON.parse(await api.audit()) as ChunkAuthorityAuditReport };
 
   // 7. Optionally serve chunks briefly.
@@ -442,10 +463,18 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
     } else {
       const log = summarizeHostLog(text);
       evidence.hostLog = log;
+      if (evidence.probes !== undefined) {
+        // The probe reducers report through the log: the module-global counter sequence and busy-loop times.
+        evidence.probes['globalsCounters'] = log.probes.filter(event => event['event'] === 'soak_probe_globals').map(event => event['counter']);
+        evidence.probes['busyLogged'] = log.probes.filter(event => event['event'] === 'soak_probe_busy');
+      }
       if (log.sampledTicks === 0) fail('the shadow per-tick sampler logged no sample window');
       if (log.sampleDisagreements !== 0 || (log.events['chunk_authority_sample_disagreement'] ?? 0) !== 0) fail(`the shadow sampler logged disagreements: ${log.sampleDisagreements}`);
       if (log.compares.some(compare => compare.equal !== true)) fail('a shadow full compare disagreed');
       if (log.compares.length === 0) fail('no shadow full compare was logged');
+      if (!log.reducerErrors.some(entry => entry.reducer === 'publish_world_chunk_shadow' && entry.error.includes('chunk_shadow_revision_conflict'))) {
+        fail('the stale CAS refusal was not logged as chunk_shadow_revision_conflict');
+      }
       for (const event of ['chunk_authority_shadow_error', 'chunk_authority_sample_error', 'chunk_authority_shadow_unavailable'] as const) {
         if ((log.events[event] ?? 0) > 0) fail(`host logged ${event}`);
       }
@@ -460,8 +489,11 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
 async function runProbes(api: SoakApi): Promise<Record<string, unknown>> {
   const probes: Record<string, unknown> = {};
   // Module globals across reducer calls: the counter the module logs should climb 1, 2, 3.
+  // Then a reducer that throws a plain Error (clients see "fatal error"): does the instance survive it?
   const globals = [];
-  for (let index = 0; index < 3; index++) globals.push(await api.probe('soak_probe_globals', []));
+  for (let index = 0; index < 2; index++) globals.push(await api.probe('soak_probe_globals', []));
+  globals.push(await api.probe('soak_probe_throw', []));
+  globals.push(await api.probe('soak_probe_globals', []));
   probes['globalsCalls'] = globals;
   // Per-reducer time limit: busy-loop for increasing times and see what the host allows.
   const busy: Record<string, unknown>[] = [];
@@ -518,7 +550,8 @@ async function sdkApi(world: WorldConnection, options: SoakOptions): Promise<Soa
     }
   };
   const cli = async (args: readonly string[], timeoutMs: number): Promise<string> => {
-    const { stdout } = await execFileAsync('spacetime', [...args], { cwd: REPO_ROOT, timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024 });
+    // --no-config and a neutral cwd: never pick up the repository's spacetime.json database.
+    const { stdout } = await execFileAsync('spacetime', [...args], { cwd: tmpdir(), timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024 });
     return stdout;
   };
   return {
@@ -558,16 +591,25 @@ async function sdkApi(world: WorldConnection, options: SoakOptions): Promise<Soa
     sleep,
     now: () => Date.now(),
     hostLog: async () => {
+      let text: string;
       try {
-        return await cli(['logs', '--server', options.target.host, options.target.database], 120_000);
+        text = await cli(['logs', '--no-config', '--server', options.target.host, options.target.database], 120_000);
       } catch {
         return null;
       }
+      if (options.hostLogFile !== null) {
+        try {
+          text += `\n${await readFile(options.hostLogFile, 'utf8')}`;
+        } catch {
+          // The database log alone still carries the module events.
+        }
+      }
+      return text;
     },
     probe: async (name, args) => {
       const started = Date.now();
       try {
-        await cli(['call', '--server', options.target.host, options.target.database, name, ...args], 120_000);
+        await cli(['call', '--no-config', '--yes', '--server', options.target.host, options.target.database, name, ...args], 120_000);
         return { ok: true, ms: Date.now() - started };
       } catch (error) {
         const detail = error instanceof Error && 'stderr' in error ? String((error as { stderr: unknown }).stderr).trim().slice(-400) : errorCode(error);
