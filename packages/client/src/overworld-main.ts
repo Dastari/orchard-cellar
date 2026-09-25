@@ -131,6 +131,7 @@ import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from '@orchard/engine/loading-screen';
+import { saveGatewayHandoff } from '@orchard/engine/gateway-handoff';
 import { isStandaloneWebApp, pwaClient } from './pwa.js';
 import {
   fullscreenControlAvailable,
@@ -849,7 +850,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     writeTouchControlPreferences(localStorage, preferences);
   },
   signOut: () => { location.assign('/?logout=1'); },
-  quitToTitle: () => { location.assign('/?menu=1'); },
+  quitToTitle: () => { saveGatewayHandoff(canvas); location.assign('/?menu=1'); },
   startDelve: () => {
     portalTransitionStartedAtMs = performance.now();
     showResult(network.startRogueRun(), 'THE CELLAR SHIFTS BELOW YOU');
