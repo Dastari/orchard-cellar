@@ -5,7 +5,7 @@ import type { CollisionMap, CollisionObstacle } from './state.js';
 import type { TerrainTransition } from './terrain-elevation.js';
 import type { MediumCollisionChannels } from './traversal.js';
 import {
-  WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID,
+  WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, worldChunkHasAuthority,
   type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkAuthorityObstacle,
   type WorldChunkAuthoritySuppressedObstacle, type WorldChunkManifest, type WorldChunkRecord,
 } from './world-chunk.js';
@@ -360,7 +360,7 @@ export function buildChunkWindowCollision(source: ChunkCollisionSource, rect: Ch
     if (!heads.has(key)) { issues.push({ kind: 'head_missing', cx, cy }); continue; }
     const chunk = source.peekChunk(cx, cy);
     if (chunk === undefined) { issues.push({ kind: 'chunk_missing', cx, cy }); continue; }
-    if (chunk.authoritySchema !== WORLD_CHUNK_AUTHORITY_SCHEMA) { issues.push({ kind: 'authority_missing', cx, cy }); continue; }
+    if (!worldChunkHasAuthority(chunk)) { issues.push({ kind: 'authority_missing', cx, cy }); continue; }
     const bad = builder.add(chunk, cx, cy);
     if (bad !== undefined) { issues.push({ kind: 'channel_invalid', cx, cy, detail: bad }); continue; }
     present.add(key);

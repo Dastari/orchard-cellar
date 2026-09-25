@@ -21,6 +21,8 @@ import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE, WORLD_CHUNK_MEDIA, WORLD_CHUNK_MEDIUM_SCHEMA, WORLD_CHUNK_VOID,
   WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_DOCUMENT_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthorityResourcePlacement, type WorldChunkAuthoritySuppressedObstacle,
   type WorldChunkMedium, type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
+// BUG-044: authority schema 2 (obstacle table), the default blob encoding.
+import { WORLD_CHUNK_AUTHORITY_SCHEMA_V2, type WorldChunkAuthoritySchema } from '@orchard/sim/world-chunk';
 import { authorityObstacleKey, composeAuthorityObstacles } from '@orchard/sim/chunk-runtime';
 import { manifestCarriesAuthoredDocument, rebuildWorldChunkDocument, worldChunkAuthoredDocument, worldChunkDocumentCellsByChunk } from '@orchard/sim/world-chunk-document';
 import { cellFlags } from '@orchard/sim/cell-flags';
@@ -280,6 +282,10 @@ export interface MaterializationOptions {
   readonly atlasPackIdsForAssets?: (assetIds: readonly string[]) => readonly string[];
   readonly assetRevision?: string;
   readonly includeServerOracle?: boolean;
+  /** Blob authority extension version. 2 (default, BUG-044) stores the obstacle record
+   * kinds once in a compact header table; 1 is the original JSON-record encoding (for
+   * decoders that predate version 2). Decoded chunks are identical either way. */
+  readonly authoritySchema?: WorldChunkAuthoritySchema;
   /** Static-world S7a: publish the authored-document extension (`documentCells` per
    * chunk, `metadata.authoredDocument`) so the document round-trips from the chunks.
    * Off by default: without it the published bytes are exactly the pre-S7a bytes. */
@@ -353,7 +359,7 @@ export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMa
       if (cell?.['parts'] !== undefined) cellParts[String(y * WORLD_CHUNK_SIZE + x)] = json(cell['parts']);
     }
     const assetIds = [...assets].sort();
-    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, authoritySchema: WORLD_CHUNK_AUTHORITY_SCHEMA, spaceId, cx, cy, assetRevision,
+    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, authoritySchema: options.authoritySchema ?? WORLD_CHUNK_AUTHORITY_SCHEMA_V2, spaceId, cx, cy, assetRevision,
       arrays: Object.fromEntries(Object.entries(channels).map(([name, source]) => [name, sliceWorldChunkChannel(source, width, height, cx, cy, name === 'medium' ? WORLD_CHUNK_VOID : /blocked/iu.test(name) ? 1 : 0)])),
       records, assetIds, atlasPackIds: [...new Set(atlasPackIdsForAssets(assetIds))].sort(),
       ...(Object.keys(cellParts).length ? { cellParts } : {}),

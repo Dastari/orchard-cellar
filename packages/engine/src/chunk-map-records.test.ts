@@ -21,8 +21,8 @@ const object = (id: string, tileX: number, tileY: number) => ({ id, prefabId: 'c
 const decoration = (id: number, tileX: number, tileY: number) => ({ id, kind: 'poi_rock_small', tileX, tileY, variant: 0, animationOffset: 0 });
 const landmark = (id: string, tileX: number, tileY: number) => ({ id, sourceDecorationId: 100, groupId: 'g', groupLabel: 'G', kind: 'camp_tent',
   tileX, tileY, elevation: 0, layer: 'objects', variant: 0, animationOffset: 0, quarterTurns: 0, flipX: false, enabled: true });
-function chunk(records: readonly WorldChunkRecord[]): WorldChunk {
-  return { records } as unknown as WorldChunk;
+function chunk(records: readonly WorldChunkRecord[], authoritySchema = 1): WorldChunk {
+  return { authoritySchema, records } as unknown as WorldChunk;
 }
 const at = (kind: string, ordinal: number, value: { tileX: number; tileY: number } & Record<string, unknown>): WorldChunkRecord =>
   ({ kind, ordinal, tileX: value.tileX, tileY: value.tileY, value } as unknown as WorldChunkRecord);
@@ -53,6 +53,16 @@ describe('chunk window map records (static world S4e)', () => {
     expect(records.generatedSuppressions).toEqual(authority.generatedSuppressions);
     expect([...records.present].sort()).toEqual([...present].sort());
     expect(records.source).toBe('chunks');
+  });
+
+  it('reads authority records only from a known authority version: a later one keeps its map records but no walkable tiles (BUG-044)', () => {
+    for (const [version, walkable] of [[1, [{ tileX: 1, tileY: 2 }]], [2, [{ tileX: 1, tileY: 2 }]], [3, []]] as const) {
+      const source = { manifest: manifest(), peekChunk: (cx: number, cy: number) => cx === 0 && cy === 0
+        ? chunk(chunks.get('0:0')!.records, version) : chunks.get(`${cx}:${cy}`) };
+      const records = buildChunkWindowMapRecords(source, { rect, present, manifest: source.manifest });
+      expect(records.walkable, `version ${version}`).toEqual(walkable);
+      expect(records.objects.map(({ id }) => id), `version ${version}`).toEqual(['a', 'b', 'c']);
+    }
   });
 
   it('skips a chunk evicted since the window was built, and lists it', () => {
@@ -101,11 +111,11 @@ describe('chunk window map records (static world S4e)', () => {
     expect(buildChunkWindowMapRecords(source, { rect, present, manifest: source.manifest }).objects).toHaveLength(3);
   });
 
-  it('is generator-free: its value imports are the shared chunk-collision leaf and window modules', () => {
+  it('is generator-free: its value imports are the shared chunk-collision and world-chunk leaves and the window modules', () => {
     const file = new URL('./chunk-map-records.ts', import.meta.url);
     const source = ts.createSourceFile(file.pathname, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, false);
     const values = source.statements.filter(ts.isImportDeclaration).filter(statement => statement.importClause?.isTypeOnly !== true)
       .map(statement => (statement.moduleSpecifier as ts.StringLiteral).text);
-    expect(values).toEqual(['@orchard/sim/chunk-collision', './chunk-terrain-window.js', './terrain-sampling.js']);
+    expect(values).toEqual(['@orchard/sim/chunk-collision', '@orchard/sim/world-chunk', './chunk-terrain-window.js', './terrain-sampling.js']);
   });
 });
