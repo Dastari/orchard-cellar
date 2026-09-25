@@ -45,16 +45,12 @@ import { worldAssetFrameSource } from './world-asset-presentation.js';
 /** The records map-object presentation reads. A whole `MapDocumentV3`
  * satisfies this structurally; chunk records can supply the same lists.
  * Retained caches (layer ranks, connection topology, shadow casters) are keyed
- * by the identity of this object, so pass the same object for one revision. */
+ * by the identity of this object, so pass the same object for one revision.
+ * From `MapObjectConnectionRecords`: `id` (scopes connected-object topology),
+ * `prefabs` (the revisions objects refer to) and `objects` (document order). */
 export interface MapObjectRecords extends MapObjectConnectionRecords {
-  /** Map id; scopes connected-object topology. */
-  readonly id: string;
   /** Persisted layer stack; ranks the final painter tie-break. */
   readonly layers: readonly Pick<MapContentLayerDefinition, 'id' | 'order'>[];
-  /** The prefab revisions the objects refer to. */
-  readonly prefabs: readonly MapPrefabDocumentV2[];
-  /** Authored object instances, in document order. */
-  readonly objects: readonly MapObjectInstance[];
 }
 
 /** Terrain queries light occluders need. `TerrainArray` is sampled by the

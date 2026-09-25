@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -221,54 +222,109 @@ function drawSpecs(run: Enqueue) {
   return { count, items };
 }
 
+interface PresentationApi<Source> {
+  readonly preload: (source: Source) => Promise<void>;
+  readonly ready: (source: Source) => boolean;
+  readonly enqueue: (source: Source, options: Parameters<typeof enqueueMapObjects>[1]) => number;
+  readonly lights: (source: Source, authorityTick: bigint, materialized: boolean) => unknown[];
+  readonly occluders: (source: Source, terrain: TerrainArray, timeMs: number) => unknown[];
+  readonly frameKey: (source: Source, timeMs: number) => string;
+  readonly withoutObject: (source: Source, id: string) => Source;
+}
+
+const FIXTURE_TERRAIN = { version: 7 } as unknown as TerrainArray;
+
+/** Everything the presentation produces for the fixture: the canvas call
+ * stream and painter spec of every queued item (including connected-object
+ * masks and ground-sprite bases), lights, occluders and frame keys. */
+async function fullOutput<Source>(source: Source, api: PresentationApi<Source>) {
+  await api.preload(source);
+  const draws: Record<string, ReturnType<typeof drawSpecs>> = {};
+  const frameKeys: Record<string, string> = {};
+  const occluders: Record<string, unknown[]> = {};
+  const lights: Record<string, unknown[]> = {};
+  const variants = [
+    { materializedStreetlamps: false, calendarTick: tick(12) },
+    { materializedStreetlamps: false, calendarTick: tick(22), contentRegistry: registry },
+    { materializedStreetlamps: true, calendarTick: tick(22), contentRegistry: registry },
+  ];
+  for (const timeMs of [0, 200, 450]) {
+    for (const [index, variant] of variants.entries()) {
+      const common = { ...variant, cameraX: 37, cameraY: -11, scale: 3, timeMs, visible: (x: number) => x < 2_000 };
+      draws[`${timeMs}/${index}`] = drawSpecs((context, enqueue) => api.enqueue(source, { ...common, context, enqueue }));
+      // A culled caller keeps the whole-map topology source.
+      draws[`${timeMs}/${index}/culled`] = drawSpecs((context, enqueue) => api.enqueue(api.withoutObject(source, 'fence-3'),
+        { ...common, connectionDocument: source as MapObjectRecords, context, enqueue }));
+    }
+    frameKeys[timeMs] = api.frameKey(source, timeMs);
+    occluders[timeMs] = api.occluders(source, FIXTURE_TERRAIN, timeMs);
+  }
+  for (const hour of [12, 22]) {
+    for (const materialized of [false, true]) lights[`${hour}/${materialized}`] = api.lights(source, tick(hour), materialized);
+  }
+  return { ready: api.ready(source), draws, frameKeys, occluders, lights };
+}
+
+const adapterApi: PresentationApi<MapDocumentV3> = {
+  preload: preloadLiveMapObjectAssets,
+  ready: liveMapObjectAssetsReady,
+  enqueue: (document, options) => enqueueLiveMapObjects(document, options),
+  lights: (document, authorityTick, materialized) => liveMapObjectPointLights(document, registry, authorityTick, materialized),
+  occluders: (document, terrain, timeMs) => liveMapObjectLightOccluders(document, terrain, registry, timeMs),
+  frameKey: (document, timeMs) => liveMapObjectLightFrameKey(document, registry, timeMs),
+  withoutObject: (document, id) => ({ ...document, objects: document.objects.filter((object) => object.id !== id) }),
+};
+
+const directApi: PresentationApi<MapObjectRecords> = {
+  preload: preloadMapObjectAssets,
+  ready: mapObjectAssetsReady,
+  enqueue: (records, options) => enqueueMapObjects(records, options),
+  lights: (records, authorityTick, materialized) => mapObjectPointLights(records, registry, authorityTick, materialized),
+  occluders: (records, terrain, timeMs) => mapObjectLightOccluders(records, terrain, directSampler, registry, timeMs),
+  frameKey: (records, timeMs) => mapObjectLightFrameKey(records, registry, timeMs),
+  withoutObject: (records, id) => ({ ...records, objects: records.objects.filter((object) => object.id !== id) }),
+};
+
+/** Stable golden text: sorted keys, typed arrays as length plus digest, and
+ * bigint, -0 and non-finite numbers spelled out. */
+function goldenJson(value: unknown): string {
+  return `${JSON.stringify(value, (_key, entry: unknown) => {
+    if (typeof entry === 'bigint') return `${entry}n`;
+    if (typeof entry === 'number' && (Object.is(entry, -0) || !Number.isFinite(entry))) return Object.is(entry, -0) ? '-0' : String(entry);
+    if (ArrayBuffer.isView(entry)) {
+      const bytes = new Uint8Array(entry.buffer, entry.byteOffset, entry.byteLength);
+      return { typedArray: entry.constructor.name, length: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+    }
+    if (entry !== null && typeof entry === 'object' && !Array.isArray(entry)) {
+      return Object.fromEntries(Object.entries(entry).sort(([left], [right]) => left.localeCompare(right)));
+    }
+    return entry;
+  })}\n`.replaceAll('},{', '},\n{');
+}
+
 describe('map object presentation', () => {
+  it('matches the golden recorded from the pre-split live-map-runtime (c2e85788)', async () => {
+    const output = await fullOutput(fixtureDocument(), adapterApi);
+    expect(output.ready).toBe(true);
+    expect(Object.values(output.draws).every(({ count }) => count > 10)).toBe(true);
+    expect(JSON.stringify(output.draws)).toContain('"connected"');
+    expect(JSON.stringify(output.draws)).toContain('"ground-source"');
+    expect(Object.values(output.occluders).every((list) => list.length > 4)).toBe(true);
+    expect(output.lights['22/false']!.length).toBeGreaterThan(0);
+    await expect(goldenJson(output)).toMatchFileSnapshot('./map-object-presentation.golden.json');
+  });
+
   it('draws, lights and occludes plain records exactly as the live document adapter does', async () => {
     const document = fixtureDocument();
     const records = plainRecords(document);
-    const terrain = { version: 7 } as unknown as TerrainArray;
-
     expect(mapObjectAssetsReady(records)).toBe(liveMapObjectAssetsReady(document));
-    await Promise.all([preloadLiveMapObjectAssets(document), preloadMapObjectAssets(records)]);
-    expect(liveMapObjectAssetsReady(document)).toBe(true);
-    expect(mapObjectAssetsReady(records)).toBe(true);
-
-    for (const timeMs of [0, 200, 450]) {
-      for (const variant of [
-        { materializedStreetlamps: false, calendarTick: tick(12) },
-        { materializedStreetlamps: false, calendarTick: tick(22), contentRegistry: registry },
-        { materializedStreetlamps: true, calendarTick: tick(22), contentRegistry: registry },
-      ]) {
-        const common = { ...variant, cameraX: 37, cameraY: -11, scale: 3, timeMs, visible: (x: number) => x < 2_000 };
-        const adapter = drawSpecs((context, enqueue) => enqueueLiveMapObjects(document, { ...common, context, enqueue }));
-        const direct = drawSpecs((context, enqueue) => enqueueMapObjects(records, { ...common, context, enqueue }));
-        expect(direct).toEqual(adapter);
-        expect(adapter.count).toBeGreaterThan(10);
-        expect(adapter.items.some(({ calls }) => calls.some((call) => (call as unknown[])[0] === 'connected'))).toBe(true);
-        expect(adapter.items.some(({ calls }) => calls.some((call) => (call as unknown[])[0] === 'ground-source'))).toBe(true);
-        // A culled caller keeps the whole-map topology source.
-        const culledDocument = { ...document, objects: document.objects.filter((object) => object.id !== 'fence-3') };
-        const culledRecords = { ...records, objects: records.objects.filter((object) => object.id !== 'fence-3') };
-        expect(drawSpecs((context, enqueue) => enqueueMapObjects(culledRecords, { ...common, connectionDocument: records, context, enqueue })))
-          .toEqual(drawSpecs((context, enqueue) => enqueueLiveMapObjects(culledDocument, { ...common, connectionDocument: document, context, enqueue })));
-      }
-      expect(mapObjectLightFrameKey(records, registry, timeMs)).toBe(liveMapObjectLightFrameKey(document, registry, timeMs));
-      const occluders = liveMapObjectLightOccluders(document, terrain, registry, timeMs);
-      expect(occluders.length).toBeGreaterThan(4);
-      expect(mapObjectLightOccluders(records, terrain, directSampler, registry, timeMs)).toEqual(occluders);
-    }
-
-    for (const hour of [12, 22]) {
-      for (const materialized of [false, true]) {
-        const lights = liveMapObjectPointLights(document, registry, tick(hour), materialized);
-        expect(mapObjectPointLights(records, registry, tick(hour), materialized)).toEqual(lights);
-        if (hour === 22) expect(lights.length).toBeGreaterThan(0);
-      }
-    }
+    const adapter = await fullOutput(document, adapterApi);
+    expect(await fullOutput(records, directApi)).toEqual(adapter);
 
     expect(enqueueMapObjects(null, { context: recordingContext(), cameraX: 0, cameraY: 0, scale: 1, timeMs: 0,
       visible: () => true, enqueue: () => undefined })).toBe(0);
     expect(mapObjectPointLights(null, registry, 0n)).toEqual([]);
-    expect(mapObjectLightOccluders(null, terrain, directSampler, registry, 0)).toEqual([]);
+    expect(mapObjectLightOccluders(null, FIXTURE_TERRAIN, directSampler, registry, 0)).toEqual([]);
   });
 });
 
