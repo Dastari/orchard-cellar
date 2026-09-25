@@ -4,6 +4,7 @@ import {
   type AdminJsonObject,
 } from '@orchard/sim';
 import { adminRoleCanMutate, type AdminEffectiveRole } from './auth-policy.js';
+import { preserveOwnerOnlySpaceFlags, withoutOwnerOnlySpaceFlags } from '../chunk-authority-setting.js';
 import {
   ADMIN_MUTATION_ID_PATTERN,
   parseAdminReason,
@@ -389,7 +390,8 @@ function applyActions(state: AdminWorldState, actions: readonly AdminWorldRepair
       break;
     case 'clear_reference': rowReferences = rowReferences.filter((row) => !(row.sourceKind === action.rowKind && row.sourceId === action.rowId && row.targetKind === action.targetKind)); break;
     case 'clear_custody': custody = custody.map((row) => row.entityKind === action.entityKind && row.entityId === action.entityId ? { ...row, holderExists: true, holderIdentity: '', claims: 1 } : row); break;
-    case 'set_space_flags': spaces = spaces.map((space) => space.spaceId === action.spaceId ? { ...space, flags: action.flags } : space); break;
+    case 'set_space_flags': spaces = spaces.map((space) => space.spaceId === action.spaceId
+      ? { ...space, flags: preserveOwnerOnlySpaceFlags(action.flags, space.flags) } : space); break;
   }
   return cloneAdminWorldState({ ...state, spaces, portals, players, rowReferences, custody });
 }
@@ -463,8 +465,10 @@ export function planAdminWorldMutation(
       : { kind: 'world' as const };
   const inverseActions = actions.map((action): AdminJsonObject => {
     if (action.kind === 'set_space_flags') {
+      // Owner-only keys (chunkAuthority) are not part of an admin snapshot:
+      // undo keeps whatever the owner has set at undo time.
       const previous = before.spaces.find(({ spaceId }) => spaceId === action.spaceId)?.flags ?? {};
-      return { kind: 'set_space_flags', spaceId: action.spaceId, flags: { ...previous } };
+      return { kind: 'set_space_flags', spaceId: action.spaceId, flags: withoutOwnerOnlySpaceFlags({ ...previous }) };
     }
     if (action.kind === 'insert_portal') return { kind: 'delete_portal', portalId: action.portal.portalId };
     if (action.kind === 'relocate_player') {

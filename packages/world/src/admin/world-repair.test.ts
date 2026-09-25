@@ -151,6 +151,27 @@ describe('W5 world validation and repair kernel', () => {
     })))).toThrowError(new AdminWorldRepairError('admin_invalid_patch'));
   });
 
+  it('never lets an admin flag patch or its inverse carry the owner-only chunkAuthority switch', () => {
+    const input = state({ spaces: [
+      { spaceId: '0', sizeTiles: 64, flags: { ownerOnly: false, weather: true, chunkAuthority: 'on' } },
+      state().spaces[1]!,
+    ] });
+    const preview = planAdminWorldMutation(input, request(input, mutation({
+      operation: 'set_space_flags', spaceId: '0', patch: { weather: false }, dryRun: true,
+    })));
+    expect(preview.after.spaces.find(({ spaceId }) => spaceId === '0')?.flags)
+      .toEqual({ ownerOnly: false, weather: false, chunkAuthority: 'on' });
+    expect(preview.audit.inverse).toEqual({
+      operation: 'undo',
+      args: { actions: [{ kind: 'set_space_flags', spaceId: '0', flags: { ownerOnly: false, weather: true } }] },
+    });
+    for (const patch of [{ chunkAuthority: 'off' }, { chunkAuthority: false }, { weather: true, chunkAuthority: 'off' }]) {
+      expect(() => planAdminWorldMutation(input, request(input, mutation({
+        operation: 'set_space_flags', spaceId: '0', patch, dryRun: true,
+      })))).toThrowError(new AdminWorldRepairError('admin_invalid_patch'));
+    }
+  });
+
   it('creates only a missing reverse portal and preserves every existing row', () => {
     const input = state({ portals: [state().portals[0]!] });
     const dryRun = mutation({ operation: 'repair_portal_pair', portalId: '10', dryRun: true });

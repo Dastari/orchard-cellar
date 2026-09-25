@@ -2,6 +2,7 @@ import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversal
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import { CHUNK_AUTHORITY_SPACE_ID, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
 import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
@@ -484,6 +485,7 @@ import {
   automaticRegistrationRole,
   canAdministerWorld,
   canManageMembership,
+  isWorldOwnerRole,
   membershipRejection,
   membershipRole,
   productionAuthEnabled,
@@ -9248,6 +9250,17 @@ function requireWorldOwner(
   if (!canAdministerWorld(actor.role)) throw new SenderError('owner_required');
 }
 
+/** Strict owner gate for switches admins must not flip (static-world
+ * chunkAuthority). requireWorldOwner also admits admins. */
+function requireStrictWorldOwner(
+  jwt: { readonly issuer: string; readonly audience: readonly string[] } | null,
+  member: MembershipPolicyRow | null,
+): void {
+  if (member === null) throw new SenderError('owner_required');
+  const actor = requireAuthorizedSender(jwt, member);
+  if (!isWorldOwnerRole(actor.role)) throw new SenderError('owner_required');
+}
+
 // --- authoring Phase 6: staged legacy chest continuity migration ---
 const CHEST_MIGRATION_CONTROL_ID = 0;
 const CHEST_MIGRATION_VERIFY_MAX = 4_096;
@@ -16362,9 +16375,11 @@ function writeAdminWorldRepairAction(ctx: WorldReducerContext, action: AdminWorl
   if (action.kind === 'set_space_flags') {
     const spaceId = adminWorldSpaceId(action.spaceId);
     const existing = ctx.db.space_admin_flag.spaceId.find(spaceId);
+    // Owner-only keys (chunkAuthority) always keep their CURRENT stored value,
+    // so an admin flag write or undo can never move the owner's switch.
     const row = {
       spaceId,
-      flagsJson: JSON.stringify(action.flags),
+      flagsJson: JSON.stringify(preserveOwnerOnlySpaceFlags(action.flags, spaceAdminFlags(ctx, spaceId))),
       updatedBy: ctx.sender,
       updatedAt: ctx.timestamp,
     };
@@ -26073,6 +26088,21 @@ export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.str
   for (const head of manifest.chunks) ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
   const row = { spaceId, revision, mapId: input.mapId, contentHash: input.contentHash, manifestJson: input.manifestJson };
   if (previous === null) ctx.db.world_chunk_shadow.insert(row); else ctx.db.world_chunk_shadow.spaceId.update(row);
+});
+
+/** Static-world S2a: owner-only chunkAuthority switch (off | shadow | on),
+ * stored in the public space 0 space_admin_flag row. Idempotent: setting the
+ * current mode writes nothing. Nothing reads the mode for behaviour yet. */
+export const setChunkAuthority = spacetimedb.reducer({ mode: t.string() }, (ctx, { mode }) => {
+  requireStrictWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const next = parseChunkAuthorityMode(mode);
+  if (next === null) throw new SenderError('chunk_authority_mode_invalid');
+  const existing = ctx.db.space_admin_flag.spaceId.find(CHUNK_AUTHORITY_SPACE_ID);
+  const plan = planChunkAuthorityFlags(existing?.flagsJson, next);
+  if (plan === null) return;
+  const row = { spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: plan.flagsJson, updatedBy: ctx.sender, updatedAt: ctx.timestamp };
+  if (existing === null) ctx.db.space_admin_flag.insert(row); else ctx.db.space_admin_flag.spaceId.update(row);
+  insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'set_chunk_authority', value: `${plan.previous}->${plan.mode}`, occurredAt: ctx.timestamp });
 });
 const shadowChunkCollision = new ShadowChunkCollisionCache();
 /** Shadow diagnostics only. No movement/pathfinding authority calls this yet. */
