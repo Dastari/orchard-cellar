@@ -71,8 +71,10 @@ export function mapObjectConnectionFamily(prefab: MapPrefabDocumentV2, object: M
   if (prefab.placements.length !== 1 || (object.scale ?? 1) !== 1) return null;
   return connectedObjectFamily(prefab.placements[0]!.assetName);
 }
-const mapConnections = new WeakMap<MapDocumentV3, ReadonlyMap<string,{family:ConnectedObjectFamily;mask:number}>>();
-export function mapObjectConnectionMasks(document: MapDocumentV3): ReadonlyMap<string, {family:ConnectedObjectFamily;mask:number}> {
+/** The records connected-object topology reads; a whole map document satisfies this. */
+export type MapObjectConnectionRecords = Pick<MapDocumentV3, 'id' | 'objects' | 'prefabs'>;
+const mapConnections = new WeakMap<MapObjectConnectionRecords, ReadonlyMap<string,{family:ConnectedObjectFamily;mask:number}>>();
+export function mapObjectConnectionMasks(document: MapObjectConnectionRecords): ReadonlyMap<string, {family:ConnectedObjectFamily;mask:number}> {
   const retained = mapConnections.get(document); if(retained)return retained;
   const prefabs=new Map(document.prefabs.map(prefab=>[prefab.id,prefab]));
   const cells=document.objects.flatMap(object=>{
