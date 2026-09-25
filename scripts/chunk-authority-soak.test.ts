@@ -1,10 +1,10 @@
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { assertSoakTarget, compareHeads, readTokenFile, type LiveRows, type MaterializedChunks } from './chunk-authority-live-rows.js';
+import { assertSoakTarget, compareHeads, compareManifests, isLoopbackHostname, readTokenFile, type LiveRows, type MaterializedChunks } from './chunk-authority-live-rows.js';
 import {
-  chunkWalkTargets, parseSoakArgs, runSoak, summarizeHostLog, withChunkAuthorityRestoredOff,
+  chunkWalkTargets, parseSoakArgs, runSoak, summarizeHostLog, tickStalls, withChunkAuthorityRestoredOff,
   type ChunkAuthorityModeName, type SoakApi, type SoakEvidence,
 } from './chunk-authority-soak.js';
 import { parityGateReport, parseParityGateArgs } from './chunk-authority-parity-gate.js';
@@ -13,7 +13,7 @@ const LOCAL = ['--host', 'http://127.0.0.1:3470', '--database', 'orchard-chunk-s
 
 describe('chunk-authority soak: target guards', () => {
   it('accepts a disposable loopback world', () => {
-    for (const host of ['http://127.0.0.1:3470', 'http://localhost:3401', 'http://[::1]:3470']) {
+    for (const host of ['http://127.0.0.1:3470', 'http://127.4.5.6:3470', 'http://localhost:3401', 'http://[::1]:3470']) {
       expect(() => assertSoakTarget({ host, database: 'orchard-chunk-soak-local01' })).not.toThrow();
     }
     expect(parseSoakArgs(LOCAL)).toMatchObject({ target: { host: 'http://127.0.0.1:3470', database: 'orchard-chunk-soak-local01' },
@@ -23,6 +23,10 @@ describe('chunk-authority soak: target guards', () => {
   it('refuses a non-local host unless explicitly allowed', () => {
     const remote = ['--host', 'https://staging.example.net', '--database', 'orchard-staging', '--token-file', '/tmp/token'];
     expect(() => parseSoakArgs(remote)).toThrow('soak_refuses_non_local_host');
+    expect(isLoopbackHostname('127.255.0.1')).toBe(true);
+    expect(isLoopbackHostname('127.0.0.256')).toBe(false);
+    expect(isLoopbackHostname('128.0.0.1')).toBe(false);
+    expect(isLoopbackHostname('127.0.0.1.example.net')).toBe(false);
     expect(() => parseSoakArgs(['--host', 'http://10.0.0.5:3470', '--database', 'orchard-chunk-soak-a1', '--token-file', '/t'])).toThrow('soak_refuses_non_local_host');
     expect(parseSoakArgs([...remote, '--allow-remote-host']).allowRemoteHost).toBe(true);
   });
@@ -33,7 +37,7 @@ describe('chunk-authority soak: target guards', () => {
         .toThrow('soak_refuses_production_database');
       expect(() => parseSoakArgs(['--host', 'https://orchard.dastari.net', '--database', 'orchard-cellar-world', '--token-file', '/t', ...flag]))
         .toThrow('soak_refuses_production_database');
-      for (const host of ['http://127.0.0.1:3000', 'http://localhost:3000', 'http://[::1]:3000']) {
+      for (const host of ['http://127.0.0.1:3000', 'http://127.0.0.2:3000', 'http://localhost:3000', 'http://[::1]:3000', 'https://staging.example.net:3000']) {
         expect(() => parseSoakArgs(['--host', host, '--database', 'orchard-cellar-dev', '--token-file', '/t', ...flag])).toThrow('soak_refuses_production_host_port');
       }
     }
@@ -245,6 +249,36 @@ describe('chunk-authority soak: helpers', () => {
     expect(targets[1]!.candidates).toEqual([{ tileX: 81, tileY: 31 }, { tileX: 82, tileY: 31 }]);
   });
 
+  it('compares whole manifests: a metadata-only difference is not equal', () => {
+    const manifest = { schema: 1, chunkSize: 64, spaceId: 0, width: 64, height: 64, assetRevision: 'a', sourceRevision: 1, sourceHash: 'm',
+      metadata: { authority: { schema: 1, combatRegions: [] }, channels: { medium: { type: 'u8' } }, biomePalette: ['meadow'] },
+      chunks: [{ cx: 0, cy: 0, contentHash: 'x', byteLength: 1 }] } as const;
+    const copy = JSON.parse(JSON.stringify(manifest)) as typeof manifest;
+    expect(compareManifests(manifest as never, copy as never)).toMatchObject({ equal: true, canonicalEqual: true, fields: [], metadata: [] });
+    const regions = { ...manifest, metadata: { ...manifest.metadata, authority: { schema: 1, combatRegions: [{ id: 'arena' }] } } };
+    expect(compareManifests(manifest as never, regions as never)).toMatchObject({ equal: false, canonicalEqual: false, metadata: ['authority'], heads: { equal: true } });
+    const palette = { ...manifest, assetRevision: 'b', metadata: { ...manifest.metadata, biomePalette: ['forest'] } };
+    expect(compareManifests(manifest as never, palette as never)).toMatchObject({ equal: false, fields: ['assetRevision'], metadata: ['biomePalette'] });
+  });
+
+  it('attributes step_world delays to the window they overlap', () => {
+    const log = summarizeHostLog([
+      '2026-09-25T07:41:26.639743Z  WARN crates/core/src/host/scheduler.rs:614: scheduled function `step_world` for database c2 is delayed by 8.987s, exceeding the 0.030s threshold',
+      '2026-09-25T07:42:00.000000Z  WARN crates/core/src/host/scheduler.rs:614: scheduled function `step_world` for database c2 is delayed by 0.050s, exceeding the 0.030s threshold',
+    ].join('\n'));
+    const at = Date.parse('2026-09-25T07:41:26.639743Z');
+    expect(log.stepWorldDelays).toEqual([{ atMs: at, delayMs: 8987 }, { atMs: Date.parse('2026-09-25T07:42:00Z'), delayMs: 50 }]);
+    expect(tickStalls(log.stepWorldDelays, [
+      { label: 'audit', startMs: at - 9_000, endMs: at - 100 },
+      { label: 'walk', startMs: at + 1_000, endMs: at + 40_000 },
+      { label: 'idle', startMs: at + 60_000, endMs: at + 70_000 },
+    ])).toEqual([
+      { label: 'audit', windowMs: 8_900, maxDelayMs: 8987, delays: 1 },
+      { label: 'walk', windowMs: 39_000, maxDelayMs: 50, delays: 1 },
+      { label: 'idle', windowMs: 10_000, maxDelayMs: 0, delays: 0 },
+    ]);
+  });
+
   it('compares head sets chunk by chunk and by map source', () => {
     const a = { sourceRevision: 1, sourceHash: 'm', chunks: [{ cx: 0, cy: 0, contentHash: 'x', byteLength: 1 }, { cx: 1, cy: 0, contentHash: 'y', byteLength: 1 }] };
     expect(compareHeads(a, a).equal).toBe(true);
@@ -269,6 +303,10 @@ describe('token files', () => {
     const map = await file('map', JSON.stringify({ owner: 'eyJ.owner', other: 'eyJ.other' }));
     await expect(readTokenFile(map)).rejects.toThrow('token_file_label_required');
     expect(await readTokenFile(map, 'owner')).toBe('eyJ.owner');
+    const link = join(await directory, 'link');
+    await symlink(await file('target', 'eyJ.token.sig'), link);
+    await expect(readTokenFile(link)).rejects.toThrow('token_file_not_regular_file');
+    await expect(readTokenFile(await directory)).rejects.toThrow('token_file_not_regular_file');
     const refresh = await file('refresh', JSON.stringify([{ label: 'owner', clientId: 'orchard-web', refreshToken: 'r' }]));
     await expect(readTokenFile(refresh)).rejects.toThrow('token_file_needs_refresh');
   });
@@ -298,8 +336,20 @@ describe('live-row parity gate', () => {
     expect(parityGateReport({ ...base, live, candidate: { manifest: live.manifest } })).toMatchObject({ passed: true, failures: [], candidate: { equal: true } });
     const stale = parityGateReport({ ...base, live, candidate: { manifest: { ...live.manifest, chunks: [{ cx: 0, cy: 0, contentHash: 'old', byteLength: 1 }] } } });
     expect(stale.passed).toBe(false);
-    expect(stale.failures[0]).toMatch(/candidate heads differ/u);
-    const broken = parityGateReport({ ...base, live: null, materializeError: 'Authority collision parity failed: ground', candidate: null });
+    expect(stale.failures).toEqual(['candidate manifest differs from the live-row materialization (1 chunk head(s))']);
+    const metadata = parityGateReport({ ...base, live, candidate: { manifest: { ...live.manifest, metadata: { authority: { schema: 1, combatRegions: [{ id: 'arena' }] } } } } });
+    expect(metadata).toMatchObject({ passed: false, candidate: { equal: false, heads: { equal: true }, metadata: ['authority'] } });
+    expect(metadata.failures).toEqual(['candidate manifest differs from the live-row materialization (metadata authority)']);
+    const broken = parityGateReport({ ...base, live: null, materializeError: 'Authority collision parity failed: ground', candidate: { manifest: live.manifest } });
     expect(broken).toMatchObject({ passed: false, failures: ['materialize: Authority collision parity failed: ground'] });
+  });
+
+  it('never passes without a candidate, even when the live rows materialize cleanly', () => {
+    const rows = fakeWorld().api.liveRows();
+    const live = { summary: materialized.summary, manifest: materialized.manifest, materializeMs: 1 };
+    const report = parityGateReport({ target: { host: 'h', database: 'd' }, readAt: 't', rows, materializeError: null, live, candidate: null });
+    expect(report.passed).toBe(false);
+    expect(report.candidate).toBeNull();
+    expect(report.failures).toEqual([expect.stringMatching(/^no_candidate:/u)]);
   });
 });

@@ -1,12 +1,12 @@
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { DbConnection, tables } from '@orchard/world-bindings';
 import type { Identity } from 'spacetimedb';
 import { validateRuntimeManifest } from '../packages/sim/src/chunk-runtime.js';
-import type { WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
+import { canonicalChunkJson, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
 
 /**
  * Static-world S2c shared plumbing for the chunk-authority soak and the live-row
@@ -18,9 +18,15 @@ const execFileAsync = promisify(execFile);
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 export const PRODUCTION_DATABASE = 'orchard-cellar-world';
-/** The production world host listens on loopback port 3000 on this machine. */
+/** The production world host listens on port 3000 on this machine. */
 export const PRODUCTION_HOST_PORT = '3000';
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
+
+/** `localhost`, IPv6 `::1`, or any address in 127.0.0.0/8. */
+export function isLoopbackHostname(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname === '[::1]' || hostname === '::1') return true;
+  const octets = /^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(hostname);
+  return octets !== null && octets.slice(1).every(octet => Number(octet) <= 255);
+}
 const DATABASE_NAME = /^[a-z0-9][a-z0-9-]{2,62}$/u;
 
 export interface SoakTarget {
@@ -35,7 +41,7 @@ export class SoakTargetError extends Error {}
  * so it only runs against a disposable local world:
  *
  * - never the production database name, on any host (no override);
- * - never the production host port on loopback (no override);
+ * - never port 3000, the production host's port, on any host (no override);
  * - never a non-loopback host unless `allowRemoteHost` (a staging world, by explicit flag).
  */
 export function assertSoakTarget(target: SoakTarget, options: { readonly allowRemoteHost?: boolean } = {}): URL {
@@ -48,20 +54,22 @@ export function assertSoakTarget(target: SoakTarget, options: { readonly allowRe
   if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new SoakTargetError('soak_invalid_host');
   if (!DATABASE_NAME.test(target.database)) throw new SoakTargetError('soak_invalid_database');
   if (target.database === PRODUCTION_DATABASE) throw new SoakTargetError('soak_refuses_production_database');
-  const loopback = LOOPBACK_HOSTS.has(url.hostname);
-  if (loopback && url.port === PRODUCTION_HOST_PORT) throw new SoakTargetError('soak_refuses_production_host_port');
-  if (!loopback && options.allowRemoteHost !== true) throw new SoakTargetError('soak_refuses_non_local_host');
+  if (url.port === PRODUCTION_HOST_PORT) throw new SoakTargetError('soak_refuses_production_host_port');
+  if (!isLoopbackHostname(url.hostname) && options.allowRemoteHost !== true) throw new SoakTargetError('soak_refuses_non_local_host');
   return url;
 }
 
 /**
  * Reads one SpaceTimeDB token from a private file. Accepts a bare token, or the
  * rejoin credential file (`{label: token}` or `[{label, token}]`), selecting `label`
- * or the only entry. Refuses group/world-readable files. Never returns the file
- * contents in an error.
+ * or the only entry. The path must be a regular file (not a symlink) owned by the
+ * current user and not readable by group or others. Never returns the file contents
+ * in an error.
  */
 export async function readTokenFile(path: string, label?: string): Promise<string> {
-  const info = await stat(path);
+  const info = await lstat(path);
+  if (!info.isFile()) throw new Error('token_file_not_regular_file');
+  if (typeof process.getuid === 'function' && info.uid !== process.getuid()) throw new Error('token_file_not_owned_by_user');
   if ((info.mode & 0o077) !== 0) throw new Error('token_file_permissions_too_open');
   const text = (await readFile(path, 'utf8')).trim();
   if (text.length === 0) throw new Error('token_file_empty');
@@ -186,7 +194,8 @@ export interface MaterializedChunks {
  * (which also verifies chunk and authority parity against the server oracle), then
  * loads the manifest and blobs it wrote.
  */
-export async function materializeLiveRows(rows: Pick<LiveRows, 'mapRow' | 'contentRows'>, workDir: string): Promise<MaterializedChunks> {
+export async function materializeLiveRows(rows: Pick<LiveRows, 'mapRow' | 'contentRows'>, workDir: string,
+  options: { readonly atlasIndex?: string; readonly assetRevision?: string } = {}): Promise<MaterializedChunks> {
   if (rows.mapRow === null) throw new Error('live_map_row_missing');
   await mkdir(workDir, { recursive: true, mode: 0o700 });
   await chmod(workDir, 0o700);
@@ -199,6 +208,9 @@ export async function materializeLiveRows(rows: Pick<LiveRows, 'mapRow' | 'conte
     await writeFile(contentPath, `${JSON.stringify(rows.contentRows)}\n`, { mode: 0o600 });
     args.push('--content-rows', contentPath);
   }
+  // The same asset inputs as the candidate build, or its blob hashes (atlas pack ids) differ.
+  if (options.atlasIndex !== undefined) args.push('--atlas-index', options.atlasIndex);
+  if (options.assetRevision !== undefined) args.push('--asset-revision', options.assetRevision);
   const started = performance.now();
   const { stdout } = await execFileAsync(process.execPath, args, { cwd: REPO_ROOT, maxBuffer: 16 * 1024 * 1024 });
   const materializeMs = Math.round(performance.now() - started);
@@ -229,7 +241,8 @@ export interface HeadComparison {
   readonly differences: readonly { readonly cx: number; readonly cy: number; readonly expected: string | null; readonly actual: string | null }[];
 }
 
-/** Compares two head sets (and their map source) chunk by chunk. At most `limit` differences are listed. */
+/** Compares two head sets (and their map source) chunk by chunk. At most `limit` differences are listed.
+ * Heads alone are not a publication: use `compareManifests`. */
 export function compareHeads(
   expected: Pick<WorldChunkManifest, 'sourceRevision' | 'sourceHash' | 'chunks'>,
   actual: Pick<WorldChunkManifest, 'sourceRevision' | 'sourceHash' | 'chunks'>,
@@ -255,4 +268,31 @@ export function compareHeads(
     source: { equal: sourceExpected === sourceActual, expected: sourceExpected, actual: sourceActual },
     differences,
   };
+}
+
+export interface ManifestComparison {
+  /** True only when the canonical manifests are identical (every field, all metadata, every head). */
+  readonly equal: boolean;
+  readonly canonicalEqual: boolean;
+  readonly heads: HeadComparison;
+  /** Top-level manifest fields (besides `chunks` and `metadata`) whose canonical JSON differs. */
+  readonly fields: readonly string[];
+  /** `metadata` keys whose canonical JSON differs (authority, channels, document, biomePalette, ...). */
+  readonly metadata: readonly string[];
+}
+
+/**
+ * Compares two whole manifests: the canonical JSON of everything the runtime reads
+ * (metadata such as `authority`, `channels`, `document` and `biomePalette`, the
+ * dimensions and revisions) plus every head. Reports which parts differ.
+ */
+export function compareManifests(expected: WorldChunkManifest, actual: WorldChunkManifest, limit = 32): ManifestComparison {
+  const heads = compareHeads(expected, actual, limit);
+  const differing = (a: Record<string, unknown>, b: Record<string, unknown>, skip: ReadonlySet<string>): string[] =>
+    [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(key => !skip.has(key))
+      .filter(key => canonicalChunkJson(a[key] ?? null) !== canonicalChunkJson(b[key] ?? null)).sort();
+  const fields = differing(expected as unknown as Record<string, unknown>, actual as unknown as Record<string, unknown>, new Set(['chunks', 'metadata']));
+  const metadata = differing(expected.metadata, actual.metadata, new Set());
+  const canonicalEqual = canonicalChunkJson(expected) === canonicalChunkJson(actual);
+  return { equal: canonicalEqual && heads.equal && fields.length === 0 && metadata.length === 0, canonicalEqual, heads, fields, metadata };
 }

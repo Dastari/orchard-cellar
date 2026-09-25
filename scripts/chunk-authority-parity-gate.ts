@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateRuntimeManifest } from '../packages/sim/src/chunk-runtime.js';
 import {
-  compareHeads, connectWorld, loadMaterialized, materializeLiveRows, readLiveRows, readTokenFile, subscribeChunkInputs,
-  type HeadComparison, type LiveRows, type MaterializedChunks,
+  compareManifests, connectWorld, loadMaterialized, materializeLiveRows, readLiveRows, readTokenFile, subscribeChunkInputs,
+  type LiveRows, type ManifestComparison, type MaterializedChunks,
 } from './chunk-authority-live-rows.js';
 
 /**
@@ -16,21 +16,29 @@ import {
  * or a procedure. It then runs
  * `materialize-world-chunks.ts --input <row> --content-rows <rows>` (which fails unless
  * chunk and authority parity against the server oracle pass) and compares the heads it
- * produces with:
+ * produces (the whole canonical manifest: every head, the map source and all metadata
+ * the runtime reads) with:
  *
- * - `--candidate DIR`: the materialized output the release would stage and publish
- *   (`manifest.json` and blobs), chunk by chunk and by map source; and
- * - the heads currently published on the world (reported; a first publish has none).
+ * - `--candidate DIR` (required to pass): the materialized output the release would
+ *   stage and publish (`manifest.json` and blobs). Build the candidate and run the gate
+ *   with the same `--atlas-index` / `--asset-revision` inputs, or the blob hashes differ.
+ *   Without a candidate the gate still materializes and reports, but never passes
+ *   (`no_candidate`).
+ * - the manifest currently published on the world (reported; a first publish has none).
  *
- * Connecting is an ordinary client session: the world's `client_connected` runs for
- * that identity (presence, and a first-time identity gets a character), exactly as when
- * the owner signs in. Use the owner's existing credential; nothing else is written.
+ * The connection is a full sign-in for the credential's identity, not a passive read.
+ * `client_connected` runs: it writes connection audit rows, statistics and time played,
+ * marks the player online and posts a chat notice; on disconnect the world returns the
+ * player's inventory cursor and cancels any trade, fishing cast or bow charge. Use the
+ * agent development account (`orchard-agent-dev`, the account the release credential
+ * handoff uses) while it is not in play, never a player's account.
  *
  * The token comes from the file named by `CHUNK_PARITY_TOKEN_FILE` (optionally
  * `CHUNK_PARITY_TOKEN_LABEL` for a rejoin credential file). It is never printed.
  *
  *   CHUNK_PARITY_TOKEN_FILE=/private/path npm run world:chunks:parity-gate -- \
- *     --host https://HOST --database DATABASE --candidate DIR [--out DIR]
+ *     --host https://HOST --database DATABASE --candidate DIR \
+ *     [--atlas-index PATH] [--asset-revision REV] [--out DIR]
  */
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -41,15 +49,17 @@ export interface ParityGateOptions {
   readonly tokenFile: string;
   readonly tokenLabel: string | undefined;
   readonly candidate: string | null;
+  readonly atlasIndex: string | undefined;
+  readonly assetRevision: string | undefined;
   readonly out: string;
 }
 
 export class ParityGateUsageError extends Error {}
 
-const USAGE = 'Usage: CHUNK_PARITY_TOKEN_FILE=PATH tsx scripts/chunk-authority-parity-gate.ts --host URL --database NAME [--candidate DIR] [--out DIR]';
+const USAGE = 'Usage: CHUNK_PARITY_TOKEN_FILE=PATH tsx scripts/chunk-authority-parity-gate.ts --host URL --database NAME --candidate DIR [--atlas-index PATH] [--asset-revision REV] [--out DIR]';
 
 export function parseParityGateArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): ParityGateOptions {
-  const known = new Set(['--host', '--database', '--candidate', '--out']);
+  const known = new Set(['--host', '--database', '--candidate', '--out', '--atlas-index', '--asset-revision']);
   const values = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index]!, value = argv[index + 1];
@@ -70,6 +80,8 @@ export function parseParityGateArgs(argv: readonly string[], env: Readonly<Recor
   return {
     host, database, tokenFile, tokenLabel: env['CHUNK_PARITY_TOKEN_LABEL'],
     candidate: values.get('--candidate') ?? null,
+    atlasIndex: values.get('--atlas-index'),
+    assetRevision: values.get('--asset-revision'),
     out: values.get('--out') ?? resolve(REPO_ROOT, 'output', `chunk-parity-gate-${stamp}`),
   };
 }
@@ -88,11 +100,11 @@ export interface ParityGateReport {
   };
   readonly materialized: MaterializedChunks['summary'] & { readonly materializeMs: number; readonly chunks: number } | null;
   readonly registryMatchesContentHead: boolean | null;
-  readonly candidate: HeadComparison | null;
+  readonly candidate: ManifestComparison | null;
   readonly published: {
     readonly shadowRevision: number | null;
     readonly heads: number;
-    readonly vsLive: HeadComparison | null;
+    readonly vsLive: ManifestComparison | null;
   };
 }
 
@@ -111,15 +123,22 @@ export function parityGateReport(input: {
   const live = input.live;
   const registryMatchesContentHead = live === null || input.rows.contentHead === null ? null : live.summary.contentHash === input.rows.contentHead.contentHash;
   if (registryMatchesContentHead === false) failures.push('the materialized registry content hash differs from content_head');
-  const candidate = live === null || input.candidate === null ? null : compareHeads(input.candidate.manifest, live.manifest);
+  if (input.candidate === null) failures.push('no_candidate: pass --candidate DIR (the materialized output the release would publish)');
+  const candidate = live === null || input.candidate === null ? null : compareManifests(input.candidate.manifest, live.manifest);
   if (candidate !== null && !candidate.equal) {
-    failures.push(`candidate heads differ from the live-row materialization (${candidate.differences.length} chunk(s)${candidate.source.equal ? '' : ', map source differs'})`);
+    const parts = [
+      ...(candidate.heads.differences.length > 0 ? [`${candidate.heads.differences.length} chunk head(s)`] : []),
+      ...(candidate.heads.source.equal ? [] : ['map source']),
+      ...(candidate.fields.length > 0 ? [`fields ${candidate.fields.join(',')}`] : []),
+      ...(candidate.metadata.length > 0 ? [`metadata ${candidate.metadata.join(',')}`] : []),
+    ];
+    failures.push(`candidate manifest differs from the live-row materialization (${parts.length > 0 ? parts.join('; ') : 'canonical JSON'})`);
   }
   const shadow = input.rows.published.shadow;
-  let vsLive: HeadComparison | null = null;
+  let vsLive: ManifestComparison | null = null;
   if (live !== null && shadow !== null) {
     try {
-      vsLive = compareHeads(validateRuntimeManifest(JSON.parse(shadow.manifestJson)), live.manifest);
+      vsLive = compareManifests(validateRuntimeManifest(JSON.parse(shadow.manifestJson)), live.manifest);
     } catch (error) {
       failures.push(`published manifest unreadable: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -163,7 +182,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
   const rows = await readRowsOnce(options);
   let live: MaterializedChunks | null = null, materializeError: string | null = null;
   try {
-    live = await materializeLiveRows(rows, resolve(options.out, 'live'));
+    live = await materializeLiveRows(rows, resolve(options.out, 'live'), {
+      ...(options.atlasIndex === undefined ? {} : { atlasIndex: options.atlasIndex }),
+      ...(options.assetRevision === undefined ? {} : { assetRevision: options.assetRevision }),
+    });
   } catch (error) {
     materializeError = error instanceof Error ? error.message.split('\n')[0]!.slice(0, 400) : String(error);
   }

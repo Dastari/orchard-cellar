@@ -165,6 +165,8 @@ export interface HostLogSummary {
   readonly limitLines: readonly string[];
   /** `reducer "name" runtime error: Uncaught Error: code` lines (the code a client only sees as a fatal error). */
   readonly reducerErrors: readonly { readonly reducer: string; readonly error: string }[];
+  /** Host warnings that the scheduled `step_world` tick started late: when (epoch ms) and by how much. */
+  readonly stepWorldDelays: readonly { readonly atMs: number; readonly delayMs: number }[];
 }
 
 const LIMIT_PATTERN = /energy|budget|heap limit|timed out|timeout|exceeded|too long|cancel/iu;
@@ -175,6 +177,7 @@ export function summarizeHostLog(text: string): HostLogSummary {
   const sampleWindows: Record<string, unknown>[] = [], fallbacks: Record<string, unknown>[] = [], errors: Record<string, unknown>[] = [];
   const probes: Record<string, unknown>[] = [], limitLines: string[] = [];
   const reducerErrors: { reducer: string; error: string }[] = [];
+  const stepWorldDelays: { atMs: number; delayMs: number }[] = [];
   const compares: { key: unknown; equal: unknown; total: unknown }[] = [];
   const assembleMs: number[] = [], compareMs: number[] = [];
   const lines = text.split('\n').filter(line => line.trim().length > 0);
@@ -198,6 +201,12 @@ export function summarizeHostLog(text: string): HostLogSummary {
         continue;
       }
     }
+    const delayed = /^(\S+Z)\s.*scheduled function `step_world` .* is delayed by (\d+(?:\.\d+)?)s/u.exec(line);
+    if (delayed !== null) {
+      const atMs = Date.parse(delayed[1]!);
+      if (Number.isFinite(atMs) && stepWorldDelays.length < 5_000) stepWorldDelays.push({ atMs, delayMs: Math.round(Number(delayed[2]) * 1000) });
+      continue;
+    }
     const runtimeError = /(?:reducer|procedure) "([^"]+)" runtime error: (.*)$/u.exec(line);
     if (runtimeError !== null) {
       if (reducerErrors.length < 64) reducerErrors.push({ reducer: runtimeError[1]!, error: runtimeError[2]!.slice(0, 200) });
@@ -216,8 +225,27 @@ export function summarizeHostLog(text: string): HostLogSummary {
     lines: lines.length, events, sampleWindows,
     sampledTicks: sum('sampledTicks'), sampledPositions: sum('sampledPositions'),
     sampleDisagreements: sum('disagreements'),
-    compares, fallbacks, errors, timings: { assembleMs, compareMs }, probes, limitLines, reducerErrors,
+    compares, fallbacks, errors, timings: { assembleMs, compareMs }, probes, limitLines, reducerErrors, stepWorldDelays,
   };
+}
+
+export interface TickStallWindow {
+  readonly label: string;
+  readonly startMs: number;
+  readonly endMs: number;
+}
+
+/**
+ * The longest `step_world` start delay that overlaps each window (an audit call, the
+ * walk). A delay logged at T of D ms means the tick was held from T - D to T.
+ */
+export function tickStalls(delays: HostLogSummary['stepWorldDelays'], windows: readonly TickStallWindow[], slackMs = 500):
+  { readonly label: string; readonly windowMs: number; readonly maxDelayMs: number; readonly delays: number }[] {
+  return windows.map(window => {
+    const overlapping = delays.filter(({ atMs, delayMs }) => atMs >= window.startMs && atMs - delayMs <= window.endMs + slackMs);
+    return { label: window.label, windowMs: window.endMs - window.startMs, maxDelayMs: Math.max(0, ...overlapping.map(entry => entry.delayMs)),
+      delays: overlapping.length };
+  });
 }
 
 // --- The orchestration (injectable for tests) ----------------------------------------------------
@@ -272,6 +300,8 @@ export interface SoakEvidence {
   walk?: Record<string, unknown>;
   onMode?: Record<string, unknown>;
   hostLog?: HostLogSummary | { readonly unavailable: true };
+  /** Longest `step_world` delay during each audit call and the walk (host-log timestamps). */
+  tickStall?: ReturnType<typeof tickStalls>;
   probes?: Record<string, unknown>;
   restore: { restoredOff: boolean; attempts: number; finalMode: string | null; error?: string };
 }
@@ -390,10 +420,13 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
   // 5. Shadow, then the audit must be clean and complete.
   await api.setChunkAuthority('shadow');
   await api.waitFor('chunk_authority_shadow', () => api.chunkAuthorityMode() === 'shadow', 10_000);
+  const stallWindows: TickStallWindow[] = [];
   const audit = async (label: string): Promise<ChunkAuthorityAuditReport> => {
     const started = api.now();
     const report = JSON.parse(await api.audit()) as ChunkAuthorityAuditReport;
-    evidence.audits[label] = { wallMs: api.now() - started, report };
+    const endedAt = api.now();
+    evidence.audits[label] = { wallMs: endedAt - started, report };
+    stallWindows.push({ label: `audit:${label}`, startMs: started, endMs: endedAt });
     return report;
   };
   const shadowAudit = await audit('shadow');
@@ -425,6 +458,7 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
     if (api.now() - lastHeartbeat > 4_000) { await api.heartbeat(); lastHeartbeat = api.now(); }
     await api.sleep(options.dwellMs);
   }
+  stallWindows.push({ label: 'walk', startMs: walkStarted, endMs: api.now() });
   evidence.walk = { chunks: walk.length, visited: visited.length, noWalkableGround: noGround, unreachable, walkMs: api.now() - walkStarted, dwellMs: options.dwellMs };
   if (visited.length === 0) fail('walk visited no chunk');
   // Stay online until the sampler window that covers the walk closes, so its summary is logged.
@@ -433,7 +467,7 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
     await api.heartbeat();
     await api.sleep(Math.min(4_000, Math.max(0, settleUntil - api.now())));
   }
-  evidence.audits['afterWalk'] = { report: JSON.parse(await api.audit()) as ChunkAuthorityAuditReport };
+  await audit('afterWalk');
 
   // 7. Optionally serve chunks briefly.
   if (options.withOn) {
@@ -463,6 +497,7 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
     } else {
       const log = summarizeHostLog(text);
       evidence.hostLog = log;
+      evidence.tickStall = tickStalls(log.stepWorldDelays, stallWindows);
       if (evidence.probes !== undefined) {
         // The probe reducers report through the log: the module-global counter sequence and busy-loop times.
         evidence.probes['globalsCounters'] = log.probes.filter(event => event['event'] === 'soak_probe_globals').map(event => event['counter']);
