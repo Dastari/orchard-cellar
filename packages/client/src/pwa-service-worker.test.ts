@@ -157,4 +157,22 @@ describe('generated PWA service worker', () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(put).not.toHaveBeenCalled();
   });
+
+  it('leaves world chunk blobs to the network so IndexedDB stays their only client cache', () => {
+    const fetch = vi.fn(async () => new Response('network'));
+    const match = vi.fn(async () => undefined);
+    const put = vi.fn(async () => undefined);
+    const listener = workerFetchHandler({ fetch, match, put });
+    const respondWith = vi.fn();
+    const waitUntil = vi.fn();
+    for (const path of [`/world/1/${'a'.repeat(64)}.bin`, `/world/0/${'f'.repeat(64)}.bin`]) {
+      listener({ request: new Request(`https://orchard.test${path}`), respondWith, waitUntil });
+    }
+
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(waitUntil).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(match).not.toHaveBeenCalled();
+    expect(put).not.toHaveBeenCalled();
+  });
 });

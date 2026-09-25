@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { chunkRuntimeBuildAudit } from './src/chunk-shadow-build-gate.js';
 import clientPackage from './package.json' with { type: 'json' };
 import { createPwaServiceWorker } from './pwa-service-worker.js';
+import { worldChunkServing } from './world-chunk-serving.js';
 
 export function developmentCsp(html: string): string {
   const withViteStyles = html.replace(
@@ -71,6 +72,8 @@ export default defineConfig(({ command, mode }) => {
   },
   plugins: [
     clientStudioBoundary(),
+    // /world/<space>/<hash>.bin from ORCHARD_WORLD_CHUNK_DIR (never dist): see ops/orchard-runtime/README.md.
+    worldChunkServing(),
     { name: 'orchard-chunk-runtime-audit', apply: 'build', generateBundle(_options, bundle) {
       const audit = chunkRuntimeBuildAudit(chunkMode, Object.values(bundle).flatMap(output => output.type === 'chunk' ? output.moduleIds : []));
       this.emitFile({type:'asset',fileName:'chunk-runtime-audit.json',source:JSON.stringify(audit)});
