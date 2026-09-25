@@ -10,13 +10,16 @@ const assets=new TextEncoder().encode('{"assetPacks":{}}'),assetRevision=worldCh
 const source:ChunkRuntimeSource={mapRevision:3,mapHash:'map-3',contentHash:'content-1'};
 const view=[0,0,0,0] as const;
 
-/** One published revision: chunk (0,0) solid or open, pinned to the served asset revision. */
-function revision(solid:0|1,assetRev=assetRevision){
- const base=decodeWorldChunk(runtimeChunkFixture().blobs[0]!);
- const bytes=encodeWorldChunk({...base,assetRevision:assetRev,arrays:{...base.arrays,solidBlocked:new Uint8Array(WORLD_CHUNK_STRIDE**2).fill(solid)}});
- const hash=decodeWorldChunk(bytes).contentHash;
- const manifest:WorldChunkManifest={...runtimeChunkFixture().manifest,assetRevision:assetRev,chunks:[{cx:0,cy:0,byteLength:bytes.length,contentHash:hash}]};
- return {bytes,hash,manifest};
+/** One published revision: every chunk solid or open, pinned to the served asset revision. */
+function revision(solid:0|1,assetRev=assetRevision,coords:ReadonlyArray<readonly [number,number]>=[[0,0]]){
+ const chunks=runtimeChunkFixture(coords).blobs.map(blob=>{
+  const base=decodeWorldChunk(blob);
+  const bytes=encodeWorldChunk({...base,assetRevision:assetRev,arrays:{...base.arrays,solidBlocked:new Uint8Array(WORLD_CHUNK_STRIDE**2).fill(solid)}});
+  const decoded=decodeWorldChunk(bytes);
+  return {bytes,head:{cx:decoded.cx,cy:decoded.cy,byteLength:bytes.length,contentHash:decoded.contentHash}};
+ });
+ const manifest:WorldChunkManifest={...runtimeChunkFixture().manifest,assetRevision:assetRev,chunks:chunks.map(chunk=>chunk.head)};
+ return {bytes:chunks[0]!.bytes,hash:chunks[0]!.head.contentHash,chunks,manifest};
 }
 
 function harness(options:{authority?:ChunkRuntimeMode|undefined;buildMode?:ChunkRuntimeMode;cache?:ChunkBlobCache|null}={}){
@@ -28,7 +31,7 @@ function harness(options:{authority?:ChunkRuntimeMode|undefined;buildMode?:Chunk
   worldChunkHead:{...events,iter:()=>heads}},subscriptionBuilder:()=>builder} as unknown as DbConnection;
  const blobs=new Map<string,Uint8Array>(),held=new Map<string,Promise<void>>();const failing=new Set<string>();
  const fetchBlob=vi.fn(async(path:string)=>{
-  if(path.includes('atlas.packs'))return assets;
+  if(path.includes('atlas.packs')){await held.get('atlas');return assets;}
   const hash=path.split('/').pop()!.replace('.bin','');await held.get(hash);
   if(failing.has(hash))throw new Error('chunk_fetch_404');
   return blobs.get(hash)!;
@@ -39,7 +42,7 @@ function harness(options:{authority?:ChunkRuntimeMode|undefined;buildMode?:Chunk
  return {controller,connection,unsubscribe,fetchBlob,failing,state,fire,
   /** Publishes manifest and heads together (the server's CAS), or only the manifest row. */
   publish(rev:number,published:ReturnType<typeof revision>,{contentHash='content-1',withHeads=true}={}){
-   blobs.set(published.hash,published.bytes);
+   for(const chunk of published.chunks)blobs.set(chunk.head.contentHash,chunk.bytes);
    shadow={revision:rev,contentHash,manifestJson:JSON.stringify(published.manifest)};
    if(withHeads)heads=published.manifest.chunks.map(head=>({cx:head.cx,cy:head.cy,spaceId:0n,revision:rev,contentHash:head.contentHash}));
    fire();
@@ -166,6 +169,37 @@ describe('on mode',()=>{
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('loading'));
    h.state.authority='off';h.controller.authorityChanged();h.state.authority='on';h.controller.authorityChanged();release();
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));expect(h.controller.store?.pinnedReady).toBe(true);
+  }finally{h.controller.dispose();}
+ });
+
+ it('swaps in a fully loaded next revision even while the serving revision keeps failing',async()=>{
+  const coords=[[0,0],[3,0]] as const,rev1=revision(0,assetRevision,coords),rev2=revision(1,assetRevision,coords),h=harness({authority:'on'});
+  try{
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
+   // The serving revision cannot fetch the chunk the view moves onto.
+   h.failing.add(rev1.chunks[1]!.head.contentHash);
+   const moved=[192,0,192,0] as const;h.controller.update(h.connection,0n,moved,source);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('chunk_fetch_404'));
+   expect(h.controller.status.servingRevision).toBe('0:1');
+   h.publish(2,rev2);
+   await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
+   expect(h.controller.status.state).toBe('on');expect(h.controller.sample(192,5)).toMatchObject({ready:true,solidBlocked:true});
+  }finally{h.controller.dispose();}
+ });
+
+ it('never builds or swaps a buffer for the old space after a space change mid-refresh',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0);
+  try{
+   const release=h.hold('atlas');h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   // The first pass is paused at the asset-revision check; the player changes space.
+   await Promise.resolve();await Promise.resolve();
+   h.controller.update(h.connection,5n,view,source);release();
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('awaiting_publication'));
+   await new Promise(resolve=>setTimeout(resolve,20));
+   expect(h.controller.status).toMatchObject({state:'awaiting_publication',swaps:0,servingRevision:null,pendingRevision:null});
+   expect(h.controller.store).toBeUndefined();
+   expect(h.fetchBlob.mock.calls.some(([path])=>path.includes(rev1.hash))).toBe(false);
   }finally{h.controller.dispose();}
  });
 

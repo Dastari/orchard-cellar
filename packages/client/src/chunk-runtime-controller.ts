@@ -79,11 +79,13 @@ function idleStatus(mode: ChunkRuntimeMode, state: string): ChunkRuntimeStatus {
 /**
  * Loads published chunk heads for the player's view.
  *
- * - `shadow`: diagnostics only, exactly as before S4a. Any source mismatch stops loading.
+ * - `shadow`: diagnostics only, exactly as before S4a. A content or map mismatch drops the
+ *   loader (`source_mismatch`); an asset mismatch pauses loading (`asset_revision_mismatch`).
  * - `on`: follows the published heads. Two buffers: the serving store keeps serving (and
  *   keeps following the view) while the next revision loads; once every pinned chunk of the
- *   next revision is resident the two swap in one assignment. A content, map or asset
- *   mismatch only marks the runtime stale. Nothing here stops serving on a mismatch.
+ *   next revision is resident the two swap in one assignment. A content or map mismatch, an
+ *   asset mismatch, or an atlas that cannot be fetched to check it, only marks the runtime
+ *   stale. No mismatch stops serving or loading in `on`.
  *
  * S4a has no gameplay consumer: rendering (S4c) and collision (S4d) read `store` later.
  */
@@ -143,8 +145,11 @@ export class ChunkRuntimeController {
       connection.db.worldChunkShadow.onInsert(changed); connection.db.worldChunkShadow.onUpdate(changed); connection.db.worldChunkShadow.onDelete(changed);
       connection.db.worldChunkHead.onInsert(changed); connection.db.worldChunkHead.onUpdate(changed); connection.db.worldChunkHead.onDelete(changed);
     }
-    // A buffer of another space is useless here and only costs memory.
-    for (const buffer of [this.#active, this.#pending]) if (buffer && buffer.spaceId !== input.spaceId) this.#drop(buffer);
+    // A buffer of another space is useless here and only costs memory. The epoch bump stops
+    // an in-flight pass (for the old space) from building or swapping in a buffer afterwards.
+    let spaceChanged = false;
+    for (const buffer of [this.#active, this.#pending]) if (buffer && buffer.spaceId !== input.spaceId) { this.#drop(buffer); spaceChanged = true; }
+    if (spaceChanged) this.#epoch++;
     const queries = chunkRuntimeQueries(input.spaceId, input.bounds), key = queries.join(';');
     if (key !== this.#key) {
       this.#subscription?.unsubscribe(); this.#key = key;
@@ -254,14 +259,14 @@ export class ChunkRuntimeController {
       if (this.#pending) this.#drop(this.#pending);
     } else if (!headsConsistent) {
       state = 'awaiting_heads';
-    } else {
+    } else if (input.spaceId === this.#latest?.spaceId) {
       if (this.#pending?.revision !== revision) {
         if (this.#pending) this.#drop(this.#pending);
         this.#pending = this.#buffer(revision, input.spaceId, manifest);
       }
       target = this.#pending;
     }
-    const errors: string[] = [];
+    const errors = new Map<ChunkBuffer, string>();
     const follow = async (buffer: ChunkBuffer, requireHeads: boolean) => {
       try {
         if (requireHeads) {
@@ -269,15 +274,19 @@ export class ChunkRuntimeController {
           if (!this.#pinnedHeadsPublished(buffer, heads, row.revision)) { state ||= 'awaiting_heads'; return; }
         }
         await this.#follow(buffer, input.bounds);
-      } catch (error) { errors.push(error instanceof Error ? error.message : 'chunk_runtime_error'); }
+      } catch (error) { errors.set(buffer, error instanceof Error ? error.message : 'chunk_runtime_error'); }
     };
     if (target) { this.status.pendingRevision = target.revision; this.status.state = 'loading'; }
     // The serving revision keeps following the view whatever happens to the next one.
     await Promise.all([active ? follow(active, false) : undefined, target ? follow(target, true) : undefined]);
     if (this.#disposed || epoch !== this.#epoch) return;
-    if (target && this.#pending === target && target.loader.store.pinnedReady && state === '' && errors.length === 0) this.#swap(target);
+    // Only the next revision's own readiness gates the swap: a failing serving revision must
+    // never hold back a fully loaded replacement.
+    if (target && this.#pending === target && target.spaceId === this.#latest?.spaceId && target.loader.store.pinnedReady
+      && state === '' && !errors.has(target)) this.#swap(target);
     this.#report(this.#active);
-    this.status.state = errors[0] ?? (state || (this.#pending ? 'loading' : this.status.stale ? 'stale' : 'on'));
+    const live = [this.#active, this.#pending].flatMap(buffer => buffer && errors.has(buffer) ? [errors.get(buffer)!] : []);
+    this.status.state = live[0] ?? (state || (this.#pending ? 'loading' : this.status.stale ? 'stale' : 'on'));
   }
   async #follow(buffer: ChunkBuffer, bounds: ChunkView): Promise<void> {
     await buffer.loader.updateView(...bounds);
