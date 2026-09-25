@@ -70,6 +70,8 @@ export interface GameplayPainterInputs {
   readonly liveMapSuppressesGeneratedResource: (snapshot: OverworldView, id: bigint) => boolean;
   readonly windTrees: WindTreeSource[];
   readonly treeShakeRemaining: Map<bigint, number>;
+  /** Veins a swing glanced off, ticks remaining; drawn as sparks without a shake. */
+  readonly resourceGlanceRemaining: ReadonlyMap<bigint, number>;
   readonly effectPhase: number;
   readonly miningClassFromWire: (value: string, spaceId: number) => MiningNodeClass;
   readonly cropDefinitionForSnapshot: (snapshot: Pick<OverworldView, "homesteadUpgrades" | "content">, cropKind: string) => import("@orchard/sim").CropDefinition | null;

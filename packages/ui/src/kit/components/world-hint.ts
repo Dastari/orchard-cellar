@@ -9,7 +9,10 @@ import { uiSprite } from './media.js';
 export interface UiWorldHint {
   readonly x: number; readonly y: number; readonly title: string; readonly lines: readonly string[];
   readonly tone: UiTone; readonly progress?: number; readonly artwork?: LoadedAsset;
+  /** Per-line ink roles; without them the line count picks the classic order. */
+  readonly roles?: readonly UiWorldHintRole[];
 }
+export type UiWorldHintRole = 'subtitle' | 'status' | 'muted';
 export interface UiWorldHintOptions { readonly hint?: UiWorldHint | null; readonly layout?: UiStyle }
 /** The classic hover card inks: dark title, then a brown class line, the green status and muted odds/detail. */
 export const UI_WORLD_HINT_INKS = Object.freeze({ title: '#2b1d0e', subtitle: '#8a5a2b', status: '#315c35', muted: '#836f58' });
@@ -28,7 +31,7 @@ export function uiWorldHint(options: UiWorldHintOptions = {}): UiElement {
       const hint = element.props['hint'] as UiWorldHint | null;
       if (!hint || !Number.isFinite(hint.x + hint.y)) { panel?.setStyle({ visible: false }); return { min: { width: 0, height: 0 }, preferred: available }; }
       const compact = available.width < 280 || available.height < 160;
-      const next = JSON.stringify([hint.title, hint.lines, hint.tone, hint.progress !== undefined, compact, Boolean(hint.artwork)]);
+      const next = JSON.stringify([hint.title, hint.lines, hint.roles, hint.tone, hint.progress !== undefined, compact, Boolean(hint.artwork)]);
       if (!panel || key !== next || artwork !== hint.artwork) {
         panel?.dispose(); key = next; artwork = hint.artwork;
         const fill = hint.tone === 'danger' ? '#e43b44' : hint.tone === 'warning' ? '#feae34' : '#63c74d';
@@ -45,7 +48,7 @@ export function uiWorldHint(options: UiWorldHintOptions = {}): UiElement {
             context.fillStyle = fill; context.fillRect(r.x + 1, r.y + 1, Math.round((r.width - 2) * value), r.height - 2);
           } });
         const inked = (text: string, ink: string) => uiText(text.toUpperCase(), { wrap: true, layout: { alignSelf: 'stretch' } }).setProps({ ink });
-        const inks = lineInks(hint.lines.length);
+        const inks = hint.roles?.map(role => UI_WORLD_HINT_INKS[role]) ?? lineInks(hint.lines.length);
         const icon = hint.artwork
           ? uiSprite(hint.artwork, { label: hint.title, animation: 'base', playing: false, layout: { width: uiFixed(16), height: uiFixed(16), shrink: 0 }, fit: 'contain' })
           : timer ? meter : undefined;

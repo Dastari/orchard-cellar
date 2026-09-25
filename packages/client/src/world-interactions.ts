@@ -6,7 +6,7 @@ export interface WorldInteraction<Payload = unknown> extends InteractionCandidat
   readonly reachFixed?: number;
   /** An exclusive state action, such as dismount, owns E until it ends. */
   readonly exclusive?: boolean;
-  readonly prompt: string;
+  readonly prompt: string | null;
   readonly activate: () => void;
   readonly payload?: Payload;
 }
