@@ -175,6 +175,9 @@ let manifestUsesPacks: boolean | undefined;
 function packDeliveryEnabled(): boolean {
   return typeof location !== 'undefined' && new URLSearchParams(location.search).get('atlasPacks') === '1';
 }
+/** Whether atlas pack delivery is enabled for this page (the opt-in rollout flag).
+ * The chunk runtime loads the pinned chunks' packs only then (static world S4f). */
+export function atlasPackDeliveryEnabled(): boolean { return packDeliveryEnabled(); }
 /** Old controlling workers cache static requests by full URL, even with no-store.
  * Tie mutable indexes to the new client build before loading revisioned children.
  * Studio has no game worker/build ID and keeps its existing request path. */

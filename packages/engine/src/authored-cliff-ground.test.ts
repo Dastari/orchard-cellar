@@ -6,7 +6,7 @@ import type {OverworldArt} from './overworld-art.js';
 import type {LoadedAsset} from '@orchard/ui';
 
 function terrain(family:CliffFamilyId):TerrainArray {
- return {spaceId:1,seed:0,version:0,width:1,height:1,biomes:new Uint8Array(1),blocked:[],horseJumpableTerrain:[],
+ return {spaceId:1,seed:0,version:0,width:1,height:1,biomes:new Uint8Array(1),blocked:new Uint8Array(0),horseJumpableTerrain:new Uint8Array(0),
   elevations:new Int16Array([1]),dirtCliffRoles:new Uint8Array(1),dirtTerraces:new Uint8Array(1),
   cliffFamilies:new Uint8Array([cliffFamilyIndex(family)]),authoredSurfaces:['stone']};
 }

@@ -1,5 +1,5 @@
-import {hearthFerryDestinations,runtimeHearthFerryNetwork,type HearthFerryDock,
-  type HearthFerryRegistry} from '@orchard/sim';
+import type { HearthFerryDock, HearthFerryRegistry } from '@orchard/sim';
+import { hearthFerryDestinations, runtimeHearthFerryNetwork } from '@orchard/sim/hearth-travel';
 import {drawPixelText,type PixelUi} from './pixel-ui.js';
 import {drawButton} from './button.js';
 import {containsPoint,type UiPoint,type UiRect} from './geometry.js';

@@ -54,7 +54,7 @@ describe('deterministic simulation', () => {
 
   it('blocks exactly the authored orchard tree columns', () => {
     const collision = createEstateCollisionMap([{ x: 20, y: 17 }]);
-    const blockedAt = (x: number, y: number): boolean => collision.blocked[y * collision.width + x] ?? false;
+    const blockedAt = (x: number, y: number): boolean => (collision.blocked[y * collision.width + x] ?? 0) !== 0;
     expect(blockedAt(8, 17)).toBe(false);
     expect(blockedAt(12, 17)).toBe(false);
     expect(blockedAt(16, 17)).toBe(false);
@@ -63,7 +63,7 @@ describe('deterministic simulation', () => {
 
   it('matches the authored estate lakes, fences, and building footprints', () => {
     const collision = createEstateCollisionMap();
-    const blockedAt = (x: number, y: number): boolean => collision.blocked[y * collision.width + x] ?? false;
+    const blockedAt = (x: number, y: number): boolean => (collision.blocked[y * collision.width + x] ?? 0) !== 0;
     expect(blockedAt(40, 36)).toBe(true);
     expect(blockedAt(41, 46)).toBe(true);
     expect(blockedAt(7, 20)).toBe(true);

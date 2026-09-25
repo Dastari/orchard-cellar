@@ -1,5 +1,5 @@
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type CollisionMap, type Direction } from './state.js';
-import { PLAYER_HITBOX_FOOT_OFFSET } from './movement.js';
+import { collisionCellIndex, PLAYER_HITBOX_FOOT_OFFSET } from './movement.js';
 import { AUTHORITY_HZ } from './net-timing.js';
 
 export const BOW_MIN_CHARGE_MS = 120;
@@ -429,8 +429,8 @@ export function firstProjectileTerrainHit(
     const y = Math.round(from.y + (to.y - from.y) * fraction);
     const tileX = Math.floor(x / TILE_SIZE_FIXED);
     const tileY = Math.floor(y / TILE_SIZE_FIXED);
-    const blocked = tileX < 0 || tileY < 0 || tileX >= collision.width || tileY >= collision.height
-      || collision.blocked[tileY * collision.width + tileX] === true;
+    const index = collisionCellIndex(collision, tileX, tileY);
+    const blocked = index < 0 || (collision.blocked[index] ?? 0) !== 0;
     if (blocked) return { kind: 'terrain', id: `${tileX}:${tileY}`, fraction, x, y };
   }
   return null;

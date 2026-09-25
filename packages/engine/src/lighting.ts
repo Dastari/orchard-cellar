@@ -1,4 +1,4 @@
-import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
+import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim/time';
 import {
   LIGHT_BANDS,
   QuantizedLightFlood,
@@ -7,6 +7,7 @@ import {
 } from './light-flood.js';
 import { buildLightOcclusionPrefix, rasterizeLightOcclusion, type LightOcclusionMap } from './light-occlusion.js';
 import type { TerrainArray } from './terrain.js';
+import { terrainTileBounds } from './terrain-index.js';
 
 export interface RgbColor {
   readonly r: number;
@@ -414,10 +415,12 @@ export class TileLightmap {
     this.receiverMsValue = 0;
     this.compositeMsValue = 0;
     const margin = 2;
-    const minTileX = Math.max(0, Math.floor(cameraX / 16) - margin);
-    const minTileY = Math.max(0, Math.floor(cameraY / 16) - margin);
-    const maxTileX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16) + margin);
-    const maxTileY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16) + margin);
+    // Clamped to the terrain's own tiles (a chunk render window's, S4c).
+    const bounds = terrainTileBounds(terrain);
+    const minTileX = Math.max(bounds.minX, Math.floor(cameraX / 16) - margin);
+    const minTileY = Math.max(bounds.minY, Math.floor(cameraY / 16) - margin);
+    const maxTileX = Math.min(bounds.maxX, Math.ceil((cameraX + viewportWidth / scale) / 16) + margin);
+    const maxTileY = Math.min(bounds.maxY, Math.ceil((cameraY + viewportHeight / scale) / 16) + margin);
     const tileWidth = Math.max(1, maxTileX - minTileX + 1);
     const tileHeight = Math.max(1, maxTileY - minTileY + 1);
     const width = tileWidth * LIGHTMAP_TEXELS_PER_TILE;

@@ -1,6 +1,7 @@
 import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
 
 
@@ -14,6 +15,7 @@ import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
 import { orchardHarvestPrompt } from './orchard-presentation.js';
+import { glancingSwingNodes, miningToolNeeded, miningWorkAdvanced, MINING_GLANCE_TICKS } from './mining-feedback.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading, disposeInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
@@ -35,8 +37,6 @@ import { CombatRegionPolicy, hearthGatheringContentReady, runtimeHearthSupplyCac
   hearthSupplyCacheInstalled, hearthSupplyCacheApproachClear } from '@orchard/sim';
 import { hearthResourceTargetAllowed } from './hearth-resource-targeting.js';
 import {HearthConstructionRequest} from './hearth-construction-request.js';
-import { authoredMapContentPainterTie } from '@orchard/sim';
-import { overworldPoiDecorationDepthY } from '@orchard/engine/overworld-art';
 import { lightCasterPainterOrder } from './light-caster-painter-order.js';
 import {hearthConstructionToolEdits,hearthConstructionToolFootprint,planHearthArchitectureEdits,EMPTY_HEARTH_ARCHITECTURE_JSON} from '@orchard/sim';
 import {facedHearthSeat} from './hearth-seating.js';
@@ -96,7 +96,7 @@ import {
 
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -121,12 +121,18 @@ import {
 } from '@orchard/engine/display';
 import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
-import { ConnectionRecoveryOverlay, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
+import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
+import { WorldSource, type WorldSourceCollision } from './world-source.js';
+import { topsideDecorationLightCasters, topsideDecorationsFor, topsideMapRecords as topsideMapRecordsFrom, type TopsideMapRecords } from './topside-map-records.js';
+import { SpawnReadinessGate, type SpawnReadiness } from './spawn-readiness.js';
+import type { ChunkTerrainWindow, TileBounds } from '@orchard/engine/chunk-terrain-window';
+import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from '@orchard/engine/loading-screen';
+import { saveGatewayHandoff } from '@orchard/engine/gateway-handoff';
 import { isStandaloneWebApp, pwaClient } from './pwa.js';
 import {
   fullscreenControlAvailable,
@@ -147,7 +153,8 @@ import { AvatarAnimationController, LocalActionPresentation, FrameVisualTickCloc
 import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortrait, drawPlayerPaperDoll, drawNpcPortrait, drawUiAsset, horseJumpPose, loadOverworldArt, type WorldVisualBounds } from '@orchard/engine/overworld-art';
 import { cameraAxisOffset } from '@orchard/engine/camera';
 import { snapGameplayCamera } from './gameplay-camera.js';
-import { createClientCollisionMap } from '@orchard/engine/collision';
+import { clientLiveRowObstacles, createClientCollisionMap } from '@orchard/engine/collision';
+import { composeChunkCollisionMaps } from './chunk-collision-composition.js';
 import { drawAnimatedTerrain } from '@orchard/engine/animated-terrain';
 import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from '@orchard/engine/farmland';
 
@@ -163,13 +170,15 @@ import { isLightEmitterKind } from '@orchard/engine/light-sources';
 import { renderMetrics, renderDiagnostics, renderMetricsSnapshot } from './gameplay-render-diagnostics.js';
 import { RainWeather } from '@orchard/engine/particles';
 
-import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, liveMapObjectLightOccluders, liveMapObjectLightFrameKey, clearLiveMapShadowCaches } from '@orchard/engine/live-map-runtime';
+import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, clearLiveMapShadowCaches, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from '@orchard/engine/live-map-runtime';
+import { mapObjectLightFrameKey, mapObjectLightOccluders } from '@orchard/engine/map-object-presentation';
 import type { RenderBenchmarkScenarioId } from '@orchard/engine/render-benchmark-scenarios';
 import { WeatherEffects, windDirectionLabel } from '@orchard/engine/weather-effects';
 import { drawPixelPanel, drawPixelText, measurePixelText } from '@orchard/ui';
 import {
   MAX_WORLD_ZOOM,
   drawSortedWorldDepthQueue,
+  worldPassLayout,
 } from '@orchard/engine/renderer';
 import { cellarExposedWallAt, cellarWallSourceAtProjectedTile, terrainContactWorldYForPlayer, terrainElevationAtWorldFoot, terrainForSpace, terrainForWorld, terrainColorAt, terrainWithCellarExcavations, terrainBaseDatum, terrainPlaneCollisionCellAt, terrainProjectionStyle, terrainProjectedDepthAtFoot, terrainProjectedWorldYAtFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain';
 import { interpolateFixedPosition, rebaseInterpolationPosition, sampleLocalProjectilePrediction } from './overworld-prediction.js';
@@ -281,6 +290,9 @@ let latestLightCount = 0;
 const worldUpdateOverlay = new WorldUpdateOverlay();
 const connectionRecoveryOverlay = new ConnectionRecoveryOverlay(art.ui, art.uiSkin);
 let hasRenderedWorldFrame = false;
+/** When the current not-ready gap began, and the recovery modal it shows (BUG-040). */
+let worldGapStartedAt: number | null = null;
+let presentedRecoveryState: ConnectionRecoveryState | null = null;
 const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
@@ -313,6 +325,22 @@ const accountSlot = new URLSearchParams(location.search).get('slot') ?? readOidc
 let networkDirty = true;
 let connectionInputCleared = false;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
+/** Topside terrain source: the legacy whole map, or the chunk window in chunk mode `on` (S4c). */
+const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds),
+  authorityGate: () => network.chunkAuthorityGate(), failedChunks: () => network.chunkFailedKeys,
+  // Static world S4f: a window prepared ahead of the view does its lighting and
+  // traversal work over earlier frames; the frame that serves it hits these caches.
+  prewarm: [
+    ({ window }) => { prepareChunkWindowLight(window); },
+    ({ collision }, registry) => {
+      if (collision !== undefined) composeChunkCollisionMaps({ registry, collision, liveBase: [], furniture: [], dynamic: [],
+        tick: latestSnapshot.clock?.authorityTick ?? 0n, projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
+    },
+    // Static world S4e: the elevated decoration casters of the window's records.
+    ({ records }, registry) => { if (records !== undefined) topsideDecorationLightCasters(records.decorations, records, registry, TOPSIDE_SPACE_ID); },
+  ] });
+/** Static world S4f: in chunk mode `on`, movement waits for the terrain around the player. */
+const spawnReadiness = new SpawnReadinessGate();
 const furnitureMoves = new FurnitureMoveController((...args) => network.moveHearthFurniture(...args));
 const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty = true; });
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
@@ -458,24 +486,35 @@ function updateSkillPointNotice(snapshot: OverworldView): void {
   }
 }
 
-function failureToastText(error: unknown): string {
+type FailureWording = readonly (readonly [code: string, text: string])[];
+// Placing a recipe pattern never moves the player's items, so a grid holding others must be cleared first.
+const RECIPE_PLACE_FAILURES: FailureWording = [['recipe_inputs_missing', 'CLEAR THE CRAFTING GRID FIRST']];
+// At the anvil a wrong tool means an undamaged one, so it keeps its specific wording.
+const ANVIL_FAILURES: FailureWording = [['wrong_tool', 'SELECT A DAMAGED TOOL']];
+
+function failureToastText(error: unknown, overrides: FailureWording = []): string {
   const raw = error instanceof Error ? error.message : String(error);
   const knownFailures = [
+    ...overrides,
     ['inventory_full', 'NOT ENOUGH INVENTORY SPACE'],
     ['container_full', 'NOT ENOUGH INVENTORY SPACE'],
     ['insufficient_vigour', 'INSUFFICIENT VIGOUR'],
-    ['swing_too_soon', 'TOOL IS NOT READY'],
     ['anvil_copper_missing', 'ANVIL REPAIR NEEDS 5 COPPER'],
     ['anvil_not_in_reach', 'FACE A NEARBY ANVIL'],
     ['furnace_slot_restricted', 'ORE GOES ABOVE, WOOD OR PLANKS BELOW'],
-    ['recipe_inputs_missing', 'CLEAR INCOMPATIBLE ITEMS FROM THE CRAFTING GRID'],
+    ['recipe_inputs_missing', "CLEAR ITEMS THE RECIPE DOESN'T USE"],
     ['recipe_not_found', 'THAT RECIPE IS NOT AVAILABLE'],
     ['item_reserved', 'THAT DROP IS RESERVED FOR ITS MINER'],
     ['mining_claimed_by_other_party', 'ANOTHER MINER OR PARTY IS WORKING THIS NODE'],
     ['pickaxe_tier_too_low', 'THIS VEIN NEEDS A STRONGER PICKAXE'],
     ['fishing_requires_water', 'FISHING REQUIRES A CLEAR WATER TILE'],
     ['tool_not_damaged', 'TOOL IS ALREADY FULLY REPAIRED'],
-    ['wrong_tool', 'SELECT A DAMAGED TOOL'],
+    ['wrong_tool', 'THAT NEEDS A DIFFERENT TOOL'],
+    ['target_out_of_range', 'TOO FAR AWAY'],
+    ['resource_depleted', 'NOTHING LEFT TO GATHER'],
+    ['hands_occupied', 'YOUR HANDS ARE FULL'],
+    ['tool_broken', 'THIS TOOL IS BROKEN'],
+    ['out_of_arrows', 'NO ARROWS LEFT'],
     ['backpack_in_use', 'EMPTY THE EXTRA PACK SLOTS BEFORE UNEQUIPPING IT'],
     ['stable_hand_required', 'LEARN STABLE HAND IN ANIMAL HUSBANDRY'],
     ['steeplechase_required', 'LEARN STEEPLECHASE IN EXPLORER'],
@@ -484,13 +523,18 @@ function failureToastText(error: unknown): string {
     ['jump_cooldown', 'STILL LANDING'],
     ['tool_skill_required', 'MORE SPECIALIZATION RANKS ARE REQUIRED FOR THIS TOOL'],
     ['equipment_light_required', 'EQUIP A SWITCHABLE LIGHT IN YOUR OFF-HAND SLOT'],
-  ] as const;
+  ] as const satisfies FailureWording;
   const known = knownFailures.find(([code]) => raw.toLowerCase().includes(code));
   return known?.[1] ?? raw.replaceAll('_', ' ').toUpperCase();
 }
 
-function setFailureToast(error: unknown, ticks = 120): void {
-  setToast(failureToastText(error), 'failure', ticks);
+// Rejections the player can already see (the swing animation simply doesn't repeat) show no toast.
+const SILENT_FAILURES = ['swing_too_soon'] as const;
+
+function setFailureToast(error: unknown, ticks = 120, overrides: FailureWording = []): void {
+  const raw = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (SILENT_FAILURES.some((code) => raw.includes(code))) return;
+  setToast(failureToastText(error, overrides), 'failure', ticks);
 }
 
 function rogueRewardClaimedMessage(run: { readonly roomNumber: number }): string {
@@ -503,6 +547,8 @@ let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
 let safeAreaInsets: CanvasViewportInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 let wheelZoomLockedUntil = 0;
 let collisionKey = '';
+/** The chunk collision serial the current collision maps were built from (0: legacy). */
+let appliedChunkCollisionSerial = 0;
 let resourceTargetPolicy = new CombatRegionPolicy([]);
 let resourceCollisionObstacles: ReadonlyMap<bigint, CollisionObstacle> = new Map();
 const worldStaticProjection = new WorldStaticProjectionCache();
@@ -644,7 +690,10 @@ const weatherTickClock = new FrameVisualTickClock();
 const presentationCorrection = new PresentationCorrection();
 const avatarAnimations = new Map<string, AvatarAnimationController>();
 const resourceHealth = new Map<bigint, number>();
+const resourceYieldProgress = new Map<bigint, number>();
 const treeShakeRemaining = new Map<bigint, number>();
+// Veins a swing glanced off (wrong pickaxe): sparks, no shake.
+const resourceGlanceRemaining = new Map<bigint, number>();
 const localActionPresentation = new LocalActionPresentation();
 let localActionIdentity: string | null = null;
 let latestPositionAuthorityTick = 0n;
@@ -816,7 +865,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     writeTouchControlPreferences(localStorage, preferences);
   },
   signOut: () => { location.assign('/?logout=1'); },
-  quitToTitle: () => { location.assign('/?menu=1'); },
+  quitToTitle: () => { saveGatewayHandoff(canvas); location.assign('/?menu=1'); },
   startDelve: () => {
     portalTransitionStartedAtMs = performance.now();
     showResult(network.startRogueRun(), 'THE CELLAR SHIFTS BELOW YOU');
@@ -857,8 +906,8 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   ),
   returnInventoryCursor: () => { void network.returnInventoryCursor().catch(() => undefined); },
   craftInventoryRecipe: (recipeId, craftAll) => showResult(network.craftInventoryRecipe(recipeId, craftAll), craftAll ? 'STACK CRAFTED' : 'ITEM CRAFTED'),
-  ghostFillCraftingRecipe: (recipeId) => showResult(
-    network.fillCraftingRecipe(recipeId), 'RECIPE PATTERN LOADED',
+  ghostFillCraftingRecipe: (recipeId) => showPredictedInventoryResult(
+    network.fillCraftingRecipe(recipeId), 'RECIPE PATTERN LOADED', RECIPE_PLACE_FAILURES,
   ),
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
   closeChest: () => { void network.closeChest().catch(() => undefined); },
@@ -897,12 +946,17 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   const centerTileY = Math.floor(centerWorldY / 16);
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const terrain = terrainForSpace(
+  const legacyMinimap = (): TerrainArray => terrainForSpace(
     activeSpaceDefinition,
     seed,
     version,
     snapshot.content.registry,
   );
+  // Off/shadow: the raw generator as before; chunk mode `on`: the authored window (S4c).
+  const minimap = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? worldSource.minimapTerrain(legacyMinimap, snapshot.content.registry)
+    : { terrain: legacyMinimap(), key: '' };
+  const terrain = minimap.terrain;
   const columns = Math.ceil(rect.width / pixelsPerTile) + 2;
   const rows = Math.ceil(rect.height / pixelsPerTile) + 2;
   const firstTileX = Math.floor(centerTileX - columns / 2);
@@ -916,6 +970,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     pixelsPerTile,
     Math.ceil(rect.width),
     Math.ceil(rect.height),
+    ...(minimap.key === '' ? [] : [minimap.key]),
   ].join(':');
   if (minimapTerrainCache?.key !== cacheKey) {
     const cacheCanvas = document.createElement('canvas');
@@ -1553,11 +1608,6 @@ function projectedLightObstacle(
 }
 
 
-const topsideDecorationCache = new WeakMap<
-  MapDocumentV3,
-  Map<number, readonly RuntimeSurvivalDecoration[]>
->();
-
 function activeTopsideLandmarks(snapshot: OverworldView) {
   return activeSurvivalLandmarks(snapshot.content.registry, TOPSIDE_SPACE_ID);
 }
@@ -1602,27 +1652,29 @@ function liveIslandDocumentFor(snapshot: OverworldView): MapDocumentV3 | null {
   return liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry);
 }
 
+/** Topside's map source, resolved once per frame section (static world S4e). Reset
+ * at the start of update and render and after the chunk window may move. */
+let topsideMapResolution: { readonly snapshot: OverworldView; readonly spaceId: number; readonly records: TopsideMapRecords | null } | null = null;
+function resetTopsideMapResolution(): void { topsideMapResolution = null; }
+
+/** Topside's authored map content (static world S4e): the chunk window's records in
+ * chunk mode `on` while its collision serves, else the live map document; null off topside. */
+function topsideMapRecords(snapshot: OverworldView): TopsideMapRecords | null {
+  const resolved = topsideMapResolution;
+  if (resolved !== null && resolved.snapshot === snapshot && resolved.spaceId === activeSpaceDefinition.spaceId) return resolved.records;
+  const records = activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID ? null
+    : topsideMapRecordsFrom(worldSource, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
+  topsideMapResolution = { snapshot, spaceId: activeSpaceDefinition.spaceId, records };
+  return records;
+}
+
+/** Topside decorations, unsuppressed: the chunk window's records in chunk mode `on`
+ * (static world S4e), else the procedural decorations plus the document's landmarks. */
 function topsideDecorations(
   snapshot: OverworldView,
   seed: number,
 ): readonly RuntimeSurvivalDecoration[] {
-  const document = liveIslandDocumentFor(snapshot);
-  if (document === null) return Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, snapshot.content.registry),
-    ...generateSurvivalLandmarkDecorations(activeTopsideLandmarks(snapshot)),
-  ]);
-  const bySeed = topsideDecorationCache.get(document) ?? new Map();
-  const cached = bySeed.get(seed);
-  if (cached !== undefined) return cached;
-  const decorations = Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, snapshot.content.registry),
-    ...document.landmarks
-      .filter((landmark) => landmark.enabled)
-      .map((landmark) => ({ ...mapLandmarkDecoration(landmark), landmark })),
-  ]);
-  bySeed.set(seed, decorations);
-  topsideDecorationCache.set(document, bySeed);
-  return decorations;
+  return topsideDecorationsFor(topsideMapRecords(snapshot), seed, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
 }
 
 function elevatedLightOccluders(
@@ -1661,35 +1713,9 @@ function elevatedLightOccluders(
     });
   };
   if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
-    const liveDocument = liveIslandDocumentFor(snapshot);
-    const suppressions = new Set(liveDocument?.generatedSuppressions ?? []);
-    const landmarkCampfires=new Set(runtimeLandmarkCampfirePlans(snapshot.content.registry)
-      .filter(plan=>plan.spaceId===activeSpaceDefinition.spaceId).map(plan=>plan.runtimeId));
-    for (const decoration of topsideDecorations(snapshot, seed)) {
-      if (suppressions.has(`decoration-${decoration.id}`)) continue;
-      if(landmarkCampfires.has(BigInt(decoration.id)))continue;
-      if (!survivalDecorationBlocksTraversal(
-        decoration.kind, 'ground', snapshot.content.registry,
-      )) continue;
-      // A pond reserves traversal space, but is below the light plane. Collision
-      // is not optical height: water and other floor-level art cast no shadow.
-      if (decoration.kind === 'camp_pond') continue;
-      // The emitter is the luminous body: do not let its own alpha silhouette
-      // terminate its seed. Non-emissive solid props remain occluders.
-      if (isLightEmitterKind(decoration.kind)) continue;
-      add(
-        art.poiDecorations[decoration.kind],
-        'base',
-        decoration.tileX * 16 + 8,
-        (decoration.tileY + 1) * 16,
-        survivalDecorationObstacle(decoration, 'ground', snapshot.content.registry),
-        decoration.landmark === undefined ? `decoration:${decoration.id}`
-          : liveDocument === null ? `landmark:${decoration.landmark.id}`
-            : authoredMapContentPainterTie(
-                liveDocument, decoration.landmark.layer, 'landmark', decoration.landmark.id,
-              ),
-        overworldPoiDecorationDepthY(decoration.kind, (decoration.tileY + 1) * 16),
-      );
+    for (const caster of topsideDecorationLightCasters(topsideDecorations(snapshot, seed), topsideMapRecords(snapshot),
+      snapshot.content.registry, activeSpaceDefinition.spaceId)) {
+      add(art.poiDecorations[caster.decoration.kind], 'base', caster.worldX, caster.worldY, caster.obstacle, caster.tie, caster.painterFootY);
     }
   }
   for (const resource of snapshot.resources) {
@@ -1945,7 +1971,31 @@ function treeLightOccluders(snapshot: OverworldView, terrain: TerrainArray): Lig
   return result;
 }
 
+/** The tiles this frame's camera will show, before the frame's terrain exists:
+ * the same layout and clamping as the render camera, with the unprojected foot
+ * (the terrain projection is a few tiles, well inside the window margin). */
+function estimatedCameraTiles(localX: number, localY: number): TileBounds {
+  const layout = worldPassLayout(renderer.cssWidth, renderer.cssHeight, renderer.dpr, worldZoom, renderer.worldScale);
+  const viewportWidth = layout.width / layout.integerScale;
+  const viewportHeight = layout.height / layout.integerScale;
+  const worldPixels = activeSpaceDefinition.sizeTiles * 16;
+  const cameraX = lightingPreview?.cameraX ?? cameraAxisOffset(localX, viewportWidth, worldPixels);
+  const cameraY = lightingPreview?.cameraY ?? cameraAxisOffset(localY, viewportHeight, worldPixels);
+  return { minX: Math.floor(cameraX / 16), minY: Math.floor(cameraY / 16),
+    maxX: Math.ceil((cameraX + viewportWidth) / 16), maxY: Math.ceil((cameraY + viewportHeight) / 16) };
+}
+
+/** Render terrain: through the world source on topside (chunk window in chunk mode `on`). */
 function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
+  const legacy = (): TerrainArray => legacyTerrainForSnapshot(snapshot);
+  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? worldSource.topsideTerrain(legacy, snapshot.content.registry)
+    : legacy();
+}
+
+/** The whole-map terrain: every space but topside in chunk mode `on`, and topside collision whenever
+ * the chunk collision is not serving (modes off and shadow, a revision the server would not serve, or a failed window). */
+function legacyTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
   const base = terrainForSpace(activeSpaceDefinition, seed, version, snapshot.content.registry);
@@ -1986,8 +2036,15 @@ function resourcePerceptionForSnapshot(snapshot: OverworldView) {
 }
 
 function liveMapSuppressesGeneratedResource(snapshot: OverworldView, id: bigint): boolean {
-  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    && (liveIslandDocumentFor(snapshot)?.generatedSuppressions.includes(`resource-${id}`) ?? false);
+  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return false;
+  // Chunk mode `on`: the serving manifest's suppressions (the server's source, S4d).
+  return worldSource.suppressesGeneratedResource(id, snapshot.content.registry)
+    ?? (liveIslandDocumentFor(snapshot)?.generatedSuppressions.includes(`resource-${id}`) ?? false);
+}
+
+/** The chunk collision serving topside this tick (chunk mode `on`), else undefined. */
+function topsideChunkCollision(snapshot: OverworldView): WorldSourceCollision | undefined {
+  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? worldSource.collision(snapshot.content.registry) : undefined;
 }
 
 function refreshCollision(snapshot: OverworldView): void {
@@ -1999,10 +2056,16 @@ function refreshCollision(snapshot: OverworldView): void {
   const liveRevision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     ? snapshot.liveMapDocument?.revision ?? 0
     : 0;
-  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${liveRevision}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}`;
+  const chunkCollision = topsideChunkCollision(snapshot);
+  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${liveRevision}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}:${chunkCollision === undefined ? 'legacy' : `chunks:${chunkCollision.serial}`}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
-  const terrain = terrainForSnapshot(snapshot);
+  appliedChunkCollisionSerial = chunkCollision?.serial ?? 0;
+  if (chunkCollision !== undefined) {
+    refreshChunkCollision(snapshot, chunkCollision);
+    return;
+  }
+  const terrain = legacyTerrainForSnapshot(snapshot);
   const liveDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     ? liveIslandDocumentFor(snapshot)
     : null;
@@ -2056,6 +2119,61 @@ function refreshCollision(snapshot: OverworldView): void {
       if (obstacle !== null) obstacles.push(obstacle);
     }
   }
+  obstacles.push(...dynamicCollisionOverlays(snapshot));
+  worldCollision = { ...baseCollision, obstacles };
+  if (activeSpaceDefinition.generator === 'residence') {
+    const withoutFurniture = createClientCollisionMap(terrain, snapshot.resources, snapshot.chests, 'ground',
+      [...snapshot.placeables].filter(row => (
+        hearthFurnitureShapeForPlaceable(snapshot.content.registry, row) === null
+      )),
+      generatedSuppressions, authoredGroundWalkableTiles, snapshot.content.registry, prepared.ground);
+    furnitureCollision = { ...withoutFurniture, obstacles: [...(withoutFurniture.obstacles ?? []),
+      ...obstacles.slice(baseCollision.obstacles?.length ?? 0)] };
+  } else furnitureCollision = worldCollision;
+  const baseBoatCollision = createClientCollisionMap(
+    terrain, [], [], 'water', [], generatedSuppressions, authoredGroundWalkableTiles,
+    snapshot.content.registry,
+    prepared.water,
+  );
+  boatCollision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? {
+        ...baseBoatCollision,
+        obstacles: [
+          ...(baseBoatCollision.obstacles ?? []),
+          ...(liveDocument === null
+            ? activeLandmarkDecorations.flatMap((decoration) => {
+                const obstacle = survivalDecorationObstacle(
+                  decoration, 'water', snapshot.content.registry,
+                );
+                return obstacle === null ? [] : [obstacle];
+              })
+            : liveMapObjectCollisionObstacles(
+                liveDocument, 'water', snapshot.content.registry,
+              )),
+        ],
+      }
+    : baseBoatCollision;
+  const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
+  worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  projectileCollision = runtimeActorCollision(snapshot.content.registry, worldStaticProjection.projectile(worldCollision, boatCollision),
+    { kind: 'projectile' }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
+  baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
+    terrain,
+    [],
+    [],
+    [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
+    art.cliff,
+    prepared.light,
+  );
+  lightOcclusion = baseLightOcclusion;
+  authoredLightFrameKey = '';
+}
+
+/** Live obstacles appended after the static composition, identical in every
+ * chunk mode: combat targets, surfaces, space furniture, tents and boundaries. */
+function dynamicCollisionOverlays(snapshot: OverworldView): CollisionObstacle[] {
+  const obstacles: CollisionObstacle[] = [];
   for (const target of snapshot.combatTargets) {
     const definition = combatTargetDefinition(snapshot, target);
     if (target.carriedBy !== undefined || combatTargetHealth(snapshot, target) === null
@@ -2111,57 +2229,62 @@ function refreshCollision(snapshot: OverworldView): void {
       });
     }
   }
-  worldCollision = { ...baseCollision, obstacles };
-  if (activeSpaceDefinition.generator === 'residence') {
-    const withoutFurniture = createClientCollisionMap(terrain, snapshot.resources, snapshot.chests, 'ground',
-      [...snapshot.placeables].filter(row => (
-        hearthFurnitureShapeForPlaceable(snapshot.content.registry, row) === null
-      )),
-      generatedSuppressions, authoredGroundWalkableTiles, snapshot.content.registry, prepared.ground);
-    furnitureCollision = { ...withoutFurniture, obstacles: [...(withoutFurniture.obstacles ?? []),
-      ...obstacles.slice(baseCollision.obstacles?.length ?? 0)] };
-  } else furnitureCollision = worldCollision;
-  const baseBoatCollision = createClientCollisionMap(
-    terrain, [], [], 'water', [], generatedSuppressions, authoredGroundWalkableTiles,
-    snapshot.content.registry,
-    prepared.water,
-  );
-  boatCollision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? {
-        ...baseBoatCollision,
-        obstacles: [
-          ...(baseBoatCollision.obstacles ?? []),
-          ...(liveDocument === null
-            ? activeLandmarkDecorations.flatMap((decoration) => {
-                const obstacle = survivalDecorationObstacle(
-                  decoration, 'water', snapshot.content.registry,
-                );
-                return obstacle === null ? [] : [obstacle];
-              })
-            : liveMapObjectCollisionObstacles(
-                liveDocument, 'water', snapshot.content.registry,
-              )),
-        ],
-      }
-    : baseBoatCollision;
-  const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
-  worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
-  boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
-  projectileCollision = runtimeActorCollision(snapshot.content.registry, worldStaticProjection.projectile(worldCollision, boatCollision),
-    { kind: 'projectile' }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
+  return obstacles;
+}
+
+/**
+ * Static world S4d: topside collision in chunk mode `on`, from the resident
+ * chunk window only (no generator, no map document). It is composed like the
+ * server's chunk runtime (composeChunkIslandCollision in collisionForSpace):
+ * - ground: the window's authority channels; the static base records and the
+ *   live resource, chest and placeable boxes, ALL filtered by the suppressed
+ *   decoration keys (finding B), then the authored records; then hearth
+ *   furniture and the dynamic overlays, which the server appends after it;
+ * - water: the authority water channel (the 15 waterfall cells are
+ *   boat-enterable, SW-D1) with its base (filtered) and authored records;
+ * - combat regions and generated suppressions: the manifest's.
+ * The maps are windowed (origin set): tiles outside the window, and cells of
+ * window chunks that are not resident, are blocked.
+ */
+/** A chunk window's light preparation, reusing the tiles it shares unchanged with
+ * the last window prepared (static world S4f); identical to a full preparation. */
+function prepareChunkWindowLight(window: ChunkTerrainWindow) {
+  return worldStaticProjection.prepareWindowLight(window, art.cliff, !lightingEffectsDisabled);
+}
+
+function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceCollision): void {
+  const registry = snapshot.content.registry;
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  const tick = snapshot.clock?.authorityTick ?? 0n;
+  resourceTargetPolicy = new CombatRegionPolicy(chunks.collision.combatRegions);
+  const live = clientLiveRowObstacles(snapshot.resources, snapshot.chests, snapshot.placeables,
+    chunks.collision.generatedSuppressions, registry);
+  resourceCollisionObstacles = live.resourceObstacles;
+  const maps = composeChunkCollisionMaps({ registry, collision: chunks.collision, tick,
+    liveBase: live.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle),
+    furniture: live.entries.filter(({ furniture }) => furniture).map(({ obstacle }) => obstacle),
+    dynamic: dynamicCollisionOverlays(snapshot),
+    projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
+  worldCollision = maps.world;
+  furnitureCollision = maps.furniture;
+  boatCollision = maps.boat;
+  projectileCollision = maps.projectile;
+  // Lighting reads the render window, the terrain this frame draws.
+  const terrain = chunks.terrain;
   baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
     terrain,
     [],
     [],
     [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
     art.cliff,
-    prepared.light,
+    prepareChunkWindowLight(chunks.window),
   );
   lightOcclusion = baseLightOcclusion;
   authoredLightFrameKey = '';
 }
 
 function update(): void {
+  resetTopsideMapResolution();
   let previous = predicted;
   effectPhase = (effectPhase + 1) % 4;
   worldZoom = easeWorldZoom(worldZoom, worldZoomTarget);
@@ -2297,18 +2420,22 @@ function update(): void {
     for (const resource of snapshot.resources) {
       visibleResourceIds.add(resource.id);
       const previousHealth = resourceHealth.get(resource.id);
-      if (previousHealth !== undefined
+      const previousYield = resourceYieldProgress.get(resource.id);
+      if ((previousHealth !== undefined
         && previousHealth <= survivalResourceInitialHealth(
           resource.kind, MATURE_TREE_GROWTH_STAGE, snapshot.content.registry,
         )
         && resource.health < previousHealth
-        && !resource.depleted) {
+        && !resource.depleted)
+        // Mining work between payouts is a landed strike too.
+        || (previousYield !== undefined && miningWorkAdvanced(previousYield, resource))) {
         treeShakeRemaining.set(resource.id, 16);
       }
       resourceHealth.set(resource.id, resource.health);
+      resourceYieldProgress.set(resource.id, resource.yieldProgress);
     }
     for (const id of resourceHealth.keys()) {
-      if (!visibleResourceIds.has(id)) resourceHealth.delete(id);
+      if (!visibleResourceIds.has(id)) { resourceHealth.delete(id); resourceYieldProgress.delete(id); }
     }
     for (const id of treeShakeRemaining.keys()) {
       if (!visibleResourceIds.has(id)) treeShakeRemaining.delete(id);
@@ -2318,7 +2445,13 @@ function update(): void {
     if (remaining <= 1) treeShakeRemaining.delete(id);
     else treeShakeRemaining.set(id, remaining - 1);
   }
-  if (networkDirty && collisionBootstrapReady({
+  for (const [id, remaining] of resourceGlanceRemaining) {
+    if (remaining <= 1) resourceGlanceRemaining.delete(id);
+    else resourceGlanceRemaining.set(id, remaining - 1);
+  }
+  // A chunk window move, a chunk arrival or a revision swap changes chunk collision (S4d).
+  const chunkCollisionChanged = (topsideChunkCollision(snapshot)?.serial ?? 0) !== appliedChunkCollisionSerial;
+  if ((networkDirty || chunkCollisionChanged) && collisionBootstrapReady({
     connected: snapshot.connected,
     identityReady: snapshot.identityHex !== null,
     worldSeedReady: snapshot.worldSeed !== null,
@@ -2710,9 +2843,21 @@ function resolvedPlayerVitals(snapshot: OverworldView) {
   };
 }
 
+/** A swing that only met veins this pickaxe can't work glances off them: sparks and a dull clink, no text. */
+function glanceSwing(snapshot: OverworldView, itemKind: string): void {
+  if (predicted === null) return;
+  const facing = liveEquippedItemFacing(snapshot, itemKind, predicted.facing, cursorFacing());
+  const glancing = glancingSwingNodes(snapshot.content.registry, itemKind, predicted.position, facing,
+    worldResourcesIncludingPersonalQuest(snapshot).filter((resource) => !liveMapSuppressesGeneratedResource(snapshot, resource.id)),
+    worldCollision);
+  if (glancing.length === 0) return;
+  for (const resource of glancing) resourceGlanceRemaining.set(resource.id, MINING_GLANCE_TICKS);
+  void audio.unlock().then(async () => await audio.playSfx('tool_clink')).catch(() => undefined);
+}
+
 function performToolAction(
   call: () => Promise<void>,
-  success: string,
+  success: string | null,
   itemKind: string,
   whiff = false,
   presentationElapsedMs = 0,
@@ -3732,7 +3877,7 @@ function collectLegacyInteractions(snapshot: OverworldView): EInteractionTarget[
   if(activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID){
     const supplyCache=runtimeHearthSupplyCache(snapshot.content.registry,undefined,activeSpaceDefinition.spaceId);
     if (snapshot.rogueRun === null && supplyCache!==null
-      && hearthSupplyCacheInstalled(supplyCache,liveIslandDocumentFor(snapshot))
+      && hearthSupplyCacheInstalled(supplyCache,topsideMapRecords(snapshot))
       && hearthSupplyCacheApproachClear(supplyCache,predicted.position, worldCollision)) {
       candidates.push({kind:'hearth_supply_cache',
         ...tileInteractionPoint(supplyCache.frontage.tileX, supplyCache.frontage.tileY),
@@ -3740,7 +3885,7 @@ function collectLegacyInteractions(snapshot: OverworldView): EInteractionTarget[
     }
     const ferry=runtimeHearthFerryNetwork(snapshot.content.registry);
     for(const destination of ferry?.spaceId===activeSpaceDefinition.spaceId?ferry.destinations:[]){
-      const installed=liveIslandDocumentFor(snapshot)?.combatRegions
+      const installed=topsideMapRecords(snapshot)?.combatRegions
         ?.some(region=>region.id===destination.availabilityRegion)===true;
       if(destination.home&&!installed)continue;
       const dock=destination.id,point=tileInteractionPoint(destination.threshold.tileX,destination.threshold.tileY);
@@ -3921,7 +4066,7 @@ function targetInteraction(snapshot: OverworldView) {
     : worldInteractions.resolve(snapshot, predicted.position.x, predicted.position.y);
 }
 
-function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView): string {
+function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView): string | null {
   const woodcuttingAction = selectedWoodcuttingUseWithAction(
     liveItemContentDefinition(snapshot, selectedItem(snapshot)),
   );
@@ -3970,7 +4115,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     case 'boat': return runtimeNpcMount(snapshot.content.registry, localMount(snapshot))?.adapter === 'boat'
       ? '[E] LEAVE BOAT'
       : '[E] BOARD BOAT';
-    case 'orchard': return orchardHarvestPrompt(snapshot.content.registry, target.resource, snapshot.clock?.authorityTick ?? 0n) ?? 'TREE';
+    case 'orchard': return orchardHarvestPrompt(snapshot.content.registry, target.resource, snapshot.clock?.authorityTick ?? 0n);
     case 'gatherable': return `[E] PICK UP ${target.presentation.promptLabel.toUpperCase()}`;
     case 'quest_item': return `[E] PICK UP ${liveItemLabel(snapshot, target.item.itemKind)}`;
     case 'embedded_arrow': return '[E] RECOVER ARROW';
@@ -4193,11 +4338,12 @@ function drawCollisionOverlay(
 ): void {
   const planeProjection = (activeElevation - terrainBaseDatum(terrain))
     * terrainVisualProjectionRowsPerLevel(terrain) * 16;
-  const minX = Math.max(0, Math.floor(cameraX / 16));
-  const minY = Math.max(0, Math.floor((cameraY + planeProjection) / 16));
-  const maxX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
+  const bounds = terrainTileBounds(terrain);
+  const minX = Math.max(bounds.minX, Math.floor(cameraX / 16));
+  const minY = Math.max(bounds.minY, Math.floor((cameraY + planeProjection) / 16));
+  const maxX = Math.min(bounds.maxX, Math.ceil((cameraX + viewportWidth / scale) / 16));
   const maxY = Math.min(
-    terrain.height - 1,
+    bounds.maxY,
     Math.ceil((cameraY + viewportHeight / scale + planeProjection) / 16),
   );
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
@@ -4279,7 +4425,7 @@ function furniturePreviewAt(tile: { tileX: number; tileY: number }, itemKind: st
     const state=parseHearthArchitectureState(activeSpaceDefinition.residenceArchitectureJson);
     const rank=activeSpaceDefinition.residenceExpansionRank??0;
     const checked=state===null?null:composeHearthArchitecture(rank,{...furnitureCollision,
-      blocked:Array.from({length:furnitureCollision.width*furnitureCollision.height},(_,i)=>
+      blocked:cellFlagsWhere(furnitureCollision.width*furnitureCollision.height,i=>
         !residencePlayableTile(i%furnitureCollision.width,Math.floor(i/furnitureCollision.width),rank)),
       obstacles:[...(furnitureCollision.obstacles??[]), ...[...currentFurniture().filter(item=>item.id!==movingId),value.candidate]
         .flatMap(item=>{const obstacle=hearthFurnitureObstacle(item);return obstacle?[obstacle]:[];})],
@@ -4301,7 +4447,7 @@ function computeConstructionPreviewAt(tile:{tileX:number;tileY:number}) {
   const rank=activeSpaceDefinition.residenceExpansionRank??0;
   const plan=planHearthArchitectureEdits(latestSnapshot.content.registry,{rank,state,expectedRevision:state.revision,edits:intent.edits,
     context:{canBuild:canUseHomesteadBuildMode(latestSnapshot),existing:currentFurniture(),occupants:[],
-      collision:{...furnitureCollision,blocked:Array.from({length:furnitureCollision.width*furnitureCollision.height},(_,i)=>
+      collision:{...furnitureCollision,blocked:cellFlagsWhere(furnitureCollision.width*furnitureCollision.height,i=>
         !residencePlayableTile(i%furnitureCollision.width,Math.floor(i/furnitureCollision.width),rank))}},
   });
   if(plan.failure!==null)return {...plan,failure:plan.failure==='doorway_support_occupied'?'Doorway support needs clear wall space':plan.failure,footprint};
@@ -4514,15 +4660,16 @@ function drawCellarOreVeinPreview(
   viewportHeight: number,
 ): number {
   if (!developerOrePreviewEnabled(latestSnapshot)) return 0;
-  const minimumX = Math.max(1, Math.floor(cameraX / 16) - 1);
-  const minimumY = Math.max(1, Math.floor(cameraY / 16) - 1);
-  const maximumX = Math.min(terrain.width - 2, Math.ceil((cameraX + viewportWidth / scale) / 16) + 1);
-  const maximumY = Math.min(terrain.height - 2, Math.ceil((cameraY + viewportHeight / scale) / 16) + 1);
+  const bounds = terrainTileBounds(terrain);
+  const minimumX = Math.max(bounds.minX + 1, Math.floor(cameraX / 16) - 1);
+  const minimumY = Math.max(bounds.minY + 1, Math.floor(cameraY / 16) - 1);
+  const maximumX = Math.min(bounds.maxX - 1, Math.ceil((cameraX + viewportWidth / scale) / 16) + 1);
+  const maximumY = Math.min(bounds.maxY - 1, Math.ceil((cameraY + viewportHeight / scale) / 16) + 1);
   let count = 0;
   context.save();
   for (let tileY = minimumY; tileY <= maximumY; tileY += 1) {
     for (let tileX = minimumX; tileX <= maximumX; tileX += 1) {
-      if (terrain.blocked[tileY * terrain.width + tileX] !== true) continue;
+      if (!terrain.blocked[terrainIndexAt(terrain, tileX, tileY)]) continue;
       const kind = cellarOreKindAt(seed, activeSpaceDefinition.spaceId, tileX, tileY);
       if (kind === null) continue;
       context.fillStyle = CELLAR_ORE_PREVIEW_COLORS[kind] ?? '#ffffff99';
@@ -4570,6 +4717,7 @@ function render(alpha = 1): void {
 }
 
 function renderFrame(alpha = 1): void {
+  resetTopsideMapResolution();
   const renderStarted = performance.now();
   let renderItems = 0;
   const snapshot = latestSnapshot;
@@ -4596,6 +4744,16 @@ function renderFrame(alpha = 1): void {
   const loadingStage = currentWorldLoadingStage();
   setLoadingScreenStage(loadingStage);
   if (loadingStage.ready !== true || !network.gameplayReady) {
+    // S4f: while movement waits for terrain (a topside arrival in chunk mode `on`), the chunk
+    // pin follows the player, not the last camera, so the spawn ring can load.
+    const terrainWait = !spawnReadiness.status(renderStarted).ready;
+    if (terrainWait && localAuthority !== undefined && localAuthority.spaceId === TOPSIDE_SPACE_ID) {
+      const tileX = Math.floor(localAuthority.x / TILE_SIZE_FIXED), tileY = Math.floor(localAuthority.y / TILE_SIZE_FIXED);
+      worldSource.setView({ minX: tileX, minY: tileY, maxX: tileX, maxY: tileY });
+      // The served window keeps catching up with arrived chunks while nothing is drawn.
+      worldSource.advance(snapshot.content.registry);
+      worldSource.window(snapshot.content.registry);
+    }
     const viewport = hudViewportCss();
     const uiScale = fittedUiScale(desiredUiScale, viewport.width, viewport.height);
     overworldUi.setPwaUpdateStatus(pwaClient.status, {
@@ -4608,16 +4766,28 @@ function renderFrame(alpha = 1): void {
       width: viewport.width / uiScale, height: viewport.height / uiScale,
     };
     if (overworldUi.blockingUpdatePromptVisible) {
+      presentedRecoveryState = null;
       worldUpdateOverlay.draw(renderer, overworldUi, overlayViewport, hasRenderedWorldFrame);
     } else {
       worldUpdateOverlay.reset();
-      const recoveryState = connectionRecoveryState();
-      if (recoveryState === null) {
+      const now = performance.now();
+      worldGapStartedAt ??= now;
+      const gap = worldGapPresentation(
+        connectionRecoveryState(), hasRenderedWorldFrame, loadingStage.error === true, worldGapStartedAt, now,
+        WORLD_GAP_GRACE_MS, terrainWait,
+      );
+      presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
+      if (gap.kind === 'initial-loading') {
         drawInitialWorldLoading(renderer, {
           kitArt, apple: art.fruitItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
         }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
+      } else if (gap.kind === 'retained-world') {
+        renderer.compositeWorld();
+      } else if (gap.kind === 'resyncing') {
+        if (gap.reason === 'terrain') connectionRecoveryOverlay.compositeResync(renderer, overlayViewport, gap.reason);
+        else connectionRecoveryOverlay.compositeResync(renderer, overlayViewport);
       } else {
-        connectionRecoveryOverlay.composite(renderer, overlayViewport, recoveryState, hasRenderedWorldFrame);
+        connectionRecoveryOverlay.composite(renderer, overlayViewport, gap.state, hasRenderedWorldFrame);
       }
     }
     const submittedAt = performance.now();
@@ -4627,6 +4797,8 @@ function renderFrame(alpha = 1): void {
   }
   worldUpdateOverlay.reset();
   dismissLoadingScreen();
+  worldGapStartedAt = null;
+  presentedRecoveryState = null;
   const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localJumpState?.fromX,
@@ -4639,7 +4811,20 @@ function renderFrame(alpha = 1): void {
   const localX = (cameraJump?.x ?? renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const localY = (cameraJump?.footY ?? renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  // The camera's tiles choose the chunk window (and what the chunk runtime pins)
+  // before this frame's terrain is served (S4c), so a teleport, a return to
+  // topside or a newly serving store never draws from the previous window.
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    worldSource.setView(estimatedCameraTiles(localX, localY));
+    // One stage of the window prepared ahead of the view (S4f), before this frame's terrain.
+    worldSource.advance(snapshot.content.registry);
+    resetTopsideMapResolution();
+  }
   const terrain = terrainForSnapshot(snapshot);
+  // Chunk window moves (S4c) drop only the ground chunks whose data changed.
+  worldSource.drainGroundInvalidations((region) => {
+    groundCache.invalidateRegion(region.minX, region.minY, region.maxX, region.maxY);
+  });
   const localTerrainContactY = terrainContactWorldYForPlayer(localY);
   const projectedLocalY = terrainProjectedWorldYAtFoot(terrain, localX, localTerrainContactY)
     + (localY - localTerrainContactY);
@@ -4768,8 +4953,8 @@ function renderFrame(alpha = 1): void {
     groundCache, viewportWidth, viewportHeight, debugEntitiesHidden, projectedLocalY,
     snapshot, celestialPass, activeSpaceDefinition, renderItems, weatherVisualTick,
     lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting,
-    objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, visualTickClock,
-    frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining,
+    objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, topsideMapRecords: topsideMapRecords(snapshot), visualTickClock,
+    frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining, resourceGlanceRemaining,
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
     cropCalendarOffsetForSnapshot, cropGreenhouseProtectedForSnapshot, liveItemContentDefinition, projectileDisplay, projectileFlightTicks,
     projectileHitProgress, renderTickClock, pendingBowProjectile, projectileCollision, animatedOpenChestId,
@@ -4802,7 +4987,7 @@ function renderFrame(alpha = 1): void {
     if(attack.spaceId!==activeSpaceDefinition.spaceId)continue;
     worldDepthItems.push({
       // All caps on this elevation draw first; floor intent stays beneath actors.
-      footY:terrain.height*16+16,elevationLayer:attack.elevation,depthPhase:'surface',
+      footY:(terrain.worldHeight??terrain.height)*16+16,elevationLayer:attack.elevation,depthPhase:'surface',
       tie:`combat-intent:${attack.npcId}`,
       draw:()=>drawEnemyAttackTelegraph(context,{...attack,pattern:attack.pattern as EnemyAttackPattern},renderAuthorityTick,
         cameraX,cameraY,scale,(x,y)=>y-projectionAt(x,y)),
@@ -4817,8 +5002,8 @@ function renderFrame(alpha = 1): void {
     if(!summon&&!guardian)continue;
     const x=(summon?profile.summonX:npc!.x)/FIXED_UNITS_PER_PIXEL;
     const y=(summon?profile.summonY:npc!.y)/FIXED_UNITS_PER_PIXEL;
-    const elevation=terrain.elevations?.[Math.floor(y/16)*terrain.width+Math.floor(x/16)]??0;
-    worldDepthItems.push({footY:terrain.height*16+16,elevationLayer:elevation,depthPhase:'surface',tie:`warden-cue:${profile.npcId}`,
+    const elevation=terrain.elevations?.[terrainIndexAt(terrain,Math.floor(x/16),Math.floor(y/16))]??0;
+    worldDepthItems.push({footY:(terrain.worldHeight??terrain.height)*16+16,elevationLayer:elevation,depthPhase:'surface',tie:`warden-cue:${profile.npcId}`,
       draw:()=>summon?drawOutdoorSummonMark(context,x,y-projectionAt(x,y),renderAuthorityTick,profile.summonTick,cameraX,cameraY,scale)
         :drawWardenCrest(context,x,y-projectionAt(x,y),profile.wardenPhase,profile.phaseCueUntilTick,renderAuthorityTick,cameraX,cameraY,scale)});
   }
@@ -4826,11 +5011,11 @@ function renderFrame(alpha = 1): void {
   latestLightCount = pointLights.length;
   renderMetrics.recordStage('painterBuild', performance.now() - painterBuildStartedAt);
   if (!lightingEffectsDisabled) {
-    const document=activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID?liveIslandDocumentFor(snapshot):null;
+    const records=topsideMapRecords(snapshot);
     const timeMs=weatherVisualTick*AUTHORITY_TICK_MS;
-    const key=`${collisionKey}:${liveMapObjectLightFrameKey(document,snapshot.content.registry,timeMs)}`;
+    const key=`${collisionKey}:${mapObjectLightFrameKey(records,snapshot.content.registry,timeMs)}`;
     if(baseLightOcclusion&&key!==authoredLightFrameKey){
-      const authored=liveMapObjectLightOccluders(document,terrain,snapshot.content.registry,timeMs);
+      const authored=mapObjectLightOccluders(records,terrain,TERRAIN_ARRAY_MAP_OBJECT_SAMPLER,snapshot.content.registry,timeMs);
       lightOcclusion=createLightOcclusionMap(terrain,baseLightOcclusion.softObstacles,
         baseLightOcclusion.spriteOccluders,[...baseLightOcclusion.trunkOccluders,...authored],undefined,baseLightOcclusion);
       authoredLightFrameKey=key;
@@ -4892,12 +5077,6 @@ function renderFrame(alpha = 1): void {
     'painterDraw',
     Math.max(0, performance.now() - painterDrawStartedAt - painterWeatherMs),
   );
-  const markerTarget = selectedEntityTarget;
-  const markedTarget = markerTarget === null ? undefined
-    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
-  if (!interfaceHidden && markedTarget !== undefined) {
-    drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
-  }
   renderItems += worldDepthItems.length;
   if (dynamicLighting) {
     renderMetrics.recordStage('lightingBoundsResize', lightmap.boundsResizeMs);
@@ -4936,6 +5115,24 @@ function renderFrame(alpha = 1): void {
   else drawWind();
   weatherStageMs += performance.now() - windWeatherStartedAt;
   renderMetrics.recordStage('weather', weatherStageMs);
+  if (!dynamicLighting) {
+    const basicStartedAt = performance.now();
+    compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
+    renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
+  } else if (!seasonalDynamic) {
+    // Original one-pass lightmap: baked sprite shadows plus object illumination.
+    lightmap.composite(context, cameraX, cameraY, scale);
+    renderMetrics.recordStage('lightingComposite', lightmap.compositeMs);
+  }
+  // Selection markers, tile reticles, aim guides and debug overlays are interface:
+  // drawn after the lighting pass so night and shade never dim them. The unified
+  // model lights each receiver as it draws, so it reaches the same result.
+  const markerTarget = selectedEntityTarget;
+  const markedTarget = markerTarget === null ? undefined
+    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
+  if (!interfaceHidden && markedTarget !== undefined) {
+    drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
+  }
   const farmItem = selectedItem(snapshot);
   const placementItemDefinition = liveItemDefinition(snapshot, farmItem);
   const placementContentDefinition = liveItemContentDefinition(snapshot, farmItem);
@@ -5048,15 +5245,6 @@ function renderFrame(alpha = 1): void {
       context.strokeRect(selectedScreenX, selectedScreenY, 16 * scale, 16 * scale);
       context.restore();
     }
-  }
-  if (!dynamicLighting) {
-    const basicStartedAt = performance.now();
-    compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
-    renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
-  } else if (!seasonalDynamic) {
-    // Original one-pass lightmap: baked sprite shadows plus object illumination.
-    lightmap.composite(context, cameraX, cameraY, scale);
-    renderMetrics.recordStage('lightingComposite', lightmap.compositeMs);
   }
   const finalWorldCompositeStartedAt = performance.now();
   renderer.compositeWorld();
@@ -5708,12 +5896,15 @@ function renderFrame(alpha = 1): void {
           : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
       const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
       const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
-      const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
+      // Yield odds only for prospectors; a vein the held pickaxe can't work names the one it needs.
+      const odds = prospectorRank <= 0 ? null
         : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
           : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
             : 'GUARANTEED FULL ORE CHUNK';
+      const needed = miningToolNeeded(snapshot.content.registry, hoveredMiningResource, selectedItem(snapshot) || null);
       const worldX = hoveredMiningResource.tileX * 16 + 8, worldY = (hoveredMiningResource.tileY + 1) * 16;
-      feedbackHint = { title, lines: [classLabel, status, odds], tone: 'neutral',
+      feedbackHint = { title, lines: [classLabel, status, ...(needed !== null ? [needed] : odds !== null ? [odds] : [])],
+        roles: ['subtitle', 'status', 'muted'], tone: 'neutral',
         progress: Math.max(0, Math.min(1, hoveredMiningResource.yieldProgress / 12)),
         x: (worldX - cameraX) * worldZoom / uiScale,
         y: (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale };
@@ -6063,20 +6254,20 @@ function pointerCanvasPosition(event: MouseEvent): readonly [number, number] {
   return [canvasX, canvasY];
 }
 
-function showResult(promise: Promise<void>, success: string | null, presentationToken?: number): void {
+function showResult(promise: Promise<void>, success: string | null, presentationToken?: number, failures: FailureWording = []): void {
   void promise.then(() => {
     if (success !== null) setToast(success, 'success');
   }).catch((error: unknown) => {
     if (presentationToken !== undefined) localActionPresentation.reject(presentationToken);
-    setFailureToast(error);
+    setFailureToast(error, 120, failures);
   });
 }
 
-function showPredictedInventoryResult(promise: Promise<void>, success: string | null): Promise<void> {
+function showPredictedInventoryResult(promise: Promise<void>, success: string | null, failures: FailureWording = []): Promise<void> {
   return promise.then(() => {
     if (success !== null) setToast(success, 'success');
   }).catch((error: unknown) => {
-    setFailureToast(error);
+    setFailureToast(error, 120, failures);
     throw error;
   });
 }
@@ -6237,13 +6428,30 @@ function connectionRecoveryState(): ConnectionRecoveryState | null {
   return hasRenderedWorldFrame && state !== 'ready' ? 'reconnecting' : null;
 }
 
+/** Terrain readiness around the local player (static world S4f): always ready in chunk
+ * modes off and shadow and in other spaces, so those behave exactly as before. */
+function terrainReadiness(): SpawnReadiness {
+  const snapshot = latestSnapshot;
+  const position = snapshot.identityHex === null ? undefined : snapshot.players.get(snapshot.identityHex);
+  const status = network.chunkRuntimeStatus;
+  return spawnReadiness.update({
+    mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys,
+    window: worldSource.servedWindow, spaceId: position?.spaceId,
+    tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
+    tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
+  }, performance.now());
+}
+
 function currentWorldLoadingStage(): ReturnType<typeof worldLoadingStage> {
   const snapshot = latestSnapshot;
+  const terrain = terrainReadiness();
   return worldLoadingStage({
     connected: snapshot.connected, error: snapshot.error,
     identityReady: snapshot.identityHex !== null,
     worldReady: snapshot.worldSeed !== null && snapshot.clock !== null && snapshot.environment !== null,
     playerReady: snapshot.identityHex !== null && snapshot.players.get(snapshot.identityHex) !== undefined,
+    // Undefined unless waiting, so modes off and shadow pass exactly the fields they always did.
+    ...(terrain.ready ? {} : { terrainReady: false }),
     profileReady: snapshot.characterProfile !== null
       && (localProfilesEnabled || snapshot.membership !== null) && snapshot.survival !== null,
   });
@@ -6314,7 +6522,7 @@ window.addEventListener('keydown', (event) => {
   if (event.ctrlKey || event.metaKey) return;
   event.preventDefault();
   if (event.repeat || (event.code !== 'Enter' && event.code !== 'Space')) return;
-  const action = connectionRecoveryOverlay.primaryAction(connectionRecoveryState());
+  const action = connectionRecoveryOverlay.primaryAction(presentedRecoveryState);
   if (action !== null) activateConnectionRecovery(action);
 }, { capture: true });
 for (const eventName of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'] as const) {
@@ -6329,7 +6537,7 @@ for (const eventName of ['pointerdown', 'pointermove', 'pointerup', 'pointercanc
       if (event.button !== 0) return;
       const [x, y] = pointerUiPosition(event);
       const [width, height] = touchControlViewport();
-      connectionRecoveryOverlay.activate({ x, y }, { width, height }, connectionRecoveryState(), activateConnectionRecovery);
+      connectionRecoveryOverlay.activate({ x, y }, { width, height }, presentedRecoveryState, activateConnectionRecovery);
     } else if (eventName === 'pointerup' || eventName === 'pointercancel') {
       recoveryPointerId = null;
     }
@@ -6501,7 +6709,7 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     if (swingIntent === 'swing') {
-      performToolAction(() => network.useSelected('secondary'), 'SWING', selectedUseKind);
+      if (performToolAction(() => network.useSelected('secondary'), null, selectedUseKind)) glanceSwing(snapshot, selectedUseKind);
       event.preventDefault();
       return;
     }
@@ -6521,7 +6729,7 @@ window.addEventListener('keydown', (event) => {
           targetKind: 'homeX' in target ? 'npc' : 'combat_target',
           entityId: target.id,
         }),
-        target === null ? 'SWING' : 'TARGET STRUCK',
+        target === null ? null : 'TARGET STRUCK',
         selectedUseKind,
         target === null,
       );
@@ -6602,7 +6810,7 @@ window.addEventListener('keydown', (event) => {
     if (actionPlaceable !== null
       && objectHasAuthoredTag(snapshot.content.registry, actionPlaceable, 'station.anvil')
       && selectedItemLifecycleAction(selectedUseDefinition, 'useWith') !== null) {
-      showResult(network.useSelected('use_with', { targetKind: 'placeable', entityId: actionPlaceable.id }), 'TOOL REPAIRED');
+      showResult(network.useSelected('use_with', { targetKind: 'placeable', entityId: actionPlaceable.id }), 'TOOL REPAIRED', undefined, ANVIL_FAILURES);
       event.preventDefault();
       return;
     }
@@ -6816,9 +7024,8 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     const selectedWorldToolAction = selectedContextualWorldToolAction(selectedUseDefinition);
-    if (selectedWorldToolAction === null) {
-      setToast(`NO ${liveItemLabel(snapshot, item)} USE ACTION YET`, 'failure');
-    } else {
+    // Items with no world action simply do nothing on the use key.
+    if (selectedWorldToolAction !== null) {
       const resource = targetResource(snapshot);
       const cellarWall = resource === null ? targetCellarWall(snapshot) : null;
       const cellarToolAction = selectedCellarToolAction(selectedUseDefinition);
@@ -6836,7 +7043,7 @@ window.addEventListener('keydown', (event) => {
         );
         if (performed) facePredictedTowardTile(cellarWall);
       } else if (resource === null) {
-        performToolAction(() => network.useSelected('secondary'), 'SWING', item, true);
+        if (performToolAction(() => network.useSelected('secondary'), null, item, true)) glanceSwing(snapshot, item);
       } else {
         const efficientRank = runtimeSkillCapabilities(
           snapshot.content.registry,
@@ -7510,6 +7717,8 @@ resize();
 const loop = createGameplayLoop({ update, render }, renderMetrics);
 const removeConnectionLifecycle = installConnectionLifecycle(window, document, {
   suspend: () => {
+    // A tab hidden mid-gap gets its full grace period back on return (BUG-040).
+    worldGapStartedAt = null;
     clearConnectionInput();
     network.pause();
     weatherTickClock.pause();
@@ -7543,7 +7752,7 @@ Object.assign(window, {
       pondTies: () => protocolPondTies(activeSpaceDefinition.generator === 'homestead'
         ? homesteadSurroundingDecorations(latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
         : topsideDecorations(latestSnapshot, latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED),
-      activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? liveIslandDocumentFor(latestSnapshot) : null),
+      topsideMapRecords(latestSnapshot)),
     }),
     snapshot: () => network.snapshot(),
     update,
@@ -7576,7 +7785,9 @@ Object.assign(window, {
     renderMetrics: () => renderMetricsSnapshot(),
     diagnostics: () => gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
       lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
-      activeSpaceDefinition, latestLightCount, rain, groundCache }),
+      activeSpaceDefinition, latestLightCount, rain, groundCache,
+      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus, records: worldSource.recordsStatus,
+        staging: worldSource.stagingStatus, readiness: spawnReadiness.status(performance.now()) } }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,

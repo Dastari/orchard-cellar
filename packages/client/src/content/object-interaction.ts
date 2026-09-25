@@ -1,6 +1,6 @@
-import { objectInteractionMetadata, placeableObjectDefinition, type ContentRegistry,
-  type ObjectInteractionMetadata, type PlaceableContentReference,
-  type ObjectContentDefinition, type StateValue } from '@orchard/sim';
+import type { ContentRegistry, ObjectInteractionMetadata, PlaceableContentReference, ObjectContentDefinition, StateValue } from '@orchard/sim';
+import { objectInteractionMetadata } from '@orchard/sim/behaviour/data-graph';
+import { placeableObjectDefinition } from '@orchard/sim/crafting';
 
 /** Resolves a semantic object capability from the active content registry.
  * Persisted pre-definition rows still follow their authored placement edge;

@@ -1,9 +1,5 @@
-import {
-  runtimeSpaceDefinition,
-  type ContentRegistry,
-  type InstanceSpaceRow,
-  type SpaceDefinition,
-} from '@orchard/sim';
+import type { ContentRegistry, InstanceSpaceRow, SpaceDefinition } from '@orchard/sim';
+import { runtimeSpaceDefinition } from '@orchard/sim/content/runtime';
 
 /** Resolve a space exclusively through the client's last verified content
  * registry, while retaining persisted dynamic-instance semantics. */

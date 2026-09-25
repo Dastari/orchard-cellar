@@ -26,7 +26,7 @@ function fixture(options={signedIn:false,local:false,oidc:true,allowLocal:false}
  const deps={options,localStorage,GameGateway,GameUiRuntime,gameGatewayLayout,kitArt:art,orchardEmblem:undefined,cellarCask:undefined,resize:vi.fn(),
   readLocalProfiles,rememberLocalProfile,localProfileWorldUrl,validLocalProfileName,
   audio:{fadeOutForNavigation:vi.fn(()=>Promise.resolve())},location:{origin:'https://example.invalid',pathname:'/',search:'',hash:'',assign:vi.fn(),reload:vi.fn()},
-  beginOidcLogin:vi.fn<(intent:string)=>Promise<void>>(async()=>{}),signOutOidc:vi.fn(async()=>{})};
+  beginOidcLogin:vi.fn<(intent:string)=>Promise<void>>(async()=>{}),signOutOidc:vi.fn(async()=>{}),canvas:{},saveGatewayHandoff:vi.fn()};
  const host=new Function(...Object.keys(deps),code)(...Object.values(deps)) as {gateway:GameGateway;runtime:GameUiRuntime;state():{authBusy:boolean;navigationPending:boolean;localPreview:boolean;message:string;selected:number};submitLocal():void;submitAccount(intent?:string):Promise<void>};
  return {...host,...deps,dispose(){host.runtime.dispose();host.gateway.dispose();}};
 }
@@ -43,12 +43,14 @@ it('preserves validation/storage and schedules local navigation only once',async
  f.gateway.editor.setValue('!');press(f,'gateway.continue-local');expect(f.audio.fadeOutForNavigation).not.toHaveBeenCalled();expect(f.state().message).toContain('USE 3-20');
  f.gateway.editor.setValue('Mara');press(f,'gateway.continue-local');press(f,'gateway.continue-local');expect(f.state().navigationPending).toBe(true);expect(f.audio.fadeOutForNavigation).toHaveBeenCalledOnce();
  await Promise.resolve();expect(f.location.assign).toHaveBeenCalledExactlyOnceWith(localProfileWorldUrl('Mara','https://example.invalid'));expect(readLocalProfiles(f.localStorage).lastUsed).toBe('Mara');
+ expect(f.saveGatewayHandoff).toHaveBeenCalledExactlyOnceWith(f.canvas);
  }finally{f.dispose();}
 });
 it('keeps development toggle disabled and signed-in entry/signout scoped',async()=>{
  const f=fixture({signedIn:true,local:false,oidc:true,allowLocal:false});try{
  expect(f.gateway.handleGlobalKeyDown({key:'d'})).toBe(false);expect(f.state().localPreview).toBe(false);
  press(f,'gateway.enter-world');press(f,'gateway.sign-out');await Promise.resolve();expect(f.location.reload).toHaveBeenCalledOnce();expect(f.signOutOidc).not.toHaveBeenCalled();
+ expect(f.saveGatewayHandoff).toHaveBeenCalledExactlyOnceWith(f.canvas);
  }finally{f.dispose();}
- const logout=fixture({signedIn:true,local:false,oidc:true,allowLocal:false});try{press(logout,'gateway.sign-out');await Promise.resolve();expect(logout.signOutOidc).toHaveBeenCalledOnce();expect(logout.state().authBusy).toBe(true);}finally{logout.dispose();}
+ const logout=fixture({signedIn:true,local:false,oidc:true,allowLocal:false});try{press(logout,'gateway.sign-out');await Promise.resolve();expect(logout.signOutOidc).toHaveBeenCalledOnce();expect(logout.state().authBusy).toBe(true);expect(logout.saveGatewayHandoff).not.toHaveBeenCalled();}finally{logout.dispose();}
 });

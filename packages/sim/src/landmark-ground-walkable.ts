@@ -1,5 +1,6 @@
 import type {SpaceLandmarkDefinition,SpaceTileRectangle} from './content/world-definition.js';
-import {generateSurvivalLandmarkDecorations,type SurvivalLandmarkRegistry} from './survival-world.js';
+import {generateSurvivalLandmarkDecorations} from './survival-landmark-decorations.js';
+import type {SurvivalLandmarkRegistry} from './survival-world.js';
 
 export interface LandmarkGroundWalkableTile {
   readonly tileX:number;

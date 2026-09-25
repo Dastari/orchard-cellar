@@ -109,6 +109,9 @@ export class GameHud {
   private readonly hotbar: UiElement;
   private readonly hotbarPanel: UiElement;
   private hoveredSlot: number | null = null;
+  private tipSlot: () => number | null = () => null;
+  private shownTipSlot: number | null = null;
+  private hotbarTip: UiElement | null = null;
   private readonly player: UiElement;
   private readonly hunger: UiElement;
   private readonly purse: UiElement;
@@ -165,11 +168,18 @@ export class GameHud {
       selected: () => this.model?.inventory.selectedSlot ?? -1, stack: index => this.stack(index),
       onSelect: index => { if (this.model) this.callbacks.selectHotbar(index); }, renderContent: (context, bounds, item) => this.painters.drawItem(context, bounds, item),
     }));
-    const hotbarTip = uiTooltip(() => {
+    // The hovered (or keyboard-focused) slot's item, named in caps like the inventory windows, centred above that slot.
+    const tipSlot = this.tipSlot = () => {
       const focused = this.hotbar.children.indexOf(this.roots.hotbarVitals.focus.current!);
-      const index = this.hoveredSlot ?? (focused < 0 ? null : focused);
-      return index === null ? '' : this.hotbar.children[index]?.label ?? '';
-    }, this.hotbar, { width: 'grow', height: 'grow' });
+      return this.hoveredSlot ?? (focused < 0 ? null : focused);
+    };
+    const hotbarTip = uiTooltip(() => {
+      const index = tipSlot(), stack = index === null ? null : this.stack(index);
+      return stack === null ? '' : this.painters.itemLabel(stack).toUpperCase();
+    }, this.hotbar, { width: 'grow', height: 'grow' }, { side: 'above', anchor: () => {
+      const index = tipSlot(); return index === null ? null : this.hotbar.children[index]?.rect ?? null;
+    } });
+    this.hotbarTip = hotbarTip;
     this.hotbarPanel = new UiElement({ style: { display: 'stack' }, children: [hotbarTip], onPointerObserved: event => {
       const index = this.hotbar.children.findIndex(slot => containsPoint(slot.rect, event.point));
       const next = index < 0 ? null : index;
@@ -500,6 +510,9 @@ export class GameHud {
     this.compactBodies.map.setStyle({ height: uiFixed(112) });
   }
   draw(context: CanvasRenderingContext2D, surface?: GameHudSurface): void {
+    // Keyboard focus moving along the bar doesn't reach the tooltip wrapper; re-anchor it here.
+    const tip = this.tipSlot();
+    if (tip !== this.shownTipSlot) { this.shownTipSlot = tip; this.hotbarTip?.invalidate(); }
     const surfaces = (surface ? [surface] : Object.keys(this.roots) as GameHudSurface[]).filter(key => this.isVisible(key));
     const now = performance.now();
     for (const key of surfaces) this.roots[key].drawInContext(context, now, undefined, ['base']);

@@ -10,6 +10,7 @@ import {
   type MapEditorOverlayImageTarget,
   type MapEditorOverlayScheduler,
 } from './active-overlays.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 function terrainFixture(width = 20, height = 20): TerrainArray {
   const length = width * height;
@@ -23,8 +24,8 @@ function terrainFixture(width = 20, height = 20): TerrainArray {
     height,
     generator: 'debug_flat',
     biomes: new Uint8Array(length),
-    blocked: Array.from({ length }, (_value, index) => index % 7 === 0),
-    horseJumpableTerrain: Array<boolean>(length).fill(false),
+    blocked: cellFlags(Array.from({ length }, (_value, index) => index % 7 === 0)),
+    horseJumpableTerrain: new Uint8Array(length),
     elevations,
     terrainTransitions: [],
     raisedTerrainCollisionClassified: true,

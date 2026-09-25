@@ -109,7 +109,31 @@ describe('production shared HUD compositions', () => {
     f.host.update({ ...model(), zone: { ...model().zone, watch: { time: '06:00', date: 'Spring 1', moon: 'Full moon' } } });
     expect(zoneRoot.entries().some(row => row.element.kind === 'badge' && row.element.label === '06:00 Spring 1 Full moon')).toBe(true);
     hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.hotbar.slot.0')); hotRoot.arrange();
-    expect(hotRoot.entries().some(row => row.element.label === '1 · wood x123' && row.element.kind === 'text')).toBe(true);
+    // The hotbar tip names the item in caps, centred just above the focused slot (not the bar's corner).
+    expect(hotRoot.entries().some(row => row.element.label === 'WOOD X123' && row.element.kind === 'text')).toBe(true);
+    const slot = f.node('hotbarVitals', 'game.hud.hotbar.slot.0').rect;
+    const popup = hotRoot.entries().find(row => row.element.kind === 'tooltip-popup' && row.element.visible)!.element.rect;
+    expect(popup.y + popup.height).toBeLessThanOrEqual(slot.y);
+    expect(Math.abs(popup.x + popup.width / 2 - (slot.x + slot.width / 2))).toBeLessThanOrEqual(1);
+    // It follows focus to the next filled slot and closes over an empty one.
+    f.host.update({ ...model(), inventory: { ...model().inventory, rows: [...model().inventory.rows, { slot: 3, stack: { itemKind: 'stone', quantity: 4 } }] } });
+    const context = createCanvas(320, 180).getContext('2d') as unknown as CanvasRenderingContext2D;
+    hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.hotbar.slot.3')); f.host.draw(context);
+    const fourth = f.node('hotbarVitals', 'game.hud.hotbar.slot.3').rect;
+    const moved = hotRoot.entries().find(row => row.element.kind === 'tooltip-popup' && row.element.visible)!.element.rect;
+    expect(Math.abs(moved.x + moved.width / 2 - (fourth.x + fourth.width / 2))).toBeLessThanOrEqual(1);
+    expect(hotRoot.entries().some(row => row.element.label === 'STONE X4' && row.element.kind === 'text')).toBe(true);
+    // It re-fits to each label: a longer name widens the frame instead of wrapping or clipping in the first size.
+    expect(moved.width).toBeLessThan(popup.width + 1);
+    f.host.update({ ...model(), inventory: { ...model().inventory, rows: [...model().inventory.rows, { slot: 3, stack: { itemKind: 'reinforced_iron_pickaxe', quantity: 1 } }] } });
+    f.host.draw(context);
+    const long = hotRoot.entries().find(row => row.element.kind === 'tooltip-popup' && row.element.visible)!.element;
+    const longText = hotRoot.entries().find(row => row.element.label === 'REINFORCED_IRON_PICKAXE X1' && row.element.kind === 'text')!.element;
+    expect(long.rect.width).toBeGreaterThan(moved.width);
+    expect(longText.rect.height).toBeLessThanOrEqual(long.rect.height);
+    expect(long.scroll.maxY).toBe(0);
+    hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.hotbar.slot.5')); f.host.draw(context);
+    expect(hotRoot.entries().some(row => row.element.kind === 'tooltip-popup' && row.element.visible)).toBe(false);
     hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.player:health')); hotRoot.arrange();
     expect(hotRoot.entries().some(row => row.element.label === 'HEALTH 80.0 / 100.0')).toBe(true);
     expect(f.node('hotbarVitals', 'game.hud.purse').props['balance']).toBe(9007199254740993n);

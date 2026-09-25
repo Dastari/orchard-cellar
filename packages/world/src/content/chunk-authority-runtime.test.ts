@@ -10,10 +10,10 @@ const obstacle = (ordinal: number, group: 'base' | 'authored', groupOrdinal: num
   ({ kind: 'authority.ground.obstacle', ordinal, tileX, tileY: 1, value: { group, ordinal: groupOrdinal, ...box(tileX, 1), sourceId } });
 
 /** A 100x64 island: chunk 0 is full width, chunk 1 is clipped to 36 columns. */
-function island(recordsFor: (cx: number) => WorldChunkRecord[] = defaultRecords) {
+function island(recordsFor: (cx: number) => WorldChunkRecord[] = defaultRecords, authoritySchema: 1 | 2 = 1) {
   const blobs = [0, 1].map(cx => {
     const walk = new Uint8Array(CELLS), water = new Uint8Array(CELLS).fill(1);
-    return encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema: 1, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
+    return encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
       arrays: { medium: new Uint8Array(CELLS), solidBlocked: new Uint8Array(CELLS), biomes: new Uint8Array(CELLS).fill(cx),
         'authority.ground.blocked': walk, 'authority.ground.elevations': new Int16Array(CELLS).fill(cx + 1),
         'authority.ground.terrainPlaneBlocked': new Uint8Array(CELLS * 2), 'authority.ground.horseJumpableTerrain': new Uint8Array(CELLS),
@@ -68,18 +68,27 @@ describe('assembleChunkLiveIslandRuntime', () => {
     expect(composed.obstacles).toEqual([box(2, 1), box(70, 1), box(6, 1), box(3, 1)]);
   });
 
+  it('assembles the identical runtime from authority schema 2 (obstacle table) blobs (BUG-044)', () => {
+    const v1 = island(), v2 = island(defaultRecords, 2);
+    expect(v2.manifest.chunks.map(({ contentHash }) => contentHash)).not.toEqual(v1.manifest.chunks.map(({ contentHash }) => contentHash));
+    const a = assembleChunkLiveIslandRuntime(v1.manifest, v1.readBlob, registry), b = assembleChunkLiveIslandRuntime(v2.manifest, v2.readBlob, registry);
+    expect(b.issues).toEqual([]);
+    expect(compareLiveIslandRuntime(b, a).equal).toBe(true);
+    for (const medium of ['ground', 'water'] as const) expect(composeChunkIslandCollision(b, medium, [box(5, 1)])).toEqual(composeChunkIslandCollision(a, medium, [box(5, 1)]));
+  });
+
   it('leaves missing and corrupt chunks void and solid, reports them, and bounds the diff', () => {
     const { manifest, readBlob } = island();
     const complete = assembleChunkLiveIslandRuntime(manifest, readBlob, registry);
     const missing = assembleChunkLiveIslandRuntime(manifest, hash => hash === manifest.chunks[1]!.contentHash ? undefined : readBlob(hash), registry);
     expect(missing.complete).toBe(false);
     expect(missing.issues).toEqual([{ kind: 'blob_missing', cx: 1, cy: 0, detail: manifest.chunks[1]!.contentHash }]);
-    expect(missing.ground.blocked[99]).toBe(true);
+    expect(missing.ground.blocked[99]).toBe(1);
     expect(missing.ground.traversalChannels!.medium[99]).toBe(WORLD_CHUNK_VOID);
     expect(missing.ground.traversalChannels!.solidBlocked[99]).toBe(1);
     expect(missing.ground.terrainPlaneBlocked![6400 + 99]).toBe(1);
     expect(missing.staticView.biomeAt(99, 0)).toBeUndefined();
-    expect(missing.ground.blocked[63]).toBe(false);
+    expect(missing.ground.blocked[63]).toBe(0);
     const diff = compareLiveIslandRuntime(missing, complete, 3);
     expect(diff.equal).toBe(false);
     expect(diff.fields['ground.blocked']).toMatchObject({ count: 36 * 64 });
@@ -97,7 +106,7 @@ describe('assembleChunkLiveIslandRuntime', () => {
       return bytes;
     }, registry);
     expect(corrupt.issues).toEqual([{ kind: 'blob_invalid', cx: 0, cy: 0, detail: 'World chunk hash mismatch' }]);
-    expect(corrupt.ground.blocked[0]).toBe(true);
+    expect(corrupt.ground.blocked[0]).toBe(1);
     const headless = assembleChunkLiveIslandRuntime({ ...manifest, chunks: manifest.chunks.slice(0, 1) }, readBlob, registry);
     expect(headless.issues).toEqual([{ kind: 'head_missing', cx: 1, cy: 0 }]);
   });

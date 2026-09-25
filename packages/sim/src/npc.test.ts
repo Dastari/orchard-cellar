@@ -21,6 +21,7 @@ import {
   type WanderingNpcState,
 } from './npc.js';
 import type { NpcFishingCycleContentDefinition } from './content/npc-definition.js';
+import { cellFlags } from './cell-flags.js';
 
 const fishingCycle = {
   kind: 'fishing_cycle',
@@ -88,7 +89,7 @@ describe('fisherman work cycle', () => {
   });
 });
 
-const open = { width: 32, height: 32, blocked: Array<boolean>(32 * 32).fill(false) };
+const open = { width: 32, height: 32, blocked: new Uint8Array(32 * 32) };
 const home = { x: 10 * TILE_SIZE_FIXED, y: 10 * TILE_SIZE_FIXED };
 const initial: WanderingNpcState = {
   id: 1n,
@@ -174,7 +175,7 @@ describe('server-authoritative wandering NPCs', () => {
     const stepped = stepWanderingNpc(state, 1, {
       width: 2,
       height: 1,
-      blocked: [false, false],
+      blocked: cellFlags([false, false]),
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     });
@@ -236,10 +237,10 @@ describe('horse mounting rules', () => {
 
   it('jumps a terrain barrier up to three tiles wide and lands safely', () => {
     const jumpHome = { x: home.x + TILE_SIZE_FIXED / 2, y: home.y };
-    const blocked = Array<boolean>(32 * 32).fill(false);
-    const horseJumpableTerrain = Array<boolean>(32 * 32).fill(false);
-    for (let x = 11; x <= 13; x += 1) blocked[9 * 32 + x] = true;
-    for (let x = 11; x <= 13; x += 1) horseJumpableTerrain[9 * 32 + x] = true;
+    const blocked = new Uint8Array(32 * 32);
+    const horseJumpableTerrain = new Uint8Array(32 * 32);
+    for (let x = 11; x <= 13; x += 1) blocked[9 * 32 + x] = 1;
+    for (let x = 11; x <= 13; x += 1) horseJumpableTerrain[9 * 32 + x] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', { ...open, blocked, horseJumpableTerrain })).toEqual({
       x: jumpHome.x + 4 * TILE_SIZE_FIXED,
       y: jumpHome.y,
@@ -250,20 +251,20 @@ describe('horse mounting rules', () => {
 
   it('uses arbitrary authored approach and barrier limits', () => {
     const jumpHome = { x: home.x + TILE_SIZE_FIXED / 2, y: home.y };
-    const blocked = Array<boolean>(32 * 32).fill(false);
-    const horseJumpableTerrain = Array<boolean>(32 * 32).fill(false);
-    blocked[9 * 32 + 11] = true;
-    horseJumpableTerrain[9 * 32 + 11] = true;
+    const blocked = new Uint8Array(32 * 32);
+    const horseJumpableTerrain = new Uint8Array(32 * 32);
+    blocked[9 * 32 + 11] = 1;
+    horseJumpableTerrain[9 * 32 + 11] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', {
       ...open, blocked, horseJumpableTerrain,
     }, authoredHorseTuning)).toEqual({
       x: jumpHome.x + 2 * TILE_SIZE_FIXED,
       y: jumpHome.y,
     });
-    const tooWide = [...blocked];
-    const tooWideJumpable = [...horseJumpableTerrain];
-    tooWide[9 * 32 + 12] = true;
-    tooWideJumpable[9 * 32 + 12] = true;
+    const tooWide = blocked.slice();
+    const tooWideJumpable = horseJumpableTerrain.slice();
+    tooWide[9 * 32 + 12] = 1;
+    tooWideJumpable[9 * 32 + 12] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', {
       ...open, blocked: tooWide, horseJumpableTerrain: tooWideJumpable,
     }, authoredHorseTuning)).toBeNull();
@@ -272,10 +273,10 @@ describe('horse mounting rules', () => {
 
   it('rejects four-tile barriers, open-ground teleports, unsafe landings, and tree-only obstacles', () => {
     const jumpHome = { x: home.x + TILE_SIZE_FIXED / 2, y: home.y };
-    const wide = Array<boolean>(32 * 32).fill(false);
-    const wideJumpable = Array<boolean>(32 * 32).fill(false);
-    for (let x = 11; x <= 14; x += 1) wide[9 * 32 + x] = true;
-    for (let x = 11; x <= 14; x += 1) wideJumpable[9 * 32 + x] = true;
+    const wide = new Uint8Array(32 * 32);
+    const wideJumpable = new Uint8Array(32 * 32);
+    for (let x = 11; x <= 14; x += 1) wide[9 * 32 + x] = 1;
+    for (let x = 11; x <= 14; x += 1) wideJumpable[9 * 32 + x] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', {
       ...open,
       blocked: wide,
@@ -283,10 +284,10 @@ describe('horse mounting rules', () => {
     })).toBeNull();
     expect(findHorseJumpLanding(jumpHome, 'right', open)).toBeNull();
 
-    const river = Array<boolean>(32 * 32).fill(false);
-    const riverJumpable = Array<boolean>(32 * 32).fill(false);
-    for (let x = 11; x <= 13; x += 1) river[9 * 32 + x] = true;
-    for (let x = 11; x <= 13; x += 1) riverJumpable[9 * 32 + x] = true;
+    const river = new Uint8Array(32 * 32);
+    const riverJumpable = new Uint8Array(32 * 32);
+    for (let x = 11; x <= 13; x += 1) river[9 * 32 + x] = 1;
+    for (let x = 11; x <= 13; x += 1) riverJumpable[9 * 32 + x] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', {
       ...open,
       blocked: river,
@@ -311,13 +312,13 @@ describe('horse mounting rules', () => {
 
   it('rejects cliffs and mixed water/cliff barriers', () => {
     const jumpHome = { x: home.x + TILE_SIZE_FIXED / 2, y: home.y };
-    const blocked = Array<boolean>(32 * 32).fill(false);
-    const horseJumpableTerrain = Array<boolean>(32 * 32).fill(false);
-    for (let x = 11; x <= 13; x += 1) blocked[9 * 32 + x] = true;
+    const blocked = new Uint8Array(32 * 32);
+    const horseJumpableTerrain = new Uint8Array(32 * 32);
+    for (let x = 11; x <= 13; x += 1) blocked[9 * 32 + x] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', { ...open, blocked, horseJumpableTerrain })).toBeNull();
 
-    horseJumpableTerrain[9 * 32 + 11] = true;
-    horseJumpableTerrain[9 * 32 + 12] = true;
+    horseJumpableTerrain[9 * 32 + 11] = 1;
+    horseJumpableTerrain[9 * 32 + 12] = 1;
     expect(findHorseJumpLanding(jumpHome, 'right', { ...open, blocked, horseJumpableTerrain })).toBeNull();
   });
 });

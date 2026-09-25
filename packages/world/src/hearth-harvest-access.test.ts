@@ -16,7 +16,7 @@ function fixture(index = 0) {
   const resource = { ...site, spawnSiteId: BigInt(site.id), chunkX: Math.floor(site.tileX / 16), chunkY: Math.floor(site.tileY / 16),
     spaceId: 0, growthStage: 3, depleted: false };
   const player = { x: (site.tileX + .5) * sim.TILE_SIZE_FIXED, y: (site.tileY + 2) * sim.TILE_SIZE_FIXED, spaceId: 0 };
-  const collision = { width: 832, height: 832, blocked: new Array(832 * 832).fill(false),
+  const collision = { width: 832, height: 832, blocked: new Uint8Array(832 * 832),
     elevations: new Uint8Array(832 * 832).fill(site.elevation), obstacles: [] as sim.CollisionObstacle[] } satisfies sim.CollisionMap;
   const exclusions: bigint[] = [];
   const switches = { enabled: true, conflict: '', suppressed: false };

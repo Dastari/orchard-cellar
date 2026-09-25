@@ -1,4 +1,4 @@
-import { runtimeItemDefinition } from '@orchard/sim';
+import { runtimeItemDefinition } from '@orchard/sim/content/runtime';
 import type { OutdoorRewardEntry } from '@orchard/ui';
 
 interface Receipt { readonly id:string; readonly completionId:string; readonly itemsJson:string; readonly combatExperience:number; }

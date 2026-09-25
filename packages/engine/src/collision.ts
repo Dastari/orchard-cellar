@@ -1,4 +1,5 @@
 import { runtimeTraversalPolicy, mapDocumentTraversalChannels, createLiveIslandMapDocument, activeSurvivalLandmarks, staticTraversalChannels, terrainCellMedium, type MediumCollisionChannels } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
@@ -22,6 +23,7 @@ import {
   type MovementMedium,
 } from '@orchard/sim';
 import { terrainFixedPlane, terrainMinimumElevation, type TerrainArray } from './terrain.js';
+import { terrainIsWindow } from './terrain-index.js';
 
 export interface CollisionWorldResource {
   readonly id: bigint;
@@ -50,17 +52,21 @@ export interface CollisionWorldPlaceable {
 }
 
 const traversalChannelsCache = new WeakMap<TerrainArray, WeakMap<ContentRegistry, MediumCollisionChannels>>();
-const cellarBoundaryCollisionCache = new WeakMap<TerrainArray, readonly boolean[]>();
+const cellarBoundaryCollisionCache = new WeakMap<TerrainArray, Uint8Array>();
 
 /** Uncut cellar rock is height-owned terrain rather than an absolute blocker.
- * Only the finite 1024x1024 world edge belongs in the legacy flat channel. */
-function cellarBoundaryCollision(terrain: TerrainArray): readonly boolean[] {
+ * Only the finite 1024x1024 world edge belongs in the legacy flat channel.
+ * The edge is the whole map's, in world tiles, so a window (non-zero origin)
+ * marks only the map-edge cells it contains, never its own border. */
+function cellarBoundaryCollision(terrain: TerrainArray): Uint8Array {
   let blocked = cellarBoundaryCollisionCache.get(terrain);
   if (blocked !== undefined) return blocked;
-  blocked = Array.from({ length: terrain.width * terrain.height }, (_, index) => {
-    const tileX = index % terrain.width;
-    const tileY = Math.floor(index / terrain.width);
-    return tileX === 0 || tileY === 0 || tileX === terrain.width - 1 || tileY === terrain.height - 1;
+  const originX = terrain.originX ?? 0, originY = terrain.originY ?? 0;
+  const worldWidth = terrain.worldWidth ?? terrain.width, worldHeight = terrain.worldHeight ?? terrain.height;
+  blocked = cellFlagsWhere(terrain.width * terrain.height, (index) => {
+    const tileX = originX + index % terrain.width;
+    const tileY = originY + Math.floor(index / terrain.width);
+    return tileX === 0 || tileY === 0 || tileX === worldWidth - 1 || tileY === worldHeight - 1;
   });
   cellarBoundaryCollisionCache.set(terrain, blocked);
   return blocked;
@@ -68,21 +74,27 @@ function cellarBoundaryCollision(terrain: TerrainArray): readonly boolean[] {
 
 export type PreparedClientTerrainCollision = Omit<CollisionMap, 'obstacles'>;
 
-/** Reuses explicitly prepared terrain when supplied; live obstacles are always rebuilt. */
-export function createClientCollisionMap(
-  terrain: TerrainArray,
+/** One live row's collision box. Hearth furniture is tagged: the server appends
+ * it after its live-map composition, outside the suppressed-key filter. */
+export interface ClientLiveRowObstacle {
+  readonly obstacle: CollisionObstacle;
+  readonly furniture: boolean;
+}
+
+/** The ground boxes of live resource, chest and placeable rows, in the order
+ * createClientCollisionMap has always listed them, plus each blocking resource's
+ * box by id (resource targeting). A resource whose `resource-<id>` is in
+ * `generatedSuppressions` is left out, as the server does. */
+export function clientLiveRowObstacles(
   resources: Iterable<CollisionWorldResource>,
   chests: Iterable<CollisionWorldChest> = [],
-  medium: MovementMedium = 'ground',
   placeables: Iterable<CollisionWorldPlaceable> = [],
   generatedSuppressions: ReadonlySet<string> = new Set<string>(),
-  authoredDockWalkableTiles?: readonly { readonly tileX: number; readonly tileY: number }[],
   contentRegistry?: ContentRegistry,
-  preparedTerrain?: PreparedClientTerrainCollision,
-): CollisionMap & { readonly resourceObstacles: ReadonlyMap<bigint, CollisionObstacle> } {
-  const obstacles = [];
+): { readonly entries: readonly ClientLiveRowObstacle[]; readonly resourceObstacles: ReadonlyMap<bigint, CollisionObstacle> } {
+  const entries: ClientLiveRowObstacle[] = [];
   const resourceObstacles = new Map<bigint, CollisionObstacle>();
-  for (const resource of medium === 'ground' ? resources : []) {
+  for (const resource of resources) {
     if (generatedSuppressions.has(`resource-${resource.id}`)) continue;
     const authored = contentRegistry === undefined
       ? null
@@ -95,36 +107,59 @@ export function createClientCollisionMap(
         ? survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY)
         : runtimeResourceObstacle(contentRegistry, resource, resource.tileX, resource.tileY);
       if (obstacle === null) continue;
-      obstacles.push(obstacle);
+      entries.push({ obstacle, furniture: false });
       resourceObstacles.set(resource.id, obstacle);
     }
   }
-  for (const chest of medium === 'ground' ? chests : []) if (chest.carriedBy === undefined) obstacles.push({
+  for (const chest of chests) if (chest.carriedBy === undefined) entries.push({ furniture: false, obstacle: {
     left: chest.tileX * TILE_SIZE_FIXED,
     top: chest.tileY * TILE_SIZE_FIXED,
     right: (chest.tileX + 1) * TILE_SIZE_FIXED - 1,
     bottom: (chest.tileY + 1) * TILE_SIZE_FIXED - 1,
-  });
-  for (const placeable of medium === 'ground' ? placeables : []) {
+  } });
+  for (const placeable of placeables) {
     if (placeable.carriedBy !== undefined) continue;
     const furniture = contentRegistry === undefined
       ? hearthFurnitureShapeForPlaceable(placeable)
       : hearthFurnitureShapeForPlaceable(contentRegistry, placeable);
     if (furniture !== null) {
       const obstacle = hearthFurnitureObstacle({ id: '', shape: furniture, tileX: placeable.tileX, tileY: placeable.tileY });
-      if (obstacle !== null) obstacles.push(obstacle);
+      if (obstacle !== null) entries.push({ obstacle, furniture: true });
       continue;
     }
     if (contentRegistry === undefined) continue;
     if (!runtimePlaceableBlocksMovement(contentRegistry, placeable)) continue;
-    for (const tile of runtimeObjectFootprintTiles(contentRegistry, placeable)) obstacles.push({
+    for (const tile of runtimeObjectFootprintTiles(contentRegistry, placeable)) entries.push({ furniture: false, obstacle: {
       left: tile.tileX * TILE_SIZE_FIXED,
       top: tile.tileY * TILE_SIZE_FIXED,
       right: (tile.tileX + 1) * TILE_SIZE_FIXED - 1,
       bottom: (tile.tileY + 1) * TILE_SIZE_FIXED - 1,
-    });
+    } });
   }
-  if (terrain.spaceId === TOPSIDE_SPACE_ID) {
+  return { entries, resourceObstacles };
+}
+
+/** Reuses explicitly prepared terrain when supplied; live obstacles are always rebuilt.
+ * A chunk window (non-zero origin) never takes the generator paths: its static
+ * obstacles and traversal channels come from chunk records (chunk-collision). */
+export function createClientCollisionMap(
+  terrain: TerrainArray,
+  resources: Iterable<CollisionWorldResource>,
+  chests: Iterable<CollisionWorldChest> = [],
+  medium: MovementMedium = 'ground',
+  placeables: Iterable<CollisionWorldPlaceable> = [],
+  generatedSuppressions: ReadonlySet<string> = new Set<string>(),
+  authoredDockWalkableTiles?: readonly { readonly tileX: number; readonly tileY: number }[],
+  contentRegistry?: ContentRegistry,
+  preparedTerrain?: PreparedClientTerrainCollision,
+): CollisionMap & { readonly resourceObstacles: ReadonlyMap<bigint, CollisionObstacle> } {
+  const live = medium === 'ground'
+    ? clientLiveRowObstacles(resources, chests, placeables, generatedSuppressions, contentRegistry)
+    : { entries: [], resourceObstacles: new Map<bigint, CollisionObstacle>() };
+  const obstacles = live.entries.map(({ obstacle }) => obstacle);
+  const resourceObstacles = live.resourceObstacles;
+  const window = terrainIsWindow(terrain);
+  if (terrain.spaceId === TOPSIDE_SPACE_ID && !window) {
     // Isolated engine fixtures may omit all authored spaces. Live snapshots
     // always carry the active registry and must fail neutral on a missing
     // island palette instead of silently restoring bootstrap content.
@@ -139,7 +174,7 @@ export function createClientCollisionMap(
     }
   }
   let traversalChannels = terrain.traversalChannels;
-  if (traversalChannels === undefined && contentRegistry !== undefined && runtimeTraversalPolicy(contentRegistry) !== null) {
+  if (traversalChannels === undefined && !window && contentRegistry !== undefined && runtimeTraversalPolicy(contentRegistry) !== null) {
     let cache = traversalChannelsCache.get(terrain);
     if (cache === undefined) { cache = new WeakMap(); traversalChannelsCache.set(terrain, cache); }
     traversalChannels = cache.get(contentRegistry);
@@ -176,26 +211,33 @@ export function prepareClientTerrainCollision(
     ? fixedTerrainPlane !== undefined
       ? cellarBoundaryCollision(terrain)
       : terrain.blocked
-    : Array.from(terrain.biomes, (biome) => (
-      survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[biome] ?? 'water', medium)
+    : cellFlagsWhere(terrain.biomes.length, (index) => (
+      survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[terrain.biomes[index]!] ?? 'water', medium)
     ));
   let blocked = terrainBlocked;
+  const window = terrainIsWindow(terrain);
   if (medium === 'ground' && terrain.spaceId === TOPSIDE_SPACE_ID) {
-    let authoredDockCorrection: boolean[] | null = null;
+    let authoredDockCorrection: Uint8Array | null = null;
     const configuredDockTiles = authoredDockWalkableTiles === undefined ? null
       : new Set(authoredDockWalkableTiles.map((tile) => `${tile.tileX}:${tile.tileY}`));
+    // Dock tiles are world tiles: a window's cell index is offset by its origin.
+    const originX = terrain.originX ?? 0, originY = terrain.originY ?? 0;
     for (let index = 0; index < terrainBlocked.length; index += 1) {
-      if (!terrainBlocked[index]
-        || !(configuredDockTiles?.has(`${index % terrain.width}:${Math.floor(index / terrain.width)}`)
-          ?? survivalFishermanDockWalkableAt(index % terrain.width, Math.floor(index / terrain.width)))) continue;
-      authoredDockCorrection ??= Array.from(terrainBlocked);
-      authoredDockCorrection[index] = false;
+      if (!terrainBlocked[index]) continue;
+      const tileX = originX + index % terrain.width, tileY = originY + Math.floor(index / terrain.width);
+      if (!(configuredDockTiles?.has(`${tileX}:${tileY}`) ?? survivalFishermanDockWalkableAt(tileX, tileY))) continue;
+      authoredDockCorrection ??= terrainBlocked.slice();
+      authoredDockCorrection[index] = 0;
     }
     blocked = authoredDockCorrection ?? terrainBlocked;
   }
+  // The generator's whole-map plane bytes never describe a window.
+  const topsidePlaneBlocked = medium !== 'ground' || terrain.spaceId !== TOPSIDE_SPACE_ID ? undefined
+    : terrain.terrainPlaneBlocked ?? (window ? undefined : survivalTerrainPlaneCollisionBytes(terrain.seed));
   return {
     width: terrain.width,
     height: terrain.height,
+    ...(window ? { originX: terrain.originX ?? 0, originY: terrain.originY ?? 0 } : {}),
     ...(terrain.traversalChannels === undefined ? {} : { traversalChannels: terrain.traversalChannels }),
     blocked,
     ...(medium === 'ground' ? { elevations: terrain.elevations } : {}),
@@ -203,9 +245,8 @@ export function prepareClientTerrainCollision(
       ? { fixedTerrainPlane }
       : {}),
     ...(medium === 'ground'
-      ? terrain.spaceId === TOPSIDE_SPACE_ID
-        ? { terrainPlaneBlocked: terrain.terrainPlaneBlocked
-          ?? survivalTerrainPlaneCollisionBytes(terrain.seed) }
+      ? terrain.spaceId === TOPSIDE_SPACE_ID && topsidePlaneBlocked !== undefined
+        ? { terrainPlaneBlocked: topsidePlaneBlocked }
         : terrain.terrainPlaneBlocked === undefined
           ? {}
           : { terrainPlaneBlocked: terrain.terrainPlaneBlocked }

@@ -90,9 +90,10 @@ function reachableFloor(map:CollisionMap,exit:{tileX:number;tileY:number}):Set<s
  * previews use the same physical rules. Inventory mutation follows successful validation. */
 export function hearthFurniturePlacementFailure(context:HearthFurniturePlacementContext,candidate:HearthFurniturePlacement):HearthFurniturePlacementFailure|null{
   if(!context.canBuild)return 'builder_required';
+  // Residence collision only: a whole map (no origin, at most 64 x 64), never a chunk window (S4d).
   const {shape}=candidate,{collision}=context;
   if(!Number.isInteger(candidate.tileX)||!Number.isInteger(candidate.tileY)||!Number.isInteger(shape.width)||!Number.isInteger(shape.height)
-    ||shape.width<1||shape.height<1||shape.width>8||shape.height>8||collision.width<1||collision.height<1||collision.width>64||collision.height>64
+    ||shape.width<1||shape.height<1||shape.width>8||shape.height>8||collision.width<1||collision.height<1||collision.width>64||collision.height>64||collision.originX!==undefined||collision.originY!==undefined
     ||context.existing.some(item=>item.id===candidate.id)
     ||(shape.base!==undefined&&(!Number.isFinite(shape.base.halfWidth)||!Number.isFinite(shape.base.depth)
       ||shape.base.halfWidth<=0||shape.base.depth<=0||shape.base.halfWidth>shape.width*8||shape.base.depth>shape.height*16)))return 'invalid_placement';

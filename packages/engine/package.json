@@ -1,6 +1,6 @@
 {
   "name": "@orchard/engine",
-  "version": "0.24.3",
+  "version": "0.29.1",
   "private": true,
   "type": "module",
   "exports": {

@@ -97,7 +97,7 @@ describe('resource-only discovery subscriptions', () => {
       subscribedSpaceDefinitionKey: '', subscribedCenterTiles: null, pendingRegion: null,
       regionSubscription: null, regionAuxiliarySubscription: null,
       pendingRegionQueryCount: 0, activeRegionQueryCount: 0, handoverCount: 0, resourceRevisionValue: 0,
-      subscribeCellarExcavations: () => undefined, ownPosition: () => position,
+      subscribeCellarExcavations: () => undefined, updateChunkRuntime: () => undefined, ownPosition: () => position,
       currentConnection: (candidate: typeof connection) => candidate === connection,
       incoming: (candidate: typeof connection, fn: () => void) => { if (candidate === connection) fn(); },
       initialRegionHydrated: false, maybeGameplayReady: () => undefined, onChanged: () => undefined,

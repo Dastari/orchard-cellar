@@ -5,6 +5,7 @@ import { OverworldConnection } from './overworld-connection.js';
 import { LatencyInjector } from './netcode.js';
 import { clientErrorReporter } from '../client-error-reporter.js';
 import { CLIENT_CONTENT_ENGINE_VERSION } from '../content/live-content.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 const mocked = vi.hoisted(() => ({ build: vi.fn(), ensure: vi.fn() }));
 vi.mock('@orchard/world-bindings', async (original) => ({
@@ -251,7 +252,7 @@ it('discards seated prediction on every frame without replaying pending movement
   const authoritative={position:{x:100,y:200},facing:'down',moving:false,location:'estate'} as const;
   const predicted={...authoritative,position:{x:9000,y:9000}};
   for(let frame=0;frame<3;frame++){
-    const result=OverworldConnection.prototype.reconcile.call(fake as unknown as OverworldConnection,predicted,authoritative,{width:1,height:1,blocked:[false]});
+    const result=OverworldConnection.prototype.reconcile.call(fake as unknown as OverworldConnection,predicted,authoritative,{width:1,height:1,blocked:cellFlags([false])});
     expect(result).toMatchObject({player:authoritative,hardSnap:true,replayDepth:0});
   }
   expect(discard).toHaveBeenCalledTimes(3);expect(replay).not.toHaveBeenCalled();

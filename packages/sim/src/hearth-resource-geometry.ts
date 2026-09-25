@@ -3,7 +3,7 @@ import { bootstrapContentRegistry } from './content/bootstrap-registry.js';
 import type { ContentRegistry } from './content/registry.js';
 import { runtimeResourceTargetVector } from './content/runtime.js';
 import { TILE_SIZE_FIXED } from './state.js';
-import { playerInteractionOrigin, positionCollides } from './movement.js';
+import { collisionCellIndex, playerInteractionOrigin, positionCollides } from './movement.js';
 import { combatSegmentObstructed } from './combat-actions.js';
 import { runtimeHearthResourceSite } from './hearth-resource-sites.js';
 
@@ -13,10 +13,10 @@ export function hearthResourceGeometryAllows(position: { readonly x: number; rea
   resourceId: bigint, collision: CollisionMap, registry: ContentRegistry = bootstrapContentRegistry()): boolean {
   const site = runtimeHearthResourceSite(registry, resourceId);
   if (site === null) return false;
+  // World tiles through the shared addressing (a client chunk window has an origin, S4d).
   const elevation = (x: number, y: number) => {
-    const tx = Math.floor(x / TILE_SIZE_FIXED), ty = Math.floor(y / TILE_SIZE_FIXED);
-    return tx < 0 || ty < 0 || tx >= collision.width || ty >= collision.height ? -32768
-      : collision.elevations?.[ty * collision.width + tx] ?? 0;
+    const cell = collisionCellIndex(collision, Math.floor(x / TILE_SIZE_FIXED), Math.floor(y / TILE_SIZE_FIXED));
+    return cell < 0 ? -32768 : collision.elevations?.[cell] ?? 0;
   };
   const origin = playerInteractionOrigin(position);
   const vector = runtimeResourceTargetVector(registry, {

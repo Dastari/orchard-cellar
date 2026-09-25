@@ -1,4 +1,4 @@
-import { HOTBAR_SLOT_COUNT } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import type { ContainerBinding } from './container-binding.js';
 import { widget, type WidgetNode } from './widget.js';
 

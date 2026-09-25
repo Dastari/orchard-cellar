@@ -1,4 +1,4 @@
-import { WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, decodeWorldChunk, type WorldChunk, type WorldChunkAuthorityObstacle,
+import { worldChunkHasAuthority, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, decodeWorldChunk, type WorldChunk, type WorldChunkAuthorityObstacle,
   type WorldChunkAuthoritySuppressedObstacle, type WorldChunkManifest } from './world-chunk.js';
 import type { CollisionObstacle } from './state.js';
 
@@ -62,7 +62,7 @@ export function sampleChunkCollision(chunk: WorldChunk | undefined, tileX: numbe
     legacyGroundBlocked: arrays['clientGround.blocked']?.[index] !== 0,
     legacyWaterBlocked: arrays['clientWater.blocked']?.[index] !== 0,
     // The decoder has validated every authority channel whenever the schema is present.
-    ...(chunk.authoritySchema !== WORLD_CHUNK_AUTHORITY_SCHEMA ? {} : { authority: {
+    ...(!worldChunkHasAuthority(chunk) ? {} : { authority: {
       groundBlocked: arrays['authority.ground.blocked']![index] !== 0,
       groundElevation: arrays['authority.ground.elevations']![index]!,
       groundHorseJumpable: arrays['authority.ground.horseJumpableTerrain']![index] !== 0,

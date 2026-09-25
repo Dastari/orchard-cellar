@@ -1,9 +1,6 @@
-import {
-  bootstrapContentRegistry,
-  runtimeDurabilityDefinition,
-  runtimeNormalizeDurability,
-  type ContentRegistry,
-} from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeDurabilityDefinition, runtimeNormalizeDurability } from '@orchard/sim/content/runtime';
 
 /** Live inventory surfaces use their active authored item metadata. */
 export function uiDurabilityFraction(

@@ -206,7 +206,19 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Static world S4e moves map-object drawing, lights and occluders out of engine/live-map-runtime.ts into
 // engine/map-object-presentation.ts (plain object records, injected terrain sampler); live-map-runtime keeps
 // document-based adapters with unchanged names. Parity and import-boundary tests cover the move; no behaviour change.
-const STRUCTURAL_SEAM_DIGEST = 'c6370a9ad3a19290e8da6105bfa5f71a34b72c67f3e8b0656e8f947574ab8840';
+// BUG-037: ghostFillCraftingRecipe may return the authority's promise so a refused recipe placement
+// rolls the selection back; crafting-frame and overworld-ui tests cover it.
+// Static world S6a (PR #169) rewrites only the @orchard/sim value imports in ui/overworld-ui.ts: the same
+// bindings now come from generator-free @orchard/sim/<module> subpaths (types stay on the barrel), which
+// splits two import statements into several. No code changed; the other four seams are unchanged.
+// Subpath identity (=== barrel exports) and generator-free boundary tests cover the rewrite.
+// Static world S4d (PR #184) makes engine/collision.ts origin-aware for chunk windows and adds the chunk
+// collision builder path; whole maps (no origin) behave as before. Chunk-collision parity and pinned
+// whole-map collision digests cover it; the other four seams are unchanged.
+// Uint8Array flag planes (S4f follow-up) store engine/collision.ts's blocked planes as 0/1 bytes instead
+// of boolean[] (cellar boundary, water, dock correction; built with cellFlagsWhere). The pinned whole-map collision digests cover
+// it (the same bytes); the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = 'ebbe3b6e3288e781bc3bf0e33e60aefda4b80f14ab474312709e561773b100e3';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

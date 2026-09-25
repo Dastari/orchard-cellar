@@ -140,9 +140,9 @@ export function hearthInteriorFurnitureObstacles(registryOrInterior:ContentRegis
   });
 }
 const collisionFor=(interior:HearthInterior,registry:ContentRegistry=bootstrapContentRegistry()):CollisionMap=>{
-  const width=interior.sizeTiles,blocked=Array<boolean>(width*width).fill(true);
+  const width=interior.sizeTiles,blocked=new Uint8Array(width*width).fill(1);
   for(const [left,top,right,bottom] of interior.rooms)
-    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)blocked[y*width+x]=false;
+    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)blocked[y*width+x]=0;
   return {width,height:width,blocked,elevations:new Int16Array(width*width),obstacles:hearthInteriorFurnitureObstacles(registry,interior)};
 };
 export function hearthInteriorCollision(spaceId:number):CollisionMap;

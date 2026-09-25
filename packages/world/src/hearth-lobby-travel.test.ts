@@ -5,7 +5,7 @@ import * as sim from '@orchard/sim';
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('./index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 function fixture(){
   const unit=sim.TILE_SIZE_FIXED,width=32;
-  const outside={width,height:width,blocked:Array<boolean>(width*width).fill(false),elevations:new Int16Array(width*width),obstacles:[] as sim.CollisionObstacle[]} satisfies sim.CollisionMap;
+  const outside={width,height:width,blocked:new Uint8Array(width*width),elevations:new Int16Array(width*width),obstacles:[] as sim.CollisionObstacle[]} satisfies sim.CollisionMap;
   const inside=sim.hearthLobbyCollision(),events:string[]=[];
   let hands=false,mounted=false,run=false,health=1000;
   const position={identity:'player',spaceId:0,x:10.5*unit,y:10.5*unit,authorityTick:20n};
@@ -68,7 +68,7 @@ describe('safe lobby portal preparation',()=>{
     expect(()=>f.prepare(f.ctx,f.position,f.portal)).toThrow('portal_out_of_range');
     f.position.x-=f.unit;f.outside.elevations![10*32+11]=1;
     expect(()=>f.prepare(f.ctx,f.position,f.portal)).toThrow('portal_out_of_range');
-    f.position.x-=f.unit;f.outside.blocked[10*32+10]=true;
+    f.position.x-=f.unit;f.outside.blocked[10*32+10] = 1;
     expect(()=>f.prepare(f.ctx,f.position,f.portal)).toThrow('portal_out_of_range');expect(f.events).toEqual([]);
   });
   it('rejects a thin obstruction between otherwise clear approach and threshold bodies',()=>{

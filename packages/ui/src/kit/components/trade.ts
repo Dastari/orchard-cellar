@@ -1,4 +1,6 @@
-import { BACKPACK_SLOT_OFFSET, BACKPACK_SLOT_COUNT, BASE_BACKPACK_CAPACITY, HOTBAR_SLOT_COUNT, coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim';
+import { coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim/commerce';
+import { BACKPACK_SLOT_OFFSET, BACKPACK_SLOT_COUNT, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { BASE_BACKPACK_CAPACITY } from '@orchard/sim/item-containers';
 import { tradeItemDisplayName, tradeItemIsOfferable, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
 import type { LoadedAsset } from '../../assets.js';
 import { containsPoint } from '../../geometry.js';
