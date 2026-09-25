@@ -1,3 +1,4 @@
+import { atlasPackDeliveryEnabled, loadAtlasPacks } from '@orchard/ui';
 import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import { ChunkRuntimeController, type ChunkAuthorityGate, type ChunkRuntimeSource, type ChunkView } from '../chunk-runtime-controller.js';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
@@ -912,7 +913,9 @@ export class OverworldConnection {
 
   private updateChunkRuntime(connection: DbConnection, position: PlayerPosition): void {
     if (this.chunkRuntimeMode !== 'shadow' && this.chunkRuntimeMode !== 'on') return;
-    this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
+    // Atlas packs load through the chunk runtime only when pack delivery is enabled (S4f).
+    this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode,
+      ...(atlasPackDeliveryEnabled() ? { loadAtlasPacks: (ids: readonly string[]) => loadAtlasPacks(ids) } : {}) });
     this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), this.chunkRuntimeSource());
   }
 

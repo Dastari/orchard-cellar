@@ -122,10 +122,11 @@ import {
 } from '@orchard/engine/display';
 import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
-import { ConnectionRecoveryOverlay, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
+import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
+import { SpawnReadinessGate, type SpawnReadiness } from './spawn-readiness.js';
 import type { ChunkTerrainWindow, TileBounds } from '@orchard/engine/chunk-terrain-window';
 import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
@@ -334,6 +335,8 @@ const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pi
         tick: latestSnapshot.clock?.authorityTick ?? 0n, projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
     },
   ] });
+/** Static world S4f: in chunk mode `on`, movement waits for the terrain around the player. */
+const spawnReadiness = new SpawnReadinessGate();
 const furnitureMoves = new FurnitureMoveController((...args) => network.moveHearthFurniture(...args));
 const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty = true; });
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
@@ -4764,6 +4767,13 @@ function renderFrame(alpha = 1): void {
   const loadingStage = currentWorldLoadingStage();
   setLoadingScreenStage(loadingStage);
   if (loadingStage.ready !== true || !network.gameplayReady) {
+    // S4f: while movement waits for terrain (a topside arrival in chunk mode `on`), the chunk
+    // pin follows the player, not the last camera, so the spawn ring can load.
+    const terrainWait = !spawnReadiness.status(renderStarted).ready;
+    if (terrainWait && localAuthority !== undefined && localAuthority.spaceId === TOPSIDE_SPACE_ID) {
+      const tileX = Math.floor(localAuthority.x / TILE_SIZE_FIXED), tileY = Math.floor(localAuthority.y / TILE_SIZE_FIXED);
+      worldSource.setView({ minX: tileX, minY: tileY, maxX: tileX, maxY: tileY });
+    }
     const viewport = hudViewportCss();
     const uiScale = fittedUiScale(desiredUiScale, viewport.width, viewport.height);
     overworldUi.setPwaUpdateStatus(pwaClient.status, {
@@ -4784,6 +4794,7 @@ function renderFrame(alpha = 1): void {
       worldGapStartedAt ??= now;
       const gap = worldGapPresentation(
         connectionRecoveryState(), hasRenderedWorldFrame, loadingStage.error === true, worldGapStartedAt, now,
+        WORLD_GAP_GRACE_MS, terrainWait,
       );
       presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
       if (gap.kind === 'initial-loading') {
@@ -4793,7 +4804,8 @@ function renderFrame(alpha = 1): void {
       } else if (gap.kind === 'retained-world') {
         renderer.compositeWorld();
       } else if (gap.kind === 'resyncing') {
-        connectionRecoveryOverlay.compositeResync(renderer, overlayViewport);
+        if (gap.reason === 'terrain') connectionRecoveryOverlay.compositeResync(renderer, overlayViewport, gap.reason);
+        else connectionRecoveryOverlay.compositeResync(renderer, overlayViewport);
       } else {
         connectionRecoveryOverlay.composite(renderer, overlayViewport, gap.state, hasRenderedWorldFrame);
       }
@@ -6435,13 +6447,29 @@ function connectionRecoveryState(): ConnectionRecoveryState | null {
   return hasRenderedWorldFrame && state !== 'ready' ? 'reconnecting' : null;
 }
 
+/** Terrain readiness around the local player (static world S4f): always ready in chunk
+ * modes off and shadow and in other spaces, so those behave exactly as before. */
+function terrainReadiness(): SpawnReadiness {
+  const snapshot = latestSnapshot;
+  const position = snapshot.identityHex === null ? undefined : snapshot.players.get(snapshot.identityHex);
+  const status = network.chunkRuntimeStatus;
+  return spawnReadiness.update({
+    mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, spaceId: position?.spaceId,
+    tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
+    tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
+  }, performance.now());
+}
+
 function currentWorldLoadingStage(): ReturnType<typeof worldLoadingStage> {
   const snapshot = latestSnapshot;
+  const terrain = terrainReadiness();
   return worldLoadingStage({
     connected: snapshot.connected, error: snapshot.error,
     identityReady: snapshot.identityHex !== null,
     worldReady: snapshot.worldSeed !== null && snapshot.clock !== null && snapshot.environment !== null,
     playerReady: snapshot.identityHex !== null && snapshot.players.get(snapshot.identityHex) !== undefined,
+    // Undefined unless waiting, so modes off and shadow pass exactly the fields they always did.
+    ...(terrain.ready ? {} : { terrainReady: false }),
     profileReady: snapshot.characterProfile !== null
       && (localProfilesEnabled || snapshot.membership !== null) && snapshot.survival !== null,
   });
@@ -7777,7 +7805,7 @@ Object.assign(window, {
       lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
       activeSpaceDefinition, latestLightCount, rain, groundCache,
       chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus,
-        staging: worldSource.stagingStatus } }),
+        staging: worldSource.stagingStatus, readiness: spawnReadiness.status(performance.now()) } }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,
