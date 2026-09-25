@@ -1656,6 +1656,9 @@ export class OverworldUi {
   /** The pattern the authority last confirmed; a refused placement falls back to it (BUG-037). */
   private confirmedCraftingRecipeId: string | null = null;
   private craftingPlacementSequence = 0;
+  /** Placements numbered below this were sent before the selection was dismissed or the window closed;
+   * their late answers must not bring the dismissed pattern back. */
+  private craftingPlacementFloor = 0;
   private readonly currencyDisplay: CurrencyDisplay;
   private readonly playerResourceFrame: PlayerResourceFrame;
   private readonly targetResourceFrame: PlayerResourceFrame;
@@ -2332,8 +2335,7 @@ export class OverworldUi {
       || this.openWindowValue === 'press' || this.openWindowValue === 'fermentation')
       && nextWindow !== this.openWindowValue) this.callbacks.closePlaceable();
     if (this.openWindowValue === 'crafting' && nextWindow !== 'crafting') {
-      this.selectedCraftingRecipeId = null;
-      this.confirmedCraftingRecipeId = null;
+      this.dismissCraftingRecipe();
       this.callbacks.closeCrafting();
     }
     if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
@@ -2747,7 +2749,7 @@ export class OverworldUi {
       : undefined;
     if (this.openWindowValue === 'crafting' && this.selectedCraftingRecipeId !== null
       && (button === 0 || button === 2) && clickedCraftingRecipe === undefined && !containsPoint(this.layout.craftingResult,point)) {
-      this.selectedCraftingRecipeId = null;
+      this.dismissCraftingRecipe();
     }
     if (button === 0) {
       if (this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
@@ -4943,6 +4945,7 @@ export class OverworldUi {
     const sequence = ++this.craftingPlacementSequence;
     this.selectedCraftingRecipeId = recipeId;
     void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).then(() => {
+      if (sequence < this.craftingPlacementFloor) return;
       this.confirmedCraftingRecipeId = recipeId;
     }, () => {
       if (sequence !== this.craftingPlacementSequence || this.selectedCraftingRecipeId !== recipeId) return;
@@ -4954,10 +4957,18 @@ export class OverworldUi {
   /** The legacy canvas row: a second click on the selected recipe clears it; any other click places it. */
   private selectCraftingRecipe(recipeId: string): void {
     if (this.selectedCraftingRecipeId === recipeId) {
-      this.selectedCraftingRecipeId = null;
+      this.dismissCraftingRecipe();
       return;
     }
     this.placeCraftingRecipe(recipeId);
+  }
+
+  /** Clears the ghost pattern and forgets the confirmed one. Bumping the sequence retires every
+   * placement still in flight, so neither its success nor its refusal can restore a dismissed ghost. */
+  private dismissCraftingRecipe(): void {
+    this.selectedCraftingRecipeId = null;
+    this.confirmedCraftingRecipeId = null;
+    this.craftingPlacementFloor = ++this.craftingPlacementSequence;
   }
 
   private craftingRecipeEntryAt(point: UiPoint) {

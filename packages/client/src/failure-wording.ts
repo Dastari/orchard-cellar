@@ -1,4 +1,6 @@
-/** Player-facing wording for authority rejections. Toasts show at most 42 characters. */
+/** Player-facing wording for authority rejections. The toast has room for 42 characters. The new
+ * wordings from the BUG-037 follow-up (recipe placement, crafting mismatch) fit within 42; some
+ * older entries below are longer and overflow, which BUG-043 tracks. */
 export type FailureWording = readonly (readonly [code: string, text: string])[];
 // Placing a recipe first returns the grid's other items to the pack; it fails only when they don't fit.
 export const RECIPE_PLACE_FAILURES: FailureWording = [['container_full', 'NO ROOM TO CLEAR THE CRAFTING GRID']];

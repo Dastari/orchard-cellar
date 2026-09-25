@@ -2540,6 +2540,90 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.ghostFillCraftingRecipe).toHaveBeenCalledTimes(1);
   });
 
+  describe('recipe placement confirmation (BUG-037)', () => {
+    const settle = async () => { for (let i = 0; i < 4; i += 1) await Promise.resolve(); };
+    function craftingUi() {
+      const handlers = callbacks();
+      const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+      ui.openWindow = 'crafting';
+      ui.update({
+        width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+        inventory: [], hasBackpack: false, nearbyCraftingStations: [],
+        knownRecipeIds: ['planks', 'sticks', 'torch', 'campfire', 'workbench'],
+        audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+        dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+        raining: false, weatherMode: 'auto', prompt: null, toast: null,
+      });
+      const internal = ui as unknown as {
+        selectedCraftingRecipeId: string | null;
+        placeCraftingRecipe(id: string): void;
+        craftingRecipeEntryAt(point: { x: number; y: number }): { recipeId: string } | undefined;
+      };
+      const layout = overworldUiLayout(480, 270);
+      /** Clicks the legacy canvas row showing the recipe. */
+      const clickRow = (recipeId: string) => {
+        const row = layout.craftingRecipeRows.find((rect) => internal.craftingRecipeEntryAt({ x: rect.x + 2, y: rect.y + 2 })?.recipeId === recipeId)!;
+        ui.pointerDown({ x: row.x + 2, y: row.y + 2 }, 0, {});
+      };
+      const clickAway = () => {
+        const cell = layout.craftingSlots[4]!;
+        ui.pointerDown({ x: cell.x + 8, y: cell.y + 8 }, 0, {});
+      };
+      return { ui, handlers, internal, clickRow, clickAway, fill: vi.mocked(handlers.ghostFillCraftingRecipe) };
+    }
+
+    it('rolls a refused press from the legacy row back to the confirmed recipe', async () => {
+      const { internal, clickRow, fill } = craftingUi();
+      fill.mockReturnValueOnce(Promise.resolve());
+      clickRow('workbench'); await settle();
+      expect(internal.selectedCraftingRecipeId).toBe('workbench');
+      fill.mockReturnValueOnce(Promise.reject(new Error('container_full')));
+      clickRow('torch');
+      expect(internal.selectedCraftingRecipeId).toBe('torch');
+      await settle();
+      expect(fill).toHaveBeenLastCalledWith('torch');
+      expect(internal.selectedCraftingRecipeId).toBe('workbench');
+    });
+
+    it('ignores a success that arrives after the crafting window closes', async () => {
+      const { ui, handlers, internal, fill } = craftingUi();
+      let confirm!: () => void;
+      fill.mockReturnValueOnce(new Promise<void>((resolve) => { confirm = resolve; }));
+      internal.placeCraftingRecipe('workbench');
+      ui.openWindow = null;
+      expect(handlers.closeCrafting).toHaveBeenCalledTimes(1);
+      confirm(); await settle();
+      ui.openWindow = 'crafting';
+      fill.mockReturnValueOnce(Promise.reject(new Error('container_full')));
+      internal.placeCraftingRecipe('torch'); await settle();
+      // The late success is not a fallback, so the refused press leaves no ghost behind.
+      expect(internal.selectedCraftingRecipeId).toBeNull();
+    });
+
+    it('does not bring back a ghost the player dismissed by clicking away', async () => {
+      const { internal, clickRow, clickAway, fill } = craftingUi();
+      fill.mockReturnValueOnce(Promise.resolve());
+      clickRow('workbench'); await settle();
+      clickAway();
+      expect(internal.selectedCraftingRecipeId).toBeNull();
+      fill.mockReturnValueOnce(Promise.reject(new Error('container_full')));
+      internal.placeCraftingRecipe('torch'); await settle();
+      expect(internal.selectedCraftingRecipeId).toBeNull();
+    });
+
+    it('ignores a late success for a placement the player already dismissed', async () => {
+      const { internal, clickRow, clickAway, fill } = craftingUi();
+      let confirm!: () => void;
+      fill.mockReturnValueOnce(new Promise<void>((resolve) => { confirm = resolve; }));
+      clickRow('workbench');
+      clickAway();
+      confirm(); await settle();
+      fill.mockReturnValueOnce(Promise.reject(new Error('container_full')));
+      internal.placeCraftingRecipe('torch'); await settle();
+      expect(internal.selectedCraftingRecipeId).toBeNull();
+    });
+  });
+
   it('explains an unavailable crafting station when hovering its visible recipe', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.openWindow = 'crafting';

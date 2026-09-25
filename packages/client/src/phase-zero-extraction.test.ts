@@ -220,7 +220,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Uint8Array flag planes (S4f follow-up) store engine/collision.ts's blocked planes as 0/1 bytes instead
 // of boolean[] (cellar boundary, water, dock correction; built with cellFlagsWhere). The pinned whole-map collision digests cover
 // it (the same bytes); the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '2ac40397af48173a257a2b6976c312578a682b16a69fb62434f6bc99d8936574';
+// BUG-037 review: closing the crafting window or clicking away retires in-flight recipe placements, so a
+// late success can't restore a dismissed ghost; overworld-ui tests cover it.
+const STRUCTURAL_SEAM_DIGEST = '2fc3c639405262718712d74bda75d763c5c7b5f7406a44151f1a4074ab9ead5e';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
