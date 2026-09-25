@@ -4,7 +4,7 @@ import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { UI_SIZE_METRICS, type UiControlSize, type UiShape, type UiTone } from '../tokens.js';
 import { resolveUiTextContrast } from '../skin/contrast.js';
-import { paintUiMissingArt, paintUiSkin, uiElementTone } from './art.js';
+import { paintUiMissingArt, paintUiSkin, uiElementTone, uiElementUpperCase } from './art.js';
 export interface UiButtonModifiers { readonly button?: number; readonly shiftKey?: boolean; readonly altKey?: boolean; readonly ctrlKey?: boolean; readonly metaKey?: boolean }
 export interface UiButtonOptions {
   readonly id?: string; readonly label: string; readonly ariaLabel?: string; readonly tone?: UiTone; readonly size?: UiControlSize;
@@ -80,7 +80,8 @@ export function uiButton(options: UiButtonOptions): UiElement {
       if (art.missingArt) paintUiMissingArt(context, element.rect, art);
       else paintUiSkin(context, art.skin.button, `${tone}.${size === 'sm' && options.label ? 'md' : size}.${shape}.${state}`, element.rect);
       const ink = resolveUiTextContrast(tone, 'label', `button_${state}`).color, r = element.rect;
-      const text = fitPixelText(String(element.props['label']), Math.max(0, r.width - 12 - 2 * Math.max(left, right)), 1, art.pixel.font);
+      const label = String(element.props['label']);
+      const text = fitPixelText(uiElementUpperCase(element) ? label.toUpperCase() : label, Math.max(0, r.width - 12 - 2 * Math.max(left, right)), 1, art.pixel.font);
       drawPixelText(context, art.pixel, text, r.x + Math.floor((r.width - measurePixelText(text, 1, art.pixel.font)) / 2),
         r.y + Math.floor((r.height - 7) / 2) + (pressed ? 1 : 0), { color: ink });
       if ((focused || hovered) && !element.disabled && !art.missingArt) {

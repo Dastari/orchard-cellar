@@ -209,7 +209,8 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         ownLabel = uiText('YOUR OFFER', { role: 'label' }); otherLabel = uiText('', { role: 'label' });
         ownTick = uiGlyph('glyph.check', { label: 'Accepted' }); otherTick = uiGlyph('glyph.check', { label: 'Accepted' });
         const tickSlot = (tick: UiElement) => uiFlex({ width: uiFixed(16), height: uiFixed(16), shrink: 0 }, [tick]);
-        wallet = uiText('', { role: 'caption', wrap: true, layout: { width: uiFixed(160) } }); otherMoney = uiCurrency({ bronze: 0 });
+        // The wallet is a readout like the merchant's YOU HAVE line, not a paragraph, so it stays in caps.
+        wallet = uiText('', { role: 'caption', wrap: true, textCase: 'upper', layout: { width: uiFixed(160) } }); otherMoney = uiCurrency({ bronze: 0 });
         status = uiText('', { wrap: true, align: 'center', layout: { width: uiFixed(280) } });
         const ownGrid = wrapSlots(uiInventoryGrid({ id: 'trade.own', container: 'trade-own', count: 6, columns: 3, gap: 2, fixedColumns: true, layout: { width: 'fit' },
           artwork, iconAnimation, stack: index => offer(model.identityHex, index) ?? null,

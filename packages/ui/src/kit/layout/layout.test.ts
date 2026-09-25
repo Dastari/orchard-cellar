@@ -136,8 +136,15 @@ describe('BUG-036: wrapping justified rows', () => {
     const host = new UiElement({ style: { display: 'flex', direction: 'column', padding: 8 }, children: [row] });
     root.mount(new UiElement({ style: { display: 'flex', width: 'grow', height: 'grow', align: 'center', justify: 'center' }, children: [host] })); root.arrange();
     expect(host.rect.width).toBe(70);
-    // Justification still applies inside the row's own box.
-    expect(row.children[0]!.rect.x).toBe(row.rect.x);
+    root.dispose();
+  });
+  it('still justifies items within a row that is wider than its content', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(960, 540);
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', wrap: true, justify: 'center', gap: 4, width: uiFixed(200) }, children: [leaf(20), leaf(30)] });
+    root.mount(new UiElement({ style: { display: 'flex', width: 'grow', height: 'grow' }, children: [row] })); root.arrange();
+    // 54px of content centred in 200px: a 73px offset.
+    expect(row.children[0]!.rect.x - row.rect.x).toBe(73);
+    expect(row.children[1]!.rect.x - row.rect.x).toBe(97);
     root.dispose();
   });
 });

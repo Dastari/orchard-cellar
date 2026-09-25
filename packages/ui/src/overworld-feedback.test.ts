@@ -76,6 +76,43 @@ describe('production feedback parent',()=>{
   expect(ui.feedbackHud(0)).toMatchObject({prompt:{text:'[E] USE'},tooltip:null,toast:{text:'FULL INVENTORY',tone:'danger'}});
   ui.openWindow='inventory';expect(ui.feedbackHud(0).prompt).toBeNull();ui.disposeRetainedHud();
  });
+ it('names the hovered slot just above it, never over the window hotbar (owner item 7)',()=>{
+  const {ui}=fixture(false);ui.openWindow='inventory';
+  vi.spyOn(ui,'tooltipText').mockReturnValue('LANTERN');
+  const access=ui as unknown as {hoveredItem:()=>unknown;retainedMenus:unknown};
+  vi.spyOn(access,'hoveredItem').mockReturnValue({itemKind:'lantern',quantity:1});
+  const slot={x:200,y:150,width:28,height:31};
+  access.retainedMenus={active:true,slotAt:()=>({ref:{container:'hotbar',index:5},rect:slot})};
+  const hud=ui.feedbackHud(0);
+  expect(hud.tooltip?.anchor).toEqual({x:214,y:146});
+  access.retainedMenus=null;vi.restoreAllMocks();
+ });
+ it('shows the hovered slot\'s full details below it when they do not fit above, never over the slot',()=>{
+  // The iron sword's details need about 80px. A slot near the top of a short screen has far less room above it.
+  const render=(width:number,height:number,slot:{x:number;y:number;width:number;height:number})=>{
+   const {ui,model}=fixture(false);ui.update({...model,width,height});ui.openWindow='inventory';
+   vi.spyOn(ui,'tooltipText').mockReturnValue('IRON SWORD');
+   const access=ui as unknown as {hoveredItem:()=>unknown;retainedMenus:unknown};
+   vi.spyOn(access,'hoveredItem').mockReturnValue({itemKind:'sword',quantity:1,durability:70});
+   access.retainedMenus={active:true,slotAt:()=>({ref:{container:'backpack',index:0},rect:slot})};
+   ui.feedbackHud(0);const hud=ui.feedbackHud(601);expect(hud.tooltip?.text).toContain('DURABILITY 70');
+   const host=new GameFeedback({} as UiKitArt,{onOpenSkillNotice(){},onDismissSkillNotice(){}});
+   host.setBounds({worldWidth:width,worldHeight:height,hudWidth:width,hudHeight:height});
+   host.update({sessionKey:'test',world:{nameplates:[],feedback:[],speech:[],hint:null,fishing:null},hud:{...hud,notice:null}});
+   const rect={...host.roots.hud.entries().find(e=>e.element.id==='game.feedback.tooltip.frame')!.element.rect};
+   host.dispose();access.retainedMenus=null;vi.restoreAllMocks();return rect;
+  };
+  for(const [width,height,y] of [[480,270,60],[320,180,30]] as const){
+   const slot={x:100,y,width:28,height:31};
+   // The same details with plenty of room above: their natural height, drawn just above the slot.
+   const low={...slot,y:height-40},full=render(width,height,low);
+   expect(full.height).toBeGreaterThanOrEqual(70);expect(full.y+full.height).toBe(low.y-4);
+   const rect=render(width,height,slot);
+   expect(rect.height,`${width}x${height}`).toBe(full.height);
+   expect(rect.y,`${width}x${height}`).toBe(slot.y+slot.height+4);
+   expect(rect.y+rect.height).toBeLessThanOrEqual(height);
+  }
+ });
  it('keeps deliberate equipment details above the compact anchor and touch labels below its hotbar',()=>{
   for(const touch of [false,true]){
    const {ui}=fixture(touch);ui.openWindow='inventory';

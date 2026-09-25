@@ -6,7 +6,7 @@ import { uiTestArt } from './kit/lab/testing/art.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { scrollUiElement } from './kit/layout/scroll.js';
 import { UI_TEXT_METRICS } from './kit/tokens.js';
-import { uiSlot } from './kit/components/inventory.js';
+import { uiSlot, uiSlotIconRect } from './kit/components/inventory.js';
 import { UiRoot } from './kit/runtime/root.js';
 
 let art: UiKitArt;
@@ -141,7 +141,8 @@ describe('production retained character adapter', () => {
     const root = new UiRoot({ art, scale: 1 });
     const slot = uiSlot({ stack: { itemKind: 'axe', quantity: 1 } }); root.mount(slot); root.resize(28,31); root.arrange();
     const context = createCanvas(28,31).getContext('2d'); const fill = vi.spyOn(context,'fillRect');
-    try { root.drawInContext(context as unknown as CanvasRenderingContext2D); expect(fill).toHaveBeenCalledWith(slot.rect.x+4,slot.rect.y+slot.rect.height-4,slot.rect.width-8,2); }
+    // The wear track: 5px in from the sides, 7px above the foot, 3px tall (the classic hotbar bar).
+    try { root.drawInContext(context as unknown as CanvasRenderingContext2D); expect(fill).toHaveBeenCalledWith(slot.rect.x+5,slot.rect.y+slot.rect.height-7,slot.rect.width-10,3); }
     finally { root.dispose(); }
   });
   it('paints worn equipment content once through the authoritative renderer', () => {
@@ -151,12 +152,31 @@ describe('production retained character adapter', () => {
     vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
     const context = createCanvas(640, 400).getContext('2d');
     const fill = vi.spyOn(context, 'fillRect');
-    f.drawItem.mockImplementation((ctx, bounds) => ctx.fillRect(bounds.x + 4, bounds.y + bounds.height - 4, 3, 2));
     f.screen.draw(context as unknown as CanvasRenderingContext2D);
     const bounds = f.node('character.equipment.slot.0').rect;
-    const bars = fill.mock.calls.filter(([x,y,,height]) => x === bounds.x + 4 && y === bounds.y + bounds.height - 4 && height === 2);
-    expect(bars).toEqual([[bounds.x + 4, bounds.y + bounds.height - 4, 3, 2]]);
-    expect(f.drawItem).toHaveBeenCalledExactlyOnceWith(expect.anything(), bounds, expect.objectContaining({ itemKind: 'axe', quantity: 3, durability: 17, lit: false }));
+    // The custom renderer draws only the icon, into the slot's icon well; the slot draws the one wear track.
+    const tracks = fill.mock.calls.filter(([x,y,,height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 7 && height === 3);
+    expect(tracks).toHaveLength(1);
+    expect(f.drawItem).toHaveBeenCalledExactlyOnceWith(expect.anything(), uiSlotIconRect(bounds), expect.objectContaining({ itemKind: 'axe', quantity: 3, durability: 17, lit: false }));
+  });
+  it('reads equipment wear from the live registry for items only published or Studio content defines', () => {
+    const bootstrap = bootstrapContentRegistry(), source = bootstrap.items.get('item:iron_axe')!;
+    const live = { ...bootstrap, items: new Map(bootstrap.items) };
+    live.items.set('item:studio_blade', { ...source, id: 'item:studio_blade', durability: { ...source.durability!, max: 100 } });
+    expect(bootstrap.items.has('item:studio_blade')).toBe(false);
+    vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
+    const tracks = (registry?: typeof live) => {
+      const screen = new CharacterScreen(art, { setAppearance: vi.fn() }, vi.fn(), vi.fn(), {}, registry && (() => registry)); screens.push(screen);
+      screen.update({ ...model(), equipment: [{ slot: 0, itemKind: 'studio_blade', quantity: 1, durability: 25, lit: true }] });
+      screen.setBounds(progressionWindowRect(640, 400), 640, 400); screen.root.arrange();
+      const context = createCanvas(640, 400).getContext('2d'), fill = vi.spyOn(context, 'fillRect');
+      screen.draw(context as unknown as CanvasRenderingContext2D);
+      const bounds = screen.root.entries().find(entry => entry.element.id === 'character.equipment.slot.0')!.element.rect;
+      return fill.mock.calls.filter(([x, y, , height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 7 && height === 3).length;
+    };
+    // The bootstrap fallback knows nothing of the Studio-only blade; the live registry gives it a wear bar.
+    expect(tracks()).toBe(0);
+    expect(tracks(live)).toBe(1);
   });
   it('cancels stale player gestures and clears pending preview across disconnect/reconnect', async () => {
     let reject!: (error: Error) => void;

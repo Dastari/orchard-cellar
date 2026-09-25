@@ -1200,11 +1200,14 @@ export class OverworldUi {
       const details = gear === null ? null : item?.durability === undefined ? gear : gear.map(line =>
         line.startsWith('MAX DURABILITY ') ? `DURABILITY ${item.durability} / ${line.slice(15)}` : line);
       const base = this.touchInventoryTooltipRect();
-      // Keep touch labels below the actual window hotbar. Desktop details grow
-      // upward above the existing tooltip anchor without covering its slots.
-      tooltip = { text: details?.join('\n') ?? text,
-        anchor: { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
-        ...(details ? { maxHeight: Math.max(0, base.y - 8) } : {}), tone: 'neutral' };
+      // A pointer names the slot it rests on: the label (and any details) sits centred just above that slot, so
+      // it never covers the window's hotbar row. Near the top of a short screen, where the details don't fit above,
+      // the host hangs them just below the slot instead; either way they never cover it. Touch keeps its labels
+      // below the window hotbar, clear of the finger.
+      const slot = this.retainedInventoryActive && this.model.touchControls !== true ? this.retainedMenus?.slotAt(this.pointer)?.rect ?? null : null;
+      tooltip = slot ? { text: details?.join('\n') ?? text, anchor: { x: slot.x + slot.width / 2, y: slot.y - 4 }, below: slot.y + slot.height + 4, tone: 'neutral' }
+        : { text: details?.join('\n') ?? text, anchor: { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
+          ...(details ? { maxHeight: Math.max(0, base.y - 8) } : {}), tone: 'neutral' };
     }
     const prompt = this.openWindowValue === null && !tooltip ? this.model.prompt : null;
     const toast = this.notificationText();
@@ -1229,7 +1232,8 @@ export class OverworldUi {
       clearTarget: id => { if (this.model.targetVitals?.targetId === id) this.callbacks.clearTarget?.(id); },
     }, {
       itemLabel: stack => this.itemDefinition(stack.itemKind)?.displayName ?? stack.itemKind,
-      drawItem: (context, rect, stack) => this.drawInventoryItem(context, rect, stack.itemKind, stack.quantity, stack.durability, stack.lit),
+      drawItem: (context, rect, stack) => this.drawItemIcon(context, rect, stack.itemKind, stack.lit),
+      contentRegistry: () => this.model.contentRegistry,
       drawPlayerHead: (context, id, rect) => this.drawPlayerHead(context, id, rect),
       drawTargetPortrait: (context, id, rect) => { const target = this.model.targetVitals; if (target?.targetId === id) this.drawTargetPortrait(context, target, rect); },
       drawMinimap: (context, rect, zoom, tracking) => this.drawMinimap(context, rect, zoom, tracking),
@@ -1349,7 +1353,8 @@ export class OverworldUi {
     const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: UiGameBookChapter) => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
     if (!this.characterScreen || !this.statisticsScreen || !this.skillTree) {
       this.characterScreen = new CharacterScreen(art, { setAppearance: appearance => this.callbacks.setAppearance?.(appearance) },
-        this.drawPlayerDoll, (context, rect, item) => this.drawInventoryItem(context, rect, item.itemKind, item.quantity, item.durability, item.lit), navigation);
+        this.drawPlayerDoll, (context, rect, item) => this.drawItemIcon(context, rect, item.itemKind, item.lit), navigation,
+        () => this.model.contentRegistry);
       this.statisticsScreen = new StatisticsScreen(art, navigation);
       this.skillTree = new SkillTreeUi(art, {
         prioritize: nodeId => this.callbacks.prioritizeEquipmentSkill?.(nodeId),
@@ -1417,6 +1422,7 @@ export class OverworldUi {
       craft: (all) => { const id = this.currentRecipeId(); if (id !== null && !this.currentRecipeLocked()) this.callbacks.craftInventoryRecipe(id, all); },
       label: item => this.itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
       iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry),
+      contentRegistry: () => this.model.contentRegistry,
     };
     this.retainedMenus = new InventoryMenus(art, authority);
     this.syncRetainedInventory();
@@ -1653,6 +1659,12 @@ export class OverworldUi {
   private inventoryFilterText = '';
   private recipeFilterText = '';
   private selectedCraftingRecipeId: string | null = null;
+  /** The pattern the authority last confirmed; a refused placement falls back to it (BUG-037). */
+  private confirmedCraftingRecipeId: string | null = null;
+  private craftingPlacementSequence = 0;
+  /** Placements numbered below this were sent before the selection was dismissed or the window closed;
+   * their late answers must not bring the dismissed pattern back. */
+  private craftingPlacementFloor = 0;
   private readonly currencyDisplay: CurrencyDisplay;
   private readonly playerResourceFrame: PlayerResourceFrame;
   private readonly targetResourceFrame: PlayerResourceFrame;
@@ -2329,7 +2341,7 @@ export class OverworldUi {
       || this.openWindowValue === 'press' || this.openWindowValue === 'fermentation')
       && nextWindow !== this.openWindowValue) this.callbacks.closePlaceable();
     if (this.openWindowValue === 'crafting' && nextWindow !== 'crafting') {
-      this.selectedCraftingRecipeId = null;
+      this.dismissCraftingRecipe();
       this.callbacks.closeCrafting();
     }
     if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
@@ -2743,7 +2755,7 @@ export class OverworldUi {
       : undefined;
     if (this.openWindowValue === 'crafting' && this.selectedCraftingRecipeId !== null
       && (button === 0 || button === 2) && clickedCraftingRecipe === undefined && !containsPoint(this.layout.craftingResult,point)) {
-      this.selectedCraftingRecipeId = null;
+      this.dismissCraftingRecipe();
     }
     if (button === 0) {
       if (this.openWindowValue === 'inventory' || this.openWindowValue === 'furnace'
@@ -4262,6 +4274,13 @@ export class OverworldUi {
     this.drawDurabilityBar(context, rect, itemKind, durability);
   }
 
+  /** Icon only, fitted to the kit slot's icon well: the kit slot draws the stack count, wear bar and
+   * hotkey itself, the same way on every surface. */
+  private drawItemIcon(context: CanvasRenderingContext2D, well: UiRect, itemKind: string, lit?: boolean): void {
+    const asset = overworldItemArtwork(this.itemArt, itemKind, this.model.contentRegistry) ?? this.itemArt.missing;
+    if (asset) this.drawItemArtwork(context, well, itemKind, asset, lit ?? true, well);
+  }
+
   /** Inventory art is fitted without stretching so tall authored props such as
    * torches and lanterns remain crisp while the closed chest tile becomes the
    * expected compact slot icon. */
@@ -4271,14 +4290,15 @@ export class OverworldUi {
     itemKind: string,
     asset: LoadedAsset,
     lit = true,
+    well: UiRect = { x: rect.x + 6, y: rect.y + 7, width: 16, height: 16 },
   ): void {
     const frame = uiAssetFrame(asset, itemIconAnimation(itemKind, this.model.contentRegistry));
     if (!frame) return;
-    const scale = Math.min(16 / frame.width, 16 / frame.height);
+    const scale = Math.min(well.width / frame.width, well.height / frame.height);
     const width = Math.max(1, Math.round(frame.width * scale));
     const height = Math.max(1, Math.round(frame.height * scale));
-    const x = Math.round(rect.x + 6 + (16 - width) / 2);
-    const y = Math.round(rect.y + 7 + (16 - height) / 2);
+    const x = Math.round(well.x + (well.width - width) / 2);
+    const y = Math.round(well.y + (well.height - height) / 2);
     context.save();
     if (!lit) {
       context.filter = 'brightness(42%) saturate(55%)';
@@ -4932,27 +4952,37 @@ export class OverworldUi {
     });
   }
 
-  /** The recipe book's Place: never toggles, and a refused placement restores the previous selection so
-   * the grid, the ghost pattern and the next press all agree with what the authority holds (BUG-037). */
+  /** The recipe book's Place: never toggles. Only the latest request may roll back, and it falls back to the
+   * pattern the authority last confirmed, so the grid, the ghost pattern and the next press all agree with
+   * what the authority holds even when presses overlap (BUG-037). */
   private placeCraftingRecipe(recipeId: string): void {
-    const previous = this.selectedCraftingRecipeId;
+    const sequence = ++this.craftingPlacementSequence;
     this.selectedCraftingRecipeId = recipeId;
-    const result = this.callbacks.ghostFillCraftingRecipe(recipeId);
-    if (result instanceof Promise) void result.catch(() => {
-      if (this.selectedCraftingRecipeId !== recipeId) return;
-      this.selectedCraftingRecipeId = previous;
+    void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).then(() => {
+      if (sequence < this.craftingPlacementFloor) return;
+      this.confirmedCraftingRecipeId = recipeId;
+    }, () => {
+      if (sequence !== this.craftingPlacementSequence || this.selectedCraftingRecipeId !== recipeId) return;
+      this.selectedCraftingRecipeId = this.confirmedCraftingRecipeId;
       this.syncRetainedInventory();
     });
   }
 
+  /** The legacy canvas row: a second click on the selected recipe clears it; any other click places it. */
   private selectCraftingRecipe(recipeId: string): void {
     if (this.selectedCraftingRecipeId === recipeId) {
-      this.selectedCraftingRecipeId = null;
+      this.dismissCraftingRecipe();
       return;
     }
-    this.selectedCraftingRecipeId = recipeId;
-    // The host already reports a refusal; don't leave its rejection unhandled.
-    void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).catch(() => undefined);
+    this.placeCraftingRecipe(recipeId);
+  }
+
+  /** Clears the ghost pattern and forgets the confirmed one. Bumping the sequence retires every
+   * placement still in flight, so neither its success nor its refusal can restore a dismissed ghost. */
+  private dismissCraftingRecipe(): void {
+    this.selectedCraftingRecipeId = null;
+    this.confirmedCraftingRecipeId = null;
+    this.craftingPlacementFloor = ++this.craftingPlacementSequence;
   }
 
   private craftingRecipeEntryAt(point: UiPoint) {

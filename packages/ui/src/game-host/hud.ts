@@ -1,4 +1,4 @@
-import type { ItemStack } from '@orchard/sim';
+import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { containsPoint, type UiRect } from '../geometry.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { uiButton } from '../kit/components/button.js';
@@ -56,7 +56,10 @@ export interface GameHudCallbacks {
 }
 export interface GameHudPainters {
   readonly itemLabel: (stack: ItemStack) => string;
+  /** Icon only, in the slot's icon well: the kit slot draws the count, wear bar and hotkey. */
   readonly drawItem: (context: CanvasRenderingContext2D, bounds: UiRect, stack: ItemStack) => void;
+  /** The live content registry, so hotbar wear bars read authored (published or Studio) durability. */
+  readonly contentRegistry?: () => ContentRegistry | undefined;
   readonly drawPlayerHead: (context: CanvasRenderingContext2D, playerId: string, bounds: UiRect) => void;
   readonly drawTargetPortrait: (context: CanvasRenderingContext2D, targetId: string, bounds: UiRect) => void;
   readonly drawMinimap: (context: CanvasRenderingContext2D, bounds: UiRect, zoom: number, trackingEnabled: boolean) => void;
@@ -167,6 +170,7 @@ export class GameHud {
     this.hotbar = scoped(uiHotbar({ id: 'game.hud.hotbar', container: 'inventory', count: 10, columns: 10, digitKeys: false,
       selected: () => this.model?.inventory.selectedSlot ?? -1, stack: index => this.stack(index),
       onSelect: index => { if (this.model) this.callbacks.selectHotbar(index); }, renderContent: (context, bounds, item) => this.painters.drawItem(context, bounds, item),
+      contentRegistry: () => this.painters.contentRegistry?.(),
     }));
     // The hovered (or keyboard-focused) slot's item, named in caps like the inventory windows, centred above that slot.
     const tipSlot = this.tipSlot = () => {

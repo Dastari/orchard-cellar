@@ -1,4 +1,4 @@
-import type { FrameContentDefinition, FrameRestrictionRegistry, ItemStack, TimingProjection } from '@orchard/sim';
+import type { ContentRegistry, FrameContentDefinition, FrameRestrictionRegistry, ItemStack, TimingProjection } from '@orchard/sim';
 import type { FrameContainerAliases } from '../content-frame.js';
 import type { UiPoint, UiRect } from '../geometry.js';
 import { containsPoint } from '../geometry.js';
@@ -46,6 +46,8 @@ export interface InventoryMenuAuthority extends Omit<UiInventoryModel, 'pointerD
   craft(all: boolean): void;
   label(item: ItemStack): string;
   iconAnimation(item: ItemStack): string;
+  /** The live content registry, so slot wear bars read authored (published or Studio) durability. */
+  contentRegistry?(): ContentRegistry | undefined;
 }
 
 /** One stable unbound root; neither this adapter nor its controller owns stacks. */
@@ -146,6 +148,7 @@ export class InventoryMenus {
       controller: this.controller, artwork: snapshot.artwork, state: snapshot.state, timing: snapshot.timing,
       progress: () => this.snapshot?.progress ?? 0,
       iconAnimation: (item: ItemStack) => this.authority.iconAnimation(item),
+      contentRegistry: () => this.authority.contentRegistry?.(),
       inventoryControls: { backpack: controls('backpack', !chest),
         ...(chest ? { chest: controls('chest', true) } : {}),
         ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),

@@ -1,6 +1,9 @@
-import { type CanvasTextEditor } from '@orchard/ui/studio';
+import { createCanvas } from '@napi-rs/canvas';
+import { UiRoot, type CanvasTextEditor, type UiElement } from '@orchard/ui/studio';
 import { kitElement, kitElements, pressKit, chooseKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
+import { uiTestArt } from '../../../../ui/src/kit/lab/testing/art.js';
+import * as pixel from '../../../../ui/src/pixel-ui.js';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
 import { StudioShellController } from '../../shell/controller.js';
 import { buildNarrativeCanvasTool } from './canvas.js';
@@ -57,6 +60,29 @@ describe('narrative authoring canvas tools', () => {
     pressKit(surface,choice!.id);
     surface = buildNarrativeCanvasTool(toolContext);
     expect(kitElements(surface).some(({ id }) => id==='game.dialogue' || id.endsWith('narrative:dialogue-end'))).toBe(true);
+  });
+
+  it('previews dialogue replies in their authored case, as the game shows them (owner item 10)', async () => {
+    const art = await uiTestArt();
+    const surface = buildNarrativeCanvasTool(context('/author/dialogue'));
+    const frame = kitElement(surface, 'game.dialogue')!;
+    expect(frame).toBeDefined();
+    const labels = kitElements(surface).filter(({ id }) => id.startsWith('dialogue:')).map(choice => choice.label);
+    expect(labels.some(label => label !== label.toUpperCase())).toBe(true);
+    // Paint the preview window on its own and record every string the pixel font draws.
+    let tree: UiElement = frame; while (tree.parent) tree = tree.parent;
+    vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
+    const drawn: string[] = [];
+    const plain = vi.spyOn(pixel, 'drawPixelText').mockImplementation((_c, _p, text) => { drawn.push(String(text)); });
+    const root = new UiRoot({ art, scale: 1 }); root.resize(760, 520); root.mount(tree); root.arrange();
+    try { root.drawInContext(createCanvas(760, 520).getContext('2d') as unknown as CanvasRenderingContext2D, 0); }
+    finally { root.unmount(tree); root.dispose(); plain.mockRestore(); vi.unstubAllGlobals(); }
+    // A reply may be shortened with '...' to fit its button, but never shouted.
+    const shows = (label: string) => drawn.some(text => text === label || (text.endsWith('...') && text.length > 3 && label.startsWith(text.slice(0, -3))));
+    for (const label of labels) {
+      expect(shows(label), label).toBe(true);
+      if (label !== label.toUpperCase()) expect(drawn).not.toContain(label.toUpperCase());
+    }
   });
 
   it('renders quest objectives/rewards and applies a pure JSON completion fixture', () => {

@@ -43,11 +43,14 @@ export function uiDialogue(options: UiDialogueOptions): UiDialogueElement {
     let model = options.model, choiceKey = '', speechKey = '';
     const speech = uiFlex({ width: 'grow', grow: 1, basis: uiFixed(160) });
     const choices = uiFlex({ width: 'grow', gap: 2 });
+    // Dialogue is a conversation, not a menu (owner item 10): the speech and the numbered replies keep their
+    // authored case inside the caps window.
     const body = uiFlex({ direction: 'column', gap: 8, width: uiFixed(320), maxWidth: { mode: 'percent', fraction: 1 } }, [
         uiFlex({ direction: 'row', width: 'grow', gap: 8, align: 'start', shrink: 0 }, [
             ...(options.portrait ? [uiPortraitWell({ label: model.speaker, paint: options.portrait })] : []), speech,
         ]), choices,
     ]);
+    body.setProps({ textCase: 'as-authored' });
     const frame = uiWindow({ id: 'game.dialogue', title: model.speaker.toUpperCase(), onClose: options.onClose, layout: { direction: 'column', ...options.layout }, children: [body] });
     const scroll = frame.children[0]!;
     const choose = (id: string) => { if (model.choices.some(choice => choice.id === id))

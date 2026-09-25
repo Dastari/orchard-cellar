@@ -25,6 +25,9 @@ export interface GameFeedbackLabel {
   readonly tone?: UiTone;
   /** Optional projected clearance above equipment slots. */
   readonly maxHeight?: number;
+  /** Optional top edge below the anchored thing (a hovered slot): when the label doesn't fit above the anchor and
+   * there is more room below, it hangs from this edge instead, so it is never squeezed onto what it names. */
+  readonly below?: number;
 }
 export interface GameSkillNotice {
   readonly id: string; readonly track: string; readonly points: number;
@@ -221,10 +224,15 @@ function feedbackLabel(kind: string) {
         text.setStyle({ width: 'grow' }); detail.setStyle({ width: 'grow' });
         frame.setStyle({ width: uiFixed(width), height: 'fit' });
         const maximumHeight = value.maxHeight !== undefined && Number.isFinite(value.maxHeight) ? Math.max(0, value.maxHeight) : available.height;
-        const height = Math.min(available.height, maximumHeight, measureUiElement(frame, { width, height: available.height }).preferred.height);
+        const wanted = Math.min(available.height, maximumHeight, measureUiElement(frame, { width, height: available.height }).preferred.height);
+        // Above the anchor when it fits (or when above is still the roomier side); otherwise below `below`.
+        // Either way the frame stays clear of the anchored slot: it is capped to its side's room, never shifted onto it.
+        const roomAbove = Math.max(0, Math.floor(value.anchor.y)), roomBelow = value.below === undefined ? -1 : Math.max(0, available.height - value.below);
+        const hang = value.below !== undefined && wanted > roomAbove && roomBelow > roomAbove;
+        const height = value.below === undefined ? wanted : Math.min(wanted, hang ? roomBelow : roomAbove);
         frame.setStyle({ height: uiFixed(height), inset: {
           left: uiFixed(Math.max(0, Math.min(available.width - width, value.anchor.x - width / 2))),
-          top: uiFixed(Math.max(0, Math.min(available.height - height, value.anchor.y - height))),
+          top: uiFixed(hang ? value.below! : Math.max(0, Math.min(available.height - height, value.anchor.y - height))),
         } });
       }
       return { min: { width: 0, height: 0 }, preferred: available };

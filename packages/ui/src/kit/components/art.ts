@@ -21,6 +21,16 @@ export async function loadUiKitArt(options: { readonly families?: readonly (keyo
   return { pixel, skin: { ...unloaded, ...skin }, icons };
 }
 /** Surface inheritance is also used by text nested in layout-only containers. */
+/** Game windows and books set `textCase: 'upper'`, so labels, buttons and list rows use the caps font;
+ * paragraphs (dialogue, descriptions, hints) opt back out with `'as-authored'`. Studio sets neither. */
+export function uiElementUpperCase(element: UiElement): boolean {
+  for (let node: UiElement | null = element; node; node = node.parent) {
+    const value = node.props['textCase'];
+    if (value === 'upper') return true;
+    if (value === 'as-authored') return false;
+  }
+  return false;
+}
 export function uiElementTone(element: UiElement): UiTone {
   for (let node: UiElement | null = element; node; node = node.parent) {
     if (typeof node.props['tone'] === 'string') return node.props['tone'] as UiTone;

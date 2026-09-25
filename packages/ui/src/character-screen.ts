@@ -1,4 +1,4 @@
-import type { Attributes, Direction, PlayerAppearanceCatalogDefinition, PlayerAppearanceSelection, ProgressionContentDefinition, SkillTrack } from '@orchard/sim';
+import type { Attributes, ContentRegistry, Direction, PlayerAppearanceCatalogDefinition, PlayerAppearanceSelection, ProgressionContentDefinition, SkillTrack } from '@orchard/sim';
 import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiCharacter, type UiCharacterElement } from './kit/components/character.js';
@@ -82,7 +82,8 @@ export class CharacterScreen {
   constructor(art: UiKitArt, private readonly callbacks: CharacterScreenCallbacks,
     private readonly drawDoll: (context: CanvasRenderingContext2D, appearance: PlayerAppearanceSelection, facing: Direction, rect: UiRect) => void,
     private readonly drawItem: (context: CanvasRenderingContext2D, rect: UiRect, item: CharacterEquipmentItem) => void,
-    private readonly navigation: CharacterScreenNavigation = {}) {
+    private readonly navigation: CharacterScreenNavigation = {},
+    private readonly contentRegistry?: () => ContentRegistry | undefined) {
     this.root = new UiRoot({ art, scale: 1, label: 'Character' });
   }
   get active(): boolean { return this.model !== null; }
@@ -97,7 +98,7 @@ export class CharacterScreen {
   }
   private mountView(model: CharacterScreenModel): void {
     this.view = uiCharacter({ model, onAppearance: appearance => this.callbacks.setAppearance(appearance),
-      renderPortrait: this.drawDoll, renderEquipment: this.drawItem, page: this.page, ...this.navigation });
+      renderPortrait: this.drawDoll, renderEquipment: this.drawItem, contentRegistry: this.contentRegistry, page: this.page, ...this.navigation });
     this.root.mount(this.view); this.applyBounds();
   }
   private applyBounds(): void {

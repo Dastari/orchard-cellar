@@ -164,7 +164,16 @@ describe('shared container stacking rules', () => {
         { itemKind: 'stone', quantity: 1 }, ...containers.crafting.slots.slice(1),
       ] },
     }, 'barrel', BOOTSTRAP_ITEM_CONTAINER_CONTENT);
-    expect(blocked).toEqual({ ok: false, code: 'recipe_inputs_missing' });
+    // The stray stone goes back to the free backpack slot, then the barrel pattern fills (owner decision, 2026-09-25).
+    if (!blocked.ok) throw new Error(blocked.code);
+    expect(blocked.containers.backpack!.slots).toEqual([{ itemKind: 'stone', quantity: 1 }]);
+    expect(blocked.containers.crafting!.slots[0]).toEqual({ itemKind: 'plank', quantity: 1 });
+    const full = fillCraftingRecipeFromInventory({
+      ...containers,
+      backpack: { ...containers.backpack, slots: [{ itemKind: 'plank', quantity: 99 }] },
+      crafting: { ...containers.crafting, slots: [{ itemKind: 'stone', quantity: 1 }, ...containers.crafting.slots.slice(1)] },
+    }, 'barrel', BOOTSTRAP_ITEM_CONTAINER_CONTENT);
+    expect(full).toEqual({ ok: false, code: 'container_full' });
   });
 
   it('sorts and compacts compatible stacks without losing metadata', () => {
