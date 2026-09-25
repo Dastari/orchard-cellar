@@ -2,6 +2,7 @@ import { canvasHostViewport, canvasSafeAreaInsets, insetCanvasViewport } from '.
 import { GameGatewayLoading, gameGatewayLayout, loadUiKitArt, type UiKitArt } from '@orchard/ui/game';
 import { loadGeneratedAsset, type LoadedAsset } from '@orchard/ui';
 import { drawOrchardBackdrop, loadOrchardBackdrop } from '@orchard/ui';
+import { markGatewayFrameStarted } from './gateway-handoff.js';
 
 export interface LoadingScreenStage {
   readonly title: string;
@@ -101,6 +102,7 @@ export function upgradeLoadingScreen(
   const context = canvas.getContext('2d');
   if (context === null) return;
   loadingView = new GameGatewayLoading(kitArt, { emblem, cask, version: clientVersion });
+  markGatewayFrameStarted();
 
   const resize = (): void => {
     const { width, height } = canvasHostViewport(canvas);
@@ -140,6 +142,7 @@ export function upgradeLoadingScreen(
 export function dismissLoadingScreen(): void {
   if (dismissed) return;
   dismissed = true;
+  markGatewayFrameStarted();
   if (pixelFrameRequest !== null) cancelAnimationFrame(pixelFrameRequest);
   pixelFrameRequest = null;
   if (resizeListener !== null) window.removeEventListener('resize', resizeListener);
