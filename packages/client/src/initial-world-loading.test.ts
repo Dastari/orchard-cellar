@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
+import { WORLD_GAP_GRACE_MS, worldGapPresentation } from './connection-recovery-overlay.js';
 import { drawOrchardBackdrop, type LoadedAsset } from '@orchard/ui';
 import type { UiKitArt } from '@orchard/ui/game';
 
@@ -26,7 +27,8 @@ function fixture() {
     hudViewportCss: () => ({ width: 800, height: 600 }), fittedUiScale: () => 2, desiredUiScale: 2,
     overworldUi: { setPwaUpdateStatus: vi.fn(), blockingUpdatePromptVisible: false }, pwaClient: { status: {} },
     canvas: { classList: { add: vi.fn() } }, dismissLoadingScreen: vi.fn(),
-    safeAreaInsets: { left: 0, top: 0, right:0, bottom:0 }, renderer: {}, kitArt:{},
+    safeAreaInsets: { left: 0, top: 0, right:0, bottom:0 }, renderer: { compositeWorld: vi.fn() }, kitArt:{},
+    worldGapPresentation, worldGapStartedAt: null as number | null, presentedRecoveryState: null,
     worldUpdateOverlay: { draw: vi.fn(), reset: vi.fn() },
     connectionRecoveryOverlay: { composite: vi.fn() }, drawInitialWorldLoading: vi.fn(),
     art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, itemIcons: {}, missingItem: {} },
@@ -58,11 +60,16 @@ describe('initial world loading versus reconnection', () => {
     f.render();
     expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledTimes(1);
   });
-  it('does not call connected world-data hydration a reconnection', () => {
+  it('keeps the last world frame while a returning tab re-syncs, then shows reconnecting (BUG-040)', () => {
     const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'ready';
     f.render();
-    expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledOnce();
+    expect(f.deps.renderer.compositeWorld).toHaveBeenCalledOnce();
+    expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();
     expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
+    f.deps.worldGapStartedAt = performance.now() - WORLD_GAP_GRACE_MS - 1;
+    f.render();
+    expect(f.deps.connectionRecoveryOverlay.composite).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'reconnecting', true);
+    expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();
   });
   it('keeps update decisions ahead of both initial loading and recovery', () => {
     const f = fixture(); f.deps.overworldUi.blockingUpdatePromptVisible = true;

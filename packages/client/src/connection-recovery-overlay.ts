@@ -34,6 +34,32 @@ const copy: Readonly<Record<ConnectionRecoveryState, { readonly title: string; r
   'sign-in-required': { title: 'SIGN IN REQUIRED', lines: ['PLEASE SIGN IN AGAIN.', 'REJOIN YOUR WORLD.'] },
 };
 
+/** How long a returning world may sit not-ready (tab resume, subscription re-sync)
+ * behind its last frame before the reconnecting modal appears. */
+export const WORLD_GAP_GRACE_MS = 1500;
+
+export type WorldGapPresentation =
+  | { readonly kind: 'initial-loading' }
+  | { readonly kind: 'retained-world' }
+  | { readonly kind: 'recovery'; readonly state: ConnectionRecoveryState };
+
+/**
+ * What to show while the world isn't ready. The initial loading screen is for
+ * the first load only: once a world frame exists, keep it on screen and only
+ * raise the reconnecting modal if the gap outlasts the grace period (BUG-040).
+ */
+export function worldGapPresentation(
+  state: ConnectionRecoveryState | null,
+  hasWorldFrame: boolean,
+  gapStartedAt: number,
+  now: number,
+  graceMs = WORLD_GAP_GRACE_MS,
+): WorldGapPresentation {
+  if (state !== null) return { kind: 'recovery', state };
+  if (!hasWorldFrame) return { kind: 'initial-loading' };
+  return now - gapStartedAt < graceMs ? { kind: 'retained-world' } : { kind: 'recovery', state: 'reconnecting' };
+}
+
 /** A canvas-only game modal. The host owns connection effects and keyboard focus. */
 export class ConnectionRecoveryOverlay {
   constructor(private readonly fonts: PixelUi, private readonly skin: UiSkin) {}

@@ -121,7 +121,7 @@ import {
 } from '@orchard/engine/display';
 import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
-import { ConnectionRecoveryOverlay, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
+import { ConnectionRecoveryOverlay, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
@@ -281,6 +281,9 @@ let latestLightCount = 0;
 const worldUpdateOverlay = new WorldUpdateOverlay();
 const connectionRecoveryOverlay = new ConnectionRecoveryOverlay(art.ui, art.uiSkin);
 let hasRenderedWorldFrame = false;
+/** When the current not-ready gap began, and the recovery modal it shows (BUG-040). */
+let worldGapStartedAt: number | null = null;
+let presentedRecoveryState: ConnectionRecoveryState | null = null;
 const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
@@ -4611,13 +4614,18 @@ function renderFrame(alpha = 1): void {
       worldUpdateOverlay.draw(renderer, overworldUi, overlayViewport, hasRenderedWorldFrame);
     } else {
       worldUpdateOverlay.reset();
-      const recoveryState = connectionRecoveryState();
-      if (recoveryState === null) {
+      const now = performance.now();
+      worldGapStartedAt ??= now;
+      const gap = worldGapPresentation(connectionRecoveryState(), hasRenderedWorldFrame, worldGapStartedAt, now);
+      presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
+      if (gap.kind === 'initial-loading') {
         drawInitialWorldLoading(renderer, {
           kitArt, apple: art.fruitItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
         }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
+      } else if (gap.kind === 'retained-world') {
+        renderer.compositeWorld();
       } else {
-        connectionRecoveryOverlay.composite(renderer, overlayViewport, recoveryState, hasRenderedWorldFrame);
+        connectionRecoveryOverlay.composite(renderer, overlayViewport, gap.state, hasRenderedWorldFrame);
       }
     }
     const submittedAt = performance.now();
@@ -4627,6 +4635,8 @@ function renderFrame(alpha = 1): void {
   }
   worldUpdateOverlay.reset();
   dismissLoadingScreen();
+  worldGapStartedAt = null;
+  presentedRecoveryState = null;
   const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localJumpState?.fromX,
@@ -6314,7 +6324,7 @@ window.addEventListener('keydown', (event) => {
   if (event.ctrlKey || event.metaKey) return;
   event.preventDefault();
   if (event.repeat || (event.code !== 'Enter' && event.code !== 'Space')) return;
-  const action = connectionRecoveryOverlay.primaryAction(connectionRecoveryState());
+  const action = connectionRecoveryOverlay.primaryAction(presentedRecoveryState);
   if (action !== null) activateConnectionRecovery(action);
 }, { capture: true });
 for (const eventName of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'] as const) {
@@ -6329,7 +6339,7 @@ for (const eventName of ['pointerdown', 'pointermove', 'pointerup', 'pointercanc
       if (event.button !== 0) return;
       const [x, y] = pointerUiPosition(event);
       const [width, height] = touchControlViewport();
-      connectionRecoveryOverlay.activate({ x, y }, { width, height }, connectionRecoveryState(), activateConnectionRecovery);
+      connectionRecoveryOverlay.activate({ x, y }, { width, height }, presentedRecoveryState, activateConnectionRecovery);
     } else if (eventName === 'pointerup' || eventName === 'pointercancel') {
       recoveryPointerId = null;
     }
