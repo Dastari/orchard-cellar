@@ -18,6 +18,24 @@ export function validateShadowPublication(input: { manifestJson: string; content
   }
   return manifest;
 }
+/**
+ * The refusal codes `validateShadowBlob` and `validateShadowPublication` throw for a
+ * caller's bad input or a lost race. The reducers turn exactly these into SenderError,
+ * so the client receives the code; anything else (a decoder TypeError, a bug) stays a
+ * plain Error.
+ */
+export const SHADOW_PUBLICATION_REFUSAL_CODES: ReadonlySet<string> = new Set([
+  'chunk_blob_too_large', 'chunk_medium_required',
+  'chunk_manifest_too_large', 'chunk_shadow_revision_conflict', 'chunk_shadow_source_conflict',
+  'chunk_shadow_publication_too_large', 'chunk_shadow_blob_missing',
+  'chunk_size_or_head_mismatch', 'chunk_revision_mismatch',
+]);
+
+/** The known refusal code of `error`, or null when it is not one. */
+export function shadowPublicationRefusalCode(error: unknown): string | null {
+  return error instanceof Error && error.constructor === Error && SHADOW_PUBLICATION_REFUSAL_CODES.has(error.message) ? error.message : null;
+}
+
 export function validateShadowBlob(bytes: Uint8Array): WorldChunk {
   if (bytes.byteLength > CHUNK_RUNTIME_MAX_BLOB_BYTES) throw new Error('chunk_blob_too_large');
   const chunk = decodeWorldChunk(bytes);

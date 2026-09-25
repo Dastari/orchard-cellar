@@ -1,7 +1,7 @@
 import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
-import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
 import { chunkAuthorityAuditClock, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
@@ -26141,10 +26141,21 @@ export const stepWorld = spacetimedb.reducer(
   },
 );
 
+/** Known chunk publication refusals reach the client as SenderError codes; anything else is rethrown. */
+function withShadowPublicationRefusals<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    const code = shadowPublicationRefusalCode(error);
+    if (code !== null) throw new SenderError(code);
+    throw error;
+  }
+}
+
 // Shadow-only ingestion. Static serving is a separate guarded publication step.
 export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) }, (ctx, { bytes }) => {
   requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const chunk = validateShadowBlob(Uint8Array.from(bytes));
+  const chunk = withShadowPublicationRefusals(() => validateShadowBlob(Uint8Array.from(bytes)));
   if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) === null) ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
 });
 export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.string(), mapId: t.string(), contentHash: t.string(), expectedRevision: t.u32() }, (ctx, input) => {
@@ -26156,10 +26167,10 @@ export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.str
   if (!Number.isSafeInteger(raw?.spaceId) || raw?.spaceId !== TOPSIDE_SPACE_ID || input.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('chunk_shadow_space_not_supported');
   const spaceId = BigInt(raw.spaceId);
   const previous = ctx.db.world_chunk_shadow.spaceId.find(spaceId);
-  const manifest = validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
+  const manifest = withShadowPublicationRefusals(() => validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
     contentHash: contentRegistry(ctx).contentHash, shadowRevision: previous?.revision ?? 0 }, hash => {
       const row = ctx.db.world_chunk_blob.contentHash.find(hash); return row === null ? undefined : Uint8Array.from(row.bytes);
-    });
+    }));
   if (input.expectedRevision === 0xffffffff) throw new SenderError('chunk_shadow_revision_exhausted');
   const revision = input.expectedRevision + 1;
   for (const row of ctx.db.world_chunk_head.by_space.filter(spaceId)) ctx.db.world_chunk_head.id.delete(row.id);

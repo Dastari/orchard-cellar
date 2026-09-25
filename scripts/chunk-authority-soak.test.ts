@@ -188,14 +188,21 @@ describe('chunk-authority soak: always restores off', () => {
     expect(sampled.current).toBe('off');
   });
 
-  it('fails when a stale CAS publish is accepted or its refusal is not the revision conflict', async () => {
+  it('fails when a stale CAS publish is accepted or the client does not receive the revision-conflict code', async () => {
     const accepting = fakeWorld({ acceptStaleCas: true });
     const accepted = await runSoak(accepting.api, soakOptions, deps);
     expect(accepted.failures).toContain('a stale CAS publish was accepted');
     expect(accepting.current).toBe('off');
-    const otherError = fakeWorld({ hostLog: async () => CLEAN_LOG.replace('chunk_shadow_revision_conflict', 'chunk_shadow_source_conflict') });
-    const refused = await runSoak(otherError.api, soakOptions, deps);
-    expect(refused.failures).toContain('the stale CAS refusal was not logged as chunk_shadow_revision_conflict');
+    // A plain-Error module: the client sees only a generic fatal error; the host log is the fallback diagnosis.
+    let published = false;
+    const opaque = fakeWorld({ publishShadow: async () => {
+      if (published) throw new Error('The instance encountered a fatal error.');
+      published = true;
+    }, liveRows: () => ({ ...fakeWorld().api.liveRows(), published: { shadow: published ? { revision: 1, mapId: 'live-island', contentHash: 'c', manifestJson: '{}' } : null, heads: [] } }) });
+    const refused = await runSoak(opaque.api, soakOptions, deps);
+    expect(refused.failures).toContain('the client did not receive chunk_shadow_revision_conflict for a stale CAS: The instance encountered a fatal error.');
+    expect(refused.publish).toMatchObject({ staleCasCodeInHostLog: true });
+    expect(opaque.current).toBe('off');
   });
 
   it('fails when the sampler never ran', async () => {

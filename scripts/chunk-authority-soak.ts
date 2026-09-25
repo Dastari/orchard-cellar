@@ -413,9 +413,11 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
   }
   evidence.publish = { expectedRevision, revision: published.shadow?.revision, publishMs, heads: published.heads.length,
     headsAtRevision: published.heads.filter(head => head.revision === expectedRevision + 1).length, staleCasRefusal: staleCas };
-  // The reducer throws a plain Error, which a 2.8.2 client only sees as a generic fatal error; the
-  // host log carries the code (checked with the log below).
+  // The reducer refuses with SenderError('chunk_shadow_revision_conflict'), so the client receives
+  // the code. (A module that throws a plain Error shows clients only a generic fatal error; the
+  // host-log check below then says whether the code was at least logged.)
   if (staleCas === null) fail('a stale CAS publish was accepted');
+  else if (!staleCas.includes('chunk_shadow_revision_conflict')) fail(`the client did not receive chunk_shadow_revision_conflict for a stale CAS: ${staleCas}`);
 
   // 5. Shadow, then the audit must be clean and complete.
   await api.setChunkAuthority('shadow');
@@ -507,8 +509,11 @@ async function soakBody(api: SoakApi, options: Parameters<typeof runSoak>[1], de
       if (log.sampleDisagreements !== 0 || (log.events['chunk_authority_sample_disagreement'] ?? 0) !== 0) fail(`the shadow sampler logged disagreements: ${log.sampleDisagreements}`);
       if (log.compares.some(compare => compare.equal !== true)) fail('a shadow full compare disagreed');
       if (log.compares.length === 0) fail('no shadow full compare was logged');
-      if (!log.reducerErrors.some(entry => entry.reducer === 'publish_world_chunk_shadow' && entry.error.includes('chunk_shadow_revision_conflict'))) {
-        fail('the stale CAS refusal was not logged as chunk_shadow_revision_conflict');
+      // Fallback diagnosis only: when the client did not get the code, was it at least logged?
+      const staleCasRefusal = typeof evidence.publish?.['staleCasRefusal'] === 'string' ? evidence.publish['staleCasRefusal'] : '';
+      if (!staleCasRefusal.includes('chunk_shadow_revision_conflict')) {
+        const logged = log.reducerErrors.some(entry => entry.reducer === 'publish_world_chunk_shadow' && entry.error.includes('chunk_shadow_revision_conflict'));
+        if (evidence.publish !== undefined) evidence.publish['staleCasCodeInHostLog'] = logged;
       }
       for (const event of ['chunk_authority_shadow_error', 'chunk_authority_sample_error', 'chunk_authority_shadow_unavailable'] as const) {
         if ((log.events[event] ?? 0) > 0) fail(`host logged ${event}`);
