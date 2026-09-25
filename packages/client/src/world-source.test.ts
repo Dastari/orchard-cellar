@@ -438,17 +438,15 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     const { source } = staging({ prewarm: 0 });
     const projection = new WorldStaticProjectionCache();
     const windows: WeakRef<object>[] = [];
-    let last: unknown;
     for (let move = 0; move < 24; move++) {
       for (const view of move % 2 === 0 ? [BAND, BAND, BAND, BAND, BAND, BAND, BAND, FAR] : [RIGHT]) {
         source.setView(view); source.advance(registry);
         const window = source.window(registry)!;
         const collision = source.collision(registry)!;
         projection.prepareWindowLight(collision.window);
-        if (window !== last) { windows.push(new WeakRef(window)); last = window; }
+        if (windows.at(-1)?.deref() !== window) windows.push(new WeakRef(window));
       }
     }
-    last = undefined;
     expect(windows.length).toBeGreaterThanOrEqual(20);
     await new Promise(resolve => setTimeout(resolve, 0));
     gc(); await new Promise(resolve => setTimeout(resolve, 0)); gc();
