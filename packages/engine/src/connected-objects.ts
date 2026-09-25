@@ -1,4 +1,5 @@
-import {connectedObjectAsset,connectedObjectResolvedFrame,type ConnectedObjectFamily,type RuleCatalogue} from '@orchard/sim';
+import type {ConnectedObjectFamily,RuleCatalogue} from '@orchard/sim';
+import {connectedObjectAsset,connectedObjectResolvedFrame} from '@orchard/sim/connected-objects';
 import {loadGeneratedAsset,type LoadedAsset} from '@orchard/ui';
 import {drawAuthoredOverworldObject} from './overworld-art.js';
 

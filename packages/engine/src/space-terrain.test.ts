@@ -9,7 +9,12 @@ import {
   type ContentRegistry,
   type SpaceDefinition,
 } from '@orchard/sim';
+import { resolve } from 'node:path';
+import { PACKAGES_ROOT, legacyModulesReachedFrom, valueImportSpecifiers } from './generator-reach.fixture.js';
+import { spaceTerrain } from './space-terrain.js';
+import * as terrainModule from './terrain.js';
 import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
+import * as terrainSampling from './terrain-sampling.js';
 
 /** Per-field digest of a terrain: typed arrays by type and bytes, everything
  * else by stable JSON, so the golden pins every channel byte for byte. */
@@ -132,5 +137,51 @@ describe('terrainForSpace output for every space kind', () => {
       expect(first.blocked.every(Boolean)).toBe(true);
       expect(terrainForSpace(space, 1, 1, registry)).not.toBe(first);
     }
+  });
+
+  it('builds non-island spaces through spaceTerrain with the same cached objects terrainForSpace returns', () => {
+    let direct = 0;
+    for (const { name, space, registry: explicit, seed, version } of cases()) {
+      if (space.generator === 'homestead' && space.homesteadSite !== undefined) {
+        expect(() => spaceTerrain(space, seed, version, explicit), name).toThrow('space_terrain_homestead_requires_generator');
+        continue;
+      }
+      let viaTerrain: TerrainArray;
+      try { viaTerrain = terrainForSpace(space, seed, version, explicit); } catch (error) {
+        expect(() => spaceTerrain(space, seed, version, explicit), name).toThrow((error as Error).message);
+        continue;
+      }
+      const viaSpace = spaceTerrain(space, seed, version, explicit);
+      // Shared caches: a cached terrain is the same object through either entry;
+      // the uncached fully blocked fallback is rebuilt identically.
+      if (viaTerrain === terrainForSpace(space, seed, version, explicit)) expect(viaSpace, name).toBe(viaTerrain);
+      else expect(fingerprint(viaSpace), name).toEqual(fingerprint(viaTerrain));
+      direct += 1;
+    }
+    expect(direct).toBeGreaterThan(80);
+    const island = SPACES.find((space) => space.generator === 'island')!;
+    expect(() => spaceTerrain(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION)).toThrow('space_terrain_island_requires_generator');
+  });
+});
+
+describe('terrain module split import boundary (static-world S6a)', () => {
+  const engineSource = resolve(PACKAGES_ROOT, 'engine/src');
+
+  it.each(['space-terrain.ts', 'terrain-sampling.ts', 'terrain-array.ts'])('%s reaches no generator, compiler, map document, terrain.ts or sim barrel module', (file) => {
+    const entry = resolve(engineSource, file);
+    expect(legacyModulesReachedFrom(entry)).toEqual([]);
+    expect(valueImportSpecifiers(entry)).not.toContain('@orchard/sim');
+  });
+
+  it('keeps terrain.ts re-exporting the very same sampling and space-terrain bindings', () => {
+    const sampling = Object.entries(terrainSampling);
+    expect(sampling.length).toBeGreaterThan(50);
+    for (const [name, value] of sampling) expect((terrainModule as Record<string, unknown>)[name], name).toBe(value);
+    expect(terrainModule.spaceTerrain).toBe(spaceTerrain);
+  });
+
+  it('leaves only island generation in terrain.ts', () => {
+    const own = Object.keys(terrainModule).filter((name) => !(name in terrainSampling));
+    expect(own.sort()).toEqual(['spaceTerrain', 'terrainForSpace', 'terrainForWorld', 'terrainWithCellarExcavations']);
   });
 });

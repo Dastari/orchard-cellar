@@ -5,7 +5,6 @@ import {
   HOMESTEAD_ENTRY_TILE,
   HOMESTEAD_TENT_TILE,
   HOMESTEAD_TERRAIN_SIZE_TILES,
-  homesteadBiomeAt,
   homesteadPathTiles,
   homesteadPortalName,
   homesteadTentFootprint,
@@ -17,6 +16,7 @@ import {
   generateStarterCellarExcavation,
   cellarPlayableTile,
 } from './spaces.js';
+import { homesteadBiomeAt } from './homestead-biome.js';
 
 describe('homestead spaces', () => {
   it('resolves the starter tier with its overworld site', () => {

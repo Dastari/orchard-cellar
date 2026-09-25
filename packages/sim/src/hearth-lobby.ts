@@ -1,4 +1,4 @@
-import {terrainPlaneCollisionBytesForElevationGrid} from './map-compiler.js';
+import {terrainPlaneCollisionBytesForElevationGrid} from './terrain-plane-collision.js';
 import {combatSegmentObstructed} from './combat-actions.js';
 import {positionCollides,playerInteractionOrigin} from './movement.js';
 import {FIXED_UNITS_PER_PIXEL,TILE_SIZE_FIXED,type Vec2Fixed,type CollisionMap} from './state.js';

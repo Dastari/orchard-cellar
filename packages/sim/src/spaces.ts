@@ -1,7 +1,7 @@
 import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import { TILE_SIZE_FIXED, isDirection } from './state.js';
 import { facedTileTarget } from './tile-targeting.js';
-import { SURVIVAL_CHUNK_TILES, survivalBiomeAt, type SurvivalBiome } from './survival-world.js';
+import { SURVIVAL_CHUNK_TILES } from './survival-dimensions.js';
 import type { TerrainTransition } from './terrain-elevation.js';
 
 export interface RgbColor {
@@ -295,25 +295,6 @@ export function cellarPlayableTile(tileX: number, tileY: number): boolean {
   return tileX >= 0 && tileY >= 0
     && tileX < STARTER_CELLAR_EXCAVATION.width && tileY < STARTER_CELLAR_EXCAVATION.height
     && STARTER_CELLAR_EXCAVATION.dug[tileY * STARTER_CELLAR_EXCAVATION.width + tileX] === 1;
-}
-
-/** Enlarges roughly eight overworld tiles into the starter farm while keeping
- * a safe central clearing and its permanent north/south path. */
-export function homesteadBiomeAt(
-  worldSeed: number,
-  site: { readonly worldTileX: number; readonly worldTileY: number },
-  tileX: number,
-  tileY: number,
-  sizeTiles = HOMESTEAD_SIZE_TILES,
-): SurvivalBiome {
-  if (tileY < sizeTiles && Math.abs(tileX - HOMESTEAD_ENTRY_TILE.tileX) <= 3
-    && tileY >= HOMESTEAD_TENT_TILE.tileY - 1) return 'plains';
-  const center = Math.floor(sizeTiles / 2);
-  return survivalBiomeAt(
-    worldSeed,
-    site.worldTileX + Math.floor((tileX - center) / 4),
-    site.worldTileY + Math.floor((tileY - center) / 4),
-  );
 }
 
 export function homesteadPathTiles(sizeTiles = HOMESTEAD_SIZE_TILES): readonly { readonly tileX: number; readonly tileY: number }[] {

@@ -430,7 +430,6 @@ describe('map object presentation import boundary', () => {
       './connected-objects.js',
       './light-occlusion.js',
       './light-sources.js',
-      './map-shadow-contacts.js',
       './world-asset-presentation.js',
     ];
     const through = [...legacyReachThrough(entry).keys()];

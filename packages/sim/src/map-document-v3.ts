@@ -1,3 +1,4 @@
+import { LIVE_ISLAND_MAP_ID } from './live-island-map-id.js';
 import {parseMapEntityStates,type MapEntityStateEdit} from './map-entity-state.js';
 import {parseObjectPropertyState,type ObjectPropertyState} from './object-presentation.js';
 import {surroundMapMaterial, surroundMapMaterialGeometry} from './map-material-surround.js';
@@ -57,7 +58,7 @@ export {
 } from './map-object-records.js';
 
 export const MAP_DOCUMENT_V3_SCHEMA_VERSION = 3 as const;
-export const LIVE_ISLAND_MAP_ID = 'live-island' as const;
+export { LIVE_ISLAND_MAP_ID } from './live-island-map-id.js';
 
 export const MAP_CONTENT_LAYER_IDS = [
   'generated_base',

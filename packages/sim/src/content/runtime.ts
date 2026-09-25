@@ -15,7 +15,7 @@ import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from '../state.js';
 import { playerInteractionOrigin } from '../movement.js';
 import { instanceSpaceDefinitionFor, type InstanceSpaceRow, type SpaceDefinition } from '../spaces.js';
 import type { WildlifeSpawnPlan } from '../wildlife.js';
-import { generateSurvivalLandmarkDecorations } from '../survival-world.js';
+import { generateSurvivalLandmarkDecorations } from '../survival-landmark-decorations.js';
 import type { ContentRegistry } from './registry.js';
 import type { ResourceContentDefinition, ResourceDefinitionId } from './resource-definition.js';
 import type { ItemContentDefinition, ItemPurchaseGrant, ItemSalePremium } from './definitions.js';

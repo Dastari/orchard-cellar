@@ -1,7 +1,5 @@
-import {
-  FIXED_UNITS_PER_PIXEL,
-  type CollisionObstacle,
-} from '@orchard/sim';
+import type { CollisionObstacle } from '@orchard/sim';
+import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
 import { bakedShadowSelection, type AssetPresentation, type LoadedAsset } from '@orchard/ui';
 import {
   LIGHT_CLIFF_FACE_BLOCKER,
@@ -21,8 +19,8 @@ import {
   terrainMinimumElevation,
   terrainProjectedDepthForElevation,
   terrainProjectionStyle,
-  type TerrainArray,
-} from './terrain.js';
+} from './terrain-sampling.js';
+import type { TerrainArray } from './terrain-array.js';
 
 export interface LightSpriteOccluder {
   readonly left: number;
