@@ -46,12 +46,7 @@ import {
   bootstrapLandmarksForGenerator,
 } from './content/bootstrap-spaces.js';
 import { BOOTSTRAP_RESOURCE_REGISTRY } from './content/bootstrap-resources.js';
-import {
-  SURVIVAL_ISLAND_OFFSET_TILES,
-  SURVIVAL_ISLAND_SIZE,
-  SURVIVAL_WORLD_SEED,
-  SURVIVAL_WORLD_SIZE,
-} from './survival-dimensions.js';
+import * as survivalDimensions from './survival-dimensions.js';
 import {
   SURVIVAL_BIOMES,
   SURVIVAL_DIRT_CLIFF_ROLES,
@@ -84,6 +79,17 @@ import type {
   SpaceLandmarkDefinition,
   SpaceTileRectangle,
 } from './content/world-definition.js';
+
+// Module-local copies of the leaf dimensions (static-world S6a). The per-tile
+// generator below reads these in its hottest loops. Module transforms that
+// rewrite every imported binding into a namespace getter call (Vitest's SSR
+// transform) made reading the imported bindings directly cost the whole-map
+// generator ~28%; plain local constants keep it as fast as before the split.
+// `survival-world-local-dimensions.test.ts` guards this.
+const SURVIVAL_ISLAND_OFFSET_TILES = survivalDimensions.SURVIVAL_ISLAND_OFFSET_TILES;
+const SURVIVAL_ISLAND_SIZE = survivalDimensions.SURVIVAL_ISLAND_SIZE;
+const SURVIVAL_WORLD_SEED = survivalDimensions.SURVIVAL_WORLD_SEED;
+const SURVIVAL_WORLD_SIZE = survivalDimensions.SURVIVAL_WORLD_SIZE;
 
 // Generator-free leaves (static-world S6a). Re-exported so every existing
 // import from this module keeps working and shares the leaf's one instance.
