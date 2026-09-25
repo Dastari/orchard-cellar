@@ -1,3 +1,8 @@
+// FROZEN FIXTURE: the world chunk codec exactly as deployed with the version-1 authority
+// extension (Game 0.46.0, reviewed source 6795ef87, packages/sim/src/world-chunk.ts).
+// Tests decode authority-schema-2 blobs with it to prove the deployed decoders reject
+// them instead of reading them without their obstacle records (BUG-044).
+// Never update this file to follow world-chunk.ts.
 import { sha256 } from '@noble/hashes/sha2.js';
 import { RULE_MEDIA, type RuleMedium } from './rule-catalogue.js';
 
@@ -10,34 +15,6 @@ export const WORLD_CHUNK_MEDIUM_SCHEMA = 1 as const;
  * schema 1 the extension is itself additive: the known channels and record kinds
  * below are required/validated, later `authority.*` additions pass through. */
 export const WORLD_CHUNK_AUTHORITY_SCHEMA = 1 as const;
-/** Authority extension version 2 (BUG-044): the same channels and records as 1,
- * but the obstacle record kinds (WORLD_CHUNK_OBSTACLE_TABLE_KINDS) may be stored
- * once, compactly, in the header's `obstacleTable` instead of as JSON records.
- * The decoder expands the table back into the identical records, so a decoded
- * version-2 chunk equals the version-1 chunk except for `authoritySchema`.
- * The deployed decoders (Game 0.46.0 and earlier with the extension) accept only
- * version 1 and reject version 2 ('Unsupported authority schema'), so they never
- * read a version-2 blob without its obstacles. The manifest's
- * `metadata.authority.schema` is unchanged (still WORLD_CHUNK_AUTHORITY_SCHEMA).
- *
- * From this version on, decoding tolerates an unknown (future) authority version:
- * the chunk decodes with its `authoritySchema` kept and its authority data
- * unvalidated, and worldChunkHasAuthority is false, so only the consumers that read
- * authority data refuse it (`authority_missing`) and fall back. Anything that
- * REPLACES records every consumer reads (the obstacle table) is versioned on its
- * own and fails closed instead. */
-export const WORLD_CHUNK_AUTHORITY_SCHEMA_V2 = 2 as const;
-export type WorldChunkAuthoritySchema = typeof WORLD_CHUNK_AUTHORITY_SCHEMA | typeof WORLD_CHUNK_AUTHORITY_SCHEMA_V2;
-/** Every authority extension version this codec reads and writes. */
-export const WORLD_CHUNK_AUTHORITY_SCHEMAS: readonly WorldChunkAuthoritySchema[] = Object.freeze([WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_AUTHORITY_SCHEMA_V2]);
-function knownAuthoritySchema(value: unknown): value is WorldChunkAuthoritySchema {
-  return (WORLD_CHUNK_AUTHORITY_SCHEMAS as readonly unknown[]).includes(value);
-}
-/** True when the decoded chunk carries a known, validated authority extension version.
- * Consumers of authority data use this, never a comparison with one version. */
-export function worldChunkHasAuthority(chunk: { readonly authoritySchema?: unknown }): boolean {
-  return knownAuthoritySchema(chunk.authoritySchema);
-}
 /** Server-authoritative static channels. `authority.combatRegion` is 0 for no
  * region, otherwise 1 + index into manifest `metadata.authority.combatRegions`.
  * There is deliberately no water horse-jump channel: it is all false (SW-D1). */
@@ -120,9 +97,7 @@ export interface WorldChunkRecord {
 export interface WorldChunk {
   readonly schema: typeof WORLD_CHUNK_SCHEMA;
   readonly mediumSchema?: typeof WORLD_CHUNK_MEDIUM_SCHEMA;
-  /** A WorldChunkAuthoritySchema when encoded here; a decoded chunk may carry an unknown
-   * later version (authority data unvalidated): check worldChunkHasAuthority. */
-  readonly authoritySchema?: number;
+  readonly authoritySchema?: typeof WORLD_CHUNK_AUTHORITY_SCHEMA;
   readonly spaceId: number;
   readonly cx: number;
   readonly cy: number;
@@ -179,33 +154,24 @@ export function canonicalChunkJson(value: unknown): string {
 function validInteger(value: unknown): value is number { return typeof value === 'number' && Number.isSafeInteger(value); }
 function object(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 function strings(value: unknown): value is string[] { return Array.isArray(value) && value.every(item => typeof item === 'string'); }
-/** `decoding` tolerates an unknown later authority version; the encoder writes known versions only. */
-function checkHeader(value: unknown, decoding = false): asserts value is Omit<WorldChunk, 'arrays' | 'contentHash'> {
+function checkHeader(value: unknown): asserts value is Omit<WorldChunk, 'arrays' | 'contentHash'> {
   if (!object(value) || value['schema'] !== WORLD_CHUNK_SCHEMA
     || !validInteger(value['spaceId']) || !validInteger(value['cx']) || !validInteger(value['cy'])
     || typeof value['assetRevision'] !== 'string' || !strings(value['assetIds']) || !strings(value['atlasPackIds'])
     || !Array.isArray(value['records'])) throw new TypeError('Invalid world chunk header');
   if (value['mediumSchema'] !== undefined && value['mediumSchema'] !== WORLD_CHUNK_MEDIUM_SCHEMA) throw new TypeError('Unsupported medium schema');
-  const authority = value['authoritySchema'];
-  if (authority !== undefined && !knownAuthoritySchema(authority)
-    && !(decoding && validInteger(authority) && authority > WORLD_CHUNK_AUTHORITY_SCHEMA_V2)) throw new TypeError('Unsupported authority schema');
-  // The table must never reach a decoder that predates it: version-1-only decoders reject
-  // any authority version but 1, so a table requires version 2 or later.
-  if (value['obstacleTable'] !== undefined && (authority === undefined || authority === WORLD_CHUNK_AUTHORITY_SCHEMA)) throw new TypeError('Invalid obstacle table: authority schema 2 required');
-  checkRecords(value['records'], value['cx'], value['cy']);
+  if (value['authoritySchema'] !== undefined && value['authoritySchema'] !== WORLD_CHUNK_AUTHORITY_SCHEMA) throw new TypeError('Unsupported authority schema');
+  for (const record of value['records']) {
+    if (!object(record) || typeof record['kind'] !== 'string' || !validInteger(record['ordinal']) || record['ordinal'] < 0
+      || !validInteger(record['tileX']) || !validInteger(record['tileY']) || !('value' in record)
+      || Math.floor(record['tileX'] / WORLD_CHUNK_SIZE) !== value['cx']
+      || Math.floor(record['tileY'] / WORLD_CHUNK_SIZE) !== value['cy']) throw new TypeError('Invalid chunk record anchor');
+  }
   if (value['cellParts'] !== undefined) {
     if (!object(value['cellParts'])) throw new TypeError('Invalid cell parts');
     for (const [key, parts] of Object.entries(value['cellParts'])) {
       if (!/^\d+$/u.test(key) || Number(key) >= WORLD_CHUNK_SIZE ** 2 || !Array.isArray(parts)) throw new TypeError('Invalid local cell parts');
     }
-  }
-}
-function checkRecords(records: readonly unknown[], cx: number, cy: number): void {
-  for (const record of records) {
-    if (!object(record) || typeof record['kind'] !== 'string' || !validInteger(record['ordinal']) || record['ordinal'] < 0
-      || !validInteger(record['tileX']) || !validInteger(record['tileY']) || !('value' in record)
-      || Math.floor(record['tileX'] / WORLD_CHUNK_SIZE) !== cx
-      || Math.floor(record['tileY'] / WORLD_CHUNK_SIZE) !== cy) throw new TypeError('Invalid chunk record anchor');
   }
 }
 function checkMedium(schema: unknown, arrays: Readonly<Record<string, ChunkArray>>): void {
@@ -255,8 +221,7 @@ function checkAuthority(schema: unknown, arrays: Readonly<Record<string, ChunkAr
   const channelNames = Object.keys(arrays).filter(name => name.startsWith('authority.'));
   const recordKinds = records.filter(record => record.kind.startsWith('authority.'));
   if (schema === undefined && channelNames.length === 0 && recordKinds.length === 0) return;
-  if (schema === undefined) throw new TypeError('Invalid authority channels: schema required');
-  if (!knownAuthoritySchema(schema)) return; // a later version (decoding only): its consumers check worldChunkHasAuthority
+  if (schema !== WORLD_CHUNK_AUTHORITY_SCHEMA) throw new TypeError('Invalid authority channels: schema required');
   for (const [name, type] of Object.entries(WORLD_CHUNK_AUTHORITY_CHANNELS)) {
     const array = arrays[name];
     const planar = name === 'authority.ground.terrainPlaneBlocked';
@@ -268,190 +233,6 @@ function checkAuthority(schema: unknown, arrays: Readonly<Record<string, ChunkAr
   for (const record of recordKinds) {
     if (!authorityRecordValid(record)) throw new TypeError(`Invalid authority record ${record.kind}`);
   }
-}
-// ---------------------------------------------------------------------------
-// Obstacle table (authority schema 2, BUG-044)
-// ---------------------------------------------------------------------------
-
-/** Value shape of each record kind the obstacle table can hold. `box` is a plain
- * fixed-point box; `authority` an ordered, sourced authority obstacle; `suppressed`
- * a suppressed decoration key. Any other kind always stays a JSON record. */
-export const WORLD_CHUNK_OBSTACLE_TABLE_KINDS = Object.freeze({
-  'authority.ground.obstacle': 'authority',
-  'authority.water.obstacle': 'authority',
-  'authority.suppressedObstacleKey': 'suppressed',
-  'clientGround.obstacle': 'box',
-  'clientWater.obstacle': 'box',
-  'serverGround.obstacle': 'box',
-  'serverWater.obstacle': 'box',
-} as const);
-type ObstacleShape = typeof WORLD_CHUNK_OBSTACLE_TABLE_KINDS[keyof typeof WORLD_CHUNK_OBSTACLE_TABLE_KINDS];
-/** Fixed-point units per tile, used only to derive a table record's anchor
- * (floor(left / units), floor(top / units)); a record anchored anywhere else
- * carries an explicit anchor, so correctness never depends on this value. */
-export const WORLD_CHUNK_OBSTACLE_TILE_UNITS = 256;
-/** The table's own format version. The table replaces records, so a decoder that
- * cannot expand it must not decode the chunk at all: an unknown version is rejected
- * whatever the authority version. A changed table format bumps this, never the key. */
-export const WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA = 1 as const;
-/**
- * The header's `obstacleTable` (`schema`: WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA). Every integer column is a delta from the previous
- * row of the same list (the first row from 0), so runs of neighbouring sub-cell
- * boxes and consecutive ordinals cost a few bytes each.
- * - `boxes`: each distinct box once, 4 integers per box: left and top as deltas
- *   from the previous box, then right - left and bottom - top;
- * - `sources`: each distinct authority `sourceId` once;
- * - `lists`: one per compacted record kind, in record order. `at` is the index in
- *   the decoded `records` where its contiguous block starts. `rows` holds per record:
- *   `box` [ordinal, box]; `authority` [ordinal, box, group (0 base, 1 authored),
- *   ordinal - value.ordinal, source]; `suppressed` [ordinal, box, medium (0 ground,
- *   1 water)] (ordinal, box, the offset and source delta-coded). `anchors` lists
- *   [row, tileX, tileY] for the rows not anchored at the derived tile.
- */
-export interface WorldChunkObstacleTable {
-  readonly schema: typeof WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA;
-  readonly boxes: readonly number[];
-  readonly sources?: readonly string[];
-  readonly lists: readonly { readonly kind: string; readonly at: number; readonly rows: readonly number[]; readonly anchors?: readonly number[] }[];
-}
-const SHAPE_WIDTH: Readonly<Record<ObstacleShape, number>> = { box: 2, authority: 5, suppressed: 3 };
-const SHAPE_KEYS: Readonly<Record<ObstacleShape, string>> = {
-  box: 'bottom,left,right,top',
-  authority: 'bottom,group,left,ordinal,right,sourceId,top',
-  suppressed: 'bottom,left,medium,right,top',
-};
-function tableShape(kind: string): ObstacleShape | undefined {
-  return Object.prototype.hasOwnProperty.call(WORLD_CHUNK_OBSTACLE_TABLE_KINDS, kind)
-    ? WORLD_CHUNK_OBSTACLE_TABLE_KINDS[kind as keyof typeof WORLD_CHUNK_OBSTACLE_TABLE_KINDS] : undefined;
-}
-/** Exactly the value a table row reproduces: the shape's keys, integer boxes, known enums. */
-function tableValue(shape: ObstacleShape, value: ChunkJson): value is Record<string, ChunkJson> {
-  if (!object(value) || Object.keys(value).sort().join(',') !== SHAPE_KEYS[shape] || !box(value)) return false;
-  if (shape === 'authority') return (value['group'] === 'base' || value['group'] === 'authored') && validInteger(value['ordinal']) && value['ordinal'] >= 0
-    && typeof value['sourceId'] === 'string' && value['sourceId'].length > 0;
-  if (shape === 'suppressed') return value['medium'] === 'ground' || value['medium'] === 'water';
-  return true;
-}
-/** Splits the table kinds out of `records` (each kind only when every record of it is
- * a contiguous run of table-shaped values); the rest stay JSON records in order. */
-function compactObstacles(records: readonly WorldChunkRecord[]): { records: WorldChunkRecord[]; obstacleTable: WorldChunkObstacleTable } | undefined {
-  const runs = new Map<string, { start: number; end: number }>();
-  const eligible = new Set<string>();
-  records.forEach((record, index) => {
-    const shape = tableShape(record.kind);
-    if (shape === undefined) return;
-    const run = runs.get(record.kind);
-    if (run === undefined) { runs.set(record.kind, { start: index, end: index + 1 }); eligible.add(record.kind); }
-    else if (run.end === index) run.end = index + 1;
-    else eligible.delete(record.kind); // not contiguous: keep this kind as JSON records
-    if (!tableValue(shape, record.value)) eligible.delete(record.kind);
-  });
-  if (eligible.size === 0) return undefined;
-  const boxIndex = new Map<string, number>(), boxes: number[] = [];
-  const sourceIndex = new Map<string, number>(), sources: string[] = [];
-  let previousLeft = 0, previousTop = 0;
-  const boxOf = (value: Record<string, ChunkJson>): number => {
-    const left = value['left'] as number, top = value['top'] as number, right = value['right'] as number, bottom = value['bottom'] as number;
-    const key = `${left}:${top}:${right}:${bottom}`;
-    let index = boxIndex.get(key);
-    if (index === undefined) {
-      index = boxIndex.size;
-      boxIndex.set(key, index);
-      boxes.push(left - previousLeft, top - previousTop, right - left, bottom - top);
-      previousLeft = left; previousTop = top;
-    }
-    return index;
-  };
-  const kept: WorldChunkRecord[] = [];
-  const lists: { kind: string; at: number; rows: number[]; anchors?: number[] }[] = [];
-  for (let index = 0; index < records.length;) {
-    const record = records[index]!;
-    if (!eligible.has(record.kind)) { kept.push(record); index += 1; continue; }
-    const { end } = runs.get(record.kind)!, shape = tableShape(record.kind)!;
-    const rows: number[] = [], anchors: number[] = [];
-    let ordinal = 0, boxAt = 0, offset = 0, source = 0;
-    for (let row = 0; index + row < end; row++) {
-      const item = records[index + row]!, value = item.value as Record<string, ChunkJson>;
-      const at = boxOf(value);
-      rows.push(item.ordinal - ordinal, at - boxAt);
-      ordinal = item.ordinal; boxAt = at;
-      if (shape === 'authority') {
-        const id = value['sourceId'] as string;
-        let sourceAt = sourceIndex.get(id);
-        if (sourceAt === undefined) { sourceAt = sources.length; sourceIndex.set(id, sourceAt); sources.push(id); }
-        const nextOffset = item.ordinal - (value['ordinal'] as number);
-        rows.push(value['group'] === 'base' ? 0 : 1, nextOffset - offset, sourceAt - source);
-        offset = nextOffset; source = sourceAt;
-      } else if (shape === 'suppressed') rows.push(value['medium'] === 'ground' ? 0 : 1);
-      if (item.tileX !== Math.floor((value['left'] as number) / WORLD_CHUNK_OBSTACLE_TILE_UNITS)
-        || item.tileY !== Math.floor((value['top'] as number) / WORLD_CHUNK_OBSTACLE_TILE_UNITS)) anchors.push(row, item.tileX, item.tileY);
-    }
-    lists.push({ kind: record.kind, at: index, rows, ...(anchors.length === 0 ? {} : { anchors }) });
-    index = end;
-  }
-  return { records: kept, obstacleTable: { schema: WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA, boxes, ...(sources.length === 0 ? {} : { sources }), lists } };
-}
-function tableIntegers(value: unknown, width: number): value is number[] {
-  return Array.isArray(value) && value.length % width === 0 && value.every(validInteger);
-}
-/** Rebuilds the records a table replaced, in place, exactly as JSON.parse would
- * return them (sorted keys). Fails closed on any malformed or out-of-range entry.
- * Returns the full record list and the rebuilt records (to anchor-check). */
-function expandObstacles(records: readonly WorldChunkRecord[], table: unknown): { records: WorldChunkRecord[]; expanded: WorldChunkRecord[] } {
-  if (object(table) && table['schema'] !== WORLD_CHUNK_OBSTACLE_TABLE_SCHEMA) throw new TypeError('Unsupported obstacle table');
-  if (!object(table) || !tableIntegers(table['boxes'], 4) || !Array.isArray(table['lists']) || table['lists'].length === 0
-    || (table['sources'] !== undefined && (!strings(table['sources']) || table['sources'].some(id => id.length === 0)))) throw new TypeError('Invalid obstacle table');
-  const rawBoxes = table['boxes'], sources: readonly string[] = (table['sources'] as string[] | undefined) ?? [];
-  const boxes: { left: number; top: number; right: number; bottom: number }[] = [];
-  let left = 0, top = 0;
-  for (let index = 0; index < rawBoxes.length; index += 4) {
-    left += rawBoxes[index]!; top += rawBoxes[index + 1]!;
-    const width = rawBoxes[index + 2]!, height = rawBoxes[index + 3]!;
-    if (width < 0 || height < 0 || !validInteger(left) || !validInteger(top) || !validInteger(left + width) || !validInteger(top + height)) throw new TypeError('Invalid obstacle table box');
-    boxes.push({ left, top, right: left + width, bottom: top + height });
-  }
-  const kinds = new Set(records.map(record => record.kind));
-  const result: WorldChunkRecord[] = [], expanded: WorldChunkRecord[] = [];
-  let kept = 0;
-  for (const list of table['lists'] as unknown[]) {
-    const shape = object(list) && typeof list['kind'] === 'string' ? tableShape(list['kind']) : undefined;
-    if (!object(list) || shape === undefined || kinds.has(list['kind'] as string) || !validInteger(list['at']) || list['at'] < result.length
-      || list['at'] - result.length > records.length - kept || !tableIntegers(list['rows'], SHAPE_WIDTH[shape]) || list['rows'].length === 0
-      || (list['anchors'] !== undefined && !tableIntegers(list['anchors'], 3))) throw new TypeError('Invalid obstacle table list');
-    const kind = list['kind'] as string;
-    kinds.add(kind); // a kind appears once, and never also as JSON records
-    while (result.length < list['at']) result.push(records[kept++]!);
-    const rows = list['rows'], anchors = (list['anchors'] as number[] | undefined) ?? [], width = SHAPE_WIDTH[shape];
-    let ordinal = 0, boxAt = 0, offset = 0, source = 0, anchor = 0, previousAnchor = -1;
-    for (let row = 0; row * width < rows.length; row++) {
-      const at = row * width;
-      ordinal += rows[at]!; boxAt += rows[at + 1]!;
-      const item = boxes[boxAt];
-      if (item === undefined || !validInteger(ordinal)) throw new TypeError('Invalid obstacle table row');
-      let tileX = Math.floor(item.left / WORLD_CHUNK_OBSTACLE_TILE_UNITS), tileY = Math.floor(item.top / WORLD_CHUNK_OBSTACLE_TILE_UNITS);
-      if (anchor < anchors.length && anchors[anchor] === row) {
-        if (row <= previousAnchor) throw new TypeError('Invalid obstacle table anchor');
-        previousAnchor = row; tileX = anchors[anchor + 1]!; tileY = anchors[anchor + 2]!; anchor += 3;
-      }
-      let value: Record<string, ChunkJson>;
-      if (shape === 'authority') {
-        const group = rows[at + 2];
-        offset += rows[at + 3]!; source += rows[at + 4]!;
-        const sourceId = sources[source];
-        if ((group !== 0 && group !== 1) || sourceId === undefined) throw new TypeError('Invalid obstacle table row');
-        value = { bottom: item.bottom, group: group === 0 ? 'base' : 'authored', left: item.left, ordinal: ordinal - offset, right: item.right, sourceId, top: item.top };
-      } else if (shape === 'suppressed') {
-        const medium = rows[at + 2];
-        if (medium !== 0 && medium !== 1) throw new TypeError('Invalid obstacle table row');
-        value = { bottom: item.bottom, left: item.left, medium: medium === 0 ? 'ground' : 'water', right: item.right, top: item.top };
-      } else value = { bottom: item.bottom, left: item.left, right: item.right, top: item.top };
-      const record = { kind, ordinal, tileX, tileY, value };
-      result.push(record); expanded.push(record);
-    }
-    if (anchor !== anchors.length) throw new TypeError('Invalid obstacle table anchor');
-  }
-  while (kept < records.length) result.push(records[kept++]!);
-  return { records: result, expanded };
 }
 /** Hash covers coordinates, schema, metadata and every channel byte. LE is explicit. */
 export function encodeWorldChunk(chunk: Omit<WorldChunk, 'contentHash'>): Uint8Array {
@@ -467,12 +248,7 @@ export function encodeWorldChunk(chunk: Omit<WorldChunk, 'contentHash'>): Uint8A
   const header = { schema: chunk.schema, ...(chunk.mediumSchema === undefined ? {} : { mediumSchema: chunk.mediumSchema }),
     ...(chunk.authoritySchema === undefined ? {} : { authoritySchema: chunk.authoritySchema }), spaceId: chunk.spaceId, cx: chunk.cx, cy: chunk.cy, assetRevision: chunk.assetRevision,
     records: chunk.records, assetIds: chunk.assetIds, atlasPackIds: chunk.atlasPackIds, ...(chunk.cellParts === undefined ? {} : { cellParts: chunk.cellParts }) };
-  // Authority schema 2 (BUG-044): the obstacle kinds go into the table, once each.
-  const compacted = chunk.authoritySchema === WORLD_CHUNK_AUTHORITY_SCHEMA_V2 ? compactObstacles(chunk.records) : undefined;
-  if (compacted !== undefined && canonicalChunkJson(expandObstacles(compacted.records, compacted.obstacleTable).records) !== canonicalChunkJson(chunk.records)) {
-    throw new Error('Obstacle table does not reproduce the chunk records');
-  }
-  const json = encoder.encode(canonicalChunkJson({ ...header, ...compacted, channels: descriptors }));
+  const json = encoder.encode(canonicalChunkJson({ ...header, channels: descriptors }));
   const length = PREFIX_SIZE + json.length + channels.reduce((sum, [, array]) => sum + array.byteLength, 0);
   if (length > MAX_BYTES) throw new RangeError('World chunk exceeds size limit');
   const bytes = new Uint8Array(length);
@@ -498,7 +274,7 @@ export function decodeWorldChunk(bytes: Uint8Array, expectedHash?: string): Worl
   const jsonLength = view.getUint32(40, true);
   if (jsonLength > bytes.length - PREFIX_SIZE) throw new TypeError('Truncated chunk metadata');
   const raw: unknown = JSON.parse(decoder.decode(bytes.subarray(PREFIX_SIZE, PREFIX_SIZE + jsonLength)));
-  checkHeader(raw, true);
+  checkHeader(raw);
   const channels: unknown = (raw as unknown as Record<string, unknown>)['channels'];
   if (!Array.isArray(channels)) throw new TypeError('Invalid channel directory');
   const arrays: Record<string, ChunkArray> = Object.create(null) as Record<string, ChunkArray>;
@@ -516,17 +292,11 @@ export function decodeWorldChunk(bytes: Uint8Array, expectedHash?: string): Worl
     arrays[entry['name']] = array;
     offset += length * size;
   }
+  checkMedium(raw.mediumSchema, arrays);
+  checkAuthority(raw.authoritySchema, arrays, raw.records);
+  if (offset !== bytes.length) throw new TypeError('Trailing chunk bytes');
   const header = { ...raw } as unknown as Record<string, unknown>;
   delete header['channels'];
-  if (header['obstacleTable'] !== undefined) {
-    const { records, expanded } = expandObstacles(raw.records, header['obstacleTable']);
-    checkRecords(expanded, raw.cx, raw.cy);
-    header['records'] = records;
-    delete header['obstacleTable'];
-  }
-  checkMedium(raw.mediumSchema, arrays);
-  checkAuthority(raw.authoritySchema, arrays, header['records'] as WorldChunkRecord[]);
-  if (offset !== bytes.length) throw new TypeError('Trailing chunk bytes');
   return { ...header, arrays, contentHash } as unknown as WorldChunk;
 }
 /** Copies source channels into a full halo; outside the finite map uses the supplied sentinel. */
