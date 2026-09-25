@@ -94,7 +94,7 @@ export function uiGameSurface(options: UiGameSurfaceOptions): UiElement {
         if (options.id === 'crafting') {
           let snapshot: UiCraftingSnapshot = options.crafting ?? { recipes: rows.map(row => ({ id: row.id, label: row.label, detail: row.detail })), selected: null, pattern: [], output: null };
           const crafting = uiCraftingFrame({ ...options.inventory, crafting: snapshot,
-            onRecipe: id => { const selected = snapshot.selected === id ? null : id; snapshot = { ...snapshot, selected, pattern: selected ? snapshot.recipes.find(row => row.id === selected)?.pattern ?? [] : [] }; crafting.updateCrafting(snapshot); invoke('recipe', id); }, onRecipeFilter: query => invoke('recipe-filter', query), onCraft: all => invoke('craft', all), onClose: close, layout: options.layout });
+            onRecipe: id => { snapshot = { ...snapshot, selected: id, pattern: snapshot.recipes.find(row => row.id === id)?.pattern ?? [] }; crafting.updateCrafting(snapshot); invoke('recipe', id); }, onRecipeFilter: query => invoke('recipe-filter', query), onCraft: all => invoke('craft', all), onClose: close, layout: options.layout });
           surface = crafting; surface.setProps({ migrationSurface: options.id }); return surface;
         }
         surface = uiContentFrame({ ...options.inventory, onClose: close, onInvoke: id => invoke(id), renderPane: pane => options.inventory?.renderPane?.(pane) ?? (pane.kind === 'recipe_list' ? list(rows, 'Recipes') : undefined), layout: options.layout }); surface.setProps({ migrationSurface: options.id }); return surface;
