@@ -32,6 +32,8 @@ export class IndexedDbChunkCache implements ChunkBlobCache {
   readonly #database: Promise<IDBDatabase | undefined>;
   #closed = false;
   #lastTouch = 0;
+  /** LRU refreshes from reads, applied in the next write transaction so reads stay readonly. */
+  readonly #touches = new Map<string, number>();
   /** Operations that fell back to a miss or a dropped write. */
   failures = 0;
   constructor(factory: IDBFactory, readonly maxBytes = CHUNK_CACHE_MAX_BYTES, readonly maxEntries = CHUNK_CACHE_MAX_ENTRIES) {
@@ -82,19 +84,21 @@ export class IndexedDbChunkCache implements ChunkBlobCache {
   async get(hash: string): Promise<Uint8Array | undefined> {
     const database = await this.#open();
     if (!database) return undefined;
+    let inconsistent = false;
     try {
-      const transaction = database.transaction(['blobs', 'meta'], 'readwrite');
+      const transaction = database.transaction(['blobs', 'meta'], 'readonly');
       const blobs = transaction.objectStore('blobs'), meta = transaction.objectStore('meta');
       let result: Uint8Array | undefined;
       const blobRequest = blobs.get(hash), metaRequest = meta.get(hash);
       metaRequest.onsuccess = () => {
         const row = blobRequest.result as ChunkBlobRow | undefined, info = metaRequest.result as ChunkBlobMeta | undefined;
         if (!row && !info) return;
-        if (!row || !info || row.bytes.byteLength !== info.byteLength) { blobs.delete(hash); meta.delete(hash); return; }
+        if (!row || !info || row.bytes.byteLength !== info.byteLength) { inconsistent = true; return; }
         result = new Uint8Array(row.bytes);
-        meta.put({ ...info, touched: this.#touch() } satisfies ChunkBlobMeta);
+        this.#touches.set(hash, this.#touch());
       };
       await completion(transaction);
+      if (inconsistent) await this.delete(hash);
       return result;
     } catch { this.failures++; return undefined; }
   }
@@ -109,22 +113,35 @@ export class IndexedDbChunkCache implements ChunkBlobCache {
       // Oldest first; only metadata rows are visited.
       const older: ChunkBlobMeta[] = [];
       let count = 1, size = owned.byteLength;
-      const cursorRequest = meta.index('touched').openCursor();
-      cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result;
-        if (cursor) {
-          const row = cursor.value as ChunkBlobMeta;
-          if (row.hash !== hash) { older.push(row); count++; size += row.byteLength; }
-          cursor.continue();
-          return;
-        }
-        for (const row of older) {
-          if (size <= this.maxBytes && count <= this.maxEntries) break;
-          blobs.delete(row.hash); meta.delete(row.hash); size -= row.byteLength; count--;
-        }
-        blobs.put({ hash, bytes: owned } satisfies ChunkBlobRow);
-        meta.put({ hash, spaceId, byteLength: owned.byteLength, touched: this.#touch() } satisfies ChunkBlobMeta);
+      const evict = () => {
+        const cursorRequest = meta.index('touched').openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (cursor) {
+            const row = cursor.value as ChunkBlobMeta;
+            if (row.hash !== hash) { older.push(row); count++; size += row.byteLength; }
+            cursor.continue();
+            return;
+          }
+          for (const row of older) {
+            if (size <= this.maxBytes && count <= this.maxEntries) break;
+            blobs.delete(row.hash); meta.delete(row.hash); size -= row.byteLength; count--;
+          }
+          blobs.put({ hash, bytes: owned } satisfies ChunkBlobRow);
+          meta.put({ hash, spaceId, byteLength: owned.byteLength, touched: this.#touch() } satisfies ChunkBlobMeta);
+        };
       };
+      // Apply batched read touches first; the cursor opens after their writes, so it sees them.
+      const touches = [...this.#touches]; this.#touches.clear();
+      if (touches.length === 0) evict();
+      touches.forEach(([touchedHash, touched], index) => {
+        const request = meta.get(touchedHash);
+        request.onsuccess = () => {
+          const info = request.result as ChunkBlobMeta | undefined;
+          if (info && info.touched < touched) meta.put({ ...info, touched } satisfies ChunkBlobMeta);
+          if (index === touches.length - 1) evict();
+        };
+      });
       await completion(transaction);
     } catch { this.failures++; }
   }

@@ -34,11 +34,24 @@ it('evicts by walking metadata only: no getAll and no blob value reads',async()=
  try{
   await cache.put('d',new Uint8Array(100));await cache.put('e',new Uint8Array(900));
   expect(getAll).not.toHaveBeenCalled();expect(indexGetAll).not.toHaveBeenCalled();
-  expect(storeGet).not.toHaveBeenCalled();expect(storeCursor).not.toHaveBeenCalled();
+  expect(storeGet.mock.contexts.filter(store=>(store as IDBObjectStore).name==='blobs')).toEqual([]);expect(storeCursor).not.toHaveBeenCalled();
   expect(indexCursor).toHaveBeenCalledTimes(2);expect(indexCursor.mock.contexts.every(index=>(index as IDBIndex).objectStore.name==='meta')).toBe(true);
  }finally{vi.restoreAllMocks();}
  // 'e' (900) needs 800 bytes freed: a, b ... evicted oldest first until within budget.
  expect(await Promise.all(['a','b','c','d','e'].map(async key=>(await cache.get(key))!==undefined))).toEqual([false,false,false,true,true]);
+});
+it('reads in readonly transactions and applies LRU touches with the next write',async()=>{
+ let now=0;const clock=vi.spyOn(Date,'now').mockImplementation(()=>++now);
+ try{
+  const factory=new IDBFactory(),cache=new IndexedDbChunkCache(factory,1024,2);
+  await cache.put('a',new Uint8Array(1));await cache.put('b',new Uint8Array(1));
+  const {IDBDatabase}=await import('fake-indexeddb');const transaction=vi.spyOn(IDBDatabase.prototype,'transaction');
+  expect(await cache.get('a')).toEqual(new Uint8Array(1));expect(transaction.mock.calls.map(call=>call[1])).toEqual(['readonly']);
+  transaction.mockRestore();
+  // 'a' was read after 'b' was written, so 'b' is now the least recently used.
+  await cache.put('c',new Uint8Array(1));
+  expect(await cache.get('b')).toBeUndefined();expect(await cache.get('a')).toEqual(new Uint8Array(1));
+ }finally{clock.mockRestore();}
 });
 it('prunes entries outside the current and previous manifest for that space only',async()=>{
  const cache=new IndexedDbChunkCache(new IDBFactory());
