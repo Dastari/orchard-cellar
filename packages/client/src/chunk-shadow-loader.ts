@@ -8,15 +8,24 @@ export class ChunkShadowLoader {
   #generation = 0;
   #disposed = false;
   readonly #inflight = new Map<string, Promise<void>>();
+  /** Called after each install (chunk mode `on`: the first serve waits only for the spawn ring, S4f). */
+  onInstall: (() => void) | undefined;
   constructor(manifest: WorldChunkManifest, readonly fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>, readonly cache?: ChunkBlobCache) {
     this.store = new BoundedChunkTerrainStore(manifest);
   }
   dispose(): void { this.#disposed = true; this.#generation++; }
-  async updateView(minX: number, minY: number, maxX: number, maxY: number): Promise<void> {
+  /** `nearestFirst` (chunk mode `on`, S4f) fetches the view's centre chunks, then outwards;
+   * otherwise the manifest order, as before. */
+  async updateView(minX: number, minY: number, maxX: number, maxY: number, nearestFirst = false): Promise<void> {
     if (this.#disposed) return;
     this.store.pinView(minX,minY,maxX,maxY); const generation = ++this.#generation;
     const keys = new Set(this.store.pinnedKeys);
     const queue = this.store.manifest.chunks.filter(head => keys.has(chunkKey(head.cx,head.cy)));
+    if (nearestFirst) {
+      const centreX = (minX + maxX) / 2 / 64 - 0.5, centreY = (minY + maxY) / 2 / 64 - 0.5;
+      const distance = (head: { cx: number; cy: number }) => Math.max(Math.abs(head.cx - centreX), Math.abs(head.cy - centreY));
+      queue.sort((a, b) => distance(a) - distance(b));
+    }
     let cursor = 0;
     // One update at a time is enforced by the controller. A superseded view stops scheduling.
     const worker = async () => {
@@ -47,7 +56,7 @@ export class ChunkShadowLoader {
       verifyRuntimeChunk(bytes,this.store.manifest,cx,cy);
       try { await this.cache?.put(hash,bytes,this.store.manifest.spaceId); } catch { /* verified memory copy remains usable */ }
     }
-    if (!this.#disposed && this.store.pinnedKeys.includes(chunkKey(cx,cy))) this.store.install(bytes,cx,cy);
+    if (!this.#disposed && this.store.pinnedKeys.includes(chunkKey(cx,cy))) { this.store.install(bytes,cx,cy); this.onInstall?.(); }
   }
 }
 /** Stream rather than arrayBuffer: a bad static endpoint cannot allocate an unbounded response. */
