@@ -11,6 +11,8 @@
  * call `chunkAuthorityMode(ctx)`.
  */
 
+import { parseAdminReason, serializeAdminAuditPayload } from './admin/contracts.js';
+
 export const CHUNK_AUTHORITY_MODES = ['off', 'shadow', 'on'] as const;
 export type ChunkAuthorityMode = (typeof CHUNK_AUTHORITY_MODES)[number];
 
@@ -112,7 +114,42 @@ export function preserveOwnerOnlySpaceFlags<T extends FlagObject>(next: T, curre
  * owner-only keys (for example one first created by setChunkAuthority) reads
  * as no row, so the authored defaults show exactly as they did before. */
 export function adminVisibleSpaceFlags<T extends FlagObject>(stored: T | undefined, defaults: T): T {
-  if (stored === undefined) return defaults;
+  if (stored === undefined || stored === null || typeof stored !== 'object' || Array.isArray(stored)) return defaults;
   const visible = withoutOwnerOnlySpaceFlags(stored);
   return Object.keys(visible).length === 0 && Object.keys(stored).length > 0 ? defaults : visible;
+}
+
+/** Admin world view input: each stored flag row parsed with the same tolerant
+ * reader gameplay uses, so a stored `null`, array or malformed value reads as
+ * no flags instead of reaching the admin view as a non-object. */
+export function adminSpaceFlagsBySpace(
+  rows: Iterable<{ readonly spaceId: number; readonly flagsJson: string }>,
+): Map<string, Record<string, unknown>> {
+  const result = new Map<string, Record<string, unknown>>();
+  for (const row of rows) result.set(String(row.spaceId), parseSpaceFlagsJson(row.flagsJson));
+  return result;
+}
+
+/** Audit target for owner chunkAuthority switches: the space 0 flag row that
+ * holds it, the same key Studio uses for that space's flag history. */
+export const CHUNK_AUTHORITY_AUDIT_TARGET_KEY = `space:${CHUNK_AUTHORITY_SPACE_ID}`;
+const CHUNK_AUTHORITY_AUDIT_REASON = parseAdminReason('Owner switched static-world chunk authority');
+
+/** A standard v1 audit payload (parsed by the audit page and Studio) whose
+ * single change is `/chunkAuthority`: previous -> next. No inverse is
+ * offered; rollback is another owner switch. */
+export function chunkAuthorityAuditPayload(plan: ChunkAuthorityFlagsPlan, occurredAtMicros: bigint): string {
+  if (!CHUNK_AUTHORITY_AUDIT_REASON.ok) throw new Error('chunk_authority_audit_reason_invalid');
+  return serializeAdminAuditPayload({
+    schemaVersion: 1,
+    clientMutationId: `chunk-authority-${occurredAtMicros.toString()}`,
+    target: { kind: 'space', spaceId: String(CHUNK_AUTHORITY_SPACE_ID) },
+    reason: CHUNK_AUTHORITY_AUDIT_REASON.value,
+    changes: [{
+      path: `/${CHUNK_AUTHORITY_FLAG_KEY}`,
+      before: { present: true, value: plan.previous },
+      after: { present: true, value: plan.mode },
+    }],
+    inverse: null,
+  });
 }

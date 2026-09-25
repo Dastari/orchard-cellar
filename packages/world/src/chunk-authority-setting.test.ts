@@ -3,8 +3,11 @@ import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { authenticationRejection, isWorldOwnerRole, membershipRejection, OIDC_ISSUER } from './auth-policy.js';
 import {
+  CHUNK_AUTHORITY_AUDIT_TARGET_KEY,
   CHUNK_AUTHORITY_SPACE_ID,
+  adminSpaceFlagsBySpace,
   adminVisibleSpaceFlags,
+  chunkAuthorityAuditPayload,
   chunkAuthorityMode,
   chunkAuthorityModeFromFlagsJson,
   parseChunkAuthorityMode,
@@ -13,7 +16,8 @@ import {
   withoutOwnerOnlySpaceFlags,
 } from './chunk-authority-setting.js';
 import { planAdminWorldMutation, adminWorldVersion, type AdminWorldRepairMutation, type AdminWorldState } from './admin/world-repair.js';
-import { parseAdminReason } from './admin/contracts.js';
+import { parseAdminReason, parseAdminAuditPayload } from './admin/contracts.js';
+import { adminAuditRow } from './admin/procedures.js';
 import type { AdminJsonObject } from '@orchard/sim';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -39,6 +43,7 @@ function compile<T>(name: string, scope: Record<string, unknown>): T {
 }
 
 class SenderError extends Error {}
+const now = { microsSinceUnixEpoch: 1_700_000_000_000_000n };
 
 type Membership = { role: string; revokedAt?: unknown; blocked: boolean } | null;
 const jwt = { issuer: OIDC_ISSUER, audience: ['orchard-web'] };
@@ -51,18 +56,21 @@ const setChunkAuthority = compile<(ctx: unknown, args: { mode: string }) => void
   parseChunkAuthorityMode,
   planChunkAuthorityFlags,
   CHUNK_AUTHORITY_SPACE_ID,
-  insertLegacyAdminAudit: (ctx: { audits: unknown[] }, row: unknown) => { ctx.audits.push(row); },
+  CHUNK_AUTHORITY_AUDIT_TARGET_KEY,
+  chunkAuthorityAuditPayload,
   SenderError,
 });
 
 function world(member: Membership, flagsJson?: string) {
+  const audits: Record<string, unknown>[] = [];
   let row: { spaceId: number; flagsJson: string; updatedBy: unknown; updatedAt: unknown } | null = flagsJson === undefined
     ? null : { spaceId: 0, flagsJson, updatedBy: 'previous', updatedAt: 'earlier' };
   const insert = vi.fn((value: typeof row) => { row = value; });
   const update = vi.fn((value: typeof row) => { row = value; });
   const ctx = {
-    sender: 'sender', timestamp: 'now', senderAuth: { jwt }, audits: [] as unknown[],
+    sender: 'sender', timestamp: now, senderAuth: { jwt }, audits,
     db: {
+      world_admin_audit: { insert: (value: Record<string, unknown>) => { audits.push(value); } },
       membership: { identity: { find: () => member } },
       space_admin_flag: { spaceId: { find: (spaceId: number) => (spaceId === 0 ? row : null), update }, insert },
     },
@@ -109,10 +117,24 @@ describe('setChunkAuthority reducer', () => {
     const state = world({ role: 'owner', blocked: false }, '{"weather":true,"buildAllowed":false}');
     setChunkAuthority(state.ctx, { mode: 'shadow' });
     expect(state.row()).toEqual({
-      spaceId: 0, flagsJson: '{"weather":true,"buildAllowed":false,"chunkAuthority":"shadow"}', updatedBy: 'sender', updatedAt: 'now',
+      spaceId: 0, flagsJson: '{"weather":true,"buildAllowed":false,"chunkAuthority":"shadow"}', updatedBy: 'sender', updatedAt: now,
     });
     expect(chunkAuthorityMode(state.ctx)).toBe('shadow');
-    expect(state.ctx.audits).toEqual([{ id: 0n, actor: 'sender', action: 'set_chunk_authority', value: 'off->shadow', occurredAt: 'now' }]);
+    expect(state.ctx.audits).toHaveLength(1);
+    const audit = state.ctx.audits[0]!;
+    expect(audit).toMatchObject({
+      id: 0n, actor: 'sender', action: 'set_chunk_authority', value: 'off->shadow', occurredAt: now,
+      occurredAtMicros: now.microsSinceUnixEpoch, targetKey: 'space:0',
+    });
+    // Studio's audit page parses it as a normal v1 row under the space 0 target.
+    const row = adminAuditRow({
+      id: '1', actorIdentity: 'sender', action: String(audit['action']), value: String(audit['value']),
+      occurredAtMicros: String(audit['occurredAtMicros']), targetKey: String(audit['targetKey']), payload: String(audit['payload']),
+    });
+    expect(row.target).toEqual({ kind: 'space', spaceId: '0' });
+    expect(row.payload.clientMutationId).toBe('chunk-authority-1700000000000000');
+    expect(row.payload.changes).toEqual([{ path: '/chunkAuthority', before: { present: true, value: 'off' }, after: { present: true, value: 'shadow' } }]);
+    expect(row.payload.inverse).toBeNull();
     setChunkAuthority(state.ctx, { mode: 'on' });
     expect(chunkAuthorityMode(state.ctx)).toBe('on');
     setChunkAuthority(state.ctx, { mode: 'off' });
@@ -259,5 +281,41 @@ describe('the admin world view keeps showing Topside defaults after a first-time
     expect(adminVisibleSpaceFlags({ buildAllowed: false }, topsideDefaults)).toEqual({ buildAllowed: false });
     expect(adminVisibleSpaceFlags({ weather: false, chunkAuthority: 'shadow' }, topsideDefaults)).toEqual({ weather: false });
     expect(adminVisibleSpaceFlags({}, topsideDefaults)).toEqual({});
+  });
+});
+
+describe('the admin world view parses stored flags tolerantly', () => {
+  const defaults = { ownerOnly: false, weather: true };
+  it('never hands a null, array, scalar or malformed row to the admin view', () => {
+    const bySpace = adminSpaceFlagsBySpace([
+      { spaceId: 0, flagsJson: 'null' }, { spaceId: 1, flagsJson: '[true]' }, { spaceId: 2, flagsJson: '7' },
+      { spaceId: 3, flagsJson: '{bad' }, { spaceId: 4, flagsJson: '{"weather":false,"chunkAuthority":"on"}' },
+      { spaceId: 5, flagsJson: '{"chunkAuthority":"on"}' },
+    ]);
+    for (const id of ['0', '1', '2', '3']) {
+      expect(bySpace.get(id)).toEqual({});
+      expect(() => adminVisibleSpaceFlags(bySpace.get(id), defaults)).not.toThrow();
+    }
+    expect(adminVisibleSpaceFlags(bySpace.get('4'), defaults)).toEqual({ weather: false });
+    expect(adminVisibleSpaceFlags(bySpace.get('5'), defaults)).toEqual(defaults);
+    expect(adminVisibleSpaceFlags(null as unknown as undefined, defaults)).toEqual(defaults);
+  });
+
+  it('loadAdminWorldState uses the tolerant parser, not a bare JSON.parse', () => {
+    const body = declarationCode('loadAdminWorldState');
+    expect(body).toContain('adminSpaceFlagsBySpace(take(ctx.db.space_admin_flag.iter()))');
+    expect(body).not.toContain('JSON.parse(row.flagsJson)');
+  });
+});
+
+describe('chunkAuthority audit payload', () => {
+  it('is a valid v1 audit payload targeting space 0', () => {
+    const plan = planChunkAuthorityFlags(undefined, 'on')!;
+    const parsed = parseAdminAuditPayload(chunkAuthorityAuditPayload(plan, 42n));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.target).toEqual({ kind: 'space', spaceId: '0' });
+    expect(parsed.value.changes).toEqual([{ path: '/chunkAuthority', before: { present: true, value: 'off' }, after: { present: true, value: 'on' } }]);
+    expect(CHUNK_AUTHORITY_AUDIT_TARGET_KEY).toBe('space:0');
   });
 });

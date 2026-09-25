@@ -2,7 +2,7 @@ import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversal
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
-import { CHUNK_AUTHORITY_SPACE_ID, adminVisibleSpaceFlags, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
+import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
 import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
@@ -8530,12 +8530,7 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
     return result;
   };
   const registry = contentRegistry(ctx);
-  const flagsBySpace = new Map(take(ctx.db.space_admin_flag.iter()).map((row) => {
-    let flags: AdminJsonObject;
-    try { flags = JSON.parse(row.flagsJson) as AdminJsonObject; }
-    catch { flags = {}; }
-    return [String(row.spaceId), flags] as const;
-  }));
+  const flagsBySpace = adminSpaceFlagsBySpace(take(ctx.db.space_admin_flag.iter())) as Map<string, AdminJsonObject>;
   const spaces = [...registry.spaces.values()].map((space) => ({
     spaceId: String(space.spaceId), sizeTiles: space.sizeTiles,
     flags: adminVisibleSpaceFlags<AdminJsonObject>(flagsBySpace.get(String(space.spaceId)), {
@@ -26102,7 +26097,11 @@ export const setChunkAuthority = spacetimedb.reducer({ mode: t.string() }, (ctx,
   if (plan === null) return;
   const row = { spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: plan.flagsJson, updatedBy: ctx.sender, updatedAt: ctx.timestamp };
   if (existing === null) ctx.db.space_admin_flag.insert(row); else ctx.db.space_admin_flag.spaceId.update(row);
-  insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'set_chunk_authority', value: `${plan.previous}->${plan.mode}`, occurredAt: ctx.timestamp });
+  ctx.db.world_admin_audit.insert({
+    id: 0n, actor: ctx.sender, action: 'set_chunk_authority', value: `${plan.previous}->${plan.mode}`,
+    occurredAt: ctx.timestamp, occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+    targetKey: CHUNK_AUTHORITY_AUDIT_TARGET_KEY, payload: chunkAuthorityAuditPayload(plan, ctx.timestamp.microsSinceUnixEpoch),
+  });
 });
 const shadowChunkCollision = new ShadowChunkCollisionCache();
 /** Shadow diagnostics only. No movement/pathfinding authority calls this yet. */
