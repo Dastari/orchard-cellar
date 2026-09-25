@@ -26,10 +26,12 @@ export function measureUiElement(node: UiElement, available: UiSize): UiMeasurem
   // then measure text and nested rows at their actual allocated widths.
   let wrappedPreferred: UiSize | undefined;
   if (node.style.display === 'flex' && node.style.direction !== 'column' && node.style.wrap && children.length) {
-    const bounds = { x: 0, y: 0, ...inner };
-    const boxes = uiLayoutFlex(bounds, children, node.style);
+    // Justification only moves items within their line, so measure the packed lines (BUG-036): laying out
+    // with the row's own justify spread centred or end-aligned items across all of the available width.
+    const bounds = { x: 0, y: 0, ...inner }, packed = { ...node.style, justify: 'start' as const };
+    const boxes = uiLayoutFlex(bounds, children, packed);
     sizes = children.map((child, index) => measureUiElement(child, { width: boxes[index]!.width, height: inner.height }));
-    const resolved = uiLayoutFlex(bounds, children, node.style);
+    const resolved = uiLayoutFlex(bounds, children, packed);
     wrappedPreferred = { width: Math.max(0, ...resolved.map(box => box.x + box.width)),
       height: Math.max(0, ...resolved.map(box => box.y + box.height)) };
   }
