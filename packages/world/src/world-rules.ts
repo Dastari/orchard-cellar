@@ -1,4 +1,5 @@
 import { homesteadBiomeAt, runtimeTraversalPolicy, staticTraversalChannels, terrainCellMedium, SURVIVAL_WORLD_SEED } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim';
 import {persistedHearthArchitectureCollision} from '@orchard/sim';
 import {hearthInteriorCollision} from '@orchard/sim';
 import {
@@ -87,14 +88,14 @@ const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
 }>();
 
 function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator: 'flat' | 'homestead' | 'residence' | 'marlow_tent' | 'cellar' = 'flat', residenceExpansionRank=0): CollisionMap {
-  const blocked = Uint8Array.from({ length: sizeTiles * sizeTiles }, (_, index) => {
-    if (medium !== 'ground') return 1;
+  const blocked = cellFlagsWhere(sizeTiles * sizeTiles, (index) => {
+    if (medium !== 'ground') return true;
     const x = index % sizeTiles;
     const y = Math.floor(index / sizeTiles);
-    return (generator === 'homestead' ? !homesteadPlayableTile(x, y, sizeTiles)
+    return generator === 'homestead' ? !homesteadPlayableTile(x, y, sizeTiles)
       : generator === 'residence' || generator === 'marlow_tent' ? !residencePlayableTile(x, y,generator==='residence'?residenceExpansionRank:0)
       : generator === 'cellar' ? x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1
-      : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1) ? 1 : 0;
+      : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
   });
   const elevations = generator === 'cellar' && medium === 'ground'
     ? Int16Array.from({ length: sizeTiles * sizeTiles }, (_, index) => (
@@ -643,10 +644,10 @@ export function createMmoFarmCollisionMap(width = 48, height = 32): CollisionMap
   return {
     width,
     height,
-    blocked: Uint8Array.from({ length: width * height }, (_, index) => {
+    blocked: cellFlagsWhere(width * height, (index) => {
       const x = index % width;
       const y = Math.floor(index / width);
-      return x === 0 || y === 0 || x === width - 1 || y === height - 1 ? 1 : 0;
+      return x === 0 || y === 0 || x === width - 1 || y === height - 1;
     }),
   };
 }

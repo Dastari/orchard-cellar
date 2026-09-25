@@ -1,4 +1,5 @@
 import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
@@ -12838,12 +12839,12 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
   );
   const traversalChannels = runtimeTraversalPolicy(registry) === null ? undefined : mapTraversalChannels(document, compiled);
   const length = compiled.width * compiled.height;
-  const horseJumpableTerrain = Uint8Array.from({ length }, (_, index) => (
+  const horseJumpableTerrain = cellFlagsWhere(length, (index) => (
     survivalBiomeAllowsHorseJump(resolvedMapBiomeAt(
       document,
       index % compiled.width,
       Math.floor(index / compiled.width),
-    )) ? 1 : 0
+    ))
   ));
   let minimumElevation = 0;
   for (const elevation of compiled.elevations) minimumElevation = Math.min(minimumElevation, elevation);
@@ -12870,7 +12871,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     ...(traversalChannels === undefined ? {} : { traversalChannels }),
     width: compiled.width,
     height: compiled.height,
-    blocked: Uint8Array.from(compiled.surfaces, (surface) => surface !== 'water' ? 1 : 0),
+    blocked: cellFlagsWhere(length, (index) => compiled.surfaces[index] !== 'water'),
     horseJumpableTerrain: new Uint8Array(length),
     obstacles: authoredMapCollisionObstacles(document, 'water', registry),
   };

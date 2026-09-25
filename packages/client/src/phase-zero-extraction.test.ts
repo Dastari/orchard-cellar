@@ -216,9 +216,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // collision builder path; whole maps (no origin) behave as before. Chunk-collision parity and pinned
 // whole-map collision digests cover it; the other four seams are unchanged.
 // Uint8Array flag planes (S4f follow-up) store engine/collision.ts's blocked planes as 0/1 bytes instead
-// of boolean[] (cellar boundary, water, dock correction). The pinned whole-map collision digests cover
+// of boolean[] (cellar boundary, water, dock correction; built with cellFlagsWhere). The pinned whole-map collision digests cover
 // it (the same bytes); the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '15c76090dae2eceecd067dca33832c3bda3c97cdf3bc92492c09b7121ae21fa4';
+const STRUCTURAL_SEAM_DIGEST = 'ebbe3b6e3288e781bc3bf0e33e60aefda4b80f14ab474312709e561773b100e3';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

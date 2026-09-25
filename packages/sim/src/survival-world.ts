@@ -1,4 +1,5 @@
 import { SURVIVAL_RAISED_CLIFF_TILE_SET } from './survival-tileset.js';
+import { cellFlagsWhere } from './cell-flags.js';
 export { SURVIVAL_RAISED_CLIFF_TILE_SET } from './survival-tileset.js';
 import {
   FIXED_UNITS_PER_PIXEL,
@@ -2622,13 +2623,13 @@ export function createSurvivalCollisionMap(
     const tileY = Math.floor(index / SURVIVAL_WORLD_SIZE);
     return survivalBiomeAt(seed, tileX, tileY);
   });
-  const blocked = Uint8Array.from(biomes, (_biome, index) => survivalTerrainBlocksTraversalAt(
+  const blocked = cellFlagsWhere(biomes.length, (index) => survivalTerrainBlocksTraversalAt(
     seed,
     index % SURVIVAL_WORLD_SIZE,
     Math.floor(index / SURVIVAL_WORLD_SIZE),
     medium,
-  ) ? 1 : 0);
-  const horseJumpableTerrain = Uint8Array.from(biomes, biome => survivalBiomeAllowsHorseJump(biome) ? 1 : 0);
+  ));
+  const horseJumpableTerrain = cellFlagsWhere(biomes.length, (index) => survivalBiomeAllowsHorseJump(biomes[index]!));
   const obstacles: CollisionObstacle[] = [];
   for (const resource of medium === 'ground' ? activeResourceRows : []) {
     if (!resource.depleted && resource.tileX >= 0 && resource.tileY >= 0

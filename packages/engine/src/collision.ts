@@ -1,4 +1,5 @@
 import { runtimeTraversalPolicy, mapDocumentTraversalChannels, createLiveIslandMapDocument, activeSurvivalLandmarks, staticTraversalChannels, terrainCellMedium, type MediumCollisionChannels } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
@@ -62,10 +63,10 @@ function cellarBoundaryCollision(terrain: TerrainArray): Uint8Array {
   if (blocked !== undefined) return blocked;
   const originX = terrain.originX ?? 0, originY = terrain.originY ?? 0;
   const worldWidth = terrain.worldWidth ?? terrain.width, worldHeight = terrain.worldHeight ?? terrain.height;
-  blocked = Uint8Array.from({ length: terrain.width * terrain.height }, (_, index) => {
+  blocked = cellFlagsWhere(terrain.width * terrain.height, (index) => {
     const tileX = originX + index % terrain.width;
     const tileY = originY + Math.floor(index / terrain.width);
-    return tileX === 0 || tileY === 0 || tileX === worldWidth - 1 || tileY === worldHeight - 1 ? 1 : 0;
+    return tileX === 0 || tileY === 0 || tileX === worldWidth - 1 || tileY === worldHeight - 1;
   });
   cellarBoundaryCollisionCache.set(terrain, blocked);
   return blocked;
@@ -210,8 +211,8 @@ export function prepareClientTerrainCollision(
     ? fixedTerrainPlane !== undefined
       ? cellarBoundaryCollision(terrain)
       : terrain.blocked
-    : Uint8Array.from(terrain.biomes, (biome) => (
-      survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[biome] ?? 'water', medium) ? 1 : 0
+    : cellFlagsWhere(terrain.biomes.length, (index) => (
+      survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[terrain.biomes[index]!] ?? 'water', medium)
     ));
   let blocked = terrainBlocked;
   const window = terrainIsWindow(terrain);

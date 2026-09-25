@@ -12,6 +12,7 @@
  * `SpaceTerrainGenerators`; `terrainForSpace` in `terrain.ts` supplies both, so
  * its output and caching are unchanged. `space-terrain.test.ts` pins this. */
 import type { ContentRegistry, SpaceDefinition } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import { cellarExcavationFootprint } from '@orchard/sim/cellar-excavation';
 import { caveTerrainPlaneCollisionBytes } from '@orchard/sim/cave-autotile';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
@@ -261,10 +262,10 @@ export function spaceTerrain(
           biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
         }
       }
-      let blocked = Uint8Array.from({ length }, (_, index) => {
+      let blocked = cellFlagsWhere(length, (index) => {
         const x = index % space.sizeTiles;
         const y = Math.floor(index / space.sizeTiles);
-        return (space.generator === "homestead"
+        return space.generator === "homestead"
           ? !homesteadPlayableTile(x, y, space.sizeTiles)
           : space.generator === "residence" || space.generator === "marlow_tent"
             ? !residencePlayableTile(x, y,space.generator==='residence'?space.residenceExpansionRank:0)
@@ -273,7 +274,7 @@ export function spaceTerrain(
               : x === 0 ||
                 y === 0 ||
                 x === space.sizeTiles - 1 ||
-                y === space.sizeTiles - 1) ? 1 : 0;
+                y === space.sizeTiles - 1;
       });
       const residenceEnvelopeBlocked=space.generator==='residence'?blocked:undefined;
       if(space.generator==='residence')blocked=persistedHearthArchitectureCollision(space.residenceExpansionRank??0,
