@@ -36,7 +36,7 @@ describe('spawn readiness (static world S4f)', () => {
   it('waits for the spawn chunk and its ring, not the rest of the window', () => {
     expect(chunkSpawnReadiness(on())).toMatchObject({ ready: true, reason: 'resident' });
     const partial = ring(6, 6).filter(key => key !== '7:7');
-    expect(chunkSpawnReadiness(on({ store: store(partial, window(6, 6)) }))).toEqual({ ready: false, reason: 'awaiting_chunks', missing: 1 });
+    expect(chunkSpawnReadiness(on({ store: store(partial, window(6, 6)) }))).toEqual({ ready: false, reason: 'awaiting_chunks', missing: 1, missingKeys: ['7:7'] });
     // The outer window ring may still be loading.
     expect(chunkSpawnReadiness(on({ store: store(ring(6, 6), window(6, 6)) })).ready).toBe(true);
     // At the map corner the ring is clipped to published chunks.
@@ -55,5 +55,23 @@ describe('spawn readiness (static world S4f)', () => {
     expect(gate.update(on(), 30_000)).toMatchObject({ ready: true, reason: 'resident' });
     expect(gate.update(waiting, 31_000).ready).toBe(false);
     expect(gate.status(31_500)).toMatchObject({ waits: 2, timeouts: 1, waitedMs: 500 });
+  });
+
+  it('counts failed and given-up ring chunks as resolved, so a failing chunk never re-arms the wait', () => {
+    const partial = ring(6, 6).filter(key => key !== '7:7');
+    const failing = store(partial, window(6, 6));
+    // A chunk whose load failed reads as solid void: nothing to wait for.
+    expect(chunkSpawnReadiness(on({ store: failing, resolved: new Set(['7:7']) }))).toMatchObject({ ready: true, reason: 'resident' });
+    // Given up on once (the timeout), it stays resolved for that publication.
+    const gate = new SpawnReadinessGate();
+    expect(gate.update(on({ store: failing }), 0)).toMatchObject({ ready: false, missingKeys: ['7:7'] });
+    expect(gate.update(on({ store: failing }), SPAWN_READINESS_TIMEOUT_MS)).toMatchObject({ ready: true, reason: 'timeout' });
+    // Away (another space) and back: still ready at once.
+    expect(gate.update(on({ store: failing, spaceId: 5 }), SPAWN_READINESS_TIMEOUT_MS + 1)).toMatchObject({ ready: true, reason: 'other_space' });
+    expect(gate.update(on({ store: failing }), SPAWN_READINESS_TIMEOUT_MS + 2)).toMatchObject({ ready: true, reason: 'resident' });
+    expect(gate.status(SPAWN_READINESS_TIMEOUT_MS + 2)).toMatchObject({ waits: 1, timeouts: 1 });
+    // A new publication (manifest) starts over.
+    const next = store(partial, window(6, 6));
+    expect(gate.update(on({ store: next }), SPAWN_READINESS_TIMEOUT_MS + 3).ready).toBe(false);
   });
 });

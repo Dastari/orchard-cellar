@@ -342,4 +342,33 @@ describe('spawn readiness (static world S4f)',()=>{
    expect(h.controller.store).toBeUndefined();expect(h.controller.status.atlasPackFailures).toBe(0);
   }finally{h.controller.dispose();}
  });
+
+ it('`on`: reports subscribing only until the space\'s first subscription applies, then never on a pin change',async()=>{
+  const h=harness({authority:'on'});
+  try{
+   h.controller.update(h.connection,0n,view,source);
+   expect(['idle','subscribing']).toContain(h.controller.status.state);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('awaiting_publication'));
+   // Nothing published (a rollback): a window move re-subscribes the regional heads, but the
+   // space-wide manifest query already answered, so movement is never held for it.
+   h.controller.update(h.connection,0n,[640,640,700,700],source);
+   expect(h.controller.status.state).toBe('awaiting_publication');
+   await new Promise(resolve=>setTimeout(resolve,10));
+   expect(h.controller.status.state).toBe('awaiting_publication');
+  }finally{h.controller.dispose();}
+ });
+
+ it('`on`: exposes the serving store\'s chunks whose load failed, until they load',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0,assetRevision,ring);
+  try{
+   h.failing.add(rev1.chunks[0]!.head.contentHash);// 1:1 fails
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.failedChunks.has('1:1')).toBe(true));
+   expect(h.controller.store).toBeDefined();
+   h.failing.clear();h.controller.update(h.connection,0n,view,{...source});
+   await vi.waitFor(()=>expect(h.controller.failedChunks.size).toBe(0));
+   expect(h.controller.store!.peekChunk(1,1)).toBeDefined();
+  }finally{h.controller.dispose();}
+  expect(new ChunkRuntimeController({buildMode:'shadow',cache:null}).failedChunks.size).toBe(0);
+ });
 });

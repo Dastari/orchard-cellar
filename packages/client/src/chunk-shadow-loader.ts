@@ -8,6 +8,10 @@ export class ChunkShadowLoader {
   #generation = 0;
   #disposed = false;
   readonly #inflight = new Map<string, Promise<void>>();
+  readonly #failed = new Set<string>();
+  /** `cx:cy` of chunks whose last load failed (a fetch or verification error) and have not
+   * been installed since: they read as solid void (S4f spawn readiness does not wait for them). */
+  get failedKeys(): ReadonlySet<string> { return this.#failed; }
   /** Called after each install (chunk mode `on`: the first serve waits only for the spawn ring, S4f). */
   onInstall: (() => void) | undefined;
   constructor(manifest: WorldChunkManifest, readonly fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>, readonly cache?: ChunkBlobCache) {
@@ -46,6 +50,10 @@ export class ChunkShadowLoader {
     await Promise.all([worker(),worker()]);
   }
   private async load(cx: number,cy: number,hash: string,size: number): Promise<void> {
+    try { await this.loadVerified(cx,cy,hash,size); }
+    catch (error) { this.#failed.add(chunkKey(cx,cy)); throw error; }
+  }
+  private async loadVerified(cx: number,cy: number,hash: string,size: number): Promise<void> {
     let bytes: Uint8Array | undefined;
     try {
       bytes = await this.cache?.get(hash);
@@ -56,6 +64,7 @@ export class ChunkShadowLoader {
       verifyRuntimeChunk(bytes,this.store.manifest,cx,cy);
       try { await this.cache?.put(hash,bytes,this.store.manifest.spaceId); } catch { /* verified memory copy remains usable */ }
     }
+    this.#failed.delete(chunkKey(cx,cy));
     if (!this.#disposed && this.store.pinnedKeys.includes(chunkKey(cx,cy))) { this.store.install(bytes,cx,cy); this.onInstall?.(); }
   }
 }

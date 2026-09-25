@@ -354,6 +354,8 @@ export class OverworldConnection {
   get chunkRuntimeStatus() { return this.chunkRuntime?.status; }
   /** The serving chunk store (effective mode `on` only), read by the render window. */
   get chunkTerrainStore(): BoundedChunkTerrainStore | undefined { return this.chunkRuntime?.store; }
+  /** Chunks of the serving store whose load failed (static world S4f spawn readiness). */
+  get chunkFailedKeys(): ReadonlySet<string> | undefined { return this.chunkRuntime?.failedChunks; }
   /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
   chunkAuthorityGate(): ChunkAuthorityGate | null {
     return this.chunkRuntime?.authorityGate(this.chunkRuntimeSource()) ?? 'not_on';

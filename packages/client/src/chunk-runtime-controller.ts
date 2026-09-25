@@ -98,6 +98,8 @@ function coreResident(store: BoundedChunkTerrainStore, bounds: ChunkView): boole
     || store.peekChunk(head.cx, head.cy) !== undefined);
 }
 
+const EMPTY_KEYS: ReadonlySet<string> = new Set();
+
 function idleStatus(mode: ChunkRuntimeMode, state: string): ChunkRuntimeStatus {
   return { mode, state, readyChunks: 0, residentBytes: 0, compared: 0, differences: 0, stale: false, staleReasons: [], staleObservations: 0,
     servingRevision: null, pendingRevision: null, swaps: 0, atlasPackFailures: 0 };
@@ -137,8 +139,9 @@ export class ChunkRuntimeController {
    * undefined while unknown, null after a failed fetch. */
   #assetValue: string | null | undefined;
   #assetChecking = false;
-  /** The current chunk subscription has applied (its rows are in the client cache). */
-  #applied = false;
+  /** The space whose chunk subscription has applied at least once (the manifest query is
+   * space-wide, so a later pin change never hides it again). */
+  #appliedSpace: bigint | undefined;
   readonly #loadAtlasPacks: ((ids: readonly string[]) => Promise<void>) | undefined;
   #atlasPackKey = '';
   #busy = false;
@@ -160,6 +163,10 @@ export class ChunkRuntimeController {
    * The first revision serves once its spawn ring is resident (S4f). */
   get store(): BoundedChunkTerrainStore | undefined {
     return this.status.mode === 'on' ? this.#active?.loader.store : undefined;
+  }
+  /** `on`: chunks of the serving store whose load failed (they read as solid void). */
+  get failedChunks(): ReadonlySet<string> {
+    return this.status.mode === 'on' ? this.#active?.loader.failedKeys ?? EMPTY_KEYS : EMPTY_KEYS;
   }
   /** Synchronous authority gate for the serving store against the caller's current
    * live map and content (see ChunkAuthorityGate); null when it may be used. */
@@ -207,11 +214,12 @@ export class ChunkRuntimeController {
     if (spaceChanged) this.#epoch++;
     const queries = chunkRuntimeQueries(input.spaceId, input.bounds), key = queries.join(';');
     if (key !== this.#key) {
-      this.#subscription?.unsubscribe(); this.#key = key; this.#applied = false;
+      this.#subscription?.unsubscribe(); this.#key = key;
+      const spaceId = input.spaceId;
       this.#subscription = connection.subscriptionBuilder().onApplied(() => {
         // `on`: marked as new input (like the row listeners) so a pass that is busy right now
         // re-runs and leaves `subscribing` (S4f). Shadow keeps its exact behaviour.
-        this.#applied = true; if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
+        this.#appliedSpace = spaceId; if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
       })
         .onError(() => { this.status.state = 'subscription_error'; }).subscribe([...queries]);
     }
@@ -219,7 +227,7 @@ export class ChunkRuntimeController {
   }
   /** Rollback: release everything and stay idle until the authority allows chunks again. */
   #stop(): void {
-    this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = '';
+    this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = ''; this.#appliedSpace = undefined;
     if (this.#active) this.#drop(this.#active);
     if (this.#pending) this.#drop(this.#pending);
     this.#epoch++;
@@ -306,7 +314,7 @@ export class ChunkRuntimeController {
       if (epoch !== this.#epoch) return;
       // `subscribing` until the manifest subscription has applied: "no publication" is only
       // known then (S4f spawn readiness waits for it, but never for a real absence).
-      this.status.state = this.#applied ? 'awaiting_publication' : 'subscribing'; this.#report(this.#active);
+      this.status.state = this.#appliedSpace === input.spaceId ? 'awaiting_publication' : 'subscribing'; this.#report(this.#active);
       if (this.#active) this.#loadPinnedAtlasPacks(this.#active);
       return;
     }
