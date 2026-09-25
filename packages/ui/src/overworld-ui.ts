@@ -399,7 +399,8 @@ export interface OverworldUiCallbacks {
   readonly throwMenuItem: (container: string, index: number, wholeStack: boolean) => void;
   readonly returnInventoryCursor: () => void;
   readonly craftInventoryRecipe: (recipeId: string, craftAll: boolean) => void;
-  readonly ghostFillCraftingRecipe: (recipeId: string) => void;
+  /** Resolves when the authority placed the pattern; rejects when it refused (the host shows why). */
+  readonly ghostFillCraftingRecipe: (recipeId: string) => void | Promise<unknown>;
   readonly closeChest: () => void;
   readonly closePlaceable: () => void;
   readonly closeCrafting: () => void;
@@ -1405,7 +1406,7 @@ export class OverworldUi {
       close: () => { this.openWindow = null; }, invoke: (id) => { this.callbacks.frameAction?.(id); },
       sort: (container) => { if (this.heldCursorStack() === null && (container === 'backpack' || container === 'chest' || container === 'placeable')) this.trackInventoryPrediction(this.callbacks.sortInventoryContainer(container)); },
       filter: (value) => { this.inventoryFilterText = value; }, recipeFilter: (value) => { this.recipeFilterText = value; },
-      recipe: (id) => { this.selectCraftingRecipe(id); this.syncRetainedInventory(); },
+      recipe: (id) => { this.placeCraftingRecipe(id); this.syncRetainedInventory(); },
       craft: (all) => { const id = this.currentRecipeId(); if (id !== null && !this.currentRecipeLocked()) this.callbacks.craftInventoryRecipe(id, all); },
       label: item => this.itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
       iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry),
@@ -4924,13 +4925,27 @@ export class OverworldUi {
     });
   }
 
+  /** The recipe book's Place: never toggles, and a refused placement restores the previous selection so
+   * the grid, the ghost pattern and the next press all agree with what the authority holds (BUG-037). */
+  private placeCraftingRecipe(recipeId: string): void {
+    const previous = this.selectedCraftingRecipeId;
+    this.selectedCraftingRecipeId = recipeId;
+    const result = this.callbacks.ghostFillCraftingRecipe(recipeId);
+    if (result instanceof Promise) void result.catch(() => {
+      if (this.selectedCraftingRecipeId !== recipeId) return;
+      this.selectedCraftingRecipeId = previous;
+      this.syncRetainedInventory();
+    });
+  }
+
   private selectCraftingRecipe(recipeId: string): void {
     if (this.selectedCraftingRecipeId === recipeId) {
       this.selectedCraftingRecipeId = null;
       return;
     }
     this.selectedCraftingRecipeId = recipeId;
-    this.callbacks.ghostFillCraftingRecipe(recipeId);
+    // The host already reports a refusal; don't leave its rejection unhandled.
+    void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).catch(() => undefined);
   }
 
   private craftingRecipeEntryAt(point: UiPoint) {

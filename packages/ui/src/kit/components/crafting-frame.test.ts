@@ -23,10 +23,12 @@ it('retains recipe search while updating locks, forwards Shift craft and keeps g
   root.focus.set(result, 'keyboard'); root.key({ key: 'Enter', shiftKey: true }); expect(craft).toHaveBeenCalledWith(true);
   const place = root.entries().find(e => e.element.label === 'Place in grid')!.element;
   root.focus.set(place, 'keyboard'); root.key({ key: 'Enter' }); expect(select).toHaveBeenCalledWith('planks');
-  // Placing the recipe that is already selected must not toggle it off.
+  // Placing the recipe that is already selected asks the authority again (BUG-037): a refused first
+  // placement must not turn every later press into a silent no-op.
   frame.updateCrafting({ ...initial, requirement: undefined, selected: 'planks' }); root.arrange();
   const again = root.entries().find(e => e.element.label === 'Place in grid')!.element;
-  root.focus.set(again, 'keyboard'); root.key({ key: 'Enter' }); expect(select).toHaveBeenCalledOnce();
+  root.focus.set(again, 'keyboard'); root.key({ key: 'Enter' }); expect(select).toHaveBeenCalledTimes(2);
+  expect(select).toHaveBeenLastCalledWith('planks');
   root.dispose(); controller.dispose();
 });
 

@@ -2540,6 +2540,25 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.ghostFillCraftingRecipe).toHaveBeenCalledTimes(1);
   });
 
+  it('restores the previous recipe when the authority refuses a placement (BUG-037)', async () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const place = (ui as unknown as { placeCraftingRecipe(id: string): void }).placeCraftingRecipe.bind(ui);
+    const selected = () => (ui as unknown as { selectedCraftingRecipeId: string | null }).selectedCraftingRecipeId;
+    vi.mocked(handlers.ghostFillCraftingRecipe).mockReturnValueOnce(Promise.resolve());
+    place('workbench'); await Promise.resolve(); await Promise.resolve();
+    expect(selected()).toBe('workbench');
+    vi.mocked(handlers.ghostFillCraftingRecipe).mockReturnValueOnce(Promise.reject(new Error('recipe_inputs_missing')));
+    place('torch'); expect(selected()).toBe('torch');
+    await Promise.resolve(); await Promise.resolve();
+    expect(selected()).toBe('workbench');
+    // Pressing it again still asks the authority rather than toggling off.
+    vi.mocked(handlers.ghostFillCraftingRecipe).mockReturnValueOnce(Promise.reject(new Error('recipe_inputs_missing')));
+    place('torch'); await Promise.resolve(); await Promise.resolve();
+    expect(handlers.ghostFillCraftingRecipe).toHaveBeenCalledTimes(3);
+    expect(selected()).toBe('workbench');
+  });
+
   it('explains an unavailable crafting station when hovering its visible recipe', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.openWindow = 'crafting';

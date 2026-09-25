@@ -460,6 +460,8 @@ function updateSkillPointNotice(snapshot: OverworldView): void {
 }
 
 type FailureWording = readonly (readonly [code: string, text: string])[];
+// Placing a recipe pattern never moves the player's items, so a grid holding others must be cleared first.
+const RECIPE_PLACE_FAILURES: FailureWording = [['recipe_inputs_missing', 'CLEAR THE CRAFTING GRID FIRST']];
 // At the anvil a wrong tool means an undamaged one, so it keeps its specific wording.
 const ANVIL_FAILURES: FailureWording = [['wrong_tool', 'SELECT A DAMAGED TOOL']];
 
@@ -473,7 +475,7 @@ function failureToastText(error: unknown, overrides: FailureWording = []): strin
     ['anvil_copper_missing', 'ANVIL REPAIR NEEDS 5 COPPER'],
     ['anvil_not_in_reach', 'FACE A NEARBY ANVIL'],
     ['furnace_slot_restricted', 'ORE GOES ABOVE, WOOD OR PLANKS BELOW'],
-    ['recipe_inputs_missing', 'CLEAR INCOMPATIBLE ITEMS FROM THE CRAFTING GRID'],
+    ['recipe_inputs_missing', "CLEAR ITEMS THE RECIPE DOESN'T USE"],
     ['recipe_not_found', 'THAT RECIPE IS NOT AVAILABLE'],
     ['item_reserved', 'THAT DROP IS RESERVED FOR ITS MINER'],
     ['mining_claimed_by_other_party', 'ANOTHER MINER OR PARTY IS WORKING THIS NODE'],
@@ -875,8 +877,8 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   ),
   returnInventoryCursor: () => { void network.returnInventoryCursor().catch(() => undefined); },
   craftInventoryRecipe: (recipeId, craftAll) => showResult(network.craftInventoryRecipe(recipeId, craftAll), craftAll ? 'STACK CRAFTED' : 'ITEM CRAFTED'),
-  ghostFillCraftingRecipe: (recipeId) => showResult(
-    network.fillCraftingRecipe(recipeId), 'RECIPE PATTERN LOADED',
+  ghostFillCraftingRecipe: (recipeId) => showPredictedInventoryResult(
+    network.fillCraftingRecipe(recipeId), 'RECIPE PATTERN LOADED', RECIPE_PLACE_FAILURES,
   ),
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
   closeChest: () => { void network.closeChest().catch(() => undefined); },
@@ -6113,11 +6115,11 @@ function showResult(promise: Promise<void>, success: string | null, presentation
   });
 }
 
-function showPredictedInventoryResult(promise: Promise<void>, success: string | null): Promise<void> {
+function showPredictedInventoryResult(promise: Promise<void>, success: string | null, failures: FailureWording = []): Promise<void> {
   return promise.then(() => {
     if (success !== null) setToast(success, 'success');
   }).catch((error: unknown) => {
-    setFailureToast(error);
+    setFailureToast(error, 120, failures);
     throw error;
   });
 }
