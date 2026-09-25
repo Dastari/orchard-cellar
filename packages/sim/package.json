@@ -1,13 +1,21 @@
 {
   "name": "@orchard/sim",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./world-chunk": "./src/world-chunk.ts",
     "./chunk-runtime": "./src/chunk-runtime.ts",
-    "./chunk-runtime-fixture": "./src/chunk-runtime.fixture.ts"
+    "./chunk-runtime-fixture": "./src/chunk-runtime.fixture.ts",
+    "./map-object-records": "./src/map-object-records.ts",
+    "./connected-objects": "./src/connected-objects.ts",
+    "./object-presentation": "./src/object-presentation.ts",
+    "./content/object-archetype": "./src/content/object-archetype.ts",
+    "./content/natural-object": "./src/content/natural-object.ts",
+    "./behaviour/data-graph": "./src/behaviour/data-graph.ts",
+    "./streetlamp": "./src/streetlamp.ts",
+    "./state": "./src/state.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

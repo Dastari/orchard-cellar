@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { planTerrain, stairPlacementFindings, type TerrainPlanAtlasAsset, type TerrainPlanInput } from './terrain-plan.js';
 
@@ -54,6 +55,39 @@ describe('planTerrain', () => {
   it('is deterministic and leaves no draw without an asset', () => {
     expect(planTerrain(twoLevels())).toEqual(planTerrain(twoLevels()));
     expect(planTerrain(twoLevels('dungeon_1')).every((d) => d.assetId.length > 0)).toBe(true);
+  });
+});
+
+describe('planTerrain golden draw lists (static world S4b)', () => {
+  // Recorded on origin/main c2e85788 before terrain-array indexing moved behind
+  // terrainIndexAt(); any drift in these digests is a rendering change.
+  const golden = (input: TerrainPlanInput) => {
+    const draws = planTerrain(input);
+    return `${draws.length}:${createHash('sha256').update(JSON.stringify(draws)).digest('hex').slice(0, 32)}`;
+  };
+
+  it('stays byte-identical for stone, dungeon, cave and basic plateaus with stairs', () => {
+    expect({
+      stone: golden(twoLevels()),
+      dungeon: golden(twoLevels('dungeon_1')),
+      cave: golden(twoLevels('cave')),
+      basic: golden(twoLevels('basic')),
+      mixed: golden({
+        ...twoLevels(),
+        cells: [
+          { x: 0, y: 0, surface: 'sand' }, { x: 1, y: 0, surface: 'stone' }, { x: 2, y: 0, surface: 'cave_floor' },
+          { x: 3, y: 0, surfaceFamily: 'grass_2' }, { x: 4, y: 3, cliffFamily: 'cave' }, { x: 9, y: 10, surface: 'water' },
+        ],
+      }),
+    }).toMatchInlineSnapshot(`
+      {
+        "basic": "170:3210ae5902e1d249bbc60b6ee490405f",
+        "cave": "346:6ae775435300e36deb4e9e6144bad3c9",
+        "dungeon": "399:88c69b7c73d07aedb8cd65e8157b29dd",
+        "mixed": "197:7925a59679129e205c10beb89c035eaf",
+        "stone": "194:7f2903f81521f5935bd01ffa2c5abfb5",
+      }
+    `);
   });
 });
 

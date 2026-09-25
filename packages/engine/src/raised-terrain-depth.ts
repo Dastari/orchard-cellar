@@ -32,6 +32,7 @@ import {
   type TerrainArray,
 } from './terrain.js';
 import type { WorldDepthItem } from './renderer.js';
+import { terrainContains, terrainIndexAt } from './terrain-index.js';
 import type { LoadedAsset } from '@orchard/ui';
 import {
   createTerrainCutawayMask,
@@ -79,12 +80,12 @@ export function terrainLedgePlanAt(
   tileX: number,
   tileY: number,
 ): TerrainLedgePlan | null {
-  const index = tileY * terrain.width + tileX;
-  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height
-    || terrain.ledges?.[index] !== 1) return null;
-  const ledgeAt = (x: number, y: number): boolean => x >= 0 && y >= 0
-    && x < terrain.width && y < terrain.height
-    && terrain.ledges?.[y * terrain.width + x] === 1;
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  if (index < 0 || terrain.ledges?.[index] !== 1) return null;
+  const ledgeAt = (x: number, y: number): boolean => {
+    const at = terrainIndexAt(terrain, x, y);
+    return at >= 0 && terrain.ledges?.[at] === 1;
+  };
   const grid: RaisedTerrainGrid = { raisedAt: ledgeAt };
   const familyId = surfaceFamilyAtIndex(terrain.surfaceFamilies?.[index] ?? 0)
     ?? terrain.defaultSurfaceFamily ?? 'grass_1';
@@ -118,9 +119,11 @@ export function raisedTerrainSurfaceRuns(
     return boundary === undefined || (boundary.edgeFrame === null && boundary.rampRole === null);
   };
   const runs: RaisedTerrainSurfaceRun[] = [];
-  const firstX = Math.max(0, minimumTileX);
-  const lastX = Math.min(terrain.width - 1, maximumTileX);
-  for (let tileY = Math.max(0, minimumTileY); tileY <= Math.min(terrain.height - 1, maximumTileY); tileY += 1) {
+  const originX = terrain.originX ?? 0;
+  const originY = terrain.originY ?? 0;
+  const firstX = Math.max(originX, minimumTileX);
+  const lastX = Math.min(originX + terrain.width - 1, maximumTileX);
+  for (let tileY = Math.max(originY, minimumTileY); tileY <= Math.min(originY + terrain.height - 1, maximumTileY); tileY += 1) {
     let tileX = firstX;
     while (tileX <= lastX) {
       const elevation = terrainElevationAt(terrain, tileX, tileY);
@@ -179,8 +182,10 @@ export function raisedTerrainDepthEntries(
   maximumTileY: number,
 ): readonly RaisedTerrainDepthEntry[] {
   const entries: RaisedTerrainDepthEntry[] = [];
-  for (let tileY = Math.max(0, minimumTileY); tileY <= Math.min(terrain.height - 1, maximumTileY); tileY += 1) {
-    for (let tileX = Math.max(0, minimumTileX); tileX <= Math.min(terrain.width - 1, maximumTileX); tileX += 1) {
+  const originX = terrain.originX ?? 0;
+  const originY = terrain.originY ?? 0;
+  for (let tileY = Math.max(originY, minimumTileY); tileY <= Math.min(originY + terrain.height - 1, maximumTileY); tileY += 1) {
+    for (let tileX = Math.max(originX, minimumTileX); tileX <= Math.min(originX + terrain.width - 1, maximumTileX); tileX += 1) {
       const projectionRows = terrainProjectedRowsPerLevel(terrain);
       const visualProjectionRows = terrainVisualProjectionRowsPerLevel(terrain);
       for (const { contourLevel, plan } of plateauLayerPlansAt(terrain, tileX, tileY)) {
@@ -534,8 +539,7 @@ function drawEntryStratum(
       && stratum === 'face'
       && directLowerWall !== undefined
       && caveWallSupportAnchorAt(
-        (tileX, tileY) => tileX >= 0 && tileY >= 0
-          && tileX < terrain.width && tileY < terrain.height
+        (tileX, tileY) => terrainContains(terrain, tileX, tileY)
           && plateauLayerPlansAt(terrain, tileX, tileY).some(({ contourLevel, plan }) => (
             contourLevel === entry.contourLevel
               && plan.faceLayers.some((face) => face.direct && face.rowId === 'lower_wall')
@@ -677,8 +681,10 @@ export function enqueueRaisedTerrainDepth(
     });
   }
   let ledgeCount = 0;
-  for (let tileY = Math.max(0, minimumTileY); tileY <= Math.min(terrain.height - 1, maximumTileY); tileY += 1) {
-    for (let tileX = Math.max(0, minimumTileX); tileX <= Math.min(terrain.width - 1, maximumTileX); tileX += 1) {
+  const originX = terrain.originX ?? 0;
+  const originY = terrain.originY ?? 0;
+  for (let tileY = Math.max(originY, minimumTileY); tileY <= Math.min(originY + terrain.height - 1, maximumTileY); tileY += 1) {
+    for (let tileX = Math.max(originX, minimumTileX); tileX <= Math.min(originX + terrain.width - 1, maximumTileX); tileX += 1) {
       const plan = terrainLedgePlanAt(terrain, tileX, tileY);
       if (plan === null || (plan.edgeFrame === null && plan.insetFrames.length === 0)) continue;
       const elevation = terrainElevationAt(terrain, tileX, tileY);

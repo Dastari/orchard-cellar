@@ -485,14 +485,14 @@ try {
   'packages/engine/src/overworld-art.ts', 'packages/client/public/generated/atlas.meta.json'];
  sourcePaths.push('packages/assets/content/objects.json','packages/engine/src/light-occlusion.ts','packages/engine/src/map-shadow-contacts.ts','packages/engine/src/transformed-light-sprite.ts');
  sourcePaths.push('packages/engine/src/ground-light-source.ts','packages/engine/src/webgl/geometry.ts','packages/engine/src/webgl/world-pass-webgl.ts','packages/tools/src/ground-light-transform-fixture.js');
- sourcePaths.push('packages/assets/props/prop_cf_standing_torch.sprite.json','packages/engine/src/live-map-runtime.ts','packages/engine/src/light-projection.ts');
+ sourcePaths.push('packages/assets/props/prop_cf_standing_torch.sprite.json','packages/engine/src/live-map-runtime.ts','packages/engine/src/map-object-presentation.ts','packages/engine/src/light-projection.ts');
  sourcePaths.push(...['prop_cf_furniture_rustic_runner','prop_cf_chest','prop_cf_furniture_rustic_bookshelf','prop_cf_furniture_rustic_standing_lamp'].map(name=>`packages/assets/props/${name}.sprite.json`));
  if(farm) sourcePaths.push(...['prop_cf_fence_horizontal','prop_cf_fence_vertical','prop_cf_farm_hay_bale','prop_cf_farm_hay_stack'].map(name=>`packages/assets/props/${name}.sprite.json`),
    ...['crop_cf_carrot_mature','crop_cf_wheat_mature'].map(name=>`packages/assets/crops/${name}.sprite.json`));
  if(harbour) sourcePaths.push('packages/assets/props/vehicle_cf_boat.sprite.json',
    'packages/assets/props/prop_cf_hearth_harbour_sign.sprite.json','packages/tools/src/import-hearth-harbour.ts');
  if(pond||harbour) {
-   sourcePaths.push('packages/engine/src/live-map-runtime.ts','packages/tools/src/import-hearth-bridge.ts',
+   sourcePaths.push('packages/engine/src/live-map-runtime.ts','packages/engine/src/map-object-presentation.ts','packages/tools/src/import-hearth-bridge.ts',
      'references/art/kenmi/cute-fantasy/core/Tiles/Bridge/Bridge_Stone_Horizontal.png');
    for(const end of ['left','middle','right']) for(const part of ['north','deck','south'])
      sourcePaths.push(`packages/assets/props/prop_cf_hearth_bridge_${end}_${part}.sprite.json`);

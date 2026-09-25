@@ -2,6 +2,21 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.41.2 / Studio 0.16.2 / World 0.26.3 / Sim 0.28.0 — Static world wave 1 (dormant)
+
+These are the groundwork steps of the static-world conversion (wiki `Roadmap/Static World Conversion`, SW-D1..D3). **Nothing is activated**: the chunk runtime stays off, and no chunk heads or blobs are published.
+
+- **S1a, chunk authority channels (#163).** World chunks gain an additive `authoritySchema: 1` extension. Existing schema-1 decoders ignore it, and a frozen copy of the deployed decoder proves that. The extension carries the server's full static collision:
+  - ground and water collision, elevations, terrain planes, horse-jump and combat regions;
+  - ordered base and authored obstacle records, transitions, walkable tiles and suppressed obstacle keys;
+  - complete resource records anchored at their effective tile, and non-generated placements.
+
+  Parity against a fuller server oracle covers every cell of all 169 chunks. A drift guard pins the server code the oracle mirrors. The waterfall cells are boat-enterable (SW-D1), and the water horse-jump mask is dropped.
+- **S4b, terrain indexing (#161).** One `terrainIndexAt` / `terrainContains` helper replaces hand-written terrain indexing, and `TerrainArray` gains an optional origin. Output is byte-identical, pinned by goldens recorded on the previous code.
+- **S4e, map-object presentation split (#164).** Object drawing, lights, occluders and asset readiness move to `map-object-presentation.ts`, which takes plain records. It is fed through unchanged adapters, and a golden is recorded on the previous code. Generator-free sim leaf modules come with new subpath exports.
+- **S5a, chunk serving (#160).** `/world/<space>/<hash>.bin` is served from `ORCHARD_WORLD_CHUNK_DIR` with strict paths, precompressed br/gzip, immutable caching, per-encoding ETags and real 404s. It is inactive until configured. The client static validator gains an opt-in chunk check.
+- Workspace 0.51.0, Engine 0.24.3 and Tools 0.24.2. The stored schema is unchanged. The world module rebuilds with the extended chunk codec.
+
 ## Client 0.41.1 / UI 0.43.1 / Studio 0.16.1 — Classic HUD restore
 
 - **Owner-approved HUD restore (PR #159, BoldBridge).** Each change was approved from kit-rendered PNGs.
