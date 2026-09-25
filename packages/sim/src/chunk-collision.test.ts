@@ -7,6 +7,9 @@ import {
   collisionCellIndex, collisionTileIsBlocked, collisionTileIsBlockedAtPlane, findPlayerJumpLanding, movementPositionAllowed,
   positionCollides, positionCollidesOnlyHorseJumpableTerrain, terrainPlaneAtPosition,
 } from './movement.js';
+import { bootstrapContentRegistry } from './content/bootstrap-registry.js';
+import { hearthResourceGeometryAllows } from './hearth-resource-geometry.js';
+import { activeHearthResourceSites } from './hearth-resource-sites.js';
 import { firstProjectileTerrainHit } from './ranged.js';
 import { TILE_SIZE_FIXED, type CollisionMap, type CollisionObstacle } from './state.js';
 import type { TerrainTransition } from './terrain-elevation.js';
@@ -217,6 +220,27 @@ describe('buildChunkWindowCollision (static world S4d)', () => {
     }
   });
 
+  it('checks record order in a window: a base record after an authored one, or a repeated ordinal, is incomplete', () => {
+    const input = source();
+    const rect = { cx: 0, cy: 0, columns: 1, rows: 2 };
+    expect(buildChunkWindowCollision(input, rect).authorityIncomplete).toBe(false);
+    const edited = (edit: (item: WorldChunkRecord) => WorldChunkRecord): ChunkCollisionSource => ({ manifest: input.manifest, peekChunk: (cx, cy) => {
+      const chunk = input.peekChunk(cx, cy);
+      return chunk === undefined || cx !== 0 || cy !== 0 ? chunk : { ...chunk, records: chunk.records.map(edit) };
+    } });
+    // Base 0 (chunk 0:0) moved after authored 0 (chunk 0:1, stream ordinal 3).
+    const late = buildChunkWindowCollision(edited(item => item.kind === 'authority.ground.obstacle' ? { ...item, ordinal: 10 } : item), rect);
+    expect(late.issues).toEqual([{ kind: 'record_order', detail: 'authority.ground.obstacle groups' }]);
+    expect(late.authorityIncomplete).toBe(true);
+    // The first transition given the second one's stream ordinal.
+    const repeated = buildChunkWindowCollision(edited(item => item.kind === 'authority.ground.transition' ? { ...item, ordinal: 1 } : item),
+      { cx: 0, cy: 0, columns: 2, rows: 1 });
+    expect(repeated.issues).toEqual([{ kind: 'record_order', detail: 'authority.ground.transition' }]);
+    // Not-yet-resident chunks alone are not an authority problem (spawn readiness, S4f).
+    const loading = buildChunkWindowCollision(source({ resident: key => key !== '0:1' }), rect);
+    expect([loading.issues, loading.authorityIncomplete]).toEqual([[{ kind: 'chunk_missing', cx: 0, cy: 1 }], false]);
+  });
+
   it('clamps a window at the map edge, reads the manifest metadata once, and refuses a manifest without it', () => {
     expect(chunkCollisionWindowBounds({ cx: 1, cy: 1, columns: 2, rows: 2 }, WIDTH, HEIGHT)).toEqual({ originX: 64, originY: 64, width: 128, height: 112 });
     const input = source();
@@ -228,5 +252,45 @@ describe('buildChunkWindowCollision (static world S4d)', () => {
     const bare = { ...input.manifest, metadata: {} } as WorldChunkManifest;
     expect(chunkAuthorityMetadata(bare)).toBeUndefined();
     expect(() => buildChunkWindowCollision({ manifest: bare, peekChunk: input.peekChunk }, { cx: 0, cy: 0, columns: 1, rows: 1 })).toThrow('chunk_authority_metadata_missing');
+  });
+});
+
+/** A window (origin set) cut from a whole map: what the client holds in chunk mode on. */
+function crop(whole: CollisionMap, originX: number, originY: number, width: number, height: number): CollisionMap {
+  const cells = <T>(values: ArrayLike<T>, planes = 1): T[] => {
+    const result: T[] = [];
+    for (let plane = 0; plane < planes; plane++) for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      result.push(values[plane * whole.width * whole.height + (originY + y) * whole.width + originX + x]!);
+    }
+    return result;
+  };
+  return { ...whole, width, height, originX, originY, blocked: cells(whole.blocked),
+    ...(whole.elevations === undefined ? {} : { elevations: Int16Array.from(cells(whole.elevations)) }) };
+}
+
+describe('window collision for topside hearth resource sites (static world S4d)', () => {
+  it('allows exactly the approaches the whole map allows, for every site', () => {
+    const registry = bootstrapContentRegistry();
+    const sites = activeHearthResourceSites(registry);
+    expect(sites.length).toBeGreaterThan(0);
+    const size = 832, elevations = new Int16Array(size * size);
+    for (const site of sites) for (let y = site.tileY - 6; y <= site.tileY + 6; y++) for (let x = site.tileX - 6; x <= site.tileX + 6; x++) {
+      elevations[y * size + x] = site.elevation;
+    }
+    const whole: CollisionMap = { width: size, height: size, blocked: new Array<boolean>(size * size).fill(false), elevations };
+    let allowed = 0, compared = 0;
+    for (const site of sites) {
+      const window = crop(whole, Math.max(0, site.tileX - 160), Math.max(0, site.tileY - 160), 320, 320);
+      expect(window.originX! + window.originY!, `site ${site.id} window has a non-zero origin`).toBeGreaterThan(0);
+      for (let dy = -2 * T; dy <= 3 * T; dy += T / 4) for (let dx = -2 * T; dx <= 2 * T; dx += T / 4) {
+        const position = { x: site.tileX * T + T / 2 + dx, y: site.tileY * T + T / 2 + dy };
+        const expected = hearthResourceGeometryAllows(position, site.id, whole, registry);
+        expect(hearthResourceGeometryAllows(position, site.id, window, registry), `${site.id} ${position.x},${position.y}`).toBe(expected);
+        if (expected) allowed++;
+        compared++;
+      }
+    }
+    expect(allowed, 'some approaches are allowed on the whole map').toBeGreaterThan(sites.length);
+    expect(compared).toBeGreaterThan(1_000);
   });
 });
