@@ -34,6 +34,39 @@ const copy: Readonly<Record<ConnectionRecoveryState, { readonly title: string; r
   'sign-in-required': { title: 'SIGN IN REQUIRED', lines: ['PLEASE SIGN IN AGAIN.', 'REJOIN YOUR WORLD.'] },
 };
 
+/** How long a returning world may sit not-ready (tab resume, subscription re-sync)
+ * behind its last frame before the reconnecting modal appears. */
+export const WORLD_GAP_GRACE_MS = 1500;
+
+export type WorldGapPresentation =
+  | { readonly kind: 'initial-loading' }
+  | { readonly kind: 'retained-world' }
+  | { readonly kind: 'resyncing' }
+  | { readonly kind: 'recovery'; readonly state: ConnectionRecoveryState };
+
+/**
+ * What to show while the world isn't ready (BUG-040). The gateway loading screen
+ * is for the first load and for error stages, which carry their own message and
+ * refresh action. Once a world frame exists, a connection-level recovery state
+ * still shows its modal at once; a plain data re-sync on a healthy connection
+ * keeps the last frame and, after the grace period, a neutral note with no RETRY
+ * (a retry would drop the healthy connection).
+ */
+export function worldGapPresentation(
+  state: ConnectionRecoveryState | null,
+  hasWorldFrame: boolean,
+  stageError: boolean,
+  gapStartedAt: number,
+  now: number,
+  graceMs = WORLD_GAP_GRACE_MS,
+): WorldGapPresentation {
+  if (state !== null) return { kind: 'recovery', state };
+  if (!hasWorldFrame || stageError) return { kind: 'initial-loading' };
+  return now - gapStartedAt < graceMs ? { kind: 'retained-world' } : { kind: 'resyncing' };
+}
+
+const RESYNC_COPY = { title: 'RE-SYNCING', lines: ['RESTORING YOUR WORLD.', 'ONE MOMENT.'] } as const;
+
 /** A canvas-only game modal. The host owns connection effects and keyboard focus. */
 export class ConnectionRecoveryOverlay {
   constructor(private readonly fonts: PixelUi, private readonly skin: UiSkin) {}
@@ -58,6 +91,13 @@ export class ConnectionRecoveryOverlay {
 
   /** Draw in UI-local coordinates after restoring the retained world image. */
   draw(context: CanvasRenderingContext2D, viewport: UiSize, state: ConnectionRecoveryState): void {
+    this.drawPanel(context, viewport, copy[state], state === 'sign-in-required' ? 'SIGN IN' : 'RETRY');
+  }
+
+  private drawPanel(
+    context: CanvasRenderingContext2D, viewport: UiSize,
+    text: { readonly title: string; readonly lines: readonly string[] }, buttonLabel: string | null,
+  ): void {
     const { frame, button } = connectionRecoveryLayout(viewport);
     context.save();
     try {
@@ -65,15 +105,27 @@ export class ConnectionRecoveryOverlay {
       context.fillRect(0, 0, viewport.width, viewport.height);
       drawUiFrame(context, this.skin, frame, 'wood_parchment');
       const textWidth = Math.max(0, frame.width - 40);
-      const line = (text: string, y: number, color = '#6b4428') => drawPixelTextInRect(context, this.fonts, text, {
+      const line = (value: string, y: number, color = '#6b4428') => drawPixelTextInRect(context, this.fonts, value, {
         x: frame.x + 20, y, width: textWidth, height: 12,
       }, { align: 'center', color });
-      line(copy[state].title, frame.y + 23, '#49301f');
-      for (const [index, text] of copy[state].lines.entries()) line(text, frame.y + 46 + index * 14);
-      drawButton(context, this.skin, this.fonts, button, {
-        label: state === 'sign-in-required' ? 'SIGN IN' : 'RETRY',
-      });
+      line(text.title, frame.y + 23, '#49301f');
+      for (const [index, value] of text.lines.entries()) line(value, frame.y + 46 + index * 14);
+      if (buttonLabel !== null) drawButton(context, this.skin, this.fonts, button, { label: buttonLabel });
     } finally { context.restore(); }
+  }
+
+  /** A healthy connection re-syncing its data: the retained world with a neutral
+   * note and no action, since RETRY would drop a working connection. */
+  compositeResync(
+    renderer: Pick<UnifiedRenderer, 'compositeWorld' | 'beginUi' | 'endUi'>,
+    viewport: ConnectionRecoveryViewport,
+  ): void {
+    renderer.compositeWorld();
+    const context = renderer.beginUi(viewport.scale);
+    try {
+      context.translate(viewport.left / viewport.scale, viewport.top / viewport.scale);
+      this.drawPanel(context, viewport, RESYNC_COPY, null);
+    } finally { renderer.endUi(); }
   }
 
   /** No new loop or world draw: restore the retained buffer before every modal
