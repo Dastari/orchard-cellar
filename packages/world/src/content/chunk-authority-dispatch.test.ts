@@ -371,6 +371,20 @@ describe('chunk authority dispatcher: shadow', () => {
     expect(h.events[h.events.length - 1]?.event).toMatchObject({ event: 'chunk_authority_sample_error', detail: 'rebuild failed' });
   });
 
+  it('summarises each finished sample window, info when clean (S2c soak evidence that the sampler ran)', () => {
+    const h = harness({ mode: 'shadow' });
+    const d = dispatcher(h.logger);
+    d.select(h.source);
+    const runtime = d.sampleRuntime(20n)!;
+    const final = { ground: composeChunkIslandCollision(runtime, 'ground'), water: composeChunkIslandCollision(runtime, 'water') };
+    const positions = [{ x: 20 * T + 128, y: 20 * T + 128 }];
+    for (const tick of [20n, 40n, 60n, 80n]) d.recordSample(tick, positions, final, () => final);
+    expect(h.events.some(({ event }) => event['event'] === 'chunk_authority_sample_window')).toBe(false);
+    d.recordSample(100n, positions, final, () => final);
+    expect(h.events.filter(({ event }) => event['event'] === 'chunk_authority_sample_window')).toEqual([{ level: 'info', event: {
+      event: 'chunk_authority_sample_window', window: '0', sampledTicks: 4, sampledPositions: 4, disagreements: 0, logged: 0, suppressed: 0 } }]);
+  });
+
   it('compares every per-cell channel and the ordered obstacles near a position', () => {
     const { manifest, store } = island();
     const runtime = assembleChunkLiveIslandRuntime(manifest, hash => store.get(hash), { contentHash: REGISTRY_HASH });
@@ -389,7 +403,7 @@ describe('chunk authority dispatcher: shadow', () => {
 /** Runs the real index.ts dispatcher wiring with injected dependencies. */
 function serverFunctions(dependencies: Record<string, unknown>) {
   const source = ts.createSourceFile('index.ts', readFileSync(new URL('../index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const names = ['liveIslandCollisionRuntime', 'liveMapCollisionForSpace'];
+  const names = ['liveIslandCollisionRuntime', 'chunkAuthoritySource', 'liveMapCollisionForSpace'];
   const text = names.map(name => {
     const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
     if (fn === undefined) throw new Error(`missing ${name}`);

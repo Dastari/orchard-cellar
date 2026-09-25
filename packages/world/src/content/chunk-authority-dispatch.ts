@@ -233,6 +233,9 @@ export class ChunkAuthorityDispatcher {
   #window: bigint | null = null;
   #windowLogged = 0;
   #windowSuppressed = 0;
+  #windowTicks = 0;
+  #windowPositions = 0;
+  #windowDisagreements = 0;
 
   constructor(options: ChunkAuthorityDispatcherOptions = {}) {
     this.#logger = options.logger ?? consoleChunkAuthorityLogger;
@@ -476,22 +479,32 @@ export class ChunkAuthorityDispatcher {
       }
       this.#sampledTicks += 1;
       this.#sampledPositions += count;
-      this.#logSampleDisagreements(tick, disagreements);
+      this.#logSampleDisagreements(tick, disagreements, count);
     } catch (error) {
       this.#warnOnce('sample_error', { event: 'chunk_authority_sample_error', detail: message(error) });
     }
   }
 
-  #logSampleDisagreements(tick: bigint, disagreements: readonly PositionDisagreement[]): void {
+  #logSampleDisagreements(tick: bigint, disagreements: readonly PositionDisagreement[], positions: number): void {
     const window = tick / this.#sampleWindowTicks;
     if (this.#window !== window) {
-      if (this.#window !== null && this.#windowSuppressed > 0) {
-        this.#logger.warn({ event: 'chunk_authority_sample_window', window: this.#window.toString(), logged: this.#windowLogged, suppressed: this.#windowSuppressed });
+      // One summary per finished window (at most once a minute at the defaults), so a soak can
+      // prove the sampler ran: info when clean, warn when anything disagreed or was suppressed.
+      if (this.#window !== null && this.#windowTicks > 0) {
+        const summary = { event: 'chunk_authority_sample_window', window: this.#window.toString(), sampledTicks: this.#windowTicks,
+          sampledPositions: this.#windowPositions, disagreements: this.#windowDisagreements, logged: this.#windowLogged, suppressed: this.#windowSuppressed };
+        if (this.#windowDisagreements > 0) this.#logger.warn(summary); else this.#logger.info(summary);
       }
       this.#window = window;
       this.#windowLogged = 0;
       this.#windowSuppressed = 0;
+      this.#windowTicks = 0;
+      this.#windowPositions = 0;
+      this.#windowDisagreements = 0;
     }
+    this.#windowTicks += 1;
+    this.#windowPositions += positions;
+    this.#windowDisagreements += disagreements.length;
     if (disagreements.length === 0) return;
     this.#sampleDisagreements += disagreements.length;
     const room = Math.max(0, this.#sampleLimit - this.#windowLogged);

@@ -230,6 +230,7 @@ import * as AdminStudioMembersProcedure from "./admin_studio_members_procedure";
 import * as AdminStudioScopesProcedure from "./admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
+import * as AuditChunkAuthorityProcedure from "./audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "./inspect_world_chunk_shadow_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
 import * as StudioScopeReceiptProcedure from "./studio_scope_receipt_procedure";
@@ -1593,6 +1594,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_studio_scopes", AdminStudioScopesProcedure.params, AdminStudioScopesProcedure.returnType),
   __procedureSchema("admin_telemetry", AdminTelemetryProcedure.params, AdminTelemetryProcedure.returnType),
   __procedureSchema("admin_validate_world", AdminValidateWorldProcedure.params, AdminValidateWorldProcedure.returnType),
+  __procedureSchema("audit_chunk_authority", AuditChunkAuthorityProcedure.params, AuditChunkAuthorityProcedure.returnType),
   __procedureSchema("inspect_world_chunk_shadow", InspectWorldChunkShadowProcedure.params, InspectWorldChunkShadowProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
   __procedureSchema("studio_scope_receipt", StudioScopeReceiptProcedure.params, StudioScopeReceiptProcedure.returnType),
