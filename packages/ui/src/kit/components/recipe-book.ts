@@ -87,7 +87,8 @@ export function uiRecipeBook(options: UiRecipeBookOptions): UiRecipeBookElement 
     uiFlex({ direction: 'row', gap: 6, align: 'center' }, [
       uiSlot({ label: entry.name, stack: entry.output, artwork: options.artwork }),
       uiFlex({ direction: 'column', gap: 2, width: uiFixed(94) }, [
-        uiText(entry.name, { wrap: true, maxLines: 2 }),
+        // The recipe's name is a heading (approved in caps), though it wraps.
+        uiText(entry.name, { wrap: true, maxLines: 2, textCase: 'upper' }),
         uiText(entry.output.quantity > 1 ? `Makes ${entry.output.quantity}` : 'Makes 1', { role: 'caption' }),
       ]),
     ]),

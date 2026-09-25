@@ -10,7 +10,8 @@ import { uiElementTone, uiElementTextContrast, uiElementUpperCase } from './art.
 export interface UiTextOptions {
   readonly id?: string; readonly role?: UiTextRole; readonly layout?: UiStyle;
   readonly overflow?: 'wrap' | 'ellipsis' | 'clip'; readonly outline?: boolean; readonly wrap?: boolean; readonly maxLines?: number; readonly align?: 'left' | 'center' | 'right';
-  /** Paragraphs inside caps surfaces keep their authored case. */
+  /** Inside caps surfaces (game windows and books) short labels paint in caps. Wrapped text is a paragraph
+   * (a hint, a status sentence, an error) and keeps its authored case unless this asks for 'upper'. */
   readonly textCase?: 'upper' | 'as-authored';
 }
 export function uiTextLines(value: string, width: number, role: UiTextRole, wrap = true, maxLines = Infinity): string[] {
@@ -34,8 +35,17 @@ export function uiText(value: string, options: UiTextOptions = {}): UiElement {
   const role = options.role ?? 'body', metrics = UI_TEXT_METRICS[role];
   const linesFor = (text: string, width: number) => options.overflow === 'clip' ? text.split('\n').slice(0, options.maxLines)
     : uiTextLines(text, width, role, options.overflow ? options.overflow === 'wrap' : options.wrap, options.maxLines);
-  const shown = (element: UiElement) => { const text = String(element.props['text']); return uiElementUpperCase(element) ? text.toUpperCase() : text; };
-  return new UiElement({ id: options.id, kind: 'text', label: value, props: { text: value, role, ...(options.textCase ? { textCase: options.textCase } : {}) }, style: { shrink: 0, ...options.layout },
+  // Owner item 10: paragraphs (wrapped text) stay as authored inside caps windows; labels follow the surface.
+  const wrapped = options.overflow ? options.overflow === 'wrap' : options.wrap === true;
+  const textCase = options.textCase ?? (wrapped ? 'as-authored' : undefined);
+  let source = '', upper = '';
+  const shown = (element: UiElement) => {
+    const text = String(element.props['text']);
+    if (!uiElementUpperCase(element)) return text;
+    if (text !== source) { source = text; upper = text.toUpperCase(); }
+    return upper;
+  };
+  return new UiElement({ id: options.id, kind: 'text', label: value, props: { text: value, role, ...(textCase ? { textCase } : {}) }, style: { shrink: 0, ...options.layout },
     measure(element, available) {
       const text = shown(element);
       const natural = Math.max(0, ...text.split('\n').map(line => line.length * (metrics.glyphWidth + 1) - 1));
