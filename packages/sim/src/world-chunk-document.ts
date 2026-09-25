@@ -1,5 +1,5 @@
 import {
-  WORLD_CHUNK_DOCUMENT_SCHEMA, WORLD_CHUNK_SIZE, canonicalChunkJson, decodeWorldChunk,
+  WORLD_CHUNK_DOCUMENT_SCHEMA, WORLD_CHUNK_SIZE, canonicalChunkJson, decodeWorldChunk, worldChunkHash,
   type ChunkJson, type WorldChunkDocumentCells, type WorldChunkManifest, type WorldChunkRecord,
 } from './world-chunk.js';
 import type { MapDocumentV3 } from './map-document-v3.js';
@@ -24,8 +24,10 @@ import type { MapDocumentV3 } from './map-document-v3.js';
  * semantic hash (`mapDocumentV3Hash`, Studio's `editorMapSemanticHash`) is over the
  * serialized text, so it depends on key order, and the live document's order
  * follows its publication history. The extension therefore records the key order
- * of every JSON path class, and the rebuild fails closed unless it reproduces the
- * recorded semantic hash exactly.
+ * of every JSON path class, and the rebuild fails closed unless it reproduces both
+ * the SHA-256 of the full serialized text (revision included) and Studio's semantic
+ * hash exactly. The FNV semantic hash alone is not enough: it pins the revision to 0,
+ * is 32-bit, and folds every astral character to its high surrogate.
  */
 
 /** Document list key → the chunk record kind the materializer emits for it. */
@@ -55,6 +57,8 @@ export interface WorldChunkAuthoredDocument {
   readonly counts: { readonly cells: number; readonly lists: { readonly [key: string]: number } };
   /** `mapDocumentV3Hash({ ...document, revision: 0 })` of the published document. */
   readonly semanticHash: string;
+  /** SHA-256 (hex) of `serializeMapDocumentV3(document)`: the full text, real revision included. */
+  readonly documentSha256: string;
 }
 
 type JsonObject = { readonly [key: string]: ChunkJson };
@@ -120,7 +124,7 @@ export function worldChunkAuthoredDocument(normalized: JsonObject, semanticHash:
     } else fields[key] = value;
   }
   return { schema: WORLD_CHUNK_DOCUMENT_SCHEMA, fields, ...worldChunkDocumentKeyOrders(normalized),
-    counts: { cells: Object.keys(cells).length, lists }, semanticHash };
+    counts: { cells: Object.keys(cells).length, lists }, semanticHash, documentSha256: normalizedMapDocumentSha256(normalized) };
 }
 
 function cellCoordinates(key: string, width: number, height: number): { readonly tileX: number; readonly tileY: number } {
@@ -179,11 +183,23 @@ export function worldChunkDocumentCellsByChunk(cells: { readonly [key: string]: 
 
 /** The generated biome index a generator-free compile of this chunk must use at a
  * local cell, where the extension recorded one (otherwise the baked `biomes` channel). */
-export function worldChunkBaseBiomes(chunk: { readonly documentCells?: WorldChunkDocumentCells }): ReadonlyMap<number, number> {
+export function worldChunkBaseBiomes(chunk: { readonly documentSchema?: number; readonly documentCells?: WorldChunkDocumentCells },
+  /** Manifest `metadata.biomePalette` length; every recorded biome must index it. */
+  biomePaletteLength: number): ReadonlyMap<number, number> {
+  if (chunk.documentSchema !== undefined && chunk.documentSchema !== WORLD_CHUNK_DOCUMENT_SCHEMA) throw new Error('chunk_document_schema_unsupported');
   const bases = chunk.documentCells?.baseBiomes ?? [];
   const result = new Map<number, number>();
-  for (let index = 0; index < bases.length; index += 2) result.set(bases[index]!, bases[index + 1]!);
+  for (let index = 0; index < bases.length; index += 2) {
+    if (bases[index + 1]! >= biomePaletteLength) throw new Error('chunk_document_base_biome_invalid');
+    result.set(bases[index]!, bases[index + 1]!);
+  }
   return result;
+}
+
+/** SHA-256 (hex) of a normalized document's full serialized text, exactly
+ * `serializeMapDocumentV3` for a document already in normalized form. */
+export function normalizedMapDocumentSha256(document: object): string {
+  return worldChunkHash(new TextEncoder().encode(`${JSON.stringify(document, null, 2)}\n`));
 }
 
 /** Studio's semantic hash (`mapDocumentV3Hash` with revision pinned to 0) for a
@@ -241,7 +257,8 @@ function keyOrderRestorer(orders: WorldChunkDocumentKeyOrders): { readonly apply
 function authoredDocumentMetadata(manifest: WorldChunkManifest): WorldChunkAuthoredDocument {
   const value = manifest.metadata['authoredDocument'];
   if (!isObject(value) || value['schema'] !== WORLD_CHUNK_DOCUMENT_SCHEMA || !isObject(value['fields']) || !isObject(value['keyOrders'])
-    || !isObject(value['keyOrderChoices']) || !isObject(value['counts']) || typeof value['semanticHash'] !== 'string') throw new Error('chunk_document_metadata_missing');
+    || !isObject(value['keyOrderChoices']) || !isObject(value['counts']) || typeof value['semanticHash'] !== 'string'
+    || typeof value['documentSha256'] !== 'string') throw new Error('chunk_document_metadata_missing');
   return value as unknown as WorldChunkAuthoredDocument;
 }
 
@@ -260,6 +277,8 @@ export function rebuildWorldChunkDocument(manifest: WorldChunkManifest, readBlob
   const authored = authoredDocumentMetadata(manifest);
   const documentMetadata = manifest.metadata['document'];
   if (!isObject(documentMetadata)) throw new Error('chunk_document_metadata_missing');
+  const biomePalette = manifest.metadata['biomePalette'];
+  if (!Array.isArray(biomePalette)) throw new Error('chunk_document_metadata_missing');
   const cells: Record<string, Record<string, ChunkJson>> = {};
   const records = new Map<string, WorldChunkRecord[]>(LIST_KEYS.map(key => [WORLD_CHUNK_DOCUMENT_LIST_RECORDS[key], []]));
   for (const head of manifest.chunks) {
@@ -267,7 +286,10 @@ export function rebuildWorldChunkDocument(manifest: WorldChunkManifest, readBlob
     if (bytes === undefined) throw new Error('chunk_document_blob_missing');
     const chunk = decodeWorldChunk(bytes, head.contentHash);
     if (chunk.cx !== head.cx || chunk.cy !== head.cy || chunk.spaceId !== manifest.spaceId) throw new Error('chunk_document_head_mismatch');
-    if (chunk.documentSchema !== WORLD_CHUNK_DOCUMENT_SCHEMA || chunk.documentCells === undefined) throw new Error('chunk_document_extension_missing');
+    if (chunk.documentSchema === undefined || chunk.documentCells === undefined) throw new Error('chunk_document_extension_missing');
+    // Only version 1 is readable here; the codec lets later versions through for runtimes.
+    if (chunk.documentSchema !== WORLD_CHUNK_DOCUMENT_SCHEMA) throw new Error('chunk_document_schema_unsupported');
+    worldChunkBaseBiomes(chunk, biomePalette.length); // bounds the recorded biomes by the palette
     const tile = (local: number): string => `${chunk.cx * WORLD_CHUNK_SIZE + local % WORLD_CHUNK_SIZE},${chunk.cy * WORLD_CHUNK_SIZE + Math.floor(local / WORLD_CHUNK_SIZE)}`;
     const { palette, cells: flat } = chunk.documentCells;
     for (let index = 0; index < flat.length; index += 2) cells[tile(flat[index]!)] = { ...palette[flat[index + 1]!]! };
@@ -301,6 +323,7 @@ export function rebuildWorldChunkDocument(manifest: WorldChunkManifest, readBlob
   const restorer = keyOrderRestorer(authored);
   const document = restorer.apply(root) as unknown as MapDocumentV3;
   restorer.finish();
+  if (normalizedMapDocumentSha256(document) !== authored.documentSha256) throw new Error('chunk_document_sha256_mismatch');
   if (normalizedMapDocumentSemanticHash(document) !== authored.semanticHash) throw new Error('chunk_document_semantic_hash_mismatch');
   return document;
 }

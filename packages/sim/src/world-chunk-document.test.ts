@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createMapPrefabDocument, type MapPrefabDocumentV2 } from './map-prefab.js';
 import { MAP_DOCUMENT_SCHEMA_VERSION, type MapDocumentV2 } from './map-document.js';
+import { SURVIVAL_BIOMES } from './survival-biomes.js';
 import { mapDocumentV3Hash, migrateMapDocumentV2, parseMapDocumentV3, serializeMapDocumentV3, type MapDocumentV3 } from './map-document-v3.js';
 import {
   WORLD_CHUNK_DOCUMENT_SCHEMA, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, canonicalChunkJson, decodeWorldChunk, encodeWorldChunk,
@@ -9,7 +10,7 @@ import {
 import { decodeWorldChunk as legacyDecodeWorldChunk, encodeWorldChunk as legacyEncodeWorldChunk } from './world-chunk.schema1-legacy.fixture.js';
 import {
   WORLD_CHUNK_DOCUMENT_LIST_RECORDS, WORLD_CHUNK_DOCUMENT_METADATA_KEYS, authoredCellConsultsBaseBiome, manifestCarriesAuthoredDocument,
-  normalizedMapDocumentSemanticHash, rebuildWorldChunkDocument, worldChunkAuthoredDocument, worldChunkBaseBiomes, worldChunkDocumentCellsByChunk,
+  normalizedMapDocumentSemanticHash, normalizedMapDocumentSha256, rebuildWorldChunkDocument, worldChunkAuthoredDocument, worldChunkBaseBiomes, worldChunkDocumentCellsByChunk,
   worldChunkDocumentKeyOrders,
 } from './world-chunk-document.js';
 
@@ -94,6 +95,7 @@ function publish(document: MapDocumentV3, extension = true): Published {
   }
   const bytes = chunks.map(chunk => encodeWorldChunk(chunk));
   const metadata = JSON.parse(canonicalChunkJson({
+    biomePalette: SURVIVAL_BIOMES,
     document: Object.fromEntries(WORLD_CHUNK_DOCUMENT_METADATA_KEYS.map(key => [key, (document as unknown as Record<string, unknown>)[key]])),
     ...(extension ? { authoredDocument: authored } : {}),
   })) as Record<string, ChunkJson>;
@@ -120,6 +122,20 @@ describe('world chunk document round trip (static-world S7a)', () => {
     expect(Object.keys(authored.keyOrderChoices).sort()).toEqual(['prefabs[].placements[]', 'transitions[]']);
   });
 
+  it('verifies the full text, not only the 32-bit semantic hash, which folds astral characters together', () => {
+    const live = { ...liveDocument(), title: '\u{1F600}' };
+    const { manifest, blobs } = publish(live);
+    const normalized = JSON.parse(serializeMapDocumentV3(live)) as Record<string, unknown>;
+    // FNV over charCodeAt(0) of each code point: the two emoji share a high surrogate and collide.
+    expect(normalizedMapDocumentSemanticHash({ ...normalized, title: '\u{1F601}' })).toBe(normalizedMapDocumentSemanticHash(normalized));
+    expect(normalizedMapDocumentSha256({ ...normalized, title: '\u{1F601}' })).not.toBe(normalizedMapDocumentSha256(normalized));
+    const metadata = manifest.metadata['authoredDocument'] as Record<string, ChunkJson>;
+    expect(metadata['documentSha256']).toBe(normalizedMapDocumentSha256(normalized));
+    const tampered = { ...manifest, metadata: { ...manifest.metadata, authoredDocument: { ...metadata, fields: { ...(metadata['fields'] as object), title: '\u{1F601}' } } } };
+    expect(() => rebuildWorldChunkDocument(tampered, hash => blobs.get(hash))).toThrow('chunk_document_sha256_mismatch');
+    expect(rebuildWorldChunkDocument(manifest, hash => blobs.get(hash)).title).toBe('\u{1F600}');
+  });
+
   it('computes Studio\'s semantic hash without the map-document module for normalized documents', () => {
     const live = liveDocument();
     const normalized = JSON.parse(serializeMapDocumentV3(live)) as object;
@@ -141,7 +157,10 @@ describe('world chunk document round trip (static-world S7a)', () => {
     const withBases = worldChunkDocumentCellsByChunk({ '0,0': { biome: 'beach' }, '1,0': { surface: 'sand', biome: 'beach' }, '2,0': { surface: 'sand' },
       '3,0': { elevation: 2 }, '4,0': { feature: 'path' } }, 128, 64, (tileX) => tileX === 4 ? undefined : 7);
     expect(withBases.get('0:0')!.baseBiomes).toEqual([0, 7, 2, 7]);
-    expect(worldChunkBaseBiomes({ documentCells: withBases.get('0:0')! })).toEqual(new Map([[0, 7], [2, 7]]));
+    expect(worldChunkBaseBiomes({ documentSchema: 1, documentCells: withBases.get('0:0')! }, 8)).toEqual(new Map([[0, 7], [2, 7]]));
+    // Bounded by the manifest's biome palette, and never read from a later document schema.
+    expect(() => worldChunkBaseBiomes({ documentSchema: 1, documentCells: withBases.get('0:0')! }, 7)).toThrow('chunk_document_base_biome_invalid');
+    expect(() => worldChunkBaseBiomes({ documentSchema: 2, documentCells: withBases.get('0:0')! }, 8)).toThrow('chunk_document_schema_unsupported');
     expect('baseBiomes' in cells.get('0:0')!).toBe(false);
   });
 
@@ -169,13 +188,35 @@ describe('world chunk document round trip (static-world S7a)', () => {
     const cells = chunks[0]!.documentCells!;
     expect(() => rebuildWorldChunkDocument(...withChunk(0, { ...chunks[0]!, documentCells: { palette: [cells.palette[cells.cells[1]!]!], cells: [cells.cells[0]!, 0] } }))).toThrow('chunk_document_cells_incomplete');
     const altered: WorldChunkDocumentCells = { palette: cells.palette.map((entry, index) => index === 0 ? { ...entry, elevation: 9 } : entry), cells: cells.cells };
-    expect(() => rebuildWorldChunkDocument(...withChunk(0, { ...chunks[0]!, documentCells: altered }))).toThrow('chunk_document_semantic_hash_mismatch');
+    expect(() => rebuildWorldChunkDocument(...withChunk(0, { ...chunks[0]!, documentCells: altered }))).toThrow('chunk_document_sha256_mismatch');
+    const withBase = (biome: number) => withChunk(0, { ...chunks[0]!, documentCells: { ...cells, baseBiomes: [cells.cells[0]!, biome] } });
+    expect(() => rebuildWorldChunkDocument(...withBase(SURVIVAL_BIOMES.length - 1))).not.toThrow();
+    expect(() => rebuildWorldChunkDocument(...withBase(SURVIVAL_BIOMES.length))).toThrow('chunk_document_base_biome_invalid');
     const metadata = manifest.metadata['authoredDocument'] as Record<string, ChunkJson>;
     const withMetadata = (value: Record<string, ChunkJson>) => ({ ...manifest, metadata: { ...manifest.metadata, authoredDocument: value } });
     expect(() => rebuildWorldChunkDocument(withMetadata({ ...metadata, semanticHash: '00000000' }), read)).toThrow('chunk_document_semantic_hash_mismatch');
+    // The semantic hash pins the revision to 0; the SHA-256 of the full text does not.
+    const fields = metadata['fields'] as Record<string, ChunkJson>;
+    expect(() => rebuildWorldChunkDocument(withMetadata({ ...metadata, fields: { ...fields, revision: 999 } }), read)).toThrow('chunk_document_sha256_mismatch');
+    expect(() => rebuildWorldChunkDocument({ ...manifest, metadata: { ...manifest.metadata, biomePalette: null } }, read)).toThrow('chunk_document_metadata_missing');
     expect(() => rebuildWorldChunkDocument(withMetadata({ ...metadata, keyOrders: { ...(metadata['keyOrders'] as object), 'scenery[]': [] } }), read)).toThrow('chunk_document_key_order_missing: scenery[]');
     expect(() => rebuildWorldChunkDocument(withMetadata({ ...metadata, fields: { ...(metadata['fields'] as object), extra: 1 } }), read)).toThrow('chunk_document_key_unplaced: extra');
     expect(() => rebuildWorldChunkDocument({ ...manifest, width: 64 }, read)).toThrow('chunk_document_dimensions_mismatch');
+  });
+
+  it('decodes a later document schema for runtime use (payload ignored) and the rebuild refuses it', () => {
+    const live = liveDocument();
+    const { manifest, blobs, chunks } = publish(live);
+    const future = { ...chunks[1]!, documentSchema: 2, documentCells: { future: [1, 2, 3] } } as unknown as Omit<WorldChunk, 'contentHash'>;
+    const bytes = encodeWorldChunk(future);
+    const decoded = decodeWorldChunk(bytes);
+    expect(decoded.documentSchema).toBe(2);
+    expect(decoded.arrays).toEqual(chunks[1]!.arrays);
+    expect(decoded.records).toEqual(chunks[1]!.records);
+    expect(legacyDecodeWorldChunk(bytes).records).toEqual(chunks[1]!.records);
+    const head = { ...manifest.chunks[1]!, contentHash: decoded.contentHash, byteLength: bytes.length };
+    expect(() => rebuildWorldChunkDocument({ ...manifest, chunks: [manifest.chunks[0]!, head] }, hash => hash === head.contentHash ? bytes : blobs.get(hash)))
+      .toThrow('chunk_document_schema_unsupported');
   });
 
   it('is an additive codec extension: validated when present, invisible to deployed decoders, absent bytes unchanged', () => {
@@ -193,7 +234,7 @@ describe('world chunk document round trip (static-world S7a)', () => {
     const cells = chunk.documentCells!;
     const invalid = (documentCells: unknown, documentSchema: unknown = 1) => encodeWorldChunk({ ...chunk, documentSchema, documentCells } as Omit<WorldChunk, 'contentHash'>);
     const withoutSchema: Record<string, unknown> = { ...chunk }; delete withoutSchema['documentSchema'];
-    expect(() => invalid(cells, 2)).toThrow(/document cells/u);
+    expect(() => invalid(cells, 2)).not.toThrow(); // a later version is additive (see the test above)
     expect(() => invalid(undefined)).toThrow(/document cells/u);
     expect(() => encodeWorldChunk(withoutSchema as Omit<WorldChunk, 'contentHash'>)).toThrow(/document cells/u);
     expect(() => invalid({ palette: cells.palette, cells: [...cells.cells, 5] })).toThrow(/document cells/u);
@@ -203,6 +244,7 @@ describe('world chunk document round trip (static-world S7a)', () => {
     expect(() => invalid({ palette: [...cells.palette, { surface: 'sand' }], cells: cells.cells })).toThrow(/Unused document cell palette/u);
     expect(() => invalid({ palette: [{ parts: [] }], cells: [0, 0] })).toThrow(/document cell palette/u);
     expect(() => invalid({ palette: [{}], cells: [0, 0] })).toThrow(/document cell palette/u);
+    for (const schema of [0, -1, 1.5, '2', null]) expect(() => invalid(cells, schema), String(schema)).toThrow(/document cells/u);
     const authored = cells.cells[0]!, other = cells.cells[2]!;
     expect(decodeWorldChunk(invalid({ ...cells, baseBiomes: [authored, 3] })).documentCells!.baseBiomes).toEqual([authored, 3]);
     expect(legacyDecodeWorldChunk(invalid({ ...cells, baseBiomes: [authored, 3] })).records).toEqual(chunk.records);

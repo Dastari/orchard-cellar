@@ -99,7 +99,7 @@ describe.each([
     baked = Object.fromEntries(names.map(channel => [channel, store.channels[channel]!]));
     baseBiomes = new Map();
     for (const { cx, cy } of published.manifest.chunks) {
-      for (const [local, biome] of worldChunkBaseBiomes(store.chunkAt(cx, cy)!)) {
+      for (const [local, biome] of worldChunkBaseBiomes(store.chunkAt(cx, cy)!, (published.manifest.metadata['biomePalette'] as readonly unknown[]).length)) {
         baseBiomes.set((cy * WORLD_CHUNK_SIZE + Math.floor(local / WORLD_CHUNK_SIZE)) * store.width + cx * WORLD_CHUNK_SIZE + local % WORLD_CHUNK_SIZE, biome);
       }
     }

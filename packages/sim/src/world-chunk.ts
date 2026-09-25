@@ -76,7 +76,9 @@ export interface WorldChunkAuthorityResourcePlacement {
 /** Additive authored-document extension (static-world S7a). Carries the map
  * document's sparse authored cells so the whole document round-trips from the
  * chunks plus the manifest (`metadata.authoredDocument`). Deployed schema-1
- * decoders ignore the unknown header keys `documentSchema` and `documentCells`. */
+ * decoders ignore the unknown header keys `documentSchema` and `documentCells`, and
+ * this decoder ignores the payload of any later `documentSchema` version, so a
+ * future version never breaks runtimes that do not read document cells. */
 export const WORLD_CHUNK_DOCUMENT_SCHEMA = 1 as const;
 /** Sparse authored cells of one chunk, palette-encoded. `cells` is a flat list of
  * `[localIndex, paletteIndex]` pairs in ascending local index (`y * 64 + x`);
@@ -87,8 +89,9 @@ export interface WorldChunkDocumentCells {
   readonly cells: readonly number[];
   /** Pre-overlay (generated) biome of the authored cells whose compile consults it and
    * whose post-overlay `biomes` channel lost it: flat `[localIndex, biome]` pairs in
-   * ascending local index, the biome indexing manifest `metadata.biomePalette`. Lets the
-   * document be recompiled over the baked chunk base without the generator. */
+   * ascending local index, the biome indexing manifest `metadata.biomePalette` (the
+   * codec bounds it by 255; readers bound it by that palette). Lets the document be
+   * recompiled over the baked chunk base without the generator. */
   readonly baseBiomes?: readonly number[];
 }
 export const WORLD_CHUNK_MEDIA = RULE_MEDIA;
@@ -123,8 +126,11 @@ export interface WorldChunk {
   readonly atlasPackIds: readonly string[];
   /** Optional sparse local cell part stacks; independent of the authoring PR. */
   readonly cellParts?: Readonly<Record<string, ChunkJson>>;
-  /** Present exactly when the chunk carries the authored-document extension. */
-  readonly documentSchema?: typeof WORLD_CHUNK_DOCUMENT_SCHEMA;
+  /** Present exactly when the chunk carries the authored-document extension. Only
+   * version WORLD_CHUNK_DOCUMENT_SCHEMA is validated; a later version decodes with its
+   * payload unvalidated and must be refused by document readers. */
+  readonly documentSchema?: number;
+  /** The version-1 payload (validated only when `documentSchema` is 1). */
   readonly documentCells?: WorldChunkDocumentCells;
 }
 export interface WorldChunkHead {
@@ -191,9 +197,12 @@ function checkHeader(value: unknown): asserts value is Omit<WorldChunk, 'arrays'
   }
   checkDocumentCells(value['documentSchema'], value['documentCells']);
 }
-/** Fails closed: the authored cells are present and well formed exactly with the schema. */
+/** Fails closed for version 1: the authored cells are present and well formed exactly
+ * with the schema. A later version (a positive integer) is additive: its payload is not
+ * this codec's to validate, so runtime decoding never depends on it. */
 function checkDocumentCells(schema: unknown, cells: unknown): void {
   if (schema === undefined && cells === undefined) return;
+  if (validInteger(schema) && schema > WORLD_CHUNK_DOCUMENT_SCHEMA) return;
   if (schema !== WORLD_CHUNK_DOCUMENT_SCHEMA || !object(cells) || !Array.isArray(cells['palette']) || !Array.isArray(cells['cells'])
     || cells['cells'].length % 2 !== 0) throw new TypeError('Invalid document cells');
   const palette = cells['palette'];
