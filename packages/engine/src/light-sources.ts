@@ -1,7 +1,5 @@
-import {
-  AUTHORITY_HZ,
-  type ResolvedObjectLight,
-} from '@orchard/sim';
+import type { ResolvedObjectLight } from '@orchard/sim';
+import { AUTHORITY_HZ } from '@orchard/sim/net-timing';
 import {
   CAMPFIRE_LIGHT,
   CAMPFIRE_LIGHT_RADIUS_TILES,

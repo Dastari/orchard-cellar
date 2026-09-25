@@ -1,5 +1,6 @@
 import { CombatRegionPolicy } from './combat-regions.js';
-import { LIVE_ISLAND_MAP_ID, type MapDocumentV3 } from './map-document-v3.js';
+import { LIVE_ISLAND_MAP_ID } from './live-island-map-id.js';
+import type { MapDocumentV3 } from './map-document-v3.js';
 import { combatSegmentObstructed } from './combat-actions.js';
 import { playerInteractionOrigin, positionCollides } from './movement.js';
 import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';

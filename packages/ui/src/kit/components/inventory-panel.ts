@@ -1,4 +1,5 @@
-import { itemDefinition, type ItemStack } from '@orchard/sim';
+import type { ItemStack } from '@orchard/sim';
+import { itemDefinition } from '@orchard/sim/item-containers';
 import { UiElement } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFlex, uiScrollArea } from './layout.js';

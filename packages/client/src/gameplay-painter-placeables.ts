@@ -1,13 +1,15 @@
 import {terrainElevationAtWorldFoot} from '@orchard/engine/terrain';
 import {drawConnectedObject} from '@orchard/engine/connected-objects';
-import {connectedObjectDefinitionFamily,connectedObjectCatalogue,connectedObjectIndex} from '@orchard/sim';
+import { connectedObjectDefinitionFamily, connectedObjectCatalogue, connectedObjectIndex } from '@orchard/sim/connected-objects';
 import {seatedFurnitureForPlayer} from './hearth-seating.js';
 import {actionVisualForDirection} from '@orchard/engine/overworld-art';
 import { profilePainterProducer } from './painter-producer-profile.js';
-import { FIXED_UNITS_PER_PIXEL, runtimeObjectDamageable, runtimeObjectDefinition, runtimePlaceableDefinition,
-  runtimeSpaceSurfaceDefinition,
-  placeableObjectDefinition,
-  hearthFurnitureScene, hearthFurnitureDrawGroup, hearthFurnitureShapeForPlaceable } from '@orchard/sim';
+import { runtimeObjectDamageable, runtimeObjectDefinition } from '@orchard/sim/content/object-capabilities';
+import { runtimeSpaceSurfaceDefinition } from '@orchard/sim/content/runtime';
+import { runtimePlaceableDefinition, placeableObjectDefinition } from '@orchard/sim/crafting';
+import { hearthFurnitureScene, hearthFurnitureDrawGroup } from '@orchard/sim/hearth-furniture-scene';
+import { hearthFurnitureShapeForPlaceable } from '@orchard/sim/hearth-furniture-state';
+import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
 import { drawAuthoredOverworldObject, drawOverworldChest, drawOverworldHive, drawOverworldItem, drawOverworldPlaceable, drawOverworldPoiDecoration } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import { isLightEmitterKind } from '@orchard/engine/light-sources';

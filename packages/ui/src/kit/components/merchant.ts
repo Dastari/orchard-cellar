@@ -1,6 +1,6 @@
 import type { LoadedAsset } from '../../assets.js';
 import { boundedStepperValue } from '../../bounded-stepper.js';
-import { itemDefinition } from '@orchard/sim';
+import { itemDefinition } from '@orchard/sim/item-containers';
 import { drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
 import { UiElement } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';

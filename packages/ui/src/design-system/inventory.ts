@@ -1,21 +1,5 @@
-import {
-  BOOTSTRAP_ITEM_CONTAINER_CONTENT,
-  clickContainerSlot,
-  itemDefinition,
-  itemStacksCompatible,
-  isUniqueQuestItemKind,
-  maxStackFor,
-  pickupAllToCursor,
-  quickCraftCursorStack,
-  quickMoveItemStack,
-  slotAcceptsItem,
-  type ContainerSnapshot,
-  type CursorClickButton,
-  type CursorInteractionResult,
-  type ItemStack,
-  type QuickCraftMode,
-  type ContentRegistry,
-} from '@orchard/sim';
+import type { ContainerSnapshot, CursorClickButton, CursorInteractionResult, ItemStack, QuickCraftMode, ContentRegistry } from '@orchard/sim';
+import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, clickContainerSlot, itemDefinition, itemStacksCompatible, isUniqueQuestItemKind, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveItemStack, slotAcceptsItem } from '@orchard/sim/item-containers';
 import { uiDurabilityFraction } from '../item-durability.js';
 import type { LoadedAsset } from '../assets.js';
 import { drawOutlinedPixelText, type PixelUi } from '../pixel-ui.js';

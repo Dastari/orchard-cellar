@@ -1,6 +1,7 @@
 import { paintUiSelector } from './window.js';
 import { paintUiSkin } from './art.js';
-import { skillNodeIsImplemented, type SkillNodeDefinition } from '@orchard/sim';
+import type { SkillNodeDefinition } from '@orchard/sim';
+import { skillNodeIsImplemented } from '@orchard/sim/skill-trees';
 import type { LoadedAsset } from '../../assets.js';
 import { containsPoint, type UiPoint } from '../../geometry.js';
 import { UiElement } from '../runtime/element.js';

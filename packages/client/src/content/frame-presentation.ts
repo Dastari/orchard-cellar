@@ -1,4 +1,5 @@
-import { placeableObjectDefinition, type ContentRegistry, type FrameDefinitionId } from '@orchard/sim';
+import type { ContentRegistry, FrameDefinitionId } from '@orchard/sim';
+import { placeableObjectDefinition } from '@orchard/sim/crafting';
 import type { PlayerCookingJob, WorldCampfireState, WorldPlaceable } from '@orchard/world-bindings/types';
 
 type FrameState = Readonly<Record<string, boolean | string | number>>;

@@ -1,5 +1,7 @@
 import { profilePainterProducer } from './painter-producer-profile.js';
-import { AUTHORITY_TICK_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, FIXED_UNITS_PER_PIXEL, bowProjectileArcPresentation, firstProjectileTerrainHit } from '@orchard/sim';
+import { AUTHORITY_TICK_MS } from '@orchard/sim/net-timing';
+import { BOW_MAX_PROJECTILE_FLIGHT_TICKS, bowProjectileArcPresentation, firstProjectileTerrainHit } from '@orchard/sim/ranged';
+import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
 import { drawOverworldArrow } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import { sampleLocalProjectilePrediction } from './overworld-prediction.js';

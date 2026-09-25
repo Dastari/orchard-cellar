@@ -1,4 +1,5 @@
-import {runtimeHearthEnemyDefinition,type ContentRegistry} from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { runtimeHearthEnemyDefinition } from '@orchard/sim/hearth-encounters';
 
 export interface OutdoorEnemyPresentation {
   readonly definitionId:string;

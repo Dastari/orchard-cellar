@@ -1,4 +1,5 @@
-import { itemDefinition, type ItemStack } from '@orchard/sim';
+import type { ItemStack } from '@orchard/sim';
+import { itemDefinition } from '@orchard/sim/item-containers';
 import { containsPoint } from '../../geometry.js';
 import { drawPixelText, fitPixelText } from '../../pixel-ui.js';
 import { UiElement } from '../runtime/element.js';

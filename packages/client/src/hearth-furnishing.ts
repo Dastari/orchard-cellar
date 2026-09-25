@@ -1,8 +1,8 @@
-import { hearthFurnitureCells, hearthFurniturePlacementFailure, hearthFurnitureDefinition,
-  hearthFurnitureHasAttachments,
-  combatSegmentObstructed, TILE_SIZE_FIXED,
-  type ContentRegistry, type HearthFurniturePlacement, type HearthFurniturePlacementContext, type Vec2Fixed,
-} from '@orchard/sim';
+import type { ContentRegistry, HearthFurniturePlacement, HearthFurniturePlacementContext, Vec2Fixed } from '@orchard/sim';
+import { combatSegmentObstructed } from '@orchard/sim/combat-actions';
+import { hearthFurnitureCells, hearthFurniturePlacementFailure, hearthFurnitureHasAttachments } from '@orchard/sim/hearth-furniture-placement';
+import { hearthFurnitureDefinition } from '@orchard/sim/hearth-furniture-state';
+import { TILE_SIZE_FIXED } from '@orchard/sim/state';
 
 export function furniturePickupFailure(item: HearthFurniturePlacement, items: readonly HearthFurniturePlacement[],
   position: Vec2Fixed, collision: HearthFurniturePlacementContext['collision'], inUse: boolean): string | null {

@@ -1,5 +1,7 @@
-import { AUTHORITY_HZ, orchardFruitStatus, runtimeResourceDefinition,
-  type ContentRegistry, type OrchardHarvestResource } from '@orchard/sim';
+import type { ContentRegistry, OrchardHarvestResource } from '@orchard/sim';
+import { runtimeResourceDefinition } from '@orchard/sim/content/runtime';
+import { AUTHORITY_HZ } from '@orchard/sim/net-timing';
+import { orchardFruitStatus } from '@orchard/sim/orchard-harvest';
 
 /** Shared keyboard/touch prompt: pick ripe fruit, or count down to ripe fruit. */
 export function orchardHarvestPrompt(

@@ -5,7 +5,8 @@ import type {
   FrameRestrictionRegistry,
   SlotRestriction,
 } from '@orchard/sim';
-import { resolveFrameSlotRestriction, inventoryContainerSlotCount } from '@orchard/sim';
+import { resolveFrameSlotRestriction } from '@orchard/sim/content/frame-runtime';
+import { inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
 import type { PixelUi } from './pixel-ui.js';
 import { drawPixelTextInRect } from './pixel-ui.js';
 import type { UiPoint, UiRect, UiSize } from './geometry.js';
@@ -27,7 +28,7 @@ type FrameBinding = FramePaneDefinition['bind'];
 type FrameButtonDefinition = NonNullable<FrameContentDefinition['buttons']>[number];
 
 export type FrameRegistryView = FrameRestrictionRegistry;
-export { frameRestrictions, resolveFrameSlotRestriction } from '@orchard/sim';
+export { frameRestrictions, resolveFrameSlotRestriction } from '@orchard/sim/content/frame-runtime';
 
 export interface FrameContainerAliases {
   readonly backpack?: string;

@@ -1,4 +1,5 @@
-import { authoredMapContentPainterTie, type GeneratedSurvivalDecoration, type MapDocumentV3, type MapLandmarkInstance } from '@orchard/sim';
+import type { GeneratedSurvivalDecoration, MapDocumentV3, MapLandmarkInstance } from '@orchard/sim';
+import { authoredMapContentPainterTie } from '@orchard/sim/map-object-records';
 
 /** Resolve the same identities as the decoration producer. Suppressed or
  * offscreen ponds do not count unless their command enters the painter. */

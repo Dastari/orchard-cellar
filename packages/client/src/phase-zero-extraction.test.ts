@@ -208,7 +208,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // document-based adapters with unchanged names. Parity and import-boundary tests cover the move; no behaviour change.
 // BUG-037: ghostFillCraftingRecipe may return the authority's promise so a refused recipe placement
 // rolls the selection back; crafting-frame and overworld-ui tests cover it.
-const STRUCTURAL_SEAM_DIGEST = '006b8ba6af77aec654f8d730b4c912dce10efd6417aca60e19b7569ba8eaace9';
+// Static world S6a (PR #169) rewrites only the @orchard/sim value imports in ui/overworld-ui.ts: the same
+// bindings now come from generator-free @orchard/sim/<module> subpaths (types stay on the barrel), which
+// splits two import statements into several. No code changed; the other four seams are unchanged.
+// Subpath identity (=== barrel exports) and generator-free boundary tests cover the rewrite.
+const STRUCTURAL_SEAM_DIGEST = '2a2f4fa4955ab9487bc8bfac92e5e88fbdf49ed6faf1333ad2e84ec8ba97eda5';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

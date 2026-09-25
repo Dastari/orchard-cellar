@@ -1,10 +1,7 @@
-import {
-  bootstrapContentRows,
-  buildContentRegistry,
-  contentDefinitionRowsHash,
-  type ContentDefinitionRow,
-  type ContentRegistry,
-} from '@orchard/sim';
+import type { ContentDefinitionRow, ContentRegistry } from '@orchard/sim';
+import { bootstrapContentRows } from '@orchard/sim/content/bootstrap-registry';
+import { contentDefinitionRowsHash } from '@orchard/sim/content/payload-hash';
+import { buildContentRegistry } from '@orchard/sim/content/registry';
 
 export const CLIENT_CONTENT_ENGINE_VERSION = 1 as const;
 export const LIVE_CONTENT_PACK_ID = 'live' as const;

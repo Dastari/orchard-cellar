@@ -1,8 +1,8 @@
-import {
-  activeEquipmentSlotAccepts, compileEquipmentLoadout, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET,
-  itemContainerContentResolver, MAIN_HAND_INVENTORY_SLOT, TILE_SIZE_FIXED,
-  type ContentRegistry, type EquippedInventoryEntry, type Modifier,
-} from '@orchard/sim';
+import type { ContentRegistry, EquippedInventoryEntry, Modifier } from '@orchard/sim';
+import { compileEquipmentLoadout, MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
+import { activeEquipmentSlotAccepts, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim/inventory-layout';
+import { itemContainerContentResolver } from '@orchard/sim/item-containers';
+import { TILE_SIZE_FIXED } from '@orchard/sim/state';
 const labels: Partial<Record<Modifier['target'],string>> = {
   attackPower:'MELEE POWER',rangedPower:'RANGED POWER',maxHealth:'MAX HEALTH',maxVigour:'MAX VIGOUR',maxMana:'MAX MANA',
   criticalChance:'CRITICAL CHANCE',armor:'ARMOR',armorPct:'DAMAGE REDUCTION',

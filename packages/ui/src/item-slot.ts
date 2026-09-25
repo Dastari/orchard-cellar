@@ -1,12 +1,6 @@
-import {
-  BOOTSTRAP_ITEM_CONTAINER_CONTENT,
-  EQUIPMENT_SLOT_COUNT,
-  EQUIPMENT_SLOT_RESTRICTIONS as SHARED_EQUIPMENT_SLOT_RESTRICTIONS,
-  slotAcceptsItem,
-  type ItemContainerContentResolver,
-  type ItemStack,
-  type SlotRestriction,
-} from '@orchard/sim';
+import type { ItemContainerContentResolver, ItemStack, SlotRestriction } from '@orchard/sim';
+import { EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_RESTRICTIONS as SHARED_EQUIPMENT_SLOT_RESTRICTIONS } from '@orchard/sim/inventory-layout';
+import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, slotAcceptsItem } from '@orchard/sim/item-containers';
 import type { UiRect } from './geometry.js';
 import { widget, type WidgetNode } from './widget.js';
 

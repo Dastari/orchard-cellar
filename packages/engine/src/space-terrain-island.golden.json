@@ -1,0 +1,41 @@
+{
+ "world": {
+  "baseDatum": 0,
+  "biomes": "sha256:5614546371f85271bd340783f5ecb3c1dd71c0b595c4dad585a00c802a37220d",
+  "blocked": "sha256:c6fee5fba57de7945193ba8d0f766ecb094a5a28197f75b58695a2e07d96b0ac",
+  "defaultCliffFamily": "stone_1",
+  "dirtCliffRoles": "sha256:f9bc9d25576f4d64b9df18a8e7b9143cd22ba5180166cc74595dd73a6d5479ef",
+  "dirtTerraces": "sha256:54cf0385d9707d1d10f8aa915490b04f2ce0671a5b787f9b6f2e9689fe909854",
+  "elevations": "sha256:7abe762389f8b98f6849ee8850217176f1addb0764c5a7363be5bf9f2d27f06c",
+  "generator": "island",
+  "height": 832,
+  "horseJumpableTerrain": "sha256:dc42afee6b2a320e545ec86e93f24a7b3e29c468d58184d97811bc920c50c733",
+  "projectionStyle": "raised",
+  "raisedTerrainCollisionClassified": true,
+  "seed": 1329809490,
+  "spaceId": 0,
+  "terrainTransitions": "sha256:b818ef4d4f89cc2aaa85afbac89b5dfb5829fe31530777caf52101452b3b4434",
+  "version": 30,
+  "width": 832
+ },
+ "staticIsland": {
+  "baseDatum": 0,
+  "biomes": "sha256:5614546371f85271bd340783f5ecb3c1dd71c0b595c4dad585a00c802a37220d",
+  "blocked": "sha256:c6fee5fba57de7945193ba8d0f766ecb094a5a28197f75b58695a2e07d96b0ac",
+  "defaultCliffFamily": "stone_1",
+  "dirtCliffRoles": "sha256:f9bc9d25576f4d64b9df18a8e7b9143cd22ba5180166cc74595dd73a6d5479ef",
+  "dirtTerraces": "sha256:54cf0385d9707d1d10f8aa915490b04f2ce0671a5b787f9b6f2e9689fe909854",
+  "elevations": "sha256:7abe762389f8b98f6849ee8850217176f1addb0764c5a7363be5bf9f2d27f06c",
+  "generator": "island",
+  "height": 832,
+  "horseJumpableTerrain": "sha256:dc42afee6b2a320e545ec86e93f24a7b3e29c468d58184d97811bc920c50c733",
+  "projectionStyle": "raised",
+  "raisedTerrainCollisionClassified": true,
+  "seed": 1329809490,
+  "spaceId": 0,
+  "terrainTransitions": "sha256:b818ef4d4f89cc2aaa85afbac89b5dfb5829fe31530777caf52101452b3b4434",
+  "version": 30,
+  "width": 832
+ },
+ "worldCached": true
+}

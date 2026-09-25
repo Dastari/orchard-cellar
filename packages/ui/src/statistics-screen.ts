@@ -1,13 +1,9 @@
-import {
-  AUTHORITY_HZ,
-  TILE_SIZE_FIXED,
-  itemDefinition,
-  playerStatisticDefinition,
-  runtimeStatisticDefinition,
-  type ContentRegistry,
-  type PlayerStatisticCategory,
-  type PlayerStatisticDefinition,
-} from '@orchard/sim';
+import type { ContentRegistry, PlayerStatisticCategory, PlayerStatisticDefinition } from '@orchard/sim';
+import { runtimeStatisticDefinition } from '@orchard/sim/content/runtime';
+import { itemDefinition } from '@orchard/sim/item-containers';
+import { AUTHORITY_HZ } from '@orchard/sim/net-timing';
+import { playerStatisticDefinition } from '@orchard/sim/player-statistics';
+import { TILE_SIZE_FIXED } from '@orchard/sim/state';
 import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiStatistics, type UiStatisticsElement } from './kit/components/statistics.js';

@@ -1,4 +1,4 @@
-import { coinPurseFromBronze } from '@orchard/sim';
+import { coinPurseFromBronze } from '@orchard/sim/commerce';
 import { drawPixelText, measurePixelText, type PixelUi } from './pixel-ui.js';
 import type { UiRect } from './geometry.js';
 import { drawUiSkinAsset, type UiSkin } from './skin.js';
