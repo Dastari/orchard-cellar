@@ -1,3 +1,4 @@
+import { cellFlagsWhere } from './cell-flags.js';
 import { balanceFieldsTuple } from './content/balance-fields.js';
 import type { ResidenceConstructionBalanceTuple } from './content/balance-definition.js';
 import {hearthDoorwayWindowConflicts} from './hearth-doorway-support.js';
@@ -95,7 +96,7 @@ export function planHearthArchitectureEdits(registry:Pick<ContentRegistry,'balan
   // otherwise a newly obstructed doorway could never be removed to repair it.
   const size=residenceEnvelopeSize(input.rank);
   const prior=composeHearthArchitecture(input.rank,{width:size,height:size,
-    blocked:Uint8Array.from({length:size*size},(_,i)=>residencePlayableTile(i%size,Math.floor(i/size),input.rank)?0:1),
+    blocked:cellFlagsWhere(size*size,i=>!residencePlayableTile(i%size,Math.floor(i/size),input.rank)),
   },state.cells);
   if(prior.failure!==null)return {failure:'architecture_state_'+prior.failure};
   const key=(cell:{tileX:number;tileY:number})=>`${cell.tileX},${cell.tileY}`;

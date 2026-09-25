@@ -949,7 +949,7 @@ export class GroundChunkCache {
           continue;
         }
         if (terrain.rogueTheme !== undefined) {
-          const blocked = terrain.blocked[index] === 1;
+          const blocked = (terrain.blocked[index] ?? 0) !== 0;
           const hazardous = terrain.rogueHazards?.[index] === 1;
           const theme = terrain.generator === 'delve_lobby' && !blocked
             ? hearthLobbyFloorTheme(tileY,terrain.hearthLobbyFloorThresholdY)

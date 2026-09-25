@@ -800,7 +800,7 @@ function cellarWallTileIsExposed(
   if (
     terrainIndexAt(terrain, tileX - 1, tileY - 1) < 0 ||
     terrainIndexAt(terrain, tileX + 1, tileY + 1) < 0 ||
-    terrain.blocked[index] !== 1
+    !terrain.blocked[index]
   )
     return false;
   return (

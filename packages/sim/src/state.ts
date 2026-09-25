@@ -3,6 +3,7 @@ import type { LegacyEconomyCatalog } from './economy-catalog.js';
 import { createInitialEconomy, type EconomyAction, type EconomyState } from './economy-state.js';
 import { createInitialProgression, type PrestigeAction, type ProgressionState } from './progression-state.js';
 import type { TerrainTransition } from './terrain-elevation.js';
+import { cellFlagsWhere } from './cell-flags.js';
 
 export const SIM_TICKS_PER_SECOND = 60;
 export const FIXED_UNITS_PER_PIXEL = 16;
@@ -114,7 +115,7 @@ export type Action = MoveAction | TransitionAction | EconomyAction | PrestigeAct
 
 export function createEstateCollisionMap(treeTiles: readonly { readonly x: number; readonly y: number }[] = [], width = 64, height = 64): CollisionMap {
   const trees = new Set(treeTiles.map((tree) => `${tree.x},${tree.y}`));
-  const blocked = Uint8Array.from({ length: width * height }, (_, index) => {
+  const blocked = cellFlagsWhere(width * height, (index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
@@ -131,18 +132,18 @@ export function createEstateCollisionMap(treeTiles: readonly { readonly x: numbe
     const windmill = x >= 56 && x <= 60 && y >= 36 && y <= 41;
     const hillside = y >= 48 && (x < 20 || x > 43);
     return border || farmhouse || orchardTrees || pond || upperGardenPond || lowerGardenPond
-      || orchardFence || greenhouse || barn || windmill || hillside ? 1 : 0;
+      || orchardFence || greenhouse || barn || windmill || hillside;
   });
   return { width, height, blocked };
 }
 
 export function createCellarCollisionMap(width = 40, height = 24): CollisionMap {
-  const blocked = Uint8Array.from({ length: width * height }, (_, index) => {
+  const blocked = cellFlagsWhere(width * height, (index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
     const racks = y >= 5 && y <= 17 && y % 4 !== 0 && ((x >= 4 && x <= 12) || (x >= 17 && x <= 25));
-    return border || racks ? 1 : 0;
+    return border || racks;
   });
   return { width, height, blocked };
 }

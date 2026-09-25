@@ -30,7 +30,7 @@ export function mapTraversalChannels(
     medium[index] = RULE_MEDIA.indexOf(resolved);
     solidBlocked[index] = Number(cell?.collision === 'force_block'
       || (cell?.collision !== 'force_walk' && (role?.blocksMovement
-        ?? (cell?.ledge === true || (fallback === 'land' && compiled.blocked[index] === 1)))));
+        ?? (cell?.ledge === true || (fallback === 'land' && (compiled.blocked[index] ?? 0) !== 0)))));
   }
   return { width: compiled.width, height: compiled.height, medium, solidBlocked };
 }
