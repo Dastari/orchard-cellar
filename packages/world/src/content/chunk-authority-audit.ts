@@ -304,6 +304,8 @@ export interface ChunkAuthorityTableSnapshot {
   readonly shadow: { readonly manifestJson: string } | null;
   readonly heads: readonly { readonly contentHash: string }[];
   readonly blobs: ReadonlyMap<string, { readonly contentHash: string; readonly bytes: unknown }>;
+  /** Every blob hash looked up inside the transaction, found or not. Only these may be asked for later. */
+  readonly requestedBlobHashes: ReadonlySet<string>;
 }
 
 /** Copies every row the audit reads (call inside the transaction; everything else runs outside it). */
@@ -338,10 +340,28 @@ export function snapshotChunkAuthorityTables(tx: SnapshotRowSource,
     shadow,
     heads,
     blobs,
+    requestedBlobHashes: hashes,
   };
 }
 
 export class ChunkAuthoritySnapshotError extends Error {}
+
+/**
+ * The reducer-context stand-in the audit's builds receive: only `db` (the snapshot view).
+ * Any other member (`sender`, `timestamp`, `senderAuth`, ...) throws, so a build that needs
+ * more than the copied rows fails loudly instead of reading undefined.
+ */
+export function chunkAuthoritySnapshotContext(snapshot: ChunkAuthorityTableSnapshot): unknown {
+  const db = chunkAuthoritySnapshotDb(snapshot);
+  return new Proxy({ db }, {
+    get(target, name) {
+      if (typeof name !== 'string') return undefined;
+      if (name !== 'db') throw new ChunkAuthoritySnapshotError(`audit_snapshot_context:${name}`);
+      return target.db;
+    },
+    set() { throw new ChunkAuthoritySnapshotError('audit_snapshot_read_only'); },
+  });
+}
 
 /**
  * A read-only `db` over a snapshot, shaped like the tables the audit reads. Anything
@@ -370,7 +390,18 @@ export function chunkAuthoritySnapshotDb(snapshot: ChunkAuthorityTableSnapshot):
         },
       },
     },
-    world_chunk_blob: { contentHash: { find: (hash: string) => snapshot.blobs.get(hash) ?? null } },
+    world_chunk_blob: {
+      contentHash: {
+        // Null only for a hash that was looked up in the transaction and absent there; a hash
+        // that was never copied throws rather than looking like a missing blob.
+        find(hash: unknown) {
+          if (typeof hash !== 'string' || !snapshot.requestedBlobHashes.has(hash)) {
+            throw new ChunkAuthoritySnapshotError(`audit_snapshot_key:world_chunk_blob.contentHash=${String(hash)}`);
+          }
+          return snapshot.blobs.get(hash) ?? null;
+        },
+      },
+    },
   };
   return new Proxy(tables, {
     get(target, name) {

@@ -3,7 +3,7 @@ import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
-import { chunkAuthorityAuditClock, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
+import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
 import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
@@ -26237,7 +26237,7 @@ export const auditChunkAuthority = spacetimedb.procedure(
     });
     const snapshotMs = clock.label === 'none' ? null : Math.round((clock.now() - snapshotStarted) * 100) / 100;
     chunkAuthorityAuditCalls += 1;
-    const world = { db: chunkAuthoritySnapshotDb(snapshot.tables) } as WorldReducerContext;
+    const world = chunkAuthoritySnapshotContext(snapshot.tables) as WorldReducerContext;
     const source = chunkAuthoritySource(world);
     return JSON.stringify(runChunkAuthorityAudit({
       mode: snapshot.mode,

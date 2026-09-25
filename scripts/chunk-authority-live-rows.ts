@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { chmod, lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { chmod, mkdir, open, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -67,11 +68,25 @@ export function assertSoakTarget(target: SoakTarget, options: { readonly allowRe
  * in an error.
  */
 export async function readTokenFile(path: string, label?: string): Promise<string> {
-  const info = await lstat(path);
-  if (!info.isFile()) throw new Error('token_file_not_regular_file');
-  if (typeof process.getuid === 'function' && info.uid !== process.getuid()) throw new Error('token_file_not_owned_by_user');
-  if ((info.mode & 0o077) !== 0) throw new Error('token_file_permissions_too_open');
-  const text = (await readFile(path, 'utf8')).trim();
+  // O_NOFOLLOW refuses a symlink at open time, and every check runs on the open descriptor,
+  // so the file cannot be swapped between the check and the read.
+  let handle;
+  try {
+    handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ELOOP') throw new Error('token_file_not_regular_file', { cause: error });
+    throw error;
+  }
+  let text: string;
+  try {
+    const info = await handle.stat();
+    if (!info.isFile()) throw new Error('token_file_not_regular_file');
+    if (typeof process.getuid === 'function' && info.uid !== process.getuid()) throw new Error('token_file_not_owned_by_user');
+    if ((info.mode & 0o077) !== 0) throw new Error('token_file_permissions_too_open');
+    text = (await handle.readFile('utf8')).trim();
+  } finally {
+    await handle.close();
+  }
   if (text.length === 0) throw new Error('token_file_empty');
   if (!text.startsWith('{') && !text.startsWith('[')) return text;
   let parsed: unknown;

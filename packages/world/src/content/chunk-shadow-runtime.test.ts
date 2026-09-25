@@ -25,13 +25,16 @@ it('names exactly the known refusals of the shadow validators, so only they beco
  expect(code(()=>validateShadowPublication(input,{...current,contentHash:'other'},()=>blobs[0]))).toBe('chunk_shadow_source_conflict');
  expect(code(()=>validateShadowPublication(input,current,()=>undefined))).toBe('chunk_shadow_blob_missing');
  expect(code(()=>validateShadowBlob(new Uint8Array(1024*1024+1)))).toBe('chunk_blob_too_large');
+ // A malformed manifest or head list in the request is the caller's input: a code, not a fault.
+ expect(code(()=>validateShadowPublication({...input,manifestJson:'{}'},current,()=>blobs[0]))).toBe('invalid_chunk_manifest');
+ expect(code(()=>validateShadowPublication({...input,manifestJson:JSON.stringify({...manifest,chunks:[{...manifest.chunks[0]!,contentHash:'nope'}]})},current,()=>blobs[0]))).toBe('invalid_chunk_head');
  // Decoder faults, JSON syntax errors, other codes and non-Error throws are not refusals: they stay plain errors.
  expect(code(()=>validateShadowBlob(new Uint8Array(16)))).toBeNull();
  expect(code(()=>validateShadowPublication({...input,manifestJson:'{'},current,()=>blobs[0]))).toBeNull();
  expect(shadowPublicationRefusalCode(new TypeError('chunk_blob_too_large'))).toBeNull();
  expect(shadowPublicationRefusalCode(new Error('owner_required'))).toBeNull();
  expect(shadowPublicationRefusalCode('chunk_blob_too_large')).toBeNull();
- expect([...SHADOW_PUBLICATION_REFUSAL_CODES].every(value=>value.startsWith('chunk_'))).toBe(true);
+ expect([...SHADOW_PUBLICATION_REFUSAL_CODES].every(value=>/^(invalid_)?chunk_/u.test(value))).toBe(true);
  // Both publication reducers route their validator through the mapping.
  const index=readFileSync(new URL('../index.ts',import.meta.url),'utf8');
  const reducer=(name:string)=>index.slice(index.indexOf(`export const ${name} = `),index.indexOf('\n});',index.indexOf(`export const ${name} = `)));

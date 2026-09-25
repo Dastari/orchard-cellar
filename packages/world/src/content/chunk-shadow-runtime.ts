@@ -29,6 +29,8 @@ export const SHADOW_PUBLICATION_REFUSAL_CODES: ReadonlySet<string> = new Set([
   'chunk_manifest_too_large', 'chunk_shadow_revision_conflict', 'chunk_shadow_source_conflict',
   'chunk_shadow_publication_too_large', 'chunk_shadow_blob_missing',
   'chunk_size_or_head_mismatch', 'chunk_revision_mismatch',
+  // validateRuntimeManifest: a malformed manifest or head list in the publication request.
+  'invalid_chunk_manifest', 'invalid_chunk_head',
 ]);
 
 /** The known refusal code of `error`, or null when it is not one. */

@@ -9,7 +9,7 @@ import { chunkAuthorityMode } from '../chunk-authority-setting.js';
 import { assembleChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource, type CompiledCollisionRuntime } from './chunk-authority-dispatch.js';
 import {
-  CHUNK_AUTHORITY_AUDIT_SCHEMA, ChunkAuthoritySnapshotError, chunkAuthorityAuditClock, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables,
+  CHUNK_AUTHORITY_AUDIT_SCHEMA, ChunkAuthoritySnapshotError, chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables,
   type ChunkAuthorityAuditClock, type ChunkAuthorityAuditInput, type ChunkAuthorityAuditReport, type ChunkHeadView,
 } from './chunk-authority-audit.js';
 
@@ -309,7 +309,7 @@ function procedureHarness(member: { role: string; blocked: boolean; revokedAt?: 
     chunkAuthorityMode,
     chunkAuthorityAuditClock: () => fakeClock(),
     snapshotChunkAuthorityTables,
-    chunkAuthoritySnapshotDb,
+    chunkAuthoritySnapshotContext,
     LIVE_ISLAND_MAP_ID,
     LIVE_CONTENT_PACK_ID: 'live',
     TOPSIDE_SPACE_ID: 0,
@@ -355,7 +355,7 @@ describe('auditChunkAuthority procedure', () => {
     expect(transaction).toContain('snapshotChunkAuthorityTables(tx');
     expect(transaction).not.toMatch(/runChunkAuthorityAudit|coldCompiled|chunkAuthoritySource/u);
     expect(text).toContain('chunkAuthoritySource(world)');
-    expect(text).toContain('chunkAuthoritySnapshotDb(snapshot.tables)');
+    expect(text).toContain('chunkAuthoritySnapshotContext(snapshot.tables)');
     expect(text.match(/withTx\(/gu)).toHaveLength(1);
     // The dispatcher reads the same source helper; `off` goes straight to compiled.
     const dispatcher = declarationText('liveIslandCollisionRuntime');
@@ -368,7 +368,7 @@ describe('chunk authority snapshot', () => {
   function source() {
     const { manifest, store } = island();
     const [first, second] = manifest.chunks;
-    const extra = 'e'.repeat(64);
+    const extra = 'e'.repeat(64), absent = 'd'.repeat(64);
     const entries: [string, Uint8Array][] = [...store.entries(), [extra, new Uint8Array(1)]];
     const blobRows = new Map(entries.map(([hash, bytes]) => [hash, { contentHash: hash, bytes }]));
     const found: string[] = [];
@@ -378,17 +378,19 @@ describe('chunk authority snapshot', () => {
       content_definition: { iter: () => [{ id: 'a' }, { id: 'b' }][Symbol.iterator]() },
       world_chunk_shadow: { spaceId: { find: () => ({ revision: 1, manifestJson: JSON.stringify(manifest) }) } },
       // One head is stale: its blob is still copied, and so is the manifest's.
-      world_chunk_head: { by_space: { filter: () => [{ contentHash: first!.contentHash }, { contentHash: extra }][Symbol.iterator]() } },
+      // One head's blob is absent from the table: looked up, recorded, not copied.
+      world_chunk_head: { by_space: { filter: () => [{ contentHash: first!.contentHash }, { contentHash: extra }, { contentHash: absent }][Symbol.iterator]() } },
       world_chunk_blob: { contentHash: { find: (hash: string) => { found.push(hash); return blobRows.get(hash) ?? null; } } },
     } };
-    return { tx, found, first: first!, second: second!, extra };
+    return { tx, found, first: first!, second: second!, extra, absent };
   }
 
   it('copies the rows and exactly the blobs the heads and the manifest name', () => {
     const s = source();
     const snapshot = snapshotChunkAuthorityTables(s.tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: 'live', spaceId: 0n });
-    expect(new Set(s.found)).toEqual(new Set([s.first.contentHash, s.second.contentHash, s.extra]));
+    expect(new Set(s.found)).toEqual(new Set([s.first.contentHash, s.second.contentHash, s.extra, s.absent]));
     expect([...snapshot.blobs.keys()].sort()).toEqual([s.first.contentHash, s.second.contentHash, s.extra].sort());
+    expect([...snapshot.requestedBlobHashes].sort()).toEqual([s.first.contentHash, s.second.contentHash, s.extra, s.absent].sort());
     expect(snapshot.contentDefinitions).toEqual([{ id: 'a' }, { id: 'b' }]);
   });
 
@@ -398,11 +400,48 @@ describe('chunk authority snapshot', () => {
     const db = chunkAuthoritySnapshotDb(snapshot) as Record<string, Record<string, Record<string, (key: unknown) => unknown>>> & Record<string, unknown>;
     expect(db['live_map_document']!['mapId']!['find']!(LIVE_ISLAND_MAP_ID)).toMatchObject({ revision: 3 });
     expect((db['world_chunk_blob']!['contentHash']!['find']!(s.second.contentHash) as { bytes: Uint8Array }).bytes).toBeInstanceOf(Uint8Array);
-    expect(db['world_chunk_blob']!['contentHash']!['find']!('f'.repeat(64))).toBeNull();
+    // Looked up in the transaction and absent there: null, like the table. Never copied: throws.
+    expect(db['world_chunk_blob']!['contentHash']!['find']!(s.absent)).toBeNull();
+    expect(() => db['world_chunk_blob']!['contentHash']!['find']!('f'.repeat(64))).toThrow('audit_snapshot_key:world_chunk_blob.contentHash=' + 'f'.repeat(64));
     expect(() => db['membership']).toThrow(ChunkAuthoritySnapshotError);
     expect(() => db['live_map_document']!['mapId']!['find']!('other-map')).toThrow('audit_snapshot_key:live_map_document.mapId=other-map');
     expect(() => db['world_chunk_head']!['by_space']!['filter']!(1n)).toThrow(ChunkAuthoritySnapshotError);
     expect(() => { (db as Record<string, unknown>)['world_chunk_blob'] = {}; }).toThrow('audit_snapshot_read_only');
+  });
+
+  it('gives the builds a context with only db: sender, timestamp and the rest throw', () => {
+    const s = source();
+    const world = chunkAuthoritySnapshotContext(snapshotChunkAuthorityTables(s.tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: 'live', spaceId: 0n })) as Record<string, unknown>;
+    expect((world['db'] as Record<string, Record<string, Record<string, (key: unknown) => unknown>>>)['live_map_document']!['mapId']!['find']!(LIVE_ISLAND_MAP_ID)).toMatchObject({ revision: 3 });
+    for (const member of ['sender', 'timestamp', 'senderAuth', 'connectionId', 'identity']) {
+      expect(() => world[member], member).toThrow(`audit_snapshot_context:${member}`);
+    }
+    expect(() => { world['sender'] = 'x'; }).toThrow('audit_snapshot_read_only');
+  });
+
+  it('allows every table the audit builds read (compiled runtime, content registry, chunk source)', () => {
+    // Walk the real index.ts from the audit's entry points through every function called with ctx,
+    // and collect ctx.db.<table> reads: each must be one the snapshot copies (else the audit throws).
+    const functions = new Map<string, string>();
+    for (const node of sourceFile.statements) if (ts.isFunctionDeclaration(node) && node.name !== undefined) functions.set(node.name.text, node.getText(sourceFile));
+    const pending = ['compiledLiveIslandRuntime', 'contentRegistry', 'chunkAuthoritySource'], seen = new Set<string>(), tables = new Set<string>();
+    while (pending.length > 0) {
+      const name = pending.pop()!;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const text = functions.get(name);
+      expect(text, name).toBeDefined();
+      for (const [, table] of text!.matchAll(/\bctx\.db\.(\w+)/gu)) tables.add(table!);
+      for (const [, callee] of text!.matchAll(/\b(\w+)\(\s*ctx\b/gu)) if (functions.has(callee!)) pending.push(callee!);
+      // ctx must not escape any other way: only `ctx.db` and passing ctx on to a walked function.
+      expect(text!.match(/\bctx\.(?!db\b)\w+/gu) ?? [], `${name} reads ctx beyond db`).toEqual([]);
+    }
+    expect(seen).toEqual(new Set(['compiledLiveIslandRuntime', 'contentRegistry', 'cachedContentRegistry', 'contentDefinitionRows', 'chunkAuthoritySource']));
+    const allowed = Object.keys(chunkAuthoritySnapshotDb(snapshotChunkAuthorityTables(source().tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: 'live', spaceId: 0n })) as object);
+    expect([...tables].sort()).toEqual(['content_definition', 'content_head', 'live_map_document', 'world_chunk_blob', 'world_chunk_shadow']);
+    for (const table of tables) expect(allowed, table).toContain(table);
+    // The procedure reads world_chunk_head through the same view.
+    expect(allowed).toContain('world_chunk_head');
   });
 });
 

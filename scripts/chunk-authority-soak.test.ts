@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -314,6 +315,15 @@ describe('token files', () => {
     await symlink(await file('target', 'eyJ.token.sig'), link);
     await expect(readTokenFile(link)).rejects.toThrow('token_file_not_regular_file');
     await expect(readTokenFile(await directory)).rejects.toThrow('token_file_not_regular_file');
+    // A FIFO neither blocks the open nor passes as a file.
+    const fifo = join(await directory, 'fifo');
+    execFileSync('mkfifo', ['-m', '600', fifo]);
+    await expect(readTokenFile(fifo)).rejects.toThrow('token_file_not_regular_file');
+    // Checked on the open descriptor, opened without following links.
+    const plumbing = await readFile(new URL('./chunk-authority-live-rows.ts', import.meta.url), 'utf8');
+    expect(plumbing).toContain('O_NOFOLLOW');
+    expect(plumbing).toContain('await handle.stat()');
+    expect(plumbing).not.toMatch(/\blstat\(|\bstat\(path/u);
     const refresh = await file('refresh', JSON.stringify([{ label: 'owner', clientId: 'orchard-web', refreshToken: 'r' }]));
     await expect(readTokenFile(refresh)).rejects.toThrow('token_file_needs_refresh');
   });
