@@ -593,7 +593,9 @@ export function moveItemStacks(
  * ghost preview. Grid cells holding something the recipe doesn't want are first
  * returned to carried storage (owner decision, 2026-09-25); if any of them
  * doesn't fit, the whole operation fails with `container_full` and nothing
- * moves, so the shortcut never drops or overwrites player items. */
+ * moves, so the shortcut never drops or overwrites player items. A stray that
+ * cannot be moved at all fails with its own code (for example
+ * `unknown_item_kind` for an oversize or malformed stack). */
 export function fillCraftingRecipeFromInventory(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   recipeId: string,
@@ -613,7 +615,10 @@ export function fillCraftingRecipeFromInventory(
     const expected = desired[index] ?? null;
     if (current === null || (expected !== null && current.itemKind === expected.itemKind && current.quantity > 0)) continue;
     const returned = quickMoveItemStack(next, { fromContainer: 'crafting', fromIndex: index, toContainers: carried }, content);
-    if (!returned.ok || (returned.containers.crafting?.slots[index] ?? null) !== null) return failure('container_full');
+    // An unmovable stray (oversize, zero quantity, unknown kind) keeps its own
+    // code; `container_full` means only that the pack had too little room.
+    if (!returned.ok) return failure(returned.code);
+    if ((returned.containers.crafting?.slots[index] ?? null) !== null) return failure('container_full');
     next = returned.containers;
   }
   let movedQuantity = 0;
