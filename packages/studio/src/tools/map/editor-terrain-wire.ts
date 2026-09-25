@@ -57,10 +57,9 @@ function copiedTypedArrays(terrain: TerrainArray): Pick<
   };
 }
 
-/** Packs the two million-element JavaScript arrays into transferable bytes.
- * Sending those arrays through structured clone was itself a ~900 ms main
- * thread task, defeating the terrain worker. Sparse overrides receive the
- * same treatment instead of cloning an almost entirely-null array. */
+/** Copies the terrain's typed planes into transferable bytes (the worker keeps
+ * its own). Sparse overrides are sent as entries instead of cloning an almost
+ * entirely-null array. */
 export function encodeMapEditorTerrain(terrain: TerrainArray): {
   readonly wire: MapEditorTerrainWire;
   readonly transfer: ArrayBuffer[];
@@ -75,8 +74,8 @@ export function encodeMapEditorTerrain(terrain: TerrainArray): {
     'blocked' | 'horseJumpableTerrain' | 'terrainOverrides' | 'tilesets'
   >;
   const typed = copiedTypedArrays(terrain);
-  const blocked = Uint8Array.from(terrain.blocked, Number);
-  const horseJumpableTerrain = Uint8Array.from(terrain.horseJumpableTerrain, Number);
+  const blocked = terrain.blocked.slice();
+  const horseJumpableTerrain = terrain.horseJumpableTerrain.slice();
   const terrainOverrides = terrain.terrainOverrides === undefined ? undefined
     : terrain.terrainOverrides.flatMap((value, index) => value === null ? [] : [{ index, value }]);
   const wire: MapEditorTerrainWire = {
@@ -134,11 +133,7 @@ export function encodeMapEditorTerrainDerivatives(
   };
 }
 
-function decodedTerrain(
-  wire: MapEditorTerrainWire,
-  blocked: readonly boolean[],
-  horseJumpableTerrain: readonly boolean[],
-): TerrainArray {
+function decodedTerrain(wire: MapEditorTerrainWire): TerrainArray {
   const terrain = { ...wire };
   Reflect.deleteProperty(terrain, 'blocked');
   Reflect.deleteProperty(terrain, 'horseJumpableTerrain');
@@ -152,8 +147,9 @@ function decodedTerrain(
   }
   const decoded: TerrainArray = {
     ...(terrain as Omit<TerrainArray, 'blocked' | 'horseJumpableTerrain' | 'terrainOverrides'>),
-    blocked,
-    horseJumpableTerrain,
+    // The transferred planes are the terrain's own `Uint8Array` channels.
+    blocked: wire.blocked,
+    horseJumpableTerrain: wire.horseJumpableTerrain,
     ...(expandedOverrides === undefined ? {} : { terrainOverrides: expandedOverrides }),
   };
   primeTerrainElevationRange(decoded, wire.minimumElevation, wire.maximumElevation);
@@ -161,50 +157,26 @@ function decodedTerrain(
 }
 
 export function decodeMapEditorTerrain(wire: MapEditorTerrainWire): TerrainArray {
-  return decodedTerrain(
-    wire,
-    Array.from(wire.blocked, (value) => value !== 0),
-    Array.from(wire.horseJumpableTerrain, (value) => value !== 0),
-  );
+  return decodedTerrain(wire);
 }
 
-export const MAP_EDITOR_TERRAIN_DECODE_CHUNK_SIZE = 32_768;
 export const MAP_EDITOR_TERRAIN_DECODE_CANCELLED = 'studio_map_terrain_decode_cancelled';
 
-/** Expands transferred traversal bytes without monopolising the UI thread.
- * These arrays are required by detailed ground rendering, but a distant map
- * overview does not justify a quarter-second synchronous Array.from. */
+/** Adopts transferred terrain on a later task, so a stale result (a newer
+ * build was requested) is cancelled before it does any UI-thread work. The
+ * traversal planes arrive as `Uint8Array`s and need no expansion. */
 export function decodeMapEditorTerrainAsync(
   wire: MapEditorTerrainWire,
   shouldContinue: () => boolean = () => true,
 ): Promise<TerrainArray> {
-  const blocked = Array<boolean>(wire.blocked.length);
-  const horseJumpableTerrain = Array<boolean>(wire.horseJumpableTerrain.length);
-  let offset = 0;
   return new Promise((resolve, reject) => {
-    const decodeChunk = (): void => {
+    setTimeout(() => {
       if (!shouldContinue()) {
         reject(new Error(MAP_EDITOR_TERRAIN_DECODE_CANCELLED));
         return;
       }
-      const end = Math.min(
-        Math.max(wire.blocked.length, wire.horseJumpableTerrain.length),
-        offset + MAP_EDITOR_TERRAIN_DECODE_CHUNK_SIZE,
-      );
-      for (let index = offset; index < end; index += 1) {
-        if (index < wire.blocked.length) blocked[index] = wire.blocked[index] !== 0;
-        if (index < wire.horseJumpableTerrain.length) {
-          horseJumpableTerrain[index] = wire.horseJumpableTerrain[index] !== 0;
-        }
-      }
-      offset = end;
-      if (offset < Math.max(wire.blocked.length, wire.horseJumpableTerrain.length)) {
-        setTimeout(decodeChunk, 0);
-        return;
-      }
-      resolve(decodedTerrain(wire, blocked, horseJumpableTerrain));
-    };
-    setTimeout(decodeChunk, 0);
+      resolve(decodedTerrain(wire));
+    }, 0);
   });
 }
 

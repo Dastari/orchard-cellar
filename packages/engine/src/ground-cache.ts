@@ -270,7 +270,7 @@ function drawUndugCaveTile(
 
 function cellarOpenAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
   const index = terrainIndexAt(terrain, tileX, tileY);
-  return index >= 0 && terrain.blocked[index] === false;
+  return index >= 0 && terrain.blocked[index] === 0;
 }
 
 function cellarFloorPatchAt(
@@ -949,7 +949,7 @@ export class GroundChunkCache {
           continue;
         }
         if (terrain.rogueTheme !== undefined) {
-          const blocked = terrain.blocked[index] === true;
+          const blocked = (terrain.blocked[index] ?? 0) !== 0;
           const hazardous = terrain.rogueHazards?.[index] === 1;
           const theme = terrain.generator === 'delve_lobby' && !blocked
             ? hearthLobbyFloorTheme(tileY,terrain.hearthLobbyFloorThresholdY)

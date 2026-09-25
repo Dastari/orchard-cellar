@@ -20,7 +20,7 @@ const yieldFrame = () => new Promise<void>((resolve) => { const channel = new Me
 export async function runWorldLightingReview() {
   const art = await loadOverworldArt();
   const terrain: TerrainArray = { spaceId:58,seed:58,version:1,width:32,height:24,
-    biomes:new Uint8Array(768).fill(4),blocked:Array<boolean>(768).fill(false),horseJumpableTerrain:Array<boolean>(768).fill(false),
+    biomes:new Uint8Array(768).fill(4),blocked:new Uint8Array(768),horseJumpableTerrain:new Uint8Array(768),
     elevations:new Int16Array(768),dirtCliffRoles:new Uint8Array(768),dirtTerraces:new Uint8Array(768),baseDatum:0 };
   for(let y=7;y<15;y++) for(let x=12;x<20;x++) terrain.elevations[y*32+x]=1;
   for(let y=8;y<12;y++) for(let x=16;x<19;x++) terrain.elevations[y*32+x]=2;

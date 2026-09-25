@@ -24,7 +24,7 @@ export async function runCelestialShadowReview(inputs: readonly LightingReviewAs
       metadata: { image: input.name, animations: r.animations, variants: r.variants, states: r.states } });
   }
   const terrain = { spaceId: 58, seed: 58, version: 1, width: 20, height: 12,
-    biomes: new Uint8Array(240), blocked: Array<boolean>(240).fill(false), horseJumpableTerrain: Array<boolean>(240).fill(false),
+    biomes: new Uint8Array(240), blocked:new Uint8Array(240), horseJumpableTerrain:new Uint8Array(240),
     elevations: new Int16Array(240), dirtCliffRoles: new Uint8Array(240), dirtTerraces: new Uint8Array(240), projectionStyle: 'interior', baseDatum: 0 } as TerrainArray;
   const mapper = new LightCoordinateMapper(terrain);
   const frames = new ReviewAtlasPages(inputs), tints = new ReceiverFrameCache();

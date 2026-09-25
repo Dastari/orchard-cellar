@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {describe,expect,it} from 'vitest';
 import * as sim from '@orchard/sim';
+import { cellFlags } from '@orchard/sim/cell-flags';
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('./index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 const declaration=source.statements.filter(ts.isVariableStatement).flatMap(node=>node.declarationList.declarations)
   .find(node=>node.name.getText(source)==='editResidenceArchitecture')!;
@@ -17,7 +18,7 @@ function fixture(){
     homesteadForSpace:()=>home,requireFurnitureReach:()=>{},requireArchitectureReach:()=>{},furnitureInResidence:()=>[],
     contentRegistry:()=>registry,
     collisionForSpace:(...args:unknown[])=>{
-      const baseline={width:16,height:16,blocked:Array.from({length:256},(_,i)=>!sim.residencePlayableTile(i%16,Math.floor(i/16)))};
+      const baseline={width:16,height:16,blocked:cellFlags(Array.from({length:256},(_,i)=>!sim.residencePlayableTile(i%16,Math.floor(i/16))))};
       return args[7]===true?baseline:sim.persistedHearthArchitectureCollision(0,baseline,home.residenceArchitectureJson);
     },
     loadPlayerInventory:()=>({rowBySlot:new Map(),containers}),activeItemContainerContent:()=>sim.itemContainerContentResolver(sim.bootstrapContentRegistry()),

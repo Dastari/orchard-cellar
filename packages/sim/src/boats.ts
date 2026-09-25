@@ -25,7 +25,7 @@ export function projectileTraversalCollision(ground: CollisionMap, water: Collis
   if (ground.width !== water.width || ground.height !== water.height) throw new Error('collision_map_size_mismatch');
   return {
     ...ground,
-    blocked: ground.blocked.map((blocked, index) => blocked && (water.blocked[index] ?? true)),
+    blocked: ground.blocked.map((blocked, index) => blocked !== 0 && (water.blocked[index] ?? 1) !== 0 ? 1 : 0),
   };
 }
 

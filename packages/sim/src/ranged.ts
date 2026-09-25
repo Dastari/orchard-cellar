@@ -430,7 +430,7 @@ export function firstProjectileTerrainHit(
     const tileX = Math.floor(x / TILE_SIZE_FIXED);
     const tileY = Math.floor(y / TILE_SIZE_FIXED);
     const index = collisionCellIndex(collision, tileX, tileY);
-    const blocked = index < 0 || collision.blocked[index] === true;
+    const blocked = index < 0 || (collision.blocked[index] ?? 0) !== 0;
     if (blocked) return { kind: 'terrain', id: `${tileX}:${tileY}`, fraction, x, y };
   }
   return null;

@@ -30,6 +30,7 @@ import {
   weatherTimeFractionAtPoint,
   worldPlacementTileIsBlocked,
 } from './survival-ui.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
 
@@ -72,7 +73,7 @@ describe('survival controls', () => {
     const collision = {
       width: 20,
       height: 20,
-      blocked: Array.from({ length: 400 }, (_, index) => index === 10 * 20 + 12),
+      blocked: cellFlags(Array.from({ length: 400 }, (_, index) => index === 10 * 20 + 12)),
       obstacles: [{
         left: 11 * TILE_SIZE_FIXED,
         top: 10 * TILE_SIZE_FIXED,

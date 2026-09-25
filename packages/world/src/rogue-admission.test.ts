@@ -19,7 +19,7 @@ function fixture(){
   type Row=Record<string,unknown>;
   const unit=sim.TILE_SIZE_FIXED,width=24;
   const position={spaceId:42,x:12.5*unit,y:6.5*unit,facing:'up'};
-  const collision:sim.CollisionMap={width,height:width,blocked:Array<boolean>(width*width).fill(false),elevations:new Int16Array(width*width)};
+  const collision:sim.CollisionMap={width,height:width,blocked:new Uint8Array(width*width),elevations:new Int16Array(width*width)};
   let stats={healthCenti:10000,manaCenti:9000,vigourCenti:8000,healthRemainder:1,manaRemainder:2,vigourRemainder:3};
   let survival={hungerCenti:7500,hungerUpdatedTick:0n};
   let charge:Row|null={itemKind:'bow',startedTick:0n,fullChargeCostCenti:2200,minimumSwingTicks:8};
@@ -61,8 +61,8 @@ describe('Delve admission resource boundary',()=>{
     if(kind==='removed')f.removeEntrance();
     if(kind==='remote')f.position.x=2.5*f.unit;
     if(kind==='plane')(f.collision.elevations as Int16Array)[6*24+12]=1;
-    if(kind==='wall')(f.collision.blocked as boolean[])[5*24+12]=true;
-    if(kind==='threshold')(f.collision.blocked as boolean[])[4*24+12]=true;
+    if(kind==='wall')f.collision.blocked[5*24+12] = 1;
+    if(kind==='threshold')f.collision.blocked[4*24+12] = 1;
     expect(f.start).toThrow('descent_entrance_unavailable');
     expect(f.state()).toMatchObject({created:0,teleported:false,advances:0});expect(f.state().charge).not.toBeNull();
   });

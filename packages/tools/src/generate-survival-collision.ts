@@ -40,11 +40,12 @@ const prelude = `import type { CollisionMap } from '@orchard/sim';
 
 type NumericRun = readonly [value: number, length: number];
 
-function decodeBooleans(length: number, runs: readonly NumericRun[]): readonly boolean[] {
-  const values = Array<boolean>(length);
+/** A per-cell flag plane: one byte per cell, 1 where set (CollisionMap.blocked). */
+function decodeBooleans(length: number, runs: readonly NumericRun[]): Uint8Array {
+  const values = new Uint8Array(length);
   let offset = 0;
   for (const [value, runLength] of runs) {
-    values.fill(value !== 0, offset, offset + runLength);
+    values.fill(value !== 0 ? 1 : 0, offset, offset + runLength);
     offset += runLength;
   }
   if (offset !== length) throw new Error('invalid_precomputed_survival_collision');

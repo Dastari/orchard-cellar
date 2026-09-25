@@ -15,11 +15,11 @@ describe('Hearth ferry routes',()=>{
     expect(isHearthFerryDock(network,'__proto__')).toBe(false);
   });
   it('selects the authored arrival or a bounded safe tile on its plane',()=>{
-    const width=832,blocked=Array<boolean>(width*width).fill(false),elevations=new Int16Array(width*width);
+    const width=832,blocked=new Uint8Array(width*width),elevations=new Int16Array(width*width);
     const collision={width,height:width,blocked,elevations};
     const cinderwake=dock('cinderwake'),arrival=cinderwake.arrival;
     expect(hearthFerryLanding(cinderwake,collision,()=>true)).toEqual(arrival);
-    blocked[arrival.tileY*width+arrival.tileX]=true;
+    blocked[arrival.tileY*width+arrival.tileX] = 1;
     const landing=hearthFerryLanding(cinderwake,collision,()=>true);
     expect(landing).not.toBeNull();expect(landing).not.toEqual(arrival);
     expect(Math.abs(landing!.tileX-arrival.tileX)).toBeLessThanOrEqual(2);
@@ -28,7 +28,7 @@ describe('Hearth ferry routes',()=>{
     expect(hearthFerryLanding(cinderwake,collision,()=>false)).toBeNull();
   });
   it('rejects thin offset obstacles between clear bodies on the only dock route',()=>{
-    const width=832,blocked=Array<boolean>(width*width).fill(false);
+    const width=832,blocked=new Uint8Array(width*width);
     const unit=TILE_SIZE_FIXED,pixel=FIXED_UNITS_PER_PIXEL,y=400.5*unit;
     // Cut the only allowed route beyond all radius-two arrival candidates.
     const obstacle={left:207*unit-pixel,right:207*unit+pixel,top:y-11*pixel,bottom:y-7*pixel};
@@ -41,11 +41,11 @@ describe('Hearth ferry routes',()=>{
     expect(hearthFerryLanding(dock('willowharbour'),collision,safe)).toBeNull();
   });
   it('rejects an isolated free pocket even if it is close to the arrival',()=>{
-    const width=832,blocked=Array<boolean>(width*width).fill(true),collision={width,height:width,blocked};
+    const width=832,blocked=new Uint8Array(width*width).fill(1),collision={width,height:width,blocked};
     const {arrival,threshold}=dock('willowharbour');
     // Each pocket is large enough for a body, but no route joins them.
     for(const center of [arrival,threshold])for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)
-      blocked[(center.tileY+dy)*width+center.tileX+dx]=false;
+      blocked[(center.tileY+dy)*width+center.tileX+dx] = 0;
     expect(hearthFerryLanding(dock('willowharbour'),collision,()=>true)).toBeNull();
   });
   it('resolves renamed space and destination ids and fails closed without one active owner',()=>{

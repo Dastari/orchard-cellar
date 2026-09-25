@@ -17,7 +17,7 @@ function reducer(dependencies:Record<string,unknown>,helpers:readonly string[]=[
 }
 function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
   const width=832,unit=sim.TILE_SIZE_FIXED;
-  const collision={width,height:width,blocked:Array<boolean>(width*width).fill(false),elevations:Array<number>(width*width).fill(0)};
+  const collision={width,height:width,blocked:new Uint8Array(width*width),elevations:Array<number>(width*width).fill(0)};
   let policy:sim.CombatRegionPolicy|undefined=new sim.CombatRegionPolicy(sim.HEARTH_COMBAT_REGIONS),ready=true,health=10000;
   const position={spaceId:0,x:408.5*unit,y:317.5*unit,authorityTick:20n};
   const transitions:Record<string,unknown>[]=[];
@@ -35,7 +35,7 @@ describe('authoritative ferry departure',()=>{
   it('settles a held bow and preserves carried containers, full bags and cursor custody through the real teleport helpers',()=>{
     type Row=Record<string,unknown>;
     const unit=sim.TILE_SIZE_FIXED,width=832,registry=sim.bootstrapContentRegistry();
-    const collision={width,height:width,blocked:Array<boolean>(width*width).fill(false)};
+    const collision={width,height:width,blocked:new Uint8Array(width*width)};
     let position:Row={identity:'player',spaceId:0,x:408.5*unit,y:317.5*unit,authorityTick:20n,actionKind:'bow_charge'};
     let stats:Row={healthCenti:10000,vigourCenti:10000};
     let charge:Row|null={itemKind:'bow',startedTick:0n,fullChargeCostCenti:2200,minimumSwingTicks:8};
@@ -103,7 +103,7 @@ describe('authoritative ferry departure',()=>{
     const f=fixture();f.position.y=316.5*f.unit;f.collision.elevations[316*832+408]=1;
     expect(()=>f.travel(f.ctx,{fromDock:'orchard',toDock:'willowharbour'})).toThrow('ferry_out_of_reach');
     f.position.y=317.5*f.unit;
-    for(let y=397;y<=403;y++)for(let x=201;x<=207;x++)f.collision.blocked[y*832+x]=true;
+    for(let y=397;y<=403;y++)for(let x=201;x<=207;x++)f.collision.blocked[y*832+x] = 1;
     expect(()=>f.travel(f.ctx,{fromDock:'orchard',toDock:'willowharbour'})).toThrow('ferry_landing_blocked');
     expect(f.transitions).toHaveLength(0);
   });

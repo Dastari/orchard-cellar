@@ -15,6 +15,7 @@ export * from './economy.js';
 export * from './economy-state.js';
 export * from './rng.js';
 export * from './state.js';
+export * from './cell-flags.js';
 export * from './tick.js';
 export * from './time.js';
 export * from './weather.js';

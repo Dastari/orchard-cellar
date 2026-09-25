@@ -217,7 +217,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // whole-map collision digests cover it; the other four seams are unchanged.
 // BUG-037 follow-up: a refused recipe placement falls back to the last authority-confirmed pattern (request
 // sequence), and the legacy row click shares that path. Inventory-menus and overworld-ui tests cover it.
-const STRUCTURAL_SEAM_DIGEST = '248baa05324f85cb14bedc9db61e6b4af5995f7db9e7f90689fc558253a93574';
+// Uint8Array flag planes (S4f follow-up) store engine/collision.ts's blocked planes as 0/1 bytes instead
+// of boolean[] (cellar boundary, water, dock correction; built with cellFlagsWhere). The pinned whole-map collision digests cover
+// it (the same bytes); the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '2ac40397af48173a257a2b6976c312578a682b16a69fb62434f6bc99d8936574';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

@@ -32,7 +32,7 @@ describe('room-based roguelike generation', () => {
   it('creates deterministic layouts with safe player and enemy spawns', () => {
     const first = generateRogueRoomLayout(42, 5, 'combat');
     expect(generateRogueRoomLayout(42, 5, 'combat')).toEqual(first);
-    expect(first.blocked[first.playerSpawn.tileY * first.width + first.playerSpawn.tileX]).toBe(false);
+    expect(first.blocked[first.playerSpawn.tileY * first.width + first.playerSpawn.tileX]).toBe(0);
     expect(first.enemySpawns.length).toBeGreaterThanOrEqual(5);
     expect(first.enemySpawns.every((spawn) => !first.blocked[spawn.tileY * first.width + spawn.tileX])).toBe(true);
   });
@@ -43,7 +43,7 @@ describe('room-based roguelike generation', () => {
     for (const tileX of [15, 16]) {
       expect(layout.elevations[16 * layout.width + tileX]).toBe(0);
       expect(layout.elevations[15 * layout.width + tileX]).toBe(1);
-      expect(layout.blocked[15 * layout.width + tileX]).toBe(false);
+      expect(layout.blocked[15 * layout.width + tileX]).toBe(0);
       expect(terrainWalkingStepAllowed(
         layout.elevations,
         layout.width,
@@ -67,7 +67,7 @@ describe('room-based roguelike generation', () => {
           expect(
             layout.blocked[(obstacle.tileY + dy) * layout.width + obstacle.tileX + dx],
             `${layout.id} has a thin obstacle at ${obstacle.tileX},${obstacle.tileY}`,
-          ).toBe(true);
+          ).toBe(1);
         }
       }
     }

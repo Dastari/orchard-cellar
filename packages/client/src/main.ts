@@ -1,4 +1,5 @@
 import { initializeLoadingScreen, setLoadingScreenStage } from '@orchard/engine/loading-screen';
+import { clearGatewayHandoff } from '@orchard/engine/gateway-handoff';
 import {
   installGameShellGestureGuards,
   installStandaloneHistoryGuard,
@@ -14,7 +15,8 @@ if (!popupCallbackRelayed) {
   setLoadingScreenStage({
     title: 'OPENING THE ORCHARD', detail: 'CHECKING YOUR ACCOUNT', progress: 12,
   });
-  await initializeLoadingScreen();
+  // A failed boot must not leave the previous page's handoff frame up under the error.
+  await initializeLoadingScreen().catch((error: unknown) => { clearGatewayHandoff(); throw error; });
   const gameShell = document.querySelector<HTMLElement>('#game-shell');
   if (gameShell !== null) installGameShellGestureGuards(gameShell);
   installStandaloneHistoryGuard();
@@ -103,6 +105,7 @@ try {
   await launchClient();
 } catch (error: unknown) {
   clientErrorReporter.capture('error', error);
+  clearGatewayHandoff();
   setLoadingScreenStage({
     title: 'SOMETHING WENT ASTRAY',
     detail: 'REFRESH THE PAGE TO TRY THE JOURNEY AGAIN',

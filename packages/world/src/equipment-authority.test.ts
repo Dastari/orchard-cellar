@@ -80,7 +80,7 @@ function fixture() {
     ...sim,settleMovementRun,queueMovementAcknowledgement,toolSpendResult,sprintIntentSuppressesVigourRegen,nextActionStartedTick,itemDropPosition,SenderError:Error,requireAuthorizedSender:()=>{},ensurePlayerStats:()=>stats.identity.find(),
     activePlayerModifiers:modifiers,contentRegistry:sim.bootstrapContentRegistry,
     activeCharacterCombatBalance:()=>sim.runtimeCharacterCombatBalance(sim.bootstrapContentRegistry()),playerSkillRanks:()=>({}),
-    collisionForSpace:()=>({width:32,height:32,blocked:Array(1024).fill(false),elevations:Array(1024).fill(0)}),
+    collisionForSpace:()=>({width:32,height:32,blocked:new Uint8Array(1024),elevations:Array(1024).fill(0)}),
     inputIsStale:()=>state.stale,mountedNpcFor:()=>state.mounted?{}:null,cancelFishingCastFor:()=>{},
     loadPlayerInventory:()=>({containers:containers()}),storedLit:(_kind:string,lit:boolean)=>lit,
     handsOccupiedFor:()=>false,requireUsableTool:()=>{},spendPlayerHunger:()=>{},recordPlayerStatistic:()=>{},
@@ -197,7 +197,7 @@ describe('committed Delve attacks through production authority',()=>{
     const commitment=sim.commitEnemyAttack(pattern,100n,100n,npc,{x:unit*3,y:unit*3},unit*6);
     f.ctx.db.enemy_attack.insert({...commitment,npcId:1n,targetIdentity:f.ctx.sender,lastProcessedTick:100n,
       elevation:0,damageCenti:1000,hitIdentities:[],spaceId:0,chunkX:0,chunkY:0});
-    const collision={width:32,height:32,blocked:Array(1024).fill(false),elevations:Array(1024).fill(0),
+    const collision={width:32,height:32,blocked:new Uint8Array(1024),elevations:Array(1024).fill(0),
       obstacles:[] as {left:number;right:number;top:number;bottom:number}[]};
     const step=(tick:bigint)=>{
       f.clock.authorityTick=tick;
@@ -228,7 +228,7 @@ describe('committed Delve attacks through production authority',()=>{
   it.each(['sidestep','wall','elevation','stale'] as const)('does not hit after %s invalidates a commitment',mode=>{
     const f=setup('pulse');const initial=f.stats.identity.find()!.healthCenti;
     if(mode==='sidestep')f.position.identity.update({...f.position.identity.find()!,y:sim.TILE_SIZE_FIXED*5});
-    if(mode==='wall')f.collision.blocked[3*32+3]=true;
+    if(mode==='wall')f.collision.blocked[3*32+3] = 1;
     if(mode==='elevation')f.collision.elevations[3*32+3]=1;
     if(mode==='stale')f.step(114n);
     else for(let tick=101n;tick<=114n;tick++)f.step(tick);
@@ -239,7 +239,7 @@ describe('committed Delve attacks through production authority',()=>{
 
 
 describe('authoritative player defenses',()=>{
-  const collision={width:32,height:32,blocked:Array(1024).fill(false),elevations:Array(1024).fill(0),
+  const collision={width:32,height:32,blocked:new Uint8Array(1024),elevations:Array(1024).fill(0),
     obstacles:[] as {left:number;right:number;top:number;bottom:number}[]};
   function request(f:ReturnType<typeof fixture>, action:string,sequence=1n,aimX=1,aimY=0) {
     f.api.combatDefense(f.ctx,{action,sequence,aimX,aimY});

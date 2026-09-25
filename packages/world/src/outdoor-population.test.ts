@@ -36,7 +36,7 @@ function table(primary:string){
     by_target:{filter:(id:Identity)=>[...rows.values()].filter(row=>(row.targetIdentity as Identity).isEqual(id))}};
 }
 function fixture(actualAttacks=false,boundedCollision=false){
-  const unit=sim.TILE_SIZE_FIXED,width=832,blocked=Array<boolean>(width*width).fill(false),elevations=Array<number>(width*width).fill(0);
+  const unit=sim.TILE_SIZE_FIXED,width=832,blocked=new Uint8Array(width*width),elevations=Array<number>(width*width).fill(0);
   for(const camp of sim.HEARTH_ENCOUNTERS)for(let y=camp.tileY-camp.radiusTiles-3;y<=camp.tileY+camp.radiusTiles+3;y++)
     for(let x=camp.tileX-camp.radiusTiles-3;x<=camp.tileX+camp.radiusTiles+3;x++)elevations[y*width+x]=camp.elevation;
   const collision={width,height:width,blocked,elevations,obstacles:[]};
@@ -154,14 +154,14 @@ describe('outdoor population authority',()=>{
   });
   it('does not immediately leash an old idle pack on its first obstructed approach',()=>{
     const f=fixture();f.spawn();
-    for(let y=200;y<=208;y++)for(const x of [677,679])f.collision.blocked[y*832+x]=true;
+    for(let y=200;y<=208;y++)for(const x of [677,679])f.collision.blocked[y*832+x] = 1;
     f.tick(1000n,[{...f.player,x:678.5*f.unit,y:203.5*f.unit}]);
     expect(f.camp().phase).toBe('active');expect(f.camp().activated).toBe(false);
     expect(f.db.enemy_attack.rows.size).toBe(0);
   });
   it('returns around a wall using a bounded route that temporarily moves away from home',()=>{
     const f=fixture();f.spawn();const definition=sim.HEARTH_ENCOUNTERS[0]!;
-    for(let y=200;y<=207;y++)f.collision.blocked[y*832+677]=true;
+    for(let y=200;y<=207;y++)f.collision.blocked[y*832+677] = 1;
     let npc={id:8_900_000_000_000n,x:678.5*f.unit,y:206.5*f.unit,homeX:676.5*f.unit,homeY:203.5*f.unit};
     let detoured=false;
     for(let step=0;step<64&&(npc.x!==npc.homeX||npc.y!==npc.homeY);step++){
@@ -202,9 +202,9 @@ describe('outdoor population authority',()=>{
     // Block the first active movement, then remove the obstruction: recovery
     // must remain committed even though movement becomes possible next tick.
     const tile=Math.floor(Number(npc.y)/f.unit)*832+Math.floor(Number(npc.x)/f.unit);
-    f.collision.blocked[tile]=true;
+    f.collision.blocked[tile] = 1;
     f.api.stepCommittedRogueAttack(f.ctx,npc,attack,112n,f.collision,{players:[target],policy:f.policy(),definition});
-    f.collision.blocked[tile]=false;
+    f.collision.blocked[tile] = 0;
     expect(f.db.enemy_attack.npcId.find(npc.id)).toMatchObject({tellTicks:0,activeTicks:0,startedTick:112n});
     expect(f.db.outdoor_enemy_profile.npcId.find(npc.id)?.nextAttackTick).toBe(204n);
     for(let tick=113n;tick<124n;tick++){

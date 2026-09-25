@@ -5,7 +5,7 @@ import type { TerrainArray } from './terrain.js';
 
 it('blocks both workbench tiles and removes both obstacles while carried', () => {
   const terrain: TerrainArray = { spaceId: 10, seed: 1, version: 1, width: 20, height: 20,
-    blocked: new Array<boolean>(400).fill(false), horseJumpableTerrain: new Array<boolean>(400).fill(false),
+    blocked: new Uint8Array(400), horseJumpableTerrain: new Uint8Array(400),
     biomes: new Uint8Array(400).fill(1), elevations: new Int16Array(400),
     dirtCliffRoles: new Uint8Array(400), dirtTerraces: new Uint8Array(400) };
   const prepared = { width: 20, height: 20, blocked: terrain.blocked };

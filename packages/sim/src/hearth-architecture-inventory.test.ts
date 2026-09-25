@@ -3,6 +3,7 @@ import {residencePlayableTile} from './spaces.js';
 import {planHearthArchitectureInventory,planHearthConstructionTransaction} from './hearth-architecture-inventory.js';
 import {type ContainerSnapshot,type ItemContainerContentResolver} from './item-containers.js';
 import {bootstrapContentRegistry} from './content/bootstrap-registry.js';
+import { cellFlags } from './cell-flags.js';
 const content:ItemContainerContentResolver={maxStackFor:item=>['wood','stone','copper_piece'].includes(item)?10:null,hasTag:()=>false};
 const materialKinds=new Set(['wood','stone','copper_piece']),registry=bootstrapContentRegistry();
 function bags():Record<string,ContainerSnapshot>{return {
@@ -50,7 +51,7 @@ describe('construction inventory planning',()=>{
 
   it('returns construction and inventory together or rejects the whole decision',()=>{
     const context={canBuild:true,existing:[],occupants:[],collision:{width:16,height:16,
-      blocked:Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16)))}};
+      blocked:cellFlags(Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16))))}};
     const state={recipeVersion:1 as const,revision:0n,cells:[]};
     const edits=[{tileX:6,tileY:8,replacement:{tileX:6,tileY:8,floor:'rustic' as const}}];
     const built=planHearthConstructionTransaction(registry,{rank:0,state,expectedRevision:0n,edits,context},bags(),content);
@@ -67,7 +68,7 @@ describe('construction inventory planning',()=>{
 
   it('rejects an unavailable authored recipe before exposing inventory or state changes',()=>{
     const context={canBuild:true,existing:[],occupants:[],collision:{width:16,height:16,
-      blocked:Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16)))}},input=bags();
+      blocked:cellFlags(Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16))))}},input=bags();
     const before=JSON.stringify(input),missing={...registry,balances:new Map()};
     expect(planHearthConstructionTransaction(missing,{rank:0,state:{recipeVersion:1,revision:0n,cells:[]},expectedRevision:0n,
       edits:[{tileX:6,tileY:8,replacement:{tileX:6,tileY:8,floor:'rustic'}}],context},input,content))

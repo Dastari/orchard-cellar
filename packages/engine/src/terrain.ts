@@ -23,6 +23,7 @@ import {
   type ContentRegistry,
   type SpaceDefinition,
 } from "@orchard/sim";
+import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import {
   spaceTerrain,
   type SpaceTerrainClassification,
@@ -68,7 +69,7 @@ function islandTerrainClassification(space: SpaceDefinition, seed: number): Spac
     width: SURVIVAL_WORLD_SIZE,
     height: SURVIVAL_WORLD_SIZE,
     biomes,
-    blocked: Array.from(biomes, (_biome, index) =>
+    blocked: cellFlagsWhere(biomes.length, (index) =>
       survivalTerrainBlocksTraversalAt(
         seed,
         index % SURVIVAL_WORLD_SIZE,
@@ -76,8 +77,8 @@ function islandTerrainClassification(space: SpaceDefinition, seed: number): Spac
         "ground",
       ),
     ),
-    horseJumpableTerrain: Array.from(biomes, (biome) =>
-      survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? "water"),
+    horseJumpableTerrain: cellFlagsWhere(biomes.length, (index) =>
+      survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biomes[index]!] ?? "water"),
     ),
     elevations,
     terrainTransitions: survivalTerrainTransitions(seed),
