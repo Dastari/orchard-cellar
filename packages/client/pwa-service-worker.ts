@@ -7,7 +7,7 @@ const STATIC_PATH_PREFIXES = ['/assets/', '/generated/', '/pwa/', '/ui/'];
  * even while package.json remains on the same development version. */
 export function createPwaServiceWorker(buildId: string): string {
   return `const CACHE_NAME = ${JSON.stringify(`orchard-${buildId}`)};
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/icons/apple-192.png', '/pwa/icons/apple-512.png', '/ui/island-background.png', '/gateway-handoff-boot.js'];
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/icons/apple-192.png', '/pwa/icons/apple-512.png', '/ui/island-background.png'];
 const STATIC_PATH_PREFIXES = ${JSON.stringify(STATIC_PATH_PREFIXES)};
 ${IMMUTABLE_ASSET_CACHE_SOURCE}
 

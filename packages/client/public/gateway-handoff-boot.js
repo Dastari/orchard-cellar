@@ -3,6 +3,8 @@
 // (Vite merges module entries into one). It consumes the snapshot saved by
 // @orchard/engine/gateway-handoff and paints it onto #game unless the loading screen
 // has already started. Any failure silently leaves today's backdrop.
+// Contract between builds: the key and attribute names match the GATEWAY_* exports of
+// @orchard/engine/gateway-handoff (checked by gateway-handoff-boot.test.ts).
 /* global window, document, Image */
 (function paintGatewayHandoff() {
   'use strict';
@@ -10,6 +12,7 @@
   var MAX_AGE_MS = 15000;
   var DATA_PATTERN = /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
   var FRAME_STARTED = 'data-gateway-frame';
+  var PAINTED_ATTRIBUTE = 'data-gateway-handoff';
   var raw;
   try {
     raw = window.sessionStorage.getItem(KEY);
@@ -48,7 +51,7 @@
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.imageSmoothingEnabled = true;
       context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
-      canvas.setAttribute('data-gateway-handoff', 'painted');
+      canvas.setAttribute(PAINTED_ATTRIBUTE, 'painted');
     } catch { /* keep the backdrop */ }
   };
   image.src = handoff.data;

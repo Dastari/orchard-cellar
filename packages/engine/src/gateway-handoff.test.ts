@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  GATEWAY_HANDOFF_KEY, GATEWAY_HANDOFF_MAX_CHARS, clearGatewayHandoff, encodeGatewayHandoff, gatewayFrameStarted,
-  gatewayHandoffSize, markGatewayFrameStarted, saveGatewayHandoff,
+  GATEWAY_FRAME_STARTED_ATTRIBUTE, GATEWAY_HANDOFF_KEY, GATEWAY_HANDOFF_MAX_CHARS, GATEWAY_HANDOFF_PAINTED, GATEWAY_HANDOFF_PAINTED_ATTRIBUTE,
+  clearGatewayHandoff, encodeGatewayHandoff, gatewayHandoffSize, markGatewayFrameStarted, saveGatewayHandoff,
 } from './gateway-handoff.js';
 
 const WEBP = 'data:image/webp;base64,UklGRg==';
@@ -52,19 +52,42 @@ describe('gateway handoff save (owner UI item 5)', () => {
     expect(() => saveGatewayHandoff(source, undefined)).not.toThrow();
   });
 
-  it('marks the frame as started on the document and clears only a painted handoff', () => {
-    const attributes = new Map<string, string>();
-    vi.stubGlobal('document', { documentElement: { setAttribute: (k: string, v: string) => attributes.set(k, v), hasAttribute: (k: string) => attributes.has(k) } });
-    expect(gatewayFrameStarted()).toBe(false);
-    markGatewayFrameStarted();
-    expect(gatewayFrameStarted()).toBe(true);
+  function page(painted: boolean) {
+    const html = new Map<string, string>(), game = new Map<string, string>(painted ? [[GATEWAY_HANDOFF_PAINTED_ATTRIBUTE, GATEWAY_HANDOFF_PAINTED]] : []);
+    const clearRect = vi.fn();
+    const canvas = { width: 10, height: 5, getAttribute: (k: string) => game.get(k) ?? null, removeAttribute: (k: string) => game.delete(k),
+      getContext: () => ({ clearRect }) } as unknown as HTMLCanvasElement;
+    vi.stubGlobal('document', { documentElement: { setAttribute: (k: string, v: string) => html.set(k, v) }, querySelector: (s: string) => s === '#game' ? canvas : null });
+    return { html, game, canvas, clearRect };
+  }
 
-    const clearRect = vi.fn(), canvasAttributes = new Map<string, string>([['data-gateway-handoff', 'painted']]);
-    const canvas = { width: 10, height: 5, getAttribute: (k: string) => canvasAttributes.get(k) ?? null,
-      removeAttribute: (k: string) => canvasAttributes.delete(k), getContext: () => ({ clearRect }) } as unknown as HTMLCanvasElement;
+  it('marks the frame as started and drops the painted marker when the loading screen takes over', () => {
+    const { html, game } = page(true);
+    markGatewayFrameStarted();
+    expect(html.get(GATEWAY_FRAME_STARTED_ATTRIBUTE)).toBe('started');
+    expect(game.has(GATEWAY_HANDOFF_PAINTED_ATTRIBUTE)).toBe(false);
+  });
+
+  it('clears a snapshot still on screen when boot fails', () => {
+    const { html, game, canvas, clearRect } = page(true);
     clearGatewayHandoff(canvas);
     expect(clearRect).toHaveBeenCalledExactlyOnceWith(0, 0, 10, 5);
+    expect(game.has(GATEWAY_HANDOFF_PAINTED_ATTRIBUTE)).toBe(false);
+    expect(html.get(GATEWAY_FRAME_STARTED_ATTRIBUTE)).toBe('started');
+  });
+
+  it('never wipes a real frame: after the loading screen took over, clearing does nothing', () => {
+    const { canvas, clearRect } = page(true);
+    markGatewayFrameStarted();
     clearGatewayHandoff(canvas);
-    expect(clearRect).toHaveBeenCalledOnce();
+    expect(clearRect).not.toHaveBeenCalled();
+  });
+
+  it('stops a snapshot that is still decoding from painting after a boot failure', () => {
+    const { html, canvas, clearRect } = page(false);
+    clearGatewayHandoff(canvas);
+    expect(clearRect).not.toHaveBeenCalled();
+    // The boot script checks this flag in its onload before painting.
+    expect(html.get(GATEWAY_FRAME_STARTED_ATTRIBUTE)).toBe('started');
   });
 });

@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  GATEWAY_HANDOFF_DATA_PATTERN, GATEWAY_HANDOFF_KEY, GATEWAY_HANDOFF_MAX_AGE_MS,
+  GATEWAY_FRAME_STARTED_ATTRIBUTE, GATEWAY_HANDOFF_DATA_PATTERN, GATEWAY_HANDOFF_KEY, GATEWAY_HANDOFF_MAX_AGE_MS,
+  GATEWAY_HANDOFF_PAINTED, GATEWAY_HANDOFF_PAINTED_ATTRIBUTE,
 } from '@orchard/engine/gateway-handoff';
 
 // Owner UI fix item 5: the classic boot script in public/ runs the real file here.
 const script = readFileSync(new URL('../public/gateway-handoff-boot.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const serviceWorker = readFileSync(new URL('../pwa-service-worker.ts', import.meta.url), 'utf8');
 const WEBP = 'data:image/webp;base64,UklGRg==';
 
 function run(options: { stored?: string | null; frameStarted?: boolean; image?: { width: number; height: number }; viewport?: { width: number; height: number }; now?: number } = {}) {
@@ -20,11 +20,11 @@ function run(options: { stored?: string | null; frameStarted?: boolean; image?: 
   const images: { onload?: () => void; src?: string; naturalWidth: number; naturalHeight: number }[] = [];
   class FakeImage { onload?: () => void; src?: string; naturalWidth = options.image?.width ?? 1280; naturalHeight = options.image?.height ?? 720; constructor() { images.push(this); } }
   const window = { sessionStorage: { getItem: (k: string) => values.get(k) ?? null, removeItem: (k: string) => values.delete(k) }, innerWidth: 1, innerHeight: 1, devicePixelRatio: 1.5 };
-  const document = { getElementById: (id: string) => id === 'game' ? canvas : null, documentElement: { hasAttribute: () => options.frameStarted === true } };
+  const document = { getElementById: (id: string) => id === 'game' ? canvas : null, documentElement: { hasAttribute: (name: string) => name === GATEWAY_FRAME_STARTED_ATTRIBUTE && options.frameStarted === true } };
   const DateStub = { now: () => options.now ?? 2_000 };
   new Function('window', 'document', 'Image', 'Date', script)(window, document, FakeImage, DateStub);
   images[0]?.onload?.();
-  return { values, drawImage, canvas, images, painted: canvasAttributes.get('data-gateway-handoff') === 'painted' };
+  return { values, drawImage, canvas, images, painted: canvasAttributes.get(GATEWAY_HANDOFF_PAINTED_ATTRIBUTE) === GATEWAY_HANDOFF_PAINTED };
 }
 
 describe('gateway handoff boot script', () => {
@@ -63,12 +63,14 @@ describe('gateway handoff boot script', () => {
     expect(script).toContain(`'${GATEWAY_HANDOFF_KEY}'`);
     expect(script).toContain(`MAX_AGE_MS = ${GATEWAY_HANDOFF_MAX_AGE_MS}`);
     expect(script).toContain(GATEWAY_HANDOFF_DATA_PATTERN.source);
+    expect(script).toContain(`'${GATEWAY_FRAME_STARTED_ATTRIBUTE}'`);
+    expect(script).toContain(`'${GATEWAY_HANDOFF_PAINTED_ATTRIBUTE}'`);
+    expect(script).toContain(`'${GATEWAY_HANDOFF_PAINTED}'`);
   });
 
-  it('loads as a classic script before the game bundle and is cached with the app shell', () => {
+  it('loads as a classic script right after the canvas, before the game bundle', () => {
     const boot = html.indexOf('<script src="/gateway-handoff-boot.js"></script>');
     expect(boot).toBeGreaterThan(html.indexOf('<canvas id="game"'));
     expect(boot).toBeLessThan(html.indexOf('<script type="module" src="/src/main.ts">'));
-    expect(serviceWorker).toContain("'/gateway-handoff-boot.js'");
   });
 });

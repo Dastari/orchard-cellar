@@ -11,7 +11,14 @@
  * snapshot) silently falls back to the island. The Keycloak hop never hands off.
  */
 
+// Contract between builds: the saving page and the next page's boot script
+// (public/gateway-handoff-boot.js) must agree on this key and these attribute names.
 export const GATEWAY_HANDOFF_KEY = 'orchard.gateway-handoff';
+/** Set on <html> once the loading screen or gateway owns the canvas; the boot script then never paints. */
+export const GATEWAY_FRAME_STARTED_ATTRIBUTE = 'data-gateway-frame';
+/** Set on #game by the boot script while the handoff snapshot is what's on screen. */
+export const GATEWAY_HANDOFF_PAINTED_ATTRIBUTE = 'data-gateway-handoff';
+export const GATEWAY_HANDOFF_PAINTED = 'painted';
 export const GATEWAY_HANDOFF_MAX_AGE_MS = 15_000;
 export const GATEWAY_HANDOFF_MAX_EDGE = 1280;
 /** sessionStorage is shared with the OIDC session, so an oversized snapshot is skipped. */
@@ -22,16 +29,14 @@ export const GATEWAY_HANDOFF_DATA_PATTERN = /^data:image\/(webp|jpeg);base64,[A-
 type HandoffStorage = Pick<Storage, 'setItem'>;
 type SnapshotCanvas = Pick<HTMLCanvasElement, 'width' | 'height' | 'toDataURL' | 'getContext'>;
 
-/** A DOM flag, so the boot script need not load the game bundle to know. */
-const FRAME_STARTED_ATTRIBUTE = 'data-gateway-frame';
-
-/** Called once the loading screen or gateway takes over the canvas. */
+/**
+ * Called once the loading screen or gateway takes over the canvas. Stops any late
+ * boot-script paint and drops the "painted" marker, so the canvas now holds a real frame.
+ */
 export function markGatewayFrameStarted(): void {
-  globalThis.document?.documentElement?.setAttribute(FRAME_STARTED_ATTRIBUTE, 'started');
-}
-
-export function gatewayFrameStarted(): boolean {
-  return globalThis.document?.documentElement?.hasAttribute(FRAME_STARTED_ATTRIBUTE) ?? true;
+  const document = globalThis.document;
+  document?.documentElement?.setAttribute(GATEWAY_FRAME_STARTED_ATTRIBUTE, 'started');
+  document?.querySelector?.('#game')?.removeAttribute?.(GATEWAY_HANDOFF_PAINTED_ATTRIBUTE);
 }
 
 /** Snapshot size: the canvas scaled down so its long edge is at most `maxEdge`. */
@@ -73,11 +78,17 @@ export function saveGatewayHandoff(
   } catch { /* quota, tainted canvas or no DOM: keep today's behaviour */ }
 }
 
-/** Boot failed before a real frame: don't leave the previous page's frame up under the error. */
+/**
+ * Boot failed: don't leave the previous page's frame up under the error. Marks the
+ * frame as started first, so a snapshot still decoding can't paint afterwards, and
+ * only clears a canvas that still shows the snapshot (never a real frame).
+ */
 export function clearGatewayHandoff(canvas: HTMLCanvasElement | null = globalThis.document?.querySelector('#game') ?? null): void {
   try {
-    if (canvas?.getAttribute('data-gateway-handoff') !== 'painted') return;
-    canvas.removeAttribute('data-gateway-handoff');
+    const showingSnapshot = canvas?.getAttribute(GATEWAY_HANDOFF_PAINTED_ATTRIBUTE) === GATEWAY_HANDOFF_PAINTED;
+    markGatewayFrameStarted();
+    if (!showingSnapshot || canvas === null) return;
+    canvas.removeAttribute(GATEWAY_HANDOFF_PAINTED_ATTRIBUTE);
     canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   } catch { /* nothing to clear */ }
 }
