@@ -2,6 +2,24 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.47.0 / UI 0.45.0 / Sim 0.32.1 / World 0.26.9 / Studio 0.16.8 — One slot look, caps in game windows, recipe placement clears the grid
+
+The owner approved each change (wiki Roadmap/Game UI Redesign, "Owner decisions, 2026-09-25"). BoldBridge wrote the PRs, and SilverSquirrel finished them after review.
+
+- **One item-slot look everywhere (#188, owner items 9, 6 and 7).**
+  - **Slots:** every slot is drawn by the same kit slot as the HUD hotbar: a 16 px icon well, the stack count in dark ink with a light halo, a 3 px wear bar and hotkeys. Icons are no longer faded or over-scaled.
+  - **Tooltip:** the inventory tooltip sits centred above the hovered slot. Details that don't fit above open below it, and never overlap the slot.
+  - **Wear bars:** they use the live content registry, so published and Studio items get correct bars in the hotbar, character equipment and inventory menus.
+- **Caps font in game windows and books (#189, owner item 10).**
+  - **In caps:** labels, buttons, tabs and list rows inside game windows and books.
+  - **As written:** dialogue (NPC text and the player's numbered replies) and wrapped paragraphs (hints, status, errors, tips). Search placeholders stay as rendered.
+  - **Studio:** unchanged.
+- **"Place in grid" clears the grid (#190, owner decision on the BUG-037 follow-up).**
+  - **The rule:** placing a recipe moves grid items the recipe doesn't use back to the hotbar and backpack (merging first, then empty slots), in the same transaction. If they don't all fit, nothing moves, and the message is "NO ROOM TO CLEAR THE CRAFTING GRID". Cells already holding the right item are kept and topped up.
+  - **Other fixes:** a crafting mismatch reads "THE GRID DOESN'T MATCH THE RECIPE". Only the latest placement can roll back the selection, and closing or dismissing the window retires in-flight placements.
+  - **Tests:** a seeded 2,000-case property test checks that no items are duplicated or lost.
+- Workspace 0.61.0.
+
 ## Client 0.46.1 / Engine 0.29.1 / Sim 0.32.0 / World 0.26.8 — Compact chunk obstacle tables (BUG-044); ships S7a
 
 No gameplay, schema or content change. The chunk runtime stays `off`, and no chunk heads are published.
