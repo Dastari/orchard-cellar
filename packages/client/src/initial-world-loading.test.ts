@@ -35,7 +35,8 @@ function fixture() {
     renderStarted: performance.now(), renderMetrics: { record: vi.fn(), recordRenderSubmit: vi.fn() },
     // Static world S4f: terrain readiness (always ready outside chunk mode `on`).
     spawnReadiness: { status: () => ({ ready: true }) as { ready: boolean } }, WORLD_GAP_GRACE_MS, TOPSIDE_SPACE_ID: 0, TILE_SIZE_FIXED: 256,
-    localAuthority: undefined as { spaceId: number; x: number; y: number } | undefined, worldSource: { setView: vi.fn() },
+    localAuthority: undefined as { spaceId: number; x: number; y: number } | undefined, worldSource: { setView: vi.fn(), advance: vi.fn(), window: vi.fn() },
+    snapshot: { content: { registry: {} } },
   };
   return { deps, render: () => new Function(...Object.keys(deps), code)(...Object.values(deps)) };
 }
@@ -116,6 +117,9 @@ describe('initial world loading versus reconnection', () => {
     f.deps.localAuthority = { spaceId: 0, x: 300 * 256 + 5, y: 410 * 256 };
     f.render();
     expect(f.deps.worldSource.setView).toHaveBeenCalledWith({ minX: 300, minY: 410, maxX: 300, maxY: 410 });
+    // The served window keeps catching up with arrived chunks while nothing is drawn.
+    expect(f.deps.worldSource.advance).toHaveBeenCalledWith(f.deps.snapshot.content.registry);
+    expect(f.deps.worldSource.window).toHaveBeenCalledWith(f.deps.snapshot.content.registry);
     expect(f.deps.renderer.compositeWorld).toHaveBeenCalledOnce();
     expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();
     f.deps.worldGapStartedAt = f.deps.renderStarted - 300; f.render();

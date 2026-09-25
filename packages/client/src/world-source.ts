@@ -34,6 +34,8 @@ export interface WorldSourceDependencies {
   readonly prewarm?: readonly WorldSourcePrewarmStep[];
   /** Milliseconds, for the staging diagnostics (performance.now by default). */
   readonly now?: () => number;
+  /** `cx:cy` of serving-store chunks whose load failed: a window never waits for them. */
+  readonly failedChunks?: () => ReadonlySet<string> | undefined;
 }
 
 /** A window about to be served, handed to each prewarm step. */
@@ -152,6 +154,9 @@ interface PendingWindow {
 
 /** Frames a staged rebuild for late chunks waits for more of them to arrive. */
 export const CHUNK_ARRIVAL_COALESCE_FRAMES = 6;
+/** Frames a window prepared ahead of the view waits for its chunks before building with
+ * what is resident (the rest then arrive as late chunks). */
+export const CHUNK_LOOKAHEAD_WAIT_FRAMES = 120;
 
 export class WorldSource {
   readonly #tracker = new ChunkTerrainWindowTracker();
@@ -354,7 +359,12 @@ export class WorldSource {
     const moved = served !== undefined && served.manifest === store.manifest && chunkWindowKey(served.rect) !== chunkWindowKey(rect);
     // Once the client advances every frame, late chunks rebuild through a staged pending
     // window (advance) rather than synchronously here.
-    const window = this.#tracker.update(store, rect, tilesets, { deferArrivals: this.#frame > 0 });
+    // Deferred only while the pending slot is free or already holds that rebuild: a window
+    // prepared ahead of the view may wait on its own chunks, and must never hold back
+    // chunks the served window is missing (they then rebuild it at once, as before S4f).
+    const pending = this.#pending;
+    const window = this.#tracker.update(store, rect, tilesets,
+      { deferArrivals: this.#frame > 0 && (pending === undefined || (pending.arrival && pending.key === chunkWindowKey(rect))) });
     if (moved) this.#synchronous++;
     return window;
   }
@@ -411,7 +421,10 @@ export class WorldSource {
     if (store !== pending.store || tilesetsFor(registry) !== pending.tilesets) { this.#pending = undefined; return; }
     if (pending.window === undefined) {
       // Late chunks coalesce for a few frames; a window ahead of the view waits for all of them.
-      if (!windowResident(store, pending.rect) && !(pending.arrival && this.#frame - pending.since >= CHUNK_ARRIVAL_COALESCE_FRAMES)) return;
+      // Chunks whose load failed are never waited for; nor is anything for long.
+      const waited = this.#frame - pending.since;
+      if (!windowResident(store, pending.rect, this.dependencies.failedChunks?.())
+        && waited < (pending.arrival ? CHUNK_ARRIVAL_COALESCE_FRAMES : CHUNK_LOOKAHEAD_WAIT_FRAMES)) return;
       const now = this.dependencies.now ?? (() => performance.now());
       const startedAt = now();
       try {
@@ -468,14 +481,18 @@ export class WorldSource {
     this.#tracker.drainInvalidations(visit);
   }
 
+  /** The window served now, without building or updating anything (spawn readiness). */
+  get servedWindow(): ChunkTerrainWindow | undefined { return this.#tracker.window; }
+
   get lastBuildMs(): number { return this.#tracker.lastBuildMs; }
   get builds(): number { return this.#tracker.builds; }
 }
 
-/** Every published chunk of `rect` is resident. */
-function windowResident(store: BoundedChunkTerrainStore, rect: ChunkWindowRect): boolean {
+/** Every published chunk of `rect` is resident, or failed to load (it reads as solid void). */
+function windowResident(store: BoundedChunkTerrainStore, rect: ChunkWindowRect, failed?: ReadonlySet<string>): boolean {
   for (const [cx, cy] of windowChunkKeys(rect)) {
-    if (store.peekChunk(cx, cy) === undefined && store.manifest.chunks.some(head => head.cx === cx && head.cy === cy)) return false;
+    if (store.peekChunk(cx, cy) === undefined && failed?.has(`${cx}:${cy}`) !== true
+      && store.manifest.chunks.some(head => head.cx === cx && head.cy === cy)) return false;
   }
   return true;
 }

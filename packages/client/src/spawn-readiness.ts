@@ -21,7 +21,7 @@ import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-ch
  */
 export type SpawnReadinessReason =
   | 'not_on' | 'other_space' | 'no_position' | 'legacy' | 'resident' | 'timeout'
-  | 'awaiting_store' | 'awaiting_pin' | 'awaiting_chunks';
+  | 'awaiting_store' | 'awaiting_pin' | 'awaiting_chunks' | 'awaiting_window';
 
 export interface SpawnReadiness {
   readonly ready: boolean;
@@ -48,6 +48,10 @@ export interface SpawnReadinessInput {
   readonly store: SpawnReadinessStore | undefined;
   /** `cx:cy` of the serving store's chunks whose load failed, or that were given up on. */
   readonly resolved?: ReadonlySet<string>;
+  /** The render window served now (WorldSource.servedWindow): collision and drawing come
+   * from it, so a ring chunk resident in the store but not yet in this window is waited for. */
+  readonly window?: { readonly rect: { readonly cx: number; readonly cy: number; readonly columns: number; readonly rows: number };
+    readonly present: ReadonlySet<string> };
   /** The local player's space and tile, if known. */
   readonly spaceId: number | undefined;
   readonly tileX: number | undefined;
@@ -74,12 +78,17 @@ export function chunkSpawnReadiness(input: SpawnReadinessInput): SpawnReadiness 
     return { ready: false, reason: 'awaiting_pin', missing: 0 };
   }
   const missingKeys: string[] = [];
+  let unserved = 0;
+  const window = input.window, rect = window?.rect;
   for (const head of store.manifest.chunks) {
     const key = `${head.cx}:${head.cy}`;
     if (Math.abs(head.cx - cx) > 1 || Math.abs(head.cy - cy) > 1 || !pinned.has(key) || input.resolved?.has(key) === true) continue;
     if (store.peekChunk(head.cx, head.cy) === undefined) missingKeys.push(key);
+    else if (rect !== undefined && head.cx >= rect.cx && head.cy >= rect.cy && head.cx < rect.cx + rect.columns && head.cy < rect.cy + rect.rows
+      && !window!.present.has(key)) unserved++;
   }
-  return missingKeys.length === 0 ? ready('resident') : { ready: false, reason: 'awaiting_chunks', missing: missingKeys.length, missingKeys };
+  if (missingKeys.length > 0) return { ready: false, reason: 'awaiting_chunks', missing: missingKeys.length, missingKeys };
+  return unserved === 0 ? ready('resident') : { ready: false, reason: 'awaiting_window', missing: unserved };
 }
 
 /** How long movement may wait for terrain before giving up (a chunk fetch times out at 15 s). */

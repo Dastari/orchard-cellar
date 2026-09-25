@@ -8,7 +8,7 @@ import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-ter
 import { BoundedChunkTerrainStore as Store } from '@orchard/engine/bounded-chunk-terrain-store';
 import { terrainIndexAt } from '@orchard/engine/terrain-index';
 import type { TerrainArray } from '@orchard/engine/terrain';
-import { WorldSource, type ChunkPinBounds } from './world-source.js';
+import { CHUNK_LOOKAHEAD_WAIT_FRAMES, WorldSource, type ChunkPinBounds } from './world-source.js';
 import { WorldStaticProjectionCache } from './world-static-projection.js';
 import { chunkWindowForView, chunkWindowKey, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 
@@ -287,7 +287,7 @@ describe('WorldSource staged window moves (static world S4f)', () => {
   const RIGHT = { minX: 340, minY: 100, maxX: 380, maxY: 122 };
 
   /** An `on` source whose loader installs pinned chunks only when told to. */
-  function staging(options: { prewarm?: number } = {}) {
+  function staging(options: { prewarm?: number; failed?: ReadonlySet<string> } = {}) {
     const serving = servingStore(0, undefined, true);
     const held = new Set<string>();
     const pins: ChunkPinBounds[] = [];
@@ -300,7 +300,8 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     const calls: { step: number; window: unknown; collision: unknown }[] = [];
     const prewarm = Array.from({ length: options.prewarm ?? 2 }, (_, step) =>
       (prepared: { window: unknown; collision: unknown }) => { calls.push({ step, ...prepared }); });
-    const source = new WorldSource({ store: () => serving.store, pin, authorityGate: () => null, worldSize: FIXTURE_SIZE, prewarm });
+    const source = new WorldSource({ store: () => serving.store, pin, authorityGate: () => null, worldSize: FIXTURE_SIZE, prewarm,
+      ...(options.failed === undefined ? {} : { failedChunks: () => options.failed }) });
     source.setView(START);
     const first = source.window(registry)!;
     return { serving, held, pins, calls, source, first,
@@ -430,6 +431,41 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     }
     expect(served.missing).toBe(1);
     expect(stuck.source.stagingStatus.arrivals).toBe(1);
+  });
+
+  it('never holds back chunks the served window lacks behind a window prepared ahead (review round 2)', () => {
+    // Served 1:0 lacking the player's chunk 1:1; the view then sits in the look-ahead band while
+    // the next window (0:0) waits on a chunk that does not come.
+    const failed = new Set<string>();
+    const { source: tracked, hold, release } = staging({ failed });
+    tracked.setView(FAR); tracked.advance(registry); tracked.window(registry);
+    hold('1:1');
+    tracked.setView(RIGHT); tracked.advance(registry);
+    const partial = tracked.window(registry)!;
+    expect([partial.rect.cx, partial.present.has('1:1')]).toEqual([1, false]);
+    hold('0:0');
+    tracked.setView(BAND); tracked.advance(registry);
+    expect(tracked.stagingStatus.pending).toBe('0:0:5x5:resident');
+    release('1:1');
+    let served = tracked.window(registry)!;
+    for (let frame = 0; frame < 3 && !served.present.has('1:1'); frame++) {
+      tracked.setView(BAND); tracked.advance(registry); served = tracked.window(registry)!;
+    }
+    expect(served.rect.cx).toBe(1);
+    expect(served.present.has('1:1')).toBe(true);
+    expect(tracked.collision(registry)!.collision.present.has('1:1')).toBe(true);
+    // The look-ahead window never waits on a chunk whose load failed ...
+    failed.add('0:0');
+    for (let frame = 0; frame < 8 && tracked.window(registry)!.rect.cx !== 0; frame++) { tracked.setView(BAND); tracked.advance(registry); }
+    expect(tracked.window(registry)!.rect.cx).toBe(0);
+    // ... nor for long on one that is merely slow.
+    const slow = staging();
+    slow.source.setView(RIGHT); slow.source.advance(registry); slow.source.window(registry);
+    slow.hold('0:0');
+    let frames = 0;
+    for (; frames < CHUNK_LOOKAHEAD_WAIT_FRAMES + 10 && slow.source.window(registry)!.rect.cx !== 0; frames++) { slow.source.setView(BAND); slow.source.advance(registry); }
+    expect(slow.source.window(registry)!.rect.cx).toBe(0);
+    expect(frames).toBeGreaterThanOrEqual(CHUNK_LOOKAHEAD_WAIT_FRAMES);
   });
 
   it('keeps at most the served and the next window alive, however long the walk (no chain through cached collisions)', async () => {

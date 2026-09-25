@@ -216,10 +216,14 @@ export class ChunkRuntimeController {
     if (key !== this.#key) {
       this.#subscription?.unsubscribe(); this.#key = key;
       const spaceId = input.spaceId;
+      // Another space's manifest is not known yet, whatever this one showed before.
+      if (this.#appliedSpace !== spaceId) this.#appliedSpace = undefined;
       this.#subscription = connection.subscriptionBuilder().onApplied(() => {
         // `on`: marked as new input (like the row listeners) so a pass that is busy right now
-        // re-runs and leaves `subscribing` (S4f). Shadow keeps its exact behaviour.
-        this.#appliedSpace = spaceId; if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
+        // re-runs and leaves `subscribing` (S4f). Shadow keeps its exact behaviour. A superseded
+        // subscription applying late says nothing about the current one.
+        if (this.#key === key) this.#appliedSpace = spaceId;
+        if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
       })
         .onError(() => { this.status.state = 'subscription_error'; }).subscribe([...queries]);
     }

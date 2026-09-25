@@ -371,4 +371,29 @@ describe('spawn readiness (static world S4f)',()=>{
   }finally{h.controller.dispose();}
   expect(new ChunkRuntimeController({buildMode:'shadow',cache:null}).failedChunks.size).toBe(0);
  });
+
+ it('`on`: a space change forgets the applied subscription (topside, then a cave, then back before the cave applies)',async()=>{
+  const events={onInsert:()=>undefined,onUpdate:()=>undefined,onDelete:()=>undefined};
+  const pending:Array<()=>void>=[];
+  const builder=()=>{let applied=()=>{};const b={onApplied:(fn:()=>void)=>{applied=fn;return b;},onError:()=>b,
+   subscribe:()=>{pending.push(()=>applied());return{unsubscribe:()=>undefined};}};return b;};
+  const connection={db:{worldChunkShadow:{...events,spaceId:{find:()=>undefined}},worldChunkHead:{...events,iter:()=>[]}},
+   subscriptionBuilder:builder} as unknown as DbConnection;
+  const controller=new ChunkRuntimeController({buildMode:'on',authority:()=>'on',fetchBlob:async()=>new Uint8Array(),cache:null});
+  try{
+   controller.update(connection,0n,view,source);
+   pending.shift()!();
+   await vi.waitFor(()=>expect(controller.status.state).toBe('awaiting_publication'));
+   controller.update(connection,7n,view,source);// a cave: its subscription has not applied
+   await vi.waitFor(()=>expect(controller.status.state).toBe('subscribing'));
+   controller.update(connection,0n,view,source);// back to topside before the cave applied
+   await new Promise(resolve=>setTimeout(resolve,10));
+   expect(controller.status.state).toBe('subscribing');
+   // The superseded cave subscription applying late changes nothing; topside's own does.
+   pending.shift()!();await new Promise(resolve=>setTimeout(resolve,10));
+   expect(controller.status.state).toBe('subscribing');
+   pending.shift()!();
+   await vi.waitFor(()=>expect(controller.status.state).toBe('awaiting_publication'));
+  }finally{controller.dispose();}
+ });
 });

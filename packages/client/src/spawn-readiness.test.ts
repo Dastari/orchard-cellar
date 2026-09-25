@@ -74,4 +74,13 @@ describe('spawn readiness (static world S4f)', () => {
     const next = store(partial, window(6, 6));
     expect(gate.update(on({ store: next }), SPAWN_READINESS_TIMEOUT_MS + 3).ready).toBe(false);
   });
+
+  it('waits until the served window holds the ring the store already has (collision and drawing come from it)', () => {
+    const rect = { cx: 4, cy: 4, columns: 5, rows: 5 };
+    const lagging = { rect, present: new Set(window(6, 6).filter(key => key !== '7:7')) };
+    expect(chunkSpawnReadiness(on({ window: lagging }))).toMatchObject({ ready: false, reason: 'awaiting_window', missing: 1 });
+    expect(chunkSpawnReadiness(on({ window: { rect, present: new Set(window(6, 6)) } }))).toMatchObject({ ready: true, reason: 'resident' });
+    // A window elsewhere (before the view moves after a teleport) is not the window to check.
+    expect(chunkSpawnReadiness(on({ window: { rect: { cx: 0, cy: 0, columns: 5, rows: 5 }, present: new Set() } })).ready).toBe(true);
+  });
 });

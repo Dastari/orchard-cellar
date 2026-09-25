@@ -325,7 +325,7 @@ let connectionInputCleared = false;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 /** Topside terrain source: the legacy whole map, or the chunk window in chunk mode `on` (S4c). */
 const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds),
-  authorityGate: () => network.chunkAuthorityGate(),
+  authorityGate: () => network.chunkAuthorityGate(), failedChunks: () => network.chunkFailedKeys,
   // Static world S4f: a window prepared ahead of the view does its lighting and
   // traversal work over earlier frames; the frame that serves it hits these caches.
   prewarm: [
@@ -4773,6 +4773,9 @@ function renderFrame(alpha = 1): void {
     if (terrainWait && localAuthority !== undefined && localAuthority.spaceId === TOPSIDE_SPACE_ID) {
       const tileX = Math.floor(localAuthority.x / TILE_SIZE_FIXED), tileY = Math.floor(localAuthority.y / TILE_SIZE_FIXED);
       worldSource.setView({ minX: tileX, minY: tileY, maxX: tileX, maxY: tileY });
+      // The served window keeps catching up with arrived chunks while nothing is drawn.
+      worldSource.advance(snapshot.content.registry);
+      worldSource.window(snapshot.content.registry);
     }
     const viewport = hudViewportCss();
     const uiScale = fittedUiScale(desiredUiScale, viewport.width, viewport.height);
@@ -6454,7 +6457,8 @@ function terrainReadiness(): SpawnReadiness {
   const position = snapshot.identityHex === null ? undefined : snapshot.players.get(snapshot.identityHex);
   const status = network.chunkRuntimeStatus;
   return spawnReadiness.update({
-    mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys, spaceId: position?.spaceId,
+    mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys,
+    window: worldSource.servedWindow, spaceId: position?.spaceId,
     tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
     tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
   }, performance.now());
