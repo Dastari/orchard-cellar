@@ -2,6 +2,19 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.46.0 / Engine 0.29.0 / Sim 0.30.1 — Static world S4e: map drawing from chunk records (dormant)
+
+The chunk runtime stays `off` in production. No server, schema or content change.
+
+- **S4e wiring (#196).**
+  - **Chunk records:** in `on`, decorations, map objects, lights, light occluders, the supply cache, ferry regions, pond ties and farm soil come from the served chunk window's records. The new `engine/src/chunk-map-records.ts` builds them, and `client/src/topside-map-records.ts` is the one switch point.
+  - **One source:** records serve only with that window's chunk collision. If the records fail, the whole window falls back to legacy, so drawing and collision always share a source.
+  - **Staging:** records and the decoration caster pass are two new S4f stages. Staged p95 is 3.8–4.5 ms, and serving frames about 0.2 ms.
+  - **Parity:** 181 of 181 views match the document path on the bootstrap and authored fixtures, including edge coverage against the whole document and committed negative controls.
+  - **Unchanged:** `off` and `shadow` are byte-identical (pinned before the change).
+  - **Reach check:** the largest prefab plus light reach must fit the 32-tile window margin. It is checked at build time and at publish time (`materializeWorldChunksFromRows`, used by the S5b pipeline).
+- Workspace 0.58.0.
+
 ## Client 0.45.1 / Engine 0.28.0 / Sim 0.30.0 / World 0.26.7 / Studio 0.16.7 / Tools 0.24.4 — Compact collision planes; chunk publish pipeline (off)
 
 No gameplay change, no schema change, and no content change. The chunk runtime stays `off` in production.
