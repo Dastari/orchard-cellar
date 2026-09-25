@@ -1381,7 +1381,7 @@ export class OverworldConnection {
       Math.floor(position.y / TILE_SIZE_FIXED),
     ] as const;
     const radius = this.viewRadius;
-    if (this.chunkRuntimeMode !== 'off') {
+    if (this.chunkRuntimeMode === 'shadow' || this.chunkRuntimeMode === 'on') {
       this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
       this.chunkRuntime.update(connection, BigInt(spaceId), [centerTiles[0] - radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] - radius.y * SURVIVAL_CHUNK_TILES,
         centerTiles[0] + radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] + radius.y * SURVIVAL_CHUNK_TILES], {
