@@ -163,6 +163,8 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
         if (collision !== undefined) composeChunkCollisionMaps({ registry: stepRegistry, collision, liveBase: [], furniture: [], dynamic: [],
           tick: 0n, projectile: (ground, water) => projection.projectile(ground, water) });
       },
+      // As the client: the elevated decoration casters of the window's records (S4e).
+      ({ records }, stepRegistry) => { if (records !== undefined) topsideDecorationLightCasters(records.decorations, records, stepRegistry, TOPSIDE_SPACE_ID); },
     ] });
   const refresh = (chunks: WorldSourceCollision) => {
     // Static world S4e: the elevated decoration occluders read the window's records.

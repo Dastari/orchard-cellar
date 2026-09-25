@@ -243,6 +243,11 @@ function describeParity(label: string, documentFor: (registry: ContentRegistry) 
         const documentCasters = topsideDecorationLightCasters(legacyDecorations, live, registry, TOPSIDE_SPACE_ID)
           .filter(caster => anchored(present, caster.decoration.tileX, caster.decoration.tileY));
         if (stable(casters) !== stable(documentCasters)) fail('decoration casters');
+        // Within light reach, against the WHOLE document (nothing anchored outside the window may be missed).
+        const nearCaster = (caster: { readonly worldX: number; readonly worldY: number }) => inside(reach, caster.worldX, caster.worldY);
+        if (stable(casters.filter(nearCaster)) !== stable(topsideDecorationLightCasters(legacyDecorations, live, registry, TOPSIDE_SPACE_ID).filter(nearCaster))) {
+          fail('decoration casters (whole document, light reach)');
+        }
         for (const caster of casters) {
           if (!inside(reach, caster.worldX, caster.worldY)) continue;
           if (terrainProjectedDepthAtFoot(terrain, caster.worldX, caster.worldY) !== terrainProjectedDepthAtFoot(legacyTerrain, caster.worldX, caster.worldY)
@@ -250,8 +255,10 @@ function describeParity(label: string, documentFor: (registry: ContentRegistry) 
             fail(`decoration caster terrain ${caster.tie}`);
           }
         }
-        // Pond ties, the supply cache (when its tile is in the window) and the ferry regions.
-        if (stable([...protocolPondTies(records.decorations, records)]) !== stable([...protocolPondTies(expectedDecorations, live)])) fail('pond ties');
+        // Pond ties within light reach against the whole document, and the supply cache (when its tile is in the window).
+        const nearDecoration = (decoration: MapDecorationRecord) => inside(reach, decoration.tileX * 16 + 8, (decoration.tileY + 1) * 16);
+        if (stable([...protocolPondTies(records.decorations.filter(nearDecoration), records)])
+          !== stable([...protocolPondTies(legacyDecorations.filter(nearDecoration), live)])) fail('pond ties');
         if (anchored(present, cache.tileX, cache.tileY)) {
           totals.cacheWindows++;
           if (hearthSupplyCacheInstalled(cache, records) !== hearthSupplyCacheInstalled(cache, live)) fail('supply cache');
@@ -278,6 +285,40 @@ function describeParity(label: string, documentFor: (registry: ContentRegistry) 
         expect(hearthSupplyCacheInstalled(cache, live)).toBe(true);
       }
     }, 900_000);
+
+    if (authored) it('detects mutated records: reversed record order, a dropped suppression (negative controls)', () => {
+      const view = cameraAt(416, 360, LARGE_VIEW);
+      source.setView(viewTiles(view));
+      const served = source.collision(registry)!;
+      const records = source.mapRecords(registry)!;
+      const terrain = served.window.terrain;
+      const windowObjects = new Set(records.objects.map(({ id }) => id));
+      const documentOccluders = mapObjectLightOccluders(live, terrain, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER, registry, 450)
+        .filter(occluder => windowObjects.has(occluderObject(occluder)));
+      expect(stable(mapObjectLightOccluders(records, terrain, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER, registry, 450))).toBe(stable(documentOccluders));
+      const reversedObjects = { ...records, objects: [...records.objects].reverse() };
+      expect(stable(mapObjectLightOccluders(reversedObjects, terrain, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER, registry, 450))).not.toBe(stable(documentOccluders));
+      const visible = visibleWorldBounds(view.cameraX, view.cameraY, view.width, view.height, 1, 64);
+      const documentPainter = stable(paintDecorations(registry, legacyDecorations, live, visible, visible));
+      expect(stable(paintDecorations(registry, records.decorations, records, visible, visible))).toBe(documentPainter);
+      expect(stable(paintDecorations(registry, [...records.decorations].reverse(), records, visible, visible))).not.toBe(documentPainter);
+      // Each suppression of a drawn decoration, dropped from the records, shows up in the painter at that decoration.
+      let detected = 0;
+      for (const suppression of live.generatedSuppressions) {
+        const id = Number(suppression.replace(/^decoration-/u, ''));
+        const decoration = legacyDecorations.find(candidate => candidate.id === id);
+        if (decoration === undefined) continue;
+        const at = cameraAt(decoration.tileX, decoration.tileY, SMALL_VIEW);
+        source.setView(viewTiles(at));
+        const local = source.mapRecords(registry)!;
+        const bounds = visibleWorldBounds(at.cameraX, at.cameraY, at.width, at.height, 1, 64);
+        const expected = stable(paintDecorations(registry, legacyDecorations, live, bounds, bounds));
+        expect(stable(paintDecorations(registry, local.decorations, local, bounds, bounds))).toBe(expected);
+        const dropped = { ...local, generatedSuppressions: local.generatedSuppressions.filter(entry => entry !== suppression) };
+        if (stable(paintDecorations(registry, local.decorations, dropped, bounds, bounds)) !== expected) detected++;
+      }
+      expect(detected).toBeGreaterThanOrEqual(2);
+    }, 120_000);
 
     it('detects a window that lacks a chunk under the view (negative control)', () => {
       source.setView(viewTiles(cameraAt(416, 360, LARGE_VIEW)));
