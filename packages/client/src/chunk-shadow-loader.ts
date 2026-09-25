@@ -45,7 +45,7 @@ export class ChunkShadowLoader {
     if (!bytes) {
       bytes = await this.fetchBlob(chunkBlobPath(this.store.manifest.spaceId,hash),size);
       verifyRuntimeChunk(bytes,this.store.manifest,cx,cy);
-      try { await this.cache?.put(hash,bytes); } catch { /* verified memory copy remains usable */ }
+      try { await this.cache?.put(hash,bytes,this.store.manifest.spaceId); } catch { /* verified memory copy remains usable */ }
     }
     if (!this.#disposed && this.store.pinnedKeys.includes(chunkKey(cx,cy))) this.store.install(bytes,cx,cy);
   }

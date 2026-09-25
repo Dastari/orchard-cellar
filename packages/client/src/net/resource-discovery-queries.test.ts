@@ -92,7 +92,7 @@ describe('resource-only discovery subscriptions', () => {
     const position = { spaceId: 0, x: 320 * TILE_SIZE_FIXED, y: 320 * TILE_SIZE_FIXED, chunkX: 20, chunkY: 20 };
     const state = {
       content: { state: { registry } }, skillNodes: Object.entries(ownedRanks).map(([nodeId, rank]) => ({ nodeId, rank })),
-      rogueRun: null, homesteads: new Map(), viewRadius: { x: 2, y: 2 },
+      rogueRun: null, homesteads: new Map(), viewRadius: { x: 2, y: 2 }, chunkRuntimeMode: 'off',
       subscribedSpaceId: 0, region: [0, 0], subscribedRadius: { x: 0, y: 0 },
       subscribedSpaceDefinitionKey: '', subscribedCenterTiles: null, pendingRegion: null,
       regionSubscription: null, regionAuxiliarySubscription: null,

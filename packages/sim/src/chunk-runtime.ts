@@ -93,7 +93,19 @@ export function composeAuthorityObstacles(
   const keys = new Set(suppressed.filter(row => row.medium === medium).map(authorityObstacleKey));
   return [...[...base, ...liveBaseObstacles].filter(obstacle => !keys.has(authorityObstacleKey(obstacle))), ...authored];
 }
-/** Activation is deliberately unavailable until independently reviewed live gates exist. */
-export function assertChunkRuntimeMode(mode: string): asserts mode is 'off' | 'shadow' {
-  if (mode !== 'off' && mode !== 'shadow') throw new Error('chunk_runtime_activation_not_approved');
+/** Client chunk runtime modes. `off` is the legacy path; `shadow` loads chunks for
+ * diagnostics only; `on` follows published heads. Whether an `on` build may ship to
+ * players is decided by the client build gate's reviewed release flag, and at run
+ * time the client still follows the server's public chunkAuthority. */
+export const CHUNK_RUNTIME_MODES = ['off', 'shadow', 'on'] as const;
+export type ChunkRuntimeMode = typeof CHUNK_RUNTIME_MODES[number];
+export function assertChunkRuntimeMode(mode: string): asserts mode is ChunkRuntimeMode {
+  if (!(CHUNK_RUNTIME_MODES as readonly string[]).includes(mode)) throw new Error('chunk_runtime_mode_invalid');
+}
+/** Unset or empty means `off`; anything else must be an exact mode name. */
+export function parseChunkRuntimeMode(raw: string | undefined): ChunkRuntimeMode {
+  const mode = raw ?? '';
+  if (mode === '') return 'off';
+  assertChunkRuntimeMode(mode);
+  return mode;
 }

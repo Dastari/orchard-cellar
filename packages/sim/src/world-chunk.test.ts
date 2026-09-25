@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, WORLD_CHUNK_AUTHORITY_CHANNELS, WORLD_CHUNK_STRIDE, type ChunkJson, type WorldChunk } from './world-chunk.js';
+import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, WORLD_CHUNK_AUTHORITY_CHANNELS, WORLD_CHUNK_STRIDE, type ChunkJson, type WorldChunk, worldChunkHash } from './world-chunk.js';
 import { authorityChunkFixture } from './chunk-runtime.fixture.js';
 import { encodeWorldChunk as legacyEncodeWorldChunk } from './world-chunk.schema1-legacy.fixture.js';
 
@@ -32,6 +32,20 @@ describe('world chunk binary format', () => {
     expect(() => decodeWorldChunk(bytes.slice(0, -1))).toThrow();
     expect(() => decodeWorldChunk(new Uint8Array([...bytes, 0]))).toThrow();
     expect(() => decodeWorldChunk(bytes, '0'.repeat(64))).toThrow(/hash/u);
+  });
+  it('derives the content address and the header digest check from one hash, with unchanged tamper errors', () => {
+    const bytes = encodeWorldChunk(fixture());
+    const decoded = decodeWorldChunk(bytes);
+    const headerHex = Array.from(bytes.subarray(8, 40), byte => byte.toString(16).padStart(2, '0')).join('');
+    expect(decoded.contentHash).toBe(worldChunkHash(bytes.subarray(40)));
+    expect(decoded.contentHash).toBe(headerHex);
+    // Header digest, JSON length, metadata and channel payload tampering all fail the same way.
+    for (const index of [8, 39, 40, 48, bytes.length - 1]) {
+      const corrupt = bytes.slice(); corrupt[index] = corrupt[index]! ^ 1;
+      expect(() => decodeWorldChunk(corrupt), `byte ${index}`).toThrow(new TypeError('World chunk hash mismatch'));
+    }
+    expect(() => decodeWorldChunk(bytes, worldChunkHash(bytes))).toThrow(new TypeError('World chunk hash mismatch'));
+    expect(decodeWorldChunk(bytes, headerHex).contentHash).toBe(headerHex);
   });
   it('rejects wrong record ownership, invalid part addresses and malformed channels', () => {
     const a = fixture();

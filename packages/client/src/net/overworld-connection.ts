@@ -1,4 +1,5 @@
-import { ChunkShadowController } from '../chunk-shadow-controller.js';
+import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
+import { ChunkRuntimeController } from '../chunk-runtime-controller.js';
 import {
   INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY, CURRENT_INVENTORY_PROTOCOL_VERSION,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
@@ -344,9 +345,10 @@ function compatibilityChestSlot(row: WorldPlaceableSlot): WorldChestSlot {
 
 export class OverworldConnection {
   private connection: DbConnection | null = null;
-  private chunkShadow: ChunkShadowController | undefined;
-  private readonly chunkShadowEnabled = import.meta.env.VITE_CHUNK_RUNTIME_MODE === 'shadow';
-  get chunkShadowStatus() { return this.chunkShadow?.status; }
+  private chunkRuntime: ChunkRuntimeController | undefined;
+  // Validated by the build gate; `on` still follows the server's chunkAuthority (not yet connected: S2a seam).
+  private readonly chunkRuntimeMode = parseChunkRuntimeMode(import.meta.env.VITE_CHUNK_RUNTIME_MODE);
+  get chunkRuntimeStatus() { return this.chunkRuntime?.status; }
   private connected = false;
   private error: string | null = null;
   private identity: Identity | null = null;
@@ -647,7 +649,7 @@ export class OverworldConnection {
 
   private releaseConnection(): void {
     const connection = this.connection;
-    this.chunkShadow?.dispose(); this.chunkShadow = undefined;
+    this.chunkRuntime?.dispose(); this.chunkRuntime = undefined;
     this.connection = null;
     clientErrorReporter.detach();
     this.clearHeldInput();
@@ -790,7 +792,7 @@ export class OverworldConnection {
   }
   reconcile(predicted: PlayerState | null, authoritative: PlayerState, collision: CollisionMap): ReconciliationResult | null {
     const x = Math.floor(authoritative.position.x / TILE_SIZE_FIXED), y = Math.floor(authoritative.position.y / TILE_SIZE_FIXED);
-    if (x >= 0 && y >= 0 && x < collision.width && y < collision.height) this.chunkShadow?.compare(x, y, collision.blocked[y * collision.width + x] ?? true);
+    if (x >= 0 && y >= 0 && x < collision.width && y < collision.height) this.chunkRuntime?.compare(x, y, collision.blocked[y * collision.width + x] ?? true);
     const row = this.ownPosition(); if (row === null) return null;
     if(row.actionKind==='sitting'){
       this.prediction.discardPendingMovement();
@@ -1379,9 +1381,9 @@ export class OverworldConnection {
       Math.floor(position.y / TILE_SIZE_FIXED),
     ] as const;
     const radius = this.viewRadius;
-    if (this.chunkShadowEnabled) {
-      this.chunkShadow ??= new ChunkShadowController();
-      this.chunkShadow.update(connection, BigInt(spaceId), [centerTiles[0] - radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] - radius.y * SURVIVAL_CHUNK_TILES,
+    if (this.chunkRuntimeMode === 'shadow' || this.chunkRuntimeMode === 'on') {
+      this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
+      this.chunkRuntime.update(connection, BigInt(spaceId), [centerTiles[0] - radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] - radius.y * SURVIVAL_CHUNK_TILES,
         centerTiles[0] + radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] + radius.y * SURVIVAL_CHUNK_TILES], {
           mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash,
         });

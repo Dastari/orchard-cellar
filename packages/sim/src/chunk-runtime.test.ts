@@ -1,6 +1,6 @@
 import { expect,it } from 'vitest';
 import { runtimeChunkFixture } from './chunk-runtime.fixture.js';
-import { validateRuntimeManifest,verifyRuntimeChunk,sampleChunkCollision,chunkBlobPath,assertChunkRuntimeMode,MISSING_CHUNK_SAMPLE,
+import { validateRuntimeManifest,verifyRuntimeChunk,sampleChunkCollision,chunkBlobPath,assertChunkRuntimeMode,parseChunkRuntimeMode,MISSING_CHUNK_SAMPLE,
   composeAuthorityObstacles,authorityObstacleKey } from './chunk-runtime.js';
 import { decodeWorldChunk } from './world-chunk.js';
 import { decodeWorldChunk as legacyDecodeWorldChunk } from './world-chunk.schema1-legacy.fixture.js';
@@ -13,12 +13,17 @@ it('verifies revision and hash then samples signed interior and halo without tra
   expect(()=>verifyRuntimeChunk(blobs[0]!,{...manifest,assetRevision:'other'},-1,0)).toThrow(/revision/);
   const bad=blobs[0]!.slice();bad[bad.length-1]=bad[bad.length-1]!^1;expect(()=>verifyRuntimeChunk(bad,manifest,-1,0)).toThrow(/hash/);
 });
-it('rejects malformed heads and any attempted live activation',()=>{
+it('rejects malformed heads and unknown runtime modes',()=>{
   const {manifest}=runtimeChunkFixture();expect(validateRuntimeManifest(manifest)).toBe(manifest);
   expect(()=>validateRuntimeManifest({...manifest,chunks:[...manifest.chunks,...manifest.chunks]})).toThrow(/head/);
   expect(()=>chunkBlobPath(0,'../../secret')).toThrow();
-  expect(()=>assertChunkRuntimeMode('live')).toThrow(/not_approved/);
-  expect(()=>assertChunkRuntimeMode('shadow')).not.toThrow();
+  for(const bad of ['live','ON','On',' on','shadow ','true','1'])expect(()=>assertChunkRuntimeMode(bad)).toThrow(/mode_invalid/);
+  for(const mode of ['off','shadow','on'])expect(()=>assertChunkRuntimeMode(mode)).not.toThrow();
+});
+it('parses an unset or empty mode as off and never guesses',()=>{
+  expect(parseChunkRuntimeMode(undefined)).toBe('off');expect(parseChunkRuntimeMode('')).toBe('off');
+  expect(parseChunkRuntimeMode('shadow')).toBe('shadow');expect(parseChunkRuntimeMode('on')).toBe('on');
+  expect(()=>parseChunkRuntimeMode('live')).toThrow(/mode_invalid/);
 });
 it('samples authority channels only when the extension is present',()=>{
   const plain=runtimeChunkFixture([[0,0]]),authority=runtimeChunkFixture([[0,0]],{authority:true});

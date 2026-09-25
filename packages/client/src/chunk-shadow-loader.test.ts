@@ -1,7 +1,7 @@
 import {expect,it,vi} from 'vitest';
 import {runtimeChunkFixture} from '@orchard/sim/chunk-runtime-fixture';
 import {ChunkShadowLoader} from './chunk-shadow-loader.js';
-import {chunkShadowQueries} from './chunk-shadow-controller.js';
+import {chunkRuntimeQueries as chunkShadowQueries} from './chunk-runtime-controller.js';
 it('discards corrupt persistent data and only installs verified fetched bytes',async()=>{
  const {manifest,blobs}=runtimeChunkFixture(),cache={get:vi.fn(async()=>new Uint8Array([1])),put:vi.fn(async()=>{}),delete:vi.fn(async()=>{})};
  const fetch=vi.fn(async()=>blobs[0]!);const loader=new ChunkShadowLoader(manifest,fetch,cache);

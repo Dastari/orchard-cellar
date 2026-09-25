@@ -2,6 +2,21 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.41.3 / World 0.26.4 / Sim 0.28.1 — Static world wave 2 (dormant)
+
+**Nothing is activated.** Production builds refuse the chunk runtime's `on` mode, and no server path reads chunks yet.
+
+- **S1b, chunk runtime assembler (#167).** A new pure `packages/world/src/content/chunk-authority-runtime.ts` builds the server's live-island runtime from chunk authority data: collision, combat policy, suppressions, base obstacles and a static view.
+  - It matches the compiled runtime exactly on the bootstrap and authored fixtures, including live base obstacles through the real server composition.
+  - Missing or corrupt chunks come out void and solid, and are reported.
+  - Chunk decoding now hashes each blob once, so a 169-chunk rebuild takes about 170–230 ms instead of about 300 ms. All integrity checks are unchanged.
+- **S4a, client chunk runtime core (#166).** The runtime mode can now be `off`, `shadow` or `on`.
+  - `on` needs a committed activation release that matches the build environment. Preview builds go to `dist-chunk-preview`, and the production validators reject an unapproved `on` artifact.
+  - The new `chunk-runtime-controller` follows the server's authority (`off` is the rollback), swaps revisions in one step, and shows stale heads as a status rather than a lock-out.
+  - The IndexedDB cache moves to v2, with separate metadata, cursor eviction (256 entries / 64 MiB) and per-space pruning.
+  - Two new readiness probes.
+- Workspace 0.52.0. The stored schema is unchanged.
+
 ## Client 0.41.2 / Studio 0.16.2 / World 0.26.3 / Sim 0.28.0 — Static world wave 1 (dormant)
 
 These are the groundwork steps of the static-world conversion (wiki `Roadmap/Static World Conversion`, SW-D1..D3). **Nothing is activated**: the chunk runtime stays off, and no chunk heads or blobs are published.
