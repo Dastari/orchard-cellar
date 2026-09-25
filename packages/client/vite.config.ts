@@ -1,5 +1,5 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { chunkRuntimeBuildAudit } from './src/chunk-shadow-build-gate.js';
+import { CHUNK_RUNTIME_ACTIVATION_ENV, CHUNK_RUNTIME_PREVIEW_BUILD_MODE, chunkRuntimeBuildAudit } from './src/chunk-shadow-build-gate.js';
 import clientPackage from './package.json' with { type: 'json' };
 import { createPwaServiceWorker } from './pwa-service-worker.js';
 import { worldChunkServing } from './world-chunk-serving.js';
@@ -54,8 +54,14 @@ export function clientStudioBoundary(): Plugin {
 }
 
 export default defineConfig(({ command, mode }) => {
-  const chunkMode = loadEnv(mode, '../..', 'VITE_').VITE_CHUNK_RUNTIME_MODE ?? 'off';
-  chunkRuntimeBuildAudit(chunkMode, []);
+  const chunkMode = loadEnv(mode, '../..', 'VITE_').VITE_CHUNK_RUNTIME_MODE;
+  // Every build except the named preview mode is a production build: `on` needs the
+  // reviewed activation release (see chunk-shadow-build-gate.ts). Dev servers may run `on`.
+  const chunkBuildOptions = {
+    production: command === 'build' && mode !== CHUNK_RUNTIME_PREVIEW_BUILD_MODE,
+    activationRelease: process.env[CHUNK_RUNTIME_ACTIVATION_ENV],
+  };
+  chunkRuntimeBuildAudit(chunkMode, [], chunkBuildOptions);
   const pwaBuildId = `${clientPackage.version}-${Date.now().toString(36)}`;
   return ({
   envDir: '../..',
@@ -75,7 +81,7 @@ export default defineConfig(({ command, mode }) => {
     // /world/<space>/<hash>.bin from ORCHARD_WORLD_CHUNK_DIR (never dist): see ops/orchard-runtime/README.md.
     worldChunkServing(),
     { name: 'orchard-chunk-runtime-audit', apply: 'build', generateBundle(_options, bundle) {
-      const audit = chunkRuntimeBuildAudit(chunkMode, Object.values(bundle).flatMap(output => output.type === 'chunk' ? output.moduleIds : []));
+      const audit = chunkRuntimeBuildAudit(chunkMode, Object.values(bundle).flatMap(output => output.type === 'chunk' ? output.moduleIds : []), chunkBuildOptions);
       this.emitFile({type:'asset',fileName:'chunk-runtime-audit.json',source:JSON.stringify(audit)});
     } },
     ...(command === 'serve' ? [{
