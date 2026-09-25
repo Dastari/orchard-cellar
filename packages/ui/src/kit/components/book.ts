@@ -44,7 +44,7 @@ export function uiBook(options: UiBookOptions): UiElement {
   const place = (node: UiElement, rect: UiRect, origin: UiRect) => node.setStyle({ position: 'absolute', inset: { left: uiFixed(Math.max(0, rect.x - origin.x)), top: uiFixed(Math.max(0, rect.y - origin.y)) }, width: uiFixed(rect.width), height: uiFixed(rect.height) });
   const change = (next: number, focusId?: string) => { spread = Math.max(0, Math.min((layout?.spreadCount ?? 1) - 1, next)); key = ''; requestedFocus = focusId ?? ''; book.setProps({ spread }); options.onPageChange?.(spread); };
   const link = (target: UiTextLinkTarget) => { if (target.kind === 'page') { const page = layout?.anchorPages.get(target.anchor); if (page !== undefined) change(Math.floor(page / 2)); } options.onLink?.(target); };
-  const book = new UiElement({ id: options.id, kind: 'book', label: 'Book', focusable: true, props: { source, spread, tone: 'primary' },
+  const book = new UiElement({ id: options.id, kind: 'book', label: 'Book', focusable: true, props: { source, spread, tone: 'primary', textCase: 'upper' },
     style: { display: 'stack', width: 'grow', height: 'grow', minHeight: uiFixed(140), ...options.layout }, paint: chrome.hooks.paint,
     onKey(event) { const next = event.key === 'ArrowRight' || event.key === 'PageDown' ? spread + 1 : event.key === 'ArrowLeft' || event.key === 'PageUp' ? spread - 1 : event.key === 'Home' ? 0 : event.key === 'End' ? (layout?.spreadCount ?? 1) - 1 : undefined;
       if (next === undefined) return false; change(next); return true; },

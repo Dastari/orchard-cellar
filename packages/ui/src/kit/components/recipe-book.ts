@@ -4,7 +4,7 @@ import { containsPoint } from '../../geometry.js';
 import { drawPixelText, fitPixelText } from '../../pixel-ui.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import { paintUiSkin, uiSkinFrame } from './art.js';
+import { paintUiSkin, uiSkinFrame, uiElementUpperCase } from './art.js';
 import type { UiLoadedSkinFamily } from '../skin/load.js';
 import { uiFrame } from './frame.js';
 import { uiFlex } from './layout.js';
@@ -47,7 +47,7 @@ function recipeRow(entry: UiRecipeBookEntry, selected: () => boolean, options: U
       const asset = options.artwork?.[entry.output.itemKind], source = asset && uiItemFrame(asset, itemDefinition(entry.output.itemKind)?.iconAnimation);
       if (asset && source) context.drawImage(asset.image, source.x, source.y, source.width, source.height, r.x + 1, r.y, 16, 16);
       const ink = entry.status === 'locked' ? MUTED : INK;
-      const label = fitPixelText(entry.name, r.width - 34, 1, art.pixel.font);
+      const label = fitPixelText(uiElementUpperCase(element) ? entry.name.toUpperCase() : entry.name, r.width - 34, 1, art.pixel.font);
       drawPixelText(context, art.pixel, label, r.x + 20, r.y + 4, { color: ink });
       if (entry.status === 'ready') paintUiSkin(context, art.skin.icon, 'glyph.check', { x: r.x + r.width - 14, y: r.y, width: 16, height: 16 });
     },
@@ -62,7 +62,8 @@ function ingredientRow(ingredient: UiRecipeBookEntry['ingredients'][number], opt
       const r = element.rect, asset = options.artwork?.[ingredient.itemKind], source = asset && uiItemFrame(asset, itemDefinition(ingredient.itemKind)?.iconAnimation);
       if (asset && source) context.drawImage(asset.image, source.x, source.y, source.width, source.height, r.x, r.y, 16, 16);
       const count = `${ingredient.have}/${ingredient.need}`, countWidth = count.length * 6 - 1;
-      drawPixelText(context, art.pixel, fitPixelText(ingredient.name, r.width - 24 - countWidth, 1, art.pixel.font), r.x + 19, r.y + 4, { color: INK });
+      const name = uiElementUpperCase(element) ? ingredient.name.toUpperCase() : ingredient.name;
+      drawPixelText(context, art.pixel, fitPixelText(name, r.width - 24 - countWidth, 1, art.pixel.font), r.x + 19, r.y + 4, { color: INK });
       drawPixelText(context, art.pixel, count, r.x + r.width - countWidth, r.y + 4, { color: ingredient.have >= ingredient.need ? GOOD : BAD });
     },
   });
@@ -97,7 +98,7 @@ export function uiRecipeBook(options: UiRecipeBookOptions): UiRecipeBookElement 
     uiFlex({ direction: 'row', justify: 'end', alignSelf: 'stretch' }, [
       uiButton({ id: options.id ? `${options.id}.place` : undefined, label: 'Place in grid', tone: 'primary', size: 'md', disabled: entry.status === 'locked' || entry.status === 'station', onPress: () => options.onPlace(entry.id) }),
     ]),
-  ] : [uiText('Choose a recipe to see what it needs.', { wrap: true })];
+  ] : [uiText('Choose a recipe to see what it needs.', { wrap: true, textCase: 'as-authored' })];
   let shown = '';
   const refresh = () => {
     const rows = visible(), pages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE)); page = Math.min(page, pages - 1);
@@ -127,7 +128,7 @@ export function uiRecipeBook(options: UiRecipeBookOptions): UiRecipeBookElement 
   book.setProps({ label: 'Recipe book' });
   // The tab rises 16px above the cover; its foot tucks behind the book's top edge.
   // Chrome offsets resolve against the content box, so the cover sits in a padded column and the tab stays unclipped.
-  const element = new UiElement({ kind: 'recipe-book', label: 'Recipe book', style: { display: 'stack' }, children: [...(close ? [close] : []), uiFlex({ direction: 'column', padding: { top: 24 } }, [book])],
+  const element = new UiElement({ kind: 'recipe-book', label: 'Recipe book', props: { textCase: 'upper' }, style: { display: 'stack' }, children: [...(close ? [close] : []), uiFlex({ direction: 'column', padding: { top: 24 } }, [book])],
     onKey(event) { if (event.key === 'PageDown') { turn(1); return true; } if (event.key === 'PageUp') { turn(-1); return true; } return false; } });
   return Object.assign(element, { updateRecipeBook(next: readonly UiRecipeBookEntry[]) { recipes = next; refresh(); } });
 }

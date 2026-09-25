@@ -5,7 +5,7 @@ import type { LoadedAsset } from '../../assets.js';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiLoadedSkinFamily } from '../skin/load.js';
-import { paintUiSkin, uiSkinFrame } from './art.js';
+import { paintUiSkin, uiSkinFrame, uiElementUpperCase } from './art.js';
 import { uiFlex } from './layout.js';
 import { uiRichText } from './text.js';
 import { uiCurrency } from './currency.js';
@@ -54,8 +54,8 @@ export function uiFolderTabs(options: { readonly id?: string; readonly tabs: rea
         if (!art) return;
         const r = element.rect, current = tab.id === options.active, lift = current ? 0 : hovered || focused ? 2 : 3;
         paintFolderTab(context, art.skin.book, current ? 'tab.peach_raised' : 'tab.cream', { x: r.x, y: r.y + lift, width: r.width, height: r.height - lift });
-        const width = measurePixelText(tab.label, 1, art.pixel.font);
-        drawPixelText(context, art.pixel, tab.label, r.x + Math.floor((r.width - width) / 2), r.y + lift + 5, { color: INK });
+        const text = uiElementUpperCase(element) ? tab.label.toUpperCase() : tab.label, width = measurePixelText(text, 1, art.pixel.font);
+        drawPixelText(context, art.pixel, text, r.x + Math.floor((r.width - width) / 2), r.y + lift + 5, { color: INK });
       } });
   }));
 }
@@ -74,7 +74,7 @@ export function uiChoiceButton(options: { readonly id?: string; readonly index?:
       const ink = tone === 'primary' ? INK : '#fff6e0';
       let x = r.x + 8;
       if (options.index !== undefined) { drawPixelText(context, art.pixel, `${options.index}.`, x, r.y + 6 + drop, { color: tone === 'primary' ? MUTED : ink }); x += 16; }
-      drawPixelText(context, art.pixel, fitPixelText(label, r.x + r.width - x - 8, 1, art.pixel.font), x, r.y + 6 + drop, { color: ink });
+      drawPixelText(context, art.pixel, fitPixelText(uiElementUpperCase(element) ? label.toUpperCase() : label, r.x + r.width - x - 8, 1, art.pixel.font), x, r.y + 6 + drop, { color: ink });
       if ((hovered || focused) && !element.disabled) paintUiSkin(context, art.skin.button, `outline.md.chamfered.${state}.${focused ? 'white' : 'gold'}`, r);
     } });
   return node;
@@ -97,7 +97,8 @@ export function uiDialogueBody(options: { readonly speaker: string; readonly bod
   readonly portrait: (context: CanvasRenderingContext2D, bounds: UiRect) => void; readonly onChoose: (id: string) => void; readonly onLink?: (target: UiTextLinkTarget) => void; readonly width?: number }): UiElement {
   const width = options.width ?? 320;
   const text = uiRichText(options.body, { wrap: true, onLink: options.onLink, layout: { width: uiFixed(width - 52 - 8) } });
-  return new UiElement({ kind: 'dialogue', label: `${options.speaker} says`, style: { display: 'flex', direction: 'column', gap: 8, width: uiFixed(width) },
+  // Dialogue is speech: the body and the player's numbered replies keep their authored case inside caps windows.
+  return new UiElement({ kind: 'dialogue', label: `${options.speaker} says`, props: { textCase: 'as-authored' }, style: { display: 'flex', direction: 'column', gap: 8, width: uiFixed(width) },
     children: [uiFlex({ direction: 'row', gap: 8, align: 'start' }, [uiPortraitWell({ label: options.speaker, paint: options.portrait }), text]),
       uiFlex({ direction: 'column', gap: 2, alignSelf: 'stretch' }, options.choices.map((choice, index) => uiChoiceButton({ id: `dialogue.choice.${choice.id}`, index: index + 1, label: choice.label, tone: choice.tone, onPress: () => options.onChoose(choice.id) })))],
     onKey(event) { const index = Number(event.key) - 1; const choice = options.choices[index]; if (!choice || event.repeat) return false; options.onChoose(choice.id); return true; } });
@@ -129,8 +130,9 @@ export function uiShopRow(options: { readonly itemKind: string; readonly name: s
   const name = new UiElement({ kind: 'text', label: options.name, style: { grow: 1, height: uiFixed(20) },
     paint(element, { context, art: kit }) {
       if (!kit) return; const r = element.rect;
-      drawPixelText(context, kit.pixel, fitPixelText(options.name, r.width, 1, kit.pixel.font), r.x, r.y + (options.owned !== undefined ? 2 : 6), { color: INK });
-      if (options.owned !== undefined) drawPixelText(context, kit.pixel, `You have ${options.owned}`, r.x, r.y + 11, { color: MUTED });
+      const caps = uiElementUpperCase(element);
+      drawPixelText(context, kit.pixel, fitPixelText(caps ? options.name.toUpperCase() : options.name, r.width, 1, kit.pixel.font), r.x, r.y + (options.owned !== undefined ? 2 : 6), { color: INK });
+      if (options.owned !== undefined) drawPixelText(context, kit.pixel, caps ? `YOU HAVE ${options.owned}` : `You have ${options.owned}`, r.x, r.y + 11, { color: MUTED });
     } });
   return new UiElement({ kind: 'shop-row', label: `${options.name}, ${options.unitPrice} bronze`, props: { selected: options.selected ?? false },
     style: { display: 'flex', direction: 'row', gap: 4, align: 'center', height: uiFixed(22), alignSelf: 'stretch', shrink: 0, padding: { left: 2, right: 2 } },
