@@ -53,8 +53,10 @@ import {
   type ContentRegistry,
 } from "@orchard/sim";
 import { blob47FrameIndexFor } from "./tilemap.js";
+import { terrainIndexAt } from "./terrain-index.js";
 
 export { SURVIVAL_BIOMES };
+export { terrainContains, terrainIndexAt, type TerrainWindow } from "./terrain-index.js";
 
 export const BIOME_COLORS = [
   "#0095e9",
@@ -89,6 +91,11 @@ export interface TerrainArray {
   readonly version: number;
   readonly width: number;
   readonly height: number;
+  /** World tile of the arrays' top-left cell (default 0, 0). Every per-cell
+   * channel is a `width` x `height` window starting here; index it through
+   * `terrainIndexAt`, never by hand. */
+  readonly originX?: number;
+  readonly originY?: number;
   readonly generator?: SpaceDefinition["generator"];
   readonly rogueTheme?: string;
   readonly rogueHazards?: Uint8Array;
@@ -115,7 +122,7 @@ export interface TerrainArray {
   /** Sparse authoritative final substitutions from MapDocumentV2. */
   readonly terrainOverrides?: readonly (TerrainOverride | null)[];
   /** Sparse authored cell part stacks (wiki: Studio/Map Editor, Cell parts), keyed by
-   * `tileY * width + tileX`. Only non-contour exact parts are read here;
+   * `terrainIndexAt(terrain, tileX, tileY)`. Only non-contour exact parts are read here;
    * contour parts arrive through `terrainOverrides`. Absent on pre-parts maps. */
   readonly cellParts?: ReadonlyMap<number, readonly import('@orchard/sim').CellPart[]>;
   /** Visual-only authored farmland from MapDocument features. This dry mask is
@@ -168,7 +175,7 @@ export function terrainWithCellarExcavations(
       terrain.width,
       terrain.height,
     )) {
-      const index = cell.tileY * terrain.width + cell.tileX;
+      const index = terrainIndexAt(terrain, cell.tileX, cell.tileY);
       blocked[index] = false;
       elevations[index] = 0;
     }
@@ -449,15 +456,10 @@ export function terrainBiomeAt(
   tileX: number,
   tileY: number,
 ): SurvivalBiome {
-  if (
-    tileX < 0 ||
-    tileY < 0 ||
-    tileX >= terrain.width ||
-    tileY >= terrain.height
-  )
-    return "water";
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  if (index < 0) return "water";
   return (
-    SURVIVAL_BIOMES[terrain.biomes[tileY * terrain.width + tileX] ?? WATER] ??
+    SURVIVAL_BIOMES[terrain.biomes[index] ?? WATER] ??
     "water"
   );
 }
@@ -467,10 +469,8 @@ export function terrainColorAt(
   tileX: number,
   tileY: number,
 ): string {
-  const biome =
-    tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height
-      ? WATER
-      : (terrain.biomes[tileY * terrain.width + tileX] ?? WATER);
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  const biome = index < 0 ? WATER : (terrain.biomes[index] ?? WATER);
   return BIOME_COLORS[biome] ?? BIOME_COLORS[WATER];
 }
 
@@ -880,16 +880,11 @@ function dirtCliffRoleAt(
   tileX: number,
   tileY: number,
 ): (typeof SURVIVAL_DIRT_CLIFF_ROLES)[number] {
-  if (
-    tileX < 0 ||
-    tileY < 0 ||
-    tileX >= terrain.width ||
-    tileY >= terrain.height
-  )
-    return "none";
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  if (index < 0) return "none";
   return (
     SURVIVAL_DIRT_CLIFF_ROLES[
-      terrain.dirtCliffRoles[tileY * terrain.width + tileX] ?? 0
+      terrain.dirtCliffRoles[index] ?? 0
     ] ?? "none"
   );
 }
@@ -899,16 +894,11 @@ function dirtTerraceAt(
   tileX: number,
   tileY: number,
 ): boolean {
-  if (
-    tileX < 0 ||
-    tileY < 0 ||
-    tileX >= terrain.width ||
-    tileY >= terrain.height
-  )
-    return false;
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  if (index < 0) return false;
   const biome = terrainBiomeAt(terrain, tileX, tileY);
   return (
-    terrain.dirtTerraces[tileY * terrain.width + tileX] === 1 &&
+    terrain.dirtTerraces[index] === 1 &&
     (biome === "dirt_terrace" || biome === "dirt_ridge")
   );
 }
@@ -926,10 +916,11 @@ export function terrainCliffFamilyAt(
   tileX: number,
   tileY: number,
 ): string {
-  if (tileX >= 0 && tileY >= 0 && tileX < terrain.width && tileY < terrain.height) {
-    const overrideFamily = terrain.terrainOverrides?.[tileY * terrain.width + tileX]?.family;
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  if (index >= 0) {
+    const overrideFamily = terrain.terrainOverrides?.[index]?.family;
     if (overrideFamily !== undefined) return overrideFamily;
-    const ordinal = terrain.cliffFamilies?.[tileY * terrain.width + tileX];
+    const ordinal = terrain.cliffFamilies?.[index];
     if (ordinal !== undefined) {
       const family = terrain.cliffFamilyIds?.[ordinal - 1] ?? cliffFamilyAtIndex(ordinal);
       if (family !== null) return family;
@@ -1080,14 +1071,17 @@ export function plateauLayerPlansAt(
     plansByTile = new Map();
     contourPlanCache.set(terrain, plansByTile);
   }
+  // A cache key, not an array index: callers probe neighbours past the edge,
+  // and those keys must keep their historical values. Kept by hand (S4b).
   const tileKey = tileY * terrain.width + tileX;
   const cached = plansByTile.get(tileKey);
   if (cached !== undefined) return cached;
   const tileSet = raisedCliffTileSetFor(terrain, tileX, tileY);
   const baseDatum = terrainBaseDatum(terrain);
   const maximumElevation = Math.max(terrainMaximumElevation(terrain), baseDatum);
-  const override = tileX >= 0 && tileY >= 0 && tileX < terrain.width && tileY < terrain.height
-    ? terrain.terrainOverrides?.[tileY * terrain.width + tileX]
+  const overrideIndex = terrainIndexAt(terrain, tileX, tileY);
+  const override = overrideIndex >= 0
+    ? terrain.terrainOverrides?.[overrideIndex]
     : null;
   const plans = resolveRaisedTerrainContoursAt(
     (x, y) => terrainElevationAt(terrain, x, y),
@@ -1142,19 +1136,19 @@ function cellarWallTileIsExposed(
   tileX: number,
   tileY: number,
 ): boolean {
+  // Only interior tiles qualify: both diagonal corners must be in the window.
+  const index = terrainIndexAt(terrain, tileX, tileY);
   if (
-    tileX <= 0 ||
-    tileY <= 0 ||
-    tileX >= terrain.width - 1 ||
-    tileY >= terrain.height - 1 ||
-    terrain.blocked[tileY * terrain.width + tileX] !== true
+    terrainIndexAt(terrain, tileX - 1, tileY - 1) < 0 ||
+    terrainIndexAt(terrain, tileX + 1, tileY + 1) < 0 ||
+    terrain.blocked[index] !== true
   )
     return false;
   return (
-    terrain.blocked[(tileY - 1) * terrain.width + tileX] === false ||
-    terrain.blocked[tileY * terrain.width + tileX + 1] === false ||
-    terrain.blocked[(tileY + 1) * terrain.width + tileX] === false ||
-    terrain.blocked[tileY * terrain.width + tileX - 1] === false
+    terrain.blocked[terrainIndexAt(terrain, tileX, tileY - 1)] === false ||
+    terrain.blocked[terrainIndexAt(terrain, tileX + 1, tileY)] === false ||
+    terrain.blocked[terrainIndexAt(terrain, tileX, tileY + 1)] === false ||
+    terrain.blocked[terrainIndexAt(terrain, tileX - 1, tileY)] === false
   );
 }
 
@@ -1236,6 +1230,8 @@ function terrainTransitionsByTile(
       [transition.lowerTileX, transition.lowerTileY],
       [transition.upperTileX, transition.upperTileY],
     ] as const) {
+      // Sparse key over authored data, not an array index: kept by hand so
+      // any off-map endpoint keys exactly as before (S4b; S4c re-keys).
       const key = tileY * terrain.width + tileX;
       const entries = mutable.get(key) ?? [];
       entries.push(transition);
@@ -1260,6 +1256,7 @@ export function terrainProjectedElevationAtFoot(
   const fixedPlane = terrainFixedPlane(terrain);
   if (fixedPlane !== undefined) return fixedPlane;
   const baseElevation = terrainElevationAt(terrain, tileX, tileY);
+  // Same hand-kept sparse key as terrainTransitionsByTile (feet may be off-map).
   const transitions =
     terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? [];
   for (const transition of transitions) {
@@ -1316,14 +1313,8 @@ export function terrainPlaneCollisionCellAt(
   tileY: number,
   activeElevation: number,
 ): TerrainPlaneCollisionCell {
-  if (
-    tileX < 0 ||
-    tileY < 0 ||
-    tileX >= terrain.width ||
-    tileY >= terrain.height
-  )
-    return "blocked";
-  const index = tileY * terrain.width + tileX;
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  if (index < 0) return "blocked";
   if (terrainFixedPlane(terrain) !== undefined) {
     if (tileX === 0 || tileY === 0 || tileX === terrain.width - 1 || tileY === terrain.height - 1) {
       return "blocked";
@@ -1336,7 +1327,7 @@ export function terrainPlaneCollisionCellAt(
       : "open";
   }
   if (terrain.blocked[index] ?? true) return "blocked";
-  const transition = (terrainTransitionsByTile(terrain).get(index) ?? []).some(
+  const transition = (terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? []).some(
     (candidate) => {
       if (candidate.kind !== "slope" && candidate.kind !== "stairs")
         return false;
@@ -1480,7 +1471,8 @@ export function authoredFarmlandRuleLayersAt(terrain:TerrainArray,tileX:number,t
   const mask = terrain.authoredFarmland;
   const present = (offsetX:number,offsetY:number):boolean => {
     const x=tileX+offsetX,y=tileY+offsetY;
-    return mask!==undefined&&x>=0&&y>=0&&x<terrain.width&&y<terrain.height&&mask[y*terrain.width+x]===1;
+    const index=terrainIndexAt(terrain,x,y);
+    return mask!==undefined&&index>=0&&mask[index]===1;
   };
   return present(0,0)?farmlandRuleLayers(present):[];
 }

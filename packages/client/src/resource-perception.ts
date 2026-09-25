@@ -33,7 +33,7 @@ export interface ResourcePerceptionInput {
   readonly underground: boolean;
   readonly centerTileX: number;
   readonly centerTileY: number;
-  readonly terrain: Pick<TerrainArray, 'width' | 'height' | 'blocked'>;
+  readonly terrain: Pick<TerrainArray, 'width' | 'height' | 'originX' | 'originY' | 'blocked'>;
   /** Includes content/ranks, excavation, resource, and live-map revisions. */
   readonly revision: string;
   readonly capabilities: ReturnType<typeof runtimeResourcePerception>;
@@ -95,10 +95,16 @@ export class ResourcePerceptionCache {
     const buriedOre: DetectedOre[] = [];
     const minimapOre = new Map<number, DetectedOre>();
     const fishingPools: { tileX: number; tileY: number }[] = [];
-    const minimumX = Math.max(1, x - radius);
-    const maximumX = Math.min(terrain.width - 2, x + radius);
-    const minimumY = Math.max(1, y - radius);
-    const maximumY = Math.min(terrain.height - 2, y + radius);
+    // Sparse keys (depleted resources, the vein cache, minimap de-duplication)
+    // stay `tileY * width + tileX` in world tiles so off-map resource
+    // coordinates key exactly as before; only the dense `blocked` read is
+    // window-relative (static world S4b).
+    const originX = terrain.originX ?? 0;
+    const originY = terrain.originY ?? 0;
+    const minimumX = Math.max(originX + 1, x - radius);
+    const maximumX = Math.min(originX + terrain.width - 2, x + radius);
+    const minimumY = Math.max(originY + 1, y - radius);
+    const maximumY = Math.min(originY + terrain.height - 2, y + radius);
     // Keep only the local window. Crossing one tile reuses previous deterministic
     // vein lookups; stationary rendering returns above without scanning any tiles.
     for (const index of this.oreTiles.keys()) {
@@ -107,9 +113,12 @@ export class ResourcePerceptionCache {
       if (tileX < minimumX || tileX > maximumX || tileY < minimumY || tileY > maximumY) this.oreTiles.delete(index);
     }
     if (radius > 0) for (let tileY = minimumY; tileY <= maximumY; tileY += 1) {
+      // Hot scan (up to ~15k tiles per step): the window row base of
+      // terrainIndexAt is hoisted; the clamps above keep every tile inside.
+      const rowBase = (tileY - originY) * terrain.width - originX;
       for (let tileX = minimumX; tileX <= maximumX; tileX += 1) {
         const index = tileY * terrain.width + tileX;
-        if (!terrain.blocked[index] || depletedTiles.has(index)
+        if (!terrain.blocked[rowBase + tileX] || depletedTiles.has(index)
           || distanceSquared(tileX, tileY) > radius ** 2) continue;
         let kind = this.oreTiles.get(index);
         if (kind === undefined) {
