@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { constants as fsConstants } from 'node:fs';
-import { link, lstat, mkdir, open, unlink, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { chmod, link, lstat, mkdir, open, unlink, writeFile } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants, gunzipSync, gzipSync } from 'node:zlib';
 import { CHUNK_RUNTIME_MAX_BLOB_BYTES, chunkBlobPath, validateRuntimeManifest, verifyRuntimeChunk } from '../packages/sim/src/chunk-runtime.js';
@@ -26,18 +26,23 @@ import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
  *
  * `plan` (the default) is a dry run: it reads and materialises, then reports what it
  * would do, with no chunk-dir write and no reducer call. `publish` also requires
- * WORLD_CHUNKS_PUBLISH_CONFIRM=publish:<manifestHash>:<database>, where manifestHash is
- * the SHA-256 of the exact manifestJson (the materializer's manifest.json bytes).
+ * WORLD_CHUNKS_PUBLISH_CONFIRM=publish:<manifestHash>:<registryContentHash>:<database>,
+ * where manifestHash is the SHA-256 of the exact manifestJson (the materializer's
+ * manifest.json bytes) and registryContentHash is the parsed registry hash the server's
+ * CAS compares (not content_head's raw rows hash).
  *
  * `check` is the release check: read only, it reports heads that do not match the live
- * map revision, the content hash or the served asset revision, or whose blobs are not
- * served, as stale (exit 1). Stale heads are never removed or disabled: the client falls
- * back, so they fail the check but never lock players out.
+ * map revision, the registry content hash or the served asset revision, or whose blobs
+ * are not served, as stale (exit 3; errors are 1). Stale heads are never removed or
+ * disabled: the client falls back, so they fail the check but never lock players out.
+ *
+ * --report FILE writes a 0600 JSON report on success and on failure (step, error code,
+ * required confirmation); tokens are redacted from reports and logs.
  *
  * The connection signs in as the credential's identity (client_connected runs). Use an
- * owner or admin release credential. The token comes only from the private file named by
- * WORLD_CHUNKS_TOKEN_FILE (and WORLD_CHUNKS_TOKEN_LABEL for a multi-entry rejoin file);
- * it is never printed.
+ * owner or admin release credential, refreshed first (npm run world:rejoin-smoke --
+ * refresh). The token comes only from the private file named by WORLD_CHUNKS_TOKEN_FILE
+ * (and WORLD_CHUNKS_TOKEN_LABEL for a multi-entry rejoin file); it is never printed.
  *
  *   WORLD_CHUNKS_TOKEN_FILE=/private/tokens.json WORLD_CHUNKS_TOKEN_LABEL=owner \
  *   npm run world:chunks:publish -- [plan|publish|check] --host URL --database NAME \
@@ -54,8 +59,8 @@ const ATLAS_INDEX_PATH = '/generated/atlas.packs.json';
 const MAX_ATLAS_INDEX_BYTES = 16 * 1024 * 1024;
 const MISSING_BLOB_HASH = '0'.repeat(64);
 
-/** 0 done/fresh, 1 stale or failed, 64 usage, 70 unexpected, 75 lost a race (re-run), 77 confirmation. */
-export const EXIT = { ok: 0, failed: 1, usage: 64, unexpected: 70, retry: 75, confirm: 77 } as const;
+/** 0 done/fresh, 1 failed, 3 stale heads (check), 64 usage, 70 unexpected, 75 lost a race (re-run), 77 confirmation. */
+export const EXIT = { ok: 0, failed: 1, stale: 3, usage: 64, unexpected: 70, retry: 75, confirm: 77 } as const;
 
 export class PipelineError extends Error {
   constructor(readonly code: string, readonly exitCode: number = EXIT.failed, detail?: string) {
@@ -123,8 +128,23 @@ export function sha256Hex(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
 }
 export function manifestHash(manifestJson: string): string { return sha256Hex(manifestJson); }
-export function publishConfirmation(manifestJson: string, database: string): string {
-  return `publish:${manifestHash(manifestJson)}:${database}`;
+/** Binds the exact manifest, the registry content hash it is published under, and the database. */
+export function publishConfirmation(manifestJson: string, registryContentHash: string, database: string): string {
+  return `publish:${manifestHash(manifestJson)}:${registryContentHash}:${database}`;
+}
+
+/**
+ * The content hash publishWorldChunkShadow compares: the server's parsed registry hash
+ * (`contentRegistry(ctx).contentHash`), not the raw rows hash in content_head. They can
+ * differ (for example a row spelling out a default). Null rows mean the bootstrap registry.
+ */
+export type RegistryContentHash = (rows: readonly ContentRow[] | null) => string | Promise<string>;
+export async function liveRegistryContentHash(rows: readonly ContentRow[] | null): Promise<string> {
+  const { bootstrapContentRegistry, buildContentRegistry } = await import('@orchard/sim');
+  if (rows === null) return bootstrapContentRegistry().contentHash;
+  const built = buildContentRegistry(rows.map(row => ({ id: row.id, kind: row.kind, slug: row.slug, json: row.json })));
+  if (!built.report.valid) throw new PipelineError('live_content_registry_invalid', EXIT.failed, built.report.errors[0]?.code ?? 'unknown');
+  return built.registry.contentHash;
 }
 
 export type StaleReason = 'unpublished' | 'map' | 'content' | 'asset' | 'heads' | 'manifest';
@@ -167,14 +187,14 @@ function sourceKey(state: LiveState): string {
 }
 
 /** Refuses a candidate that does not describe exactly these live rows and served assets. */
-export function assertCandidate(candidate: Candidate, state: LiveState, assetRevision: string): void {
+export function assertCandidate(candidate: Candidate, state: LiveState, assetRevision: string, registryContentHash: string): void {
   const map = state.mapRow;
   if (map === null) throw new PipelineError('live_map_row_missing');
   const manifest = validateRuntimeManifest(JSON.parse(candidate.manifestJson));
   if (canonicalChunkJson(manifest) !== canonicalChunkJson(candidate.manifest)) throw new PipelineError('candidate_manifest_json_mismatch');
   if (manifest.spaceId !== TOPSIDE_SPACE_ID) throw new PipelineError('candidate_space_not_supported');
   if (manifest.sourceRevision !== map.revision || manifest.sourceHash !== map.contentHash) throw new PipelineError('candidate_map_source_mismatch');
-  if (state.contentHead !== null && candidate.registryContentHash !== state.contentHead.contentHash) throw new PipelineError('candidate_content_hash_mismatch');
+  if (candidate.registryContentHash !== registryContentHash) throw new PipelineError('candidate_content_hash_mismatch');
   if (manifest.assetRevision !== assetRevision) throw new PipelineError('candidate_asset_revision_mismatch');
   if (candidate.blobs.length !== manifest.chunks.length) throw new PipelineError('candidate_blob_count_mismatch');
   for (const blob of candidate.blobs) {
@@ -240,9 +260,18 @@ export interface PipelineDeps {
   readonly origin: OriginPort;
   readonly store: ChunkStorePort;
   readonly materialize: MaterializePort;
+  readonly registryContentHash: RegistryContentHash;
   readonly log?: (line: string) => void;
   /** How long to wait for the published rows to appear (default 60 s). */
   readonly observeTimeoutMs?: number;
+}
+/** Where a run got to, for the failure report. Never holds a secret. */
+export interface PipelineTrace {
+  step: 'token' | 'connect' | 'read' | 'materialise' | 'confirm' | 'install' | 'verify' | 'stage' | 'publish' | 'observe' | 'check' | 'done';
+  manifestHash?: string;
+  registryContentHash?: string;
+  /** The value WORLD_CHUNKS_PUBLISH_CONFIRM must have, once known. */
+  confirmation?: string;
 }
 export interface PipelineOptions {
   readonly mode: 'plan' | 'publish';
@@ -269,26 +298,32 @@ export interface PublishReport {
   readonly publish: { readonly expectedRevision: number; readonly revision: number; readonly recovered: boolean } | null;
 }
 
-export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOptions): Promise<PublishReport> {
+export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOptions, trace: PipelineTrace = { step: 'read' }): Promise<PublishReport> {
   const log = deps.log ?? (() => undefined);
   const observeMs = deps.observeTimeoutMs ?? 60_000;
 
   // 1. Materialise from the live rows and the served atlas index.
+  trace.step = 'read';
   await deps.world.resume();
   const initial = deps.world.read();
   if (initial.mapRow === null) throw new PipelineError('live_map_row_missing');
+  const registryContentHash = await deps.registryContentHash(initial.contentRows);
+  trace.registryContentHash = registryContentHash;
   const atlasIndex = await deps.origin.atlasIndex();
   const assetRevision = worldChunkHash(atlasIndex);
   log(`materialising map revision ${initial.mapRow.revision} with asset revision ${assetRevision.slice(0, 12)}`);
+  trace.step = 'materialise';
   await deps.world.suspend();
   const candidate = await deps.materialize({ mapRow: initial.mapRow, contentRows: initial.contentRows, atlasIndex });
-  assertCandidate(candidate, initial, assetRevision);
+  assertCandidate(candidate, initial, assetRevision, registryContentHash);
   const spaceId = candidate.manifest.spaceId;
-  const confirmation = publishConfirmation(candidate.manifestJson, options.database);
+  const confirmation = publishConfirmation(candidate.manifestJson, registryContentHash, options.database);
+  trace.manifestHash = manifestHash(candidate.manifestJson);
+  trace.confirmation = confirmation;
   const alreadyPublished = isPublished(initial, candidate);
   const before = {
     shadowRevision: initial.shadow?.revision ?? null,
-    stale: staleReasons(initial, { contentHash: candidate.registryContentHash, assetRevision }).reasons,
+    stale: staleReasons(initial, { contentHash: registryContentHash, assetRevision }).reasons,
     alreadyPublished,
   };
   const base = {
@@ -302,23 +337,28 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   if (options.mode === 'plan') {
     const counts = { installed: 0, present: 0, incomplete: 0, missing: 0 };
     for (const blob of candidate.blobs) counts[await deps.store.status(spaceId, blob.contentHash)] += 1;
+    trace.step = 'done';
     return { ...base, outcome: 'planned', install: counts, verify: null, stage: { staged: 0, skipped: true }, publish: null };
   }
+  trace.step = 'confirm';
   if (options.confirm !== confirmation) throw new PipelineError('world_chunks_confirmation_required', EXIT.confirm, `set WORLD_CHUNKS_PUBLISH_CONFIRM=${confirmation}`);
   await deps.world.resume();
   if (sourceKey(deps.world.read()) !== sourceKey(initial)) throw new PipelineError('source_changed', EXIT.retry, 'the live map or content changed while materialising; run again');
 
   // 2. Install (content addressed, additive).
+  trace.step = 'install';
   const install = { installed: 0, present: 0, incomplete: 0, missing: 0 };
   for (const blob of candidate.blobs) install[await deps.store.install(spaceId, blob.contentHash, blob.bytes)] += 1;
   log(`installed ${install.installed} blob(s), ${install.present} already present`);
 
   // 3. Verify over the public origin, and that it still serves the same atlas index.
+  trace.step = 'verify';
   const verify = await verifyServed(deps.origin, spaceId, candidate.manifest.chunks);
   if (worldChunkHash(await deps.origin.atlasIndex()) !== assetRevision) throw new PipelineError('origin_asset_revision_changed', EXIT.retry);
   log(`verified ${verify.served} blob(s) over ${deps.origin.origin}: ${JSON.stringify(verify.encodings)}`);
 
   // 4. Stage (the server keeps the first copy of each hash, so re-staging is harmless).
+  trace.step = 'stage';
   let staged = 0;
   if (!alreadyPublished) {
     for (const blob of candidate.blobs) {
@@ -330,9 +370,11 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   }
 
   // 5. CAS-publish the heads against the rows the candidate was built from.
+  trace.step = 'publish';
   const current = deps.world.read();
   if (sourceKey(current) !== sourceKey(initial)) throw new PipelineError('source_changed', EXIT.retry, 'the live map or content changed while publishing; run again');
   if (isPublished(current, candidate)) {
+    trace.step = 'done';
     return { ...base, outcome: 'unchanged', install, verify, stage: { staged, skipped: alreadyPublished }, publish: null };
   }
   const expectedRevision = current.shadow?.revision ?? 0;
@@ -347,9 +389,11 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
     else if ((after.shadow?.revision ?? 0) !== expectedRevision) throw new PipelineError('cas_conflict', EXIT.retry, `shadow revision moved from ${expectedRevision} to ${after.shadow?.revision ?? 0}; run again`);
     else throw new PipelineError('publish_rejected', EXIT.failed, errorText(error));
   }
+  trace.step = 'observe';
   const after = await deps.world.settle(state => isPublished(state, candidate), observeMs);
   if (!isPublished(after, candidate)) throw new PipelineError('publish_not_observed', EXIT.failed, `expected revision ${expectedRevision + 1}`);
   log(`published heads at shadow revision ${after.shadow!.revision}`);
+  trace.step = 'done';
   return { ...base, outcome: 'published', install, verify, stage: { staged, skipped: false }, publish: { expectedRevision, revision: after.shadow!.revision, recovered } };
 }
 
@@ -365,10 +409,10 @@ export interface CheckReport {
 }
 
 /** The release check. Read only. Stale or unserved heads fail the check; nothing is changed. */
-export async function checkPublishedHeads(deps: { readonly world: WorldPort; readonly origin: OriginPort; readonly bootstrapContentHash: () => string }): Promise<CheckReport> {
+export async function checkPublishedHeads(deps: { readonly world: WorldPort; readonly origin: OriginPort; readonly registryContentHash: RegistryContentHash }): Promise<CheckReport> {
   const state = deps.world.read();
   const assetRevision = worldChunkHash(await deps.origin.atlasIndex());
-  const contentHash = state.contentHead?.contentHash ?? deps.bootstrapContentHash();
+  const contentHash = await deps.registryContentHash(state.contentRows);
   const { reasons, manifest } = staleReasons(state, { contentHash, assetRevision });
   let verify: ServedReport | null = null, verifyError: string | null = null;
   if (manifest !== null) {
@@ -384,6 +428,36 @@ export async function checkPublishedHeads(deps: { readonly world: WorldPort; rea
 function errorText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
   return text.split('\n')[0]!.slice(0, 300);
+}
+
+/** Removes the token, token query parameters and anything JWT-shaped from text bound for logs or reports. */
+export function redact(text: string, token?: string): string {
+  let result = token !== undefined && token.length >= 8 ? text.split(token).join('[redacted]') : text;
+  result = result.replace(/([?&](?:access_)?token=)[^&\s"']+/giu, '$1[redacted]');
+  return result.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/gu, '[redacted]');
+}
+
+export interface FailureReport {
+  readonly schema: 1;
+  readonly ok: false;
+  readonly command: CliOptions['command'];
+  readonly target: { readonly host: string; readonly database: string; readonly origin: string };
+  readonly step: PipelineTrace['step'];
+  readonly error: { readonly code: string; readonly exitCode: number; readonly message: string };
+  readonly manifestHash: string | null;
+  readonly registryContentHash: string | null;
+  readonly confirmation: string | null;
+}
+
+/** The evidence written when a run fails (including the expected exit 77). Never contains the token. */
+export function failureReport(options: Pick<CliOptions, 'command' | 'host' | 'database' | 'origin'>, trace: PipelineTrace, error: unknown, token?: string): FailureReport {
+  const code = error instanceof PipelineError ? error.code : 'unexpected';
+  return {
+    schema: 1, ok: false, command: options.command, target: { host: options.host, database: options.database, origin: options.origin },
+    step: trace.step,
+    error: { code, exitCode: error instanceof PipelineError ? error.exitCode : EXIT.unexpected, message: redact(errorText(error), token) },
+    manifestHash: trace.manifestHash ?? null, registryContentHash: trace.registryContentHash ?? null, confirmation: trace.confirmation ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +543,21 @@ function decodesTo(sibling: Sibling, existing: Uint8Array, bytes: Uint8Array): b
   try { return sameBytes(sibling.decode(existing), bytes); } catch { return false; }
 }
 
+/**
+ * Creates a missing directory chain as 0755, whatever the umask (the release runs under
+ * umask 077). Existing directories are left exactly as they are.
+ */
+async function ensureServedDirectory(directory: string): Promise<void> {
+  const created = await mkdir(directory, { recursive: true, mode: 0o755 });
+  if (created === undefined) return;
+  let path = created;
+  await chmod(path, 0o755);
+  for (const part of relative(created, directory).split(sep).filter(Boolean)) {
+    path = join(path, part);
+    await chmod(path, 0o755);
+  }
+}
+
 export function fileChunkStore(root: string): ChunkStorePort {
   if (!isAbsolute(root)) throw new PipelineError('chunk_dir_must_be_absolute', EXIT.usage);
   const blobPath = (spaceId: number, hash: string, suffix: string): string => join(root, chunkBlobPath(spaceId, hash).slice('/world/'.length) + suffix);
@@ -484,7 +573,7 @@ export function fileChunkStore(root: string): ChunkStorePort {
     async install(spaceId, hash, bytes) {
       if (worldChunkHash(bytes.subarray(40)) !== hash) throw new PipelineError('chunk_hash_mismatch', EXIT.failed, hash);
       const directory = join(root, String(spaceId));
-      await mkdir(directory, { recursive: true, mode: 0o755 });
+      await ensureServedDirectory(directory);
       let wrote = false;
       for (const sibling of SIBLINGS) {
         const path = blobPath(spaceId, hash, sibling.suffix);
@@ -707,30 +796,41 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
     });
     if (exists) throw new PipelineError('report_exists', EXIT.usage, options.report);
   }
-  const token = await readTokenFile(options.tokenFile, options.tokenLabel);
-  const world = await connectWorld({ host: options.host, database: options.database }, token);
-  const log = (line: string): void => { console.error(`[world-chunks] ${line}`); };
+  const writeReport = async (value: unknown): Promise<void> => {
+    if (options.report !== null) await writeFile(options.report, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  };
+  const trace: PipelineTrace = { step: 'token' };
+  let token: string | undefined;
+  const log = (line: string): void => { console.error(`[world-chunks] ${redact(line, token)}`); };
   try {
-    const origin = httpOrigin(options.origin);
-    let report: PublishReport | CheckReport;
-    let code: number;
-    if (options.command === 'check') {
-      const { bootstrapContentRegistry } = await import('@orchard/sim');
-      report = await checkPublishedHeads({ world, origin, bootstrapContentHash: () => bootstrapContentRegistry().contentHash });
-      code = report.fresh ? EXIT.ok : EXIT.failed;
-      console.log(JSON.stringify({ command: 'check', fresh: report.fresh, stale: report.stale, shadowRevision: report.shadowRevision, heads: report.heads, served: report.verify?.served ?? null, encodings: report.verify?.encodings ?? null, verifyError: report.verifyError }));
-    } else {
-      report = await runPublishPipeline({ world, origin, store: fileChunkStore(options.chunkDir!), materialize: materializeInProcess, log },
-        { mode: options.command, database: options.database, confirm: options.confirm });
-      code = EXIT.ok;
+    token = await readTokenFile(options.tokenFile, options.tokenLabel);
+    trace.step = 'connect';
+    const world = await connectWorld({ host: options.host, database: options.database }, token);
+    try {
+      const origin = httpOrigin(options.origin);
+      if (options.command === 'check') {
+        trace.step = 'check';
+        const report = await checkPublishedHeads({ world, origin, registryContentHash: liveRegistryContentHash });
+        await writeReport(report);
+        console.log(JSON.stringify({ command: 'check', fresh: report.fresh, stale: report.stale, shadowRevision: report.shadowRevision, heads: report.heads,
+          served: report.verify?.served ?? null, encodings: report.verify?.encodings ?? null, verifyError: report.verifyError === null ? null : redact(report.verifyError, token) }));
+        return report.fresh ? EXIT.ok : EXIT.stale;
+      }
+      const report = await runPublishPipeline({ world, origin, store: fileChunkStore(options.chunkDir!), materialize: materializeInProcess, registryContentHash: liveRegistryContentHash, log },
+        { mode: options.command, database: options.database, confirm: options.confirm }, trace);
+      await writeReport(report);
       console.log(JSON.stringify({ command: options.command, outcome: report.outcome, manifestHash: report.manifestHash, confirmation: report.confirmation,
         chunks: report.chunks, bytes: report.bytes, before: report.before, install: report.install, served: report.verify?.served ?? null,
         encodings: report.verify?.encodings ?? null, staged: report.stage.staged, publish: report.publish }));
+      return EXIT.ok;
+    } finally {
+      world.close();
     }
-    if (options.report !== null) await writeFile(options.report, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-    return code;
-  } finally {
-    world.close();
+  } catch (error) {
+    const failure = failureReport(options, trace, error, token);
+    await writeReport(failure);
+    console.error(`[world-chunks] ${options.command} failed at ${failure.step}: ${failure.error.message}`);
+    return failure.error.exitCode;
   }
 }
 

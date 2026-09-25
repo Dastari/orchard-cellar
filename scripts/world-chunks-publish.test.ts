@@ -1,12 +1,16 @@
-import { chmod, lstat, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, unlink, writeFile } from 'node:fs/promises';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
+import { bootstrapContentRegistry, bootstrapContentRows, contentDefinitionRowsHash } from '@orchard/sim';
+import { createWorldChunkMiddleware } from '../packages/client/world-chunk-serving.js';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
 import {
-  EXIT, PipelineError, checkPublishedHeads, checkServedBlob, fileChunkStore, isPublished, parseCli, publishConfirmation, readTokenFile,
-  runPublishPipeline, sha256Hex, verifyServed,
+  EXIT, PipelineError, checkPublishedHeads, checkServedBlob, failureReport, fileChunkStore, httpOrigin, isPublished, liveRegistryContentHash, main,
+  parseCli, publishConfirmation, readTokenFile, redact, runPublishPipeline, sha256Hex, verifyServed, type ContentRow, type PipelineTrace,
   type Candidate, type ChunkStorePort, type LiveMapRow, type LiveState, type OriginPort, type PipelineDeps, type ServedBlob, type ShadowPublication, type WorldPort,
 } from './world-chunks-publish.js';
 
@@ -21,7 +25,9 @@ afterEach(async () => { await Promise.all(directories.splice(0).map(path => rm(p
 const CELLS = WORLD_CHUNK_STRIDE ** 2;
 const DATABASE = 'orchard-chunks-test';
 const ATLAS = new TextEncoder().encode('{"assetPacks":{"tree":"nature"}}');
-const REGISTRY_HASH = 'c'.repeat(64);
+const REGISTRY_HASH = '93a4eada';
+/** content_head.contentHash is the raw rows hash; it differs from the registry hash the CAS uses. */
+const ROWS_HASH = 'bcab1a8e';
 
 function mapRow(revision = 7): LiveMapRow {
   return { mapId: 'live-island', revision, contentHash: `map-hash-${revision}`, documentJson: '{}' };
@@ -65,9 +71,12 @@ class FakeWorld implements WorldPort {
   /** Apply the publication but never show it (the subscription stalls). */
   hideRows = false;
   constructor(readonly events: Events, map: LiveMapRow | null = mapRow()) {
-    this.state = { mapRow: map, contentHead: { revision: '4', contentHash: REGISTRY_HASH }, contentRows: [], shadow: null, heads: [] };
+    this.state = { mapRow: map, contentHead: { revision: '4', contentHash: ROWS_HASH }, contentRows: [], shadow: null, heads: [] };
   }
   #visible: LiveState | null = null;
+  /** The server's `contentRegistry(ctx).contentHash` for the current rows. */
+  registryHash = REGISTRY_HASH;
+  serverRegistryHash(): string { return this.state.contentRows === null ? 'bootstrap' : this.registryHash; }
   read(): LiveState {
     if (this.suspended) throw new Error('read while suspended');
     return this.#visible ?? this.state;
@@ -90,7 +99,7 @@ class FakeWorld implements WorldPort {
     const current = this.state;
     if (input.expectedRevision !== (current.shadow?.revision ?? 0)) throw new Error('fatal error'); // production: plain Error, no code
     if (current.mapRow === null || manifest.sourceRevision !== current.mapRow.revision || manifest.sourceHash !== current.mapRow.contentHash
-      || input.contentHash !== current.contentHead?.contentHash) throw new Error('fatal error');
+      || input.contentHash !== this.serverRegistryHash()) throw new Error('fatal error');
     if (manifest.chunks.some(head => !this.staged.has(head.contentHash))) throw new Error('fatal error');
     const revision = input.expectedRevision + 1;
     if (this.hideRows) this.#visible = current;
@@ -156,6 +165,7 @@ function harness(map: LiveMapRow | null = mapRow()) {
   let duringMaterialize: (() => void) | null = null;
   const deps: PipelineDeps = {
     world, store, origin, observeTimeoutMs: 10,
+    registryContentHash: rows => (rows === null ? 'bootstrap' : world.registryHash),
     materialize: async input => {
       materializeCalls += 1;
       // The connection is closed while the CPU-bound materialisation runs.
@@ -170,7 +180,7 @@ function harness(map: LiveMapRow | null = mapRow()) {
     get materializeCalls() { return materializeCalls; },
     failMaterialize(error: Error | null) { materializeError = error; },
     whileMaterializing(action: (() => void) | null) { duringMaterialize = action; },
-    confirm: () => publishConfirmation(candidateFor(world.state.mapRow!, origin.atlas).manifestJson, DATABASE),
+    confirm: () => publishConfirmation(candidateFor(world.state.mapRow!, origin.atlas).manifestJson, REGISTRY_HASH, DATABASE),
   };
 }
 
@@ -187,7 +197,7 @@ describe('world chunk publish pipeline', () => {
     const report = await runPublishPipeline(h.deps, { mode: 'plan', database: DATABASE });
     const candidate = candidateFor(mapRow(), ATLAS);
     expect(report).toMatchObject({ outcome: 'planned', chunks: 4, manifestHash: sha256Hex(candidate.manifestJson),
-      confirmation: `publish:${sha256Hex(candidate.manifestJson)}:${DATABASE}`, before: { shadowRevision: null, stale: ['unpublished'], alreadyPublished: false },
+      confirmation: `publish:${sha256Hex(candidate.manifestJson)}:${REGISTRY_HASH}:${DATABASE}`, before: { shadowRevision: null, stale: ['unpublished'], alreadyPublished: false },
       install: { missing: 4, present: 0 }, publish: null });
     expect(h.store.installCalls).toBe(0);
     expect(h.store.files.size).toBe(0);
@@ -202,7 +212,9 @@ describe('world chunk publish pipeline', () => {
 
   it('refuses to publish without the exact confirmation, before any write', async () => {
     const h = harness();
-    for (const confirm of [undefined, 'publish', `publish:${'0'.repeat(64)}:${DATABASE}`, h.confirm().replace(DATABASE, 'orchard-cellar-world')]) {
+    const unbound = `publish:${sha256Hex(candidateFor(mapRow(), ATLAS).manifestJson)}:${DATABASE}`;
+    for (const confirm of [undefined, 'publish', unbound, `publish:${'0'.repeat(64)}:${REGISTRY_HASH}:${DATABASE}`, h.confirm().replace(DATABASE, 'orchard-cellar-world'),
+      h.confirm().replace(REGISTRY_HASH, ROWS_HASH)]) {
       const error = await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm }).catch((caught: unknown) => caught);
       expect(error).toMatchObject({ code: 'world_chunks_confirmation_required', exitCode: EXIT.confirm });
       expect((error as Error).message).toContain(h.confirm());
@@ -313,7 +325,7 @@ describe('world chunk publish pipeline', () => {
     expect(h.world.state.shadow).toBeNull();
     h.world.beforePublish = null;
     // The re-run materialises the new revision, which needs its own confirmation.
-    await expectPipelineError(runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: publishConfirmation(candidateFor(mapRow(7), ATLAS).manifestJson, DATABASE) }),
+    await expectPipelineError(runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: publishConfirmation(candidateFor(mapRow(7), ATLAS).manifestJson, REGISTRY_HASH, DATABASE) }),
       'world_chunks_confirmation_required', EXIT.confirm);
     expect((await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: h.confirm() })).publish?.revision).toBe(1);
 
@@ -348,7 +360,7 @@ describe('world chunk publish pipeline', () => {
 
   it('the release check reports stale heads as a failure and never changes the world', async () => {
     const h = harness();
-    const check = () => checkPublishedHeads({ world: h.world, origin: h.origin, bootstrapContentHash: () => 'bootstrap' });
+    const check = () => checkPublishedHeads({ world: h.world, origin: h.origin, registryContentHash: h.deps.registryContentHash });
     expect(await check()).toMatchObject({ fresh: false, stale: ['unpublished'], verify: null });
     await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: h.confirm() });
     expect(await check()).toMatchObject({ fresh: true, stale: [], shadowRevision: 1, verify: { served: 4 } });
@@ -356,10 +368,15 @@ describe('world chunk publish pipeline', () => {
     const published = h.world.state;
     h.world.state = { ...published, mapRow: mapRow(8) };
     expect((await check()).stale).toEqual(['map']);
-    h.world.state = { ...published, contentHead: { revision: '5', contentHash: 'e'.repeat(64) } };
+    h.world.registryHash = 'e'.repeat(64);
+    h.world.state = { ...published, contentHead: { revision: '5', contentHash: 'f'.repeat(8) } };
     expect((await check()).stale).toEqual(['content']);
-    h.world.state = { ...published, contentHead: null };
+    h.world.registryHash = REGISTRY_HASH;
+    h.world.state = { ...published, contentHead: null, contentRows: null };
     expect((await check()).stale).toEqual(['content']); // compared with the bootstrap registry hash
+    // The rows hash in content_head alone moving (same registry) is not staleness.
+    h.world.state = { ...published, contentHead: { revision: '5', contentHash: 'f'.repeat(8) } };
+    expect((await check()).stale).toEqual([]);
     h.world.state = published;
     h.origin.atlas = new Uint8Array([7]);
     expect((await check()).stale).toEqual(['asset']);
@@ -493,5 +510,122 @@ describe('command line', () => {
     expect(parseCli(production('http://127.0.0.1:3000', 'https://orchard.dastari.net'), env)).toMatchObject({ database: 'orchard-cellar-world' });
     expect(() => parseCli(production('http://127.0.0.1:3470', 'https://orchard.dastari.net'), env)).toThrow('production_target_must_be_canonical');
     expect(() => parseCli(production('http://127.0.0.1:3000', 'http://127.0.0.1:5199'), env)).toThrow('production_target_must_be_canonical');
+  });
+});
+
+describe('content hash', () => {
+  it('compares the parsed registry hash, which can differ from the content_head rows hash', async () => {
+    const rows: ContentRow[] = bootstrapContentRows().map(row => ({ id: row.id, kind: row.kind, slug: row.slug ?? '', revision: '1', hash: '',
+      json: typeof row.json === 'string' ? row.json : JSON.stringify(row.json) }));
+    const index = rows.findIndex(row => row.kind === 'item');
+    // Spelling out a default changes the raw rows hash but not the registry the server builds.
+    rows[index] = { ...rows[index]!, json: JSON.stringify({ ...JSON.parse(rows[index]!.json) as object, quality: 'common' }) };
+    const registry = await liveRegistryContentHash(rows);
+    expect(registry).toBe(bootstrapContentRegistry().contentHash);
+    expect(contentDefinitionRowsHash(rows)).not.toBe(registry);
+    expect(await liveRegistryContentHash(null)).toBe(bootstrapContentRegistry().contentHash);
+  });
+
+  it('publishes and checks fresh when content_head holds a different rows hash', async () => {
+    const h = harness();
+    expect(h.world.state.contentHead?.contentHash).toBe(ROWS_HASH);
+    const report = await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: h.confirm() });
+    expect(report).toMatchObject({ outcome: 'published', source: { contentHash: REGISTRY_HASH } });
+    expect(h.world.state.shadow?.contentHash).toBe(REGISTRY_HASH);
+    expect(await checkPublishedHeads({ world: h.world, origin: h.origin, registryContentHash: h.deps.registryContentHash })).toMatchObject({ fresh: true });
+  });
+});
+
+describe('failure evidence', () => {
+  it('records the step, error and required confirmation for the expected exit 77', async () => {
+    const h = harness();
+    const trace: PipelineTrace = { step: 'read' };
+    const error = await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE }, trace).catch((caught: unknown) => caught);
+    const report = failureReport({ command: 'publish', host: 'http://127.0.0.1:3470', database: DATABASE, origin: h.origin.origin }, trace, error);
+    expect(report).toMatchObject({ ok: false, step: 'confirm', error: { code: 'world_chunks_confirmation_required', exitCode: EXIT.confirm },
+      confirmation: h.confirm(), registryContentHash: REGISTRY_HASH, manifestHash: sha256Hex(candidateFor(mapRow(), ATLAS).manifestJson) });
+    expect(report.error.message).toContain(h.confirm());
+  });
+
+  it('never lets a token into a report or log line', () => {
+    const token = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJvd25lciJ9.c2lnbmF0dXJlLXZhbHVl';
+    const opaque = 'opaque-secret-token-value';
+    const error = new PipelineError('connect_failed', EXIT.failed, `ws://127.0.0.1:3470/v1/subscribe?token=${opaque}&compression=none bearer ${token}`);
+    const report = failureReport({ command: 'check', host: 'http://127.0.0.1:3470', database: DATABASE, origin: 'http://127.0.0.1:5199' }, { step: 'connect' }, error, opaque);
+    const text = JSON.stringify(report);
+    expect(text).not.toContain(opaque);
+    expect(text).not.toContain(token);
+    expect(text).toContain('connect_failed');
+    expect(redact(`x ${opaque} y`, opaque)).toBe('x [redacted] y');
+  });
+
+  it('main writes the failure report (no token) when the world cannot be reached', async () => {
+    const directory = await temporary();
+    const token = 'local.token-value.for-test';
+    const tokenFile = join(directory, 'token');
+    await writeFile(tokenFile, token, { mode: 0o600 });
+    const closed: Server = createServer();
+    await new Promise<void>(done => closed.listen(0, '127.0.0.1', done));
+    const port = (closed.address() as AddressInfo).port;
+    await new Promise<void>(done => closed.close(() => done()));
+    const report = join(directory, 'check.json');
+    const code = await main(['check', '--host', `http://127.0.0.1:${port}`, '--database', 'orchard-chunk-soak-local01', '--origin', 'http://127.0.0.1:5199', '--report', report],
+      { WORLD_CHUNKS_TOKEN_FILE: tokenFile });
+    expect(code).toBe(EXIT.failed);
+    const text = await readFile(report, 'utf8');
+    expect(JSON.parse(text)).toMatchObject({ ok: false, command: 'check', step: 'connect', error: { exitCode: EXIT.failed } });
+    expect(text).not.toContain(token);
+    expect((await stat(report)).mode & 0o777).toBe(0o600);
+  }, 40_000);
+});
+
+describe('chunk directory permissions', () => {
+  it('creates missing directories as 0755 even under umask 077, and leaves existing ones alone', async () => {
+    const parent = await temporary();
+    const [blob] = candidateFor(mapRow(), ATLAS).blobs;
+    const previous = process.umask(0o077);
+    try {
+      const root = join(parent, 'share', 'world-chunks');
+      await fileChunkStore(root).install(0, blob!.contentHash, blob!.bytes);
+      for (const path of [join(parent, 'share'), root, join(root, '0')]) expect((await stat(path)).mode & 0o777).toBe(0o755);
+      expect((await stat(join(root, '0', `${blob!.contentHash}.bin`))).mode & 0o777).toBe(0o644);
+      const existing = join(parent, 'existing');
+      await mkdir(existing, { mode: 0o700 });
+      await fileChunkStore(existing).install(0, blob!.contentHash, blob!.bytes);
+      expect((await stat(existing)).mode & 0o777).toBe(0o700);
+      expect((await stat(join(existing, '0'))).mode & 0o777).toBe(0o755);
+    } finally {
+      process.umask(previous);
+    }
+  });
+});
+
+describe('public origin adapter', () => {
+  it('reads blobs through the real /world/ middleware: Brotli and gzip decode, a real 404', async () => {
+    const root = join(await temporary(), 'world-chunks');
+    const { blobs, manifest } = candidateFor(mapRow(), ATLAS);
+    const store = fileChunkStore(root);
+    for (const blob of blobs) await store.install(0, blob.contentHash, blob.bytes);
+    await unlink(join(root, '0', `${blobs[1]!.contentHash}.bin.br`)); // this one falls back to gzip
+    const middleware = createWorldChunkMiddleware(root);
+    const server = createServer((req, res) => {
+      if (req.url === '/generated/atlas.packs.json') { res.setHeader('Content-Type', 'application/json'); res.end(Buffer.from(ATLAS)); return; }
+      middleware(req, res, () => { res.statusCode = 500; res.end(); });
+    });
+    await new Promise<void>(done => server.listen(0, '127.0.0.1', done));
+    try {
+      const origin = httpOrigin(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
+      expect(new Uint8Array(await origin.atlasIndex())).toEqual(ATLAS);
+      const first = await origin.blob(0, blobs[0]!.contentHash);
+      expect(first).toMatchObject({ status: 200, encoding: 'br', contentType: 'application/octet-stream' });
+      expect(first.bytes).toEqual(blobs[0]!.bytes);
+      expect(checkServedBlob(first, 0, manifest.chunks[0]!)).toBeNull();
+      expect(await verifyServed(origin, 0, manifest.chunks)).toEqual({ served: 4, encodings: { br: 3, gzip: 1 } });
+      expect((await origin.blob(0, '0'.repeat(64))).status).toBe(404);
+      await rm(join(root, '0', `${blobs[2]!.contentHash}.bin`));
+      await expectPipelineError(verifyServed(origin, 0, manifest.chunks), 'origin_blob_not_served', EXIT.failed);
+    } finally {
+      await new Promise<void>(done => server.close(() => done()));
+    }
   });
 });
