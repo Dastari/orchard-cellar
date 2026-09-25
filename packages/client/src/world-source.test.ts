@@ -1,0 +1,115 @@
+import { describe, expect, it, vi } from 'vitest';
+import { bootstrapContentRegistry, SURVIVAL_WORLD_SIZE } from '@orchard/sim';
+import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
+import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
+import { BoundedChunkTerrainStore as Store } from '@orchard/engine/bounded-chunk-terrain-store';
+import { terrainIndexAt } from '@orchard/engine/terrain-index';
+import type { TerrainArray } from '@orchard/engine/terrain';
+import { WorldSource, type ChunkPinBounds } from './world-source.js';
+
+const registry = bootstrapContentRegistry();
+const SIZE = 384;
+
+/** A 6 x 6 chunk topside map whose biome encodes the tile. */
+function fixture(spaceId = 0): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
+  const cells = SIZE * SIZE;
+  const channels: Record<string, ChunkArray> = {
+    biomes: Uint8Array.from({ length: cells }, (_, index) => (index % SIZE + Math.floor(index / SIZE)) % 7),
+    elevations: new Int16Array(cells), dirtCliffRoles: new Uint8Array(cells), dirtTerraces: new Uint8Array(cells),
+    blocked: new Uint8Array(cells), horseJumpableTerrain: new Uint8Array(cells), medium: new Uint8Array(cells), solidBlocked: new Uint8Array(cells),
+  };
+  const chunks = new Map<string, WorldChunk>();
+  const heads: WorldChunkManifest['chunks'][number][] = [];
+  for (let cy = 0; cy < SIZE / 64; cy++) for (let cx = 0; cx < SIZE / 64; cx++) {
+    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, spaceId, cx, cy, assetRevision: 'a', records: [], assetIds: [], atlasPackIds: [],
+      arrays: Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, sliceWorldChunkChannel(value, SIZE, SIZE, cx, cy, /blocked/iu.test(name) ? 1 : 0)])) });
+    const chunk = decodeWorldChunk(bytes);
+    chunks.set(`${cx}:${cy}`, chunk);
+    heads.push({ cx, cy, byteLength: bytes.length, contentHash: chunk.contentHash });
+  }
+  const manifest = { schema: 1, chunkSize: 64, spaceId, width: SIZE, height: SIZE, assetRevision: 'a', sourceRevision: 4, sourceHash: 'map',
+    metadata: { terrain: { seed: 9, version: 4, generator: 'island', projectionStyle: 'raised', baseDatum: 0 },
+      collisions: { clientGround: { terrainMinimumElevation: 0 } },
+      channels: Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: 1 }])) },
+    chunks: heads } as WorldChunkManifest;
+  return { manifest, chunks };
+}
+
+function servingStore(spaceId = 0) {
+  const { manifest, chunks } = fixture(spaceId);
+  const resident = new Set<string>();
+  let pins: string[] = [];
+  let installs = 0;
+  const store = {
+    manifest,
+    get installs() { return installs; },
+    get pinnedKeys() { return pins; },
+    peekChunk: (cx: number, cy: number) => resident.has(`${cx}:${cy}`) ? chunks.get(`${cx}:${cy}`) : undefined,
+  } as unknown as BoundedChunkTerrainStore;
+  // The chunk runtime pins the bounds and the loader installs every pinned chunk.
+  const real = new Store(manifest);
+  const pin = (bounds: ChunkPinBounds) => {
+    real.pinView(...bounds);
+    pins = [...real.pinnedKeys];
+    for (const key of pins) { resident.add(key); installs++; }
+  };
+  return { store, pin, resident };
+}
+
+describe('WorldSource (static world S4c)', () => {
+  const legacyTerrain = { width: SIZE, height: SIZE } as TerrainArray;
+
+  it('returns the legacy terrain untouched when no chunk store is serving (off, shadow)', () => {
+    const pin = vi.fn();
+    const source = new WorldSource({ store: () => undefined, pin });
+    const legacy = vi.fn(() => legacyTerrain);
+    expect(source.topsideTerrain(legacy, registry)).toBe(legacyTerrain);
+    expect(source.minimapTerrain(legacy, registry)).toEqual({ terrain: legacyTerrain, key: '' });
+    const regions: unknown[] = [];
+    source.drainGroundInvalidations((region) => regions.push(region));
+    expect(regions).toEqual([]);
+    // Shadow still pins the camera's window (25 chunks at most), not the entity radius.
+    source.setView({ minX: 400, minY: 400, maxX: 520, maxY: 468 });
+    source.setView({ minX: 401, minY: 400, maxX: 521, maxY: 468 });
+    expect(pin).toHaveBeenCalledTimes(1);
+    expect(pin).toHaveBeenCalledWith([384, 320, 575, 511]);
+    expect(SURVIVAL_WORLD_SIZE).toBe(832);
+  });
+
+  it('serves a window around the camera in chunk mode on, and keeps legacy for another space', () => {
+    const serving = servingStore();
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
+    const legacy = vi.fn(() => legacyTerrain);
+    source.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    const terrain = source.topsideTerrain(legacy, registry);
+    expect(legacy).not.toHaveBeenCalled();
+    expect([terrain.originX, terrain.originY, terrain.width, terrain.height]).toEqual([64, 64, 320, 320]);
+    expect(terrain.biomes[terrainIndexAt(terrain, 310, 305)]).toBe((310 + 305) % 7);
+    // Same frame, same window: no rebuild.
+    expect(source.topsideTerrain(legacy, registry)).toBe(terrain);
+    const minimap = source.minimapTerrain(legacy, registry);
+    expect(minimap.terrain).toBe(terrain);
+    expect(minimap.key).toBe('window:1');
+    const regions: unknown[] = [];
+    source.drainGroundInvalidations((region) => regions.push(region));
+    expect(regions).toEqual([{ minX: -Infinity, minY: -Infinity, maxX: Infinity, maxY: Infinity }]);
+    // Moving the camera across the map moves the window and invalidates only changed chunks.
+    source.setView({ minX: 10, minY: 10, maxX: 50, maxY: 32 });
+    const moved = source.topsideTerrain(legacy, registry);
+    expect([moved.originX, moved.originY]).toEqual([0, 0]);
+    regions.length = 0;
+    source.drainGroundInvalidations((region) => regions.push(region));
+    expect(regions.length).toBeGreaterThan(0);
+    expect(regions).not.toContainEqual({ minX: -Infinity, minY: -Infinity, maxX: Infinity, maxY: Infinity });
+    const other = new WorldSource({ store: () => servingStore(7).store, pin: () => undefined });
+    expect(other.topsideTerrain(legacy, registry)).toBe(legacyTerrain);
+  });
+
+  it('builds from the runtime pins before the first camera frame', () => {
+    const serving = servingStore();
+    serving.pin([128, 128, 191, 191]);
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
+    const terrain = source.topsideTerrain(() => legacyTerrain, registry);
+    expect([terrain.originX, terrain.originY, terrain.width, terrain.height]).toEqual([64, 64, 192, 192]);
+  });
+});

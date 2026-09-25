@@ -1,5 +1,7 @@
 import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
-import { ChunkRuntimeController } from '../chunk-runtime-controller.js';
+import { ChunkRuntimeController, type ChunkView } from '../chunk-runtime-controller.js';
+import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
+import { chunkWindowForView, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 import {
   INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY, CURRENT_INVENTORY_PROTOCOL_VERSION,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
@@ -349,6 +351,10 @@ export class OverworldConnection {
   // Validated by the build gate; `on` still follows the server's chunkAuthority (not yet connected: S2a seam).
   private readonly chunkRuntimeMode = parseChunkRuntimeMode(import.meta.env.VITE_CHUNK_RUNTIME_MODE);
   get chunkRuntimeStatus() { return this.chunkRuntime?.status; }
+  /** The serving chunk store (effective mode `on` only), read by the render window. */
+  get chunkTerrainStore(): BoundedChunkTerrainStore | undefined { return this.chunkRuntime?.store; }
+  /** Topside tile bounds to pin, derived from the camera's chunk window (static world S4c). */
+  private chunkPin: ChunkView | null = null;
   private connected = false;
   private error: string | null = null;
   private identity: Identity | null = null;
@@ -884,6 +890,34 @@ export class OverworldConnection {
     this.deletedProjectileIds.clear();
   }
 
+  /**
+   * Pins the chunk runtime to the camera's chunk window (static world S4c) rather than
+   * the entity view radius, so large and ultrawide screens never pin more than the
+   * bounded store's 25 chunks. Called by the render window with the window's pin bounds.
+   */
+  setChunkPin(bounds: ChunkView | null): void {
+    if (bounds === this.chunkPin || (bounds !== null && this.chunkPin !== null && bounds.every((value, index) => value === this.chunkPin![index]))) return;
+    this.chunkPin = bounds;
+    const connection = this.connection, position = this.ownPosition();
+    if (connection !== null && position !== null && this.currentConnection(connection)) this.updateChunkRuntime(connection, position);
+  }
+
+  private updateChunkRuntime(connection: DbConnection, position: PlayerPosition): void {
+    if (this.chunkRuntimeMode !== 'shadow' && this.chunkRuntimeMode !== 'on') return;
+    this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
+    this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), {
+      mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash,
+    });
+  }
+
+  /** The camera window's pin on topside; before the first topside frame, and in other
+   * spaces, the same 5 x 5 chunk window centred on the player. */
+  private chunkPinFor(position: PlayerPosition): ChunkView {
+    if (this.chunkPin !== null && position.spaceId === TOPSIDE_SPACE_ID) return this.chunkPin;
+    const x = Math.floor(position.x / TILE_SIZE_FIXED), y = Math.floor(position.y / TILE_SIZE_FIXED);
+    return chunkWindowPinBounds(chunkWindowForView({ minX: x, minY: y, maxX: x, maxY: y }, SURVIVAL_WORLD_SIZE, SURVIVAL_WORLD_SIZE));
+  }
+
   setViewRadius(radius: ViewRadius): void {
     const next = { x: clampViewRadius(radius.x), y: clampViewRadius(radius.y) };
     if (next.x === this.requestedRadius.x && next.y === this.requestedRadius.y) return;
@@ -1381,13 +1415,7 @@ export class OverworldConnection {
       Math.floor(position.y / TILE_SIZE_FIXED),
     ] as const;
     const radius = this.viewRadius;
-    if (this.chunkRuntimeMode === 'shadow' || this.chunkRuntimeMode === 'on') {
-      this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
-      this.chunkRuntime.update(connection, BigInt(spaceId), [centerTiles[0] - radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] - radius.y * SURVIVAL_CHUNK_TILES,
-        centerTiles[0] + radius.x * SURVIVAL_CHUNK_TILES, centerTiles[1] + radius.y * SURVIVAL_CHUNK_TILES], {
-          mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash,
-        });
-    }
+    this.updateChunkRuntime(connection, position);
     const definition = clientSpaceDefinition(
       this.content.state.registry,
       spaceId,
