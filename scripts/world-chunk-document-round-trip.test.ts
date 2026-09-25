@@ -5,6 +5,7 @@ import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { CHUNK_RUNTIME_MAX_BLOB_BYTES, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
 import { canonicalChunkJson, decodeWorldChunk, type WorldChunk } from '@orchard/sim/world-chunk';
 import { decodeWorldChunk as legacyDecodeWorldChunk } from '../packages/sim/src/world-chunk.schema1-legacy.fixture.js';
+import { decodeWorldChunk as deployedDecodeWorldChunk } from '../packages/sim/src/world-chunk.authority1-deployed.fixture.js';
 import { normalizedMapDocumentSemanticHash, rebuildWorldChunkDocument } from '@orchard/sim/world-chunk-document';
 import { captureWorldChunkSnapshot, liveDocumentSemanticHash, materializeWorldChunks, verifyWorldChunkParity,
   type MaterializedWorldChunks, type WorldChunkSnapshot } from './materialize-world-chunks.js';
@@ -71,11 +72,19 @@ describe.each([
   }, 180_000);
 
   it('stays readable by deployed decoders and within the runtime blob budget', () => {
+    // BUG-044: the default blobs are authority schema 2 (obstacle table), which the deployed
+    // decoders reject by design, so the extension's additivity for deployed decoders is
+    // checked on the authority schema 1 encoding of the same chunks.
+    const extendedV1 = materializeWorldChunks(snapshot, row, registry, { includeAuthoredDocument: true, authoritySchema: 1 });
     for (const [index, bytes] of extended.blobs.entries()) {
       const head = extended.manifest.chunks[index]!;
       expect(bytes.length).toBeLessThan(CHUNK_RUNTIME_MAX_BLOB_BYTES);
       expect(verifyRuntimeChunk(bytes, extended.manifest, head.cx, head.cy).contentHash).toBe(head.contentHash);
-      const legacy = legacyDecodeWorldChunk(bytes, head.contentHash);
+      expect(() => deployedDecodeWorldChunk(bytes)).toThrow('Unsupported authority schema');
+      const v1 = extendedV1.blobs[index]!, v1Head = extendedV1.manifest.chunks[index]!;
+      expect({ ...decodeWorldChunk(v1), contentHash: '', authoritySchema: 0 }).toEqual({ ...decodeWorldChunk(bytes), contentHash: '', authoritySchema: 0 });
+      expect(deployedDecodeWorldChunk(v1, v1Head.contentHash).records).toEqual(decodeWorldChunk(bytes).records);
+      const legacy = legacyDecodeWorldChunk(v1, v1Head.contentHash);
       const current = decodeWorldChunk(published.blobs[index]!);
       expect(legacy.arrays).toEqual(current.arrays);
       expect(legacy.records).toEqual(current.records);
