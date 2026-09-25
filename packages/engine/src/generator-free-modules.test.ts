@@ -62,6 +62,9 @@ describe('generator-free client presentation path', () => {
     'engine/src/light-occlusion.ts', 'engine/src/light-sources.ts', 'engine/src/lighting.ts',
     'engine/src/map-shadow-contacts.ts', 'engine/src/world-asset-presentation.ts', 'engine/src/tilemap.ts',
     'engine/src/space-terrain.ts', 'engine/src/terrain-sampling.ts', 'engine/src/terrain-array.ts',
+    // Wave-2 chunk runtime (S1b/S4a): must stay loadable without the generator.
+    'sim/src/world-chunk.ts', 'sim/src/chunk-runtime.ts', 'client/src/chunk-runtime-controller.ts',
+    'client/src/chunk-shadow-cache.ts', 'client/src/chunk-shadow-loader.ts', 'client/src/chunk-shadow-build-gate.ts',
   ])('%s reaches no generator, compiler, map document, terrain.ts or sim barrel module', (file) => {
     expect(legacyModulesReachedFrom(resolve(PACKAGES_ROOT, file))).toEqual([]);
   });
