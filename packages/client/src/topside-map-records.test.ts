@@ -1,22 +1,18 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  activeSurvivalLandmarks, AUTHORITY_TICKS_PER_DAY, authoredMapContentPainterTie, bootstrapContentRegistry, dayProgressAtClockTime,
-  generateSurvivalLandmarkDecorations, generateSurvivalProceduralDecorations, hearthSupplyCacheInstalled,
-  mapLandmarkDecoration, runtimeHearthFerryNetwork, runtimeHearthSupplyCache, runtimeLandmarkCampfirePlans, survivalDecorationBlocksTraversal,
-  survivalDecorationObstacle, SURVIVAL_WORLD_SEED, TOPSIDE_SPACE_ID, type MapDocumentV3,
+  AUTHORITY_TICKS_PER_DAY, bootstrapContentRegistry, dayProgressAtClockTime, hearthSupplyCacheInstalled, runtimeHearthFerryNetwork,
+  runtimeHearthSupplyCache, SURVIVAL_WORLD_SEED, TOPSIDE_SPACE_ID, type MapDocumentV3,
 } from '@orchard/sim';
-import { isLightEmitterKind } from '@orchard/engine/light-sources';
-import {
-  enqueueLiveMapObjects, liveIslandDocument, liveMapObjectLightFrameKey, liveMapObjectLightOccluders, preloadLiveMapObjectAssets,
-} from '@orchard/engine/live-map-runtime';
-import { overworldPoiDecorationDepthY } from '@orchard/engine/overworld-art';
+import { liveIslandDocument, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from '@orchard/engine/live-map-runtime';
+import { enqueueMapObjects, mapObjectLightFrameKey, mapObjectLightOccluders, preloadMapObjectAssets } from '@orchard/engine/map-object-presentation';
 import type { WorldDepthItem } from '@orchard/engine/renderer';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { enqueueGameplayDecorations } from './gameplay-painter-decorations.js';
-import type { RuntimeSurvivalDecoration } from './gameplay-painter-inputs.js';
 import { protocolPondTies } from './render-protocol-ponds.js';
 import { topsideAuthoredFixture, topsideFixtureRow } from './topside-map-records.fixture.js';
+import { legacyTopsideDecorations, topsideDecorationLightCasters, topsideDecorations, topsideMapRecords } from './topside-map-records.js';
+import { WorldSource } from './world-source.js';
 
 const terrainFormulas = vi.hoisted(() => ({
   elevation: (_terrain: unknown, x: number, y: number) => ((x >> 4) + (y >> 4)) % 3,
@@ -58,7 +54,8 @@ vi.mock('@orchard/engine/connected-objects', () => ({
   },
 }));
 
-/** Captured from the pre-S4e painters and overworld-main functions (main 11d46f47). */
+/** Captured from the pre-S4e painters and overworld-main functions on main 11d46f47
+ * (this file at the branch's first commit calls them unchanged). */
 const PRE_S4E_GOLDEN = '2b9f3b5009f5ecd9799ff91c2cda6930697ea2e732ac63b0806f90620171273b';
 
 const registry = bootstrapContentRegistry();
@@ -92,54 +89,20 @@ function stable(value: unknown): string {
   });
 }
 
-// ---- The pre-S4e overworld-main functions, verbatim (golden capture only). ----
-const topsideDecorationCache = new WeakMap<MapDocumentV3, Map<number, readonly RuntimeSurvivalDecoration[]>>();
-function preTopsideDecorations(document: MapDocumentV3 | null, seed: number): readonly RuntimeSurvivalDecoration[] {
-  if (document === null) return Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, registry),
-    ...generateSurvivalLandmarkDecorations(activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID)),
-  ]);
-  const bySeed = topsideDecorationCache.get(document) ?? new Map();
-  const cached = bySeed.get(seed);
-  if (cached !== undefined) return cached;
-  const decorations = Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, registry),
-    ...document.landmarks
-      .filter((landmark) => landmark.enabled)
-      .map((landmark) => ({ ...mapLandmarkDecoration(landmark), landmark })),
-  ]);
-  bySeed.set(seed, decorations);
-  topsideDecorationCache.set(document, bySeed);
-  return decorations;
-}
-function preDecorationCasters(document: MapDocumentV3 | null, decorations: readonly RuntimeSurvivalDecoration[]) {
-  const result: unknown[] = [];
-  const liveDocument = document;
-  const suppressions = new Set(liveDocument?.generatedSuppressions ?? []);
-  const landmarkCampfires = new Set(runtimeLandmarkCampfirePlans(registry)
-    .filter(plan => plan.spaceId === TOPSIDE_SPACE_ID).map(plan => plan.runtimeId));
-  for (const decoration of decorations) {
-    if (suppressions.has(`decoration-${decoration.id}`)) continue;
-    if (landmarkCampfires.has(BigInt(decoration.id))) continue;
-    if (!survivalDecorationBlocksTraversal(decoration.kind, 'ground', registry)) continue;
-    if (decoration.kind === 'camp_pond') continue;
-    if (isLightEmitterKind(decoration.kind)) continue;
-    result.push([decoration.kind, 'base', decoration.tileX * 16 + 8, (decoration.tileY + 1) * 16,
-      survivalDecorationObstacle(decoration, 'ground', registry),
-      decoration.landmark === undefined ? `decoration:${decoration.id}`
-        : liveDocument === null ? `landmark:${decoration.landmark.id}`
-          : authoredMapContentPainterTie(liveDocument, decoration.landmark.layer, 'landmark', decoration.landmark.id),
-      overworldPoiDecorationDepthY(decoration.kind, (decoration.tileY + 1) * 16)]);
-  }
-  return result;
-}
+/** Modes off and shadow: no chunk store serves (ChunkRuntimeController.store is
+ * defined only in mode `on` once a revision has swapped in). */
+const offOrShadow = new WorldSource({ store: () => undefined, pin: () => undefined });
 
 /** Everything the topside painters and overworld-main derive from the map in modes off and shadow. */
 async function legacyOutputs(document: MapDocumentV3) {
   const row = topsideFixtureRow(document, 'topside-golden');
   const live = liveIslandDocument(row, registry)!;
-  await preloadLiveMapObjectAssets(live);
-  const decorations = preTopsideDecorations(live, SURVIVAL_WORLD_SEED);
+  const records = topsideMapRecords(offOrShadow, registry, () => liveIslandDocument(row, registry));
+  // The same document object as before S4e, so every retained cache keeps its identity.
+  expect(records).toBe(live);
+  await preloadMapObjectAssets(records!);
+  const decorations = topsideDecorations(offOrShadow, registry, SURVIVAL_WORLD_SEED, () => liveIslandDocument(row, registry));
+  expect(decorations).toBe(legacyTopsideDecorations(live, SURVIVAL_WORLD_SEED, registry));
   const outputs: Record<string, unknown> = { decorations };
   for (const hour of [12, 22]) {
     const queued: unknown[] = [];
@@ -147,10 +110,10 @@ async function legacyOutputs(document: MapDocumentV3) {
     const input = {
       dynamicLighting: true, debugEntitiesHidden: false,
       activeSpaceDefinition: { spaceId: TOPSIDE_SPACE_ID, generator: 'survival_island' },
-      snapshot: { content: { registry }, placeables: [], homesteads: [], liveMapDocument: row, clock: { authorityTick: tick(hour) } },
+      snapshot: { content: { registry }, placeables: [], homesteads: [], clock: { authorityTick: tick(hour) } },
       pointLights, projectedLight: (light: object, y?: number, x?: number) => ({ ...light, projectedY: y, projectedX: x }),
       homesteadSurroundingDecorations: () => [], seed: SURVIVAL_WORLD_SEED,
-      topsideDecorations: () => decorations,
+      topsideDecorations: () => decorations, topsideMapRecords: records,
       visible: WHOLE_MAP, lightVisible: WHOLE_MAP,
       enqueueWorldDepth: (x: number, y: number, item: WorldDepthItem, terrainSampleY?: number, receiver?: string) =>
         queued.push([x, y, item.footY, item.tie, item.depthPhase ?? null, terrainSampleY ?? null, receiver ?? null]),
@@ -164,7 +127,8 @@ async function legacyOutputs(document: MapDocumentV3) {
   for (const timeMs of [0, 450]) {
     const context = recordingContext();
     const items: unknown[] = [];
-    enqueueLiveMapObjects(liveIslandDocument(row, registry), {
+    // gameplay-painter-setup's call.
+    enqueueMapObjects(records, {
       context, cameraX: 0, cameraY: 0, scale: 2, timeMs, materializedStreetlamps: true, contentRegistry: registry,
       visible: () => true,
       enqueue: (x, y, item) => {
@@ -174,15 +138,18 @@ async function legacyOutputs(document: MapDocumentV3) {
       },
     });
     outputs[`objects/${timeMs}`] = items;
-    outputs[`occluders/${timeMs}`] = liveMapObjectLightOccluders(live, TERRAIN, registry, timeMs);
-    outputs[`frameKey/${timeMs}`] = liveMapObjectLightFrameKey(live, registry, timeMs);
+    // overworld-main's authored light occluders and their frame key.
+    outputs[`occluders/${timeMs}`] = mapObjectLightOccluders(records, TERRAIN, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER, registry, timeMs);
+    outputs[`frameKey/${timeMs}`] = mapObjectLightFrameKey(records, registry, timeMs);
   }
-  outputs['casters'] = preDecorationCasters(live, decorations);
+  // overworld-main's elevated decoration occluders (before their sprite silhouettes).
+  outputs['casters'] = topsideDecorationLightCasters(decorations, records, registry, TOPSIDE_SPACE_ID).map(caster =>
+    [caster.decoration.kind, 'base', caster.worldX, caster.worldY, caster.obstacle, caster.tie, caster.painterFootY]);
   const cache = runtimeHearthSupplyCache(registry, undefined, TOPSIDE_SPACE_ID)!;
-  outputs['supplyCache'] = hearthSupplyCacheInstalled(cache, live);
+  outputs['supplyCache'] = hearthSupplyCacheInstalled(cache, records);
   outputs['ferry'] = runtimeHearthFerryNetwork(registry)!.destinations.map(destination =>
-    live.combatRegions?.some(region => region.id === destination.availabilityRegion) === true);
-  outputs['ponds'] = [...protocolPondTies(decorations, live)];
+    records?.combatRegions?.some(region => region.id === destination.availabilityRegion) === true);
+  outputs['ponds'] = [...protocolPondTies(decorations, records)];
   return outputs;
 }
 

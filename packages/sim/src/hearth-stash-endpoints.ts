@@ -45,7 +45,10 @@ export function runtimeHearthSupplyCache(
 
 /** A named object is insufficient: require the reviewed chest visual, physical
  * base and untransformed placement. No arbitrary map object grants storage. */
-export function hearthSupplyCacheInstalled(cache: HearthSupplyCacheDefinition, document: MapDocumentV3 | null): boolean {
+/** `document` needs only the map id, objects, prefabs and combat regions: a whole
+ * document, or (client chunk mode `on`, static world S4e) the render window's records. */
+export function hearthSupplyCacheInstalled(cache: HearthSupplyCacheDefinition,
+  document: Pick<MapDocumentV3, 'id' | 'objects' | 'prefabs' | 'combatRegions'> | null): boolean {
   if (document === null || document.id !== LIVE_ISLAND_MAP_ID) return false;
   const matches = document.objects.filter(object => object.id === cache.objectId);
   const object = matches[0];

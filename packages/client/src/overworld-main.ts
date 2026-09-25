@@ -37,8 +37,6 @@ import { CombatRegionPolicy, hearthGatheringContentReady, runtimeHearthSupplyCac
   hearthSupplyCacheInstalled, hearthSupplyCacheApproachClear } from '@orchard/sim';
 import { hearthResourceTargetAllowed } from './hearth-resource-targeting.js';
 import {HearthConstructionRequest} from './hearth-construction-request.js';
-import { authoredMapContentPainterTie } from '@orchard/sim';
-import { overworldPoiDecorationDepthY } from '@orchard/engine/overworld-art';
 import { lightCasterPainterOrder } from './light-caster-painter-order.js';
 import {hearthConstructionToolEdits,hearthConstructionToolFootprint,planHearthArchitectureEdits,EMPTY_HEARTH_ARCHITECTURE_JSON} from '@orchard/sim';
 import {facedHearthSeat} from './hearth-seating.js';
@@ -98,7 +96,7 @@ import {
 
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, mapLandmarkDecoration, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationBlocksTraversal, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, BACKPACK_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -127,6 +125,7 @@ import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, ty
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
+import { topsideDecorationLightCasters, topsideDecorations as topsideDecorationsFrom, topsideMapRecords as topsideMapRecordsFrom, type TopsideMapRecords } from './topside-map-records.js';
 import { SpawnReadinessGate, type SpawnReadiness } from './spawn-readiness.js';
 import type { ChunkTerrainWindow, TileBounds } from '@orchard/engine/chunk-terrain-window';
 import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
@@ -171,7 +170,8 @@ import { isLightEmitterKind } from '@orchard/engine/light-sources';
 import { renderMetrics, renderDiagnostics, renderMetricsSnapshot } from './gameplay-render-diagnostics.js';
 import { RainWeather } from '@orchard/engine/particles';
 
-import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, liveMapObjectLightOccluders, liveMapObjectLightFrameKey, clearLiveMapShadowCaches } from '@orchard/engine/live-map-runtime';
+import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, clearLiveMapShadowCaches, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from '@orchard/engine/live-map-runtime';
+import { mapObjectLightFrameKey, mapObjectLightOccluders } from '@orchard/engine/map-object-presentation';
 import type { RenderBenchmarkScenarioId } from '@orchard/engine/render-benchmark-scenarios';
 import { WeatherEffects, windDirectionLabel } from '@orchard/engine/weather-effects';
 import { drawPixelPanel, drawPixelText, measurePixelText } from '@orchard/ui';
@@ -1606,11 +1606,6 @@ function projectedLightObstacle(
 }
 
 
-const topsideDecorationCache = new WeakMap<
-  MapDocumentV3,
-  Map<number, readonly RuntimeSurvivalDecoration[]>
->();
-
 function activeTopsideLandmarks(snapshot: OverworldView) {
   return activeSurvivalLandmarks(snapshot.content.registry, TOPSIDE_SPACE_ID);
 }
@@ -1655,27 +1650,21 @@ function liveIslandDocumentFor(snapshot: OverworldView): MapDocumentV3 | null {
   return liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry);
 }
 
+/** Topside's authored map content (static world S4e): the chunk window's records in
+ * chunk mode `on` while its collision serves, else the live map document; null off topside. */
+function topsideMapRecords(snapshot: OverworldView): TopsideMapRecords | null {
+  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return null;
+  return topsideMapRecordsFrom(worldSource, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
+}
+
+/** Topside decorations, unsuppressed: the chunk window's records in chunk mode `on`
+ * (static world S4e), else the procedural decorations plus the document's landmarks. */
 function topsideDecorations(
   snapshot: OverworldView,
   seed: number,
 ): readonly RuntimeSurvivalDecoration[] {
-  const document = liveIslandDocumentFor(snapshot);
-  if (document === null) return Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, snapshot.content.registry),
-    ...generateSurvivalLandmarkDecorations(activeTopsideLandmarks(snapshot)),
-  ]);
-  const bySeed = topsideDecorationCache.get(document) ?? new Map();
-  const cached = bySeed.get(seed);
-  if (cached !== undefined) return cached;
-  const decorations = Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, snapshot.content.registry),
-    ...document.landmarks
-      .filter((landmark) => landmark.enabled)
-      .map((landmark) => ({ ...mapLandmarkDecoration(landmark), landmark })),
-  ]);
-  bySeed.set(seed, decorations);
-  topsideDecorationCache.set(document, bySeed);
-  return decorations;
+  const chunks = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? worldSource : { mapRecords: () => undefined };
+  return topsideDecorationsFrom(chunks, snapshot.content.registry, seed, () => liveIslandDocumentFor(snapshot));
 }
 
 function elevatedLightOccluders(
@@ -1714,35 +1703,9 @@ function elevatedLightOccluders(
     });
   };
   if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
-    const liveDocument = liveIslandDocumentFor(snapshot);
-    const suppressions = new Set(liveDocument?.generatedSuppressions ?? []);
-    const landmarkCampfires=new Set(runtimeLandmarkCampfirePlans(snapshot.content.registry)
-      .filter(plan=>plan.spaceId===activeSpaceDefinition.spaceId).map(plan=>plan.runtimeId));
-    for (const decoration of topsideDecorations(snapshot, seed)) {
-      if (suppressions.has(`decoration-${decoration.id}`)) continue;
-      if(landmarkCampfires.has(BigInt(decoration.id)))continue;
-      if (!survivalDecorationBlocksTraversal(
-        decoration.kind, 'ground', snapshot.content.registry,
-      )) continue;
-      // A pond reserves traversal space, but is below the light plane. Collision
-      // is not optical height: water and other floor-level art cast no shadow.
-      if (decoration.kind === 'camp_pond') continue;
-      // The emitter is the luminous body: do not let its own alpha silhouette
-      // terminate its seed. Non-emissive solid props remain occluders.
-      if (isLightEmitterKind(decoration.kind)) continue;
-      add(
-        art.poiDecorations[decoration.kind],
-        'base',
-        decoration.tileX * 16 + 8,
-        (decoration.tileY + 1) * 16,
-        survivalDecorationObstacle(decoration, 'ground', snapshot.content.registry),
-        decoration.landmark === undefined ? `decoration:${decoration.id}`
-          : liveDocument === null ? `landmark:${decoration.landmark.id}`
-            : authoredMapContentPainterTie(
-                liveDocument, decoration.landmark.layer, 'landmark', decoration.landmark.id,
-              ),
-        overworldPoiDecorationDepthY(decoration.kind, (decoration.tileY + 1) * 16),
-      );
+    for (const caster of topsideDecorationLightCasters(topsideDecorations(snapshot, seed), topsideMapRecords(snapshot),
+      snapshot.content.registry, activeSpaceDefinition.spaceId)) {
+      add(art.poiDecorations[caster.decoration.kind], 'base', caster.worldX, caster.worldY, caster.obstacle, caster.tie, caster.painterFootY);
     }
   }
   for (const resource of snapshot.resources) {
@@ -3903,7 +3866,7 @@ function collectLegacyInteractions(snapshot: OverworldView): EInteractionTarget[
   if(activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID){
     const supplyCache=runtimeHearthSupplyCache(snapshot.content.registry,undefined,activeSpaceDefinition.spaceId);
     if (snapshot.rogueRun === null && supplyCache!==null
-      && hearthSupplyCacheInstalled(supplyCache,liveIslandDocumentFor(snapshot))
+      && hearthSupplyCacheInstalled(supplyCache,topsideMapRecords(snapshot))
       && hearthSupplyCacheApproachClear(supplyCache,predicted.position, worldCollision)) {
       candidates.push({kind:'hearth_supply_cache',
         ...tileInteractionPoint(supplyCache.frontage.tileX, supplyCache.frontage.tileY),
@@ -3911,7 +3874,7 @@ function collectLegacyInteractions(snapshot: OverworldView): EInteractionTarget[
     }
     const ferry=runtimeHearthFerryNetwork(snapshot.content.registry);
     for(const destination of ferry?.spaceId===activeSpaceDefinition.spaceId?ferry.destinations:[]){
-      const installed=liveIslandDocumentFor(snapshot)?.combatRegions
+      const installed=topsideMapRecords(snapshot)?.combatRegions
         ?.some(region=>region.id===destination.availabilityRegion)===true;
       if(destination.home&&!installed)continue;
       const dock=destination.id,point=tileInteractionPoint(destination.threshold.tileX,destination.threshold.tileY);
@@ -4977,7 +4940,7 @@ function renderFrame(alpha = 1): void {
     groundCache, viewportWidth, viewportHeight, debugEntitiesHidden, projectedLocalY,
     snapshot, celestialPass, activeSpaceDefinition, renderItems, weatherVisualTick,
     lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting,
-    objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, visualTickClock,
+    objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, topsideMapRecords: topsideMapRecords(snapshot), visualTickClock,
     frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining, resourceGlanceRemaining,
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
     cropCalendarOffsetForSnapshot, cropGreenhouseProtectedForSnapshot, liveItemContentDefinition, projectileDisplay, projectileFlightTicks,
@@ -5035,11 +4998,11 @@ function renderFrame(alpha = 1): void {
   latestLightCount = pointLights.length;
   renderMetrics.recordStage('painterBuild', performance.now() - painterBuildStartedAt);
   if (!lightingEffectsDisabled) {
-    const document=activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID?liveIslandDocumentFor(snapshot):null;
+    const records=topsideMapRecords(snapshot);
     const timeMs=weatherVisualTick*AUTHORITY_TICK_MS;
-    const key=`${collisionKey}:${liveMapObjectLightFrameKey(document,snapshot.content.registry,timeMs)}`;
+    const key=`${collisionKey}:${mapObjectLightFrameKey(records,snapshot.content.registry,timeMs)}`;
     if(baseLightOcclusion&&key!==authoredLightFrameKey){
-      const authored=liveMapObjectLightOccluders(document,terrain,snapshot.content.registry,timeMs);
+      const authored=mapObjectLightOccluders(records,terrain,TERRAIN_ARRAY_MAP_OBJECT_SAMPLER,snapshot.content.registry,timeMs);
       lightOcclusion=createLightOcclusionMap(terrain,baseLightOcclusion.softObstacles,
         baseLightOcclusion.spriteOccluders,[...baseLightOcclusion.trunkOccluders,...authored],undefined,baseLightOcclusion);
       authoredLightFrameKey=key;
@@ -7776,7 +7739,7 @@ Object.assign(window, {
       pondTies: () => protocolPondTies(activeSpaceDefinition.generator === 'homestead'
         ? homesteadSurroundingDecorations(latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
         : topsideDecorations(latestSnapshot, latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED),
-      activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? liveIslandDocumentFor(latestSnapshot) : null),
+      topsideMapRecords(latestSnapshot)),
     }),
     snapshot: () => network.snapshot(),
     update,
@@ -7810,7 +7773,7 @@ Object.assign(window, {
     diagnostics: () => gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
       lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
       activeSpaceDefinition, latestLightCount, rain, groundCache,
-      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus,
+      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus, records: worldSource.recordsStatus,
         staging: worldSource.stagingStatus, readiness: spawnReadiness.status(performance.now()) } }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
