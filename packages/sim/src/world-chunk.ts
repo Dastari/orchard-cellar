@@ -6,7 +6,9 @@ export const WORLD_CHUNK_SCHEMA = 1 as const;
 /** Independent extension version: never reinterpret existing numeric medium IDs. */
 export const WORLD_CHUNK_MEDIUM_SCHEMA = 1 as const;
 /** Additive authority extension (static-world S1a). Deployed schema-1 decoders
- * ignore the unknown header key, `authority.*` channels and record kinds. */
+ * ignore the unknown header key, `authority.*` channels and record kinds. Within
+ * schema 1 the extension is itself additive: the known channels and record kinds
+ * below are required/validated, later `authority.*` additions pass through. */
 export const WORLD_CHUNK_AUTHORITY_SCHEMA = 1 as const;
 /** Server-authoritative static channels. `authority.combatRegion` is 0 for no
  * region, otherwise 1 + index into manifest `metadata.authority.combatRegions`.
@@ -22,7 +24,7 @@ export const WORLD_CHUNK_AUTHORITY_CHANNELS = Object.freeze({
 export type WorldChunkAuthorityChannel = keyof typeof WORLD_CHUNK_AUTHORITY_CHANNELS;
 export const WORLD_CHUNK_AUTHORITY_RECORD_KINDS = Object.freeze([
   'authority.ground.obstacle', 'authority.water.obstacle', 'authority.ground.transition',
-  'authority.walkable', 'authority.suppressedObstacleKey', 'authority.resource',
+  'authority.walkable', 'authority.suppressedObstacleKey', 'authority.resource', 'authority.resourcePlacement',
 ] as const);
 export type WorldChunkAuthorityRecordKind = typeof WORLD_CHUNK_AUTHORITY_RECORD_KINDS[number];
 /** Combat regions are capped at 64 by the map parser; the u8 channel stores 1 + index. */
@@ -48,13 +50,28 @@ export interface WorldChunkAuthoritySuppressedObstacle {
   readonly bottom: number;
 }
 export interface WorldChunkAuthorityTile { readonly tileX: number; readonly tileY: number }
-/** Generated resource, anchored at its generated tile; ids and ordinals follow generateSurvivalResources. */
+/** Generated resource, anchored at the chunk of its EFFECTIVE tile (after any
+ * map placement); ids and ordinals follow generateSurvivalResources. The optional
+ * generator fields are present exactly when the generator set them, so the server's
+ * `?? default` fallbacks in generatedWorldResourceRow resolve identically. */
 export interface WorldChunkAuthorityResource {
   readonly id: number;
   readonly kind: string;
   readonly generatedTile: WorldChunkAuthorityTile;
   readonly effectiveTile: WorldChunkAuthorityTile;
   readonly suppressed: boolean;
+  readonly nodeClass?: string;
+  readonly richness?: number;
+  readonly spawnSiteId?: number;
+  readonly activationOrdinal?: number;
+}
+/** A map resource placement whose id is NOT generated. Reconcile keeps (never
+ * deletes) an existing row with such an id, so the full set must be known. */
+export interface WorldChunkAuthorityResourcePlacement {
+  /** Decimal u64, exactly as authored in the map document. */
+  readonly id: string;
+  readonly originTile: WorldChunkAuthorityTile;
+  readonly tile: WorldChunkAuthorityTile;
 }
 export const WORLD_CHUNK_MEDIA = RULE_MEDIA;
 export type WorldChunkMedium = RuleMedium;
@@ -159,6 +176,9 @@ function checkMedium(schema: unknown, arrays: Readonly<Record<string, ChunkArray
 function tile(value: unknown): boolean {
   return object(value) && validInteger(value['tileX']) && validInteger(value['tileY']);
 }
+function anchoredAt(value: unknown, record: WorldChunkRecord): boolean {
+  return tile(value) && (value as Record<string, unknown>)['tileX'] === record.tileX && (value as Record<string, unknown>)['tileY'] === record.tileY;
+}
 function box(value: Record<string, unknown>): boolean {
   return validInteger(value['left']) && validInteger(value['top']) && validInteger(value['right']) && validInteger(value['bottom'])
     && value['left'] <= value['right'] && value['top'] <= value['bottom'];
@@ -176,22 +196,24 @@ function authorityRecordValid(record: WorldChunkRecord): boolean {
       return value['tileX'] === record.tileX && value['tileY'] === record.tileY;
     case 'authority.resource':
       return validInteger(value['id']) && value['id'] > 0 && typeof value['kind'] === 'string' && value['kind'].length > 0
-        && tile(value['generatedTile']) && tile(value['effectiveTile']) && typeof value['suppressed'] === 'boolean';
+        && tile(value['generatedTile']) && anchoredAt(value['effectiveTile'], record) && typeof value['suppressed'] === 'boolean'
+        && (value['nodeClass'] === undefined || (typeof value['nodeClass'] === 'string' && value['nodeClass'].length > 0))
+        && ['richness', 'spawnSiteId', 'activationOrdinal'].every(key => value[key] === undefined || (validInteger(value[key]) && value[key] >= 0));
+    case 'authority.resourcePlacement':
+      return typeof value['id'] === 'string' && /^[1-9][0-9]{0,19}$/u.test(value['id']) && tile(value['originTile']) && anchoredAt(value['tile'], record);
     case 'authority.ground.transition':
       return validInteger(value['lowerTileX']) && validInteger(value['lowerTileY']);
     default:
-      return false;
+      return true; // later additive authority record kinds
   }
 }
-/** Fails closed: authority data is complete for schema 1, or absent without it. */
+/** Fails closed: the known authority data is complete and valid for schema 1, or
+ * absent without it. Unknown `authority.*` channels/records are tolerated (additive). */
 function checkAuthority(schema: unknown, arrays: Readonly<Record<string, ChunkArray>>, records: readonly WorldChunkRecord[]): void {
   const channelNames = Object.keys(arrays).filter(name => name.startsWith('authority.'));
   const recordKinds = records.filter(record => record.kind.startsWith('authority.'));
   if (schema === undefined && channelNames.length === 0 && recordKinds.length === 0) return;
   if (schema !== WORLD_CHUNK_AUTHORITY_SCHEMA) throw new TypeError('Invalid authority channels: schema required');
-  for (const name of channelNames) {
-    if (!Object.prototype.hasOwnProperty.call(WORLD_CHUNK_AUTHORITY_CHANNELS, name)) throw new TypeError(`Invalid authority channel ${name}`);
-  }
   for (const [name, type] of Object.entries(WORLD_CHUNK_AUTHORITY_CHANNELS)) {
     const array = arrays[name];
     const planar = name === 'authority.ground.terrainPlaneBlocked';

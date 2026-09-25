@@ -18,7 +18,10 @@ export function authorityChunkFixture(cx = 0, cy = 0): { arrays: Record<string, 
       { kind: 'authority.suppressedObstacleKey', ordinal: 0, tileX: x, tileY: y, value: { medium: 'ground', left: x * 256, top: y * 256, right: x * 256 + 255, bottom: y * 256 + 127 } },
       { kind: 'authority.walkable', ordinal: 0, tileX: x + 1, tileY: y, value: { tileX: x + 1, tileY: y } },
       { kind: 'authority.ground.transition', ordinal: 0, tileX: x + 2, tileY: y + 2, value: { kind: 'slope', lowerTileX: x + 2, lowerTileY: y + 2, upperTileX: x + 2, upperTileY: y + 1 } },
-      { kind: 'authority.resource', ordinal: 0, tileX: x + 3, tileY: y + 3, value: { id: 1000000042, kind: 'tree', generatedTile: { tileX: x + 3, tileY: y + 3 }, effectiveTile: { tileX: x + 4, tileY: y + 3 }, suppressed: false } },
+      // Anchored at the effective tile; the generated tile may lie in another chunk.
+      { kind: 'authority.resource', ordinal: 0, tileX: x + 4, tileY: y + 3, value: { id: 1000000042, kind: 'ore_iron', generatedTile: { tileX: x - 1, tileY: y + 3 }, effectiveTile: { tileX: x + 4, tileY: y + 3 }, suppressed: false,
+        nodeClass: 'pristine', richness: 2, spawnSiteId: 123456, activationOrdinal: 0 } },
+      { kind: 'authority.resourcePlacement', ordinal: 0, tileX: x + 5, tileY: y + 5, value: { id: '18446744073709551615', originTile: { tileX: x + 6, tileY: y + 5 }, tile: { tileX: x + 5, tileY: y + 5 } } },
     ],
   };
 }
