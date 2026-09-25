@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.43.0 / Engine 0.25.0 / UI 0.44.1 / World 0.26.5 / Studio 0.16.4 — Static world S4c (dormant) and owner bug fixes
+
+- **Rejected swings cost a miss (#177, BUG-042).** A swing whose only contacts resist the tool (a Wooden Pickaxe on a gold vein, a depleted node) now pays the empty-swing vigour charge and doesn't wear the tool, the same as swinging at air. `tool_whiffs` and `tool_uses` count the same way. The Tool Whiffs statistic description says so (Assets 0.23.3, a content upsert).
+- **Returning to the tab keeps the world on screen (#178, BUG-040).** A brief re-sync after alt-tabbing no longer shows the full loading screen. The last world frame stays, and RECONNECTING appears only if the gap lasts longer than 1.5 s. Explicit recovery states show at once, as before.
+- **Reticles ignore world lighting (#179, owner item 2).** Tile reticles, the selected-entity marker, the aim guide and debug overlays draw after the lighting composite, so night no longer dims them. World sprites are lit as before.
+- **Book art without seams (#180, owner item 1).** Book frame patches snap to whole device pixels, which removes the hairlines at 125% and 150% display scaling.
+- **Wrapping rows measure at their content width (#181, BUG-036).** Fitted windows around a centred wrapping row, such as crafting on a phone, no longer grow to the viewport.
+- **Refused recipe placement is reported (#182, BUG-037).** Placing a recipe into a grid holding other items says "CLEAR THE CRAFTING GRID FIRST" every time, and the selection rolls back.
+- **Static world S4c, render window (#175, dormant).** With the chunk runtime `on`, topside terrain renders from a bounded window of at most 5×5 chunks, pinned from the camera, through the new `client/src/world-source.ts`. `GroundChunkCache.invalidateRegion` redraws only changed tiles. Terrain helpers are origin-aware. `off` and `shadow` render exactly as today, and production builds still refuse `on`. There is no server or schema change. Draw lists match at all 169 chunk centres, and the p95 rebuild is 3.18 ms.
+- Workspace 0.54.0. The stored schema is unchanged.
+
 ## Client 0.42.0 / UI 0.44.0 / Studio 0.16.3 — Owner UI feedback: scrollbars, mining feedback, hotbar tooltip
 
 The owner approved each change from rendered PNGs (wiki `Roadmap/Game UI Redesign`).
