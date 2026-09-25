@@ -23,6 +23,20 @@ studio_mode=${WORLD_RELEASE_STUDIO_MODE:-build}
 [[ "$studio_mode" = build || "$studio_mode" = preserve-current ]] || {
   printf 'WORLD_RELEASE_STUDIO_MODE must be build or preserve-current.\n' >&2; exit 64;
 }
+# Static-world chunk heads (S5b). Off by default; the coordinator turns it on deliberately.
+chunks_mode=${WORLD_RELEASE_CHUNKS:-off}
+chunk_dir=
+case "$chunks_mode" in
+  off | check) ;;
+  publish)
+    # Install only where the frontend actually serves /world/ from.
+    chunk_dir=$(systemctl show orchard-frontend.service --property=Environment --value | tr ' ' '\n' \
+      | sed -n 's/^ORCHARD_WORLD_CHUNK_DIR=//p')
+    [[ "$chunk_dir" = /* ]] || {
+      printf 'WORLD_RELEASE_CHUNKS=publish needs ORCHARD_WORLD_CHUNK_DIR on orchard-frontend.service.\n' >&2; exit 64;
+    } ;;
+  *) printf 'WORLD_RELEASE_CHUNKS must be off, check or publish.\n' >&2; exit 64 ;;
+esac
 [[ "$evidence" = /* && ! -e "$evidence" && ! -L "$evidence"
   && "$content_candidate" = /* && -f "$content_candidate" && ! -L "$content_candidate"
   && "$content_candidate_sha256" =~ ^[a-f0-9]{64}$
@@ -228,4 +242,17 @@ done
 complete=true
 traffic_stopped=false
 printf 'deployed\n' > "$evidence/status"
+# After the content CAS and with the new build served: the chunk heads must describe
+# the live map, content and assets. Stale heads fail the release check but never lock
+# players out (the client falls back), so the deployment itself stays in place.
+if [[ "$chunks_mode" != off ]]; then
+  if ! WORLD_RELEASE_CHUNKS="$chunks_mode" WORLD_CHUNKS_HOST="$canonical_host" WORLD_CHUNKS_DATABASE="$database" \
+    WORLD_CHUNKS_ORIGIN=https://orchard.dastari.net WORLD_CHUNKS_TOKEN_FILE="$token_file" \
+    WORLD_CHUNKS_TOKEN_LABEL="$content_owner_label" ORCHARD_WORLD_CHUNK_DIR="$chunk_dir" \
+    bash scripts/world-release-chunks.sh "$evidence/chunks"; then
+    printf 'deployed-chunk-heads-stale\n' > "$evidence/status"
+    printf 'Release deployed, but the world chunk heads are stale or unpublished; players are unaffected. Inspect %s/chunks and rerun npm run world:chunks:publish.\n' "$evidence" >&2
+    exit 1
+  fi
+fi
 printf 'Routine same-schema release completed; verified code rollback and durable-state parity evidence: %s\n' "$evidence"

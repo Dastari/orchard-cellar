@@ -136,6 +136,10 @@ The routine entrypoint requires these existing inputs:
 - `WORLD_REJOIN_TOKENS_FILE`: validated private credential file.
 - `WORLD_RELEASE_CONTENT_CONFIRM`: `publish:<candidate-sha256>:orchard-cellar-world`.
   This script assertion does not replace the user's release approval.
+- Optional, off by default: `WORLD_RELEASE_CHUNKS=check|publish` (with
+  `WORLD_RELEASE_CHUNKS_CONFIRM=publish:<manifestHash>:orchard-cellar-world` for
+  `publish`) runs the static-world chunk-head step after the content CAS. Turn it on
+  only deliberately; see "Publishing chunk heads (S5b)" in README.
 
 Execute from `/home/toby/projects/orchard-cellar`; the routine script intentionally
 rejects another working directory. Do not switch an actively used checkout or
