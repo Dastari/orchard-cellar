@@ -12941,18 +12941,18 @@ function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisi
   });
 }
 
-/** Shadow mode only (the dispatcher decides, at most once per sample interval):
- * rebuilds this tick's topside collision from the same rows with the chunk runtime
- * and compares it with the authoritative maps at player positions. Logs only. */
+/** Shadow mode only, when `chunkAuthorityDispatcher.sampleRuntime(tick)` is due (at
+ * most once per sample interval): rebuilds this tick's topside collision from the
+ * same rows with the chunk runtime and compares it with the authoritative maps at
+ * player positions. Logs only. */
 function sampleChunkAuthorityShadow(
   ctx: WorldReducerContext,
+  chunkRuntime: LiveIslandCollisionRuntime,
   authorityTick: bigint,
   players: readonly PlayerPositionRow[],
   compiledFinal: { readonly ground: CollisionMap; readonly water: CollisionMap },
   rows: PrefetchedSpaceCollisionRows,
 ): void {
-  const chunkRuntime = chunkAuthorityDispatcher.sampleRuntime(authorityTick);
-  if (chunkRuntime === null) return;
   chunkAuthorityDispatcher.recordSample(authorityTick, players.map(({ x, y }) => ({ x, y })), compiledFinal, () => {
     const ground = collisionForSpace(ctx, TOPSIDE_SPACE_ID, undefined, rows, chunkRuntime);
     return { ground, water: waterCollisionForSpace(ctx, TOPSIDE_SPACE_ID, chunkRuntime, rows.chunkScope, ground) };
@@ -25209,8 +25209,10 @@ export const stepWorld = spacetimedb.reducer(
         collision,
       );
       waterCollisionBySpace.set(spaceId, waterCollision);
-      if (spaceId === TOPSIDE_SPACE_ID) {
-        sampleChunkAuthorityShadow(ctx, authorityTick, playersBySpace.get(spaceId) ?? [], { ground: collision, water: waterCollision }, {
+      // Shadow-mode sampler: null (no allocation, no work) unless shadow is on and due.
+      const chunkSampleRuntime = spaceId === TOPSIDE_SPACE_ID ? chunkAuthorityDispatcher.sampleRuntime(authorityTick) : null;
+      if (chunkSampleRuntime !== null) {
+        sampleChunkAuthorityShadow(ctx, chunkSampleRuntime, authorityTick, playersBySpace.get(spaceId) ?? [], { ground: collision, water: waterCollision }, {
           resources, chests, combatTargets, chunkScope: new Set(chunkScope.keys()),
         });
       }

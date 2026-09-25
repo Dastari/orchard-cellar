@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_ISLAND_MAP_ID, positionCollides, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type CollisionMap, type MapDocumentV3 } from '@orchard/sim';
-import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type WorldChunkManifest,
+import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
 import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
@@ -19,7 +19,7 @@ const SURVIVAL_PROVENANCE = { kind: 'generated', generator: 'survival-island', g
 
 /** A 100x64 island (chunk 0 full width, chunk 1 clipped to 36 columns). Chunk 0 anchors an authored
  * obstacle at tile 62 that overhangs five tiles into chunk 1 (tiles 64-66). */
-function island(options: { provenance?: unknown; hasTraversalChannels?: boolean } = {}) {
+function island(options: { provenance?: unknown; hasTraversalChannels?: boolean; waterTraversal?: boolean; groundMeta?: { readonly [key: string]: ChunkJson } } = {}) {
   const records = (cx: number): WorldChunkRecord[] => cx === 0
     ? [{ kind: 'authority.ground.obstacle', ordinal: 0, tileX: 2, tileY: 1, value: { group: 'base', ordinal: 0, ...box(2, 1), sourceId: 'decoration:1' } },
       { kind: 'authority.ground.obstacle', ordinal: 1, tileX: 62, tileY: 1, value: { group: 'authored', ordinal: 0, ...box(62, 1, 5), sourceId: 'landmark:bridge' } }]
@@ -36,7 +36,8 @@ function island(options: { provenance?: unknown; hasTraversalChannels?: boolean 
       channels: { 'authority.ground.terrainPlaneBlocked': { type: 'u8', planes: 1 } }, biomePalette: ['meadow'],
       document: { id: LIVE_ISLAND_MAP_ID, prefabs: [], provenance: (options.provenance ?? SURVIVAL_PROVENANCE) as never },
       authority: { schema: 1, combatRegions: [], generatedSuppressions: [],
-        collisions: { ground: { hasTraversalChannels, terrainMinimumElevation: 0, terrainTransitions: [] }, water: { hasTraversalChannels } } },
+        collisions: { ground: options.groundMeta ?? { hasTraversalChannels, terrainMinimumElevation: 0, terrainTransitions: [] },
+          water: { hasTraversalChannels: options.waterTraversal ?? hasTraversalChannels } } },
     },
     chunks: blobs.map((bytes, cx) => ({ cx, cy: 0, contentHash: decodeWorldChunk(bytes).contentHash, byteLength: bytes.length })) };
   const store = new Map(manifest.chunks.map((head, index) => [head.contentHash, blobs[index]!]));
@@ -139,18 +140,93 @@ describe('chunk authority dispatcher: on', () => {
   it('falls back on validateRuntimeManifest and chunk_authority_metadata_missing throws, attempting each key once', () => {
     const { manifest } = island();
     const metadata = Object.fromEntries(Object.entries(manifest.metadata).filter(([key]) => key !== 'authority'));
-    for (const [broken, detail] of [
-      [{ ...manifest, metadata }, 'chunk_authority_metadata_missing'],
-      [{ ...manifest, chunkSize: 32 }, 'invalid_chunk_manifest'],
-      [{ ...manifest, chunks: [{ ...manifest.chunks[0]!, contentHash: 'not-a-hash' }] }, 'invalid_chunk_head'],
+    for (const [broken, reason, detail] of [
+      [{ ...manifest, metadata }, 'assemble_failed', 'chunk_authority_metadata_missing'],
+      [{ ...manifest, chunkSize: 32 }, 'manifest_invalid', 'invalid_chunk_manifest'],
+      [{ ...manifest, chunks: [{ ...manifest.chunks[0]!, contentHash: 'not-a-hash' }] }, 'manifest_invalid', 'invalid_chunk_head'],
     ] as const) {
       const h = harness({ manifest: broken as WorldChunkManifest });
       const d = dispatcher(h.logger);
+      const parse = vi.spyOn(JSON, 'parse');
       expect(d.select(h.source)).toBe(h.compiled);
       expect(d.select(h.source)).toBe(h.compiled);
-      expect(d.status().fallbacks).toEqual({ assemble_failed: 2 });
-      expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason: 'assemble_failed', detail });
+      expect(parse, 'the manifest is parsed once per key').toHaveBeenCalledTimes(1);
+      parse.mockRestore();
+      expect(d.status().fallbacks).toEqual({ [reason]: 2 });
+      expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason, detail });
     }
+  });
+
+  it('caches an unexpected throw during assembly as a failed key instead of retrying every call', () => {
+    const h = harness();
+    let times = 0;
+    const d = new ChunkAuthorityDispatcher({ worldSize: WORLD, logger: { ...h.logger, time: () => { times += 1; throw new Error('timer unavailable'); } } });
+    const parse = vi.spyOn(JSON, 'parse');
+    expect(d.select(h.source)).toBe(h.compiled);
+    expect(d.select(h.source)).toBe(h.compiled);
+    expect(parse).toHaveBeenCalledTimes(1);
+    parse.mockRestore();
+    expect(times).toBe(1);
+    expect(d.status().fallbacks).toEqual({ assemble_failed: 2 });
+    expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ detail: 'timer unavailable' });
+  });
+
+  it('refuses stale content or a moved map from the shadow row and manifest header without decoding a blob', () => {
+    for (const [overrides, reason] of [
+      [{ shadow: { contentHash: 'older-content' } }, 'stale_content'],
+      [{ liveMap: { revision: 4, contentHash: 'map-4' } }, 'stale_map'],
+      [{ liveMap: { revision: 3, contentHash: 'map-3b' } }, 'stale_map'],
+    ] as const) {
+      const h = harness(overrides);
+      const d = dispatcher(h.logger);
+      expect(d.select(h.source), reason).toBe(h.compiled);
+      expect(d.status().fallbacks, reason).toEqual({ [reason]: 1 });
+      expect(h.reads.blobs, `${reason}: no assembly`).toBe(0);
+      expect(h.events.some(({ event }) => event['event'] === 'chunk_authority_assembled')).toBe(false);
+    }
+    // A content publication after serving frees the resident runtime and stops serving it.
+    let registryHash = REGISTRY_HASH;
+    const h = harness();
+    const source = { ...h.source, registryContentHash: () => registryHash };
+    const d = dispatcher(h.logger);
+    expect((d.select(source) as ChunkLiveIslandRuntime).source).toBe('chunks');
+    registryHash = 'content-2';
+    expect(d.select(source)).toBe(h.compiled);
+    expect(d.status().fallbacks).toEqual({ stale_content: 1 });
+  });
+
+  it('refuses a runtime missing the ground terrain fields compiled always sets (no fall-through to base transitions)', () => {
+    const base: CollisionMap = { width: WORLD.width, height: WORLD.height, blocked: [], terrainMinimumElevation: -3,
+      terrainTransitions: [{ lowerTileX: 1, lowerTileY: 1, upperTileX: 1, upperTileY: 2 } as never] };
+    for (const [groundMeta, missing] of [
+      [{ hasTraversalChannels: true, terrainTransitions: [] }, 'terrainMinimumElevation'],
+      [{ hasTraversalChannels: true, terrainMinimumElevation: 0 }, 'terrainTransitions'],
+    ] as const) {
+      const { manifest, store } = island({ groundMeta });
+      const runtime = assembleChunkLiveIslandRuntime(manifest, hash => store.get(hash), { contentHash: REGISTRY_HASH });
+      expect(runtime.complete).toBe(true);
+      // The hazard: liveMapCollisionForSpace's { ...base, ...authored } keeps the generated base's value.
+      const composed = { ...base, ...runtime.ground };
+      expect(composed[missing]).toBe(base[missing]);
+      const h = harness({ manifest });
+      const d = dispatcher(h.logger);
+      expect(d.select(h.source), missing).toBe(h.compiled);
+      expect(d.status().fallbacks).toEqual({ ground_fields_missing: 1 });
+      expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason: 'ground_fields_missing', detail: missing });
+    }
+  });
+
+  it('checks traversal-channel presence on water as well as ground against the live registry policy', () => {
+    const { manifest } = island({ hasTraversalChannels: true, waterTraversal: false });
+    const h = harness({ manifest, traversal: true });
+    const d = dispatcher(h.logger);
+    expect(d.select(h.source)).toBe(h.compiled);
+    expect(d.status().fallbacks).toEqual({ traversal_policy_mismatch: 1 });
+    expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ detail: expect.stringMatching(/^water:/u) });
+    // Both media without channels match a registry without a traversal policy.
+    const none = island({ hasTraversalChannels: false });
+    const off = harness({ manifest: none.manifest, blobs: none.store, traversal: false });
+    expect((dispatcher(off.logger).select(off.source) as ChunkLiveIslandRuntime).source).toBe('chunks');
   });
 
   it('reproduces the compiled guards: topside, survival world size and survival island base', () => {
@@ -331,14 +407,17 @@ describe('index.ts collision dispatcher wiring', () => {
   const compiled = compiledFor(manifest, hash => store.get(hash));
   const base: CollisionMap = { width: WORLD.width, height: WORLD.height, blocked: Array<boolean>(WORLD.width * WORLD.height).fill(true),
     obstacles: [box(2, 1), box(40, 40)] };
-  function world(initialFlags: string | null) {
+  /** Blob rows arrive as a fresh Uint8Array from the 2.8.2 host (readUInt8Array slices); number[] is the declared type. */
+  const hostBlobs = new Map([...store].map(([hash, bytes]) => [hash, bytes.slice()]));
+  function world(initialFlags: string | null, blobShape: 'host' | 'array' = 'host') {
     let flagsJson = initialFlags;
     const reads: string[] = [];
     const ctx = { db: {
       space_admin_flag: { spaceId: { find: (id: number) => (reads.push(`flag:${id}`), flagsJson === null ? null : { flagsJson }) } },
       world_chunk_shadow: { spaceId: { find: (id: bigint) => (reads.push(`shadow:${id}`), { revision: 1, mapId: LIVE_ISLAND_MAP_ID, contentHash: REGISTRY_HASH, manifestJson: JSON.stringify(manifest) }) } },
       live_map_document: { mapId: { find: (id: string) => (reads.push(`map:${id}`), { revision: 3, contentHash: 'map-3' }) } },
-      world_chunk_blob: { contentHash: { find: (hash: string) => (reads.push('blob'), { bytes: Array.from(store.get(hash)!) }) } },
+      world_chunk_blob: { contentHash: { find: (hash: string) => (reads.push('blob'),
+        { bytes: blobShape === 'host' ? hostBlobs.get(hash)! : Array.from(store.get(hash)!) }) } },
     } };
     let compiledCalls = 0;
     const dispatcher = new ChunkAuthorityDispatcher({ worldSize: WORLD, logger: { info() {}, warn() {}, time() {}, timeEnd() {} } });
@@ -376,6 +455,48 @@ describe('index.ts collision dispatcher wiring', () => {
     for (const medium of ['ground', 'water'] as const) {
       expect(on.functions.liveMapCollisionForSpace(on.ctx, TOPSIDE_SPACE_ID, medium, base)).toEqual(on.functions.liveMapCollisionForSpace(on.ctx, TOPSIDE_SPACE_ID, medium, base, compiled));
     }
+  });
+
+  it('reads host-shaped Uint8Array blob rows without a per-element copy, and number[] rows too', () => {
+    const from = vi.spyOn(Uint8Array, 'from');
+    try {
+      const host = world('{"chunkAuthority":"on"}', 'host');
+      const runtime = host.functions.liveIslandCollisionRuntime(host.ctx) as ChunkLiveIslandRuntime;
+      expect(runtime.source).toBe('chunks');
+      expect(runtime.stats.decodedChunks).toBe(2);
+      const instances = new Set<unknown>(hostBlobs.values());
+      expect(from.mock.calls.some(([argument]) => instances.has(argument)), 'host bytes are not copied element by element').toBe(false);
+      const array = world('{"chunkAuthority":"on"}', 'array');
+      const fromArray = array.functions.liveIslandCollisionRuntime(array.ctx) as ChunkLiveIslandRuntime;
+      expect(compareLiveIslandRuntime(fromArray, runtime).equal).toBe(true);
+    } finally {
+      from.mockRestore();
+    }
+  });
+
+  it('the stepWorld sampler hook does no work or allocation unless shadow sampling is due', () => {
+    const text = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
+    const start = text.indexOf('      // Shadow-mode sampler:');
+    const hook = text.slice(start, text.indexOf('      obstacleCount += collision.obstacles', start));
+    expect(start).toBeGreaterThan(text.indexOf('export const stepWorld ='));
+    const run = new Function('spaceId', 'TOPSIDE_SPACE_ID', 'chunkAuthorityDispatcher', 'authorityTick', 'sampleChunkAuthorityShadow', 'ctx',
+      'playersBySpace', 'collision', 'waterCollision', 'resources', 'chests', 'combatTargets', 'chunkScope',
+      ts.transpileModule(hook, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText);
+    const probe = (mode: string | null, spaceId: number, tick: bigint) => {
+      const w = world(mode === null ? null : `{"chunkAuthority":"${mode}"}`);
+      w.functions.liveIslandCollisionRuntime(w.ctx);
+      let keys = 0, samples = 0, playerLookups = 0;
+      const chunkScope = { keys: () => { keys += 1; return [].values(); } };
+      const playersBySpace = { get: () => { playerLookups += 1; return []; } };
+      run(spaceId, TOPSIDE_SPACE_ID, w.dispatcher, tick, () => { samples += 1; }, w.ctx, playersBySpace, {}, {}, [], [], [], chunkScope);
+      return { keys, samples, playerLookups };
+    };
+    for (const mode of [null, 'off', 'on']) for (const tick of [20n, 21n, 40n]) {
+      expect(probe(mode, TOPSIDE_SPACE_ID, tick), `${mode} tick ${tick}`).toEqual({ keys: 0, samples: 0, playerLookups: 0 });
+    }
+    expect(probe('shadow', TOPSIDE_SPACE_ID, 21n)).toEqual({ keys: 0, samples: 0, playerLookups: 0 });
+    expect(probe('shadow', 7, 20n)).toEqual({ keys: 0, samples: 0, playerLookups: 0 });
+    expect(probe('shadow', TOPSIDE_SPACE_ID, 20n)).toEqual({ keys: 1, samples: 1, playerLookups: 1 });
   });
 
   it('switching shadow back to off releases the chunk runtime and stops the per-tick sampler', () => {

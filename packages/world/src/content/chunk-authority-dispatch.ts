@@ -3,7 +3,7 @@ import {
   terrainPlaneAtPosition, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID,
   type CollisionMap, type CollisionObstacle, type MapDocumentV3, type Vec2Fixed,
 } from '@orchard/sim';
-import { authorityObstacleKey } from '@orchard/sim/chunk-runtime';
+import { authorityObstacleKey, validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import type { WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
   assembleChunkLiveIslandRuntime, compareLiveIslandRuntime,
@@ -14,7 +14,7 @@ import {
  * Static-world S2b: the dual-read collision dispatcher behind the owner
  * `chunkAuthority` switch (`chunk-authority-setting.ts`).
  *
- * - `off` never reaches this module: the server calls the compiled runtime directly.
+ * - `off` only calls `release()`: the server calls the compiled runtime directly.
  * - `shadow`: the compiled runtime stays authoritative. The chunk runtime is
  *   assembled from the published shadow (own cache, keyed by shadow revision and
  *   content hashes), compared in full once per (chunk key, compiled key), and
@@ -23,7 +23,9 @@ import {
  * - `on`: the chunk runtime is served only when it is complete, fresh (map
  *   revision/hash and content hash still match the publication) and passes the
  *   compiled guards (topside, survival world size, survival island base, a live map
- *   row exists, traversal-policy presence). Anything else, including a throw while
+ *   row exists, the ground terrain fields compiled always sets, and traversal-policy
+ *   presence on both media). Staleness is checked from the shadow row and manifest
+ *   header before any blob is decoded. Anything else, including a throw while
  *   parsing or assembling, falls back to the compiled runtime and logs why. A partial
  *   runtime is never served: an obstacle anchored in a missing chunk would lose its
  *   overhang into present chunks and open walkable ground the compiled map blocks.
@@ -63,7 +65,8 @@ export interface ChunkAuthoritySource {
 
 export type ChunkAuthorityUnavailableReason =
   | 'shadow_missing' | 'shadow_map_mismatch' | 'map_row_missing' | 'manifest_invalid' | 'assemble_failed'
-  | 'guard_space' | 'guard_size' | 'guard_base' | 'incomplete' | 'stale_content' | 'stale_map' | 'traversal_policy_mismatch';
+  | 'guard_space' | 'guard_size' | 'guard_base' | 'incomplete' | 'stale_content' | 'stale_map' | 'traversal_policy_mismatch'
+  | 'ground_fields_missing';
 
 export type ChunkRuntimeResolution =
   | { readonly ok: true; readonly runtime: ChunkLiveIslandRuntime }
@@ -124,10 +127,14 @@ export interface ChunkAuthorityStatus {
   readonly loggedSamples: number;
 }
 
-interface CacheEntry {
-  readonly preKey: string;
+interface ManifestEntry {
+  readonly key: string;
+  readonly result: { readonly ok: true; readonly manifest: WorldChunkManifest }
+    | { readonly ok: false; readonly reason: ChunkAuthorityUnavailableReason; readonly detail?: string };
+}
+interface RuntimeEntry {
+  readonly key: string;
   readonly resolution: ChunkRuntimeResolution;
-  readonly manifest?: Pick<WorldChunkManifest, 'sourceRevision' | 'sourceHash'>;
 }
 
 const MEDIA = ['ground', 'water'] as const;
@@ -209,7 +216,8 @@ export class ChunkAuthorityDispatcher {
   readonly #sampleIntervalTicks: bigint;
   readonly #samplePositions: number;
   readonly #sampleWindowTicks: bigint;
-  #cache: CacheEntry | null = null;
+  #manifestCache: ManifestEntry | null = null;
+  #runtimeCache: RuntimeEntry | null = null;
   readonly #loggedOnce = new Set<string>();
   readonly #compared = new Set<string>();
   readonly #fallbacks: Record<string, number> = {};
@@ -291,9 +299,26 @@ export class ChunkAuthorityDispatcher {
     // and a publication always pins an existing row, so the chunks cannot describe it.
     const liveMap = source.liveMap();
     if (liveMap === null) return { ok: false, reason: 'map_row_missing', key: preKey };
+    const manifestEntry = this.#manifestCache?.key === preKey ? this.#manifestCache : this.#readManifest(shadow, preKey);
+    const read = manifestEntry.result;
+    if (!read.ok) return { ok: false, reason: read.reason, key: preKey, ...(read.detail === undefined ? {} : { detail: read.detail }) };
+    // Cheap staleness before any blob is decoded: a content or map publication since the
+    // chunk publication refuses without paying for an assembly (0.2-0.7 s on the island).
     const registryContentHash = source.registryContentHash();
+    const manifest = read.manifest;
+    const stale: ChunkRuntimeResolution | null = shadow.contentHash !== registryContentHash
+      ? { ok: false, reason: 'stale_content', detail: `published ${shadow.contentHash}, live ${registryContentHash}`, key: preKey }
+      : manifest.sourceRevision !== liveMap.revision || manifest.sourceHash !== liveMap.contentHash
+        ? { ok: false, reason: 'stale_map', detail: `published ${manifest.sourceRevision}:${manifest.sourceHash}, live ${liveMap.revision}:${liveMap.contentHash}`, key: preKey }
+        : null;
+    if (stale !== null) {
+      // Nothing can serve until a republish: free the resident runtime.
+      this.#runtimeCache = null;
+      this.#shadowSampleRuntime = null;
+      return stale;
+    }
     const cacheKey = `${preKey}:${registryContentHash}`;
-    const entry = this.#cache?.preKey === cacheKey ? this.#cache : this.#assemble(source, shadow, cacheKey, registryContentHash);
+    const entry = this.#runtimeCache?.key === cacheKey ? this.#runtimeCache : this.#assemble(source, shadow, manifest, cacheKey, registryContentHash);
     const resolution = entry.resolution;
     if (!resolution.ok) return resolution;
     const runtime = resolution.runtime;
@@ -302,59 +327,85 @@ export class ChunkAuthorityDispatcher {
       return { ok: false, reason: 'incomplete', detail: `${runtime.issues.length} issue(s): ${issues.join('; ')}`, key: runtime.key };
     }
     if (runtime.stale) return { ok: false, reason: 'stale_content', detail: `published ${shadow.contentHash}, live ${registryContentHash}`, key: runtime.key };
-    const manifest = entry.manifest!;
-    if (manifest.sourceRevision !== liveMap.revision || manifest.sourceHash !== liveMap.contentHash) {
-      return { ok: false, reason: 'stale_map', detail: `published ${manifest.sourceRevision}:${manifest.sourceHash}, live ${liveMap.revision}:${liveMap.contentHash}`, key: runtime.key };
-    }
-    // Presence is fixed at publication; compiled derives it from the live registry policy.
-    const hasTraversal = runtime.ground.traversalChannels !== undefined;
-    if (hasTraversal !== source.traversalPolicyActive()) {
-      return { ok: false, reason: 'traversal_policy_mismatch', detail: `chunks ${hasTraversal}`, key: runtime.key };
+    // Compiled always sets both. Without them liveMapCollisionForSpace's `{ ...base, ...authored }`
+    // keeps the generated base's value, whose transitions could open ramps compiled blocks.
+    const missingGround = (['terrainMinimumElevation', 'terrainTransitions', 'elevations', 'terrainPlaneBlocked'] as const)
+      .filter(field => runtime.ground[field] === undefined);
+    if (missingGround.length > 0) return { ok: false, reason: 'ground_fields_missing', detail: missingGround.join(','), key: runtime.key };
+    // Presence is fixed at publication; compiled derives it for both media from the live registry policy.
+    const active = source.traversalPolicyActive();
+    const mismatched = MEDIA.filter(medium => (runtime[medium].traversalChannels !== undefined) !== active);
+    if (mismatched.length > 0) {
+      return { ok: false, reason: 'traversal_policy_mismatch', detail: `${mismatched.join(',')}: chunks ${!active}, registry ${active}`, key: runtime.key };
     }
     return resolution;
   }
 
-  #assemble(source: ChunkAuthoritySource, shadow: ChunkShadowRowView, cacheKey: string, registryContentHash: string): CacheEntry {
-    const fail = (reason: ChunkAuthorityUnavailableReason, detail?: string): CacheEntry => ({
-      preKey: cacheKey, resolution: { ok: false, reason, key: cacheKey, ...(detail === undefined ? {} : { detail }) },
-    });
-    let entry: CacheEntry;
-    // Drop the previous runtime first: only one chunk runtime is ever resident.
-    this.#cache = null;
+  /** Parse, validate and guard the published manifest once per shadow key. Every throw,
+   * expected or not, is cached as a failed key so a bad row is not re-parsed per call. */
+  #readManifest(shadow: ChunkShadowRowView, key: string): ManifestEntry {
+    // A new publication: drop the previous runtime first, so only one is ever resident.
+    this.#runtimeCache = null;
     this.#shadowSampleRuntime = null;
-    let parsed: unknown;
+    const fail = (reason: ChunkAuthorityUnavailableReason, detail?: string): ManifestEntry =>
+      ({ key, result: { ok: false, reason, ...(detail === undefined ? {} : { detail }) } });
+    let entry: ManifestEntry;
     try {
-      parsed = JSON.parse(shadow.manifestJson);
-    } catch (error) {
-      parsed = undefined;
-      entry = fail('manifest_invalid', message(error));
-    }
-    if (parsed !== undefined) {
-      const raw = record(parsed) ? parsed : {};
-      const document = record(raw['metadata']) && record(raw['metadata']['document']) ? raw['metadata']['document'] : {};
-      const provenance = record(document['provenance']) ? document['provenance'] : null;
-      if (raw['spaceId'] !== TOPSIDE_SPACE_ID) entry = fail('guard_space', String(raw['spaceId']));
-      else if (raw['width'] !== this.#worldSize.width || raw['height'] !== this.#worldSize.height) entry = fail('guard_size', `${String(raw['width'])}x${String(raw['height'])}`);
-      else if (provenance === null || !mapDocumentUsesSurvivalIslandBase({ provenance } as unknown as Pick<MapDocumentV3, 'provenance'>)) entry = fail('guard_base');
-      else {
-        this.#logger.time('chunk_authority.assemble');
-        try {
-          // validateRuntimeManifest and chunk_authority_metadata_missing throw here.
-          const runtime = assembleChunkLiveIslandRuntime(parsed as unknown as WorldChunkManifest, source.readBlob,
-            { contentHash: registryContentHash }, { shadowRevision: shadow.revision, shadowContentHash: shadow.contentHash });
-          const manifest = parsed as unknown as WorldChunkManifest;
-          entry = { preKey: cacheKey, manifest: { sourceRevision: manifest.sourceRevision, sourceHash: manifest.sourceHash }, resolution: { ok: true, runtime } };
-          this.#logger.info({ event: 'chunk_authority_assembled', key: runtime.key, complete: runtime.complete, stale: runtime.stale,
-            issues: runtime.issues.length, ...runtime.stats });
-        } catch (error) {
-          entry = fail('assemble_failed', message(error));
-        } finally {
-          this.#logger.timeEnd('chunk_authority.assemble');
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(shadow.manifestJson);
+      } catch (error) {
+        parsed = undefined;
+        entry = fail('manifest_invalid', message(error));
+      }
+      if (parsed !== undefined) {
+        const raw = record(parsed) ? parsed : {};
+        const document = record(raw['metadata']) && record(raw['metadata']['document']) ? raw['metadata']['document'] : {};
+        const provenance = record(document['provenance']) ? document['provenance'] : null;
+        // guard_space/guard_size/guard_base trust the manifest metadata: only the owner can
+        // publish, and S5b checks it against the live document at publish time.
+        if (raw['spaceId'] !== TOPSIDE_SPACE_ID) entry = fail('guard_space', String(raw['spaceId']));
+        else if (raw['width'] !== this.#worldSize.width || raw['height'] !== this.#worldSize.height) entry = fail('guard_size', `${String(raw['width'])}x${String(raw['height'])}`);
+        else if (provenance === null || !mapDocumentUsesSurvivalIslandBase({ provenance } as unknown as Pick<MapDocumentV3, 'provenance'>)) entry = fail('guard_base');
+        else {
+          let manifest: WorldChunkManifest | null = null;
+          try {
+            manifest = validateRuntimeManifest(parsed);
+          } catch (error) {
+            entry = fail('manifest_invalid', message(error));
+          }
+          if (manifest !== null) entry = { key, result: { ok: true, manifest } };
         }
       }
+    } catch (error) {
+      entry = fail('manifest_invalid', `unexpected: ${message(error)}`);
     }
-    this.#cache = entry!;
+    this.#manifestCache = entry!;
     return entry!;
+  }
+
+  #assemble(source: ChunkAuthoritySource, shadow: ChunkShadowRowView, manifest: WorldChunkManifest, key: string,
+    registryContentHash: string): RuntimeEntry {
+    this.#runtimeCache = null;
+    this.#shadowSampleRuntime = null;
+    let entry: RuntimeEntry;
+    try {
+      this.#logger.time('chunk_authority.assemble');
+      try {
+        // chunk_authority_metadata_missing (and any blob-independent validation) throws here.
+        const runtime = assembleChunkLiveIslandRuntime(manifest, source.readBlob,
+          { contentHash: registryContentHash }, { shadowRevision: shadow.revision, shadowContentHash: shadow.contentHash });
+        entry = { key, resolution: { ok: true, runtime } };
+        this.#logger.info({ event: 'chunk_authority_assembled', key: runtime.key, complete: runtime.complete, stale: runtime.stale,
+          issues: runtime.issues.length, ...runtime.stats });
+      } finally {
+        this.#logger.timeEnd('chunk_authority.assemble');
+      }
+    } catch (error) {
+      entry = { key, resolution: { ok: false, reason: 'assemble_failed', detail: message(error), key } };
+    }
+    this.#runtimeCache = entry;
+    return entry;
   }
 
   #shadow(source: ChunkAuthoritySource, compiled: CompiledCollisionRuntime | null): void {
@@ -396,7 +447,8 @@ export class ChunkAuthorityDispatcher {
   /** Mode `off`: drop the resident chunk runtime and stop sampling (two field writes, so it
    * is cheap on every call). Switching back re-assembles once. */
   release(): void {
-    this.#cache = null;
+    this.#manifestCache = null;
+    this.#runtimeCache = null;
     this.#shadowSampleRuntime = null;
   }
 
