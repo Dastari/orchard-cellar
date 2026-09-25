@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-chunk-preview/
 coverage/
 .vitest-reports/
 build/
