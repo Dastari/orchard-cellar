@@ -76,8 +76,10 @@ export const MAX_SETTLE_BACKLOG_STEPS = 24;
 /** Drain every accepted confirmed batch atomically once server-time credit permits. */
 export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
+/** Shared fallback for a collision map without a horse-jump plane (reads as all clear). */
+const NO_HORSE_JUMPABLE_TERRAIN = new Uint8Array(0);
 const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
-  readonly blocked: boolean[];
+  readonly blocked: Uint8Array;
   readonly elevations?: Int16Array | Uint8Array;
   terrainPlaneBlocked?: Uint8Array;
   traversalChannels?: CollisionMap['traversalChannels'];
@@ -85,14 +87,14 @@ const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
 }>();
 
 function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator: 'flat' | 'homestead' | 'residence' | 'marlow_tent' | 'cellar' = 'flat', residenceExpansionRank=0): CollisionMap {
-  const blocked = Array.from({ length: sizeTiles * sizeTiles }, (_, index) => {
-    if (medium !== 'ground') return true;
+  const blocked = Uint8Array.from({ length: sizeTiles * sizeTiles }, (_, index) => {
+    if (medium !== 'ground') return 1;
     const x = index % sizeTiles;
     const y = Math.floor(index / sizeTiles);
-    return generator === 'homestead' ? !homesteadPlayableTile(x, y, sizeTiles)
+    return (generator === 'homestead' ? !homesteadPlayableTile(x, y, sizeTiles)
       : generator === 'residence' || generator === 'marlow_tent' ? !residencePlayableTile(x, y,generator==='residence'?residenceExpansionRank:0)
       : generator === 'cellar' ? x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1
-      : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
+      : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1) ? 1 : 0;
   });
   const elevations = generator === 'cellar' && medium === 'ground'
     ? Int16Array.from({ length: sizeTiles * sizeTiles }, (_, index) => (
@@ -110,7 +112,7 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
       terrainTransitions: [],
       terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, sizeTiles, sizeTiles),
     }),
-    horseJumpableTerrain: Array<boolean>(blocked.length).fill(false),
+    horseJumpableTerrain: new Uint8Array(blocked.length),
     obstacles: [],
   };
 }
@@ -147,7 +149,7 @@ export function terrainCollisionForSpace(
       ? {
           width: SURVIVAL_WORLD_SIZE,
           height: SURVIVAL_WORLD_SIZE,
-          blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+          blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE),
           obstacles: [],
         }
       : precomputedSurvivalCollisionMap(medium);
@@ -163,7 +165,7 @@ export function terrainCollisionForSpace(
     collision = {
       width: layout.width,
       height: layout.height,
-      blocked: medium === 'ground' ? layout.blocked : Array<boolean>(layout.blocked.length).fill(true),
+      blocked: medium === 'ground' ? layout.blocked : new Uint8Array(layout.blocked.length).fill(1),
       ...(medium === 'ground' ? {
         elevations: layout.elevations,
         terrainMinimumElevation: 0,
@@ -177,17 +179,17 @@ export function terrainCollisionForSpace(
           {baseDatum: 0},
         ),
       } : {}),
-      horseJumpableTerrain: Array<boolean>(layout.blocked.length).fill(false),
+      horseJumpableTerrain: new Uint8Array(layout.blocked.length),
       obstacles: [],
     };
   } else if (definition?.generator === 'village_interior') {
     collision=hearthInteriorCollision(registry,definition.spaceId)
       ?? flatSpaceCollision(definition.sizeTiles,'air');
-    if(medium!=='ground')collision={...collision,blocked:Array<boolean>(collision.width*collision.height).fill(true)};
+    if(medium!=='ground')collision={...collision,blocked:new Uint8Array(collision.width*collision.height).fill(1)};
   } else if (definition?.generator === 'delve_lobby') {
     collision = hearthLobbyCollision(registry,definition.spaceId)
       ?? flatSpaceCollision(definition.sizeTiles,'air');
-    if (medium !== 'ground') collision = {...collision, blocked: Array<boolean>(collision.width * collision.height).fill(true)};
+    if (medium !== 'ground') collision = {...collision, blocked: new Uint8Array(collision.width * collision.height).fill(1)};
   } else if (definition?.generator === 'debug_flat' || definition?.generator === 'homestead'
     || definition?.generator === 'residence' || definition?.generator === 'marlow_tent'
     || definition?.generator === 'cellar') {
@@ -341,7 +343,7 @@ export function createAuthoritySpaceCollisionMap(
         const key = `${cell.tileX},${cell.tileY}`;
         if (dynamic.keys.has(key)) continue;
         const index = cell.tileY * terrain.width + cell.tileX;
-        dynamic.blocked[index] = false;
+        dynamic.blocked[index] = 0;
         if (dynamic.elevations !== undefined && dynamic.elevations[index] !== 0) {
           dynamic.elevations[index] = 0;
           terrainHeightChanged = true;
@@ -365,7 +367,7 @@ export function createAuthoritySpaceCollisionMap(
     elevations = dynamic.elevations;
     terrainPlaneBlocked = dynamic.terrainPlaneBlocked;
   }
-  const horseJumpableTerrain = terrain.horseJumpableTerrain ?? [];
+  const horseJumpableTerrain = terrain.horseJumpableTerrain ?? NO_HORSE_JUMPABLE_TERRAIN;
   const obstacles = [...(terrain.obstacles ?? [])];
   for (const resource of medium === 'ground' ? resources : []) {
     if (resource.depleted || resource.tileX < 0 || resource.tileY < 0
@@ -641,10 +643,10 @@ export function createMmoFarmCollisionMap(width = 48, height = 32): CollisionMap
   return {
     width,
     height,
-    blocked: Array.from({ length: width * height }, (_, index) => {
+    blocked: Uint8Array.from({ length: width * height }, (_, index) => {
       const x = index % width;
       const y = Math.floor(index / width);
-      return x === 0 || y === 0 || x === width - 1 || y === height - 1;
+      return x === 0 || y === 0 || x === width - 1 || y === height - 1 ? 1 : 0;
     }),
   };
 }

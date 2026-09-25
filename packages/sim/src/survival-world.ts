@@ -2622,13 +2622,13 @@ export function createSurvivalCollisionMap(
     const tileY = Math.floor(index / SURVIVAL_WORLD_SIZE);
     return survivalBiomeAt(seed, tileX, tileY);
   });
-  const blocked = biomes.map((_biome, index) => survivalTerrainBlocksTraversalAt(
+  const blocked = Uint8Array.from(biomes, (_biome, index) => survivalTerrainBlocksTraversalAt(
     seed,
     index % SURVIVAL_WORLD_SIZE,
     Math.floor(index / SURVIVAL_WORLD_SIZE),
     medium,
-  ));
-  const horseJumpableTerrain = biomes.map(survivalBiomeAllowsHorseJump);
+  ) ? 1 : 0);
+  const horseJumpableTerrain = Uint8Array.from(biomes, biome => survivalBiomeAllowsHorseJump(biome) ? 1 : 0);
   const obstacles: CollisionObstacle[] = [];
   for (const resource of medium === 'ground' ? activeResourceRows : []) {
     if (!resource.depleted && resource.tileX >= 0 && resource.tileY >= 0

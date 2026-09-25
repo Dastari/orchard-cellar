@@ -51,21 +51,21 @@ export interface CollisionWorldPlaceable {
 }
 
 const traversalChannelsCache = new WeakMap<TerrainArray, WeakMap<ContentRegistry, MediumCollisionChannels>>();
-const cellarBoundaryCollisionCache = new WeakMap<TerrainArray, readonly boolean[]>();
+const cellarBoundaryCollisionCache = new WeakMap<TerrainArray, Uint8Array>();
 
 /** Uncut cellar rock is height-owned terrain rather than an absolute blocker.
  * Only the finite 1024x1024 world edge belongs in the legacy flat channel.
  * The edge is the whole map's, in world tiles, so a window (non-zero origin)
  * marks only the map-edge cells it contains, never its own border. */
-function cellarBoundaryCollision(terrain: TerrainArray): readonly boolean[] {
+function cellarBoundaryCollision(terrain: TerrainArray): Uint8Array {
   let blocked = cellarBoundaryCollisionCache.get(terrain);
   if (blocked !== undefined) return blocked;
   const originX = terrain.originX ?? 0, originY = terrain.originY ?? 0;
   const worldWidth = terrain.worldWidth ?? terrain.width, worldHeight = terrain.worldHeight ?? terrain.height;
-  blocked = Array.from({ length: terrain.width * terrain.height }, (_, index) => {
+  blocked = Uint8Array.from({ length: terrain.width * terrain.height }, (_, index) => {
     const tileX = originX + index % terrain.width;
     const tileY = originY + Math.floor(index / terrain.width);
-    return tileX === 0 || tileY === 0 || tileX === worldWidth - 1 || tileY === worldHeight - 1;
+    return tileX === 0 || tileY === 0 || tileX === worldWidth - 1 || tileY === worldHeight - 1 ? 1 : 0;
   });
   cellarBoundaryCollisionCache.set(terrain, blocked);
   return blocked;
@@ -210,13 +210,13 @@ export function prepareClientTerrainCollision(
     ? fixedTerrainPlane !== undefined
       ? cellarBoundaryCollision(terrain)
       : terrain.blocked
-    : Array.from(terrain.biomes, (biome) => (
-      survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[biome] ?? 'water', medium)
+    : Uint8Array.from(terrain.biomes, (biome) => (
+      survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[biome] ?? 'water', medium) ? 1 : 0
     ));
   let blocked = terrainBlocked;
   const window = terrainIsWindow(terrain);
   if (medium === 'ground' && terrain.spaceId === TOPSIDE_SPACE_ID) {
-    let authoredDockCorrection: boolean[] | null = null;
+    let authoredDockCorrection: Uint8Array | null = null;
     const configuredDockTiles = authoredDockWalkableTiles === undefined ? null
       : new Set(authoredDockWalkableTiles.map((tile) => `${tile.tileX}:${tile.tileY}`));
     // Dock tiles are world tiles: a window's cell index is offset by its origin.
@@ -225,8 +225,8 @@ export function prepareClientTerrainCollision(
       if (!terrainBlocked[index]) continue;
       const tileX = originX + index % terrain.width, tileY = originY + Math.floor(index / terrain.width);
       if (!(configuredDockTiles?.has(`${tileX}:${tileY}`) ?? survivalFishermanDockWalkableAt(tileX, tileY))) continue;
-      authoredDockCorrection ??= Array.from(terrainBlocked);
-      authoredDockCorrection[index] = false;
+      authoredDockCorrection ??= terrainBlocked.slice();
+      authoredDockCorrection[index] = 0;
     }
     blocked = authoredDockCorrection ?? terrainBlocked;
   }

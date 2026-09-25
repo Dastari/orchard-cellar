@@ -68,16 +68,16 @@ function islandTerrainClassification(space: SpaceDefinition, seed: number): Spac
     width: SURVIVAL_WORLD_SIZE,
     height: SURVIVAL_WORLD_SIZE,
     biomes,
-    blocked: Array.from(biomes, (_biome, index) =>
+    blocked: Uint8Array.from(biomes, (_biome, index) =>
       survivalTerrainBlocksTraversalAt(
         seed,
         index % SURVIVAL_WORLD_SIZE,
         Math.floor(index / SURVIVAL_WORLD_SIZE),
         "ground",
-      ),
+      ) ? 1 : 0,
     ),
-    horseJumpableTerrain: Array.from(biomes, (biome) =>
-      survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? "water"),
+    horseJumpableTerrain: Uint8Array.from(biomes, (biome) =>
+      survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? "water") ? 1 : 0,
     ),
     elevations,
     terrainTransitions: survivalTerrainTransitions(seed),

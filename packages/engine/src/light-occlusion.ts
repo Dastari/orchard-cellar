@@ -263,14 +263,14 @@ export function prepareLightTerrainOcclusion(
   }
   for (let index = 0; index < hardBlocked.length; index += 1) {
     if (reused !== undefined && reused[index] === 1) continue;
-    const blocked = (traversalBlocksLight && terrain.blocked[index] === true)
+    const blocked = (traversalBlocksLight && terrain.blocked[index] === 1)
       || surfaceTileBlocksLight(terrain, index, hasContours);
     hardBlocked[index] = blocked ? 1 : 0;
     // Interior front faces project into excavated floor cells. Untouched rock
     // cannot receive one, so avoid running the contour resolver for nearly all
     // of a 1024-square cellar during zone entry. Outdoor contours retain their
     // existing classification because their source `blocked` channel differs.
-    const canReceiveFrontFace = !traversalBlocksLight || terrain.blocked[index] !== true;
+    const canReceiveFrontFace = !traversalBlocksLight || terrain.blocked[index] !== 1;
     frontFaces[index] = canReceiveFrontFace
       && surfaceTileIsFrontFace(terrain, index, hasContours) ? 1 : 0;
   }

@@ -71,7 +71,7 @@ export function terrainWithCellarExcavations(
       terrain.height,
     )) {
       const index = terrainIndexAt(terrain, cell.tileX, cell.tileY);
-      blocked[index] = false;
+      blocked[index] = 0;
       elevations[index] = 0;
     }
   }
@@ -159,8 +159,8 @@ export function spaceTerrain(
       if(collision===null){
         const length=space.sizeTiles*space.sizeTiles;
         return {spaceId:space.spaceId,seed,version,width:space.sizeTiles,height:space.sizeTiles,
-          generator:space.generator,biomes:new Uint8Array(length),blocked:Array<boolean>(length).fill(true),
-          horseJumpableTerrain:Array<boolean>(length).fill(false),elevations:new Int16Array(length),
+          generator:space.generator,biomes:new Uint8Array(length),blocked:new Uint8Array(length).fill(1),
+          horseJumpableTerrain:new Uint8Array(length),elevations:new Int16Array(length),
           dirtCliffRoles:new Uint8Array(length),dirtTerraces:new Uint8Array(length)};
       }
       const layout={width:collision.width,height:collision.height,blocked:collision.blocked};
@@ -177,7 +177,7 @@ export function spaceTerrain(
       classification={...layout,hearthInteriorFloorStyles,spaceId:space.spaceId,generator:space.generator,
         defaultCliffFamily:'stone_1',projectionStyle:'raised',baseDatum:0,
         biomes:new Uint8Array(length).fill(Math.max(0,SURVIVAL_BIOMES.indexOf('plains'))),
-        horseJumpableTerrain:Array<boolean>(length).fill(false),elevations:new Int16Array(length),
+        horseJumpableTerrain:new Uint8Array(length),elevations:new Int16Array(length),
         dirtCliffRoles:new Uint8Array(length),dirtTerraces:new Uint8Array(length)};
     } else if (space.generator === 'delve_lobby') {
       const lobby=registry===undefined?undefined:runtimeHearthLobbyDefinition(registry,space.spaceId);
@@ -186,8 +186,8 @@ export function spaceTerrain(
       if(layout===null){
         const length=space.sizeTiles*space.sizeTiles;
         return {spaceId:space.spaceId,seed,version,width:space.sizeTiles,height:space.sizeTiles,
-          generator:space.generator,biomes:new Uint8Array(length),blocked:Array<boolean>(length).fill(true),
-          horseJumpableTerrain:Array<boolean>(length).fill(false),elevations:new Int16Array(length),
+          generator:space.generator,biomes:new Uint8Array(length),blocked:new Uint8Array(length).fill(1),
+          horseJumpableTerrain:new Uint8Array(length),elevations:new Int16Array(length),
           dirtCliffRoles:new Uint8Array(length),dirtTerraces:new Uint8Array(length)};
       }
       const length = layout.width * layout.height;
@@ -197,7 +197,7 @@ export function spaceTerrain(
         fixedTerrainPlane: 0, rogueTheme: 'dungeon',
         ...(lobby==null?{}:{hearthLobbyFloorThresholdY:lobby.floorThresholdY}),
         biomes: new Uint8Array(length).fill(Math.max(0, SURVIVAL_BIOMES.indexOf('plains'))),
-        horseJumpableTerrain: Array<boolean>(length).fill(false), terrainTransitions: [],
+        horseJumpableTerrain: new Uint8Array(length), terrainTransitions: [],
         dirtCliffRoles: new Uint8Array(length), dirtTerraces: new Uint8Array(length),
       };
     } else if (space.generator === 'roguelike' && space.rogueRoom !== undefined) {
@@ -226,8 +226,8 @@ export function spaceTerrain(
         width: layout.width,
         height: layout.height,
         biomes: new Uint8Array(length).fill(Math.max(0, SURVIVAL_BIOMES.indexOf('plains'))),
-        blocked: [...layout.blocked],
-        horseJumpableTerrain: Array<boolean>(length).fill(false),
+        blocked: layout.blocked.slice(),
+        horseJumpableTerrain: new Uint8Array(length),
         elevations,
         terrainTransitions: layout.terrainTransitions,
         terrainPlaneBlocked: terrainPlaneCollisionBytesForElevationGrid(
@@ -261,10 +261,10 @@ export function spaceTerrain(
           biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
         }
       }
-      let blocked = Array.from({ length }, (_, index) => {
+      let blocked = Uint8Array.from({ length }, (_, index) => {
         const x = index % space.sizeTiles;
         const y = Math.floor(index / space.sizeTiles);
-        return space.generator === "homestead"
+        return (space.generator === "homestead"
           ? !homesteadPlayableTile(x, y, space.sizeTiles)
           : space.generator === "residence" || space.generator === "marlow_tent"
             ? !residencePlayableTile(x, y,space.generator==='residence'?space.residenceExpansionRank:0)
@@ -273,11 +273,11 @@ export function spaceTerrain(
               : x === 0 ||
                 y === 0 ||
                 x === space.sizeTiles - 1 ||
-                y === space.sizeTiles - 1;
+                y === space.sizeTiles - 1) ? 1 : 0;
       });
       const residenceEnvelopeBlocked=space.generator==='residence'?blocked:undefined;
-      if(space.generator==='residence')blocked=[...persistedHearthArchitectureCollision(space.residenceExpansionRank??0,
-        {width:space.sizeTiles,height:space.sizeTiles,blocked},space.residenceArchitectureJson).blocked];
+      if(space.generator==='residence')blocked=persistedHearthArchitectureCollision(space.residenceExpansionRank??0,
+        {width:space.sizeTiles,height:space.sizeTiles,blocked},space.residenceArchitectureJson).blocked.slice();
       if (space.generator === "cellar") {
         for (let index = 0; index < length; index += 1)
           elevations[index] = blocked[index] ? 1 : 0;
@@ -295,7 +295,7 @@ export function spaceTerrain(
         blocked,
         ...(residenceEnvelopeBlocked===undefined?{}:{residenceEnvelopeBlocked,
           residenceArchitecture:space.residenceArchitectureJson===undefined?[]:parseHearthArchitectureState(space.residenceArchitectureJson)?.cells??[]}),
-        horseJumpableTerrain: Array<boolean>(length).fill(false),
+        horseJumpableTerrain: new Uint8Array(length),
         elevations,
         ...(space.generator === "cellar"
           ? {

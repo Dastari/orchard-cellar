@@ -1,5 +1,6 @@
 import { authorityObstacleKey } from './chunk-runtime.js';
 import type { CombatRegion } from './combat-regions.js';
+import { cellFlags } from './cell-flags.js';
 import type { CollisionMap, CollisionObstacle } from './state.js';
 import type { TerrainTransition } from './terrain-elevation.js';
 import type { MediumCollisionChannels } from './traversal.js';
@@ -242,11 +243,8 @@ export class AuthorityCollisionBuilder {
       ground: new Set(suppressedRows.filter(row => row.medium === 'ground').map(authorityObstacleKey)),
       water: new Set(suppressedRows.filter(row => row.medium === 'water').map(authorityObstacleKey)),
     };
-    const booleans = (name: string): boolean[] => {
-      const values = this.arrays[name]!, result = new Array<boolean>(values.length);
-      for (let index = 0; index < values.length; index++) result[index] = values[index] !== 0;
-      return result;
-    };
+    // Collision owns its planes (0/1 copies), so no consumer can reach the chunk arrays through it.
+    const flags = (name: string): Uint8Array => cellFlags(this.arrays[name]!);
     const channels = chunkAuthorityTraversalChannels(this.#meta), groundMeta = this.#meta.collisions.ground;
     const traversalChannels: MediumCollisionChannels | undefined = channels.ground || channels.water
       ? { width, height, medium: this.arrays['medium']!, solidBlocked: this.arrays['solidBlocked']! } : undefined;
@@ -258,12 +256,12 @@ export class AuthorityCollisionBuilder {
       width,
       height,
       ...origin,
-      blocked: booleans('authority.ground.blocked'),
+      blocked: flags('authority.ground.blocked'),
       elevations: this.arrays['authority.ground.elevations'] as Int16Array,
       ...(typeof groundMeta['terrainMinimumElevation'] === 'number' ? { terrainMinimumElevation: groundMeta['terrainMinimumElevation'] } : {}),
       ...(has(groundMeta, 'terrainTransitions') ? { terrainTransitions: this.records<TerrainTransition>('authority.ground.transition') } : {}),
       terrainPlaneBlocked: this.arrays['authority.ground.terrainPlaneBlocked'] as Uint8Array,
-      horseJumpableTerrain: booleans('authority.ground.horseJumpableTerrain'),
+      horseJumpableTerrain: flags('authority.ground.horseJumpableTerrain'),
       obstacles: groundObstacles.authored,
     };
     const water: CollisionMap = {
@@ -271,9 +269,9 @@ export class AuthorityCollisionBuilder {
       width,
       height,
       ...origin,
-      blocked: booleans('authority.water.blocked'),
+      blocked: flags('authority.water.blocked'),
       // SW-D1: the water horse-jump mask is all false and is not materialized.
-      horseJumpableTerrain: new Array<boolean>(cells).fill(false),
+      horseJumpableTerrain: new Uint8Array(cells),
       obstacles: waterObstacles.authored,
     };
     return { ground, water, baseObstacles: { ground: groundObstacles.base, water: waterObstacles.base }, suppressedObstacleKeys,

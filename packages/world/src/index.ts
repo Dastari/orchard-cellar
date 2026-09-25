@@ -12838,12 +12838,12 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
   );
   const traversalChannels = runtimeTraversalPolicy(registry) === null ? undefined : mapTraversalChannels(document, compiled);
   const length = compiled.width * compiled.height;
-  const horseJumpableTerrain = Array.from({ length }, (_, index) => (
+  const horseJumpableTerrain = Uint8Array.from({ length }, (_, index) => (
     survivalBiomeAllowsHorseJump(resolvedMapBiomeAt(
       document,
       index % compiled.width,
       Math.floor(index / compiled.width),
-    ))
+    )) ? 1 : 0
   ));
   let minimumElevation = 0;
   for (const elevation of compiled.elevations) minimumElevation = Math.min(minimumElevation, elevation);
@@ -12856,7 +12856,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     height: compiled.height,
     blocked: compiled.blocked.map((blocked, index) => (
       groundWalkableTiles.has(`${index % compiled.width}:${Math.floor(index / compiled.width)}`)
-        ? false
+        ? 0
         : blocked
     )),
     elevations: compiled.elevations,
@@ -12870,8 +12870,8 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     ...(traversalChannels === undefined ? {} : { traversalChannels }),
     width: compiled.width,
     height: compiled.height,
-    blocked: compiled.surfaces.map((surface) => surface !== 'water'),
-    horseJumpableTerrain: Array<boolean>(length).fill(false),
+    blocked: Uint8Array.from(compiled.surfaces, (surface) => surface !== 'water' ? 1 : 0),
+    horseJumpableTerrain: new Uint8Array(length),
     obstacles: authoredMapCollisionObstacles(document, 'water', registry),
   };
   const generatedSuppressions = new Set(document.generatedSuppressions);

@@ -62,7 +62,7 @@ try {
      const validated=planHearthArchitecture(rank,{canBuild:true,existing:[],occupants:[],collision:{width:base.width,height:base.height,blocked:base.residenceEnvelopeBlocked??base.blocked}},cells);
      if(validated.failure!==null)throw new Error('Invalid architectural study '+validated.failure);
    }
-   const terrain=rank===3?{...base,spaceId:30002,residenceEnvelopeBlocked:undefined,blocked:Array.from({length:1024},(_,i)=>!(i%32>=3&&i%32<=12&&Math.floor(i/32)>=17&&Math.floor(i/32)<=26))}:base;
+   const terrain=rank===3?{...base,spaceId:30002,residenceEnvelopeBlocked:undefined,blocked:Uint8Array.from({length:1024},(_,i)=>(i%32>=3&&i%32<=12&&Math.floor(i/32)>=17&&Math.floor(i/32)<=26)?0:1)}:base;
    new GroundChunkCache().draw(ctx,art,terrain,0,0,2,1024,1024);
    if(${architecture}&&rank!==3) {
      const actors=new Map();

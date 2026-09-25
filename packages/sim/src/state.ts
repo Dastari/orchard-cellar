@@ -56,7 +56,10 @@ export interface CollisionMap {
    * and positions stay in world coordinates. */
   readonly originX?: number;
   readonly originY?: number;
-  readonly blocked: readonly boolean[];
+  /** One byte per cell: non-zero is blocked, 0 is open. Test cells by
+   * truthiness (`blocked[i] !== 0`, or `(blocked[i] ?? 1) !== 0` to fail closed
+   * outside the array), never with `=== true`. Treat as read-only once built. */
+  readonly blocked: Uint8Array;
   /** Optional blockers resolved independently for each terrain elevation.
    * The flattened layout is `[elevation][tileY][tileX]`. This keeps projected
    * cliff faces solid on the lower plane while their cap edges independently
@@ -73,8 +76,9 @@ export interface CollisionMap {
    * terrain supplies both to client prediction and authority movement. */
   readonly elevations?: Int16Array | Uint8Array;
   readonly terrainTransitions?: readonly TerrainTransition[];
-  /** Blocked terrain tiles a mounted horse may cross during a jump. */
-  readonly horseJumpableTerrain?: readonly boolean[];
+  /** Blocked terrain tiles a mounted horse may cross during a jump: one byte
+   * per cell, non-zero where jumpable (same 0/1 convention as `blocked`). */
+  readonly horseJumpableTerrain?: Uint8Array;
   /** Optional fixed-point AABBs for sub-tile blockers such as tree trunks. */
   readonly obstacles?: readonly CollisionObstacle[];
 }
@@ -110,7 +114,7 @@ export type Action = MoveAction | TransitionAction | EconomyAction | PrestigeAct
 
 export function createEstateCollisionMap(treeTiles: readonly { readonly x: number; readonly y: number }[] = [], width = 64, height = 64): CollisionMap {
   const trees = new Set(treeTiles.map((tree) => `${tree.x},${tree.y}`));
-  const blocked = Array.from({ length: width * height }, (_, index) => {
+  const blocked = Uint8Array.from({ length: width * height }, (_, index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
@@ -127,18 +131,18 @@ export function createEstateCollisionMap(treeTiles: readonly { readonly x: numbe
     const windmill = x >= 56 && x <= 60 && y >= 36 && y <= 41;
     const hillside = y >= 48 && (x < 20 || x > 43);
     return border || farmhouse || orchardTrees || pond || upperGardenPond || lowerGardenPond
-      || orchardFence || greenhouse || barn || windmill || hillside;
+      || orchardFence || greenhouse || barn || windmill || hillside ? 1 : 0;
   });
   return { width, height, blocked };
 }
 
 export function createCellarCollisionMap(width = 40, height = 24): CollisionMap {
-  const blocked = Array.from({ length: width * height }, (_, index) => {
+  const blocked = Uint8Array.from({ length: width * height }, (_, index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
     const racks = y >= 5 && y <= 17 && y % 4 !== 0 && ((x >= 4 && x <= 12) || (x >= 17 && x <= 25));
-    return border || racks;
+    return border || racks ? 1 : 0;
   });
   return { width, height, blocked };
 }
