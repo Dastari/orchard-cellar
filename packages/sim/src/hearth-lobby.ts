@@ -1,6 +1,6 @@
 import {terrainPlaneCollisionBytesForElevationGrid} from './terrain-plane-collision.js';
 import {combatSegmentObstructed} from './combat-actions.js';
-import {positionCollides,playerInteractionOrigin} from './movement.js';
+import {collisionCellIndex,positionCollides,playerInteractionOrigin} from './movement.js';
 import {FIXED_UNITS_PER_PIXEL,TILE_SIZE_FIXED,type Vec2Fixed,type CollisionMap} from './state.js';
 import {BOOTSTRAP_SPACE_DEFINITIONS} from './content/bootstrap-spaces.js';
 import type {ContentRegistry} from './content/registry.js';
@@ -181,7 +181,10 @@ export function hearthLobbyPortalApproachClear(position:Vec2Fixed,portal:{fromTi
   const threshold={x:(portal.fromTileX+.5)*TILE_SIZE_FIXED,y:(portal.fromTileY+.5)*TILE_SIZE_FIXED};
   const dx=position.x-threshold.x,dy=position.y-threshold.y;
   if(dx*dx+dy*dy>(1.5*TILE_SIZE_FIXED)**2||positionCollides(position,collision)||positionCollides(threshold,collision))return false;
-  const elevation=(point:Vec2Fixed)=>collision.elevations?.[Math.floor(point.y/TILE_SIZE_FIXED)*collision.width+Math.floor(point.x/TILE_SIZE_FIXED)]??0;
+  const elevation=(point:Vec2Fixed)=>{
+    const cell=collisionCellIndex(collision,Math.floor(point.x/TILE_SIZE_FIXED),Math.floor(point.y/TILE_SIZE_FIXED));
+    return cell<0?0:collision.elevations?.[cell]??0;
+  };
   return elevation(position)===elevation(threshold)
     &&!combatSegmentObstructed(playerInteractionOrigin(position),playerInteractionOrigin(threshold),collision);
 }

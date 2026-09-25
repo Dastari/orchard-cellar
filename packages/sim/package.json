@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./world-chunk": "./src/world-chunk.ts",
     "./chunk-runtime": "./src/chunk-runtime.ts",
+    "./chunk-collision": "./src/chunk-collision.ts",
     "./chunk-runtime-fixture": "./src/chunk-runtime.fixture.ts",
     "./map-object-records": "./src/map-object-records.ts",
     "./connected-objects": "./src/connected-objects.ts",

@@ -53,7 +53,26 @@ export class WorldStaticProjectionCache {
     return projection;
   }
 
+  private lightTerrain: TerrainArray | null = null;
+  private lightAsset: LoadedAsset | undefined;
+  private lightOnly: PreparedLightTerrainOcclusion | undefined;
+
+  /** Light occlusion only, for a chunk window whose collision comes from chunk
+   * authority channels (static world S4d): windows are immutable, so the
+   * window object and asset are the whole key. */
+  prepareLight(terrain: TerrainArray, asset?: LoadedAsset, dynamicLighting = true): PreparedLightTerrainOcclusion | undefined {
+    if (!dynamicLighting) return undefined;
+    if (this.lightOnly === undefined || this.lightTerrain !== terrain || this.lightAsset !== asset) {
+      this.lightOnly = prepareLightTerrainOcclusion(terrain, asset);
+      this.lightTerrain = terrain;
+      this.lightAsset = asset;
+    }
+    return this.lightOnly;
+  }
+
   releaseLighting(): void {
+    this.lightOnly = undefined;
+    this.lightTerrain = null;
     if (this.projection !== null) this.projection = { ...this.projection, light: undefined };
   }
 

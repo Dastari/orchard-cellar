@@ -1,7 +1,7 @@
 import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type CollisionMap, type Direction } from './state.js';
 import type { RuntimeToolDefinition } from './content/runtime.js';
-import { playerInteractionOrigin } from './movement.js';
+import { collisionCellIndex, playerInteractionOrigin } from './movement.js';
 
 export interface TileTarget {
   readonly tileX: number;
@@ -226,10 +226,9 @@ export function tileTargetIsBlocked(
   tile: TileTarget,
   occupiedBounds: Iterable<FixedBounds> = [],
 ): boolean {
-  if (!Number.isInteger(tile.tileX) || !Number.isInteger(tile.tileY)
-    || tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= map.width || tile.tileY >= map.height) return true;
-  const tileIndex = tile.tileY * map.width + tile.tileX;
-  if (map.blocked[tileIndex] ?? true) return true;
+  if (!Number.isInteger(tile.tileX) || !Number.isInteger(tile.tileY)) return true;
+  const tileIndex = collisionCellIndex(map, tile.tileX, tile.tileY);
+  if (tileIndex < 0 || (map.blocked[tileIndex] ?? true)) return true;
   if (map.fixedTerrainPlane !== undefined && map.terrainPlaneBlocked !== undefined) {
     const stride = map.width * map.height;
     const planeIndex = map.fixedTerrainPlane - (map.terrainMinimumElevation ?? 0);

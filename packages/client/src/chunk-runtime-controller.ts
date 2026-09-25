@@ -41,6 +41,20 @@ export function effectiveChunkRuntimeMode(build: ChunkRuntimeMode, authority: Ch
 /** Why the published manifest disagrees with what the legacy path runs. Never a stop in `on`. */
 export type ChunkStaleReason = 'content' | 'map' | 'asset';
 
+/**
+ * Why the serving revision must not be used for server-authoritative data
+ * (client collision, suppression, combat regions) right now. Mirrors the
+ * server dispatcher (S2b), which reads the latest publication and serves its
+ * compiled map on `stale_content` / `stale_map`:
+ * - `not_on`, `not_serving`: no `on` store yet;
+ * - `shadow_missing`: nothing published (the server has no chunk runtime);
+ * - `superseded`: a newer revision is published and still loading here, while
+ *   the server already reads it (or its compiled map);
+ * - `stale_content`, `stale_map`: the publication disagrees with the live content
+ *   or map. An asset (atlas) mismatch is rendering-only and does not gate.
+ */
+export type ChunkAuthorityGate = 'not_on' | 'not_serving' | 'shadow_missing' | 'superseded' | 'stale_content' | 'stale_map';
+
 export interface ChunkRuntimeStatus {
   /** Effective mode after following the server authority. */
   mode: ChunkRuntimeMode;
@@ -118,6 +132,19 @@ export class ChunkRuntimeController {
   /** The serving store in `on` mode: always a fully swapped-in revision, never a half-loaded one. */
   get store(): BoundedChunkTerrainStore | undefined {
     return this.status.mode === 'on' ? this.#active?.loader.store : undefined;
+  }
+  /** Synchronous authority gate for the serving store against the caller's current
+   * live map and content (see ChunkAuthorityGate); null when it may be used. */
+  authorityGate(source: ChunkRuntimeSource): ChunkAuthorityGate | null {
+    if (this.status.mode !== 'on') return 'not_on';
+    const active = this.#active, input = this.#latest;
+    if (active === undefined || input === undefined) return 'not_serving';
+    const row = input.connection.db.worldChunkShadow.spaceId.find(active.spaceId);
+    if (!row) return 'shadow_missing';
+    if (`${active.spaceId}:${row.revision}` !== active.revision) return 'superseded';
+    if (row.contentHash !== source.contentHash) return 'stale_content';
+    if (active.manifest.sourceRevision !== source.mapRevision || active.manifest.sourceHash !== source.mapHash) return 'stale_map';
+    return null;
   }
   update(connection: DbConnection, spaceId: bigint, bounds: ChunkView, source: ChunkRuntimeSource): void {
     if (this.#disposed) return;
