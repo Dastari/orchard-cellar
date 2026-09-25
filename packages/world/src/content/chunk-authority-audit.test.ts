@@ -20,11 +20,11 @@ const REGISTRY_HASH = 'content-1';
 const box = (tileX: number, tileY: number, tiles = 1) => ({ left: tileX * T, top: tileY * T, right: (tileX + tiles) * T - 1, bottom: tileY * T + T - 1 });
 
 /** A 100x64 island in two chunks (the dispatcher test's fixture, trimmed). */
-function island() {
+function island(authoritySchema: 1 | 2 = 1) {
   const records = (cx: number): WorldChunkRecord[] => cx === 0
     ? [{ kind: 'authority.ground.obstacle', ordinal: 0, tileX: 62, tileY: 1, value: { group: 'authored', ordinal: 0, ...box(62, 1, 5), sourceId: 'landmark:bridge' } }]
     : [];
-  const blobs = [0, 1].map(cx => encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema: 1, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
+  const blobs = [0, 1].map(cx => encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
     arrays: { medium: new Uint8Array(CELLS), solidBlocked: new Uint8Array(CELLS), biomes: new Uint8Array(CELLS),
       'authority.ground.blocked': new Uint8Array(CELLS), 'authority.ground.elevations': new Int16Array(CELLS),
       'authority.ground.terrainPlaneBlocked': new Uint8Array(CELLS), 'authority.ground.horseJumpableTerrain': new Uint8Array(CELLS),
@@ -55,13 +55,16 @@ interface AuditHarnessOptions {
   readonly dropHead?: boolean;
   readonly compiled?: 'null' | ((runtime: CompiledCollisionRuntime) => CompiledCollisionRuntime);
   readonly clock?: ChunkAuthorityAuditClock;
+  /** The published blobs' authority schema; compiled always comes from the schema-1 fixture. */
+  readonly authoritySchema?: 1 | 2;
 }
 
 function auditHarness(options: AuditHarnessOptions = {}) {
-  const { manifest, store } = island();
+  const { manifest, store } = island(options.authoritySchema);
   const reads = new Map<string, number>();
   let compiledBuilds = 0;
-  const complete = assembleChunkLiveIslandRuntime(manifest, hash => store.get(hash), { contentHash: REGISTRY_HASH });
+  const schema1 = island();
+  const complete = assembleChunkLiveIslandRuntime(schema1.manifest, hash => schema1.store.get(hash), { contentHash: REGISTRY_HASH });
   const baseCompiled: CompiledCollisionRuntime = { ...complete, key: `3:map-3:${REGISTRY_HASH}`, document: {} as MapDocumentV3 };
   const shadowRow = options.shadow === 'none' ? null
     : { revision: options.shadow?.revision ?? 1, mapId: LIVE_ISLAND_MAP_ID, contentHash: options.shadow?.contentHash ?? REGISTRY_HASH, manifestJson: JSON.stringify(manifest) };
@@ -129,9 +132,20 @@ describe('runChunkAuthorityAudit', () => {
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
   });
 
+  it('reports an authority schema 2 (obstacle table) publication complete, servable and agreeing with compiled (BUG-044)', () => {
+    const h = auditHarness({ authoritySchema: 2 });
+    expect(h.manifest.chunks.map(({ contentHash }) => contentHash)).not.toEqual(island().manifest.chunks.map(({ contentHash }) => contentHash));
+    expect(runChunkAuthorityAudit(h.input)).toMatchObject({
+      ok: true,
+      completeness: { complete: true, blobs: { present: 2, missing: 0 }, runtimeComplete: true, issueCount: 0 },
+      servable: { ok: true },
+      disagreements: { compared: true, equal: true, count: 0, fields: {} },
+    });
+  });
+
   it('counts every disagreement but keeps at most 32 samples', () => {
     const h = auditHarness({ compiled: runtime => ({ ...runtime,
-      ground: { ...runtime.ground, blocked: runtime.ground.blocked.map((value, index) => (index < 100 ? !value : value)) } }) });
+      ground: { ...runtime.ground, blocked: runtime.ground.blocked.map((value, index) => (index < 100 ? (value ? 0 : 1) : value)) } }) });
     const report = runChunkAuthorityAudit(h.input);
     expect(report.ok).toBe(false);
     expect(report.servable).toEqual({ ok: true });
