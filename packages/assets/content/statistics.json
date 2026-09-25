@@ -1627,7 +1627,7 @@
     "kind": "statistic",
     "schemaVersion": 1,
     "name": "Tool Whiffs",
-    "description": "Authority-accepted swings that did not target a resource.",
+    "description": "Authority-accepted swings that landed on nothing: no target in reach, or only targets that resisted the tool.",
     "category": "tools",
     "unit": "count",
     "aggregation": "counter",
