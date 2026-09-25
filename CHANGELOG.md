@@ -2,6 +2,24 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.41.1 / UI 0.43.1 / Studio 0.16.1 — Classic HUD restore
+
+- **Owner-approved HUD restore (PR #159, BoldBridge).** Each change was approved from kit-rendered PNGs.
+  - **HUD layout:**
+    - M, B, C and the main hand are round buttons anchored bottom-left.
+    - On touch screens the thumb stick or button bank rests above them. The buttons are raised and bevelled, and the stick has a thumb knob.
+    - The layout is the classic one, with the purse bottom-right and a two-row hotbar on narrow screens.
+    - The purse never truncates.
+  - **Target frame:** the classic 72×29 frame, with the name just above it and no clear button. The player frame matches.
+  - **Zone name:** shown on the classic flat location banner, and never clipped.
+  - **Classic looks restored:**
+    - the quest tracker as yellow outlined text with the chevron on the left;
+    - white-on-black nameplates with an inline [offline];
+    - the parchment hover card, with the crop timer only;
+    - the /say and /yell speech bubbles;
+    - the settings window, in capitals.
+  - **Unchanged:** behaviour, commands and the BUG-027/029/034/038 fixes. Content and world are unchanged.
+
 ## Client 0.41.0 / UI 0.43.0 / Studio 0.16.0 / World 0.26.2 — Game UI redesign and recipe recosting
 
 - **Game UI redesign (UI-D1, PRs #148–#156 by BoldBridge).** Every in-game surface is rebuilt to owner-approved kit-rendered designs (`Roadmap/Game UI Redesign` on the wiki). The redesign is presentation-level: authoritative command paths, pointer custody and the BUG-017..029 fixes are unchanged.

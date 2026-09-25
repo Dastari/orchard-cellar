@@ -10,6 +10,7 @@ import { uiFlex } from './layout.js';
 import { uiViewport, type UiViewportOptions } from './viewport.js';
 import { uiGlyphButton } from './window.js';
 import { uiButton, type UiButtonFacePaint } from './button.js';
+import { UI_QUEST_INK } from './quest-tracker.js';
 
 /** HUD text sits directly on the world: pixel glyphs with a dark plum outline, never a panel. */
 export const UI_HUD_INK = Object.freeze({ outline: '#3f2832', gold: '#ffe36e', cream: '#fff0cf', tan: '#e7c9a0', done: '#8fdc6a' });
@@ -103,15 +104,15 @@ export interface UiHudQuestTrackerOptions {
   readonly quests: () => readonly UiHudQuest[]; readonly collapsed: () => boolean;
   readonly onToggle: () => void; readonly onOpen: (id: string) => void; readonly width?: number;
 }
-/** Pinned quests as outlined text on the world: gold header, cream titles, tan objectives. */
+/** Pinned quests as yellow outlined text on the world, left-aligned with the chevron before QUESTS. */
 export function uiHudQuestTracker(options: UiHudQuestTrackerOptions): UiElement {
   const width = options.width ?? 150;
   const header = new UiElement({ id: 'hud.quests.toggle', kind: 'button', label: 'Quests', focusable: true, pointerMode: 'capture', style: { width: uiFixed(width), height: uiFixed(14), shrink: 0 },
     ...pressable(options.onToggle),
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; const r = element.rect, collapsed = options.collapsed();
-      paintUiSkin(context, art.skin.feedback, collapsed ? 'quest_chevron.collapsed' : 'quest_chevron.expanded', { x: r.x + r.width - 12, y: r.y - 1, width: 16, height: 16 });
-      drawOutlinedPixelText(context, art.pixel, 'QUESTS', r.x + r.width - 16, r.y + 3, { align: 'right', color: hovered || focused ? UI_HUD_INK.cream : UI_HUD_INK.gold, outlineColor: UI_HUD_INK.outline });
+      paintUiSkin(context, art.skin.feedback, collapsed ? 'quest_chevron.collapsed' : 'quest_chevron.expanded', { x: r.x - 1, y: r.y - 1, width: 16, height: 16 });
+      drawOutlinedPixelText(context, art.pixel, 'QUESTS', r.x + 15, r.y + 3, { color: hovered || focused ? UI_QUEST_INK.lit : UI_QUEST_INK.header, outlineColor: UI_QUEST_INK.outline });
     } });
   const list = new UiElement({ id: 'hud.quests.list', kind: 'hud-quest-list', label: 'Pinned quests', focusable: true, pointerMode: 'capture', style: { width: uiFixed(width), shrink: 0 },
     measure() {
@@ -130,19 +131,18 @@ export function uiHudQuestTracker(options: UiHudQuestTrackerOptions): UiElement 
       if (!art || options.collapsed()) return;
       const r = element.rect, font = art.pixel.font; let y = r.y;
       for (const quest of options.quests()) {
-        drawOutlinedPixelText(context, art.pixel, fitPixelText(quest.title.toUpperCase(), r.width - 2, 1, font), r.x + r.width, y, { align: 'right', color: UI_HUD_INK.cream, outlineColor: UI_HUD_INK.outline });
+        drawOutlinedPixelText(context, art.pixel, fitPixelText(quest.title.toUpperCase(), r.width - 2, 1, font), r.x + 2, y, { color: UI_QUEST_INK.title, outlineColor: UI_QUEST_INK.outline });
         y += 11;
         for (const objective of quest.objectives) {
-          const progress = objective.complete ? 'Done' : objective.progress, text = fitPixelText(objective.label, r.width - measurePixelText(progress, 1, font) - 8, 1, font);
-          const ink = objective.complete ? UI_HUD_INK.done : UI_HUD_INK.tan;
-          drawOutlinedPixelText(context, art.pixel, `${text} ${progress}`, r.x + r.width, y, { align: 'right', color: ink, outlineColor: UI_HUD_INK.outline });
+          const progress = objective.complete ? 'Done' : objective.progress, text = fitPixelText(`- ${progress} ${objective.label}`, r.width - 8, 1, font);
+          drawOutlinedPixelText(context, art.pixel, text, r.x + 6, y, { color: objective.complete ? UI_QUEST_INK.done : UI_QUEST_INK.objective, outlineColor: UI_QUEST_INK.outline });
           y += 11;
         }
         y += 5;
       }
     },
   });
-  return uiFlex({ id: 'hud.quests', direction: 'column', gap: 2, align: 'end' }, [header, list]);
+  return uiFlex({ id: 'hud.quests', direction: 'column', gap: 2, align: 'start' }, [header, list]);
 }
 
 export interface UiHudPlayerCardOptions {

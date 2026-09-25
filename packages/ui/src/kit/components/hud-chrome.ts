@@ -27,16 +27,26 @@ function glyphFace(glyph: string): UiButtonOptions['face'] {
     context.restore();
   };
 }
-/** The large authored flag ribbon, its crest extended by one clean centre column. */
+/** The zone banner's height: the classic location ribbon, tall enough for the large font clear of its folds. */
+export const UI_ZONE_BANNER_HEIGHT = 34;
+/** The classic zone banner: the 78x21 ribbon stretched through one clean centre column and its middle rows,
+ * keeping the 6px top edge and the 8px lower folds at their authored size. */
 function paintFlag(context: CanvasRenderingContext2D, art: NonNullable<Parameters<NonNullable<UiElement['hooks']['paint']>>[1]['art']>, r: UiRect): void {
-  const entry = art.skin.feedback['flag.base.0'], source = entry && uiSkinFrame(entry); if (!entry || !source) return;
-  const left = Math.floor(source.width / 2), right = source.width - left - 1, middle = Math.max(0, r.width - left - right);
-  context.drawImage(entry.asset.image, source.x, source.y, left, source.height, r.x, r.y, left, source.height);
-  if (middle) context.drawImage(entry.asset.image, source.x + left, source.y, 1, source.height, r.x + left, r.y, middle, source.height);
-  context.drawImage(entry.asset.image, source.x + left + 1, source.y, right, source.height, r.x + left + middle, r.y, right, source.height);
+  const entry = art.skin.feedback['banner.base.0'], source = entry && uiSkinFrame(entry); if (!entry || !source) return;
+  const columns = [Math.floor(source.width / 2), 1, source.width - Math.floor(source.width / 2) - 1], rows = [6, source.height - 14, 8];
+  const width = [columns[0]!, Math.max(0, r.width - columns[0]! - columns[2]!), columns[2]!], height = [rows[0]!, Math.max(0, r.height - rows[0]! - rows[2]!), rows[2]!];
+  let sy = source.y, ty = r.y;
+  for (let row = 0; row < 3; row++) {
+    let sx = source.x, tx = r.x;
+    for (let column = 0; column < 3; column++) {
+      if (width[column]! > 0 && height[row]! > 0) context.drawImage(entry.asset.image, sx, sy, columns[column]!, rows[row]!, tx, ty, width[column]!, height[row]!);
+      sx += columns[column]!; tx += width[column]!;
+    }
+    sy += rows[row]!; ty += height[row]!;
+  }
 }
-/** Width of the zone flag for a title: the reading font plus the ribbon's tails. */
-export function uiZoneFlagWidth(title: string): number { return Math.max(96, title.length * 9 + 60); }
+/** Width of the zone banner for a title: the large font plus the ribbon's tails, 156 to 220 wide. */
+export function uiZoneFlagWidth(title: string): number { return Math.min(220, Math.max(156, title.length * 9 + 64)); }
 /** HUD words drawn straight onto the world: outlined pixel text, no plate. */
 function hudLine(kind: string, ink: string): UiElement {
   return new UiElement({ kind, label: ' ', style: { height: uiFixed(11), shrink: 0 },
@@ -60,8 +70,8 @@ export interface UiZoneHeaderElement extends UiElement { updateZoneHeader(model:
 export function uiZoneHeader(options: UiZoneHeaderOptions & { readonly reserve?: number }): UiZoneHeaderElement {
   let title = options.title, pressed = false;
   const toggle = new UiElement({ id: 'hud.zone', label: `Collapse ${options.title}`, focusable: true, pointerMode: 'capture',
-    style: { height: uiFixed(23) },
-    measure() { const width = uiZoneFlagWidth(title); return { min: { width: 96, height: 23 }, preferred: { width, height: 23 } }; },
+    style: { height: uiFixed(UI_ZONE_BANNER_HEIGHT) },
+    measure() { const width = uiZoneFlagWidth(title); return { min: { width: 96, height: UI_ZONE_BANNER_HEIGHT }, preferred: { width, height: UI_ZONE_BANNER_HEIGHT } }; },
     onPointer(event, element) {
       if (event.type === 'down' && event.button === 0) { pressed = true; event.capture(); if (options.activateOn !== 'up') options.onToggle?.(); return true; }
       if (event.type === 'cancel') { pressed = false; return true; }
@@ -71,8 +81,9 @@ export function uiZoneHeader(options: UiZoneHeaderOptions & { readonly reserve?:
     onKey(event) { if (!['Enter',' '].includes(event.key)) return false; if (!event.repeat) options.onToggle?.(); return true; },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; const r = element.rect; paintFlag(context, art, r);
-      const text = fitPixelText(title, r.width - 48, 1, art.pixel.headerFont), width = measurePixelText(text, 1, art.pixel.headerFont);
-      drawPixelText(context, art.pixel, text, r.x + Math.floor((r.width - width) / 2), r.y + 3, { font: 'header', color: hovered || focused ? '#9e2835' : UI_HUD_INK.outline });
+      // The writable face runs 27px in from each tail and from 3px below the top to above the lower folds.
+      const text = fitPixelText(title, r.width - 54, 1, art.pixel.headerFont), width = measurePixelText(text, 1, art.pixel.headerFont);
+      drawPixelText(context, art.pixel, text, r.x + Math.floor((r.width - width) / 2), r.y + 8, { font: 'header', color: hovered || focused ? '#9e2835' : '#4d2e22' });
     },
   });
   const collapsed = hudButton({ get activateOn() { return options.activateOn ?? 'down'; }, id: 'hud.zone.expand', ariaLabel: 'Expand zone name', label: '', onPress: options.onToggle,
@@ -100,7 +111,7 @@ export function uiZoneHeader(options: UiZoneHeaderOptions & { readonly reserve?:
 }
 /** Height of a zone header for a model: the flag and one outlined line per subtitle and watch. */
 export function uiZoneHeaderHeight(model: UiZoneHeaderModel): number {
-  return model.collapsed ? 24 : 23 + (model.subtitle ? 13 : 0) + (model.watch ? 13 : 0);
+  return model.collapsed ? 24 : UI_ZONE_BANNER_HEIGHT + (model.subtitle ? 13 : 0) + (model.watch ? 13 : 0);
 }
 export interface UiMinimapModel { readonly collapsed?: boolean; readonly zoom: number }
 export interface UiMinimapOptions extends UiMinimapModel {

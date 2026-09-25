@@ -86,11 +86,13 @@ it('keeps compact default quests above target controls and restores them after e
   f.runtime.register({id:'quest-tracker',root:tracker.root,priority:100,active:()=>tracker.isActive && f.ui.questTrackerVisible,blocking:()=>false});
   expect(f.ui.minimapBounds.height).toBe(24);
   const bounds = tracker.currentBounds;
-  const target = f.roots.targetEffects.entries().find(e=>e.element.id==='game.hud.clear-target')!.element.rect;
+  const target = f.roots.targetEffects.entries().find(e=>e.element.id==='game.hud.target-name')!.element.rect;
   expect(bounds.y+bounds.height).toBeLessThan(target.y);
-  const clear = point(f.roots.targetEffects,'game.hud.clear-target');
-  f.runtime.pointer({type:'down',point:clear,pointerId:80,button:0}); f.runtime.pointer({type:'up',point:clear,pointerId:80,button:0});
-  expect(f.clear).toHaveBeenCalledExactlyOnceWith('npc:1'); expect(open).not.toHaveBeenCalled();
+  // The classic target frame has no clear button; tapping its name only focuses it.
+  expect(f.roots.targetEffects.entries().some(e=>e.element.id==='game.hud.clear-target')).toBe(false);
+  const name = point(f.roots.targetEffects,'game.hud.target-name');
+  f.runtime.pointer({type:'down',point:name,pointerId:80,button:0}); f.runtime.pointer({type:'up',point:name,pointerId:80,button:0});
+  expect(f.clear).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled();
   const expand = point(f.roots.zoneMinimap,'hud.minimap.expand');
   f.runtime.pointer({type:'down',point:expand,pointerId:81,button:0}); f.runtime.pointer({type:'up',point:expand,pointerId:81,button:0});
   expect(f.ui.questTrackerVisible).toBe(false); updateTracker(); expect(tracker.isActive).toBe(false);
@@ -137,9 +139,7 @@ it('hands compact page keyboard focus through the actual parent and returns to i
     for (let attempt = 0; attempt < 24 && f.runtime.focusedElement?.id !== id; attempt++) f.runtime.key({ key: 'Tab' });
     expect(f.runtime.focusedElement?.id).toBe(id);
   };
-  tabTo('game.hud.clear-target');
-  f.runtime.key({ key: 'Enter' });
-  expect(f.clear).toHaveBeenCalledExactlyOnceWith('npc:1');
+  tabTo('game.hud.target-name');
   f.runtime.key({ key: 'Escape' });
   expect(f.runtime.focusedElement?.id).toBe('game.hud.compact.tab.status');
   expect(f.ui.openWindow).toBeNull();

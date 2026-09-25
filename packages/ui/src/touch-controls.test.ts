@@ -83,8 +83,8 @@ describe('production shared touch adapter',()=>{
 
 describe('canonical production thumb layout',()=>{
  it('preserves normal portrait/landscape positions and clamps persisted preferences',()=>{
-  expect(touchControlLayout(390,844).joystickCenter.y).toBe(765);const portrait=touchControlLayout(390,844);expect(portrait.interactButton.y+portrait.interactButton.height).toBe(793);
-  const landscape=touchControlLayout(844,390);expect(landscape.joystickCenter.y).toBe(350);expect(landscape.interactButton).toMatchObject({y:328,height:30});
+  expect(touchControlLayout(390,844).joystickCenter.y).toBe(768);const portrait=touchControlLayout(390,844);expect(portrait.interactButton.y+portrait.interactButton.height).toBe(793);
+  const landscape=touchControlLayout(844,390);expect(landscape.joystickCenter.y).toBe(314);expect(landscape.interactButton).toMatchObject({y:328,height:30});
   expect(normalizeTouchControlPreferences({swapped:true,bottomOffset:150})).toEqual({swapped:true,bottomOffset:120});expect(normalizeTouchControlPreferences({bottomOffset:NaN})).toEqual({swapped:false,bottomOffset:0});
  });
  it.each([[320,180],[390,844],[844,390],[480,270]])('keeps joystick and all five actions reachable and non-overlapping at%s×%s, both swaps and every offset', (width,height)=>{

@@ -3,48 +3,93 @@ import { UiElement } from '../runtime/element.js';
 import { uiFixed } from '../layout/box.js';
 import { paintUiSkin } from './art.js';
 
-/** Pixel disc: stepped circle rows, the same way the pack's round buttons are drawn. */
+/** Pixel disc: stepped circle rows, the same way the pack's round buttons are drawn. Half-pixel radii keep
+ * the poles flat instead of ending in one-pixel spikes. */
 function disc(context: CanvasRenderingContext2D, cx: number, cy: number, radius: number, fill: string, edge?: string): void {
+  const span = (r: number, y: number) => Math.floor(Math.sqrt(Math.max(0, (r + .5) * (r + .5) - y * y)));
   for (let y = -radius; y <= radius; y++) {
-    const half = Math.floor(Math.sqrt(radius * radius - y * y));
+    const half = span(radius, y);
     if (edge) { context.fillStyle = edge; context.fillRect(cx - half, cy + y, half * 2 + 1, 1); }
-    const inner = edge ? Math.floor(Math.sqrt(Math.max(0, (radius - 1) * (radius - 1) - y * y))) : half;
+    const inner = edge ? span(radius - 1, y) : half;
     if (!edge || Math.abs(y) < radius) { context.fillStyle = fill; context.fillRect(cx - inner, cy + y, inner * 2 + 1, 1); }
   }
 }
 
 type UiTouchArt = NonNullable<Parameters<NonNullable<UiElement['hooks']['paint']>>[1]['art']>;
 export type UiTouchTone = 'primary' | 'success' | 'info' | 'danger';
-const TOUCH_FACES = { primary: ['#e4a672', '#b86f50'], success: ['#63c74d', '#3e8948'], info: ['#2ce8f5', '#0095e9'], danger: ['#f6757a', '#e43b44'] } as const;
+/** Per tone: bevel light, face, bevel shade and the deep lip under the cap. */
+const TOUCH_FACES = {
+  primary: ['#f6ca9f', '#e4a672', '#b86f50', '#743f39'], success: ['#a8e06c', '#63c74d', '#3e8948', '#265c42'],
+  info: ['#b4f4fa', '#2ce8f5', '#0095e9', '#124e89'], danger: ['#ffb3b5', '#f6757a', '#e43b44', '#a22633'],
+} as const;
+const INK = '#3f2832';
 
-/** The movement pad well: a translucent parchment disc filling `r`. */
+/** A raised round cap at (cx, cy): outlined, a light bevel along its top edge and a shaded one along its foot. */
+function bevelledCap(context: CanvasRenderingContext2D, cx: number, cy: number, radius: number, light: string, face: string, shade: string, sunk = false): void {
+  disc(context, cx, cy, radius, sunk ? light : shade, INK);
+  disc(context, cx, cy + (sunk ? 1 : -1), radius - 2, sunk ? shade : light);
+  disc(context, cx, cy, radius - 3, face);
+}
+
+/** The movement pad: a dark recessed ring with a bevelled wooden rim and four direction notches. */
 export function paintUiTouchPad(context: CanvasRenderingContext2D, r: { x: number; y: number; width: number; height: number }): void {
-  const size = Math.min(r.width, r.height), c = { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }, radius = Math.floor(size / 2) - 1;
-  context.save(); context.globalAlpha *= .55; disc(context, c.x, c.y, radius, '#f6ca9f', '#3f2832'); context.restore();
-  disc(context, c.x, c.y, Math.max(0, radius - 10), 'rgba(184, 111, 80, 0.35)');
+  const size = Math.min(r.width, r.height), cx = Math.round(r.x + r.width / 2), cy = Math.round(r.y + r.height / 2), radius = Math.floor(size / 2) - 1;
+  context.save(); context.globalAlpha *= .85;
+  disc(context, cx, cy + 2, radius, 'rgba(24, 20, 37, 0.35)');
+  disc(context, cx, cy, radius, '#b86f50', INK);
+  disc(context, cx, cy - 1, radius - 2, '#e4a672');
+  disc(context, cx, cy, radius - 3, '#743f39');
+  // The well: dark and translucent so the world shows through, shadowed under its top rim.
+  disc(context, cx, cy, radius - 4, 'rgba(24, 20, 37, 0.7)');
+  disc(context, cx, cy + 2, radius - 6, 'rgba(63, 40, 50, 0.55)');
+  context.restore();
+  context.fillStyle = 'rgba(246, 202, 159, 0.8)';
+  const reach = radius - 9;
+  for (let i = 0; i < 4; i++) {
+    const ox = [0, reach, 0, -reach][i]!, oy = [-reach, 0, reach, 0][i]!;
+    for (let step = 0; step < 3; step++) {
+      const span = step * 2 + 1, along = 2 - step;
+      if (ox === 0) context.fillRect(cx - step, cy + oy + (oy < 0 ? -along : along), span, 1);
+      else context.fillRect(cx + ox + (ox < 0 ? -along : along), cy - step, 1, span);
+    }
+  }
 }
-/** The pad's peach knob centred at (x, y). */
+/** The thumb stick: a shadowed stem under a domed peach cap with a grip ring and a highlight. */
 export function paintUiTouchKnob(context: CanvasRenderingContext2D, x: number, y: number, radius = 13): void {
-  x = Math.round(x); y = Math.round(y);
-  disc(context, x, y + 1, radius, '#743f39'); disc(context, x, y, radius, '#e4a672', '#3f2832'); disc(context, x - 3, y - 3, Math.max(1, Math.floor(radius / 3)), '#f6ca9f');
+  // The cap sits 2px above (x, y) so its stem and shadow end within `radius + 2` below it.
+  x = Math.round(x); y = Math.round(y) - 2;
+  disc(context, x, y + 4, radius, 'rgba(24, 20, 37, 0.45)');
+  disc(context, x, y + 2, radius, '#743f39', INK);
+  bevelledCap(context, x, y, radius, '#f6ca9f', '#e4a672', '#b86f50');
+  disc(context, x, y, Math.max(1, radius - 6), '#b86f50');
+  disc(context, x, y - 1, Math.max(1, radius - 7), '#e4a672');
+  disc(context, x - Math.floor(radius / 2), y - Math.floor(radius / 2), Math.max(1, Math.floor(radius / 5)), '#fff6e0');
 }
-/** A round thumb action centred in `r`: tone face, symbol and keyboard letter; `cooldown` sweeps a dark wedge. */
+/** A round thumb button centred in `r`, drawn like a physical button: a raised bevelled cap on a dark lip that
+ * sinks when pressed, a gloss spot, its symbol and keyboard letter; `cooldown` sweeps a dark wedge over the cap. */
+/** The face centre of a round button painted by `paintUiTouchDisc` in `r`. */
+export function uiTouchDiscCentre(r: { x: number; y: number; width: number; height: number }, pressed = false): { readonly x: number; readonly y: number } {
+  const radius = Math.max(6, Math.min(Math.floor((r.width - 2) / 2), Math.floor((r.height - 4) / 2)));
+  return { x: Math.round(r.x + r.width / 2), y: r.y + Math.floor((r.height - 4 - radius * 2) / 2) + radius + (pressed ? 2 : 0) };
+}
 export function paintUiTouchDisc(context: CanvasRenderingContext2D, art: UiTouchArt, r: { x: number; y: number; width: number; height: number },
   options: { readonly tone?: UiTouchTone; readonly icon?: string; readonly key?: string; readonly pressed?: boolean; readonly lit?: boolean; readonly cooldown?: number }): void {
-  const size = Math.min(r.width, r.height), c = { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) + (options.pressed ? 1 : 0) }, radius = Math.floor(size / 2) - 2;
-  const [face, shade] = TOUCH_FACES[options.tone ?? 'primary'];
-  if (!options.pressed) disc(context, c.x, c.y + 2, radius, '#3f2832');
-  disc(context, c.x, c.y + 1, radius, shade, '#3f2832'); disc(context, c.x, c.y, radius - 1, face);
-  if (options.lit) { context.fillStyle = '#fff6e0'; context.fillRect(c.x - 3, c.y - radius, 7, 1); }
+  // The whole button, lip and shadow included, stays inside `r`: the cap rests 4px above the rect's foot.
+  const radius = Math.max(6, Math.min(Math.floor((r.width - 2) / 2), Math.floor((r.height - 4) / 2))), { x: cx, y: base } = uiTouchDiscCentre(r);
+  const depth = options.pressed ? 1 : 3, cy = base + (options.pressed ? 2 : 0);
+  const [light, face, shade, deep] = TOUCH_FACES[options.tone ?? 'primary'];
+  disc(context, cx, base + 4, radius, 'rgba(24, 20, 37, 0.35)');
+  disc(context, cx, cy + depth, radius, deep, INK);
+  bevelledCap(context, cx, cy, radius, light, face, shade, options.pressed);
+  if (!options.pressed) disc(context, cx - Math.floor(radius / 2), cy - Math.floor(radius / 2), Math.max(1, Math.floor(radius / 6)), '#fff6e0');
+  if (options.lit) { context.fillStyle = '#fff6e0'; context.fillRect(cx - 3, cy - radius + 1, 7, 1); }
   if (options.cooldown) {
     context.fillStyle = 'rgba(63, 40, 50, 0.55)';
-    for (let y = -radius; y <= radius; y++) { const half = Math.floor(Math.sqrt(radius * radius - y * y)); if (y + radius < options.cooldown * radius * 2) context.fillRect(c.x - half, c.y + y, half * 2 + 1, 1); }
+    for (let y = -radius + 1; y <= radius - 1; y++) { const half = Math.floor(Math.sqrt((radius - 1) * (radius - 1) - y * y)); if (y + radius < options.cooldown * radius * 2) context.fillRect(cx - half, cy + y, half * 2 + 1, 1); }
   }
-  const small = size < 36;
-  if (options.icon) paintUiSkin(context, art.skin.icon, options.icon, { x: c.x - 8, y: c.y - (small ? 11 : 10), width: 16, height: 16 });
-  const key = options.key; if (!key) return;
-  const w = measurePixelText(key, 1, art.pixel.font);
-  drawOutlinedPixelText(context, art.pixel, key, c.x - Math.floor(w / 2), options.icon ? c.y + (small ? 4 : 5) : c.y - 4, { color: '#fff6e0', outlineColor: '#3f2832' });
+  const key = options.key, keyWidth = key ? measurePixelText(key, 1, art.pixel.font) : 0;
+  if (options.icon) paintUiSkin(context, art.skin.icon, options.icon, { x: cx - 8, y: cy - (key ? 11 : 8), width: 16, height: 16 });
+  if (key) drawOutlinedPixelText(context, art.pixel, key, cx - Math.floor(keyWidth / 2), options.icon ? cy + 4 : cy - 4, { color: '#fff6e0', outlineColor: INK });
 }
 
 /** Movement pad: a translucent parchment well with a peach knob, drawn at the thumb's rest position. */

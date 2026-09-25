@@ -3,8 +3,8 @@ import { uiOffset, type UiStyle } from '../layout/box.js';
 import { uiNameplate } from './feedback-game.js';
 export interface UiNameplateLabel { readonly id?: string; readonly x: number; readonly y: number; readonly text: string; readonly offline?: boolean }
 export interface UiNameplatesOptions { readonly labels?: readonly UiNameplateLabel[]; readonly layout?: UiStyle }
-/** Projected world anchors are data. Each label is the approved slim dark plate (offline players greyed,
- * with an Offline line); off-screen anchors do not stick to viewport edges. */
+/** Projected world anchors are data. Each label is the classic white-on-black plate (offline players greyed
+ * and marked "[offline]" on the same line); off-screen anchors do not stick to viewport edges. */
 export function uiNameplates(options: UiNameplatesOptions = {}): UiElement {
   const nodes = new Map<string, { readonly text: string; readonly node: UiElement }>();
   return new UiElement({ kind: 'nameplates', props: { labels: options.labels ?? [] },
@@ -19,7 +19,8 @@ export function uiNameplates(options: UiNameplatesOptions = {}): UiElement {
         let entry = nodes.get(id);
         if (entry?.text !== key) {
           entry?.node.dispose();
-          const node = uiNameplate({ id: `nameplate:${id}`, name: label.text.length > 28 ? `${label.text.slice(0, 27)}.` : label.text, kind: label.offline ? 'offline' : 'player', detail: label.offline ? 'Offline' : undefined });
+          const name = label.text.length > 28 ? `${label.text.slice(0, 27)}.` : label.text;
+          const node = uiNameplate({ id: `nameplate:${id}`, name: label.offline ? `${name} [offline]` : name, kind: label.offline ? 'offline' : 'player' });
           node.setStyle({ position: 'absolute', anchor: { target: 'top_left', self: 'bottom', constrain: false } });
           node.label = text;
           element.append(node); entry = { text: key, node }; nodes.set(id, entry);
