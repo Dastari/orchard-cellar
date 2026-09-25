@@ -218,7 +218,13 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Uint8Array flag planes (S4f follow-up) store engine/collision.ts's blocked planes as 0/1 bytes instead
 // of boolean[] (cellar boundary, water, dock correction; built with cellFlagsWhere). The pinned whole-map collision digests cover
 // it (the same bytes); the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = 'ebbe3b6e3288e781bc3bf0e33e60aefda4b80f14ab474312709e561773b100e3';
+// One item-slot look: ui/overworld-ui.ts passes icon-only painters (drawItemIcon) to the HUD hotbar and
+// character equipment; the kit slot draws count, wear bar and hotkey; the inventory tooltip sits above the hovered
+// slot (owner item 7). Slot, character, HUD and feedback tests cover it.
+// PR #188 review: ui/overworld-ui.ts hangs the hovered slot's details below it when they don't fit above, and passes
+// the live content registry to the HUD hotbar, character equipment and inventory menus for wear bars. Feedback,
+// character and HUD tests (short viewports, a Studio-only item) cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '6bbe1fe78f395b9a49239d73b4904b37e28f6e47eff9b0fd9092ba67cd8ab30c';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

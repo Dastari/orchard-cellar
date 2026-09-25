@@ -52,10 +52,10 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
     if (pane.kind === 'recipe_list') return uiFlex({ id: `pane:${pane.id}`, display: 'none' }, []);
     if ('self' in pane.bind && pane.bind.self === 'crafting') {
       const grid = uiInventoryGrid({ container: options.aliases.crafting ?? 'crafting', count: (pane.columns ?? 3) * (pane.rows ?? 3), columns: pane.columns ?? 3,
-        fixedColumns: true, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, layout: { width: 'fit' },
+        fixedColumns: true, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, layout: { width: 'fit' },
         ghost: index => { const itemKind = snapshot.pattern[index]; return itemKind ? { itemKind, quantity: 1 } : null; },
       }); grids.push(grid);
-      const result = uiSlot({ label: 'Craft result', activateOn: 'up', artwork: options.artwork, iconAnimation: options.iconAnimation, stack: () => snapshot.output,
+      const result = uiSlot({ label: 'Craft result', activateOn: 'up', artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, stack: () => snapshot.output,
         onPress: event => { if (snapshot.output && !snapshot.requirement) options.onCraft(event.shiftKey === true); },
       }); results.push(result);
       // A locked result says why in words under the grid (touch has no hover); the tooltip keeps the full hint.

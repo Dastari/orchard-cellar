@@ -1,7 +1,7 @@
 import { BOOTSTRAP_PROGRESSION } from '@orchard/sim/progression';
 import { paintUiCharacterPortrait } from './character-portrait.js';
 import type { LoadedAsset } from '../../assets.js';
-import type { Direction, PlayerAppearanceSelection } from '@orchard/sim';
+import type { ContentRegistry, Direction, PlayerAppearanceSelection } from '@orchard/sim';
 import { skillLevelForExperience, skillExperienceForLevel } from '@orchard/sim/skill-trees';
 import { ATTRIBUTE_IDS } from '@orchard/sim/stats';
 import { cycleAppearanceValue, type CharacterEquipmentItem, type CharacterScreenModel } from '../../character-screen.js';
@@ -23,7 +23,10 @@ export interface UiCharacterOptions {
   /** Leaf size of the book spread (see uiGameBookPage). */
   readonly page?: { readonly width: number; readonly height: number };
   readonly renderPortrait?: (context:CanvasRenderingContext2D,appearance:PlayerAppearanceSelection,facing:Direction,bounds:UiRect)=>void;
+  /** Icon only, in the slot's icon well: the kit slot draws the count and wear bar. */
   readonly renderEquipment?: (context: CanvasRenderingContext2D, bounds: UiRect, item: CharacterEquipmentItem) => void;
+  /** The live content registry, so equipment wear bars read authored (published or Studio) durability. */
+  readonly contentRegistry?: () => ContentRegistry | undefined;
   readonly layout?:UiStyle;
 }
 export interface UiCharacterElement extends UiElement { updateCharacter(model:CharacterScreenModel):void; focusCharacter(): void; setPage(page: { readonly width: number; readonly height: number }): void }
@@ -80,7 +83,7 @@ export function uiCharacter(options:UiCharacterOptions):UiCharacterElement {
       characterGlyph(`character.appearance.${kind}.next`,'glyph.next',`Next ${label}`,()=>cycle(1))]);
   };
   // The wearer stands in the paper doll's own well, between the armour and accessory columns.
-  const equipment=uiPaperDoll({id:'character.equipment',container:'equipment',slotSize:'sm',artwork:options.artwork,portrait,
+  const equipment=uiPaperDoll({id:'character.equipment',container:'equipment',slotSize:'sm',artwork:options.artwork,portrait,contentRegistry:options.contentRegistry,
     stack:index=>model.equipment.find(item=>item.slot===index)??null,
     renderContent: options.renderEquipment ? (context, bounds, _stack, index) => {
       const item = model.equipment.find(item => item.slot === index);
