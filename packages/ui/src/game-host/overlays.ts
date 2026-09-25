@@ -1,4 +1,5 @@
-import { rogueUpgradeDefinition, type RogueBoonRegistry } from '@orchard/sim';
+import type { RogueBoonRegistry } from '@orchard/sim';
+import { rogueUpgradeDefinition } from '@orchard/sim/roguelike';
 import type { PwaUpdateStatus } from '../pwa-update.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { uiDelveConfirmation } from '../kit/components/delve-confirmation.js';

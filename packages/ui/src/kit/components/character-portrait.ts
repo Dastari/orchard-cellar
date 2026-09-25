@@ -1,4 +1,5 @@
-import { idleAvatarAnimationForDirection, type Direction, type PlayerAppearanceSelection } from '@orchard/sim';
+import type { Direction, PlayerAppearanceSelection } from '@orchard/sim';
+import { idleAvatarAnimationForDirection } from '@orchard/sim/character-animation';
 import type { LoadedAsset } from '../../assets.js';
 import type { UiRect } from '../../geometry.js';
 import { selectAtlasFrame } from '../../sprite.js';

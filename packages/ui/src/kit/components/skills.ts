@@ -1,4 +1,6 @@
-import { BOOTSTRAP_PROGRESSION, SKILL_TRACKS, availableSkillPoints, skillExperienceForLevel, skillLevelForExperience, skillNodeIsImplemented, skillPurchaseRejectionForNodes, skillRespecCostBronze, type SkillTrack } from '@orchard/sim';
+import type { SkillTrack } from '@orchard/sim';
+import { BOOTSTRAP_PROGRESSION } from '@orchard/sim/progression';
+import { SKILL_TRACKS, availableSkillPoints, skillExperienceForLevel, skillLevelForExperience, skillNodeIsImplemented, skillPurchaseRejectionForNodes, skillRespecCostBronze } from '@orchard/sim/skill-trees';
 import type { SkillTreeModel, SkillTreeCallbacks } from '../../skill-tree-ui.js';
 import type { LoadedAsset } from '../../assets.js';
 import { UiElement } from '../runtime/element.js';

@@ -1,4 +1,4 @@
-import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
+import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim/time';
 import {
   LIGHT_BANDS,
   QuantizedLightFlood,

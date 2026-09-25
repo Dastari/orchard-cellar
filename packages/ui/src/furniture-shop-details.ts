@@ -1,4 +1,5 @@
-import { hearthFurnitureDefinition, type ContentRegistry } from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { hearthFurnitureDefinition } from '@orchard/sim/hearth-furniture-state';
 
 /** Resolve plans by their authored recipe edge, never by a naming convention. */
 export function furnitureShopDetails(registry: ContentRegistry | undefined, offeredKind: string) {

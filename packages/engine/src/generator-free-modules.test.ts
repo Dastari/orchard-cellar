@@ -54,3 +54,15 @@ describe('generator-free sim leaves', () => {
     expect(survivalResourceCatalog.SURVIVAL_ORE_KINDS).toEqual(viaLegacy.oreKinds);
   });
 });
+
+describe('generator-free client presentation path', () => {
+  it.each([
+    'ui/src/index.ts', 'ui/src/game-entry.ts', 'ui/src/kit/components/timing-canvas.ts',
+    'engine/src/map-object-presentation.ts', 'engine/src/connected-objects.ts', 'engine/src/overworld-art.ts',
+    'engine/src/light-occlusion.ts', 'engine/src/light-sources.ts', 'engine/src/lighting.ts',
+    'engine/src/map-shadow-contacts.ts', 'engine/src/world-asset-presentation.ts', 'engine/src/tilemap.ts',
+    'engine/src/space-terrain.ts', 'engine/src/terrain-sampling.ts', 'engine/src/terrain-array.ts',
+  ])('%s reaches no generator, compiler, map document, terrain.ts or sim barrel module', (file) => {
+    expect(legacyModulesReachedFrom(resolve(PACKAGES_ROOT, file))).toEqual([]);
+  });
+});

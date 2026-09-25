@@ -425,13 +425,8 @@ describe('map object presentation import boundary', () => {
 
   it('reaches legacy modules only through pre-existing shared modules the S6a split still has to cut', () => {
     // Shrink this list as S6a moves these onto sim subpaths; it must never grow.
-    const preExisting = [
-      '@orchard/ui',
-      './connected-objects.js',
-      './light-occlusion.js',
-      './light-sources.js',
-      './world-asset-presentation.js',
-    ];
+    // S6a cut every entry: map-object presentation now reaches no legacy module.
+    const preExisting: string[] = [];
     const through = [...legacyReachThrough(entry).keys()];
     expect(through.filter((specifier) => !preExisting.includes(specifier))).toEqual([]);
   });
