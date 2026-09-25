@@ -35,6 +35,7 @@
     "content:measure": "npm run content:measure -w @orchard/tools",
     "content:db-measure": "tsx scripts/content-database-measure.ts",
     "world:content-head": "tsx scripts/content-head-release.ts",
+    "world:chunks:publish": "tsx scripts/world-chunks-publish.ts",
     "content:load:acceptance": "bash scripts/run-content-load-acceptance.sh",
     "lifecycle:verify": "tsx scripts/lifecycle-code-build.ts verify",
     "lifecycle:build": "tsx scripts/lifecycle-code-build.ts build",

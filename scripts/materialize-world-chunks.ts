@@ -418,6 +418,46 @@ export function verifyAuthorityParity(store: ChunkTerrainStore, manifest: WorldC
   if (canonicalChunkJson(store.records('authority.walkable').map(record => record.value)) !== canonicalChunkJson(reference.walkable)) throw new Error('Authority walkable parity failed');
   for (const { tileX, tileY } of reference.walkable) if (store.channels['authority.ground.blocked']![tileY * store.width + tileX] !== 0) throw new Error(`Authority walkable tile blocked at ${tileX},${tileY}`);
 }
+/** Everything the S5b publish pipeline needs from one materialisation of live rows. */
+export interface MaterializedLiveRows {
+  readonly result: MaterializedWorldChunks;
+  /** Exactly the published `manifestJson` (canonical JSON plus a newline, as written to manifest.json). */
+  readonly manifestJson: string;
+  /** The content registry hash the server's publishWorldChunkShadow compares (`contentRegistry(ctx).contentHash`). */
+  readonly registryContentHash: string;
+  readonly assetRevision: string;
+  readonly atlasPacksResolved: boolean;
+}
+export interface MaterializeLiveRowsInput {
+  readonly row: LiveMapDocumentRow;
+  /** Null when the world has no content head: the server then uses the bootstrap registry. */
+  readonly contentRows: readonly ContentDefinitionRow[] | null;
+  /** The served `generated/atlas.packs.json` text; its hash is the client's asset revision. */
+  readonly atlasIndexSource?: string | null;
+  readonly assetRevision?: string;
+  /** Publish the server oracle channels too (`--audit`); never used for a real publication. */
+  readonly audit?: boolean;
+}
+/** Materialise and parity-check (against the server oracle) the chunks for one live map row and content rows. */
+export function materializeWorldChunksFromRows(input: MaterializeLiveRowsInput): MaterializedLiveRows {
+  const content = input.contentRows === null ? null : buildContentRegistry([...input.contentRows]);
+  if (content && !content.report.valid) throw new Error(`Invalid content rows: ${JSON.stringify(content.report.errors)}`);
+  const registry = content?.registry ?? bootstrapContentRegistry();
+  const atlasIndexSource = input.atlasIndexSource ?? null;
+  const atlasIndex = atlasIndexSource ? JSON.parse(atlasIndexSource) as { assetPacks: Record<string, string> } : null;
+  const packIds = (assetIds: readonly string[]): readonly string[] => atlasIndex === null ? [] : assetIds.map(id => {
+    const pack = atlasIndex.assetPacks?.[id];
+    if (typeof pack !== 'string') throw new Error(`Atlas index has no pack for ${id}`);
+    return pack;
+  });
+  const assetRevision = input.assetRevision ?? (atlasIndexSource ? worldChunkHash(new TextEncoder().encode(atlasIndexSource)) : registry.contentHash);
+  const snapshot = captureWorldChunkSnapshot(input.row, registry);
+  const audit = materializeWorldChunks(snapshot, input.row, registry, { atlasPackIdsForAssets: packIds, assetRevision, includeServerOracle: true });
+  verifyWorldChunkParity(snapshot, audit);
+  const result = input.audit === true ? audit : materializeWorldChunks(snapshot, input.row, registry, { atlasPackIdsForAssets: packIds, assetRevision });
+  if (result !== audit) verifyWorldChunkParity(snapshot, result);
+  return { result, manifestJson: canonicalChunkJson(result.manifest) + '\n', registryContentHash: registry.contentHash, assetRevision, atlasPacksResolved: atlasIndex !== null };
+}
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const value = (flag: string): string | undefined => { const index = args.indexOf(flag); return index < 0 ? undefined : args[index + 1]; };
@@ -425,29 +465,20 @@ async function main(): Promise<void> {
   const output = value('--output');
   if (!output || (!input && !args.includes('--bootstrap'))) throw new Error('Usage: tsx scripts/materialize-world-chunks.ts (--input map.json | --bootstrap) --output directory');
   const contentRowsPath = value('--content-rows');
-  const content = contentRowsPath ? buildContentRegistry(JSON.parse(await readFile(contentRowsPath, 'utf8')) as ContentDefinitionRow[]) : null;
-  if (content && !content.report.valid) throw new Error(`Invalid content rows: ${JSON.stringify(content.report.errors)}`);
-  const registry = content?.registry ?? bootstrapContentRegistry();
+  const contentRows = contentRowsPath ? JSON.parse(await readFile(contentRowsPath, 'utf8')) as ContentDefinitionRow[] : null;
   const atlasIndexPath = value('--atlas-index');
   const atlasIndexSource = atlasIndexPath ? await readFile(atlasIndexPath, 'utf8') : null;
-  const atlasIndex = atlasIndexSource ? JSON.parse(atlasIndexSource) as { assetPacks: Record<string, string> } : null;
-  const packIds = (assetIds: readonly string[]): readonly string[] => atlasIndex === null ? [] : assetIds.map(id => {
-    const pack = atlasIndex.assetPacks?.[id];
-    if (typeof pack !== 'string') throw new Error(`Atlas index has no pack for ${id}`);
-    return pack;
-  });
-  const assetRevision = value('--asset-revision') ?? (atlasIndexSource ? worldChunkHash(new TextEncoder().encode(atlasIndexSource)) : registry.contentHash);
-  const source: unknown = input ? JSON.parse(await readFile(input, 'utf8')) : createLiveIslandMapDocument({ landmarks: activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID) });
+  const assetRevisionFlag = value('--asset-revision');
+  const source: unknown = input ? JSON.parse(await readFile(input, 'utf8')) : null;
   const row = typeof source === 'object' && source !== null && 'documentJson' in source ? source as LiveMapDocumentRow : (() => {
-    const document = parseMapDocumentV3(JSON.stringify(source), activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
+    const registry = contentRows === null ? bootstrapContentRegistry() : buildContentRegistry(contentRows).registry;
+    const landmarks = activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID);
+    const document = parseMapDocumentV3(JSON.stringify(source ?? createLiveIslandMapDocument({ landmarks })), landmarks);
     const documentJson = serializeMapDocumentV3(document);
     return { mapId: LIVE_ISLAND_MAP_ID, revision: document.revision, documentJson, contentHash: worldChunkHash(new TextEncoder().encode(documentJson)) };
   })();
-  const snapshot = captureWorldChunkSnapshot(row, registry);
-  const audit = materializeWorldChunks(snapshot, row, registry, { atlasPackIdsForAssets: packIds, assetRevision, includeServerOracle: true });
-  verifyWorldChunkParity(snapshot, audit);
-  const result = args.includes('--audit') ? audit : materializeWorldChunks(snapshot, row, registry, { atlasPackIdsForAssets: packIds, assetRevision });
-  if (result !== audit) verifyWorldChunkParity(snapshot, result);
+  const { result, manifestJson, registryContentHash, assetRevision, atlasPacksResolved } = materializeWorldChunksFromRows({
+    row, contentRows, atlasIndexSource, audit: args.includes('--audit'), ...(assetRevisionFlag === undefined ? {} : { assetRevision: assetRevisionFlag }) });
   await mkdir(output, { recursive: true });
   const sizes: { cx: number; cy: number; raw: number; gzip: number; brotli: number }[] = [];
   for (let index = 0; index < result.blobs.length; index++) {
@@ -460,10 +491,10 @@ async function main(): Promise<void> {
     await writeFile(resolve(output, `${head.contentHash}.bin.br`), brotli);
     sizes.push({ cx: head.cx, cy: head.cy, raw: bytes.length, gzip: gzip.length, brotli: brotli.length });
   }
-  const manifestBytes = new TextEncoder().encode(canonicalChunkJson(result.manifest) + '\n');
+  const manifestBytes = new TextEncoder().encode(manifestJson);
   await writeFile(resolve(output, 'manifest.json'), manifestBytes);
   const totals = sizes.reduce((total, size) => ({ raw: total.raw + size.raw, gzip: total.gzip + size.gzip, brotli: total.brotli + size.brotli }), { raw: 0, gzip: 0, brotli: 0 });
   await writeFile(resolve(output, 'sizes.json'), JSON.stringify({ includesServerOracle: args.includes('--audit'), compression: { gzipLevel: 9, brotliQuality: 5 }, totals, manifestBytes: manifestBytes.length, chunks: sizes }, null, 2) + '\n');
-  console.log(JSON.stringify({ chunks: result.blobs.length, totals, manifestBytes: manifestBytes.length, sourceHash: row.contentHash, contentHash: registry.contentHash, assetRevision, atlasPacksResolved: atlasIndex !== null, parity: 'passed' }));
+  console.log(JSON.stringify({ chunks: result.blobs.length, totals, manifestBytes: manifestBytes.length, sourceHash: row.contentHash, contentHash: registryContentHash, assetRevision, atlasPacksResolved, parity: 'passed' }));
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
