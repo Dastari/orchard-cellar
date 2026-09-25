@@ -233,6 +233,9 @@ export class ChunkAuthorityDispatcher {
   #window: bigint | null = null;
   #windowLogged = 0;
   #windowSuppressed = 0;
+  #windowTicks = 0;
+  #windowPositions = 0;
+  #windowDisagreements = 0;
 
   constructor(options: ChunkAuthorityDispatcherOptions = {}) {
     this.#logger = options.logger ?? consoleChunkAuthorityLogger;
@@ -362,8 +365,10 @@ export class ChunkAuthorityDispatcher {
         const raw = record(parsed) ? parsed : {};
         const document = record(raw['metadata']) && record(raw['metadata']['document']) ? raw['metadata']['document'] : {};
         const provenance = record(document['provenance']) ? document['provenance'] : null;
-        // guard_space/guard_size/guard_base trust the manifest metadata: only the owner can
-        // publish, and S5b checks it against the live document at publish time.
+        // guard_space/guard_size/guard_base trust the manifest metadata. Publishing a shadow
+        // (stageWorldChunkBlob, publishWorldChunkShadow) uses requireWorldOwner, which admits
+        // admins as well as the owner; whether that is narrow enough is a question to settle
+        // before `on`. S5b checks the metadata against the live document at publish time.
         if (raw['spaceId'] !== TOPSIDE_SPACE_ID) entry = fail('guard_space', String(raw['spaceId']));
         else if (raw['width'] !== this.#worldSize.width || raw['height'] !== this.#worldSize.height) entry = fail('guard_size', `${String(raw['width'])}x${String(raw['height'])}`);
         else if (provenance === null || !mapDocumentUsesSurvivalIslandBase({ provenance } as unknown as Pick<MapDocumentV3, 'provenance'>)) entry = fail('guard_base');
@@ -444,12 +449,19 @@ export class ChunkAuthorityDispatcher {
     if (diff.equal) this.#logger.info(event); else this.#logger.warn(event);
   }
 
-  /** Mode `off`: drop the resident chunk runtime and stop sampling (two field writes, so it
-   * is cheap on every call). Switching back re-assembles once. */
+  /** Mode `off`: drop the resident chunk runtime, stop sampling and forget the open sample
+   * window (a few field writes, so it is cheap on every call). Switching back re-assembles once
+   * and starts a fresh window, so a later shadow period never reports stale window counts. */
   release(): void {
     this.#manifestCache = null;
     this.#runtimeCache = null;
     this.#shadowSampleRuntime = null;
+    this.#window = null;
+    this.#windowLogged = 0;
+    this.#windowSuppressed = 0;
+    this.#windowTicks = 0;
+    this.#windowPositions = 0;
+    this.#windowDisagreements = 0;
   }
 
   /** The chunk runtime to sample this tick: shadow mode, a fresh runtime, and on cadence. */
@@ -476,22 +488,32 @@ export class ChunkAuthorityDispatcher {
       }
       this.#sampledTicks += 1;
       this.#sampledPositions += count;
-      this.#logSampleDisagreements(tick, disagreements);
+      this.#logSampleDisagreements(tick, disagreements, count);
     } catch (error) {
       this.#warnOnce('sample_error', { event: 'chunk_authority_sample_error', detail: message(error) });
     }
   }
 
-  #logSampleDisagreements(tick: bigint, disagreements: readonly PositionDisagreement[]): void {
+  #logSampleDisagreements(tick: bigint, disagreements: readonly PositionDisagreement[], positions: number): void {
     const window = tick / this.#sampleWindowTicks;
     if (this.#window !== window) {
-      if (this.#window !== null && this.#windowSuppressed > 0) {
-        this.#logger.warn({ event: 'chunk_authority_sample_window', window: this.#window.toString(), logged: this.#windowLogged, suppressed: this.#windowSuppressed });
+      // One summary per finished window (at most once a minute at the defaults), so a soak can
+      // prove the sampler ran: info when clean, warn when anything disagreed or was suppressed.
+      if (this.#window !== null && this.#windowTicks > 0) {
+        const summary = { event: 'chunk_authority_sample_window', window: this.#window.toString(), sampledTicks: this.#windowTicks,
+          sampledPositions: this.#windowPositions, disagreements: this.#windowDisagreements, logged: this.#windowLogged, suppressed: this.#windowSuppressed };
+        if (this.#windowDisagreements > 0) this.#logger.warn(summary); else this.#logger.info(summary);
       }
       this.#window = window;
       this.#windowLogged = 0;
       this.#windowSuppressed = 0;
+      this.#windowTicks = 0;
+      this.#windowPositions = 0;
+      this.#windowDisagreements = 0;
     }
+    this.#windowTicks += 1;
+    this.#windowPositions += positions;
+    this.#windowDisagreements += disagreements.length;
     if (disagreements.length === 0) return;
     this.#sampleDisagreements += disagreements.length;
     const room = Math.max(0, this.#sampleLimit - this.#windowLogged);

@@ -1,4 +1,4 @@
 {
   "extends": "./tsconfig.release.json",
-  "include": ["materialize-world-chunks.ts", "world-chunk*.ts"]
+  "include": ["materialize-world-chunks.ts", "world-chunk*.ts", "chunk-authority-*.ts"]
 }

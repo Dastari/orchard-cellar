@@ -2,8 +2,9 @@ import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversal
 import { cellFlagsWhere } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
-import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
-import { ChunkAuthorityDispatcher } from './content/chunk-authority-dispatch.js';
+import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
+import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
 import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
@@ -12918,15 +12919,19 @@ const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
  * consumers still read compiledLiveIslandRuntime (S3a/S3b/S3c move them).
  */
 function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
-  const compiled = () => compiledLiveIslandRuntime(ctx);
   const mode = chunkAuthorityMode(ctx);
   if (mode === 'off') {
     chunkAuthorityDispatcher.release();
-    return compiled();
+    return compiledLiveIslandRuntime(ctx);
   }
-  return chunkAuthorityDispatcher.select({
-    mode,
-    compiled,
+  return chunkAuthorityDispatcher.select({ ...chunkAuthoritySource(ctx), mode });
+}
+
+/** Everything the dispatcher (and the S2c audit) reads, as lazy accessors. The
+ * audit uses the same source so it sees exactly what the live dispatcher sees. */
+function chunkAuthoritySource(ctx: WorldReducerContext): Omit<ChunkAuthoritySource, 'mode'> & { readonly compiled: () => LiveIslandRuntime | null } {
+  return {
+    compiled: () => compiledLiveIslandRuntime(ctx),
     shadow: () => ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID)),
     liveMap: () => ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID),
     registryContentHash: () => contentRegistry(ctx).contentHash,
@@ -12939,7 +12944,21 @@ function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisi
       const bytes: unknown = row.bytes;
       return bytes instanceof Uint8Array ? bytes : Uint8Array.from(row.bytes);
     },
-  });
+  };
+}
+
+/** S2c audit only: a compiled build that bypasses the module cache (so its time is the
+ * cold cost), then puts back whatever this instance had cached. The audit procedure runs
+ * on its own module instance, so this cache is the procedure instance's, not the one the
+ * reducers' collision call sites use. */
+function coldCompiledLiveIslandRuntime(compiled: () => LiveIslandRuntime | null): LiveIslandRuntime | null {
+  const previous = liveIslandRuntimeCache;
+  liveIslandRuntimeCache = null;
+  try {
+    return compiled();
+  } finally {
+    if (previous !== null) liveIslandRuntimeCache = previous;
+  }
 }
 
 /** Shadow mode only, when `chunkAuthorityDispatcher.sampleRuntime(tick)` is due (at
@@ -26124,10 +26143,21 @@ export const stepWorld = spacetimedb.reducer(
   },
 );
 
+/** Known chunk publication refusals reach the client as SenderError codes; anything else is rethrown. */
+function withShadowPublicationRefusals<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    const code = shadowPublicationRefusalCode(error);
+    if (code !== null) throw new SenderError(code);
+    throw error;
+  }
+}
+
 // Shadow-only ingestion. Static serving is a separate guarded publication step.
 export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) }, (ctx, { bytes }) => {
   requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const chunk = validateShadowBlob(Uint8Array.from(bytes));
+  const chunk = withShadowPublicationRefusals(() => validateShadowBlob(Uint8Array.from(bytes)));
   if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) === null) ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
 });
 export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.string(), mapId: t.string(), contentHash: t.string(), expectedRevision: t.u32() }, (ctx, input) => {
@@ -26139,10 +26169,10 @@ export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.str
   if (!Number.isSafeInteger(raw?.spaceId) || raw?.spaceId !== TOPSIDE_SPACE_ID || input.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('chunk_shadow_space_not_supported');
   const spaceId = BigInt(raw.spaceId);
   const previous = ctx.db.world_chunk_shadow.spaceId.find(spaceId);
-  const manifest = validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
+  const manifest = withShadowPublicationRefusals(() => validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
     contentHash: contentRegistry(ctx).contentHash, shadowRevision: previous?.revision ?? 0 }, hash => {
       const row = ctx.db.world_chunk_blob.contentHash.find(hash); return row === null ? undefined : Uint8Array.from(row.bytes);
-    });
+    }));
   if (input.expectedRevision === 0xffffffff) throw new SenderError('chunk_shadow_revision_exhausted');
   const revision = input.expectedRevision + 1;
   for (const row of ctx.db.world_chunk_head.by_space.filter(spaceId)) ctx.db.world_chunk_head.id.delete(row.id);
@@ -26184,4 +26214,41 @@ export const inspectWorldChunkShadow = spacetimedb.procedure(
     requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
     return JSON.stringify(chunkShadowCollisionAt(tx, spaceId, x, y));
   }),
+);
+
+/** Per module instance: lets the soak see whether procedure globals persist between calls. */
+let chunkAuthorityAuditCalls = 0;
+
+/** Static-world S2c: strict-owner, read-only audit of the pinned chunk publication.
+ * One short transaction checks the owner and copies the rows and blobs the audit reads
+ * (`snapshotChunkAuthorityTables`); the chunk build (a fresh dispatcher resolve, so every
+ * `on` guard is the real one), the cold compiled build and the whole-island compare then
+ * run outside any transaction, over a read-only view of that copy. Returns the JSON
+ * report (`ChunkAuthorityAuditReport`). Writes nothing. */
+export const auditChunkAuthority = spacetimedb.procedure(
+  {}, t.string(),
+  (ctx) => {
+    const clock = chunkAuthorityAuditClock();
+    const snapshotStarted = clock.now();
+    const snapshot = ctx.withTx(tx => {
+      requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+      return {
+        mode: chunkAuthorityMode(tx),
+        tables: snapshotChunkAuthorityTables(tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: LIVE_CONTENT_PACK_ID, spaceId: BigInt(TOPSIDE_SPACE_ID) }),
+      };
+    });
+    const snapshotMs = clock.label === 'none' ? null : Math.round((clock.now() - snapshotStarted) * 100) / 100;
+    chunkAuthorityAuditCalls += 1;
+    const world = chunkAuthoritySnapshotContext(snapshot.tables) as WorldReducerContext;
+    const source = chunkAuthoritySource(world);
+    return JSON.stringify(runChunkAuthorityAudit({
+      mode: snapshot.mode,
+      source,
+      heads: () => [...world.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))],
+      coldCompiled: () => coldCompiledLiveIslandRuntime(source.compiled),
+      clock,
+      snapshotMs,
+      instance: { auditCalls: chunkAuthorityAuditCalls, transaction: 'snapshot' },
+    }));
+  },
 );

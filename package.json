@@ -22,6 +22,8 @@
     "assets:build": "npm run atlas -w @orchard/tools && npm run ui:assets -w @orchard/tools",
     "client:chunks:check": "tsx scripts/check-client-build-chunks.ts",
     "world:static:readiness": "tsx scripts/static-world-readiness.ts",
+    "world:chunks:soak": "bash scripts/run-chunk-authority-soak.sh",
+    "world:chunks:parity-gate": "tsx scripts/chunk-authority-parity-gate.ts",
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
     "music:render": "npm run music:render -w @orchard/tools --",
