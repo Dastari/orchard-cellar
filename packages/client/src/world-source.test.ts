@@ -19,6 +19,9 @@ const TRAVERSAL = runtimeTraversalPolicy(registry) !== null;
 const FIXTURE_SIZE = { width: 384, height: 384 };
 const SIZE = 384;
 
+const FIXTURE_OBJECT = { id: 'crate', prefabId: 'crate', prefabRevision: 0, tileX: 70, tileY: 70, elevation: 0, layer: 'objects',
+  quarterTurns: 0, flipX: false, enabled: true };
+
 /** A 6 x 6 chunk topside map whose biome encodes the tile. */
 function fixture(spaceId = 0, extraChannel?: string, authority = false): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
   const cells = SIZE * SIZE;
@@ -39,7 +42,12 @@ function fixture(spaceId = 0, extraChannel?: string, authority = false): { manif
   for (let cy = 0; cy < SIZE / 64; cy++) for (let cx = 0; cx < SIZE / 64; cx++) {
     const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, ...(authority ? { authoritySchema: 1 as const } : {}), spaceId, cx, cy, assetRevision: 'a',
       records: authority && cx === 1 && cy === 1 ? [{ kind: 'authority.ground.obstacle', ordinal: 0, tileX: 70, tileY: 70,
-        value: { group: 'authored', ordinal: 0, left: 70 * 256, top: 70 * 256, right: 71 * 256 - 1, bottom: 71 * 256 - 1, sourceId: 'object:crate' } }] : [],
+        value: { group: 'authored', ordinal: 0, left: 70 * 256, top: 70 * 256, right: 71 * 256 - 1, bottom: 71 * 256 - 1, sourceId: 'object:crate' } },
+        // Static world S4e: map records (an authored object and a decoration in each of two chunks).
+        { kind: 'objects', ordinal: 0, tileX: 70, tileY: 70, value: FIXTURE_OBJECT },
+        { kind: 'decoration', ordinal: 1, tileX: 72, tileY: 72, value: { id: 7, kind: 'poi_rock_small', tileX: 72, tileY: 72, variant: 0, animationOffset: 0 } }]
+        : authority && cx === 2 && cy === 1 ? [{ kind: 'decoration', ordinal: 0, tileX: 130, tileY: 70,
+          value: { id: 6, kind: 'poi_rock_small', tileX: 130, tileY: 70, variant: 1, animationOffset: 2 } }] : [],
       assetIds: [], atlasPackIds: [],
       arrays: Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, sliceWorldChunkChannel(value, SIZE, SIZE, cx, cy, /blocked/iu.test(name) ? 1 : 0)])) });
     const chunk = decodeWorldChunk(bytes);
@@ -49,7 +57,8 @@ function fixture(spaceId = 0, extraChannel?: string, authority = false): { manif
   const manifest = { schema: 1, chunkSize: 64, spaceId, width: SIZE, height: SIZE, assetRevision: 'a', sourceRevision: 4, sourceHash: 'map',
     metadata: { terrain: { seed: 9, version: 4, generator: 'island', projectionStyle: 'raised', baseDatum: 0 },
       collisions: { clientGround: { terrainMinimumElevation: 0 } },
-      ...(authority ? { document: { provenance: { kind: 'generated', generator: SURVIVAL_ISLAND_MAP_GENERATOR } } } : {}),
+      ...(authority ? { document: { id: 'live-island', layers: [{ id: 'objects', order: 30 }], prefabs: [],
+        provenance: { kind: 'generated', generator: SURVIVAL_ISLAND_MAP_GENERATOR } } } : {}),
       ...(authority ? { authority: { schema: 1, combatRegions: [], generatedSuppressions: ['resource-42'],
         collisions: { ground: { terrainMinimumElevation: 0, terrainTransitions: 0, hasTraversalChannels: TRAVERSAL },
           water: { hasTraversalChannels: TRAVERSAL } } } } : {}),
@@ -278,6 +287,73 @@ describe('WorldSource collision (static world S4d)', () => {
   });
 });
 
+describe('WorldSource map records (static world S4e)', () => {
+  const VIEW = { minX: 300, minY: 300, maxX: 340, maxY: 322 };
+
+  it('serves no records in modes off and shadow, or wherever the chunk collision does not serve', () => {
+    const off = new WorldSource({ store: () => undefined, pin: () => undefined });
+    off.setView(VIEW);
+    expect(off.mapRecords(registry)).toBeUndefined();
+    const serving = servingStore(0, undefined, true);
+    const state = { gate: null as string | null };
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin, authorityGate: () => state.gate, worldSize: FIXTURE_SIZE });
+    source.setView(VIEW);
+    expect(source.mapRecords(registry)).toBeDefined();
+    for (const gate of ['superseded', 'stale_content', 'stale_map']) {
+      state.gate = gate;
+      expect(source.mapRecords(registry), gate).toBeUndefined();
+    }
+    // No authority extension at all: neither collision nor records.
+    const legacyOnly = servingStore();
+    const unextended = new WorldSource({ store: () => legacyOnly.store, pin: legacyOnly.pin });
+    unextended.setView(VIEW);
+    expect(unextended.collision(registry)).toBeUndefined();
+    expect(unextended.mapRecords(registry)).toBeUndefined();
+    // Another space never serves topside records.
+    const other = servingStore(7, undefined, true);
+    expect(new WorldSource({ store: () => other.store, pin: other.pin }).mapRecords(registry)).toBeUndefined();
+    expect(source.recordsStatus).toEqual({ failures: 0, lastError: null });
+  });
+
+  it('builds the records of the window the collision serves, once per window', () => {
+    const serving = servingStore(0, undefined, true);
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin, worldSize: FIXTURE_SIZE });
+    source.setView(VIEW);
+    const records = source.mapRecords(registry)!;
+    expect(records.rect).toEqual(source.collision(registry)!.window.rect);
+    expect(records.objects).toEqual([FIXTURE_OBJECT]);
+    expect(records.decorations.map(({ id }) => id)).toEqual([6, 7]);
+    expect([records.id, records.layers, records.prefabs, records.generatedSuppressions, records.combatRegions])
+      .toEqual(['live-island', [{ id: 'objects', order: 30 }], [], ['resource-42'], []]);
+    expect(source.mapRecords(registry)).toBe(records);
+    // Another window (it still holds chunks 1:1 and 2:1): its own records.
+    source.setView({ minX: 10, minY: 10, maxX: 50, maxY: 32 });
+    const moved = source.mapRecords(registry)!;
+    expect(moved).not.toBe(records);
+    expect(moved.rect).toEqual({ cx: 0, cy: 0, columns: 5, rows: 5 });
+    expect(moved.objects).toEqual([FIXTURE_OBJECT]);
+  });
+
+  it('falls back to the legacy document when a record is malformed, and reports it once', () => {
+    const serving = servingStore(0, undefined, true);
+    const store = Object.create(serving.store, { peekChunk: { value: (cx: number, cy: number) => {
+      const resident = serving.store.peekChunk(cx, cy);
+      return cx === 2 && cy === 1 && resident !== undefined
+        ? { ...resident, records: [{ kind: 'decoration', ordinal: 0, tileX: 130, tileY: 70, value: { id: 6, tileX: 130, tileY: 70 } }] } : resident;
+    } } }) as BoundedChunkTerrainStore;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const source = new WorldSource({ store: () => store, pin: serving.pin, authorityGate: () => null, worldSize: FIXTURE_SIZE });
+    source.setView(VIEW);
+    expect(source.mapRecords(registry)).toBeUndefined();
+    expect(source.mapRecords(registry)).toBeUndefined();
+    expect(source.recordsStatus).toEqual({ failures: 1, lastError: 'chunk_map_record_invalid:decoration@2,1#0' });
+    // Collision is unaffected (drawing, not collision, falls back).
+    expect(source.collision(registry)).toBeDefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+});
+
 describe('WorldSource staged window moves (static world S4f)', () => {
   // The window 1:0 (tiles 64-383 x 0-319) keeps views with minX >= 96; views in [96, 112) are in the lookahead band.
   const START = { minX: 230, minY: 100, maxX: 270, maxY: 122 };
@@ -297,9 +373,9 @@ describe('WorldSource staged window moves (static world S4f)', () => {
       serving.pin(bounds);
       for (const key of serving.resident) if (!before.has(key) && held.has(key)) serving.resident.delete(key);
     };
-    const calls: { step: number; window: unknown; collision: unknown }[] = [];
+    const calls: { step: number; window: unknown; collision: unknown; records: unknown }[] = [];
     const prewarm = Array.from({ length: options.prewarm ?? 2 }, (_, step) =>
-      (prepared: { window: unknown; collision: unknown }) => { calls.push({ step, ...prepared }); });
+      (prepared: { window: unknown; collision: unknown; records: unknown }) => { calls.push({ step, ...prepared }); });
     const source = new WorldSource({ store: () => serving.store, pin, authorityGate: () => null, worldSize: FIXTURE_SIZE, prewarm,
       ...(options.failed === undefined ? {} : { failedChunks: () => options.failed }) });
     source.setView(START);
@@ -328,15 +404,17 @@ describe('WorldSource staged window moves (static world S4f)', () => {
       source.advance(registry);
       frames.push(String(source.stagingStatus.pending));
     }
-    expect(frames).toEqual(['0:0:5x5:collision', '0:0:5x5:prewarm0', '0:0:5x5:prewarm1', '0:0:5x5:prewarm2', '0:0:5x5:ready']);
+    expect(frames).toEqual(['0:0:5x5:collision', '0:0:5x5:records', '0:0:5x5:prewarm0', '0:0:5x5:prewarm1', '0:0:5x5:prewarm2', '0:0:5x5:ready']);
     const served = source.window(registry)!;
     expect([served.rect.cx, served.rect.cy, served.missing]).toEqual([0, 0, 0]);
-    // Each prewarm step saw the window about to be served and its collision.
+    // Each prewarm step saw the window about to be served, its collision and its map records (S4e).
     expect(calls.map(({ step }) => step)).toEqual([0, 1]);
     for (const call of calls) {
       expect(call.window).toBe(served);
       expect(call.collision).toBe(source.collision(registry)!.collision);
+      expect(call.records).toBe(source.mapRecords(registry));
     }
+    expect(source.mapRecords(registry)!.objects).toEqual([FIXTURE_OBJECT]);
     expect(source.stagingStatus).toEqual({ staged: 1, synchronous: 0, arrivals: 0, pending: null });
   });
 
@@ -414,7 +492,7 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     for (let frame = 0; frame < 8 && source.window(registry) === partial; frame++) {
       source.setView(RIGHT); source.advance(registry); frames.push(String(source.stagingStatus.pending));
     }
-    expect(frames).toEqual(['1:0:5x5:collision', '1:0:5x5:prewarm0', '1:0:5x5:prewarm1', '1:0:5x5:prewarm2', '1:0:5x5:ready']);
+    expect(frames).toEqual(['1:0:5x5:collision', '1:0:5x5:records', '1:0:5x5:prewarm0', '1:0:5x5:prewarm1', '1:0:5x5:prewarm2', '1:0:5x5:ready']);
     const rebuilt = source.window(registry)!;
     expect(rebuilt.missing).toBe(0);
     expect(source.stagingStatus).toEqual({ staged: 0, synchronous: 2, arrivals: 1, pending: null });
