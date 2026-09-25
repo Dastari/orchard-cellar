@@ -329,7 +329,7 @@ const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pi
   // Static world S4f: a window prepared ahead of the view does its lighting and
   // traversal work over earlier frames; the frame that serves it hits these caches.
   prewarm: [
-    ({ window, previous }) => { prepareChunkWindowLight(window, previous); },
+    ({ window }) => { prepareChunkWindowLight(window); },
     ({ collision }, registry) => {
       if (collision !== undefined) composeChunkCollisionMaps({ registry, collision, liveBase: [], furniture: [], dynamic: [],
         tick: latestSnapshot.clock?.authorityTick ?? 0n, projectile: (ground, water) => worldStaticProjection.projectile(ground, water) });
@@ -2272,9 +2272,9 @@ function dynamicCollisionOverlays(snapshot: OverworldView): CollisionObstacle[] 
  * window chunks that are not resident, are blocked.
  */
 /** A chunk window's light preparation, reusing the tiles it shares unchanged with
- * the window served before it (static world S4f); identical to a full preparation. */
-function prepareChunkWindowLight(window: ChunkTerrainWindow, previous: ChunkTerrainWindow | undefined) {
-  return worldStaticProjection.prepareWindowLight(window, previous, art.cliff, !lightingEffectsDisabled);
+ * the last window prepared (static world S4f); identical to a full preparation. */
+function prepareChunkWindowLight(window: ChunkTerrainWindow) {
+  return worldStaticProjection.prepareWindowLight(window, art.cliff, !lightingEffectsDisabled);
 }
 
 function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceCollision): void {
@@ -2302,7 +2302,7 @@ function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceColli
     [],
     [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
     art.cliff,
-    prepareChunkWindowLight(chunks.window, chunks.previous),
+    prepareChunkWindowLight(chunks.window),
   );
   lightOcclusion = baseLightOcclusion;
   authoredLightFrameKey = '';
@@ -6454,7 +6454,7 @@ function terrainReadiness(): SpawnReadiness {
   const position = snapshot.identityHex === null ? undefined : snapshot.players.get(snapshot.identityHex);
   const status = network.chunkRuntimeStatus;
   return spawnReadiness.update({
-    mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, spaceId: position?.spaceId,
+    mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys, spaceId: position?.spaceId,
     tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
     tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
   }, performance.now());

@@ -38,7 +38,7 @@ import {
   terrainWalkingStepAllowed,
 } from '@orchard/sim/terrain-elevation';
 import { farmlandRuleLayers } from '@orchard/sim/terrain-rule-catalogue';
-import { cliffFamilyAtIndex, terrainCliffTileSet } from '@orchard/sim/terrain-tilesets';
+import { cliffFamilyAtIndex, TERRAIN_CLIFF_FAMILY_IDS, terrainCliffTileSet } from '@orchard/sim/terrain-tilesets';
 import type { TerrainArray } from "./terrain-array.js";
 import { terrainIndexAt, terrainIsWindow, terrainSparseKey } from "./terrain-index.js";
 import { blob47FrameIndexFor } from "./tilemap.js";
@@ -606,6 +606,34 @@ function planWithTerrainOverride(
     return { ...plan, faceLayers };
   }
   return plan;
+}
+
+const faceReachCache = new WeakMap<object, number>();
+/**
+ * A bound, in tiles, on how far north a raised-terrain contour plan reads from
+ * its tile (static world S4f: the light preparation's reuse radius must cover
+ * it). A face reads its source tiles up to its deepest course: every face row
+ * of any tileset the terrain can name (its resolver's families and the built-in
+ * ones), plus one projected course per level of the terrain's elevation span,
+ * plus the contour grid's neighbour ring.
+ */
+export function terrainRaisedFaceReach(terrain: TerrainArray): number {
+  const key = terrain.tilesets ?? faceReachCache;
+  let rows = faceReachCache.get(key);
+  if (rows === undefined) {
+    const sets = [STONE_RAISED_CLIFF_TILE_SET, CAVE_RAISED_CLIFF_TILE_SET,
+      ...TERRAIN_CLIFF_FAMILY_IDS.map((family) => terrainCliffTileSet(family)),
+      ...(terrain.tilesets?.familyIds ?? []).map((family) => terrain.tilesets!.tileSetFor(family))];
+    rows = 0;
+    for (const set of sets) {
+      if (set === null) continue;
+      for (const profile of Object.values(set.faceProfiles)) rows = Math.max(rows, profile.rows.length);
+      rows = Math.max(rows, raisedTerrainProjectionRowsPerLevel(set));
+    }
+    faceReachCache.set(key, rows);
+  }
+  const span = Math.max(0, terrainMaximumElevation(terrain) - Math.min(terrainMinimumElevation(terrain), terrainBaseDatum(terrain)));
+  return rows * Math.max(1, span) + 2;
 }
 
 export function raisedCliffTileSetFor(

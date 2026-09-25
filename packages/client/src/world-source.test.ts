@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 import { bootstrapContentRegistry, runtimeTraversalPolicy, SURVIVAL_ISLAND_MAP_GENERATOR, SURVIVAL_WORLD_SIZE } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
@@ -7,6 +9,7 @@ import { BoundedChunkTerrainStore as Store } from '@orchard/engine/bounded-chunk
 import { terrainIndexAt } from '@orchard/engine/terrain-index';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { WorldSource, type ChunkPinBounds } from './world-source.js';
+import { WorldStaticProjectionCache } from './world-static-projection.js';
 import { chunkWindowForView, chunkWindowKey, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 
 const registry = bootstrapContentRegistry();
@@ -280,6 +283,8 @@ describe('WorldSource staged window moves (static world S4f)', () => {
   const START = { minX: 230, minY: 100, maxX: 270, maxY: 122 };
   const BAND = { minX: 100, minY: 100, maxX: 140, maxY: 122 };
   const FAR = { minX: 10, minY: 100, maxX: 50, maxY: 122 };
+  // Back to the window 1:0 from 0:0 (its margin needs tiles past 319).
+  const RIGHT = { minX: 340, minY: 100, maxX: 380, maxY: 122 };
 
   /** An `on` source whose loader installs pinned chunks only when told to. */
   function staging(options: { prewarm?: number } = {}) {
@@ -292,13 +297,14 @@ describe('WorldSource staged window moves (static world S4f)', () => {
       serving.pin(bounds);
       for (const key of serving.resident) if (!before.has(key) && held.has(key)) serving.resident.delete(key);
     };
-    const calls: { step: number; window: unknown; previous: unknown; collision: unknown }[] = [];
+    const calls: { step: number; window: unknown; collision: unknown }[] = [];
     const prewarm = Array.from({ length: options.prewarm ?? 2 }, (_, step) =>
-      (prepared: { window: unknown; previous: unknown; collision: unknown }) => { calls.push({ step, ...prepared }); });
+      (prepared: { window: unknown; collision: unknown }) => { calls.push({ step, ...prepared }); });
     const source = new WorldSource({ store: () => serving.store, pin, authorityGate: () => null, worldSize: FIXTURE_SIZE, prewarm });
     source.setView(START);
     const first = source.window(registry)!;
     return { serving, held, pins, calls, source, first,
+      hold(key: string) { held.add(key); serving.resident.delete(key); },
       release(key: string) { held.delete(key); serving.resident.add(key); serving.install(); } };
   }
 
@@ -324,15 +330,13 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     expect(frames).toEqual(['0:0:5x5:collision', '0:0:5x5:prewarm0', '0:0:5x5:prewarm1', '0:0:5x5:prewarm2', '0:0:5x5:ready']);
     const served = source.window(registry)!;
     expect([served.rect.cx, served.rect.cy, served.missing]).toEqual([0, 0, 0]);
-    // Each prewarm step saw the served window, the one it replaces and its collision.
+    // Each prewarm step saw the window about to be served and its collision.
     expect(calls.map(({ step }) => step)).toEqual([0, 1]);
     for (const call of calls) {
       expect(call.window).toBe(served);
-      expect(call.previous).toBe(first);
       expect(call.collision).toBe(source.collision(registry)!.collision);
     }
-    expect(source.collision(registry)!.previous).toBe(first);
-    expect(source.stagingStatus).toEqual({ staged: 1, synchronous: 0, pending: null });
+    expect(source.stagingStatus).toEqual({ staged: 1, synchronous: 0, arrivals: 0, pending: null });
   });
 
   it('serves the same window, collision and invalidations as a synchronous rebuild', () => {
@@ -388,11 +392,74 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     expect(source.stagingStatus.pending).toBe('0:0:5x5:collision');
   });
 
+  it('stages one coalesced rebuild for chunks that arrive after the window was built', () => {
+    const { source, hold, release } = staging();
+    source.setView(FAR); source.advance(registry);
+    const far = source.window(registry)!;
+    expect([far.rect.cx, far.missing]).toEqual([0, 0]);
+    // Back to 1:0 with two of its chunks still loading: a synchronous move (the view needs it now).
+    hold('5:1'); hold('5:2');
+    source.setView(RIGHT); source.advance(registry);
+    const partial = source.window(registry)!;
+    expect([partial.rect.cx, partial.missing]).toEqual([1, 2]);
+    expect(source.stagingStatus).toMatchObject({ synchronous: 2, arrivals: 0 }); // FAR, then back to 1:0
+    release('5:1');
+    source.setView(RIGHT); source.advance(registry);
+    // Still served as is while the late chunks coalesce; nothing is rebuilt synchronously.
+    expect(source.window(registry)).toBe(partial);
+    expect(source.stagingStatus.pending).toBe('1:0:5x5:resident');
+    release('5:2');
+    const frames: string[] = [];
+    for (let frame = 0; frame < 8 && source.window(registry) === partial; frame++) {
+      source.setView(RIGHT); source.advance(registry); frames.push(String(source.stagingStatus.pending));
+    }
+    expect(frames).toEqual(['1:0:5x5:collision', '1:0:5x5:prewarm0', '1:0:5x5:prewarm1', '1:0:5x5:prewarm2', '1:0:5x5:ready']);
+    const rebuilt = source.window(registry)!;
+    expect(rebuilt.missing).toBe(0);
+    expect(source.stagingStatus).toEqual({ staged: 0, synchronous: 2, arrivals: 1, pending: null });
+    // A chunk that never arrives does not hold back the ones that did for more than a few frames.
+    const stuck = staging();
+    stuck.source.setView(FAR); stuck.source.advance(registry); stuck.source.window(registry);
+    stuck.hold('5:1'); stuck.hold('5:2');
+    stuck.source.setView(RIGHT); stuck.source.advance(registry);
+    const missingTwo = stuck.source.window(registry)!;
+    stuck.release('5:1');
+    let served: { missing: number } = missingTwo;
+    for (let frame = 0; frame < 20 && served === missingTwo; frame++) {
+      stuck.source.setView(RIGHT); stuck.source.advance(registry); served = stuck.source.window(registry)!;
+    }
+    expect(served.missing).toBe(1);
+    expect(stuck.source.stagingStatus.arrivals).toBe(1);
+  });
+
+  it('keeps at most the served and the next window alive, however long the walk (no chain through cached collisions)', async () => {
+    v8.setFlagsFromString('--expose-gc');
+    const gc = vm.runInNewContext('gc') as () => void;
+    const { source } = staging({ prewarm: 0 });
+    const projection = new WorldStaticProjectionCache();
+    const windows: WeakRef<object>[] = [];
+    let last: unknown;
+    for (let move = 0; move < 24; move++) {
+      for (const view of move % 2 === 0 ? [BAND, BAND, BAND, BAND, BAND, BAND, BAND, FAR] : [RIGHT]) {
+        source.setView(view); source.advance(registry);
+        const window = source.window(registry)!;
+        const collision = source.collision(registry)!;
+        projection.prepareWindowLight(collision.window);
+        if (window !== last) { windows.push(new WeakRef(window)); last = window; }
+      }
+    }
+    last = undefined;
+    expect(windows.length).toBeGreaterThanOrEqual(20);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    gc(); await new Promise(resolve => setTimeout(resolve, 0)); gc();
+    expect(windows.filter(ref => ref.deref() !== undefined).length).toBeLessThanOrEqual(3);
+  });
+
   it('never stages in modes off and shadow, or before a window is served', () => {
     const pin = vi.fn();
     const off = new WorldSource({ store: () => undefined, pin, prewarm: [() => { throw new Error('no prewarm'); }] });
     off.setView(START); off.setView(BAND); off.setView(FAR); off.advance(registry);
-    expect(off.stagingStatus).toEqual({ staged: 0, synchronous: 0, pending: null });
+    expect(off.stagingStatus).toEqual({ staged: 0, synchronous: 0, arrivals: 0, pending: null });
     // Exactly the S4c pins: the needed window only (on the live island's size, with hysteresis).
     const expected: ChunkPinBounds[] = [];
     let rect: ReturnType<typeof chunkWindowForView> | undefined;

@@ -1,8 +1,8 @@
 import { type CollisionMap } from '@orchard/sim';
 import { prepareClientTerrainCollision, type PreparedClientTerrainCollision } from '@orchard/engine/collision';
-import { prepareLightTerrainOcclusion, type LightTerrainReuse, type PreparedLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
+import { prepareLightTerrainOcclusion, type PreparedLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
 import type { TerrainArray } from '@orchard/engine/terrain';
-import { chunkWindowTileReuse, type ChunkTerrainWindow } from '@orchard/engine/chunk-terrain-window';
+import { chunkWindowReuseSource, chunkWindowTileReuse, type ChunkTerrainWindow, type ChunkWindowReuseSource } from '@orchard/engine/chunk-terrain-window';
 import type { LoadedAsset } from '@orchard/ui';
 
 interface StaticProjection {
@@ -56,40 +56,49 @@ export class WorldStaticProjectionCache {
   }
 
   private lightAsset: LoadedAsset | undefined;
-  /** At most two window preparations: the serving window's and the next one's. */
-  private readonly lightOnly = new Map<TerrainArray, PreparedLightTerrainOcclusion>();
+  /** Window light preparations, held only while their window's terrain is alive. */
+  private lightOnly = new WeakMap<TerrainArray, PreparedLightTerrainOcclusion>();
+  /** The last prepared chunk window, for reuse by the next one (static world S4f): a
+   * small descriptor and its preparation, never the window's terrain or collision. */
+  private lastWindowLight: { readonly source: ChunkWindowReuseSource; readonly prepared: PreparedLightTerrainOcclusion } | undefined;
 
-  /** Light occlusion only, for a chunk window whose collision comes from chunk
-   * authority channels (static world S4d): windows are immutable, so the
-   * window object and asset are the whole key. `reuse` names the previous window
-   * and the tiles whose preparation carries over unchanged (static world S4f,
-   * chunkWindowTileReuse); the result is identical to a full preparation. */
-  prepareLight(terrain: TerrainArray, asset?: LoadedAsset, dynamicLighting = true,
-    reuse?: { readonly terrain: TerrainArray; readonly reusableRuns: LightTerrainReuse['reusableRuns'] }): PreparedLightTerrainOcclusion | undefined {
+  /** Light occlusion only, for terrain whose collision comes from elsewhere (a chunk
+   * window, static world S4d): terrain objects are immutable, so the object and
+   * asset are the whole key. */
+  prepareLight(terrain: TerrainArray, asset?: LoadedAsset, dynamicLighting = true): PreparedLightTerrainOcclusion | undefined {
     if (!dynamicLighting) return undefined;
-    if (this.lightAsset !== asset) { this.lightOnly.clear(); this.lightAsset = asset; }
+    this.#lightAsset(asset);
     let prepared = this.lightOnly.get(terrain);
-    if (prepared === undefined) {
-      const previous = reuse === undefined ? undefined : this.lightOnly.get(reuse.terrain);
-      prepared = prepareLightTerrainOcclusion(terrain, asset,
-        previous === undefined ? undefined : { prepared: previous, reusableRuns: reuse!.reusableRuns });
-      if (this.lightOnly.size >= 2) this.lightOnly.delete(this.lightOnly.keys().next().value!);
-    } else this.lightOnly.delete(terrain);
-    this.lightOnly.set(terrain, prepared);
+    if (prepared === undefined) { prepared = prepareLightTerrainOcclusion(terrain, asset); this.lightOnly.set(terrain, prepared); }
     return prepared;
   }
 
   /** A chunk window's light preparation, reusing the tiles it shares unchanged
-   * with `previous` (static world S4f); identical to a full preparation. */
-  prepareWindowLight(window: ChunkTerrainWindow, previous: ChunkTerrainWindow | undefined, asset?: LoadedAsset,
-    dynamicLighting = true): PreparedLightTerrainOcclusion | undefined {
-    const reuse = previous === undefined ? undefined : chunkWindowTileReuse(previous, window);
-    return this.prepareLight(window.terrain, asset, dynamicLighting,
-      reuse === undefined ? undefined : { terrain: previous!.terrain, reusableRuns: reuse.reusableRuns });
+   * with the last window prepared here (static world S4f: the served window while
+   * the next one is prepared ahead, or the window it replaces); identical to a full
+   * preparation. */
+  prepareWindowLight(window: ChunkTerrainWindow, asset?: LoadedAsset, dynamicLighting = true): PreparedLightTerrainOcclusion | undefined {
+    if (!dynamicLighting) return undefined;
+    this.#lightAsset(asset);
+    let prepared = this.lightOnly.get(window.terrain);
+    if (prepared === undefined) {
+      const last = this.lastWindowLight;
+      const reuse = last === undefined ? undefined : chunkWindowTileReuse(last.source, window);
+      prepared = prepareLightTerrainOcclusion(window.terrain, asset,
+        reuse === undefined ? undefined : { prepared: last!.prepared, reusableRuns: reuse.reusableRuns });
+      this.lightOnly.set(window.terrain, prepared);
+      this.lastWindowLight = { source: chunkWindowReuseSource(window), prepared };
+    }
+    return prepared;
+  }
+
+  #lightAsset(asset: LoadedAsset | undefined): void {
+    if (this.lightAsset === asset) return;
+    this.lightOnly = new WeakMap(); this.lastWindowLight = undefined; this.lightAsset = asset;
   }
 
   releaseLighting(): void {
-    this.lightOnly.clear();
+    this.lightOnly = new WeakMap(); this.lastWindowLight = undefined;
     if (this.projection !== null) this.projection = { ...this.projection, light: undefined };
   }
 
