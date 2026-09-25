@@ -18,7 +18,7 @@ import { createClientCollisionMap } from '@orchard/engine/collision';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE, WORLD_CHUNK_MEDIA, WORLD_CHUNK_MEDIUM_SCHEMA, WORLD_CHUNK_VOID,
-  WORLD_CHUNK_AUTHORITY_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthoritySuppressedObstacle,
+  WORLD_CHUNK_AUTHORITY_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthorityResourcePlacement, type WorldChunkAuthoritySuppressedObstacle,
   type WorldChunkMedium, type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { authorityObstacleKey, composeAuthorityObstacles } from '@orchard/sim/chunk-runtime';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
@@ -36,6 +36,7 @@ export interface WorldChunkAuthorityReference {
   readonly generatedSuppressions: readonly string[];
   readonly walkable: readonly { readonly tileX: number; readonly tileY: number }[];
   readonly resources: readonly WorldChunkAuthorityResource[];
+  readonly resourcePlacements: readonly WorldChunkAuthorityResourcePlacement[];
 }
 export interface WorldChunkSnapshot {
   readonly terrain: TerrainArray;
@@ -104,8 +105,9 @@ function parseObstacleKey(key: string): CollisionObstacle {
   if (authorityObstacleKey(obstacle) !== key) throw new Error(`Invalid suppressed obstacle key ${key}`);
   return obstacle;
 }
-function resourceOrder(resources: readonly Pick<WorldChunkAuthorityResource, 'id'>[]): ChunkJson {
-  return { count: resources.length, orderHash: worldChunkHash(new TextEncoder().encode(canonicalChunkJson(resources.map(({ id }) => id)))) };
+/** Completeness digest for S3c: count plus a hash of every full record value in order. */
+function recordDigest(values: readonly unknown[]): ChunkJson {
+  return { count: values.length, hash: worldChunkHash(new TextEncoder().encode(canonicalChunkJson(values))) };
 }
 /** Server-authoritative static channels, records and metadata (static-world S1a). */
 function captureAuthority(server: ServerLiveIslandReference, registry: ContentRegistry, width: number, height: number,
@@ -147,13 +149,16 @@ function captureAuthority(server: ServerLiveIslandReference, registry: ContentRe
     .filter(({ tileX, tileY }) => tileX >= 0 && tileY >= 0 && tileX < width && tileY < height)
     .map(({ tileX, tileY }) => ({ tileX, tileY }));
   walkable.forEach((value, index) => add('authority.walkable', index, value.tileX, value.tileY, value));
-  server.resources.forEach((value, index) => add('authority.resource', index, value.generatedTile.tileX, value.generatedTile.tileY, value));
+  // Anchored at the EFFECTIVE tile so a chunk holds the resources that stand in it (a placement
+  // may move one across a chunk edge); the generated tile stays in the value.
+  server.resources.forEach((value, index) => add('authority.resource', index, value.effectiveTile.tileX, value.effectiveTile.tileY, value));
+  server.orphanResourcePlacements.forEach((value, index) => add('authority.resourcePlacement', index, value.tile.tileX, value.tile.tileY, value));
   const generatedSuppressions = [...server.generatedSuppressions];
   return {
     reference: { composed: server.composed, suppressedObstacleKeys, combatPolicy: server.combatPolicy, combatRegions: server.combatRegions,
-      generatedSuppressions, walkable, resources: server.resources },
+      generatedSuppressions, walkable, resources: server.resources, resourcePlacements: server.orphanResourcePlacements },
     metadata: json({ schema: WORLD_CHUNK_AUTHORITY_SCHEMA, combatRegions: server.combatRegions, generatedSuppressions,
-      resources: resourceOrder(server.resources), collisions: { ground: collisionMetadata(ground), water: collisionMetadata(water) } }),
+      resources: recordDigest(server.resources), resourcePlacements: recordDigest(server.orphanResourcePlacements), collisions: { ground: collisionMetadata(ground), water: collisionMetadata(water) } }),
   };
 }
 /** Calls the same live terrain, decoration and collision functions as the client. */
@@ -346,7 +351,7 @@ export function verifyWorldChunkParity(snapshot: WorldChunkSnapshot, materialize
   verifyAuthorityParity(store, materialized.manifest, snapshot.authority);
 }
 function authorityMetadata(manifest: WorldChunkManifest): { readonly combatRegions: readonly CombatRegion[]; readonly generatedSuppressions: readonly string[];
-  readonly resources: ChunkJson; readonly collisions: Readonly<Record<AuthorityMedium, Record<string, ChunkJson>>> } {
+  readonly resources: ChunkJson; readonly resourcePlacements: ChunkJson; readonly collisions: Readonly<Record<AuthorityMedium, Record<string, ChunkJson>>> } {
   const value = manifest.metadata['authority'] as Record<string, unknown> | undefined;
   if (value?.['schema'] !== WORLD_CHUNK_AUTHORITY_SCHEMA) throw new Error('Manifest has no authority metadata');
   return value as unknown as ReturnType<typeof authorityMetadata>;
@@ -403,7 +408,10 @@ export function verifyAuthorityParity(store: ChunkTerrainStore, manifest: WorldC
   }
   const resources = store.records('authority.resource').map(record => record.value);
   if (canonicalChunkJson(resources) !== canonicalChunkJson(reference.resources)
-    || canonicalChunkJson(metadata.resources) !== canonicalChunkJson(resourceOrder(reference.resources))) throw new Error('Authority resource parity failed');
+    || canonicalChunkJson(metadata.resources) !== canonicalChunkJson(recordDigest(resources))) throw new Error('Authority resource parity failed');
+  const placements = store.records('authority.resourcePlacement').map(record => record.value);
+  if (canonicalChunkJson(placements) !== canonicalChunkJson(reference.resourcePlacements)
+    || canonicalChunkJson(metadata.resourcePlacements) !== canonicalChunkJson(recordDigest(placements))) throw new Error('Authority resource placement parity failed');
   if (canonicalChunkJson(store.records('authority.walkable').map(record => record.value)) !== canonicalChunkJson(reference.walkable)) throw new Error('Authority walkable parity failed');
   for (const { tileX, tileY } of reference.walkable) if (store.channels['authority.ground.blocked']![tileY * store.width + tileX] !== 0) throw new Error(`Authority walkable tile blocked at ${tileX},${tileY}`);
 }
