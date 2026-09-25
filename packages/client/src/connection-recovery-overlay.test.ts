@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PixelUi, UiSkin } from '@orchard/ui';
 import {
-  ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, connectionRecoveryLayout, worldGapPresentation,
+  ConnectionRecoveryOverlay, TERRAIN_GAP_GRACE_MS, WORLD_GAP_GRACE_MS, connectionRecoveryLayout, worldGapPresentation,
 } from './connection-recovery-overlay.js';
 
 function overlay() { return new ConnectionRecoveryOverlay({} as PixelUi, {} as UiSkin); }
@@ -107,4 +107,16 @@ describe('world gap presentation (BUG-040)', () => {
       expect(worldGapPresentation(state, true, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
       expect(worldGapPresentation(state, false, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
     });
+
+  it('shows a topside arrival waiting for terrain as a light note over the retained world (static world S4f)', () => {
+    expect(worldGapPresentation(null, true, false, 1_000, 1_000, WORLD_GAP_GRACE_MS, true)).toEqual({ kind: 'retained-world' });
+    expect(worldGapPresentation(null, true, false, 1_000, 1_000 + TERRAIN_GAP_GRACE_MS, WORLD_GAP_GRACE_MS, true))
+      .toEqual({ kind: 'resyncing', reason: 'terrain' });
+    // Never the gateway loading screen once a world frame exists; before it, the loading screen shows the terrain stage.
+    expect(worldGapPresentation(null, false, false, 1_000, 60_000, WORLD_GAP_GRACE_MS, true)).toEqual({ kind: 'initial-loading' });
+    // A connection problem still wins.
+    expect(worldGapPresentation('offline', true, false, 1_000, 60_000, WORLD_GAP_GRACE_MS, true)).toEqual({ kind: 'recovery', state: 'offline' });
+    // Without a terrain wait nothing changes.
+    expect(worldGapPresentation(null, true, false, 1_000, 1_000 + TERRAIN_GAP_GRACE_MS)).toEqual({ kind: 'retained-world' });
+  });
 });

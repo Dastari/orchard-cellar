@@ -18,6 +18,9 @@ export interface WorldLoadingState {
   readonly identityReady: boolean;
   readonly worldReady: boolean;
   readonly playerReady: boolean;
+  /** Static world S4f: the terrain around the player is resident (chunk mode `on`
+   * only; undefined, as in modes off and shadow, means ready). */
+  readonly terrainReady?: boolean;
   readonly profileReady: boolean;
 }
 
@@ -50,6 +53,9 @@ export function worldLoadingStage(state: WorldLoadingState): LoadingScreenStage 
   };
   if (!state.playerReady) return {
     title: 'FINDING YOUR FARMER', detail: 'PREPARING YOUR STARTING PLACE', progress: 88,
+  };
+  if (state.terrainReady === false) return {
+    title: 'MAPPING THE SHORE', detail: 'LOADING THE LAND AROUND YOU', progress: 92,
   };
   if (!state.profileReady) return {
     title: 'UNPACKING YOUR THINGS', detail: 'LOADING YOUR CHARACTER AND INVENTORY', progress: 95,

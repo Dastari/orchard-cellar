@@ -72,6 +72,8 @@ export interface ChunkRuntimeStatus {
   servingRevision: string | null;
   pendingRevision: string | null;
   swaps: number;
+  /** `on`: atlas pack loads that failed (non-fatal; the consolidated atlas still draws). */
+  atlasPackFailures: number;
 }
 
 export interface ChunkRuntimeControllerOptions {
@@ -80,14 +82,27 @@ export interface ChunkRuntimeControllerOptions {
   /** undefined: the browser IndexedDB cache when available; null: memory only. */
   readonly cache?: ChunkBlobCache | null;
   readonly fetchBlob?: (path: string, maxBytes: number) => Promise<Uint8Array>;
+  /** `on` only, and only when atlas pack delivery is enabled: loads the pinned chunks'
+   * atlas packs (ui loadAtlasPacks). A failure is counted, never fatal (S4f). */
+  readonly loadAtlasPacks?: (ids: readonly string[]) => Promise<void>;
 }
 
 interface ChunkBuffer { readonly revision: string; readonly spaceId: bigint; readonly manifest: WorldChunkManifest; readonly loader: ChunkShadowLoader }
 interface ChunkInput { readonly connection: DbConnection; readonly spaceId: bigint; readonly bounds: ChunkView; readonly source: ChunkRuntimeSource }
 
+/** The view's centre chunks: the pin bounds before pinView adds its ring (the spawn chunk
+ * and its ring when the pin is centred on the player). All published ones must be resident. */
+function coreResident(store: BoundedChunkTerrainStore, bounds: ChunkView): boolean {
+  const [minX, minY, maxX, maxY] = bounds.map(value => Math.floor(value / 64)) as [number, number, number, number];
+  return store.manifest.chunks.every(head => head.cx < minX || head.cx > maxX || head.cy < minY || head.cy > maxY
+    || store.peekChunk(head.cx, head.cy) !== undefined);
+}
+
+const EMPTY_KEYS: ReadonlySet<string> = new Set();
+
 function idleStatus(mode: ChunkRuntimeMode, state: string): ChunkRuntimeStatus {
   return { mode, state, readyChunks: 0, residentBytes: 0, compared: 0, differences: 0, stale: false, staleReasons: [], staleObservations: 0,
-    servingRevision: null, pendingRevision: null, swaps: 0 };
+    servingRevision: null, pendingRevision: null, swaps: 0, atlasPackFailures: 0 };
 }
 
 /**
@@ -97,9 +112,14 @@ function idleStatus(mode: ChunkRuntimeMode, state: string): ChunkRuntimeStatus {
  *   loader (`source_mismatch`); an asset mismatch pauses loading (`asset_revision_mismatch`).
  * - `on`: follows the published heads. Two buffers: the serving store keeps serving (and
  *   keeps following the view) while the next revision loads; once every pinned chunk of the
- *   next revision is resident the two swap in one assignment. A content or map mismatch, an
- *   asset mismatch, or an atlas that cannot be fetched to check it, only marks the runtime
- *   stale. No mismatch stops serving or loading in `on`.
+ *   next revision is resident the two swap in one assignment. The first revision (nothing
+ *   serving yet) serves as soon as the view's centre chunks, the spawn chunk and its ring,
+ *   are resident, loading them first (S4f spawn readiness); the rest of its window arrives
+ *   behind it and reads as solid void until then. A content or map mismatch, an asset
+ *   mismatch, or an atlas that cannot be fetched to check it, only marks the runtime stale;
+ *   the atlas check runs beside loading, never before it. No mismatch stops serving or
+ *   loading in `on`. Atlas packs load only when pack delivery is enabled, and a failure is
+ *   counted, never fatal.
  *
  * S4a has no gameplay consumer: rendering (S4c) and collision (S4d) read `store` later.
  */
@@ -115,6 +135,15 @@ export class ChunkRuntimeController {
   #active: ChunkBuffer | undefined;
   #pending: ChunkBuffer | undefined;
   #assetHash: Promise<string> | undefined;
+  /** `on`: the checked atlas revision (S4f: checked beside loading, never before it);
+   * undefined while unknown, null after a failed fetch. */
+  #assetValue: string | null | undefined;
+  #assetChecking = false;
+  /** The space whose chunk subscription has applied at least once (the manifest query is
+   * space-wide, so a later pin change never hides it again). */
+  #appliedSpace: bigint | undefined;
+  readonly #loadAtlasPacks: ((ids: readonly string[]) => Promise<void>) | undefined;
+  #atlasPackKey = '';
   #busy = false;
   /** Bumped on every mode change or stop, so an in-flight refresh cannot report into a new mode. */
   #epoch = 0;
@@ -125,13 +154,19 @@ export class ChunkRuntimeController {
     this.buildMode = options.buildMode;
     this.#authority = options.authority ?? UNCONNECTED_CHUNK_AUTHORITY;
     this.#fetchBlob = options.fetchBlob ?? fetchChunkBlob;
+    this.#loadAtlasPacks = options.loadAtlasPacks;
     this.#ownedCache = options.cache === undefined ? browserChunkBlobCache() : undefined;
     this.#cache = options.cache === undefined ? this.#ownedCache : options.cache ?? undefined;
     this.status = idleStatus(effectiveChunkRuntimeMode(this.buildMode, undefined), 'idle');
   }
-  /** The serving store in `on` mode: always a fully swapped-in revision, never a half-loaded one. */
+  /** The serving store in `on` mode: a swapped-in revision, never a half-loaded replacement.
+   * The first revision serves once its spawn ring is resident (S4f). */
   get store(): BoundedChunkTerrainStore | undefined {
     return this.status.mode === 'on' ? this.#active?.loader.store : undefined;
+  }
+  /** `on`: chunks of the serving store whose load failed (they read as solid void). */
+  get failedChunks(): ReadonlySet<string> {
+    return this.status.mode === 'on' ? this.#active?.loader.failedKeys ?? EMPTY_KEYS : EMPTY_KEYS;
   }
   /** Synchronous authority gate for the serving store against the caller's current
    * live map and content (see ChunkAuthorityGate); null when it may be used. */
@@ -180,14 +215,23 @@ export class ChunkRuntimeController {
     const queries = chunkRuntimeQueries(input.spaceId, input.bounds), key = queries.join(';');
     if (key !== this.#key) {
       this.#subscription?.unsubscribe(); this.#key = key;
-      this.#subscription = connection.subscriptionBuilder().onApplied(() => { void this.refresh(); })
+      const spaceId = input.spaceId;
+      // Another space's manifest is not known yet, whatever this one showed before.
+      if (this.#appliedSpace !== spaceId) this.#appliedSpace = undefined;
+      this.#subscription = connection.subscriptionBuilder().onApplied(() => {
+        // `on`: marked as new input (like the row listeners) so a pass that is busy right now
+        // re-runs and leaves `subscribing` (S4f). Shadow keeps its exact behaviour. A superseded
+        // subscription applying late says nothing about the current one.
+        if (this.#key === key) this.#appliedSpace = spaceId;
+        if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
+      })
         .onError(() => { this.status.state = 'subscription_error'; }).subscribe([...queries]);
     }
     void this.refresh();
   }
   /** Rollback: release everything and stay idle until the authority allows chunks again. */
   #stop(): void {
-    this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = '';
+    this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = ''; this.#appliedSpace = undefined;
     if (this.#active) this.#drop(this.#active);
     if (this.#pending) this.#drop(this.#pending);
     this.#epoch++;
@@ -272,14 +316,18 @@ export class ChunkRuntimeController {
       // An unpublished or withdrawn manifest is not a reason to stop serving what we have.
       if (active) await this.#follow(active, input.bounds);
       if (epoch !== this.#epoch) return;
-      this.status.state = 'awaiting_publication'; this.#report(this.#active); return;
+      // `subscribing` until the manifest subscription has applied: "no publication" is only
+      // known then (S4f spawn readiness waits for it, but never for a real absence).
+      this.status.state = this.#appliedSpace === input.spaceId ? 'awaiting_publication' : 'subscribing'; this.#report(this.#active);
+      if (this.#active) this.#loadPinnedAtlasPacks(this.#active);
+      return;
     }
     const { manifest, heads, headsConsistent, revision, row } = published;
     const reasons = [...published.reasons];
-    try {
-      if (manifest.assetRevision !== await this.#assetRevision()) reasons.push('asset');
-    } catch { reasons.push('asset'); }
-    if (epoch !== this.#epoch) return;
+    // The atlas check is rendering-only diagnostics: it runs beside loading and never
+    // delays the first chunks (S4f). Its result is applied by the next refresh.
+    this.#checkAssetRevision();
+    if (this.#assetValue === null || (this.#assetValue !== undefined && manifest.assetRevision !== this.#assetValue)) reasons.push('asset');
     this.#markStale(reasons);
     let target: ChunkBuffer | undefined, state = '';
     if (active?.revision === revision) {
@@ -299,9 +347,21 @@ export class ChunkRuntimeController {
         if (requireHeads) {
           buffer.loader.store.pinView(...input.bounds);
           if (!this.#pinnedHeadsPublished(buffer, heads, row.revision)) { state ||= 'awaiting_heads'; return; }
+          // Spawn readiness (S4f): with nothing serving yet, the first revision serves as soon as
+          // the view's centre chunks (the spawn chunk and its ring) are resident; the rest of the
+          // window keeps loading behind it. A later revision still waits for every pinned chunk.
+          if (this.#active === undefined) buffer.loader.onInstall = () => {
+            if (this.#disposed || epoch !== this.#epoch || this.#pending !== buffer || this.#active !== undefined
+              || buffer.spaceId !== this.#latest?.spaceId || !coreResident(buffer.loader.store, input.bounds)) return;
+            buffer.loader.onInstall = undefined;
+            this.#swap(buffer);
+            this.#report(buffer);
+            this.status.state = this.status.stale ? 'stale' : 'on';
+          };
         }
         await this.#follow(buffer, input.bounds);
       } catch (error) { errors.set(buffer, error instanceof Error ? error.message : 'chunk_runtime_error'); }
+      finally { buffer.loader.onInstall = undefined; }
     };
     if (target) { this.status.pendingRevision = target.revision; this.status.state = 'loading'; }
     // The serving revision keeps following the view whatever happens to the next one.
@@ -312,11 +372,36 @@ export class ChunkRuntimeController {
     if (target && this.#pending === target && target.spaceId === this.#latest?.spaceId && target.loader.store.pinnedReady
       && state === '' && !errors.has(target)) this.#swap(target);
     this.#report(this.#active);
+    if (this.#active) this.#loadPinnedAtlasPacks(this.#active);
     const live = [this.#active, this.#pending].flatMap(buffer => buffer && errors.has(buffer) ? [errors.get(buffer)!] : []);
     this.status.state = live[0] ?? (state || (this.#pending ? 'loading' : this.status.stale ? 'stale' : 'on'));
   }
   async #follow(buffer: ChunkBuffer, bounds: ChunkView): Promise<void> {
-    await buffer.loader.updateView(...bounds);
+    await buffer.loader.updateView(...bounds, true);
+  }
+  /** Atlas packs for the serving store's pinned chunks, only when pack delivery is on. */
+  #loadPinnedAtlasPacks(buffer: ChunkBuffer): void {
+    if (this.#loadAtlasPacks === undefined || this.#active !== buffer) return;
+    const ids = buffer.loader.store.pinnedPackIds, key = ids.join(',');
+    if (ids.length === 0 || key === this.#atlasPackKey) return;
+    this.#atlasPackKey = key;
+    const epoch = this.#epoch;
+    void this.#loadAtlasPacks(ids).catch(() => {
+      if (epoch !== this.#epoch) return;
+      this.status.atlasPackFailures++;
+      if (this.#atlasPackKey === key) this.#atlasPackKey = '';
+    });
+  }
+  #checkAssetRevision(): void {
+    if (this.#assetChecking || (this.#assetValue !== undefined && this.#assetValue !== null)) return;
+    this.#assetChecking = true;
+    this.#assetRevision().then(value => {
+      this.#assetValue = value; this.#assetChecking = false;
+      if (!this.#disposed) void this.refresh();
+    }, () => {
+      // Stale ('asset') until a later refresh retries; a failure never re-triggers one itself.
+      this.#assetValue = null; this.#assetChecking = false;
+    });
   }
   #swap(next: ChunkBuffer): void {
     const previous = this.#active;

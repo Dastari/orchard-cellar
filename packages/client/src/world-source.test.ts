@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 import { bootstrapContentRegistry, runtimeTraversalPolicy, SURVIVAL_ISLAND_MAP_GENERATOR, SURVIVAL_WORLD_SIZE } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
@@ -6,7 +8,9 @@ import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-ter
 import { BoundedChunkTerrainStore as Store } from '@orchard/engine/bounded-chunk-terrain-store';
 import { terrainIndexAt } from '@orchard/engine/terrain-index';
 import type { TerrainArray } from '@orchard/engine/terrain';
-import { WorldSource, type ChunkPinBounds } from './world-source.js';
+import { CHUNK_LOOKAHEAD_WAIT_FRAMES, WorldSource, type ChunkPinBounds } from './world-source.js';
+import { WorldStaticProjectionCache } from './world-static-projection.js';
+import { chunkWindowForView, chunkWindowKey, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 
 const registry = bootstrapContentRegistry();
 /** The live registry's traversal policy decides whether a publication must carry the channels. */
@@ -153,10 +157,13 @@ describe('WorldSource (static world S4c)', () => {
 
   it('chooses the window before the frame serves terrain (no one-frame lag)', () => {
     const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
-    const render = main.indexOf('if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) worldSource.setView(estimatedCameraTiles(localX, localY));');
+    const render = main.indexOf('worldSource.setView(estimatedCameraTiles(localX, localY));');
     expect(render).toBeGreaterThan(0);
     expect(main.indexOf('const terrain = terrainForSnapshot(snapshot);', render)).toBeGreaterThan(render);
-    expect(main.slice(render, main.indexOf('const terrain = terrainForSnapshot(snapshot);', render))).not.toContain('beginWorld');
+    const beforeTerrain = main.slice(render, main.indexOf('const terrain = terrainForSnapshot(snapshot);', render));
+    expect(beforeTerrain).not.toContain('beginWorld');
+    // S4f: the prepared window advances one stage before this frame's terrain is served.
+    expect(beforeTerrain).toContain('worldSource.advance(snapshot.content.registry);');
     // A teleport serves the new window from the very next terrain request.
     const serving = servingStore();
     const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
@@ -268,5 +275,238 @@ describe('WorldSource collision (static world S4d)', () => {
     const moved = source.collision(registry)!;
     expect(moved.serial).toBeGreaterThan(first.serial);
     expect([moved.collision.originX, moved.collision.originY]).toEqual([0, 0]);
+  });
+});
+
+describe('WorldSource staged window moves (static world S4f)', () => {
+  // The window 1:0 (tiles 64-383 x 0-319) keeps views with minX >= 96; views in [96, 112) are in the lookahead band.
+  const START = { minX: 230, minY: 100, maxX: 270, maxY: 122 };
+  const BAND = { minX: 100, minY: 100, maxX: 140, maxY: 122 };
+  const FAR = { minX: 10, minY: 100, maxX: 50, maxY: 122 };
+  // Back to the window 1:0 from 0:0 (its margin needs tiles past 319).
+  const RIGHT = { minX: 340, minY: 100, maxX: 380, maxY: 122 };
+
+  /** An `on` source whose loader installs pinned chunks only when told to. */
+  function staging(options: { prewarm?: number; failed?: ReadonlySet<string> } = {}) {
+    const serving = servingStore(0, undefined, true);
+    const held = new Set<string>();
+    const pins: ChunkPinBounds[] = [];
+    const pin = (bounds: ChunkPinBounds) => {
+      pins.push(bounds);
+      const before = new Set(serving.resident);
+      serving.pin(bounds);
+      for (const key of serving.resident) if (!before.has(key) && held.has(key)) serving.resident.delete(key);
+    };
+    const calls: { step: number; window: unknown; collision: unknown }[] = [];
+    const prewarm = Array.from({ length: options.prewarm ?? 2 }, (_, step) =>
+      (prepared: { window: unknown; collision: unknown }) => { calls.push({ step, ...prepared }); });
+    const source = new WorldSource({ store: () => serving.store, pin, authorityGate: () => null, worldSize: FIXTURE_SIZE, prewarm,
+      ...(options.failed === undefined ? {} : { failedChunks: () => options.failed }) });
+    source.setView(START);
+    const first = source.window(registry)!;
+    return { serving, held, pins, calls, source, first,
+      hold(key: string) { held.add(key); serving.resident.delete(key); },
+      release(key: string) { held.delete(key); serving.resident.add(key); serving.install(); } };
+  }
+
+  it('pins and prepares the next window ahead of the view, one stage per frame, then serves it in one assignment', () => {
+    const { source, first, pins, calls, held, release } = staging();
+    expect([first.rect.cx, first.rect.cy]).toEqual([1, 0]);
+    held.add('0:0'); held.add('0:1');
+    source.setView(BAND);
+    // Still serving the current window, which keeps the S4c margin; the next one is pinned.
+    expect(source.window(registry)).toBe(first);
+    expect(pins.at(-1)).toEqual(chunkWindowPinBounds({ cx: 0, cy: 0, columns: 5, rows: 5 }));
+    expect(source.stagingStatus.pending).toBe('0:0:5x5:resident');
+    // Waits for its published chunks.
+    source.advance(registry);
+    expect(source.stagingStatus.pending).toBe('0:0:5x5:resident');
+    release('0:0'); release('0:1');
+    const frames: string[] = [];
+    for (let frame = 0; frame < 6 && source.window(registry) === first; frame++) {
+      source.setView(BAND);
+      source.advance(registry);
+      frames.push(String(source.stagingStatus.pending));
+    }
+    expect(frames).toEqual(['0:0:5x5:collision', '0:0:5x5:prewarm0', '0:0:5x5:prewarm1', '0:0:5x5:prewarm2', '0:0:5x5:ready']);
+    const served = source.window(registry)!;
+    expect([served.rect.cx, served.rect.cy, served.missing]).toEqual([0, 0, 0]);
+    // Each prewarm step saw the window about to be served and its collision.
+    expect(calls.map(({ step }) => step)).toEqual([0, 1]);
+    for (const call of calls) {
+      expect(call.window).toBe(served);
+      expect(call.collision).toBe(source.collision(registry)!.collision);
+    }
+    expect(source.stagingStatus).toEqual({ staged: 1, synchronous: 0, arrivals: 0, pending: null });
+  });
+
+  it('serves the same window, collision and invalidations as a synchronous rebuild', () => {
+    const staged = staging(), synchronous = staging({ prewarm: 0 });
+    const drain = (source: WorldSource) => { const regions: unknown[] = []; source.drainGroundInvalidations((region) => regions.push(region)); return regions; };
+    drain(staged.source); drain(synchronous.source);
+    for (let frame = 0; frame < 8; frame++) { staged.source.setView(BAND); staged.source.advance(registry); }
+    const prepared = staged.source.window(registry)!;
+    synchronous.source.setView(FAR);
+    const built = synchronous.source.window(registry)!;
+    expect(prepared.rect).toEqual(built.rect);
+    for (const channel of ['biomes', 'elevations', 'dirtCliffRoles'] as const) expect(prepared.terrain[channel]).toEqual(built.terrain[channel]);
+    expect(prepared.terrain.blocked).toEqual(built.terrain.blocked);
+    expect(drain(staged.source)).toEqual(drain(synchronous.source));
+    const a = staged.source.collision(registry)!.collision, b = synchronous.source.collision(registry)!.collision;
+    expect(a.ground.blocked).toEqual(b.ground.blocked);
+    expect(a.ground.obstacles).toEqual(b.ground.obstacles);
+    expect(a.issues).toEqual(b.issues);
+    expect(synchronous.source.stagingStatus).toMatchObject({ staged: 0, synchronous: 1 });
+  });
+
+  it('switches at once when the view outruns the prepared window, and drops it when the view turns back', () => {
+    const { source } = staging();
+    source.setView(BAND);
+    source.advance(registry); // built, not yet served
+    expect(source.stagingStatus.pending).toBe('0:0:5x5:collision');
+    // A jump past the margin: this very frame serves the needed window (what was built so far is used).
+    source.setView(FAR);
+    const jumped = source.window(registry)!;
+    expect([jumped.rect.cx, jumped.rect.cy]).toEqual([0, 0]);
+    expect(source.stagingStatus).toMatchObject({ staged: 0, synchronous: 1, pending: null });
+    expect(source.collision(registry)).toBeDefined();
+    // Turning back before the next window is ready cancels it and restores the pin.
+    const other = staging();
+    other.source.setView(BAND);
+    other.source.advance(registry);
+    other.source.setView(START);
+    expect(other.source.stagingStatus.pending).toBeNull();
+    expect(other.pins.at(-1)).toEqual(other.pins[0]);
+    expect(other.source.window(registry)).toBe(other.first);
+  });
+
+  it('waits for every published chunk of the next window before building it', () => {
+    const { source, held, release } = staging();
+    held.add('0:4');
+    source.setView(BAND);
+    // 0:4 belongs to the next window (0:0, 5 x 5): it arrives late.
+    for (let frame = 0; frame < 2; frame++) { source.setView(BAND); source.advance(registry); }
+    expect(source.stagingStatus.pending).toBe('0:0:5x5:resident');
+    // Once every published chunk is resident, the build runs.
+    release('0:4');
+    source.setView(BAND); source.advance(registry);
+    expect(source.stagingStatus.pending).toBe('0:0:5x5:collision');
+  });
+
+  it('stages one coalesced rebuild for chunks that arrive after the window was built', () => {
+    const { source, hold, release } = staging();
+    source.setView(FAR); source.advance(registry);
+    const far = source.window(registry)!;
+    expect([far.rect.cx, far.missing]).toEqual([0, 0]);
+    // Back to 1:0 with two of its chunks still loading: a synchronous move (the view needs it now).
+    hold('5:1'); hold('5:2');
+    source.setView(RIGHT); source.advance(registry);
+    const partial = source.window(registry)!;
+    expect([partial.rect.cx, partial.missing]).toEqual([1, 2]);
+    expect(source.stagingStatus).toMatchObject({ synchronous: 2, arrivals: 0 }); // FAR, then back to 1:0
+    release('5:1');
+    source.setView(RIGHT); source.advance(registry);
+    // Still served as is while the late chunks coalesce; nothing is rebuilt synchronously.
+    expect(source.window(registry)).toBe(partial);
+    expect(source.stagingStatus.pending).toBe('1:0:5x5:resident');
+    release('5:2');
+    const frames: string[] = [];
+    for (let frame = 0; frame < 8 && source.window(registry) === partial; frame++) {
+      source.setView(RIGHT); source.advance(registry); frames.push(String(source.stagingStatus.pending));
+    }
+    expect(frames).toEqual(['1:0:5x5:collision', '1:0:5x5:prewarm0', '1:0:5x5:prewarm1', '1:0:5x5:prewarm2', '1:0:5x5:ready']);
+    const rebuilt = source.window(registry)!;
+    expect(rebuilt.missing).toBe(0);
+    expect(source.stagingStatus).toEqual({ staged: 0, synchronous: 2, arrivals: 1, pending: null });
+    // A chunk that never arrives does not hold back the ones that did for more than a few frames.
+    const stuck = staging();
+    stuck.source.setView(FAR); stuck.source.advance(registry); stuck.source.window(registry);
+    stuck.hold('5:1'); stuck.hold('5:2');
+    stuck.source.setView(RIGHT); stuck.source.advance(registry);
+    const missingTwo = stuck.source.window(registry)!;
+    stuck.release('5:1');
+    let served: { missing: number } = missingTwo;
+    for (let frame = 0; frame < 20 && served === missingTwo; frame++) {
+      stuck.source.setView(RIGHT); stuck.source.advance(registry); served = stuck.source.window(registry)!;
+    }
+    expect(served.missing).toBe(1);
+    expect(stuck.source.stagingStatus.arrivals).toBe(1);
+  });
+
+  it('never holds back chunks the served window lacks behind a window prepared ahead (review round 2)', () => {
+    // Served 1:0 lacking the player's chunk 1:1; the view then sits in the look-ahead band while
+    // the next window (0:0) waits on a chunk that does not come.
+    const failed = new Set<string>();
+    const { source: tracked, hold, release } = staging({ failed });
+    tracked.setView(FAR); tracked.advance(registry); tracked.window(registry);
+    hold('1:1');
+    tracked.setView(RIGHT); tracked.advance(registry);
+    const partial = tracked.window(registry)!;
+    expect([partial.rect.cx, partial.present.has('1:1')]).toEqual([1, false]);
+    hold('0:0');
+    tracked.setView(BAND); tracked.advance(registry);
+    expect(tracked.stagingStatus.pending).toBe('0:0:5x5:resident');
+    release('1:1');
+    let served = tracked.window(registry)!;
+    for (let frame = 0; frame < 3 && !served.present.has('1:1'); frame++) {
+      tracked.setView(BAND); tracked.advance(registry); served = tracked.window(registry)!;
+    }
+    expect(served.rect.cx).toBe(1);
+    expect(served.present.has('1:1')).toBe(true);
+    expect(tracked.collision(registry)!.collision.present.has('1:1')).toBe(true);
+    // The look-ahead window never waits on a chunk whose load failed ...
+    failed.add('0:0');
+    for (let frame = 0; frame < 8 && tracked.window(registry)!.rect.cx !== 0; frame++) { tracked.setView(BAND); tracked.advance(registry); }
+    expect(tracked.window(registry)!.rect.cx).toBe(0);
+    // ... nor for long on one that is merely slow.
+    const slow = staging();
+    slow.source.setView(RIGHT); slow.source.advance(registry); slow.source.window(registry);
+    slow.hold('0:0');
+    let frames = 0;
+    for (; frames < CHUNK_LOOKAHEAD_WAIT_FRAMES + 10 && slow.source.window(registry)!.rect.cx !== 0; frames++) { slow.source.setView(BAND); slow.source.advance(registry); }
+    expect(slow.source.window(registry)!.rect.cx).toBe(0);
+    expect(frames).toBeGreaterThanOrEqual(CHUNK_LOOKAHEAD_WAIT_FRAMES);
+  });
+
+  it('keeps at most the served and the next window alive, however long the walk (no chain through cached collisions)', async () => {
+    v8.setFlagsFromString('--expose-gc');
+    const gc = vm.runInNewContext('gc') as () => void;
+    const { source } = staging({ prewarm: 0 });
+    const projection = new WorldStaticProjectionCache();
+    const windows: WeakRef<object>[] = [];
+    for (let move = 0; move < 24; move++) {
+      for (const view of move % 2 === 0 ? [BAND, BAND, BAND, BAND, BAND, BAND, BAND, FAR] : [RIGHT]) {
+        source.setView(view); source.advance(registry);
+        const window = source.window(registry)!;
+        const collision = source.collision(registry)!;
+        projection.prepareWindowLight(collision.window);
+        if (windows.at(-1)?.deref() !== window) windows.push(new WeakRef(window));
+      }
+    }
+    expect(windows.length).toBeGreaterThanOrEqual(20);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    gc(); await new Promise(resolve => setTimeout(resolve, 0)); gc();
+    expect(windows.filter(ref => ref.deref() !== undefined).length).toBeLessThanOrEqual(3);
+  });
+
+  it('never stages in modes off and shadow, or before a window is served', () => {
+    const pin = vi.fn();
+    const off = new WorldSource({ store: () => undefined, pin, prewarm: [() => { throw new Error('no prewarm'); }] });
+    off.setView(START); off.setView(BAND); off.setView(FAR); off.advance(registry);
+    expect(off.stagingStatus).toEqual({ staged: 0, synchronous: 0, arrivals: 0, pending: null });
+    // Exactly the S4c pins: the needed window only (on the live island's size, with hysteresis).
+    const expected: ChunkPinBounds[] = [];
+    let rect: ReturnType<typeof chunkWindowForView> | undefined;
+    for (const view of [START, BAND, FAR]) {
+      const next = chunkWindowForView(view, SURVIVAL_WORLD_SIZE, SURVIVAL_WORLD_SIZE, rect);
+      if (rect === undefined || chunkWindowKey(next) !== chunkWindowKey(rect)) expected.push(chunkWindowPinBounds(next));
+      rect = next;
+    }
+    expect(pin.mock.calls.map(([bounds]) => bounds)).toEqual(expected);
+    // `on`, before the first window is served: no lookahead either.
+    const serving = servingStore(0, undefined, true);
+    const early = new WorldSource({ store: () => serving.store, pin: serving.pin, prewarm: [() => { throw new Error('no prewarm'); }] });
+    early.setView(BAND); early.advance(registry);
+    expect(early.stagingStatus.pending).toBeNull();
   });
 });
