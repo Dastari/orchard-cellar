@@ -5,10 +5,13 @@ import {
 import type { IconLibrary } from './icons.js';
 import type { Item } from './items.js';
 
+// The wiki (SilverBullet) drops empty table cells and shifts the row left, so blanks become a dash.
+const cell = (value: string | number): string | number => (String(value).trim() === '' ? '—' : value);
+
 const table = (header: readonly string[], rows: readonly (readonly (string | number)[])[]): string => [
   `| ${header.join(' | ')} |`,
   `| ${header.map(() => '---').join(' | ')} |`,
-  ...rows.map((row) => `| ${row.join(' | ')} |`),
+  ...rows.map((row) => `| ${row.map(cell).join(' | ')} |`),
 ].join('\n');
 
 const suits = (affix: Affix, base: BaseType): boolean => affix.suits.length === 0 || affix.suits.includes(base.group);
