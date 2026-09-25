@@ -132,6 +132,10 @@ function tilesetsFor(registry: ContentRegistry): RuntimeTilesetResolver {
  * The camera's visible tiles (setView) choose the window and, in shadow and on,
  * what the chunk runtime pins, so large and ultrawide screens never ask the
  * bounded store for more than the 25 window chunks.
+ *
+ * Collision (S4d) and the authored map records topside draws (S4e: objects,
+ * landmarks, decorations, lights and occluders) come from the same window, and
+ * only while the server would serve that publication (see collision()).
  */
 /** Window build health: a failed build falls back to the legacy terrain. */
 export interface WorldSourceStatus {
