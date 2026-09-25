@@ -232,7 +232,9 @@ describe('chunk render window parity with the whole map (static world S4c)', () 
       // The view plus the margin fits the window (clipped to the map).
       const bounds = chunkWindowTileBounds(window.rect, width, height), tiles = viewTiles(view);
       expect(Math.max(0, tiles.minX - CHUNK_WINDOW_MARGIN_TILES)).toBeGreaterThanOrEqual(bounds.minX);
-      expect(Math.min(width - 1, tiles.maxY + CHUNK_WINDOW_MARGIN_TILES)).toBeLessThanOrEqual(bounds.maxY);
+      expect(Math.max(0, tiles.minY - CHUNK_WINDOW_MARGIN_TILES)).toBeGreaterThanOrEqual(bounds.minY);
+      expect(Math.min(width - 1, tiles.maxX + CHUNK_WINDOW_MARGIN_TILES)).toBeLessThanOrEqual(bounds.maxX);
+      expect(Math.min(height - 1, tiles.maxY + CHUNK_WINDOW_MARGIN_TILES)).toBeLessThanOrEqual(bounds.maxY);
       const windowList = recordGroundDrawList(window.terrain, cache, art, view);
       const legacyList = recordGroundDrawList(legacy, legacyCache, art, view);
       if (windowList.digest !== legacyList.digest) failures.push(`${x},${y}`);
