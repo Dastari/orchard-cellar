@@ -73,6 +73,27 @@ export interface WorldChunkAuthorityResourcePlacement {
   readonly originTile: WorldChunkAuthorityTile;
   readonly tile: WorldChunkAuthorityTile;
 }
+/** Additive authored-document extension (static-world S7a). Carries the map
+ * document's sparse authored cells so the whole document round-trips from the
+ * chunks plus the manifest (`metadata.authoredDocument`). Deployed schema-1
+ * decoders ignore the unknown header keys `documentSchema` and `documentCells`, and
+ * this decoder ignores the payload of any later `documentSchema` version, so a
+ * future version never breaks runtimes that do not read document cells. */
+export const WORLD_CHUNK_DOCUMENT_SCHEMA = 1 as const;
+/** Sparse authored cells of one chunk, palette-encoded. `cells` is a flat list of
+ * `[localIndex, paletteIndex]` pairs in ascending local index (`y * 64 + x`);
+ * each palette entry is one authored cell override exactly as in the document,
+ * without `parts` (those stay in the chunk's `cellParts`). */
+export interface WorldChunkDocumentCells {
+  readonly palette: readonly { readonly [key: string]: ChunkJson }[];
+  readonly cells: readonly number[];
+  /** Pre-overlay (generated) biome of the authored cells whose compile consults it and
+   * whose post-overlay `biomes` channel lost it: flat `[localIndex, biome]` pairs in
+   * ascending local index, the biome indexing manifest `metadata.biomePalette` (the
+   * codec bounds it by 255; readers bound it by that palette). Lets the document be
+   * recompiled over the baked chunk base without the generator. */
+  readonly baseBiomes?: readonly number[];
+}
 export const WORLD_CHUNK_MEDIA = RULE_MEDIA;
 export type WorldChunkMedium = RuleMedium;
 export const WORLD_CHUNK_VOID = 5 as const;
@@ -105,6 +126,12 @@ export interface WorldChunk {
   readonly atlasPackIds: readonly string[];
   /** Optional sparse local cell part stacks; independent of the authoring PR. */
   readonly cellParts?: Readonly<Record<string, ChunkJson>>;
+  /** Present exactly when the chunk carries the authored-document extension. Only
+   * version WORLD_CHUNK_DOCUMENT_SCHEMA is validated; a later version decodes with its
+   * payload unvalidated and must be refused by document readers. */
+  readonly documentSchema?: number;
+  /** The version-1 payload (validated only when `documentSchema` is 1). */
+  readonly documentCells?: WorldChunkDocumentCells;
 }
 export interface WorldChunkHead {
   readonly cx: number;
@@ -167,6 +194,38 @@ function checkHeader(value: unknown): asserts value is Omit<WorldChunk, 'arrays'
     for (const [key, parts] of Object.entries(value['cellParts'])) {
       if (!/^\d+$/u.test(key) || Number(key) >= WORLD_CHUNK_SIZE ** 2 || !Array.isArray(parts)) throw new TypeError('Invalid local cell parts');
     }
+  }
+  checkDocumentCells(value['documentSchema'], value['documentCells']);
+}
+/** Fails closed for version 1: the authored cells are present and well formed exactly
+ * with the schema. A later version (a positive integer) is additive: its payload is not
+ * this codec's to validate, so runtime decoding never depends on it. */
+function checkDocumentCells(schema: unknown, cells: unknown): void {
+  if (schema === undefined && cells === undefined) return;
+  if (validInteger(schema) && schema > WORLD_CHUNK_DOCUMENT_SCHEMA) return;
+  if (schema !== WORLD_CHUNK_DOCUMENT_SCHEMA || !object(cells) || !Array.isArray(cells['palette']) || !Array.isArray(cells['cells'])
+    || cells['cells'].length % 2 !== 0) throw new TypeError('Invalid document cells');
+  const palette = cells['palette'];
+  if (palette.some(entry => !object(entry) || Object.keys(entry).length === 0 || 'parts' in entry)) throw new TypeError('Invalid document cell palette');
+  const used = new Uint8Array(palette.length);
+  let previous = -1;
+  for (let index = 0; index < cells['cells'].length; index += 2) {
+    const local: unknown = cells['cells'][index], entry: unknown = cells['cells'][index + 1];
+    if (!validInteger(local) || local <= previous || local >= WORLD_CHUNK_SIZE ** 2
+      || !validInteger(entry) || entry < 0 || entry >= palette.length) throw new TypeError('Invalid document cell index');
+    previous = local;
+    used[entry] = 1;
+  }
+  if (used.some(flag => flag === 0)) throw new TypeError('Unused document cell palette entry');
+  if (cells['baseBiomes'] === undefined) return;
+  const bases = cells['baseBiomes'];
+  if (!Array.isArray(bases) || bases.length === 0 || bases.length % 2 !== 0) throw new TypeError('Invalid document base biomes');
+  const authored = new Set(cells['cells'].filter((_, index) => index % 2 === 0));
+  previous = -1;
+  for (let index = 0; index < bases.length; index += 2) {
+    const local: unknown = bases[index], biome: unknown = bases[index + 1];
+    if (!validInteger(local) || local <= previous || !authored.has(local) || !validInteger(biome) || biome < 0 || biome > 255) throw new TypeError('Invalid document base biome');
+    previous = local;
   }
 }
 function checkMedium(schema: unknown, arrays: Readonly<Record<string, ChunkArray>>): void {
@@ -242,7 +301,10 @@ export function encodeWorldChunk(chunk: Omit<WorldChunk, 'contentHash'>): Uint8A
   });
   const header = { schema: chunk.schema, ...(chunk.mediumSchema === undefined ? {} : { mediumSchema: chunk.mediumSchema }),
     ...(chunk.authoritySchema === undefined ? {} : { authoritySchema: chunk.authoritySchema }), spaceId: chunk.spaceId, cx: chunk.cx, cy: chunk.cy, assetRevision: chunk.assetRevision,
-    records: chunk.records, assetIds: chunk.assetIds, atlasPackIds: chunk.atlasPackIds, ...(chunk.cellParts === undefined ? {} : { cellParts: chunk.cellParts }) };
+    records: chunk.records, assetIds: chunk.assetIds, atlasPackIds: chunk.atlasPackIds, ...(chunk.cellParts === undefined ? {} : { cellParts: chunk.cellParts }),
+    // Additive (S7a); absent on every chunk without the extension, so their bytes are unchanged.
+    ...(chunk.documentSchema === undefined ? {} : { documentSchema: chunk.documentSchema }),
+    ...(chunk.documentCells === undefined ? {} : { documentCells: chunk.documentCells }) };
   const json = encoder.encode(canonicalChunkJson({ ...header, channels: descriptors }));
   const length = PREFIX_SIZE + json.length + channels.reduce((sum, [, array]) => sum + array.byteLength, 0);
   if (length > MAX_BYTES) throw new RangeError('World chunk exceeds size limit');
