@@ -1200,11 +1200,12 @@ export class OverworldUi {
       const details = gear === null ? null : item?.durability === undefined ? gear : gear.map(line =>
         line.startsWith('MAX DURABILITY ') ? `DURABILITY ${item.durability} / ${line.slice(15)}` : line);
       const base = this.touchInventoryTooltipRect();
-      // Keep touch labels below the actual window hotbar. Desktop details grow
-      // upward above the existing tooltip anchor without covering its slots.
+      // A pointer names the slot it rests on: the label (and any details) sits centred just above that slot, so
+      // it never covers the window's hotbar row. Touch keeps its labels below the window hotbar, clear of the finger.
+      const slot = this.retainedInventoryActive && this.model.touchControls !== true ? this.retainedMenus?.slotAt(this.pointer)?.rect ?? null : null;
       tooltip = { text: details?.join('\n') ?? text,
-        anchor: { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
-        ...(details ? { maxHeight: Math.max(0, base.y - 8) } : {}), tone: 'neutral' };
+        anchor: slot ? { x: slot.x + slot.width / 2, y: slot.y - 4 } : { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
+        ...(details ? { maxHeight: Math.max(0, (slot?.y ?? base.y) - 8) } : {}), tone: 'neutral' };
     }
     const prompt = this.openWindowValue === null && !tooltip ? this.model.prompt : null;
     const toast = this.notificationText();
@@ -1229,7 +1230,7 @@ export class OverworldUi {
       clearTarget: id => { if (this.model.targetVitals?.targetId === id) this.callbacks.clearTarget?.(id); },
     }, {
       itemLabel: stack => this.itemDefinition(stack.itemKind)?.displayName ?? stack.itemKind,
-      drawItem: (context, rect, stack) => this.drawInventoryItem(context, rect, stack.itemKind, stack.quantity, stack.durability, stack.lit),
+      drawItem: (context, rect, stack) => this.drawItemIcon(context, rect, stack.itemKind, stack.lit),
       drawPlayerHead: (context, id, rect) => this.drawPlayerHead(context, id, rect),
       drawTargetPortrait: (context, id, rect) => { const target = this.model.targetVitals; if (target?.targetId === id) this.drawTargetPortrait(context, target, rect); },
       drawMinimap: (context, rect, zoom, tracking) => this.drawMinimap(context, rect, zoom, tracking),
@@ -1349,7 +1350,7 @@ export class OverworldUi {
     const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: UiGameBookChapter) => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
     if (!this.characterScreen || !this.statisticsScreen || !this.skillTree) {
       this.characterScreen = new CharacterScreen(art, { setAppearance: appearance => this.callbacks.setAppearance?.(appearance) },
-        this.drawPlayerDoll, (context, rect, item) => this.drawInventoryItem(context, rect, item.itemKind, item.quantity, item.durability, item.lit), navigation);
+        this.drawPlayerDoll, (context, rect, item) => this.drawItemIcon(context, rect, item.itemKind, item.lit), navigation);
       this.statisticsScreen = new StatisticsScreen(art, navigation);
       this.skillTree = new SkillTreeUi(art, {
         prioritize: nodeId => this.callbacks.prioritizeEquipmentSkill?.(nodeId),
@@ -4262,6 +4263,13 @@ export class OverworldUi {
     this.drawDurabilityBar(context, rect, itemKind, durability);
   }
 
+  /** Icon only, fitted to the kit slot's icon well: the kit slot draws the stack count, wear bar and
+   * hotkey itself, the same way on every surface. */
+  private drawItemIcon(context: CanvasRenderingContext2D, well: UiRect, itemKind: string, lit?: boolean): void {
+    const asset = overworldItemArtwork(this.itemArt, itemKind, this.model.contentRegistry) ?? this.itemArt.missing;
+    if (asset) this.drawItemArtwork(context, well, itemKind, asset, lit ?? true, well);
+  }
+
   /** Inventory art is fitted without stretching so tall authored props such as
    * torches and lanterns remain crisp while the closed chest tile becomes the
    * expected compact slot icon. */
@@ -4271,14 +4279,15 @@ export class OverworldUi {
     itemKind: string,
     asset: LoadedAsset,
     lit = true,
+    well: UiRect = { x: rect.x + 6, y: rect.y + 7, width: 16, height: 16 },
   ): void {
     const frame = uiAssetFrame(asset, itemIconAnimation(itemKind, this.model.contentRegistry));
     if (!frame) return;
-    const scale = Math.min(16 / frame.width, 16 / frame.height);
+    const scale = Math.min(well.width / frame.width, well.height / frame.height);
     const width = Math.max(1, Math.round(frame.width * scale));
     const height = Math.max(1, Math.round(frame.height * scale));
-    const x = Math.round(rect.x + 6 + (16 - width) / 2);
-    const y = Math.round(rect.y + 7 + (16 - height) / 2);
+    const x = Math.round(well.x + (well.width - width) / 2);
+    const y = Math.round(well.y + (well.height - height) / 2);
     context.save();
     if (!lit) {
       context.filter = 'brightness(42%) saturate(55%)';

@@ -11,8 +11,8 @@ import { UiInventoryController, type UiInventorySlotRef } from '../runtime/inven
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone, UiControlSize } from '../tokens.js';
-import { resolveUiTextContrast, UI_TONE_FACES } from '../skin/contrast.js';
-import { paintUiSkin, paintUiMissingArt, uiElementTone } from './art.js';
+import { paintUiSkin, paintUiMissingArt, type UiKitArt } from './art.js';
+import { drawUiSkinAsset } from '../../skin.js';
 import { uiIcon, type UiIconSource } from './media.js';
 import { uiFlex } from './layout.js';
 import type { UiButtonModifiers } from './button.js';
@@ -50,6 +50,23 @@ export function uiItemImage(options: { readonly itemKind: string; readonly artwo
 /** Equipment slot ids, plus the legacy silhouette names that map onto them. */
 export type UiSlotPlaceholder = (typeof EQUIPMENT_SLOTS)[number]['id'] | 'bag' | 'ring' | 'shield' | 'weapon';
 const LEGACY_SILHOUETTES: Readonly<Record<string, string>> = { bag: 'backpack', ring: 'watch', shield: 'off_hand', weapon: 'main_hand' };
+/** Stack counts and hotkeys: dark ink on a light halo, legible on every slot tone. */
+export const UI_SLOT_INKS = Object.freeze({ color: '#3f2832', outlineColor: '#f8ead0' });
+/** The 16px icon well of a 28x31 slot (scaled with larger slots): 6px in, 7px down. */
+export function uiSlotIconRect(r: UiRect): UiRect {
+  const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31))), size = 16 * scale;
+  return { x: r.x + Math.floor((r.width - size) / 2), y: r.y + 7 * scale, width: size, height: size };
+}
+const WEAR_FILLS = { good: 'bar_fill_green.base.0', worn: 'bar_fill_gold.base.0', failing: 'bar_fill_red.base.0' } as const;
+/** The wear bar: a dark 3px track 5px in from the sides and 7px above the foot, filled green, gold then red. */
+function paintUiSlotWear(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, fraction: number, scale: number): void {
+  const track = { x: r.x + 5 * scale, y: r.y + r.height - 7 * scale, width: r.width - 10 * scale, height: 3 * scale };
+  context.fillStyle = '#3f2832'; context.fillRect(track.x, track.y, track.width, track.height);
+  const width = Math.round(track.width * fraction);
+  if (width <= 0) { context.fillStyle = '#c34242'; context.fillRect(track.x, track.y, scale, track.height); return; }
+  const fill = art.skin.feedback[WEAR_FILLS[fraction > .5 ? 'good' : fraction > .2 ? 'worn' : 'failing']];
+  if (fill) drawUiSkinAsset(context, fill.asset, { ...track, width });
+}
 export function uiSlot(options: UiSlotOptions): UiElement {
   let unregister: (() => void) | undefined;
   let pressed = false;
@@ -75,23 +92,32 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
       context.save(); if (element.disabled) context.globalAlpha *= .6;
-      const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind), tone = uiElementTone(element);
+      const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind);
       paintUiSkin(context, art.skin.slot, `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
       const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
-      if (item && options.renderContent) options.renderContent(context, r, item, { ghost: Boolean(ghost) });
-      else if (item) {
-        const asset = options.artwork?.[item.itemKind], source = asset && uiItemFrame(asset, options.iconAnimation?.(item) ?? itemDefinition(item.itemKind)?.iconAnimation);
-        if (asset && source) { const fit = Math.min((r.width - 8) / source.width, (r.height - 10) / source.height); const factor = fit >= 1 ? Math.min(scale, Math.floor(fit)) : Math.max(0, fit); const width = Math.max(1, Math.round(source.width * factor)), height = Math.max(1, Math.round(source.height * factor));
-          context.save();
-          if (ghost) context.globalAlpha *= .42;
-          if (item.lit === false) context.globalAlpha *= .45;
-          context.drawImage(asset.image, source.x, source.y, source.width, source.height, r.x + Math.floor((r.width - width) / 2), r.y + Math.floor((r.height - height) / 2), width, height);
-          context.restore(); }
-        if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 3, r.y + r.height - 10, { align: 'right', color: resolveUiTextContrast(tone).color, outlineColor: UI_TONE_FACES[tone].frame.face });
+      if (item) {
+        // One slot look everywhere (the classic hotbar): the icon in a 16px well, then the stack count,
+        // wear bar and hotkey drawn by the slot itself, so a custom icon painter can't change them.
+        if (options.renderContent) options.renderContent(context, uiSlotIconRect(r), item, { ghost: Boolean(ghost) });
+        else {
+          const asset = options.artwork?.[item.itemKind], source = asset && uiItemFrame(asset, options.iconAnimation?.(item) ?? itemDefinition(item.itemKind)?.iconAnimation);
+          if (asset && source) {
+            const well = uiSlotIconRect(r), fit = Math.min(well.width / source.width, well.height / source.height);
+            const width = Math.max(1, Math.round(source.width * fit)), height = Math.max(1, Math.round(source.height * fit));
+            context.save();
+            // Crisp pixels at any fit: a smoothed downscale is what made slot icons look faded (owner item 6).
+            context.imageSmoothingEnabled = false;
+            if (ghost) context.globalAlpha *= .42;
+            if (item.lit === false) { context.filter = 'brightness(42%) saturate(55%)'; context.globalAlpha *= .88; }
+            context.drawImage(asset.image, source.x, source.y, source.width, source.height, well.x + Math.round((well.width - width) / 2), well.y + Math.round((well.height - height) / 2), width, height);
+            context.restore();
+          }
+        }
+        if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 14 * scale, { align: 'right', ...UI_SLOT_INKS });
         const durability = uiDurabilityFraction(item.itemKind, item.durability);
-        if (!ghost && durability !== null) { context.fillStyle = UI_TONE_FACES[durability > .5 ? 'success' : durability > .2 ? 'warning' : 'danger'].frame.face; context.fillRect(r.x + 4, r.y + r.height - 4, Math.floor((r.width - 8) * durability), 2); }
+        if (!ghost && durability !== null) paintUiSlotWear(context, art, r, durability, scale);
       } else if (options.placeholder) paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
-      if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, { color: resolveUiTextContrast(tone).color, outlineColor: UI_TONE_FACES[tone].frame.face });
+      if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, UI_SLOT_INKS);
       // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop, white hover and keyboard focus.
       const holding = Boolean(options.controller?.model.cursor), accepted = holding && options.controller && options.binding ? options.controller.model.canAccept(options.binding) : null;
       if (element.props['selected'] || (hovered && accepted === true)) paintUiSelector(context, art.skin.selector, 'confirm', r);

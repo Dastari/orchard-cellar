@@ -76,6 +76,17 @@ describe('production feedback parent',()=>{
   expect(ui.feedbackHud(0)).toMatchObject({prompt:{text:'[E] USE'},tooltip:null,toast:{text:'FULL INVENTORY',tone:'danger'}});
   ui.openWindow='inventory';expect(ui.feedbackHud(0).prompt).toBeNull();ui.disposeRetainedHud();
  });
+ it('names the hovered slot just above it, never over the window hotbar (owner item 7)',()=>{
+  const {ui}=fixture(false);ui.openWindow='inventory';
+  vi.spyOn(ui,'tooltipText').mockReturnValue('LANTERN');
+  const access=ui as unknown as {hoveredItem:()=>unknown;retainedMenus:unknown};
+  vi.spyOn(access,'hoveredItem').mockReturnValue({itemKind:'lantern',quantity:1});
+  const slot={x:200,y:150,width:28,height:31};
+  access.retainedMenus={active:true,slotAt:()=>({ref:{container:'hotbar',index:5},rect:slot})};
+  const hud=ui.feedbackHud(0);
+  expect(hud.tooltip?.anchor).toEqual({x:214,y:146});
+  access.retainedMenus=null;vi.restoreAllMocks();
+ });
  it('keeps deliberate equipment details above the compact anchor and touch labels below its hotbar',()=>{
   for(const touch of [false,true]){
    const {ui}=fixture(touch);ui.openWindow='inventory';
