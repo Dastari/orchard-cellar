@@ -58,8 +58,8 @@ export interface RuntimeTraversalProjection {
 }
 /** Immutable geometry and channels are cache identities; bounded ability variants
  * avoid rebuilding a whole terrain plane on each prediction frame. */
-const admissionCache = new WeakMap<MediumCollisionChannels, { readonly policy: WorldRulesContentDefinition; readonly variants: Map<string, readonly boolean[]> }>();
-const differenceCache = new WeakMap<readonly boolean[], WeakMap<readonly boolean[], readonly TraversalShadowDifference[]>>();
+const admissionCache = new WeakMap<MediumCollisionChannels, { readonly policy: WorldRulesContentDefinition; readonly variants: Map<string, Uint8Array> }>();
+const differenceCache = new WeakMap<Uint8Array, WeakMap<Uint8Array, readonly TraversalShadowDifference[]>>();
 const projectionCache = new WeakMap<CollisionMap, Map<string, {
   readonly channels: MediumCollisionChannels;
   readonly policy: WorldRulesContentDefinition;
@@ -97,12 +97,19 @@ export function runtimeTraversalProjection(
   };
   let differences = differenceCache.get(legacy.blocked);
   if (differences === undefined) { differences = new WeakMap(); differenceCache.set(legacy.blocked, differences); }
-  let compared = differences.get(blocked);
-  if (compared === undefined) { compared = compareTraversalCollision(legacy, candidate); differences.set(blocked, compared); }
+  const byCandidate = differences, candidateBlocked = blocked;
+  // compareTraversalCollision's own size check, kept eager so a mismatch still throws here.
+  if (legacy.width !== candidate.width || legacy.height !== candidate.height) throw new RangeError('traversal_collision_size_mismatch');
   const result: RuntimeTraversalProjection = {
     collision: policy.mode === 'active' ? candidate : legacy,
     candidate,
-    differences: compared,
+    // Evidence only (shadow diagnostics): the same comparison and cache as before,
+    // made on first read instead of on every collision rebuild (static world S4f).
+    get differences(): readonly TraversalShadowDifference[] {
+      let compared = byCandidate.get(candidateBlocked);
+      if (compared === undefined) { compared = compareTraversalCollision(legacy, candidate); byCandidate.set(candidateBlocked, compared); }
+      return compared;
+    },
     compatibility: policy.mode,
   };
   if (cache.size >= 8) cache.delete(cache.keys().next().value!);

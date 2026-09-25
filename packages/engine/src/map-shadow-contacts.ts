@@ -1,4 +1,5 @@
-import {FIXED_UNITS_PER_PIXEL,type CollisionObstacle} from '@orchard/sim';
+import type {CollisionObstacle} from '@orchard/sim';
+import {FIXED_UNITS_PER_PIXEL} from '@orchard/sim/state';
 
 export interface MapShadowPlacement {
   readonly id:string;

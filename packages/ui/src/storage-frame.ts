@@ -1,4 +1,4 @@
-import { HOTBAR_SLOT_COUNT } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { containsPoint, type UiPoint, type UiRect, type UiSize } from './geometry.js';
 import { drawUiSkinAsset, type UiSkin } from './skin.js';
 

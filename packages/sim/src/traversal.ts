@@ -98,10 +98,14 @@ export function mediumTraversalCollision(
   if (geometry.width !== channels.width || geometry.height !== channels.height) {
     throw new RangeError('traversal_collision_size_mismatch');
   }
-  const blocked = Array.from({ length: channels.width * channels.height }, (_, index) => {
-    const medium = RULE_MEDIA[channels.medium[index] ?? -1];
-    return medium === undefined || channels.solidBlocked[index] !== 0 || !canTraverse(medium, abilities, policy);
-  });
+  // Admission depends only on the medium: resolve it once per medium, not per cell.
+  const admitted = RULE_MEDIA.map(medium => canTraverse(medium, abilities, policy));
+  const cells = channels.width * channels.height;
+  const blocked = new Uint8Array(cells);
+  for (let index = 0; index < cells; index++) {
+    const ordinal = channels.medium[index] ?? -1;
+    blocked[index] = RULE_MEDIA[ordinal] === undefined || channels.solidBlocked[index] !== 0 || !admitted[ordinal] ? 1 : 0;
+  }
   return { ...geometry, blocked };
 }
 
@@ -115,8 +119,8 @@ export function compareTraversalCollision(
   }
   const differences: TraversalShadowDifference[] = [];
   for (let index = 0; index < legacy.width * legacy.height; index++) {
-    const legacyBlocked = legacy.blocked[index] ?? true;
-    const mediumBlocked = candidate.blocked[index] ?? true;
+    const legacyBlocked = (legacy.blocked[index] ?? 1) !== 0;
+    const mediumBlocked = (candidate.blocked[index] ?? 1) !== 0;
     if (legacyBlocked !== mediumBlocked) differences.push({ index, legacyBlocked, mediumBlocked });
   }
   return differences;

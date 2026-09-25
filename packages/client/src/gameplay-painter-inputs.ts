@@ -12,6 +12,7 @@ import type { LocalProjectilePrediction } from './overworld-prediction.js';
 import type { SelectedEntityTarget, TargetableWorldEntity } from './entity-targeting.js';
 import type { LiveObjectPresentationCache } from './content/object-presentation.js';
 import type { AuthoredActionArt } from './content/action-art.js';
+import type { TopsideMapRecords } from '@orchard/engine/chunk-map-records';
 
 export interface PendingBowProjectile extends LocalProjectilePrediction {
   readonly token: number;
@@ -59,6 +60,9 @@ export interface GameplayPainterInputs {
   readonly homesteadSurroundingDecorations: (seed: number) => ReturnType<typeof generateSurvivalDecorations>;
   readonly seed: number;
   readonly topsideDecorations: (snapshot: OverworldView, seed: number) => readonly RuntimeSurvivalDecoration[];
+  /** Topside's authored map content (static world S4e): the chunk window's records in
+   * chunk mode `on`, else the live map document; null off topside. */
+  readonly topsideMapRecords: TopsideMapRecords | null;
   readonly visible: import("@orchard/engine/camera").VisibleWorldBounds;
   readonly enqueueWorldDepth: (worldX: number, worldFootY: number, item: import("@orchard/engine/renderer").WorldDepthItem, terrainSampleY?: number, unifiedReceiver?: UnifiedLightReceiver, shadowContactY?: number, shadowBody?: import("@orchard/engine/overworld-art").ActorShadowBody) => void;
   readonly visualTickClock: VisualTickClock;
@@ -70,6 +74,8 @@ export interface GameplayPainterInputs {
   readonly liveMapSuppressesGeneratedResource: (snapshot: OverworldView, id: bigint) => boolean;
   readonly windTrees: WindTreeSource[];
   readonly treeShakeRemaining: Map<bigint, number>;
+  /** Veins a swing glanced off, ticks remaining; drawn as sparks without a shake. */
+  readonly resourceGlanceRemaining: ReadonlyMap<bigint, number>;
   readonly effectPhase: number;
   readonly miningClassFromWire: (value: string, spaceId: number) => MiningNodeClass;
   readonly cropDefinitionForSnapshot: (snapshot: Pick<OverworldView, "homesteadUpgrades" | "content">, cropKind: string) => import("@orchard/sim").CropDefinition | null;

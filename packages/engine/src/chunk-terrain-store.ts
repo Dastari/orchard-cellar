@@ -1,6 +1,7 @@
 import type { TerrainArray } from './terrain.js';
 import type { CellPart, MediumCollisionChannels, CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
 import { WORLD_CHUNK_VOID, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, decodeWorldChunk, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 /** Compatibility adapter for today's contiguous TerrainArray contract.
  * No generator/compiler runs here. Unloaded cells stay blocked. */
@@ -21,8 +22,10 @@ export class ChunkTerrainStore implements TerrainArray {
   readonly raisedTerrainCollisionClassified?: true;
   readonly biomes: Uint8Array;
   readonly elevations: Int16Array;
-  readonly blocked: boolean[];
-  readonly horseJumpableTerrain: boolean[];
+  /** The `blocked` and `horseJumpableTerrain` channels themselves (0/1 bytes,
+   * updated in place as chunks install; unloaded cells stay blocked). */
+  readonly blocked: Uint8Array;
+  readonly horseJumpableTerrain: Uint8Array;
   readonly dirtCliffRoles: Uint8Array;
   readonly dirtTerraces: Uint8Array;
   readonly channels: Readonly<Record<string, ChunkArray>>;
@@ -81,7 +84,7 @@ export class ChunkTerrainStore implements TerrainArray {
     this.elevations = this.requiredI16('elevations');
     this.dirtCliffRoles = this.requiredU8('dirtCliffRoles');
     this.dirtTerraces = this.requiredU8('dirtTerraces');
-    this.requiredU8('blocked'); this.requiredU8('horseJumpableTerrain');
+    this.blocked = this.requiredU8('blocked'); this.horseJumpableTerrain = this.requiredU8('horseJumpableTerrain');
     if (this.#terrainMetadata['hasTraversalChannels']) Object.defineProperty(this, 'traversalChannels', {
       get: () => this.traversalProjection(), enumerable: true,
     });
@@ -113,8 +116,6 @@ export class ChunkTerrainStore implements TerrainArray {
     if (channels['authoredSurfaces']) Object.defineProperty(this, 'authoredSurfaces', {
       get: () => Array.from(channels['authoredSurfaces']!, index => (manifest.metadata['surfacePalette'] as readonly MapSurfaceKind[])[index]!), enumerable: true,
     });
-    this.blocked = Array<boolean>(this.width * this.height).fill(true);
-    this.horseJumpableTerrain = Array<boolean>(this.width * this.height).fill(false);
   }
   private traversalProjection(): MediumCollisionChannels {
     return this.#traversalChannels ??= { width: this.width, height: this.height,
@@ -171,8 +172,6 @@ export class ChunkTerrainStore implements TerrainArray {
         if (tx >= this.width || ty >= this.height) continue;
         const index = p * this.width * this.height + ty * this.width + tx;
         target[index] = source[p * WORLD_CHUNK_STRIDE ** 2 + (y + 1) * WORLD_CHUNK_STRIDE + x + 1]!;
-        if (name === 'blocked') this.blocked[index] = target[index] !== 0;
-        if (name === 'horseJumpableTerrain') this.horseJumpableTerrain[index] = target[index] !== 0;
       }
     }
     this.#chunks.set(key, chunk);
@@ -191,10 +190,10 @@ export class ChunkTerrainStore implements TerrainArray {
     const horse = this.channels[`${prefix}horseJumpableTerrain`];
     return { ...geometry, width: this.width, height: this.height,
       ...(hasTraversalChannels ? { traversalChannels: this.traversalProjection() } : {}),
-      blocked: Array.from(this.requiredU8(`${prefix}blocked`), Boolean),
+      blocked: cellFlags(this.requiredU8(`${prefix}blocked`)),
       ...(plane === undefined ? {} : { terrainPlaneBlocked: plane }),
       ...(elevations === undefined ? {} : { elevations }),
-      ...(horse === undefined ? {} : { horseJumpableTerrain: Array.from(horse, Boolean) }),
+      ...(horse === undefined ? {} : { horseJumpableTerrain: cellFlags(horse) }),
       ...(Object.hasOwn(meta, 'terrainTransitions') ? { terrainTransitions: this.records(`${prefix}transition`).map(record => record.value as unknown as TerrainTransition) } : {}),
       obstacles: this.records(`${prefix}obstacle`).map(record => record.value as unknown as CollisionObstacle),
     };

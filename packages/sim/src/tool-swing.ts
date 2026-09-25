@@ -1,5 +1,5 @@
 import { directionUnitVector } from './tile-targeting.js';
-import { SURVIVAL_CHUNK_TILES } from './survival-world.js';
+import { SURVIVAL_CHUNK_TILES } from './survival-dimensions.js';
 import { TILE_SIZE_FIXED, type Direction, type Vec2Fixed } from './state.js';
 
 export interface ToolSwingGeometry {

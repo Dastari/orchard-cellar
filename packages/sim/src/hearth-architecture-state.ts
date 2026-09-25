@@ -43,7 +43,7 @@ export function persistedHearthArchitectureCollision(rank:number,baseline:Collis
   if(json===undefined||json===EMPTY_HEARTH_ARCHITECTURE_JSON)return baseline;
   const state=parseHearthArchitectureState(json);
   const result=state===null?null:composeHearthArchitecture(rank,baseline,state.cells);
-  return result?.failure===null?result.collision:{...baseline,blocked:Array<boolean>(baseline.width*baseline.height).fill(true)};
+  return result?.failure===null?result.collision:{...baseline,blocked:new Uint8Array(baseline.width*baseline.height).fill(1)};
 }
 
 

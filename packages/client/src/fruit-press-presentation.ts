@@ -1,8 +1,5 @@
-import {
-  runtimeProcessorInputContentsAnimation,
-  type ContentRegistry,
-  type RuntimeObjectProcessor,
-} from '@orchard/sim';
+import type { ContentRegistry, RuntimeObjectProcessor } from '@orchard/sim';
+import { runtimeProcessorInputContentsAnimation } from '@orchard/sim/content/processor-authority';
 
 interface PressRow {
   readonly kind: string;

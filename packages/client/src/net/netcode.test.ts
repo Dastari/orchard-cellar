@@ -23,6 +23,7 @@ import {
   inputRefreshDue,
   presentationAuthorityTick,
 } from './netcode.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 const collision = createPlaceholderCollisionMap(20, 20);
 const start: PlayerState = { position: { x: 1_000, y: 1_000 }, facing: 'down', moving: false, location: 'estate' };
@@ -160,7 +161,7 @@ describe('remote interpolation', () => {
     const obstacleCollision = {
       width: 100,
       height: 100,
-      blocked: Array.from({ length: 10_000 }, () => false),
+      blocked: cellFlags(Array.from({ length: 10_000 }, () => false)),
       obstacles: [{ left: 10_900, right: 11_000, top: 9_900, bottom: 10_100 }],
     };
     const sampled = buffer.sample(13, obstacleCollision);

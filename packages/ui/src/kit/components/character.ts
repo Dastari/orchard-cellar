@@ -1,7 +1,9 @@
-import { BOOTSTRAP_PROGRESSION } from '@orchard/sim';
+import { BOOTSTRAP_PROGRESSION } from '@orchard/sim/progression';
 import { paintUiCharacterPortrait } from './character-portrait.js';
 import type { LoadedAsset } from '../../assets.js';
-import { ATTRIBUTE_IDS, skillLevelForExperience, skillExperienceForLevel, type Direction, type PlayerAppearanceSelection } from '@orchard/sim';
+import type { Direction, PlayerAppearanceSelection } from '@orchard/sim';
+import { skillLevelForExperience, skillExperienceForLevel } from '@orchard/sim/skill-trees';
+import { ATTRIBUTE_IDS } from '@orchard/sim/stats';
 import { cycleAppearanceValue, type CharacterEquipmentItem, type CharacterScreenModel } from '../../character-screen.js';
 import type { UiRect } from '../../geometry.js';
 import { UiElement } from '../runtime/element.js';

@@ -2,7 +2,7 @@ import { authorityDayIndex, authorityDayProgress, dayProgressAtClockTime } from 
 import type { LandmarkAutomationDefinition } from './content/world-definition.js';
 import type { ContentRegistry } from './content/registry.js';
 import type { ObjectContentDefinition } from './content/object-definition.js';
-import { generateSurvivalLandmarkDecorations } from './survival-world.js';
+import { generateSurvivalLandmarkDecorations } from './survival-landmark-decorations.js';
 
 export interface DailyCampfireSchedule {
   readonly lightMinute: number;

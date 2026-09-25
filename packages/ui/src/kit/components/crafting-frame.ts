@@ -75,8 +75,9 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
   let book: UiRecipeBookElement | null = null;
   const createBook = () => uiRecipeBook({ id: 'crafting.recipes', recipes: entries(), selected, artwork: options.artwork, query,
     onSelect: id => { selected = id; },
-    // Choosing the recipe that is already placed keeps it (the host's selection toggles off on a repeat).
-    onPlace: id => { if (snapshot.selected !== id) options.onRecipe(id); selected = id; if (crowded) setRecipeBook(false); },
+    // Every press asks the authority to place the pattern, so a refusal (a grid holding other items) is
+    // reported each time rather than swallowed as "already selected" (BUG-037).
+    onPlace: id => { options.onRecipe(id); selected = id; if (crowded) setRecipeBook(false); },
     onQuery: value => { query = value; options.onRecipeFilter(value); },
     onClose: () => setRecipeBook(false) });
   // Desktop sets the book beside the bench; tall narrow screens stack it above. When neither fits (the

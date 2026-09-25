@@ -1,8 +1,10 @@
-import { runtimeObjectProcessor, processTopologyForObject, projectTiming,
-  processDurationTicks, barrelCellarCureTicks, barrelCellarBatchCapacity, estateVintageTier, farmingBarrelTicks,
-  runtimeItemEconomy, runtimeItemDefinition,
-  type ContentRegistry, type ObjectContentReference, type ItemStack,
-} from '@orchard/sim';
+import type { ContentRegistry, ObjectContentReference, ItemStack } from '@orchard/sim';
+import { processTopologyForObject, processDurationTicks } from '@orchard/sim/behaviour/handlers/processors';
+import { runtimeObjectProcessor } from '@orchard/sim/content/processor-authority';
+import { runtimeItemEconomy, runtimeItemDefinition } from '@orchard/sim/content/runtime';
+import { farmingBarrelTicks } from '@orchard/sim/farming-skills';
+import { barrelCellarCureTicks, barrelCellarBatchCapacity, estateVintageTier } from '@orchard/sim/homestead-upgrades';
+import { projectTiming } from '@orchard/sim/timing';
 import type { WorldPlaceable } from '@orchard/world-bindings/types';
 
 const cache = new WeakMap<ContentRegistry, Map<string, ReturnType<typeof runtimeObjectProcessor>>>();

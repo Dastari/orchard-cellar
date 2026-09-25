@@ -1,4 +1,5 @@
-import { hearthLegendaryRecipeOffer, hearthRecipeExchangeNpcForRuntimeId, type ContentRegistry } from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { hearthLegendaryRecipeOffer, hearthRecipeExchangeNpcForRuntimeId } from '@orchard/sim/hearth-seal-exchange';
 export interface HearthSealOffer {
   readonly recipeId: string; readonly itemKind: string; readonly title: string;
   readonly expectedSeals: number; readonly expectedContentHash: string;

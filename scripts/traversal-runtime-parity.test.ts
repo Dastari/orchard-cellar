@@ -24,10 +24,10 @@ describe('D6 runtime medium parity', () => {
       const index = y * document.width + x;
       expect(generated.medium[index]).toBe(RULE_MEDIA.indexOf('shallow_water'));
       expect(generated.solidBlocked[index]).toBe(0);
-      expect(snapshot.collisions.clientWater.blocked[index]).toBe(true);
-      expect(snapshot.collisions.serverWater.blocked[index]).toBe(false);
-      expect(client.blocked[index]).toBe(false);
-      expect(server.blocked[index]).toBe(false);
+      expect(snapshot.collisions.clientWater.blocked[index]).toBe(1);
+      expect(snapshot.collisions.serverWater.blocked[index]).toBe(0);
+      expect(client.blocked[index]).toBe(0);
+      expect(server.blocked[index]).toBe(0);
     }
   }, 120_000);
 });

@@ -32,8 +32,8 @@ describe('chunked ground cache', () => {
     expect(render).toHaveBeenCalledTimes(3);
     expect(render.mock.calls[2]?.slice(2)).toEqual([1,1]);
     expect(cache.residentCount).toBe(1);
-    expect(edited.blocked[20*32+20]).toBe(true);
-    expect(edited.residenceEnvelopeBlocked?.[20*32+20]).toBe(false);
+    expect(edited.blocked[20*32+20]).toBe(1);
+    expect(edited.residenceEnvelopeBlocked?.[20*32+20]).toBe(0);
   });
 
   it('retains distant ground chunks through a sparse elevation edit',()=>{
@@ -41,7 +41,7 @@ describe('chunked ground cache', () => {
     const render=vi.spyOn(cache as unknown as {renderChunk:(...args:unknown[])=>HTMLCanvasElement},'renderChunk').mockImplementation(()=>({}) as HTMLCanvasElement);
     const context={drawImage:vi.fn()} as unknown as CanvasRenderingContext2D;
     const before:TerrainArray={spaceId:1,seed:1,version:0,width:128,height:128,generator:'debug_flat',biomes:new Uint8Array(16384),
-      blocked:[],horseJumpableTerrain:[],elevations:new Int16Array(16384),dirtTerraces:new Uint8Array(16384),dirtCliffRoles:new Uint8Array(16384)};
+      blocked:new Uint8Array(0),horseJumpableTerrain:new Uint8Array(0),elevations:new Int16Array(16384),dirtTerraces:new Uint8Array(16384),dirtCliffRoles:new Uint8Array(16384)};
     const draw=(terrain:TerrainArray,x:number,y:number)=>cache.drawTilePreview(context,{} as OverworldArt,terrain,x,y,0,0,1);
     draw(before,10,10);draw(before,100,100);expect(render).toHaveBeenCalledTimes(2);
     const next={...before,version:1,elevations:before.elevations.slice()};next.elevations[10*128+10]=2;
@@ -53,7 +53,7 @@ describe('chunked ground cache', () => {
   it('sizes sparse-edit invalidation from the edited tile\'s own old and new elevation', () => {
     const width = 64;
     const flat = (): TerrainArray => ({ spaceId: 1, seed: 1, version: 0, width, height: 64, generator: 'debug_flat',
-      biomes: new Uint8Array(width * 64), blocked: [], horseJumpableTerrain: [], elevations: new Int16Array(width * 64),
+      biomes: new Uint8Array(width * 64), blocked: new Uint8Array(0), horseJumpableTerrain: new Uint8Array(0), elevations: new Int16Array(width * 64),
       dirtTerraces: new Uint8Array(width * 64), dirtCliffRoles: new Uint8Array(width * 64) });
     // Distinct heights on the edited tile and each orthogonal neighbour, so
     // reading any other cell changes the invalidated rows.
@@ -115,8 +115,8 @@ describe('chunked ground cache', () => {
       height,
       generator: 'cellar',
       biomes: new Uint8Array(width * height).fill(4),
-      blocked: Array<boolean>(width * height).fill(false),
-      horseJumpableTerrain: Array<boolean>(width * height).fill(false),
+      blocked: new Uint8Array(width * height),
+      horseJumpableTerrain: new Uint8Array(width * height),
       elevations: new Int16Array(width * height),
       raisedTerrainCollisionClassified: true,
       dirtCliffRoles: new Uint8Array(width * height),
@@ -141,8 +141,8 @@ describe('chunked ground cache', () => {
     const terrain: TerrainArray = {
       spaceId: 1, seed: 1, version: 1, width: 3, height: 3,
       biomes: new Uint8Array(9).fill(4),
-      blocked: Array<boolean>(9).fill(false),
-      horseJumpableTerrain: Array<boolean>(9).fill(false),
+      blocked: new Uint8Array(9),
+      horseJumpableTerrain: new Uint8Array(9),
       elevations: new Int16Array(9),
       raisedTerrainCollisionClassified: true,
       dirtCliffRoles: new Uint8Array(9),

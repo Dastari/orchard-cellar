@@ -14,10 +14,13 @@ it('upgrades the permanent startup canvas once and releases its only loop and re
  vi.stubGlobal('getComputedStyle',()=>({getPropertyValue:()=> '0'}));
  vi.stubGlobal('requestAnimationFrame',(callback:FrameRequestCallback)=>{frames.set(++serial,callback);return serial;});
  vi.stubGlobal('cancelAnimationFrame',(id:number)=>frames.delete(id));
- vi.stubGlobal('document',{querySelector:(selector:string)=>selector==='#game'?canvas:status,createElement:()=>createCanvas(1,1)});
+ const documentElement={setAttribute:vi.fn()};
+ vi.stubGlobal('document',{documentElement,querySelector:(selector:string)=>selector==='#game'?canvas:status,createElement:()=>createCanvas(1,1)});
  upgradeLoadingScreen(art,emblem);upgradeLoadingScreen(art,emblem);expect(frames.size).toBe(1);
+ // The handoff boot script stops painting once the loading screen owns the canvas (owner UI item 5).
+ expect(documentElement.setAttribute).toHaveBeenCalledWith('data-gateway-frame','started');documentElement.setAttribute.mockClear();
  expect([canvas.width,canvas.height]).toEqual([400,225]);
  setLoadingScreenStage({title:'SAILING',detail:'READING THE WORLD',progress:65});
  const [id,draw]=[...frames][0]!;frames.delete(id);draw(10);expect(frames.size).toBe(1);
- dismissLoadingScreen();expect(frames.size).toBe(0);expect(status.hidden).toBe(true);expect(remove).toHaveBeenCalledWith('resize',expect.any(Function));
+ dismissLoadingScreen();expect(documentElement.setAttribute).toHaveBeenCalledWith('data-gateway-frame','started');expect(frames.size).toBe(0);expect(status.hidden).toBe(true);expect(remove).toHaveBeenCalledWith('resize',expect.any(Function));
 });

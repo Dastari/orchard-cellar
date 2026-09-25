@@ -1,13 +1,13 @@
 import {
   CombatRegionPolicy, resolvedMapBiomeAt,
   type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type MapBiomeId,
-  type MapDocumentV3, type MediumCollisionChannels, type TerrainTransition,
+  type MapDocumentV3,
 } from '@orchard/sim';
-import { authorityObstacleKey, validateRuntimeManifest, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
+import { validateRuntimeManifest, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
+import { AuthorityCollisionBuilder, chunkAuthorityMetadata, composeAuthorityCollision } from '@orchard/sim/chunk-collision';
 import {
-  canonicalChunkJson, WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID,
-  type ChunkArray, type ChunkJson, type WorldChunkAuthorityObstacle, type WorldChunkAuthoritySuppressedObstacle,
-  type WorldChunkManifest, type WorldChunkRecord,
+  canonicalChunkJson, worldChunkHasAuthority, WORLD_CHUNK_SIZE,
+  type WorldChunkManifest,
 } from '@orchard/sim/world-chunk';
 
 /**
@@ -39,7 +39,6 @@ import {
 
 export type ChunkAuthorityMedium = 'ground' | 'water';
 const MEDIA: readonly ChunkAuthorityMedium[] = ['ground', 'water'];
-const CELL_COUNT = WORLD_CHUNK_STRIDE ** 2;
 const NO_BIOME = 255;
 
 export type ChunkRuntimeIssueKind =
@@ -94,53 +93,15 @@ export interface AssembleChunkRuntimeOptions {
   readonly shadowContentHash?: string;
 }
 
-interface AuthorityMetadata {
-  readonly combatRegions: readonly CombatRegion[];
-  readonly generatedSuppressions: readonly string[];
-  readonly collisions: Readonly<Record<ChunkAuthorityMedium, Readonly<Record<string, ChunkJson>>>>;
-}
-
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 function has(value: object, key: string): boolean { return Object.prototype.hasOwnProperty.call(value, key); }
 
-function authorityMetadata(manifest: WorldChunkManifest): AuthorityMetadata {
-  const value = manifest.metadata['authority'];
-  if (!record(value) || value['schema'] !== WORLD_CHUNK_AUTHORITY_SCHEMA || !Array.isArray(value['combatRegions'])
-    || !Array.isArray(value['generatedSuppressions']) || !record(value['collisions'])
-    || !record(value['collisions']['ground']) || !record(value['collisions']['water'])) throw new Error('chunk_authority_metadata_missing');
-  return value as unknown as AuthorityMetadata;
-}
-
 /** Cache key: pinned shadow revision, map source revision/hash and live content hash. */
 export function chunkLiveIslandRuntimeKey(manifest: Pick<WorldChunkManifest, 'spaceId' | 'sourceRevision' | 'sourceHash'>,
   registryContentHash: string, shadowRevision?: number): string {
   return `chunks:${manifest.spaceId}:${shadowRevision ?? 'unpinned'}:${manifest.sourceRevision}:${manifest.sourceHash}:${registryContentHash}`;
-}
-
-/** Copies the halo-free interior of one chunk channel into a whole-island array. */
-function copyInterior(source: ChunkArray, target: Uint8Array | Int16Array, width: number, height: number, cx: number, cy: number): boolean {
-  const planes = target.length / (width * height);
-  if (source.constructor !== target.constructor || source.length !== planes * CELL_COUNT) return false;
-  const count = Math.min(WORLD_CHUNK_SIZE, width - cx * WORLD_CHUNK_SIZE);
-  for (let plane = 0; plane < planes; plane++) for (let y = 0; y < WORLD_CHUNK_SIZE; y++) {
-    const tileY = cy * WORLD_CHUNK_SIZE + y;
-    if (tileY >= height) break;
-    const from = plane * CELL_COUNT + (y + 1) * WORLD_CHUNK_STRIDE + 1;
-    (target as Uint8Array).set((source as Uint8Array).subarray(from, from + count), plane * width * height + tileY * width + cx * WORLD_CHUNK_SIZE);
-  }
-  return true;
-}
-
-function booleans(values: Uint8Array): boolean[] {
-  const result = new Array<boolean>(values.length);
-  for (let index = 0; index < values.length; index++) result[index] = values[index] !== 0;
-  return result;
-}
-
-function plain(value: { left: number; top: number; right: number; bottom: number }): CollisionObstacle {
-  return { left: value.left, top: value.top, right: value.right, bottom: value.bottom };
 }
 
 export function assembleChunkLiveIslandRuntime(
@@ -150,27 +111,16 @@ export function assembleChunkLiveIslandRuntime(
   options: AssembleChunkRuntimeOptions = {},
 ): ChunkLiveIslandRuntime {
   const manifest = validateRuntimeManifest(manifestInput);
-  const meta = authorityMetadata(manifest);
+  const meta = chunkAuthorityMetadata(manifest);
+  if (meta === undefined) throw new Error('chunk_authority_metadata_missing');
   const { width, height } = manifest;
-  const cellCount = width * height;
   const columns = Math.ceil(width / WORLD_CHUNK_SIZE), rows = Math.ceil(height / WORLD_CHUNK_SIZE);
-  const channelSpecs = record(manifest.metadata['channels']) ? manifest.metadata['channels'] : {};
-  const planeSpec = channelSpecs['authority.ground.terrainPlaneBlocked'];
-  const planes = record(planeSpec) && Number.isSafeInteger(planeSpec['planes']) && (planeSpec['planes'] as number) >= 1 ? planeSpec['planes'] as number : 1;
-  // Void and solid until a verified chunk overwrites its cells.
-  const arrays = {
-    'authority.ground.blocked': new Uint8Array(cellCount).fill(1),
-    'authority.ground.elevations': new Int16Array(cellCount),
-    'authority.ground.terrainPlaneBlocked': new Uint8Array(cellCount * planes).fill(1),
-    'authority.ground.horseJumpableTerrain': new Uint8Array(cellCount),
-    'authority.water.blocked': new Uint8Array(cellCount).fill(1),
-    medium: new Uint8Array(cellCount).fill(WORLD_CHUNK_VOID),
-    solidBlocked: new Uint8Array(cellCount).fill(1),
-    biomes: new Uint8Array(cellCount).fill(NO_BIOME),
-  } as const;
-  const wanted = new Set(['authority.ground.obstacle', 'authority.water.obstacle', 'authority.suppressedObstacleKey',
-    'authority.ground.transition', 'objects', 'landmarks', 'resourcePlacements']);
-  const records = new Map<string, WorldChunkRecord[]>();
+  // The shared generator-free composition (sim chunk-collision), over the whole island,
+  // plus the static view's biomes channel and records.
+  const builder = new AuthorityCollisionBuilder(manifest, { originX: 0, originY: 0, width, height }, {
+    extraChannels: { biomes: { type: 'u8', fill: NO_BIOME } },
+    extraRecordKinds: ['objects', 'landmarks', 'resourcePlacements'],
+  });
   const issues: ChunkRuntimeIssue[] = [];
   const heads = new Map(manifest.chunks.map(head => [`${head.cx}:${head.cy}`, head]));
   let decodedChunks = 0, decodedBytes = 0;
@@ -186,80 +136,25 @@ export function assembleChunkLiveIslandRuntime(
       issues.push({ kind: 'blob_invalid', cx, cy, detail: error instanceof Error ? error.message : String(error) });
       continue;
     }
-    if (chunk.authoritySchema !== WORLD_CHUNK_AUTHORITY_SCHEMA) { issues.push({ kind: 'authority_missing', cx, cy }); continue; }
-    // Validate every channel shape before writing any cell of this chunk.
-    const names = Object.keys(arrays) as (keyof typeof arrays)[];
-    const bad = names.find(name => {
-      const source = chunk.arrays[name], target = arrays[name];
-      return source === undefined || source.constructor !== target.constructor || source.length !== (target.length / cellCount) * CELL_COUNT;
-    });
+    if (!worldChunkHasAuthority(chunk)) { issues.push({ kind: 'authority_missing', cx, cy }); continue; }
+    // Validates every channel shape before writing any cell of this chunk.
+    const bad = builder.add(chunk, cx, cy);
     if (bad !== undefined) { issues.push({ kind: 'blob_invalid', cx, cy, detail: `channel ${bad}` }); continue; }
-    for (const name of names) copyInterior(chunk.arrays[name]!, arrays[name], width, height, cx, cy);
-    for (const item of chunk.records) {
-      if (!wanted.has(item.kind)) continue;
-      const list = records.get(item.kind);
-      if (list === undefined) records.set(item.kind, [item]); else list.push(item);
-    }
     decodedChunks += 1;
     decodedBytes += bytes.byteLength;
   }
   const complete = issues.length === 0;
-  const ordered = <T>(kind: string): T[] => {
-    const list = (records.get(kind) ?? []).sort((a, b) => a.ordinal - b.ordinal);
-    if (complete && list.some((item, index) => item.ordinal !== index)) issues.push({ kind: 'record_order', detail: kind });
-    return list.map(item => item.value as unknown as T);
-  };
-  const obstacleGroups = (medium: ChunkAuthorityMedium): { base: CollisionObstacle[]; authored: CollisionObstacle[] } => {
-    const base: CollisionObstacle[] = [], authored: CollisionObstacle[] = [];
-    let misordered = false;
-    for (const value of ordered<WorldChunkAuthorityObstacle>(`authority.${medium}.obstacle`)) {
-      const group = value.group === 'base' ? base : authored;
-      misordered ||= value.ordinal !== group.length || (value.group === 'base' && authored.length > 0);
-      group.push(plain(value));
-    }
-    if (complete && misordered) issues.push({ kind: 'record_order', detail: `authority.${medium}.obstacle groups` });
-    return { base, authored };
-  };
-  const groundObstacles = obstacleGroups('ground'), waterObstacles = obstacleGroups('water');
-  const suppressedRows = ordered<WorldChunkAuthoritySuppressedObstacle>('authority.suppressedObstacleKey');
-  const suppressedDecorationObstacleKeys = {
-    ground: new Set(suppressedRows.filter(row => row.medium === 'ground').map(authorityObstacleKey)),
-    water: new Set(suppressedRows.filter(row => row.medium === 'water').map(authorityObstacleKey)),
-  };
-  const groundMeta = meta.collisions.ground, waterMeta = meta.collisions.water;
-  const traversalChannels: MediumCollisionChannels | undefined = groundMeta['hasTraversalChannels'] === true || waterMeta['hasTraversalChannels'] === true
-    ? { width, height, medium: arrays.medium, solidBlocked: arrays.solidBlocked } : undefined;
-  // Field set and order mirror compiledLiveIslandRuntime (server index.ts).
-  const ground: CollisionMap = {
-    ...(traversalChannels === undefined || groundMeta['hasTraversalChannels'] !== true ? {} : { traversalChannels }),
-    width,
-    height,
-    blocked: booleans(arrays['authority.ground.blocked']),
-    elevations: arrays['authority.ground.elevations'],
-    ...(typeof groundMeta['terrainMinimumElevation'] === 'number' ? { terrainMinimumElevation: groundMeta['terrainMinimumElevation'] } : {}),
-    ...(has(groundMeta, 'terrainTransitions') ? { terrainTransitions: ordered<TerrainTransition>('authority.ground.transition') } : {}),
-    terrainPlaneBlocked: arrays['authority.ground.terrainPlaneBlocked'],
-    horseJumpableTerrain: booleans(arrays['authority.ground.horseJumpableTerrain']),
-    obstacles: groundObstacles.authored,
-  };
-  const water: CollisionMap = {
-    ...(traversalChannels === undefined || waterMeta['hasTraversalChannels'] !== true ? {} : { traversalChannels }),
-    width,
-    height,
-    blocked: booleans(arrays['authority.water.blocked']),
-    // SW-D1: the water horse-jump mask is all false and is not materialized.
-    horseJumpableTerrain: new Array<boolean>(cellCount).fill(false),
-    obstacles: waterObstacles.authored,
-  };
+  const composition = builder.compose(complete ? 'exact' : 'none', false);
+  const { ground, water } = composition;
   const documentMeta = record(manifest.metadata['document']) ? manifest.metadata['document'] : {};
   const biomePalette = Array.isArray(manifest.metadata['biomePalette']) ? manifest.metadata['biomePalette'] as readonly MapBiomeId[] : [];
-  const biomes = arrays.biomes;
+  const biomes = builder.arrays['biomes']!;
   const staticView: LiveIslandStaticView = {
     id: typeof documentMeta['id'] === 'string' ? documentMeta['id'] : '',
-    objects: ordered<MapDocumentV3['objects'][number]>('objects'),
-    landmarks: ordered<MapDocumentV3['landmarks'][number]>('landmarks'),
+    objects: builder.records<MapDocumentV3['objects'][number]>('objects'),
+    landmarks: builder.records<MapDocumentV3['landmarks'][number]>('landmarks'),
     prefabs: (Array.isArray(documentMeta['prefabs']) ? documentMeta['prefabs'] : []) as unknown as MapDocumentV3['prefabs'],
-    resourcePlacements: ordered<NonNullable<MapDocumentV3['resourcePlacements']>[number]>('resourcePlacements'),
+    resourcePlacements: builder.records<NonNullable<MapDocumentV3['resourcePlacements']>[number]>('resourcePlacements'),
     combatRegions: meta.combatRegions,
     generatedSuppressions: meta.generatedSuppressions,
     biomeAt(tileX, tileY) {
@@ -268,6 +163,7 @@ export function assembleChunkLiveIslandRuntime(
       return value === NO_BIOME ? undefined : biomePalette[value];
     },
   };
+  for (const detail of builder.orderIssues) issues.push({ kind: 'record_order', detail });
   return {
     source: 'chunks',
     key: chunkLiveIslandRuntimeKey(manifest, registry.contentHash, options.shadowRevision),
@@ -275,8 +171,8 @@ export function assembleChunkLiveIslandRuntime(
     ground,
     water,
     generatedSuppressions: new Set(meta.generatedSuppressions),
-    suppressedDecorationObstacleKeys,
-    baseObstacles: { ground: groundObstacles.base, water: waterObstacles.base },
+    suppressedDecorationObstacleKeys: composition.suppressedObstacleKeys,
+    baseObstacles: composition.baseObstacles,
     staticView,
     complete: issues.length === 0,
     issues,
@@ -295,10 +191,8 @@ export function assembleChunkLiveIslandRuntime(
  */
 export function composeChunkIslandCollision(runtime: ChunkLiveIslandRuntime, medium: ChunkAuthorityMedium,
   liveBaseObstacles: readonly CollisionObstacle[] = []): CollisionMap {
-  const overlay = runtime[medium];
-  const keys = runtime.suppressedDecorationObstacleKeys[medium];
-  const retained = [...runtime.baseObstacles[medium], ...liveBaseObstacles].filter(obstacle => !keys.has(authorityObstacleKey(obstacle)));
-  return { ...overlay, obstacles: [...retained, ...(overlay.obstacles ?? [])] };
+  return composeAuthorityCollision({ ground: runtime.ground, water: runtime.water, baseObstacles: runtime.baseObstacles,
+    suppressedObstacleKeys: runtime.suppressedDecorationObstacleKeys }, medium, liveBaseObstacles);
 }
 
 /** The same static view over a compiled document (the server's current source). */

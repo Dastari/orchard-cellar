@@ -208,12 +208,13 @@ and are served by the `orchard-world-chunk-serving` plugin
   regular files. A symlink as the final `.bin` (or sibling) component is treated as
   missing, and so is a FIFO or device. A symlinked root or `<spaceId>` directory is
   followed. The identity `.bin` must exist for any variant to be served.
-- **Installing blobs.** The S5b pipeline (`scripts/world-chunks-publish.ts`, not yet
-  written) will materialise and verify each blob, write it and its siblings, and
-  then publish the heads. Blobs are immutable and addressed by hash, so installing
-  is additive: never rewrite or delete a published blob during a release (open tabs
-  and rollback may still need it). The blobs can be regenerated from the world
-  database, so they are not part of the world backup.
+- **Installing blobs.** The S5b pipeline (`scripts/world-chunks-publish.ts`, see
+  [Publishing chunk heads](#publishing-chunk-heads-s5b)) materialises and verifies
+  each blob, writes it and its siblings, and then publishes the heads. Blobs are
+  immutable and addressed by hash, so installing is additive: never rewrite or delete
+  a published blob during a release (open tabs and rollback may still need it). The
+  blobs can be regenerated from the world database, so they are not part of the world
+  backup.
 - **Responses.** Only the exact address shape is served (decimal space id without
   leading zeros, 64 lowercase hex, `.bin`, no query string); everything else under
   `/world/` is a `404` and never falls back to the SPA `index.html`. `GET` and `HEAD`
@@ -367,6 +368,144 @@ The deployed module must already expose the additive `ownPlayerSpawn` continuity
 view. The one-time bridge for an older deployment therefore requires the separately
 documented quiesced backup and additive no-delete publish before this orchestrator can
 capture; a missing view is a hard failure, not a reason to skip the check.
+
+### Publishing chunk heads (S5b)
+
+`npm run world:chunks:publish` (`scripts/world-chunks-publish.ts`) publishes the chunk
+heads for the live map and content. It uses only the existing `stageWorldChunkBlob` and
+`publishWorldChunkShadow` reducers, so it needs no schema change. The steps:
+
+1. Read the live map row, content head and content rows, and the published heads,
+   through a credentialed SDK connection. It only subscribes; the connection is a
+   normal sign-in for the credential's identity.
+2. Fetch `generated/atlas.packs.json` from the public origin. Its hash is the asset
+   revision the client computes.
+3. Materialise the chunks in process with the same code and oracle parity checks as
+   `materialize-world-chunks.ts`. The output is byte-identical to that tool's.
+4. Install each blob and its `.br`/`.gz` siblings into the chunk directory. The
+   siblings go first and the identity `.bin` last, each through a no-clobber link. An
+   existing file is verified, never rewritten. A mismatch or a symlink stops the run.
+   Directories it creates are `0755` and files `0644`, whatever the umask. Existing
+   directories are left as they are.
+5. Fetch every blob over the public origin. Each must be served (octet-stream,
+   immutable) and must decode to its address hash and length. A missing blob must be
+   a real `404`.
+6. Stage every blob, then CAS-publish the heads against the shadow revision it read.
+   It checks that the new rows appear.
+
+The connection is closed while it materialises, because materialising takes about
+40 s, longer than the server's 30 s client timeout. It then reconnects and stops with
+`source_changed` if the map or content moved in the meantime.
+
+The content hash is the one `publishWorldChunkShadow` compares: the parsed registry
+hash (`buildContentRegistry(rows).registry.contentHash`, which the client also uses),
+not the raw rows hash in `content_head`. The two differ when a row spells out a
+default.
+
+Every step is idempotent, so the way to recover from any failure is to run it again.
+If the heads already match, it stages and publishes nothing (outcome `unchanged`),
+but it still repairs and re-verifies the chunk directory. The production reducers
+throw plain errors, so the outcome of a failed publish is judged from the rows it
+reads back:
+
+- the rows show the candidate: the publish succeeded after all (`recovered`);
+- the map or content moved: `source_changed`;
+- the shadow revision moved: `cas_conflict`, and the winner's heads are left alone;
+- otherwise the rejection is reported as it is.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | Done, or fresh. |
+| 1 | Failed: connect, subscription, timeout, origin, stage or publish. |
+| 3 | Stale heads (`check` only). |
+| 64 | Usage. |
+| 75 | Lost a race: run again. |
+| 77 | Confirmation required. |
+
+With `--report FILE` it writes a private (0600) JSON report on success and on
+failure. A failure report names the step, the error code and exit code, the
+redacted message, and, once known, the manifest hash, the registry content hash and
+the required `confirmation`. Tokens are redacted from every report and log line.
+
+The default command, `plan`, is a dry run: it materialises and reports, with no
+chunk-dir write and no reducer call. `publish` also needs
+`WORLD_CHUNKS_PUBLISH_CONFIRM=publish:<manifestHash>:<registryContentHash>:<database>`.
+`manifestHash` is the SHA-256 of the exact published `manifestJson`: the
+`manifest.json` bytes the materializer writes. `plan` prints the whole value as
+`confirmation`, and so does a refused `publish`. Any change to the map, the content
+or the served assets changes it. The production database is only accepted with host
+`http://127.0.0.1:3000` and origin `https://orchard.dastari.net`.
+
+The token comes only from the private file named by `WORLD_CHUNKS_TOKEN_FILE`, with
+`WORLD_CHUNKS_TOKEN_LABEL` for a multi-entry rejoin file. It must be a regular file,
+not a symlink, owned by the user and not readable by group or others. It is never
+printed. The pipeline does not refresh the token itself. For a manual run, refresh
+the release credential file first, as the routine does (see PUBLISHING.md for the
+credential handoff):
+
+```bash
+WORLD_REJOIN_TOKENS_FILE=/private/rejoin-tokens.json WORLD_REJOIN_REQUIRE_REFRESH=1 \
+  npm run world:rejoin-smoke -- refresh
+WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=owner \
+  npm run world:chunks:publish -- plan --host http://127.0.0.1:3000 \
+  --database orchard-cellar-world --origin https://orchard.dastari.net \
+  --chunk-dir /home/toby/.local/share/orchard/world-chunks --report /private/evidence/plan.json
+# then, after review, refresh again and run the same command as `publish` (with a new
+# --report path) and WORLD_CHUNKS_PUBLISH_CONFIRM set to the printed confirmation.
+```
+
+`check` is the release check, and it is read only. It reports as stale (exit `3`):
+
+- heads that no longer match the live map revision and hash;
+- heads that no longer match the registry content hash (the bootstrap registry when
+  there is no content head);
+- heads that no longer match the served asset revision;
+- heads that disagree with the manifest;
+- heads whose blobs are not served.
+
+Stale heads fail the check, but nothing ever removes or disables them. The client
+falls back while they are stale, so players are never locked out.
+
+The routine release runs the step after the content CAS, once the new build is being
+served (the origin checks need the web service). It is behind `WORLD_RELEASE_CHUNKS`,
+which defaults to `off`:
+
+- `check` fails the release check on stale heads.
+- `publish` first checks. If the map, content or assets changed, it publishes with
+  `WORLD_RELEASE_CHUNKS_CONFIRM` and checks again.
+
+Before each pipeline run the hook refreshes the credential file through the rejoin
+refresh path. An error in a check (exit other than `0` or `3`) is reported as an
+error and never leads to a publish. `publish` requires `ORCHARD_WORLD_CHUNK_DIR` on
+`orchard-frontend.service`, and the release refuses to start without it.
+
+The evidence status is `deployed-chunk-publish-pending` while the step runs, so an
+interrupted step stays visible. It then becomes `deployed`, or
+`deployed-chunk-heads-stale` if the step failed. A failure leaves the deployment in
+place and exits non-zero. Evidence is in `<release evidence>/chunks/`
+(`check-before.json`, `publish.json`, `check-after.json`).
+
+**What `publish` usually does in a routine release.** The confirmation binds the
+manifest, which depends on the post-release content and on the atlas the new build
+serves. So it is normally unknown before the release, and the first run ends with
+`publish` exit `77`, status `deployed-chunk-heads-stale`, and the required value in
+`chunks/publish.json` (`confirmation`). Players are unaffected. The coordinator then:
+
+1. Reviews `chunks/publish.json`: the map revision, the content hash, the asset
+   revision and the chunk count.
+2. Refreshes the credential and runs `plan` by hand (above). It must print the same
+   `confirmation`. If it differs, something changed since the release: review the new
+   value instead.
+3. Runs `publish` with `WORLD_CHUNKS_PUBLISH_CONFIRM` set to that value, then `check`,
+   which must exit `0`.
+4. Records the result with the release evidence.
+
+The confirmation can be supplied up front only when it is already known: nothing in
+the release changes the map, the registry content hash or the served atlas, and a
+`plan` against the live world printed it. In that case, though, the heads are usually
+fresh already and `publish` does nothing.
 
 ## Orchard Studio repository deployment inputs
 

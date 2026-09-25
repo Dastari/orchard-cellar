@@ -11,6 +11,7 @@ import {
   type TerrainArray,
 } from './terrain.js';
 import { terrainContains, terrainIndexAt } from './terrain-index.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 describe('terrainIndexAt (static world S4b)', () => {
   it('matches the historical row-major index for a whole map at the default origin', () => {
@@ -66,7 +67,7 @@ function fixture(originX?: number, originY?: number): TerrainArray {
   const length = width * height;
   const biomes = new Uint8Array(length);
   for (let index = 0; index < length; index += 1) biomes[index] = (index * 7) % SURVIVAL_BIOMES.length;
-  const blocked = Array.from({ length }, (_, index) => index % 5 === 0 || Math.floor(index / width) <= 1);
+  const blocked = cellFlags(Array.from({ length }, (_, index) => index % 5 === 0 || Math.floor(index / width) <= 1));
   const authoredFarmland = Uint8Array.from({ length }, (_, index) => (index % 3 === 0 ? 1 : 0));
   return {
     spaceId: 1,
@@ -80,7 +81,7 @@ function fixture(originX?: number, originY?: number): TerrainArray {
     blocked,
     authoredFarmland,
     cliffFamilies: Uint8Array.from({ length }, (_, index) => index % 4),
-    horseJumpableTerrain: Array<boolean>(length).fill(false),
+    horseJumpableTerrain: new Uint8Array(length),
     elevations: new Int16Array(length),
     dirtCliffRoles: new Uint8Array(length),
     dirtTerraces: new Uint8Array(length),

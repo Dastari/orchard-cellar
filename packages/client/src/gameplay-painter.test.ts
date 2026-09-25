@@ -7,8 +7,8 @@ import {terrainProjectedDepthAtFoot} from '@orchard/engine/terrain';
 
 function terrainFixture(): TerrainArray {
   return { spaceId: 0, seed: 1, version: 1, width: 4, height: 4,
-    biomes: new Uint8Array(16).fill(4), blocked: Array<boolean>(16).fill(false),
-    horseJumpableTerrain: Array<boolean>(16).fill(false), elevations: new Int16Array(16),
+    biomes: new Uint8Array(16).fill(4), blocked: new Uint8Array(16),
+    horseJumpableTerrain: new Uint8Array(16), elevations: new Int16Array(16),
     dirtCliffRoles: new Uint8Array(16), dirtTerraces: new Uint8Array(16) };
 }
 describe('retained gameplay painter', () => {

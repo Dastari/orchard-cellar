@@ -11,7 +11,7 @@ function fixture(){
   const unit=TILE_SIZE_FIXED;
   const position={spaceId:0,x:12*unit,y:10.5*unit,facing:'up'};
   const portal={kind:'hearth_lobby_exit',fromSpace:0,fromTileX:10,fromTileY:10,toSpace:65532};
-  const collision={width:32,height:32,blocked:Array<boolean>(1024).fill(false),elevations:new Int16Array(1024)} satisfies CollisionMap;
+  const collision={width:32,height:32,blocked:new Uint8Array(1024),elevations:new Int16Array(1024)} satisfies CollisionMap;
   const active={generator:'island'};
   const dependencies={network:{ownPosition:()=>position},TILE_SIZE_FIXED,hearthLobbyPortalApproachClear,
     cellarLadderApproachClear,cellarLadderPortal,
@@ -50,6 +50,6 @@ describe('lobby portal prompt parity',()=>{
     f.position.x=11.9*f.unit;f.position.y=11.9*f.unit;expect(f.target()).toBe(f.portal);
     f.active.generator='delve_lobby';expect(f.target()).toBeNull();
     f.position.x=10.5*f.unit;f.position.y=10.5*f.unit;expect(f.target()).toBe(f.portal);
-    f.collision.blocked[10*32+10]=true;expect(f.target()).toBeNull();
+    f.collision.blocked[10*32+10] = 1;expect(f.target()).toBeNull();
   });
 });

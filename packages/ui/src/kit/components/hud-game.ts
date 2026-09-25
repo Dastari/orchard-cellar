@@ -1,4 +1,4 @@
-import { coinPurseFromBronze } from '@orchard/sim';
+import { coinPurseFromBronze } from '@orchard/sim/commerce';
 import { containsPoint, type UiRect } from '../../geometry.js';
 import { drawOutlinedPixelText, drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
 import { selectAtlasFrame } from '../../sprite.js';

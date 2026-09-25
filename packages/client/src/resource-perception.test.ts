@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint, type ResourcePerceptionInput } from './resource-perception.js';
 import { interactionTileAtWorldPoint } from './survival-ui.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 function fixture(overrides: Partial<ResourcePerceptionInput> = {}): ResourcePerceptionInput {
   return {
     seed: 1, spaceId: 10_001, underground: true, centerTileX: 70, centerTileY: 70,
-    terrain: { width: 150, height: 150, blocked: Array<boolean>(150 * 150).fill(true) },
+    terrain: { width: 150, height: 150, blocked: new Uint8Array(150 * 150).fill(1) },
     revision: 'registry:ranks:excavations:resources', resources: [],
     capabilities: {
       buriedOreRadiusTiles: 15, identifyBuriedOre: false,
@@ -59,8 +60,8 @@ describe('passive resource perception', () => {
     const depleted = resource(1, 70, 70, 'ore_iron', input.spaceId, true);
     expect(cache.project({ ...input, revision: 'depleted', resources: [depleted] }).buriedOre).toEqual([]);
     expect(cache.project({ ...input, revision: 'other-space', resources: [{ ...depleted, spaceId: 20_001 }] }).buriedOre).toHaveLength(1);
-    const blocked = [...input.terrain.blocked];
-    blocked[70 * 150 + 70] = false;
+    const blocked = input.terrain.blocked.slice();
+    blocked[70 * 150 + 70] = 0;
     expect(cache.project({ ...input, revision: 'excavated', terrain: { ...input.terrain, blocked } }).buriedOre).toEqual([]);
     expect(cache.project({ ...input, underground: false }).buriedOre).toEqual([]);
     expect(cache.project({ ...input, capabilities: { ...input.capabilities, buriedOreRadiusTiles: 0 } }).buriedOre).toEqual([]);
@@ -105,7 +106,7 @@ describe('passive resource perception', () => {
 
   it('keeps an edge-of-map projection byte-identical (static world S4b golden)', () => {
     // Recorded on origin/main c2e85788 before terrain indexing moved behind terrainIndexAt().
-    const blocked = Array.from({ length: 150 * 150 }, (_, index) => index % 5 !== 0 && index % 11 !== 3);
+    const blocked = cellFlags(Array.from({ length: 150 * 150 }, (_, index) => index % 5 !== 0 && index % 11 !== 3));
     const input = fixture({
       centerTileX: 4, centerTileY: 145, terrain: { width: 150, height: 150, blocked },
       resources: [resource(1, 3, 146), resource(2, 1, 140, 'ore_gold', 10_001, true), resource(3, 6, 148),

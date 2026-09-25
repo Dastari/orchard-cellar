@@ -3,6 +3,7 @@ import type { LegacyEconomyCatalog } from './economy-catalog.js';
 import { createInitialEconomy, type EconomyAction, type EconomyState } from './economy-state.js';
 import { createInitialProgression, type PrestigeAction, type ProgressionState } from './progression-state.js';
 import type { TerrainTransition } from './terrain-elevation.js';
+import { cellFlagsWhere } from './cell-flags.js';
 
 export const SIM_TICKS_PER_SECOND = 60;
 export const FIXED_UNITS_PER_PIXEL = 16;
@@ -49,7 +50,17 @@ export interface CollisionMap {
   readonly traversalChannels?: import('./traversal.js').MediumCollisionChannels;
   readonly width: number;
   readonly height: number;
-  readonly blocked: readonly boolean[];
+  /** Top-left world tile of a windowed map (static world S4d: the client's
+   * chunk window). Every cell array is indexed from this origin, so world tile
+   * (x, y) is cell (y - originY) * width + (x - originX). Whole maps omit both.
+   * Tiles outside the window are blocked, never walkable. Obstacles, transitions
+   * and positions stay in world coordinates. */
+  readonly originX?: number;
+  readonly originY?: number;
+  /** One byte per cell: non-zero is blocked, 0 is open. Test cells by
+   * truthiness (`blocked[i] !== 0`, or `(blocked[i] ?? 1) !== 0` to fail closed
+   * outside the array), never with `=== true`. Treat as read-only once built. */
+  readonly blocked: Uint8Array;
   /** Optional blockers resolved independently for each terrain elevation.
    * The flattened layout is `[elevation][tileY][tileX]`. This keeps projected
    * cliff faces solid on the lower plane while their cap edges independently
@@ -66,8 +77,9 @@ export interface CollisionMap {
    * terrain supplies both to client prediction and authority movement. */
   readonly elevations?: Int16Array | Uint8Array;
   readonly terrainTransitions?: readonly TerrainTransition[];
-  /** Blocked terrain tiles a mounted horse may cross during a jump. */
-  readonly horseJumpableTerrain?: readonly boolean[];
+  /** Blocked terrain tiles a mounted horse may cross during a jump: one byte
+   * per cell, non-zero where jumpable (same 0/1 convention as `blocked`). */
+  readonly horseJumpableTerrain?: Uint8Array;
   /** Optional fixed-point AABBs for sub-tile blockers such as tree trunks. */
   readonly obstacles?: readonly CollisionObstacle[];
 }
@@ -103,7 +115,7 @@ export type Action = MoveAction | TransitionAction | EconomyAction | PrestigeAct
 
 export function createEstateCollisionMap(treeTiles: readonly { readonly x: number; readonly y: number }[] = [], width = 64, height = 64): CollisionMap {
   const trees = new Set(treeTiles.map((tree) => `${tree.x},${tree.y}`));
-  const blocked = Array.from({ length: width * height }, (_, index) => {
+  const blocked = cellFlagsWhere(width * height, (index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
@@ -126,7 +138,7 @@ export function createEstateCollisionMap(treeTiles: readonly { readonly x: numbe
 }
 
 export function createCellarCollisionMap(width = 40, height = 24): CollisionMap {
-  const blocked = Array.from({ length: width * height }, (_, index) => {
+  const blocked = cellFlagsWhere(width * height, (index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;

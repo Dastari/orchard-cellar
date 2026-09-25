@@ -87,7 +87,7 @@ it.each(['axe', 'sword', 'pickaxe'])('sends a targetless F swing for %s', async 
     selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent,
     targetResource: () => null, targetCellarWall: () => null, targetAnvilRepairReady: () => false,
     isVitalsTool: () => true, localMount: () => null,
-    performToolAction: (action: () => void) => action(),
+    performToolAction: (action: () => void) => action(), glanceSwing: () => undefined,
     network: { useSelected: (...args: unknown[]) => calls.push(args) },
     event: { preventDefault: () => undefined },
   };

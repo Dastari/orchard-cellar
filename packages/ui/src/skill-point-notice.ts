@@ -1,9 +1,6 @@
 import type { ProgressionContentDefinition } from '@orchard/sim';
-import {
-  isSkillTrack,
-  skillLevelForExperience,
-  type SkillTrack,
-} from '@orchard/sim';
+import type { SkillTrack } from '@orchard/sim';
+import { isSkillTrack, skillLevelForExperience } from '@orchard/sim/skill-trees';
 
 export interface SkillPointProgress {
   readonly track: string;

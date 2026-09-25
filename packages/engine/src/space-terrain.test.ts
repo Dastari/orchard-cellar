@@ -1,0 +1,207 @@
+import { createHash } from 'node:crypto';
+import { describe, expect, it } from 'vitest';
+import {
+  SPACES,
+  SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_VERSION,
+  bootstrapContentRegistry,
+  spaceDefinitionFor,
+  type ContentRegistry,
+  type SpaceDefinition,
+} from '@orchard/sim';
+import { resolve } from 'node:path';
+import { PACKAGES_ROOT, legacyModulesReachedFrom, valueImportSpecifiers } from './generator-reach.fixture.js';
+import { spaceTerrain, terrainWithCellarExcavations } from './space-terrain.js';
+import * as terrainModule from './terrain.js';
+import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
+import * as terrainSampling from './terrain-sampling.js';
+
+/** Per-field digest of a terrain: typed arrays by type and bytes, everything
+ * else by stable JSON, so the golden pins every channel byte for byte. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, entry: unknown) => {
+    if (ArrayBuffer.isView(entry)) {
+      const bytes = new Uint8Array(entry.buffer, entry.byteOffset, entry.byteLength);
+      return { typedArray: entry.constructor.name, base64: Buffer.from(bytes).toString('base64') };
+    }
+    if (entry instanceof Map) return { map: [...entry.entries()] };
+    if (entry !== null && typeof entry === 'object' && !Array.isArray(entry)) {
+      return Object.fromEntries(Object.entries(entry).sort(([left], [right]) => left.localeCompare(right)));
+    }
+    return entry;
+  });
+}
+
+/** Per-cell flag planes are `Uint8Array`s of 0/1 bytes. The golden was recorded
+ * when they were `boolean[]`, so they are fingerprinted in that form: the golden
+ * keeps pinning every cell's value, independent of the storage type. */
+const FLAG_PLANES = new Set(['blocked', 'horseJumpableTerrain', 'residenceEnvelopeBlocked']);
+function recordedFlagPlane(key: string, value: Uint8Array): boolean[] {
+  if (value.some((cell) => cell > 1)) throw new Error(`${key} holds a cell other than 0 or 1`);
+  return Array.from(value, (cell) => cell === 1);
+}
+
+function fingerprint(terrain: TerrainArray): Record<string, unknown> {
+  const fields = Object.entries(terrain).sort(([left], [right]) => left.localeCompare(right));
+  return Object.fromEntries(fields.map(([key, raw]) => {
+    const value: unknown = FLAG_PLANES.has(key) && raw instanceof Uint8Array ? recordedFlagPlane(key, raw) : raw;
+    if (value === undefined || value === null || typeof value !== 'object') return [key, value ?? null];
+    const text = stableJson(value);
+    return [key, text.length <= 64 ? JSON.parse(text) : `sha256:${createHash('sha256').update(text).digest('hex')}`];
+  }));
+}
+
+const registry = bootstrapContentRegistry();
+const architecture = (revision: number, cells: readonly object[]) => JSON.stringify({ recipeVersion: 1, revision: String(revision), cells });
+const residenceCells = [
+  { tileX: 20, tileY: 20, floor: 'townhouse', partition: 'wall' },
+  { tileX: 21, tileY: 20, floor: 'stone' },
+];
+
+function instance(spaceId: number, row: Parameters<typeof spaceDefinitionFor>[1]): SpaceDefinition {
+  const space = spaceDefinitionFor(spaceId, row);
+  if (space === undefined) throw new Error(`no instance space ${spaceId}`);
+  return space;
+}
+
+const handmade = (fields: Partial<SpaceDefinition> & Pick<SpaceDefinition, 'spaceId' | 'generator' | 'sizeTiles'>): SpaceDefinition => ({
+  name: `${fields.generator}_${fields.spaceId}`, environment: 'indoor', ambient: 'clock', weather: false, audioBed: 'cave', ...fields,
+});
+
+/** Every non-island space kind terrainForSpace builds, with and without an
+ * explicit content registry. The island is covered once at the end. */
+function cases(): readonly { readonly name: string; readonly space: SpaceDefinition; readonly registry?: ContentRegistry; readonly seed: number; readonly version: number }[] {
+  const out: { name: string; space: SpaceDefinition; registry?: ContentRegistry; seed: number; version: number }[] = [];
+  const add = (name: string, space: SpaceDefinition, seed = 1234, version = 7) => {
+    out.push({ name: `${name}/bootstrap`, space, seed, version });
+    out.push({ name: `${name}/registry`, space, registry, seed, version });
+  };
+  for (const space of SPACES) if (space.generator !== 'island') add(`static:${space.spaceId}:${space.generator}`, space);
+  for (const sizeTier of [0, 1, 2, 3]) {
+    add(`homestead:tier${sizeTier}`, instance(10_000, { spaceId: 10_000, sizeTier, residenceSpaceId: 30_000, overworldTileX: 400, overworldTileY: 380 }), SURVIVAL_WORLD_SEED, 3);
+  }
+  add('homestead:no-site', instance(10_001, { spaceId: 10_001, residenceSpaceId: 30_002 }));
+  for (const rank of [0, 1, 2]) {
+    add(`residence:rank${rank}`, instance(30_000, { spaceId: 10_000, residenceSpaceId: 30_000, residenceExpansionRank: rank }));
+    add(`residence:rank${rank}:architecture`, instance(30_000, {
+      spaceId: 10_000, residenceSpaceId: 30_000, residenceExpansionRank: rank, residenceArchitectureJson: architecture(1, residenceCells),
+    }));
+  }
+  add('cellar', instance(30_001, { spaceId: 10_000, residenceSpaceId: 30_000 }), 99, 2);
+  for (const theme of ['cave', 'dungeon', 'volcanic']) for (const roomKind of ['combat', 'elite', 'shop', 'recovery', 'treasure', 'boss']) {
+    add(`roguelike:${theme}:${roomKind}`, instance(40_000, { spaceId: 40_000, instanceKind: 'roguelike', seed: 0xbeef, roomNumber: 3, roomKind, theme }));
+  }
+  add('roguelike:seed2', instance(40_001, { spaceId: 40_001, instanceKind: 'roguelike', seed: 77, roomNumber: 1, roomKind: 'combat', theme: 'cave' }));
+  add('roguelike:no-room', handmade({ spaceId: 40_002, generator: 'roguelike', sizeTiles: 32 }));
+  add('mine', handmade({ spaceId: 50_000, generator: 'mine', sizeTiles: 48 }));
+  add('debug_flat:handmade', handmade({ spaceId: 50_001, generator: 'debug_flat', sizeTiles: 16 }));
+  add('village_interior:unknown', handmade({ spaceId: 50_002, generator: 'village_interior', sizeTiles: 32 }));
+  add('delve_lobby:unknown', handmade({ spaceId: 50_003, generator: 'delve_lobby', sizeTiles: 24 }));
+  return out;
+}
+
+describe('terrainForSpace output for every space kind', () => {
+  it('matches the golden recorded from the pre-split terrain.ts (ce68068a)', async () => {
+    const output: Record<string, unknown> = {};
+    for (const { name, space, registry: explicit, seed, version } of cases()) {
+      let first: TerrainArray;
+      try { first = terrainForSpace(space, seed, version, explicit); } catch (error) {
+        output[name] = { error: (error as Error).message };
+        continue;
+      }
+      const second = terrainForSpace(space, seed, version, explicit);
+      output[name] = { cachedIdentity: first === second, terrain: fingerprint(first) };
+    }
+    await expect(`${JSON.stringify(output, null, 1)}\n`).toMatchFileSnapshot('./space-terrain.golden.json');
+  });
+
+  it('keeps the island terrain and terrainForWorld identical to the recorded generator output', async () => {
+    const island = SPACES.find((space) => space.generator === 'island')!;
+    const world = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
+    const output = {
+      world: fingerprint(world),
+      staticIsland: fingerprint(terrainForSpace(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION)),
+      worldCached: world === terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION),
+    };
+    await expect(`${JSON.stringify(output, null, 1)}\n`).toMatchFileSnapshot('./space-terrain-island.golden.json');
+  });
+
+  it('bounds residence architecture revisions in the cache exactly as before', () => {
+    const space = (revision: number) => instance(30_100, {
+      spaceId: 10_100, residenceSpaceId: 30_100, residenceExpansionRank: 1,
+      residenceArchitectureJson: architecture(revision, [{ tileX: 20 + revision, tileY: 20, floor: 'stone' }]),
+    });
+    const first = terrainForSpace(space(1), 5, 5, registry);
+    expect(terrainForSpace(space(1), 5, 5, registry)).toBe(first);
+    for (let revision = 2; revision <= 6; revision += 1) terrainForSpace(space(revision), 5, 5, registry);
+    const again = terrainForSpace(space(1), 5, 5, registry);
+    expect(again).not.toBe(first);
+    expect(fingerprint(again)).toEqual(fingerprint(first));
+    expect(terrainForSpace(space(6), 5, 5, registry)).toBe(terrainForSpace(space(6), 5, 5, registry));
+  });
+
+  it('returns fresh fully blocked terrain for unknown authored interiors without caching it', () => {
+    for (const generator of ['village_interior', 'delve_lobby'] as const) {
+      const space = handmade({ spaceId: 50_010, generator, sizeTiles: 8 });
+      const first = terrainForSpace(space, 1, 1, registry);
+      expect(first.blocked.every(Boolean)).toBe(true);
+      expect(terrainForSpace(space, 1, 1, registry)).not.toBe(first);
+    }
+  });
+
+  it('builds non-island spaces through spaceTerrain with the same cached objects terrainForSpace returns', () => {
+    let direct = 0;
+    for (const { name, space, registry: explicit, seed, version } of cases()) {
+      if (space.generator === 'homestead' && space.homesteadSite !== undefined) {
+        expect(() => spaceTerrain(space, seed, version, explicit), name).toThrow('space_terrain_homestead_requires_generator');
+        continue;
+      }
+      let viaTerrain: TerrainArray;
+      try { viaTerrain = terrainForSpace(space, seed, version, explicit); } catch (error) {
+        expect(() => spaceTerrain(space, seed, version, explicit), name).toThrow((error as Error).message);
+        continue;
+      }
+      const viaSpace = spaceTerrain(space, seed, version, explicit);
+      // Shared caches: a cached terrain is the same object through either entry;
+      // the uncached fully blocked fallback is rebuilt identically.
+      if (viaTerrain === terrainForSpace(space, seed, version, explicit)) expect(viaSpace, name).toBe(viaTerrain);
+      else expect(fingerprint(viaSpace), name).toEqual(fingerprint(viaTerrain));
+      direct += 1;
+    }
+    expect(direct).toBeGreaterThan(80);
+    const island = SPACES.find((space) => space.generator === 'island')!;
+    expect(() => spaceTerrain(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION)).toThrow('space_terrain_island_requires_generator');
+  });
+
+  it('refuses a second generator set, since cache keys cannot tell generator sets apart', () => {
+    terrainForSpace(handmade({ spaceId: 50_020, generator: 'debug_flat', sizeTiles: 8 }), 1, 1);
+    const island = SPACES.find((space) => space.generator === 'island')!;
+    terrainForSpace(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
+    const substitute = { island: () => { throw new Error('substitute generator used'); } };
+    expect(() => spaceTerrain(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, undefined, substitute))
+      .toThrow('space_terrain_generators_changed');
+  });
+});
+
+describe('terrain module split import boundary (static-world S6a)', () => {
+  const engineSource = resolve(PACKAGES_ROOT, 'engine/src');
+
+  it.each(['space-terrain.ts', 'terrain-sampling.ts', 'terrain-array.ts'])('%s reaches no generator, compiler, map document, terrain.ts or sim barrel module', (file) => {
+    const entry = resolve(engineSource, file);
+    expect(legacyModulesReachedFrom(entry)).toEqual([]);
+    expect(valueImportSpecifiers(entry)).not.toContain('@orchard/sim');
+  });
+
+  it('keeps terrain.ts re-exporting the very same sampling and space-terrain bindings', () => {
+    const sampling = Object.entries(terrainSampling);
+    expect(sampling.length).toBeGreaterThan(50);
+    for (const [name, value] of sampling) expect((terrainModule as Record<string, unknown>)[name], name).toBe(value);
+    expect(terrainModule.terrainWithCellarExcavations).toBe(terrainWithCellarExcavations);
+    expect('spaceTerrain' in terrainModule).toBe(false);
+  });
+
+  it('leaves only island generation in terrain.ts', () => {
+    const own = Object.keys(terrainModule).filter((name) => !(name in terrainSampling));
+    expect(own.sort()).toEqual(['terrainForSpace', 'terrainForWorld', 'terrainWithCellarExcavations']);
+  });
+});

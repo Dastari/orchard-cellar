@@ -15,6 +15,7 @@ import type { MapEditorController, MapEditorLiveMarker } from './editor-controll
 import type { MapEditorModel } from './model.js';
 import type { MapEditorRenderer } from './editor-renderer.js';
 import type { MapSchemaInspectorField } from './schema-inspector-actions.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 let art: UiKitArt;
 const faces = new WeakMap<object, 'font_5x7' | 'font_8x12'>();
@@ -156,7 +157,7 @@ describe('production Studio typography', () => {
     h.state.model.selectAnchor('local-long-annotation');
     vi.spyOn(h.state.renderer, 'inspectionTerrain').mockReturnValue({
       spaceId: 0, seed: 1, version: 1, width: 1, height: 1, generator: 'debug_flat',
-      biomes: new Uint8Array(1), blocked: [false], horseJumpableTerrain: [true], elevations: new Int16Array(1),
+      biomes: new Uint8Array(1), blocked: cellFlags([false]), horseJumpableTerrain: cellFlags([true]), elevations: new Int16Array(1),
       dirtCliffRoles: new Uint8Array(1), dirtTerraces: new Uint8Array(1),
     });
     const snapshot = h.state.interaction.snapshot();

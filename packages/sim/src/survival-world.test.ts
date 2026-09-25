@@ -262,7 +262,7 @@ describe('deterministic survival island', () => {
       expect(survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, tile.tileX, tile.tileY))).toBe(true);
       expect(survivalLandmarksGroundWalkableAt([fishingLandmark], tile.tileX, tile.tileY)).toBe(true);
       expect(survivalFishermanDockWalkableAt(tile.tileX, tile.tileY)).toBe(true);
-      expect(collision.blocked[tile.tileY * collision.width + tile.tileX]).toBe(false);
+      expect(collision.blocked[tile.tileY * collision.width + tile.tileX]).toBe(0);
     }
     expect(survivalFishermanDockWalkableAt(410, 317)).toBe(false);
 
@@ -762,7 +762,7 @@ describe('deterministic survival island', () => {
       collision, southFace.tileX, southFace.tileY, southFace.contourLevel,
     )).toBe(true);
     for (let tileY = southFace.tileY - 1; tileY <= southFace.tileY + 2; tileY += 1) {
-      expect(collision.blocked[tileY * collision.width + southFace.tileX]).toBe(false);
+      expect(collision.blocked[tileY * collision.width + southFace.tileX]).toBe(0);
     }
     const start = {
       position: {
@@ -862,7 +862,7 @@ describe('deterministic survival island', () => {
     const live = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [{ ...resource, depleted: false }]);
     const depleted = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [{ ...resource, depleted: true }]);
     expect(live.blocked[index]).toBe(
-      survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
+      Number(survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY))),
     );
     expect(live.obstacles).toContainEqual(survivalTreeObstacle(resource.tileX, resource.tileY));
     expect(live.obstacles).toHaveLength((depleted.obstacles?.length ?? 0) + 1);
@@ -874,7 +874,7 @@ describe('deterministic survival island', () => {
     });
     expect(depleted.obstacles?.length).toBeGreaterThan(0);
     expect(depleted.blocked[index]).toBe(
-      survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
+      Number(survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY))),
     );
     expect(survivalBiomeBlocksMovement('water')).toBe(true);
     expect(survivalBiomeBlocksMovement('freshwater')).toBe(true);
@@ -911,7 +911,7 @@ describe('deterministic survival island', () => {
     const waterCollision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'water');
     const rockObstacle = survivalDecorationObstacle(waterRock, 'water');
     expect(rockObstacle).not.toBeNull();
-    expect(waterCollision.blocked[waterRock.tileY * waterCollision.width + waterRock.tileX]).toBe(false);
+    expect(waterCollision.blocked[waterRock.tileY * waterCollision.width + waterRock.tileX]).toBe(0);
     expect(waterCollision.obstacles).toContainEqual(rockObstacle);
   });
 

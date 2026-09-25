@@ -1,7 +1,8 @@
 import { CombatRegionPolicy } from './combat-regions.js';
-import { LIVE_ISLAND_MAP_ID, type MapDocumentV3 } from './map-document-v3.js';
+import { LIVE_ISLAND_MAP_ID } from './live-island-map-id.js';
+import type { MapDocumentV3 } from './map-document-v3.js';
 import { combatSegmentObstructed } from './combat-actions.js';
-import { playerInteractionOrigin, positionCollides } from './movement.js';
+import { collisionCellIndex, playerInteractionOrigin, positionCollides } from './movement.js';
 import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';
 import type { ContentRegistry } from './content/registry.js';
 
@@ -43,8 +44,11 @@ export function runtimeHearthSupplyCache(
 }
 
 /** A named object is insufficient: require the reviewed chest visual, physical
- * base and untransformed placement. No arbitrary map object grants storage. */
-export function hearthSupplyCacheInstalled(cache: HearthSupplyCacheDefinition, document: MapDocumentV3 | null): boolean {
+ * base and untransformed placement. No arbitrary map object grants storage.
+ * `document` needs only the map id, objects, prefabs and combat regions: a whole
+ * document, or (client chunk mode `on`, static world S4e) the render window's records. */
+export function hearthSupplyCacheInstalled(cache: HearthSupplyCacheDefinition,
+  document: Pick<MapDocumentV3, 'id' | 'objects' | 'prefabs' | 'combatRegions'> | null): boolean {
   if (document === null || document.id !== LIVE_ISLAND_MAP_ID) return false;
   const matches = document.objects.filter(object => object.id === cache.objectId);
   const object = matches[0];
@@ -74,7 +78,11 @@ export function hearthSupplyCacheApproachClear(cache: HearthSupplyCacheDefinitio
   // every obstacle, so a foreign fence between the frontage and chest blocks.
   const contact = { x: (cache.tileX + .5) * TILE_SIZE_FIXED,
     y: (cache.tileY + 1) * TILE_SIZE_FIXED + 1 };
-  const elevation = (x: number, y: number) => collision.elevations?.[Math.floor(y / TILE_SIZE_FIXED) * collision.width + Math.floor(x / TILE_SIZE_FIXED)] ?? 0;
+  // World tiles through the shared addressing (a client chunk window has an origin, S4d).
+  const elevation = (x: number, y: number) => {
+    const cell = collisionCellIndex(collision, Math.floor(x / TILE_SIZE_FIXED), Math.floor(y / TILE_SIZE_FIXED));
+    return cell < 0 ? 0 : collision.elevations?.[cell] ?? 0;
+  };
   return Math.hypot(position.x - point.x, position.y - point.y) <= 1.5 * TILE_SIZE_FIXED
     && elevation(position.x, position.y) === 0 && elevation(point.x, point.y) === 0
     && !positionCollides(position, collision) && !positionCollides(point, collision)
