@@ -169,6 +169,83 @@ unit's loaded `FragmentPath` with `systemctl show` for one final installed-unit
 validation before restoring traffic. A repository unit that differs from the installed
 service therefore cannot silently return a development server to players.
 
+### World chunk blobs (`/world/`)
+
+The static-world client fetches content-addressed chunk blobs from
+`/world/<spaceId>/<sha256>.bin` (`chunkBlobPath` in `packages/sim/src/chunk-runtime.ts`).
+They are not build output: `vite build` empties `packages/client/dist` on every
+build, so the blobs live in a persistent directory named by `ORCHARD_WORLD_CHUNK_DIR`
+and are served by the `orchard-world-chunk-serving` plugin
+(`packages/client/world-chunk-serving.ts`) in both `vite preview` and `vite dev`.
+
+- **Unset (the default) serves nothing.** Every `/world/` request is a `404`, so
+  releases without the variable behave as before. A relative path is also rejected
+  (a warning is logged and every blob is a 404). The recommended production value is
+  `/home/toby/.local/share/orchard/world-chunks`: it is persistent, owned by the
+  service user, and outside the checkout, so builds, `git clean` and worktree changes
+  cannot remove it.
+- **Layout.** `<dir>/<spaceId>/<hash>.bin`, with optional precompressed siblings
+  `<hash>.bin.br` and `<hash>.bin.gz` that must be compressed from that same file.
+  Only regular files are served; symlinks count as missing. The identity `.bin` must
+  exist for any variant to be served.
+- **Installing blobs.** The S5b pipeline (`scripts/world-chunks-publish.ts`, not yet
+  written) will materialise and verify each blob, write it and its siblings, and
+  then publish the heads. Blobs are immutable and addressed by hash, so installing
+  is additive: never rewrite or delete a published blob during a release (open tabs
+  and rollback may still need it). The blobs can be regenerated from the world
+  database, so they are not part of the world backup.
+- **Responses.** Only the exact address shape is served (decimal space id without
+  leading zeros, 64 lowercase hex, `.bin`, no query string); everything else under
+  `/world/` is a `404` and never falls back to the SPA `index.html`. `GET` and `HEAD`
+  return `Content-Type: application/octet-stream`,
+  `Cache-Control: public, max-age=31536000, immutable`, `Vary: Accept-Encoding`,
+  `X-Content-Type-Options: nosniff` and an ETag of the hash (`"<hash>"`, or
+  `"<hash>-br"`/`"<hash>-gzip"` for a compressed variant). `If-None-Match` returns
+  `304`. The best sibling the client accepts is chosen (`br` ahead of `gzip` when
+  their q-values are equal), with `Content-Encoding` set; otherwise the identity
+  bytes are sent. Misses are `404` with `Cache-Control: no-store`. Other methods get
+  `405` with `Allow: GET, HEAD`. Range requests are not supported.
+- **Service worker.** The PWA worker does not intercept `/world/`. The client's
+  IndexedDB chunk cache is the only client-side cache.
+
+Enabling the directory in production takes one line in `orchard-frontend.service`
+(installed and repository copies), followed by `systemctl daemon-reload` and a
+restart of the frontend only:
+
+```ini
+Environment=ORCHARD_WORLD_CHUNK_DIR=/home/toby/.local/share/orchard/world-chunks
+```
+
+Create the directory first as the service user (`install -d -m 0755
+/home/toby/.local/share/orchard/world-chunks`). The unit's `PrivateTmp=true` means a
+directory under `/tmp` would not be visible to the service.
+
+Once heads are published, the public validator can also check every head over the
+origin. It is off by default; enable it with a heads file listing one head per line
+as `<spaceId> <contentHash> <byteLength>` (blank lines and `#` comments are ignored).
+The file can come from the S5b pipeline or from `SELECT space_id, content_hash,
+byte_length FROM world_chunk_head`:
+
+```bash
+CLIENT_VALIDATE_ORIGIN=https://orchard.dastari.net \
+CLIENT_VALIDATE_WORLD_CHUNKS=1 \
+CLIENT_VALIDATE_WORLD_CHUNK_HEADS=/absolute/path/heads.txt \
+  npm run client:static:validate
+```
+
+For each head it fetches the blob with `curl --compressed`, then checks:
+
+- the blob is served as `application/octet-stream` with immutable caching;
+- the decoded length equals `byteLength`;
+- it has the `OCCHNK` envelope magic;
+- `sha256(bytes[40:])` equals both the address hash and the digest embedded at
+  bytes 8–40, which is how `world-chunk.ts` defines a chunk's content hash. The hash
+  does not cover the whole file.
+
+It also checks that a missing blob is a real `404`. It reports how many blobs were
+served with each encoding, which shows whether Brotli survives the public reverse
+proxy. With `CLIENT_STATIC_DRY_RUN=true` it only parses the heads file.
+
 For a Tier-B rollout that migrates stored data, provide owner-only token, backup, and snapshot paths
 and use the checked orchestrator rather than invoking `spacetime publish` directly:
 
