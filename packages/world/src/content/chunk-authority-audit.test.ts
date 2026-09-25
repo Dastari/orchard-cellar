@@ -9,7 +9,7 @@ import { chunkAuthorityMode } from '../chunk-authority-setting.js';
 import { assembleChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource, type CompiledCollisionRuntime } from './chunk-authority-dispatch.js';
 import {
-  CHUNK_AUTHORITY_AUDIT_SCHEMA, chunkAuthorityAuditClock, runChunkAuthorityAudit,
+  CHUNK_AUTHORITY_AUDIT_SCHEMA, ChunkAuthoritySnapshotError, chunkAuthorityAuditClock, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables,
   type ChunkAuthorityAuditClock, type ChunkAuthorityAuditInput, type ChunkAuthorityAuditReport, type ChunkHeadView,
 } from './chunk-authority-audit.js';
 
@@ -194,7 +194,7 @@ describe('runChunkAuthorityAudit', () => {
   it('reports null timings without a usable clock', () => {
     const report = runChunkAuthorityAudit(auditHarness({ clock: { label: 'none', now: () => 0 } }).input);
     expect(report.ok).toBe(true);
-    expect(report.timings).toEqual({ clock: 'none', chunkBuildMs: null, diagnosticAssembleMs: null, compiledBuildMs: null, compareMs: null, totalMs: null });
+    expect(report.timings).toEqual({ clock: 'none', snapshotMs: null, chunkBuildMs: null, diagnosticAssembleMs: null, compiledBuildMs: null, compareMs: null, totalMs: null });
   });
 
   it('does not touch the caller dispatcher: the resolve is a fresh instance', () => {
@@ -259,37 +259,77 @@ function readOnlyTables(tables: Record<string, object>): Record<string, object> 
 function procedureHarness(member: { role: string; blocked: boolean; revokedAt?: unknown } | null) {
   const h = auditHarness();
   const heads = h.input.heads();
+  const shadow = h.input.source.shadow();
+  const blobs = new Map(h.manifest.chunks.map(head => [head.contentHash, h.input.source.readBlob(head.contentHash)]));
+  const state = { inTx: false, tableReads: [] as string[] };
   const tables = readOnlyTables({
-    membership: { identity: { find: () => member } },
+    membership: { identity: { find: () => { state.tableReads.push('membership'); return member; } } },
     space_admin_flag: { spaceId: { find: () => ({ spaceId: 0, flagsJson: JSON.stringify({ chunkAuthority: 'shadow' }) }) } },
-    world_chunk_head: { by_space: { filter: (spaceId: bigint) => (spaceId === 0n ? heads : []) } },
+    live_map_document: { mapId: { find: (id: string) => { state.tableReads.push('live_map_document'); return id === LIVE_ISLAND_MAP_ID ? { revision: 3, contentHash: 'map-3' } : null; } } },
+    content_head: { packId: { find: () => { state.tableReads.push('content_head'); return { packId: 'live', contentHash: REGISTRY_HASH }; } } },
+    content_definition: { iter: () => { state.tableReads.push('content_definition'); return [][Symbol.iterator](); } },
+    world_chunk_shadow: { spaceId: { find: (spaceId: bigint) => { state.tableReads.push('world_chunk_shadow'); return spaceId === 0n ? shadow : null; } } },
+    world_chunk_head: { by_space: { filter: (spaceId: bigint) => { state.tableReads.push('world_chunk_head'); return spaceId === 0n ? heads : []; } } },
+    world_chunk_blob: { contentHash: { find: (hash: string) => {
+      state.tableReads.push('world_chunk_blob');
+      const bytes = blobs.get(hash);
+      return bytes === undefined ? null : { contentHash: hash, bytes };
+    } } },
   });
   const tx = { sender: 'sender', senderAuth: { jwt }, db: tables };
-  const withTx = vi.fn((body: (value: typeof tx) => string) => body(tx));
+  const withTx = vi.fn(<T>(body: (value: typeof tx) => T): T => {
+    state.inTx = true;
+    try {
+      return body(tx);
+    } finally {
+      state.inTx = false;
+    }
+  });
+  const outsideTx = (label: string) => { if (state.inTx) throw new Error(`${label} ran inside the transaction`); };
+  type SnapshotWorld = { db: { world_chunk_shadow: { spaceId: { find(id: bigint): unknown } }; world_chunk_blob: { contentHash: { find(hash: string): { bytes: Uint8Array } | null } };
+    live_map_document: { mapId: { find(id: string): unknown } } } };
   const procedure = compile<(ctx: unknown, args: Record<string, never>) => string>('auditChunkAuthority', {
     spacetimedb: { procedure: (_args: unknown, _returns: unknown, handler: unknown) => handler },
     t: { string: () => null },
     requireStrictWorldOwner,
     chunkAuthorityAuditCalls: 0,
-    chunkAuthoritySource: () => ({ ...h.input.source, compiled: () => { throw new Error('the audit must build compiled cold'); } }),
-    coldCompiledLiveIslandRuntime: () => h.input.coldCompiled(),
-    runChunkAuthorityAudit: (input: ChunkAuthorityAuditInput) => runChunkAuthorityAudit({ ...input, worldSize: WORLD }),
+    // The real source helper reads the (snapshot) db; this stand-in does the same, outside the transaction.
+    chunkAuthoritySource: (world: SnapshotWorld) => {
+      outsideTx('chunkAuthoritySource');
+      return {
+        ...h.input.source,
+        shadow: () => { outsideTx('shadow'); return world.db.world_chunk_shadow.spaceId.find(0n); },
+        liveMap: () => world.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID),
+        readBlob: (hash: string) => { outsideTx('readBlob'); return world.db.world_chunk_blob.contentHash.find(hash)?.bytes; },
+        compiled: () => { throw new Error('the audit must build compiled cold'); },
+      };
+    },
+    coldCompiledLiveIslandRuntime: () => { outsideTx('coldCompiled'); return h.input.coldCompiled(); },
+    runChunkAuthorityAudit: (input: ChunkAuthorityAuditInput) => { outsideTx('runChunkAuthorityAudit'); return runChunkAuthorityAudit({ ...input, worldSize: WORLD }); },
     chunkAuthorityMode,
     chunkAuthorityAuditClock: () => fakeClock(),
-    chunkAuthorityDispatcher: { status: () => ({ compares: 0 }) },
+    snapshotChunkAuthorityTables,
+    chunkAuthoritySnapshotDb,
+    LIVE_ISLAND_MAP_ID,
+    LIVE_CONTENT_PACK_ID: 'live',
     TOPSIDE_SPACE_ID: 0,
   });
-  return { call: () => procedure({ withTx }, {}), withTx, compiledBuilds: h.compiledBuilds };
+  return { call: () => procedure({ withTx }, {}), withTx, compiledBuilds: h.compiledBuilds, state };
 }
 
 describe('auditChunkAuthority procedure', () => {
-  it('returns the JSON report to the world owner without writing', () => {
+  it('snapshots in one short transaction, then builds and compares outside it, without writing', () => {
     const p = procedureHarness({ role: 'owner', blocked: false });
     const report = JSON.parse(p.call()) as ChunkAuthorityAuditReport;
     expect(p.withTx).toHaveBeenCalledTimes(1);
-    expect(report).toMatchObject({ schema: 1, ok: true, mode: 'shadow', instance: { auditCalls: 1 }, liveDispatcher: { compares: 0 },
+    expect(report).toMatchObject({ schema: 1, ok: true, mode: 'shadow', instance: { auditCalls: 1, transaction: 'snapshot' },
       completeness: { complete: true }, disagreements: { count: 0 } });
+    expect(report.timings.snapshotMs).toBeGreaterThan(0);
+    expect(report).not.toHaveProperty('liveDispatcher');
     expect(p.compiledBuilds()).toBe(1);
+    // Every table read happened inside the transaction (the builds only read the copy).
+    expect(new Set(p.state.tableReads)).toEqual(new Set(['membership', 'world_chunk_shadow', 'world_chunk_head', 'world_chunk_blob',
+      'live_map_document', 'content_head', 'content_definition']));
   });
 
   it.each([
@@ -301,18 +341,68 @@ describe('auditChunkAuthority procedure', () => {
     const p = procedureHarness(member);
     expect(() => p.call()).toThrow(SenderError);
     expect(p.compiledBuilds()).toBe(0);
+    expect(p.state.tableReads).toEqual(['membership']);
   });
 
-  it('uses the strict owner gate, the live dispatcher source and no table writes', () => {
+  it('uses the strict owner gate, a snapshot transaction, the dispatcher source and no table writes', () => {
     const text = declarationText('auditChunkAuthority');
     expect(text).toContain('spacetimedb.procedure(');
-    expect(text).toContain('ctx.withTx(');
     expect(text).toContain('requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender))');
     expect(text).not.toMatch(/requireWorldOwner\(/u);
-    expect(text).toContain('chunkAuthoritySource(world)');
     expect(text).not.toMatch(/\.(insert|update|delete|clear)\(/u);
-    // The live dispatcher reads the same source helper.
-    expect(declarationText('liveIslandCollisionRuntime')).toContain('chunkAuthoritySource(ctx)');
+    // The transaction only checks the owner and copies rows; the builds use the copy.
+    const transaction = text.slice(text.indexOf('ctx.withTx('), text.indexOf('});', text.indexOf('ctx.withTx(')));
+    expect(transaction).toContain('snapshotChunkAuthorityTables(tx');
+    expect(transaction).not.toMatch(/runChunkAuthorityAudit|coldCompiled|chunkAuthoritySource/u);
+    expect(text).toContain('chunkAuthoritySource(world)');
+    expect(text).toContain('chunkAuthoritySnapshotDb(snapshot.tables)');
+    expect(text.match(/withTx\(/gu)).toHaveLength(1);
+    // The dispatcher reads the same source helper; `off` goes straight to compiled.
+    const dispatcher = declarationText('liveIslandCollisionRuntime');
+    expect(dispatcher).toContain('chunkAuthoritySource(ctx)');
+    expect(dispatcher.indexOf('chunkAuthoritySource(ctx)')).toBeGreaterThan(dispatcher.indexOf("mode === 'off'"));
+  });
+});
+
+describe('chunk authority snapshot', () => {
+  function source() {
+    const { manifest, store } = island();
+    const [first, second] = manifest.chunks;
+    const extra = 'e'.repeat(64);
+    const entries: [string, Uint8Array][] = [...store.entries(), [extra, new Uint8Array(1)]];
+    const blobRows = new Map(entries.map(([hash, bytes]) => [hash, { contentHash: hash, bytes }]));
+    const found: string[] = [];
+    const tx = { db: {
+      live_map_document: { mapId: { find: (id: string) => ({ mapId: id, revision: 3 }) } },
+      content_head: { packId: { find: (id: string) => ({ packId: id, contentHash: REGISTRY_HASH }) } },
+      content_definition: { iter: () => [{ id: 'a' }, { id: 'b' }][Symbol.iterator]() },
+      world_chunk_shadow: { spaceId: { find: () => ({ revision: 1, manifestJson: JSON.stringify(manifest) }) } },
+      // One head is stale: its blob is still copied, and so is the manifest's.
+      world_chunk_head: { by_space: { filter: () => [{ contentHash: first!.contentHash }, { contentHash: extra }][Symbol.iterator]() } },
+      world_chunk_blob: { contentHash: { find: (hash: string) => { found.push(hash); return blobRows.get(hash) ?? null; } } },
+    } };
+    return { tx, found, first: first!, second: second!, extra };
+  }
+
+  it('copies the rows and exactly the blobs the heads and the manifest name', () => {
+    const s = source();
+    const snapshot = snapshotChunkAuthorityTables(s.tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: 'live', spaceId: 0n });
+    expect(new Set(s.found)).toEqual(new Set([s.first.contentHash, s.second.contentHash, s.extra]));
+    expect([...snapshot.blobs.keys()].sort()).toEqual([s.first.contentHash, s.second.contentHash, s.extra].sort());
+    expect(snapshot.contentDefinitions).toEqual([{ id: 'a' }, { id: 'b' }]);
+  });
+
+  it('serves only the snapshot: other tables, other keys and writes throw', () => {
+    const s = source();
+    const snapshot = snapshotChunkAuthorityTables(s.tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: 'live', spaceId: 0n });
+    const db = chunkAuthoritySnapshotDb(snapshot) as Record<string, Record<string, Record<string, (key: unknown) => unknown>>> & Record<string, unknown>;
+    expect(db['live_map_document']!['mapId']!['find']!(LIVE_ISLAND_MAP_ID)).toMatchObject({ revision: 3 });
+    expect((db['world_chunk_blob']!['contentHash']!['find']!(s.second.contentHash) as { bytes: Uint8Array }).bytes).toBeInstanceOf(Uint8Array);
+    expect(db['world_chunk_blob']!['contentHash']!['find']!('f'.repeat(64))).toBeNull();
+    expect(() => db['membership']).toThrow(ChunkAuthoritySnapshotError);
+    expect(() => db['live_map_document']!['mapId']!['find']!('other-map')).toThrow('audit_snapshot_key:live_map_document.mapId=other-map');
+    expect(() => db['world_chunk_head']!['by_space']!['filter']!(1n)).toThrow(ChunkAuthoritySnapshotError);
+    expect(() => { (db as Record<string, unknown>)['world_chunk_blob'] = {}; }).toThrow('audit_snapshot_read_only');
   });
 });
 

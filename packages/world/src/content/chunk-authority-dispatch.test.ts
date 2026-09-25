@@ -383,6 +383,16 @@ describe('chunk authority dispatcher: shadow', () => {
     d.recordSample(100n, positions, final, () => final);
     expect(h.events.filter(({ event }) => event['event'] === 'chunk_authority_sample_window')).toEqual([{ level: 'info', event: {
       event: 'chunk_authority_sample_window', window: '0', sampledTicks: 4, sampledPositions: 4, disagreements: 0, logged: 0, suppressed: 0 } }]);
+    // `off` forgets the open window: a later shadow period starts counting from zero and never
+    // reports the ticks sampled before the switch.
+    d.release();
+    d.select(h.source);
+    const again = d.sampleRuntime(1_000n)!;
+    const finalAgain = { ground: composeChunkIslandCollision(again, 'ground'), water: composeChunkIslandCollision(again, 'water') };
+    d.recordSample(1_000n, positions, finalAgain, () => finalAgain);
+    d.recordSample(1_100n, positions, finalAgain, () => finalAgain);
+    expect(h.events.filter(({ event }) => event['event'] === 'chunk_authority_sample_window').map(({ event }) => [event['window'], event['sampledTicks']]))
+      .toEqual([['0', 4], ['10', 1]]);
   });
 
   it('compares every per-cell channel and the ordered obstacles near a position', () => {

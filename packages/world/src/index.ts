@@ -3,7 +3,7 @@ import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
-import { chunkAuthorityAuditClock, runChunkAuthorityAudit } from './content/chunk-authority-audit.js';
+import { chunkAuthorityAuditClock, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
 import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
@@ -12919,12 +12919,11 @@ const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
  */
 function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
   const mode = chunkAuthorityMode(ctx);
-  const source = chunkAuthoritySource(ctx);
   if (mode === 'off') {
     chunkAuthorityDispatcher.release();
-    return source.compiled();
+    return compiledLiveIslandRuntime(ctx);
   }
-  return chunkAuthorityDispatcher.select({ ...source, mode });
+  return chunkAuthorityDispatcher.select({ ...chunkAuthoritySource(ctx), mode });
 }
 
 /** Everything the dispatcher (and the S2c audit) reads, as lazy accessors. The
@@ -12947,8 +12946,10 @@ function chunkAuthoritySource(ctx: WorldReducerContext): Omit<ChunkAuthoritySour
   };
 }
 
-/** S2c audit only: a compiled build that bypasses the module cache (so its time is
- * the cold cost) and then restores the cache the live call sites were using. */
+/** S2c audit only: a compiled build that bypasses the module cache (so its time is the
+ * cold cost), then puts back whatever this instance had cached. The audit procedure runs
+ * on its own module instance, so this cache is the procedure instance's, not the one the
+ * reducers' collision call sites use. */
 function coldCompiledLiveIslandRuntime(compiled: () => LiveIslandRuntime | null): LiveIslandRuntime | null {
   const previous = liveIslandRuntimeCache;
   liveIslandRuntimeCache = null;
@@ -26206,24 +26207,35 @@ export const inspectWorldChunkShadow = spacetimedb.procedure(
 let chunkAuthorityAuditCalls = 0;
 
 /** Static-world S2c: strict-owner, read-only audit of the pinned chunk publication.
- * Builds the chunk runtime (a fresh dispatcher resolve, so every `on` guard is the
- * real one) and a cold compiled runtime, compares the whole island, and returns
- * the JSON report (`ChunkAuthorityAuditReport`). Writes nothing. */
+ * One short transaction checks the owner and copies the rows and blobs the audit reads
+ * (`snapshotChunkAuthorityTables`); the chunk build (a fresh dispatcher resolve, so every
+ * `on` guard is the real one), the cold compiled build and the whole-island compare then
+ * run outside any transaction, over a read-only view of that copy. Returns the JSON
+ * report (`ChunkAuthorityAuditReport`). Writes nothing. */
 export const auditChunkAuthority = spacetimedb.procedure(
   {}, t.string(),
-  (ctx) => ctx.withTx(tx => {
-    requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+  (ctx) => {
+    const clock = chunkAuthorityAuditClock();
+    const snapshotStarted = clock.now();
+    const snapshot = ctx.withTx(tx => {
+      requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+      return {
+        mode: chunkAuthorityMode(tx),
+        tables: snapshotChunkAuthorityTables(tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: LIVE_CONTENT_PACK_ID, spaceId: BigInt(TOPSIDE_SPACE_ID) }),
+      };
+    });
+    const snapshotMs = clock.label === 'none' ? null : Math.round((clock.now() - snapshotStarted) * 100) / 100;
     chunkAuthorityAuditCalls += 1;
-    const world = tx as WorldReducerContext;
+    const world = { db: chunkAuthoritySnapshotDb(snapshot.tables) } as WorldReducerContext;
     const source = chunkAuthoritySource(world);
     return JSON.stringify(runChunkAuthorityAudit({
-      mode: chunkAuthorityMode(world),
+      mode: snapshot.mode,
       source,
       heads: () => [...world.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))],
       coldCompiled: () => coldCompiledLiveIslandRuntime(source.compiled),
-      clock: chunkAuthorityAuditClock(),
-      instance: { auditCalls: chunkAuthorityAuditCalls },
-      liveDispatcher: chunkAuthorityDispatcher.status(),
+      clock,
+      snapshotMs,
+      instance: { auditCalls: chunkAuthorityAuditCalls, transaction: 'snapshot' },
     }));
-  }),
+  },
 );

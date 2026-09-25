@@ -3,7 +3,7 @@ import { validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
   ChunkAuthorityDispatcher, flattenDisagreementSamples,
-  type ChunkAuthorityLogger, type ChunkAuthoritySource, type ChunkAuthorityStatus, type ChunkAuthorityUnavailableReason,
+  type ChunkAuthorityLogger, type ChunkAuthoritySource, type ChunkAuthorityUnavailableReason,
   type CompiledCollisionRuntime,
 } from './chunk-authority-dispatch.js';
 import {
@@ -26,7 +26,12 @@ import {
  *   against a cold (uncached) compiled build, which is also timed.
  *
  * It never writes: every input is a read accessor. The chunk runtime it builds is
- * local and dropped when the call returns; the live dispatcher's caches are untouched.
+ * local and dropped when the call returns.
+ *
+ * The procedure reads its inputs in one short transaction (`snapshotChunkAuthorityTables`)
+ * and runs this report outside it, over `chunkAuthoritySnapshotDb`: a read-only view of
+ * the copied rows. A mutable transaction held for the multi-second compiled build would
+ * stall every scheduled tick for that long.
  */
 
 export const CHUNK_AUTHORITY_AUDIT_SCHEMA = 1;
@@ -59,9 +64,10 @@ export interface ChunkAuthorityAuditInput {
   readonly sampleLimit?: number;
   /** Compiled guard: the survival world dimensions. Tests may use a small island. */
   readonly worldSize?: { readonly width: number; readonly height: number };
-  /** Extra diagnostics copied into the report (instance counters, live dispatcher status). */
+  /** Extra diagnostics copied into the report (procedure-instance counters). */
   readonly instance?: Readonly<Record<string, unknown>>;
-  readonly liveDispatcher?: ChunkAuthorityStatus;
+  /** Time spent copying the inputs inside the transaction, when the caller measured it. */
+  readonly snapshotMs?: number | null;
 }
 
 export interface ChunkAuthorityAuditReport {
@@ -106,6 +112,8 @@ export interface ChunkAuthorityAuditReport {
   };
   readonly timings: {
     readonly clock: ChunkAuthorityAuditClock['label'];
+    /** The transaction: copying the rows and blobs (the only part that holds a transaction). */
+    readonly snapshotMs: number | null;
     /** Fresh `resolve()`: manifest parse and validation, guards, blob reads and assembly (what `on` pays cold). */
     readonly chunkBuildMs: number | null;
     /** Only when `on` refuses before assembling (stale, guard): the direct assembly used for the compare. */
@@ -116,7 +124,6 @@ export interface ChunkAuthorityAuditReport {
   };
   readonly stats: ChunkLiveIslandRuntime['stats'] | null;
   readonly instance?: Readonly<Record<string, unknown>>;
-  readonly liveDispatcher?: ChunkAuthorityStatus;
 }
 
 const silentLogger: ChunkAuthorityLogger = { info() {}, warn() {}, time() {}, timeEnd() {} };
@@ -257,10 +264,9 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
     servable,
     manifestError,
     disagreements,
-    timings: { clock: clock.label, chunkBuildMs, diagnosticAssembleMs, compiledBuildMs, compareMs, totalMs: elapsed(clock, started) },
+    timings: { clock: clock.label, snapshotMs: input.snapshotMs ?? null, chunkBuildMs, diagnosticAssembleMs, compiledBuildMs, compareMs, totalMs: elapsed(clock, started) },
     stats: runtime?.stats ?? null,
     ...(input.instance === undefined ? {} : { instance: input.instance }),
-    ...(input.liveDispatcher === undefined ? {} : { liveDispatcher: input.liveDispatcher }),
   };
   return report;
 }
@@ -272,4 +278,106 @@ export function chunkAuthorityAuditClock(scope: { readonly performance?: { now?:
   const dateNow = scope.Date?.now;
   if (typeof dateNow === 'function') return { label: 'date', now: () => (dateNow as () => number).call(scope.Date) };
   return { label: 'none', now: () => 0 };
+}
+
+// --- Snapshot: the only part of the audit that holds a transaction -------------------------------
+
+interface SnapshotRowSource {
+  readonly db: {
+    readonly live_map_document: { readonly mapId: { find(mapId: string): unknown } };
+    readonly content_head: { readonly packId: { find(packId: string): unknown } };
+    readonly content_definition: { iter(): Iterable<unknown> };
+    readonly world_chunk_shadow: { readonly spaceId: { find(spaceId: bigint): { readonly manifestJson: string } | null } };
+    readonly world_chunk_head: { readonly by_space: { filter(spaceId: bigint): Iterable<{ readonly contentHash: string }> } };
+    readonly world_chunk_blob: { readonly contentHash: { find(contentHash: string): { readonly contentHash: string; readonly bytes: unknown } | null } };
+  };
+}
+
+/** Rows copied out of one transaction. Blobs are the ones the heads and the manifest name. */
+export interface ChunkAuthorityTableSnapshot {
+  readonly liveMapId: string;
+  readonly contentPackId: string;
+  readonly spaceId: bigint;
+  readonly liveMap: unknown;
+  readonly contentHead: unknown;
+  readonly contentDefinitions: readonly unknown[];
+  readonly shadow: { readonly manifestJson: string } | null;
+  readonly heads: readonly { readonly contentHash: string }[];
+  readonly blobs: ReadonlyMap<string, { readonly contentHash: string; readonly bytes: unknown }>;
+}
+
+/** Copies every row the audit reads (call inside the transaction; everything else runs outside it). */
+export function snapshotChunkAuthorityTables(tx: SnapshotRowSource,
+  ids: { readonly liveMapId: string; readonly contentPackId: string; readonly spaceId: bigint }): ChunkAuthorityTableSnapshot {
+  const shadow = tx.db.world_chunk_shadow.spaceId.find(ids.spaceId);
+  const heads = [...tx.db.world_chunk_head.by_space.filter(ids.spaceId)];
+  const hashes = new Set(heads.map(head => head.contentHash));
+  if (shadow !== null) {
+    try {
+      const chunks = (JSON.parse(shadow.manifestJson) as { chunks?: unknown }).chunks;
+      if (Array.isArray(chunks)) {
+        for (const head of chunks) {
+          const hash = (head as { contentHash?: unknown } | null)?.contentHash;
+          if (typeof hash === 'string') hashes.add(hash);
+        }
+      }
+    } catch {
+      // The report parses the manifest again and says why it is invalid.
+    }
+  }
+  const blobs = new Map<string, { readonly contentHash: string; readonly bytes: unknown }>();
+  for (const hash of hashes) {
+    const row = tx.db.world_chunk_blob.contentHash.find(hash);
+    if (row !== null) blobs.set(hash, row);
+  }
+  return {
+    ...ids,
+    liveMap: tx.db.live_map_document.mapId.find(ids.liveMapId),
+    contentHead: tx.db.content_head.packId.find(ids.contentPackId),
+    contentDefinitions: [...tx.db.content_definition.iter()],
+    shadow,
+    heads,
+    blobs,
+  };
+}
+
+export class ChunkAuthoritySnapshotError extends Error {}
+
+/**
+ * A read-only `db` over a snapshot, shaped like the tables the audit reads. Anything
+ * else (another table, another key, any write) throws, so an audit that reached
+ * outside its snapshot fails loudly instead of reading nothing.
+ */
+export function chunkAuthoritySnapshotDb(snapshot: ChunkAuthorityTableSnapshot): unknown {
+  const keyed = (table: string, key: string, expected: unknown, value: unknown) => ({
+    [key]: {
+      find(requested: unknown) {
+        if (requested !== expected) throw new ChunkAuthoritySnapshotError(`audit_snapshot_key:${table}.${key}=${String(requested)}`);
+        return value ?? null;
+      },
+    },
+  });
+  const tables: Record<string, unknown> = {
+    live_map_document: keyed('live_map_document', 'mapId', snapshot.liveMapId, snapshot.liveMap),
+    content_head: keyed('content_head', 'packId', snapshot.contentPackId, snapshot.contentHead),
+    content_definition: { iter: () => snapshot.contentDefinitions[Symbol.iterator]() },
+    world_chunk_shadow: keyed('world_chunk_shadow', 'spaceId', snapshot.spaceId, snapshot.shadow),
+    world_chunk_head: {
+      by_space: {
+        filter(spaceId: unknown) {
+          if (spaceId !== snapshot.spaceId) throw new ChunkAuthoritySnapshotError(`audit_snapshot_key:world_chunk_head.by_space=${String(spaceId)}`);
+          return snapshot.heads[Symbol.iterator]();
+        },
+      },
+    },
+    world_chunk_blob: { contentHash: { find: (hash: string) => snapshot.blobs.get(hash) ?? null } },
+  };
+  return new Proxy(tables, {
+    get(target, name) {
+      if (typeof name !== 'string') return undefined;
+      if (!(name in target)) throw new ChunkAuthoritySnapshotError(`audit_snapshot_table:${name}`);
+      return target[name];
+    },
+    set() { throw new ChunkAuthoritySnapshotError('audit_snapshot_read_only'); },
+  });
 }
