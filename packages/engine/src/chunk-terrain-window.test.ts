@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { applyMapEdit, createEmptyMapDocument, type MapCellPatch, type MapDocumentV2, type MapEditCommand } from '@orchard/sim';
+import { applyMapEdit, createEmptyMapDocument, SURVIVAL_BIOMES, type MapCellPatch, type MapDocumentV2, type MapEditCommand } from '@orchard/sim';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import {
   buildChunkTerrainWindow, CHUNK_WINDOW_MARGIN_TILES, chunkWindowForView, chunkWindowPinBounds, chunkWindowTileBounds,
-  ChunkTerrainWindowTracker, type ChunkWindowStore,
+  chunkWindowReuseSource, chunkWindowTileReuse, ChunkTerrainWindowTracker, type ChunkTerrainWindow, type ChunkWindowStore,
 } from './chunk-terrain-window.js';
+import { prepareLightTerrainOcclusion, type PreparedLightTerrainOcclusion } from './light-occlusion.js';
 import { terrainArrayForMapDocument } from './editor-terrain.js';
 import { GroundChunkCache } from './ground-cache.js';
 import {
-  plateauLayerPlansAt, terrainBiomeAt, terrainContourBoundaryBetween, terrainElevationAt, terrainMinimumElevation, terrainPlaneCollisionCellAt, type TerrainArray,
+  plateauLayerPlansAt, terrainBiomeAt, terrainContourBoundaryBetween, terrainElevationAt, terrainMinimumElevation, terrainPlaneCollisionCellAt, terrainRaisedFaceReach, type TerrainArray,
 } from './terrain.js';
 import { terrainIndexAt, terrainIsWindow, terrainSparseKey, terrainSparseKeyTile } from './terrain-index.js';
 import { recordGroundDrawList, recordingArt, recordingCanvasFactory, recordingGroundCache } from './testing/draw-list-recorder.js';
@@ -249,5 +250,106 @@ describe('chunk render window (static world S4c)', () => {
     expect(cache.residentCount).toBe(resident - 2);
     expect(cache.invalidateRegion(-Infinity, -Infinity, Infinity, Infinity)).toBe(resident - 2);
     expect(cache.residentCount).toBe(0);
+  });
+});
+
+describe('chunk window reuse (static world S4f)', () => {
+  // Raised tiles marked ridge, as the island's classified contours are: they block light and cast occluders.
+  const authored = authoredMap(), ridge = SURVIVAL_BIOMES.indexOf('ridge');
+  const legacy: TerrainArray = { ...authored, biomes: authored.biomes.map((biome, index) => authored.elevations[index]! > 0 ? ridge : biome) };
+  const { manifest, chunks } = chunked(legacy);
+  const build = (cx: number, cy: number, size = 3, withheld = new Set<string>()): ChunkTerrainWindow =>
+    buildChunkTerrainWindow(source(manifest, chunks, withheld), { cx, cy, columns: size, rows: size });
+  const same = (a: PreparedLightTerrainOcclusion, b: PreparedLightTerrainOcclusion): boolean =>
+    canonicalChunkJson({ ...a, terrainOccluders: a.terrainOccluders?.map(({ opaque, ...rest }) => ({ ...rest, opaque: Array.from(opaque) })) })
+      === canonicalChunkJson({ ...b, terrainOccluders: b.terrainOccluders?.map(({ opaque, ...rest }) => ({ ...rest, opaque: Array.from(opaque) })) });
+
+  it('reuses exactly the tiles whose radius box reads the same chunks in both windows', () => {
+    const previous = build(1, 1), next = build(2, 1);
+    const reuse = chunkWindowTileReuse(previous, next)!;
+    const r = CHUNK_WINDOW_MARGIN_TILES;
+    // Shared chunks 2..3 (x 128..255): reusable from 128 + r to 255 - r; rows keep the same top and bottom edges.
+    expect(reuse.reusable(128 + r, 100)).toBe(true);
+    expect(reuse.reusable(128 + r - 1, 100)).toBe(false);
+    expect(reuse.reusable(255 - r, 100)).toBe(true);
+    expect(reuse.reusable(256 - r, 100)).toBe(false);
+    expect(reuse.reusable(200, 64)).toBe(true); // the top edge is the same edge in both windows
+    // Runs agree with the predicate tile for tile.
+    for (const tileY of [64, 100, 191]) {
+      const runs = reuse.reusableRuns(tileY, 128, 256);
+      for (let tileX = 128; tileX < 256; tileX++) {
+        expect(runs.some(([start, end]) => tileX >= start && tileX < end), `${tileX},${tileY}`).toBe(reuse.reusable(tileX, tileY));
+      }
+    }
+    // A chunk missing in one window only is not the same data.
+    const withheld = chunkWindowTileReuse(previous, build(2, 1, 3, new Set(['2:2'])))!;
+    expect(withheld.reusable(200, 100)).toBe(false);
+    expect(withheld.reusable(200, 224)).toBe(true); // its box ends in row 3, clear of the missing chunk
+    // Another manifest (revision) or tileset resolver: nothing is reused.
+    expect(chunkWindowTileReuse(previous, buildChunkTerrainWindow(source({ ...manifest }, chunks), { cx: 2, cy: 1, columns: 3, rows: 3 }))).toBeUndefined();
+    expect(() => chunkWindowTileReuse(previous, next, 33)).toThrow('invalid_chunk_reuse_radius');
+    // Without the map-wide elevation range a window's contours are local: nothing is reused.
+    const local = { ...next, terrain: { ...next.terrain, elevationRange: undefined } };
+    expect(chunkWindowTileReuse(previous, local)).toBeUndefined();
+    expect(chunkWindowTileReuse(local, next)).toBeUndefined();
+    // A lightweight source (no terrain arrays) gives the same answer as the window.
+    expect(chunkWindowTileReuse(chunkWindowReuseSource(previous), next)!.reusableRuns(100, 128, 256)).toEqual(reuse.reusableRuns(100, 128, 256));
+    // Raised faces that could read farther than the radius disable reuse.
+    const reach = terrainRaisedFaceReach(next.terrain);
+    expect(reach).toBeGreaterThan(0);
+    expect(reach).toBeLessThanOrEqual(CHUNK_WINDOW_MARGIN_TILES);
+    expect(chunkWindowTileReuse(previous, next, reach - 1)).toBeUndefined();
+    expect(chunkWindowTileReuse(previous, next, reach)).toBeDefined();
+  });
+
+  it('prepares light identically with reuse, across moves, jumps and missing chunks', () => {
+    const windows = [build(0, 0), build(1, 0), build(1, 1), build(2, 1), build(3, 3), build(2, 3), build(0, 3), build(1, 2, 3, new Set(['2:3'])),
+      build(1, 2), build(0, 0, 5), build(1, 1, 5), build(1, 0, 5, new Set(['1:1'])), build(1, 1, 4)];
+    let previous: ChunkTerrainWindow | undefined, prepared: PreparedLightTerrainOcclusion | undefined, reusedTiles = 0, occluders = 0;
+    for (const window of windows) {
+      const full = prepareLightTerrainOcclusion(build(window.rect.cx, window.rect.cy, window.rect.columns,
+        new Set([...Array.from({ length: window.rect.columns * window.rect.rows }, (_, index) =>
+          `${window.rect.cx + index % window.rect.columns}:${window.rect.cy + Math.floor(index / window.rect.columns)}`)].filter(key => !window.present.has(key)))).terrain);
+      const reuse = previous === undefined ? undefined : chunkWindowTileReuse(previous, window);
+      const incremental = prepareLightTerrainOcclusion(window.terrain, undefined,
+        prepared === undefined || reuse === undefined ? undefined : { prepared, reusableRuns: reuse.reusableRuns });
+      expect(same(incremental, full), `window ${window.rect.cx}:${window.rect.cy}`).toBe(true);
+      if (reuse !== undefined) for (let tileY = window.terrain.originY!; tileY < window.terrain.originY! + window.terrain.height; tileY++) {
+        for (const [start, end] of reuse.reusableRuns(tileY, window.terrain.originX!, window.terrain.originX! + window.terrain.width)) reusedTiles += end - start;
+      }
+      occluders += full.terrainOccluders?.length ?? 0;
+      previous = window; prepared = incremental;
+    }
+    expect(reusedTiles, 'tiles were actually reused').toBeGreaterThan(10_000);
+    expect(occluders, 'the map has raised-terrain occluders').toBeGreaterThan(100);
+    // Non-vacuous: claiming every tile reusable after a chunk arrives gives a different answer.
+    const from = build(1, 1, 3, new Set(['2:2'])), to = build(1, 1);
+    expect(chunkWindowTileReuse(from, to)!.reusable(160, 160)).toBe(false);
+    const wrong = prepareLightTerrainOcclusion(to.terrain, undefined, { prepared: prepareLightTerrainOcclusion(from.terrain),
+      reusableRuns: (_tileY, minX, maxX) => [[minX, maxX]] });
+    expect(same(wrong, prepareLightTerrainOcclusion(build(1, 1).terrain))).toBe(false);
+  });
+
+  it('adopts a window built ahead of time exactly as if update() had built it', () => {
+    const store = source(manifest, chunks);
+    const direct = new ChunkTerrainWindowTracker(), staged = new ChunkTerrainWindowTracker();
+    const first = { cx: 0, cy: 0, columns: 5, rows: 5 }, second = { cx: 1, cy: 1, columns: 5, rows: 5 };
+    direct.update(store, first); staged.update(store, first);
+    const drain = (tracker: ChunkTerrainWindowTracker) => { const regions: unknown[] = []; tracker.drainInvalidations((region) => regions.push(region)); return regions; };
+    drain(direct); drain(staged);
+    const built = direct.update(store, second);
+    const adopted = staged.adopt(store, buildChunkTerrainWindow(store, second), undefined, store.installs);
+    expect(adopted.rect).toEqual(built.rect);
+    expect(drain(staged)).toEqual(drain(direct));
+    expect(staged.builds).toBe(direct.builds);
+    // The same window stays served until something changes.
+    expect(staged.update(store, second)).toBe(adopted);
+    // Built before a chunk arrived: the arrival still rebuilds.
+    const withheld = new Set(['2:2']), partial = source(manifest, chunks, withheld);
+    const late = new ChunkTerrainWindowTracker();
+    const early = late.adopt(partial, buildChunkTerrainWindow(partial, second), undefined, partial.installs);
+    withheld.clear(); partial.installs += 1;
+    expect(late.update(partial, second)).not.toBe(early);
+    expect(() => late.adopt(source({ ...manifest }, chunks), early, undefined, 0)).toThrow('chunk_window_store_mismatch');
   });
 });

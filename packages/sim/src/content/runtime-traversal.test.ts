@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULE_MEDIA } from '../rule-catalogue.js';
+import { compareTraversalCollision } from '../traversal.js';
 import { bootstrapContentRows } from './bootstrap-registry.js';
 import { parseContentDefinition } from './definitions.js';
 import { buildContentRegistry } from './registry.js';
@@ -68,6 +69,24 @@ describe('runtime authored traversal', () => {
     expect(switched.collision).toBe(switched.candidate);
     expect(runtimeTraversalProjection(active, legacy, channels, { kind: 'projectile' }, 0n).collision.blocked)
       .toEqual([false, false]);
+  });
+
+  it('compares shadow differences on first read, with the same result and cache (static world S4f)', () => {
+    const registry = buildContentRegistry([policyRow()]).registry;
+    const map = { width: 2, height: 1, blocked: [true, false] };
+    const result = runtimeTraversalProjection(registry, map, channels, { kind: 'player' }, 0n);
+    const expected = compareTraversalCollision(map, result.candidate!);
+    expect(result.differences).toEqual(expected);
+    // Memoised: the same array on every read and for another projection over the same planes.
+    expect(result.differences).toBe(result.differences);
+    const again = runtimeTraversalProjection(registry, { ...map }, channels, { kind: 'player' }, 0n);
+    expect(again).not.toBe(result);
+    expect(again.differences).toBe(result.differences);
+    // Enumerable, so structural comparisons still see it.
+    expect(Object.keys(result)).toEqual(['collision', 'candidate', 'differences', 'compatibility']);
+    // A size mismatch between legacy and geometry still throws at projection time.
+    expect(() => runtimeTraversalProjection(registry, map, { width: 3, height: 1, medium: [0, 1, 0], solidBlocked: [0, 0, 0] },
+      { kind: 'player' }, 0n, { width: 3, height: 1, blocked: [true, false, true] })).toThrow('traversal_collision_size_mismatch');
   });
 
   it('combines explicitly authored mount and effect grants using bigint expiry', () => {

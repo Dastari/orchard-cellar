@@ -2,6 +2,23 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.45.0 / Engine 0.27.0 / Sim 0.29.1 / UI 0.44.3 / Studio 0.16.6 — No flicker between our pages; static world S4f (dormant)
+
+- **No flicker between our own pages (#185, GrayOx, owner item 5).**
+  - **Save:** before the game navigates between its own pages (sign-in launch, entering the world, quit to title), it saves a downscaled snapshot of the current frame (WebP, or JPEG on Safari; capped in size, 15 s lifetime, used once).
+  - **Paint:** a small boot script paints that snapshot on the next page until the loading screen takes over. It never paints over gameplay.
+  - **Scope:** no handoff on sign-out or the Keycloak hop.
+  - **Result:** the bare island no longer flashes on each step.
+- **Static world S4f, dormant (#191).** Production still refuses the chunk runtime's `on` mode, and there is no server or schema change.
+  - **Window moves:** in `on`, the next chunk window is prepared ahead of the view, one stage per frame (chunks, window, collision, light, traversal), then served in one step. Light preparation reuses unchanged tiles. Staged frames measure 4.5–4.7 ms p95, meeting the 8 ms gate, and every served window equals a synchronous build.
+  - **Spawn readiness:** a new "MAPPING THE SHORE" loading stage. In `on`, movement waits until the player's chunk and its ring are in the served window. There is a light "ARRIVING" note on topside travel, and failed chunks never block.
+  - **Loading order:** chunks load nearest first. The first revision serves once the spawn ring is resident. Atlas packs load only with `?atlasPacks=1`.
+  - **Memory:** a regression test holds live windows to 3 or fewer.
+  - **Sim:** the traversal difference list is computed on first read; the server shares this code and results are identical.
+  - **Unchanged:** `off` and `shadow` behave as before.
+  - **Before `on`:** see the wiki Roadmap/Static World Conversion, "Conditions before `on`". In particular, the `Uint8Array` blocked planes are needed for the memory peak.
+- Workspace 0.56.0.
+
 ## Client 0.44.0 / Engine 0.26.0 / Sim 0.29.0 / UI 0.44.2 / World 0.26.6 / Studio 0.16.5 — Static world S6a and S4d (dormant)
 
 **Nothing is activated.** Production builds still refuse the chunk runtime's `on` mode, the server's chunk authority is `off`, and there is no schema or content change.

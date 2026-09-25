@@ -2,6 +2,7 @@ import type { CellPart, MapSurfaceKind, RuntimeTilesetResolver, TerrainOverride,
 import { WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import type { TerrainArray } from './terrain-array.js';
 import { terrainIndexAt } from './terrain-index.js';
+import { terrainRaisedFaceReach } from './terrain-sampling.js';
 
 /**
  * Static world S4c: the client's topside terrain in chunk mode `on` is a fixed
@@ -35,6 +36,9 @@ export interface ChunkWindowSource {
 export interface ChunkTerrainWindow {
   readonly terrain: TerrainArray;
   readonly rect: ChunkWindowRect;
+  /** The manifest the window was built from: within one manifest a resident
+   * chunk's data is fixed by its content hash (chunkWindowTileReuse). */
+  readonly manifest: WorldChunkManifest;
   /** `cx:cy` of the window chunks that were resident when it was built. */
   readonly present: ReadonlySet<string>;
   /** Window chunks that were not resident (they read as blocked void). */
@@ -247,7 +251,91 @@ export function buildChunkTerrainWindow(source: ChunkWindowSource, rect: ChunkWi
     blocked: booleans('blocked'),
     horseJumpableTerrain: booleans('horseJumpableTerrain'),
   } as TerrainArray;
-  return { terrain, rect, present, missing: rect.columns * rect.rows - present.size };
+  return { terrain, rect, manifest, present, missing: rect.columns * rect.rows - present.size };
+}
+
+/** Tiles of a window whose derived per-tile data may be reused (chunkWindowTileReuse). */
+export interface ChunkWindowTileReuse {
+  readonly reusable: (tileX: number, tileY: number) => boolean;
+  /** The reusable tiles of row `tileY` within [minX, maxX), as half-open x ranges. */
+  readonly reusableRuns: (tileY: number, minX: number, maxX: number) => readonly (readonly [number, number])[];
+}
+
+/** What reuse needs to know about a window, without its terrain arrays (S4f: a
+ * served window's derived data may outlive the window itself). */
+export interface ChunkWindowReuseSource {
+  readonly rect: ChunkWindowRect;
+  readonly manifest: WorldChunkManifest;
+  readonly present: ReadonlySet<string>;
+  readonly tilesets: TerrainArray['tilesets'];
+  readonly elevationRange: TerrainArray['elevationRange'];
+}
+
+export function chunkWindowReuseSource(window: ChunkTerrainWindow): ChunkWindowReuseSource {
+  return { rect: window.rect, manifest: window.manifest, present: window.present,
+    tilesets: window.terrain.tilesets, elevationRange: window.terrain.elevationRange };
+}
+
+/**
+ * Static world S4f: which tiles of `next` read exactly the data they read in
+ * `previous`, so work derived per tile from `previous` (the light preparation)
+ * can be reused. A tile qualifies when every tile within `radius` of it reads
+ * the same in both windows: each chunk under that box is present in both, missing
+ * in both, or outside both (a tile outside a window reads as unloaded, whatever
+ * the reason). Undefined when nothing can be reused: another manifest (revision),
+ * tileset resolver or elevation range, a window without the map-wide elevation
+ * range, or raised-terrain faces that could read farther than `radius`
+ * (terrainRaisedFaceReach).
+ *
+ * `radius` is how far a tile's derived value may read. The default is the render
+ * window's margin, the allowance S4c already makes for the neighbours and
+ * projection rows that terrain art reads (the light classification's measured
+ * edge effect on the island is one tile). It must stay within half a chunk so
+ * that the four corners of the box name every chunk under it.
+ */
+export function chunkWindowTileReuse(previous: ChunkTerrainWindow | ChunkWindowReuseSource, next: ChunkTerrainWindow,
+  radius = CHUNK_WINDOW_MARGIN_TILES): ChunkWindowTileReuse | undefined {
+  if (!Number.isSafeInteger(radius) || radius < 0 || radius > WORLD_CHUNK_SIZE / 2) throw new Error('invalid_chunk_reuse_radius');
+  const a = 'terrain' in previous ? chunkWindowReuseSource(previous) : previous, b = next.terrain;
+  if (a.elevationRange === undefined || b.elevationRange === undefined) return undefined;
+  if (a.manifest !== next.manifest || a.tilesets !== b.tilesets
+    || a.elevationRange.minimum !== b.elevationRange.minimum || a.elevationRange.maximum !== b.elevationRange.maximum) return undefined;
+  if (terrainRaisedFaceReach(b) > radius) return undefined;
+  const state = (window: { readonly rect: ChunkWindowRect; readonly present: ReadonlySet<string> }, cx: number, cy: number): number => {
+    const { rect } = window;
+    if (cx < rect.cx || cy < rect.cy || cx >= rect.cx + rect.columns || cy >= rect.cy + rect.rows) return 2;
+    return window.present.has(`${cx}:${cy}`) ? 1 : 0;
+  };
+  // Same-data flags for the chunks of `next` plus one ring (every box of a tile in `next`).
+  const left = next.rect.cx - 1, top = next.rect.cy - 1, columns = next.rect.columns + 2, rows = next.rect.rows + 2;
+  const same = new Uint8Array(columns * rows);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < columns; x++) {
+    same[y * columns + x] = state(a, left + x, top + y) === state(next, left + x, top + y) ? 1 : 0;
+  }
+  const sameAt = (tileX: number, tileY: number): boolean => {
+    const x = Math.floor(tileX / WORLD_CHUNK_SIZE) - left, y = Math.floor(tileY / WORLD_CHUNK_SIZE) - top;
+    return x >= 0 && y >= 0 && x < columns && y < rows && same[y * columns + x] === 1;
+  };
+  const reusable = (tileX: number, tileY: number): boolean => sameAt(tileX - radius, tileY - radius) && sameAt(tileX + radius, tileY - radius)
+    && sameAt(tileX - radius, tileY + radius) && sameAt(tileX + radius, tileY + radius);
+  return {
+    reusable,
+    reusableRuns(tileY, minX, maxX) {
+      // `reusable` is constant between consecutive chunk edges shifted by +-radius.
+      const cuts = new Set<number>([minX, maxX]);
+      for (let edge = Math.floor(minX / WORLD_CHUNK_SIZE) * WORLD_CHUNK_SIZE; edge <= maxX + WORLD_CHUNK_SIZE; edge += WORLD_CHUNK_SIZE) {
+        for (const cut of [edge - radius, edge + radius]) if (cut > minX && cut < maxX) cuts.add(cut);
+      }
+      const points = [...cuts].sort((x, y) => x - y), runs: [number, number][] = [];
+      for (let index = 0; index + 1 < points.length; index++) {
+        const start = points[index]!, end = points[index + 1]!;
+        if (!reusable(start, tileY)) continue;
+        const last = runs[runs.length - 1];
+        if (last !== undefined && last[1] === start) last[1] = end; else runs.push([start, end]);
+      }
+      return runs;
+    },
+  };
 }
 
 /** Tile regions whose window data changed, for GroundChunkCache.invalidateRegion. */
@@ -284,10 +372,14 @@ export class ChunkTerrainWindowTracker {
     const previous = store === this.#store ? this.#window?.rect : undefined;
     return chunkWindowForView(view, store.manifest.width, store.manifest.height, previous, this.margin);
   }
-  update(store: ChunkWindowStore, rect: ChunkWindowRect, tilesets?: RuntimeTilesetResolver): ChunkTerrainWindow {
+  /** `deferArrivals` (static world S4f): keep serving the current window when the only
+   * change is a missing chunk that has arrived; the caller rebuilds it (adopt) later. */
+  update(store: ChunkWindowStore, rect: ChunkWindowRect, tilesets?: RuntimeTilesetResolver,
+    options: { readonly deferArrivals?: boolean } = {}): ChunkTerrainWindow {
     const current = this.#window;
     const sameStore = store === this.#store && tilesets === this.#tilesets;
     const sameRect = current !== undefined && chunkWindowKey(current.rect) === chunkWindowKey(rect);
+    if (current !== undefined && sameStore && sameRect && options.deferArrivals === true) return current;
     const arrived = sameStore && sameRect && current.missing > 0 && store.installs !== this.#installs
       && [...windowChunks(rect)].some(([cx, cy]) => !current.present.has(`${cx}:${cy}`) && store.peekChunk(cx, cy) !== undefined);
     if (current !== undefined && sameStore && sameRect && !arrived) {
@@ -297,6 +389,22 @@ export class ChunkTerrainWindowTracker {
     const startedAt = performance.now();
     const next = buildChunkTerrainWindow(store, rect, tilesets === undefined ? {} : { tilesets });
     this.lastBuildMs = performance.now() - startedAt;
+    return this.#commit(store, next, tilesets, store.installs);
+  }
+  /**
+   * Serves a window built ahead of time from `store` (static world S4f) exactly
+   * as if update() had just built it: the same invalidations, and `installs` is
+   * the store's install count when it was built, so a chunk that arrived since
+   * still triggers a rebuild on the next update().
+   */
+  adopt(store: ChunkWindowStore, next: ChunkTerrainWindow, tilesets: RuntimeTilesetResolver | undefined, installs: number, buildMs = 0): ChunkTerrainWindow {
+    if (next.manifest !== store.manifest) throw new Error('chunk_window_store_mismatch');
+    this.lastBuildMs = buildMs;
+    return this.#commit(store, next, tilesets, installs);
+  }
+  #commit(store: ChunkWindowStore, next: ChunkTerrainWindow, tilesets: RuntimeTilesetResolver | undefined, installs: number): ChunkTerrainWindow {
+    const current = this.#window;
+    const sameStore = store === this.#store && tilesets === this.#tilesets;
     this.#builds++;
     if (!sameStore || current === undefined) this.#pending = [EVERYTHING];
     else if (this.#pending[0] !== EVERYTHING) {
@@ -307,7 +415,7 @@ export class ChunkTerrainWindowTracker {
           maxX: (cx + 1) * WORLD_CHUNK_SIZE - 1 + this.margin, maxY: (cy + 1) * WORLD_CHUNK_SIZE - 1 + this.margin });
       }
     }
-    this.#store = store; this.#tilesets = tilesets; this.#window = next; this.#installs = store.installs;
+    this.#store = store; this.#tilesets = tilesets; this.#window = next; this.#installs = installs;
     return next;
   }
   /** Hands over (and forgets) the regions changed since the last drain. */

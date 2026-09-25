@@ -204,11 +204,31 @@ export function createLightOcclusionMap(
 export type PreparedLightTerrainOcclusion = Omit<LightOcclusionMap,
   'softObstacles' | 'spriteOccluders' | 'trunkOccluders'>;
 
+/**
+ * Reuse of a previous preparation (static world S4f): when a chunk window moves,
+ * most of its tiles, and every tile each of them reads, are unchanged.
+ * `reusableRuns` is the caller's guarantee that the tiles it lists (half-open
+ * world-tile x ranges on row `tileY`, within [minX, maxX)) have exactly the
+ * classification and occluders they have in `prepared`, which must come from the
+ * same raised-terrain asset (chunkWindowTileReuse proves it from the windows'
+ * chunks with a read radius). Every other tile is prepared from scratch, so the
+ * result is identical to a full preparation.
+ */
+export interface LightTerrainReuse {
+  readonly prepared: PreparedLightTerrainOcclusion;
+  readonly reusableRuns: (tileY: number, minX: number, maxX: number) => readonly (readonly [number, number])[];
+}
+
+/** Per-tile occluder offsets of a preparation (tile i owns occluders
+ * [starts[i], starts[i + 1])), kept beside it so a later window can reuse them. */
+const occluderStarts = new WeakMap<PreparedLightTerrainOcclusion, Uint32Array>();
+
 /** Explicitly prepared static classification. Its owner must invalidate it
  * after terrain edits or an authored raised-terrain asset change. */
 export function prepareLightTerrainOcclusion(
   terrain: TerrainArray,
   raisedTerrainAsset?: LoadedAsset,
+  reuse?: LightTerrainReuse,
 ): PreparedLightTerrainOcclusion {
   const hardBlocked = new Uint8Array(terrain.width * terrain.height);
   const frontFaces = new Uint8Array(hardBlocked.length);
@@ -216,7 +236,33 @@ export function prepareLightTerrainOcclusion(
   const traversalBlocksLight = terrainProjectionStyle(terrain) === 'interior';
   const hasContours = terrainMaximumElevation(terrain) > terrainMinimumElevation(terrain)
     || terrainMaximumElevation(terrain) !== baseDatum;
+  const originX = terrain.originX ?? 0;
+  const originY = terrain.originY ?? 0;
+  // Tiles taken from the previous preparation (1), prepared here otherwise (0).
+  const previous = reuse?.prepared;
+  const previousStarts = previous === undefined ? undefined : occluderStarts.get(previous);
+  const reuseUsable = previous !== undefined && (hasContours
+    ? previous.terrainOccluders !== undefined && previousStarts !== undefined
+    : previous.terrainOccluders === undefined);
+  const reused = reuseUsable ? new Uint8Array(hardBlocked.length) : undefined;
+  const previousOriginX = previous?.originX ?? 0, previousOriginY = previous?.originY ?? 0;
+  if (reused !== undefined) {
+    const minX = Math.max(originX, previousOriginX), maxX = Math.min(originX + terrain.width, previousOriginX + previous!.width);
+    const minY = Math.max(originY, previousOriginY), maxY = Math.min(originY + terrain.height, previousOriginY + previous!.height);
+    for (let tileY = minY; tileY < maxY && minX < maxX; tileY += 1) {
+      for (const [runStart, runEnd] of reuse!.reusableRuns(tileY, minX, maxX)) {
+        const start = Math.max(runStart, minX), end = Math.min(runEnd, maxX);
+        if (start >= end) continue;
+        const index = (tileY - originY) * terrain.width + start - originX;
+        const from = (tileY - previousOriginY) * previous!.width + start - previousOriginX;
+        hardBlocked.set(previous!.hardBlocked.subarray(from, from + end - start), index);
+        frontFaces.set(previous!.frontFaces.subarray(from, from + end - start), index);
+        reused.fill(1, index, index + end - start);
+      }
+    }
+  }
   for (let index = 0; index < hardBlocked.length; index += 1) {
+    if (reused !== undefined && reused[index] === 1) continue;
     const blocked = (traversalBlocksLight && terrain.blocked[index] === true)
       || surfaceTileBlocksLight(terrain, index, hasContours);
     hardBlocked[index] = blocked ? 1 : 0;
@@ -230,11 +276,21 @@ export function prepareLightTerrainOcclusion(
   }
   const terrainOccluders: LightSpriteOccluder[] | undefined =
     hasContours ? [] : undefined;
+  const starts = terrainOccluders === undefined ? undefined : new Uint32Array(hardBlocked.length + 1);
   if (terrainOccluders !== undefined) {
     for (let index = 0; index < hardBlocked.length; index += 1) {
+      starts![index] = terrainOccluders.length;
       if (frontFaces[index] !== 1) continue;
-      const tileX = (terrain.originX ?? 0) + index % terrain.width;
-      const tileY = (terrain.originY ?? 0) + Math.floor(index / terrain.width);
+      const tileX = originX + index % terrain.width;
+      const tileY = originY + Math.floor(index / terrain.width);
+      if (reused !== undefined && reused[index] === 1) {
+        // The previous preparation's occluders for this very tile, in order.
+        const from = (tileY - previousOriginY) * previous!.width + tileX - previousOriginX;
+        for (let occluder = previousStarts![from]!; occluder < previousStarts![from + 1]!; occluder += 1) {
+          terrainOccluders.push(previous!.terrainOccluders![occluder]!);
+        }
+        continue;
+      }
       for (const { contourLevel, plan } of plateauLayerPlansAt(terrain, tileX, tileY)) {
         const projection = terrainProjectedDepthForElevation(
           terrain,
@@ -262,8 +318,9 @@ export function prepareLightTerrainOcclusion(
         }
       }
     }
+    starts![hardBlocked.length] = terrainOccluders.length;
   }
-  return {
+  const prepared: PreparedLightTerrainOcclusion = {
     width: terrain.width,
     height: terrain.height,
     ...(terrain.originX === undefined ? {} : { originX: terrain.originX }),
@@ -272,6 +329,8 @@ export function prepareLightTerrainOcclusion(
     frontFaces,
     ...(terrainOccluders === undefined ? {} : { terrainOccluders }),
   };
+  if (starts !== undefined) occluderStarts.set(prepared, starts);
+  return prepared;
 }
 
 function rasterizeSpriteBlocker(

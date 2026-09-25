@@ -2,6 +2,7 @@ import { canvasHostViewport, canvasSafeAreaInsets, insetCanvasViewport } from '.
 import { GameGatewayLoading, gameGatewayLayout, loadUiKitArt, type UiKitArt } from '@orchard/ui/game';
 import { loadGeneratedAsset, type LoadedAsset } from '@orchard/ui';
 import { drawOrchardBackdrop, loadOrchardBackdrop } from '@orchard/ui';
+import { markGatewayFrameStarted } from './gateway-handoff.js';
 
 export interface LoadingScreenStage {
   readonly title: string;
@@ -17,6 +18,9 @@ export interface WorldLoadingState {
   readonly identityReady: boolean;
   readonly worldReady: boolean;
   readonly playerReady: boolean;
+  /** Static world S4f: the terrain around the player is resident (chunk mode `on`
+   * only; undefined, as in modes off and shadow, means ready). */
+  readonly terrainReady?: boolean;
   readonly profileReady: boolean;
 }
 
@@ -49,6 +53,9 @@ export function worldLoadingStage(state: WorldLoadingState): LoadingScreenStage 
   };
   if (!state.playerReady) return {
     title: 'FINDING YOUR FARMER', detail: 'PREPARING YOUR STARTING PLACE', progress: 88,
+  };
+  if (state.terrainReady === false) return {
+    title: 'MAPPING THE SHORE', detail: 'LOADING THE LAND AROUND YOU', progress: 92,
   };
   if (!state.profileReady) return {
     title: 'UNPACKING YOUR THINGS', detail: 'LOADING YOUR CHARACTER AND INVENTORY', progress: 95,
@@ -101,6 +108,7 @@ export function upgradeLoadingScreen(
   const context = canvas.getContext('2d');
   if (context === null) return;
   loadingView = new GameGatewayLoading(kitArt, { emblem, cask, version: clientVersion });
+  markGatewayFrameStarted();
 
   const resize = (): void => {
     const { width, height } = canvasHostViewport(canvas);
@@ -140,6 +148,7 @@ export function upgradeLoadingScreen(
 export function dismissLoadingScreen(): void {
   if (dismissed) return;
   dismissed = true;
+  markGatewayFrameStarted();
   if (pixelFrameRequest !== null) cancelAnimationFrame(pixelFrameRequest);
   pixelFrameRequest = null;
   if (resizeListener !== null) window.removeEventListener('resize', resizeListener);
