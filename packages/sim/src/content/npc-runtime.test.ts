@@ -10,6 +10,7 @@ import { resolveCreatureStats } from '../creatures.js';
 import { HORSE_DISMOUNT_DISTANCE_FIXED, HORSE_MOUNT_REACH_FIXED, HORSE_WANDER_RADIUS_FIXED, HORSE_WANDER_SPEED_FIXED, findHorseDismountPosition } from '../npc.js';
 import { TILE_SIZE_FIXED } from '../state.js';
 import { BOAT_MAX_HEALTH } from '../boats.js';
+import { cellFlags } from '../cell-flags.js';
 
 const registry = bootstrapContentRegistry();
 
@@ -32,10 +33,10 @@ describe('authored NPC runtime identity and mount capability', () => {
     const mount = runtimeNpcMount(registry, { kind: 'horse' });
     if (mount?.adapter !== 'horse') throw new Error('missing horse tuning');
     const horse = { x: 10.5 * TILE_SIZE_FIXED, y: 10.5 * TILE_SIZE_FIXED };
-    const collision = { width: 32, height: 32, blocked: Array.from({ length: 32 * 32 }, (_, i) => {
+    const collision = { width: 32, height: 32, blocked: cellFlags(Array.from({ length: 32 * 32 }, (_, i) => {
       const x = i % 32, y = Math.floor(i / 32);
       return x < 9 || x > 12 || y < 9 || y > 12;
-    }) };
+    })) };
     const landing = findHorseDismountPosition(horse, 'right', collision, mount);
     expect(landing).toEqual({ x: horse.x + 1.125 * TILE_SIZE_FIXED, y: horse.y });
   });

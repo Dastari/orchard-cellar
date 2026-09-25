@@ -8,7 +8,7 @@ import { AUTHORITY_TICK_MS, TOPSIDE_SPACE_ID } from '@orchard/sim';
 import { visibleWorldBounds, worldPointVisible } from '@orchard/engine/camera';
 import { CAMPFIRE_LIGHT_RADIUS_TILES, type PointLight, type UnifiedLightReceiver } from '@orchard/engine/lighting';
 import { enqueueRaisedTerrainDepth } from '@orchard/engine/raised-terrain-depth';
-import { enqueueLiveMapObjects, liveIslandDocument } from '@orchard/engine/live-map-runtime';
+import { enqueueMapObjects } from '@orchard/engine/map-object-presentation';
 import { type WindTreeSource } from '@orchard/engine/weather-effects';
 import { terrainElevationAtWorldFoot, terrainBaseDatum, terrainMaximumElevation, terrainMinimumElevation, terrainProjectedDepthAtFoot, terrainProjectedElevationAtFoot, terrainProjectedSortOffset, terrainVisualProjectionRowsPerLevel } from '@orchard/engine/terrain';
 import { type TargetableWorldEntity } from './entity-targeting.js';
@@ -18,7 +18,7 @@ type Inputs = Pick<GameplayPainterInputs,
   'terrain' | 'cameraX' | 'cameraY' | 'frame' | 'scale' |
   'context' | 'seasonalDynamic' | 'localX' | 'localTerrainContactY' | 'art' |
   'groundCache' | 'viewportWidth' | 'viewportHeight' | 'debugEntitiesHidden' | 'projectedLocalY' |
-  'snapshot' | 'celestialPass' | 'activeSpaceDefinition' | 'renderItems' | 'weatherVisualTick' |
+  'snapshot' | 'topsideMapRecords' | 'celestialPass' | 'activeSpaceDefinition' | 'renderItems' | 'weatherVisualTick' |
   'lightingPreview' | 'renderWeatherTick' | 'renderWeather' | 'alpha'
 >;
 
@@ -28,7 +28,7 @@ function buildPrepareGameplayPainter(input: Inputs) {
     terrain, cameraX, cameraY, frame, scale,
     context, seasonalDynamic, localX, localTerrainContactY, art,
     groundCache, viewportWidth, viewportHeight, debugEntitiesHidden, projectedLocalY,
-    snapshot, celestialPass, activeSpaceDefinition, weatherVisualTick, lightingPreview,
+    snapshot, topsideMapRecords, celestialPass, activeSpaceDefinition, weatherVisualTick, lightingPreview,
     renderWeatherTick, renderWeather, alpha,
   } = input;
   let {
@@ -117,9 +117,7 @@ function buildPrepareGameplayPainter(input: Inputs) {
         (lobby.points.exit.tileY+.5)*16,door.draw)});
   }
   if (!debugEntitiesHidden && activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
-    renderItems += enqueueLiveMapObjects(liveIslandDocument(
-      snapshot.liveMapDocument, snapshot.content.registry,
-    ), {
+    renderItems += enqueueMapObjects(topsideMapRecords, {
       context,
       cameraX,
       cameraY,

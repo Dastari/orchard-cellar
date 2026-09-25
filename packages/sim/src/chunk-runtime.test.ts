@@ -31,6 +31,10 @@ it('samples authority channels only when the extension is present',()=>{
   expect(sampleChunkCollision(verifyRuntimeChunk(authority.blobs[0]!,authority.manifest,0,0),5,5)).toMatchObject({ready:true,legacyWaterBlocked:true,
     authority:{groundBlocked:true,groundElevation:-2,groundHorseJumpable:true,waterBlocked:false,combatRegion:2}});
   expect(MISSING_CHUNK_SAMPLE.authority).toBeUndefined();
+  // Authority schema 2 samples the same; a later, unknown version is not used (BUG-044).
+  const chunk=verifyRuntimeChunk(authority.blobs[0]!,authority.manifest,0,0);
+  expect(sampleChunkCollision({...chunk,authoritySchema:2},5,5).authority).toEqual(sampleChunkCollision(chunk,5,5).authority);
+  expect(sampleChunkCollision({...chunk,authoritySchema:3},5,5).authority).toBeUndefined();
 });
 it('keeps deployed schema-1 decoders compatible with authority blobs (extension ignored)',()=>{
   const {blobs,manifest}=runtimeChunkFixture([[-1,0],[0,0]],{authority:true});

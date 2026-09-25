@@ -32,9 +32,19 @@ function stableJson(value: unknown): string {
   });
 }
 
+/** Per-cell flag planes are `Uint8Array`s of 0/1 bytes. The golden was recorded
+ * when they were `boolean[]`, so they are fingerprinted in that form: the golden
+ * keeps pinning every cell's value, independent of the storage type. */
+const FLAG_PLANES = new Set(['blocked', 'horseJumpableTerrain', 'residenceEnvelopeBlocked']);
+function recordedFlagPlane(key: string, value: Uint8Array): boolean[] {
+  if (value.some((cell) => cell > 1)) throw new Error(`${key} holds a cell other than 0 or 1`);
+  return Array.from(value, (cell) => cell === 1);
+}
+
 function fingerprint(terrain: TerrainArray): Record<string, unknown> {
   const fields = Object.entries(terrain).sort(([left], [right]) => left.localeCompare(right));
-  return Object.fromEntries(fields.map(([key, value]) => {
+  return Object.fromEntries(fields.map(([key, raw]) => {
+    const value: unknown = FLAG_PLANES.has(key) && raw instanceof Uint8Array ? recordedFlagPlane(key, raw) : raw;
     if (value === undefined || value === null || typeof value !== 'object') return [key, value ?? null];
     const text = stableJson(value);
     return [key, text.length <= 64 ? JSON.parse(text) : `sha256:${createHash('sha256').update(text).digest('hex')}`];

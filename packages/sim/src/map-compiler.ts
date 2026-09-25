@@ -115,7 +115,7 @@ export function compileMapDocument(document: MapDocumentV2, tilesets?: RuntimeTi
   const ledges = new Uint8Array(length);
   const surfaces: MapSurfaceKind[] = Array(length);
   const features: MapFeatureKind[] = Array(length);
-  const blocked: boolean[] = Array(length);
+  const blocked = new Uint8Array(length);
   const defaultCliffFamily = document.defaultCliffFamily ?? 'stone_1';
   const cliffFamilyIds = [...new Set([defaultCliffFamily, ...Object.values(document.cells).flatMap((cell) => [
     ...(cell.cliffFamily === undefined ? [] : [cell.cliffFamily]),
@@ -138,7 +138,7 @@ export function compileMapDocument(document: MapDocumentV2, tilesets?: RuntimeTi
       const material = TERRAIN_MATERIAL_DEFINITIONS[cell.surface];
       const featureBlocks = cell.feature === 'river';
       blocked[index] = cell.collision === 'force_block'
-        || (cell.collision !== 'force_walk' && (cell.ledge || !material.walkable || featureBlocks));
+        || (cell.collision !== 'force_walk' && (cell.ledge || !material.walkable || featureBlocks)) ? 1 : 0;
     }
   }
   const transitions = [
@@ -211,7 +211,7 @@ export function semanticTerrainTraceAt(
   const layers: SemanticTerrainLayer[] = [{
     role: `surface.${cell.surface}`,
     contourLevel: 0,
-    blocksMovement: compiled.blocked[tileY * compiled.width + tileX] ?? true,
+    blocksMovement: (compiled.blocked[tileY * compiled.width + tileX] ?? 1) !== 0,
     blocksLight: TERRAIN_MATERIAL_DEFINITIONS[cell.surface].blocksLight,
     reason: `authored ${cell.surface} surface${cell.feature === 'none' ? '' : ` with ${cell.feature} feature`}`,
     family,
@@ -362,7 +362,7 @@ export function collisionMapForCompiledMapDocument(
     terrainTransitions: compiled.transitions,
     terrainPlaneBlocked: compiledMapTerrainPlaneCollisionBytes(compiled),
     terrainMinimumElevation: minimum,
-    horseJumpableTerrain: Array<boolean>(compiled.width * compiled.height).fill(false),
+    horseJumpableTerrain: new Uint8Array(compiled.width * compiled.height),
     obstacles: [],
   };
 }
@@ -375,7 +375,7 @@ export function mapCollisionAtPlane(
 ): 'open' | 'blocked' | 'transition' {
   if (tileX < 0 || tileY < 0 || tileX >= compiled.width || tileY >= compiled.height) return 'blocked';
   const index = tileY * compiled.width + tileX;
-  if (compiled.blocked[index] ?? true) return 'blocked';
+  if ((compiled.blocked[index] ?? 1) !== 0) return 'blocked';
   if (compiled.transitions.some((transition) => (
     (transition.kind === 'slope' || transition.kind === 'stairs')
     && ((transition.lowerTileX === tileX && transition.lowerTileY === tileY)

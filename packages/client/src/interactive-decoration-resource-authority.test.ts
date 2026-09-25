@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const painter = readFileSync(new URL('./gameplay-painter-decorations.ts', import.meta.url), 'utf8');
 const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
+const topside = readFileSync(new URL('./topside-map-records.ts', import.meta.url), 'utf8');
 const engineCollision = readFileSync(new URL('../../engine/src/collision.ts', import.meta.url), 'utf8');
 const survival = readFileSync(new URL('../../sim/src/survival-world.ts', import.meta.url), 'utf8');
 const world = readFileSync(new URL('../../world/src/index.ts', import.meta.url), 'utf8');
@@ -35,9 +36,12 @@ describe('authored landmark decoration collision wiring', () => {
 
   it('threads the active registry through live client and server collision consumers', () => {
     expect(painter).toMatch(/survivalDecorationBlocksTraversal\(\s*decoration\.kind, 'ground', snapshot\.content\.registry,/u);
-    expect(main).toMatch(/survivalDecorationBlocksTraversal\(\s*decoration\.kind, 'ground', snapshot\.content\.registry,/u);
+    // Static world S4e: the elevated decoration occluders moved to topside-map-records.ts.
+    expect(topside).toContain("survivalDecorationBlocksTraversal(decoration.kind, 'ground', registry)");
+    expect(topside).toContain("survivalDecorationObstacle(decoration, 'ground', registry)");
+    expect(main).toMatch(/topsideDecorationLightCasters\(topsideDecorations\(snapshot, seed\), topsideMapRecords\(snapshot\),\s*snapshot\.content\.registry,/u);
     expect(main.match(/survivalDecorationObstacle\(\s*decoration, '(?:ground|water)', snapshot\.content\.registry(?:,|\))/gu))
-      .toHaveLength(3);
+      .toHaveLength(2);
     expect(main.match(/liveMapObjectCollisionObstacles\(\s*liveDocument, '(?:ground|water)', snapshot\.content\.registry,/gu))
       .toHaveLength(2);
     expect(engineCollision).toContain('survivalDecorationObstacle(decoration, medium, contentRegistry)');

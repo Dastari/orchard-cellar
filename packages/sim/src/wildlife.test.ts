@@ -301,7 +301,7 @@ describe('activated wildlife lifecycle', () => {
     const collision = {
       width: SURVIVAL_WORLD_SIZE,
       height: SURVIVAL_WORLD_SIZE,
-      blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+      blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE),
       obstacles: [],
     };
     const dayTick = BigInt(Math.floor(AUTHORITY_TICKS_PER_DAY * 0.4));
@@ -377,7 +377,7 @@ describe('activated wildlife lifecycle', () => {
     const open = {
       width: SURVIVAL_WORLD_SIZE,
       height: SURVIVAL_WORLD_SIZE,
-      blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+      blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE),
       obstacles: [{
         left: initial.position.x + 4 * 16,
         right: initial.position.x + TILE_SIZE_FIXED,
@@ -458,7 +458,7 @@ describe('activated wildlife lifecycle', () => {
       collision: {
         width: SURVIVAL_WORLD_SIZE,
         height: SURVIVAL_WORLD_SIZE,
-        blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+        blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE),
         elevations,
         terrainTransitions: [],
       },

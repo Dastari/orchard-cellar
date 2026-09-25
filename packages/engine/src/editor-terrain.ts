@@ -76,7 +76,7 @@ export function terrainArrayForMapDocument(
     ? survivalDirtCliffRoleBytes(seed).slice()
     : new Uint8Array(length);
   let authoredFarmland: Uint8Array | undefined;
-  const horseJumpableTerrain = Array<boolean>(length).fill(false);
+  const horseJumpableTerrain = new Uint8Array(length);
   const defaultTileSet = compiled.tilesets?.tileSetFor(compiled.defaultCliffFamily)
     ?? terrainCliffTileSet(compiled.defaultCliffFamily);
   for (let index = 0; index < length; index += 1) {
@@ -95,7 +95,7 @@ export function terrainArrayForMapDocument(
           ? survivalBiomeAt(seed, tileX, tileY)
           : semanticDocument?.baseBiome ?? biomeForSurface(surface));
     biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
-    horseJumpableTerrain[index] = survivalBiomeAllowsHorseJump(biome);
+    horseJumpableTerrain[index] = survivalBiomeAllowsHorseJump(biome) ? 1 : 0;
     if (hasAuthoredSurface || semanticCell?.biome !== undefined) { dirtTerraces[index] = 0; dirtCliffRoles[index] = 0; }
     if (surface === 'dirt') dirtTerraces[index] = 1;
     if (compiled.features[index] === 'farmland') {

@@ -18,6 +18,7 @@ import {
   decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, WORLD_CHUNK_VOID,
   type ChunkArray, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord,
 } from './world-chunk.js';
+import { cellFlags } from './cell-flags.js';
 
 // Static world S4d: the client's windowed chunk collision and the origin-aware
 // collision sampler. A 3 x 3 chunk map (192 x 176: the last row is partial) whose
@@ -74,7 +75,7 @@ const RECORDS: WorldChunkRecord[] = [
   ...TRANSITIONS.map((value, ordinal): WorldChunkRecord => ({ kind: 'authority.ground.transition', ordinal, tileX: value.lowerTileX, tileY: value.lowerTileY, value: { ...value } })),
 ];
 
-function fixture(options: { readonly withoutAuthority?: string } = {}): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
+function fixture(options: { readonly withoutAuthority?: string; readonly authoritySchema?: 1 | 2 } = {}): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
   const chunks = new Map<string, WorldChunk>();
   const heads: WorldChunkManifest['chunks'][number][] = [];
   for (let cy = 0; cy < 3; cy++) for (let cx = 0; cx < 3; cx++) {
@@ -83,7 +84,7 @@ function fixture(options: { readonly withoutAuthority?: string } = {}): { manife
       .filter(([name]) => authority || !name.startsWith('authority.'))
       .map(([name, value]) => [name, sliceWorldChunkChannel(value, WIDTH, HEIGHT, cx, cy, /blocked/iu.test(name) ? 1 : name === 'medium' ? WORLD_CHUNK_VOID : 0)]));
     const records = authority ? RECORDS.filter(item => Math.floor(item.tileX / 64) === cx && Math.floor(item.tileY / 64) === cy) : [];
-    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, ...(authority ? { authoritySchema: 1 as const } : {}), spaceId: 0, cx, cy,
+    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, ...(authority ? { authoritySchema: options.authoritySchema ?? 1 } : {}), spaceId: 0, cx, cy,
       assetRevision: 'a', records, assetIds: [], atlasPackIds: [], arrays });
     const chunk = decodeWorldChunk(bytes);
     chunks.set(key, chunk);
@@ -98,14 +99,14 @@ function fixture(options: { readonly withoutAuthority?: string } = {}): { manife
     }, chunks: heads } as unknown as WorldChunkManifest;
   return { manifest, chunks };
 }
-function source(options: { readonly withoutAuthority?: string; readonly resident?: (key: string) => boolean } = {}): ChunkCollisionSource {
+function source(options: { readonly withoutAuthority?: string; readonly resident?: (key: string) => boolean; readonly authoritySchema?: 1 | 2 } = {}): ChunkCollisionSource {
   const { manifest, chunks } = fixture(options);
   return { manifest, peekChunk: (cx, cy) => (options.resident?.(`${cx}:${cy}`) ?? true) ? chunks.get(`${cx}:${cy}`) : undefined };
 }
 
 /** The whole-map (server-shaped) maps of the same fixture, composed the server's way. */
 function wholeMaps(live: readonly CollisionObstacle[] = []): { ground: CollisionMap; water: CollisionMap } {
-  const booleans = (name: string) => Array.from(CHANNELS[name]!, value => value !== 0);
+  const booleans = (name: string) => cellFlags(CHANNELS[name]!);
   const traversalChannels = { width: WIDTH, height: HEIGHT, medium: CHANNELS['medium']!, solidBlocked: CHANNELS['solidBlocked']! };
   const suppressed = new Set([box(70, 5), box(75, 6)].map(({ left, top, right, bottom }) => `${left}:${top}:${right}:${bottom}`));
   return {
@@ -114,13 +115,13 @@ function wholeMaps(live: readonly CollisionObstacle[] = []): { ground: Collision
       terrainPlaneBlocked: CHANNELS['authority.ground.terrainPlaneBlocked'] as Uint8Array, horseJumpableTerrain: booleans('authority.ground.horseJumpableTerrain'),
       obstacles: [...[...BASE, ...live].filter(o => !suppressed.has(`${o.left}:${o.top}:${o.right}:${o.bottom}`)), ...AUTHORED] },
     water: { traversalChannels, width: WIDTH, height: HEIGHT, blocked: booleans('authority.water.blocked'),
-      horseJumpableTerrain: new Array<boolean>(WIDTH * HEIGHT).fill(false), obstacles: [box(30, 30)] },
+      horseJumpableTerrain: new Uint8Array(WIDTH * HEIGHT), obstacles: [box(30, 30)] },
   };
 }
 
 describe('origin-aware collision sampler (static world S4d)', () => {
   it('addresses cells from the origin and blocks every tile outside the window', () => {
-    const map: CollisionMap = { width: 3, height: 2, originX: 100, originY: 50, blocked: [false, true, false, false, false, true] };
+    const map: CollisionMap = { width: 3, height: 2, originX: 100, originY: 50, blocked: cellFlags([false, true, false, false, false, true]) };
     expect(collisionCellIndex(map, 100, 50)).toBe(0);
     expect(collisionCellIndex(map, 102, 51)).toBe(5);
     expect([collisionCellIndex(map, 99, 50), collisionCellIndex(map, 103, 50), collisionCellIndex(map, 100, 49), collisionCellIndex(map, 100, 52)]).toEqual([-1, -1, -1, -1]);
@@ -166,7 +167,25 @@ describe('origin-aware collision sampler (static world S4d)', () => {
   });
 });
 
+/** Chunk `key` as a decoder sees a later, unknown authority version (records and channels intact). */
+function laterAuthority(key: string): ChunkCollisionSource {
+  const input = source();
+  return { manifest: input.manifest, peekChunk: (cx, cy) => {
+    const chunk = input.peekChunk(cx, cy);
+    return chunk === undefined || `${cx}:${cy}` !== key ? chunk : { ...chunk, authoritySchema: 3 };
+  } };
+}
+
 describe('buildChunkWindowCollision (static world S4d)', () => {
+  it('composes the identical window from authority schema 2 (obstacle table) blobs (BUG-044)', () => {
+    const rect = { cx: 0, cy: 0, columns: 3, rows: 3 }, live = [box(75, 6), box(80, 8)];
+    const v1 = buildChunkWindowCollision(source(), rect), v2 = buildChunkWindowCollision(source({ authoritySchema: 2 }), rect);
+    expect(v2.issues).toEqual([]);
+    expect(v2.present.size).toBe(9);
+    for (const medium of ['ground', 'water'] as const) {
+      expect(composeChunkWindowCollision(v2, medium, live), medium).toEqual(composeChunkWindowCollision(v1, medium, live));
+    }
+  });
   it('reproduces every authority channel, record group, suppression and manifest field of the server composition', () => {
     const live = [box(75, 6), box(80, 8)];
     const whole = wholeMaps(live);
@@ -200,6 +219,8 @@ describe('buildChunkWindowCollision (static world S4d)', () => {
     for (const [label, input, kind] of [
       ['not resident', source({ resident: key => key !== '1:0' }), 'chunk_missing'],
       ['no authority', source({ withoutAuthority: '1:0' }), 'authority_missing'],
+      // A later authority version decodes (its data unvalidated) but is never used: fall back.
+      ['later authority version', laterAuthority('1:0'), 'authority_missing'],
     ] as const) {
       const window = buildChunkWindowCollision(input, rect);
       expect(window.issues, label).toEqual([{ kind, cx: 1, cy: 0 }]);
@@ -264,7 +285,7 @@ function crop(whole: CollisionMap, originX: number, originY: number, width: numb
     }
     return result;
   };
-  return { ...whole, width, height, originX, originY, blocked: cells(whole.blocked),
+  return { ...whole, width, height, originX, originY, blocked: Uint8Array.from(cells(whole.blocked)),
     ...(whole.elevations === undefined ? {} : { elevations: Int16Array.from(cells(whole.elevations)) }) };
 }
 
@@ -277,7 +298,7 @@ describe('window collision for topside hearth resource sites (static world S4d)'
     for (const site of sites) for (let y = site.tileY - 6; y <= site.tileY + 6; y++) for (let x = site.tileX - 6; x <= site.tileX + 6; x++) {
       elevations[y * size + x] = site.elevation;
     }
-    const whole: CollisionMap = { width: size, height: size, blocked: new Array<boolean>(size * size).fill(false), elevations };
+    const whole: CollisionMap = { width: size, height: size, blocked: new Uint8Array(size * size), elevations };
     let allowed = 0, compared = 0;
     for (const site of sites) {
       const window = crop(whole, Math.max(0, site.tileX - 160), Math.max(0, site.tileY - 160), 320, 320);

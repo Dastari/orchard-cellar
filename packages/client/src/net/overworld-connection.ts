@@ -1,3 +1,4 @@
+import { atlasPackDeliveryEnabled, loadAtlasPacks } from '@orchard/ui';
 import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import { ChunkRuntimeController, type ChunkAuthorityGate, type ChunkRuntimeSource, type ChunkView } from '../chunk-runtime-controller.js';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
@@ -353,6 +354,8 @@ export class OverworldConnection {
   get chunkRuntimeStatus() { return this.chunkRuntime?.status; }
   /** The serving chunk store (effective mode `on` only), read by the render window. */
   get chunkTerrainStore(): BoundedChunkTerrainStore | undefined { return this.chunkRuntime?.store; }
+  /** Chunks of the serving store whose load failed (static world S4f spawn readiness). */
+  get chunkFailedKeys(): ReadonlySet<string> | undefined { return this.chunkRuntime?.failedChunks; }
   /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
   chunkAuthorityGate(): ChunkAuthorityGate | null {
     return this.chunkRuntime?.authorityGate(this.chunkRuntimeSource()) ?? 'not_on';
@@ -806,7 +809,7 @@ export class OverworldConnection {
   reconcile(predicted: PlayerState | null, authoritative: PlayerState, collision: CollisionMap): ReconciliationResult | null {
     const x = Math.floor(authoritative.position.x / TILE_SIZE_FIXED), y = Math.floor(authoritative.position.y / TILE_SIZE_FIXED);
     const cell = collisionCellIndex(collision, x, y);
-    if (cell >= 0) this.chunkRuntime?.compare(x, y, collision.blocked[cell] ?? true);
+    if (cell >= 0) this.chunkRuntime?.compare(x, y, (collision.blocked[cell] ?? 1) !== 0);
     const row = this.ownPosition(); if (row === null) return null;
     if(row.actionKind==='sitting'){
       this.prediction.discardPendingMovement();
@@ -912,7 +915,9 @@ export class OverworldConnection {
 
   private updateChunkRuntime(connection: DbConnection, position: PlayerPosition): void {
     if (this.chunkRuntimeMode !== 'shadow' && this.chunkRuntimeMode !== 'on') return;
-    this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
+    // Atlas packs load through the chunk runtime only when pack delivery is enabled (S4f).
+    this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode,
+      ...(atlasPackDeliveryEnabled() ? { loadAtlasPacks: (ids: readonly string[]) => loadAtlasPacks(ids) } : {}) });
     this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), this.chunkRuntimeSource());
   }
 
