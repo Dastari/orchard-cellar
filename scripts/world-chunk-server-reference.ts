@@ -44,6 +44,28 @@ export interface ServerLiveIslandReference {
   readonly resources: readonly ServerStaticResource[];
   /** Placements reconcile uses only to keep rows whose ids are not generated (document order). */
   readonly orphanResourcePlacements: readonly ServerOrphanResourcePlacement[];
+  /** The actual `compiledLiveIslandRuntime(ctx)` result (with its cache key). */
+  readonly runtime: ServerCompiledLiveIslandRuntime;
+  /** Static composition WITH live rows, as collisionForSpace/waterCollisionForSpace do it (mirrored,
+   * see SERVER_MIRRORED_FRAGMENTS): the real `createAuthoritySpaceCollisionMap` with live resources
+   * (runtime-suppressed ones dropped), chests and placeables, then the real
+   * `liveMapCollisionForSpace` over the given runtime (compiled, or a chunk-assembled one). */
+  composeWithLiveRows(medium: 'ground' | 'water', runtime: unknown, rows: ServerLiveCollisionRows): sim.CollisionMap;
+}
+export interface ServerCompiledLiveIslandRuntime {
+  readonly key: string;
+  readonly combatPolicy: sim.CombatRegionPolicy;
+  readonly document: sim.MapDocumentV3;
+  readonly ground: sim.CollisionMap;
+  readonly water: sim.CollisionMap;
+  readonly generatedSuppressions: ReadonlySet<string>;
+  readonly suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>;
+}
+/** Live rows in the shape collisionForSpace passes to createAuthoritySpaceCollisionMap. */
+export interface ServerLiveCollisionRows {
+  readonly resources: readonly { readonly id: bigint; readonly kind: string; readonly definitionId?: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean }[];
+  readonly chests: readonly { readonly tileX: number; readonly tileY: number; readonly carriedBy?: unknown }[];
+  readonly placeables: readonly { readonly tileX: number; readonly tileY: number; readonly blocksMovement: boolean }[];
 }
 
 const SERVER_FUNCTIONS = [
@@ -56,7 +78,8 @@ const SERVER_FUNCTIONS = [
  * authority.resource record shape for generatedWorldResourceRow), then re-pinned.
  * Hashes cover the fragment text with whitespace runs collapsed. */
 export const SERVER_MIRRORED_FRAGMENTS: Readonly<Record<string, string>> = Object.freeze({
-  // Static composition inputs: the oracle passes no live rows, a null instance and no excavations.
+  // Static composition inputs: the oracle passes no live rows, a null instance and no excavations;
+  // composeWithLiveRows adds the live resource (runtime-suppression filtered), chest and placeable rows.
   'collisionForSpace:ground-composition': '0292d6d9dcf859df5ccec1277f3b8399e24758708646d8f87dd8d9e2f88ff22f',
   'waterCollisionForSpace:water-composition': 'f641cf8c6a9d2c3e212b78fdd2b58750b4dea0f12f0fd6570d750841a8183c48',
   // Resource placement, desired set and the orphan-placement keep rule.
@@ -153,6 +176,10 @@ runtime === null ? null : ({
   }),
   orphanResourcePlacements: [...placements.values()].filter(placement => !generatedIds.has(BigInt(placement.id)))
     .map(placement => ({ id: placement.id, originTile: { tileX: placement.originTileX, tileY: placement.originTileY }, tile: { tileX: placement.tileX, tileY: placement.tileY } })),
+  composeWithLiveRows: (medium, liveRuntime, rows) => liveMapCollisionForSpace(ctx, TOPSIDE_SPACE_ID, medium, medium === 'ground'
+    ? createAuthoritySpaceCollisionMap(contentRegistry(ctx), TOPSIDE_SPACE_ID,
+      rows.resources.filter(resource => !liveMapRuntimeGeneratedResourceSuppressed(liveRuntime, resource.id)), rows.chests, 'ground', rows.placeables, null, [])
+    : createAuthoritySpaceCollisionMap(contentRegistry(ctx), TOPSIDE_SPACE_ID, [], [], 'water', [], null), liveRuntime),
 });`, { compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.None } }).outputText;
   const result: unknown = runInNewContext(javascript, {
     ...sim,
@@ -165,15 +192,16 @@ runtime === null ? null : ({
     } },
   }, { timeout: 120_000 });
   if (result === null || typeof result !== 'object' || !('runtime' in result)) throw new Error('Server rejected live island parity fixture');
-  const { runtime, base, composed, resources, orphanResourcePlacements } = result as {
-    runtime: { ground: sim.CollisionMap; water: sim.CollisionMap; document: sim.MapDocumentV3; generatedSuppressions: ReadonlySet<string>;
-      suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>; combatPolicy: sim.CombatRegionPolicy };
+  const { runtime, base, composed, resources, orphanResourcePlacements, composeWithLiveRows } = result as {
+    runtime: ServerCompiledLiveIslandRuntime;
     base: Record<'ground' | 'water', sim.CollisionMap>;
     composed: Record<'ground' | 'water', sim.CollisionMap>;
     resources: ServerStaticResource[];
     orphanResourcePlacements: ServerOrphanResourcePlacement[];
+    composeWithLiveRows: ServerLiveIslandReference['composeWithLiveRows'];
   };
   return { ground: runtime.ground, water: runtime.water, composed, base, document: runtime.document,
     generatedSuppressions: runtime.generatedSuppressions, suppressedDecorationObstacleKeys: runtime.suppressedDecorationObstacleKeys,
-    combatPolicy: runtime.combatPolicy, combatRegions: runtime.document.combatRegions ?? [], resources, orphanResourcePlacements };
+    combatPolicy: runtime.combatPolicy, combatRegions: runtime.document.combatRegions ?? [], resources, orphanResourcePlacements,
+    runtime, composeWithLiveRows };
 }

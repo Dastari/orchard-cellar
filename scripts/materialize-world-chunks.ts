@@ -163,7 +163,9 @@ function captureAuthority(server: ServerLiveIslandReference, registry: ContentRe
 }
 /** Calls the same live terrain, decoration and collision functions as the client. */
 export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry,
-  resolvedRoleMedium?: (tileX: number, tileY: number) => WorldChunkMedium | undefined): WorldChunkSnapshot {
+  resolvedRoleMedium?: (tileX: number, tileY: number) => WorldChunkMedium | undefined,
+  /** A reference already computed for this exact row and registry (avoids re-running the oracle). */
+  serverReference?: ServerLiveIslandReference): WorldChunkSnapshot {
   const document = parseMapDocumentV3(row.documentJson, activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
   const raw = JSON.parse(row.documentJson) as { cells?: Record<string, { parts?: unknown }> };
   for (const [key, value] of Object.entries(raw.cells ?? {})) {
@@ -232,7 +234,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
     };
     return { ...collision, obstacles: [...(base.obstacles ?? []), ...liveMapObjectCollisionObstacles(document, medium, registry)] };
   };
-  const server = serverLiveIslandReference(row, registry);
+  const server = serverReference ?? serverLiveIslandReference(row, registry);
   const collisions = { clientGround: clientCollision('ground'), clientWater: clientCollision('water'), serverGround: server.ground, serverWater: server.water };
   const collisionsMetadata: Record<string, ChunkJson> = {};
   for (const [name, collision] of Object.entries(collisions)) {
