@@ -1,6 +1,7 @@
 import { worldAssetFrameSource } from './world-asset-presentation.js';
 import type { LoadedAsset } from '@orchard/ui';
 import { animatedWaterRockAllowedAt, grassTuftAllowedAt, terrainBiomeAt, terrainDecorationHash, waterfallTopLeftAt, waterfallUsesRaisedCompositionAt, type TerrainArray } from './terrain.js';
+import { terrainTileBounds } from './terrain-index.js';
 
 export { waterfallUsesRaisedCompositionAt } from './terrain.js';
 
@@ -84,10 +85,12 @@ export function drawAnimatedTerrain(
   windStrength = 0,
   windDirectionX = 1,
 ): number {
-  const minimumTileX = Math.max(0, Math.floor(cameraX / TILE_SIZE_PIXELS) - 3);
-  const minimumTileY = Math.max(0, Math.floor(cameraY / TILE_SIZE_PIXELS) - 5);
-  const maximumTileX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth) / TILE_SIZE_PIXELS) + 3);
-  const maximumTileY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight) / TILE_SIZE_PIXELS) + 5);
+  // Clamped to the terrain's own tiles (a chunk render window's, S4c).
+  const bounds = terrainTileBounds(terrain);
+  const minimumTileX = Math.max(bounds.minX, Math.floor(cameraX / TILE_SIZE_PIXELS) - 3);
+  const minimumTileY = Math.max(bounds.minY, Math.floor(cameraY / TILE_SIZE_PIXELS) - 5);
+  const maximumTileX = Math.min(bounds.maxX, Math.ceil((cameraX + viewportWidth) / TILE_SIZE_PIXELS) + 3);
+  const maximumTileY = Math.min(bounds.maxY, Math.ceil((cameraY + viewportHeight) / TILE_SIZE_PIXELS) + 5);
   const waterfallFrames = art.waterfallFlow.metadata.animations['flow'] ?? [];
   const waterfallFps = art.waterfallFlow.metadata.animationMeta?.['flow']?.fps ?? 8;
   const waterfallFrame = loopingAnimationFrame(nowMs, waterfallFps, waterfallFrames.length);

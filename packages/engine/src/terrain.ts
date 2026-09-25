@@ -53,7 +53,7 @@ import {
   type ContentRegistry,
 } from "@orchard/sim";
 import { blob47FrameIndexFor } from "./tilemap.js";
-import { terrainIndexAt } from "./terrain-index.js";
+import { terrainIndexAt, terrainIsWindow, terrainSparseKey } from "./terrain-index.js";
 
 export { SURVIVAL_BIOMES };
 export { terrainContains, terrainIndexAt, type TerrainWindow } from "./terrain-index.js";
@@ -96,6 +96,15 @@ export interface TerrainArray {
    * `terrainIndexAt`, never by hand. */
   readonly originX?: number;
   readonly originY?: number;
+  /** Size of the whole map in tiles when this terrain is a chunk render window
+   * (static world S4c); defaults to `width` x `height`. Map-border rules (the
+   * fixed-plane border ring) use it rather than the window edge. */
+  readonly worldWidth?: number;
+  readonly worldHeight?: number;
+  /** Map-wide elevation extremes for a chunk render window, whose own cells
+   * may not include them; plane channels are indexed from the map minimum.
+   * Whole maps omit it and measure `elevations`. */
+  readonly elevationRange?: { readonly minimum: number; readonly maximum: number };
   readonly generator?: SpaceDefinition["generator"];
   readonly rogueTheme?: string;
   readonly rogueHazards?: Uint8Array;
@@ -836,8 +845,10 @@ export function terrainElevationAt(
   tileX: number,
   tileY: number,
 ): number {
-  const outside = tileX < 0 || tileY < 0
-    || tileX >= terrain.width || tileY >= terrain.height;
+  // Negative form of the window test, so NaN counts as inside exactly as the
+  // historical `tileX < 0 || ...` check did (S4c: window-relative).
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  const outside = index < 0;
   // An interior map is a window cut into a continuous solid mass one level
   // above its floor datum. Treating its array boundary as open floor creates a
   // false rectangular cliff. Bounds are checked before any family lookup
@@ -846,13 +857,17 @@ export function terrainElevationAt(
   if (outside && terrainProjectionStyle(terrain) === 'interior') {
     return terrainBaseDatum(terrain) + 1;
   }
-  return sampleTerrainElevation(
-    terrain.elevations,
-    terrain.width,
-    terrain.height,
-    tileX,
-    tileY,
-  );
+  if (!terrainIsWindow(terrain)) {
+    return sampleTerrainElevation(
+      terrain.elevations,
+      terrain.width,
+      terrain.height,
+      tileX,
+      tileY,
+    );
+  }
+  // Same answers as the sampler (0 outside, `?? 0` inside) on window-local cells.
+  return outside ? 0 : terrain.elevations[index] ?? 0;
 }
 
 export function terrainElevationAtWorldFoot(
@@ -1073,7 +1088,7 @@ export function plateauLayerPlansAt(
   }
   // A cache key, not an array index: callers probe neighbours past the edge,
   // and those keys must keep their historical values. Kept by hand (S4b).
-  const tileKey = tileY * terrain.width + tileX;
+  const tileKey = terrainSparseKey(terrain, tileX, tileY);
   const cached = plansByTile.get(tileKey);
   if (cached !== undefined) return cached;
   const tileSet = raisedCliffTileSetFor(terrain, tileX, tileY);
@@ -1104,7 +1119,7 @@ export function plateauLayerPlansAt(
 export function terrainMaximumElevation(terrain: TerrainArray): number {
   let maximumElevation = maximumElevationCache.get(terrain);
   if (maximumElevation === undefined) {
-    maximumElevation = maximumTerrainElevation(terrain.elevations);
+    maximumElevation = terrain.elevationRange?.maximum ?? maximumTerrainElevation(terrain.elevations);
     maximumElevationCache.set(terrain, maximumElevation);
   }
   return maximumElevation;
@@ -1113,7 +1128,7 @@ export function terrainMaximumElevation(terrain: TerrainArray): number {
 export function terrainMinimumElevation(terrain: TerrainArray): number {
   let minimumElevation = minimumElevationCache.get(terrain);
   if (minimumElevation === undefined) {
-    minimumElevation = minimumTerrainElevation(terrain.elevations);
+    minimumElevation = terrain.elevationRange?.minimum ?? minimumTerrainElevation(terrain.elevations);
     minimumElevationCache.set(terrain, minimumElevation);
   }
   return minimumElevation;
@@ -1232,7 +1247,7 @@ function terrainTransitionsByTile(
     ] as const) {
       // Sparse key over authored data, not an array index: kept by hand so
       // any off-map endpoint keys exactly as before (S4b; S4c re-keys).
-      const key = tileY * terrain.width + tileX;
+      const key = terrainSparseKey(terrain, tileX, tileY);
       const entries = mutable.get(key) ?? [];
       entries.push(transition);
       mutable.set(key, entries);
@@ -1258,7 +1273,7 @@ export function terrainProjectedElevationAtFoot(
   const baseElevation = terrainElevationAt(terrain, tileX, tileY);
   // Same hand-kept sparse key as terrainTransitionsByTile (feet may be off-map).
   const transitions =
-    terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? [];
+    terrainTransitionsByTile(terrain).get(terrainSparseKey(terrain, tileX, tileY)) ?? [];
   for (const transition of transitions) {
     if (transition.kind !== "slope" && transition.kind !== "stairs") continue;
     const lowerX = (transition.lowerTileX + 0.5) * 16;
@@ -1316,10 +1331,11 @@ export function terrainPlaneCollisionCellAt(
   const index = terrainIndexAt(terrain, tileX, tileY);
   if (index < 0) return "blocked";
   if (terrainFixedPlane(terrain) !== undefined) {
-    // S4c: origin-0 assumption. This is the map's own border ring in array
-    // coordinates; a window with a non-zero origin must decide whether it
-    // means the map border (world tiles) or the window edge.
-    if (tileX === 0 || tileY === 0 || tileX === terrain.width - 1 || tileY === terrain.height - 1) {
+    // The map's own border ring in world tiles. A chunk render window (S4c)
+    // keeps the map border, never its own edge, via worldWidth/worldHeight.
+    const lastX = (terrain.worldWidth ?? terrain.width) - 1;
+    const lastY = (terrain.worldHeight ?? terrain.height) - 1;
+    if (tileX === 0 || tileY === 0 || tileX === lastX || tileY === lastY) {
       return "blocked";
     }
     if (terrain.terrainPlaneBlocked === undefined) return "open";
@@ -1330,7 +1346,7 @@ export function terrainPlaneCollisionCellAt(
       : "open";
   }
   if (terrain.blocked[index] ?? true) return "blocked";
-  const transition = (terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? []).some(
+  const transition = (terrainTransitionsByTile(terrain).get(terrainSparseKey(terrain, tileX, tileY)) ?? []).some(
     (candidate) => {
       if (candidate.kind !== "slope" && candidate.kind !== "stairs")
         return false;
@@ -1360,15 +1376,28 @@ export function terrainContourBoundaryBetween(
   const fromElevation = terrainElevationAt(terrain, fromTileX, fromTileY);
   const toElevation = terrainElevationAt(terrain, toTileX, toTileY);
   if (fromElevation === toElevation) return "none";
+  // The sim step check indexes a whole map from (0, 0); a window translates the
+  // step and its transitions into window-local tiles first (S4c).
+  const originX = terrain.originX ?? 0;
+  const originY = terrain.originY ?? 0;
+  const transitions = originX === 0 && originY === 0
+    ? terrain.terrainTransitions ?? []
+    : (terrain.terrainTransitions ?? []).map((transition) => ({
+      ...transition,
+      lowerTileX: transition.lowerTileX - originX,
+      lowerTileY: transition.lowerTileY - originY,
+      upperTileX: transition.upperTileX - originX,
+      upperTileY: transition.upperTileY - originY,
+    }));
   return terrainWalkingStepAllowed(
     terrain.elevations,
     terrain.width,
     terrain.height,
-    terrain.terrainTransitions ?? [],
-    fromTileX,
-    fromTileY,
-    toTileX,
-    toTileY,
+    transitions,
+    fromTileX - originX,
+    fromTileY - originY,
+    toTileX - originX,
+    toTileY - originY,
   )
     ? "transition"
     : "blocked";
