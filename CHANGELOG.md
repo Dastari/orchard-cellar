@@ -2,6 +2,24 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.46.1 / Engine 0.29.1 / Sim 0.32.0 / World 0.26.8 — Compact chunk obstacle tables (BUG-044); ships S7a
+
+No gameplay, schema or content change. The chunk runtime stays `off`, and no chunk heads are published.
+
+- **BUG-044: production chunk blobs exceed the 1 MiB runtime cap (#199).**
+  - **Cause:** the production map's 5,104 prefab collision sub-cell obstacles were written as JSON records three times per chunk, so chunk (2,6) came to 2.9 MB.
+  - **New format:** chunks now use `authoritySchema: 2` with a per-chunk `obstacleTable`. Each box and source id is stored once, delta-coded, and the lists are index rows. The decoder expands the table back into exactly the same records.
+  - **Result on production:** the largest blob drops from 2.9 MB to 556 KB, and decode time drops from 14 to 3.3 ms, within the 4 ms budget.
+  - **Checks:** parity with the server oracle is exact.
+  - **Hardening:**
+    - a 65,536-row limit is checked before any record is built;
+    - out-of-range coordinates fall back to JSON records;
+    - an unknown future `authoritySchema` is tolerated by consumers, which fall back;
+    - a nightly density regression test asserts every blob is 1 MiB or less.
+  - **Compatibility:** v2 is the materializer default, and builds before this one reject v2. Nothing publishes chunks until S5c.
+- **S7a chunk round trip (#198, merged earlier via #200):** first deployment. See Sim 0.31.0 below.
+- Workspace 0.60.0.
+
 ## Sim 0.31.0 — Static world S7a: chunk round trip (option off)
 
 No gameplay, server, schema, content or published-byte change.
