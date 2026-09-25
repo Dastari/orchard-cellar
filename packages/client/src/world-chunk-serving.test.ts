@@ -1,17 +1,21 @@
+import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { createServer, request, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { preview } from 'vite';
 import {
-  WORLD_CHUNK_CACHE_CONTROL, acceptedEncodings, createWorldChunkMiddleware, parseWorldChunkPath, worldChunkRoot,
+  WORLD_CHUNK_CACHE_CONTROL, acceptedEncodings, createWorldChunkMiddleware, parseWorldChunkPath, sendPlain, worldChunkRoot,
+  worldChunkServing,
 } from '../world-chunk-serving.js';
 
 const HASH = 'a'.repeat(64);
 const BR_ONLY = 'b'.repeat(64);
 const PLAIN_ONLY = 'c'.repeat(64);
 const LINKED = 'd'.repeat(64);
+const FIFO = '9'.repeat(64);
 const identityBytes = Buffer.from('identity-blob-bytes');
 const brBytes = Buffer.from('brotli-bytes');
 const gzipBytes = Buffer.from('gzip-bytes!!');
@@ -27,6 +31,12 @@ async function listen(root: string | undefined): Promise<{ server: Server; port:
   }));
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   return { server, port: (server.address() as AddressInfo).port };
+}
+
+/** Drop keep-alive sockets so close() does not wait for the idle timeout. */
+async function stop(server: Server): Promise<void> {
+  server.closeAllConnections();
+  await new Promise(resolve => server.close(resolve));
 }
 
 /** node:http keeps bytes raw (fetch would transparently decode br/gzip). */
@@ -59,10 +69,11 @@ describe('world chunk blob serving', () => {
     await writeFile(join(root, '0', `${PLAIN_ONLY}.bin`), identityBytes);
     await writeFile(join(root, 'outside.bin'), 'secret');
     await symlink(join(root, 'outside.bin'), join(root, '1', `${LINKED}.bin`));
+    execFileSync('mkfifo', [join(root, '1', `${FIFO}.bin`)]);
     ({ server, port } = await listen(root));
   });
   afterAll(async () => {
-    await new Promise(resolve => server.close(resolve));
+    await stop(server);
     await rm(root, { recursive: true, force: true });
   });
 
@@ -140,6 +151,48 @@ describe('world chunk blob serving', () => {
     expect(response.headers.etag).toBe(`"${HASH}"`);
   });
 
+  it('compares If-None-Match only with the selected representation', async () => {
+    const stale = await send(port, `/world/1/${HASH}.bin`, { headers: { 'if-none-match': `"${HASH}-gzip"`, 'accept-encoding': 'br' } });
+    expect(stale.status).toBe(200);
+    expect(stale.headers['content-encoding']).toBe('br');
+    expect(stale.headers.etag).toBe(`"${HASH}-br"`);
+    expect(stale.body.equals(brBytes)).toBe(true);
+
+    const fresh = await send(port, `/world/1/${HASH}.bin`, { headers: { 'if-none-match': `"${HASH}-gzip"`, 'accept-encoding': 'gzip' } });
+    expect(fresh.status).toBe(304);
+    const identity = await send(port, `/world/1/${HASH}.bin`, { headers: { 'if-none-match': `"${HASH}-br"` } });
+    expect(identity.status).toBe(200);
+    expect(identity.body.equals(identityBytes)).toBe(true);
+  });
+
+  it('refuses a FIFO at a blob path without blocking', async () => {
+    const response = await send(port, `/world/1/${FIFO}.bin`);
+    expect(response.status).toBe(404);
+  });
+
+  it('strips representation headers from an error response', async () => {
+    const failing = createServer((req, res) => {
+      res.setHeader('Vary', 'Origin, Accept-Encoding');
+      res.setHeader('ETag', `"${HASH}-br"`);
+      res.setHeader('Content-Encoding', 'br');
+      res.setHeader('Accept-Ranges', 'none');
+      sendPlain(res, req.method, 500, 'Internal error\n');
+    });
+    await new Promise<void>(resolve => failing.listen(0, '127.0.0.1', resolve));
+    try {
+      const response = await send((failing.address() as AddressInfo).port, `/world/1/${HASH}.bin`);
+      expect(response.status).toBe(500);
+      expect(response.headers.etag).toBeUndefined();
+      expect(response.headers['content-encoding']).toBeUndefined();
+      expect(response.headers['accept-ranges']).toBeUndefined();
+      expect(response.headers.vary).toBe('Origin');
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.body.toString()).toBe('Internal error\n');
+    } finally {
+      await stop(failing);
+    }
+  });
+
   it('returns a real, uncached 404 for missing blobs, siblings without a blob, and symlinks', async () => {
     for (const path of [`/world/1/${'e'.repeat(64)}.bin`, `/world/7/${HASH}.bin`, `/world/1/${BR_ONLY}.bin`, `/world/1/${LINKED}.bin`]) {
       const response = await send(port, path, { headers: { 'accept-encoding': 'br' } });
@@ -180,7 +233,7 @@ describe('world chunk blob serving', () => {
       const response = await send((withCors.address() as AddressInfo).port, `/world/1/${HASH}.bin`);
       expect(response.headers.vary).toBe('Origin, Accept-Encoding');
     } finally {
-      await new Promise(resolve => withCors.close(resolve));
+      await stop(withCors);
     }
   });
 
@@ -197,7 +250,7 @@ describe('world chunk blob serving', () => {
       expect(response.status).toBe(404);
       expect((await send(disabled.port, '/play')).status).toBe(299);
     } finally {
-      await new Promise(resolve => disabled.server.close(resolve));
+      await stop(disabled.server);
     }
   });
 
@@ -205,9 +258,48 @@ describe('world chunk blob serving', () => {
     const warnings: string[] = [];
     expect(worldChunkRoot(undefined, message => warnings.push(message))).toBeUndefined();
     expect(worldChunkRoot('', message => warnings.push(message))).toBeUndefined();
+    expect(worldChunkRoot(root, message => warnings.push(message))).toBe(root);
     expect(warnings).toEqual([]);
     expect(worldChunkRoot('relative/chunks', message => warnings.push(message))).toBeUndefined();
     expect(warnings).toHaveLength(1);
-    expect(worldChunkRoot('/srv/orchard/world-chunks', message => warnings.push(message))).toBe('/srv/orchard/world-chunks');
+    expect(warnings[0]).toContain('must be absolute');
+  });
+
+  it('warns once but stays configured when the absolute directory is missing', () => {
+    const warnings: string[] = [];
+    const missing = join(root, 'not-created-yet');
+    expect(worldChunkRoot(missing, message => warnings.push(message))).toBe(missing);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('missing or unreadable');
+    expect(worldChunkRoot(join(root, 'outside.bin'), message => warnings.push(message))).toBe(join(root, 'outside.bin'));
+    expect(warnings).toHaveLength(2);
+  });
+
+  it('runs ahead of Vite preview compression and SPA fallback', async () => {
+    const site = await mkdtemp(join(tmpdir(), 'orchard-world-preview-'));
+    await mkdir(join(site, 'dist'));
+    await writeFile(join(site, 'dist', 'index.html'), '<!doctype html><title>spa</title>');
+    const server = await preview({
+      configFile: false, root: site, logLevel: 'silent',
+      plugins: [worldChunkServing({ ORCHARD_WORLD_CHUNK_DIR: root })],
+      preview: { host: '127.0.0.1', port: 0, strictPort: true, open: false },
+    });
+    try {
+      const previewPort = (server.httpServer.address() as AddressInfo).port;
+      const blob = await send(previewPort, `/world/0/${PLAIN_ONLY}.bin`, { headers: { 'accept-encoding': 'gzip, br' } });
+      expect(blob.status).toBe(200);
+      expect(blob.headers['content-encoding']).toBeUndefined();
+      expect(blob.body.equals(identityBytes)).toBe(true);
+      expect(blob.headers['cache-control']).toBe(WORLD_CHUNK_CACHE_CONTROL);
+      const missing = await send(previewPort, `/world/1/${'e'.repeat(64)}.bin`, { headers: { accept: 'text/html' } });
+      expect(missing.status).toBe(404);
+      expect(missing.body.toString()).toBe('Not found\n');
+      const spa = await send(previewPort, '/play', { headers: { accept: 'text/html' } });
+      expect(spa.status).toBe(200);
+      expect(spa.body.toString()).toContain('<title>spa</title>');
+    } finally {
+      await server.close();
+      await rm(site, { recursive: true, force: true });
+    }
   });
 });

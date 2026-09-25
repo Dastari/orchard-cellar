@@ -1,4 +1,4 @@
-import { constants, createReadStream, type ReadStream } from 'node:fs';
+import { accessSync, constants, createReadStream, statSync, type ReadStream } from 'node:fs';
 import { open, type FileHandle } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isAbsolute, join } from 'node:path';
@@ -53,14 +53,17 @@ function etagFor(hash: string, encoding: Encoding | null): string {
   return encoding === null ? `"${hash}"` : `"${hash}-${encoding}"`;
 }
 
-function notModified(header: string | undefined, hash: string): boolean {
+/** Weak comparison against the selected representation's tag only (RFC 9110 §13.1.2). */
+function notModified(header: string | undefined, etag: string): boolean {
   if (header === undefined) return false;
   const tags = header.split(',').map(tag => tag.trim().replace(/^W\//u, ''));
-  if (tags.includes('*')) return true;
-  return [null, ...SIBLINGS.map(sibling => sibling.encoding)].some(encoding => tags.includes(etagFor(hash, encoding)));
+  return tags.includes('*') || tags.includes(etag);
 }
 
-function plain(res: ServerResponse, method: string | undefined, status: number, body: string, extra: Record<string, string> = {}): void {
+/** Error/status bodies. Clears any blob representation headers set before a failure. */
+export function sendPlain(res: ServerResponse, method: string | undefined, status: number, body: string, extra: Record<string, string> = {}): void {
+  for (const name of ['ETag', 'Content-Encoding', 'Accept-Ranges']) res.removeHeader(name);
+  removeVary(res, 'Accept-Encoding');
   res.statusCode = status;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -72,18 +75,32 @@ function plain(res: ServerResponse, method: string | undefined, status: number, 
 
 /** Keep any Vary set by earlier middleware (Vite's CORS adds `Origin`). */
 function appendVary(res: ServerResponse, field: string): void {
-  const current = res.getHeader('Vary');
-  const fields = (Array.isArray(current) ? current.join(',') : String(current ?? ''))
-    .split(',').map(item => item.trim()).filter(Boolean);
+  const fields = varyFields(res);
   if (!fields.some(item => item === '*' || item.toLowerCase() === field.toLowerCase())) fields.push(field);
   res.setHeader('Vary', fields.join(', '));
 }
 
-/** Regular files only; a symlinked blob is treated as missing. */
+function varyFields(res: ServerResponse): string[] {
+  const current = res.getHeader('Vary');
+  return (Array.isArray(current) ? current.join(',') : String(current ?? ''))
+    .split(',').map(item => item.trim()).filter(Boolean);
+}
+
+function removeVary(res: ServerResponse, field: string): void {
+  const fields = varyFields(res).filter(item => item.toLowerCase() !== field.toLowerCase());
+  if (fields.length === 0) res.removeHeader('Vary');
+  else res.setHeader('Vary', fields.join(', '));
+}
+
+/**
+ * Regular files only. O_NOFOLLOW refuses a symlink as the final component (the
+ * root and space directories may be symlinks); O_NONBLOCK keeps a FIFO planted
+ * at a blob path from parking a libuv worker in open(2).
+ */
 async function openRegular(path: string): Promise<{ handle: FileHandle; size: number } | null> {
   let handle: FileHandle | undefined;
   try {
-    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     const stat = await handle.stat();
     if (!stat.isFile()) { await handle.close(); return null; }
     return { handle, size: stat.size };
@@ -108,14 +125,14 @@ export function createWorldChunkMiddleware(root: string | undefined): WorldChunk
     if (!url.startsWith(WORLD_CHUNK_PREFIX)) { next(); return; }
     const method = req.method;
     if (method !== 'GET' && method !== 'HEAD') {
-      plain(res, method, 405, 'Method not allowed\n', { Allow: 'GET, HEAD' });
+      sendPlain(res, method, 405, 'Method not allowed\n', { Allow: 'GET, HEAD' });
       return;
     }
     const address = parseWorldChunkPath(url);
-    if (address === null || root === undefined) { plain(res, method, 404, 'Not found\n'); return; }
+    if (address === null || root === undefined) { sendPlain(res, method, 404, 'Not found\n'); return; }
     void serveBlob(root, address, req, res).catch((error: unknown) => {
       if (res.headersSent) res.destroy(error instanceof Error ? error : undefined);
-      else plain(res, method, 500, 'Internal error\n');
+      else sendPlain(res, method, 500, 'Internal error\n');
     });
   };
 }
@@ -124,7 +141,7 @@ async function serveBlob(root: string, address: WorldChunkAddress, req: Incoming
   const base = join(root, address.spaceId, `${address.hash}.bin`);
   // The identity blob is canonical: siblings never make a missing blob exist.
   const identity = await openRegular(base);
-  if (identity === null) { plain(res, req.method, 404, 'Not found\n'); return; }
+  if (identity === null) { sendPlain(res, req.method, 404, 'Not found\n'); return; }
   let chosen = identity;
   let encoding: Encoding | null = null;
   for (const accepted of acceptedEncodings(req.headers['accept-encoding'])) {
@@ -133,14 +150,15 @@ async function serveBlob(root: string, address: WorldChunkAddress, req: Incoming
   }
   if (chosen !== identity) await identity.handle.close();
 
+  const etag = etagFor(address.hash, encoding);
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Cache-Control', WORLD_CHUNK_CACHE_CONTROL);
   appendVary(res, 'Accept-Encoding');
-  res.setHeader('ETag', etagFor(address.hash, encoding));
+  res.setHeader('ETag', etag);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Accept-Ranges', 'none');
   if (encoding !== null) res.setHeader('Content-Encoding', encoding);
-  if (notModified(req.headers['if-none-match'], address.hash)) {
+  if (notModified(req.headers['if-none-match'], etag)) {
     await chosen.handle.close();
     res.statusCode = 304;
     res.end();
@@ -155,12 +173,22 @@ async function serveBlob(root: string, address: WorldChunkAddress, req: Incoming
   stream.pipe(res);
 }
 
-/** Resolve ORCHARD_WORLD_CHUNK_DIR; unset, empty or relative disables serving (404s). */
+/**
+ * Resolve ORCHARD_WORLD_CHUNK_DIR once at startup; unset, empty or relative
+ * disables serving (404s). An absolute directory that is missing or unreadable
+ * stays configured (the pipeline may create it later) but is warned about once.
+ */
 export function worldChunkRoot(value: string | undefined, warn: (message: string) => void): string | undefined {
   if (value === undefined || value === '') return undefined;
   if (!isAbsolute(value)) {
     warn(`ORCHARD_WORLD_CHUNK_DIR must be absolute; /world/ blobs are disabled (got ${JSON.stringify(value)}).`);
     return undefined;
+  }
+  try {
+    if (!statSync(value).isDirectory()) throw new Error('not_directory');
+    accessSync(value, constants.R_OK | constants.X_OK);
+  } catch {
+    warn(`ORCHARD_WORLD_CHUNK_DIR ${JSON.stringify(value)} is missing or unreadable; /world/ blobs will 404 until it is.`);
   }
   return value;
 }
