@@ -4611,12 +4611,15 @@ function renderFrame(alpha = 1): void {
       width: viewport.width / uiScale, height: viewport.height / uiScale,
     };
     if (overworldUi.blockingUpdatePromptVisible) {
+      presentedRecoveryState = null;
       worldUpdateOverlay.draw(renderer, overworldUi, overlayViewport, hasRenderedWorldFrame);
     } else {
       worldUpdateOverlay.reset();
       const now = performance.now();
       worldGapStartedAt ??= now;
-      const gap = worldGapPresentation(connectionRecoveryState(), hasRenderedWorldFrame, worldGapStartedAt, now);
+      const gap = worldGapPresentation(
+        connectionRecoveryState(), hasRenderedWorldFrame, loadingStage.error === true, worldGapStartedAt, now,
+      );
       presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
       if (gap.kind === 'initial-loading') {
         drawInitialWorldLoading(renderer, {
@@ -4624,6 +4627,8 @@ function renderFrame(alpha = 1): void {
         }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
       } else if (gap.kind === 'retained-world') {
         renderer.compositeWorld();
+      } else if (gap.kind === 'resyncing') {
+        connectionRecoveryOverlay.compositeResync(renderer, overlayViewport);
       } else {
         connectionRecoveryOverlay.composite(renderer, overlayViewport, gap.state, hasRenderedWorldFrame);
       }
@@ -7520,6 +7525,8 @@ resize();
 const loop = createGameplayLoop({ update, render }, renderMetrics);
 const removeConnectionLifecycle = installConnectionLifecycle(window, document, {
   suspend: () => {
+    // A tab hidden mid-gap gets its full grace period back on return (BUG-040).
+    worldGapStartedAt = null;
     clearConnectionInput();
     network.pause();
     weatherTickClock.pause();

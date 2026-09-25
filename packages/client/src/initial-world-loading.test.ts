@@ -20,7 +20,7 @@ const code = ts.transpileModule(`${declaration('connectionRecoveryState').getTex
   .replaceAll('import.meta.env.VITE_CLIENT_VERSION', "'test'"), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function fixture() {
   const deps = {
-    loadingStage: { title: 'GROWING YOUR ISLAND', progress: 78, ready: false },
+    loadingStage: { title: 'GROWING YOUR ISLAND', progress: 78, ready: false, error: false },
     latestSnapshot: { error: null as string | null },
     network: { gameplayReady: false, recoveryState: 'connecting' },
     hasRenderedWorldFrame: false,
@@ -30,7 +30,7 @@ function fixture() {
     safeAreaInsets: { left: 0, top: 0, right:0, bottom:0 }, renderer: { compositeWorld: vi.fn() }, kitArt:{},
     worldGapPresentation, worldGapStartedAt: null as number | null, presentedRecoveryState: null,
     worldUpdateOverlay: { draw: vi.fn(), reset: vi.fn() },
-    connectionRecoveryOverlay: { composite: vi.fn() }, drawInitialWorldLoading: vi.fn(),
+    connectionRecoveryOverlay: { composite: vi.fn(), compositeResync: vi.fn() }, drawInitialWorldLoading: vi.fn(),
     art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, itemIcons: {}, missingItem: {} },
     renderStarted: performance.now(), renderMetrics: { record: vi.fn(), recordRenderSubmit: vi.fn() },
   };
@@ -60,7 +60,7 @@ describe('initial world loading versus reconnection', () => {
     f.render();
     expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledTimes(1);
   });
-  it('keeps the last world frame while a returning tab re-syncs, then shows reconnecting (BUG-040)', () => {
+  it('keeps the last world frame while a returning tab re-syncs, then a neutral note without RETRY (BUG-040)', () => {
     const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'ready';
     f.render();
     expect(f.deps.renderer.compositeWorld).toHaveBeenCalledOnce();
@@ -68,8 +68,18 @@ describe('initial world loading versus reconnection', () => {
     expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
     f.deps.worldGapStartedAt = performance.now() - WORLD_GAP_GRACE_MS - 1;
     f.render();
-    expect(f.deps.connectionRecoveryOverlay.composite).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'reconnecting', true);
+    expect(f.deps.connectionRecoveryOverlay.compositeResync).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object));
+    expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
     expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();
+  });
+  it('shows a mid-session error stage on the gateway screen, not as reconnecting (BUG-040 review)', () => {
+    const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'ready';
+    f.deps.loadingStage = { ...f.deps.loadingStage, error: true };
+    f.deps.worldGapStartedAt = performance.now() - WORLD_GAP_GRACE_MS - 1;
+    f.render();
+    expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), f.deps.loadingStage, 'test', f.deps.safeAreaInsets);
+    expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
+    expect(f.deps.connectionRecoveryOverlay.compositeResync).not.toHaveBeenCalled();
   });
   it('keeps update decisions ahead of both initial loading and recovery', () => {
     const f = fixture(); f.deps.overworldUi.blockingUpdatePromptVisible = true;

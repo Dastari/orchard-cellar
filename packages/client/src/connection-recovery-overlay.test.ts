@@ -87,20 +87,24 @@ describe('canvas connection recovery', () => {
 });
 
 describe('world gap presentation (BUG-040)', () => {
-  it('shows the initial loading screen only before the first world frame', () => {
-    expect(worldGapPresentation(null, false, 0, 60_000)).toEqual({ kind: 'initial-loading' });
+  it('shows the gateway loading screen only before the first world frame', () => {
+    expect(worldGapPresentation(null, false, false, 0, 60_000)).toEqual({ kind: 'initial-loading' });
   });
 
-  it('keeps the last world frame when a returning tab re-syncs, then shows reconnecting after the grace period', () => {
-    expect(worldGapPresentation(null, true, 1_000, 1_000)).toEqual({ kind: 'retained-world' });
-    expect(worldGapPresentation(null, true, 1_000, 1_000 + WORLD_GAP_GRACE_MS - 1)).toEqual({ kind: 'retained-world' });
-    expect(worldGapPresentation(null, true, 1_000, 1_000 + WORLD_GAP_GRACE_MS))
-      .toEqual({ kind: 'recovery', state: 'reconnecting' });
+  it('keeps the last world frame while a healthy connection re-syncs, then a neutral note without RETRY', () => {
+    expect(worldGapPresentation(null, true, false, 1_000, 1_000)).toEqual({ kind: 'retained-world' });
+    expect(worldGapPresentation(null, true, false, 1_000, 1_000 + WORLD_GAP_GRACE_MS - 1)).toEqual({ kind: 'retained-world' });
+    expect(worldGapPresentation(null, true, false, 1_000, 1_000 + WORLD_GAP_GRACE_MS)).toEqual({ kind: 'resyncing' });
+  });
+
+  it('keeps error stages on the gateway screen with their own message and refresh action, even mid-session', () => {
+    expect(worldGapPresentation(null, true, true, 1_000, 1_000)).toEqual({ kind: 'initial-loading' });
+    expect(worldGapPresentation(null, true, true, 1_000, 1_000 + WORLD_GAP_GRACE_MS * 10)).toEqual({ kind: 'initial-loading' });
   });
 
   it.each(['reconnecting', 'offline', 'sign-in-required', 'content-incompatible'] as const)(
     'shows an explicit %s state at once, with or without a world frame', (state) => {
-      expect(worldGapPresentation(state, true, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
-      expect(worldGapPresentation(state, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
+      expect(worldGapPresentation(state, true, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
+      expect(worldGapPresentation(state, false, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
     });
 });
