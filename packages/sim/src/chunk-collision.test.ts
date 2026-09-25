@@ -18,6 +18,7 @@ import {
   decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, WORLD_CHUNK_VOID,
   type ChunkArray, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord,
 } from './world-chunk.js';
+import { cellFlags } from './cell-flags.js';
 
 // Static world S4d: the client's windowed chunk collision and the origin-aware
 // collision sampler. A 3 x 3 chunk map (192 x 176: the last row is partial) whose
@@ -105,7 +106,7 @@ function source(options: { readonly withoutAuthority?: string; readonly resident
 
 /** The whole-map (server-shaped) maps of the same fixture, composed the server's way. */
 function wholeMaps(live: readonly CollisionObstacle[] = []): { ground: CollisionMap; water: CollisionMap } {
-  const booleans = (name: string) => Array.from(CHANNELS[name]!, value => value !== 0);
+  const booleans = (name: string) => cellFlags(CHANNELS[name]!);
   const traversalChannels = { width: WIDTH, height: HEIGHT, medium: CHANNELS['medium']!, solidBlocked: CHANNELS['solidBlocked']! };
   const suppressed = new Set([box(70, 5), box(75, 6)].map(({ left, top, right, bottom }) => `${left}:${top}:${right}:${bottom}`));
   return {
@@ -114,13 +115,13 @@ function wholeMaps(live: readonly CollisionObstacle[] = []): { ground: Collision
       terrainPlaneBlocked: CHANNELS['authority.ground.terrainPlaneBlocked'] as Uint8Array, horseJumpableTerrain: booleans('authority.ground.horseJumpableTerrain'),
       obstacles: [...[...BASE, ...live].filter(o => !suppressed.has(`${o.left}:${o.top}:${o.right}:${o.bottom}`)), ...AUTHORED] },
     water: { traversalChannels, width: WIDTH, height: HEIGHT, blocked: booleans('authority.water.blocked'),
-      horseJumpableTerrain: new Array<boolean>(WIDTH * HEIGHT).fill(false), obstacles: [box(30, 30)] },
+      horseJumpableTerrain: new Uint8Array(WIDTH * HEIGHT), obstacles: [box(30, 30)] },
   };
 }
 
 describe('origin-aware collision sampler (static world S4d)', () => {
   it('addresses cells from the origin and blocks every tile outside the window', () => {
-    const map: CollisionMap = { width: 3, height: 2, originX: 100, originY: 50, blocked: [false, true, false, false, false, true] };
+    const map: CollisionMap = { width: 3, height: 2, originX: 100, originY: 50, blocked: cellFlags([false, true, false, false, false, true]) };
     expect(collisionCellIndex(map, 100, 50)).toBe(0);
     expect(collisionCellIndex(map, 102, 51)).toBe(5);
     expect([collisionCellIndex(map, 99, 50), collisionCellIndex(map, 103, 50), collisionCellIndex(map, 100, 49), collisionCellIndex(map, 100, 52)]).toEqual([-1, -1, -1, -1]);
@@ -264,7 +265,7 @@ function crop(whole: CollisionMap, originX: number, originY: number, width: numb
     }
     return result;
   };
-  return { ...whole, width, height, originX, originY, blocked: cells(whole.blocked),
+  return { ...whole, width, height, originX, originY, blocked: Uint8Array.from(cells(whole.blocked)),
     ...(whole.elevations === undefined ? {} : { elevations: Int16Array.from(cells(whole.elevations)) }) };
 }
 
@@ -277,7 +278,7 @@ describe('window collision for topside hearth resource sites (static world S4d)'
     for (const site of sites) for (let y = site.tileY - 6; y <= site.tileY + 6; y++) for (let x = site.tileX - 6; x <= site.tileX + 6; x++) {
       elevations[y * size + x] = site.elevation;
     }
-    const whole: CollisionMap = { width: size, height: size, blocked: new Array<boolean>(size * size).fill(false), elevations };
+    const whole: CollisionMap = { width: size, height: size, blocked: new Uint8Array(size * size), elevations };
     let allowed = 0, compared = 0;
     for (const site of sites) {
       const window = crop(whole, Math.max(0, site.tileX - 160), Math.max(0, site.tileY - 160), 320, 320);

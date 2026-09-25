@@ -242,7 +242,7 @@ export function describeChunkCollisionParity(label: string, setup: () => { reado
       const client = clientWindow(context, windowStore(published, blobs, rect), rect);
       for (const { tileX, tileY } of WATERFALL) {
         expect(collisionTileIsBlocked(client.water, tileX, tileY), `${tileX},${tileY}`).toBe(false);
-        expect(serverWater.blocked[tileY * serverWater.width + tileX], `${tileX},${tileY}`).toBe(false);
+        expect(serverWater.blocked[tileY * serverWater.width + tileX], `${tileX},${tileY}`).toBe(0);
       }
     }, 120_000);
 

@@ -24,7 +24,7 @@ it('rejects a foreign overlapping base, wrong plane, blocked approach, duplicate
   expect(hearthResourceInstallationGeometry({ ...base, obstacles: [obstacle] }, ids)).toBeNull();
   const elevations = new Int16Array(base.elevations!); elevations[site.tileY * base.width + site.tileX] = 2;
   expect(hearthResourceInstallationGeometry({ ...base, elevations }, ids)).toBeNull();
-  const blocked = [...base.blocked]; blocked[(site.tileY - 1) * base.width + site.tileX] = true;
+  const blocked = base.blocked.slice(); blocked[(site.tileY - 1) * base.width + site.tileX] = 1;
   expect(hearthResourceInstallationGeometry({ ...base, blocked }, ids)).toBeNull();
   const fence = { left: (site.tileX + 1) * TILE_SIZE_FIXED, right: (site.tileX + 1) * TILE_SIZE_FIXED + 1,
     top: (site.tileY - 1) * TILE_SIZE_FIXED, bottom: (site.tileY + 2) * TILE_SIZE_FIXED };
@@ -59,9 +59,9 @@ it('proves ferry access on the combined map and rejects a locally clear but encl
       ...renamedAndRepositioned.find(region => region.policy === 'hostile')!, id: 'ambiguous-resource-route',
     }],
   })).toBe(false);
-  const site = HEARTH_RESOURCE_SITES[0]!, blocked = [...base.blocked];
+  const site = HEARTH_RESOURCE_SITES[0]!, blocked = base.blocked.slice();
   for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-    if (Math.abs(dx) === 3 || Math.abs(dy) === 3) blocked[(site.tileY + dy) * base.width + site.tileX + dx] = true;
+    if (Math.abs(dx) === 3 || Math.abs(dy) === 3) blocked[(site.tileY + dy) * base.width + site.tileX + dx] = 1;
   }
   const enclosed = hearthResourceInstallationGeometry({ ...base, blocked }, [site.id]);
   expect(enclosed).not.toBeNull();

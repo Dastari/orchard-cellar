@@ -58,7 +58,7 @@ describeChunkRuntimeParity('bootstrap island', () => {
     expect(runtime.issues).toEqual([{ kind: 'head_missing', cx: 0, cy: 0 }]);
     expect(runtime.stale).toBe(true);
     expect(runtime.key).toBe(`chunks:0:7:${manifest.sourceRevision}:${manifest.sourceHash}:${registry.contentHash}`);
-    expect(runtime.ground.blocked[0]).toBe(true);
+    expect(runtime.ground.blocked[0]).toBe(1);
     // A manifest without authority metadata cannot be assembled at all.
     const metadata = Object.fromEntries(Object.entries(published.manifest.metadata).filter(([key]) => key !== 'authority'));
     expect(() => assembleChunkLiveIslandRuntime({ ...published.manifest, metadata }, readBlob, registry)).toThrow('chunk_authority_metadata_missing');

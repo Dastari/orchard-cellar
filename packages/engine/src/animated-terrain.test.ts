@@ -7,6 +7,7 @@ import {
   windGrassFrame,
 } from './animated-terrain.js';
 import type { TerrainArray } from './terrain.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 function waterTerrain(): TerrainArray {
   const width = 5;
@@ -18,8 +19,8 @@ function waterTerrain(): TerrainArray {
     width,
     height,
     biomes: new Uint8Array(width * height),
-    blocked: Array.from({ length: width * height }, () => true),
-    horseJumpableTerrain: Array.from({ length: width * height }, () => false),
+    blocked: cellFlags(Array.from({ length: width * height }, () => true)),
+    horseJumpableTerrain: cellFlags(Array.from({ length: width * height }, () => false)),
     elevations: new Int16Array(width * height),
     dirtCliffRoles: new Uint8Array(width * height),
     dirtTerraces: new Uint8Array(width * height),

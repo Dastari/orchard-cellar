@@ -20,6 +20,7 @@ import {
 import { worldChunkHash } from '@orchard/sim/world-chunk';
 import { clientLiveRowObstacles, createClientCollisionMap, prepareClientTerrainCollision } from './collision.js';
 import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 function placeableRegistry(
   items: readonly ItemContentDefinition[], objects: readonly ObjectContentDefinition[],
@@ -42,8 +43,8 @@ function placeableItem(id: ItemContentDefinition['id']): ItemContentDefinition {
 describe('client collision cache', () => {
   it('uses native furniture bases and keeps corrupt state solid without blocking rugs or carried furniture', () => {
     const terrain: TerrainArray = { spaceId: 30_000, seed: 1, version: 1, width: 12, height: 12,
-      blocked: Array<boolean>(144).fill(false), elevations: new Int16Array(144), biomes: new Uint8Array(144),
-      horseJumpableTerrain: Array<boolean>(144).fill(false), dirtCliffRoles: new Uint8Array(144), dirtTerraces: new Uint8Array(144),
+      blocked: new Uint8Array(144), elevations: new Int16Array(144), biomes: new Uint8Array(144),
+      horseJumpableTerrain: new Uint8Array(144), dirtCliffRoles: new Uint8Array(144), dirtTerraces: new Uint8Array(144),
     };
     const row = { kind: 'furniture_rustic_dining_table', tileX: 5, tileY: 5, open: false, stateJson: 'broken' };
     const collision = createClientCollisionMap(terrain, [], [], 'ground', [row,
@@ -55,7 +56,7 @@ describe('client collision cache', () => {
   });
   it('does not let one interior-family origin cell fix the whole map to plane zero', () => {
     const length = 9;
-    const blocked = Array<boolean>(length).fill(false);
+    const blocked = new Uint8Array(length);
     const cliffFamilies = new Uint8Array(length).fill(cliffFamilyIndex('stone_1'));
     cliffFamilies[0] = cliffFamilyIndex('cave');
     const terrain: TerrainArray = {
@@ -70,7 +71,7 @@ describe('client collision cache', () => {
       cliffFamilies,
       biomes: new Uint8Array(length),
       blocked,
-      horseJumpableTerrain: Array<boolean>(length).fill(false),
+      horseJumpableTerrain: new Uint8Array(length),
       elevations: new Int16Array(length),
       dirtCliffRoles: new Uint8Array(length),
       dirtTerraces: new Uint8Array(length),
@@ -250,7 +251,7 @@ describe('client collision cache', () => {
       for (let tileX = 0; tileX < terrain.width; tileX += 1) {
         if (survivalRaisedTerrainStructuralAt(terrain.seed, tileX, tileY)) {
           structuralTiles += 1;
-          expect(collision.blocked[tileY * terrain.width + tileX]).toBe(false);
+          expect(collision.blocked[tileY * terrain.width + tileX]).toBe(0);
         }
         if (collisionTileIsBlockedAtPlane(collision, tileX, tileY, 0)) lowerPlaneBlockers += 1;
         if (collisionTileIsBlockedAtPlane(collision, tileX, tileY, 1)) upperPlaneBlockers += 1;
@@ -265,11 +266,11 @@ describe('client collision cache', () => {
     const width = 7;
     const height = 7;
     const length = width * height;
-    const material = Array<boolean>(length).fill(true);
+    const material = new Uint8Array(length).fill(1);
     const elevations = new Int16Array(length).fill(1);
     for (let tileY = 1; tileY < height - 1; tileY += 1) {
       for (let tileX = 1; tileX <= 2; tileX += 1) {
-        material[tileY * width + tileX] = false;
+        material[tileY * width + tileX] = 0;
         elevations[tileY * width + tileX] = 0;
       }
     }
@@ -283,7 +284,7 @@ describe('client collision cache', () => {
       defaultCliffFamily: 'cave',
       biomes: new Uint8Array(length),
       blocked: material,
-      horseJumpableTerrain: Array<boolean>(length).fill(false),
+      horseJumpableTerrain: new Uint8Array(length),
       elevations,
       terrainTransitions: [],
       terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, width, height),
@@ -292,7 +293,7 @@ describe('client collision cache', () => {
     };
     const collision = createClientCollisionMap(terrain, []);
     const exposedSide = 3 * width + 3;
-    expect(collision.blocked[exposedSide]).toBe(false);
+    expect(collision.blocked[exposedSide]).toBe(0);
     expect(collisionTileIsBlockedAtPlane(collision, 3, 3, 0)).toBe(true);
     expect(collisionTileIsBlockedAtPlane(collision, 3, 3, 1)).toBe(true);
     expect(collisionTileIsBlockedAtPlane(collision, 4, 3, 0)).toBe(true);
@@ -304,8 +305,8 @@ describe('client collision cache', () => {
     const collision = createClientCollisionMap(terrain, [], [], 'water');
     const oceanIndex = terrain.biomes.findIndex((biome) => SURVIVAL_BIOMES[biome] === 'water');
     const beachIndex = terrain.biomes.findIndex((biome) => SURVIVAL_BIOMES[biome] === 'beach');
-    expect(collision.blocked[oceanIndex]).toBe(false);
-    expect(collision.blocked[beachIndex]).toBe(true);
+    expect(collision.blocked[oceanIndex]).toBe(0);
+    expect(collision.blocked[beachIndex]).toBe(1);
     const waterRock = generateSurvivalDecorations(terrain.seed).find((decoration) => decoration.kind === 'nature_water_rock');
     expect(waterRock).toBeDefined();
     if (waterRock) expect(collision.obstacles).toContainEqual(
@@ -350,7 +351,12 @@ describe('client collision cache', () => {
     ];
     const suppressions = new Set(['resource-4', 'decoration-1']);
     // Canonical JSON with cell arrays hashed (field order, obstacle order and every cell value count).
-    const digest = (value: unknown) => worldChunkHash(new TextEncoder().encode(JSON.stringify(value, (_key, item: unknown) => {
+    // The flag planes (now Uint8Array) keep their recorded `booleans:` label over the same 0/1 bytes.
+    const digest = (value: unknown) => worldChunkHash(new TextEncoder().encode(JSON.stringify(value, (key, item: unknown) => {
+      if ((key === 'blocked' || key === 'horseJumpableTerrain') && item instanceof Uint8Array && item.length > 64) {
+        if (item.some(cell => cell > 1)) throw new Error(`${key} holds a cell other than 0 or 1`);
+        return `booleans:${worldChunkHash(item)}`;
+      }
       if (ArrayBuffer.isView(item)) return `${item.constructor.name}:${worldChunkHash(new Uint8Array(item.buffer, item.byteOffset, item.byteLength))}`;
       if (Array.isArray(item) && item.length > 64 && item.every(entry => typeof entry === 'boolean')) return `booleans:${worldChunkHash(Uint8Array.from(item, Number))}`;
       return item;
@@ -374,12 +380,12 @@ describe('client collision cache', () => {
   it('reads a window terrain (non-zero origin) in world tiles and never takes the generator paths', () => {
     const cells = 12;
     const window: TerrainArray = { spaceId: 0, seed: 0x4f434852, version: 3, width: 4, height: 3, originX: 100, originY: 200,
-      worldWidth: 832, worldHeight: 832, blocked: Array<boolean>(cells).fill(true), elevations: new Int16Array(cells),
-      biomes: new Uint8Array(cells), horseJumpableTerrain: Array<boolean>(cells).fill(false),
+      worldWidth: 832, worldHeight: 832, blocked: new Uint8Array(cells).fill(1), elevations: new Int16Array(cells),
+      biomes: new Uint8Array(cells), horseJumpableTerrain: new Uint8Array(cells),
       dirtCliffRoles: new Uint8Array(cells), dirtTerraces: new Uint8Array(cells) };
     // collision.ts:189: dock tiles are world tiles, so (101, 201) is cell 1 + 1 * 4.
     const prepared = prepareClientTerrainCollision(window, 'ground', [{ tileX: 101, tileY: 201 }, { tileX: 1, tileY: 1 }]);
-    expect(prepared.blocked.map((blocked, index) => blocked ? -1 : index).filter(index => index >= 0)).toEqual([5]);
+    expect(Array.from(prepared.blocked, (blocked, index) => blocked ? -1 : index).filter(index => index >= 0)).toEqual([5]);
     expect([prepared.originX, prepared.originY]).toEqual([100, 200]);
     // No generator plane bytes (they describe the whole map, not the window).
     expect(prepared.terrainPlaneBlocked).toBeUndefined();
@@ -390,12 +396,12 @@ describe('client collision cache', () => {
     expect(collisionTileIsBlockedAtPlane(collision, 1, 1, 0)).toBe(true);
     // collision.ts:61: the fixed-plane (cellar) boundary is the map's edge, not the window's.
     const cellar = (originX: number, originY: number): TerrainArray => ({ ...window, spaceId: 30_000, width: 3, height: 3, originX, originY,
-      worldWidth: 64, worldHeight: 64, fixedTerrainPlane: 0, blocked: Array<boolean>(9).fill(false) });
+      worldWidth: 64, worldHeight: 64, fixedTerrainPlane: 0, blocked: new Uint8Array(9) });
     const inner = prepareClientTerrainCollision(cellar(10, 10), 'ground');
-    expect(inner.blocked).toEqual(Array<boolean>(9).fill(false));
+    expect(inner.blocked).toEqual(new Uint8Array(9));
     const corner = prepareClientTerrainCollision(cellar(61, 0), 'ground');
     // World column 63 and row 0 are the map edge.
-    expect(corner.blocked).toEqual([true, true, true, false, false, true, false, false, true]);
+    expect(corner.blocked).toEqual(cellFlags([true, true, true, false, false, true, false, false, true]));
   });
 });
 

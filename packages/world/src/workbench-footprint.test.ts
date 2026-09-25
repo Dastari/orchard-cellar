@@ -16,7 +16,7 @@ const registry = sim.bootstrapContentRegistry();
 const bench = { id: 1n, kind: 'workbench', tileX: 10, tileY: 10, spaceId: 10 };
 
 it('requires both destination cells clear for new and carried workbench placement', () => {
-  const collision = { width: 20, height: 20, blocked: new Array<boolean>(400).fill(false) };
+  const collision = { width: 20, height: 20, blocked: new Uint8Array(400) };
   let occupied = false;
   const validate = production('requirePlaceablePlacementTile', { ...sim, SenderError: Error,
     contentRegistry: () => registry, tilePlacementResult,
@@ -24,9 +24,9 @@ it('requires both destination cells clear for new and carried workbench placemen
   });
   const position = { spaceId: 10, x: 10.5 * sim.TILE_SIZE_FIXED, y: 12 * sim.TILE_SIZE_FIXED };
   expect(() => validate({}, position, 10, 10, bench)).not.toThrow();
-  collision.blocked[10 * 20 + 11] = true;
+  collision.blocked[10 * 20 + 11] = 1;
   expect(() => validate({}, position, 10, 10, bench)).toThrow('placement_blocked');
-  collision.blocked[10 * 20 + 11] = false; occupied = true;
+  collision.blocked[10 * 20 + 11] = 0; occupied = true;
   expect(() => validate({}, position, 10, 10, bench)).toThrow('placement_blocked');
   occupied = false;
   expect(() => validate({}, { ...position, x: 19.5 * sim.TILE_SIZE_FIXED }, 19, 10, bench)).toThrow('placement_blocked');

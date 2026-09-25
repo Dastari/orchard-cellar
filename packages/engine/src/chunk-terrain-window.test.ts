@@ -184,7 +184,7 @@ describe('chunk render window (static world S4c)', () => {
     const rect = { cx: 1, cy: 1, columns: 5, rows: 5 };
     const first = tracker.update(store, rect);
     expect(first.missing).toBe(1);
-    expect(first.terrain.blocked[terrainIndexAt(first.terrain, 200, 200)]).toBe(true);
+    expect(first.terrain.blocked[terrainIndexAt(first.terrain, 200, 200)]).toBe(1);
     expect(first.terrain.terrainPlaneBlocked?.[terrainIndexAt(first.terrain, 200, 200)]).toBe(1);
     const regions: unknown[] = [];
     tracker.drainInvalidations((region) => regions.push(region));
@@ -219,7 +219,7 @@ describe('chunk render window (static world S4c)', () => {
     const fixed = (originX?: number): TerrainArray => ({
       spaceId: 5, seed: 1, version: 1, width: 20, height: 10, projectionStyle: 'interior', baseDatum: 0, fixedTerrainPlane: 0,
       ...(originX === undefined ? {} : { originX, originY: 0, worldWidth: 60, worldHeight: 10 }),
-      biomes: new Uint8Array(cells), blocked: Array<boolean>(cells).fill(false), horseJumpableTerrain: Array<boolean>(cells).fill(false),
+      biomes: new Uint8Array(cells), blocked: new Uint8Array(cells), horseJumpableTerrain: new Uint8Array(cells),
       elevations: new Int16Array(cells), dirtCliffRoles: new Uint8Array(cells), dirtTerraces: new Uint8Array(cells),
     });
     const whole = fixed();

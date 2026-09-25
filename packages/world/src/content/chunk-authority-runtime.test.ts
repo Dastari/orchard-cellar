@@ -74,12 +74,12 @@ describe('assembleChunkLiveIslandRuntime', () => {
     const missing = assembleChunkLiveIslandRuntime(manifest, hash => hash === manifest.chunks[1]!.contentHash ? undefined : readBlob(hash), registry);
     expect(missing.complete).toBe(false);
     expect(missing.issues).toEqual([{ kind: 'blob_missing', cx: 1, cy: 0, detail: manifest.chunks[1]!.contentHash }]);
-    expect(missing.ground.blocked[99]).toBe(true);
+    expect(missing.ground.blocked[99]).toBe(1);
     expect(missing.ground.traversalChannels!.medium[99]).toBe(WORLD_CHUNK_VOID);
     expect(missing.ground.traversalChannels!.solidBlocked[99]).toBe(1);
     expect(missing.ground.terrainPlaneBlocked![6400 + 99]).toBe(1);
     expect(missing.staticView.biomeAt(99, 0)).toBeUndefined();
-    expect(missing.ground.blocked[63]).toBe(false);
+    expect(missing.ground.blocked[63]).toBe(0);
     const diff = compareLiveIslandRuntime(missing, complete, 3);
     expect(diff.equal).toBe(false);
     expect(diff.fields['ground.blocked']).toMatchObject({ count: 36 * 64 });
@@ -97,7 +97,7 @@ describe('assembleChunkLiveIslandRuntime', () => {
       return bytes;
     }, registry);
     expect(corrupt.issues).toEqual([{ kind: 'blob_invalid', cx: 0, cy: 0, detail: 'World chunk hash mismatch' }]);
-    expect(corrupt.ground.blocked[0]).toBe(true);
+    expect(corrupt.ground.blocked[0]).toBe(1);
     const headless = assembleChunkLiveIslandRuntime({ ...manifest, chunks: manifest.chunks.slice(0, 1) }, readBlob, registry);
     expect(headless.issues).toEqual([{ kind: 'head_missing', cx: 1, cy: 0 }]);
   });

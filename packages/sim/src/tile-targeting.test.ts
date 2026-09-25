@@ -17,6 +17,7 @@ import {
   nearestTileTarget,
   tileTargetIsBlocked,
 } from './tile-targeting.js';
+import { cellFlags } from './cell-flags.js';
 
 describe('shared tile targeting', () => {
   const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
@@ -87,7 +88,7 @@ describe('shared tile targeting', () => {
     const map: CollisionMap = {
       width: 20,
       height: 20,
-      blocked: Array.from({ length: 400 }, (_, index) => index === 10 * 20 + 11),
+      blocked: cellFlags(Array.from({ length: 400 }, (_, index) => index === 10 * 20 + 11)),
       obstacles: [{
         left: 12 * TILE_SIZE_FIXED + 4,
         top: 10 * TILE_SIZE_FIXED + 4,
@@ -112,7 +113,7 @@ describe('shared tile targeting', () => {
     const map: CollisionMap = {
       width: 2,
       height: 2,
-      blocked: [false, false, false, false],
+      blocked: cellFlags([false, false, false, false]),
       fixedTerrainPlane: 0,
       terrainPlaneBlocked,
     };

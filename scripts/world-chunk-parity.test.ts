@@ -66,7 +66,7 @@ describe('static island materialization golden parity', () => {
     const waterfall = decodeWorldChunk(published.blobs[waterfallHead]!);
     for (const { x, y } of WATERFALL) {
       expect(snapshot.channels['authority.water.blocked']![y * snapshot.terrain.width + x], `${x},${y}`).toBe(0);
-      expect(snapshot.authority.composed.water.blocked[y * snapshot.terrain.width + x]).toBe(false);
+      expect(snapshot.authority.composed.water.blocked[y * snapshot.terrain.width + x]).toBe(0);
       expect(sampleChunkCollision(waterfall, x, y).authority?.waterBlocked, `${x},${y}`).toBe(false);
     }
   }, 120_000);

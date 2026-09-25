@@ -40,8 +40,8 @@ describe('purchased residence envelope', () => {
       return {terrain, key: spacePresentationKey(definition)};
     });
     expect(results[1]!.key).not.toBe(results[2]!.key);
-    expect(results[1]!.terrain.blocked[20*32+20]).toBe(true);
-    expect(results[2]!.terrain.blocked[20*32+20]).toBe(false);
+    expect(results[1]!.terrain.blocked[20*32+20]).toBe(1);
+    expect(results[2]!.terrain.blocked[20*32+20]).toBe(0);
     expect(results[3]!.terrain).toBe(results[1]!.terrain);
   });
   it('reserves connector mouths as well as the whole passage', () => {
@@ -69,7 +69,7 @@ it('bounds persisted construction revisions and keeps renderer/authority collisi
   const firstAuthority=terrainCollisionForSpace(registry,30000,'ground',make(0));
   for(let i=1;i<=12;i++) {
     const terrain=render(i),collision=createAuthoritySpaceCollisionMap(registry,30000,[],[],'ground',[],make(i));
-    expect(terrain.blocked).toEqual(collision.blocked);expect(terrain.blocked[8*16+6]).toBe(true);
+    expect(terrain.blocked).toEqual(collision.blocked);expect(terrain.blocked[8*16+6]).toBe(1);
   }
   expect(terrainCollisionForSpace(registry,30000,'ground',make(0))).not.toBe(firstAuthority);
   const recreated=render(0);

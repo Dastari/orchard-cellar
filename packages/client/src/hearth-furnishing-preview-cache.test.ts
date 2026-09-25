@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import * as sim from '@orchard/sim';
+import { cellFlags } from '@orchard/sim/cell-flags';
 const source = ts.createSourceFile('main.ts', readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'furniturePreviewAt');
 if (!fn) throw new Error('Missing actual furniture preview adapter');
@@ -39,7 +40,7 @@ describe('actual furnishing preview cache', () => {
       {tileX:6,tileY:8,partition:'wall'},{tileX:7,tileY:8,partition:'doorway'},{tileX:8,tileY:8,partition:'wall'}];
     f.activeSpaceDefinition.residenceExpansionRank=0;
     f.activeSpaceDefinition.residenceArchitectureJson=sim.serializeHearthArchitectureState({recipeVersion:1,revision:1n,cells});
-    const baseline={width:16,height:16,blocked:Array.from({length:256},(_,i)=>!sim.residencePlayableTile(i%16,Math.floor(i/16),0))};
+    const baseline={width:16,height:16,blocked:cellFlags(Array.from({length:256},(_,i)=>!sim.residencePlayableTile(i%16,Math.floor(i/16),0)))};
     f.api.setCollision(sim.persistedHearthArchitectureCollision(0,baseline,f.activeSpaceDefinition.residenceArchitectureJson));
     f.calculate.mockReturnValue({candidate:{id:'preview',shape:sim.HEARTH_FURNITURE_SHAPES.furniture_townhouse_wall_mirror!,tileX:6,tileY:8},failure:null});
     expect(f.api.preview({tileX:6,tileY:8},'furniture_townhouse_wall_mirror').failure).toBe('Doorway support needs clear wall space');
