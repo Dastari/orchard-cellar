@@ -137,6 +137,8 @@ export class ChunkRuntimeController {
    * undefined while unknown, null after a failed fetch. */
   #assetValue: string | null | undefined;
   #assetChecking = false;
+  /** The current chunk subscription has applied (its rows are in the client cache). */
+  #applied = false;
   readonly #loadAtlasPacks: ((ids: readonly string[]) => Promise<void>) | undefined;
   #atlasPackKey = '';
   #busy = false;
@@ -205,8 +207,12 @@ export class ChunkRuntimeController {
     if (spaceChanged) this.#epoch++;
     const queries = chunkRuntimeQueries(input.spaceId, input.bounds), key = queries.join(';');
     if (key !== this.#key) {
-      this.#subscription?.unsubscribe(); this.#key = key;
-      this.#subscription = connection.subscriptionBuilder().onApplied(() => { void this.refresh(); })
+      this.#subscription?.unsubscribe(); this.#key = key; this.#applied = false;
+      this.#subscription = connection.subscriptionBuilder().onApplied(() => {
+        // `on`: marked as new input (like the row listeners) so a pass that is busy right now
+        // re-runs and leaves `subscribing` (S4f). Shadow keeps its exact behaviour.
+        this.#applied = true; if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
+      })
         .onError(() => { this.status.state = 'subscription_error'; }).subscribe([...queries]);
     }
     void this.refresh();
@@ -298,7 +304,9 @@ export class ChunkRuntimeController {
       // An unpublished or withdrawn manifest is not a reason to stop serving what we have.
       if (active) await this.#follow(active, input.bounds);
       if (epoch !== this.#epoch) return;
-      this.status.state = 'awaiting_publication'; this.#report(this.#active);
+      // `subscribing` until the manifest subscription has applied: "no publication" is only
+      // known then (S4f spawn readiness waits for it, but never for a real absence).
+      this.status.state = this.#applied ? 'awaiting_publication' : 'subscribing'; this.#report(this.#active);
       if (this.#active) this.#loadPinnedAtlasPacks(this.#active);
       return;
     }

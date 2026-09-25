@@ -25,7 +25,7 @@ describe('spawn readiness (static world S4f)', () => {
   });
 
   it('waits in `on` for a serving store while one is loading, but never when the legacy source serves', () => {
-    for (const state of ['idle', 'loading', 'awaiting_heads']) {
+    for (const state of ['idle', 'subscribing', 'loading', 'awaiting_heads']) {
       expect(chunkSpawnReadiness(on({ store: undefined, state }))).toMatchObject({ ready: false, reason: 'awaiting_store' });
     }
     for (const state of ['awaiting_publication', 'subscription_error', 'chunk_fetch_404', 'chunk_manifest_space_mismatch']) {

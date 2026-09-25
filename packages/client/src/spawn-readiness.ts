@@ -48,7 +48,7 @@ export interface SpawnReadinessInput {
 }
 
 /** Runtime states in which a first serving store is still on its way. */
-const LOADING_STATES: ReadonlySet<string> = new Set(['idle', 'loading', 'awaiting_heads']);
+const LOADING_STATES: ReadonlySet<string> = new Set(['idle', 'subscribing', 'loading', 'awaiting_heads']);
 
 /** Chunk-level readiness for one instant (no timeout). */
 export function chunkSpawnReadiness(input: SpawnReadinessInput): SpawnReadiness {

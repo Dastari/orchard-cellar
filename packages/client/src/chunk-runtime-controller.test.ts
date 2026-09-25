@@ -310,10 +310,11 @@ describe('spawn readiness (static world S4f)',()=>{
    enabled.h.publish(1,rev1);enabled.controller.update(enabled.h.connection,0n,view,source);
    await vi.waitFor(()=>expect(enabled.controller.status.atlasPackFailures).toBe(1));
    expect(enabled.controller.store?.pinnedReady).toBe(true);expect(enabled.controller.status.state).toBe('on');
-   expect(loads).toEqual([['terrain-core']]);
-   // Retried on the next refresh, then not repeated for the same packs.
+   expect(loads[0]).toEqual(['terrain-core']);
+   // Retried on a later refresh, then not repeated for the same packs.
    enabled.controller.update(enabled.h.connection,0n,view,{...source});
    await vi.waitFor(()=>expect(loads).toHaveLength(2));
+   expect(enabled.controller.status.atlasPackFailures).toBe(1);
    enabled.controller.update(enabled.h.connection,0n,view,{...source});
    await new Promise(resolve=>setTimeout(resolve,20));
    expect(loads).toHaveLength(2);
