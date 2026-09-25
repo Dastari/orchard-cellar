@@ -50,6 +50,7 @@ it('keeps development toggle disabled and signed-in entry/signout scoped',async(
  const f=fixture({signedIn:true,local:false,oidc:true,allowLocal:false});try{
  expect(f.gateway.handleGlobalKeyDown({key:'d'})).toBe(false);expect(f.state().localPreview).toBe(false);
  press(f,'gateway.enter-world');press(f,'gateway.sign-out');await Promise.resolve();expect(f.location.reload).toHaveBeenCalledOnce();expect(f.signOutOidc).not.toHaveBeenCalled();
+ expect(f.saveGatewayHandoff).toHaveBeenCalledExactlyOnceWith(f.canvas);
  }finally{f.dispose();}
- const logout=fixture({signedIn:true,local:false,oidc:true,allowLocal:false});try{press(logout,'gateway.sign-out');await Promise.resolve();expect(logout.signOutOidc).toHaveBeenCalledOnce();expect(logout.state().authBusy).toBe(true);}finally{logout.dispose();}
+ const logout=fixture({signedIn:true,local:false,oidc:true,allowLocal:false});try{press(logout,'gateway.sign-out');await Promise.resolve();expect(logout.signOutOidc).toHaveBeenCalledOnce();expect(logout.state().authBusy).toBe(true);expect(logout.saveGatewayHandoff).not.toHaveBeenCalled();}finally{logout.dispose();}
 });

@@ -834,7 +834,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     touchControls.setPreferences(preferences);
     writeTouchControlPreferences(localStorage, preferences);
   },
-  signOut: () => { saveGatewayHandoff(canvas); location.assign('/?logout=1'); },
+  signOut: () => { location.assign('/?logout=1'); },
   quitToTitle: () => { saveGatewayHandoff(canvas); location.assign('/?menu=1'); },
   startDelve: () => {
     portalTransitionStartedAtMs = performance.now();
