@@ -77,6 +77,49 @@ describe('game static deployment validator', () => {
     expect(result.stderr).toContain('must never serve source');
   });
 
+  it('rejects a unit that serves the chunk runtime preview build', () => {
+    const root = fixture();
+    writeFileSync(join(root, 'ops/orchard-runtime/systemd/orchard-frontend.service'), [
+      `ConditionPathExists=${root}/packages/client/dist/index.html`,
+      'ExecStart=npm run preview -w @orchard/client -- --mode chunk-runtime-preview',
+      '',
+    ].join('\n'));
+    const result = validate(root);
+    expect(result.status).toBe(65);
+    expect(result.stderr).toContain('chunk runtime preview');
+  });
+
+  describe('chunk runtime build audit (static world S4a)', () => {
+    const shadow = { schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false, activationRelease: null };
+    const withAudit = (audit: string) => {
+      const root = fixture();
+      writeFileSync(join(root, 'packages/client/dist/chunk-runtime-audit.json'), audit);
+      return validate(root);
+    };
+
+    it('accepts off and shadow artifacts, and artifacts built before the audit existed', () => {
+      expect(validate(fixture()).status).toBe(0);
+      for (const mode of ['off', 'shadow']) {
+        const result = withAudit(JSON.stringify({ ...shadow, mode }));
+        expect(result.status, result.stderr).toBe(0);
+      }
+    });
+
+    it.each([
+      ['an unapproved on build', { ...shadow, mode: 'on' }],
+      ['an on build claiming activation without the committed release', { ...shadow, mode: 'on', activationAllowed: true, activationRelease: 'static-world-s5c' }],
+      ['an unknown mode', { ...shadow, mode: 'live' }],
+    ])('rejects %s', (_label, audit) => {
+      const result = withAudit(JSON.stringify(audit));
+      expect(result.status).toBe(65);
+      expect(result.stderr).toContain('not a releasable production build');
+    });
+
+    it('rejects an unreadable audit', () => {
+      expect(withAudit('not json').status).toBe(65);
+    });
+  });
+
   it('requires the exact canonical HTTPS public origin before making a request', () => {
     const result = validate(fixture(), {
       CLIENT_STATIC_DRY_RUN: 'false',

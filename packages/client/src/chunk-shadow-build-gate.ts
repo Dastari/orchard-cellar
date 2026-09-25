@@ -1,7 +1,9 @@
 /**
  * Client build gate for the chunk runtime (static world S4a).
  *
- * Self-contained on purpose: vite.config.ts loads it before workspace sources resolve.
+ * Self-contained on purpose (no imports, erasable TypeScript only): vite.config.ts loads it
+ * before workspace sources resolve, and ops/orchard-runtime/bin/validate-client-static.sh
+ * imports it with plain `node` (type stripping) to validate the release artifact.
  * Keep the mode list in step with CHUNK_RUNTIME_MODES in @orchard/sim/chunk-runtime.
  */
 export const CHUNK_RUNTIME_BUILD_MODES = ['off', 'shadow', 'on'] as const;
@@ -22,10 +24,17 @@ export const CHUNK_RUNTIME_ACTIVATION_ENV = 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RE
 
 /**
  * The only Vite build mode that may produce an unapproved `on` bundle, for a manual
- * preview port (S4g). Its audit always says activationAllowed: false, and the guarded
- * release scripts build with `--mode client-production`, so it cannot ship by accident.
+ * preview port (S4g). Its audit always says activationAllowed: false. It builds into
+ * CHUNK_RUNTIME_PREVIEW_OUT_DIR, never `dist` (which the live frontend serves), and a
+ * default `vite preview` never serves that directory.
  */
 export const CHUNK_RUNTIME_PREVIEW_BUILD_MODE = 'chunk-runtime-preview';
+export const CHUNK_RUNTIME_PREVIEW_OUT_DIR = 'dist-chunk-preview';
+
+/** Client build output directory for a Vite mode. */
+export function clientBuildOutDir(viteMode: string): string {
+  return viteMode === CHUNK_RUNTIME_PREVIEW_BUILD_MODE ? CHUNK_RUNTIME_PREVIEW_OUT_DIR : 'dist';
+}
 
 export function parseChunkRuntimeBuildMode(raw: string | undefined): ChunkRuntimeBuildMode {
   const mode = raw ?? '';
@@ -72,4 +81,27 @@ export function chunkRuntimeBuildAudit(rawMode: string | undefined, moduleIds: r
     .filter(id=>/\/packages\/(?:sim\/src\/(?:procedural-terrain|survival-world|map-compiler)[^/]*|engine\/src\/(?:terrain|live-map-runtime))\.ts$/u.test(id)))].sort();
   if (options.requireGeneratorFree === true && legacyModules.length) throw new Error(`chunk_generator_retirement_incomplete: ${legacyModules.join(', ')}`);
   return { schema: 1, mode, legacyModules, activationAllowed, activationRelease: activationAllowed ? release! : null };
+}
+
+/**
+ * `production`: an artifact that may be served to players. An `on` build is valid only when
+ * it carries the approved activation (so an unapproved preview or dev-style `on` audit fails
+ * every release validator). `preview`: the chunk-runtime-preview artifact, which may be `on`
+ * but never activation-approved.
+ */
+export type ChunkRuntimeArtifact = 'production' | 'preview';
+
+export function validChunkRuntimeBuildAudit(audit: unknown, artifact: ChunkRuntimeArtifact = 'production',
+  approvedRelease: string | null = CHUNK_RUNTIME_ACTIVATION_RELEASE): audit is ChunkRuntimeBuildAudit {
+  if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) return false;
+  const { schema, mode, activationAllowed, activationRelease, legacyModules } = audit as Record<string, unknown>;
+  if (schema !== 1 || !(CHUNK_RUNTIME_BUILD_MODES as readonly unknown[]).includes(mode)
+    || !Array.isArray(legacyModules) || !legacyModules.every(id => typeof id === 'string')) return false;
+  if (activationAllowed === false) {
+    // Audits written before S4a have no activationRelease field.
+    if (activationRelease !== undefined && activationRelease !== null) return false;
+    return artifact === 'preview' || mode !== 'on';
+  }
+  return artifact === 'production' && activationAllowed === true
+    && typeof activationRelease === 'string' && chunkRuntimeActivationApproved(mode as ChunkRuntimeBuildMode, activationRelease, approvedRelease);
 }

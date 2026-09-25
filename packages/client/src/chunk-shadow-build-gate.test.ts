@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {CHUNK_RUNTIME_ACTIVATION_RELEASE,CHUNK_RUNTIME_BUILD_MODES,chunkRuntimeActivationApproved,chunkRuntimeBuildAudit,parseChunkRuntimeBuildMode} from './chunk-shadow-build-gate.js';
+import {CHUNK_RUNTIME_ACTIVATION_RELEASE,CHUNK_RUNTIME_BUILD_MODES,chunkRuntimeActivationApproved,chunkRuntimeBuildAudit,clientBuildOutDir,parseChunkRuntimeBuildMode,validChunkRuntimeBuildAudit} from './chunk-shadow-build-gate.js';
 import {CHUNK_RUNTIME_MODES} from '@orchard/sim/chunk-runtime';
 it('records bundled legacy modules and fails explicit retirement and unknown modes',()=>{
  const modules=['/repo/packages/sim/src/procedural-terrain.ts','/repo/packages/engine/src/terrain.ts','/repo/packages/sim/src/world-chunk.ts'];
@@ -39,6 +39,29 @@ describe('activation guard',()=>{
   expect(chunkRuntimeActivationApproved('on','',"")).toBe(false);
  });
 });
+describe('artifact validation',()=>{
+ const approved='static-world-s5c';
+ it('rejects an unapproved on build as a production artifact but accepts it as a preview',()=>{
+  const preview=chunkRuntimeBuildAudit('on',[],{production:false});
+  expect(validChunkRuntimeBuildAudit(preview,'production')).toBe(false);expect(validChunkRuntimeBuildAudit(preview)).toBe(false);
+  expect(validChunkRuntimeBuildAudit(preview,'preview')).toBe(true);
+  for(const mode of ['off','shadow'])for(const artifact of ['production','preview'] as const)
+   expect(validChunkRuntimeBuildAudit(chunkRuntimeBuildAudit(mode,[],{production:true}),artifact)).toBe(true);
+ });
+ it('accepts activation only as a production artifact with the committed release',()=>{
+  const audit=chunkRuntimeBuildAudit('on',[],{production:true,activationRelease:approved,approvedRelease:approved});
+  expect(validChunkRuntimeBuildAudit(audit,'production',approved)).toBe(true);
+  expect(validChunkRuntimeBuildAudit(audit,'preview',approved)).toBe(false);
+  // Today no release is committed, so even a well-formed approved audit is rejected.
+  expect(validChunkRuntimeBuildAudit(audit,'production')).toBe(false);
+  expect(validChunkRuntimeBuildAudit({...audit,activationRelease:'other'},'production',approved)).toBe(false);
+  expect(validChunkRuntimeBuildAudit({...audit,mode:'shadow'},'production',approved)).toBe(false);
+ });
+ it('writes preview builds outside dist',()=>{
+  expect(clientBuildOutDir('client-production')).toBe('dist');expect(clientBuildOutDir('production')).toBe('dist');
+  expect(clientBuildOutDir('chunk-runtime-preview')).toBe('dist-chunk-preview');
+ });
+});
 it('parses modes like the runtime does',()=>{
  expect([...CHUNK_RUNTIME_BUILD_MODES]).toEqual([...CHUNK_RUNTIME_MODES]);
  expect(parseChunkRuntimeBuildMode(undefined)).toBe('off');expect(parseChunkRuntimeBuildMode('on')).toBe('on');
@@ -58,8 +81,9 @@ describe('vite config wiring',()=>{
   await expect(run(on,'build','client-production')).rejects.toThrow(/activation_not_approved/);
   await expect(run(on,'build','production')).rejects.toThrow(/activation_not_approved/);
   await expect(run(on,'serve','development')).resolves.toBeTruthy();
-  await expect(run(on,'build','chunk-runtime-preview')).resolves.toBeTruthy();
-  await expect(run({VITE_CHUNK_RUNTIME_MODE:'shadow',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production')).resolves.toBeTruthy();
+  await expect(run(on,'build','chunk-runtime-preview')).resolves.toMatchObject({build:{outDir:'dist-chunk-preview'}});
+  await expect(run(on,'serve','development')).resolves.toMatchObject({build:{outDir:'dist'}});
+  await expect(run({VITE_CHUNK_RUNTIME_MODE:'shadow',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production')).resolves.toMatchObject({build:{outDir:'dist'}});
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'on',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:'static-world-s5c'},'build','client-production')).rejects.toThrow(/release_mismatch/);
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'live'},'serve','development')).rejects.toThrow(/mode_invalid/);
  });

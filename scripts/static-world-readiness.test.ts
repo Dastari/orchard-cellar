@@ -77,13 +77,16 @@ describe('static-world readiness', () => {
   it('accepts only the envelope the client build gate emits', () => {
     expect(validClientBuildAudit(emitted)).toBe(true);
     expect(validClientBuildAudit({ ...emitted, mode: 'off' })).toBe(true);
-    // An unapproved `on` preview build is a valid audit that does not activate.
-    expect(validClientBuildAudit({ ...emitted, mode: 'on' })).toBe(true);
+    // dist is a production artifact: an unapproved `on` build is rejected there, and only
+    // the preview path accepts it.
+    expect(validClientBuildAudit({ ...emitted, mode: 'on' })).toBe(false);
+    expect(validClientBuildAudit({ ...emitted, mode: 'on' }, 'preview')).toBe(true);
     // Audits written before S4a had no activationRelease field.
     expect(validClientBuildAudit({ schema: 1, mode: 'shadow', legacyModules: [], activationAllowed: false })).toBe(true);
     // Stays in lockstep with the real emitter.
     for (const mode of ['off', 'shadow']) expect(validClientBuildAudit(chunkRuntimeBuildAudit(mode, [], { production: true }))).toBe(true);
-    expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }))).toBe(true);
+    expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }))).toBe(false);
+    expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }), 'preview')).toBe(true);
     for (const bad of [
       null, [], { legacyModules: [] }, { ...emitted, schema: 2 }, { ...emitted, mode: 'banana' }, { ...emitted, mode: 'live' },
       { ...emitted, activationAllowed: true }, { ...emitted, mode: 'on', activationAllowed: true },
@@ -121,6 +124,8 @@ describe('static-world readiness', () => {
       expect(run(['--require', 'step5'])).toBe(1);
       audit(JSON.stringify({ schema: 999, mode: 'banana', activationAllowed: true, legacyModules: [] }));
       expect(run(['--require', 'step6'])).toBe(1);
+      audit(JSON.stringify({ ...emitted, mode: 'on' }));
+      expect(run(['--require', 'step5'])).toBe(1);
       audit(JSON.stringify(emitted));
       expect(run(['--require', 'step6'])).toBe(0);
     });

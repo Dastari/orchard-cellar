@@ -10,7 +10,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { CHUNK_RUNTIME_ACTIVATION_RELEASE } from '../packages/client/src/chunk-shadow-build-gate.js';
+import { validChunkRuntimeBuildAudit, type ChunkRuntimeArtifact } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 export type MigrationStep = 'step4' | 'step5' | 'step6';
 
@@ -166,8 +166,9 @@ export function runProbe(probe: ReadinessProbe, repoRoot: string): ProbeResult {
  * Legacy modules recorded by the last client build, or null when the audit is
  * missing or is not exactly the envelope `chunkRuntimeBuildAudit`
  * (packages/client/src/chunk-shadow-build-gate.ts) emits: schema 1, mode
- * off|shadow|on and string legacyModules. activationAllowed is true only for an
- * `on` build carrying the reviewed CHUNK_RUNTIME_ACTIVATION_RELEASE (null until S5c).
+ * off|shadow|on and string legacyModules. The dist is a production artifact, so an
+ * `on` audit is valid only with activationAllowed true and the reviewed
+ * CHUNK_RUNTIME_ACTIVATION_RELEASE (null until S5c).
  */
 export function clientBuildLegacyModules(repoRoot: string): readonly string[] | null {
   const path = resolve(repoRoot, 'packages/client/dist/chunk-runtime-audit.json');
@@ -181,18 +182,9 @@ export function clientBuildLegacyModules(repoRoot: string): readonly string[] | 
   return validClientBuildAudit(audit) ? audit.legacyModules : null;
 }
 
-export function validClientBuildAudit(audit: unknown): audit is { readonly legacyModules: readonly string[] } {
-  if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) return false;
-  const { schema, mode, activationAllowed, activationRelease, legacyModules } = audit as Record<string, unknown>;
-  const activation = activationAllowed === false
-    ? activationRelease === undefined || activationRelease === null
-    : activationAllowed === true && mode === 'on' && CHUNK_RUNTIME_ACTIVATION_RELEASE !== null
-      && activationRelease === CHUNK_RUNTIME_ACTIVATION_RELEASE;
-  return schema === 1
-    && (mode === 'off' || mode === 'shadow' || mode === 'on')
-    && activation
-    && Array.isArray(legacyModules)
-    && legacyModules.every((id) => typeof id === 'string');
+/** The production artifact envelope: an unapproved `on` build is rejected (see the gate). */
+export function validClientBuildAudit(audit: unknown, artifact: ChunkRuntimeArtifact = 'production'): audit is { readonly legacyModules: readonly string[] } {
+  return validChunkRuntimeBuildAudit(audit, artifact);
 }
 
 const STEP_ORDER: readonly MigrationStep[] = ['step4', 'step5', 'step6'];

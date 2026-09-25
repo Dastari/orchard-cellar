@@ -1,5 +1,5 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { CHUNK_RUNTIME_ACTIVATION_ENV, CHUNK_RUNTIME_PREVIEW_BUILD_MODE, chunkRuntimeBuildAudit } from './src/chunk-shadow-build-gate.js';
+import { CHUNK_RUNTIME_ACTIVATION_ENV, CHUNK_RUNTIME_PREVIEW_BUILD_MODE, chunkRuntimeBuildAudit, clientBuildOutDir } from './src/chunk-shadow-build-gate.js';
 import clientPackage from './package.json' with { type: 'json' };
 import { createPwaServiceWorker } from './pwa-service-worker.js';
 import { worldChunkServing } from './world-chunk-serving.js';
@@ -104,7 +104,8 @@ export default defineConfig(({ command, mode }) => {
     proxy: clientProxy,
   },
   build: {
-    outDir: 'dist',
+    // The preview mode never writes (or, under a default `vite preview`, serves) `dist`.
+    outDir: clientBuildOutDir(mode),
     emptyOutDir: true,
     chunkSizeWarningLimit: 250,
     rolldownOptions: {

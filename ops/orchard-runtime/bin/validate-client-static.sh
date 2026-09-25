@@ -55,6 +55,26 @@ grep -Fq 'npm run preview -w @orchard/client' "$unit"
 if grep -Eq 'vite[[:space:]]+dev|npm[[:space:]]+run[[:space:]]+dev' "$unit"; then
   printf 'Game unit must never serve source or run the dev server.\n' >&2; exit 65
 fi
+if grep -Fq 'chunk-runtime-preview' "$unit"; then
+  printf 'Game unit must never serve the chunk runtime preview build.\n' >&2; exit 65
+fi
+
+# Chunk runtime build audit (static world S4a): a production artifact may be `on` only
+# with the reviewed activation release. Artifacts built before the audit existed have none.
+# The gate module is self-contained, so plain node (type stripping) can import it.
+audit="$dist/chunk-runtime-audit.json"
+if [[ -e "$audit" ]]; then
+  gate="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/packages/client/src/chunk-shadow-build-gate.ts"
+  node --no-warnings --input-type=module -e '
+    const [gate, audit] = process.argv.slice(1);
+    const { validChunkRuntimeBuildAudit } = await import(gate);
+    const { readFileSync } = await import("node:fs");
+    let value; try { value = JSON.parse(readFileSync(audit, "utf8")); } catch { process.exit(1); }
+    process.exit(validChunkRuntimeBuildAudit(value, "production") ? 0 : 1);
+  ' "$gate" "$audit" || {
+    printf 'Game artifact chunk runtime audit is not a releasable production build (unapproved on mode?).\n' >&2; exit 65;
+  }
+fi
 
 reject_dev_html() {
   local html=$1

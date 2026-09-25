@@ -169,6 +169,22 @@ unit's loaded `FragmentPath` with `systemctl show` for one final installed-unit
 validation before restoring traffic. A repository unit that differs from the installed
 service therefore cannot silently return a development server to players.
 
+### Chunk runtime mode and activation (static world S4a)
+
+`VITE_CHUNK_RUNTIME_MODE` is `off` (the default), `shadow` or `on`. Every client build
+except `--mode chunk-runtime-preview` is a production build and refuses `on` unless the
+committed `CHUNK_RUNTIME_ACTIVATION_RELEASE` in `packages/client/src/chunk-shadow-build-gate.ts`
+(null until the S5c activation release) equals `ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE`
+in the build environment. `npm run client:chunks:check` and `client:static:validate` reject a
+`dist` whose `chunk-runtime-audit.json` is an unapproved `on` build. The preview mode writes
+`packages/client/dist-chunk-preview`, never `dist`, and is only served by an explicit
+`vite preview --mode chunk-runtime-preview` on a separate port.
+
+Once S5c sets the committed release constant, a leftover
+`ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE` in the environment makes every later `off` or
+`shadow` build fail with `chunk_runtime_activation_release_mismatch`. Unset it once the
+activation build is done.
+
 ### World chunk blobs (`/world/`)
 
 The static-world client fetches content-addressed chunk blobs from
