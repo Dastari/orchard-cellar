@@ -515,7 +515,7 @@ export const CONTENT_FIELD_SCHEMAS: ContentFieldSchemaGraph = {
     "s509": {"type":"literal","value":"offers"},
     "s510": {"type":"object","fields":{"recipeFilter":{"schema":"s511"}}},
     "s511": {"type":"object","fields":{"process":{"schema":"s275","optional":true},"stationTag":{"schema":"s1","optional":true}}},
-    "s512": {"type":"object","fields":{"readOnly":{"schema":"s56","optional":true},"requiredTags":{"schema":"s10","optional":true},"acceptedItems":{"schema":"s266","optional":true},"acceptedFrom":{"schema":"s513","optional":true}}},
+    "s512": {"type":"object","fields":{"readOnly":{"schema":"s56","optional":true},"requiredTags":{"schema":"s10","optional":true},"acceptedItems":{"schema":"s266","optional":true},"acceptedFrom":{"schema":"s513","optional":true},"rejectedItems":{"schema":"s266","optional":true,"help":"Deny list by item. A rejected item is refused even when an allow list or process admits it."},"rejectedTags":{"schema":"s10","optional":true,"help":"Deny list by item type: an item carrying any of these tags is refused."}}},
     "s513": {"type":"object","fields":{"process":{"schema":"s275","optional":true},"stationTag":{"schema":"s1","optional":true},"role":{"schema":"s514"}}},
     "s514": {"type":"union","options":["s395","s396","s515"]},
     "s515": {"type":"literal","value":"fuel"},

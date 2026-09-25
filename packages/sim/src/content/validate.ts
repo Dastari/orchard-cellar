@@ -201,7 +201,10 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
     ];
     case 'shop': return definition.offers.map(({ item }) => item);
     case 'tileset': return [];
-    case 'frame': return definition.panes.flatMap((pane) => pane.restriction?.acceptedItems ?? []);
+    case 'frame': return definition.panes.flatMap((pane) => [
+      ...(pane.restriction?.acceptedItems ?? []),
+      ...(pane.restriction?.rejectedItems ?? []),
+    ]);
     case 'loot': return definition.groups.flatMap(({ entries }) => entries.flatMap(({ target }) => (
       'item' in target ? [target.item] : []
     )));

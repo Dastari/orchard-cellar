@@ -127,8 +127,14 @@ export function itemStacksCompatible(left: ItemStack, right: ItemStack): boolean
 }
 
 export interface SlotRestriction {
+  /** Allow list by item kind: when present, only these kinds may be inserted. */
   readonly acceptedKinds?: readonly string[];
+  /** Item types: every tag must be present on the inserted item. */
   readonly requiredTags?: readonly string[];
+  /** Deny list by item kind. A denial always wins over the allow list. */
+  readonly rejectedKinds?: readonly string[];
+  /** Deny list by item type: an item carrying any of these tags is refused. */
+  readonly rejectedTags?: readonly string[];
   /** Output/result cells may be extracted from but never used as a move target. */
   readonly readOnly?: boolean;
 }
@@ -359,6 +365,10 @@ export function slotAcceptsItem(
   const restriction = container.restrictions?.[index];
   if (restriction?.readOnly === true) return false;
   if (!restriction) return true;
+  // Deny lists are checked first and always win: an item on both lists, or
+  // carrying a rejected tag and every required one, is refused.
+  if (restriction.rejectedKinds?.includes(itemKind) === true) return false;
+  if ((restriction.rejectedTags ?? []).some((tag) => content.hasTag(itemKind, tag))) return false;
   if (restriction.acceptedKinds && !restriction.acceptedKinds.includes(itemKind)) return false;
   return (restriction.requiredTags ?? []).every((tag) => content.hasTag(itemKind, tag));
 }

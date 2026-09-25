@@ -90,6 +90,27 @@ describe('world frame resolver', () => {
       .toMatchObject({ ok: false, code: 'slot_rejects_item' });
   });
 
+  it('enforces an authored frame deny list through the placeable restrictions the reducers load', () => {
+    const rows = bootstrapContentRows().map((row) => {
+      if (row.id !== 'frame:furnace') return row;
+      const furnace = JSON.parse(String(row.json)) as { panes: { id: string; restriction?: Record<string, unknown> }[] };
+      return { ...row, json: JSON.stringify({ ...furnace, panes: furnace.panes.map((pane) => pane.id === 'fuel'
+        ? { ...pane, restriction: { ...pane.restriction, rejectedItems: ['item:plank'] } } : pane) }) };
+    });
+    const denied = buildContentRegistry(rows);
+    expect(denied.report.errors).toEqual([]);
+    const restrictions = placeableFrameRestrictions(denied.registry, { kind: 'furnace' });
+    expect(restrictions[1]).toEqual({ acceptedKinds: ['coal', 'plank', 'wood'], rejectedKinds: ['plank'] });
+    const content = itemContainerContentResolver(denied.registry);
+    const containers = (itemKind: string) => ({
+      backpack: { id: 'backpack', capacity: 1, slots: [{ itemKind, quantity: 3, lit: true }] },
+      placeable: { id: 'placeable', capacity: 3, slots: [null, null, null], restrictions },
+    });
+    const request = { fromContainer: 'backpack', fromIndex: 0, toContainer: 'placeable', toIndex: 1, quantity: 3 };
+    expect(moveItemStacks(containers('plank'), request, content)).toMatchObject({ ok: false, code: 'slot_rejects_item' });
+    expect(moveItemStacks(containers('wood'), request, content).ok).toBe(true);
+  });
+
   it('rejects nonfuel insertion while preserving extraction of existing unsupported fuel', () => {
     const containers = {
       backpack: { id: 'backpack', capacity: 1, slots: [{ itemKind: 'stone', quantity: 4, lit: true }] },

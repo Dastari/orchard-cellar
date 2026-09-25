@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseFrameDefinition } from './frame-definition.js';
-import { bootstrapContentRegistry } from './bootstrap-registry.js';
+import { bootstrapContentRegistry, bootstrapContentRows } from './bootstrap-registry.js';
+import { buildContentRegistry } from './registry.js';
 
 const bootstrapFrameDefinitions = () => [...bootstrapContentRegistry().frames.values()];
 
@@ -35,6 +36,36 @@ describe('authored frame definitions', () => {
     expect(barrel?.buttons).toEqual([expect.objectContaining({
       interaction: 'seal', visibleWhen: { state: 'sealed', equals: false },
     })]);
+  });
+
+  it('round-trips authored deny lists by item and by item type', () => {
+    const chest = bootstrapFrameDefinitions().find(({ id }) => id === 'frame:chest')!;
+    const pane = chest.panes.find(({ kind }) => kind === 'slots')!;
+    const restriction = { acceptedItems: ['item:wood', 'item:coal'], rejectedItems: ['item:coal'], rejectedTags: ['item.tool'] };
+    const parsed = parseFrameDefinition(JSON.stringify({
+      ...chest, panes: chest.panes.map((entry) => entry === pane ? { ...entry, restriction } : entry),
+    }));
+    expect(parsed.panes.find(({ id }) => id === pane.id)?.restriction).toEqual(restriction);
+    expect(() => parseFrameDefinition({
+      ...chest, panes: chest.panes.map((entry) => entry === pane ? { ...entry, restriction: { rejectedTags: ['Not A Tag'] } } : entry),
+    })).toThrow('rejectedTags[0]: invalid stable reference');
+    expect(() => parseFrameDefinition({
+      ...chest, panes: chest.panes.map((entry) => entry === pane ? { ...entry, restriction: { rejectedItems: 'item:coal' } } : entry),
+    })).toThrow('rejectedItems: expected array');
+  });
+
+  it('validates deny-listed items as item references', () => {
+    const rows = bootstrapContentRows();
+    const withDeny = (item: string) => buildContentRegistry(rows.map((row) => {
+      if (row.id !== 'frame:chest') return row;
+      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; restriction?: unknown }[] };
+      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.kind === 'slots'
+        ? { ...pane, restriction: { rejectedItems: [item] } } : pane) }) };
+    }));
+    expect(withDeny('item:coal').report.errors).toEqual([]);
+    expect(withDeny('item:not_present').report.errors).toContainEqual(expect.objectContaining({
+      code: 'unresolved_reference', definitionId: 'frame:chest',
+    }));
   });
 
   it('owns client surface/custody presentation without deriving it from the frame id', () => {

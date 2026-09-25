@@ -40,6 +40,10 @@ export interface FrameSlotRestriction {
   readonly requiredTags?: readonly string[];
   readonly acceptedItems?: readonly `item:${string}`[];
   readonly acceptedFrom?: FrameAcceptedFromProcess;
+  /** Deny list by item. A rejected item is refused even when an allow list or process admits it. */
+  readonly rejectedItems?: readonly `item:${string}`[];
+  /** Deny list by item type: an item carrying any of these tags is refused. */
+  readonly rejectedTags?: readonly string[];
 }
 
 export interface FramePaneDefinition {
@@ -188,6 +192,10 @@ function parseRestriction(value: unknown, path: string): FrameSlotRestriction {
       ...(acceptedFrom.stationTag === undefined ? {} : { stationTag: reference(acceptedFrom.stationTag, `${path}.acceptedFrom.stationTag`) }),
       role: role as FrameAcceptedFromProcess['role'],
     } }),
+    ...(source.rejectedItems === undefined ? {} : { rejectedItems: array(source.rejectedItems, `${path}.rejectedItems`)
+      .map((item, index) => text(item, `${path}.rejectedItems[${index}]`) as `item:${string}`) }),
+    ...(source.rejectedTags === undefined ? {} : { rejectedTags: array(source.rejectedTags, `${path}.rejectedTags`)
+      .map((tag, index) => reference(tag, `${path}.rejectedTags[${index}]`)) }),
   };
 }
 

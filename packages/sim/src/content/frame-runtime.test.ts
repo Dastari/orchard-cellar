@@ -88,6 +88,65 @@ describe('frame restriction resolver', () => {
 });
 
 
+describe('frame slot deny lists', () => {
+  const content = itemContainerContentResolver(registry);
+  const bin = (restriction: Parameters<typeof resolveFrameSlotRestriction>[0]) => ({
+    id: 'bin', capacity: 1, slots: [null], restrictions: { 0: resolveFrameSlotRestriction(restriction, registry)! },
+  });
+
+  it('resolves authored deny lists into unprefixed runtime kinds kept apart from the allow list', () => {
+    expect(resolveFrameSlotRestriction({
+      rejectedItems: ['item:wood', 'item:coal', 'item:wood'], rejectedTags: ['item.tool'],
+    }, registry)).toEqual({ rejectedKinds: ['coal', 'wood'], rejectedTags: ['item.tool'] });
+    expect(resolveFrameSlotRestriction({ rejectedItems: [] }, registry)).toEqual({ rejectedKinds: [] });
+  });
+
+  it('denies by item', () => {
+    const container = bin({ rejectedItems: ['item:wood'] });
+    expect(slotAcceptsItem(container, 0, 'wood', content)).toBe(false);
+    expect(slotAcceptsItem(container, 0, 'stone', content)).toBe(true);
+    expect(clickContainerSlot({ bin: container }, { itemKind: 'wood', quantity: 3 },
+      { container: 'bin', index: 0, button: 'left' }, content)).toEqual({ ok: false, code: 'slot_rejects_item' });
+  });
+
+  it('denies by item type', () => {
+    const container = bin({ rejectedTags: ['item.tool'] });
+    expect(slotAcceptsItem(container, 0, 'axe', content)).toBe(false);
+    expect(slotAcceptsItem(container, 0, 'hoe', content)).toBe(false);
+    expect(slotAcceptsItem(container, 0, 'wood', content)).toBe(true);
+  });
+
+  it('lets the deny list win over an allow list, a required type and a process-derived allow list', () => {
+    const listed = bin({ acceptedItems: ['item:wood', 'item:coal'], rejectedItems: ['item:coal'] });
+    expect(slotAcceptsItem(listed, 0, 'wood', content)).toBe(true);
+    expect(slotAcceptsItem(listed, 0, 'coal', content)).toBe(false);
+    const typed = bin({ requiredTags: ['item.tool'], rejectedTags: ['tool.farming.cultivate'] });
+    expect(slotAcceptsItem(typed, 0, 'axe', content)).toBe(true);
+    expect(slotAcceptsItem(typed, 0, 'hoe', content)).toBe(false);
+    const fuel = bin({ acceptedFrom: { stationTag: 'station.furnace', role: 'fuel' }, rejectedItems: ['item:plank'] });
+    expect(slotAcceptsItem(fuel, 0, 'wood', content)).toBe(true);
+    expect(slotAcceptsItem(fuel, 0, 'plank', content)).toBe(false);
+    // Existing contents stay extractable: restrictions govern insertion only.
+    const loaded = { ...fuel, slots: [{ itemKind: 'plank', quantity: 2 }] };
+    expect(clickContainerSlot({ bin: loaded }, null, { container: 'bin', index: 0, button: 'left' }, content))
+      .toMatchObject({ ok: true, cursor: { itemKind: 'plank', quantity: 2 } });
+  });
+
+  it('leaves every existing authored frame without a deny list', () => {
+    for (const definition of definitions) {
+      if (definition.kind !== 'frame') continue;
+      for (const pane of definition.panes) {
+        expect(pane.restriction?.rejectedItems, `${definition.id}:${pane.id}`).toBeUndefined();
+        expect(pane.restriction?.rejectedTags, `${definition.id}:${pane.id}`).toBeUndefined();
+      }
+      for (const restriction of Object.values(frameRestrictions(definition, registry))) {
+        expect(restriction).not.toHaveProperty('rejectedKinds');
+        expect(restriction).not.toHaveProperty('rejectedTags');
+      }
+    }
+  });
+});
+
 it('distinguishes Nado-style preserving barrels from casks and keeps cask output extraction safe', () => {
   const content = itemContainerContentResolver(registry);
   const barrel = { id: 'barrel', capacity: 8, slots: Array(8).fill(null), restrictions: frameRestrictions(frame('barrel'), registry) };
