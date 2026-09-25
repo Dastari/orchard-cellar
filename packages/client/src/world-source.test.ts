@@ -12,17 +12,27 @@ const registry = bootstrapContentRegistry();
 const SIZE = 384;
 
 /** A 6 x 6 chunk topside map whose biome encodes the tile. */
-function fixture(spaceId = 0, extraChannel?: string): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
+function fixture(spaceId = 0, extraChannel?: string, authority = false): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
   const cells = SIZE * SIZE;
   const channels: Record<string, ChunkArray> = {
     biomes: Uint8Array.from({ length: cells }, (_, index) => (index % SIZE + Math.floor(index / SIZE)) % 7),
     elevations: new Int16Array(cells), dirtCliffRoles: new Uint8Array(cells), dirtTerraces: new Uint8Array(cells),
     blocked: new Uint8Array(cells), horseJumpableTerrain: new Uint8Array(cells), medium: new Uint8Array(cells), solidBlocked: new Uint8Array(cells),
+    // Static world S4d: the authority extension (ground blocked where x is a multiple of 10).
+    ...(authority ? {
+      'authority.ground.blocked': Uint8Array.from({ length: cells }, (_, index) => index % SIZE % 10 === 0 ? 1 : 0),
+      'authority.ground.elevations': new Int16Array(cells), 'authority.ground.terrainPlaneBlocked': new Uint8Array(cells),
+      'authority.ground.horseJumpableTerrain': new Uint8Array(cells), 'authority.water.blocked': new Uint8Array(cells).fill(1),
+      'authority.combatRegion': new Uint8Array(cells),
+    } : {}),
   };
   const chunks = new Map<string, WorldChunk>();
   const heads: WorldChunkManifest['chunks'][number][] = [];
   for (let cy = 0; cy < SIZE / 64; cy++) for (let cx = 0; cx < SIZE / 64; cx++) {
-    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, spaceId, cx, cy, assetRevision: 'a', records: [], assetIds: [], atlasPackIds: [],
+    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, ...(authority ? { authoritySchema: 1 as const } : {}), spaceId, cx, cy, assetRevision: 'a',
+      records: authority && cx === 1 && cy === 1 ? [{ kind: 'authority.ground.obstacle', ordinal: 0, tileX: 70, tileY: 70,
+        value: { group: 'authored', ordinal: 0, left: 70 * 256, top: 70 * 256, right: 71 * 256 - 1, bottom: 71 * 256 - 1, sourceId: 'object:crate' } }] : [],
+      assetIds: [], atlasPackIds: [],
       arrays: Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, sliceWorldChunkChannel(value, SIZE, SIZE, cx, cy, /blocked/iu.test(name) ? 1 : 0)])) });
     const chunk = decodeWorldChunk(bytes);
     chunks.set(`${cx}:${cy}`, chunk);
@@ -31,6 +41,8 @@ function fixture(spaceId = 0, extraChannel?: string): { manifest: WorldChunkMani
   const manifest = { schema: 1, chunkSize: 64, spaceId, width: SIZE, height: SIZE, assetRevision: 'a', sourceRevision: 4, sourceHash: 'map',
     metadata: { terrain: { seed: 9, version: 4, generator: 'island', projectionStyle: 'raised', baseDatum: 0 },
       collisions: { clientGround: { terrainMinimumElevation: 0 } },
+      ...(authority ? { authority: { schema: 1, combatRegions: [], generatedSuppressions: ['resource-42'],
+        collisions: { ground: { terrainMinimumElevation: 0 }, water: {} } } } : {}),
       channels: Object.fromEntries([...Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: 1 }]),
         // A manifest channel the chunks lack: the window build must throw.
         ...(extraChannel === undefined ? [] : [[extraChannel, { type: 'u8', planes: 1 }]])]) },
@@ -38,8 +50,8 @@ function fixture(spaceId = 0, extraChannel?: string): { manifest: WorldChunkMani
   return { manifest, chunks };
 }
 
-function servingStore(spaceId = 0, extraChannel?: string) {
-  const { manifest, chunks } = fixture(spaceId, extraChannel);
+function servingStore(spaceId = 0, extraChannel?: string, authority = false) {
+  const { manifest, chunks } = fixture(spaceId, extraChannel, authority);
   const resident = new Set<string>();
   let pins: string[] = [];
   let installs = 0;
@@ -154,5 +166,54 @@ describe('WorldSource (static world S4c)', () => {
     const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
     const terrain = source.topsideTerrain(() => legacyTerrain, registry);
     expect([terrain.originX, terrain.originY, terrain.width, terrain.height]).toEqual([64, 64, 192, 192]);
+  });
+});
+
+describe('WorldSource collision (static world S4d)', () => {
+  it('keeps the legacy collision in modes off and shadow, when stale, and without the authority extension', () => {
+    // Off and shadow: no serving store, so no chunk collision or suppression source.
+    const off = new WorldSource({ store: () => undefined, pin: () => undefined });
+    off.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    expect(off.collision(registry)).toBeUndefined();
+    expect(off.authority()).toBeUndefined();
+    expect(off.suppressesGeneratedResource(42n)).toBeUndefined();
+    // On, but the manifest was published without the authority extension.
+    const bare = servingStore();
+    const unextended = new WorldSource({ store: () => bare.store, pin: bare.pin });
+    unextended.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    expect(unextended.collision(registry)).toBeUndefined();
+    expect(unextended.suppressesGeneratedResource(42n)).toBeUndefined();
+    // On and extended, but stale: the server falls back to its document, so does the client.
+    const serving = servingStore(0, undefined, true);
+    let stale = true;
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin, stale: () => stale });
+    source.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    expect(source.collision(registry)).toBeUndefined();
+    expect(source.suppressesGeneratedResource(42n)).toBeUndefined();
+    stale = false;
+    expect(source.collision(registry)).toBeDefined();
+    expect(source.suppressesGeneratedResource(42n)).toBe(true);
+    expect(source.suppressesGeneratedResource(43n)).toBe(false);
+    // Another space never serves chunk collision.
+    const other = servingStore(7, undefined, true);
+    expect(new WorldSource({ store: () => other.store, pin: other.pin }).collision(registry)).toBeUndefined();
+  });
+
+  it('builds collision once per render window from exactly its chunks, and rebuilds when the window changes', () => {
+    const serving = servingStore(0, undefined, true);
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
+    source.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    const first = source.collision(registry)!;
+    expect(first.terrain).toBe(source.topsideTerrain(() => ({ width: 0, height: 0 }) as TerrainArray, registry));
+    expect([first.collision.originX, first.collision.originY, first.collision.width, first.collision.height]).toEqual([64, 64, 320, 320]);
+    expect(first.collision.ground.originX).toBe(64);
+    expect(first.collision.issues).toEqual([]);
+    expect(first.collision.ground.obstacles).toEqual([{ left: 70 * 256, top: 70 * 256, right: 71 * 256 - 1, bottom: 71 * 256 - 1 }]);
+    // Same window: the same collision (and serial).
+    expect(source.collision(registry)).toBe(first);
+    source.setView({ minX: 10, minY: 10, maxX: 50, maxY: 32 });
+    const moved = source.collision(registry)!;
+    expect(moved.serial).toBeGreaterThan(first.serial);
+    expect([moved.collision.originX, moved.collision.originY]).toEqual([0, 0]);
   });
 });
