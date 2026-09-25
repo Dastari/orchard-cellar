@@ -9,6 +9,7 @@ export class BoundedChunkTerrainStore {
   readonly #chunks = new Map<string, { chunk: WorldChunk; bytes: number }>();
   #pins = new Set<string>();
   #bytes = 0;
+  #installs = 0;
   constructor(manifest: WorldChunkManifest, limits: { maxChunks?: number; maxBytes?: number } = {}) {
     this.manifest = validateRuntimeManifest(manifest);
     this.maxChunks = limits.maxChunks ?? 25; this.maxBytes = limits.maxBytes ?? 16 * 1024 * 1024;
@@ -17,6 +18,10 @@ export class BoundedChunkTerrainStore {
   get residentCount(): number { return this.#chunks.size; }
   get residentBytes(): number { return this.#bytes; }
   get pinnedKeys(): readonly string[] { return [...this.#pins]; }
+  /** Bumped by every new install (a render window rebuilds when a missing chunk arrives). */
+  get installs(): number { return this.#installs; }
+  /** The resident chunk, without refreshing its LRU position. */
+  peekChunk(cx: number, cy: number): WorldChunk | undefined { return this.#chunks.get(chunkKey(cx, cy))?.chunk; }
   /** Atomic pin change; view is expressed in tile coordinates, plus exactly one ring. */
   pinView(minX: number, minY: number, maxX: number, maxY: number): void {
     if (![minX,minY,maxX,maxY].every(Number.isSafeInteger) || minX > maxX || minY > maxY) throw new Error('invalid_chunk_view');
@@ -45,7 +50,7 @@ export class BoundedChunkTerrainStore {
     }
     if (count >= this.maxChunks || size + bytes.byteLength > this.maxBytes) throw new Error('chunk_pins_exceed_budget');
     for (const victim of victims) this.#chunks.delete(victim);
-    this.#bytes = size + bytes.byteLength; this.#chunks.set(key, { chunk, bytes: bytes.byteLength });
+    this.#bytes = size + bytes.byteLength; this.#chunks.set(key, { chunk, bytes: bytes.byteLength }); this.#installs++;
   }
   get pinnedReady(): boolean { return [...this.#pins].every(key => this.#chunks.has(key)); }
   get pinnedPackIds(): readonly string[] {

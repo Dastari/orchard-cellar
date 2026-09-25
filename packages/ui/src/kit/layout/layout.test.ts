@@ -119,3 +119,25 @@ it('measures wrapped growing columns at allocated widths without reserving phant
   expect(footer.rect.y).toBe(96);
   root.dispose();
 });
+
+describe('BUG-036: wrapping justified rows', () => {
+  const leaf = (width: number) => new UiElement({ style: { width: uiFixed(width), height: uiFixed(10) } });
+  for (const justify of ['start', 'center', 'end', 'space_between'] as const) it(`measure a ${justify} wrapping row at its content width`, () => {
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', wrap: true, justify, gap: 4 }, children: [leaf(20), leaf(30)] });
+    expect(measureUiElement(row, { width: 400, height: 100 }).preferred).toEqual({ width: 54, height: 10 });
+  });
+  it('still wraps and keeps the widest line when the space runs out', () => {
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', wrap: true, justify: 'center', gap: 4 }, children: [leaf(20), leaf(30), leaf(40)] });
+    expect(measureUiElement(row, { width: 60, height: 100 }).preferred).toEqual({ width: 54, height: 24 });
+  });
+  it('keeps a fitted window-like host at its content width', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(960, 540);
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', wrap: true, justify: 'center', gap: 4 }, children: [leaf(20), leaf(30)] });
+    const host = new UiElement({ style: { display: 'flex', direction: 'column', padding: 8 }, children: [row] });
+    root.mount(new UiElement({ style: { display: 'flex', width: 'grow', height: 'grow', align: 'center', justify: 'center' }, children: [host] })); root.arrange();
+    expect(host.rect.width).toBe(70);
+    // Justification still applies inside the row's own box.
+    expect(row.children[0]!.rect.x).toBe(row.rect.x);
+    root.dispose();
+  });
+});

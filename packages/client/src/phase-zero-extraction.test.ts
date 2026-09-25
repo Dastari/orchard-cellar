@@ -206,7 +206,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Static world S4e moves map-object drawing, lights and occluders out of engine/live-map-runtime.ts into
 // engine/map-object-presentation.ts (plain object records, injected terrain sampler); live-map-runtime keeps
 // document-based adapters with unchanged names. Parity and import-boundary tests cover the move; no behaviour change.
-const STRUCTURAL_SEAM_DIGEST = 'c6370a9ad3a19290e8da6105bfa5f71a34b72c67f3e8b0656e8f947574ab8840';
+// BUG-037: ghostFillCraftingRecipe may return the authority's promise so a refused recipe placement
+// rolls the selection back; crafting-frame and overworld-ui tests cover it.
+const STRUCTURAL_SEAM_DIGEST = '006b8ba6af77aec654f8d730b4c912dce10efd6417aca60e19b7569ba8eaace9';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

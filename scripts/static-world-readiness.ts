@@ -82,6 +82,8 @@ export const READINESS_PROBES: readonly ReadinessProbe[] = [
     roots: CLIENT,
     patterns: [
       /\bterrainForSnapshot\(/gu,
+      // The whole-map branch behind the S4c world source (still client collision's terrain).
+      /\blegacyTerrainForSnapshot\(/gu,
       /\bliveIslandTerrain\(/gu,
       /\bliveIslandDocument\(/gu,
       /\bterrainForSpace\(/gu,
