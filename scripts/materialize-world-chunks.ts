@@ -13,7 +13,8 @@ import {
   survivalDecorationObstacle,
   type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type ContentDefinitionRow, type MapDocumentV3,
 } from '@orchard/sim';
-import { liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
+import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
+import { chunkMapRecordsReach, chunkMapViewAllowanceTiles } from '@orchard/engine/chunk-map-records';
 import { createClientCollisionMap } from '@orchard/engine/collision';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
@@ -439,10 +440,27 @@ export interface MaterializeLiveRowsInput {
   readonly audit?: boolean;
 }
 /** Materialise and parity-check (against the server oracle) the chunks for one live map row and content rows. */
+/**
+ * Static world S4e: the client draws a render window's map records only while no
+ * prefab placement plus light can reach past the window margin from outside it
+ * (chunkMapRecordsReach). Refuse to publish a map that breaks it: in chunk mode
+ * `on` every window would fall back to the legacy map. Runs for `plan` and `publish`.
+ */
+export function assertMapRecordsReach(row: LiveMapDocumentRow, registry: ContentRegistry): void {
+  const document = liveIslandDocument(row, registry);
+  const terrain = liveIslandTerrain(row, registry);
+  if (document === null || terrain === null) throw new Error('Published map is not a compatible live island');
+  const reach = chunkMapRecordsReach(document.prefabs, registry, chunkMapViewAllowanceTiles(terrain));
+  if (!reach.fits) {
+    throw new Error(`Map records reach exceeds the chunk window margin: prefab ${reach.prefabTiles} + light ${reach.lightTiles} `
+      + `+ view ${reach.viewTiles} > ${reach.marginTiles} tiles`);
+  }
+}
 export function materializeWorldChunksFromRows(input: MaterializeLiveRowsInput): MaterializedLiveRows {
   const content = input.contentRows === null ? null : buildContentRegistry([...input.contentRows]);
   if (content && !content.report.valid) throw new Error(`Invalid content rows: ${JSON.stringify(content.report.errors)}`);
   const registry = content?.registry ?? bootstrapContentRegistry();
+  assertMapRecordsReach(input.row, registry);
   const atlasIndexSource = input.atlasIndexSource ?? null;
   const atlasIndex = atlasIndexSource ? JSON.parse(atlasIndexSource) as { assetPacks: Record<string, string> } : null;
   const packIds = (assetIds: readonly string[]): readonly string[] => atlasIndex === null ? [] : assetIds.map(id => {

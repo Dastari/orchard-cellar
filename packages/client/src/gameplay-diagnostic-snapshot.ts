@@ -20,7 +20,7 @@ interface GameplayDiagnosticsInput {
   readonly rain: { readonly activeCount: number };
   readonly groundCache: { readonly residentCount: number };
   /** Static world chunk runtime: controller status, render window and collision (S4c/S4d). */
-  readonly chunks?: { readonly runtime: unknown; readonly window: unknown; readonly collision: unknown; readonly staging?: unknown; readonly readiness?: unknown };
+  readonly chunks?: { readonly runtime: unknown; readonly window: unknown; readonly collision: unknown; readonly records?: unknown; readonly staging?: unknown; readonly readiness?: unknown };
 }
 
 /** On-demand diagnostic snapshot; mechanically extracted from the gameplay API. */

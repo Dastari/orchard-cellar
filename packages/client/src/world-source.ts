@@ -12,6 +12,7 @@ import {
   chunkWindowPinBounds, type ChunkTerrainWindow, type ChunkWindowInvalidation, type ChunkWindowRect, type TileBounds,
 } from '@orchard/engine/chunk-terrain-window';
 import type { TerrainArray } from '@orchard/engine/terrain';
+import { buildChunkWindowMapRecords, chunkMapViewAllowanceTiles, type ChunkWindowMapRecords } from '@orchard/engine/chunk-map-records';
 
 export type ChunkPinBounds = readonly [number, number, number, number];
 
@@ -43,6 +44,8 @@ export interface WorldSourcePrewarm {
   readonly window: ChunkTerrainWindow;
   /** Its authority collision, when the chunk collision will serve it. */
   readonly collision: ChunkWindowCollision | undefined;
+  /** Its map records (static world S4e), when the chunk collision will serve it. */
+  readonly records: ChunkWindowMapRecords | undefined;
 }
 export type WorldSourcePrewarmStep = (prewarm: WorldSourcePrewarm, registry: ContentRegistry) => void;
 
@@ -86,6 +89,15 @@ export interface WorldSourceCollisionStatus {
   readonly missingChunks: number;
 }
 
+/** Map records health (static world S4e): a failed build makes the whole window fall
+ * back (collision too, as `incomplete: map_records`). */
+export interface WorldSourceRecordsStatus {
+  /** Record builds that threw (a malformed record, missing manifest metadata, or
+   * content that could reach past the window margin). */
+  readonly failures: number;
+  readonly lastError: string | null;
+}
+
 /** Client collision in chunk mode `on` (static world S4d): the window's static
  * authority collision and the render window it was built with. */
 export interface WorldSourceCollision {
@@ -122,6 +134,10 @@ function tilesetsFor(registry: ContentRegistry): RuntimeTilesetResolver {
  * The camera's visible tiles (setView) choose the window and, in shadow and on,
  * what the chunk runtime pins, so large and ultrawide screens never ask the
  * bounded store for more than the 25 window chunks.
+ *
+ * Collision (S4d) and the authored map records topside draws (S4e: objects,
+ * landmarks, decorations, lights and occluders) come from the same window, and
+ * only while the server would serve that publication (see collision()).
  */
 /** Window build health: a failed build falls back to the legacy terrain. */
 export interface WorldSourceStatus {
@@ -144,6 +160,8 @@ interface PendingWindow {
   buildMs: number;
   collisionDone: boolean;
   collision?: ChunkWindowCollision;
+  recordsDone: boolean;
+  records?: ChunkWindowMapRecords;
   step: number;
   ready: boolean;
   /** A rebuild of the served rect for chunks that arrived after it was built. */
@@ -161,6 +179,10 @@ export const CHUNK_LOOKAHEAD_WAIT_FRAMES = 120;
 export class WorldSource {
   readonly #tracker = new ChunkTerrainWindowTracker();
   readonly #collisions = new WeakMap<ChunkTerrainWindow, WorldSourceCollision | null>();
+  /** Per window: its records (null when the build failed) and the store installs they were built at. */
+  readonly #records = new WeakMap<ChunkTerrainWindow, { readonly records: ChunkWindowMapRecords | null; readonly installs: number; readonly error?: string }>();
+  #recordFailures = 0;
+  #lastRecordError: string | null = null;
   #collisionSerial = 0;
   #collisionFailures = 0;
   #lastCollisionError: string | null = null;
@@ -193,11 +215,15 @@ export class WorldSource {
       authorityIncomplete: this.#authorityIncomplete, missingChunks: this.#missingChunks };
   }
 
+  get recordsStatus(): WorldSourceRecordsStatus {
+    return { failures: this.#recordFailures, lastError: this.#lastRecordError };
+  }
+
   get stagingStatus(): WorldSourceStagingStatus {
     const pending = this.#pending;
     return { staged: this.#staged, synchronous: this.#synchronous, arrivals: this.#arrivals,
       pending: pending === undefined ? null : `${pending.key}:${pending.window === undefined ? 'resident' : pending.ready ? 'ready'
-        : !pending.collisionDone ? 'collision' : `prewarm${pending.step}`}` };
+        : !pending.collisionDone ? 'collision' : !pending.recordsDone ? 'records' : `prewarm${pending.step}`}` };
   }
 
   /**
@@ -249,6 +275,9 @@ export class WorldSource {
       const first = incomplete[0]!;
       return this.#fallback(`incomplete: ${first.kind}${first.cx === undefined ? '' : `@${first.cx},${first.cy}`}${first.detail === undefined ? '' : `:${first.detail}`}`, true);
     }
+    // Static world S4e: the window serves as a unit. Records that cannot be built
+    // (malformed, or content reaching past the margin) send collision back too.
+    if (this.#recordsFor(store, window, registry) === null) return this.#fallback(`incomplete: map_records:${this.#records.get(window)?.error ?? ''}`, true);
     this.#collisionFallback = null;
     return cached;
   }
@@ -282,6 +311,44 @@ export class WorldSource {
     this.#authorityIncomplete = incomplete || reason?.startsWith('incomplete') === true;
     if (!incomplete) this.#missingChunks = 0;
     return undefined;
+  }
+
+  /**
+   * Topside map records in chunk mode `on` (static world S4e): the objects,
+   * landmarks, decorations, prefabs, layers, combat regions and generated
+   * suppressions of the window the chunk collision serves, or undefined whenever
+   * that collision does not serve (modes off and shadow, `on` before a revision
+   * serves, and every case in which the server would serve its compiled map). The
+   * window serves as a unit: when its records cannot be built, collision() falls
+   * back as well, so what is drawn and what collides always come from the same
+   * source. Built once per window (ahead of time for a staged window, S4f); a
+   * window chunk evicted since the window was built is skipped, and the records
+   * are rebuilt once the store installs anything again.
+   */
+  mapRecords(registry: ContentRegistry): ChunkWindowMapRecords | undefined {
+    const chunks = this.collision(registry);
+    if (chunks === undefined) return undefined;
+    return this.#records.get(chunks.window)?.records ?? undefined;
+  }
+
+  #buildRecords(store: BoundedChunkTerrainStore, window: ChunkTerrainWindow, registry: ContentRegistry): ChunkWindowMapRecords {
+    return buildChunkWindowMapRecords(store, window, { reach: { registry, viewTiles: chunkMapViewAllowanceTiles(window.terrain) } });
+  }
+
+  #recordsFor(store: BoundedChunkTerrainStore, window: ChunkTerrainWindow, registry: ContentRegistry): ChunkWindowMapRecords | null {
+    const cached = this.#records.get(window);
+    if (cached !== undefined && (cached.records === null || cached.records.evicted.length === 0 || cached.installs === store.installs)) return cached.records;
+    try {
+      const records = this.#buildRecords(store, window, registry);
+      this.#records.set(window, { records, installs: store.installs });
+      return records;
+    } catch (error) {
+      this.#recordFailures += 1;
+      this.#lastRecordError = error instanceof Error ? error.message : String(error);
+      console.warn('Chunk map records failed; the window falls back to the legacy map', error);
+      this.#records.set(window, { records: null, installs: store.installs, error: this.#lastRecordError });
+      return null;
+    }
   }
 
   /** The serving manifest's authority metadata (generated suppressions, combat
@@ -394,7 +461,7 @@ export class WorldSource {
       else {
         if (this.#pending?.key !== aheadKey || this.#pending.store !== store) {
           this.#pending = { store: store!, tilesets: served.terrain.tilesets as RuntimeTilesetResolver, rect: ahead, key: aheadKey,
-            installs: -1, buildMs: 0, collisionDone: false, step: 0, ready: false, arrival: false, since: this.#frame };
+            installs: -1, buildMs: 0, collisionDone: false, recordsDone: false, step: 0, ready: false, arrival: false, since: this.#frame };
         }
         pin = ahead;
       }
@@ -408,8 +475,8 @@ export class WorldSource {
   /**
    * Advances the window prepared ahead of the view by one stage (static world
    * S4f); call once per frame after setView. Stages: wait until its published
-   * chunks are resident, build the window, build its collision, run each prewarm
-   * step, then serve it. Each frame so does at most one of them, and the frame
+   * chunks are resident, build the window, build its collision, build its map
+   * records (S4e), run each prewarm step, then serve it. Each frame so does at most one of them, and the frame
    * that serves it finds every derived result cached.
    */
   advance(registry: ContentRegistry): void {
@@ -441,7 +508,8 @@ export class WorldSource {
     if (window.missing > 0 && store.installs !== pending.installs
       && [...windowChunkKeys(pending.rect)].some(([cx, cy]) => !window.present.has(`${cx}:${cy}`) && store.peekChunk(cx, cy) !== undefined)) {
       // A chunk arrived after the build: build again, as the tracker would.
-      pending.window = undefined; pending.collisionDone = false; pending.collision = undefined; pending.step = 0;
+      pending.window = undefined; pending.collisionDone = false; pending.collision = undefined;
+      pending.recordsDone = false; pending.records = undefined; pending.step = 0;
       return;
     }
     if (!pending.collisionDone) {
@@ -455,10 +523,22 @@ export class WorldSource {
       }
       return;
     }
+    if (!pending.recordsDone) {
+      pending.recordsDone = true;
+      if (pending.collision !== undefined) {
+        // As for the collision: a failure is left uncached and uncounted until this window serves.
+        let records = this.#records.get(window)?.records ?? undefined;
+        if (!this.#records.has(window)) {
+          try { records = this.#buildRecords(store, window, registry); this.#records.set(window, { records, installs: store.installs }); } catch { records = undefined; }
+        }
+        pending.records = records;
+      }
+      return;
+    }
     const steps = this.dependencies.prewarm ?? [];
     if (pending.step < steps.length) {
       const step = steps[pending.step++]!;
-      step({ window, collision: pending.collision }, registry);
+      step({ window, collision: pending.collision, records: pending.records }, registry);
       return;
     }
     // Prepared: served from this frame on (window() adopts it).
@@ -473,7 +553,7 @@ export class WorldSource {
       || chunkWindowKey(served.rect) !== chunkWindowKey(this.#rect) || served.terrain.tilesets !== tilesetsFor(registry)) return undefined;
     if (![...windowChunkKeys(served.rect)].some(([cx, cy]) => !served.present.has(`${cx}:${cy}`) && store.peekChunk(cx, cy) !== undefined)) return undefined;
     return { store, tilesets: tilesetsFor(registry), rect: served.rect, key: chunkWindowKey(served.rect), installs: -1, buildMs: 0,
-      collisionDone: false, step: 0, ready: false, arrival: true, since: this.#frame };
+      collisionDone: false, recordsDone: false, step: 0, ready: false, arrival: true, since: this.#frame };
   }
 
   /** Hands the ground cache the tile regions whose window data changed. */

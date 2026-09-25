@@ -17,6 +17,8 @@ import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { composeChunkCollisionMaps } from '../packages/client/src/chunk-collision-composition.js';
 import { WorldSource, type WorldSourceCollision } from '../packages/client/src/world-source.js';
 import { WorldStaticProjectionCache } from '../packages/client/src/world-static-projection.js';
+import { topsideDecorationLightCasters } from '../packages/client/src/topside-map-records.js';
+import { buildChunkWindowMapRecords } from '@orchard/engine/chunk-map-records';
 import { chunkRuntimeParityFixture, liveRowsFixture, type ChunkRuntimeParityFixture, type LiveRowsFixture } from './world-chunk-runtime-parity.js';
 
 /**
@@ -26,9 +28,11 @@ import { chunkRuntimeParityFixture, liveRowsFixture, type ChunkRuntimeParityFixt
  * the authored document.
  *
  * Each frame runs what the client runs: setView and advance, the terrain window,
- * the chunk collision and, when its serial changes, the collision refresh (live
- * row composition, traversal projections, light preparation). Only the client's
- * sprite occluders (trees, elevated objects) are left out, as in the S4d timing.
+ * the chunk collision, the map records the painters draw (static world S4e) and,
+ * when the collision serial changes, the collision refresh (live row composition,
+ * traversal projections, light preparation, and the elevated decoration casters
+ * from the window's records). Only the sprite silhouettes of the client's
+ * occluders (trees, elevated objects) are left out, as in the S4d timing.
  * Chunk installs happen between frames (the loader's decode runs in its own task).
  *
  * - `synchronous`: advance is never called, so every window move is built in the
@@ -159,8 +163,13 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
         if (collision !== undefined) composeChunkCollisionMaps({ registry: stepRegistry, collision, liveBase: [], furniture: [], dynamic: [],
           tick: 0n, projectile: (ground, water) => projection.projectile(ground, water) });
       },
+      // As the client: the elevated decoration casters of the window's records (S4e).
+      ({ records }, stepRegistry) => { if (records !== undefined) topsideDecorationLightCasters(records.decorations, records, stepRegistry, TOPSIDE_SPACE_ID); },
     ] });
   const refresh = (chunks: WorldSourceCollision) => {
+    // Static world S4e: the elevated decoration occluders read the window's records.
+    const records = source.mapRecords(registry);
+    if (records !== undefined) topsideDecorationLightCasters(records.decorations, records, registry, TOPSIDE_SPACE_ID);
     const rows = clientLiveRowObstacles(live.rows.resources, live.rows.chests, [], chunks.collision.generatedSuppressions, registry);
     composeChunkCollisionMaps({ registry, collision: chunks.collision, tick: 0n,
       liveBase: rows.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle),
@@ -183,6 +192,8 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
     if (staged) source.advance(registry);
     const window = source.window(registry);
     const chunks = source.collision(registry);
+    // The painters read the records every frame (a cache hit but on a window's first frame).
+    const records = source.mapRecords(registry);
     let light: PreparedLightTerrainOcclusion | undefined;
     const changed = chunks !== undefined && chunks.serial !== serial;
     if (changed) light = refresh(chunks);
@@ -208,6 +219,10 @@ function run(fixture: ChunkRuntimeParityFixture, registry: ContentRegistry, live
       expect(chunks!.collision.ground.blocked).toEqual(collision.ground.blocked);
       expect(chunks!.collision.ground.obstacles).toEqual(collision.ground.obstacles);
       expect(chunks!.collision.baseObstacles).toEqual(collision.baseObstacles);
+      const freshRecords = buildChunkWindowMapRecords({ manifest: store.manifest, peekChunk: (cx, cy) => store.peekChunk(cx, cy) }, window);
+      expect(records).toBeDefined();
+      expect(records!.objects).toEqual(freshRecords.objects);
+      expect(records!.decorations).toEqual(freshRecords.decorations);
       expectSameLight(`window ${window.rect.cx}:${window.rect.cy}`, light ?? projection.prepareWindowLight(window), prepareLightTerrainOcclusion(fresh.terrain));
       checked++;
       served = window;
