@@ -42,7 +42,7 @@ describe('authored Delve lobby',()=>{
   it('has an enclosed 24-square boundary with no random hazards',()=>{
     const a=generateHearthLobbyLayout(),b=generateHearthLobbyLayout();expect(a).toEqual(b);
     expect(a.width).toBe(24);expect(a.height).toBe(24);
-    for(let i=0;i<24;i++)for(const index of [i,23*24+i,i*24,i*24+23])expect(a.blocked[index]).toBe(true);
+    for(let i=0;i<24;i++)for(const index of [i,23*24+i,i*24,i*24+23])expect(a.blocked[index]).toBe(1);
   });
   it('keeps stable runtime layout when space and object definitions are arbitrarily renamed',()=>{
     const rows=bootstrapContentRows();

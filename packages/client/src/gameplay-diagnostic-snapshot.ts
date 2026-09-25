@@ -19,12 +19,14 @@ interface GameplayDiagnosticsInput {
   readonly latestLightCount: number;
   readonly rain: { readonly activeCount: number };
   readonly groundCache: { readonly residentCount: number };
+  /** Static world chunk runtime: controller status, render window and collision (S4c/S4d). */
+  readonly chunks?: { readonly runtime: unknown; readonly window: unknown; readonly collision: unknown; readonly records?: unknown; readonly staging?: unknown; readonly readiness?: unknown };
 }
 
 /** On-demand diagnostic snapshot; mechanically extracted from the gameplay API. */
 export function gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
   lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
-  activeSpaceDefinition, latestLightCount, rain, groundCache }: GameplayDiagnosticsInput) {
+  activeSpaceDefinition, latestLightCount, rain, groundCache, chunks }: GameplayDiagnosticsInput) {
   return {
     schemaVersion: 1,
     rendering: renderMetricsSnapshot(),
@@ -64,5 +66,6 @@ export function gameplayDiagnostics({ atlasPresentation, lightingModel, lighting
       particleCount: rain.activeCount,
       residentGroundChunks: groundCache.residentCount,
     },
+    chunks: chunks ?? null,
   };
 }

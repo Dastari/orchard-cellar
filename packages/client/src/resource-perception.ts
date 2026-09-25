@@ -1,12 +1,9 @@
-import {
-  cellarOreKindAt,
-  bootstrapContentRegistry,
-  runtimeResourceDefinition,
-  type ContentRegistry,
-  type SurvivalOreKind,
-  type runtimeResourcePerception,
-} from '@orchard/sim';
+import type { ContentRegistry, SurvivalOreKind, runtimeResourcePerception } from '@orchard/sim';
+import { cellarOreKindAt } from '@orchard/sim/cellar-excavation';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeResourceDefinition } from '@orchard/sim/content/runtime';
 import type { TerrainArray } from '@orchard/engine/terrain';
+import { terrainIsWindow, terrainSparseKey, terrainSparseKeyTile } from '@orchard/engine/terrain-index';
 
 export type DetectedOre = {
   readonly tileX: number;
@@ -63,7 +60,9 @@ export class ResourcePerceptionCache {
   project(input: ResourcePerceptionInput): ResourcePerceptionProjection {
     const registry = input.registry ?? bootstrapContentRegistry();
     const { capabilities: ability, centerTileX: x, centerTileY: y, terrain } = input;
-    const sourceKey = `${input.seed}:${input.spaceId}:${terrain.width}:${terrain.height}`;
+    // A chunk render window keys by both world coordinates, so its vein cache
+    // survives window moves but never mixes with whole-map keys (S4c).
+    const sourceKey = `${input.seed}:${input.spaceId}:${terrain.width}:${terrain.height}${terrainIsWindow(terrain) ? ':window' : ''}`;
     if (sourceKey !== this.sourceKey) {
       this.oreTiles.clear();
       this.sourceKey = sourceKey;
@@ -91,14 +90,15 @@ export class ResourcePerceptionCache {
     const resources = [...input.resources].filter((resource) => resource.spaceId === input.spaceId
       && input.resourceVisible?.(resource.id) !== false);
     const depletedTiles = new Set(resources.filter(({ depleted }) => depleted)
-      .map(({ tileX, tileY }) => tileY * terrain.width + tileX));
+      .map(({ tileX, tileY }) => terrainSparseKey(terrain, tileX, tileY)));
     const buriedOre: DetectedOre[] = [];
     const minimapOre = new Map<number, DetectedOre>();
     const fishingPools: { tileX: number; tileY: number }[] = [];
     // Sparse keys (depleted resources, the vein cache, minimap de-duplication)
-    // stay `tileY * width + tileX` in world tiles so off-map resource
-    // coordinates key exactly as before; only the dense `blocked` read is
-    // window-relative (static world S4b).
+    // go through terrainSparseKey: `tileY * width + tileX` in world tiles for a
+    // whole map, so off-map resource coordinates key exactly as before, and a
+    // collision-free packing of both coordinates for a chunk render window.
+    // Only the dense `blocked` read is window-relative (static world S4b).
     const originX = terrain.originX ?? 0;
     const originY = terrain.originY ?? 0;
     const minimumX = Math.max(originX + 1, x - radius);
@@ -107,13 +107,8 @@ export class ResourcePerceptionCache {
     const maximumY = Math.min(originY + terrain.height - 2, y + radius);
     // Keep only the local window. Crossing one tile reuses previous deterministic
     // vein lookups; stationary rendering returns above without scanning any tiles.
-    // S4c: origin-0 assumption. Keys are `tileY * width + tileX` in world
-    // tiles, so this reverse mapping (and key uniqueness) only holds while
-    // every world tileX < width. A window narrower than the world must key
-    // the vein cache on both coordinates instead.
     for (const index of this.oreTiles.keys()) {
-      const tileX = index % terrain.width;
-      const tileY = Math.floor(index / terrain.width);
+      const { tileX, tileY } = terrainSparseKeyTile(terrain, index);
       if (tileX < minimumX || tileX > maximumX || tileY < minimumY || tileY > maximumY) this.oreTiles.delete(index);
     }
     if (radius > 0) for (let tileY = minimumY; tileY <= maximumY; tileY += 1) {
@@ -121,7 +116,7 @@ export class ResourcePerceptionCache {
       // terrainIndexAt is hoisted; the clamps above keep every tile inside.
       const rowBase = (tileY - originY) * terrain.width - originX;
       for (let tileX = minimumX; tileX <= maximumX; tileX += 1) {
-        const index = tileY * terrain.width + tileX;
+        const index = terrainSparseKey(terrain, tileX, tileY);
         if (!terrain.blocked[rowBase + tileX] || depletedTiles.has(index)
           || distanceSquared(tileX, tileY) > radius ** 2) continue;
         let kind = this.oreTiles.get(index);
@@ -142,7 +137,7 @@ export class ResourcePerceptionCache {
       const definition = runtimeResourceDefinition(registry, resource);
       if (ability.minimapOre && oreMapRadius > 0 && distance <= oreMapRadius ** 2
         && definition?.discovery.kind === 'ore') {
-        minimapOre.set(tileY * terrain.width + tileX, projectOre(tileX, tileY, resource.kind));
+        minimapOre.set(terrainSparseKey(terrain, tileX, tileY), projectOre(tileX, tileY, resource.kind));
       }
       if (ability.minimapFishing && fishRadius > 0 && distance <= fishRadius ** 2
         && definition?.discovery.kind === 'fishing') {

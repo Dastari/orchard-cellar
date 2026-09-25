@@ -10,17 +10,17 @@ describe('native residence wall footprint', () => {
     for (let y = 0; y < terrain.height; y++) for (let x = 0; x < terrain.width; x++) {
       if (!residenceWallAt(terrain,x,y)) continue;
       walls++;
-      expect(terrain.blocked[(y+1)*terrain.width+x]).toBe(false);
-      for (let offset=0; offset<3; offset++) expect(terrain.blocked[(y-offset)*terrain.width+x]).toBe(true);
+      expect(terrain.blocked[(y+1)*terrain.width+x]).toBe(0);
+      for (let offset=0; offset<3; offset++) expect(terrain.blocked[(y-offset)*terrain.width+x]).toBe(1);
     }
     expect(walls).toBe([10,23,30][rank]);
   });
   it('rejects thin partitions whose projected courses would cover another room', () => {
-    const terrain = {width:4,height:6,blocked:Array<boolean>(24).fill(true)};
-    terrain.blocked[4*4+1]=false;
-    terrain.blocked[1*4+1]=false;
+    const terrain = {width:4,height:6,blocked:new Uint8Array(24).fill(1)};
+    terrain.blocked[4*4+1] = 0;
+    terrain.blocked[1*4+1] = 0;
     expect(residenceWallAt(terrain,1,3)).toBe(false);
-    terrain.blocked[1*4+1]=true;
+    terrain.blocked[1*4+1] = 1;
     expect(residenceWallAt(terrain,1,3)).toBe(true);
   });
 });

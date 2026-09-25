@@ -26,6 +26,7 @@ import { RetainedUiPointers } from './retained-ui-input.js';
 import { drawOrchardBackdrop, loadOrchardBackdrop } from '@orchard/ui';
 import { AudioBus } from '@orchard/engine/audio/audio-bus';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen } from '@orchard/engine/loading-screen';
+import { saveGatewayHandoff } from '@orchard/engine/gateway-handoff';
 
 // Remove authorization codes and provider errors from the address bar before
 // loading assets or making the token request. NPM is separately configured to
@@ -152,12 +153,13 @@ function resize(): void {
 
 function launchLocal(name: string): void {
   profiles = rememberLocalProfile(localStorage, name);
-  navigateWithMusic(() => location.assign(localProfileWorldUrl(profiles.lastUsed ?? name, location.origin)));
+  navigateWithMusic(() => { saveGatewayHandoff(canvas); location.assign(localProfileWorldUrl(profiles.lastUsed ?? name, location.origin)); });
 }
 
 function launchAccount(): void {
   if (authSession === null) return;
   navigateWithMusic(() => {
+    saveGatewayHandoff(canvas);
     if (location.pathname === '/' && location.search === '' && location.hash === '') location.reload();
     else location.assign('/');
   });

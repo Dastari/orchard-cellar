@@ -1,6 +1,6 @@
 import { terrainRuleLayers, ruleNeighbourMask } from '@orchard/sim';
 import { authoredFarmlandRuleLayersAt } from './terrain.js';
-import { terrainContains, terrainIndexAt } from './terrain-index.js';
+import { terrainContains, terrainIndexAt, terrainTileBounds } from './terrain-index.js';
 import {hearthDoorwayFeatures} from './hearth-doorway.js';
 import {residenceWallAt} from './residence-wall.js';
 import { groundLightSource } from './ground-light-source.js';
@@ -106,6 +106,20 @@ export class ChunkLruCache<T> {
       Math.floor(tileX / SURVIVAL_CHUNK_TILES),
       Math.floor(tileY / SURVIVAL_CHUNK_TILES),
     );
+  }
+
+  /** Drops every cached chunk that intersects the inclusive chunk range. */
+  invalidateRegion(minChunkX: number, minChunkY: number, maxChunkX: number, maxChunkY: number): number {
+    let removed = 0;
+    for (const key of [...this.entries.keys()]) {
+      const comma = key.indexOf(",");
+      const chunkX = Number(key.slice(0, comma));
+      const chunkY = Number(key.slice(comma + 1));
+      if (chunkX < minChunkX || chunkX > maxChunkX || chunkY < minChunkY || chunkY > maxChunkY) continue;
+      this.entries.delete(key);
+      removed += 1;
+    }
+    return removed;
   }
 
   clear(): void {
@@ -256,7 +270,7 @@ function drawUndugCaveTile(
 
 function cellarOpenAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
   const index = terrainIndexAt(terrain, tileX, tileY);
-  return index >= 0 && terrain.blocked[index] === false;
+  return index >= 0 && terrain.blocked[index] === 0;
 }
 
 function cellarFloorPatchAt(
@@ -575,6 +589,20 @@ export class GroundChunkCache {
     this.chunks.invalidateResource(tileX, tileY);
   }
 
+  /** Drops the cached ground chunks that draw any world tile in the inclusive
+   * tile range, and nothing else. A chunk render window (static world S4c)
+   * calls it for the tiles whose chunk data arrived, left or changed, expanded
+   * by the tiles a ground chunk reads around itself. Infinite bounds clear all. */
+  invalidateRegion(minTileX: number, minTileY: number, maxTileX: number, maxTileY: number): number {
+    if (!(minTileX <= maxTileX && minTileY <= maxTileY)) return 0;
+    return this.chunks.invalidateRegion(
+      Math.floor(minTileX / SURVIVAL_CHUNK_TILES),
+      Math.floor(minTileY / SURVIVAL_CHUNK_TILES),
+      Math.floor(maxTileX / SURVIVAL_CHUNK_TILES),
+      Math.floor(maxTileY / SURVIVAL_CHUNK_TILES),
+    );
+  }
+
   /** Retain unaffected chunks only after a caller has verified a sparse edit. */
   adoptSparseTerrain(previous: TerrainArray, next: TerrainArray, points: readonly {tileX:number;tileY:number}[]): void {
     if(previous.width!==next.width||previous.height!==next.height||previous.seed!==next.seed||previous.generator!==next.generator)return;
@@ -623,17 +651,18 @@ export class GroundChunkCache {
       groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale),
     );
     this.prepareTerrain(terrain);
-    // S4c: origin-0 assumption. The visible chunk range is clamped to
-    // [0, ceil(size / chunk)), i.e. a window starting at world tile (0, 0).
-    // A non-zero origin must clamp to the window's own chunk span instead.
-    const minChunkX = Math.max(0, Math.floor(cameraX / GROUND_CHUNK_PIXELS));
-    const minChunkY = Math.max(0, Math.floor(cameraY / GROUND_CHUNK_PIXELS));
+    // The visible chunk range is clamped to the terrain's own chunk span: world
+    // chunks [0, ceil(size / chunk)) for a whole map, the chunks the window
+    // covers for a chunk render window (static world S4c).
+    const bounds = terrainTileBounds(terrain);
+    const minChunkX = Math.max(Math.floor(bounds.minX / SURVIVAL_CHUNK_TILES), Math.floor(cameraX / GROUND_CHUNK_PIXELS));
+    const minChunkY = Math.max(Math.floor(bounds.minY / SURVIVAL_CHUNK_TILES), Math.floor(cameraY / GROUND_CHUNK_PIXELS));
     const maxChunkX = Math.min(
-      Math.ceil(terrain.width / SURVIVAL_CHUNK_TILES) - 1,
+      Math.ceil((bounds.maxX + 1) / SURVIVAL_CHUNK_TILES) - 1,
       Math.floor((cameraX + viewportWidth / scale) / GROUND_CHUNK_PIXELS),
     );
     const maxChunkY = Math.min(
-      Math.ceil(terrain.height / SURVIVAL_CHUNK_TILES) - 1,
+      Math.ceil((bounds.maxY + 1) / SURVIVAL_CHUNK_TILES) - 1,
       Math.floor((cameraY + viewportHeight / scale) / GROUND_CHUNK_PIXELS),
     );
     let drawCalls = 0;
@@ -760,9 +789,9 @@ export class GroundChunkCache {
   ): boolean {
     if (terrainIndexAt(terrain, tileX, tileY) < 0) return false;
     this.prepareTerrain(terrain);
-    // S4c: chunks are keyed on world tiles, which stays valid for a window,
-    // but the cache (and renderChunk's firstTile maths) holds one terrain at a
-    // time: moving the window origin must invalidate or re-key these chunks.
+    // Chunks are keyed on world tiles, so a chunk render window reuses them
+    // as it moves; the window source invalidates the chunks whose data changed
+    // (invalidateRegion), and renderChunk indexes through terrainIndexAt.
     const chunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
     const chunkY = Math.floor(tileY / SURVIVAL_CHUNK_TILES);
     const canvas = this.chunks.getOrCreate(chunkX, chunkY, () =>
@@ -920,7 +949,7 @@ export class GroundChunkCache {
           continue;
         }
         if (terrain.rogueTheme !== undefined) {
-          const blocked = terrain.blocked[index] === true;
+          const blocked = (terrain.blocked[index] ?? 0) !== 0;
           const hazardous = terrain.rogueHazards?.[index] === 1;
           const theme = terrain.generator === 'delve_lobby' && !blocked
             ? hearthLobbyFloorTheme(tileY,terrain.hearthLobbyFloorThresholdY)

@@ -4,6 +4,7 @@ import {
   editorMapOverviewRaster,
   splitEditorMapOverviewLayers,
 } from './editor-map-overview.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 describe('authored map overview raster', () => {
   it('uses one opaque semantic pixel per tile with elevation shading', () => {
@@ -14,8 +15,8 @@ describe('authored map overview raster', () => {
       width: 2,
       height: 1,
       biomes: Uint8Array.of(0, 4),
-      blocked: [true, false],
-      horseJumpableTerrain: [false, true],
+      blocked: cellFlags([true, false]),
+      horseJumpableTerrain: cellFlags([false, true]),
       elevations: Int16Array.of(0, 1),
       dirtCliffRoles: new Uint8Array(2),
       dirtTerraces: new Uint8Array(2),
@@ -40,8 +41,8 @@ describe('authored map overview raster', () => {
       width: 2,
       height: 1,
       biomes: Uint8Array.of(0, 4),
-      blocked: [true, false],
-      horseJumpableTerrain: [false, true],
+      blocked: cellFlags([true, false]),
+      horseJumpableTerrain: cellFlags([false, true]),
       elevations: Int16Array.of(0, 1),
       dirtCliffRoles: new Uint8Array(2),
       dirtTerraces: new Uint8Array(2),
@@ -79,8 +80,8 @@ describe('authored map overview raster', () => {
       width,
       height,
       biomes,
-      blocked: Array<boolean>(width * height).fill(false),
-      horseJumpableTerrain: Array<boolean>(width * height).fill(false),
+      blocked: new Uint8Array(width * height),
+      horseJumpableTerrain: new Uint8Array(width * height),
       elevations: new Int16Array(width * height),
       dirtCliffRoles: new Uint8Array(width * height),
       dirtTerraces: new Uint8Array(width * height),

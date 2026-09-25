@@ -60,8 +60,8 @@ export function composeHearthArchitecture(
     // A contiguous opening needs jambs at both ends, never floating trim.
     if (!((jamb(-1,0)&&jamb(1,0)) || (jamb(0,-1)&&jamb(0,1)))) return {failure:'doorway_requires_jambs'};
   }
-  const blocked=[...baseline.blocked];
-  for (const cell of cells) if (cell.partition==='wall') blocked[cell.tileY*size+cell.tileX]=true;
+  const blocked=baseline.blocked.slice();
+  for (const cell of cells) if (cell.partition==='wall') blocked[cell.tileY*size+cell.tileX]=1;
   const collision={...baseline,blocked};
   for (const cell of cells) if (cell.partition==='doorway') {
     const point={x:(cell.tileX+.5)*TILE_SIZE_FIXED,y:(cell.tileY+.5)*TILE_SIZE_FIXED+PLAYER_HITBOX_FOOT_OFFSET};

@@ -1,5 +1,5 @@
 import { UI_BOOK_PAGE_REPEAT_SLICE } from '../../design-system/frame.js';
-import { nineSlicePatches } from '../../nine-slice.js';
+import { nineSlicePatches, snapRectForContext } from '../../nine-slice.js';
 import { selectAtlasFrame } from '../../sprite.js';
 import type { UiPoint, UiSize } from '../../geometry.js';
 import { UiElement } from '../runtime/element.js';
@@ -49,8 +49,10 @@ export function uiFrame(options: UiFrameOptions = {}): UiElement {
           const s = { ...source, x: source.x + side * sourceLeft, width: side ? source.width - sourceLeft : sourceLeft };
           const d = { ...r, x: r.x + side * left, width: side ? r.width - left : left };
           for (const patch of nineSlicePatches(s, d, UI_BOOK_PAGE_REPEAT_SLICE)) {
-            const a = patch.source, b = patch.destination;
-            context.drawImage(book.asset.image, a.x, a.y, a.width, a.height, b.x, b.y, b.width, b.height);
+            // Snap each patch to device pixels: at fractional UI scales, unsnapped patches
+            // left hairline seams where the 24px corner bands meet the page faces.
+            const a = patch.source, b = snapRectForContext(context, patch.destination);
+            if (b.width > 0 && b.height > 0) context.drawImage(book.asset.image, a.x, a.y, a.width, a.height, b.x, b.y, b.width, b.height);
           }
         }
       } else if (surface === 'wood_parchment') {

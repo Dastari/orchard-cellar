@@ -1,7 +1,8 @@
 import { uiTiming, timingLabels } from './timing.js';
 import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
-import { HOTBAR_SLOT_COUNT, type TimingProjection, type FrameContentDefinition, type FrameRestrictionRegistry } from '@orchard/sim';
+import type { TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { resolveFramePaneSlots, type FrameContainerAliases } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
 import type { UiElement } from '../runtime/element.js';

@@ -2,6 +2,126 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.46.1 / Engine 0.29.1 / Sim 0.32.0 / World 0.26.8 — Compact chunk obstacle tables (BUG-044); ships S7a
+
+No gameplay, schema or content change. The chunk runtime stays `off`, and no chunk heads are published.
+
+- **BUG-044: production chunk blobs exceed the 1 MiB runtime cap (#199).**
+  - **Cause:** the production map's 5,104 prefab collision sub-cell obstacles were written as JSON records three times per chunk, so chunk (2,6) came to 2.9 MB.
+  - **New format:** chunks now use `authoritySchema: 2` with a per-chunk `obstacleTable`. Each box and source id is stored once, delta-coded, and the lists are index rows. The decoder expands the table back into exactly the same records.
+  - **Result on production:** the largest blob drops from 2.9 MB to 556 KB, and decode time drops from 14 to 3.3 ms, within the 4 ms budget.
+  - **Checks:** parity with the server oracle is exact.
+  - **Hardening:**
+    - a 65,536-row limit is checked before any record is built;
+    - out-of-range coordinates fall back to JSON records;
+    - an unknown future `authoritySchema` is tolerated by consumers, which fall back;
+    - a nightly density regression test asserts every blob is 1 MiB or less.
+  - **Compatibility:** v2 is the materializer default, and builds before this one reject v2. Nothing publishes chunks until S5c.
+- **S7a chunk round trip (#198, merged earlier via #200):** first deployment. See Sim 0.31.0 below.
+- Workspace 0.60.0.
+
+## Sim 0.31.0 — Static world S7a: chunk round trip (option off)
+
+No gameplay, server, schema, content or published-byte change.
+
+- **S7a round trip (#198).** `@orchard/sim/world-chunk-document` rebuilds the live map document losslessly from the chunks plus the manifest, with no generator.
+  - **Extension:** it relies on a new additive `documentSchema: 1` chunk extension:
+    - per chunk, palette-encoded authored cells plus the sparse generated base biomes;
+    - in the manifest, the document fields, key-order variants, the FNV semantic hash and a full-text SHA-256.
+  - **Off by default:** the materializer option `includeAuthoredDocument` (`--authored-document`) is off, so published chunk bytes are unchanged.
+  - **Decoders:** decoders ignore unknown `documentSchema` versions; only the rebuild requires version 1.
+  - **Idempotence:** recompiling the rebuilt document over the baked chunk base reproduces every channel without the generator, so schema 2 does not need pre-overlay base channels.
+- Workspace 0.59.0.
+
+## Client 0.46.0 / Engine 0.29.0 / Sim 0.30.1 — Static world S4e: map drawing from chunk records (dormant)
+
+The chunk runtime stays `off` in production. No server, schema or content change.
+
+- **S4e wiring (#196).**
+  - **Chunk records:** in `on`, decorations, map objects, lights, light occluders, the supply cache, ferry regions, pond ties and farm soil come from the served chunk window's records. The new `engine/src/chunk-map-records.ts` builds them, and `client/src/topside-map-records.ts` is the one switch point.
+  - **One source:** records serve only with that window's chunk collision. If the records fail, the whole window falls back to legacy, so drawing and collision always share a source.
+  - **Staging:** records and the decoration caster pass are two new S4f stages. Staged p95 is 3.8–4.5 ms, and serving frames about 0.2 ms.
+  - **Parity:** 181 of 181 views match the document path on the bootstrap and authored fixtures, including edge coverage against the whole document and committed negative controls.
+  - **Unchanged:** `off` and `shadow` are byte-identical (pinned before the change).
+  - **Reach check:** the largest prefab plus light reach must fit the 32-tile window margin. It is checked at build time and at publish time (`materializeWorldChunksFromRows`, used by the S5b pipeline).
+- Workspace 0.58.0.
+
+## Client 0.45.1 / Engine 0.28.0 / Sim 0.30.0 / World 0.26.7 / Studio 0.16.7 / Tools 0.24.4 — Compact collision planes; chunk publish pipeline (off)
+
+No gameplay change, no schema change, and no content change. The chunk runtime stays `off` in production.
+
+- **Compact collision planes (#193).**
+  - **Planes converted:** per-cell flag planes are `Uint8Array` (0/1) instead of `boolean[]`. That covers `CollisionMap.blocked` and `horseJumpableTerrain`; `TerrainArray.blocked`, `horseJumpableTerrain` and `residenceEnvelopeBlocked`; the compiled map, rogue room and hearth lobby `blocked`; and the traversal admission and projectile planes.
+  - **New helper module:** `@orchard/sim/cell-flags`.
+  - **Reads:** they test for non-zero, with the same out-of-range defaults.
+  - **Unchanged outputs:** goldens, parity and all 169 chunk heads are byte-identical.
+  - **Memory:** a chunk window's data drops from about 10.8 to 4.0 MiB, and the staging peak from 28–31 to 16–18 MiB, under the 24 MiB budget. This meets a condition before `on`.
+  - **Speed:** server collision build and tick costs are within ±2%, and precomputed collision decodes about twice as fast.
+- **Static world S5b: chunk publish pipeline (#194, off by default).**
+  - **Commands:** `npm run world:chunks:publish -- plan|publish|check` materialises chunks from the live map and content rows, installs them content-addressed into `ORCHARD_WORLD_CHUNK_DIR`, verifies them over the public origin, stages the blobs and CAS-publishes the heads.
+  - **Dry run is the default.** `publish` needs `WORLD_CHUNKS_PUBLISH_CONFIRM=publish:<manifest>:<registry content hash>:<db>`. Stale heads exit 3, errors exit 1, and a report is always written, with tokens redacted.
+  - **Release hook:** `world:release:routine` gains an optional hook, `WORLD_RELEASE_CHUNKS=off|check|publish` (default `off`), which runs after the web restart and never rolls back a deployment.
+- Workspace 0.57.0.
+
+## Client 0.45.0 / Engine 0.27.0 / Sim 0.29.1 / UI 0.44.3 / Studio 0.16.6 — No flicker between our pages; static world S4f (dormant)
+
+- **No flicker between our own pages (#185, GrayOx, owner item 5).**
+  - **Save:** before the game navigates between its own pages (sign-in launch, entering the world, quit to title), it saves a downscaled snapshot of the current frame (WebP, or JPEG on Safari; capped in size, 15 s lifetime, used once).
+  - **Paint:** a small boot script paints that snapshot on the next page until the loading screen takes over. It never paints over gameplay.
+  - **Scope:** no handoff on sign-out or the Keycloak hop.
+  - **Result:** the bare island no longer flashes on each step.
+- **Static world S4f, dormant (#191).** Production still refuses the chunk runtime's `on` mode, and there is no server or schema change.
+  - **Window moves:** in `on`, the next chunk window is prepared ahead of the view, one stage per frame (chunks, window, collision, light, traversal), then served in one step. Light preparation reuses unchanged tiles. Staged frames measure 4.5–4.7 ms p95, meeting the 8 ms gate, and every served window equals a synchronous build.
+  - **Spawn readiness:** a new "MAPPING THE SHORE" loading stage. In `on`, movement waits until the player's chunk and its ring are in the served window. There is a light "ARRIVING" note on topside travel, and failed chunks never block.
+  - **Loading order:** chunks load nearest first. The first revision serves once the spawn ring is resident. Atlas packs load only with `?atlasPacks=1`.
+  - **Memory:** a regression test holds live windows to 3 or fewer.
+  - **Sim:** the traversal difference list is computed on first read; the server shares this code and results are identical.
+  - **Unchanged:** `off` and `shadow` behave as before.
+  - **Before `on`:** see the wiki Roadmap/Static World Conversion, "Conditions before `on`". In particular, the `Uint8Array` blocked planes are needed for the memory peak.
+- Workspace 0.56.0.
+
+## Client 0.44.0 / Engine 0.26.0 / Sim 0.29.0 / UI 0.44.2 / World 0.26.6 / Studio 0.16.5 — Static world S6a and S4d (dormant)
+
+**Nothing is activated.** Production builds still refuse the chunk runtime's `on` mode, the server's chunk authority is `off`, and there is no schema or content change.
+
+- **S6a, module split (#169, no behaviour change).**
+  - Generator-free sim leaf modules and `@orchard/sim/<module>` subpath exports. For example, `SURVIVAL_BIOMES` no longer lives in `survival-world.ts`.
+  - Non-island generation moves to `engine/src/space-terrain.ts`, and `TerrainArray` and the sampling helpers move to `terrain-array.ts` and `terrain-sampling.ts`.
+  - The client and UI import from subpaths. Subpath identity and generator-free boundary tests guard the split.
+- **S4d, client chunk-native collision (#184).**
+  - **Collision from chunks:** in `on`, topside collision is built from the resident chunk window's authority channels and records, using the same composition the server uses. A single `@orchard/sim/chunk-collision` builder serves both the client and the S1b server assembler.
+  - **Origin-aware lookups:** collision maps can carry a window origin. Movement, projectiles, tile targeting and the hearth helpers read through one bounds-checked helper, and whole maps behave exactly as before.
+  - **Fallbacks:** the client falls back to legacy collision under the same conditions as the server's dispatcher: stale content or map, a superseded revision, incomplete authority, missing ground fields, a traversal policy mismatch, and the size and base guards.
+  - **Parity:** 921,600 cells and 47,432 movement samples per fixture match the server composition.
+  - **Faster traversal admission:** `mediumTraversalCollision` now resolves admission once per medium (a 320² admission drops from about 26 ms to 1 ms). The results are identical, and the server shares this path.
+  - **Before `on`:** the window-move rebuild must reach 8 ms p95; it is 24–27 ms today. This is a hard gate, S4f.
+- Workspace 0.55.0.
+
+## Client 0.43.0 / Engine 0.25.0 / UI 0.44.1 / World 0.26.5 / Studio 0.16.4 — Static world S4c (dormant) and owner bug fixes
+
+- **Rejected swings cost a miss (#177, BUG-042).** A swing whose only contacts resist the tool (a Wooden Pickaxe on a gold vein, a depleted node) now pays the empty-swing vigour charge and doesn't wear the tool, the same as swinging at air. `tool_whiffs` and `tool_uses` count the same way. The Tool Whiffs statistic description says so (Assets 0.23.3, a content upsert).
+- **Returning to the tab keeps the world on screen (#178, BUG-040).** A brief re-sync after alt-tabbing no longer shows the full loading screen. The last world frame stays, and RECONNECTING appears only if the gap lasts longer than 1.5 s. Explicit recovery states show at once, as before.
+- **Reticles ignore world lighting (#179, owner item 2).** Tile reticles, the selected-entity marker, the aim guide and debug overlays draw after the lighting composite, so night no longer dims them. World sprites are lit as before.
+- **Book art without seams (#180, owner item 1).** Book frame patches snap to whole device pixels, which removes the hairlines at 125% and 150% display scaling.
+- **Wrapping rows measure at their content width (#181, BUG-036).** Fitted windows around a centred wrapping row, such as crafting on a phone, no longer grow to the viewport.
+- **Refused recipe placement is reported (#182, BUG-037).** Placing a recipe into a grid holding other items says "CLEAR THE CRAFTING GRID FIRST" every time, and the selection rolls back.
+- **Static world S4c, render window (#175, dormant).** With the chunk runtime `on`, topside terrain renders from a bounded window of at most 5×5 chunks, pinned from the camera, through the new `client/src/world-source.ts`. `GroundChunkCache.invalidateRegion` redraws only changed tiles. Terrain helpers are origin-aware. `off` and `shadow` render exactly as today, and production builds still refuse `on`. There is no server or schema change. Draw lists match at all 169 chunk centres, and the p95 rebuild is 3.18 ms.
+- Workspace 0.54.0. The stored schema is unchanged.
+
+## Client 0.42.0 / UI 0.44.0 / Studio 0.16.3 — Owner UI feedback: scrollbars, mining feedback, hotbar tooltip
+
+The owner approved each change from rendered PNGs (wiki `Roadmap/Game UI Redesign`).
+
+- **Proportional scrollbars (#170, BoldBridge).** Scrollbars in the game and Cellar Studio share one style: a brown rail with an orange thumb sized to the visible content, at least 12 px.
+- **Mining feedback (#171, BoldBridge).**
+  - A vein shakes on every successful hit.
+  - A tool that can't work a vein glances off with a dull clink and a spark. It shows no text and only glances when no hit landed. It uses the server's reach, elevation and line-of-sight rules.
+  - The vein hover card shows the pickaxe tier needed.
+  - Negative toasts are trimmed: "SWING", "TOOL IS NOT READY", "PROSPECTOR REVEALS YIELD ODDS", the tree regrowing and growing prompts, and "NO X USE ACTION YET". Error messages remain only for deliberate actions, in real words. The anvil still says "SELECT A DAMAGED TOOL".
+- **Hotbar tooltip (#172, BoldBridge).** The item name shows in capitals, centred above the hovered or focused slot, and resizes for each item.
+- **Gear catalogue (#173, GrayOx).** The generated wiki table never writes an empty cell.
+- Also ships the dormant static-world waves 1 and 2 (entries below). Workspace 0.53.0, Assets 0.23.2 (new `tool_clink` sound) and Tools 0.24.3. The stored schema is unchanged.
+
 ## Client 0.41.3 / World 0.26.4 / Sim 0.28.1 — Static world wave 2 (dormant)
 
 **Nothing is activated.** Production builds refuse the chunk runtime's `on` mode, and no server path reads chunks yet.

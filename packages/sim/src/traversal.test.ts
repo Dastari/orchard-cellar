@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RULE_MEDIA } from './rule-catalogue.js';
 import { canTraverse, compareTraversalCollision, mediumHazardsAtTick, mediumTraversalCollision,
   resolveTraversalAbilities, type TraversalPolicy } from './traversal.js';
+import { cellFlags } from './cell-flags.js';
 
 // Test-only authored policy: these numbers are not live balance defaults.
 const policy: TraversalPolicy = {
@@ -56,10 +57,10 @@ describe('authored medium traversal', () => {
   it('retains geometry metadata while solids and malformed channels fail closed', () => {
     const elevations = new Int16Array([0, 0, 1, 1, 0]);
     const obstacles = [{ left: 0, top: 0, right: 2, bottom: 2 }];
-    const legacy = { width: 5, height: 1, blocked: [true, true, true, false, false], elevations, obstacles };
+    const legacy = { width: 5, height: 1, blocked: cellFlags([true, true, true, false, false]), elevations, obstacles };
     const channels = { width: 5, height: 1, medium: [0, 1, 1, 99, 0], solidBlocked: [0, 0, 1, 0] };
     const candidate = mediumTraversalCollision(legacy, channels, abilities('walk', 'boat'), policy);
-    expect(candidate.blocked).toEqual([false, false, true, true, true]);
+    expect(candidate.blocked).toEqual(cellFlags([false, false, true, true, true]));
     expect(candidate.elevations).toBe(elevations);
     expect(candidate.obstacles).toBe(obstacles);
     expect(compareTraversalCollision(legacy, candidate)).toEqual([
@@ -68,7 +69,7 @@ describe('authored medium traversal', () => {
       { index: 3, legacyBlocked: false, mediumBlocked: true },
       { index: 4, legacyBlocked: false, mediumBlocked: true },
     ]);
-    expect(legacy.blocked).toEqual([true, true, true, false, false]);
+    expect(legacy.blocked).toEqual(cellFlags([true, true, true, false, false]));
     expect(() => mediumTraversalCollision(legacy, { ...channels, width: 4 }, abilities(), policy))
       .toThrow('traversal_collision_size_mismatch');
     expect(() => compareTraversalCollision(legacy, { ...candidate, height: 2 }))

@@ -1,6 +1,6 @@
-import {terrainPlaneCollisionBytesForElevationGrid} from './map-compiler.js';
+import {terrainPlaneCollisionBytesForElevationGrid} from './terrain-plane-collision.js';
 import {combatSegmentObstructed} from './combat-actions.js';
-import {positionCollides,playerInteractionOrigin} from './movement.js';
+import {collisionCellIndex,positionCollides,playerInteractionOrigin} from './movement.js';
 import {FIXED_UNITS_PER_PIXEL,TILE_SIZE_FIXED,type Vec2Fixed,type CollisionMap} from './state.js';
 import {BOOTSTRAP_SPACE_DEFINITIONS} from './content/bootstrap-spaces.js';
 import type {ContentRegistry} from './content/registry.js';
@@ -27,7 +27,8 @@ export interface RuntimeHearthLobbyDefinition {
 export interface HearthLobbyLayout {
   readonly width:number;
   readonly height:number;
-  readonly blocked:boolean[];
+  /** One byte per cell, 1 blocked (CollisionMap.blocked). */
+  readonly blocked:Uint8Array;
   readonly elevations:Int16Array;
   readonly terrainPlaneBlocked:Uint8Array;
 }
@@ -149,9 +150,9 @@ export function generateHearthLobbyLayout(
   }:runtimeHearthLobbyDefinition(registry,spaceId);
   if(lobby===null)return null;
   const width=lobby.sizeTiles,height=width;
-  const blocked=Array<boolean>(width*height).fill(true);
+  const blocked=new Uint8Array(width*height).fill(1);
   const carve=(left:number,top:number,right:number,bottom:number)=>{
-    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)blocked[y*width+x]=false;
+    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)blocked[y*width+x]=0;
   };
   for(const rectangle of lobby.carves)carve(...rectangle);
   const elevations=Int16Array.from(blocked,value=>value?1:0);
@@ -181,7 +182,10 @@ export function hearthLobbyPortalApproachClear(position:Vec2Fixed,portal:{fromTi
   const threshold={x:(portal.fromTileX+.5)*TILE_SIZE_FIXED,y:(portal.fromTileY+.5)*TILE_SIZE_FIXED};
   const dx=position.x-threshold.x,dy=position.y-threshold.y;
   if(dx*dx+dy*dy>(1.5*TILE_SIZE_FIXED)**2||positionCollides(position,collision)||positionCollides(threshold,collision))return false;
-  const elevation=(point:Vec2Fixed)=>collision.elevations?.[Math.floor(point.y/TILE_SIZE_FIXED)*collision.width+Math.floor(point.x/TILE_SIZE_FIXED)]??0;
+  const elevation=(point:Vec2Fixed)=>{
+    const cell=collisionCellIndex(collision,Math.floor(point.x/TILE_SIZE_FIXED),Math.floor(point.y/TILE_SIZE_FIXED));
+    return cell<0?0:collision.elevations?.[cell]??0;
+  };
   return elevation(position)===elevation(threshold)
     &&!combatSegmentObstructed(playerInteractionOrigin(position),playerInteractionOrigin(threshold),collision);
 }

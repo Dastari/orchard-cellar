@@ -56,6 +56,7 @@ import {
   waterfallFrameIndexAt,
   type TerrainArray,
 } from "./terrain.js";
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 function terrainFixture(width: number, height: number, fill = 4): TerrainArray {
   const elevations = new Int16Array(width * height);
@@ -66,8 +67,8 @@ function terrainFixture(width: number, height: number, fill = 4): TerrainArray {
     width,
     height,
     biomes: Uint8Array.from({ length: width * height }, () => fill),
-    blocked: Array.from({ length: width * height }, () => false),
-    horseJumpableTerrain: Array.from({ length: width * height }, () => false),
+    blocked: cellFlags(Array.from({ length: width * height }, () => false)),
+    horseJumpableTerrain: cellFlags(Array.from({ length: width * height }, () => false)),
     elevations,
     dirtCliffRoles: new Uint8Array(width * height),
     dirtTerraces: new Uint8Array(width * height),
@@ -192,10 +193,10 @@ describe("shared client terrain array", () => {
   it("maps both courses of a projected cave face back to its solid source", () => {
     const width = 7;
     const height = 7;
-    const blocked = Array<boolean>(width * height).fill(true);
+    const blocked = new Uint8Array(width * height).fill(1);
     const elevations = new Int16Array(width * height).fill(1);
     for (let y = 3; y < height; y += 1) for (let x = 1; x < width - 1; x += 1) {
-      blocked[y * width + x] = false;
+      blocked[y * width + x] = 0;
       elevations[y * width + x] = 0;
     }
     const cellar: TerrainArray = {
@@ -255,7 +256,7 @@ describe("shared client terrain array", () => {
       }
       expect(checkedFaces).toBeGreaterThan(0);
       expect(terrain.elevations[15 * terrain.width + 16]).toBe(1);
-      expect(terrain.blocked[15 * terrain.width + 16]).toBe(false);
+      expect(terrain.blocked[15 * terrain.width + 16]).toBe(0);
     }
   });
 
@@ -272,20 +273,20 @@ describe("shared client terrain array", () => {
     const solid = {
       ...base,
       generator: "cellar" as const,
-      blocked: Array<boolean>(36).fill(true),
+      blocked: new Uint8Array(36).fill(1),
       elevations: new Int16Array(36).fill(1),
     };
     // A legacy misaligned anchor at (3,3) is read as its macro-cell (2..3, 2..3).
     const dynamic = terrainWithCellarExcavations(solid, [{ tileX: 3, tileY: 3 }], 7);
     for (const index of [14, 15, 20, 21]) {
-      expect(dynamic.blocked[index]).toBe(false);
+      expect(dynamic.blocked[index]).toBe(0);
       expect(dynamic.elevations[index]).toBe(0);
-      expect(solid.blocked[index]).toBe(true);
+      expect(solid.blocked[index]).toBe(1);
     }
-    expect(dynamic.blocked[7]).toBe(true);
-    expect(dynamic.blocked[22]).toBe(true);
+    expect(dynamic.blocked[7]).toBe(1);
+    expect(dynamic.blocked[22]).toBe(1);
     // Anchors inside the outer macro-cell ring never open the boundary.
-    expect(terrainWithCellarExcavations(solid, [{ tileX: 2, tileY: 1 }], 8).blocked[8]).toBe(true);
+    expect(terrainWithCellarExcavations(solid, [{ tileX: 2, tileY: 1 }], 8).blocked[8]).toBe(1);
     expect(dynamic.version).not.toBe(solid.version);
   });
 
@@ -327,8 +328,8 @@ describe("shared client terrain array", () => {
     expect(debug).not.toBe(topside);
     expect(debug.spaceId).toBe(DEBUG_SPACE_ID);
     expect(debug.width).toBe(32);
-    expect(debug.blocked[0]).toBe(true);
-    expect(debug.blocked[16 * debug.width + 16]).toBe(false);
+    expect(debug.blocked[0]).toBe(1);
+    expect(debug.blocked[16 * debug.width + 16]).toBe(0);
   });
 
   it("renders a blocked southern terrain apron around a Homestead without enlarging its playable space", () => {
@@ -342,19 +343,19 @@ describe("shared client terrain array", () => {
     const terrain = terrainForSpace(space, 123, 3);
     expect(terrain.width).toBe(128);
     expect(terrain.height).toBe(128);
-    expect(terrain.blocked[40 * terrain.width + 64]).toBe(true);
-    expect(terrain.blocked[64 * terrain.width + 64]).toBe(false);
+    expect(terrain.blocked[40 * terrain.width + 64]).toBe(1);
+    expect(terrain.blocked[64 * terrain.width + 64]).toBe(0);
   });
 
   it("derives render and collision classification from the same byte", () => {
     const terrain = terrainForWorld(0x4f434852, 3);
     expect(terrainBiomeAt(terrain, 0, 0)).toBe("water");
-    expect(terrain.blocked[0]).toBe(true);
+    expect(terrain.blocked[0]).toBe(1);
     for (let index = 0; index < terrain.blocked.length; index += 1) {
       const tileX = index % terrain.width;
       const tileY = Math.floor(index / terrain.width);
       expect(terrain.blocked[index]).toBe(
-        survivalTerrainBlocksTraversalAt(terrain.seed, tileX, tileY, "ground"),
+        Number(survivalTerrainBlocksTraversalAt(terrain.seed, tileX, tileY, "ground")),
       );
     }
   }, 20_000);
@@ -661,7 +662,7 @@ describe("shared client terrain array", () => {
     terrain.elevations[index(0, 0)] = 0;
     terrain.elevations[index(2, 0)] = 0;
     expect(plateauForegroundFrameIndicesAt(terrain, 1, 1)).toEqual([3, 2]);
-    expect(terrain.blocked[center]).toBe(false);
+    expect(terrain.blocked[center]).toBe(0);
   });
 
   it("does not project a stone face through a normal diagonal inset", () => {
@@ -687,7 +688,7 @@ describe("shared client terrain array", () => {
         if (frames.length === 0) continue;
         for (const frame of frames)
           frameCounts[frame] = (frameCounts[frame] ?? 0) + 1;
-        expect(terrain.blocked[tileY * terrain.width + tileX]).toBe(false);
+        expect(terrain.blocked[tileY * terrain.width + tileX]).toBe(0);
         expect(plateauBackgroundFrameIndicesAt(terrain, tileX, tileY)).toEqual(
           [],
         );

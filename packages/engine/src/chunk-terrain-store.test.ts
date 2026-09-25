@@ -53,8 +53,8 @@ describe('ChunkTerrainStore', () => {
     expect(store.hasTile(64, 0)).toBe(true);
     expect(store.hasTile(0, 0)).toBe(false);
     expect(store.cellParts?.get(64)).toEqual([{ slot: 'water', exact: { frame: 8 } }]);
-    expect(terrain.blocked[0]).toBe(true);
-    expect(terrain.blocked[64]).toBe(false);
+    expect(terrain.blocked[0]).toBe(1);
+    expect(terrain.blocked[64]).toBe(0);
     store.install(blobs[0]!);
     store.install(blobs[0]!);
     expect(store.complete).toBe(true);

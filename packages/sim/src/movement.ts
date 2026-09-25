@@ -29,9 +29,20 @@ const DIRECTION_VECTORS: Record<Direction, Vec2Fixed> = {
   downRight: { x: DIAGONAL_SPEED, y: DIAGONAL_SPEED },
 };
 
-function tileIsBlocked(map: CollisionMap, tileX: number, tileY: number): boolean {
-  if (tileX < 0 || tileY < 0 || tileX >= map.width || tileY >= map.height) return true;
-  return map.blocked[tileY * map.width + tileX] ?? true;
+/** The cell index of world tile (tileX, tileY) in a collision map, or -1 when
+ * the tile is outside the map (or outside a windowed map's origin rectangle).
+ * The single place CollisionMap cell arrays are addressed from world tiles. */
+export function collisionCellIndex(map: Pick<CollisionMap, 'width' | 'height' | 'originX' | 'originY'>, tileX: number, tileY: number): number {
+  const x = tileX - (map.originX ?? 0), y = tileY - (map.originY ?? 0);
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return -1;
+  return y * map.width + x;
+}
+
+/** Flat (plane-independent) terrain blocking at a world tile; outside the map
+ * or a window is blocked. */
+export function collisionTileIsBlocked(map: CollisionMap, tileX: number, tileY: number): boolean {
+  const index = collisionCellIndex(map, tileX, tileY);
+  return index < 0 || (map.blocked[index] ?? 1) !== 0;
 }
 
 /** Resolves both ordinary terrain and blockers belonging to one elevation.
@@ -44,17 +55,18 @@ export function collisionTileIsBlockedAtPlane(
   tileY: number,
   elevation: number,
 ): boolean {
-  if (tileIsBlocked(map, tileX, tileY)) return true;
+  if (collisionTileIsBlocked(map, tileX, tileY)) return true;
   if (map.terrainPlaneBlocked === undefined) return false;
   const stride = map.width * map.height;
   const planeIndex = elevation - (map.terrainMinimumElevation ?? 0);
   if (planeIndex < 0 || planeIndex * stride >= map.terrainPlaneBlocked.length) return false;
-  return map.terrainPlaneBlocked[planeIndex * stride + tileY * map.width + tileX] === 1;
+  return map.terrainPlaneBlocked[planeIndex * stride + collisionCellIndex(map, tileX, tileY)] === 1;
 }
 
 function tileIsHorseJumpableTerrain(map: CollisionMap, tileX: number, tileY: number): boolean {
-  if (tileX < 0 || tileY < 0 || tileX >= map.width || tileY >= map.height) return false;
-  return map.horseJumpableTerrain?.[tileY * map.width + tileX] ?? false;
+  const index = collisionCellIndex(map, tileX, tileY);
+  if (index < 0) return false;
+  return (map.horseJumpableTerrain?.[index] ?? 0) !== 0;
 }
 
 export function positionCollidesTerrain(position: Vec2Fixed, map: CollisionMap): boolean {
@@ -189,7 +201,7 @@ export function positionCollidesOnlyHorseJumpableTerrain(position: Vec2Fixed, ma
     if (!collisionTileIsBlockedAtPlane(map, tileX, tileY, elevation)) continue;
     touchesBlockedTerrain = true;
     // Elevation-specific cliff geometry is never a horse-jump shortcut.
-    if (!tileIsBlocked(map, tileX, tileY)) return false;
+    if (!collisionTileIsBlocked(map, tileX, tileY)) return false;
     if (!tileIsHorseJumpableTerrain(map, tileX, tileY)) return false;
   }
   return touchesBlockedTerrain;
@@ -226,6 +238,8 @@ function movementCrossesBlockedElevation(
     fromTileY,
     toTileX,
     toTileY,
+    map.originX,
+    map.originY,
   )) return true;
 
   const footprintViolations = (position: Vec2Fixed): number => {
@@ -245,6 +259,8 @@ function movementCrossesBlockedElevation(
         contactTileY,
         sampleTileX,
         contactTileY,
+        map.originX,
+        map.originY,
       )) violations |= bit;
     }
     return violations;
@@ -272,8 +288,8 @@ export function terrainPlaneAtPosition(position: Vec2Fixed, map: CollisionMap): 
     map.elevations,
     map.width,
     map.height,
-    Math.floor(position.x / TILE_SIZE_FIXED),
-    Math.floor((position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED),
+    Math.floor(position.x / TILE_SIZE_FIXED) - (map.originX ?? 0),
+    Math.floor((position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED) - (map.originY ?? 0),
   );
 }
 

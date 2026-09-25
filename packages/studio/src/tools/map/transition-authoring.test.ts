@@ -16,7 +16,7 @@ function terrain(width = 8, height = 8, entries: readonly [number, number, numbe
   return {
     spaceId: 4_200_001, seed: 1, version: 0, width, height, generator: 'debug_flat',
     defaultCliffFamily: 'stone_1', defaultSurfaceFamily: 'grass_1',
-    biomes: new Uint8Array(0), blocked: [], horseJumpableTerrain: [], elevations,
+    biomes: new Uint8Array(0), blocked: new Uint8Array(0), horseJumpableTerrain: new Uint8Array(0), elevations,
     raisedTerrainCollisionClassified: true, dirtCliffRoles: new Uint8Array(0), dirtTerraces: new Uint8Array(0),
   };
 }

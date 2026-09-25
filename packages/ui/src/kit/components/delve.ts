@@ -1,4 +1,6 @@
-import { bootstrapContentRegistry, rogueUpgradeDefinition, type RogueBoonRegistry } from '@orchard/sim';
+import type { RogueBoonRegistry } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { rogueUpgradeDefinition } from '@orchard/sim/roguelike';
 import { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import { UI_TONE_FACES } from '../skin/contrast.js';

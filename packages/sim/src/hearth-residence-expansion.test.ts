@@ -5,9 +5,10 @@ import {type HearthFurniturePlacement} from './hearth-furniture-placement.js';
 import {HEARTH_FURNITURE_SHAPES} from './hearth-furniture-state.js';
 import {residencePlayableTile} from './spaces.js';
 import {FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED} from './state.js';
+import { cellFlags } from './cell-flags.js';
 function layout(rank: number, existing: HearthFurniturePlacement[] = []) {
   return {canBuild: true, collision: {width: 32, height: 32,
-    blocked: Array.from({length: 1024}, (_, i) => !residencePlayableTile(i % 32, Math.floor(i / 32), rank))},
+    blocked: cellFlags(Array.from({length: 1024}, (_, i) => !residencePlayableTile(i % 32, Math.floor(i / 32), rank)))},
   existing, occupants: [{x: 8.5 * TILE_SIZE_FIXED, y: 11.5 * TILE_SIZE_FIXED}]};
 }
 function piece(id: string, kind: string, tileX: number, tileY: number, supportId?: string): HearthFurniturePlacement {
@@ -48,7 +49,7 @@ describe('residence expansion preflight', () => {
   });
   it('requires physical access to the new rooms even when they are empty', () => {
     const next = layout(1);
-    for (let y = 8; y <= 10; y++) next.collision.blocked[y * 32 + 14] = true;
+    for (let y = 8; y <= 10; y++) next.collision.blocked[y * 32 + 14] = 1;
     expect(hearthResidenceExpansionFailure(0, 1, next)).toBe('escape_blocked');
   });
   it('rejects invalid ranks, missing envelope and unauthorized builders', () => {
@@ -56,7 +57,7 @@ describe('residence expansion preflight', () => {
       expect(hearthResidenceExpansionFailure(current!, next!, layout(2))).toBe('invalid_expansion_rank');
     }
     expect(hearthResidenceExpansionFailure(0,1,{...layout(1), canBuild:false})).toBe('builder_required');
-    expect(hearthResidenceExpansionFailure(0,1,{...layout(1),collision:{width:16,height:16,blocked:[]}})).toBe('invalid_expansion_layout');
+    expect(hearthResidenceExpansionFailure(0,1,{...layout(1),collision:{width:16,height:16,blocked:new Uint8Array(0)}})).toBe('invalid_expansion_layout');
   });
   it('rejects orphaned attachments and an occupant trapped by the proposed layout', () => {
     expect(hearthResidenceExpansionFailure(0,1,layout(1,[piece('lamp','furniture_townhouse_table_lamp',6,6,'missing')]))).toBe('tabletop_support_required');

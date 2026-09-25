@@ -1,9 +1,6 @@
-import {
-  bootstrapContentRegistry,
-  runtimeSkillCapabilities,
-  runtimeSkillNodeRank,
-  tileToolTargetInReach,
-} from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim/skill-effects';
+import { tileToolTargetInReach } from '@orchard/sim/tile-targeting';
 import type { ContentRegistry, RuntimeToolDefinition, TileTarget } from '@orchard/sim';
 
 /** Presentation-only preflight. Authoritative lifecycle callbacks still own

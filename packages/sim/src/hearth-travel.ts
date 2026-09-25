@@ -1,6 +1,6 @@
 import type {ContentRegistry} from './content/registry.js';
 import {type CollisionMap,TILE_SIZE_FIXED} from './state.js';
-import {collisionTileIsBlockedAtPlane,playerHitboxBounds,positionCollides} from './movement.js';
+import {collisionCellIndex,collisionTileIsBlockedAtPlane,playerHitboxBounds,positionCollides} from './movement.js';
 
 export type HearthFerryDock=string;
 export interface HearthFerryDestination {
@@ -53,10 +53,12 @@ export function hearthFerryLanding(destination:HearthFerryDestination,collision:
   safe:(tileX:number,tileY:number)=>boolean):{tileX:number;tileY:number}|null {
   const origin=destination.arrival;
   const threshold=destination.threshold;
-  const elevation=collision.elevations?.[origin.tileY*collision.width+origin.tileX]??0;
+  // World tiles through the shared addressing (whole maps on the server; any window is blocked outside).
+  const elevationAt=(tileX:number,tileY:number)=>{const cell=collisionCellIndex(collision,tileX,tileY);return cell<0?undefined:collision.elevations?.[cell]??0;};
+  const elevation=elevationAt(origin.tileX,origin.tileY)??0;
   const point=(tileX:number,tileY:number)=>({x:(tileX+.5)*TILE_SIZE_FIXED,y:(tileY+.5)*TILE_SIZE_FIXED});
-  const clear=(tileX:number,tileY:number)=>tileX>=0&&tileY>=0&&tileX<collision.width&&tileY<collision.height
-    &&safe(tileX,tileY)&&(collision.elevations?.[tileY*collision.width+tileX]??0)===elevation
+  const clear=(tileX:number,tileY:number)=>collisionCellIndex(collision,tileX,tileY)>=0
+    &&safe(tileX,tileY)&&elevationAt(tileX,tileY)===elevation
     &&!positionCollides(point(tileX,tileY),collision);
   // Every edge is cardinal: the union of endpoint bodies is the exact swept
   // rectangle, including thin obstacles that an anchor ray would miss.

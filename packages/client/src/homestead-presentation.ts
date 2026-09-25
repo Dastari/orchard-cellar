@@ -1,8 +1,5 @@
-import {
-  HOMESTEAD_TENT_TILE,
-  TOPSIDE_SPACE_ID,
-  type SpaceDefinition,
-} from '@orchard/sim';
+import type { SpaceDefinition } from '@orchard/sim';
+import { HOMESTEAD_TENT_TILE, TOPSIDE_SPACE_ID } from '@orchard/sim/spaces';
 
 export interface HomesteadPresentationRow {
   readonly spaceId: number;

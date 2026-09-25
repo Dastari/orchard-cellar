@@ -30,7 +30,7 @@ export function mapTraversalChannels(
     medium[index] = RULE_MEDIA.indexOf(resolved);
     solidBlocked[index] = Number(cell?.collision === 'force_block'
       || (cell?.collision !== 'force_walk' && (role?.blocksMovement
-        ?? (cell?.ledge === true || (fallback === 'land' && compiled.blocked[index] === true)))));
+        ?? (cell?.ledge === true || (fallback === 'land' && (compiled.blocked[index] ?? 0) !== 0)))));
   }
   return { width: compiled.width, height: compiled.height, medium, solidBlocked };
 }
@@ -40,7 +40,7 @@ export function mapTraversalChannels(
 export function staticTraversalChannels(ground: CollisionMap, mediumAt: (index: number) => RuleMedium = () => 'land', hazardIndices: ReadonlySet<number> = new Set()): MediumCollisionChannels {
   return { width: ground.width, height: ground.height,
     medium: Uint8Array.from({ length: ground.width * ground.height }, (_, index) => RULE_MEDIA.indexOf(mediumAt(index))),
-    solidBlocked: Uint8Array.from(ground.blocked, (blocked, index) => Number(blocked && !hazardIndices.has(index))),
+    solidBlocked: Uint8Array.from(ground.blocked, (blocked, index) => blocked !== 0 && !hazardIndices.has(index) ? 1 : 0),
   };
 }
 

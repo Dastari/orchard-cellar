@@ -43,6 +43,7 @@ import {
   terrainWithCellarExcavations,
   type TerrainArray,
 } from './terrain.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 // Static world S4b: every terrain-array index moved behind terrainIndexAt().
 // These digests were recorded from the pre-refactor code (origin/main c2e85788)
@@ -245,11 +246,11 @@ function interiorTerrain(overrides: Partial<TerrainArray> & { readonly generator
   const width = 24;
   const height = 20;
   const length = width * height;
-  const blocked = Array.from({ length }, (_, index) => {
+  const blocked = cellFlags(Array.from({ length }, (_, index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     return x === 0 || y <= 2 || x === width - 1 || y === height - 1 || (x === 11 && y < 14) || (y === 8 && x > 15);
-  });
+  }));
   return {
     spaceId: 99,
     seed: 7,
@@ -258,7 +259,7 @@ function interiorTerrain(overrides: Partial<TerrainArray> & { readonly generator
     height,
     biomes: new Uint8Array(length).fill(SURVIVAL_BIOMES.indexOf('plains')),
     blocked,
-    horseJumpableTerrain: Array<boolean>(length).fill(false),
+    horseJumpableTerrain: new Uint8Array(length),
     elevations: Int16Array.from(blocked, (value) => value ? 1 : 0),
     dirtCliffRoles: new Uint8Array(length),
     dirtTerraces: new Uint8Array(length),
@@ -407,8 +408,8 @@ describe('terrain index parity (static world S4b)', () => {
       width,
       height,
       biomes,
-      blocked: Array.from({ length }, (_, index) => SURVIVAL_BIOMES[biomes[index]!] === 'water'),
-      horseJumpableTerrain: Array<boolean>(length).fill(false),
+      blocked: cellFlags(Array.from({ length }, (_, index) => SURVIVAL_BIOMES[biomes[index]!] === 'water')),
+      horseJumpableTerrain: new Uint8Array(length),
       elevations: new Int16Array(length),
       dirtCliffRoles: new Uint8Array(length),
       dirtTerraces: Uint8Array.from({ length }, (_, index) => ((index % width) * 5 + Math.floor(index / width) * 3) % 7 < 3 ? 1 : 0),

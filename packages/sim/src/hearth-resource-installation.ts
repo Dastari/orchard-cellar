@@ -4,7 +4,7 @@ import { runtimeResourceObstacle } from './content/runtime.js';
 import type { CombatRegion } from './combat-regions.js';
 import { runtimeHearthResourceSite } from './hearth-resource-sites.js';
 import { hearthResourceGeometryAllows } from './hearth-resource-geometry.js';
-import { collisionTileIsBlockedAtPlane, movementPositionAllowed, positionCollides, PLAYER_HITBOX_FOOT_OFFSET } from './movement.js';
+import { collisionCellIndex, collisionTileIsBlockedAtPlane, movementPositionAllowed, positionCollides, PLAYER_HITBOX_FOOT_OFFSET } from './movement.js';
 import { TREE_REGROWTH_PROGRESS_MAX } from './tree-regrowth.js';
 import { TILE_SIZE_FIXED, type CollisionMap, type CollisionObstacle } from './state.js';
 
@@ -39,7 +39,7 @@ export function hearthResourceInstallationGeometry(
     for (let y = Math.floor(base.top / TILE_SIZE_FIXED); y <= Math.floor(base.bottom / TILE_SIZE_FIXED); y++) {
       for (let x = Math.floor(base.left / TILE_SIZE_FIXED); x <= Math.floor(base.right / TILE_SIZE_FIXED); x++) {
         if (collisionTileIsBlockedAtPlane(collision, x, y, site.elevation)
-          || (collision.elevations?.[y * collision.width + x] ?? 0) !== site.elevation) return null;
+          || (collision.elevations?.[collisionCellIndex(collision, x, y)] ?? 0) !== site.elevation) return null;
       }
     }
     if ([...(collision.obstacles ?? []), ...additions].some(obstacle => overlaps(base, obstacle))) return null;
@@ -108,7 +108,7 @@ export function hearthResourceInstallationRoutes(collision: CollisionMap, ids: r
   const candidates = authority.regions.filter(region => region.spaceId === authority.spaceId
     && region.policy === 'hostile'
     && [region.minX, region.minY, region.maxX, region.maxY].every(Number.isSafeInteger)
-    && region.minX >= 0 && region.minY >= 0 && region.maxX < collision.width && region.maxY < collision.height
+    && collisionCellIndex(collision, region.minX, region.minY) >= 0 && collisionCellIndex(collision, region.maxX, region.maxY) >= 0
     && region.minX <= region.maxX && region.minY <= region.maxY
     && (region.maxX - region.minX + 1) * (region.maxY - region.minY + 1) <= HEARTH_RESOURCE_ROUTE_MAX_TILES
     && contains(region, sx, sy) && targetsByPosition.every(target => contains(region, target.x, target.y)));

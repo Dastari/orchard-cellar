@@ -43,6 +43,13 @@ function arrayDigest(values: ArrayLike<unknown> | undefined): string {
   return values === undefined ? 'absent' : fnv(Array.from(values, String).join(','));
 }
 
+/** Flag planes are `Uint8Array`s of 0/1 bytes; the goldens were recorded over
+ * `boolean[]`, so they are digested in that form (the same cell values). */
+function flagDigest(values: Uint8Array): string {
+  if (values.some((cell) => cell > 1)) throw new Error('flag plane holds a cell other than 0 or 1');
+  return arrayDigest(Array.from(values, (cell) => cell === 1));
+}
+
 function compiledDigest(compiled: CompiledMapDocument): string {
   return fnv(JSON.stringify({
     keys: Object.keys(compiled).sort(),
@@ -53,7 +60,7 @@ function compiledDigest(compiled: CompiledMapDocument): string {
     ledges: arrayDigest(compiled.ledges),
     surfaces: arrayDigest(compiled.surfaces),
     features: arrayDigest(compiled.features),
-    blocked: arrayDigest(compiled.blocked),
+    blocked: flagDigest(compiled.blocked),
     overrides: compiled.terrainOverrides.flatMap((value, index) => value === null ? [] : [[index, value]]),
     transitions: compiled.transitions,
   }));
@@ -64,7 +71,7 @@ function terrainDigest(terrain: TerrainArray): string {
     keys: Object.keys(terrain).sort(),
     biomes: arrayDigest(terrain.biomes),
     elevations: arrayDigest(terrain.elevations),
-    blocked: arrayDigest(terrain.blocked),
+    blocked: flagDigest(terrain.blocked),
     dirtTerraces: arrayDigest(terrain.dirtTerraces),
     dirtCliffRoles: arrayDigest(terrain.dirtCliffRoles),
     cliffFamilies: arrayDigest(terrain.cliffFamilies),

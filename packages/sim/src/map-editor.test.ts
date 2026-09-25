@@ -51,7 +51,7 @@ describe('MapDocumentV2 editor foundation', () => {
     expect(resolvedMapCellAt(edited, 3, 3)).toMatchObject({ elevation: 0, ledge: true });
     const compiled = compileMapDocument(edited);
     const index = 3 * compiled.width + 3;
-    expect(compiled.blocked[index]).toBe(true);
+    expect(compiled.blocked[index]).toBe(1);
     expect(collisionMapForCompiledMapDocument(compiled).terrainPlaneBlocked?.[index]).toBe(0);
     const opened = applyMapEdit(edited, {
       kind: 'paint', points: [{ tileX: 3, tileY: 3 }], patch: { ledge: false },

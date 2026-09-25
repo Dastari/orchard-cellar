@@ -56,6 +56,7 @@ import {
   terrainCollisionForSpace,
   toolSpendResult,
 } from './world-rules.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 const contentRegistry = bootstrapContentRegistry();
 
@@ -275,8 +276,8 @@ describe('overworld authority rules', () => {
 
   it('uses only world bounds as collision in the open farm sample', () => {
     const collision = createMmoFarmCollisionMap(80, 80);
-    expect(collision.blocked[0]).toBe(true);
-    expect(collision.blocked[16 * collision.width + 24]).toBe(false);
+    expect(collision.blocked[0]).toBe(1);
+    expect(collision.blocked[16 * collision.width + 24]).toBe(0);
   });
 
   it('World/Spaces & Interiors: keeps collision dimensions and mutable obstacles local to each space', () => {
@@ -286,8 +287,8 @@ describe('overworld authority rules', () => {
     const topside = createAuthoritySurvivalCollisionMap(contentRegistry, []);
     expect(debug.width).toBe(32);
     expect(topside.width).toBe(SURVIVAL_WORLD_SIZE);
-    expect(debug.blocked[0]).toBe(true);
-    expect(debug.blocked[5 * debug.width + 5]).toBe(false);
+    expect(debug.blocked[0]).toBe(1);
+    expect(debug.blocked[5 * debug.width + 5]).toBe(0);
     expect(debug.obstacles).toHaveLength(1);
     expect(topside.obstacles?.length).toBeGreaterThan(1);
     expect(debug.elevations).toBeUndefined();
@@ -310,7 +311,7 @@ describe('overworld authority rules', () => {
     const registry = buildContentRegistry(rows).registry;
     const { traversalChannels, ...legacy } = terrainCollisionForSpace(registry, DEBUG_SPACE_ID);
     expect(legacy).toEqual(hearthLobbyCollision(registry,DEBUG_SPACE_ID));
-    expect(Array.from(traversalChannels!.solidBlocked)).toEqual(legacy.blocked.map(Number));
+    expect(Array.from(traversalChannels!.solidBlocked)).toEqual(Array.from(legacy.blocked, Number));
     expect(terrainCollisionForSpace(registry, DEBUG_SPACE_ID, 'air').blocked.every(Boolean)).toBe(true);
   });
 
@@ -340,12 +341,12 @@ describe('overworld authority rules', () => {
       501 * dynamic.width + 500,
       501 * dynamic.width + 501,
     ];
-    expect(base.blocked[footprint[0]!]).toBe(false);
+    expect(base.blocked[footprint[0]!]).toBe(0);
     expect(base.elevations?.[footprint[0]!]).toBe(1);
     expect(base.fixedTerrainPlane).toBe(0);
     expect(base.terrainPlaneBlocked).toBeDefined();
     for (const index of footprint) {
-      expect(dynamic.blocked[index]).toBe(false);
+      expect(dynamic.blocked[index]).toBe(0);
       expect(dynamic.elevations?.[index]).toBe(0);
       expect(base.elevations?.[index]).toBe(1);
     }
@@ -363,7 +364,7 @@ describe('overworld authority rules', () => {
     });
     expect(collision.fixedTerrainPlane).toBeUndefined();
     expect(collision.terrainTransitions).toHaveLength(2);
-    expect(collision.blocked[15 * collision.width + 16]).toBe(false);
+    expect(collision.blocked[15 * collision.width + 16]).toBe(0);
     expect(terrainWalkingStepAllowed(
       collision.elevations!,
       collision.width,
@@ -394,13 +395,13 @@ describe('overworld authority rules', () => {
 
     const live = createAuthoritySurvivalCollisionMap(contentRegistry, [{ ...resource, depleted: false }]);
     const depleted = createAuthoritySurvivalCollisionMap(contentRegistry, [{ ...resource, depleted: true }]);
-    expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(true);
-    expect(live.blocked[solidRidge.tileY * live.width + solidRidge.tileX]).toBe(true);
-    expect(live.blocked[projectedCliff.tileY * live.width + projectedCliff.tileX]).toBe(false);
+    expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(1);
+    expect(live.blocked[solidRidge.tileY * live.width + solidRidge.tileX]).toBe(1);
+    expect(live.blocked[projectedCliff.tileY * live.width + projectedCliff.tileX]).toBe(0);
     expect(live.obstacles).toHaveLength((depleted.obstacles?.length ?? 0) + 1);
-    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(false);
+    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(0);
     expect(depleted.obstacles?.length).toBeGreaterThan(0);
-    expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
+    expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(0);
   }, 20_000);
 
   it('Systems/Crafting: blocks closed placeables but lets open gates and standing lights pass', () => {
@@ -431,8 +432,8 @@ describe('overworld authority rules', () => {
         if (biome === 'beach') beachIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
       }
     }
-    expect(collision.blocked[waterIndex]).toBe(false);
-    expect(collision.blocked[beachIndex]).toBe(true);
+    expect(collision.blocked[waterIndex]).toBe(0);
+    expect(collision.blocked[beachIndex]).toBe(1);
     expect(collision.obstacles?.length).toBeGreaterThan(0);
   });
 
@@ -549,7 +550,7 @@ describe('overworld authority rules', () => {
 
   it('authorizes tile placement through shared reach, terrain, obstacles, and actor occupancy', () => {
     const width = 20;
-    const blocked = Array.from({ length: width * width }, (_, index) => index === 10 * width + 12);
+    const blocked = cellFlags(Array.from({ length: width * width }, (_, index) => index === 10 * width + 12));
     const collision = {
       width,
       height: width,

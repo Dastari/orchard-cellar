@@ -1,4 +1,6 @@
-import { EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT, itemDefinition, type ItemStack } from '@orchard/sim';
+import type { ItemStack } from '@orchard/sim';
+import { EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { itemDefinition } from '@orchard/sim/item-containers';
 import { uiDurabilityFraction } from '../../item-durability.js';
 import { containsPoint, type UiRect } from '../../geometry.js';
 import type { LoadedAsset } from '../../assets.js';

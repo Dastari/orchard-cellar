@@ -10,7 +10,7 @@ import { UiElement } from './kit/runtime/element.js';
 import type { UiInventorySlotRef } from './kit/runtime/inventory.js';
 import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
-import {HEARTH_LOBBY_STASH_CAPACITY} from '@orchard/sim';
+import { HEARTH_LOBBY_STASH_CAPACITY } from '@orchard/sim/hearth-lobby';
 import {FerryMenu} from './ferry-menu.js';
 import type {HearthFerryDock} from '@orchard/sim';
 import {OutdoorRewards,type OutdoorRewardEntry} from './outdoor-rewards.js';
@@ -25,7 +25,14 @@ export { disposeHudDisplayCaches, hudDisplayCacheDiagnostics, type HudDisplayCac
 import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
 export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
-import { MAIN_HAND_INVENTORY_SLOT, BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, clickContainerSlot, craftingRecipeOutput, hotbarSlotForInputCode, hotbarSlotLabel, itemContainerContentResolver, itemDefinition, itemStacksCompatible, bootstrapContentRegistry, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks, recipeDefinition, runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition, runtimeRecipeSkillSatisfied, type ContainerSnapshot, type ContentRegistry, type CraftingStation, type FrameDefinitionId, type ItemDefinition, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
+import type { ContainerSnapshot, ContentRegistry, CraftingStation, FrameDefinitionId, ItemDefinition, ItemStack, MoonPhase, MoveItemRequest, WeatherMode, WindDirectionMode } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
+import { runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
+import { MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
+import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, hotbarSlotForInputCode, hotbarSlotLabel } from '@orchard/sim/inventory-layout';
+import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, itemStacksCompatible, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
+import { recipeDefinition } from '@orchard/sim/recipes';
 import type { LoadedAsset } from './assets.js';
 import { isolatedAtlasFrameImage } from './atlas-frame-image.js';
 import { drawOutlinedPixelText, drawPixelText, drawPixelTextInRect, measurePixelText, type PixelUi } from './pixel-ui.js';
@@ -399,7 +406,8 @@ export interface OverworldUiCallbacks {
   readonly throwMenuItem: (container: string, index: number, wholeStack: boolean) => void;
   readonly returnInventoryCursor: () => void;
   readonly craftInventoryRecipe: (recipeId: string, craftAll: boolean) => void;
-  readonly ghostFillCraftingRecipe: (recipeId: string) => void;
+  /** Resolves when the authority placed the pattern; rejects when it refused (the host shows why). */
+  readonly ghostFillCraftingRecipe: (recipeId: string) => void | Promise<unknown>;
   readonly closeChest: () => void;
   readonly closePlaceable: () => void;
   readonly closeCrafting: () => void;
@@ -1405,7 +1413,7 @@ export class OverworldUi {
       close: () => { this.openWindow = null; }, invoke: (id) => { this.callbacks.frameAction?.(id); },
       sort: (container) => { if (this.heldCursorStack() === null && (container === 'backpack' || container === 'chest' || container === 'placeable')) this.trackInventoryPrediction(this.callbacks.sortInventoryContainer(container)); },
       filter: (value) => { this.inventoryFilterText = value; }, recipeFilter: (value) => { this.recipeFilterText = value; },
-      recipe: (id) => { this.selectCraftingRecipe(id); this.syncRetainedInventory(); },
+      recipe: (id) => { this.placeCraftingRecipe(id); this.syncRetainedInventory(); },
       craft: (all) => { const id = this.currentRecipeId(); if (id !== null && !this.currentRecipeLocked()) this.callbacks.craftInventoryRecipe(id, all); },
       label: item => this.itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
       iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry),
@@ -4924,13 +4932,27 @@ export class OverworldUi {
     });
   }
 
+  /** The recipe book's Place: never toggles, and a refused placement restores the previous selection so
+   * the grid, the ghost pattern and the next press all agree with what the authority holds (BUG-037). */
+  private placeCraftingRecipe(recipeId: string): void {
+    const previous = this.selectedCraftingRecipeId;
+    this.selectedCraftingRecipeId = recipeId;
+    const result = this.callbacks.ghostFillCraftingRecipe(recipeId);
+    if (result instanceof Promise) void result.catch(() => {
+      if (this.selectedCraftingRecipeId !== recipeId) return;
+      this.selectedCraftingRecipeId = previous;
+      this.syncRetainedInventory();
+    });
+  }
+
   private selectCraftingRecipe(recipeId: string): void {
     if (this.selectedCraftingRecipeId === recipeId) {
       this.selectedCraftingRecipeId = null;
       return;
     }
     this.selectedCraftingRecipeId = recipeId;
-    this.callbacks.ghostFillCraftingRecipe(recipeId);
+    // The host already reports a refusal; don't leave its rejection unhandled.
+    void Promise.resolve(this.callbacks.ghostFillCraftingRecipe(recipeId)).catch(() => undefined);
   }
 
   private craftingRecipeEntryAt(point: UiPoint) {

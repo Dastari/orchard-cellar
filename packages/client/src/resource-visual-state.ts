@@ -1,4 +1,5 @@
-import { treeGrowthStageName, type ResourceContentDefinition } from '@orchard/sim';
+import type { ResourceContentDefinition } from '@orchard/sim';
+import { treeGrowthStageName } from '@orchard/sim/tree-regrowth';
 import type { AuthoredResourceVisualState } from '@orchard/engine/overworld-art';
 
 /** Choose the standing tree artwork from replicated harvest state, never local actions. */

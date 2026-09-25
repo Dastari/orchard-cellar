@@ -41,7 +41,7 @@ describe('Willowharbour service interiors',()=>{
       if(!collision.blocked[y*32+x]||collision.blocked[(y+1)*32+x])continue;
       for(let offset=0;offset<3;offset++){
         expect(y-offset).toBeGreaterThanOrEqual(0);
-        expect(collision.blocked[(y-offset)*32+x],`wall at ${x},${y} over floor ${y-offset}`).toBe(true);
+        expect(collision.blocked[(y-offset)*32+x],`wall at ${x},${y} over floor ${y-offset}`).toBe(1);
       }
     }
   });
@@ -49,7 +49,7 @@ describe('Willowharbour service interiors',()=>{
     const map=hearthInteriorCollision(interior.spaceId),placements=hearthInteriorNativePlacements(interior);
     expect(new Set(interior.furniture.map(item=>item.id)).size).toBe(interior.furniture.length);
     for(const item of placements){
-      for(const cell of hearthFurnitureCells(item))expect(map.blocked[cell.tileY*32+cell.tileX],item.id).toBe(false);
+      for(const cell of hearthFurnitureCells(item))expect(map.blocked[cell.tileY*32+cell.tileX],item.id).toBe(0);
       expect(hearthFurniturePresentationAnchor(item,placements),item.id).not.toBeNull();
       if(item.shape.layer==='tabletop'){
         const parent=placements.find(candidate=>candidate.id===item.supportId)!;
@@ -70,7 +70,7 @@ describe('Willowharbour service interiors',()=>{
       expect(obstacle).not.toBeNull();if(obstacle===null)continue;
       for(let y=Math.floor(obstacle.top/TILE_SIZE_FIXED);y<=Math.floor(obstacle.bottom/TILE_SIZE_FIXED);y++)
         for(let x=Math.floor(obstacle.left/TILE_SIZE_FIXED);x<=Math.floor(obstacle.right/TILE_SIZE_FIXED);x++)
-          expect(map.blocked[y*map.width+x],`${interior.kind} fixture base ${x},${y}`).toBe(false);
+          expect(map.blocked[y*map.width+x],`${interior.kind} fixture base ${x},${y}`).toBe(0);
     }
   });
   it('provides ten distinct town spaces and refuses unknown geometry',()=>{

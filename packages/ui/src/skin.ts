@@ -1,5 +1,6 @@
 import { UI_LUCIDE_FILES } from './kit/skin/lucide.js';
-import { bootstrapContentRegistry, type ContentRegistry } from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { loadGeneratedAsset, type LoadedAsset } from "./assets.js";
 import { assetRequestQueue } from './asset-request-queue.js';
 import { loadHtmlImage } from './html-image.js';

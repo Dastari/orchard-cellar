@@ -5,14 +5,15 @@ import { createLightOcclusionMap, type LightTrunkOccluder } from '@orchard/engin
 import type { TerrainArray } from '@orchard/engine/terrain';
 import type { LoadedAsset } from '@orchard/ui';
 import { WorldStaticProjectionCache } from './world-static-projection.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 function terrain(): TerrainArray {
   return {
     spaceId: 42, seed: SURVIVAL_WORLD_SEED, version: 1, width: 3, height: 3,
     projectionStyle: 'interior', baseDatum: 0,
     biomes: new Uint8Array(9).fill(SURVIVAL_BIOMES.indexOf('plains')),
-    blocked: [true, false, false, false, false, false, false, false, false],
-    horseJumpableTerrain: Array<boolean>(9).fill(false), elevations: new Int16Array(9),
+    blocked: cellFlags([true, false, false, false, false, false, false, false, false]),
+    horseJumpableTerrain: new Uint8Array(9), elevations: new Int16Array(9),
     dirtCliffRoles: new Uint8Array(9), dirtTerraces: new Uint8Array(9),
   };
 }
@@ -59,11 +60,11 @@ describe('instance-owned static world projection', () => {
     const cache = new WorldStaticProjectionCache();
     const source = terrain();
     const original = cache.prepare(source, 'head1');
-    (source.blocked as boolean[])[1] = true;
+    source.blocked[1] = 1;
     const revised = cache.prepare(source, 'head2');
     expect(revised).not.toBe(original);
     expect(revised.light!.hardBlocked[1]).toBe(1);
-    const replaced = cache.prepare({ ...source, blocked: Array<boolean>(9).fill(false) }, 'head2');
+    const replaced = cache.prepare({ ...source, blocked: new Uint8Array(9) }, 'head2');
     expect(replaced).not.toBe(revised);
     expect(replaced.light!.hardBlocked[1]).toBe(0);
     const asset = {} as LoadedAsset;
@@ -79,17 +80,17 @@ describe('instance-owned static world projection', () => {
     const empty = cache.prepare(source, 'head1', []);
     expect(empty).not.toBe(generated);
     const dock = cache.prepare(source, 'head1', [{ tileX: 0, tileY: 0 }]);
-    expect(dock.ground.blocked[0]).toBe(false);
-    expect(empty.ground.blocked[0]).toBe(true);
+    expect(dock.ground.blocked[0]).toBe(0);
+    expect(empty.ground.blocked[0]).toBe(1);
     expect(cache.prepare(source, 'head1', [{ tileX: 0, tileY: 0 }])).toBe(dock);
     const moved = cache.prepare(source, 'head1', [{ tileX: 1, tileY: 0 }]);
-    expect(moved.ground.blocked[0]).toBe(true);
+    expect(moved.ground.blocked[0]).toBe(1);
   });
 
   it('reuses only projectile terrain bits and preserves every fresh live map field', () => {
     const cache = new WorldStaticProjectionCache();
-    const ground: CollisionMap = { width: 2, height: 1, blocked: [true, false], obstacles: [] };
-    const water: CollisionMap = { width: 2, height: 1, blocked: [false, true] };
+    const ground: CollisionMap = { width: 2, height: 1, blocked: cellFlags([true, false]), obstacles: [] };
+    const water: CollisionMap = { width: 2, height: 1, blocked: cellFlags([false, true]) };
     const first = cache.projectile(ground, water);
     expect(first).toEqual(projectileTraversalCollision(ground, water));
     const live = { ...ground, obstacles: [{ left: 1, top: 2, right: 3, bottom: 4 }], elevations: new Int16Array([1, 2]) };
@@ -97,8 +98,8 @@ describe('instance-owned static world projection', () => {
     expect(next.blocked).toBe(first.blocked);
     expect(next.obstacles).toBe(live.obstacles);
     expect(next.elevations).toBe(live.elevations);
-    const changed = cache.projectile(live, { ...water, blocked: [true, true] });
-    expect(changed.blocked).toEqual([true, false]);
+    const changed = cache.projectile(live, { ...water, blocked: cellFlags([true, true]) });
+    expect(changed.blocked).toEqual(cellFlags([true, false]));
     expect(changed.blocked).not.toBe(first.blocked);
     expect(() => cache.projectile(live, { ...water, width: 3 })).toThrow('collision_map_size_mismatch');
   });
@@ -107,8 +108,32 @@ describe('instance-owned static world projection', () => {
     const source = terrain();
     expect(new WorldStaticProjectionCache().prepare(source, '1')).not.toBe(new WorldStaticProjectionCache().prepare(source, '1'));
     const before = createLightOcclusionMap(source);
-    (source.blocked as boolean[])[1] = true;
+    source.blocked[1] = 1;
     expect(createLightOcclusionMap(source).hardBlocked[1]).toBe(1);
     expect(before.hardBlocked[1]).toBe(0);
+  });
+
+  it('caches light preparations per terrain and combined projectile planes per input (static world S4f)', () => {
+    const cache = new WorldStaticProjectionCache();
+    const a = terrain(), b = terrain();
+    const first = cache.prepareLight(a)!, second = cache.prepareLight(b)!;
+    expect(cache.prepareLight(a)).toBe(first);
+    expect(cache.prepareLight(b)).toBe(second);
+    // A window preparation is cached by its terrain too (reuse is covered in world-source and the engine).
+    const window = { terrain: terrain(), rect: { cx: 0, cy: 0, columns: 1, rows: 1 }, manifest: {} as never, present: new Set<string>(), missing: 0 };
+    const prepared = cache.prepareWindowLight(window)!;
+    expect(cache.prepareWindowLight(window)).toBe(prepared);
+    expect(cache.prepareLight(window.terrain)).toBe(prepared);
+    // A different asset starts over; Basic lighting prepares nothing.
+    expect(cache.prepareLight(b, {} as LoadedAsset)).not.toBe(second);
+    expect(cache.prepareWindowLight(window, undefined, false)).toBeUndefined();
+    const ground: CollisionMap = { width: 2, height: 1, blocked: cellFlags([true, true]) }, water: CollisionMap = { width: 2, height: 1, blocked: cellFlags([true, false]) };
+    const other: CollisionMap = { width: 2, height: 1, blocked: cellFlags([false, true]) };
+    const combined = cache.projectile(ground, water).blocked;
+    expect(combined).toEqual(cellFlags([true, false]));
+    expect(cache.projectile(other, water).blocked).toEqual(cellFlags([false, false]));
+    // Both kept: the serving window's plane survives preparing the next one.
+    expect(cache.projectile({ ...ground }, water).blocked).toBe(combined);
+    expect(cache.projectile(ground, { ...water, blocked: cellFlags([false, false]) }).blocked).toEqual(cellFlags([false, false]));
   });
 });

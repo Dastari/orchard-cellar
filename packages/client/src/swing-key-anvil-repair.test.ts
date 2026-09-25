@@ -43,7 +43,7 @@ it.each(['pickaxe', 'axe', 'hoe'])('repairs a damaged %s at a faced anvil instea
       targetResource: () => null, targetCellarWall: () => null,
       targetAnvilRepairReady: () => anvilRepairReady,
       isVitalsTool: () => true, localMount: () => null,
-      performToolAction: (action: () => void) => action(),
+      performToolAction: (action: () => void) => action(), glanceSwing: () => undefined,
       network: { useSelected: (...args: unknown[]) => calls.push(args) },
       event: { preventDefault: () => undefined },
     };

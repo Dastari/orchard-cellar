@@ -1,0 +1,37 @@
+{
+  "name": "tool_clink",
+  "category": "world",
+  "bus": "sfx",
+  "gainDb": -14,
+  "polyphony": 2,
+  "synth": {
+    "wave": "triangle",
+    "frequencyHz": 740,
+    "attackMs": 2,
+    "decayMs": 72,
+    "sustain": 0,
+    "releaseMs": 42,
+    "slideHzPerSecond": -300,
+    "noiseMix": 0.16,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 2300,
+      "q": 0.9
+    },
+    "reverbSend": 0.06
+  },
+  "jitter": {
+    "pitch": [
+      -0.06,
+      0.06
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -0.8,
+      0.4
+    ]
+  }
+}

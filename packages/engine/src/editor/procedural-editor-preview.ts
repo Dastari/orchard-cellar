@@ -408,7 +408,7 @@ function writeSample(
   sample: SemanticTerrainSample,
   biome: SurvivalBiome,
   biomes: Uint8Array,
-  blocked: boolean[],
+  blocked: Uint8Array,
   elevations: Int16Array,
 ): void {
   const local = proceduralEditorWorldToLocalTile(
@@ -427,7 +427,7 @@ function writeSample(
     return;
   const index = local.tileY * width + local.tileX;
   biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
-  blocked[index] = sample.waterKind !== "none";
+  blocked[index] = sample.waterKind !== "none" ? 1 : 0;
   elevations[index] = sample.elevation;
 }
 
@@ -443,7 +443,7 @@ export function terrainArrayForProceduralEditorPreview(
   const length = width * height;
   const biomes = new Uint8Array(length);
   biomes.fill(Math.max(0, SURVIVAL_BIOMES.indexOf("plains")));
-  const blocked = Array<boolean>(length).fill(false);
+  const blocked = new Uint8Array(length);
   const elevations = new Int16Array(length);
   const samples = new Map<string, SemanticTerrainSample>();
   for (const chunk of preview.generated.values()) {
@@ -478,7 +478,7 @@ export function terrainArrayForProceduralEditorPreview(
     baseDatum: 0,
     biomes,
     blocked,
-    horseJumpableTerrain: Array<boolean>(length).fill(false),
+    horseJumpableTerrain: new Uint8Array(length),
     elevations,
     terrainTransitions: [],
     raisedTerrainCollisionClassified: true,

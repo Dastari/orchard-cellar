@@ -1,4 +1,5 @@
-import { AUTHORITY_TICK_MS, type Vec2Fixed } from '@orchard/sim';
+import type { Vec2Fixed } from '@orchard/sim';
+import { AUTHORITY_TICK_MS } from '@orchard/sim/net-timing';
 
 export interface LocalProjectilePrediction {
   readonly origin: Vec2Fixed;

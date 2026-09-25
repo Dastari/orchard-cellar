@@ -207,8 +207,8 @@ describe('ranged combat helpers', () => {
   });
 
   it('detects blocked terrain crossed between authority ticks', () => {
-    const blocked = Array.from({ length: 9 }, () => false);
-    blocked[4] = true;
+    const blocked = new Uint8Array(9);
+    blocked[4] = 1;
     expect(firstProjectileTerrainHit(
       { x: 0, y: 24 * 16 },
       { x: 48 * 16, y: 24 * 16 },
