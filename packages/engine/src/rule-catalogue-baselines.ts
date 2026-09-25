@@ -18,7 +18,7 @@ function terrain(mask: number, center: string, on: string, off: string): Terrain
   const biome = (s: string) => MAP_BIOME_IDS.indexOf(s as typeof MAP_BIOME_IDS[number]);
   const biomes = new Uint8Array(49).fill(biome(off)); biomes[24] = biome(center);
   offsets.forEach(([x,y],i) => { if (mask & (1 << i)) biomes[(3+y)*7+3+x] = biome(on); });
-  return {spaceId:0,seed:0,version:0,width:7,height:7,biomes,blocked:Array<boolean>(49).fill(false),horseJumpableTerrain:Array<boolean>(49).fill(false),elevations:new Int16Array(49),dirtCliffRoles:new Uint8Array(49),dirtTerraces:new Uint8Array(49)};
+  return {spaceId:0,seed:0,version:0,width:7,height:7,biomes,blocked:new Uint8Array(49),horseJumpableTerrain:new Uint8Array(49),elevations:new Int16Array(49),dirtCliffRoles:new Uint8Array(49),dirtTerraces:new Uint8Array(49)};
 }
 export function ruleBaselineOutputs(assetNames: readonly string[]): Readonly<Record<string, unknown>> {
   const results: Record<string, unknown> = {};

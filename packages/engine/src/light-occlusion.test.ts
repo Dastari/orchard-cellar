@@ -32,8 +32,8 @@ function terrain(spaceId = TOPSIDE_SPACE_ID): TerrainArray {
     baseDatum: spaceId === TOPSIDE_SPACE_ID ? 0 : 1,
     ...(spaceId === TOPSIDE_SPACE_ID ? {} : { fixedTerrainPlane: 0 }),
     biomes: new Uint8Array(length).fill(SURVIVAL_BIOMES.indexOf('plains')),
-    blocked: Array<boolean>(length).fill(false),
-    horseJumpableTerrain: Array<boolean>(length).fill(false),
+    blocked: new Uint8Array(length),
+    horseJumpableTerrain: new Uint8Array(length),
     elevations: new Int16Array(length),
     dirtCliffRoles: new Uint8Array(length),
     dirtTerraces: new Uint8Array(length),
@@ -46,7 +46,7 @@ describe('Systems/Lighting & Seasons: light occlusion classification', () => {
     source.elevations[0] = 1;
     source.dirtCliffRoles[2] = SURVIVAL_DIRT_CLIFF_ROLES.indexOf('edge');
     source.biomes[8] = SURVIVAL_BIOMES.indexOf('water');
-    (source.blocked as boolean[])[8] = true;
+    source.blocked[8] = 1;
     const map = createLightOcclusionMap(source);
     expect(map.hardBlocked[3]).toBe(1);
     expect(map.frontFaces[3]).toBe(1);
@@ -56,7 +56,7 @@ describe('Systems/Lighting & Seasons: light occlusion classification', () => {
 
   it('uses fixed-space border collision as underground walls', () => {
     const source = terrain(1);
-    (source.blocked as boolean[])[0] = true;
+    source.blocked[0] = 1;
     expect(createLightOcclusionMap(source).hardBlocked[0]).toBe(1);
   });
 
@@ -68,14 +68,14 @@ describe('Systems/Lighting & Seasons: light occlusion classification', () => {
       width,
       height,
       biomes: new Uint8Array(width * height).fill(SURVIVAL_BIOMES.indexOf('plains')),
-      blocked: Array<boolean>(width * height).fill(true),
-      horseJumpableTerrain: Array<boolean>(width * height).fill(false),
+      blocked: new Uint8Array(width * height).fill(1),
+      horseJumpableTerrain: new Uint8Array(width * height),
       elevations: new Int16Array(width * height).fill(1),
       dirtCliffRoles: new Uint8Array(width * height),
       dirtTerraces: new Uint8Array(width * height),
     };
     for (let y = 3; y < height; y += 1) for (let x = 1; x < width - 1; x += 1) {
-      (source.blocked as boolean[])[y * width + x] = false;
+      source.blocked[y * width + x] = 0;
       source.elevations[y * width + x] = 0;
     }
     const map = createLightOcclusionMap(source);

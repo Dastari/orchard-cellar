@@ -17,9 +17,10 @@ import {
   positionCollides,
   terrainPlaneAtPosition,
 } from './movement.js';
+import { cellFlags } from './cell-flags.js';
 
 describe('player movement collision', () => {
-  const open = { width: 4, height: 4, blocked: Array<boolean>(16).fill(false) };
+  const open = { width: 4, height: 4, blocked: new Uint8Array(16) };
 
   it('uses a compact foot box that can pass visually behind canopies', () => {
     const position = { x: TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2, y: TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 };
@@ -37,8 +38,8 @@ describe('player movement collision', () => {
   });
 
   it('slides one axis when diagonal travel meets a blocked base tile', () => {
-    const blocked = [...open.blocked];
-    blocked[2 * open.width + 2] = true;
+    const blocked = open.blocked.slice();
+    blocked[2 * open.width + 2] = 1;
     const start = {
       position: { x: 2 * TILE_SIZE_FIXED - 5 * FIXED_UNITS_PER_PIXEL, y: 2 * TILE_SIZE_FIXED - 4 * FIXED_UNITS_PER_PIXEL },
       facing: 'down' as const,
@@ -102,7 +103,7 @@ describe('player movement collision', () => {
       location: 'estate' as const,
     };
     const elevations = Uint8Array.from([0, 1]);
-    const legacy = { width: 2, height: 1, blocked: [false, false], elevations };
+    const legacy = { width: 2, height: 1, blocked: cellFlags([false, false]), elevations };
     expect(movePlayer(start, 'right', legacy).position.x).toBeGreaterThan(start.position.x);
     const cliff = { ...legacy, terrainTransitions: [] };
     expect(movePlayer(start, 'right', cliff).position).toEqual(start.position);
@@ -130,7 +131,7 @@ describe('player movement collision', () => {
     expect(movementPositionAllowed(from, to, {
       width: 2,
       height: 1,
-      blocked: [false, false],
+      blocked: cellFlags([false, false]),
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     })).toBe(false);
@@ -144,7 +145,7 @@ describe('player movement collision', () => {
     const map = {
       width: 4,
       height: 1,
-      blocked: [false, false, false, false],
+      blocked: cellFlags([false, false, false, false]),
       elevations: Uint8Array.from([0, 0, 1, 1]),
       terrainTransitions: [],
       terrainPlaneBlocked,
@@ -176,7 +177,7 @@ describe('player movement collision', () => {
     // the floor in front of its displaced wall art is open, and stepping onto
     // the dais footprint from the lower plane is an illegal height change.
     expect(collisionTileIsBlockedAtPlane(map, 14, 16, 0)).toBe(false);
-    expect(layout.blocked[16 * layout.width + 14]).toBe(false);
+    expect(layout.blocked[16 * layout.width + 14]).toBe(0);
     const from = {
       x: 14 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
       y: 17 * TILE_SIZE_FIXED + PLAYER_HITBOX_FOOT_OFFSET + 1,
@@ -198,7 +199,7 @@ describe('player movement collision', () => {
     const map = {
       width: 3,
       height: 1,
-      blocked: [false, false, false],
+      blocked: cellFlags([false, false, false]),
       elevations: Int16Array.from([-1, 0, 1]),
       terrainMinimumElevation: -1,
       terrainTransitions: [],
@@ -214,7 +215,7 @@ describe('player movement collision', () => {
     const map = {
       width: 2,
       height: 1,
-      blocked: [false, false],
+      blocked: cellFlags([false, false]),
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
       fixedTerrainPlane: 0,
@@ -237,7 +238,7 @@ describe('player movement collision', () => {
     const map = {
       width,
       height,
-      blocked: Array<boolean>(width * height).fill(false),
+      blocked: new Uint8Array(width * height),
       elevations,
       terrainTransitions: [],
       fixedTerrainPlane: 0,
@@ -266,7 +267,7 @@ describe('player movement collision', () => {
     const map = {
       width,
       height,
-      blocked: Array<boolean>(width * height).fill(false),
+      blocked: new Uint8Array(width * height),
       elevations,
       terrainTransitions: [],
       fixedTerrainPlane: 0,
@@ -297,7 +298,7 @@ describe('player movement collision', () => {
   });
 
   it('lets a persisted actor escape newly-solid terrain without moving farther through it', () => {
-    const map = { width: 2, height: 1, blocked: [true, false] };
+    const map = { width: 2, height: 1, blocked: cellFlags([true, false]) };
     const embedded = {
       x: TILE_SIZE_FIXED - PLAYER_HITBOX_HALF_WIDTH / 2,
       y: TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
@@ -376,8 +377,8 @@ describe('player movement collision', () => {
     });
 
     it('preserves terrain and elevation restrictions during object recovery', () => {
-      const blocked = [...open.blocked];
-      blocked[1 * open.width + 1] = true;
+      const blocked = open.blocked.slice();
+      blocked[1 * open.width + 1] = 1;
       expect(movementPositionAllowed(at, step(-1), {
         ...open, blocked, obstacles: [rightObstacle],
       })).toBe(false);
@@ -400,7 +401,7 @@ describe('player movement collision', () => {
     const map = {
       width: 2,
       height: 1,
-      blocked: [false, false],
+      blocked: cellFlags([false, false]),
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     };
@@ -435,7 +436,7 @@ describe('player movement collision', () => {
     const map = {
       width: 3,
       height: 1,
-      blocked: [false, false, false],
+      blocked: cellFlags([false, false, false]),
       elevations: Uint8Array.from([0, 1, 2]),
       terrainTransitions: [],
     };
@@ -455,21 +456,21 @@ describe('player movement collision', () => {
       x: TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
       y: TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
     };
-    const blocked = Array<boolean>(width * height).fill(false);
-    const jumpable = Array<boolean>(width * height).fill(false);
-    blocked[width + 2] = true;
-    jumpable[width + 2] = true;
+    const blocked = new Uint8Array(width * height);
+    const jumpable = new Uint8Array(width * height);
+    blocked[width + 2] = 1;
+    jumpable[width + 2] = 1;
     const oneGap = { width, height, blocked, horseJumpableTerrain: jumpable };
     expect(findPlayerJumpLanding(start, 'right', oneGap, 0, 0)).toBeNull();
     expect(findPlayerJumpLanding(start, 'right', oneGap, 1, 0)).toEqual({
       x: start.x + 2 * TILE_SIZE_FIXED, y: start.y,
     });
 
-    const threeGapBlocked = Array<boolean>(width * height).fill(false);
-    const threeGapJumpable = Array<boolean>(width * height).fill(false);
+    const threeGapBlocked = new Uint8Array(width * height);
+    const threeGapJumpable = new Uint8Array(width * height);
     for (const tileX of [2, 3, 4]) {
-      threeGapBlocked[width + tileX] = true;
-      threeGapJumpable[width + tileX] = true;
+      threeGapBlocked[width + tileX] = 1;
+      threeGapJumpable[width + tileX] = 1;
     }
     const threeGaps = {
       width, height, blocked: threeGapBlocked, horseJumpableTerrain: threeGapJumpable,
@@ -482,7 +483,7 @@ describe('player movement collision', () => {
     const elevations = new Uint8Array(width * height);
     elevations[width + 2] = 1;
     const cliff = {
-      width, height, blocked: Array<boolean>(width * height).fill(false),
+      width, height, blocked: new Uint8Array(width * height),
       elevations, terrainTransitions: [],
     };
     expect(findPlayerJumpLanding(start, 'right', cliff, 3, 0)).toBeNull();
@@ -495,7 +496,7 @@ describe('player movement collision', () => {
       x: start.x + TILE_SIZE_FIXED, y: start.y,
     });
     expect(findPlayerJumpLanding(start, 'right', {
-      width, height, blocked: Array<boolean>(width * height).fill(false),
+      width, height, blocked: new Uint8Array(width * height),
     }, 3, 3)).toBeNull();
   });
 });

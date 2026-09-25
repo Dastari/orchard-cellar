@@ -6,7 +6,7 @@ import {
 import { validateRuntimeManifest, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
 import { AuthorityCollisionBuilder, chunkAuthorityMetadata, composeAuthorityCollision } from '@orchard/sim/chunk-collision';
 import {
-  canonicalChunkJson, WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_SIZE,
+  canonicalChunkJson, worldChunkHasAuthority, WORLD_CHUNK_SIZE,
   type WorldChunkManifest,
 } from '@orchard/sim/world-chunk';
 
@@ -136,7 +136,7 @@ export function assembleChunkLiveIslandRuntime(
       issues.push({ kind: 'blob_invalid', cx, cy, detail: error instanceof Error ? error.message : String(error) });
       continue;
     }
-    if (chunk.authoritySchema !== WORLD_CHUNK_AUTHORITY_SCHEMA) { issues.push({ kind: 'authority_missing', cx, cy }); continue; }
+    if (!worldChunkHasAuthority(chunk)) { issues.push({ kind: 'authority_missing', cx, cy }); continue; }
     // Validates every channel shape before writing any cell of this chunk.
     const bad = builder.add(chunk, cx, cy);
     if (bad !== undefined) { issues.push({ kind: 'blob_invalid', cx, cy, detail: `channel ${bad}` }); continue; }

@@ -23,6 +23,7 @@
     "placeable-interaction-acceptance.ts",
     "placeable-interaction-acceptance-policy.ts",
     "content-head-release.ts",
+    "world-chunks-publish.ts",
     "legacy-cooking-release-gate.ts",
     "../packages/tools/src/world-state-parity.ts"
   ]

@@ -70,7 +70,7 @@ export async function runLightingReview(inputs: readonly LightingReviewAsset[], 
   const canvas = document.createElement('canvas'); canvas.width = width * zoom; canvas.height = height * zoom;
   const context = canvas.getContext('2d')!;
   const terrain: TerrainArray = { spaceId: 58, seed: 58, version: 1, width: 20, height: 12,
-    biomes: new Uint8Array(240), blocked: Array<boolean>(240).fill(false), horseJumpableTerrain: Array<boolean>(240).fill(false),
+    biomes: new Uint8Array(240), blocked:new Uint8Array(240), horseJumpableTerrain:new Uint8Array(240),
     elevations: new Int16Array(240), dirtCliffRoles: new Uint8Array(240), dirtTerraces: new Uint8Array(240), projectionStyle: 'interior', baseDatum: 0 };
   const placements = [
     ['tile_cf_water', 250, 80], ['tile_cf_stone_cliff_variants', 238, 116], ['prop_cf_cave_doorway', 260, 116],

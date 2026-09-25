@@ -218,15 +218,15 @@ describe('on mode',()=>{
  it('never builds or swaps a buffer for the old space after a space change mid-refresh',async()=>{
   const h=harness({authority:'on'}),rev1=revision(0);
   try{
-   const release=h.hold('atlas');h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
-   // The first pass is paused at the asset-revision check; the player changes space.
-   await Promise.resolve();await Promise.resolve();
+   // S4f: the atlas check no longer pauses the first pass, so it is paused at the chunk fetch.
+   const release=h.hold(rev1.hash);h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.fetchBlob.mock.calls.some(([path])=>path.includes(rev1.hash))).toBe(true));
+   // The player changes space while the old space's chunk is in flight.
    h.controller.update(h.connection,5n,view,source);release();
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('awaiting_publication'));
    await new Promise(resolve=>setTimeout(resolve,20));
    expect(h.controller.status).toMatchObject({state:'awaiting_publication',swaps:0,servingRevision:null,pendingRevision:null});
    expect(h.controller.store).toBeUndefined();
-   expect(h.fetchBlob.mock.calls.some(([path])=>path.includes(rev1.hash))).toBe(false);
   }finally{h.controller.dispose();}
  });
 
@@ -253,5 +253,147 @@ describe('shadow mode (unchanged)',()=>{
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('source_mismatch'));
    expect(h.controller.status.stale).toBe(false);expect(h.controller.compare(5,5,false)).toBeUndefined();
   }finally{h.controller.dispose();}
+ });
+});
+
+describe('spawn readiness (static world S4f)',()=>{
+ const ring=[[1,1],[0,1],[1,0],[0,0]] as const;
+ it('`on`: loads the centre chunk first and serves the first revision once it is resident, without waiting for the atlas check',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0,'assets-other',ring);
+  try{
+   const atlas=h.hold('atlas'),late=h.hold(rev1.chunks[0]!.head.contentHash);// chunk 1:1 (ring only) stays in flight
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.store).toBeDefined());
+   // Served on the centre chunk alone (the pin's core), with the atlas fetch and a ring chunk still pending.
+   const store=h.controller.store!;
+   expect(store.peekChunk(0,0)).toBeDefined();expect(store.peekChunk(1,1)).toBeUndefined();expect(store.pinnedReady).toBe(false);
+   expect(h.controller.status).toMatchObject({servingRevision:'0:1',swaps:1,stale:false});
+   // Nearest first: the centre chunk was requested before any ring chunk.
+   const chunkPaths=h.fetchBlob.mock.calls.map(([path])=>path).filter(path=>!path.includes('atlas'));
+   expect(chunkPaths[0]).toContain(rev1.chunks[3]!.head.contentHash);
+   late();
+   await vi.waitFor(()=>expect(h.controller.store?.pinnedReady).toBe(true));
+   expect(h.controller.store).toBe(store);
+   // The atlas check lands later and only marks the runtime stale (never a stop).
+   atlas();
+   await vi.waitFor(()=>expect(h.controller.status.staleReasons).toEqual(['asset']));
+   expect(h.controller.store).toBe(store);
+  }finally{h.controller.dispose();}
+ });
+
+ it('`on`: a later revision still swaps only once every pinned chunk is resident',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0,assetRevision,ring),rev2=revision(1,assetRevision,ring);
+  try{
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
+   const first=h.controller.store!;
+   const release=h.hold(rev2.chunks[0]!.head.contentHash);h.publish(2,rev2);
+   await vi.waitFor(()=>expect(h.controller.status.pendingRevision).toBe('0:2'));
+   await new Promise(resolve=>setTimeout(resolve,20));
+   expect(h.controller.store).toBe(first);
+   release();
+   await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
+   expect(h.controller.store!.pinnedReady).toBe(true);
+  }finally{h.controller.dispose();}
+ });
+
+ it('`on`: loads the pinned atlas packs only when pack delivery is enabled, and a failure is not fatal',async()=>{
+  const loads:string[][]=[];let fail=true;
+  const make=(loadAtlasPacks?:(ids:readonly string[])=>Promise<void>)=>{
+   const h=harness({authority:'on'});
+   const controller=new ChunkRuntimeController({buildMode:'on',authority:()=>'on',fetchBlob:h.fetchBlob,cache:null,...(loadAtlasPacks?{loadAtlasPacks}:{})});
+   return {h,controller};
+  };
+  const enabled=make(async ids=>{loads.push([...ids]);if(fail){fail=false;throw new Error('atlas_pack_404');}});
+  const rev1=revision(0);
+  try{
+   enabled.h.publish(1,rev1);enabled.controller.update(enabled.h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(enabled.controller.status.atlasPackFailures).toBe(1));
+   expect(enabled.controller.store?.pinnedReady).toBe(true);expect(enabled.controller.status.state).toBe('on');
+   expect(loads[0]).toEqual(['terrain-core']);
+   // Retried on a later refresh, then not repeated for the same packs.
+   enabled.controller.update(enabled.h.connection,0n,view,{...source});
+   await vi.waitFor(()=>expect(loads).toHaveLength(2));
+   expect(enabled.controller.status.atlasPackFailures).toBe(1);
+   enabled.controller.update(enabled.h.connection,0n,view,{...source});
+   await new Promise(resolve=>setTimeout(resolve,20));
+   expect(loads).toHaveLength(2);
+  }finally{enabled.controller.dispose();}
+  // Disabled (no loader passed): nothing is loaded; the consolidated atlas draws.
+  const disabled=make();
+  try{
+   disabled.h.publish(1,rev1);disabled.controller.update(disabled.h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(disabled.controller.status.state).toBe('on'));
+   expect(disabled.controller.status.atlasPackFailures).toBe(0);
+  }finally{disabled.controller.dispose();}
+ });
+
+ it('shadow is unchanged: it waits for the atlas check, loads in manifest order and never serves',async()=>{
+  const h=harness({buildMode:'shadow'}),rev1=revision(0,assetRevision,ring);
+  try{
+   const atlas=h.hold('atlas');
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await new Promise(resolve=>setTimeout(resolve,20));
+   expect(h.fetchBlob.mock.calls.every(([path])=>path.includes('atlas'))).toBe(true);
+   atlas();
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('shadow'));
+   const chunkPaths=h.fetchBlob.mock.calls.map(([path])=>path).filter(path=>!path.includes('atlas'));
+   expect(chunkPaths.map(path=>rev1.chunks.findIndex(chunk=>path.includes(chunk.head.contentHash)))).toEqual([0,1,2,3]);
+   expect(h.controller.store).toBeUndefined();expect(h.controller.status.atlasPackFailures).toBe(0);
+  }finally{h.controller.dispose();}
+ });
+
+ it('`on`: reports subscribing only until the space\'s first subscription applies, then never on a pin change',async()=>{
+  const h=harness({authority:'on'});
+  try{
+   h.controller.update(h.connection,0n,view,source);
+   expect(['idle','subscribing']).toContain(h.controller.status.state);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('awaiting_publication'));
+   // Nothing published (a rollback): a window move re-subscribes the regional heads, but the
+   // space-wide manifest query already answered, so movement is never held for it.
+   h.controller.update(h.connection,0n,[640,640,700,700],source);
+   expect(h.controller.status.state).toBe('awaiting_publication');
+   await new Promise(resolve=>setTimeout(resolve,10));
+   expect(h.controller.status.state).toBe('awaiting_publication');
+  }finally{h.controller.dispose();}
+ });
+
+ it('`on`: exposes the serving store\'s chunks whose load failed, until they load',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0,assetRevision,ring);
+  try{
+   h.failing.add(rev1.chunks[0]!.head.contentHash);// 1:1 fails
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.failedChunks.has('1:1')).toBe(true));
+   expect(h.controller.store).toBeDefined();
+   h.failing.clear();h.controller.update(h.connection,0n,view,{...source});
+   await vi.waitFor(()=>expect(h.controller.failedChunks.size).toBe(0));
+   expect(h.controller.store!.peekChunk(1,1)).toBeDefined();
+  }finally{h.controller.dispose();}
+  expect(new ChunkRuntimeController({buildMode:'shadow',cache:null}).failedChunks.size).toBe(0);
+ });
+
+ it('`on`: a space change forgets the applied subscription (topside, then a cave, then back before the cave applies)',async()=>{
+  const events={onInsert:()=>undefined,onUpdate:()=>undefined,onDelete:()=>undefined};
+  const pending:Array<()=>void>=[];
+  const builder=()=>{let applied=()=>{};const b={onApplied:(fn:()=>void)=>{applied=fn;return b;},onError:()=>b,
+   subscribe:()=>{pending.push(()=>applied());return{unsubscribe:()=>undefined};}};return b;};
+  const connection={db:{worldChunkShadow:{...events,spaceId:{find:()=>undefined}},worldChunkHead:{...events,iter:()=>[]}},
+   subscriptionBuilder:builder} as unknown as DbConnection;
+  const controller=new ChunkRuntimeController({buildMode:'on',authority:()=>'on',fetchBlob:async()=>new Uint8Array(),cache:null});
+  try{
+   controller.update(connection,0n,view,source);
+   pending.shift()!();
+   await vi.waitFor(()=>expect(controller.status.state).toBe('awaiting_publication'));
+   controller.update(connection,7n,view,source);// a cave: its subscription has not applied
+   await vi.waitFor(()=>expect(controller.status.state).toBe('subscribing'));
+   controller.update(connection,0n,view,source);// back to topside before the cave applied
+   await new Promise(resolve=>setTimeout(resolve,10));
+   expect(controller.status.state).toBe('subscribing');
+   // The superseded cave subscription applying late changes nothing; topside's own does.
+   pending.shift()!();await new Promise(resolve=>setTimeout(resolve,10));
+   expect(controller.status.state).toBe('subscribing');
+   pending.shift()!();
+   await vi.waitFor(()=>expect(controller.status.state).toBe('awaiting_publication'));
+  }finally{controller.dispose();}
  });
 });

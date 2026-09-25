@@ -33,6 +33,10 @@ function fixture() {
     connectionRecoveryOverlay: { composite: vi.fn(), compositeResync: vi.fn() }, drawInitialWorldLoading: vi.fn(),
     art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, itemIcons: {}, missingItem: {} },
     renderStarted: performance.now(), renderMetrics: { record: vi.fn(), recordRenderSubmit: vi.fn() },
+    // Static world S4f: terrain readiness (always ready outside chunk mode `on`).
+    spawnReadiness: { status: () => ({ ready: true }) as { ready: boolean } }, WORLD_GAP_GRACE_MS, TOPSIDE_SPACE_ID: 0, TILE_SIZE_FIXED: 256,
+    localAuthority: undefined as { spaceId: number; x: number; y: number } | undefined, worldSource: { setView: vi.fn(), advance: vi.fn(), window: vi.fn() },
+    snapshot: { content: { registry: {} } },
   };
   return { deps, render: () => new Function(...Object.keys(deps), code)(...Object.values(deps)) };
 }
@@ -104,5 +108,25 @@ describe('initial world loading versus reconnection', () => {
     expect(loadingViews.at(-1)!.update).toHaveBeenLastCalledWith({...stage,progress:99});
     expect(renderer.endUi).toHaveBeenCalledTimes(2);
     expect(context.restore).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a topside arrival waiting for terrain behind a light note and pins the chunks around the player (static world S4f)', () => {
+    const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'ready';
+    f.deps.loadingStage = { title: 'MAPPING THE SHORE', progress: 92, ready: false, error: false };
+    f.deps.spawnReadiness = { status: () => ({ ready: false }) };
+    f.deps.localAuthority = { spaceId: 0, x: 300 * 256 + 5, y: 410 * 256 };
+    f.render();
+    expect(f.deps.worldSource.setView).toHaveBeenCalledWith({ minX: 300, minY: 410, maxX: 300, maxY: 410 });
+    // The served window keeps catching up with arrived chunks while nothing is drawn.
+    expect(f.deps.worldSource.advance).toHaveBeenCalledWith(f.deps.snapshot.content.registry);
+    expect(f.deps.worldSource.window).toHaveBeenCalledWith(f.deps.snapshot.content.registry);
+    expect(f.deps.renderer.compositeWorld).toHaveBeenCalledOnce();
+    expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();
+    f.deps.worldGapStartedAt = f.deps.renderStarted - 300; f.render();
+    expect(f.deps.connectionRecoveryOverlay.compositeResync).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'terrain');
+    // Ready terrain (modes off and shadow): the pin is left to the camera as before.
+    const off = fixture(); off.deps.hasRenderedWorldFrame = true; off.deps.localAuthority = { spaceId: 0, x: 0, y: 0 };
+    off.render();
+    expect(off.deps.worldSource.setView).not.toHaveBeenCalled();
   });
 });

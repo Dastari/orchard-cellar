@@ -215,10 +215,13 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Static world S4d (PR #184) makes engine/collision.ts origin-aware for chunk windows and adds the chunk
 // collision builder path; whole maps (no origin) behave as before. Chunk-collision parity and pinned
 // whole-map collision digests cover it; the other four seams are unchanged.
+// Uint8Array flag planes (S4f follow-up) store engine/collision.ts's blocked planes as 0/1 bytes instead
+// of boolean[] (cellar boundary, water, dock correction; built with cellFlagsWhere). The pinned whole-map collision digests cover
+// it (the same bytes); the other four seams are unchanged.
 // One item-slot look: ui/overworld-ui.ts passes icon-only painters (drawItemIcon) to the HUD hotbar and
 // character equipment; the kit slot draws count, wear bar and hotkey; the inventory tooltip sits above the hovered
 // slot (owner item 7). Slot, character, HUD and feedback tests cover it.
-const STRUCTURAL_SEAM_DIGEST = '53c0467d6602ba1baca5fbbcaaadc995a312036284ea4e6f1f0309eb48ef1499';
+const STRUCTURAL_SEAM_DIGEST = '67f30722c222ab877e3bf50ba8c5c9fd34a2a2673911243d92509898ae8166ea';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

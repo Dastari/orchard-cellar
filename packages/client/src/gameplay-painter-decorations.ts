@@ -10,14 +10,14 @@ import { drawOverworldPlaceable, drawOverworldPoiDecoration, drawOverworldRogueD
 import { worldPointVisible } from '@orchard/engine/camera';
 import { unifiedDecorationLightReceiver } from '@orchard/engine/lighting';
 import { isLightEmitterKind, placeablePointLight } from '@orchard/engine/light-sources';
-import { liveIslandDocument,liveMapObjectPointLights } from '@orchard/engine/live-map-runtime';
+import { mapObjectPointLights } from '@orchard/engine/map-object-presentation';
 import { homesteadTentPresentationTargets } from './homestead-presentation.js';
 import type { GameplayPainterInputs, RuntimeSurvivalDecoration } from './gameplay-painter-inputs.js';
 
 type Inputs = Pick<GameplayPainterInputs,
   'dynamicLighting' | 'snapshot' | 'objectPresentations' | 'lightVisible' | 'pointLights' |
   'projectedLight' | 'debugEntitiesHidden' | 'activeSpaceDefinition' | 'homesteadSurroundingDecorations' | 'seed' |
-  'topsideDecorations' | 'visible' | 'enqueueWorldDepth' | 'context' | 'art' |
+  'topsideDecorations' | 'topsideMapRecords' | 'visible' | 'enqueueWorldDepth' | 'context' | 'art' |
   'cameraX' | 'cameraY' | 'scale' | 'visualTickClock' | 'renderWeather' |
   'frameLightingModel' | 'drawSouthFacingReceiver' | 'nameplates' | 'renderedPlayerAnchors'
 >;
@@ -27,7 +27,7 @@ function buildEnqueueGameplayDecorations(input: Inputs): void {
   const {
     dynamicLighting, snapshot, objectPresentations, lightVisible, pointLights,
     projectedLight, debugEntitiesHidden, activeSpaceDefinition, homesteadSurroundingDecorations, seed,
-    topsideDecorations, visible, enqueueWorldDepth, context, art,
+    topsideDecorations, topsideMapRecords, visible, enqueueWorldDepth, context, art,
     cameraX, cameraY, scale, visualTickClock, renderWeather,
     frameLightingModel, drawSouthFacingReceiver, nameplates,
   } = input;
@@ -51,9 +51,7 @@ function buildEnqueueGameplayDecorations(input: Inputs): void {
     }
   }
   if(dynamicLighting&&!debugEntitiesHidden&&activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID){
-    for(const light of liveMapObjectPointLights(liveIslandDocument(
-      snapshot.liveMapDocument, snapshot.content.registry,
-    ),snapshot.content.registry,snapshot.clock?.authorityTick??0n,true)){
+    for(const light of mapObjectPointLights(topsideMapRecords,snapshot.content.registry,snapshot.clock?.authorityTick??0n,true)){
       if(worldPointVisible(light.worldX,light.worldY,{left:visible.left-light.radiusTiles*16,right:visible.right+light.radiusTiles*16,top:visible.top-light.radiusTiles*16,bottom:visible.bottom+light.radiusTiles*16}))
         pointLights.push(projectedLight(light,light.receiverDirectionWorldY,light.terrainContactX));
     }
@@ -85,14 +83,11 @@ function buildEnqueueGameplayDecorations(input: Inputs): void {
   }
   if (!debugEntitiesHidden && (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     || activeSpaceDefinition.generator === 'homestead')) {
-    const authoredMapDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-      ? liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry) : null;
+    const authoredMapDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? topsideMapRecords : null;
     const decorations: readonly RuntimeSurvivalDecoration[] = activeSpaceDefinition.generator === 'homestead'
       ? homesteadSurroundingDecorations(seed) : topsideDecorations(snapshot, seed);
     const generatedSuppressions = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-      ? new Set(liveIslandDocument(
-          snapshot.liveMapDocument, snapshot.content.registry,
-        )?.generatedSuppressions ?? [])
+      ? new Set(topsideMapRecords?.generatedSuppressions ?? [])
       : new Set<string>();
     const landmarkCampfires = new Map(runtimeLandmarkCampfirePlans(snapshot.content.registry)
       .filter(plan => plan.spaceId === activeSpaceDefinition.spaceId)

@@ -22,8 +22,8 @@ export function patchMapEditorTerrain(previous: TerrainArray, before: MapDocumen
   if(keys.length>4096)return null;
   const changed=keys.map(key=>{const [x,y]=key.split(',');return {tileX:Number(x),tileY:Number(y)};});
   const length=previous.width*previous.height, doc=terrainDocumentForMapV3(after);
-  const elevations=previous.elevations.slice(),biomes=previous.biomes.slice(),blocked=[...previous.blocked];
-  const horseJumpableTerrain=[...previous.horseJumpableTerrain], dirtTerraces=previous.dirtTerraces.slice(),dirtCliffRoles=previous.dirtCliffRoles.slice();
+  const elevations=previous.elevations.slice(),biomes=previous.biomes.slice(),blocked=previous.blocked.slice();
+  const horseJumpableTerrain=previous.horseJumpableTerrain.slice(), dirtTerraces=previous.dirtTerraces.slice(),dirtCliffRoles=previous.dirtCliffRoles.slice();
   const familyIds=[...(previous.cliffFamilyIds??[after.defaultCliffFamily??'stone_1'])];
   const cliffFamilies=previous.cliffFamilies?.slice()??new Uint8Array(length).fill(1);
   const surfaceFamilies=previous.surfaceFamilies?.slice()??new Uint8Array(length).fill(surfaceFamilyIndex(after.defaultSurfaceFamily??'grass_1'));
@@ -46,8 +46,8 @@ export function patchMapEditorTerrain(previous: TerrainArray, before: MapDocumen
     const hasSurface=authored?.surface!==undefined||authored?.feature!==undefined;
     const biome=semantic?.biome??(hasSurface?surfaceBiome(surface):generated?survivalBiomeAt(previous.seed,tileX,tileY):after.baseBiome??surfaceBiome(surface));
     elevations[index]=cell.elevation;biomes[index]=Math.max(0,SURVIVAL_BIOMES.indexOf(biome));
-    blocked[index]=cell.collision==='force_block'||(cell.collision!=='force_walk'&&(cell.ledge||!TERRAIN_MATERIAL_DEFINITIONS[cell.surface].walkable||cell.feature==='river'));
-    horseJumpableTerrain[index]=survivalBiomeAllowsHorseJump(biome);
+    blocked[index]=cell.collision==='force_block'||(cell.collision!=='force_walk'&&(cell.ledge||!TERRAIN_MATERIAL_DEFINITIONS[cell.surface].walkable||cell.feature==='river'))?1:0;
+    horseJumpableTerrain[index]=survivalBiomeAllowsHorseJump(biome)?1:0;
     if(!familyIds.includes(cell.cliffFamily))familyIds.push(cell.cliffFamily);
     if(familyIds.length>255)return null;
     cliffFamilies[index]=familyIds.indexOf(cell.cliffFamily)+1;surfaceFamilies[index]=surfaceFamilyIndex(cell.surfaceFamily);

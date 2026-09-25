@@ -42,7 +42,7 @@ export function collisionCellIndex(map: Pick<CollisionMap, 'width' | 'height' | 
  * or a window is blocked. */
 export function collisionTileIsBlocked(map: CollisionMap, tileX: number, tileY: number): boolean {
   const index = collisionCellIndex(map, tileX, tileY);
-  return index < 0 || (map.blocked[index] ?? true);
+  return index < 0 || (map.blocked[index] ?? 1) !== 0;
 }
 
 /** Resolves both ordinary terrain and blockers belonging to one elevation.
@@ -66,7 +66,7 @@ export function collisionTileIsBlockedAtPlane(
 function tileIsHorseJumpableTerrain(map: CollisionMap, tileX: number, tileY: number): boolean {
   const index = collisionCellIndex(map, tileX, tileY);
   if (index < 0) return false;
-  return map.horseJumpableTerrain?.[index] ?? false;
+  return (map.horseJumpableTerrain?.[index] ?? 0) !== 0;
 }
 
 export function positionCollidesTerrain(position: Vec2Fixed, map: CollisionMap): boolean {

@@ -12,8 +12,8 @@ function fixture(index = 0) {
     chunkX: Math.floor(site.tileX / 16), chunkY: Math.floor(site.tileY / 16) };
   const size = 832 * 832;
   const terrain: TerrainArray = { spaceId: 30000, seed: 1, version: 1, width: 832, height: 832,
-    blocked: Array<boolean>(size).fill(false), elevations: new Int16Array(size).fill(site.elevation), biomes: new Uint8Array(size),
-    horseJumpableTerrain: Array<boolean>(size).fill(false), dirtCliffRoles: new Uint8Array(size), dirtTerraces: new Uint8Array(size) };
+    blocked: new Uint8Array(size), elevations: new Int16Array(size).fill(site.elevation), biomes: new Uint8Array(size),
+    horseJumpableTerrain: new Uint8Array(size), dirtCliffRoles: new Uint8Array(size), dirtTerraces: new Uint8Array(size) };
   const collision = createClientCollisionMap(terrain, [resource], [], 'ground', [], new Set(), undefined, registry,
     { width: 832, height: 832, blocked: terrain.blocked, elevations: terrain.elevations });
   const player = { x: (site.tileX + .5) * TILE_SIZE_FIXED, y: (site.tileY + 2) * TILE_SIZE_FIXED };
