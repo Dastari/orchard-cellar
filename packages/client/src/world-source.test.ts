@@ -276,7 +276,6 @@ describe('WorldSource collision (static world S4d)', () => {
 });
 
 describe('WorldSource staged window moves (static world S4f)', () => {
-  const legacyTerrain = { width: SIZE, height: SIZE } as TerrainArray;
   // The window 1:0 (tiles 64-383 x 0-319) keeps views with minX >= 96; views in [96, 112) are in the lookahead band.
   const START = { minX: 230, minY: 100, maxX: 270, maxY: 122 };
   const BAND = { minX: 100, minY: 100, maxX: 140, maxY: 122 };
@@ -356,7 +355,7 @@ describe('WorldSource staged window moves (static world S4f)', () => {
   });
 
   it('switches at once when the view outruns the prepared window, and drops it when the view turns back', () => {
-    const { source, first, pins } = staging();
+    const { source } = staging();
     source.setView(BAND);
     source.advance(registry); // built, not yet served
     expect(source.stagingStatus.pending).toBe('0:0:5x5:collision');
@@ -374,7 +373,6 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     expect(other.source.stagingStatus.pending).toBeNull();
     expect(other.pins.at(-1)).toEqual(other.pins[0]);
     expect(other.source.window(registry)).toBe(other.first);
-    void first; void pins;
   });
 
   it('waits for every published chunk of the next window before building it', () => {
