@@ -4892,12 +4892,6 @@ function renderFrame(alpha = 1): void {
     'painterDraw',
     Math.max(0, performance.now() - painterDrawStartedAt - painterWeatherMs),
   );
-  const markerTarget = selectedEntityTarget;
-  const markedTarget = markerTarget === null ? undefined
-    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
-  if (!interfaceHidden && markedTarget !== undefined) {
-    drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
-  }
   renderItems += worldDepthItems.length;
   if (dynamicLighting) {
     renderMetrics.recordStage('lightingBoundsResize', lightmap.boundsResizeMs);
@@ -4936,6 +4930,24 @@ function renderFrame(alpha = 1): void {
   else drawWind();
   weatherStageMs += performance.now() - windWeatherStartedAt;
   renderMetrics.recordStage('weather', weatherStageMs);
+  if (!dynamicLighting) {
+    const basicStartedAt = performance.now();
+    compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
+    renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
+  } else if (!seasonalDynamic) {
+    // Original one-pass lightmap: baked sprite shadows plus object illumination.
+    lightmap.composite(context, cameraX, cameraY, scale);
+    renderMetrics.recordStage('lightingComposite', lightmap.compositeMs);
+  }
+  // Selection markers, tile reticles, aim guides and debug overlays are interface:
+  // drawn after the lighting pass so night and shade never dim them. The unified
+  // model lights each receiver as it draws, so it reaches the same result.
+  const markerTarget = selectedEntityTarget;
+  const markedTarget = markerTarget === null ? undefined
+    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
+  if (!interfaceHidden && markedTarget !== undefined) {
+    drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
+  }
   const farmItem = selectedItem(snapshot);
   const placementItemDefinition = liveItemDefinition(snapshot, farmItem);
   const placementContentDefinition = liveItemContentDefinition(snapshot, farmItem);
@@ -5048,15 +5060,6 @@ function renderFrame(alpha = 1): void {
       context.strokeRect(selectedScreenX, selectedScreenY, 16 * scale, 16 * scale);
       context.restore();
     }
-  }
-  if (!dynamicLighting) {
-    const basicStartedAt = performance.now();
-    compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
-    renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
-  } else if (!seasonalDynamic) {
-    // Original one-pass lightmap: baked sprite shadows plus object illumination.
-    lightmap.composite(context, cameraX, cameraY, scale);
-    renderMetrics.recordStage('lightingComposite', lightmap.compositeMs);
   }
   const finalWorldCompositeStartedAt = performance.now();
   renderer.compositeWorld();
