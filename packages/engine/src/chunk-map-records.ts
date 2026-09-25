@@ -2,7 +2,7 @@ import type {
   CombatRegion, ContentRegistry, GeneratedSurvivalDecoration, MapContentLayerDefinition, MapLandmarkInstance, MapObjectInstance, MapPrefabDocumentV2,
 } from '@orchard/sim';
 import { chunkAuthorityMetadata } from '@orchard/sim/chunk-collision';
-import type { ChunkJson, WorldChunk, WorldChunkManifest } from '@orchard/sim/world-chunk';
+import { worldChunkHasAuthority, type ChunkJson, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import { CHUNK_WINDOW_MARGIN_TILES, type ChunkWindowRect, type ChunkWindowSource } from './chunk-terrain-window.js';
 import type { MapObjectRecords } from './map-object-presentation.js';
 import type { TerrainArray } from './terrain-array.js';
@@ -190,8 +190,10 @@ function chunkView(chunk: WorldChunk, cx: number, cy: number): ChunkMapRecordsVi
   let view = chunkViews.get(chunk);
   if (view === undefined) {
     const lists: Record<Kind, Ordered[]> = { objects: [], landmarks: [], decoration: [], 'authority.walkable': [] };
+    // Authority records only from a known authority version (a later one falls back, as collision does).
+    const authority = worldChunkHasAuthority(chunk);
     for (const item of chunk.records) {
-      if (!Object.prototype.hasOwnProperty.call(KINDS, item.kind)) continue;
+      if (!Object.prototype.hasOwnProperty.call(KINDS, item.kind) || (!authority && item.kind.startsWith('authority.'))) continue;
       const kind = item.kind as Kind;
       if (!KINDS[kind](item.value)) throw new Error(`chunk_map_record_invalid:${kind}@${cx},${cy}#${item.ordinal}`);
       lists[kind].push({ ordinal: item.ordinal, value: item.value });
