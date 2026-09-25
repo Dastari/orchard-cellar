@@ -6,10 +6,13 @@ import { UiElement } from '../runtime/element.js';
 import type { UiStyle } from '../layout/box.js';
 import { UI_TEXT_METRICS, type UiTextRole } from '../tokens.js';
 import { UI_TONE_FACES, resolveUiTextContrast } from '../skin/contrast.js';
-import { uiElementTone, uiElementTextContrast } from './art.js';
+import { uiElementTone, uiElementTextContrast, uiElementUpperCase } from './art.js';
 export interface UiTextOptions {
   readonly id?: string; readonly role?: UiTextRole; readonly layout?: UiStyle;
   readonly overflow?: 'wrap' | 'ellipsis' | 'clip'; readonly outline?: boolean; readonly wrap?: boolean; readonly maxLines?: number; readonly align?: 'left' | 'center' | 'right';
+  /** Inside caps surfaces (game windows and books) short labels paint in caps. Wrapped text is a paragraph
+   * (a hint, a status sentence, an error) and keeps its authored case unless this asks for 'upper'. */
+  readonly textCase?: 'upper' | 'as-authored';
 }
 export function uiTextLines(value: string, width: number, role: UiTextRole, wrap = true, maxLines = Infinity): string[] {
   const cell = UI_TEXT_METRICS[role].glyphWidth + 1;
@@ -32,9 +35,19 @@ export function uiText(value: string, options: UiTextOptions = {}): UiElement {
   const role = options.role ?? 'body', metrics = UI_TEXT_METRICS[role];
   const linesFor = (text: string, width: number) => options.overflow === 'clip' ? text.split('\n').slice(0, options.maxLines)
     : uiTextLines(text, width, role, options.overflow ? options.overflow === 'wrap' : options.wrap, options.maxLines);
-  return new UiElement({ id: options.id, kind: 'text', label: value, props: { text: value, role }, style: { shrink: 0, ...options.layout },
+  // Owner item 10: paragraphs (wrapped text) stay as authored inside caps windows; labels follow the surface.
+  const wrapped = options.overflow ? options.overflow === 'wrap' : options.wrap === true;
+  const textCase = options.textCase ?? (wrapped ? 'as-authored' : undefined);
+  let source = '', upper = '';
+  const shown = (element: UiElement) => {
+    const text = String(element.props['text']);
+    if (!uiElementUpperCase(element)) return text;
+    if (text !== source) { source = text; upper = text.toUpperCase(); }
+    return upper;
+  };
+  return new UiElement({ id: options.id, kind: 'text', label: value, props: { text: value, role, ...(textCase ? { textCase } : {}) }, style: { shrink: 0, ...options.layout },
     measure(element, available) {
-      const text = String(element.props['text']);
+      const text = shown(element);
       const natural = Math.max(0, ...text.split('\n').map(line => line.length * (metrics.glyphWidth + 1) - 1));
       const width = Math.min(available.width, natural);
       const height = linesFor(text, width).length * metrics.lineHeight;
@@ -42,7 +55,7 @@ export function uiText(value: string, options: UiTextOptions = {}): UiElement {
     },
     paint(element, { context, art }) {
       if (!art) return;
-      const r = element.rect, lines = linesFor(String(element.props['text']), r.width);
+      const r = element.rect, lines = linesFor(shown(element), r.width);
       const asset = metrics.font === 'header' ? art.pixel.headerFont : art.pixel.font;
       // An explicit ink is reserved for fixed dark surfaces such as tooltips; everything else follows its tone.
       const color = typeof element.props['ink'] === 'string' ? element.props['ink'] : uiElementTextContrast(element).color;

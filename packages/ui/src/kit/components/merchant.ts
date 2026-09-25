@@ -15,7 +15,7 @@ import { uiTooltip } from './tooltip.js';
 import { uiPurseLabel } from './purse.js';
 import { uiCurrency, uiCurrencyLabel } from './currency.js';
 import { uiItemFrame } from './inventory.js';
-import { paintUiSkin } from './art.js';
+import { paintUiSkin, uiElementUpperCase } from './art.js';
 import { uiFolderTabs } from './social.js';
 import { uiGlyph, uiWindow } from './window.js';
 export interface UiMerchantRow {
@@ -123,8 +123,9 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         const inspectable = model.tab === 'buy' && options.onInspect !== undefined && options.canInspect?.(row.itemKind) === true;
         const paintName = (element: UiElement, context: CanvasRenderingContext2D, pixel: Parameters<typeof drawPixelText>[1], lit: boolean) => {
             const r = element.rect, live = current(row.itemKind) ?? row;
-            drawPixelText(context, pixel, fitPixelText(row.name, r.width, 1, pixel.font), r.x, r.y + (live.ownedQuantity !== undefined ? 2 : 6), { color: lit ? '#9e2835' : INK });
-            if (live.ownedQuantity !== undefined) drawPixelText(context, pixel, `You have ${live.ownedQuantity}`, r.x, r.y + 11, { color: MUTED });
+            const caps = uiElementUpperCase(element), name = caps ? row.name.toUpperCase() : row.name;
+            drawPixelText(context, pixel, fitPixelText(name, r.width, 1, pixel.font), r.x, r.y + (live.ownedQuantity !== undefined ? 2 : 6), { color: lit ? '#9e2835' : INK });
+            if (live.ownedQuantity !== undefined) drawPixelText(context, pixel, caps ? `YOU HAVE ${live.ownedQuantity}` : `You have ${live.ownedQuantity}`, r.x, r.y + 11, { color: MUTED });
             if (inspectable) { context.fillStyle = lit ? '#9e2835' : '#e4a672'; context.fillRect(r.x, r.y + (live.ownedQuantity !== undefined ? 10 : 14), Math.min(r.width, measurePixelText(row.name, 1, pixel.font)), 1); }
         };
         const name = inspectable

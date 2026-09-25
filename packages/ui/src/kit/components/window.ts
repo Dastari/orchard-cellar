@@ -112,7 +112,7 @@ export function uiWindow(options: UiWindowOptions): UiWindowElement {
   // Windows fit their content but never exceed the viewport: a taller body scrolls inside the chrome.
   const content = uiFlex({ direction: 'column', gap: 8, padding: WINDOW_PADDING, overflow: 'scroll-y', maxHeight: { mode: 'percent', fraction: 1 } }, [body, ...(footer ? [footer] : [])]);
   content.setProps({ touchScroll: true });
-  const window = new UiElement({ id: options.id, kind: 'window', label: options.title, props: { tone: 'primary', surface: 'wood_parchment', accent: options.accent ?? 'none' },
+  const window = new UiElement({ id: options.id, kind: 'window', label: options.title, props: { tone: 'primary', surface: 'wood_parchment', accent: options.accent ?? 'none', textCase: 'upper' },
     style: { display: 'stack', overflow: 'clip', alignSelf: 'center', maxHeight: { mode: 'percent', fraction: 1 }, maxWidth: { mode: 'percent', fraction: 1 } },
     // Reading order: title, body, footer, then the close button last in tab order.
     children: [content, header, ...(close ? [close] : [])],
