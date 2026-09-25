@@ -71,7 +71,7 @@ describe.each([
     }
   }, 180_000);
 
-  it('stays readable by deployed decoders and within the runtime blob budget', () => {
+  it('stays within the runtime blob budget; deployed decoders reject the schema 2 blobs and read the extension additively on the schema 1 encoding', () => {
     // BUG-044: the default blobs are authority schema 2 (obstacle table), which the deployed
     // decoders reject by design, so the extension's additivity for deployed decoders is
     // checked on the authority schema 1 encoding of the same chunks.
