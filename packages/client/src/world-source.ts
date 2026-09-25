@@ -43,11 +43,29 @@ function tilesetsFor(registry: ContentRegistry): RuntimeTilesetResolver {
  * what the chunk runtime pins, so large and ultrawide screens never ask the
  * bounded store for more than the 25 window chunks.
  */
+/** Window build health: a failed build falls back to the legacy terrain. */
+export interface WorldSourceStatus {
+  /** Window builds that threw (a malformed or mismatched chunk). */
+  readonly failures: number;
+  /** The last build error, cleared by the next successful build. */
+  readonly lastError: string | null;
+  /** True while the current store, window and installs keep failing (legacy is drawn). */
+  readonly fallback: boolean;
+}
+
 export class WorldSource {
   readonly #tracker = new ChunkTerrainWindowTracker();
   #rect: ChunkWindowRect | undefined;
   #pinKey = '';
+  #failures = 0;
+  #lastError: string | null = null;
+  /** The inputs of the last failed build: not retried until one of them changes. */
+  #failed: { readonly store: BoundedChunkTerrainStore; readonly rect: string; readonly installs: number } | undefined;
   constructor(private readonly dependencies: WorldSourceDependencies) {}
+
+  get status(): WorldSourceStatus {
+    return { failures: this.#failures, lastError: this.#lastError, fallback: this.#failed !== undefined };
+  }
 
   /** Topside render terrain: the chunk window when serving, else `legacy()`. */
   topsideTerrain(legacy: () => TerrainArray, registry: ContentRegistry): TerrainArray {
@@ -71,7 +89,22 @@ export class WorldSource {
     }
     const rect = this.#rect ?? pinnedRect(store);
     if (rect === undefined) return undefined;
-    return this.#tracker.update(store, rect, tilesetsFor(registry));
+    const failed = this.#failed;
+    if (failed !== undefined && failed.store === store && failed.rect === chunkWindowKey(rect) && failed.installs === store.installs) return undefined;
+    try {
+      const window = this.#tracker.update(store, rect, tilesetsFor(registry));
+      if (this.#failed !== undefined) { this.#failed = undefined; this.#lastError = null; }
+      return window;
+    } catch (error) {
+      // A malformed chunk must never stop topside rendering: draw the legacy map
+      // this frame, count it, and retry only once the store, window or chunks change.
+      this.#failures += 1;
+      this.#lastError = error instanceof Error ? error.message : String(error);
+      this.#failed = { store, rect: chunkWindowKey(rect), installs: store.installs };
+      this.#tracker.reset();
+      console.warn('Chunk terrain window failed; drawing the legacy terrain', error);
+      return undefined;
+    }
   }
 
   /** The camera's visible topside tiles, once per rendered frame. */

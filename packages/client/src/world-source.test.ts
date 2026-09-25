@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { bootstrapContentRegistry, SURVIVAL_WORLD_SIZE } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
@@ -11,7 +12,7 @@ const registry = bootstrapContentRegistry();
 const SIZE = 384;
 
 /** A 6 x 6 chunk topside map whose biome encodes the tile. */
-function fixture(spaceId = 0): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
+function fixture(spaceId = 0, extraChannel?: string): { manifest: WorldChunkManifest; chunks: Map<string, WorldChunk> } {
   const cells = SIZE * SIZE;
   const channels: Record<string, ChunkArray> = {
     biomes: Uint8Array.from({ length: cells }, (_, index) => (index % SIZE + Math.floor(index / SIZE)) % 7),
@@ -30,13 +31,15 @@ function fixture(spaceId = 0): { manifest: WorldChunkManifest; chunks: Map<strin
   const manifest = { schema: 1, chunkSize: 64, spaceId, width: SIZE, height: SIZE, assetRevision: 'a', sourceRevision: 4, sourceHash: 'map',
     metadata: { terrain: { seed: 9, version: 4, generator: 'island', projectionStyle: 'raised', baseDatum: 0 },
       collisions: { clientGround: { terrainMinimumElevation: 0 } },
-      channels: Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: 1 }])) },
+      channels: Object.fromEntries([...Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: 1 }]),
+        // A manifest channel the chunks lack: the window build must throw.
+        ...(extraChannel === undefined ? [] : [[extraChannel, { type: 'u8', planes: 1 }]])]) },
     chunks: heads } as WorldChunkManifest;
   return { manifest, chunks };
 }
 
-function servingStore(spaceId = 0) {
-  const { manifest, chunks } = fixture(spaceId);
+function servingStore(spaceId = 0, extraChannel?: string) {
+  const { manifest, chunks } = fixture(spaceId, extraChannel);
   const resident = new Set<string>();
   let pins: string[] = [];
   let installs = 0;
@@ -53,7 +56,7 @@ function servingStore(spaceId = 0) {
     pins = [...real.pinnedKeys];
     for (const key of pins) { resident.add(key); installs++; }
   };
-  return { store, pin, resident };
+  return { store, pin, resident, install: () => { installs++; } };
 }
 
 describe('WorldSource (static world S4c)', () => {
@@ -103,6 +106,46 @@ describe('WorldSource (static world S4c)', () => {
     expect(regions).not.toContainEqual({ minX: -Infinity, minY: -Infinity, maxX: Infinity, maxY: Infinity });
     const other = new WorldSource({ store: () => servingStore(7).store, pin: () => undefined });
     expect(other.topsideTerrain(legacy, registry)).toBe(legacyTerrain);
+  });
+
+  it('falls back to the legacy terrain when a window cannot be built, and reports it', () => {
+    const broken = servingStore(0, 'ledges');
+    let store = broken.store;
+    const source = new WorldSource({ store: () => store, pin: broken.pin });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    source.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    expect(source.topsideTerrain(() => legacyTerrain, registry)).toBe(legacyTerrain);
+    expect(source.status).toEqual({ failures: 1, lastError: 'chunk_window_channel_mismatch:ledges', fallback: true });
+    // Not retried every frame: only once the store, the window or the chunks change.
+    expect(source.topsideTerrain(() => legacyTerrain, registry)).toBe(legacyTerrain);
+    expect(source.status.failures).toBe(1);
+    broken.install();
+    expect(source.topsideTerrain(() => legacyTerrain, registry)).toBe(legacyTerrain);
+    expect(source.status.failures).toBe(2);
+    expect(warn).toHaveBeenCalledTimes(2);
+    // A good revision recovers.
+    const good = servingStore();
+    good.pin([128, 128, 319, 319]);
+    store = good.store;
+    const terrain = source.topsideTerrain(() => legacyTerrain, registry);
+    expect(terrain).not.toBe(legacyTerrain);
+    expect(source.status).toEqual({ failures: 2, lastError: null, fallback: false });
+    warn.mockRestore();
+  });
+
+  it('chooses the window before the frame serves terrain (no one-frame lag)', () => {
+    const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
+    const render = main.indexOf('if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) worldSource.setView(estimatedCameraTiles(localX, localY));');
+    expect(render).toBeGreaterThan(0);
+    expect(main.indexOf('const terrain = terrainForSnapshot(snapshot);', render)).toBeGreaterThan(render);
+    expect(main.slice(render, main.indexOf('const terrain = terrainForSnapshot(snapshot);', render))).not.toContain('beginWorld');
+    // A teleport serves the new window from the very next terrain request.
+    const serving = servingStore();
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
+    source.setView({ minX: 300, minY: 300, maxX: 340, maxY: 322 });
+    expect(source.topsideTerrain(() => legacyTerrain, registry).originX).toBe(64);
+    source.setView({ minX: 5, minY: 5, maxX: 45, maxY: 27 });
+    expect(source.topsideTerrain(() => legacyTerrain, registry).originX).toBe(0);
   });
 
   it('builds from the runtime pins before the first camera frame', () => {
