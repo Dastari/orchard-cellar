@@ -5,7 +5,7 @@
  * compiler, `map-document-v3` or the sim barrel, so chunk-native clients can
  * use it without shipping the generator. `survival-world.ts` re-exports every
  * public name here, so existing imports keep working and resolve to this one
- * module instance. `generator-free-leaves.test.ts` enforces the boundary. */
+ * module instance. `packages/engine/src/generator-free-modules.test.ts` enforces the boundary. */
 import type { LandmarkDecorationLayer, LandmarkDecorationRole, SpaceLandmarkDefinition } from './content/world-definition.js';
 
 export interface GeneratedSurvivalDecoration {

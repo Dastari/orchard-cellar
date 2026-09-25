@@ -7,7 +7,7 @@
  * lobby, roguelike rooms) can build collision without the map compiler.
  * `map-compiler.ts` re-exports the public names, so existing imports keep
  * working and share this one module instance (the elevation-range cache is
- * module state). `generator-free-leaves.test.ts` enforces the boundary. */
+ * module state). `packages/engine/src/generator-free-modules.test.ts` enforces the boundary. */
 import type { MapFeatureKind, MapSurfaceKind, TerrainOverride } from './map-document.js';
 import type { CellPart } from './map-cell-parts.js';
 import {

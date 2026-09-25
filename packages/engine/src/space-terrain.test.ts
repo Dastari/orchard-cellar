@@ -11,7 +11,7 @@ import {
 } from '@orchard/sim';
 import { resolve } from 'node:path';
 import { PACKAGES_ROOT, legacyModulesReachedFrom, valueImportSpecifiers } from './generator-reach.fixture.js';
-import { spaceTerrain } from './space-terrain.js';
+import { spaceTerrain, terrainWithCellarExcavations } from './space-terrain.js';
 import * as terrainModule from './terrain.js';
 import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
 import * as terrainSampling from './terrain-sampling.js';
@@ -162,6 +162,15 @@ describe('terrainForSpace output for every space kind', () => {
     const island = SPACES.find((space) => space.generator === 'island')!;
     expect(() => spaceTerrain(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION)).toThrow('space_terrain_island_requires_generator');
   });
+
+  it('refuses a second generator set, since cache keys cannot tell generator sets apart', () => {
+    terrainForSpace(handmade({ spaceId: 50_020, generator: 'debug_flat', sizeTiles: 8 }), 1, 1);
+    const island = SPACES.find((space) => space.generator === 'island')!;
+    terrainForSpace(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
+    const substitute = { island: () => { throw new Error('substitute generator used'); } };
+    expect(() => spaceTerrain(island, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, undefined, substitute))
+      .toThrow('space_terrain_generators_changed');
+  });
 });
 
 describe('terrain module split import boundary (static-world S6a)', () => {
@@ -177,11 +186,12 @@ describe('terrain module split import boundary (static-world S6a)', () => {
     const sampling = Object.entries(terrainSampling);
     expect(sampling.length).toBeGreaterThan(50);
     for (const [name, value] of sampling) expect((terrainModule as Record<string, unknown>)[name], name).toBe(value);
-    expect(terrainModule.spaceTerrain).toBe(spaceTerrain);
+    expect(terrainModule.terrainWithCellarExcavations).toBe(terrainWithCellarExcavations);
+    expect('spaceTerrain' in terrainModule).toBe(false);
   });
 
   it('leaves only island generation in terrain.ts', () => {
     const own = Object.keys(terrainModule).filter((name) => !(name in terrainSampling));
-    expect(own.sort()).toEqual(['spaceTerrain', 'terrainForSpace', 'terrainForWorld', 'terrainWithCellarExcavations']);
+    expect(own.sort()).toEqual(['terrainForSpace', 'terrainForWorld', 'terrainWithCellarExcavations']);
   });
 });

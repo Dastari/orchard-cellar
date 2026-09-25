@@ -90,6 +90,8 @@ export function terrainWithCellarExcavations(
 
 const terrainCache = new Map<string, TerrainArray>();
 const terrainClassificationCache = new Map<string, SpaceTerrainClassification>();
+/** The one generator set the caches were filled with (see `spaceTerrain`). */
+let acceptedGenerators: SpaceTerrainGenerators | undefined;
 const SPACE_GENERATOR_REVISION: Readonly<
   Record<NonNullable<TerrainArray["generator"]>, number>
 > = {
@@ -105,12 +107,14 @@ const SPACE_GENERATOR_REVISION: Readonly<
   debug_flat: 1,
 };
 
-/** Builds (and caches) the terrain of any space. Island and homestead
- * generation come from `generators`; see `SpaceTerrainGenerators`. The caches
- * are shared by every caller, so `terrainForSpace` and direct callers get the
- * same terrain objects for the same inputs. Cache keys do not include
- * `generators`: pass the island and homestead generators `terrainForSpace`
- * uses (or none), never substitutes. */
+/** Engine-internal: public callers use `terrainForSpace` (`terrain.ts`),
+ * which is the only caller that passes generators. Builds (and caches) the
+ * terrain of any space; island and homestead generation come from
+ * `generators` (see `SpaceTerrainGenerators`). The caches are shared by every
+ * caller, so `terrainForSpace` and direct callers get the same terrain objects
+ * for the same inputs. Cache keys cannot include the generators, so the first
+ * generator set passed is the only one accepted; a different set throws
+ * rather than returning terrain cached from another generator. */
 export function spaceTerrain(
   space: SpaceDefinition,
   seed: number,
@@ -120,6 +124,10 @@ export function spaceTerrain(
 ): TerrainArray {
   const islandClassification = generators.island;
   const homesteadBiomeAt = generators.homesteadBiomeAt;
+  if (islandClassification !== undefined || homesteadBiomeAt !== undefined) {
+    acceptedGenerators ??= generators;
+    if (acceptedGenerators !== generators) throw new Error('space_terrain_generators_changed');
+  }
   if (space.generator === 'island' && islandClassification === undefined) {
     throw new Error('space_terrain_island_requires_generator');
   }

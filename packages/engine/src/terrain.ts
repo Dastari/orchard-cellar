@@ -32,11 +32,8 @@ import type { TerrainArray } from "./terrain-array.js";
 
 export * from "./terrain-sampling.js";
 export {
-  spaceTerrain,
   terrainWithCellarExcavations,
   type CellarExcavationTile,
-  type SpaceTerrainClassification,
-  type SpaceTerrainGenerators,
 } from "./space-terrain.js";
 
 export function terrainForWorld(seed: number, version: number): TerrainArray {
