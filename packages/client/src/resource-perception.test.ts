@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint, type ResourcePerceptionInput } from './resource-perception.js';
 import { interactionTileAtWorldPoint } from './survival-ui.js';
@@ -100,5 +101,22 @@ describe('passive resource perception', () => {
     expect(lookup.mock.calls.length - beforeContentChange).toBe(initialLookups);
     cache.project({ ...input, spaceId: 20_001 });
     expect(lookup.mock.calls.length - beforeContentChange).toBe(initialLookups * 2);
+  });
+
+  it('keeps an edge-of-map projection byte-identical (static world S4b golden)', () => {
+    // Recorded on origin/main c2e85788 before terrain indexing moved behind terrainIndexAt().
+    const blocked = Array.from({ length: 150 * 150 }, (_, index) => index % 5 !== 0 && index % 11 !== 3);
+    const input = fixture({
+      centerTileX: 4, centerTileY: 145, terrain: { width: 150, height: 150, blocked },
+      resources: [resource(1, 3, 146), resource(2, 1, 140, 'ore_gold', 10_001, true), resource(3, 6, 148),
+        resource(4, 2, 147, 'fish_pool'), resource(5, 9, 141, 'ore_gold', 10_001, true), resource(6, 5, 146)],
+    });
+    const cache = new ResourcePerceptionCache((_seed, _space, x, y) => (x * 7 + y * 3) % 4 === 0 ? null : (x + y) % 2 ? 'ore_iron' : 'ore_gold');
+    const projections = [4, 5, 6].map((centerTileX) => cache.project({ ...input, centerTileX, capabilities: {
+      ...input.capabilities, buriedOreRadiusTiles: 9, identifyBuriedOre: centerTileX !== 5,
+      minimapOre: true, minimapOreRadiusTiles: 7, minimapFishing: true, minimapFishingRadiusTiles: 5,
+    } }));
+    const text = JSON.stringify(projections);
+    expect(`${text.length}:${createHash('sha256').update(text).digest('hex').slice(0, 32)}`).toMatchInlineSnapshot(`"32477:7280a93f428ba50c6887c264b5696c19"`);
   });
 });

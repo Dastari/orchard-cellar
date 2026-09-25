@@ -1,5 +1,6 @@
 import { terrainRuleLayers, ruleNeighbourMask } from '@orchard/sim';
 import { authoredFarmlandRuleLayersAt } from './terrain.js';
+import { terrainContains, terrainIndexAt } from './terrain-index.js';
 import {hearthDoorwayFeatures} from './hearth-doorway.js';
 import {residenceWallAt} from './residence-wall.js';
 import { groundLightSource } from './ground-light-source.js';
@@ -54,13 +55,11 @@ import {
 export const GROUND_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 
 export function groundTileInsideTerrain(
-  terrain: Pick<TerrainArray, "width" | "height">,
+  terrain: Pick<TerrainArray, "width" | "height" | "originX" | "originY">,
   tileX: number,
   tileY: number,
 ): boolean {
-  return (
-    tileX >= 0 && tileY >= 0 && tileX < terrain.width && tileY < terrain.height
-  );
+  return terrainContains(terrain, tileX, tileY);
 }
 
 export class ChunkLruCache<T> {
@@ -170,7 +169,7 @@ export function exactGroundPartsAt(
   tileY: number,
 ): ReadonlyMap<CellPartSlot, CellPart> | null {
   if (terrain.cellParts === undefined || !groundTileInsideTerrain(terrain, tileX, tileY)) return null;
-  const parts = exactAppearanceParts(terrain.cellParts.get(tileY * terrain.width + tileX));
+  const parts = exactAppearanceParts(terrain.cellParts.get(terrainIndexAt(terrain, tileX, tileY)));
   return parts.length === 0 ? null : new Map(parts.map((part) => [part.slot, part]));
 }
 
@@ -256,8 +255,8 @@ function drawUndugCaveTile(
 }
 
 function cellarOpenAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
-  return groundTileInsideTerrain(terrain, tileX, tileY)
-    && terrain.blocked[tileY * terrain.width + tileX] === false;
+  const index = terrainIndexAt(terrain, tileX, tileY);
+  return index >= 0 && terrain.blocked[index] === false;
 }
 
 function cellarFloorPatchAt(
@@ -469,7 +468,7 @@ function groundAssetForBiome(
  * Inherited/procedural terrain and independently authored grass palettes retain
  * their existing material; this is presentation, not geometry normalization. */
 export function authoredCliffGroundLayerAt(terrain: TerrainArray, tileX: number, tileY: number) {
-  const index=tileY*terrain.width+tileX;
+  const index=terrainIndexAt(terrain,tileX,tileY);
   const surface=terrain.authoredSurfaces?.[index];
   if((surface!=='stone'&&surface!=='sand')||!terrain.cliffFamilies?.[index]
     ||terrain.surfaceFamilies?.[index])return null;
@@ -487,15 +486,15 @@ export function groundAssetForTile(
   tileY: number,
   biome: SurvivalBiome,
 ): LoadedAsset {
+  const index = terrainIndexAt(terrain, tileX, tileY);
   const native=authoredCliffGroundLayerAt(terrain,tileX,tileY);
   if(native&&art.terrainAssets[native.assetId])return art.terrainAssets[native.assetId]!;
-  if (terrain.authoredSurfaces?.[tileY*terrain.width+tileX] === 'cave_floor') {
+  if (terrain.authoredSurfaces?.[index] === 'cave_floor') {
     const family=terrainCliffFamilyAt(terrain,tileX,tileY);
     return family.startsWith('dungeon') ? art.rogueDungeonFloor : family.startsWith('volcanic') ? art.rogueVolcanicFloor : art.caveFloorMiddle;
   }
-  if (biome==='paving'&&terrain.dirtTerraces[tileY*terrain.width+tileX])return art.farmland;
+  if (biome==='paving'&&terrain.dirtTerraces[index])return art.farmland;
   if (!['plains','meadow','highland','forest','valley','ridge'].includes(biome)) return groundAssetForBiome(art, biome);
-  const index = tileY * terrain.width + tileX;
   const familyId = surfaceFamilyAtIndex(terrain.surfaceFamilies?.[index] ?? 0)
     ?? terrain.defaultSurfaceFamily;
   if (familyId === undefined) return art.grass;
@@ -511,7 +510,7 @@ export function authoredGrassFringeLayersAt(terrain: TerrainArray, tileX: number
   const vegetated = (biome: SurvivalBiome) => ['plains','meadow','forest','valley','highland','ridge'].includes(biome);
   const biome=terrainBiomeAt(terrain,tileX,tileY);
   if(!vegetated(biome)&&biome!=='beach'&&biome!=='paving')return null;
-  const familyAt=(x:number,y:number)=>surfaceFamilyAtIndex(terrain.surfaceFamilies?.[y*terrain.width+x]??0)??terrain.defaultSurfaceFamily??'grass_1';
+  const familyAt=(x:number,y:number)=>surfaceFamilyAtIndex(terrain.surfaceFamilies?.[terrainIndexAt(terrain,x,y)]??0)??terrain.defaultSurfaceFamily??'grass_1';
   const own=vegetated(biome)?familyAt(tileX,tileY):null;
   const height=terrainElevationAt(terrain,tileX,tileY);
   const neighbor=(dx:number,dy:number)=>{
@@ -583,8 +582,9 @@ export class GroundChunkCache {
     this.terrainKey = `${next.spaceId}:${next.generator ?? "unknown"}:${next.width}x${next.height}:${next.seed}:${next.version}:${next.rogueRoomRevision ?? ''}`;
     // Include topology neighbors and the old/new projected cliff footprints.
     for(const point of points) {
-      const index=point.tileY*next.width+point.tileX;
-      const radius=4+Math.max(Math.abs((previous.elevations[index]??0)-terrainBaseDatum(previous))*terrainVisualProjectionRowsPerLevel(previous),Math.abs((next.elevations[index]??0)-terrainBaseDatum(next))*terrainVisualProjectionRowsPerLevel(next));
+      const previousIndex=terrainIndexAt(previous,point.tileX,point.tileY);
+      const nextIndex=terrainIndexAt(next,point.tileX,point.tileY);
+      const radius=4+Math.max(Math.abs((previous.elevations[previousIndex]??0)-terrainBaseDatum(previous))*terrainVisualProjectionRowsPerLevel(previous),Math.abs((next.elevations[nextIndex]??0)-terrainBaseDatum(next))*terrainVisualProjectionRowsPerLevel(next));
       for(let y=point.tileY-radius;y<=point.tileY+radius;y+=1)
         for(let x=point.tileX-2;x<=point.tileX+2;x+=1)this.invalidateResource(x,y);
     }
@@ -623,6 +623,9 @@ export class GroundChunkCache {
       groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale),
     );
     this.prepareTerrain(terrain);
+    // S4c: origin-0 assumption. The visible chunk range is clamped to
+    // [0, ceil(size / chunk)), i.e. a window starting at world tile (0, 0).
+    // A non-zero origin must clamp to the window's own chunk span instead.
     const minChunkX = Math.max(0, Math.floor(cameraX / GROUND_CHUNK_PIXELS));
     const minChunkY = Math.max(0, Math.floor(cameraY / GROUND_CHUNK_PIXELS));
     const maxChunkX = Math.min(
@@ -755,14 +758,11 @@ export class GroundChunkCache {
     destinationY: number,
     size: number,
   ): boolean {
-    if (
-      tileX < 0 ||
-      tileY < 0 ||
-      tileX >= terrain.width ||
-      tileY >= terrain.height
-    )
-      return false;
+    if (terrainIndexAt(terrain, tileX, tileY) < 0) return false;
     this.prepareTerrain(terrain);
+    // S4c: chunks are keyed on world tiles, which stays valid for a window,
+    // but the cache (and renderChunk's firstTile maths) holds one terrain at a
+    // time: moving the window origin must invalidate or re-key these chunks.
     const chunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
     const chunkY = Math.floor(tileY / SURVIVAL_CHUNK_TILES);
     const canvas = this.chunks.getOrCreate(chunkX, chunkY, () =>
@@ -852,16 +852,16 @@ export class GroundChunkCache {
         // The final cache chunk can be only partially occupied. Leaving its
         // unused cells to terrainBiomeAt's water fallback paints a fake ocean
         // outside finite maps and editor inspection windows.
-        if (!groundTileInsideTerrain(terrain, tileX, tileY)) continue;
+        const index = terrainIndexAt(terrain, tileX, tileY);
+        if (index < 0) continue;
         if(terrain.generator==='village_interior'){
-          const index=tileY*terrain.width+tileX;
           if(!terrain.blocked[index]) {
             const style=terrain.hearthInteriorFloorStyles?.[index]??0;
             const floor=style===1?art.hearthTownhouseFloor:style===2?art.rogueDungeonFloor:style===3?art.farmland:art.woodFloor;
             drawGroundAsset(context,floor,localX,localY,style===3?46:0);
           }
           else {
-            const open=(x:number,y:number)=>x>=0&&y>=0&&x<terrain.width&&y<terrain.height&&!terrain.blocked[y*terrain.width+x];
+            const open=(x:number,y:number)=>{const at=terrainIndexAt(terrain,x,y);return at>=0&&!terrain.blocked[at];};
             const left=open(tileX-1,tileY),right=open(tileX+1,tileY),above=open(tileX,tileY-1);
             // Both faces matter for a one-cell partition between two rooms.
             if(left)wallFrame(32,16,5,16,localX*16,localY*16);
@@ -875,7 +875,6 @@ export class GroundChunkCache {
           continue;
         }
         if(terrain.generator==='residence') {
-          const index=tileY*terrain.width+tileX;
           if((terrain.residenceEnvelopeBlocked??terrain.blocked)[index])continue;
           const cell=residenceCells.get(`${tileX},${tileY}`);
           drawGroundAsset(context,cell?.floor==='townhouse'?art.hearthTownhouseFloor:art.woodFloor,localX,localY);
@@ -890,18 +889,16 @@ export class GroundChunkCache {
           continue;
         }
         if (terrain.generator === "marlow_tent") {
-          const index = tileY * terrain.width + tileX;
           if (terrain.blocked[index]) continue;
           drawGroundAsset(context, art.woodFloor, localX, localY, 0);
-          const northBlocked =
-            tileY === 0 || terrain.blocked[(tileY - 1) * terrain.width + tileX];
+          const north = terrainIndexAt(terrain, tileX, tileY - 1);
+          const northBlocked = north < 0 || terrain.blocked[north];
           if (northBlocked && terrain.generator === "marlow_tent")
             drawGroundAsset(context, art.interiorWall, localX, localY);
           continue;
         }
         if (terrainProjectionStyle(terrain) === 'interior'
           && terrain.rogueTheme === undefined) {
-          const index = tileY * terrain.width + tileX;
           if (!terrain.blocked[index]) {
             drawGroundAsset(context, art.caveFloorMiddle, localX, localY);
             drawCellarFloorDetails(
@@ -923,7 +920,6 @@ export class GroundChunkCache {
           continue;
         }
         if (terrain.rogueTheme !== undefined) {
-          const index = tileY * terrain.width + tileX;
           const blocked = terrain.blocked[index] === true;
           const hazardous = terrain.rogueHazards?.[index] === 1;
           const theme = terrain.generator === 'delve_lobby' && !blocked
@@ -997,12 +993,12 @@ export class GroundChunkCache {
           TILE_SIZE_PIXELS,
         );
         const base = groundAssetForTile(art, terrain, tileX, tileY, biome);
-        const interiorFloor = terrain.authoredSurfaces?.[tileY*terrain.width+tileX] === 'cave_floor';
+        const interiorFloor = terrain.authoredSurfaces?.[index] === 'cave_floor';
         const nativeGround=authoredCliffGroundLayerAt(terrain,tileX,tileY);
         const nativeFrame=nativeGround&&art.terrainAssets[nativeGround.assetId]===base?nativeGround.frame:null;
         const baseFrame = nativeFrame ?? (
           interiorFloor ? (base === art.caveFloorMiddle ? 0 : (tileY % 3)*3+tileX%3) : biome === 'paving'
-            ? terrain.dirtTerraces[tileY*terrain.width+tileX]?46:(tileY % 2) * 2 + tileX % 2
+            ? terrain.dirtTerraces[index]?46:(tileY % 2) * 2 + tileX % 2
             : biome === 'volcanic_ash' || biome === 'lava'
             ? 4
             : biome === "beach"

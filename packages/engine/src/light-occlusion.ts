@@ -67,6 +67,10 @@ export interface LightTrunkOccluder {
 export interface LightOcclusionMap {
   readonly width: number;
   readonly height: number;
+  /** World tile of the channels' top-left cell, copied from the terrain
+   * window (absent means 0, 0). */
+  readonly originX?: number;
+  readonly originY?: number;
   readonly hardBlocked: Uint8Array;
   /** Authored south-facing wall artwork is both opaque and a visible receiver.
    * Contiguous face rows share the same surface instead of shadowing one
@@ -156,8 +160,8 @@ export function createFrameLightOccluder(
 
 function surfaceTileBlocksLight(terrain: TerrainArray, index: number, hasContours: boolean): boolean {
   if (!hasContours) return false;
-  const tileX = index % terrain.width;
-  const tileY = Math.floor(index / terrain.width);
+  const tileX = (terrain.originX ?? 0) + index % terrain.width;
+  const tileY = (terrain.originY ?? 0) + Math.floor(index / terrain.width);
   // The shared terrain sampler already classifies every blocking contour row
   // as ridge. Avoid resolving/caching three contour plans for all 692k ocean
   // and flat tiles when the live island contains only ~1.3k raised blockers.
@@ -169,8 +173,8 @@ function surfaceTileBlocksLight(terrain: TerrainArray, index: number, hasContour
 
 function surfaceTileIsFrontFace(terrain: TerrainArray, index: number, hasContours: boolean): boolean {
   if (!hasContours) return false;
-  const tileX = index % terrain.width;
-  const tileY = Math.floor(index / terrain.width);
+  const tileX = (terrain.originX ?? 0) + index % terrain.width;
+  const tileY = (terrain.originY ?? 0) + Math.floor(index / terrain.width);
   return (terrain.raisedTerrainCollisionClassified !== true
     || terrainBiomeAt(terrain, tileX, tileY) === 'ridge')
     && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => (
@@ -231,8 +235,8 @@ export function prepareLightTerrainOcclusion(
   if (terrainOccluders !== undefined) {
     for (let index = 0; index < hardBlocked.length; index += 1) {
       if (frontFaces[index] !== 1) continue;
-      const tileX = index % terrain.width;
-      const tileY = Math.floor(index / terrain.width);
+      const tileX = (terrain.originX ?? 0) + index % terrain.width;
+      const tileY = (terrain.originY ?? 0) + Math.floor(index / terrain.width);
       for (const { contourLevel, plan } of plateauLayerPlansAt(terrain, tileX, tileY)) {
         const projection = terrainProjectedDepthForElevation(
           terrain,
@@ -264,6 +268,8 @@ export function prepareLightTerrainOcclusion(
   return {
     width: terrain.width,
     height: terrain.height,
+    ...(terrain.originX === undefined ? {} : { originX: terrain.originX }),
+    ...(terrain.originY === undefined ? {} : { originY: terrain.originY }),
     hardBlocked,
     frontFaces,
     ...(terrainOccluders === undefined ? {} : { terrainOccluders }),
@@ -337,13 +343,18 @@ export function rasterizeLightOcclusion(
 
   const tileWidth = Math.ceil(width / texelsPerTile);
   const tileHeight = Math.ceil(height / texelsPerTile);
+  const mapOriginX = map.originX ?? 0;
+  const mapOriginY = map.originY ?? 0;
   if (map.terrainOccluders === undefined) for (let localTileY = 0; localTileY < tileHeight; localTileY += 1) {
     const tileY = minTileY + localTileY;
-    if (tileY < 0 || tileY >= map.height) continue;
+    if (tileY < mapOriginY || tileY >= mapOriginY + map.height) continue;
+    // Per-frame hot loop: the row base is hoisted instead of calling
+    // terrainIndexAt per tile; the column test below completes the window check.
+    const rowBase = (tileY - mapOriginY) * map.width - mapOriginX;
     for (let localTileX = 0; localTileX < tileWidth; localTileX += 1) {
       const tileX = minTileX + localTileX;
-      const tileIndex = tileY * map.width + tileX;
-      if (tileX < 0 || tileX >= map.width || map.hardBlocked[tileIndex] !== 1) continue;
+      const tileIndex = rowBase + tileX;
+      if (tileX < mapOriginX || tileX >= mapOriginX + map.width || map.hardBlocked[tileIndex] !== 1) continue;
       const blocker = map.frontFaces[tileIndex] === 1
         ? LIGHT_CLIFF_FACE_BLOCKER
         : LIGHT_HARD_BLOCKER;
