@@ -1,19 +1,8 @@
-import {
-  AUTHORITY_HZ,
-  FIXED_UNITS_PER_PIXEL,
-  INPUT_REFRESH_STEPS,
-  REMOTE_INTERPOLATION_DELAY_TICKS,
-  REMOTE_SNAPSHOT_CAPACITY,
-  SIM_TICKS_PER_SECOND,
-  TILE_SIZE_FIXED,
-  avatarActionDefinition,
-  movePlayer,
-  movePlayerAtSpeedPermille,
-  positionCollides,
-  type CollisionMap,
-  type Direction,
-  type PlayerState,
-} from '@orchard/sim';
+import type { CollisionMap, Direction, PlayerState } from '@orchard/sim';
+import { avatarActionDefinition } from '@orchard/sim/actions';
+import { movePlayer, movePlayerAtSpeedPermille, positionCollides } from '@orchard/sim/movement';
+import { AUTHORITY_HZ, INPUT_REFRESH_STEPS, REMOTE_INTERPOLATION_DELAY_TICKS, REMOTE_SNAPSHOT_CAPACITY } from '@orchard/sim/net-timing';
+import { FIXED_UNITS_PER_PIXEL, SIM_TICKS_PER_SECOND, TILE_SIZE_FIXED } from '@orchard/sim/state';
 
 export type InputDirection = Direction | 'idle';
 

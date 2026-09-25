@@ -1,4 +1,7 @@
-import { runtimeResourceDefinition, projectTiming, TREE_REGROWTH_PROGRESS_MAX, type ContentRegistry, type TimingProjection } from '@orchard/sim';
+import type { ContentRegistry, TimingProjection } from '@orchard/sim';
+import { runtimeResourceDefinition } from '@orchard/sim/content/runtime';
+import { projectTiming } from '@orchard/sim/timing';
+import { TREE_REGROWTH_PROGRESS_MAX } from '@orchard/sim/tree-regrowth';
 import type { WorldResource, WorldCrop } from '@orchard/world-bindings/types';
 import { TimingInspectionIndex } from './timing-inspection.js';
 

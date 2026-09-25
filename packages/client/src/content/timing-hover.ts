@@ -1,4 +1,5 @@
-import { resolveObjectDefinitionAppearance, type ContentRegistry } from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { resolveObjectDefinitionAppearance } from '@orchard/sim/content/object-archetype';
 import type { WorldPlaceable } from '@orchard/world-bindings/types';
 import { activeObjectFrameState } from './frame-presentation.js';
 import { TimingInspectionIndex } from './timing-inspection.js';

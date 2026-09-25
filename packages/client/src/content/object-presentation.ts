@@ -1,16 +1,8 @@
-import {
-  resolveObjectLight,
-  resolveObjectDefinitionAppearance,
-  type ResolvedObjectAppearance,
-  runtimePlaceableBlocksMovement,
-  placeableObjectDefinition,
-  hearthFurnitureShapeForPlaceable, hearthFurniturePersistentId, HEARTH_FURNITURE_SUPPORT_STATE_KEY,
-  HEARTH_FURNITURE_REVISION_STATE_KEY,
-  type ObjectContentDefinition,
-  type ObjectStateDefinition,
-  type ResolvedObjectLight,
-  type StateValue,
-} from '@orchard/sim';
+import type { ResolvedObjectAppearance, ObjectContentDefinition, ObjectStateDefinition, ResolvedObjectLight, StateValue } from '@orchard/sim';
+import { resolveObjectLight } from '@orchard/sim/behaviour/data-graph';
+import { resolveObjectDefinitionAppearance } from '@orchard/sim/content/object-archetype';
+import { runtimePlaceableBlocksMovement, placeableObjectDefinition } from '@orchard/sim/crafting';
+import { hearthFurnitureShapeForPlaceable, hearthFurniturePersistentId, HEARTH_FURNITURE_SUPPORT_STATE_KEY, HEARTH_FURNITURE_REVISION_STATE_KEY } from '@orchard/sim/hearth-furniture-state';
 import { loadGeneratedAsset, type LoadedAsset } from '@orchard/ui';
 import type { LiveContentState } from './live-content.js';
 

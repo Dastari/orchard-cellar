@@ -1,11 +1,7 @@
-import {
-  cellarOreKindAt,
-  bootstrapContentRegistry,
-  runtimeResourceDefinition,
-  type ContentRegistry,
-  type SurvivalOreKind,
-  type runtimeResourcePerception,
-} from '@orchard/sim';
+import type { ContentRegistry, SurvivalOreKind, runtimeResourcePerception } from '@orchard/sim';
+import { cellarOreKindAt } from '@orchard/sim/cellar-excavation';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeResourceDefinition } from '@orchard/sim/content/runtime';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { terrainIsWindow, terrainSparseKey, terrainSparseKeyTile } from '@orchard/engine/terrain-index';
 
