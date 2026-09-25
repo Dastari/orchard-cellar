@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, WORLD_CHUNK_STRIDE, type WorldChunk } from './world-chunk.js';
+import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, WORLD_CHUNK_AUTHORITY_CHANNELS, WORLD_CHUNK_STRIDE, type ChunkJson, type WorldChunk } from './world-chunk.js';
+import { authorityChunkFixture } from './chunk-runtime.fixture.js';
 
 function fixture(): Omit<WorldChunk, 'contentHash'> {
   return { schema: 1, spaceId: 1, cx: -1, cy: 2, assetRevision: 'assets-a',
@@ -50,6 +51,39 @@ describe('world chunk binary format', () => {
     expect(() => encodeWorldChunk({ ...input, arrays: { ...arrays, medium: new Uint8Array(WORLD_CHUNK_STRIDE ** 2).fill(6) } })).toThrow(/medium/u);
     expect(() => encodeWorldChunk({ ...input, arrays: { ...arrays, solidBlocked: new Uint8Array(WORLD_CHUNK_STRIDE ** 2).fill(2) } })).toThrow(/medium/u);
     expect(() => encodeWorldChunk({ ...input, arrays: source.arrays })).toThrow(/medium/u);
+  });
+  it('round-trips the additive authority extension and fails closed on partial or unknown authority data', () => {
+    const source = fixture();
+    const authority = authorityChunkFixture(-1, 2);
+    const input = { ...source, authoritySchema: 1 as const, arrays: { ...source.arrays, ...authority.arrays }, records: [...source.records, ...authority.records] };
+    const bytes = encodeWorldChunk(input);
+    expect(decodeWorldChunk(bytes)).toEqual({ ...input, contentHash: expect.any(String) });
+    // Existing blobs without the extension are byte-identical to before.
+    // Blobs without the extension carry no authority header key at all.
+    expect('authoritySchema' in decodeWorldChunk(encodeWorldChunk(source))).toBe(false);
+    const withoutSchema: Omit<WorldChunk, 'contentHash'> = { ...source, arrays: input.arrays, records: input.records };
+    const cells = WORLD_CHUNK_STRIDE ** 2;
+    expect(() => encodeWorldChunk({ ...input, authoritySchema: 2 as 1 })).toThrow(/authority/u);
+    expect(() => encodeWorldChunk(withoutSchema)).toThrow(/authority/u);
+    expect(() => encodeWorldChunk({ ...source, records: [...source.records, authority.records[0]!] })).toThrow(/authority/u);
+    for (const name of Object.keys(WORLD_CHUNK_AUTHORITY_CHANNELS)) {
+      const arrays: Record<string, Uint8Array | Int16Array> = { ...input.arrays };
+      delete arrays[name];
+      expect(() => encodeWorldChunk({ ...input, arrays }), name).toThrow(/authority/u);
+    }
+    // SW-D1: the dropped water horse-jump mask is not a valid authority channel.
+    expect(() => encodeWorldChunk({ ...input, arrays: { ...input.arrays, 'authority.water.horseJumpableTerrain': new Uint8Array(cells) } })).toThrow(/authority/u);
+    expect(() => encodeWorldChunk({ ...input, arrays: { ...input.arrays, 'authority.water.blocked': new Uint8Array(cells).fill(2) } })).toThrow(/authority/u);
+    expect(() => encodeWorldChunk({ ...input, arrays: { ...input.arrays, 'authority.combatRegion': new Uint8Array(cells).fill(65) } })).toThrow(/authority/u);
+    expect(() => encodeWorldChunk({ ...input, arrays: { ...input.arrays, 'authority.ground.elevations': new Uint8Array(cells) } })).toThrow(/authority/u);
+    const record = (index: number, value: Record<string, ChunkJson>) => ({ ...input, records: input.records.map((row, at) => at === source.records.length + index ? { ...row, value: { ...(row.value as Record<string, ChunkJson>), ...value } } : row) });
+    expect(() => encodeWorldChunk(record(0, { group: 'live' }))).toThrow(/authority record/u);
+    expect(() => encodeWorldChunk(record(0, { right: -1_000_000 }))).toThrow(/authority record/u);
+    expect(() => encodeWorldChunk(record(0, { sourceId: '' }))).toThrow(/authority record/u);
+    expect(() => encodeWorldChunk(record(2, { medium: 'air' }))).toThrow(/authority record/u);
+    expect(() => encodeWorldChunk(record(3, { tileX: 0 }))).toThrow(/authority record/u);
+    expect(() => encodeWorldChunk(record(5, { suppressed: 'no' }))).toThrow(/authority record/u);
+    expect(() => encodeWorldChunk({ ...input, records: [...input.records, { kind: 'authority.unknown', ordinal: 0, tileX: -64, tileY: 128, value: {} }] })).toThrow(/authority record/u);
   });
   it('copies neighbour halos and plane-major channels, including map-edge sentinels', () => {
     const width = 65, height = 2;

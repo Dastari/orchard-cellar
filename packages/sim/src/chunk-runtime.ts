@@ -1,4 +1,6 @@
-import { WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, decodeWorldChunk, type WorldChunk, type WorldChunkManifest } from './world-chunk.js';
+import { WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, decodeWorldChunk, type WorldChunk, type WorldChunkAuthorityObstacle,
+  type WorldChunkAuthoritySuppressedObstacle, type WorldChunkManifest } from './world-chunk.js';
+import type { CollisionObstacle } from './state.js';
 
 export const CHUNK_RUNTIME_MAX_BLOB_BYTES = 1024 * 1024;
 export const CHUNK_RUNTIME_MAX_HEADS = 4096;
@@ -33,7 +35,19 @@ export function verifyRuntimeChunk(bytes: Uint8Array, manifest: WorldChunkManife
     || chunk.mediumSchema !== 1) throw new Error('chunk_revision_mismatch');
   return chunk;
 }
-export interface ChunkCollisionSample { readonly ready: boolean; readonly elevation: number | null; readonly medium: number; readonly solidBlocked: boolean; readonly legacyGroundBlocked: boolean; readonly legacyWaterBlocked: boolean }
+/** Static server-authoritative cell values from the `authoritySchema` extension.
+ * Obstacles, suppression and terrain planes are records/planes composed by the caller. */
+export interface ChunkAuthoritySample {
+  readonly groundBlocked: boolean;
+  readonly groundElevation: number;
+  readonly groundHorseJumpable: boolean;
+  readonly waterBlocked: boolean;
+  /** 0 when unclassified, otherwise 1 + index into manifest metadata.authority.combatRegions. */
+  readonly combatRegion: number;
+}
+export interface ChunkCollisionSample { readonly ready: boolean; readonly elevation: number | null; readonly medium: number; readonly solidBlocked: boolean; readonly legacyGroundBlocked: boolean; readonly legacyWaterBlocked: boolean;
+  /** Present only for blobs carrying the authority extension. */
+  readonly authority?: ChunkAuthoritySample }
 export const MISSING_CHUNK_SAMPLE: ChunkCollisionSample = Object.freeze({ ready: false, elevation: null, medium: WORLD_CHUNK_VOID, solidBlocked: true, legacyGroundBlocked: true, legacyWaterBlocked: true });
 /** Chunk-local channels only; traversal abilities and dynamic overlays belong to D6/the caller. */
 export function sampleChunkCollision(chunk: WorldChunk | undefined, tileX: number, tileY: number): ChunkCollisionSample {
@@ -43,9 +57,41 @@ export function sampleChunkCollision(chunk: WorldChunk | undefined, tileX: numbe
   const index = y * WORLD_CHUNK_STRIDE + x;
   const medium = chunk.arrays['medium']?.[index], solid = chunk.arrays['solidBlocked']?.[index];
   if (medium === undefined || solid === undefined) return MISSING_CHUNK_SAMPLE;
-  return { ready: true, elevation: chunk.arrays['elevations']?.[index] ?? null, medium, solidBlocked: solid !== 0,
-    legacyGroundBlocked: chunk.arrays['clientGround.blocked']?.[index] !== 0,
-    legacyWaterBlocked: chunk.arrays['clientWater.blocked']?.[index] !== 0 };
+  const arrays = chunk.arrays;
+  return { ready: true, elevation: arrays['elevations']?.[index] ?? null, medium, solidBlocked: solid !== 0,
+    legacyGroundBlocked: arrays['clientGround.blocked']?.[index] !== 0,
+    legacyWaterBlocked: arrays['clientWater.blocked']?.[index] !== 0,
+    // The decoder has validated every authority channel whenever the schema is present.
+    ...(chunk.authoritySchema !== WORLD_CHUNK_AUTHORITY_SCHEMA ? {} : { authority: {
+      groundBlocked: arrays['authority.ground.blocked']![index] !== 0,
+      groundElevation: arrays['authority.ground.elevations']![index]!,
+      groundHorseJumpable: arrays['authority.ground.horseJumpableTerrain']![index] !== 0,
+      waterBlocked: arrays['authority.water.blocked']![index] !== 0,
+      combatRegion: arrays['authority.combatRegion']![index]!,
+    } }) };
+}
+/** The server's suppressed-decoration key (`left:top:right:bottom`, fixed point). */
+export function authorityObstacleKey(box: CollisionObstacle): string {
+  return `${box.left}:${box.top}:${box.right}:${box.bottom}`;
+}
+/** Composes one medium exactly as the server's liveMapCollisionForSpace does:
+ * every base obstacle (static records, then any live rows in their server order)
+ * is filtered by the suppressed keys, then the authored group is appended.
+ * `obstacles` must be the complete record set in ordinal order. */
+export function composeAuthorityObstacles(
+  obstacles: readonly WorldChunkAuthorityObstacle[],
+  suppressed: readonly WorldChunkAuthoritySuppressedObstacle[],
+  medium: 'ground' | 'water',
+  liveBaseObstacles: readonly CollisionObstacle[] = [],
+): CollisionObstacle[] {
+  const base: CollisionObstacle[] = [], authored: CollisionObstacle[] = [];
+  for (const obstacle of obstacles) {
+    const group = obstacle.group === 'base' ? base : authored;
+    if (obstacle.ordinal !== group.length || (obstacle.group === 'base' && authored.length > 0)) throw new Error('authority_obstacle_order');
+    group.push({ left: obstacle.left, top: obstacle.top, right: obstacle.right, bottom: obstacle.bottom });
+  }
+  const keys = new Set(suppressed.filter(row => row.medium === medium).map(authorityObstacleKey));
+  return [...[...base, ...liveBaseObstacles].filter(obstacle => !keys.has(authorityObstacleKey(obstacle))), ...authored];
 }
 /** Activation is deliberately unavailable until independently reviewed live gates exist. */
 export function assertChunkRuntimeMode(mode: string): asserts mode is 'off' | 'shadow' {
