@@ -36,6 +36,10 @@ export function uiTooltip(label: string | (() => string), child: UiElement, layo
   });
   const hide = () => { clearTimeout(timer); timer = undefined; popup.setStyle({ visible: false }); };
   const place = (element: UiElement, root: UiElement) => {
+    // Fit the text plus 6px padding each side, wrapping once it reaches the 160px maximum. Re-fitted on every
+    // placement, so an anchored popup that moves to a longer or shorter label resizes with it.
+    const natural = measureUiElement(content, { width: UI_TOOLTIP_MAX_WIDTH - 12, height: root.rect.height }).preferred.width + 12;
+    popup.setStyle({ width: uiFixed(Math.min(natural, UI_TOOLTIP_MAX_WIDTH, root.rect.width)), height: 'fit' });
     const size = measureUiElement(popup, root.rect).preferred, target = placement.anchor?.() ?? element.rect;
     const above = placement.side === 'above';
     const rect = layoutUiAnchoredRect(target, { width: Math.min(size.width, root.rect.width), height: Math.min(size.height, root.rect.height) },
@@ -50,9 +54,7 @@ export function uiTooltip(label: string | (() => string), child: UiElement, layo
       timer = undefined; refresh(); if(!content.label.trim())return;
       let root = element; let inModal=false;for(let ancestor:UiElement|null=element;ancestor;ancestor=ancestor.parent)if(ancestor.style.zLayer==='modal')inModal=true;while (root.parent) root = root.parent;
       popup.setStyle({zLayer:inModal?'toast':'floating'});
-      // Fit the text plus 6px padding each side, wrapping once it reaches the 160px maximum.
-      const natural = measureUiElement(content, { width: UI_TOOLTIP_MAX_WIDTH - 12, height: root.rect.height }).preferred.width + 12;
-      popup.setStyle({ visible: true, width: uiFixed(Math.min(natural, UI_TOOLTIP_MAX_WIDTH, root.rect.width)), height: 'fit' });
+      popup.setStyle({ visible: true });
       place(element, root);
     };
     const delay = focused ? 0 : Math.max(0, UI_MOTION.tooltipDelayMs - (performance.now() - hoverSince));

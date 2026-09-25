@@ -123,6 +123,15 @@ describe('production shared HUD compositions', () => {
     const moved = hotRoot.entries().find(row => row.element.kind === 'tooltip-popup' && row.element.visible)!.element.rect;
     expect(Math.abs(moved.x + moved.width / 2 - (fourth.x + fourth.width / 2))).toBeLessThanOrEqual(1);
     expect(hotRoot.entries().some(row => row.element.label === 'STONE X4' && row.element.kind === 'text')).toBe(true);
+    // It re-fits to each label: a longer name widens the frame instead of wrapping or clipping in the first size.
+    expect(moved.width).toBeLessThan(popup.width + 1);
+    f.host.update({ ...model(), inventory: { ...model().inventory, rows: [...model().inventory.rows, { slot: 3, stack: { itemKind: 'reinforced_iron_pickaxe', quantity: 1 } }] } });
+    f.host.draw(context);
+    const long = hotRoot.entries().find(row => row.element.kind === 'tooltip-popup' && row.element.visible)!.element;
+    const longText = hotRoot.entries().find(row => row.element.label === 'REINFORCED_IRON_PICKAXE X1' && row.element.kind === 'text')!.element;
+    expect(long.rect.width).toBeGreaterThan(moved.width);
+    expect(longText.rect.height).toBeLessThanOrEqual(long.rect.height);
+    expect(long.scroll.maxY).toBe(0);
     hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.hotbar.slot.5')); f.host.draw(context);
     expect(hotRoot.entries().some(row => row.element.kind === 'tooltip-popup' && row.element.visible)).toBe(false);
     hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.player:health')); hotRoot.arrange();
