@@ -21,5 +21,13 @@
   "serverWater.horseJumpableTerrain": "1f1bfcff6ec70f865f80e25d3a8f9119c9d30596fe1d20a6cf0edacec8281c6d",
   "records": "80ca4cac2248107c9e05d0ae4daf751323e61ae23d556681d6995a6ea63663ab",
   "medium": "1238dfcc9223bc69dbcefe30409f6b84f77de37c5ca4e7b66c1cd566b116886b",
-  "solidBlocked": "88913f41cbe07202103c46c1efc9b0b90805cc4fd673167483fb647e077eca55"
+  "solidBlocked": "88913f41cbe07202103c46c1efc9b0b90805cc4fd673167483fb647e077eca55",
+  "authority.ground.blocked": "d6daa3fa9cceacdeb97d49cfc93bb02861f103f12215d82804d6f1a8f0b283a0",
+  "authority.ground.elevations": "3e588b8fa5d71463493d210af21f10d504a0ec0f1df13b65614d9e5c3b52d8ee",
+  "authority.ground.terrainPlaneBlocked": "7ad566321ec46068b83400b1392960bd210b90c47d3d3d8228a09032b2f311af",
+  "authority.ground.horseJumpableTerrain": "e49c93375f47c718102083bac22d1768aaeb9d3ecce3c120376d35bdc5ee76e3",
+  "authority.water.blocked": "c4c245237ef1b651ebf4cc877ca8040ad3ef80db602d8a22c35c196311842924",
+  "authority.combatRegion": "1f1bfcff6ec70f865f80e25d3a8f9119c9d30596fe1d20a6cf0edacec8281c6d",
+  "authority.records": "840abeb5274e76a2e285bc8a7460dff8248740fcbec4f1d7ceb8b08544a0f9f5",
+  "authority.metadata": "3e5989ffb076373c6399f6d03297342243eadc9647527cc3b16b885a2dbdd37b"
 }
