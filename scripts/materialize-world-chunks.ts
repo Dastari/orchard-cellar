@@ -9,18 +9,34 @@ import {
   generateSurvivalProceduralDecorations, generateSurvivalResources, mapLandmarkDecoration,
   parseMapDocumentV3, runtimeTilesetResolver, serializeMapDocumentV3, terrainDocumentForMapV3,
   TERRAIN_CLIFF_FAMILIES, TERRAIN_SURFACE_FAMILIES, TERRAIN_SURFACE_FAMILY_IDS, SURVIVAL_BIOMES,
-  type CollisionMap, type ContentRegistry, type ContentDefinitionRow, type MapDocumentV3,
+  CombatRegionPolicy, MAP_PREFAB_COLLISION_RESOLUTION, SURVIVAL_WORLD_SEED, mapLandmarkCollisionObstacle, mapObjectCollisionCells,
+  survivalDecorationObstacle,
+  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type ContentDefinitionRow, type MapDocumentV3,
 } from '@orchard/sim';
 import { liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { createClientCollisionMap } from '@orchard/engine/collision';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE, WORLD_CHUNK_MEDIA, WORLD_CHUNK_MEDIUM_SCHEMA, WORLD_CHUNK_VOID,
+  WORLD_CHUNK_AUTHORITY_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthoritySuppressedObstacle,
   type WorldChunkMedium, type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
+import { authorityObstacleKey, composeAuthorityObstacles } from '@orchard/sim/chunk-runtime';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
 import { worldChunkCellMedium } from './world-chunk-medium.js';
-import { serverLiveIslandReference } from './world-chunk-server-reference.js';
+import { serverLiveIslandReference, type ServerLiveIslandReference } from './world-chunk-server-reference.js';
 
+type AuthorityMedium = 'ground' | 'water';
+const AUTHORITY_MEDIA = ['ground', 'water'] as const;
+/** The server's static truth that published authority.* data must reproduce. */
+export interface WorldChunkAuthorityReference {
+  readonly composed: Readonly<Record<AuthorityMedium, CollisionMap>>;
+  readonly suppressedObstacleKeys: Readonly<Record<AuthorityMedium, readonly string[]>>;
+  readonly combatPolicy: CombatRegionPolicy;
+  readonly combatRegions: readonly CombatRegion[];
+  readonly generatedSuppressions: readonly string[];
+  readonly walkable: readonly { readonly tileX: number; readonly tileY: number }[];
+  readonly resources: readonly WorldChunkAuthorityResource[];
+}
 export interface WorldChunkSnapshot {
   readonly terrain: TerrainArray;
   readonly document: MapDocumentV3;
@@ -28,6 +44,7 @@ export interface WorldChunkSnapshot {
   readonly records: readonly WorldChunkRecord[];
   readonly metadata: Readonly<Record<string, ChunkJson>>;
   readonly collisions: Readonly<Record<'clientGround' | 'clientWater' | 'serverGround' | 'serverWater', CollisionMap>>;
+  readonly authority: WorldChunkAuthorityReference;
 }
 function json(value: unknown): ChunkJson { return JSON.parse(JSON.stringify(value)) as ChunkJson; }
 function assetStrings(value: unknown, result: Set<string>): void {
@@ -36,6 +53,108 @@ function assetStrings(value: unknown, result: Set<string>): void {
     if (['asset', 'assetId', 'assetName', 'sheetAssetId', 'insetAssetId', 'rampAssetId', 'waterfallAssetId', 'stairAssetId', 'ladderAssetId'].includes(key) && typeof item === 'string') result.add(item);
     else assetStrings(item, result);
   }
+}
+function collisionMetadata(collision: CollisionMap): ChunkJson {
+  return json({
+    ...(collision.traversalChannels === undefined ? {} : { hasTraversalChannels: true }),
+    ...(collision.terrainMinimumElevation === undefined ? {} : { terrainMinimumElevation: collision.terrainMinimumElevation }),
+    ...(collision.fixedTerrainPlane === undefined ? {} : { fixedTerrainPlane: collision.fixedTerrainPlane }),
+    ...(collision.terrainTransitions === undefined ? {} : { terrainTransitions: [] }),
+  });
+}
+const OBSTACLE_KEYS = ['bottom', 'left', 'right', 'top'];
+function plainObstacle(obstacle: CollisionObstacle): CollisionObstacle {
+  // Records are lossless only for the plain fixed-point box the server composes.
+  if (canonicalChunkJson(Object.keys(obstacle).sort()) !== canonicalChunkJson(OBSTACLE_KEYS)) throw new Error('Server obstacle is not a plain fixed-point box');
+  return { left: obstacle.left, top: obstacle.top, right: obstacle.right, bottom: obstacle.bottom };
+}
+/** Stable provenance for the precomputed base: its golden is the fixed-seed
+ * decoration generator (precomputed-survival-collision.test.ts). Fails closed. */
+function baseObstacleSources(obstacles: readonly CollisionObstacle[], medium: AuthorityMedium): readonly string[] {
+  const sources: { sourceId: string; obstacle: CollisionObstacle }[] = [];
+  for (const decoration of generateSurvivalDecorations(SURVIVAL_WORLD_SEED)) {
+    const obstacle = survivalDecorationObstacle(decoration, medium);
+    if (obstacle !== null) sources.push({ sourceId: `decoration:${decoration.id}`, obstacle });
+  }
+  if (canonicalChunkJson(sources.map(({ obstacle }) => obstacle)) !== canonicalChunkJson(obstacles)) throw new Error(`Base ${medium} obstacle provenance diverged from the server`);
+  return sources.map(({ sourceId }) => sourceId);
+}
+/** Mirrors the server's authoredMapCollisionObstacles order to attach source ids. Fails closed. */
+function authoredObstacleSources(document: MapDocumentV3, obstacles: readonly CollisionObstacle[], medium: AuthorityMedium, registry: ContentRegistry): readonly string[] {
+  const sources: { sourceId: string; obstacle: CollisionObstacle }[] = [];
+  const subCellSize = TILE_SIZE_FIXED / MAP_PREFAB_COLLISION_RESOLUTION;
+  for (const object of medium === 'ground' ? document.objects : []) for (const cell of mapObjectCollisionCells(document, object)) {
+    for (let bit = 0; bit < MAP_PREFAB_COLLISION_RESOLUTION ** 2; bit += 1) {
+      if ((cell.collisionMask & (1 << bit)) === 0) continue;
+      const left = cell.tileX * TILE_SIZE_FIXED + (bit % MAP_PREFAB_COLLISION_RESOLUTION) * subCellSize;
+      const top = cell.tileY * TILE_SIZE_FIXED + Math.floor(bit / MAP_PREFAB_COLLISION_RESOLUTION) * subCellSize;
+      sources.push({ sourceId: `object:${object.id}`, obstacle: { left, top, right: left + subCellSize - 1, bottom: top + subCellSize - 1 } });
+    }
+  }
+  for (const landmark of document.landmarks) {
+    const obstacle = mapLandmarkCollisionObstacle(landmark, medium, registry);
+    if (obstacle !== null) sources.push({ sourceId: `landmark:${landmark.id}`, obstacle });
+  }
+  if (canonicalChunkJson(sources.map(({ obstacle }) => obstacle)) !== canonicalChunkJson(obstacles)) throw new Error(`Authored ${medium} obstacle provenance diverged from the server`);
+  return sources.map(({ sourceId }) => sourceId);
+}
+function parseObstacleKey(key: string): CollisionObstacle {
+  const [left, top, right, bottom] = key.split(':').map(Number);
+  const obstacle = { left: left!, top: top!, right: right!, bottom: bottom! };
+  if (authorityObstacleKey(obstacle) !== key) throw new Error(`Invalid suppressed obstacle key ${key}`);
+  return obstacle;
+}
+function resourceOrder(resources: readonly Pick<WorldChunkAuthorityResource, 'id'>[]): ChunkJson {
+  return { count: resources.length, orderHash: worldChunkHash(new TextEncoder().encode(canonicalChunkJson(resources.map(({ id }) => id)))) };
+}
+/** Server-authoritative static channels, records and metadata (static-world S1a). */
+function captureAuthority(server: ServerLiveIslandReference, registry: ContentRegistry, width: number, height: number,
+  channels: Record<string, ChunkArray>, add: (kind: string, ordinal: number, tileX: number, tileY: number, value: unknown) => void,
+): { readonly reference: WorldChunkAuthorityReference; readonly metadata: ChunkJson } {
+  const { ground, water } = server.composed;
+  if (ground.elevations === undefined || ground.terrainPlaneBlocked === undefined || ground.horseJumpableTerrain === undefined) throw new Error('Server ground authority is missing terrain channels');
+  if (water.elevations !== undefined || water.terrainPlaneBlocked !== undefined || water.terrainTransitions !== undefined) throw new Error('Server water authority gained terrain channels');
+  // SW-D1: the water horse-jump mask is all false and is not materialized (absent == all false).
+  if (water.horseJumpableTerrain?.some(Boolean)) throw new Error('Server water horse-jump mask is no longer all false (SW-D1)');
+  channels['authority.ground.blocked'] = Uint8Array.from(ground.blocked, Number);
+  channels['authority.ground.elevations'] = Int16Array.from(ground.elevations);
+  channels['authority.ground.terrainPlaneBlocked'] = Uint8Array.from(ground.terrainPlaneBlocked);
+  channels['authority.ground.horseJumpableTerrain'] = Uint8Array.from(ground.horseJumpableTerrain, Number);
+  channels['authority.water.blocked'] = Uint8Array.from(water.blocked, Number);
+  const combat = new Uint8Array(width * height);
+  if (server.combatRegions.length > 0) for (let tileY = 0; tileY < height; tileY++) for (let tileX = 0; tileX < width; tileX++) {
+    const region = server.combatPolicy.regionAt({ spaceId: TOPSIDE_SPACE_ID, tileX, tileY });
+    if (region !== null) combat[tileY * width + tileX] = server.combatRegions.findIndex(({ id }) => id === region.id) + 1;
+  }
+  channels['authority.combatRegion'] = combat;
+  const suppressedObstacleKeys = { ground: [...server.suppressedDecorationObstacleKeys.ground], water: [...server.suppressedDecorationObstacleKeys.water] };
+  for (const medium of AUTHORITY_MEDIA) {
+    const base = (server.base[medium].obstacles ?? []).map(plainObstacle);
+    const authored = (medium === 'ground' ? server.ground : server.water).obstacles?.map(plainObstacle) ?? [];
+    const baseSources = baseObstacleSources(base, medium);
+    const authoredSources = authoredObstacleSources(server.document, authored, medium, registry);
+    const rows: WorldChunkAuthorityObstacle[] = [
+      ...base.map((obstacle, ordinal) => ({ group: 'base' as const, ordinal, ...obstacle, sourceId: baseSources[ordinal]! })),
+      ...authored.map((obstacle, ordinal) => ({ group: 'authored' as const, ordinal, ...obstacle, sourceId: authoredSources[ordinal]! })),
+    ];
+    rows.forEach((row, index) => add(`authority.${medium}.obstacle`, index, row.left / TILE_SIZE_FIXED, row.top / TILE_SIZE_FIXED, row));
+  }
+  const suppressedRows: WorldChunkAuthoritySuppressedObstacle[] = AUTHORITY_MEDIA.flatMap(medium => suppressedObstacleKeys[medium].map(key => ({ medium, ...parseObstacleKey(key) })));
+  suppressedRows.forEach((row, index) => add('authority.suppressedObstacleKey', index, row.left / TILE_SIZE_FIXED, row.top / TILE_SIZE_FIXED, row));
+  ground.terrainTransitions?.forEach((value, index) => add('authority.ground.transition', index, value.lowerTileX, value.lowerTileY, value));
+  // Already applied to authority.ground.blocked; retained so consumers can explain the override.
+  const walkable = activeSpaceGroundWalkableTiles(registry, TOPSIDE_SPACE_ID, server.document.landmarks)
+    .filter(({ tileX, tileY }) => tileX >= 0 && tileY >= 0 && tileX < width && tileY < height)
+    .map(({ tileX, tileY }) => ({ tileX, tileY }));
+  walkable.forEach((value, index) => add('authority.walkable', index, value.tileX, value.tileY, value));
+  server.resources.forEach((value, index) => add('authority.resource', index, value.generatedTile.tileX, value.generatedTile.tileY, value));
+  const generatedSuppressions = [...server.generatedSuppressions];
+  return {
+    reference: { composed: server.composed, suppressedObstacleKeys, combatPolicy: server.combatPolicy, combatRegions: server.combatRegions,
+      generatedSuppressions, walkable, resources: server.resources },
+    metadata: json({ schema: WORLD_CHUNK_AUTHORITY_SCHEMA, combatRegions: server.combatRegions, generatedSuppressions,
+      resources: resourceOrder(server.resources), collisions: { ground: collisionMetadata(ground), water: collisionMetadata(water) } }),
+  };
 }
 /** Calls the same live terrain, decoration and collision functions as the client. */
 export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry,
@@ -110,7 +229,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   };
   const server = serverLiveIslandReference(row, registry);
   const collisions = { clientGround: clientCollision('ground'), clientWater: clientCollision('water'), serverGround: server.ground, serverWater: server.water };
-  const collisionMetadata: Record<string, ChunkJson> = {};
+  const collisionsMetadata: Record<string, ChunkJson> = {};
   for (const [name, collision] of Object.entries(collisions)) {
     channels[`${name}.blocked`] = Uint8Array.from(collision.blocked, Number);
     if (collision.elevations) channels[`${name}.elevations`] = Int16Array.from(collision.elevations);
@@ -118,22 +237,18 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
     if (collision.horseJumpableTerrain) channels[`${name}.horseJumpableTerrain`] = Uint8Array.from(collision.horseJumpableTerrain, Number);
     collision.obstacles?.forEach((value, index) => add(`${name}.obstacle`, index, value.left / TILE_SIZE_FIXED, value.top / TILE_SIZE_FIXED, value));
     collision.terrainTransitions?.forEach((value, index) => add(`${name}.transition`, index, value.lowerTileX, value.lowerTileY, value));
-    collisionMetadata[name] = json({
-      ...(collision.traversalChannels === undefined ? {} : { hasTraversalChannels: true }),
-      ...(collision.terrainMinimumElevation === undefined ? {} : { terrainMinimumElevation: collision.terrainMinimumElevation }),
-      ...(collision.fixedTerrainPlane === undefined ? {} : { fixedTerrainPlane: collision.fixedTerrainPlane }),
-      ...(collision.terrainTransitions === undefined ? {} : { terrainTransitions: [] }),
-    });
+    collisionsMetadata[name] = collisionMetadata(collision);
   }
+  const authority = captureAuthority(server, registry, terrain.width, terrain.height, channels, add);
   const terrainMeta: Record<string, unknown> = {};
   for (const field of ['seed', 'version', 'generator', 'defaultCliffFamily', 'defaultSurfaceFamily', 'cliffFamilyIds', 'projectionStyle', 'baseDatum', 'fixedTerrainPlane', 'raisedTerrainCollisionClassified'] as const) if (terrain[field] !== undefined) terrainMeta[field] = terrain[field];
   terrainMeta['hasTraversalChannels'] = terrain.traversalChannels !== undefined;
   terrainMeta['hasCellParts'] = terrain.cellParts !== undefined;
   terrainMeta['hasTransitions'] = terrain.terrainTransitions !== undefined;
   terrainMeta['hasOverrides'] = terrain.terrainOverrides !== undefined;
-  return { terrain, document, channels, records, collisions, metadata: {
+  return { terrain, document, channels, records, collisions, authority: authority.reference, metadata: {
     mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, mediumPalette: json(WORLD_CHUNK_MEDIA),
-    terrain: json(terrainMeta), collisions: collisionMetadata,
+    terrain: json(terrainMeta), collisions: collisionsMetadata, authority: authority.metadata,
     channels: json(Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: value.length / (terrain.width * terrain.height) }]))),
     surfacePalette: json(MAP_SURFACE_KINDS), featurePalette: json(MAP_FEATURE_KINDS),
     biomePalette: json(SURVIVAL_BIOMES), surfaceFamilyPalette: json(TERRAIN_SURFACE_FAMILY_IDS),
@@ -198,7 +313,7 @@ export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMa
       if (cell?.['parts'] !== undefined) cellParts[String(y * WORLD_CHUNK_SIZE + x)] = json(cell['parts']);
     }
     const assetIds = [...assets].sort();
-    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, spaceId, cx, cy, assetRevision,
+    const bytes = encodeWorldChunk({ schema: 1, mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, authoritySchema: WORLD_CHUNK_AUTHORITY_SCHEMA, spaceId, cx, cy, assetRevision,
       arrays: Object.fromEntries(Object.entries(channels).map(([name, source]) => [name, sliceWorldChunkChannel(source, width, height, cx, cy, name === 'medium' ? WORLD_CHUNK_VOID : /blocked/iu.test(name) ? 1 : 0)])),
       records, assetIds, atlasPackIds: [...new Set(atlasPackIdsForAssets(assetIds))].sort(),
       ...(Object.keys(cellParts).length ? { cellParts } : {}),
@@ -228,6 +343,69 @@ export function verifyWorldChunkParity(snapshot: WorldChunkSnapshot, materialize
     if (!included(name)) continue;
     if (canonicalChunkJson(store.collision(name)) !== canonicalChunkJson(snapshot.collisions[name])) throw new Error(`Chunk collision parity failed: ${name}`);
   }
+  verifyAuthorityParity(store, materialized.manifest, snapshot.authority);
+}
+function authorityMetadata(manifest: WorldChunkManifest): { readonly combatRegions: readonly CombatRegion[]; readonly generatedSuppressions: readonly string[];
+  readonly resources: ChunkJson; readonly collisions: Readonly<Record<AuthorityMedium, Record<string, ChunkJson>>> } {
+  const value = manifest.metadata['authority'] as Record<string, unknown> | undefined;
+  if (value?.['schema'] !== WORLD_CHUNK_AUTHORITY_SCHEMA) throw new Error('Manifest has no authority metadata');
+  return value as unknown as ReturnType<typeof authorityMetadata>;
+}
+/** Rebuilds the server's static composition for one medium from a complete
+ * chunk set: authority channels, ordered obstacle groups and suppressed keys. */
+export function rebuildAuthorityCollision(store: ChunkTerrainStore, manifest: WorldChunkManifest, medium: AuthorityMedium): CollisionMap {
+  if (!store.complete) throw new Error('Authority reconstruction requires every manifest chunk');
+  const meta = authorityMetadata(manifest).collisions[medium];
+  const { hasTraversalChannels, ...geometry } = meta;
+  delete geometry['terrainTransitions']; // rebuilt from ordered transition records below
+  const prefix = `authority.${medium}.`;
+  const channel = (name: string): ChunkArray | undefined => store.channels[`${prefix}${name}`];
+  const blocked = channel('blocked');
+  if (!(blocked instanceof Uint8Array)) throw new Error(`Missing ${prefix}blocked`);
+  const plane = channel('terrainPlaneBlocked') as Uint8Array | undefined, elevations = channel('elevations') as Int16Array | undefined;
+  const horse = channel('horseJumpableTerrain');
+  const obstacles = composeAuthorityObstacles(
+    store.records(`${prefix}obstacle`).map(record => record.value as unknown as WorldChunkAuthorityObstacle),
+    store.records('authority.suppressedObstacleKey').map(record => record.value as unknown as WorldChunkAuthoritySuppressedObstacle),
+    medium,
+  );
+  return { ...(geometry as object), width: store.width, height: store.height,
+    ...(hasTraversalChannels === true ? { traversalChannels: store.traversalChannels! } : {}),
+    blocked: Array.from(blocked, Boolean),
+    ...(elevations === undefined ? {} : { elevations }),
+    ...(plane === undefined ? {} : { terrainPlaneBlocked: plane }),
+    // SW-D1: no water horse-jump channel; absent is all false, as the server supplies.
+    horseJumpableTerrain: horse === undefined ? Array<boolean>(store.width * store.height).fill(false) : Array.from(horse, Boolean),
+    ...(Object.hasOwn(meta, 'terrainTransitions') ? { terrainTransitions: store.records(`${prefix}transition`).map(record => record.value as unknown as NonNullable<CollisionMap['terrainTransitions']>[number]) } : {}),
+    obstacles };
+}
+/** Deep, ordered comparison of every authority channel cell and record against the server oracle. */
+export function verifyAuthorityParity(store: ChunkTerrainStore, manifest: WorldChunkManifest, reference: WorldChunkAuthorityReference): void {
+  for (const medium of AUTHORITY_MEDIA) {
+    if (canonicalChunkJson(rebuildAuthorityCollision(store, manifest, medium)) !== canonicalChunkJson(reference.composed[medium])) throw new Error(`Authority collision parity failed: ${medium}`);
+  }
+  const suppressed = store.records('authority.suppressedObstacleKey').map(record => record.value as unknown as WorldChunkAuthoritySuppressedObstacle);
+  for (const medium of AUTHORITY_MEDIA) {
+    if (canonicalChunkJson(suppressed.filter(row => row.medium === medium).map(authorityObstacleKey)) !== canonicalChunkJson(reference.suppressedObstacleKeys[medium])) throw new Error(`Authority suppression parity failed: ${medium}`);
+  }
+  const metadata = authorityMetadata(manifest);
+  if (canonicalChunkJson(metadata.combatRegions) !== canonicalChunkJson(reference.combatRegions)
+    || canonicalChunkJson(metadata.generatedSuppressions) !== canonicalChunkJson(reference.generatedSuppressions)) throw new Error('Authority metadata parity failed');
+  const policy = new CombatRegionPolicy(metadata.combatRegions);
+  const combat = store.channels['authority.combatRegion'];
+  if (!(combat instanceof Uint8Array)) throw new Error('Missing authority.combatRegion');
+  for (let tileY = 0; tileY < store.height; tileY++) for (let tileX = 0; tileX < store.width; tileX++) {
+    const point = { spaceId: TOPSIDE_SPACE_ID, tileX, tileY };
+    const expected = reference.combatPolicy.regionAt(point)?.id, rebuilt = policy.regionAt(point)?.id;
+    const value = combat[tileY * store.width + tileX]!;
+    const actual = value === 0 ? undefined : metadata.combatRegions[value - 1]?.id;
+    if (actual !== expected || rebuilt !== expected) throw new Error(`Authority combat region parity failed at ${tileX},${tileY}`);
+  }
+  const resources = store.records('authority.resource').map(record => record.value);
+  if (canonicalChunkJson(resources) !== canonicalChunkJson(reference.resources)
+    || canonicalChunkJson(metadata.resources) !== canonicalChunkJson(resourceOrder(reference.resources))) throw new Error('Authority resource parity failed');
+  if (canonicalChunkJson(store.records('authority.walkable').map(record => record.value)) !== canonicalChunkJson(reference.walkable)) throw new Error('Authority walkable parity failed');
+  for (const { tileX, tileY } of reference.walkable) if (store.channels['authority.ground.blocked']![tileY * store.width + tileX] !== 0) throw new Error(`Authority walkable tile blocked at ${tileX},${tileY}`);
 }
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
