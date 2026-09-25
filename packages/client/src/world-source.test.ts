@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { bootstrapContentRegistry, runtimeTraversalPolicy, SURVIVAL_WORLD_SIZE } from '@orchard/sim';
+import { bootstrapContentRegistry, runtimeTraversalPolicy, SURVIVAL_ISLAND_MAP_GENERATOR, SURVIVAL_WORLD_SIZE } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, type ChunkArray, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import { BoundedChunkTerrainStore as Store } from '@orchard/engine/bounded-chunk-terrain-store';
@@ -11,6 +11,8 @@ import { WorldSource, type ChunkPinBounds } from './world-source.js';
 const registry = bootstrapContentRegistry();
 /** The live registry's traversal policy decides whether a publication must carry the channels. */
 const TRAVERSAL = runtimeTraversalPolicy(registry) !== null;
+/** The fixture island's size, passed as the live size (the dispatcher's guard_size). */
+const FIXTURE_SIZE = { width: 384, height: 384 };
 const SIZE = 384;
 
 /** A 6 x 6 chunk topside map whose biome encodes the tile. */
@@ -43,6 +45,7 @@ function fixture(spaceId = 0, extraChannel?: string, authority = false): { manif
   const manifest = { schema: 1, chunkSize: 64, spaceId, width: SIZE, height: SIZE, assetRevision: 'a', sourceRevision: 4, sourceHash: 'map',
     metadata: { terrain: { seed: 9, version: 4, generator: 'island', projectionStyle: 'raised', baseDatum: 0 },
       collisions: { clientGround: { terrainMinimumElevation: 0 } },
+      ...(authority ? { document: { provenance: { kind: 'generated', generator: SURVIVAL_ISLAND_MAP_GENERATOR } } } : {}),
       ...(authority ? { authority: { schema: 1, combatRegions: [], generatedSuppressions: ['resource-42'],
         collisions: { ground: { terrainMinimumElevation: 0, terrainTransitions: 0, hasTraversalChannels: TRAVERSAL },
           water: { hasTraversalChannels: TRAVERSAL } } } } : {}),
@@ -180,7 +183,7 @@ describe('WorldSource collision (static world S4d)', () => {
     const manifest = options.manifest?.(serving.store.manifest) ?? serving.store.manifest;
     const store = Object.create(serving.store, { manifest: { value: manifest } }) as BoundedChunkTerrainStore;
     const state = { gate: null as string | null, resident: serving.resident };
-    const source = new WorldSource({ store: () => store, pin: serving.pin, authorityGate: () => state.gate });
+    const source = new WorldSource({ store: () => store, pin: serving.pin, authorityGate: () => state.gate, worldSize: FIXTURE_SIZE });
     source.setView(VIEW);
     return { source, state, serving };
   }
@@ -216,6 +219,9 @@ describe('WorldSource collision (static world S4d)', () => {
         authority: { ...authority(manifest), collisions: { ground: { terrainMinimumElevation: 0, terrainTransitions: 0, hasTraversalChannels: !TRAVERSAL },
           water: { hasTraversalChannels: !TRAVERSAL } } } } })],
       ['incomplete: head_missing@5,5', (manifest: WorldChunkManifest) => ({ ...manifest, chunks: manifest.chunks.filter(head => !(head.cx === 5 && head.cy === 5)) })],
+      ['guard_size: 320x384', (manifest: WorldChunkManifest) => ({ ...manifest, width: 320 })],
+      ['guard_base', (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata, document: { provenance: { kind: 'blank' } } } })],
+      ['guard_base', (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata, document: {} } })],
     ] as const) {
       const refused = onSource({ manifest: change as (manifest: WorldChunkManifest) => WorldChunkManifest }).source;
       expect(refused.collision(registry), reason).toBeUndefined();
@@ -240,7 +246,7 @@ describe('WorldSource collision (static world S4d)', () => {
       const resident = unextended.store.peekChunk(cx, cy);
       return cx === 1 && cy === 1 && resident !== undefined ? { ...resident, authoritySchema: undefined } : resident;
     } } }) as BoundedChunkTerrainStore;
-    const broken = new WorldSource({ store: () => store, pin: unextended.pin, authorityGate: () => null });
+    const broken = new WorldSource({ store: () => store, pin: unextended.pin, authorityGate: () => null, worldSize: FIXTURE_SIZE });
     broken.setView(VIEW);
     expect(broken.collision(registry)).toBeUndefined();
     expect(broken.collisionStatus).toMatchObject({ fallbackReason: 'incomplete: authority_missing@1,1', authorityIncomplete: true });
@@ -248,7 +254,7 @@ describe('WorldSource collision (static world S4d)', () => {
 
   it('builds collision once per render window from exactly its chunks, and rebuilds when the window changes', () => {
     const serving = servingStore(0, undefined, true);
-    const source = new WorldSource({ store: () => serving.store, pin: serving.pin });
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin, worldSize: FIXTURE_SIZE });
     source.setView(VIEW);
     const first = source.collision(registry)!;
     expect(first.terrain).toBe(source.topsideTerrain(() => ({ width: 0, height: 0 }) as TerrainArray, registry));

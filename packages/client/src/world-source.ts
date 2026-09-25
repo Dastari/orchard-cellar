@@ -1,6 +1,7 @@
 import type { ContentRegistry, RuntimeTilesetResolver } from '@orchard/sim';
-import { runtimeTilesetResolver, runtimeTraversalPolicy, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID } from '@orchard/sim';
-import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-chunk';
+import { mapDocumentUsesSurvivalIslandBase, runtimeTilesetResolver, runtimeTraversalPolicy, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID,
+  type MapDocumentV3 } from '@orchard/sim';
+import { WORLD_CHUNK_SIZE, type ChunkJson, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
   buildChunkWindowCollision, chunkAuthorityGeneratedSuppressions, chunkAuthorityGroundFieldsMissing, chunkAuthorityMetadata,
   chunkAuthorityTraversalChannels, type ChunkAuthorityManifestMetadata, type ChunkWindowCollision,
@@ -25,6 +26,8 @@ export interface WorldSourceDependencies {
    * or stale content or map), or null. The server then serves its compiled map
    * (SW-D2), so client collision and suppression follow it to the legacy source. */
   readonly authorityGate?: () => string | null;
+  /** The live island's size (the dispatcher's `guard_size`); SURVIVAL_WORLD_SIZE by default. */
+  readonly worldSize?: { readonly width: number; readonly height: number };
 }
 
 /** Why topside collision currently uses the legacy source in chunk mode `on`
@@ -128,7 +131,8 @@ export class WorldSource {
     if (byRegistry === undefined) { byRegistry = new WeakMap(); this.#manifestReasons.set(manifest, byRegistry); }
     let reason = byRegistry.get(registry);
     if (reason === undefined) {
-      reason = manifestAuthorityReason(manifest, registry);
+      reason = manifestAuthorityReason(manifest, registry,
+        this.dependencies.worldSize ?? { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE });
       byRegistry.set(registry, reason);
     }
     return reason;
@@ -140,7 +144,8 @@ export class WorldSource {
    * the legacy source applies: modes off and shadow, `on` before a revision
    * serves, a window that failed to build, and every case in which the server
    * would serve its compiled map (#authorityReason, or a malformed resident
-   * chunk). A window chunk that is merely not resident yet stays solid instead:
+   * chunk; blob_missing / blob_invalid of chunks never fetched cannot be seen
+   * here, which is unavoidable). A window chunk that is merely not resident yet stays solid instead:
    * the publication is fine, and waiting for it is spawn readiness (S4f).
    * Built once per window.
    */
@@ -273,8 +278,19 @@ function pinnedRect(store: BoundedChunkTerrainStore): ChunkWindowRect | undefine
     rows: Math.min(CHUNK_WINDOW_CHUNKS, chunksY - cy, Math.max(...keys.map(([, y]) => y)) - cy + 1) };
 }
 
-/** The server dispatcher's publication-level refusals a client can evaluate. */
-function manifestAuthorityReason(manifest: WorldChunkManifest, registry: ContentRegistry): string | null {
+/** The server dispatcher's publication-level refusals a client can evaluate
+ * (#174 chunk-authority-dispatch). It cannot see `blob_missing` / `blob_invalid`
+ * for chunks it has not fetched: that is unavoidable, and a resident malformed
+ * chunk is still caught per window (`incomplete`). */
+function manifestAuthorityReason(manifest: WorldChunkManifest, registry: ContentRegistry,
+  worldSize: { readonly width: number; readonly height: number }): string | null {
+  // guard_size / guard_base: the chunks describe the survival island at the live size.
+  if (manifest.width !== worldSize.width || manifest.height !== worldSize.height) return `guard_size: ${manifest.width}x${manifest.height}`;
+  const document = manifest.metadata['document'];
+  const provenance = document !== null && typeof document === 'object' && !Array.isArray(document)
+    ? (document as { readonly [key: string]: ChunkJson })['provenance'] : undefined;
+  if (provenance === null || typeof provenance !== 'object' || Array.isArray(provenance)
+    || !mapDocumentUsesSurvivalIslandBase({ provenance } as unknown as Pick<MapDocumentV3, 'provenance'>)) return 'guard_base';
   const meta = chunkAuthorityMetadata(manifest);
   if (meta === undefined) return 'authority_metadata_missing';
   const missing = chunkAuthorityGroundFieldsMissing(meta);

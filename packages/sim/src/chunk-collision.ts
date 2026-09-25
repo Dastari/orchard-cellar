@@ -55,6 +55,8 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 function has(value: object, key: string): boolean { return Object.prototype.hasOwnProperty.call(value, key); }
 
+// Keyed by manifest identity: relies on published manifests never being mutated
+// (a new publication is a new, validated manifest object).
 const metadataCache = new WeakMap<WorldChunkManifest, ChunkAuthorityManifestMetadata | null>();
 /** The manifest's authority metadata, or undefined when it was published without
  * the authority extension. */
