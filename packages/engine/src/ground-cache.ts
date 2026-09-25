@@ -623,6 +623,9 @@ export class GroundChunkCache {
       groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale),
     );
     this.prepareTerrain(terrain);
+    // S4c: origin-0 assumption. The visible chunk range is clamped to
+    // [0, ceil(size / chunk)), i.e. a window starting at world tile (0, 0).
+    // A non-zero origin must clamp to the window's own chunk span instead.
     const minChunkX = Math.max(0, Math.floor(cameraX / GROUND_CHUNK_PIXELS));
     const minChunkY = Math.max(0, Math.floor(cameraY / GROUND_CHUNK_PIXELS));
     const maxChunkX = Math.min(
@@ -757,6 +760,9 @@ export class GroundChunkCache {
   ): boolean {
     if (terrainIndexAt(terrain, tileX, tileY) < 0) return false;
     this.prepareTerrain(terrain);
+    // S4c: chunks are keyed on world tiles, which stays valid for a window,
+    // but the cache (and renderChunk's firstTile maths) holds one terrain at a
+    // time: moving the window origin must invalidate or re-key these chunks.
     const chunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
     const chunkY = Math.floor(tileY / SURVIVAL_CHUNK_TILES);
     const canvas = this.chunks.getOrCreate(chunkX, chunkY, () =>

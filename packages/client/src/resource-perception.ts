@@ -107,6 +107,10 @@ export class ResourcePerceptionCache {
     const maximumY = Math.min(originY + terrain.height - 2, y + radius);
     // Keep only the local window. Crossing one tile reuses previous deterministic
     // vein lookups; stationary rendering returns above without scanning any tiles.
+    // S4c: origin-0 assumption. Keys are `tileY * width + tileX` in world
+    // tiles, so this reverse mapping (and key uniqueness) only holds while
+    // every world tileX < width. A window narrower than the world must key
+    // the vein cache on both coordinates instead.
     for (const index of this.oreTiles.keys()) {
       const tileX = index % terrain.width;
       const tileY = Math.floor(index / terrain.width);

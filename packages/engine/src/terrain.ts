@@ -1316,6 +1316,9 @@ export function terrainPlaneCollisionCellAt(
   const index = terrainIndexAt(terrain, tileX, tileY);
   if (index < 0) return "blocked";
   if (terrainFixedPlane(terrain) !== undefined) {
+    // S4c: origin-0 assumption. This is the map's own border ring in array
+    // coordinates; a window with a non-zero origin must decide whether it
+    // means the map border (world tiles) or the window edge.
     if (tileX === 0 || tileY === 0 || tileX === terrain.width - 1 || tileY === terrain.height - 1) {
       return "blocked";
     }
