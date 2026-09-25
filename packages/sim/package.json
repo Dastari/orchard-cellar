@@ -1,12 +1,13 @@
 {
   "name": "@orchard/sim",
-  "version": "0.30.1",
+  "version": "0.31.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./world-chunk": "./src/world-chunk.ts",
     "./chunk-runtime": "./src/chunk-runtime.ts",
+    "./world-chunk-document": "./src/world-chunk-document.ts",
     "./chunk-collision": "./src/chunk-collision.ts",
     "./chunk-runtime-fixture": "./src/chunk-runtime.fixture.ts",
     "./map-object-records": "./src/map-object-records.ts",

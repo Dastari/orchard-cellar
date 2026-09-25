@@ -7,11 +7,11 @@ import {
   activeSpaceGroundWalkableTiles, activeSurvivalLandmarks, bootstrapContentRegistry, buildContentRegistry, compileMapDocument,
   createLiveIslandMapDocument, generateSurvivalDecorations, generateSurvivalLandmarkDecorations,
   generateSurvivalProceduralDecorations, generateSurvivalResources, mapLandmarkDecoration,
-  parseMapDocumentV3, runtimeTilesetResolver, serializeMapDocumentV3, terrainDocumentForMapV3,
+  mapDocumentV3Hash, parseMapDocumentV3, runtimeTilesetResolver, serializeMapDocumentV3, terrainDocumentForMapV3,
   TERRAIN_CLIFF_FAMILIES, TERRAIN_SURFACE_FAMILIES, TERRAIN_SURFACE_FAMILY_IDS, SURVIVAL_BIOMES,
   CombatRegionPolicy, MAP_PREFAB_COLLISION_RESOLUTION, SURVIVAL_WORLD_SEED, mapLandmarkCollisionObstacle, mapObjectCollisionCells,
-  survivalDecorationObstacle,
-  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type ContentDefinitionRow, type MapDocumentV3,
+  survivalDecorationObstacle, survivalBiomeAt, mapDocumentUsesSurvivalIslandBase,
+  type CollisionMap, type CollisionObstacle, type CombatRegion, type CompiledMapDocument, type ContentRegistry, type ContentDefinitionRow, type MapDocumentV3,
 } from '@orchard/sim';
 import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { chunkMapRecordsReach, chunkMapViewAllowanceTiles } from '@orchard/engine/chunk-map-records';
@@ -19,11 +19,12 @@ import { createClientCollisionMap } from '@orchard/engine/collision';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE, WORLD_CHUNK_MEDIA, WORLD_CHUNK_MEDIUM_SCHEMA, WORLD_CHUNK_VOID,
-  WORLD_CHUNK_AUTHORITY_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthorityResourcePlacement, type WorldChunkAuthoritySuppressedObstacle,
+  WORLD_CHUNK_AUTHORITY_SCHEMA, WORLD_CHUNK_DOCUMENT_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthorityResourcePlacement, type WorldChunkAuthoritySuppressedObstacle,
   type WorldChunkMedium, type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 // BUG-044: authority schema 2 (obstacle table), the default blob encoding.
 import { WORLD_CHUNK_AUTHORITY_SCHEMA_V2, type WorldChunkAuthoritySchema } from '@orchard/sim/world-chunk';
 import { authorityObstacleKey, composeAuthorityObstacles } from '@orchard/sim/chunk-runtime';
+import { manifestCarriesAuthoredDocument, rebuildWorldChunkDocument, worldChunkAuthoredDocument, worldChunkDocumentCellsByChunk } from '@orchard/sim/world-chunk-document';
 import { cellFlags } from '@orchard/sim/cell-flags';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
 import { worldChunkCellMedium } from './world-chunk-medium.js';
@@ -165,26 +166,11 @@ function captureAuthority(server: ServerLiveIslandReference, registry: ContentRe
       resources: recordDigest(server.resources), resourcePlacements: recordDigest(server.orphanResourcePlacements), collisions: { ground: collisionMetadata(ground), water: collisionMetadata(water) } }),
   };
 }
-/** Calls the same live terrain, decoration and collision functions as the client. */
-export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry,
-  resolvedRoleMedium?: (tileX: number, tileY: number) => WorldChunkMedium | undefined,
-  /** A reference already computed for this exact row and registry (avoids re-running the oracle). */
-  serverReference?: ServerLiveIslandReference): WorldChunkSnapshot {
-  const document = parseMapDocumentV3(row.documentJson, activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
-  const raw = JSON.parse(row.documentJson) as { cells?: Record<string, { parts?: unknown }> };
-  for (const [key, value] of Object.entries(raw.cells ?? {})) {
-    if (value.parts !== undefined && !('parts' in (document.cells[key] ?? {}))) {
-      throw new Error('Cell parts require the authoring parser from PR #66; refusing lossy materialization');
-    }
-  }
-  const terrain = liveIslandTerrain(row, registry);
-  if (terrain === null) throw new Error('Published map is not a compatible live island');
-  const compiled = compileMapDocument(terrainDocumentForMapV3(document), runtimeTilesetResolver(registry.tilesets));
+/** The terrain channels of the published chunks (everything but collision and authority),
+ * derived from one live TerrainArray and its compiled document. */
+export function worldChunkTerrainChannels(terrain: TerrainArray, document: MapDocumentV3, compiled: CompiledMapDocument,
+  resolvedRoleMedium?: (tileX: number, tileY: number) => WorldChunkMedium | undefined): Record<string, ChunkArray> {
   const channels: Record<string, ChunkArray> = {};
-  const records: WorldChunkRecord[] = [];
-  const add = (kind: string, ordinal: number, tileX: number, tileY: number, value: unknown): void => {
-    records.push({ kind, ordinal, tileX: Math.max(0, Math.min(terrain.width - 1, Math.floor(tileX))), tileY: Math.max(0, Math.min(terrain.height - 1, Math.floor(tileY))), value: json(value) });
-  };
   for (const field of ['biomes', 'elevations', 'dirtCliffRoles', 'dirtTerraces', 'cliffFamilies', 'surfaceFamilies', 'ledges', 'authoredFarmland', 'terrainPlaneBlocked'] as const) {
     const value = terrain[field];
     if (value !== undefined) channels[field] = value;
@@ -210,6 +196,29 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   channels['features'] = Uint8Array.from(compiled.features, feature => MAP_FEATURE_KINDS.indexOf(feature));
   channels['compiledSurfaces'] = Uint8Array.from(compiled.surfaces, surface => MAP_SURFACE_KINDS.indexOf(surface));
   if (terrain.authoredSurfaces) channels['authoredSurfaces'] = Uint8Array.from(terrain.authoredSurfaces, surface => MAP_SURFACE_KINDS.indexOf(surface));
+  return channels;
+}
+/** Calls the same live terrain, decoration and collision functions as the client. */
+export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: ContentRegistry,
+  resolvedRoleMedium?: (tileX: number, tileY: number) => WorldChunkMedium | undefined,
+  /** A reference already computed for this exact row and registry (avoids re-running the oracle). */
+  serverReference?: ServerLiveIslandReference): WorldChunkSnapshot {
+  const document = parseMapDocumentV3(row.documentJson, activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
+  const raw = JSON.parse(row.documentJson) as { cells?: Record<string, { parts?: unknown }> };
+  for (const [key, value] of Object.entries(raw.cells ?? {})) {
+    if (value.parts !== undefined && !('parts' in (document.cells[key] ?? {}))) {
+      throw new Error('Cell parts require the authoring parser from PR #66; refusing lossy materialization');
+    }
+  }
+  const terrain = liveIslandTerrain(row, registry);
+  if (terrain === null) throw new Error('Published map is not a compatible live island');
+  const compiled = compileMapDocument(terrainDocumentForMapV3(document), runtimeTilesetResolver(registry.tilesets));
+  const channels: Record<string, ChunkArray> = {};
+  const records: WorldChunkRecord[] = [];
+  const add = (kind: string, ordinal: number, tileX: number, tileY: number, value: unknown): void => {
+    records.push({ kind, ordinal, tileX: Math.max(0, Math.min(terrain.width - 1, Math.floor(tileX))), tileY: Math.max(0, Math.min(terrain.height - 1, Math.floor(tileY))), value: json(value) });
+  };
+  Object.assign(channels, worldChunkTerrainChannels(terrain, document, compiled, resolvedRoleMedium));
   terrain.terrainOverrides?.forEach((value, index) => { if (value !== null) add('terrainOverride', index, index % terrain.width, Math.floor(index / terrain.width), value); });
   terrain.terrainTransitions?.forEach((value, index) => add('transition', index, value.lowerTileX, value.lowerTileY, value));
   document.stairRuns?.forEach((value, index) => add('stairRun', index, value.x, value.y, value));
@@ -277,6 +286,26 @@ export interface MaterializationOptions {
    * kinds once in a compact header table; 1 is the original JSON-record encoding (for
    * decoders that predate version 2). Decoded chunks are identical either way. */
   readonly authoritySchema?: WorldChunkAuthoritySchema;
+  /** Static-world S7a: publish the authored-document extension (`documentCells` per
+   * chunk, `metadata.authoredDocument`) so the document round-trips from the chunks.
+   * Off by default: without it the published bytes are exactly the pre-S7a bytes. */
+  readonly includeAuthoredDocument?: boolean;
+}
+/** The live document's semantic hash as Studio computes it (`editorMapSemanticHash`). */
+export function liveDocumentSemanticHash(document: MapDocumentV3): string {
+  return mapDocumentV3Hash({ ...document, revision: 0 });
+}
+function authoredDocumentExtension(document: MapDocumentV3, terrain: TerrainArray) {
+  const normalized = JSON.parse(serializeMapDocumentV3(document)) as Record<string, ChunkJson> & { readonly cells: Record<string, Record<string, ChunkJson>> };
+  const seed = document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;
+  // The generated biome, only where a consulting cell's baked biome lost it (none on a document whose cells all author both).
+  const baseBiomeAt = (tileX: number, tileY: number): number | undefined => {
+    if (!mapDocumentUsesSurvivalIslandBase(document)) return undefined;
+    const generated = SURVIVAL_BIOMES.indexOf(survivalBiomeAt(seed, tileX, tileY));
+    return generated === terrain.biomes[tileY * terrain.width + tileX] ? undefined : generated;
+  };
+  return { metadata: worldChunkAuthoredDocument(normalized, liveDocumentSemanticHash(document)),
+    cells: worldChunkDocumentCellsByChunk(normalized.cells, document.width, document.height, baseBiomeAt) };
 }
 export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMapDocumentRow, registry: ContentRegistry,
   options: MaterializationOptions = {}): MaterializedWorldChunks {
@@ -285,7 +314,9 @@ export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMa
   const included = (name: string): boolean => options.includeServerOracle === true || !name.startsWith('server');
   const channels = Object.fromEntries(Object.entries(snapshot.channels).filter(([name]) => included(name)));
   const sourceRecords = snapshot.records.filter(record => included(record.kind));
+  const authored = options.includeAuthoredDocument === true ? authoredDocumentExtension(snapshot.document, snapshot.terrain) : null;
   const metadata = { ...snapshot.metadata,
+    ...(authored === null ? {} : { authoredDocument: json(authored.metadata) }),
     includesServerOracle: options.includeServerOracle === true,
     channels: Object.fromEntries(Object.entries(snapshot.metadata['channels'] as Record<string, ChunkJson>).filter(([name]) => included(name))),
     collisions: Object.fromEntries(Object.entries(snapshot.metadata['collisions'] as Record<string, ChunkJson>).filter(([name]) => included(name))),
@@ -332,6 +363,7 @@ export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMa
       arrays: Object.fromEntries(Object.entries(channels).map(([name, source]) => [name, sliceWorldChunkChannel(source, width, height, cx, cy, name === 'medium' ? WORLD_CHUNK_VOID : /blocked/iu.test(name) ? 1 : 0)])),
       records, assetIds, atlasPackIds: [...new Set(atlasPackIdsForAssets(assetIds))].sort(),
       ...(Object.keys(cellParts).length ? { cellParts } : {}),
+      ...(authored === null ? {} : { documentSchema: WORLD_CHUNK_DOCUMENT_SCHEMA, documentCells: authored.cells.get(`${cx}:${cy}`) ?? { palette: [], cells: [] } }),
     });
     blobs.push(bytes);
     heads.push({ cx, cy, contentHash: decodeWorldChunk(bytes).contentHash, byteLength: bytes.length });
@@ -359,6 +391,17 @@ export function verifyWorldChunkParity(snapshot: WorldChunkSnapshot, materialize
     if (canonicalChunkJson(store.collision(name)) !== canonicalChunkJson(snapshot.collisions[name])) throw new Error(`Chunk collision parity failed: ${name}`);
   }
   verifyAuthorityParity(store, materialized.manifest, snapshot.authority);
+  if (manifestCarriesAuthoredDocument(materialized.manifest)) verifyDocumentRoundTrip(snapshot, materialized);
+}
+/** S7a: the document rebuilt from the published chunks has the live document's semantic hash. */
+export function verifyDocumentRoundTrip(snapshot: WorldChunkSnapshot, materialized: MaterializedWorldChunks): MapDocumentV3 {
+  const blobs = new Map(materialized.manifest.chunks.map((head, index) => [head.contentHash, materialized.blobs[index]!]));
+  const rebuilt = rebuildWorldChunkDocument(materialized.manifest, hash => blobs.get(hash));
+  const expected = liveDocumentSemanticHash(snapshot.document);
+  if (liveDocumentSemanticHash(rebuilt) !== expected || serializeMapDocumentV3(rebuilt) !== serializeMapDocumentV3(snapshot.document)) {
+    throw new Error('Authored document round-trip parity failed');
+  }
+  return rebuilt;
 }
 function authorityMetadata(manifest: WorldChunkManifest): { readonly combatRegions: readonly CombatRegion[]; readonly generatedSuppressions: readonly string[];
   readonly resources: ChunkJson; readonly resourcePlacements: ChunkJson; readonly collisions: Readonly<Record<AuthorityMedium, Record<string, ChunkJson>>> } {
@@ -444,6 +487,8 @@ export interface MaterializeLiveRowsInput {
   readonly assetRevision?: string;
   /** Publish the server oracle channels too (`--audit`); never used for a real publication. */
   readonly audit?: boolean;
+  /** Publish the S7a authored-document extension (`--authored-document`). Off by default. */
+  readonly authoredDocument?: boolean;
 }
 /** Materialise and parity-check (against the server oracle) the chunks for one live map row and content rows. */
 /**
@@ -476,9 +521,10 @@ export function materializeWorldChunksFromRows(input: MaterializeLiveRowsInput):
   });
   const assetRevision = input.assetRevision ?? (atlasIndexSource ? worldChunkHash(new TextEncoder().encode(atlasIndexSource)) : registry.contentHash);
   const snapshot = captureWorldChunkSnapshot(input.row, registry);
-  const audit = materializeWorldChunks(snapshot, input.row, registry, { atlasPackIdsForAssets: packIds, assetRevision, includeServerOracle: true });
+  const includeAuthoredDocument = input.authoredDocument === true;
+  const audit = materializeWorldChunks(snapshot, input.row, registry, { atlasPackIdsForAssets: packIds, assetRevision, includeServerOracle: true, includeAuthoredDocument });
   verifyWorldChunkParity(snapshot, audit);
-  const result = input.audit === true ? audit : materializeWorldChunks(snapshot, input.row, registry, { atlasPackIdsForAssets: packIds, assetRevision });
+  const result = input.audit === true ? audit : materializeWorldChunks(snapshot, input.row, registry, { atlasPackIdsForAssets: packIds, assetRevision, includeAuthoredDocument });
   if (result !== audit) verifyWorldChunkParity(snapshot, result);
   return { result, manifestJson: canonicalChunkJson(result.manifest) + '\n', registryContentHash: registry.contentHash, assetRevision, atlasPacksResolved: atlasIndex !== null };
 }
@@ -487,7 +533,7 @@ async function main(): Promise<void> {
   const value = (flag: string): string | undefined => { const index = args.indexOf(flag); return index < 0 ? undefined : args[index + 1]; };
   const input = value('--input');
   const output = value('--output');
-  if (!output || (!input && !args.includes('--bootstrap'))) throw new Error('Usage: tsx scripts/materialize-world-chunks.ts (--input map.json | --bootstrap) --output directory');
+  if (!output || (!input && !args.includes('--bootstrap'))) throw new Error('Usage: tsx scripts/materialize-world-chunks.ts (--input map.json | --bootstrap) --output directory [--content-rows rows.json] [--atlas-index index.json] [--audit] [--authored-document]');
   const contentRowsPath = value('--content-rows');
   const contentRows = contentRowsPath ? JSON.parse(await readFile(contentRowsPath, 'utf8')) as ContentDefinitionRow[] : null;
   const atlasIndexPath = value('--atlas-index');
@@ -502,7 +548,7 @@ async function main(): Promise<void> {
     return { mapId: LIVE_ISLAND_MAP_ID, revision: document.revision, documentJson, contentHash: worldChunkHash(new TextEncoder().encode(documentJson)) };
   })();
   const { result, manifestJson, registryContentHash, assetRevision, atlasPacksResolved } = materializeWorldChunksFromRows({
-    row, contentRows, atlasIndexSource, audit: args.includes('--audit'), ...(assetRevisionFlag === undefined ? {} : { assetRevision: assetRevisionFlag }) });
+    row, contentRows, atlasIndexSource, audit: args.includes('--audit'), authoredDocument: args.includes('--authored-document'), ...(assetRevisionFlag === undefined ? {} : { assetRevision: assetRevisionFlag }) });
   await mkdir(output, { recursive: true });
   const sizes: { cx: number; cy: number; raw: number; gzip: number; brotli: number }[] = [];
   for (let index = 0; index < result.blobs.length; index++) {

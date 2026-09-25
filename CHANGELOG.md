@@ -2,6 +2,19 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Sim 0.31.0 — Static world S7a: chunk round trip (option off)
+
+No gameplay, server, schema, content or published-byte change.
+
+- **S7a round trip (#198).** `@orchard/sim/world-chunk-document` rebuilds the live map document losslessly from the chunks plus the manifest, with no generator.
+  - **Extension:** it relies on a new additive `documentSchema: 1` chunk extension:
+    - per chunk, palette-encoded authored cells plus the sparse generated base biomes;
+    - in the manifest, the document fields, key-order variants, the FNV semantic hash and a full-text SHA-256.
+  - **Off by default:** the materializer option `includeAuthoredDocument` (`--authored-document`) is off, so published chunk bytes are unchanged.
+  - **Decoders:** decoders ignore unknown `documentSchema` versions; only the rebuild requires version 1.
+  - **Idempotence:** recompiling the rebuilt document over the baked chunk base reproduces every channel without the generator, so schema 2 does not need pre-overlay base channels.
+- Workspace 0.59.0.
+
 ## Client 0.46.0 / Engine 0.29.0 / Sim 0.30.1 — Static world S4e: map drawing from chunk records (dormant)
 
 The chunk runtime stays `off` in production. No server, schema or content change.
