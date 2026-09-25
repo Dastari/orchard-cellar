@@ -131,8 +131,11 @@ const MAX_BYTES = 32 * 1024 * 1024;
 const CELL_COUNT = WORLD_CHUNK_STRIDE ** 2;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
+function hexDigest(digest: Uint8Array): string {
+  return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+}
 export function worldChunkHash(bytes: Uint8Array): string {
-  return Array.from(sha256(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
+  return hexDigest(sha256(bytes));
 }
 /** Canonical keys; authored list order is deliberately preserved. */
 export function canonicalChunkJson(value: unknown): string {
@@ -258,8 +261,9 @@ export function encodeWorldChunk(chunk: Omit<WorldChunk, 'contentHash'>): Uint8A
 }
 export function decodeWorldChunk(bytes: Uint8Array, expectedHash?: string): WorldChunk {
   if (bytes.length < PREFIX_SIZE || bytes.length > MAX_BYTES || MAGIC.some((value, index) => bytes[index] !== value)) throw new TypeError('Invalid world chunk envelope');
+  // One SHA-256 pass: the header digest and the content address are the same hash.
   const digest = sha256(bytes.subarray(40));
-  const contentHash = worldChunkHash(bytes.subarray(40));
+  const contentHash = hexDigest(digest);
   if (digest.some((value, index) => bytes[index + 8] !== value) || (expectedHash !== undefined && contentHash !== expectedHash)) throw new TypeError('World chunk hash mismatch');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const jsonLength = view.getUint32(40, true);
