@@ -44,6 +44,18 @@ describe('atomic swing accounting', () => {
     expect(finish).toHaveBeenCalledExactlyOnceWith(0);
     expect(hit).not.toHaveBeenCalled();
   });
+  it('checks stamina against the classified charge, in preflight and before spending', () => {
+    const resisting = { validate: () => { throw new Error('wrong_tool'); }, resisted: () => true };
+    const preflight = vi.fn(), spend = vi.fn();
+    executeToolSwing([{ kind: 'resource', id: 4n }], { ...resisting, preflight, spend, hit: vi.fn(), finish: vi.fn() }, false);
+    expect(preflight).toHaveBeenCalledExactlyOnceWith(true);
+    expect(spend).not.toHaveBeenCalled();
+    executeToolSwing(contacts, { validate: vi.fn(), resisted: () => false, preflight, spend, hit: vi.fn(), finish: vi.fn() });
+    expect(preflight).toHaveBeenLastCalledWith(false);
+    const refused = vi.fn(() => { throw new Error('insufficient_vigour'); });
+    expect(() => executeToolSwing(contacts, { validate: vi.fn(), resisted: () => false, preflight: refused, spend, hit: vi.fn(), finish: vi.fn() })).toThrow('insufficient_vigour');
+    expect(spend).toHaveBeenCalledOnce();
+  });
   it('preflight makes no mutations and unexpected failures are not treated as resistance', () => {
     const validate = vi.fn(), spend = vi.fn(), hit = vi.fn(), finish = vi.fn();
     const authority = { validate, resisted: () => false, spend, hit, finish };

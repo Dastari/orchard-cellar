@@ -18,6 +18,9 @@ export function executeToolSwing<T extends SwingTarget>(
   authority: {
     validate(target: T): void;
     resisted(error: unknown): boolean;
+    /** Runs in preflight and mutation once contacts are classified: `empty` is true when none landed,
+     * so the stamina check matches the charge `spend` will make. */
+    preflight?(empty: boolean): void;
     spend(empty: boolean): void;
     hit(target: T): void;
     finish(wear: number): void;
@@ -30,6 +33,7 @@ export function executeToolSwing<T extends SwingTarget>(
     try { authority.validate(target); return true; }
     catch (error) { if (!authority.resisted(error)) throw error; return false; }
   });
+  authority.preflight?.(accepted.length === 0);
   if (!mutate) return;
   authority.spend(accepted.length === 0);
   for (const target of accepted) authority.hit(target);

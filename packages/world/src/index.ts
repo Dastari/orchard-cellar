@@ -23033,7 +23033,6 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
       include('chest', chest.id, tilePoint(chest));
     }
   }
-  validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, contacts.length === 0);
   const swing = { prepaid: true } as const;
   const apply = (target: SwingTarget, write: boolean) => {
     if (target.kind === 'npc' || target.kind === 'combat_target') {
@@ -23055,6 +23054,8 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
   executeToolSwing(contacts, {
     validate: target => apply(target, false),
     resisted: error => error instanceof SenderError && TOOL_SWING_RESISTANCE.has(error.message),
+    // Checked after classification, so a swing that only meets resisting contacts needs only the whiff price.
+    preflight: empty => validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, empty),
     spend: empty => spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, empty),
     hit: target => apply(target, true),
     finish: wear => {

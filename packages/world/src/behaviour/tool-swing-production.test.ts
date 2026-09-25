@@ -87,6 +87,27 @@ describe('production server swing discovery', () => {
     expect(f.spend).toHaveBeenCalledTimes(1);
     // Two NPCs and the campfire landed; the resisting vein adds no wear (BUG-042).
     expect(f.wear).toHaveBeenCalledExactlyOnceWith(ctx, f.slot, 3);
+    expect(f.spend.mock.calls[0]?.[4]).toBe(false);
+  });
+  it('preflights and charges a swing that only meets a resisting vein at the whiff price (BUG-042)', () => {
+    const f = fixture('pickaxe');
+    const resource = { id: 7n, tileX: 8, tileY: 8, spaceId: 0, depleted: false };
+    const ctx = { ...f.ctx, db: { ...f.ctx.db,
+      world_npc: { by_chunk: { filter: () => [] } },
+      world_resource: { by_chunk: { filter: () => [resource] } },
+    } };
+    const validate = vi.fn();
+    production('applyToolSwingLifecycle', { ...f.dependencies, validateToolVigourSpend: validate,
+      TOOL_SWING_RESISTANCE: new Set(['pickaxe_tier_too_low']),
+      runtimeResourceDefinition: () => ({}), liveMapGeneratedResourceSuppressed: () => false,
+      runtimeResourceTargetVector: () => ({ x: 0, y: 0 }), playerInteractionOrigin: (point: unknown) => point,
+      applyHarvestResourceLifecycle: () => { throw new Error('pickaxe_tier_too_low'); },
+    })(ctx);
+    expect(validate).toHaveBeenCalledOnce();
+    expect(validate.mock.calls[0]?.[4]).toBe(true);
+    expect(f.spend).toHaveBeenCalledOnce();
+    expect(f.spend.mock.calls[0]?.[4]).toBe(true);
+    expect(f.wear).not.toHaveBeenCalled();
   });
   it('measures a resource contact in the frame its target vector is authored in', () => {
     // A wall or vein one tile north sits within a pick's one-tile arc. Measuring
