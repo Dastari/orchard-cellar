@@ -12,7 +12,9 @@ describe('static-world readiness', () => {
   it('finds the whole-map dependencies the migration still has to remove', () => {
     const byId = new Map(READINESS_PROBES.map((probe) => [probe.id, runProbe(probe, process.cwd())]));
     // These fall to zero as steps 4-6 land; this test then flips to assert zero.
-    expect(byId.get('server.whole-map-compile')!.files).toContain('packages/world/src/index.ts');
+    // Step-4 baseline after S2b (17 -> 14): the collision dispatcher (1), combat policy (8, S3a -> 6)
+    // and document/resource consumers (5, S3b -> 1). The dispatcher's compiled fallback stays until S3-final.
+    expect(byId.get('server.whole-map-compile')!).toMatchObject({ count: 14, files: ['packages/world/src/index.ts'] });
     expect(byId.get('client.live-map-document')!.count).toBeGreaterThan(0);
     expect(byId.get('studio.document-json')!.count).toBeGreaterThan(0);
     // Step-6 baseline: studio-connection.ts (3) and admin/live-services.ts (1). S7b/S7c drive it to zero.

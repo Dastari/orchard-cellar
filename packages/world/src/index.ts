@@ -3,7 +3,9 @@ import { cellFlagsWhere } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
-import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
+import { ChunkAuthorityDispatcher } from './content/chunk-authority-dispatch.js';
+import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
+import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
 import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
@@ -3959,14 +3961,14 @@ function collisionForSpace(
   spaceId: number,
   excludedHomesteadSpaceId?: number,
   prefetchedRows?: PrefetchedSpaceCollisionRows,
-  prefetchedLiveMapRuntime?: LiveIslandRuntime | null,
+  prefetchedLiveMapRuntime?: LiveIslandCollisionRuntime | null,
   excludeFurniture = false,
   residenceExpansionRank?: number,
   excludeArchitecture = false,
 ) {
   const unifiedChestReads = chestMigrationReadsUsePlaceables(ctx);
   const liveMapRuntime = prefetchedLiveMapRuntime === undefined
-    ? spaceId === TOPSIDE_SPACE_ID ? compiledLiveIslandRuntime(ctx) : null
+    ? spaceId === TOPSIDE_SPACE_ID ? liveIslandCollisionRuntime(ctx) : null
     : prefetchedLiveMapRuntime;
   const resources = prefetchedRows?.resources
     ?? [...ctx.db.world_resource.by_chunk.filter(spaceId)];
@@ -4078,7 +4080,7 @@ function collisionForSpace(
 function waterCollisionForSpace(
   ctx: WorldReducerContext,
   spaceId: number,
-  prefetchedLiveMapRuntime?: LiveIslandRuntime | null,
+  prefetchedLiveMapRuntime?: LiveIslandCollisionRuntime | null,
   chunkScope?: ReadonlySet<string>,
   groundGeometry?: CollisionMap,
 ) {
@@ -12904,16 +12906,70 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
   return liveIslandRuntimeCache;
 }
 
+const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
+
+/**
+ * Static-world S2b: the live-island collision runtime behind the owner
+ * `chunkAuthority` switch. `off` (the default) is exactly the compiled runtime.
+ * `shadow` keeps compiled authoritative while comparing the chunk runtime and
+ * logging disagreements. `on` serves the chunk runtime only when it is complete,
+ * fresh and passes the compiled guards, and otherwise falls back to compiled.
+ * Collision call sites only: combat policy, resource reconcile and the document
+ * consumers still read compiledLiveIslandRuntime (S3a/S3b/S3c move them).
+ */
+function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
+  const compiled = () => compiledLiveIslandRuntime(ctx);
+  const mode = chunkAuthorityMode(ctx);
+  if (mode === 'off') {
+    chunkAuthorityDispatcher.release();
+    return compiled();
+  }
+  return chunkAuthorityDispatcher.select({
+    mode,
+    compiled,
+    shadow: () => ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID)),
+    liveMap: () => ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID),
+    registryContentHash: () => contentRegistry(ctx).contentHash,
+    traversalPolicyActive: () => runtimeTraversalPolicy(contentRegistry(ctx)) !== null,
+    readBlob: (hash) => {
+      const row = ctx.db.world_chunk_blob.contentHash.find(hash);
+      if (row === null) return undefined;
+      // spacetimedb 2.8.2 deserializes Array<U8> columns to a fresh Uint8Array
+      // (BinaryReader.readUInt8Array slices), so no per-element copy is needed.
+      const bytes: unknown = row.bytes;
+      return bytes instanceof Uint8Array ? bytes : Uint8Array.from(row.bytes);
+    },
+  });
+}
+
+/** Shadow mode only, when `chunkAuthorityDispatcher.sampleRuntime(tick)` is due (at
+ * most once per sample interval): rebuilds this tick's topside collision from the
+ * same rows with the chunk runtime and compares it with the authoritative maps at
+ * player positions. Logs only. */
+function sampleChunkAuthorityShadow(
+  ctx: WorldReducerContext,
+  chunkRuntime: LiveIslandCollisionRuntime,
+  authorityTick: bigint,
+  players: readonly PlayerPositionRow[],
+  compiledFinal: { readonly ground: CollisionMap; readonly water: CollisionMap },
+  rows: PrefetchedSpaceCollisionRows,
+): void {
+  chunkAuthorityDispatcher.recordSample(authorityTick, players.map(({ x, y }) => ({ x, y })), compiledFinal, () => {
+    const ground = collisionForSpace(ctx, TOPSIDE_SPACE_ID, undefined, rows, chunkRuntime);
+    return { ground, water: waterCollisionForSpace(ctx, TOPSIDE_SPACE_ID, chunkRuntime, rows.chunkScope, ground) };
+  });
+}
+
 function liveMapCollisionForSpace(
   ctx: WorldReducerContext,
   spaceId: number,
   medium: 'ground' | 'water',
   base: CollisionMap,
-  prefetchedRuntime?: LiveIslandRuntime | null,
+  prefetchedRuntime?: LiveIslandCollisionRuntime | null,
 ): CollisionMap {
   if (spaceId !== TOPSIDE_SPACE_ID) return base;
   const runtime = prefetchedRuntime === undefined
-    ? compiledLiveIslandRuntime(ctx)
+    ? liveIslandCollisionRuntime(ctx)
     : prefetchedRuntime;
   if (runtime === null) return base;
   const authored = medium === 'ground' ? runtime.ground : runtime.water;
@@ -12929,7 +12985,7 @@ function liveMapCollisionForSpace(
 }
 
 function liveMapRuntimeGeneratedResourceSuppressed(
-  runtime: LiveIslandRuntime | null,
+  runtime: Pick<LiveIslandCollisionRuntime, 'generatedSuppressions'> | null,
   resourceId: bigint,
 ): boolean {
   return runtime?.generatedSuppressions.has(`resource-${resourceId}`) ?? false;
@@ -22124,7 +22180,7 @@ function outdoorCollisionMap(ctx:WorldReducerContext, excludedResourceId?: bigin
     chests.push(...ctx.db.world_chest.by_chunk.filter([TOPSIDE_SPACE_ID,x,y]));
     combatTargets.push(...ctx.db.world_combat_target.by_chunk.filter([TOPSIDE_SPACE_ID,x,y]));
   }
-  return collisionForSpace(ctx,TOPSIDE_SPACE_ID,undefined,{resources: resources.filter(resource => resource.id !== excludedResourceId),chests,combatTargets,chunkScope:new Set(chunks.keys())},compiledLiveIslandRuntime(ctx));
+  return collisionForSpace(ctx,TOPSIDE_SPACE_ID,undefined,{resources: resources.filter(resource => resource.id !== excludedResourceId),chests,combatTargets,chunkScope:new Set(chunks.keys())},liveIslandCollisionRuntime(ctx));
 }
 function outdoorRecoveryPosition(ctx:WorldReducerContext,policy:CombatRegionPolicy,prefetchedCollision?:CollisionMap):{x:number;y:number}|null {
   const arrival=HEARTH_ISLANDS.cinderwake.arrival,collision=prefetchedCollision??outdoorCollisionMap(ctx);
@@ -25132,9 +25188,10 @@ export const stepWorld = spacetimedb.reducer(
       npcsBySpace.set(spaceId, npcs);
       // Resolve the revision-keyed live runtime once per occupied space. In
       // particular, do not repeat its indexed head/registry lookup for every
-      // generated resource in the collision filter.
+      // generated resource in the collision filter. The owner chunkAuthority
+      // switch selects compiled (off, shadow) or chunk (on) collision here.
       const liveMapRuntime = spaceId === TOPSIDE_SPACE_ID
-        ? compiledLiveIslandRuntime(ctx)
+        ? liveIslandCollisionRuntime(ctx)
         : null;
       // Use the same augmented map as reducers and clients. This adds dynamic
       // Homestead POIs/tents; constructing the base map directly here caused
@@ -25154,6 +25211,13 @@ export const stepWorld = spacetimedb.reducer(
         collision,
       );
       waterCollisionBySpace.set(spaceId, waterCollision);
+      // Shadow-mode sampler: null (no allocation, no work) unless shadow is on and due.
+      const chunkSampleRuntime = spaceId === TOPSIDE_SPACE_ID ? chunkAuthorityDispatcher.sampleRuntime(authorityTick) : null;
+      if (chunkSampleRuntime !== null) {
+        sampleChunkAuthorityShadow(ctx, chunkSampleRuntime, authorityTick, playersBySpace.get(spaceId) ?? [], { ground: collision, water: waterCollision }, {
+          resources, chests, combatTargets, chunkScope: new Set(chunkScope.keys()),
+        });
+      }
       obstacleCount += collision.obstacles?.length ?? 0;
     }
     tickStageTiming(telemetryTimingSample, 'collision', true);
