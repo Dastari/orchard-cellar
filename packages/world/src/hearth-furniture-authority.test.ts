@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import * as sim from '@orchard/sim';
 import { resolvePlaceableObject } from './content/object-runtime.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 function authority(dependencies: Record<string, unknown>, names = ['requireFurnitureBuilder', 'furnitureInResidence', 'requireFurnitureReach', 'requireFurnitureDestination',
   'requireFurnitureRow', 'placeHearthFurniture', 'moveHearthFurniture', 'pickupHearthFurniture']) {
@@ -30,7 +31,7 @@ function fixture() {
   let nextId = 1n, consumed = 0, full = false, role = 'builder', locked = false, mounted = false;
   const position = { spaceId: 30000, identity: 'alice', x: 6.5 * sim.TILE_SIZE_FIXED, y: 7.5 * sim.TILE_SIZE_FIXED };
   const collision: sim.CollisionMap = { width: 16, height: 16,
-    blocked: Array.from({ length: 256 }, (_, i) => i < 16 || i >= 240 || i % 16 === 0 || i % 16 === 15) };
+    blocked: cellFlags(Array.from({ length: 256 }, (_, i) => i < 16 || i >= 240 || i % 16 === 0 || i % 16 === 15)) };
   const definitions = new Map(Object.values(sim.HEARTH_FURNITURE_SHAPES).map(shape => [`object:${shape.id}`, {
     id: `object:${shape.id}`, components: {
       identity: { tags: ['furniture'] },

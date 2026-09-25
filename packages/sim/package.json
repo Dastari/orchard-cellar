@@ -1,6 +1,6 @@
 {
   "name": "@orchard/sim",
-  "version": "0.29.1",
+  "version": "0.30.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -17,6 +17,7 @@
     "./behaviour/data-graph": "./src/behaviour/data-graph.ts",
     "./streetlamp": "./src/streetlamp.ts",
     "./state": "./src/state.ts",
+    "./cell-flags": "./src/cell-flags.ts",
     "./survival-dimensions": "./src/survival-dimensions.ts",
     "./survival-biomes": "./src/survival-biomes.ts",
     "./survival-resource-catalog": "./src/survival-resource-catalog.ts",

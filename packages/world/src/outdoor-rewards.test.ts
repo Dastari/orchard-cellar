@@ -53,7 +53,7 @@ function fixture(contentMode:'active'|'missing'|'retired'='active'){
   const profiles=new Map<bigint,{npcId:bigint;encounterId:string;generation:bigint;enemyKind:string;role?:string;summonState?:string}>();
   const unit=sim.TILE_SIZE_FIXED;
   const player={spaceId:sim.TOPSIDE_SPACE_ID,x:unit*3,y:unit*4};
-  const collision={width:32,height:32,blocked:Array(1024).fill(false),elevations:Array(1024).fill(0),obstacles:[]};
+  const collision={width:32,height:32,blocked:new Uint8Array(1024),elevations:Array(1024).fill(0),obstacles:[]};
   const policy=new sim.CombatRegionPolicy([{id:'island',spaceId:sim.TOPSIDE_SPACE_ID,minX:0,minY:0,maxX:31,maxY:31,policy:'hostile'}]);
 
   let containers:Readonly<Record<string,sim.ContainerSnapshot>>=Object.fromEntries(['hotbar','backpack','equipment','crafting'].map(id=>[id,{id,capacity:1,slots:[null]}]));

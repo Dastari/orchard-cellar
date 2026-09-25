@@ -228,7 +228,7 @@ export function tileTargetIsBlocked(
 ): boolean {
   if (!Number.isInteger(tile.tileX) || !Number.isInteger(tile.tileY)) return true;
   const tileIndex = collisionCellIndex(map, tile.tileX, tile.tileY);
-  if (tileIndex < 0 || (map.blocked[tileIndex] ?? true)) return true;
+  if (tileIndex < 0 || (map.blocked[tileIndex] ?? 1) !== 0) return true;
   if (map.fixedTerrainPlane !== undefined && map.terrainPlaneBlocked !== undefined) {
     const stride = map.width * map.height;
     const planeIndex = map.fixedTerrainPlane - (map.terrainMinimumElevation ?? 0);

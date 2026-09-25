@@ -5,9 +5,10 @@ import {residencePlayableTile} from './spaces.js';
 import {bootstrapContentRegistry} from './content/bootstrap-registry.js';
 import type {ContentRegistry} from './content/registry.js';
 import type {ResidenceConstructionBalanceContentDefinition} from './content/balance-definition.js';
+import { cellFlags } from './cell-flags.js';
 const registry=bootstrapContentRegistry();
 const context={canBuild:true,existing:[],occupants:[],collision:{width:16,height:16,
-  blocked:Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16)))}};
+  blocked:cellFlags(Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16))))}};
 const initial:HearthArchitectureState={recipeVersion:1,revision:0n,cells:[]};
 const floor={tileX:6,tileY:8,floor:'rustic' as const};
 function plan(state=initial,edits:readonly HearthArchitectureEdit[]=[{...floor,replacement:floor}],expectedRevision=state.revision,

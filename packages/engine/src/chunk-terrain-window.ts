@@ -189,12 +189,6 @@ export function buildChunkTerrainWindow(source: ChunkWindowSource, rect: ChunkWi
     if (!(value instanceof type)) throw new Error(`chunk_window_missing_channel:${name}`);
     return value;
   };
-  const booleans = (name: string): boolean[] => {
-    const bytes = required(name, u8(name), Uint8Array);
-    const result = new Array<boolean>(cells);
-    for (let index = 0; index < cells; index++) result[index] = bytes[index] !== 0;
-    return result;
-  };
   const elevations = required('elevations', channel('elevations'), Int16Array);
   const optional: Record<string, unknown> = {};
   for (const name of ['cliffFamilies', 'surfaceFamilies', 'ledges', 'authoredFarmland', 'terrainPlaneBlocked'] as const) {
@@ -248,8 +242,9 @@ export function buildChunkTerrainWindow(source: ChunkWindowSource, rect: ChunkWi
     elevations,
     dirtCliffRoles: required('dirtCliffRoles', u8('dirtCliffRoles'), Uint8Array),
     dirtTerraces: required('dirtTerraces', u8('dirtTerraces'), Uint8Array),
-    blocked: booleans('blocked'),
-    horseJumpableTerrain: booleans('horseJumpableTerrain'),
+    // The window's own 0/1 channel copies (chunks store these planes as 0/1 bytes).
+    blocked: required('blocked', u8('blocked'), Uint8Array),
+    horseJumpableTerrain: required('horseJumpableTerrain', u8('horseJumpableTerrain'), Uint8Array),
   } as TerrainArray;
   return { terrain, rect, manifest, present, missing: rect.columns * rect.rows - present.size };
 }

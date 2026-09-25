@@ -2,6 +2,23 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.45.1 / Engine 0.28.0 / Sim 0.30.0 / World 0.26.7 / Studio 0.16.7 / Tools 0.24.4 — Compact collision planes; chunk publish pipeline (off)
+
+No gameplay change, no schema change, and no content change. The chunk runtime stays `off` in production.
+
+- **Compact collision planes (#193).**
+  - **Planes converted:** per-cell flag planes are `Uint8Array` (0/1) instead of `boolean[]`. That covers `CollisionMap.blocked` and `horseJumpableTerrain`; `TerrainArray.blocked`, `horseJumpableTerrain` and `residenceEnvelopeBlocked`; the compiled map, rogue room and hearth lobby `blocked`; and the traversal admission and projectile planes.
+  - **New helper module:** `@orchard/sim/cell-flags`.
+  - **Reads:** they test for non-zero, with the same out-of-range defaults.
+  - **Unchanged outputs:** goldens, parity and all 169 chunk heads are byte-identical.
+  - **Memory:** a chunk window's data drops from about 10.8 to 4.0 MiB, and the staging peak from 28–31 to 16–18 MiB, under the 24 MiB budget. This meets a condition before `on`.
+  - **Speed:** server collision build and tick costs are within ±2%, and precomputed collision decodes about twice as fast.
+- **Static world S5b: chunk publish pipeline (#194, off by default).**
+  - **Commands:** `npm run world:chunks:publish -- plan|publish|check` materialises chunks from the live map and content rows, installs them content-addressed into `ORCHARD_WORLD_CHUNK_DIR`, verifies them over the public origin, stages the blobs and CAS-publishes the heads.
+  - **Dry run is the default.** `publish` needs `WORLD_CHUNKS_PUBLISH_CONFIRM=publish:<manifest>:<registry content hash>:<db>`. Stale heads exit 3, errors exit 1, and a report is always written, with tokens redacted.
+  - **Release hook:** `world:release:routine` gains an optional hook, `WORLD_RELEASE_CHUNKS=off|check|publish` (default `off`), which runs after the web restart and never rolls back a deployment.
+- Workspace 0.57.0.
+
 ## Client 0.45.0 / Engine 0.27.0 / Sim 0.29.1 / UI 0.44.3 / Studio 0.16.6 — No flicker between our pages; static world S4f (dormant)
 
 - **No flicker between our own pages (#185, GrayOx, owner item 5).**

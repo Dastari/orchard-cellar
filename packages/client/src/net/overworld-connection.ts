@@ -809,7 +809,7 @@ export class OverworldConnection {
   reconcile(predicted: PlayerState | null, authoritative: PlayerState, collision: CollisionMap): ReconciliationResult | null {
     const x = Math.floor(authoritative.position.x / TILE_SIZE_FIXED), y = Math.floor(authoritative.position.y / TILE_SIZE_FIXED);
     const cell = collisionCellIndex(collision, x, y);
-    if (cell >= 0) this.chunkRuntime?.compare(x, y, collision.blocked[cell] ?? true);
+    if (cell >= 0) this.chunkRuntime?.compare(x, y, (collision.blocked[cell] ?? 1) !== 0);
     const row = this.ownPosition(); if (row === null) return null;
     if(row.actionKind==='sitting'){
       this.prediction.discardPendingMovement();

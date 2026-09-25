@@ -29,7 +29,7 @@ it('admits the exact authored native chest and denies displaced, disabled, rebou
   expect(hearthSupplyCacheInstalled(cache,{ ...document, prefabs: [{ ...prefab, cells: [] }] })).toBe(false);
 });
 it('keeps the frontage body clear of the chest and requires bounded same-plane unobstructed access', () => {
-  const collision: CollisionMap = { width: 832, height: 832, blocked: Array(832 * 832).fill(false),
+  const collision: CollisionMap = { width: 832, height: 832, blocked: new Uint8Array(832 * 832),
     elevations: new Int16Array(832 * 832), obstacles: [{ left: 650 * TILE_SIZE_FIXED, right: 651 * TILE_SIZE_FIXED - 1,
       top: 202 * TILE_SIZE_FIXED, bottom: 203 * TILE_SIZE_FIXED - 1 }] };
   const position = { x: 650.5 * TILE_SIZE_FIXED, y: 204.5 * TILE_SIZE_FIXED };

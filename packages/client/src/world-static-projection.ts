@@ -106,7 +106,7 @@ export class WorldStaticProjectionCache {
     if (ground.width !== water.width || ground.height !== water.height) throw new Error('collision_map_size_mismatch');
     let combined = this.projectileBlocked.get(ground.blocked);
     if (combined === undefined || combined.water !== water.blocked) {
-      combined = { water: water.blocked, blocked: ground.blocked.map((blocked, index) => blocked && (water.blocked[index] ?? true)) };
+      combined = { water: water.blocked, blocked: ground.blocked.map((blocked, index) => blocked !== 0 && (water.blocked[index] ?? 1) !== 0 ? 1 : 0) };
       this.projectileBlocked.set(ground.blocked, combined);
     }
     // Obstacles, elevations and all other live map channels always come from

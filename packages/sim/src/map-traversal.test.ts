@@ -4,6 +4,7 @@ import { migrateMapDocumentV2, terrainDocumentForMapV3 } from './map-document-v3
 import { compileMapDocument } from './map-compiler.js';
 import { mapDocumentTraversalChannels, mapTraversalChannels, staticTraversalChannels } from './map-traversal.js';
 import { RULE_MEDIA } from './rule-catalogue.js';
+import { cellFlags } from './cell-flags.js';
 
 const base = () => migrateMapDocumentV2(createEmptyMapDocument({ id: 'media', title: 'Media', width: 8, height: 8 }));
 describe('shared map traversal channels', () => {
@@ -26,7 +27,7 @@ describe('shared map traversal channels', () => {
     expect(() => mapTraversalChannels(document, { ...compiled, width: 1 })).toThrow('traversal_map_size_mismatch');
   });
   it('removes only named static hazards, retaining enclosure geometry', () => {
-    const channels = staticTraversalChannels({ width: 3, height: 1, blocked: [true, true, false] },
+    const channels = staticTraversalChannels({ width: 3, height: 1, blocked: cellFlags([true, true, false]) },
       index => index === 1 ? 'lava' : 'land', new Set([1]));
     expect(Array.from(channels.solidBlocked)).toEqual([1, 0, 0]);
     expect(Array.from(channels.medium)).toEqual([0, RULE_MEDIA.indexOf('lava'), 0]);

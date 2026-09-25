@@ -1,9 +1,10 @@
 import {describe,it,expect} from 'vitest';
 import {hearthFurniturePlacementFailure,hearthFurnitureHasAttachments,hearthFurnitureObstacle,hearthFurnitureCells,hearthFurniturePresentationAnchor,type HearthFurniturePlacement,type HearthFurniturePlacementContext} from './hearth-furniture-placement.js';
 import {TILE_SIZE_FIXED} from './state.js';
+import { cellFlags } from './cell-flags.js';
 const table:HearthFurniturePlacement={id:'table',tileX:5,tileY:5,shape:{id:'table',layer:'standing',width:3,height:2,base:{halfWidth:22,depth:16},tabletopSurface:{insetLeft:0,insetTop:0,width:3,height:1,liftPixels:20}}};
 function room():HearthFurniturePlacementContext{
-  return {canBuild:true,collision:{width:12,height:12,blocked:Array.from({length:144},(_,i)=>i%12===0||i%12===11||i<12||i>=132)},
+  return {canBuild:true,collision:{width:12,height:12,blocked:cellFlags(Array.from({length:144},(_,i)=>i%12===0||i%12===11||i<12||i>=132))},
     existing:[],reserved:[{tileX:6,tileY:10}],exit:{tileX:6,tileY:10},occupants:[{x:6.5*TILE_SIZE_FIXED,y:8.5*TILE_SIZE_FIXED}]};
 }
 describe('shared interior furniture placement',()=>{
@@ -28,8 +29,8 @@ describe('shared interior furniture placement',()=>{
     expect(hearthFurnitureHasAttachments('lamp',[table,lamp])).toBe(false);
   });
   it('allows the wall mirror only on actual wall cells',()=>{
-    const context=room(),blocked=[...context.collision.blocked];
-    for(let i=0;i<36;i++)blocked[i]=true;
+    const context=room(),blocked=context.collision.blocked.slice();
+    for(let i=0;i<36;i++)blocked[i] = 1;
     const walls={...context,collision:{...context.collision,blocked}};
     const mirror:HearthFurniturePlacement={id:'mirror',tileX:5,tileY:2,shape:{id:'mirror',layer:'wall',width:1,height:2}};
     expect(hearthFurniturePlacementFailure(walls,mirror)).toBeNull();
@@ -61,8 +62,8 @@ describe('shared interior furniture placement',()=>{
     })).toBe('invalid_placement');
   });
   it('refuses sealing an empty accessible room as well as trapping its current occupants',()=>{
-    const context=room(),blocked=[...context.collision.blocked];
-    for(let x=1;x<11;x++)if(x!==6)blocked[6*12+x]=true;
+    const context=room(),blocked=context.collision.blocked.slice();
+    for(let x=1;x<11;x++)if(x!==6)blocked[6*12+x] = 1;
     const doorway={...table,tileX:6,tileY:6,shape:{...table.shape,width:1,height:1,tabletopSurface:{insetLeft:0,insetTop:0,width:1,height:1,liftPixels:20},base:{halfWidth:8,depth:16}}};
     expect(hearthFurniturePlacementFailure({...context,collision:{...context.collision,blocked},occupants:[]},doorway)).toBe('escape_blocked');
   });

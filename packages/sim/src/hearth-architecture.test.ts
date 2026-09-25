@@ -4,9 +4,10 @@ import {composeHearthArchitecture,planHearthArchitecture,type HearthArchitecture
 import {residencePlayableTile,residenceEnvelopeSize} from './spaces.js';
 import {positionCollides} from './movement.js';
 import {TILE_SIZE_FIXED} from './state.js';
+import { cellFlags } from './cell-flags.js';
 function baseline(rank=0) {
   const size=residenceEnvelopeSize(rank);
-  return {width:size,height:size,blocked:Array.from({length:size*size},(_,i)=>!residencePlayableTile(i%size,Math.floor(i/size),rank)),
+  return {width:size,height:size,blocked:cellFlags(Array.from({length:size*size},(_,i)=>!residencePlayableTile(i%size,Math.floor(i/size),rank))),
     obstacles:[{left:4*TILE_SIZE_FIXED,top:5*TILE_SIZE_FIXED,right:5*TILE_SIZE_FIXED-1,bottom:6*TILE_SIZE_FIXED-1}]};
 }
 describe('modular residence architecture composition',()=>{
@@ -24,7 +25,7 @@ describe('modular residence architecture composition',()=>{
     if(result.failure!==null)return;
     expect(positionCollides({x:6.5*TILE_SIZE_FIXED,y:8.5*TILE_SIZE_FIXED},result.collision)).toBe(true);
     expect(positionCollides({x:7.5*TILE_SIZE_FIXED,y:8.5*TILE_SIZE_FIXED},result.collision)).toBe(false);
-    expect(base.blocked[8*16+6]).toBe(false);
+    expect(base.blocked[8*16+6]).toBe(0);
   });
   it('rejects unpurchased rooms, protected approaches and unsupported attachments',()=>{
     expect(composeHearthArchitecture(0,baseline(),[{tileX:20,tileY:7,floor:'rustic'}]).failure).toBe('outside_purchased_room');
@@ -39,7 +40,7 @@ describe('modular residence architecture composition',()=>{
     expect(composeHearthArchitecture(0,baseline(),[{tileX:6,tileY:8,floor:'rustic',window:true}]).failure).toBe('window_requires_wall');
   });
   it('rejects duplicate and fractional cells without partially changing the baseline',()=>{
-    const base=baseline(),before=[...base.blocked],cell:HearthArchitectureCell={tileX:6,tileY:8,partition:'wall'};
+    const base=baseline(),before=base.blocked.slice(),cell:HearthArchitectureCell={tileX:6,tileY:8,partition:'wall'};
     expect(composeHearthArchitecture(0,base,[cell,cell]).failure).toBe('duplicate_architecture_cell');
     expect(composeHearthArchitecture(0,base,[{...cell,tileX:6.5}]).failure).toBe('outside_purchased_room');
     expect(base.blocked).toEqual(before);

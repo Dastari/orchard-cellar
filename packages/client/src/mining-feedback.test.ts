@@ -26,7 +26,7 @@ describe('mining feedback', () => {
 
   it('matches the server elevation check: a vein up a cliff never sparks', () => {
     const gold = vein('ore_gold'), width = 12, height = 12;
-    const flat = { width, height, blocked: new Array(width * height).fill(false), elevations: new Array(width * height).fill(0) };
+    const flat = { width, height, blocked: new Uint8Array(width * height), elevations: new Array(width * height).fill(0) };
     const cliff = { ...flat, elevations: flat.elevations.map((_, index) => Math.floor(index / width) <= 4 ? 1 : 0) };
     expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [gold], flat as never)).toEqual([gold]);
     expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [gold], cliff as never)).toEqual([]);

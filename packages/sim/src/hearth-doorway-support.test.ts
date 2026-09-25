@@ -5,9 +5,10 @@ import {hearthDoorwayWallAttachmentFailure,hearthDoorwayWindowConflicts} from '.
 import {HEARTH_FURNITURE_SHAPES} from './hearth-furniture-state.js';
 import {residencePlayableTile} from './spaces.js';
 import {bootstrapContentRegistry} from './content/bootstrap-registry.js';
+import { cellFlags } from './cell-flags.js';
 const registry=bootstrapContentRegistry();
 const context={canBuild:true,existing:[],occupants:[],collision:{width:16,height:16,
-  blocked:Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16),0))}};
+  blocked:cellFlags(Array.from({length:256},(_,i)=>!residencePlayableTile(i%16,Math.floor(i/16),0)))}};
 const opening=(y=8):HearthArchitectureCell[]=>[{tileX:6,tileY:y,partition:'wall'},
   {tileX:7,tileY:y,partition:'doorway'},{tileX:8,tileY:y,partition:'wall'}];
 describe('doorway hardware support reservations',()=>{
