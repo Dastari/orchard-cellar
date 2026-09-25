@@ -69,6 +69,7 @@ function renderWorldItem(registry: ReturnType<typeof buildContentRegistry>['regi
     scale: 1,
     visualTickClock: { renderTick: 7 },
     treeShakeRemaining: new Map(),
+    resourceGlanceRemaining: new Map(),
     effectPhase: 0,
     dynamicLighting: true,
     lightVisible: { left: 0, top: 0, right: 320, bottom: 320 },

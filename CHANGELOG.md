@@ -2,6 +2,20 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.42.0 / UI 0.44.0 / Studio 0.16.3 — Owner UI feedback: scrollbars, mining feedback, hotbar tooltip
+
+The owner approved each change from rendered PNGs (wiki `Roadmap/Game UI Redesign`).
+
+- **Proportional scrollbars (#170, BoldBridge).** Scrollbars in the game and Cellar Studio share one style: a brown rail with an orange thumb sized to the visible content, at least 12 px.
+- **Mining feedback (#171, BoldBridge).**
+  - A vein shakes on every successful hit.
+  - A tool that can't work a vein glances off with a dull clink and a spark. It shows no text and only glances when no hit landed. It uses the server's reach, elevation and line-of-sight rules.
+  - The vein hover card shows the pickaxe tier needed.
+  - Negative toasts are trimmed: "SWING", "TOOL IS NOT READY", "PROSPECTOR REVEALS YIELD ODDS", the tree regrowing and growing prompts, and "NO X USE ACTION YET". Error messages remain only for deliberate actions, in real words. The anvil still says "SELECT A DAMAGED TOOL".
+- **Hotbar tooltip (#172, BoldBridge).** The item name shows in capitals, centred above the hovered or focused slot, and resizes for each item.
+- **Gear catalogue (#173, GrayOx).** The generated wiki table never writes an empty cell.
+- Also ships the dormant static-world waves 1 and 2 (entries below). Workspace 0.53.0, Assets 0.23.2 (new `tool_clink` sound) and Tools 0.24.3. The stored schema is unchanged.
+
 ## Client 0.41.3 / World 0.26.4 / Sim 0.28.1 — Static world wave 2 (dormant)
 
 **Nothing is activated.** Production builds refuse the chunk runtime's `on` mode, and no server path reads chunks yet.

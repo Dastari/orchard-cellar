@@ -1,4 +1,5 @@
 import { resourceVisualState } from './resource-visual-state.js';
+import { MINING_GLANCE_TICKS } from './mining-feedback.js';
 import { profilePainterProducer } from './painter-producer-profile.js';
 import { FIXED_UNITS_PER_PIXEL, naturalObjectId, resolveObjectDefinitionAppearance, cropGrowthAt, runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem, recoverableArrowDirection } from '@orchard/sim';
 import { drawAuthoredOverworldObject, drawAuthoredResourceVisual, drawOverworldArrow, drawOverworldCrop, drawOverworldItem, natureDecorationFrame } from '@orchard/engine/overworld-art';
@@ -11,11 +12,27 @@ type Inputs = Pick<GameplayPainterInputs,
   'debugEntitiesHidden' | 'worldResourcesIncludingPersonalQuest' | 'snapshot' | 'homesteadSurroundingResources' | 'seed' |
   'liveMapSuppressesGeneratedResource' | 'visible' | 'windTrees' | 'renderWeather' | 'weatherVisualTick' |
   'enqueueWorldDepth' | 'context' | 'art' | 'cameraX' | 'cameraY' |
-  'scale' | 'visualTickClock' | 'treeShakeRemaining' | 'effectPhase' | 'drawSouthFacingReceiver' |
+  'scale' | 'visualTickClock' | 'treeShakeRemaining' | 'resourceGlanceRemaining' | 'effectPhase' | 'drawSouthFacingReceiver' |
   'miningClassFromWire' | 'cropDefinitionForSnapshot' | 'renderAuthorityTick' | 'cropAutomaticallyWateredForSnapshot' | 'cropCalendarOffsetForSnapshot' |
   'cropGreenhouseProtectedForSnapshot' | 'dynamicLighting' | 'lightVisible' | 'pointLights' |
   'projectedLight' | 'objectPresentations'
 >;
+
+// A white flash on the struck face, then sparks flying off it, bright then cooling, over MINING_GLANCE_TICKS.
+const GLANCE_SPARKS = [[-1, -1], [1, -1], [-1.4, 0], [1.4, 0], [-0.7, 0.8], [0.7, 0.8]] as const;
+export function drawGlanceSparks(context: CanvasRenderingContext2D, worldX: number, worldY: number,
+  cameraX: number, cameraY: number, scale: number, age: number): void {
+  // Same quantization as drawAnchored, so the sparks share the vein's pixel phase.
+  const at = (x: number, y: number, size: number) => context.fillRect(Math.round(x * scale) - Math.round(cameraX * scale),
+    Math.round(y * scale) - Math.round(cameraY * scale), Math.max(1, Math.round(size * scale)), Math.max(1, Math.round(size * scale)));
+  if (age < 3) {
+    context.fillStyle = '#ffffff';
+    at(worldX - 1, worldY, 1); at(worldX + 1, worldY, 1); at(worldX, worldY - 1, 1); at(worldX, worldY + 1, 1); at(worldX, worldY, 1);
+  }
+  context.fillStyle = age < 4 ? '#ffffff' : age < 8 ? '#fee761' : '#feae34';
+  const size = age < 6 ? 2 : 1, distance = 3 + age * 1.5;
+  for (const [dx, dy] of GLANCE_SPARKS) at(worldX + dx * distance, worldY + dy * distance, size);
+}
 
 /** Mechanically extracted painter producer; command order and draw bodies are unchanged. */
 function buildEnqueueGameplayResources(input: Inputs): void {
@@ -23,7 +40,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
     debugEntitiesHidden, worldResourcesIncludingPersonalQuest, snapshot, homesteadSurroundingResources, seed,
     liveMapSuppressesGeneratedResource, visible, windTrees, renderWeather, weatherVisualTick,
     enqueueWorldDepth, context, art, cameraX, cameraY,
-    scale, visualTickClock, treeShakeRemaining, effectPhase, drawSouthFacingReceiver,
+    scale, visualTickClock, treeShakeRemaining, resourceGlanceRemaining, effectPhase, drawSouthFacingReceiver,
     miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot, cropCalendarOffsetForSnapshot,
     cropGreenhouseProtectedForSnapshot, dynamicLighting, lightVisible, pointLights,
     projectedLight, objectPresentations,
@@ -106,6 +123,8 @@ function buildEnqueueGameplayResources(input: Inputs): void {
             cameraX, cameraY, scale * visualScale,
             miningClassFromWire(resource.miningClass, resource.spaceId), resource.richness,
           ));
+          const glance = resourceGlanceRemaining.get(resource.id) ?? 0;
+          if (glance > 0) drawGlanceSparks(context, resourceX, resourceY - 9, cameraX, cameraY, scale, MINING_GLANCE_TICKS - glance);
           return;
         }
         const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;

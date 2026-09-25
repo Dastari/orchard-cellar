@@ -14,6 +14,7 @@ import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard
 import { WorldInteractionRegistry } from './world-interactions.js';
 import { worldActionPrompt } from './world-action-prompt.js';
 import { orchardHarvestPrompt } from './orchard-presentation.js';
+import { glancingSwingNodes, miningToolNeeded, miningWorkAdvanced, MINING_GLANCE_TICKS } from './mining-feedback.js';
 import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading, disposeInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
@@ -458,13 +459,17 @@ function updateSkillPointNotice(snapshot: OverworldView): void {
   }
 }
 
-function failureToastText(error: unknown): string {
+type FailureWording = readonly (readonly [code: string, text: string])[];
+// At the anvil a wrong tool means an undamaged one, so it keeps its specific wording.
+const ANVIL_FAILURES: FailureWording = [['wrong_tool', 'SELECT A DAMAGED TOOL']];
+
+function failureToastText(error: unknown, overrides: FailureWording = []): string {
   const raw = error instanceof Error ? error.message : String(error);
   const knownFailures = [
+    ...overrides,
     ['inventory_full', 'NOT ENOUGH INVENTORY SPACE'],
     ['container_full', 'NOT ENOUGH INVENTORY SPACE'],
     ['insufficient_vigour', 'INSUFFICIENT VIGOUR'],
-    ['swing_too_soon', 'TOOL IS NOT READY'],
     ['anvil_copper_missing', 'ANVIL REPAIR NEEDS 5 COPPER'],
     ['anvil_not_in_reach', 'FACE A NEARBY ANVIL'],
     ['furnace_slot_restricted', 'ORE GOES ABOVE, WOOD OR PLANKS BELOW'],
@@ -475,7 +480,12 @@ function failureToastText(error: unknown): string {
     ['pickaxe_tier_too_low', 'THIS VEIN NEEDS A STRONGER PICKAXE'],
     ['fishing_requires_water', 'FISHING REQUIRES A CLEAR WATER TILE'],
     ['tool_not_damaged', 'TOOL IS ALREADY FULLY REPAIRED'],
-    ['wrong_tool', 'SELECT A DAMAGED TOOL'],
+    ['wrong_tool', 'THAT NEEDS A DIFFERENT TOOL'],
+    ['target_out_of_range', 'TOO FAR AWAY'],
+    ['resource_depleted', 'NOTHING LEFT TO GATHER'],
+    ['hands_occupied', 'YOUR HANDS ARE FULL'],
+    ['tool_broken', 'THIS TOOL IS BROKEN'],
+    ['out_of_arrows', 'NO ARROWS LEFT'],
     ['backpack_in_use', 'EMPTY THE EXTRA PACK SLOTS BEFORE UNEQUIPPING IT'],
     ['stable_hand_required', 'LEARN STABLE HAND IN ANIMAL HUSBANDRY'],
     ['steeplechase_required', 'LEARN STEEPLECHASE IN EXPLORER'],
@@ -484,13 +494,18 @@ function failureToastText(error: unknown): string {
     ['jump_cooldown', 'STILL LANDING'],
     ['tool_skill_required', 'MORE SPECIALIZATION RANKS ARE REQUIRED FOR THIS TOOL'],
     ['equipment_light_required', 'EQUIP A SWITCHABLE LIGHT IN YOUR OFF-HAND SLOT'],
-  ] as const;
+  ] as const satisfies FailureWording;
   const known = knownFailures.find(([code]) => raw.toLowerCase().includes(code));
   return known?.[1] ?? raw.replaceAll('_', ' ').toUpperCase();
 }
 
-function setFailureToast(error: unknown, ticks = 120): void {
-  setToast(failureToastText(error), 'failure', ticks);
+// Rejections the player can already see (the swing animation simply doesn't repeat) show no toast.
+const SILENT_FAILURES = ['swing_too_soon'] as const;
+
+function setFailureToast(error: unknown, ticks = 120, overrides: FailureWording = []): void {
+  const raw = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (SILENT_FAILURES.some((code) => raw.includes(code))) return;
+  setToast(failureToastText(error, overrides), 'failure', ticks);
 }
 
 function rogueRewardClaimedMessage(run: { readonly roomNumber: number }): string {
@@ -644,7 +659,10 @@ const weatherTickClock = new FrameVisualTickClock();
 const presentationCorrection = new PresentationCorrection();
 const avatarAnimations = new Map<string, AvatarAnimationController>();
 const resourceHealth = new Map<bigint, number>();
+const resourceYieldProgress = new Map<bigint, number>();
 const treeShakeRemaining = new Map<bigint, number>();
+// Veins a swing glanced off (wrong pickaxe): sparks, no shake.
+const resourceGlanceRemaining = new Map<bigint, number>();
 const localActionPresentation = new LocalActionPresentation();
 let localActionIdentity: string | null = null;
 let latestPositionAuthorityTick = 0n;
@@ -2297,18 +2315,22 @@ function update(): void {
     for (const resource of snapshot.resources) {
       visibleResourceIds.add(resource.id);
       const previousHealth = resourceHealth.get(resource.id);
-      if (previousHealth !== undefined
+      const previousYield = resourceYieldProgress.get(resource.id);
+      if ((previousHealth !== undefined
         && previousHealth <= survivalResourceInitialHealth(
           resource.kind, MATURE_TREE_GROWTH_STAGE, snapshot.content.registry,
         )
         && resource.health < previousHealth
-        && !resource.depleted) {
+        && !resource.depleted)
+        // Mining work between payouts is a landed strike too.
+        || (previousYield !== undefined && miningWorkAdvanced(previousYield, resource))) {
         treeShakeRemaining.set(resource.id, 16);
       }
       resourceHealth.set(resource.id, resource.health);
+      resourceYieldProgress.set(resource.id, resource.yieldProgress);
     }
     for (const id of resourceHealth.keys()) {
-      if (!visibleResourceIds.has(id)) resourceHealth.delete(id);
+      if (!visibleResourceIds.has(id)) { resourceHealth.delete(id); resourceYieldProgress.delete(id); }
     }
     for (const id of treeShakeRemaining.keys()) {
       if (!visibleResourceIds.has(id)) treeShakeRemaining.delete(id);
@@ -2317,6 +2339,10 @@ function update(): void {
   for (const [id, remaining] of treeShakeRemaining) {
     if (remaining <= 1) treeShakeRemaining.delete(id);
     else treeShakeRemaining.set(id, remaining - 1);
+  }
+  for (const [id, remaining] of resourceGlanceRemaining) {
+    if (remaining <= 1) resourceGlanceRemaining.delete(id);
+    else resourceGlanceRemaining.set(id, remaining - 1);
   }
   if (networkDirty && collisionBootstrapReady({
     connected: snapshot.connected,
@@ -2710,9 +2736,21 @@ function resolvedPlayerVitals(snapshot: OverworldView) {
   };
 }
 
+/** A swing that only met veins this pickaxe can't work glances off them: sparks and a dull clink, no text. */
+function glanceSwing(snapshot: OverworldView, itemKind: string): void {
+  if (predicted === null) return;
+  const facing = liveEquippedItemFacing(snapshot, itemKind, predicted.facing, cursorFacing());
+  const glancing = glancingSwingNodes(snapshot.content.registry, itemKind, predicted.position, facing,
+    worldResourcesIncludingPersonalQuest(snapshot).filter((resource) => !liveMapSuppressesGeneratedResource(snapshot, resource.id)),
+    worldCollision);
+  if (glancing.length === 0) return;
+  for (const resource of glancing) resourceGlanceRemaining.set(resource.id, MINING_GLANCE_TICKS);
+  void audio.unlock().then(async () => await audio.playSfx('tool_clink')).catch(() => undefined);
+}
+
 function performToolAction(
   call: () => Promise<void>,
-  success: string,
+  success: string | null,
   itemKind: string,
   whiff = false,
   presentationElapsedMs = 0,
@@ -3921,7 +3959,7 @@ function targetInteraction(snapshot: OverworldView) {
     : worldInteractions.resolve(snapshot, predicted.position.x, predicted.position.y);
 }
 
-function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView): string {
+function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView): string | null {
   const woodcuttingAction = selectedWoodcuttingUseWithAction(
     liveItemContentDefinition(snapshot, selectedItem(snapshot)),
   );
@@ -3970,7 +4008,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     case 'boat': return runtimeNpcMount(snapshot.content.registry, localMount(snapshot))?.adapter === 'boat'
       ? '[E] LEAVE BOAT'
       : '[E] BOARD BOAT';
-    case 'orchard': return orchardHarvestPrompt(snapshot.content.registry, target.resource, snapshot.clock?.authorityTick ?? 0n) ?? 'TREE';
+    case 'orchard': return orchardHarvestPrompt(snapshot.content.registry, target.resource, snapshot.clock?.authorityTick ?? 0n);
     case 'gatherable': return `[E] PICK UP ${target.presentation.promptLabel.toUpperCase()}`;
     case 'quest_item': return `[E] PICK UP ${liveItemLabel(snapshot, target.item.itemKind)}`;
     case 'embedded_arrow': return '[E] RECOVER ARROW';
@@ -4769,7 +4807,7 @@ function renderFrame(alpha = 1): void {
     snapshot, celestialPass, activeSpaceDefinition, renderItems, weatherVisualTick,
     lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting,
     objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, visualTickClock,
-    frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining,
+    frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining, resourceGlanceRemaining,
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
     cropCalendarOffsetForSnapshot, cropGreenhouseProtectedForSnapshot, liveItemContentDefinition, projectileDisplay, projectileFlightTicks,
     projectileHitProgress, renderTickClock, pendingBowProjectile, projectileCollision, animatedOpenChestId,
@@ -5708,12 +5746,15 @@ function renderFrame(alpha = 1): void {
           : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
       const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
       const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
-      const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
+      // Yield odds only for prospectors; a vein the held pickaxe can't work names the one it needs.
+      const odds = prospectorRank <= 0 ? null
         : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
           : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
             : 'GUARANTEED FULL ORE CHUNK';
+      const needed = miningToolNeeded(snapshot.content.registry, hoveredMiningResource, selectedItem(snapshot) || null);
       const worldX = hoveredMiningResource.tileX * 16 + 8, worldY = (hoveredMiningResource.tileY + 1) * 16;
-      feedbackHint = { title, lines: [classLabel, status, odds], tone: 'neutral',
+      feedbackHint = { title, lines: [classLabel, status, ...(needed !== null ? [needed] : odds !== null ? [odds] : [])],
+        roles: ['subtitle', 'status', 'muted'], tone: 'neutral',
         progress: Math.max(0, Math.min(1, hoveredMiningResource.yieldProgress / 12)),
         x: (worldX - cameraX) * worldZoom / uiScale,
         y: (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale };
@@ -6063,12 +6104,12 @@ function pointerCanvasPosition(event: MouseEvent): readonly [number, number] {
   return [canvasX, canvasY];
 }
 
-function showResult(promise: Promise<void>, success: string | null, presentationToken?: number): void {
+function showResult(promise: Promise<void>, success: string | null, presentationToken?: number, failures: FailureWording = []): void {
   void promise.then(() => {
     if (success !== null) setToast(success, 'success');
   }).catch((error: unknown) => {
     if (presentationToken !== undefined) localActionPresentation.reject(presentationToken);
-    setFailureToast(error);
+    setFailureToast(error, 120, failures);
   });
 }
 
@@ -6501,7 +6542,7 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     if (swingIntent === 'swing') {
-      performToolAction(() => network.useSelected('secondary'), 'SWING', selectedUseKind);
+      if (performToolAction(() => network.useSelected('secondary'), null, selectedUseKind)) glanceSwing(snapshot, selectedUseKind);
       event.preventDefault();
       return;
     }
@@ -6521,7 +6562,7 @@ window.addEventListener('keydown', (event) => {
           targetKind: 'homeX' in target ? 'npc' : 'combat_target',
           entityId: target.id,
         }),
-        target === null ? 'SWING' : 'TARGET STRUCK',
+        target === null ? null : 'TARGET STRUCK',
         selectedUseKind,
         target === null,
       );
@@ -6602,7 +6643,7 @@ window.addEventListener('keydown', (event) => {
     if (actionPlaceable !== null
       && objectHasAuthoredTag(snapshot.content.registry, actionPlaceable, 'station.anvil')
       && selectedItemLifecycleAction(selectedUseDefinition, 'useWith') !== null) {
-      showResult(network.useSelected('use_with', { targetKind: 'placeable', entityId: actionPlaceable.id }), 'TOOL REPAIRED');
+      showResult(network.useSelected('use_with', { targetKind: 'placeable', entityId: actionPlaceable.id }), 'TOOL REPAIRED', undefined, ANVIL_FAILURES);
       event.preventDefault();
       return;
     }
@@ -6816,9 +6857,8 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     const selectedWorldToolAction = selectedContextualWorldToolAction(selectedUseDefinition);
-    if (selectedWorldToolAction === null) {
-      setToast(`NO ${liveItemLabel(snapshot, item)} USE ACTION YET`, 'failure');
-    } else {
+    // Items with no world action simply do nothing on the use key.
+    if (selectedWorldToolAction !== null) {
       const resource = targetResource(snapshot);
       const cellarWall = resource === null ? targetCellarWall(snapshot) : null;
       const cellarToolAction = selectedCellarToolAction(selectedUseDefinition);
@@ -6836,7 +6876,7 @@ window.addEventListener('keydown', (event) => {
         );
         if (performed) facePredictedTowardTile(cellarWall);
       } else if (resource === null) {
-        performToolAction(() => network.useSelected('secondary'), 'SWING', item, true);
+        if (performToolAction(() => network.useSelected('secondary'), null, item, true)) glanceSwing(snapshot, item);
       } else {
         const efficientRank = runtimeSkillCapabilities(
           snapshot.content.registry,

@@ -18,7 +18,7 @@ export function uiScrollThumb(node: UiElement, axis: 'x' | 'y'): { track: UiRect
   const vertical = axis === 'y', maximum = vertical ? node.scroll.maxY : node.scroll.maxX;
   if (maximum <= 0) return null;
   const r = node.contentRect, length = vertical ? r.height : r.width;
-  const extent = Math.min(length, Math.max(8, Math.floor(length * length / (length + maximum))));
+  const extent = Math.min(length, Math.max(12, Math.floor(length * length / (length + maximum))));
   const offset = Math.round((length - extent) * (vertical ? node.scroll.y : node.scroll.x) / maximum);
   const thickness = Number(node.props['scrollbarWidth']) || 4;
   const track = vertical ? { x: node.rect.x + node.rect.width - thickness, y: r.y, width: thickness, height: r.height }
