@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
+import { bootstrapContentRegistry } from '@orchard/sim';
 import { GameHud, type GameHudModel, type GameHudSurface } from './hud.js';
 import { uiPurseWidth } from '../kit/components/purse.js';
 import { touchControlLayout } from '../touch-control-layout.js';
@@ -89,6 +90,27 @@ describe('production shared HUD compositions', () => {
     root.pointer({ type: 'up', point: start, pointerId: 1, button: 0, pointerType: 'touch' });
     root.wheel({ point: start, deltaX: 0, deltaY: 20 }); root.arrange(); expect(strip.scroll.x).toBe(50);
     f.host.update({ ...model(), effects }); expect(strip.scroll.x).toBe(50); expect(effects[0]!.remainingTicks).toBe(200);
+  });
+  it('reads hotbar wear from the live registry for items only published or Studio content defines', () => {
+    const bootstrap = bootstrapContentRegistry(), source = bootstrap.items.get('item:iron_axe')!;
+    const live = { ...bootstrap, items: new Map(bootstrap.items) };
+    live.items.set('item:studio_blade', { ...source, id: 'item:studio_blade', durability: { ...source.durability!, max: 100 } });
+    expect(bootstrap.items.has('item:studio_blade')).toBe(false);
+    const tracks = (registry?: typeof live) => {
+      const callbacks = { selectHotbar: vi.fn(), toggleInventory: vi.fn(), toggleCrafting: vi.fn(), toggleBuild: vi.fn(), openSystem: vi.fn(), openOnlinePlayers: vi.fn(), clearTarget: vi.fn(), focusSurface: vi.fn() };
+      const painters = { itemLabel: () => 'BLADE', drawItem: vi.fn(), drawPlayerHead: vi.fn(), drawTargetPortrait: vi.fn(), drawMinimap: vi.fn(), drawMoon: vi.fn(), drawEffect: vi.fn(),
+        ...(registry ? { contentRegistry: () => registry } : {}) };
+      const host = new GameHud(art, callbacks, painters); hosts.push(host); host.resize(320, 180);
+      const base = model(); host.update({ ...base, inventory: { ...base.inventory, rows: [{ slot: 1, stack: { itemKind: 'studio_blade', quantity: 1, durability: 25 } }] } });
+      const context = createCanvas(320, 180).getContext('2d'), fill = vi.spyOn(context, 'fillRect');
+      host.draw(context as unknown as CanvasRenderingContext2D);
+      host.roots.hotbarVitals.arrange();
+      const slot = host.roots.hotbarVitals.entries().find(row => row.element.id === 'game.hud.hotbar.slot.1')!.element.rect;
+      return fill.mock.calls.filter(([x, y, , height]) => x === slot.x + 5 && y === slot.y + slot.height - 7 && height === 3).length;
+    };
+    // The bootstrap fallback knows nothing of the Studio-only blade; the live registry gives it a wear bar.
+    expect(tracks()).toBe(0);
+    expect(tracks(live)).toBe(1);
   });
   it('uses actual item, portrait, moon, map and effect painters once, preserving stack metadata and authoritative time', () => {
     vi.useFakeTimers(); const f = fixture(), context = createCanvas(320, 180).getContext('2d') as unknown as CanvasRenderingContext2D;

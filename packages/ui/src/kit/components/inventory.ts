@@ -1,4 +1,4 @@
-import type { ItemStack } from '@orchard/sim';
+import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { itemDefinition } from '@orchard/sim/item-containers';
 import { uiDurabilityFraction } from '../../item-durability.js';
@@ -21,7 +21,11 @@ export interface UiSlotOptions {
   readonly id?: string; readonly label?: string; readonly stack?: ItemStack | null | (() => ItemStack | null);
   readonly icon?: UiIconSource; readonly artwork?: Readonly<Record<string, LoadedAsset>>;
   readonly iconAnimation?: (item: ItemStack) => string;
-  /** Replaces stack art/count/durability only; slot chrome and empty placeholders remain shared. */
+  /** The live content registry for wear bars, so items defined only in published or Studio content get their
+   * authored durability. Omitted, the slot falls back to the bootstrap registry. */
+  readonly contentRegistry?: () => ContentRegistry | undefined;
+  /** Replaces the item icon only: `bounds` is the 16px icon well (uiSlotIconRect). The slot still draws its chrome,
+   * stack count, wear bar, hotkey and empty placeholders, the same way on every surface. */
   readonly renderContent?: (context: CanvasRenderingContext2D, bounds: UiRect, item: ItemStack, state: { readonly ghost: boolean }) => void;
   /** Presentation only: a preview never becomes an inventory stack. */
   readonly ghost?: () => ItemStack | null;
@@ -114,7 +118,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
           }
         }
         if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 14 * scale, { align: 'right', ...UI_SLOT_INKS });
-        const durability = uiDurabilityFraction(item.itemKind, item.durability);
+        const durability = uiDurabilityFraction(item.itemKind, item.durability, options.contentRegistry?.());
         if (!ghost && durability !== null) paintUiSlotWear(context, art, r, durability, scale);
       } else if (options.placeholder) paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
       if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, UI_SLOT_INKS);
@@ -140,7 +144,8 @@ export interface UiInventoryGridOptions {
   readonly ghost?: (index: number) => ItemStack | null;
   readonly onActivate?: (index: number, event: UiButtonModifiers) => void;
   readonly allowSecondary?: boolean; readonly activateOn?: UiSlotOptions['activateOn'];
-  readonly iconAnimation?: UiSlotOptions['iconAnimation'];
+  readonly iconAnimation?: UiSlotOptions['iconAnimation']; readonly contentRegistry?: UiSlotOptions['contentRegistry'];
+  /** Icon only, in the slot's icon well; see UiSlotOptions.renderContent. */
   readonly renderContent?: (context: CanvasRenderingContext2D, bounds: UiRect, item: ItemStack, index: number, state: { readonly ghost: boolean }) => void;
 }
 export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
@@ -166,7 +171,7 @@ export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
       }
       const height = Math.max(0, Math.ceil(count / columns) * (slotHeight + gap) - gap);
       return { min: { width: options.fixedColumns ? columns * (width + gap) - gap : Math.min(width, available.width), height: slotHeight }, preferred: { width: columns * (width + gap) - gap, height } };
-    }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, cell.index ?? index, state) : undefined, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
+    }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, cell.index ?? index, state) : undefined, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
   }); return grid;
 }
 export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?: number | (() => number); readonly digitKeys?: boolean; readonly onSelect?: (index: number) => void }): UiElement {
@@ -199,7 +204,7 @@ export function uiPaperDoll(options: UiInventoryGridOptions & { readonly portrai
     const definition = EQUIPMENT_SLOTS.find(entry => entry.id === id)!, cell = byIndex.get(definition.index);
     if (!cell) return uiFlex({ width: uiFixed(28), height: uiFixed(31), shrink: 0 }, []);
     return uiSlot({ id: options.id ? `${options.id}.slot.${definition.index}` : undefined, label: definition.label.toLowerCase().replace(/(^|\s)\S/gu, letter => letter.toUpperCase()),
-      binding: { container: options.container, index: definition.index }, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation,
+      binding: { container: options.container, index: definition.index }, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry,
       stack: options.stack ? () => options.stack!(definition.index) : undefined, onPress: options.onActivate ? event => options.onActivate!(definition.index, event) : undefined,
       renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, definition.index, state) : undefined,
       placeholder: cell.placeholder ?? id, disabled: cell.disabled, allowSecondary: options.allowSecondary, activateOn: options.activateOn });

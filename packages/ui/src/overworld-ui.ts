@@ -1201,11 +1201,13 @@ export class OverworldUi {
         line.startsWith('MAX DURABILITY ') ? `DURABILITY ${item.durability} / ${line.slice(15)}` : line);
       const base = this.touchInventoryTooltipRect();
       // A pointer names the slot it rests on: the label (and any details) sits centred just above that slot, so
-      // it never covers the window's hotbar row. Touch keeps its labels below the window hotbar, clear of the finger.
+      // it never covers the window's hotbar row. Near the top of a short screen, where the details don't fit above,
+      // the host hangs them just below the slot instead; either way they never cover it. Touch keeps its labels
+      // below the window hotbar, clear of the finger.
       const slot = this.retainedInventoryActive && this.model.touchControls !== true ? this.retainedMenus?.slotAt(this.pointer)?.rect ?? null : null;
-      tooltip = { text: details?.join('\n') ?? text,
-        anchor: slot ? { x: slot.x + slot.width / 2, y: slot.y - 4 } : { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
-        ...(details ? { maxHeight: Math.max(0, (slot?.y ?? base.y) - 8) } : {}), tone: 'neutral' };
+      tooltip = slot ? { text: details?.join('\n') ?? text, anchor: { x: slot.x + slot.width / 2, y: slot.y - 4 }, below: slot.y + slot.height + 4, tone: 'neutral' }
+        : { text: details?.join('\n') ?? text, anchor: { x: this.model.width / 2, y: details ? base.y - 4 : base.y + base.height },
+          ...(details ? { maxHeight: Math.max(0, base.y - 8) } : {}), tone: 'neutral' };
     }
     const prompt = this.openWindowValue === null && !tooltip ? this.model.prompt : null;
     const toast = this.notificationText();
@@ -1231,6 +1233,7 @@ export class OverworldUi {
     }, {
       itemLabel: stack => this.itemDefinition(stack.itemKind)?.displayName ?? stack.itemKind,
       drawItem: (context, rect, stack) => this.drawItemIcon(context, rect, stack.itemKind, stack.lit),
+      contentRegistry: () => this.model.contentRegistry,
       drawPlayerHead: (context, id, rect) => this.drawPlayerHead(context, id, rect),
       drawTargetPortrait: (context, id, rect) => { const target = this.model.targetVitals; if (target?.targetId === id) this.drawTargetPortrait(context, target, rect); },
       drawMinimap: (context, rect, zoom, tracking) => this.drawMinimap(context, rect, zoom, tracking),
@@ -1350,7 +1353,8 @@ export class OverworldUi {
     const navigation = { onKey: (key: string, repeat: boolean) => { if (!['i', 'c', 'p', 'k', 'o', 'l'].includes(key.toLowerCase())) return false; if (!repeat) this.handleKeyDown(`Key${key.toUpperCase()}`, false); return true; }, onNavigate: (page: UiGameBookChapter) => { this.openWindow = page; }, onClose: () => { this.openWindow = null; } };
     if (!this.characterScreen || !this.statisticsScreen || !this.skillTree) {
       this.characterScreen = new CharacterScreen(art, { setAppearance: appearance => this.callbacks.setAppearance?.(appearance) },
-        this.drawPlayerDoll, (context, rect, item) => this.drawItemIcon(context, rect, item.itemKind, item.lit), navigation);
+        this.drawPlayerDoll, (context, rect, item) => this.drawItemIcon(context, rect, item.itemKind, item.lit), navigation,
+        () => this.model.contentRegistry);
       this.statisticsScreen = new StatisticsScreen(art, navigation);
       this.skillTree = new SkillTreeUi(art, {
         prioritize: nodeId => this.callbacks.prioritizeEquipmentSkill?.(nodeId),
@@ -1418,6 +1422,7 @@ export class OverworldUi {
       craft: (all) => { const id = this.currentRecipeId(); if (id !== null && !this.currentRecipeLocked()) this.callbacks.craftInventoryRecipe(id, all); },
       label: item => this.itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
       iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry),
+      contentRegistry: () => this.model.contentRegistry,
     };
     this.retainedMenus = new InventoryMenus(art, authority);
     this.syncRetainedInventory();

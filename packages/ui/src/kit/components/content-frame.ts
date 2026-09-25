@@ -1,7 +1,7 @@
 import { uiTiming, timingLabels } from './timing.js';
 import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
-import type { TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
+import type { ContentRegistry, TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
 import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { resolveFramePaneSlots, type FrameContainerAliases } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
@@ -20,7 +20,7 @@ export interface UiContentFrameOptions {
   readonly registry: Pick<FrameRestrictionRegistry, 'items' | 'processes'>; readonly controller?: UiInventoryController;
   readonly artwork?: UiSlotOptions['artwork']; readonly state?: Readonly<Record<string, boolean | number | string>>; readonly progress?: number | (() => number);
   readonly timing?: TimingProjection;
-  readonly iconAnimation?: UiSlotOptions['iconAnimation'];
+  readonly iconAnimation?: UiSlotOptions['iconAnimation']; readonly contentRegistry?: () => ContentRegistry | undefined;
   readonly inventoryControls?: Readonly<Record<string, UiInventoryControls>>;
   readonly status?: { readonly label: string; readonly progress?: number | (() => number); readonly tone?: UiTone };
   readonly renderPane?: (pane: FrameContentDefinition['panes'][number]) => UiElement | undefined;
@@ -51,7 +51,7 @@ function uiPaneContentFrame(options: UiContentFrameOptions): UiContentFrameEleme
     const controls = bindings.length ? options.inventoryControls?.[bindings[0]!.containerId] : undefined;
     const timer = 'timing' in pane.bind ? uiTiming({ timing: options.timing ?? { status: 'idle', reason: null, stage: null, progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' } }) : null;
     if (timer !== null && custom === undefined) timers.push(timer);
-    const content = custom ?? timer ?? (bindings.length ? (pane.kind === 'paper_doll' ? uiPaperDoll : controls ? uiInventoryPanel : uiInventoryGrid)({ id: `preview.${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: bindings.map(binding => ({ id: String(binding.index), index: binding.index })), columns: pane.columns ?? 'auto', slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, ...controls })
+    const content = custom ?? timer ?? (bindings.length ? (pane.kind === 'paper_doll' ? uiPaperDoll : controls ? uiInventoryPanel : uiInventoryGrid)({ id: `preview.${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: bindings.map(binding => ({ id: String(binding.index), index: binding.index })), columns: pane.columns ?? 'auto', slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, ...controls })
       : pane.kind === 'bar' ? uiMeter({ label: pane.label ?? 'Progress', value: 'state' in pane.bind ? Number(options.state?.[pane.bind.state] ?? 0) : options.progress ?? 0, tone: 'success' })
         : uiText('state' in pane.bind ? String(options.state?.[pane.bind.state] ?? '') : pane.label ?? ''));
     const body = uiFlex({ id: `pane:${pane.id}`, width: 'grow', basis: uiFixed(pane.minWidth ?? Math.max(80, (pane.columns ?? 1) * 36)), gap: 4 }, [
@@ -86,7 +86,7 @@ function uiPaneContentFrame(options: UiContentFrameOptions): UiContentFrameEleme
       uiScrollArea({ width: 'grow', height: 'grow', minHeight: uiFixed(64), gap: 8 }, [uiFlex({ direction: 'row', wrap: true, width: 'grow', gap: 8 }, panes), ...(actions.children.length ? [actions] : []),
         ...(options.status ? [uiText(options.status.label, { id: `${definition.id}.status`, wrap: true }), ...(options.status.progress !== undefined ? [uiMeter({ label: options.status.label, value: options.status.progress, tone: options.status.tone ?? 'info' })] : [])] : []),
       ]),
-      ...(definition.hotbar && options.aliases.hotbar ? [uiInventoryGrid({ container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, hotkeys: true, layout: { shrink: 0 } })] : []),
+      ...(definition.hotbar && options.aliases.hotbar ? [uiInventoryGrid({ container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, hotkeys: true, layout: { shrink: 0 } })] : []),
     ] });
   const updateState = (next: NonNullable<UiContentFrameOptions['state']>): void => {
     state = next; for (const update of refresh) update();
@@ -114,7 +114,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   let state = options.state ?? {}, timing: TimingProjection = options.timing ?? { status: 'idle', reason: null, stage: null, progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' };
   const shown = (value?: { readonly state: string; readonly equals: boolean | number | string }) => !value || state[value.state] === value.equals;
   const bindingsOf = (pane: Pane) => resolveFramePaneSlots(pane, options.aliases, options.registry);
-  const common = { controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation };
+  const common = { controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry };
   const custom = (pane: Pane) => options.renderPane?.(pane);
   const cells = (pane: Pane) => bindingsOf(pane).map(binding => ({ id: String(binding.index), index: binding.index }));
   const grid = (pane: Pane) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;

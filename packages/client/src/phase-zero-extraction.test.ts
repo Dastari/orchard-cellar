@@ -221,7 +221,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // One item-slot look: ui/overworld-ui.ts passes icon-only painters (drawItemIcon) to the HUD hotbar and
 // character equipment; the kit slot draws count, wear bar and hotkey; the inventory tooltip sits above the hovered
 // slot (owner item 7). Slot, character, HUD and feedback tests cover it.
-const STRUCTURAL_SEAM_DIGEST = '67f30722c222ab877e3bf50ba8c5c9fd34a2a2673911243d92509898ae8166ea';
+// PR #188 review: ui/overworld-ui.ts hangs the hovered slot's details below it when they don't fit above, and passes
+// the live content registry to the HUD hotbar, character equipment and inventory menus for wear bars. Feedback,
+// character and HUD tests (short viewports, a Studio-only item) cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '6bbe1fe78f395b9a49239d73b4904b37e28f6e47eff9b0fd9092ba67cd8ab30c';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

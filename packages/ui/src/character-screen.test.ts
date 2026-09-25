@@ -159,6 +159,25 @@ describe('production retained character adapter', () => {
     expect(tracks).toHaveLength(1);
     expect(f.drawItem).toHaveBeenCalledExactlyOnceWith(expect.anything(), uiSlotIconRect(bounds), expect.objectContaining({ itemKind: 'axe', quantity: 3, durability: 17, lit: false }));
   });
+  it('reads equipment wear from the live registry for items only published or Studio content defines', () => {
+    const bootstrap = bootstrapContentRegistry(), source = bootstrap.items.get('item:iron_axe')!;
+    const live = { ...bootstrap, items: new Map(bootstrap.items) };
+    live.items.set('item:studio_blade', { ...source, id: 'item:studio_blade', durability: { ...source.durability!, max: 100 } });
+    expect(bootstrap.items.has('item:studio_blade')).toBe(false);
+    vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
+    const tracks = (registry?: typeof live) => {
+      const screen = new CharacterScreen(art, { setAppearance: vi.fn() }, vi.fn(), vi.fn(), {}, registry && (() => registry)); screens.push(screen);
+      screen.update({ ...model(), equipment: [{ slot: 0, itemKind: 'studio_blade', quantity: 1, durability: 25, lit: true }] });
+      screen.setBounds(progressionWindowRect(640, 400), 640, 400); screen.root.arrange();
+      const context = createCanvas(640, 400).getContext('2d'), fill = vi.spyOn(context, 'fillRect');
+      screen.draw(context as unknown as CanvasRenderingContext2D);
+      const bounds = screen.root.entries().find(entry => entry.element.id === 'character.equipment.slot.0')!.element.rect;
+      return fill.mock.calls.filter(([x, y, , height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 7 && height === 3).length;
+    };
+    // The bootstrap fallback knows nothing of the Studio-only blade; the live registry gives it a wear bar.
+    expect(tracks()).toBe(0);
+    expect(tracks(live)).toBe(1);
+  });
   it('cancels stale player gestures and clears pending preview across disconnect/reconnect', async () => {
     let reject!: (error: Error) => void;
     const f = fixture(vi.fn(() => new Promise<void>((_resolve, fail) => { reject = fail; })));
