@@ -108,7 +108,9 @@ const SPACE_GENERATOR_REVISION: Readonly<
 /** Builds (and caches) the terrain of any space. Island and homestead
  * generation come from `generators`; see `SpaceTerrainGenerators`. The caches
  * are shared by every caller, so `terrainForSpace` and direct callers get the
- * same terrain objects for the same inputs. */
+ * same terrain objects for the same inputs. Cache keys do not include
+ * `generators`: pass the island and homestead generators `terrainForSpace`
+ * uses (or none), never substitutes. */
 export function spaceTerrain(
   space: SpaceDefinition,
   seed: number,
