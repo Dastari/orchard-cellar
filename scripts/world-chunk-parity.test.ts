@@ -71,7 +71,7 @@ describe('static island materialization golden parity', () => {
     }
   }, 120_000);
 
-  it('carries generated resource ids and order byte-identical to generateSurvivalResources(SURVIVAL_WORLD_SEED)', () => {
+  it('carries generated resources (ids, order and every generator field) byte-identical to generateSurvivalResources(SURVIVAL_WORLD_SEED)', () => {
     const store = new ChunkTerrainStore(published.manifest, snapshot.terrain.tilesets);
     for (const bytes of published.blobs) store.install(bytes);
     const generated = generateSurvivalResources(SURVIVAL_WORLD_SEED, registry);
@@ -79,9 +79,15 @@ describe('static island materialization golden parity', () => {
     expect(records.map(record => record.ordinal)).toEqual(generated.map((_, index) => index));
     const ids = (values: readonly { readonly id: number }[]): Uint8Array => new TextEncoder().encode(canonicalChunkJson(values.map(({ id }) => id)));
     expect(ids(records.map(record => record.value as unknown as { id: number }))).toEqual(ids(generated));
-    expect(records.map(record => record.value)).toEqual(generated.map(resource => ({ id: resource.id, kind: resource.kind,
-      generatedTile: { tileX: resource.tileX, tileY: resource.tileY }, effectiveTile: { tileX: resource.tileX, tileY: resource.tileY }, suppressed: false })));
-    expect((published.manifest.metadata['authority'] as { resources: unknown }).resources)
-      .toEqual({ count: generated.length, orderHash: hashJson(generated.map(({ id }) => id)) });
+    // Every generator field is carried (optional ones only when set), so S3c needs no generator call.
+    const expected = generated.map(({ id, kind, tileX, tileY, ...optional }) => ({ id, kind,
+      generatedTile: { tileX, tileY }, effectiveTile: { tileX, tileY }, suppressed: false, ...optional }));
+    expect(records.map(record => record.value)).toStrictEqual(expected);
+    expect(records.every(record => record.tileX === (record.value as { effectiveTile: { tileX: number } }).effectiveTile.tileX)).toBe(true);
+    // The manifest digest covers the full ordered records, not just ids.
+    const authority = published.manifest.metadata['authority'] as { resources: unknown; resourcePlacements: unknown };
+    expect(authority.resources).toEqual({ count: generated.length, hash: hashJson(expected) });
+    expect(authority.resourcePlacements).toEqual({ count: 0, hash: hashJson([]) });
+    expect(store.records('authority.resourcePlacement')).toEqual([]);
   }, 120_000);
 });
