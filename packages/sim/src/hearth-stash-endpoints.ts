@@ -74,7 +74,9 @@ export function hearthSupplyCacheApproachClear(cache: HearthSupplyCacheDefinitio
   // every obstacle, so a foreign fence between the frontage and chest blocks.
   const contact = { x: (cache.tileX + .5) * TILE_SIZE_FIXED,
     y: (cache.tileY + 1) * TILE_SIZE_FIXED + 1 };
-  const elevation = (x: number, y: number) => collision.elevations?.[Math.floor(y / TILE_SIZE_FIXED) * collision.width + Math.floor(x / TILE_SIZE_FIXED)] ?? 0;
+  // World tiles; a client chunk window (S4d) offsets its cells by its origin.
+  const elevation = (x: number, y: number) => collision.elevations?.[(Math.floor(y / TILE_SIZE_FIXED) - (collision.originY ?? 0)) * collision.width
+    + Math.floor(x / TILE_SIZE_FIXED) - (collision.originX ?? 0)] ?? 0;
   return Math.hypot(position.x - point.x, position.y - point.y) <= 1.5 * TILE_SIZE_FIXED
     && elevation(position.x, position.y) === 0 && elevation(point.x, point.y) === 0
     && !positionCollides(position, collision) && !positionCollides(point, collision)

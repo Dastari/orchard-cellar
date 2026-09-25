@@ -5,7 +5,7 @@ import { chunkWindowForView, chunkWindowPinBounds } from '@orchard/engine/chunk-
 import {
   INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY, CURRENT_INVENTORY_PROTOCOL_VERSION,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
-  instanceSpaceRowFor,
+  collisionCellIndex, instanceSpaceRowFor,
   LIVE_ISLAND_MAP_ID, runtimeResourcePerception,
   runtimeChestObjectDefinition,
   type ContentRegistry,
@@ -798,7 +798,8 @@ export class OverworldConnection {
   }
   reconcile(predicted: PlayerState | null, authoritative: PlayerState, collision: CollisionMap): ReconciliationResult | null {
     const x = Math.floor(authoritative.position.x / TILE_SIZE_FIXED), y = Math.floor(authoritative.position.y / TILE_SIZE_FIXED);
-    if (x >= 0 && y >= 0 && x < collision.width && y < collision.height) this.chunkRuntime?.compare(x, y, collision.blocked[y * collision.width + x] ?? true);
+    const cell = collisionCellIndex(collision, x, y);
+    if (cell >= 0) this.chunkRuntime?.compare(x, y, collision.blocked[cell] ?? true);
     const row = this.ownPosition(); if (row === null) return null;
     if(row.actionKind==='sitting'){
       this.prediction.discardPendingMovement();

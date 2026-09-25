@@ -49,6 +49,13 @@ export interface CollisionMap {
   readonly traversalChannels?: import('./traversal.js').MediumCollisionChannels;
   readonly width: number;
   readonly height: number;
+  /** Top-left world tile of a windowed map (static world S4d: the client's
+   * chunk window). Every cell array is indexed from this origin, so world tile
+   * (x, y) is cell (y - originY) * width + (x - originX). Whole maps omit both.
+   * Tiles outside the window are blocked, never walkable. Obstacles, transitions
+   * and positions stay in world coordinates. */
+  readonly originX?: number;
+  readonly originY?: number;
   readonly blocked: readonly boolean[];
   /** Optional blockers resolved independently for each terrain elevation.
    * The flattened layout is `[elevation][tileY][tileX]`. This keeps projected

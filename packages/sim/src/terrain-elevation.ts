@@ -297,6 +297,9 @@ export function terrainTransitionConnects(
   return lowerToUpper || upperToLower;
 }
 
+/** Tiles and transitions are world coordinates; `elevations` covers the
+ * `width` x `height` rectangle whose top-left world tile is (originX, originY)
+ * (a whole map leaves the origin at 0; the client's chunk window does not). */
 export function terrainWalkingStepAllowed(
   elevations: Int16Array | Uint8Array,
   width: number,
@@ -306,9 +309,11 @@ export function terrainWalkingStepAllowed(
   fromTileY: number,
   toTileX: number,
   toTileY: number,
+  originX = 0,
+  originY = 0,
 ): boolean {
-  const fromElevation = terrainElevationAt(elevations, width, height, fromTileX, fromTileY);
-  const toElevation = terrainElevationAt(elevations, width, height, toTileX, toTileY);
+  const fromElevation = terrainElevationAt(elevations, width, height, fromTileX - originX, fromTileY - originY);
+  const toElevation = terrainElevationAt(elevations, width, height, toTileX - originX, toTileY - originY);
   if (fromElevation === toElevation) {
     return terrainTransitionLaneStepAllowed(
       transitions,
