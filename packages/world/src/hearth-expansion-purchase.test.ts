@@ -93,7 +93,7 @@ describe('actual residence expansion purchase reducer',()=>{
     })));
     const next=f.collision(1);
     expect(f.home().residenceExpansionRank).toBe(0);expect(next.width).toBe(32);
-    expect(next.blocked[9*32+14]).toBe(false);
+    expect(next.blocked[9*32+14]).toBe(0);
     expect(next.obstacles?.some(obstacle=>obstacle.left===14*sim.TILE_SIZE_FIXED)).toBe(true);
     expect(()=>f.run(0)).toThrow('escape_blocked');expect(f.writes).toEqual([]);
   });

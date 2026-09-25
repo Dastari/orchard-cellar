@@ -50,7 +50,7 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
   const supplyDocument:sim.MapDocumentV3={...sim.createLiveIslandMapDocument(),combatRegions:sim.HEARTH_COMBAT_REGIONS,
     prefabs:[supplyPrefab],objects:[{id:supplyCache.objectId,prefabId:supplyPrefab.id,prefabRevision:1,
       tileX:supplyCache.tileX,tileY:supplyCache.tileY,elevation:0,layer:'objects',quarterTurns:0,flipX:false,enabled:true}]};
-  const supplyCollision:sim.CollisionMap={width:832,height:832,blocked:Array(832*832).fill(false),
+  const supplyCollision:sim.CollisionMap={width:832,height:832,blocked:new Uint8Array(832*832),
     elevations:new Int16Array(832*832),obstacles:[{left:650*sim.TILE_SIZE_FIXED,right:651*sim.TILE_SIZE_FIXED-1,
       top:202*sim.TILE_SIZE_FIXED,bottom:203*sim.TILE_SIZE_FIXED-1}]};
   let containers:Readonly<Record<string,sim.ContainerSnapshot>>={

@@ -1,6 +1,7 @@
 import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
+import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry } from '@orchard/sim';
 
 
@@ -4450,7 +4451,7 @@ function furniturePreviewAt(tile: { tileX: number; tileY: number }, itemKind: st
     const state=parseHearthArchitectureState(activeSpaceDefinition.residenceArchitectureJson);
     const rank=activeSpaceDefinition.residenceExpansionRank??0;
     const checked=state===null?null:composeHearthArchitecture(rank,{...furnitureCollision,
-      blocked:Array.from({length:furnitureCollision.width*furnitureCollision.height},(_,i)=>
+      blocked:cellFlagsWhere(furnitureCollision.width*furnitureCollision.height,i=>
         !residencePlayableTile(i%furnitureCollision.width,Math.floor(i/furnitureCollision.width),rank)),
       obstacles:[...(furnitureCollision.obstacles??[]), ...[...currentFurniture().filter(item=>item.id!==movingId),value.candidate]
         .flatMap(item=>{const obstacle=hearthFurnitureObstacle(item);return obstacle?[obstacle]:[];})],
@@ -4472,7 +4473,7 @@ function computeConstructionPreviewAt(tile:{tileX:number;tileY:number}) {
   const rank=activeSpaceDefinition.residenceExpansionRank??0;
   const plan=planHearthArchitectureEdits(latestSnapshot.content.registry,{rank,state,expectedRevision:state.revision,edits:intent.edits,
     context:{canBuild:canUseHomesteadBuildMode(latestSnapshot),existing:currentFurniture(),occupants:[],
-      collision:{...furnitureCollision,blocked:Array.from({length:furnitureCollision.width*furnitureCollision.height},(_,i)=>
+      collision:{...furnitureCollision,blocked:cellFlagsWhere(furnitureCollision.width*furnitureCollision.height,i=>
         !residencePlayableTile(i%furnitureCollision.width,Math.floor(i/furnitureCollision.width),rank))}},
   });
   if(plan.failure!==null)return {...plan,failure:plan.failure==='doorway_support_occupied'?'Doorway support needs clear wall space':plan.failure,footprint};
@@ -4694,7 +4695,7 @@ function drawCellarOreVeinPreview(
   context.save();
   for (let tileY = minimumY; tileY <= maximumY; tileY += 1) {
     for (let tileX = minimumX; tileX <= maximumX; tileX += 1) {
-      if (terrain.blocked[terrainIndexAt(terrain, tileX, tileY)] !== true) continue;
+      if (!terrain.blocked[terrainIndexAt(terrain, tileX, tileY)]) continue;
       const kind = cellarOreKindAt(seed, activeSpaceDefinition.spaceId, tileX, tileY);
       if (kind === null) continue;
       context.fillStyle = CELLAR_ORE_PREVIEW_COLORS[kind] ?? '#ffffff99';

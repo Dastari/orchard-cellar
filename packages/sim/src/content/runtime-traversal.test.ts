@@ -8,6 +8,7 @@ import { runtimeTraversalAbilities, runtimeTraversalPolicy, runtimeTraversalProj
 import { contentDefinitionRowsHash } from './payload-hash.js';
 import { definitionSlug } from './definition-id.js';
 import { parseWorldRulesDefinition } from './world-rules-definition.js';
+import { cellFlags } from '../cell-flags.js';
 
 const rawPolicy = (mode = 'shadow') => ({
   id: 'world_rules:test_policy', kind: 'world_rules', schemaVersion: 1, profile: 'traversal', mode,
@@ -17,7 +18,7 @@ const rawPolicy = (mode = 'shadow') => ({
   }])),
 });
 const policyRow = (mode = 'shadow') => ({ id: 'world_rules:test_policy', kind: 'world_rules', json: rawPolicy(mode) });
-const legacy = { width: 2, height: 1, blocked: [true, false] };
+const legacy = { width: 2, height: 1, blocked: cellFlags([true, false]) };
 const channels = { width: 2, height: 1, medium: [0, 1], solidBlocked: [0, 0] };
 
 describe('runtime authored traversal', () => {
@@ -60,7 +61,7 @@ describe('runtime authored traversal', () => {
     const registry = buildContentRegistry([policyRow()]).registry;
     const result = runtimeTraversalProjection(registry, legacy, channels, { kind: 'player' }, 0n);
     expect(result.collision).toBe(legacy);
-    expect(result.candidate?.blocked).toEqual([false, true]);
+    expect(result.candidate?.blocked).toEqual(cellFlags([false, true]));
     expect(result.differences).toHaveLength(2);
     expect(runtimeTraversalProjection(registry, legacy, channels, { kind: 'player' }, 1n)).toBe(result);
     const active = buildContentRegistry([policyRow('active')]).registry;
@@ -68,12 +69,12 @@ describe('runtime authored traversal', () => {
     expect(switched.compatibility).toBe('active');
     expect(switched.collision).toBe(switched.candidate);
     expect(runtimeTraversalProjection(active, legacy, channels, { kind: 'projectile' }, 0n).collision.blocked)
-      .toEqual([false, false]);
+      .toEqual(cellFlags([false, false]));
   });
 
   it('compares shadow differences on first read, with the same result and cache (static world S4f)', () => {
     const registry = buildContentRegistry([policyRow()]).registry;
-    const map = { width: 2, height: 1, blocked: [true, false] };
+    const map = { width: 2, height: 1, blocked: cellFlags([true, false]) };
     const result = runtimeTraversalProjection(registry, map, channels, { kind: 'player' }, 0n);
     const expected = compareTraversalCollision(map, result.candidate!);
     expect(result.differences).toEqual(expected);
@@ -86,7 +87,7 @@ describe('runtime authored traversal', () => {
     expect(Object.keys(result)).toEqual(['collision', 'candidate', 'differences', 'compatibility']);
     // A size mismatch between legacy and geometry still throws at projection time.
     expect(() => runtimeTraversalProjection(registry, map, { width: 3, height: 1, medium: [0, 1, 0], solidBlocked: [0, 0, 0] },
-      { kind: 'player' }, 0n, { width: 3, height: 1, blocked: [true, false, true] })).toThrow('traversal_collision_size_mismatch');
+      { kind: 'player' }, 0n, { width: 3, height: 1, blocked: cellFlags([true, false, true]) })).toThrow('traversal_collision_size_mismatch');
   });
 
   it('combines explicitly authored mount and effect grants using bigint expiry', () => {

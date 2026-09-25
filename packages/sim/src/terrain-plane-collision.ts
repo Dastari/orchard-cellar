@@ -40,7 +40,8 @@ export interface CompiledMapDocument {
   readonly ledges: Uint8Array;
   readonly surfaces: readonly MapSurfaceKind[];
   readonly features: readonly MapFeatureKind[];
-  readonly blocked: readonly boolean[];
+  /** One byte per cell, 1 blocked (the CollisionMap.blocked convention). */
+  readonly blocked: Uint8Array;
   readonly transitions: readonly TerrainTransition[];
 }
 
@@ -187,7 +188,7 @@ export function terrainPlaneCollisionBytesForElevationGrid(
     ledges: new Uint8Array(width * height),
     surfaces: Array(width * height).fill('stone'),
     features: Array(width * height).fill('none'),
-    blocked: Array<boolean>(width * height).fill(false),
+    blocked: new Uint8Array(width * height),
     transitions,
   }, projection);
 }

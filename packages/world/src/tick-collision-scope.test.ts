@@ -5,6 +5,7 @@ import {
   collisionWithinChunkScope,
   tickCollisionChunkScope,
 } from './tick-collision-scope.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 
 describe('scheduled collision spatial scope', () => {
   it('covers the wildlife radius plus a one-chunk collision margin', () => {
@@ -42,7 +43,7 @@ describe('scheduled collision spatial scope', () => {
     const collision: CollisionMap = {
       width: 32,
       height: 32,
-      blocked: Array<boolean>(32 * 32).fill(false),
+      blocked: new Uint8Array(32 * 32),
       obstacles: [
         { left: 0, top: 0, right: 10, bottom: 10 },
         { left: chunkSize - 2, top: 0, right: chunkSize + 2, bottom: 10 },
@@ -65,7 +66,7 @@ describe('scheduled collision spatial scope', () => {
     const collision: CollisionMap = {
       width: 1,
       height: 1,
-      blocked: [false],
+      blocked: cellFlags([false]),
       obstacles: [crossing],
     };
     expect(collisionWithinChunkScope(collision, new Set(['-1:0'])).obstacles).toEqual([crossing]);

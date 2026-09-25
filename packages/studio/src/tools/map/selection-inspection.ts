@@ -359,7 +359,7 @@ function generatedInspectionContext(
     || terrain.width !== document.width || terrain.height !== document.height) return null;
   const index = tileY * terrain.width + tileX;
   const biome = SURVIVAL_BIOMES[terrain.biomes[index] ?? 0] ?? 'water';
-  const blocked = terrain.blocked[index] ?? true;
+  const blocked = (terrain.blocked[index] ?? 1) !== 0;
   const terrainDocument = terrainDocumentForMapV3(document);
   const cell: ResolvedMapCell = {
     elevation: terrain.elevations[index] ?? document.baseElevation,
@@ -389,7 +389,7 @@ export function inspectMapSelection(input: MapSelectionInspectionInput): MapSele
   const terrain = input.terrain ?? terrainArrayForMapDocument(terrainDocument, compiled, input.document);
   const cell = generatedContext?.cell ?? resolvedMapCellAt(terrainDocument, target.tileX, target.tileY);
   const activeElevation = target.elevation ?? cell.elevation;
-  const blocked = compiled.blocked[target.tileY * compiled.width + target.tileX] ?? true;
+  const blocked = (compiled.blocked[target.tileY * compiled.width + target.tileX] ?? 1) !== 0;
   const projectedWorldX = target.tileX * 16 + 8;
   const projectedWorldY = target.tileY * 16 + 8
     - terrainProjectedDepthForElevation(terrain, activeElevation);

@@ -27,7 +27,8 @@ export interface RuntimeHearthLobbyDefinition {
 export interface HearthLobbyLayout {
   readonly width:number;
   readonly height:number;
-  readonly blocked:boolean[];
+  /** One byte per cell, 1 blocked (CollisionMap.blocked). */
+  readonly blocked:Uint8Array;
   readonly elevations:Int16Array;
   readonly terrainPlaneBlocked:Uint8Array;
 }
@@ -149,9 +150,9 @@ export function generateHearthLobbyLayout(
   }:runtimeHearthLobbyDefinition(registry,spaceId);
   if(lobby===null)return null;
   const width=lobby.sizeTiles,height=width;
-  const blocked=Array<boolean>(width*height).fill(true);
+  const blocked=new Uint8Array(width*height).fill(1);
   const carve=(left:number,top:number,right:number,bottom:number)=>{
-    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)blocked[y*width+x]=false;
+    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)blocked[y*width+x]=0;
   };
   for(const rectangle of lobby.carves)carve(...rectangle);
   const elevations=Int16Array.from(blocked,value=>value?1:0);

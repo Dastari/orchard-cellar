@@ -30,7 +30,8 @@ export interface RogueRoomLayout {
   readonly id: string;
   readonly width: number;
   readonly height: number;
-  readonly blocked: readonly boolean[];
+  /** One byte per cell, 1 blocked (the CollisionMap.blocked convention). */
+  readonly blocked: Uint8Array;
   readonly elevations: Int16Array;
   readonly terrainTransitions: readonly TerrainTransition[];
   readonly hazards: readonly RogueTilePoint[];
@@ -193,14 +194,14 @@ export function rogueRoomKindFor(roomNumber: number, requested: RogueRoomKind = 
   return rogueRoomIsBoss(roomNumber) ? 'boss' : requested === 'boss' ? 'combat' : requested;
 }
 
-function setRect(blocked: boolean[], minX: number, minY: number, maxX: number, maxY: number): void {
+function setRect(blocked: Uint8Array, minX: number, minY: number, maxX: number, maxY: number): void {
   for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
-    blocked[y * ROGUE_ROOM_SIZE_TILES + x] = true;
+    blocked[y * ROGUE_ROOM_SIZE_TILES + x] = 1;
   }
 }
 
 function addObstacleRect(
-  blocked: boolean[],
+  blocked: Uint8Array,
   obstacles: RogueTilePoint[],
   minX: number,
   minY: number,
@@ -220,7 +221,7 @@ export function generateRogueRoomLayout(seed: number, roomNumber: number, kind: 
   const theme = rogueThemeForRoom(roomNumber);
   const roll = take(seededState(seed, roomNumber, 0x41c64e6d), 4).value;
   const layoutIndex = kind === 'boss' ? 0 : roll;
-  const blocked = Array<boolean>(ROGUE_ROOM_SIZE_TILES * ROGUE_ROOM_SIZE_TILES).fill(false);
+  const blocked = new Uint8Array(ROGUE_ROOM_SIZE_TILES * ROGUE_ROOM_SIZE_TILES);
   const obstacles: RogueTilePoint[] = [];
   const hazards: RogueTilePoint[] = [];
   setRect(blocked, 0, 0, ROGUE_ROOM_SIZE_TILES - 1, 1);
@@ -258,7 +259,7 @@ export function generateRogueRoomLayout(seed: number, roomNumber: number, kind: 
     const candidates = [[5, 15], [26, 15], [15, 7], [17, 24]] as const;
     for (const [tileX, tileY] of candidates) {
       if (blocked[tileY * ROGUE_ROOM_SIZE_TILES + tileX]) continue;
-      blocked[tileY * ROGUE_ROOM_SIZE_TILES + tileX] = true;
+      blocked[tileY * ROGUE_ROOM_SIZE_TILES + tileX] = 1;
       hazards.push({ tileX, tileY });
     }
   }

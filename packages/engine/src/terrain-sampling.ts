@@ -800,14 +800,14 @@ function cellarWallTileIsExposed(
   if (
     terrainIndexAt(terrain, tileX - 1, tileY - 1) < 0 ||
     terrainIndexAt(terrain, tileX + 1, tileY + 1) < 0 ||
-    terrain.blocked[index] !== true
+    !terrain.blocked[index]
   )
     return false;
   return (
-    terrain.blocked[terrainIndexAt(terrain, tileX, tileY - 1)] === false ||
-    terrain.blocked[terrainIndexAt(terrain, tileX + 1, tileY)] === false ||
-    terrain.blocked[terrainIndexAt(terrain, tileX, tileY + 1)] === false ||
-    terrain.blocked[terrainIndexAt(terrain, tileX - 1, tileY)] === false
+    terrain.blocked[terrainIndexAt(terrain, tileX, tileY - 1)] === 0 ||
+    terrain.blocked[terrainIndexAt(terrain, tileX + 1, tileY)] === 0 ||
+    terrain.blocked[terrainIndexAt(terrain, tileX, tileY + 1)] === 0 ||
+    terrain.blocked[terrainIndexAt(terrain, tileX - 1, tileY)] === 0
   );
 }
 
@@ -989,7 +989,7 @@ export function terrainPlaneCollisionCellAt(
       ? "blocked"
       : "open";
   }
-  if (terrain.blocked[index] ?? true) return "blocked";
+  if ((terrain.blocked[index] ?? 1) !== 0) return "blocked";
   const transition = (terrainTransitionsByTile(terrain).get(terrainSparseKey(terrain, tileX, tileY)) ?? []).some(
     (candidate) => {
       if (candidate.kind !== "slope" && candidate.kind !== "stairs")

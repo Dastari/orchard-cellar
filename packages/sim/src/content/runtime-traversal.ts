@@ -58,8 +58,8 @@ export interface RuntimeTraversalProjection {
 }
 /** Immutable geometry and channels are cache identities; bounded ability variants
  * avoid rebuilding a whole terrain plane on each prediction frame. */
-const admissionCache = new WeakMap<MediumCollisionChannels, { readonly policy: WorldRulesContentDefinition; readonly variants: Map<string, readonly boolean[]> }>();
-const differenceCache = new WeakMap<readonly boolean[], WeakMap<readonly boolean[], readonly TraversalShadowDifference[]>>();
+const admissionCache = new WeakMap<MediumCollisionChannels, { readonly policy: WorldRulesContentDefinition; readonly variants: Map<string, Uint8Array> }>();
+const differenceCache = new WeakMap<Uint8Array, WeakMap<Uint8Array, readonly TraversalShadowDifference[]>>();
 const projectionCache = new WeakMap<CollisionMap, Map<string, {
   readonly channels: MediumCollisionChannels;
   readonly policy: WorldRulesContentDefinition;

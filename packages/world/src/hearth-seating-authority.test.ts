@@ -20,7 +20,7 @@ function fixture(){
   let input={settleSteps:0,direction:'idle',updatedAtMicros:0n,sequence:0n,sprinting:false,runStartClientTick:0n,settleDirection:'idle',
     settledSequence:0n,pendingSequence:0n,appliedSteps:0n,creditStartedAtMicros:0n,creditedSteps:0n,lastProcessedSequence:0n};
   const writes:string[]=[],empty={find:()=>null};
-  const collision={width:16,height:16,blocked:Array<boolean>(256).fill(false),elevations:new Int16Array(256)};
+  const collision={width:16,height:16,blocked:new Uint8Array(256),elevations:new Int16Array(256)};
   const ctx={sender:identity,senderAuth:{jwt:null},timestamp:{microsSinceUnixEpoch:0n},db:{membership:{identity:empty},world_clock:{id:{find:()=>({authorityTick:2n})}},
     player_position:{identity:{find:()=>position,update:(row:typeof position)=>{position=row;writes.push('position');}},by_chunk:{filter:()=>[position]}},
     player_seat:{identity:{find:()=>custody,delete:()=>{custody=null;writes.push('release');}},placeableId:{find:()=>occupied?{}:custody},insert:(row:Record<string,unknown>)=>{custody=row;writes.push('reserve');}},
@@ -51,9 +51,9 @@ describe('production seating reducers and standing helper',()=>{
     const before=f.input();f.packet('up',1n,400n);expect(f.input()).toBe(before);
   });
   it('discards a blocked seated interval before the next movement run',()=>{
-    const f=fixture();f.sit();f.collision.blocked.fill(true);f.collision.blocked[7*16+7]=false;
+    const f=fixture();f.sit();f.collision.blocked.fill(1);f.collision.blocked[7*16+7] = 0;
     f.packet('down',1n,200n);expect(f.custody()).not.toBeNull();expect(f.input().direction).toBe('idle');expect(f.input().settleSteps).toBe(0);expect(f.input().lastProcessedSequence).toBe(1n);
-    f.collision.blocked.fill(false);f.packet('down',2n,400n);expect(f.custody()).toBeNull();expect(f.input().settleSteps).toBe(0);
+    f.collision.blocked.fill(0);f.packet('down',2n,400n);expect(f.custody()).toBeNull();expect(f.input().settleSteps).toBe(0);
     f.packet('idle',3n,401n);expect(f.input().settleSteps).toBeLessThanOrEqual(1);
   });
   it('releases orphaned custody when deletion leaves the current body clear',()=>{
@@ -63,7 +63,7 @@ describe('production seating reducers and standing helper',()=>{
     const f=fixture();f.sit();f.relocate();const moved=f.position();expect(f.stand()).toBe(true);expect(f.custody()).toBeNull();expect(f.position()).toBe(moved);
   });
   it('keeps custody when room changes block every safe standing point',()=>{
-    const f=fixture();f.sit();f.writes.length=0;f.collision.blocked.fill(true);f.collision.blocked[7*16+7]=false;
+    const f=fixture();f.sit();f.writes.length=0;f.collision.blocked.fill(1);f.collision.blocked[7*16+7] = 0;
     expect(f.stand()).toBe(false);expect(f.custody()).not.toBeNull();expect(f.writes).toEqual([]);
   });
 });

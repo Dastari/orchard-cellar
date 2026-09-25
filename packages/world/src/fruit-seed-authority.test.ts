@@ -22,7 +22,7 @@ function fixture(fruit = 'apple', spaceId = 10) {
   const switches = { authorized: true, occupied: false, mounted: false, hands: false, soil: true, crop: false };
   const resources = new Map<bigint, { id: bigint; kind: string; spaceId: number; growthStage: number; regrowthProgress: number }>();
   const writes: string[] = [];
-  const collision = { width: 128, height: 128, blocked: new Array<boolean>(128 * 128).fill(false) } satisfies sim.CollisionMap;
+  const collision = { width: 128, height: 128, blocked: new Uint8Array(128 * 128) } satisfies sim.CollisionMap;
   const ctx = { sender: identity, db: {
     player_position: { identity: { find: () => position } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
@@ -72,7 +72,7 @@ it('rejects crops, visitors, riding, occupied hands, collision and incomplete ba
   }
   const cropSeed = fixture('strawberry'); cropSeed.slot.itemKind = 'strawberry_seeds'; cropSeed.switches.soil = false;
   expect(() => cropSeed.plant()).toThrow('not_tilled'); expect(cropSeed.writes).toEqual([]);
-  const blocked = fixture(); blocked.collision.blocked[50 * 128 + 50] = true;
+  const blocked = fixture(); blocked.collision.blocked[50 * 128 + 50] = 1;
   expect(() => blocked.plant()).toThrow('tile_blocked'); expect(blocked.writes).toEqual([]);
   for (const effects of [
     [{ plantSeed: { x: 50, y: 50 } }],

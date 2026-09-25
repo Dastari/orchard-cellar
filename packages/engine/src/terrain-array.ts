@@ -68,10 +68,13 @@ export interface TerrainArray {
   /** Per-cell zero-height ledge/lip mask. */
   readonly ledges?: Uint8Array;
   readonly biomes: Uint8Array;
-  readonly blocked: readonly boolean[];
-  readonly residenceEnvelopeBlocked?: readonly boolean[];
+  /** Per-cell flag planes, one byte per cell: non-zero is set, 0 is clear
+   * (the `CollisionMap.blocked` convention). Test by truthiness, never with
+   * `=== true`; treat as read-only once built. */
+  readonly blocked: Uint8Array;
+  readonly residenceEnvelopeBlocked?: Uint8Array;
   readonly residenceArchitecture?: readonly import('@orchard/sim').HearthArchitectureCell[];
-  readonly horseJumpableTerrain: readonly boolean[];
+  readonly horseJumpableTerrain: Uint8Array;
   /** Integer logical terrain height. This is the editor/generator source of
    * truth; every raised contour is derived independently from it. */
   readonly elevations: Int16Array;

@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { bootstrapContentRegistry, HEARTH_FURNITURE_SHAPES, TILE_SIZE_FIXED,
   type HearthFurniturePlacementContext, type HearthFurniturePlacement } from '@orchard/sim';
 import { furnitureAtTile, furnishingPreview, furniturePickupFailure } from './hearth-furnishing.js';
+import { cellFlags } from '@orchard/sim/cell-flags';
 const registry = bootstrapContentRegistry();
 const table: HearthFurniturePlacement = { id: '1', tileX: 5, tileY: 5, shape: HEARTH_FURNITURE_SHAPES.furniture_rustic_dining_table! };
 const position = { x: 6.5 * TILE_SIZE_FIXED, y: 7.5 * TILE_SIZE_FIXED };
 function room(): HearthFurniturePlacementContext {
   return { canBuild: true, collision: { width: 16, height: 16,
-    blocked: Array.from({ length: 256 }, (_, i) => i < 16 || i >= 240 || i % 16 === 0 || i % 16 === 15) },
+    blocked: cellFlags(Array.from({ length: 256 }, (_, i) => i < 16 || i >= 240 || i % 16 === 0 || i % 16 === 15)) },
     existing: [table], reserved: [{ tileX: 8, tileY: 12 }], exit: { tileX: 8, tileY: 12 }, occupants: [position] };
 }
 describe('furnishing controls', () => {
@@ -42,8 +43,8 @@ describe('furnishing controls', () => {
   });
   it('rejects remote placement and placement through fixed geometry', () => {
     expect(furnishingPreview(registry, room(), position, 'furniture_rustic_chair', 12, 7, 1).failure).toMatch(/closer/);
-    const context = room(), blocked = [...context.collision.blocked];
-    for (let y = 1; y < 15; y++) blocked[y * 16 + 5] = true;
+    const context = room(), blocked = context.collision.blocked.slice();
+    for (let y = 1; y < 15; y++) blocked[y * 16 + 5] = 1;
     expect(furnishingPreview(registry, { ...context, collision: { ...context.collision, blocked } }, position, 'furniture_rustic_chair', 4, 7, 1).failure).toMatch(/clear approach/);
   });
   it('explains known pickup failures without promising that private storage or inventory is available', () => {

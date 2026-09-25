@@ -21,6 +21,7 @@ import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunk
   WORLD_CHUNK_AUTHORITY_SCHEMA, type WorldChunkAuthorityObstacle, type WorldChunkAuthorityResource, type WorldChunkAuthorityResourcePlacement, type WorldChunkAuthoritySuppressedObstacle,
   type WorldChunkMedium, type ChunkArray, type ChunkJson, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { authorityObstacleKey, composeAuthorityObstacles } from '@orchard/sim/chunk-runtime';
+import { cellFlags } from '@orchard/sim/cell-flags';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
 import { worldChunkCellMedium } from './world-chunk-medium.js';
 import { serverLiveIslandReference, type ServerLiveIslandReference } from './world-chunk-server-reference.js';
@@ -378,11 +379,11 @@ export function rebuildAuthorityCollision(store: ChunkTerrainStore, manifest: Wo
   );
   return { ...(geometry as object), width: store.width, height: store.height,
     ...(hasTraversalChannels === true ? { traversalChannels: store.traversalChannels! } : {}),
-    blocked: Array.from(blocked, Boolean),
+    blocked: cellFlags(blocked),
     ...(elevations === undefined ? {} : { elevations }),
     ...(plane === undefined ? {} : { terrainPlaneBlocked: plane }),
     // SW-D1: no water horse-jump channel; absent is all false, as the server supplies.
-    horseJumpableTerrain: horse === undefined ? Array<boolean>(store.width * store.height).fill(false) : Array.from(horse, Boolean),
+    horseJumpableTerrain: horse === undefined ? new Uint8Array(store.width * store.height) : cellFlags(horse),
     ...(Object.hasOwn(meta, 'terrainTransitions') ? { terrainTransitions: store.records(`${prefix}transition`).map(record => record.value as unknown as NonNullable<CollisionMap['terrainTransitions']>[number]) } : {}),
     obstacles };
 }
