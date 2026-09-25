@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { bootstrapContentRegistry, createMapPrefabDocument, type MapPrefabDocumentV2 } from '@orchard/sim';
 import type { WorldChunk, WorldChunkManifest, WorldChunkRecord } from '@orchard/sim/world-chunk';
-import { buildChunkWindowMapRecords } from './chunk-map-records.js';
+import { buildChunkWindowMapRecords, chunkMapRecordsReach, chunkMapViewAllowanceTiles } from './chunk-map-records.js';
+import { CHUNK_WINDOW_MARGIN_TILES } from './chunk-terrain-window.js';
+import type { TerrainArray } from './terrain-array.js';
 
 const document = { id: 'live-island', layers: [{ id: 'objects', order: 30 }, { id: 'ground', order: 20 }],
   prefabs: [{ id: 'crate' }], provenance: { kind: 'generated' } };
@@ -21,7 +24,7 @@ const landmark = (id: string, tileX: number, tileY: number) => ({ id, sourceDeco
 function chunk(records: readonly WorldChunkRecord[]): WorldChunk {
   return { records } as unknown as WorldChunk;
 }
-const at = (kind: string, ordinal: number, value: { tileX: number; tileY: number }): WorldChunkRecord =>
+const at = (kind: string, ordinal: number, value: { tileX: number; tileY: number } & Record<string, unknown>): WorldChunkRecord =>
   ({ kind, ordinal, tileX: value.tileX, tileY: value.tileY, value } as unknown as WorldChunkRecord);
 
 describe('chunk window map records (static world S4e)', () => {
@@ -52,7 +55,17 @@ describe('chunk window map records (static world S4e)', () => {
     expect(records.source).toBe('chunks');
   });
 
-  it('fails closed on missing metadata, malformed or duplicated records, an evicted chunk or another manifest', () => {
+  it('skips a chunk evicted since the window was built, and lists it', () => {
+    const source = { manifest: manifest(), peekChunk: (cx: number, cy: number) => cx === 0 && cy === 1 ? undefined : chunks.get(`${cx}:${cy}`) };
+    const records = buildChunkWindowMapRecords(source, { rect, present, manifest: source.manifest });
+    expect(records.evicted).toEqual(['0:1']);
+    expect([...records.present].sort()).toEqual(['0:0', '1:0']);
+    expect(records.objects.map(({ id }) => id)).toEqual(['a', 'c']);
+    expect(buildChunkWindowMapRecords({ ...source, peekChunk: (cx, cy) => chunks.get(`${cx}:${cy}`) },
+      { rect, present, manifest: source.manifest }).evicted).toEqual([]);
+  });
+
+  it('fails closed on missing metadata, malformed or duplicated records, or another manifest', () => {
     const build = (options: { metadata?: Record<string, unknown>; extra?: WorldChunkRecord; peek?: (key: string) => WorldChunk | undefined; other?: boolean }) => {
       const source = { manifest: manifest(options.metadata), peekChunk: (cx: number, cy: number) => options.peek !== undefined ? options.peek(`${cx}:${cy}`)
         : cx === 0 && cy === 0 && options.extra !== undefined ? chunk([...chunks.get('0:0')!.records, options.extra]) : chunks.get(`${cx}:${cy}`) };
@@ -64,15 +77,35 @@ describe('chunk window map records (static world S4e)', () => {
     expect(build({ extra: at('decoration', 9, { ...decoration(9, 3, 3), kind: 4 } as never) })).toThrow('chunk_map_record_invalid:decoration@0,0#9');
     expect(build({ extra: at('decoration', 9, { ...decoration(9, 3, 3), landmark: { id: 'x' } } as never) })).toThrow('chunk_map_record_invalid:decoration@0,0#9');
     expect(build({ extra: at('objects', 1, object('dup', 3, 3)) })).toThrow('chunk_map_record_order:objects#1');
-    expect(build({ peek: key => key === '0:1' ? undefined : chunks.get(key) })).toThrow('chunk_map_records_chunk_evicted:0:1');
     expect(build({ other: true })).toThrow('chunk_map_records_manifest_mismatch');
   });
 
-  it('is generator-free: its only value import is the shared chunk-collision leaf', () => {
+  it('checks that no prefab placement plus light can reach past the window margin', () => {
+    const registry = bootstrapContentRegistry();
+    // The bootstrap content: its lights with the largest prefab the S4e fixture uses (a 3 x 3 tree).
+    const tree: MapPrefabDocumentV2 = { ...createMapPrefabDocument({ id: 'tree', title: 'tree', width: 3, height: 3 }), pivot: { tileX: 1, tileY: 2 },
+      cells: [{ id: 'root', tileX: 2, tileY: 2, elevation: 0, collisionMask: 1 }] };
+    const flat = { elevations: new Int16Array(1), width: 1, height: 1 } as unknown as TerrainArray;
+    const view = chunkMapViewAllowanceTiles(flat);
+    expect(view).toBe(4);
+    const reach = chunkMapRecordsReach([tree], registry, view);
+    expect(reach).toMatchObject({ prefabTiles: 3, marginTiles: CHUNK_WINDOW_MARGIN_TILES, fits: true });
+    expect(reach.lightTiles).toBeGreaterThanOrEqual(6);
+    expect(reach.prefabTiles + reach.lightTiles + reach.viewTiles).toBeLessThanOrEqual(CHUNK_WINDOW_MARGIN_TILES);
+    // A building-sized prefab does not fit: the records refuse to serve.
+    const hall = { ...tree, id: 'hall', width: 24, pivot: { tileX: 0, tileY: 0 }, cells: [{ id: 'far', tileX: 12, tileY: 0, elevation: 0, collisionMask: 1 }] };
+    expect(chunkMapRecordsReach([tree, hall], registry, view).fits).toBe(false);
+    const source = { manifest: manifest({ document: { ...document, prefabs: [hall] }, authority }), peekChunk: (cx: number, cy: number) => chunks.get(`${cx}:${cy}`) };
+    expect(() => buildChunkWindowMapRecords(source, { rect, present, manifest: source.manifest }, { reach: { registry, viewTiles: view } }))
+      .toThrow(/^chunk_map_records_reach_exceeds_margin:prefab=25,/u);
+    expect(buildChunkWindowMapRecords(source, { rect, present, manifest: source.manifest }).objects).toHaveLength(3);
+  });
+
+  it('is generator-free: its value imports are the shared chunk-collision leaf and window modules', () => {
     const file = new URL('./chunk-map-records.ts', import.meta.url);
     const source = ts.createSourceFile(file.pathname, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, false);
     const values = source.statements.filter(ts.isImportDeclaration).filter(statement => statement.importClause?.isTypeOnly !== true)
       .map(statement => (statement.moduleSpecifier as ts.StringLiteral).text);
-    expect(values).toEqual(['@orchard/sim/chunk-collision']);
+    expect(values).toEqual(['@orchard/sim/chunk-collision', './chunk-terrain-window.js', './terrain-sampling.js']);
   });
 });

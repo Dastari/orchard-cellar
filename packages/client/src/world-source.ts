@@ -12,7 +12,7 @@ import {
   chunkWindowPinBounds, type ChunkTerrainWindow, type ChunkWindowInvalidation, type ChunkWindowRect, type TileBounds,
 } from '@orchard/engine/chunk-terrain-window';
 import type { TerrainArray } from '@orchard/engine/terrain';
-import { buildChunkWindowMapRecords, type ChunkWindowMapRecords } from '@orchard/engine/chunk-map-records';
+import { buildChunkWindowMapRecords, chunkMapViewAllowanceTiles, type ChunkWindowMapRecords } from '@orchard/engine/chunk-map-records';
 
 export type ChunkPinBounds = readonly [number, number, number, number];
 
@@ -89,9 +89,11 @@ export interface WorldSourceCollisionStatus {
   readonly missingChunks: number;
 }
 
-/** Map records health (static world S4e): a failed build draws the legacy document. */
+/** Map records health (static world S4e): a failed build makes the whole window fall
+ * back (collision too, as `incomplete: map_records`). */
 export interface WorldSourceRecordsStatus {
-  /** Record builds that threw (a malformed record or missing manifest metadata). */
+  /** Record builds that threw (a malformed record, missing manifest metadata, or
+   * content that could reach past the window margin). */
   readonly failures: number;
   readonly lastError: string | null;
 }
@@ -177,7 +179,8 @@ export const CHUNK_LOOKAHEAD_WAIT_FRAMES = 120;
 export class WorldSource {
   readonly #tracker = new ChunkTerrainWindowTracker();
   readonly #collisions = new WeakMap<ChunkTerrainWindow, WorldSourceCollision | null>();
-  readonly #records = new WeakMap<ChunkTerrainWindow, ChunkWindowMapRecords | null>();
+  /** Per window: its records (null when the build failed) and the store installs they were built at. */
+  readonly #records = new WeakMap<ChunkTerrainWindow, { readonly records: ChunkWindowMapRecords | null; readonly installs: number; readonly error?: string }>();
   #recordFailures = 0;
   #lastRecordError: string | null = null;
   #collisionSerial = 0;
@@ -272,6 +275,9 @@ export class WorldSource {
       const first = incomplete[0]!;
       return this.#fallback(`incomplete: ${first.kind}${first.cx === undefined ? '' : `@${first.cx},${first.cy}`}${first.detail === undefined ? '' : `:${first.detail}`}`, true);
     }
+    // Static world S4e: the window serves as a unit. Records that cannot be built
+    // (malformed, or content reaching past the margin) send collision back too.
+    if (this.#recordsFor(store, window, registry) === null) return this.#fallback(`incomplete: map_records:${this.#records.get(window)?.error ?? ''}`, true);
     this.#collisionFallback = null;
     return cached;
   }
@@ -312,32 +318,37 @@ export class WorldSource {
    * landmarks, decorations, prefabs, layers, combat regions and generated
    * suppressions of the window the chunk collision serves, or undefined whenever
    * that collision does not serve (modes off and shadow, `on` before a revision
-   * serves, and every case in which the server would serve its compiled map), or
-   * the records fail to build. The caller then draws from the legacy document, so
-   * what is drawn and what collides always come from the same source. Built once
-   * per window (ahead of time for a staged window, S4f).
+   * serves, and every case in which the server would serve its compiled map). The
+   * window serves as a unit: when its records cannot be built, collision() falls
+   * back as well, so what is drawn and what collides always come from the same
+   * source. Built once per window (ahead of time for a staged window, S4f); a
+   * window chunk evicted since the window was built is skipped, and the records
+   * are rebuilt once the store installs anything again.
    */
   mapRecords(registry: ContentRegistry): ChunkWindowMapRecords | undefined {
     const chunks = this.collision(registry);
-    const store = this.dependencies.store();
-    if (chunks === undefined || store === undefined) return undefined;
-    return this.#recordsFor(store, chunks.window) ?? undefined;
+    if (chunks === undefined) return undefined;
+    return this.#records.get(chunks.window)?.records ?? undefined;
   }
 
-  #recordsFor(store: BoundedChunkTerrainStore, window: ChunkTerrainWindow): ChunkWindowMapRecords | null {
-    let cached = this.#records.get(window);
-    if (cached === undefined) {
-      try {
-        cached = buildChunkWindowMapRecords(store, window);
-      } catch (error) {
-        this.#recordFailures += 1;
-        this.#lastRecordError = error instanceof Error ? error.message : String(error);
-        console.warn('Chunk map records failed; drawing the legacy map document', error);
-        cached = null;
-      }
-      this.#records.set(window, cached);
+  #buildRecords(store: BoundedChunkTerrainStore, window: ChunkTerrainWindow, registry: ContentRegistry): ChunkWindowMapRecords {
+    return buildChunkWindowMapRecords(store, window, { reach: { registry, viewTiles: chunkMapViewAllowanceTiles(window.terrain) } });
+  }
+
+  #recordsFor(store: BoundedChunkTerrainStore, window: ChunkTerrainWindow, registry: ContentRegistry): ChunkWindowMapRecords | null {
+    const cached = this.#records.get(window);
+    if (cached !== undefined && (cached.records === null || cached.records.evicted.length === 0 || cached.installs === store.installs)) return cached.records;
+    try {
+      const records = this.#buildRecords(store, window, registry);
+      this.#records.set(window, { records, installs: store.installs });
+      return records;
+    } catch (error) {
+      this.#recordFailures += 1;
+      this.#lastRecordError = error instanceof Error ? error.message : String(error);
+      console.warn('Chunk map records failed; the window falls back to the legacy map', error);
+      this.#records.set(window, { records: null, installs: store.installs, error: this.#lastRecordError });
+      return null;
     }
-    return cached;
   }
 
   /** The serving manifest's authority metadata (generated suppressions, combat
@@ -516,9 +527,11 @@ export class WorldSource {
       pending.recordsDone = true;
       if (pending.collision !== undefined) {
         // As for the collision: a failure is left uncached and uncounted until this window serves.
-        let records = this.#records.get(window);
-        if (records === undefined) try { records = buildChunkWindowMapRecords(store, window); this.#records.set(window, records); } catch { records = undefined; }
-        pending.records = records ?? undefined;
+        let records = this.#records.get(window)?.records ?? undefined;
+        if (!this.#records.has(window)) {
+          try { records = this.#buildRecords(store, window, registry); this.#records.set(window, { records, installs: store.installs }); } catch { records = undefined; }
+        }
+        pending.records = records;
       }
       return;
     }

@@ -1,10 +1,12 @@
 import type {
-  CombatRegion, GeneratedSurvivalDecoration, MapContentLayerDefinition, MapLandmarkInstance, MapObjectInstance, MapPrefabDocumentV2,
+  CombatRegion, ContentRegistry, GeneratedSurvivalDecoration, MapContentLayerDefinition, MapLandmarkInstance, MapObjectInstance, MapPrefabDocumentV2,
 } from '@orchard/sim';
 import { chunkAuthorityMetadata } from '@orchard/sim/chunk-collision';
 import type { ChunkJson, WorldChunk, WorldChunkManifest } from '@orchard/sim/world-chunk';
-import type { ChunkWindowRect, ChunkWindowSource } from './chunk-terrain-window.js';
+import { CHUNK_WINDOW_MARGIN_TILES, type ChunkWindowRect, type ChunkWindowSource } from './chunk-terrain-window.js';
 import type { MapObjectRecords } from './map-object-presentation.js';
+import type { TerrainArray } from './terrain-array.js';
+import { terrainBaseDatum, terrainMaximumElevation, terrainMinimumElevation, terrainVisualProjectionRowsPerLevel } from './terrain-sampling.js';
 
 /**
  * Static world S4e: the authored map content the topside client draws, from the
@@ -28,8 +30,10 @@ import type { MapObjectRecords } from './map-object-presentation.js';
  *
  * A window holds exactly the records anchored in its resident chunks, in stream
  * (document) order. Content anchored outside it is absent: the render window keeps
- * CHUNK_WINDOW_MARGIN_TILES between the camera's view and its edge, far more than
- * any prefab placement, light or decoration reaches from its anchor.
+ * CHUNK_WINDOW_MARGIN_TILES between the camera's view and its edge. That is enough
+ * only while no prefab placement plus light reaches further from its anchor than
+ * the margin less the painters' own view allowance, which chunkMapRecordsReach
+ * checks for every build (and the materializer for every publication).
  */
 
 /** A topside decoration: generated id and art, plus its landmark when authored. */
@@ -59,6 +63,96 @@ export interface ChunkWindowMapRecords extends TopsideMapRecords {
   readonly rect: ChunkWindowRect;
   /** `cx:cy` of the chunks the records came from. */
   readonly present: ReadonlySet<string>;
+  /** `cx:cy` of window chunks resident when the window was built but evicted since
+   * (the look-ahead pin moved on). They are skipped, as the collision reads them
+   * as missing; build again once they are resident. */
+  readonly evicted: readonly string[];
+}
+
+/** The largest object scale (MapObjectInstance.scale is 1 or 2). */
+const MAX_OBJECT_SCALE = 2;
+
+/** How far, in tiles, authored map content can reach from its anchor, and what the window allows. */
+export interface ChunkMapRecordsReach {
+  /** Farthest placement or collision cell foot from an object's anchor, at the largest object scale. */
+  readonly prefabTiles: number;
+  /** Largest light radius plus its scaled offset, from the content registry. */
+  readonly lightTiles: number;
+  /** The painters' visible margin beyond the camera's view (the terrain projection margin). */
+  readonly viewTiles: number;
+  /** CHUNK_WINDOW_MARGIN_TILES. */
+  readonly marginTiles: number;
+  readonly fits: boolean;
+}
+
+const prefabReachCache = new WeakMap<readonly MapPrefabDocumentV2[], { tiles: number; permille: number }>();
+function prefabReach(prefabs: readonly MapPrefabDocumentV2[]): { tiles: number; permille: number } {
+  let cached = prefabReachCache.get(prefabs);
+  if (cached === undefined) {
+    let extent = 0, permille = 1000;
+    for (const prefab of prefabs) {
+      for (const part of [...(prefab.placements ?? []), ...(prefab.cells ?? [])]) {
+        extent = Math.max(extent, Math.abs(part.tileX - prefab.pivot.tileX), Math.abs(part.tileY - prefab.pivot.tileY));
+      }
+      for (const rule of prefab.presentation?.rules ?? []) permille = Math.max(permille, rule.scalePermille ?? 1000);
+    }
+    // A placement's foot is its tile's south edge: one more tile than the offset.
+    cached = { tiles: Math.ceil(extent * MAX_OBJECT_SCALE) + 1, permille };
+    prefabReachCache.set(prefabs, cached);
+  }
+  return cached;
+}
+
+const lightReachCache = new WeakMap<object, { radius: number; offsetPixels: number }>();
+function lightReach(registry: Pick<ContentRegistry, 'objects'>): { radius: number; offsetPixels: number } {
+  let cached = lightReachCache.get(registry.objects);
+  if (cached === undefined) {
+    let radius = 0, offsetPixels = 0;
+    for (const definition of registry.objects.values()) {
+      for (const light of [definition.components.light, ...(definition.components.overrides ?? []).map(override => override.light)]) {
+        if (light === undefined || light === null || light === false) continue;
+        radius = Math.max(radius, light.radiusTiles ?? 0);
+        offsetPixels = Math.max(offsetPixels, Math.abs(light.offsetY ?? 0));
+      }
+    }
+    cached = { radius, offsetPixels };
+    lightReachCache.set(registry.objects, cached);
+  }
+  return cached;
+}
+
+/** The painters' visible margin beyond the view, in tiles (gameplay-painter-setup's
+ * terrain projection margin, at least 64 pixels). */
+export function chunkMapViewAllowanceTiles(terrain: TerrainArray): number {
+  const datum = terrainBaseDatum(terrain);
+  const pixels = Math.max(64, Math.max(Math.abs(terrainMaximumElevation(terrain) - datum), Math.abs(terrainMinimumElevation(terrain) - datum))
+    * terrainVisualProjectionRowsPerLevel(terrain) * 16);
+  return Math.ceil(pixels / 16);
+}
+
+/**
+ * The window-edge premise: content anchored outside a window never reaches the
+ * view the window serves. A placement lands at most `prefabTiles` from its anchor,
+ * its light reaches `lightTiles` further, and the painters draw `viewTiles` beyond
+ * the view; together they must fit in CHUNK_WINDOW_MARGIN_TILES.
+ */
+export function chunkMapRecordsReach(prefabs: readonly MapPrefabDocumentV2[], registry: Pick<ContentRegistry, 'objects'>,
+  viewTiles: number): ChunkMapRecordsReach {
+  const prefab = prefabReach(prefabs), light = lightReach(registry);
+  // +1: the flame flicker widens a radius by a fraction of a tile.
+  const lightTiles = Math.ceil(light.radius + light.offsetPixels * MAX_OBJECT_SCALE * prefab.permille / 1000 / 16) + 1;
+  return { prefabTiles: prefab.tiles, lightTiles, viewTiles, marginTiles: CHUNK_WINDOW_MARGIN_TILES,
+    fits: prefab.tiles + lightTiles + viewTiles <= CHUNK_WINDOW_MARGIN_TILES };
+}
+
+/** The manifest's prefabs (its `metadata.document.prefabs`), for the reach check. */
+export function chunkManifestPrefabs(manifest: WorldChunkManifest): readonly MapPrefabDocumentV2[] {
+  return mapMetadata(manifest).prefabs;
+}
+
+export interface ChunkWindowMapRecordsOptions {
+  /** Check the window-edge premise (chunkMapRecordsReach) and throw when it fails. */
+  readonly reach?: { readonly registry: Pick<ContentRegistry, 'objects'>; readonly viewTiles: number };
 }
 
 function record(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -145,22 +239,32 @@ function merged<T>(lists: readonly (readonly Ordered[])[], kind: string): T[] {
 /**
  * The map records of a render window, from exactly the chunks it was built with
  * (`window.present`; a chunk that arrives later is picked up when the window
- * rebuilds). Throws on a manifest without the authority or document metadata, or
- * a malformed record: the caller then draws from its legacy source.
+ * rebuilds; one evicted since is skipped and listed in `evicted`). Throws on a
+ * manifest without the authority or document metadata, a malformed record, or
+ * (with `options.reach`) content that could reach past the window margin: the
+ * caller then falls back to its legacy source.
  */
 export function buildChunkWindowMapRecords(source: ChunkWindowSource,
-  window: { readonly rect: ChunkWindowRect; readonly present: ReadonlySet<string>; readonly manifest: WorldChunkManifest }): ChunkWindowMapRecords {
+  window: { readonly rect: ChunkWindowRect; readonly present: ReadonlySet<string>; readonly manifest: WorldChunkManifest },
+  options: ChunkWindowMapRecordsOptions = {}): ChunkWindowMapRecords {
   const manifest = window.manifest;
   if (source.manifest !== manifest) throw new Error('chunk_map_records_manifest_mismatch');
   const meta = mapMetadata(manifest);
+  if (options.reach !== undefined) {
+    const reach = chunkMapRecordsReach(meta.prefabs, options.reach.registry, options.reach.viewTiles);
+    if (!reach.fits) {
+      throw new Error(`chunk_map_records_reach_exceeds_margin:prefab=${reach.prefabTiles},light=${reach.lightTiles},view=${reach.viewTiles}>${reach.marginTiles}`);
+    }
+  }
   const views: ChunkMapRecordsView[] = [];
   const present = new Set<string>();
+  const evicted: string[] = [];
   const { rect } = window;
   for (let cy = rect.cy; cy < rect.cy + rect.rows; cy++) for (let cx = rect.cx; cx < rect.cx + rect.columns; cx++) {
     const key = `${cx}:${cy}`;
     if (!window.present.has(key)) continue;
     const chunk = source.peekChunk(cx, cy);
-    if (chunk === undefined) throw new Error(`chunk_map_records_chunk_evicted:${key}`);
+    if (chunk === undefined) { evicted.push(key); continue; }
     views.push(chunkView(chunk, cx, cy));
     present.add(key);
   }
@@ -177,5 +281,6 @@ export function buildChunkWindowMapRecords(source: ChunkWindowSource,
     walkable: merged<{ tileX: number; tileY: number }>(views.map(view => view['authority.walkable']), 'authority.walkable'),
     rect,
     present,
+    evicted,
   };
 }

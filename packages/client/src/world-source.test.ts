@@ -334,7 +334,29 @@ describe('WorldSource map records (static world S4e)', () => {
     expect(moved.objects).toEqual([FIXTURE_OBJECT]);
   });
 
-  it('falls back to the legacy document when a record is malformed, and reports it once', () => {
+  it('skips a window chunk evicted before its records were built, and rebuilds once the store installs again', () => {
+    const serving = servingStore(0, undefined, true);
+    const source = new WorldSource({ store: () => serving.store, pin: serving.pin, authorityGate: () => null, worldSize: FIXTURE_SIZE });
+    source.setView(VIEW);
+    const window = source.window(registry)!;
+    expect(window.present.has('2:1')).toBe(true);
+    // The look-ahead pin moved on and the store evicted a chunk of the served window.
+    serving.resident.delete('2:1');
+    const holed = source.mapRecords(registry)!;
+    expect(holed.evicted).toEqual(['2:1']);
+    expect(holed.decorations.map(({ id }) => id)).toEqual([7]);
+    // The collision reads it as missing (solid) and keeps serving: no fallback.
+    expect(source.collisionStatus).toMatchObject({ fallbackReason: null, missingChunks: 1 });
+    expect(source.mapRecords(registry)).toBe(holed);
+    serving.resident.add('2:1'); serving.install();
+    const whole = source.mapRecords(registry)!;
+    expect(whole.evicted).toEqual([]);
+    expect(whole.decorations.map(({ id }) => id)).toEqual([6, 7]);
+    expect(source.mapRecords(registry)).toBe(whole);
+    expect(source.recordsStatus.failures).toBe(0);
+  });
+
+  it('falls back as a unit (collision too) when a record is malformed, and reports it once', () => {
     const serving = servingStore(0, undefined, true);
     const store = Object.create(serving.store, { peekChunk: { value: (cx: number, cy: number) => {
       const resident = serving.store.peekChunk(cx, cy);
@@ -347,8 +369,11 @@ describe('WorldSource map records (static world S4e)', () => {
     expect(source.mapRecords(registry)).toBeUndefined();
     expect(source.mapRecords(registry)).toBeUndefined();
     expect(source.recordsStatus).toEqual({ failures: 1, lastError: 'chunk_map_record_invalid:decoration@2,1#0' });
-    // Collision is unaffected (drawing, not collision, falls back).
-    expect(source.collision(registry)).toBeDefined();
+    // The window falls back as a unit, like the server's `incomplete`: legacy collision and drawing.
+    expect(source.collision(registry)).toBeUndefined();
+    expect(source.collisionStatus).toMatchObject({ fallbackReason: 'incomplete: map_records:chunk_map_record_invalid:decoration@2,1#0',
+      authorityIncomplete: true });
+    expect(source.window(registry)).toBeDefined();
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
