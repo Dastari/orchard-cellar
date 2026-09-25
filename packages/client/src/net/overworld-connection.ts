@@ -1,5 +1,5 @@
 import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
-import { ChunkRuntimeController, type ChunkView } from '../chunk-runtime-controller.js';
+import { ChunkRuntimeController, type ChunkAuthorityGate, type ChunkRuntimeSource, type ChunkView } from '../chunk-runtime-controller.js';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import { chunkWindowForView, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 import {
@@ -353,6 +353,13 @@ export class OverworldConnection {
   get chunkRuntimeStatus() { return this.chunkRuntime?.status; }
   /** The serving chunk store (effective mode `on` only), read by the render window. */
   get chunkTerrainStore(): BoundedChunkTerrainStore | undefined { return this.chunkRuntime?.store; }
+  /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
+  chunkAuthorityGate(): ChunkAuthorityGate | null {
+    return this.chunkRuntime?.authorityGate(this.chunkRuntimeSource()) ?? 'not_on';
+  }
+  private chunkRuntimeSource(): ChunkRuntimeSource {
+    return { mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash };
+  }
   /** Topside tile bounds to pin, derived from the camera's chunk window (static world S4c). */
   private chunkPin: ChunkView | null = null;
   private connected = false;
@@ -906,9 +913,7 @@ export class OverworldConnection {
   private updateChunkRuntime(connection: DbConnection, position: PlayerPosition): void {
     if (this.chunkRuntimeMode !== 'shadow' && this.chunkRuntimeMode !== 'on') return;
     this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode });
-    this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), {
-      mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash,
-    });
+    this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), this.chunkRuntimeSource());
   }
 
   /** The camera window's pin on topside; before the first topside frame, and in other

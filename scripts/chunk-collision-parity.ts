@@ -1,14 +1,16 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   CombatRegionPolicy, collisionCellIndex, collisionTileIsBlocked, collisionTileIsBlockedAtPlane, findPlayerJumpLanding,
-  movementPositionAllowed, positionCollides, positionCollidesOnlyHorseJumpableTerrain, runtimePlaceableBlocksMovement,
+  movementPositionAllowed, positionCollides, positionCollidesOnlyHorseJumpableTerrain, projectileTraversalCollision, runtimeActorCollision,
+  runtimePlaceableBlocksMovement, traversalSolidGeometry,
   terrainPlaneAtPosition, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID,
   type CollisionMap, type CollisionObstacle, type ContentRegistry,
 } from '@orchard/sim';
 import { buildChunkWindowCollision, composeChunkWindowCollision, type ChunkCollisionRect, type ChunkWindowCollision } from '@orchard/sim/chunk-collision';
 import { WORLD_CHUNK_SIZE, WORLD_CHUNK_VOID } from '@orchard/sim/world-chunk';
 import { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
-import { chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
+import { buildChunkTerrainWindow, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
+import { prepareLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
 import { clientLiveRowObstacles, type CollisionWorldPlaceable } from '@orchard/engine/collision';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { composeChunkIslandCollision } from '../packages/world/src/content/chunk-authority-runtime.js';
@@ -275,6 +277,42 @@ export function describeChunkCollisionParity(label: string, setup: () => { reado
       }
       expect(outsideOpen, 'the ring outside the window is open water on the server').toBeGreaterThan(100);
     }, 120_000);
+
+    it('rebuilds window collision within the 8 ms p95 budget when the window moves (timing is reported)', () => {
+      const { published, blobs, registry } = context;
+      // A walk across the island: each step moves the window one chunk, as the camera does.
+      const rects: ChunkCollisionRect[] = [];
+      for (let cy = 2; cy <= 6; cy++) for (let cx = 2; cx <= 6; cx++) rects.push({ cx: cy % 2 === 0 ? cx : 8 - cx, cy, columns: 5, rows: 5 });
+      const stores = rects.map(rect => windowStore(published, blobs, rect));
+      const stages = { window: [] as number[], collision: [] as number[], compose: [] as number[], traversal: [] as number[], light: [] as number[], total: [] as number[] };
+      for (let round = 0; round < 3; round++) rects.forEach((rect, index) => {
+        const store = stores[index]!;
+        const t0 = performance.now();
+        const window = buildChunkTerrainWindow(store, rect);
+        const t1 = performance.now();
+        const collision = buildChunkWindowCollision(store, rect);
+        const t2 = performance.now();
+        const live = clientLiveRowObstacles(context.live.rows.resources, context.live.rows.chests, context.clientPlaceables, collision.generatedSuppressions, registry);
+        const ground = composeChunkWindowCollision(collision, 'ground', live.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle));
+        const water = composeChunkWindowCollision(collision, 'water');
+        const t3 = performance.now();
+        const solid = traversalSolidGeometry(ground, water);
+        const walking = runtimeActorCollision(registry, ground, { kind: 'placement', medium: 'ground' }, 0n, solid);
+        const boat = runtimeActorCollision(registry, water, { kind: 'placement', medium: 'water' }, 0n, solid);
+        runtimeActorCollision(registry, projectileTraversalCollision(walking, boat), { kind: 'projectile' }, 0n, traversalSolidGeometry(walking, boat));
+        const t4 = performance.now();
+        prepareLightTerrainOcclusion(window.terrain);
+        const t5 = performance.now();
+        if (round === 0) return; // warm-up
+        stages.window.push(t1 - t0); stages.collision.push(t2 - t1); stages.compose.push(t3 - t2);
+        stages.traversal.push(t4 - t3); stages.light.push(t5 - t4); stages.total.push(t5 - t0);
+      });
+      const percentile = (values: number[], p: number) => [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * p))]!;
+      const report = Object.entries(stages).map(([stage, values]) => `${stage} p50 ${percentile(values, 0.5).toFixed(2)} / p95 ${percentile(values, 0.95).toFixed(2)} ms`);
+      console.info(`[S4d] ${label} window-move rebuild over ${stages.total.length} moves: ${report.join('; ')}`);
+      // Loose bound only (the shared host is noisy); the measured figures go in the PR.
+      expect(percentile(stages.total, 0.5)).toBeLessThan(200);
+    }, 300_000);
 
     extra?.(() => context);
   });

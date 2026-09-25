@@ -1,9 +1,9 @@
 import type { ContentRegistry, RuntimeTilesetResolver } from '@orchard/sim';
-import { runtimeTilesetResolver, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID } from '@orchard/sim';
-import { WORLD_CHUNK_SIZE } from '@orchard/sim/world-chunk';
+import { runtimeTilesetResolver, runtimeTraversalPolicy, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID } from '@orchard/sim';
+import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
-  buildChunkWindowCollision, chunkAuthorityGeneratedSuppressions, chunkAuthorityMetadata,
-  type ChunkAuthorityManifestMetadata, type ChunkWindowCollision,
+  buildChunkWindowCollision, chunkAuthorityGeneratedSuppressions, chunkAuthorityGroundFieldsMissing, chunkAuthorityMetadata,
+  chunkAuthorityTraversalChannels, type ChunkAuthorityManifestMetadata, type ChunkWindowCollision,
 } from '@orchard/sim/chunk-collision';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import {
@@ -20,10 +20,26 @@ export interface WorldSourceDependencies {
   readonly store: () => BoundedChunkTerrainStore | undefined;
   /** Pins the window's chunks in the chunk runtime (shadow and on). */
   readonly pin: (bounds: ChunkPinBounds) => void;
-  /** True while the serving revision is stale (content or map moved on). The
-   * server then falls back to its compiled document (SW-D2), so client
-   * collision and suppression follow it back to the legacy source. */
-  readonly stale?: () => boolean;
+  /** Why the serving revision may not stand in for the server's authority right
+   * now (ChunkRuntimeController.authorityGate: superseded by a newer publication,
+   * or stale content or map), or null. The server then serves its compiled map
+   * (SW-D2), so client collision and suppression follow it to the legacy source. */
+  readonly authorityGate?: () => string | null;
+}
+
+/** Why topside collision currently uses the legacy source in chunk mode `on`
+ * (null while the chunk collision serves or no store is serving at all). */
+export interface WorldSourceCollisionStatus {
+  /** Collision builds that threw. */
+  readonly failures: number;
+  readonly lastError: string | null;
+  /** The server-mirroring reason the legacy collision is in use, e.g. `superseded`,
+   * `stale_map`, `incomplete: head_missing@3,4`, `traversal_policy_mismatch`. */
+  readonly fallbackReason: string | null;
+  /** The serving publication is incomplete or malformed (the server's `incomplete`). */
+  readonly authorityIncomplete: boolean;
+  /** Window chunks not resident yet: solid until they arrive (spawn readiness, S4f). */
+  readonly missingChunks: number;
 }
 
 /** Client collision in chunk mode `on` (static world S4d): the window's static
@@ -76,6 +92,10 @@ export class WorldSource {
   #collisionSerial = 0;
   #collisionFailures = 0;
   #lastCollisionError: string | null = null;
+  #collisionFallback: string | null = null;
+  #authorityIncomplete = false;
+  #missingChunks = 0;
+  readonly #manifestReasons = new WeakMap<WorldChunkManifest, WeakMap<ContentRegistry, string | null>>();
   #rect: ChunkWindowRect | undefined;
   #pinKey = '';
   #failures = 0;
@@ -88,56 +108,96 @@ export class WorldSource {
     return { failures: this.#failures, lastError: this.#lastError, fallback: this.#failed !== undefined };
   }
 
-  /** Collision builds that fell back to the legacy source (no authority metadata or a build error). */
-  get collisionStatus(): { readonly failures: number; readonly lastError: string | null } {
-    return { failures: this.#collisionFailures, lastError: this.#lastCollisionError };
+  get collisionStatus(): WorldSourceCollisionStatus {
+    return { failures: this.#collisionFailures, lastError: this.#lastCollisionError, fallbackReason: this.#collisionFallback,
+      authorityIncomplete: this.#authorityIncomplete, missingChunks: this.#missingChunks };
+  }
+
+  /**
+   * Publication-level reasons the server's dispatcher (S2b) would serve its
+   * compiled map instead of chunks: the gate (superseded, stale content or map),
+   * no authority extension, missing ground fields, a traversal channel presence
+   * that disagrees with the live registry policy, or heads that do not cover the
+   * map. Null when the serving manifest may stand in for the server's authority.
+   */
+  #authorityReason(store: BoundedChunkTerrainStore, registry: ContentRegistry): string | null {
+    const gate = this.dependencies.authorityGate?.() ?? null;
+    if (gate !== null) return gate;
+    const manifest = store.manifest;
+    let byRegistry = this.#manifestReasons.get(manifest);
+    if (byRegistry === undefined) { byRegistry = new WeakMap(); this.#manifestReasons.set(manifest, byRegistry); }
+    let reason = byRegistry.get(registry);
+    if (reason === undefined) {
+      reason = manifestAuthorityReason(manifest, registry);
+      byRegistry.set(registry, reason);
+    }
+    return reason;
   }
 
   /**
    * Topside client collision in chunk mode `on`: the static authority collision
    * of the render window's resident chunks (chunk-collision), or undefined when
    * the legacy source applies: modes off and shadow, `on` before a revision
-   * serves, a stale revision, a window that failed to build, or a manifest
-   * published without the authority extension. Built once per window.
+   * serves, a window that failed to build, and every case in which the server
+   * would serve its compiled map (#authorityReason, or a malformed resident
+   * chunk). A window chunk that is merely not resident yet stays solid instead:
+   * the publication is fine, and waiting for it is spawn readiness (S4f).
+   * Built once per window.
    */
   collision(registry: ContentRegistry): WorldSourceCollision | undefined {
-    if (this.dependencies.stale?.() === true) return undefined;
     const store = this.dependencies.store();
-    if (store === undefined || chunkAuthorityMetadata(store.manifest) === undefined) return undefined;
+    if (store === undefined || store.manifest.spaceId !== TOPSIDE_SPACE_ID) return this.#fallback(null);
+    const reason = this.#authorityReason(store, registry);
+    if (reason !== null) return this.#fallback(reason);
     const window = this.window(registry);
-    if (window === undefined) return undefined;
-    const cached = this.#collisions.get(window);
-    if (cached !== undefined) return cached ?? undefined;
-    let result: WorldSourceCollision | null;
-    try {
-      // Exactly the chunks the render window used: a chunk that arrived since is
-      // picked up when the window rebuilds for it.
-      const collision = buildChunkWindowCollision({ manifest: store.manifest,
-        peekChunk: (cx, cy) => window.present.has(`${cx}:${cy}`) ? store.peekChunk(cx, cy) : undefined }, window.rect);
-      result = { collision, terrain: window.terrain, serial: ++this.#collisionSerial };
-    } catch (error) {
-      this.#collisionFailures += 1;
-      this.#lastCollisionError = error instanceof Error ? error.message : String(error);
-      console.warn('Chunk collision failed; using the legacy collision', error);
-      result = null;
+    if (window === undefined) return this.#fallback('window_unavailable');
+    let cached = this.#collisions.get(window);
+    if (cached === undefined) {
+      try {
+        // Exactly the chunks the render window used: a chunk that arrived since is
+        // picked up when the window rebuilds for it.
+        const collision = buildChunkWindowCollision({ manifest: store.manifest,
+          peekChunk: (cx, cy) => window.present.has(`${cx}:${cy}`) ? store.peekChunk(cx, cy) : undefined }, window.rect);
+        cached = { collision, terrain: window.terrain, serial: ++this.#collisionSerial };
+      } catch (error) {
+        this.#collisionFailures += 1;
+        this.#lastCollisionError = error instanceof Error ? error.message : String(error);
+        console.warn('Chunk collision failed; using the legacy collision', error);
+        cached = null;
+      }
+      this.#collisions.set(window, cached);
     }
-    this.#collisions.set(window, result);
-    return result ?? undefined;
+    if (cached === null) return this.#fallback('collision_build_failed');
+    const incomplete = cached.collision.issues.filter(issue => issue.kind !== 'chunk_missing');
+    this.#authorityIncomplete = incomplete.length > 0;
+    this.#missingChunks = cached.collision.issues.length - incomplete.length;
+    if (incomplete.length > 0) {
+      const first = incomplete[0]!;
+      return this.#fallback(`incomplete: ${first.kind}${first.cx === undefined ? '' : `@${first.cx},${first.cy}`}${first.detail === undefined ? '' : `:${first.detail}`}`, true);
+    }
+    this.#collisionFallback = null;
+    return cached;
+  }
+
+  #fallback(reason: string | null, incomplete = false): undefined {
+    this.#collisionFallback = reason;
+    this.#authorityIncomplete = incomplete || reason?.startsWith('incomplete') === true;
+    if (!incomplete) this.#missingChunks = 0;
+    return undefined;
   }
 
   /** The serving manifest's authority metadata (generated suppressions, combat
-   * regions) under the same conditions as collision, without building a window. */
-  authority(): ChunkAuthorityManifestMetadata | undefined {
-    if (this.dependencies.stale?.() === true) return undefined;
+   * regions) under the same publication-level conditions as collision. */
+  authority(registry: ContentRegistry): ChunkAuthorityManifestMetadata | undefined {
     const store = this.dependencies.store();
-    if (store === undefined || store.manifest.spaceId !== TOPSIDE_SPACE_ID) return undefined;
+    if (store === undefined || store.manifest.spaceId !== TOPSIDE_SPACE_ID || this.#authorityReason(store, registry) !== null) return undefined;
     return chunkAuthorityMetadata(store.manifest);
   }
 
   /** True when the serving manifest suppresses generated resource `id` (`on`
    * only; undefined means the legacy document decides). */
-  suppressesGeneratedResource(id: bigint): boolean | undefined {
-    const authority = this.authority();
+  suppressesGeneratedResource(id: bigint, registry: ContentRegistry): boolean | undefined {
+    const authority = this.authority(registry);
     return authority === undefined ? undefined : chunkAuthorityGeneratedSuppressions(authority).has(`resource-${id}`);
   }
 
@@ -211,4 +271,19 @@ function pinnedRect(store: BoundedChunkTerrainStore): ChunkWindowRect | undefine
   const chunksX = Math.ceil(store.manifest.width / WORLD_CHUNK_SIZE), chunksY = Math.ceil(store.manifest.height / WORLD_CHUNK_SIZE);
   return { cx, cy, columns: Math.min(CHUNK_WINDOW_CHUNKS, chunksX - cx, Math.max(...keys.map(([x]) => x)) - cx + 1),
     rows: Math.min(CHUNK_WINDOW_CHUNKS, chunksY - cy, Math.max(...keys.map(([, y]) => y)) - cy + 1) };
+}
+
+/** The server dispatcher's publication-level refusals a client can evaluate. */
+function manifestAuthorityReason(manifest: WorldChunkManifest, registry: ContentRegistry): string | null {
+  const meta = chunkAuthorityMetadata(manifest);
+  if (meta === undefined) return 'authority_metadata_missing';
+  const missing = chunkAuthorityGroundFieldsMissing(meta);
+  if (missing.length > 0) return `ground_fields_missing: ${missing.join(',')}`;
+  const channels = chunkAuthorityTraversalChannels(meta), active = runtimeTraversalPolicy(registry) !== null;
+  if (channels.ground !== active || channels.water !== active) return 'traversal_policy_mismatch';
+  const heads = new Set(manifest.chunks.map(head => `${head.cx}:${head.cy}`));
+  for (let cy = 0; cy < Math.ceil(manifest.height / WORLD_CHUNK_SIZE); cy++) for (let cx = 0; cx < Math.ceil(manifest.width / WORLD_CHUNK_SIZE); cx++) {
+    if (!heads.has(`${cx}:${cy}`)) return `incomplete: head_missing@${cx},${cy}`;
+  }
+  return null;
 }

@@ -320,7 +320,7 @@ let connectionInputCleared = false;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 /** Topside terrain source: the legacy whole map, or the chunk window in chunk mode `on` (S4c). */
 const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds),
-  stale: () => network.chunkRuntimeStatus?.stale === true });
+  authorityGate: () => network.chunkAuthorityGate() });
 const furnitureMoves = new FurnitureMoveController((...args) => network.moveHearthFurniture(...args));
 const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty = true; });
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
@@ -1984,7 +1984,7 @@ function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
 }
 
 /** The whole-map terrain: every space but topside in chunk mode `on`, and topside collision whenever
- * the chunk collision is not serving (modes off and shadow, stale, or a failed window). */
+ * the chunk collision is not serving (modes off and shadow, a revision the server would not serve, or a failed window). */
 function legacyTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
@@ -2028,7 +2028,7 @@ function resourcePerceptionForSnapshot(snapshot: OverworldView) {
 function liveMapSuppressesGeneratedResource(snapshot: OverworldView, id: bigint): boolean {
   if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return false;
   // Chunk mode `on`: the serving manifest's suppressions (the server's source, S4d).
-  return worldSource.suppressesGeneratedResource(id)
+  return worldSource.suppressesGeneratedResource(id, snapshot.content.registry)
     ?? (liveIslandDocumentFor(snapshot)?.generatedSuppressions.includes(`resource-${id}`) ?? false);
 }
 
@@ -7697,7 +7697,8 @@ Object.assign(window, {
     renderMetrics: () => renderMetricsSnapshot(),
     diagnostics: () => gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
       lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
-      activeSpaceDefinition, latestLightCount, rain, groundCache }),
+      activeSpaceDefinition, latestLightCount, rain, groundCache,
+      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus } }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,
