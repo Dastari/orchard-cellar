@@ -19,12 +19,13 @@ const SURVIVAL_PROVENANCE = { kind: 'generated', generator: 'survival-island', g
 
 /** A 100x64 island (chunk 0 full width, chunk 1 clipped to 36 columns). Chunk 0 anchors an authored
  * obstacle at tile 62 that overhangs five tiles into chunk 1 (tiles 64-66). */
-function island(options: { provenance?: unknown; hasTraversalChannels?: boolean; waterTraversal?: boolean; groundMeta?: { readonly [key: string]: ChunkJson } } = {}) {
+function island(options: { provenance?: unknown; hasTraversalChannels?: boolean; waterTraversal?: boolean; groundMeta?: { readonly [key: string]: ChunkJson };
+  authoritySchema?: 1 | 2 } = {}) {
   const records = (cx: number): WorldChunkRecord[] => cx === 0
     ? [{ kind: 'authority.ground.obstacle', ordinal: 0, tileX: 2, tileY: 1, value: { group: 'base', ordinal: 0, ...box(2, 1), sourceId: 'decoration:1' } },
       { kind: 'authority.ground.obstacle', ordinal: 1, tileX: 62, tileY: 1, value: { group: 'authored', ordinal: 0, ...box(62, 1, 5), sourceId: 'landmark:bridge' } }]
     : [];
-  const blobs = [0, 1].map(cx => encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema: 1, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
+  const blobs = [0, 1].map(cx => encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema: options.authoritySchema ?? 1, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
     arrays: { medium: new Uint8Array(CELLS), solidBlocked: new Uint8Array(CELLS), biomes: new Uint8Array(CELLS),
       'authority.ground.blocked': new Uint8Array(CELLS), 'authority.ground.elevations': new Int16Array(CELLS),
       'authority.ground.terrainPlaneBlocked': new Uint8Array(CELLS), 'authority.ground.horseJumpableTerrain': new Uint8Array(CELLS),
@@ -65,10 +66,13 @@ function harness(overrides: {
   mode?: 'shadow' | 'on'; manifest?: WorldChunkManifest; manifestJson?: string; blobs?: Map<string, Uint8Array>;
   missing?: readonly string[]; shadow?: 'none' | { mapId?: string; contentHash?: string; revision?: number };
   liveMap?: null | { revision: number; contentHash: string }; registryHash?: string; traversal?: boolean;
+  /** The published blobs' authority schema; compiled always comes from the schema-1 fixture. */
+  authoritySchema?: 1 | 2;
 } = {}): Harness {
   const fixture = island();
-  const manifest = overrides.manifest ?? fixture.manifest;
-  const blobs = overrides.blobs ?? fixture.store;
+  const published = overrides.authoritySchema === undefined ? fixture : island({ authoritySchema: overrides.authoritySchema });
+  const manifest = overrides.manifest ?? published.manifest;
+  const blobs = overrides.blobs ?? published.store;
   const reads = { blobs: 0, shadow: 0 };
   const readBlob = (hash: string): Uint8Array | undefined => {
     reads.blobs += 1;
@@ -115,6 +119,28 @@ describe('chunk authority dispatcher: on', () => {
     expect(d.select(h.source)).toBe(selected);
     expect(h.reads.blobs).toBe(decoded);
     expect(h.events.filter(({ event }) => event['event'] === 'chunk_authority_serving')).toHaveLength(1);
+    expect(d.status().fallbacks).toEqual({});
+  });
+
+  it('serves an authority schema 2 (obstacle table) publication that equals compiled, in on and shadow modes (BUG-044)', () => {
+    const v1 = island(), v2 = island({ authoritySchema: 2 });
+    expect(v2.manifest.chunks.map(({ contentHash }) => contentHash)).not.toEqual(v1.manifest.chunks.map(({ contentHash }) => contentHash));
+    const on = harness({ authoritySchema: 2 });
+    const selected = dispatcher(on.logger).select(on.source) as ChunkLiveIslandRuntime;
+    expect(selected.source).toBe('chunks');
+    expect(selected.issues).toEqual([]);
+    expect(compareLiveIslandRuntime(selected, on.compiled).equal).toBe(true);
+    const schema1 = assembleChunkLiveIslandRuntime(v1.manifest, hash => v1.store.get(hash), { contentHash: REGISTRY_HASH });
+    for (const medium of ['ground', 'water'] as const) {
+      const chunks = composeChunkIslandCollision(selected, medium), compiled = composeChunkIslandCollision(schema1, medium);
+      for (const tileX of [2, 62, 64, 65, 66, 67, 99]) {
+        expect(compareCollisionAtPosition(medium, { x: tileX * T + T / 2, y: 1 * T + T / 2 }, compiled, chunks), `${medium} tile ${tileX}`).toEqual([]);
+      }
+    }
+    const shadow = harness({ mode: 'shadow', authoritySchema: 2 });
+    const d = dispatcher(shadow.logger);
+    expect(d.select(shadow.source)).toBe(shadow.compiled);
+    expect(d.status().lastCompare).toMatchObject({ equal: true, total: 0 });
     expect(d.status().fallbacks).toEqual({});
   });
 
@@ -196,7 +222,7 @@ describe('chunk authority dispatcher: on', () => {
   });
 
   it('refuses a runtime missing the ground terrain fields compiled always sets (no fall-through to base transitions)', () => {
-    const base: CollisionMap = { width: WORLD.width, height: WORLD.height, blocked: [], terrainMinimumElevation: -3,
+    const base: CollisionMap = { width: WORLD.width, height: WORLD.height, blocked: new Uint8Array(0), terrainMinimumElevation: -3,
       terrainTransitions: [{ lowerTileX: 1, lowerTileY: 1, upperTileX: 1, upperTileY: 2 } as never] };
     for (const [groundMeta, missing] of [
       [{ hasTraversalChannels: true, terrainTransitions: [] }, 'terrainMinimumElevation'],
@@ -260,7 +286,7 @@ describe('chunk authority dispatcher: on', () => {
     const complete = assembleChunkLiveIslandRuntime(manifest, hash => store.get(hash), { contentHash: REGISTRY_HASH });
     expect(partial.complete).toBe(false);
     const overhang = { x: 65 * T + T / 2, y: 1 * T + T / 2 }; // tile 65: chunk 1, which decoded fine
-    expect(partial.ground.blocked[1 * WORLD.width + 65]).toBe(false);
+    expect(partial.ground.blocked[1 * WORLD.width + 65]).toBe(0);
     expect(positionCollides(overhang, composeChunkIslandCollision(partial, 'ground'))).toBe(false);
     expect(positionCollides(overhang, composeChunkIslandCollision(complete, 'ground'))).toBe(true);
 
@@ -316,8 +342,8 @@ describe('chunk authority dispatcher: shadow', () => {
   it('logs at most the sample limit of disagreements without changing the result', () => {
     const h = harness({ mode: 'shadow' });
     // Compiled blocks 64 cells that the chunks leave walkable.
-    const blocked = [...h.compiled.ground.blocked];
-    for (let tileX = 10; tileX < 74; tileX++) blocked[5 * WORLD.width + tileX] = true;
+    const blocked = h.compiled.ground.blocked.slice();
+    for (let tileX = 10; tileX < 74; tileX++) blocked[5 * WORLD.width + tileX] = 1;
     const compiled = { ...h.compiled, ground: { ...h.compiled.ground, blocked } };
     const source = { ...h.source, compiled: () => compiled };
     const d = dispatcher(h.logger, { sampleLimit: 32 });
@@ -405,7 +431,7 @@ function serverFunctions(dependencies: Record<string, unknown>) {
 describe('index.ts collision dispatcher wiring', () => {
   const { manifest, store } = island();
   const compiled = compiledFor(manifest, hash => store.get(hash));
-  const base: CollisionMap = { width: WORLD.width, height: WORLD.height, blocked: Array<boolean>(WORLD.width * WORLD.height).fill(true),
+  const base: CollisionMap = { width: WORLD.width, height: WORLD.height, blocked: new Uint8Array(WORLD.width * WORLD.height).fill(1),
     obstacles: [box(2, 1), box(40, 40)] };
   /** Blob rows arrive as a fresh Uint8Array from the 2.8.2 host (readUInt8Array slices); number[] is the declared type. */
   const hostBlobs = new Map([...store].map(([hash, bytes]) => [hash, bytes.slice()]));

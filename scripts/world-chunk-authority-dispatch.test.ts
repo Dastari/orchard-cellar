@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { activeSurvivalLandmarks, bootstrapContentRegistry, createLiveIslandMapDocument, LIVE_ISLAND_MAP_ID, runtimeTraversalPolicy,
   serializeMapDocumentV3, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type ContentRegistry } from '@orchard/sim';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
+import { decodeWorldChunk, WORLD_CHUNK_AUTHORITY_SCHEMA_V2 } from '@orchard/sim/world-chunk';
 import { ChunkAuthorityDispatcher, type ChunkAuthorityLogger, type ChunkAuthoritySource, type CompiledCollisionRuntime } from '../packages/world/src/content/chunk-authority-dispatch.js';
 import type { ChunkLiveIslandRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
 import { chunkRuntimeParityFixture, collisionJson, liveRowsFixture, type ChunkRuntimeParityFixture, type LiveRowsFixture } from './world-chunk-runtime-parity.js';
@@ -60,6 +61,8 @@ describe('chunk authority dispatcher on the bootstrap island', () => {
     expect(dispatcher.status().fallbacks).toEqual({});
     expect(runtime.source).toBe('chunks');
     expect(runtime.stats).toMatchObject({ expectedChunks: 169, decodedChunks: 169 });
+    // The publisher writes authority schema 2 (obstacle tables, BUG-044): parity below is against v2 blobs.
+    expect(new Set([...fixture.blobs.values()].map(bytes => decodeWorldChunk(bytes).authoritySchema))).toEqual(new Set([WORLD_CHUNK_AUTHORITY_SCHEMA_V2]));
     for (const medium of ['ground', 'water'] as const) {
       const expected = fixture.server.composeWithLiveRows(medium, compiled(), live.rows);
       expect(collisionJson(fixture.server.composeWithLiveRows(medium, runtime, live.rows)), medium).toBe(collisionJson(expected));
