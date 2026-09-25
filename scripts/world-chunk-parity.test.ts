@@ -56,7 +56,7 @@ describe('static island materialization golden parity', () => {
     for (const [index, bytes] of published.blobs.entries()) {
       const head = published.manifest.chunks[index]!;
       const chunk = verifyRuntimeChunk(bytes, published.manifest, head.cx, head.cy);
-      expect(chunk.authoritySchema).toBe(1);
+      expect(chunk.authoritySchema).toBe(2); // BUG-044: obstacle table (decoded records are unchanged)
       expect(Object.keys(chunk.arrays)).toEqual(expect.arrayContaining(Object.keys(WORLD_CHUNK_AUTHORITY_CHANNELS)));
       expect(Object.keys(chunk.arrays).filter(name => name.startsWith('server'))).toEqual([]);
       expect(chunk.arrays['authority.water.horseJumpableTerrain']).toBeUndefined(); // SW-D1
