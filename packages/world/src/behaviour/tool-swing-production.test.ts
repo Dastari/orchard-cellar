@@ -64,7 +64,7 @@ describe('production server swing discovery', () => {
     expect(f.slot.durability).toBe(0);
     expect(f.position()).toMatchObject({ facing: 'right', actionKind: 'swing_axe', actionStartedTick: 20n });
   });
-  it('continues across mixed contacts when a resource resists, wearing once per contact', () => {
+  it('continues across mixed contacts when a resource resists, wearing once per landed contact', () => {
     const f = fixture();
     const resource = { id: 7n, tileX: 8, tileY: 8, spaceId: 0, depleted: false };
     const placeable = { id: 8n, kind: 'campfire', tileX: 8, tileY: 8 };
@@ -85,7 +85,8 @@ describe('production server swing discovery', () => {
     expect(f.hits).toEqual([1n, 2n]);
     expect(placedHit).toHaveBeenCalledExactlyOnceWith(8n);
     expect(f.spend).toHaveBeenCalledTimes(1);
-    expect(f.wear).toHaveBeenCalledExactlyOnceWith(ctx, f.slot, 4);
+    // Two NPCs and the campfire landed; the resisting vein adds no wear (BUG-042).
+    expect(f.wear).toHaveBeenCalledExactlyOnceWith(ctx, f.slot, 3);
   });
   it('measures a resource contact in the frame its target vector is authored in', () => {
     // A wall or vein one tile north sits within a pick's one-tile arc. Measuring

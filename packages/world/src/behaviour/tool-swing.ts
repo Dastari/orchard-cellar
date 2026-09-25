@@ -10,7 +10,9 @@ export interface SwingTarget {
 
 /** A single transaction first validates every contact, then charges once and
  * applies mutations. Durability is deferred so a breaking tool finishes the
- * already-started swing. Unexpected failures are never swallowed. */
+ * already-started swing. Unexpected failures are never swallowed.
+ * A contact that resists (wrong tool, too low a tier, depleted...) is a miss: it
+ * neither wears the tool nor makes the swing a full-cost hit (BUG-042). */
 export function executeToolSwing<T extends SwingTarget>(
   contacts: readonly T[],
   authority: {
@@ -29,7 +31,7 @@ export function executeToolSwing<T extends SwingTarget>(
     catch (error) { if (!authority.resisted(error)) throw error; return false; }
   });
   if (!mutate) return;
-  authority.spend(unique.length === 0);
+  authority.spend(accepted.length === 0);
   for (const target of accepted) authority.hit(target);
-  authority.finish(unique.length);
+  authority.finish(accepted.length);
 }
