@@ -98,7 +98,8 @@ hex_bytes() { od -An -v -tx1 | tr -d ' \n'; }
 # Every listed head must be served over the public origin with immutable caching
 # and must be a genuine chunk: OCCHNK magic, and sha256(bytes[40:]) equal to both
 # the address hash and the digest embedded at bytes[8:40] (see world-chunk.ts).
-# --compressed exercises the precompressed br/gzip siblings through the proxy.
+# --compressed exercises the precompressed br/gzip siblings through the proxy;
+# every request is bounded by the 1 MiB runtime blob cap and a 30 s timeout.
 if [[ "$world_chunks" = 1 ]]; then
   declare -A served_encodings=()
   for index in "${!head_hashes[@]}"; do
@@ -106,7 +107,8 @@ if [[ "$world_chunks" = 1 ]]; then
     hash=${head_hashes[$index]}
     size=${head_sizes[$index]}
     label="world chunk $space/$hash"
-    curl -fsS --compressed -D "$headers" -o "$blob" "${origin%/}/world/$space/$hash.bin" || {
+    curl -fsS --compressed --max-filesize 1048576 --max-time 30 -D "$headers" -o "$blob" \
+      "${origin%/}/world/$space/$hash.bin" || {
       printf '%s is not served.\n' "$label" >&2; exit 69;
     }
     grep -Eiq '^cache-control:.*immutable' "$headers" || {
@@ -130,7 +132,8 @@ if [[ "$world_chunks" = 1 ]]; then
     served_encodings[$encoding]=$(( ${served_encodings[$encoding]:-0} + 1 ))
   done
   # A missing blob must be a real 404, never the SPA index.html fallback.
-  curl -sS -D "$headers" -o /dev/null "${origin%/}/world/0/$(printf '0%.0s' {1..64}).bin" || true
+  curl -sS --max-filesize 1048576 --max-time 30 -D "$headers" -o /dev/null \
+    "${origin%/}/world/0/$(printf '0%.0s' {1..64}).bin" || true
   [[ "$(sed -n '1s/^HTTP\/[0-9.]* \([0-9]*\).*/\1/p' "$headers")" = 404 ]] || {
     printf 'A missing world chunk is not answered with 404.\n' >&2; exit 69;
   }

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
@@ -161,6 +161,7 @@ while (($#)); do
   case "$1" in
     -D) headers=$2; shift 2 ;;
     -o) output=$2; shift 2 ;;
+    --max-filesize|--max-time) printf '%s %s\\n' "$1" "$2" >> "$MOCK_CURL_LIMITS"; shift 2 ;;
     -f*) fail=true; shift ;;
     -*) shift ;;
     *) url=$1; shift ;;
@@ -194,6 +195,7 @@ cp "$MOCK_PUBLIC_HTML" "$output"
           CLIENT_VALIDATE_WORLD_CHUNK_HEADS: heads,
           MOCK_PUBLIC_HTML: publicHtml,
           MOCK_WORLD: world,
+          MOCK_CURL_LIMITS: join(root, 'curl-limits.log'),
           MOCK_SPA_FALLBACK: options.spaFallback ? '1' : '0',
           PATH: `${bin}:${process.env.PATH ?? ''}`,
         },
@@ -239,6 +241,10 @@ cp "$MOCK_PUBLIC_HTML" "$output"
       const result = validate(root, env);
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toContain('World chunk validation passed: 2 heads served and verified (encodings: br=2)');
+      // Two blobs plus the 404 probe, each bounded by size and time.
+      const limits = readFileSync(join(root, 'curl-limits.log'), 'utf8').trim().split('\n');
+      expect(limits.filter(line => line === '--max-filesize 1048576')).toHaveLength(3);
+      expect(limits.filter(line => line === '--max-time 30')).toHaveLength(3);
     });
 
     it('rejects a served blob whose bytes do not match its address', () => {

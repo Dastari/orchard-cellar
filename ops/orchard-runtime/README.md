@@ -180,14 +180,18 @@ and are served by the `orchard-world-chunk-serving` plugin
 
 - **Unset (the default) serves nothing.** Every `/world/` request is a `404`, so
   releases without the variable behave as before. A relative path is also rejected
-  (a warning is logged and every blob is a 404). The recommended production value is
+  (a warning is logged and every blob is a 404). An absolute directory that is
+  missing or unreadable at startup stays configured, so blobs appear once it is
+  created, but one warning is logged when the server starts. The recommended production value is
   `/home/toby/.local/share/orchard/world-chunks`: it is persistent, owned by the
   service user, and outside the checkout, so builds, `git clean` and worktree changes
   cannot remove it.
 - **Layout.** `<dir>/<spaceId>/<hash>.bin`, with optional precompressed siblings
   `<hash>.bin.br` and `<hash>.bin.gz` that must be compressed from that same file.
-  Only regular files are served; symlinks count as missing. The identity `.bin` must
-  exist for any variant to be served.
+  Blob files are opened with `O_NOFOLLOW | O_NONBLOCK` and served only if they are
+  regular files. A symlink as the final `.bin` (or sibling) component is treated as
+  missing, and so is a FIFO or device. A symlinked root or `<spaceId>` directory is
+  followed. The identity `.bin` must exist for any variant to be served.
 - **Installing blobs.** The S5b pipeline (`scripts/world-chunks-publish.ts`, not yet
   written) will materialise and verify each blob, write it and its siblings, and
   then publish the heads. Blobs are immutable and addressed by hash, so installing
@@ -201,9 +205,12 @@ and are served by the `orchard-world-chunk-serving` plugin
   `Cache-Control: public, max-age=31536000, immutable`, `Vary: Accept-Encoding`,
   `X-Content-Type-Options: nosniff` and an ETag of the hash (`"<hash>"`, or
   `"<hash>-br"`/`"<hash>-gzip"` for a compressed variant). `If-None-Match` returns
-  `304`. The best sibling the client accepts is chosen (`br` ahead of `gzip` when
-  their q-values are equal), with `Content-Encoding` set; otherwise the identity
-  bytes are sent. Misses are `404` with `Cache-Control: no-store`. Other methods get
+  `304` only when it matches the tag of the representation that would be sent. The
+  best sibling the client accepts is chosen (`br` ahead of `gzip` when their
+  q-values are equal), with `Content-Encoding` set; otherwise the identity bytes are
+  sent. `identity;q=0` is ignored, so identity is still sent as the last resort.
+  Misses are `404` and errors are `500`, both with `Cache-Control: no-store` and
+  without the blob's ETag, `Content-Encoding` or `Vary: Accept-Encoding`. Other methods get
   `405` with `Allow: GET, HEAD`. Range requests are not supported.
 - **Service worker.** The PWA worker does not intercept `/world/`. The client's
   IndexedDB chunk cache is the only client-side cache.
@@ -233,7 +240,8 @@ CLIENT_VALIDATE_WORLD_CHUNK_HEADS=/absolute/path/heads.txt \
   npm run client:static:validate
 ```
 
-For each head it fetches the blob with `curl --compressed`, then checks:
+For each head it fetches the blob with `curl --compressed` (capped at 1 MiB, the
+client's blob limit, and 30 seconds per request), then checks:
 
 - the blob is served as `application/octet-stream` with immutable caching;
 - the decoded length equals `byteLength`;
