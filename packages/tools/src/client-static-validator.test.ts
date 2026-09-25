@@ -144,7 +144,7 @@ cp "$MOCK_PUBLIC_HTML" "$output"
       const lines = ['# space hash bytes'];
       for (const seed of ['{"cx":0}', '{"cx":1}']) {
         const chunk = chunkBytes(seed);
-        if (options.tamper && seed.endsWith('1}')) chunk.bytes[chunk.bytes.length - 1] ^= 1;
+        if (options.tamper && seed.endsWith('1}')) chunk.bytes[chunk.bytes.length - 1] = (chunk.bytes[chunk.bytes.length - 1] ?? 0) ^ 1;
         writeFileSync(join(world, '1', `${chunk.hash}.bin`), chunk.bytes);
         lines.push(`1 ${chunk.hash} ${chunk.bytes.length}`);
       }
