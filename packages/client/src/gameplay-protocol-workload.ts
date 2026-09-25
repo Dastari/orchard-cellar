@@ -1,5 +1,5 @@
 import { atlasPageDiagnostics, type OverworldWindow } from '@orchard/ui';
-import { DAYS_PER_SEASON, SEASONS } from '@orchard/sim';
+import { DAYS_PER_SEASON, SEASONS } from '@orchard/sim/time';
 import type { RenderMetrics } from '@orchard/engine/metrics';
 import { worldPassLayout, type UnifiedRenderer } from '@orchard/engine/renderer';
 import type { GameplayCelestialPass } from './gameplay-celestial-pass.js';

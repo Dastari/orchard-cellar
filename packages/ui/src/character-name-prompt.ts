@@ -1,4 +1,4 @@
-import { normalizeCharacterName } from '@orchard/sim';
+import { normalizeCharacterName } from '@orchard/sim/character-name';
 import type { LoadedAsset } from './assets.js';
 import type { UiRect } from './geometry.js';
 import type { UiKitArt } from './kit/components/art.js';

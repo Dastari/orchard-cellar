@@ -125,7 +125,7 @@ import { WorldUpdateOverlay } from './world-update-overlay.js';
 import { ConnectionRecoveryOverlay, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
-import { WorldSource } from './world-source.js';
+import { WorldSource, type WorldSourceCollision } from './world-source.js';
 import type { TileBounds } from '@orchard/engine/chunk-terrain-window';
 import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
@@ -151,7 +151,8 @@ import { AvatarAnimationController, LocalActionPresentation, FrameVisualTickCloc
 import { DEFAULT_PLAYER_APPEARANCE, drawOverworldPlaceable, drawPlayerHeadPortrait, drawPlayerPaperDoll, drawNpcPortrait, drawUiAsset, horseJumpPose, loadOverworldArt, type WorldVisualBounds } from '@orchard/engine/overworld-art';
 import { cameraAxisOffset } from '@orchard/engine/camera';
 import { snapGameplayCamera } from './gameplay-camera.js';
-import { createClientCollisionMap } from '@orchard/engine/collision';
+import { clientLiveRowObstacles, createClientCollisionMap } from '@orchard/engine/collision';
+import { composeChunkWindowCollision } from '@orchard/sim/chunk-collision';
 import { drawAnimatedTerrain } from '@orchard/engine/animated-terrain';
 import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from '@orchard/engine/farmland';
 
@@ -322,7 +323,8 @@ let networkDirty = true;
 let connectionInputCleared = false;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 /** Topside terrain source: the legacy whole map, or the chunk window in chunk mode `on` (S4c). */
-const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds) });
+const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds),
+  authorityGate: () => network.chunkAuthorityGate() });
 const furnitureMoves = new FurnitureMoveController((...args) => network.moveHearthFurniture(...args));
 const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty = true; });
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
@@ -529,6 +531,8 @@ let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
 let safeAreaInsets: CanvasViewportInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 let wheelZoomLockedUntil = 0;
 let collisionKey = '';
+/** The chunk collision serial the current collision maps were built from (0: legacy). */
+let appliedChunkCollisionSerial = 0;
 let resourceTargetPolicy = new CombatRegionPolicy([]);
 let resourceCollisionObstacles: ReadonlyMap<bigint, CollisionObstacle> = new Map();
 const worldStaticProjection = new WorldStaticProjectionCache();
@@ -2002,7 +2006,8 @@ function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
     : legacy();
 }
 
-/** The whole-map terrain. Client collision keeps using it until chunk-native collision (S4d). */
+/** The whole-map terrain: every space but topside in chunk mode `on`, and topside collision whenever
+ * the chunk collision is not serving (modes off and shadow, a revision the server would not serve, or a failed window). */
 function legacyTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
@@ -2044,8 +2049,15 @@ function resourcePerceptionForSnapshot(snapshot: OverworldView) {
 }
 
 function liveMapSuppressesGeneratedResource(snapshot: OverworldView, id: bigint): boolean {
-  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    && (liveIslandDocumentFor(snapshot)?.generatedSuppressions.includes(`resource-${id}`) ?? false);
+  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return false;
+  // Chunk mode `on`: the serving manifest's suppressions (the server's source, S4d).
+  return worldSource.suppressesGeneratedResource(id, snapshot.content.registry)
+    ?? (liveIslandDocumentFor(snapshot)?.generatedSuppressions.includes(`resource-${id}`) ?? false);
+}
+
+/** The chunk collision serving topside this tick (chunk mode `on`), else undefined. */
+function topsideChunkCollision(snapshot: OverworldView): WorldSourceCollision | undefined {
+  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? worldSource.collision(snapshot.content.registry) : undefined;
 }
 
 function refreshCollision(snapshot: OverworldView): void {
@@ -2057,9 +2069,15 @@ function refreshCollision(snapshot: OverworldView): void {
   const liveRevision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     ? snapshot.liveMapDocument?.revision ?? 0
     : 0;
-  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${liveRevision}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}`;
+  const chunkCollision = topsideChunkCollision(snapshot);
+  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${liveRevision}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}:${chunkCollision === undefined ? 'legacy' : `chunks:${chunkCollision.serial}`}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
+  appliedChunkCollisionSerial = chunkCollision?.serial ?? 0;
+  if (chunkCollision !== undefined) {
+    refreshChunkCollision(snapshot, chunkCollision);
+    return;
+  }
   const terrain = legacyTerrainForSnapshot(snapshot);
   const liveDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     ? liveIslandDocumentFor(snapshot)
@@ -2114,6 +2132,61 @@ function refreshCollision(snapshot: OverworldView): void {
       if (obstacle !== null) obstacles.push(obstacle);
     }
   }
+  obstacles.push(...dynamicCollisionOverlays(snapshot));
+  worldCollision = { ...baseCollision, obstacles };
+  if (activeSpaceDefinition.generator === 'residence') {
+    const withoutFurniture = createClientCollisionMap(terrain, snapshot.resources, snapshot.chests, 'ground',
+      [...snapshot.placeables].filter(row => (
+        hearthFurnitureShapeForPlaceable(snapshot.content.registry, row) === null
+      )),
+      generatedSuppressions, authoredGroundWalkableTiles, snapshot.content.registry, prepared.ground);
+    furnitureCollision = { ...withoutFurniture, obstacles: [...(withoutFurniture.obstacles ?? []),
+      ...obstacles.slice(baseCollision.obstacles?.length ?? 0)] };
+  } else furnitureCollision = worldCollision;
+  const baseBoatCollision = createClientCollisionMap(
+    terrain, [], [], 'water', [], generatedSuppressions, authoredGroundWalkableTiles,
+    snapshot.content.registry,
+    prepared.water,
+  );
+  boatCollision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? {
+        ...baseBoatCollision,
+        obstacles: [
+          ...(baseBoatCollision.obstacles ?? []),
+          ...(liveDocument === null
+            ? activeLandmarkDecorations.flatMap((decoration) => {
+                const obstacle = survivalDecorationObstacle(
+                  decoration, 'water', snapshot.content.registry,
+                );
+                return obstacle === null ? [] : [obstacle];
+              })
+            : liveMapObjectCollisionObstacles(
+                liveDocument, 'water', snapshot.content.registry,
+              )),
+        ],
+      }
+    : baseBoatCollision;
+  const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
+  worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
+  projectileCollision = runtimeActorCollision(snapshot.content.registry, worldStaticProjection.projectile(worldCollision, boatCollision),
+    { kind: 'projectile' }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
+  baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
+    terrain,
+    [],
+    [],
+    [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
+    art.cliff,
+    prepared.light,
+  );
+  lightOcclusion = baseLightOcclusion;
+  authoredLightFrameKey = '';
+}
+
+/** Live obstacles appended after the static composition, identical in every
+ * chunk mode: combat targets, surfaces, space furniture, tents and boundaries. */
+function dynamicCollisionOverlays(snapshot: OverworldView): CollisionObstacle[] {
+  const obstacles: CollisionObstacle[] = [];
   for (const target of snapshot.combatTargets) {
     const definition = combatTargetDefinition(snapshot, target);
     if (target.carriedBy !== undefined || combatTargetHealth(snapshot, target) === null
@@ -2169,51 +2242,52 @@ function refreshCollision(snapshot: OverworldView): void {
       });
     }
   }
-  worldCollision = { ...baseCollision, obstacles };
-  if (activeSpaceDefinition.generator === 'residence') {
-    const withoutFurniture = createClientCollisionMap(terrain, snapshot.resources, snapshot.chests, 'ground',
-      [...snapshot.placeables].filter(row => (
-        hearthFurnitureShapeForPlaceable(snapshot.content.registry, row) === null
-      )),
-      generatedSuppressions, authoredGroundWalkableTiles, snapshot.content.registry, prepared.ground);
-    furnitureCollision = { ...withoutFurniture, obstacles: [...(withoutFurniture.obstacles ?? []),
-      ...obstacles.slice(baseCollision.obstacles?.length ?? 0)] };
-  } else furnitureCollision = worldCollision;
-  const baseBoatCollision = createClientCollisionMap(
-    terrain, [], [], 'water', [], generatedSuppressions, authoredGroundWalkableTiles,
-    snapshot.content.registry,
-    prepared.water,
-  );
-  boatCollision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? {
-        ...baseBoatCollision,
-        obstacles: [
-          ...(baseBoatCollision.obstacles ?? []),
-          ...(liveDocument === null
-            ? activeLandmarkDecorations.flatMap((decoration) => {
-                const obstacle = survivalDecorationObstacle(
-                  decoration, 'water', snapshot.content.registry,
-                );
-                return obstacle === null ? [] : [obstacle];
-              })
-            : liveMapObjectCollisionObstacles(
-                liveDocument, 'water', snapshot.content.registry,
-              )),
-        ],
-      }
-    : baseBoatCollision;
+  return obstacles;
+}
+
+/**
+ * Static world S4d: topside collision in chunk mode `on`, from the resident
+ * chunk window only (no generator, no map document). It is composed like the
+ * server's chunk runtime (composeChunkIslandCollision in collisionForSpace):
+ * - ground: the window's authority channels; the static base records and the
+ *   live resource, chest and placeable boxes, ALL filtered by the suppressed
+ *   decoration keys (finding B), then the authored records; then hearth
+ *   furniture and the dynamic overlays, which the server appends after it;
+ * - water: the authority water channel (the 15 waterfall cells are
+ *   boat-enterable, SW-D1) with its base (filtered) and authored records;
+ * - combat regions and generated suppressions: the manifest's.
+ * The maps are windowed (origin set): tiles outside the window, and cells of
+ * window chunks that are not resident, are blocked.
+ */
+function refreshChunkCollision(snapshot: OverworldView, chunks: WorldSourceCollision): void {
+  const registry = snapshot.content.registry;
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  const tick = snapshot.clock?.authorityTick ?? 0n;
+  resourceTargetPolicy = new CombatRegionPolicy(chunks.collision.combatRegions);
+  const live = clientLiveRowObstacles(snapshot.resources, snapshot.chests, snapshot.placeables,
+    chunks.collision.generatedSuppressions, registry);
+  resourceCollisionObstacles = live.resourceObstacles;
+  const ground = composeChunkWindowCollision(chunks.collision, 'ground',
+    live.entries.filter(({ furniture }) => !furniture).map(({ obstacle }) => obstacle));
+  worldCollision = { ...ground, obstacles: [...(ground.obstacles ?? []),
+    ...live.entries.filter(({ furniture }) => furniture).map(({ obstacle }) => obstacle),
+    ...dynamicCollisionOverlays(snapshot)] };
+  furnitureCollision = worldCollision;
+  boatCollision = composeChunkWindowCollision(chunks.collision, 'water');
   const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
-  worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
-  boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
-  projectileCollision = runtimeActorCollision(snapshot.content.registry, worldStaticProjection.projectile(worldCollision, boatCollision),
-    { kind: 'projectile' }, snapshot.clock?.authorityTick ?? 0n, traversalSolidGeometry(worldCollision, boatCollision));
+  worldCollision = runtimeActorCollision(registry, worldCollision, { kind: 'placement', medium: 'ground' }, tick, solidGeometry);
+  boatCollision = runtimeActorCollision(registry, boatCollision, { kind: 'placement', medium: 'water' }, tick, solidGeometry);
+  projectileCollision = runtimeActorCollision(registry, worldStaticProjection.projectile(worldCollision, boatCollision),
+    { kind: 'projectile' }, tick, traversalSolidGeometry(worldCollision, boatCollision));
+  // Lighting reads the render window, the terrain this frame draws.
+  const terrain = chunks.terrain;
   baseLightOcclusion = lightingEffectsDisabled ? undefined : createLightOcclusionMap(
     terrain,
     [],
     [],
     [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
     art.cliff,
-    prepared.light,
+    worldStaticProjection.prepareLight(terrain, art.cliff, !lightingEffectsDisabled),
   );
   lightOcclusion = baseLightOcclusion;
   authoredLightFrameKey = '';
@@ -2384,7 +2458,9 @@ function update(): void {
     if (remaining <= 1) resourceGlanceRemaining.delete(id);
     else resourceGlanceRemaining.set(id, remaining - 1);
   }
-  if (networkDirty && collisionBootstrapReady({
+  // A chunk window move, a chunk arrival or a revision swap changes chunk collision (S4d).
+  const chunkCollisionChanged = (topsideChunkCollision(snapshot)?.serial ?? 0) !== appliedChunkCollisionSerial;
+  if ((networkDirty || chunkCollisionChanged) && collisionBootstrapReady({
     connected: snapshot.connected,
     identityReady: snapshot.identityHex !== null,
     worldSeedReady: snapshot.worldSeed !== null,
@@ -7683,7 +7759,8 @@ Object.assign(window, {
     renderMetrics: () => renderMetricsSnapshot(),
     diagnostics: () => gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
       lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
-      activeSpaceDefinition, latestLightCount, rain, groundCache }),
+      activeSpaceDefinition, latestLightCount, rain, groundCache,
+      chunks: { runtime: network.chunkRuntimeStatus ?? null, window: worldSource.status, collision: worldSource.collisionStatus } }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,

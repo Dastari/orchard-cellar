@@ -17,7 +17,8 @@ import {
   type ItemContentDefinition,
   type ObjectContentDefinition,
 } from '@orchard/sim';
-import { createClientCollisionMap } from './collision.js';
+import { worldChunkHash } from '@orchard/sim/world-chunk';
+import { clientLiveRowObstacles, createClientCollisionMap, prepareClientTerrainCollision } from './collision.js';
 import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
 
 function placeableRegistry(
@@ -330,4 +331,74 @@ describe('client collision cache', () => {
     }, 0x4f434852, 3);
     expect(createClientCollisionMap(terrain, []).obstacles).toEqual([]);
   });
+
+  // Static world S4d: modes off and shadow keep this exact collision. The digest
+  // was taken from the pre-S4d createClientCollisionMap on the same inputs.
+  it('keeps the whole-map (off/shadow) collision byte-identical', () => {
+    const registry = bootstrapContentRegistry();
+    const terrain = terrainForWorld(0x4f434852, 3);
+    const resources = [
+      { id: 1n, kind: 'tree_oak', tileX: 300, tileY: 300, depleted: false },
+      { id: 2n, kind: 'ore_iron', tileX: 301, tileY: 300, depleted: true },
+      { id: 3n, kind: 'loose_stone', tileX: 302, tileY: 300, depleted: false },
+      { id: 4n, kind: 'tree_oak', tileX: 303, tileY: 300, depleted: false },
+    ];
+    const chests = [{ tileX: 304, tileY: 300 }, { tileX: 305, tileY: 300, carriedBy: {} }];
+    const placeables = [
+      { kind: 'furniture_rustic_dining_table', tileX: 306, tileY: 302, open: false },
+      { kind: 'workbench', tileX: 309, tileY: 300, open: false },
+    ];
+    const suppressions = new Set(['resource-4', 'decoration-1']);
+    // Canonical JSON with cell arrays hashed (field order, obstacle order and every cell value count).
+    const digest = (value: unknown) => worldChunkHash(new TextEncoder().encode(JSON.stringify(value, (_key, item: unknown) => {
+      if (ArrayBuffer.isView(item)) return `${item.constructor.name}:${worldChunkHash(new Uint8Array(item.buffer, item.byteOffset, item.byteLength))}`;
+      if (Array.isArray(item) && item.length > 64 && item.every(entry => typeof entry === 'boolean')) return `booleans:${worldChunkHash(Uint8Array.from(item, Number))}`;
+      return item;
+    })));
+    const ground = createClientCollisionMap(terrain, resources, chests, 'ground', placeables, suppressions, undefined, registry);
+    const water = createClientCollisionMap(terrain, resources, chests, 'water', placeables, suppressions, undefined, registry);
+    const docks = prepareClientTerrainCollision(terrain, 'ground', [{ tileX: 5, tileY: 5 }]);
+    expect(terrain.originX).toBeUndefined();
+    expect([ground, water, docks].some(map => 'originX' in map)).toBe(false);
+    expect(digest({ ...ground, resourceObstacles: [...ground.resourceObstacles].map(([id, box]) => [String(id), box]) })).toBe(LEGACY_GROUND_DIGEST);
+    expect(digest({ ...water, resourceObstacles: [...water.resourceObstacles].map(([id, box]) => [String(id), box]) })).toBe(LEGACY_WATER_DIGEST);
+    expect(digest(docks)).toBe(LEGACY_DOCK_DIGEST);
+    // The live-row helper lists exactly createClientCollisionMap's live boxes, furniture tagged.
+    const live = clientLiveRowObstacles(resources, chests, placeables, suppressions, registry);
+    expect(ground.obstacles!.slice(0, live.entries.length)).toEqual(live.entries.map(({ obstacle }) => obstacle));
+    expect(live.entries.filter(({ furniture }) => furniture)).toHaveLength(1);
+    // The depleted ore, the non-blocking loose stone and the suppressed oak have no box.
+    expect([...live.resourceObstacles.keys()]).toEqual([1n]);
+  }, 60_000);
+
+  it('reads a window terrain (non-zero origin) in world tiles and never takes the generator paths', () => {
+    const cells = 12;
+    const window: TerrainArray = { spaceId: 0, seed: 0x4f434852, version: 3, width: 4, height: 3, originX: 100, originY: 200,
+      worldWidth: 832, worldHeight: 832, blocked: Array<boolean>(cells).fill(true), elevations: new Int16Array(cells),
+      biomes: new Uint8Array(cells), horseJumpableTerrain: Array<boolean>(cells).fill(false),
+      dirtCliffRoles: new Uint8Array(cells), dirtTerraces: new Uint8Array(cells) };
+    // collision.ts:189: dock tiles are world tiles, so (101, 201) is cell 1 + 1 * 4.
+    const prepared = prepareClientTerrainCollision(window, 'ground', [{ tileX: 101, tileY: 201 }, { tileX: 1, tileY: 1 }]);
+    expect(prepared.blocked.map((blocked, index) => blocked ? -1 : index).filter(index => index >= 0)).toEqual([5]);
+    expect([prepared.originX, prepared.originY]).toEqual([100, 200]);
+    // No generator plane bytes (they describe the whole map, not the window).
+    expect(prepared.terrainPlaneBlocked).toBeUndefined();
+    const collision = createClientCollisionMap(window, [], [], 'ground', [], new Set(), [{ tileX: 101, tileY: 201 }], bootstrapContentRegistry());
+    expect(collision.obstacles).toEqual([]);
+    expect(collision.traversalChannels).toBeUndefined();
+    expect(collisionTileIsBlockedAtPlane(collision, 101, 201, 0)).toBe(false);
+    expect(collisionTileIsBlockedAtPlane(collision, 1, 1, 0)).toBe(true);
+    // collision.ts:61: the fixed-plane (cellar) boundary is the map's edge, not the window's.
+    const cellar = (originX: number, originY: number): TerrainArray => ({ ...window, spaceId: 30_000, width: 3, height: 3, originX, originY,
+      worldWidth: 64, worldHeight: 64, fixedTerrainPlane: 0, blocked: Array<boolean>(9).fill(false) });
+    const inner = prepareClientTerrainCollision(cellar(10, 10), 'ground');
+    expect(inner.blocked).toEqual(Array<boolean>(9).fill(false));
+    const corner = prepareClientTerrainCollision(cellar(61, 0), 'ground');
+    // World column 63 and row 0 are the map edge.
+    expect(corner.blocked).toEqual([true, true, true, false, false, true, false, false, true]);
+  });
 });
+
+const LEGACY_GROUND_DIGEST = '1c0a82f6a93904de4d2c27701f7d9f11e2dd5473653547ebe8ba52f5145b941d';
+const LEGACY_WATER_DIGEST = 'b2920501ac98ab7f5305ccc1c1f8a328be6162a6083971acac5cf11cf26cdd9c';
+const LEGACY_DOCK_DIGEST = '662b6e3497c3d21d98649edfc80d9d9956abc79f82a006f7ee29e281885f06da';

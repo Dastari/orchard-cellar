@@ -1,4 +1,4 @@
-import { hearthFurnitureRevision, hearthFurnitureSupportId } from '@orchard/sim';
+import { hearthFurnitureRevision, hearthFurnitureSupportId } from '@orchard/sim/hearth-furniture-state';
 
 export interface FurnitureMoveSelection {
   readonly id: bigint; readonly spaceId: number; readonly kind: string;

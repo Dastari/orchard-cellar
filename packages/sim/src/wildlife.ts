@@ -1,3 +1,4 @@
+import { WILDLIFE_SPECIES, type WildlifeSpecies } from './wildlife-species.js';
 import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import { runtimeCreatureDefinition } from './content/runtime.js';
 import type { ContentRegistry } from './content/registry.js';
@@ -30,12 +31,7 @@ export const WILDLIFE_GENERATION_VERSION = 5;
 export const WILDLIFE_FIRST_NPC_ID = 10_000;
 export const WILDLIFE_ACTIVE_RADIUS_CHUNKS = 3;
 
-export const WILDLIFE_SPECIES = [
-  'horse', 'cow', 'sheep', 'pig', 'chicken', 'rooster',
-  'duck', 'goose', 'swan', 'frog', 'mouse', 'butterfly', 'bee',
-  'capybara', 'camel', 'scarab', 'vulture', 'snail',
-] as const;
-export type WildlifeSpecies = typeof WILDLIFE_SPECIES[number];
+export { WILDLIFE_SPECIES, type WildlifeSpecies } from './wildlife-species.js';
 
 /** Species that are ordinarily fed hay when kept as farm livestock. This is
  * deliberately narrower than `canGraze`: pigs, poultry, mice, and snails may

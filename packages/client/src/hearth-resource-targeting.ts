@@ -1,7 +1,6 @@
-import { activeHearthResourceSites, runtimeHearthResourceSite, runtimeHearthResourceRowMatchesSite,
-  runtimeHearthResourceDefinition, hearthResourceGeometryAllows, type CollisionMap,
-  isAuthoredHearthResourceSiteId, type CollisionObstacle, type CombatRegionPolicy,
-  type ContentRegistry } from '@orchard/sim';
+import type { CollisionMap, CollisionObstacle, CombatRegionPolicy, ContentRegistry } from '@orchard/sim';
+import { hearthResourceGeometryAllows } from '@orchard/sim/hearth-resource-geometry';
+import { activeHearthResourceSites, runtimeHearthResourceSite, runtimeHearthResourceRowMatchesSite, runtimeHearthResourceDefinition, isAuthoredHearthResourceSiteId } from '@orchard/sim/hearth-resource-sites';
 type Resource = Parameters<typeof runtimeHearthResourceRowMatchesSite>[1] & {
   readonly growthStage: number; readonly depleted: boolean;
 };

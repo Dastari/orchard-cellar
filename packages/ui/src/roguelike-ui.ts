@@ -1,4 +1,5 @@
-import { rogueUpgradeDefinition, type RogueBoonRegistry, type RogueRarity } from '@orchard/sim';
+import type { RogueBoonRegistry, RogueRarity } from '@orchard/sim';
+import { rogueUpgradeDefinition } from '@orchard/sim/roguelike';
 import { drawPixelPanel, drawPixelText, measurePixelText, type PixelUi } from './pixel-ui.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 

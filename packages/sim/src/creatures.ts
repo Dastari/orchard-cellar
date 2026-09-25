@@ -4,7 +4,7 @@ import type { ContentRegistry } from './content/registry.js';
 import type { Modifier } from './modifiers.js';
 import { runtimeCharacterCombatBalance } from './character-combat-balance.js';
 import { resolveStats, resolveStatsWithProfile, type Attributes, type ResolvedStats } from './stats.js';
-import { WILDLIFE_SPECIES, type WildlifeSpecies } from './wildlife.js';
+import { WILDLIFE_SPECIES, type WildlifeSpecies } from './wildlife-species.js';
 
 export type CreatureKind = WildlifeSpecies;
 

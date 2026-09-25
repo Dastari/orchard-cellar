@@ -1,10 +1,7 @@
-import {
-  SURVIVAL_CHUNK_TILES,
-  bootstrapContentRegistry,
-  runtimeResourceDiscoveryKinds,
-  type ContentRegistry,
-  type ResourcePerception,
-} from '@orchard/sim';
+import type { ContentRegistry, ResourcePerception } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeResourceDiscoveryKinds } from '@orchard/sim/content/runtime';
+import { SURVIVAL_CHUNK_TILES } from '@orchard/sim/survival-dimensions';
 import { tables } from '@orchard/world-bindings';
 
 /** Resources beyond the viewport are needed only for enabled minimap markers.

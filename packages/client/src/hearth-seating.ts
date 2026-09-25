@@ -1,5 +1,9 @@
-import {AUTHORITY_HZ,FIXED_UNITS_PER_PIXEL,PLAYER_HITBOX_FOOT_OFFSET,
-  hearthFurnitureCells,hearthFurnitureDefinition,hearthFurniturePlacementFromRow,hearthFurniturePresentationAnchor,type ContentRegistry} from '@orchard/sim';
+import type { ContentRegistry } from '@orchard/sim';
+import { hearthFurnitureCells, hearthFurniturePresentationAnchor } from '@orchard/sim/hearth-furniture-placement';
+import { hearthFurnitureDefinition, hearthFurniturePlacementFromRow } from '@orchard/sim/hearth-furniture-state';
+import { PLAYER_HITBOX_FOOT_OFFSET } from '@orchard/sim/movement';
+import { AUTHORITY_HZ } from '@orchard/sim/net-timing';
+import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
 interface SeatRow {readonly id:bigint;readonly kind:string;readonly definitionId?:string;readonly spaceId:number;readonly tileX:number;readonly tileY:number;readonly stateJson:string;readonly carriedBy?:unknown;}
 
 /** Public player pose/contact identifies the seat without exposing private

@@ -1,7 +1,12 @@
 import { resourceVisualState } from './resource-visual-state.js';
 import { MINING_GLANCE_TICKS } from './mining-feedback.js';
 import { profilePainterProducer } from './painter-producer-profile.js';
-import { FIXED_UNITS_PER_PIXEL, naturalObjectId, resolveObjectDefinitionAppearance, cropGrowthAt, runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem, recoverableArrowDirection } from '@orchard/sim';
+import { naturalObjectId } from '@orchard/sim/content/natural-object';
+import { resolveObjectDefinitionAppearance } from '@orchard/sim/content/object-archetype';
+import { runtimeItemDefinition, runtimeResourceDefinition, runtimeIsRecoverableProjectileItem } from '@orchard/sim/content/runtime';
+import { cropGrowthAt } from '@orchard/sim/crops';
+import { recoverableArrowDirection } from '@orchard/sim/ranged';
+import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
 import { drawAuthoredOverworldObject, drawAuthoredResourceVisual, drawOverworldArrow, drawOverworldCrop, drawOverworldItem, natureDecorationFrame } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import { deterministicFlameFlicker } from '@orchard/engine/light-sources';

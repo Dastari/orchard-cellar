@@ -1,4 +1,4 @@
-import { SIM_TICKS_PER_SECOND } from '@orchard/sim';
+import { SIM_TICKS_PER_SECOND } from '@orchard/sim/state';
 import { PresentationCadence } from './presentation-cadence.js';
 
 export interface LoopCallbacks {

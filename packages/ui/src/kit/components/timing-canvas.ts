@@ -1,4 +1,5 @@
-import { AUTHORITY_HZ, type TimingProjection } from '@orchard/sim';
+import type { TimingProjection } from '@orchard/sim';
+import { AUTHORITY_HZ } from '@orchard/sim/net-timing';
 import { drawPixelTextInRect, type PixelUi } from '../../pixel-ui.js';
 import { drawUiSkinAsset, type UiSkin } from '../../skin.js';
 import type { UiRect } from '../../geometry.js';

@@ -5,40 +5,23 @@ import {authoredNpcArt} from './authored-npc-art.js';
 import { saveSpriteTransform, restoreSpriteTransform } from './painter-context.js';
 import { worldAssetFrameSource } from './world-asset-presentation.js';
 import { groundSpriteSource } from './ground-light-source.js';
-import {
-  actionToolFlipsForDirection,
-  avatarAnimationForDirection,
-  axeAnimationForDirection,
-  bootstrapContentRegistry,
-  characterActionAnimation,
-  idleAvatarAnimationForDirection,
-  isCharacterActionKind,
-  FIXED_UNITS_PER_PIXEL,
-  HORSE_JUMP_DURATION_TICKS,
-  SURVIVAL_ORE_KINDS,
-  TERRAIN_CLIFF_FAMILIES,
-  TERRAIN_SURFACE_FAMILIES,
-  itemDefinition,
-  miningNodeArtVariant,
-  runtimeCreaturePresentation,
-  type Direction,
-  type ContentRegistry,
-  type RuntimeCreaturePresentation,
-  type ResourceContentDefinition,
-  type MiningNodeClass,
-  type RogueDirection,
-  type RogueRoomKind,
-  type RogueTheme,
-  type TreeGrowthStage,
-  type WildlifeSpecies,
-} from "@orchard/sim";
+import type { Direction, ContentRegistry, RuntimeCreaturePresentation, ResourceContentDefinition, MiningNodeClass, RogueDirection, RogueRoomKind, RogueTheme, TreeGrowthStage, WildlifeSpecies } from '@orchard/sim';
+import { actionToolFlipsForDirection, avatarAnimationForDirection, axeAnimationForDirection, characterActionAnimation, idleAvatarAnimationForDirection, isCharacterActionKind } from '@orchard/sim/character-animation';
+import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
+import { runtimeCreaturePresentation } from '@orchard/sim/content/runtime';
+import { itemDefinition } from '@orchard/sim/item-containers';
+import { miningNodeArtVariant } from '@orchard/sim/mining';
+import { HORSE_JUMP_DURATION_TICKS } from '@orchard/sim/npc';
+import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
+import { SURVIVAL_ORE_KINDS } from '@orchard/sim/survival-resource-catalog';
+import { TERRAIN_CLIFF_FAMILIES, TERRAIN_SURFACE_FAMILIES } from '@orchard/sim/terrain-tilesets';
 
 export {
   actionToolFlipsForDirection,
   avatarAnimationForDirection,
   axeAnimationForDirection,
   idleAvatarAnimationForDirection,
-} from '@orchard/sim';
+} from '@orchard/sim/character-animation';
 import {
   bakedShadowSelection,
   createGeneratedContentAssetRequests,

@@ -1,4 +1,4 @@
-import { itemDefinition } from '@orchard/sim';
+import { itemDefinition } from '@orchard/sim/item-containers';
 import { containsPoint, type UiRect } from '../../geometry.js';
 import { drawOutlinedPixelText, drawPixelText, fitPixelText, measurePixelText } from '../../pixel-ui.js';
 import type { LoadedAsset } from '../../assets.js';

@@ -1,4 +1,4 @@
-import { farmlandRuleLayers } from '@orchard/sim';
+import { farmlandRuleLayers } from '@orchard/sim/terrain-rule-catalogue';
 import type { AtlasFrame } from '@orchard/ui';
 
 /** Reusable authored-tile contract retained for future instanced maps. */

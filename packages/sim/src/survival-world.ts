@@ -41,16 +41,38 @@ import {
   TREE_GROWTH_STAGE_BIG,
   treeHealthForGrowthStage,
 } from './tree-regrowth.js';
-import { MAP_BIOME_IDS, type MapBiomeId } from './biomes.js';
 import {
   BOOTSTRAP_SPACE_DEFINITIONS,
   bootstrapLandmarksForGenerator,
 } from './content/bootstrap-spaces.js';
 import { BOOTSTRAP_RESOURCE_REGISTRY } from './content/bootstrap-resources.js';
-import type { ResourceContentDefinition } from './content/resource-definition.js';
+import * as survivalDimensions from './survival-dimensions.js';
+import {
+  SURVIVAL_BIOMES,
+  SURVIVAL_DIRT_CLIFF_ROLES,
+  survivalBiomeBlocksMovement,
+  survivalBiomeBlocksTraversal,
+  type SurvivalBiome,
+  type SurvivalDirtCliffRole,
+} from './survival-biomes.js';
+import {
+  isBreakableRockKind,
+  isChoppableTreeKind,
+  isMineableOreKind,
+  resourceDefinition,
+  survivalResourceCatalog,
+  type SurvivalGatherableResourceKind,
+  type SurvivalOreKind,
+  type SurvivalResourceKind,
+  type SurvivalResourceRegistry,
+  type SurvivalTreeKind,
+} from './survival-resource-catalog.js';
+import {
+  generateSurvivalLandmarkDecorations,
+  type GeneratedSurvivalDecoration,
+  type SurvivalAuthoredLandmarkDecoration,
+} from './survival-landmark-decorations.js';
 import type {
-  LandmarkDecorationLayer,
-  LandmarkDecorationRole,
   SpaceDecorationGeneratorDefinition,
   SpaceDecorationPaletteEntry,
   SpaceContentDefinition,
@@ -58,147 +80,48 @@ import type {
   SpaceTileRectangle,
 } from './content/world-definition.js';
 
-/** The original generated island remains a 320x320 deterministic local space.
- * A wide ocean apron surrounds it so later islands can be added without moving
- * or reshaping the current landmass again. */
-export const SURVIVAL_ISLAND_SIZE = 320;
-export const SURVIVAL_OCEAN_PADDING_TILES = 256;
-export const SURVIVAL_ISLAND_OFFSET_TILES = SURVIVAL_OCEAN_PADDING_TILES;
-export const SURVIVAL_WORLD_SIZE = SURVIVAL_ISLAND_SIZE + SURVIVAL_OCEAN_PADDING_TILES * 2;
-export const SURVIVAL_WORLD_SEED = 0x4f434852;
-export const SURVIVAL_WORLD_VERSION = 30;
-export const SURVIVAL_CHUNK_TILES = 16;
+// Module-local copies of the leaf dimensions (static-world S6a). The per-tile
+// generator below reads these in its hottest loops. Module transforms that
+// rewrite every imported binding into a namespace getter call (Vitest's SSR
+// transform) made reading the imported bindings directly cost the whole-map
+// generator ~28%; plain local constants keep it as fast as before the split.
+// `survival-world-local-dimensions.test.ts` guards this.
+const SURVIVAL_ISLAND_OFFSET_TILES = survivalDimensions.SURVIVAL_ISLAND_OFFSET_TILES;
+const SURVIVAL_ISLAND_SIZE = survivalDimensions.SURVIVAL_ISLAND_SIZE;
+const SURVIVAL_WORLD_SEED = survivalDimensions.SURVIVAL_WORLD_SEED;
+const SURVIVAL_WORLD_SIZE = survivalDimensions.SURVIVAL_WORLD_SIZE;
 
-export type SurvivalResourceRegistry = Readonly<{
-  resources: ReadonlyMap<string, ResourceContentDefinition>;
-  spaces?: ReadonlyMap<string, SpaceContentDefinition>;
-}>;
+// Generator-free leaves (static-world S6a). Re-exported so every existing
+// import from this module keeps working and shares the leaf's one instance.
+export * from './survival-dimensions.js';
+export * from './survival-biomes.js';
+export * from './survival-landmark-decorations.js';
+export {
+  SURVIVAL_FRUIT_TREE_KINDS,
+  SURVIVAL_GATHERABLE_RESOURCE_KINDS,
+  SURVIVAL_ORE_KINDS,
+  SURVIVAL_REGROWING_PLANT_KINDS,
+  SURVIVAL_ROCK_KINDS,
+  SURVIVAL_TREE_KINDS,
+  isAxeHarvestableResourceKind,
+  isBreakableRockKind,
+  isChoppableTreeKind,
+  isFruitTreeKind,
+  isMineableOreKind,
+  isRegrowingPlantKind,
+  survivalResourceCatalog,
+  type MineableOreKind,
+  type SurvivalFruitTreeKind,
+  type SurvivalGatherableResourceKind,
+  type SurvivalOreKind,
+  type SurvivalRegrowingPlantKind,
+  type SurvivalResourceKind,
+  type SurvivalResourceRegistry,
+  type SurvivalRockKind,
+  type SurvivalTreeKind,
+} from './survival-resource-catalog.js';
 
-interface SurvivalResourceCatalog {
-  readonly treeKinds: readonly string[];
-  readonly fruitTreeKinds: readonly string[];
-  readonly oreKinds: readonly string[];
-  readonly regrowingPlantKinds: readonly string[];
-  readonly rockKinds: readonly string[];
-  readonly gatherableKinds: readonly string[];
-  readonly cactusKind: string;
-  readonly looseStoneKind: string;
-  readonly fishPoolKind: string;
-  readonly decorationResources: ReadonlyMap<string, string>;
-}
 
-const resourceCatalogCache = new WeakMap<object, SurvivalResourceCatalog>();
-const activeResourceCache = new WeakMap<object, readonly ResourceContentDefinition[]>();
-const resourceByRuntimeKindCache = new WeakMap<object, ReadonlyMap<string, ResourceContentDefinition>>();
-
-function activeResources(registry: SurvivalResourceRegistry): readonly ResourceContentDefinition[] {
-  const cached = activeResourceCache.get(registry);
-  if (cached !== undefined) return cached;
-  const definitions = Object.freeze(
-    [...registry.resources.values()].filter((definition) => definition.retired !== true),
-  );
-  activeResourceCache.set(registry, definitions);
-  return definitions;
-}
-
-function orderedGeneratorKinds(
-  definitions: readonly ResourceContentDefinition[],
-  prefix: string,
-  expectedCount: number,
-): readonly string[] {
-  const entries = definitions.flatMap((definition) => definition.tags.flatMap((tag) => {
-    if (!tag.startsWith(prefix)) return [];
-    const ordinal = Number(tag.slice(prefix.length));
-    return Number.isSafeInteger(ordinal) && ordinal >= 0
-      ? [{ ordinal, runtimeKind: definition.runtimeKind }]
-      : [];
-  })).sort((left, right) => left.ordinal - right.ordinal);
-  if (entries.length !== expectedCount
-    || entries.some((entry, index) => entry.ordinal !== index)) {
-    throw new Error(`survival_resource_generator_catalog_invalid:${prefix}`);
-  }
-  return Object.freeze(entries.map(({ runtimeKind }) => runtimeKind));
-}
-
-function uniqueGeneratorKind(
-  definitions: readonly ResourceContentDefinition[],
-  tag: string,
-): string {
-  const matches = definitions.filter((definition) => definition.tags.includes(tag));
-  if (matches.length !== 1) throw new Error(`survival_resource_generator_catalog_invalid:${tag}`);
-  return matches[0]!.runtimeKind;
-}
-
-export function survivalResourceCatalog(registry: SurvivalResourceRegistry): SurvivalResourceCatalog {
-  const cached = resourceCatalogCache.get(registry);
-  if (cached !== undefined) return cached;
-  const definitions = activeResources(registry);
-  const treeKinds = orderedGeneratorKinds(definitions, 'generator.island.tree.', 9);
-  const oreKinds = orderedGeneratorKinds(definitions, 'generator.island.ore.', 8);
-  const decorationResources = new Map<string, string>();
-  const ambiguousDecorationResources = new Set<string>();
-  for (const definition of definitions) for (const tag of definition.tags) {
-    const prefix = 'generator.decoration.';
-    if (!tag.startsWith(prefix)) continue;
-    const decorationKind = tag.slice(prefix.length);
-    if (ambiguousDecorationResources.has(decorationKind)) continue;
-    if (decorationResources.has(decorationKind)) {
-      decorationResources.delete(decorationKind);
-      ambiguousDecorationResources.add(decorationKind);
-    } else decorationResources.set(decorationKind, definition.runtimeKind);
-  }
-  const catalog = Object.freeze({
-    treeKinds,
-    fruitTreeKinds: Object.freeze(treeKinds.filter((kind) => definitions.some((definition) => (
-      definition.runtimeKind === kind && definition.tags.includes('resource.fruit_tree')
-    )))),
-    oreKinds,
-    regrowingPlantKinds: Object.freeze(definitions.filter((definition) => (
-      definition.regrowth?.enabled === true && definition.statistics.depletion !== 'tree'
-    )).map(({ runtimeKind }) => runtimeKind)),
-    rockKinds: Object.freeze(definitions.filter((definition) => (
-      definition.statistics.depletion === 'rock' && definition.respawn?.profile === 'surface_ore'
-    )).map(({ runtimeKind }) => runtimeKind)),
-    gatherableKinds: Object.freeze(definitions.filter((definition) => (
-      definition.interaction.mode === 'gather'
-    )).map(({ runtimeKind }) => runtimeKind)),
-    cactusKind: uniqueGeneratorKind(definitions, 'generator.island.cactus'),
-    looseStoneKind: uniqueGeneratorKind(definitions, 'generator.island.loose_stone'),
-    fishPoolKind: uniqueGeneratorKind(definitions, 'generator.island.fish_pool'),
-    decorationResources,
-  });
-  resourceCatalogCache.set(registry, catalog);
-  return catalog;
-}
-
-function resourceDefinition(
-  registry: SurvivalResourceRegistry,
-  runtimeKind: string,
-): ResourceContentDefinition | null {
-  let definitions = resourceByRuntimeKindCache.get(registry);
-  if (definitions === undefined) {
-    definitions = new Map(activeResources(registry).map((definition) => [definition.runtimeKind, definition]));
-    resourceByRuntimeKindCache.set(registry, definitions);
-  }
-  return definitions.get(runtimeKind) ?? null;
-}
-
-/** Bootstrap-derived compatibility exports for engine/tools callers. Live
- * runtime generation accepts the active content registry. */
-const bootstrapResourceCatalog = survivalResourceCatalog(BOOTSTRAP_RESOURCE_REGISTRY);
-export const SURVIVAL_TREE_KINDS = bootstrapResourceCatalog.treeKinds;
-export type SurvivalTreeKind = string;
-export const SURVIVAL_REGROWING_PLANT_KINDS = bootstrapResourceCatalog.regrowingPlantKinds;
-export type SurvivalRegrowingPlantKind = string;
-export const SURVIVAL_FRUIT_TREE_KINDS = bootstrapResourceCatalog.fruitTreeKinds;
-export type SurvivalFruitTreeKind = string;
-export const SURVIVAL_ORE_KINDS = bootstrapResourceCatalog.oreKinds;
-export type SurvivalOreKind = string;
-export const SURVIVAL_ROCK_KINDS = bootstrapResourceCatalog.rockKinds;
-export type SurvivalRockKind = string;
-export const SURVIVAL_GATHERABLE_RESOURCE_KINDS = bootstrapResourceCatalog.gatherableKinds;
-export type SurvivalGatherableResourceKind = string;
-export type SurvivalResourceKind = string;
 /** Active surface population. Spawn-site generation deliberately produces
  * many more candidates, of which this WoW-style regional pool activates a
  * spaced subset. */
@@ -224,18 +147,11 @@ export const FISH_POOL_RESOURCE_ID_BASE = 2_100_000_000;
 export const LARGE_ROCK_STONE_RESERVE = MINING_MAX_RICHNESS;
 export const LARGE_ROCK_INITIAL_HEALTH = MINING_MAX_RICHNESS;
 
-export interface SurvivalAuthoredLandmarkDecoration extends GeneratedSurvivalDecoration {
-  readonly groupId: string;
-  readonly groupLabel: string;
-  readonly layer?: LandmarkDecorationLayer;
-}
 
 export function survivalFishermanDockWalkableAt(tileX: number, tileY: number): boolean {
   return survivalLandmarksGroundWalkableAt(bootstrapIslandLandmarks(), tileX, tileY);
 }
 
-export const SURVIVAL_BIOMES = MAP_BIOME_IDS;
-export type SurvivalBiome = MapBiomeId;
 
 export interface SurvivalPlateauRamp {
   readonly contourLevel: number;
@@ -244,15 +160,6 @@ export interface SurvivalPlateauRamp {
   readonly tileY: number;
 }
 
-export const SURVIVAL_DIRT_CLIFF_ROLES = [
-  'none',
-  'edge',
-  'ramp_top_left',
-  'ramp_top_right',
-  'ramp_bottom_left',
-  'ramp_bottom_right',
-] as const;
-export type SurvivalDirtCliffRole = typeof SURVIVAL_DIRT_CLIFF_ROLES[number];
 
 export interface SurvivalSpawnTile {
   readonly slot: number;
@@ -271,15 +178,6 @@ export interface GeneratedSurvivalResource {
   readonly activationOrdinal?: number;
 }
 
-export interface GeneratedSurvivalDecoration {
-  readonly id: number;
-  readonly kind: string;
-  readonly tileX: number;
-  readonly tileY: number;
-  readonly variant: number;
-  readonly animationOffset: number;
-  readonly role?: LandmarkDecorationRole;
-}
 
 export interface SurvivalCampPathTile {
   readonly tileX: number;
@@ -562,76 +460,6 @@ export function generateSurvivalLandmarkRoleDecorations(
   return generateSurvivalLandmarkDecorations(survivalLandmarksForRole(landmarks, role));
 }
 
-/** Expands compact editor-authored rules while retaining deterministic ids,
- * row ordering, fence joins and animation phasing. These mechanics are engine
- * algorithms; every identity, coordinate and decoration kind is content. */
-export function generateSurvivalLandmarkDecorations(
-  landmarks: readonly SpaceLandmarkDefinition[],
-): readonly SurvivalAuthoredLandmarkDecoration[] {
-  const output: SurvivalAuthoredLandmarkDecoration[] = [];
-  for (const landmark of landmarks) {
-    const base = Number(landmark.runtimeIdBase);
-    let nextOffset = 0;
-    const add = (
-      kind: string, tileX: number, tileY: number, variant = 0, animationOffset = 0,
-      explicitOffset?: number, layer?: LandmarkDecorationLayer, role?: LandmarkDecorationRole,
-    ): void => {
-      const offset = explicitOffset ?? nextOffset;
-      output.push({
-        id: base + offset,
-        kind,
-        tileX, tileY, variant, animationOffset,
-        groupId: landmark.id,
-        groupLabel: landmark.label,
-        ...(layer === undefined ? {} : { layer }),
-        ...(role === undefined ? {} : { role }),
-      });
-      nextOffset = offset + 1;
-    };
-    for (const rule of landmark.decorations) {
-      if (rule.kind === 'point') {
-        add(rule.decorationKind, rule.tileX, rule.tileY, rule.variant ?? 0,
-          rule.animationOffset ?? 0, rule.idOffset, rule.layer, rule.role);
-      } else if (rule.kind === 'fill_rectangle') {
-        for (let offsetY = 0; offsetY < rule.height; offsetY += 1) {
-          for (let offsetX = 0; offsetX < rule.width; offsetX += 1) {
-            add(rule.decorationKind, rule.startTileX + offsetX, rule.startTileY + offsetY,
-              rule.variant ?? 0,
-              offsetX * (rule.animationOffsetX ?? 0) + offsetY * (rule.animationOffsetY ?? 0), undefined, rule.layer,
-              rule.role);
-          }
-        }
-      } else {
-        const fenceTiles = new Set<string>();
-        const fenceAt = (tileX: number, tileY: number): void => {
-          fenceTiles.add(`${tileX},${tileY}`);
-        };
-        for (let tileX = rule.bounds.minimumTileX; tileX <= rule.bounds.maximumTileX; tileX += 1) {
-          fenceAt(tileX, rule.bounds.minimumTileY);
-          if (tileX !== rule.gateTileX) fenceAt(tileX, rule.bounds.maximumTileY);
-        }
-        for (let tileY = rule.bounds.minimumTileY + 1; tileY < rule.bounds.maximumTileY; tileY += 1) {
-          fenceAt(rule.bounds.minimumTileX, tileY);
-          fenceAt(rule.bounds.maximumTileX, tileY);
-        }
-        for (const key of fenceTiles) {
-          const [tileXText, tileYText] = key.split(',');
-          const tileX = Number(tileXText);
-          const tileY = Number(tileYText);
-          const connects = (x: number, y: number): boolean => fenceTiles.has(`${x},${y}`)
-            || (x === rule.gateTileX && y === rule.gateTileY);
-          const joinMask = (connects(tileX, tileY - 1) ? 1 : 0)
-            | (connects(tileX + 1, tileY) ? 2 : 0)
-            | (connects(tileX, tileY + 1) ? 4 : 0)
-            | (connects(tileX - 1, tileY) ? 8 : 0);
-          add(rule.decorationKind, tileX, tileY, joinMask, 0, undefined, rule.layer, rule.role);
-        }
-        add(rule.gateKind, rule.gateTileX, rule.gateTileY, 8 | 2, 0, undefined, rule.layer, rule.role);
-      }
-    }
-  }
-  return Object.freeze(output);
-}
 
 let authoredLandmarkDecorationCache: readonly SurvivalAuthoredLandmarkDecoration[] | null = null;
 
@@ -1799,27 +1627,7 @@ export function survivalBiomeAt(seed: number, tileX: number, tileY: number): Sur
   return 'plains';
 }
 
-export function survivalBiomeBlocksMovement(biome: SurvivalBiome): boolean {
-  return biome === 'lava'
-    || biome === 'water'
-    || biome === 'freshwater'
-    || biome === 'waterfall'
-    || biome === 'ridge'
-    || biome === 'desert_ridge'
-    || biome === 'oasis_water'
-    || biome === 'coastal_cliff';
-}
 
-/** Shared terrain-medium rule used by authority, prediction, wildlife, and
- * future vehicles. Water traversal includes calm ocean/inland water, but not
- * shore blends or waterfalls; air ignores terrain while remaining in bounds. */
-export function survivalBiomeBlocksTraversal(biome: SurvivalBiome, medium: MovementMedium): boolean {
-  if (medium === 'air') return false;
-  if (medium === 'water') {
-    return biome !== 'water' && biome !== 'freshwater' && biome !== 'oasis_water';
-  }
-  return survivalBiomeBlocksMovement(biome);
-}
 
 /** Coordinate-aware base collision. Raised-cliff structure is represented by
  * the elevation-specific mask so projection never leaves a second blocker at
@@ -1911,53 +1719,7 @@ export function survivalBiomeAllowsHorseJump(biome: SurvivalBiome): boolean {
   return biome === 'freshwater' || biome === 'oasis_water';
 }
 
-export function isChoppableTreeKind(
-  kind: string,
-  registry: SurvivalResourceRegistry = BOOTSTRAP_RESOURCE_REGISTRY,
-): boolean {
-  const definition = resourceDefinition(registry, kind);
-  return definition?.interaction.mode === 'harvest' && definition.statistics.depletion === 'tree';
-}
 
-export function isRegrowingPlantKind(
-  kind: string,
-  registry: SurvivalResourceRegistry = BOOTSTRAP_RESOURCE_REGISTRY,
-): boolean {
-  return resourceDefinition(registry, kind)?.regrowth?.enabled === true;
-}
-
-export function isAxeHarvestableResourceKind(
-  kind: string,
-  registry: SurvivalResourceRegistry = BOOTSTRAP_RESOURCE_REGISTRY,
-): boolean {
-  return resourceDefinition(registry, kind)?.interaction.tool?.specialization === 'woodcutting';
-}
-
-export function isFruitTreeKind(
-  kind: string,
-  registry: SurvivalResourceRegistry = BOOTSTRAP_RESOURCE_REGISTRY,
-): kind is SurvivalFruitTreeKind {
-  return resourceDefinition(registry, kind)?.tags.includes('resource.fruit_tree') === true;
-}
-
-export type MineableOreKind = SurvivalOreKind;
-export function isMineableOreKind(
-  kind: string,
-  registry: SurvivalResourceRegistry = BOOTSTRAP_RESOURCE_REGISTRY,
-): kind is MineableOreKind {
-  const definition = resourceDefinition(registry, kind);
-  return definition?.statistics.depletion === 'ore'
-    && definition.respawn?.profile === 'surface_ore';
-}
-
-export function isBreakableRockKind(
-  kind: string,
-  registry: SurvivalResourceRegistry = BOOTSTRAP_RESOURCE_REGISTRY,
-): kind is SurvivalRockKind {
-  const definition = resourceDefinition(registry, kind);
-  return definition?.statistics.depletion === 'rock'
-    && definition.respawn?.profile === 'surface_ore';
-}
 
 export function survivalResourceInitialHealth(
   kind: string,

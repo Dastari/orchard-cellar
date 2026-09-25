@@ -2,6 +2,23 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.44.0 / Engine 0.26.0 / Sim 0.29.0 / UI 0.44.2 / World 0.26.6 / Studio 0.16.5 — Static world S6a and S4d (dormant)
+
+**Nothing is activated.** Production builds still refuse the chunk runtime's `on` mode, the server's chunk authority is `off`, and there is no schema or content change.
+
+- **S6a, module split (#169, no behaviour change).**
+  - Generator-free sim leaf modules and `@orchard/sim/<module>` subpath exports. For example, `SURVIVAL_BIOMES` no longer lives in `survival-world.ts`.
+  - Non-island generation moves to `engine/src/space-terrain.ts`, and `TerrainArray` and the sampling helpers move to `terrain-array.ts` and `terrain-sampling.ts`.
+  - The client and UI import from subpaths. Subpath identity and generator-free boundary tests guard the split.
+- **S4d, client chunk-native collision (#184).**
+  - **Collision from chunks:** in `on`, topside collision is built from the resident chunk window's authority channels and records, using the same composition the server uses. A single `@orchard/sim/chunk-collision` builder serves both the client and the S1b server assembler.
+  - **Origin-aware lookups:** collision maps can carry a window origin. Movement, projectiles, tile targeting and the hearth helpers read through one bounds-checked helper, and whole maps behave exactly as before.
+  - **Fallbacks:** the client falls back to legacy collision under the same conditions as the server's dispatcher: stale content or map, a superseded revision, incomplete authority, missing ground fields, a traversal policy mismatch, and the size and base guards.
+  - **Parity:** 921,600 cells and 47,432 movement samples per fixture match the server composition.
+  - **Faster traversal admission:** `mediumTraversalCollision` now resolves admission once per medium (a 320² admission drops from about 26 ms to 1 ms). The results are identical, and the server shares this path.
+  - **Before `on`:** the window-move rebuild must reach 8 ms p95; it is 24–27 ms today. This is a hard gate, S4f.
+- Workspace 0.55.0.
+
 ## Client 0.43.0 / Engine 0.25.0 / UI 0.44.1 / World 0.26.5 / Studio 0.16.4 — Static world S4c (dormant) and owner bug fixes
 
 - **Rejected swings cost a miss (#177, BUG-042).** A swing whose only contacts resist the tool (a Wooden Pickaxe on a gold vein, a depleted node) now pays the empty-swing vigour charge and doesn't wear the tool, the same as swinging at air. `tool_whiffs` and `tool_uses` count the same way. The Tool Whiffs statistic description says so (Assets 0.23.3, a content upsert).

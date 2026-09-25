@@ -1,4 +1,4 @@
-import { SURVIVAL_ORE_KINDS, type SurvivalOreKind } from './survival-world.js';
+import { SURVIVAL_ORE_KINDS, type SurvivalOreKind } from './survival-resource-catalog.js';
 import { miningWorkPerHit } from './mining.js';
 
 export const CELLAR_WALL_MIN_HITS = 5;

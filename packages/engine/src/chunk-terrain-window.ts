@@ -1,6 +1,6 @@
 import type { CellPart, MapSurfaceKind, RuntimeTilesetResolver, TerrainOverride, TerrainTransition } from '@orchard/sim';
 import { WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-array.js';
 import { terrainIndexAt } from './terrain-index.js';
 
 /**
