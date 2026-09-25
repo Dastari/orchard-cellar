@@ -347,4 +347,96 @@ describe('terrain index parity (static world S4b)', () => {
       }
     `);
   });
+
+  it('pins the hard-blocker light raster of a flat interior with no contour occluders', () => {
+    // Flat elevation: no contours, so prepareLightTerrainOcclusion leaves
+    // terrainOccluders unset and rasterizeLightOcclusion takes the per-tile
+    // hard-blocker loop. Windows straddle every map edge.
+    const flat = interiorTerrain({
+      generator: 'cellar', ...interiorShape, fixedTerrainPlane: 0, elevations: new Int16Array(24 * 20),
+    });
+    const map = createLightOcclusionMap(flat);
+    expect(map.terrainOccluders).toBeUndefined();
+    const windows: string[] = [];
+    for (const texelsPerTile of [1, 2]) {
+      for (const [minTileX, minTileY] of [[-3, -2], [0, 0], [5, 4], [flat.width - 5, flat.height - 4], [flat.width - 1, -1]] as const) {
+        const width = 12 * texelsPerTile;
+        const height = 9 * texelsPerTile;
+        const target = new Uint8Array(width * height);
+        rasterizeLightOcclusion(target, width, height, minTileX, minTileY, texelsPerTile, map);
+        windows.push(`${target.reduce((sum, value) => sum + (value === 0 ? 0 : 1), 0)}:${digest(target)}`);
+      }
+    }
+    expect({ light: lighting(flat), windows }).toMatchInlineSnapshot(`
+      {
+        "light": "68d4b20d0782c8ba932bd7b8479a30f2",
+        "windows": [
+          "31:50c2505deac899352c58dcc56d2dd9cf",
+          "48:833292ca5026cc64645027944d068886",
+          "10:c79b2e6986a87b62cc8744db805c2760",
+          "8:ff52aab1263a63ac0d188d1a2c1a0bc9",
+          "8:02226b5261967ee9ff2e35be7a487708",
+          "124:59eb233748f6cfcf98b3721e8753dcb5",
+          "192:997f8ab96be64d7f4994acf993e58303",
+          "40:16752a0b97e95221aa939cf4676d50fc",
+          "32:1bd99ea1ab78f21643a9b1c7a84485d2",
+          "32:b3eca02fcb00be548650d15dbe4c3d30",
+        ],
+      }
+    `);
+  });
+
+  it('keeps procedural overworld biomes (paving, shores, cliffs) byte-identical', () => {
+    // A hand-built overworld strip: paving with a dirt-terrace pattern that
+    // differs between horizontal and vertical neighbours, next to the other
+    // biome frame rules the chunk loop resolves by index.
+    const width = 30;
+    const height = 22;
+    const length = width * height;
+    const names = ['paving', 'plains', 'beach', 'desert_shore', 'coastal_cliff', 'volcanic_ash', 'desert', 'water', 'meadow', 'forest'] as const;
+    const biomes = Uint8Array.from({ length }, (_, index) => {
+      const x = index % width;
+      const y = Math.floor(index / width);
+      const band = Math.floor(x / 6) + 5 * Math.floor(y / 11);
+      return SURVIVAL_BIOMES.indexOf(names[band % names.length]!);
+    });
+    const terrain: TerrainArray = {
+      spaceId: 1,
+      seed: 11,
+      version: 1,
+      width,
+      height,
+      biomes,
+      blocked: Array.from({ length }, (_, index) => SURVIVAL_BIOMES[biomes[index]!] === 'water'),
+      horseJumpableTerrain: Array<boolean>(length).fill(false),
+      elevations: new Int16Array(length),
+      dirtCliffRoles: new Uint8Array(length),
+      dirtTerraces: Uint8Array.from({ length }, (_, index) => ((index % width) * 5 + Math.floor(index / width) * 3) % 7 < 3 ? 1 : 0),
+      raisedTerrainCollisionClassified: true,
+    };
+    expect(terrain.biomes.includes(SURVIVAL_BIOMES.indexOf('paving'))).toBe(true);
+    expect({ draw: drawList(terrain), resolvers: resolvers(terrain) }).toMatchInlineSnapshot(`
+      {
+        "draw": "1480:f2560c1263ab4d18635034496c7c0814",
+        "resolvers": "ac01b4c9e60de5341f28ac3220414197",
+      }
+    `);
+  });
+
+  it('keeps ledges touching the last column and last row byte-identical', () => {
+    let document: MapDocumentV2 = createEmptyMapDocument({ id: 'ledge-edges', title: 'Ledges', width: 20, height: 14 });
+    document = paint(document, rect(15, 4, 19, 7), { ledge: true });
+    document = paint(document, rect(2, 11, 7, 13), { ledge: true });
+    document = paint(document, rect(19, 10, 19, 13), { ledge: true });
+    document = paint(document, rect(9, 2, 13, 6), { elevation: 1 });
+    const terrain = terrainArrayForMapDocument(document);
+    expect(terrain.ledges?.[4 * 20 + 19]).toBe(1);
+    expect({ draw: drawList(terrain), resolvers: resolvers(terrain) }).toMatchInlineSnapshot(`
+      {
+        "draw": "858:09003564fb740d1d2e53cc2421f7df77",
+        "resolvers": "ecab47a7b3fe961796e7e4e09ca20c7b",
+      }
+    `);
+  });
 });
+
