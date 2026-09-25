@@ -125,6 +125,9 @@ import { WorldUpdateOverlay } from './world-update-overlay.js';
 import { ConnectionRecoveryOverlay, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
+import { WorldSource } from './world-source.js';
+import type { TileBounds } from '@orchard/engine/chunk-terrain-window';
+import { terrainIndexAt, terrainTileBounds } from '@orchard/engine/terrain-index';
 import { WorldTouchInput, type WorldTouchPoint } from './world-touch-input.js';
 import { readTouchControlPreferences, writeTouchControlPreferences } from './touch-control-preferences.js';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from '@orchard/engine/loading-screen';
@@ -171,6 +174,7 @@ import { drawPixelPanel, drawPixelText, measurePixelText } from '@orchard/ui';
 import {
   MAX_WORLD_ZOOM,
   drawSortedWorldDepthQueue,
+  worldPassLayout,
 } from '@orchard/engine/renderer';
 import { cellarExposedWallAt, cellarWallSourceAtProjectedTile, terrainContactWorldYForPlayer, terrainElevationAtWorldFoot, terrainForSpace, terrainForWorld, terrainColorAt, terrainWithCellarExcavations, terrainBaseDatum, terrainPlaneCollisionCellAt, terrainProjectionStyle, terrainProjectedDepthAtFoot, terrainProjectedWorldYAtFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain';
 import { interpolateFixedPosition, rebaseInterpolationPosition, sampleLocalProjectilePrediction } from './overworld-prediction.js';
@@ -314,6 +318,8 @@ const accountSlot = new URLSearchParams(location.search).get('slot') ?? readOidc
 let networkDirty = true;
 let connectionInputCleared = false;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
+/** Topside terrain source: the legacy whole map, or the chunk window in chunk mode `on` (S4c). */
+const worldSource = new WorldSource({ store: () => network.chunkTerrainStore, pin: (bounds) => network.setChunkPin(bounds) });
 const furnitureMoves = new FurnitureMoveController((...args) => network.moveHearthFurniture(...args));
 const objectPresentations = new LiveObjectPresentationCache(() => { networkDirty = true; });
 const authoredActionArt = new AuthoredActionArt(() => { networkDirty = true; });
@@ -915,12 +921,17 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   const centerTileY = Math.floor(centerWorldY / 16);
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const terrain = terrainForSpace(
+  const legacyMinimap = (): TerrainArray => terrainForSpace(
     activeSpaceDefinition,
     seed,
     version,
     snapshot.content.registry,
   );
+  // Off/shadow: the raw generator as before; chunk mode `on`: the authored window (S4c).
+  const minimap = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? worldSource.minimapTerrain(legacyMinimap, snapshot.content.registry)
+    : { terrain: legacyMinimap(), key: '' };
+  const terrain = minimap.terrain;
   const columns = Math.ceil(rect.width / pixelsPerTile) + 2;
   const rows = Math.ceil(rect.height / pixelsPerTile) + 2;
   const firstTileX = Math.floor(centerTileX - columns / 2);
@@ -934,6 +945,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     pixelsPerTile,
     Math.ceil(rect.width),
     Math.ceil(rect.height),
+    ...(minimap.key === '' ? [] : [minimap.key]),
   ].join(':');
   if (minimapTerrainCache?.key !== cacheKey) {
     const cacheCanvas = document.createElement('canvas');
@@ -1963,7 +1975,30 @@ function treeLightOccluders(snapshot: OverworldView, terrain: TerrainArray): Lig
   return result;
 }
 
+/** The tiles this frame's camera will show, before the frame's terrain exists:
+ * the same layout and clamping as the render camera, with the unprojected foot
+ * (the terrain projection is a few tiles, well inside the window margin). */
+function estimatedCameraTiles(localX: number, localY: number): TileBounds {
+  const layout = worldPassLayout(renderer.cssWidth, renderer.cssHeight, renderer.dpr, worldZoom, renderer.worldScale);
+  const viewportWidth = layout.width / layout.integerScale;
+  const viewportHeight = layout.height / layout.integerScale;
+  const worldPixels = activeSpaceDefinition.sizeTiles * 16;
+  const cameraX = lightingPreview?.cameraX ?? cameraAxisOffset(localX, viewportWidth, worldPixels);
+  const cameraY = lightingPreview?.cameraY ?? cameraAxisOffset(localY, viewportHeight, worldPixels);
+  return { minX: Math.floor(cameraX / 16), minY: Math.floor(cameraY / 16),
+    maxX: Math.ceil((cameraX + viewportWidth) / 16), maxY: Math.ceil((cameraY + viewportHeight) / 16) };
+}
+
+/** Render terrain: through the world source on topside (chunk window in chunk mode `on`). */
 function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
+  const legacy = (): TerrainArray => legacyTerrainForSnapshot(snapshot);
+  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? worldSource.topsideTerrain(legacy, snapshot.content.registry)
+    : legacy();
+}
+
+/** The whole-map terrain. Client collision keeps using it until chunk-native collision (S4d). */
+function legacyTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
   const base = terrainForSpace(activeSpaceDefinition, seed, version, snapshot.content.registry);
@@ -2020,7 +2055,7 @@ function refreshCollision(snapshot: OverworldView): void {
   const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${liveRevision}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
-  const terrain = terrainForSnapshot(snapshot);
+  const terrain = legacyTerrainForSnapshot(snapshot);
   const liveDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     ? liveIslandDocumentFor(snapshot)
     : null;
@@ -4231,11 +4266,12 @@ function drawCollisionOverlay(
 ): void {
   const planeProjection = (activeElevation - terrainBaseDatum(terrain))
     * terrainVisualProjectionRowsPerLevel(terrain) * 16;
-  const minX = Math.max(0, Math.floor(cameraX / 16));
-  const minY = Math.max(0, Math.floor((cameraY + planeProjection) / 16));
-  const maxX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
+  const bounds = terrainTileBounds(terrain);
+  const minX = Math.max(bounds.minX, Math.floor(cameraX / 16));
+  const minY = Math.max(bounds.minY, Math.floor((cameraY + planeProjection) / 16));
+  const maxX = Math.min(bounds.maxX, Math.ceil((cameraX + viewportWidth / scale) / 16));
   const maxY = Math.min(
-    terrain.height - 1,
+    bounds.maxY,
     Math.ceil((cameraY + viewportHeight / scale + planeProjection) / 16),
   );
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
@@ -4552,15 +4588,16 @@ function drawCellarOreVeinPreview(
   viewportHeight: number,
 ): number {
   if (!developerOrePreviewEnabled(latestSnapshot)) return 0;
-  const minimumX = Math.max(1, Math.floor(cameraX / 16) - 1);
-  const minimumY = Math.max(1, Math.floor(cameraY / 16) - 1);
-  const maximumX = Math.min(terrain.width - 2, Math.ceil((cameraX + viewportWidth / scale) / 16) + 1);
-  const maximumY = Math.min(terrain.height - 2, Math.ceil((cameraY + viewportHeight / scale) / 16) + 1);
+  const bounds = terrainTileBounds(terrain);
+  const minimumX = Math.max(bounds.minX + 1, Math.floor(cameraX / 16) - 1);
+  const minimumY = Math.max(bounds.minY + 1, Math.floor(cameraY / 16) - 1);
+  const maximumX = Math.min(bounds.maxX - 1, Math.ceil((cameraX + viewportWidth / scale) / 16) + 1);
+  const maximumY = Math.min(bounds.maxY - 1, Math.ceil((cameraY + viewportHeight / scale) / 16) + 1);
   let count = 0;
   context.save();
   for (let tileY = minimumY; tileY <= maximumY; tileY += 1) {
     for (let tileX = minimumX; tileX <= maximumX; tileX += 1) {
-      if (terrain.blocked[tileY * terrain.width + tileX] !== true) continue;
+      if (terrain.blocked[terrainIndexAt(terrain, tileX, tileY)] !== true) continue;
       const kind = cellarOreKindAt(seed, activeSpaceDefinition.spaceId, tileX, tileY);
       if (kind === null) continue;
       context.fillStyle = CELLAR_ORE_PREVIEW_COLORS[kind] ?? '#ffffff99';
@@ -4677,7 +4714,15 @@ function renderFrame(alpha = 1): void {
   const localX = (cameraJump?.x ?? renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const localY = (cameraJump?.footY ?? renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  // The camera's tiles choose the chunk window (and what the chunk runtime pins)
+  // before this frame's terrain is served (S4c), so a teleport, a return to
+  // topside or a newly serving store never draws from the previous window.
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) worldSource.setView(estimatedCameraTiles(localX, localY));
   const terrain = terrainForSnapshot(snapshot);
+  // Chunk window moves (S4c) drop only the ground chunks whose data changed.
+  worldSource.drainGroundInvalidations((region) => {
+    groundCache.invalidateRegion(region.minX, region.minY, region.maxX, region.maxY);
+  });
   const localTerrainContactY = terrainContactWorldYForPlayer(localY);
   const projectedLocalY = terrainProjectedWorldYAtFoot(terrain, localX, localTerrainContactY)
     + (localY - localTerrainContactY);
@@ -4840,7 +4885,7 @@ function renderFrame(alpha = 1): void {
     if(attack.spaceId!==activeSpaceDefinition.spaceId)continue;
     worldDepthItems.push({
       // All caps on this elevation draw first; floor intent stays beneath actors.
-      footY:terrain.height*16+16,elevationLayer:attack.elevation,depthPhase:'surface',
+      footY:(terrain.worldHeight??terrain.height)*16+16,elevationLayer:attack.elevation,depthPhase:'surface',
       tie:`combat-intent:${attack.npcId}`,
       draw:()=>drawEnemyAttackTelegraph(context,{...attack,pattern:attack.pattern as EnemyAttackPattern},renderAuthorityTick,
         cameraX,cameraY,scale,(x,y)=>y-projectionAt(x,y)),
@@ -4855,8 +4900,8 @@ function renderFrame(alpha = 1): void {
     if(!summon&&!guardian)continue;
     const x=(summon?profile.summonX:npc!.x)/FIXED_UNITS_PER_PIXEL;
     const y=(summon?profile.summonY:npc!.y)/FIXED_UNITS_PER_PIXEL;
-    const elevation=terrain.elevations?.[Math.floor(y/16)*terrain.width+Math.floor(x/16)]??0;
-    worldDepthItems.push({footY:terrain.height*16+16,elevationLayer:elevation,depthPhase:'surface',tie:`warden-cue:${profile.npcId}`,
+    const elevation=terrain.elevations?.[terrainIndexAt(terrain,Math.floor(x/16),Math.floor(y/16))]??0;
+    worldDepthItems.push({footY:(terrain.worldHeight??terrain.height)*16+16,elevationLayer:elevation,depthPhase:'surface',tie:`warden-cue:${profile.npcId}`,
       draw:()=>summon?drawOutdoorSummonMark(context,x,y-projectionAt(x,y),renderAuthorityTick,profile.summonTick,cameraX,cameraY,scale)
         :drawWardenCrest(context,x,y-projectionAt(x,y),profile.wardenPhase,profile.phaseCueUntilTick,renderAuthorityTick,cameraX,cameraY,scale)});
   }
