@@ -19,6 +19,17 @@ describe('mining feedback', () => {
     expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [gold, copper, far])).toEqual([gold]);
     expect(glancingSwingNodes(registry, 'copper_pickaxe', below, 'up', [gold])).toEqual([]);
     expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [{ ...gold, depleted: true }])).toEqual([]);
+    // A swing that also lands a real mining hit doesn't glance.
+    const copperBeside = vein('ore_copper', 5, 4);
+    expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [gold, { ...copperBeside, id: 1n }])).toEqual([]);
+  });
+
+  it('matches the server elevation check: a vein up a cliff never sparks', () => {
+    const gold = vein('ore_gold'), width = 12, height = 12;
+    const flat = { width, height, blocked: new Array(width * height).fill(false), elevations: new Array(width * height).fill(0) };
+    const cliff = { ...flat, elevations: flat.elevations.map((_, index) => Math.floor(index / width) <= 4 ? 1 : 0) };
+    expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [gold], flat as never)).toEqual([gold]);
+    expect(glancingSwingNodes(registry, 'pickaxe', below, 'up', [gold], cliff as never)).toEqual([]);
   });
 
   it('counts the strikes between payouts', () => {

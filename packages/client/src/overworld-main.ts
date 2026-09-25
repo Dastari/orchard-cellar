@@ -459,9 +459,14 @@ function updateSkillPointNotice(snapshot: OverworldView): void {
   }
 }
 
-function failureToastText(error: unknown): string {
+type FailureWording = readonly (readonly [code: string, text: string])[];
+// At the anvil a wrong tool means an undamaged one, so it keeps its specific wording.
+const ANVIL_FAILURES: FailureWording = [['wrong_tool', 'SELECT A DAMAGED TOOL']];
+
+function failureToastText(error: unknown, overrides: FailureWording = []): string {
   const raw = error instanceof Error ? error.message : String(error);
   const knownFailures = [
+    ...overrides,
     ['inventory_full', 'NOT ENOUGH INVENTORY SPACE'],
     ['container_full', 'NOT ENOUGH INVENTORY SPACE'],
     ['insufficient_vigour', 'INSUFFICIENT VIGOUR'],
@@ -489,7 +494,7 @@ function failureToastText(error: unknown): string {
     ['jump_cooldown', 'STILL LANDING'],
     ['tool_skill_required', 'MORE SPECIALIZATION RANKS ARE REQUIRED FOR THIS TOOL'],
     ['equipment_light_required', 'EQUIP A SWITCHABLE LIGHT IN YOUR OFF-HAND SLOT'],
-  ] as const;
+  ] as const satisfies FailureWording;
   const known = knownFailures.find(([code]) => raw.toLowerCase().includes(code));
   return known?.[1] ?? raw.replaceAll('_', ' ').toUpperCase();
 }
@@ -497,10 +502,10 @@ function failureToastText(error: unknown): string {
 // Rejections the player can already see (the swing animation simply doesn't repeat) show no toast.
 const SILENT_FAILURES = ['swing_too_soon'] as const;
 
-function setFailureToast(error: unknown, ticks = 120): void {
+function setFailureToast(error: unknown, ticks = 120, overrides: FailureWording = []): void {
   const raw = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (SILENT_FAILURES.some((code) => raw.includes(code))) return;
-  setToast(failureToastText(error), 'failure', ticks);
+  setToast(failureToastText(error, overrides), 'failure', ticks);
 }
 
 function rogueRewardClaimedMessage(run: { readonly roomNumber: number }): string {
@@ -2736,7 +2741,8 @@ function glanceSwing(snapshot: OverworldView, itemKind: string): void {
   if (predicted === null) return;
   const facing = liveEquippedItemFacing(snapshot, itemKind, predicted.facing, cursorFacing());
   const glancing = glancingSwingNodes(snapshot.content.registry, itemKind, predicted.position, facing,
-    worldResourcesIncludingPersonalQuest(snapshot).filter((resource) => !liveMapSuppressesGeneratedResource(snapshot, resource.id)));
+    worldResourcesIncludingPersonalQuest(snapshot).filter((resource) => !liveMapSuppressesGeneratedResource(snapshot, resource.id)),
+    worldCollision);
   if (glancing.length === 0) return;
   for (const resource of glancing) resourceGlanceRemaining.set(resource.id, MINING_GLANCE_TICKS);
   void audio.unlock().then(async () => await audio.playSfx('tool_clink')).catch(() => undefined);
@@ -6098,12 +6104,12 @@ function pointerCanvasPosition(event: MouseEvent): readonly [number, number] {
   return [canvasX, canvasY];
 }
 
-function showResult(promise: Promise<void>, success: string | null, presentationToken?: number): void {
+function showResult(promise: Promise<void>, success: string | null, presentationToken?: number, failures: FailureWording = []): void {
   void promise.then(() => {
     if (success !== null) setToast(success, 'success');
   }).catch((error: unknown) => {
     if (presentationToken !== undefined) localActionPresentation.reject(presentationToken);
-    setFailureToast(error);
+    setFailureToast(error, 120, failures);
   });
 }
 
@@ -6637,7 +6643,7 @@ window.addEventListener('keydown', (event) => {
     if (actionPlaceable !== null
       && objectHasAuthoredTag(snapshot.content.registry, actionPlaceable, 'station.anvil')
       && selectedItemLifecycleAction(selectedUseDefinition, 'useWith') !== null) {
-      showResult(network.useSelected('use_with', { targetKind: 'placeable', entityId: actionPlaceable.id }), 'TOOL REPAIRED');
+      showResult(network.useSelected('use_with', { targetKind: 'placeable', entityId: actionPlaceable.id }), 'TOOL REPAIRED', undefined, ANVIL_FAILURES);
       event.preventDefault();
       return;
     }
