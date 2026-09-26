@@ -72,7 +72,7 @@ const ALLOWLIST: Readonly<Record<string, Counts>> = {
   'ui/src/kit/components/character-book.ts': { 'item-icon-asset': 3, 'item-art-pixels': 1 },
   // Station emblem (uiItemImage) and machine art lookup (S1, S8).
   'ui/src/kit/components/content-frame.ts': { 'slot-internals': 2, 'item-art-lookup': 1 },
-  // Gateway logo board draws the cask item art (found by this scan; S8).
+  // Gateway logo board draws the cask item art (found by this scan; S6, uiSlot well).
   'ui/src/kit/components/gateway-game.ts': { 'slot-internals': 3, 'item-art-pixels': 4 },
   // Item tooltip icon well (S6).
   'ui/src/kit/components/item-tooltip.ts': { 'item-art-pixels': 1 },
