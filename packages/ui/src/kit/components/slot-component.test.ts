@@ -8,7 +8,7 @@ import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, itemPolicyResolver, slotAcceptsItem }
 import { UiRoot } from '../runtime/root.js';
 import { UiInventoryController, type UiInventoryModel } from '../runtime/inventory.js';
 import { uiTestArt, uiTestAsset } from '../lab/testing/art.js';
-import { uiSlot, uiSlotView, uiInventoryGrid, type UiSlotOptions } from './inventory.js';
+import { uiSetSlotState, uiSlot, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
 import { uiSlotArt } from './slot-art.js';
 import { uiSlotAcceptsItem, uiSlotRestrictionFromRules, uiSlotRulesFromRestriction, type UiSlotRules } from './slot-rules.js';
 
@@ -55,9 +55,9 @@ describe('slot rules mirror the authority', () => {
 describe('slot component S0 is pixel-neutral', () => {
   const stack: ItemStack = { itemKind: 'wood', quantity: 7 };
   const artwork = { wood: uiTestAsset('item_cf_wood', 'props') };
-  const render = async (options: UiSlotOptions) => {
+  const render = async (options: UiSlotOptions, change?: UiSlotState) => {
     const root = new UiRoot({ art: await uiTestArt(), scale: 1 }); root.resize(28, 31);
-    root.mount(uiSlot(options));
+    const slot = uiSlot(options); root.mount(slot); if (change) uiSetSlotState(slot, change);
     const canvas = createCanvas(28, 31); root.draw(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 0);
     const pixels = canvas.toBuffer('image/png'); root.dispose(); return pixels;
   };
@@ -85,7 +85,8 @@ describe('slot component S0 is pixel-neutral', () => {
     expect(await render({ stack, artwork })).not.toEqual(disabled);
     expect(await render({ stack, artwork, state: { enabled: false } })).toEqual(disabled);
     expect(await render({ stack, artwork, state: { locked: { reason: 'Needs Smithing 3' } } })).toEqual(disabled);
-    expect(await render({ stack, artwork, state: () => ({ enabled: false }) })).toEqual(disabled);
+    expect(await render({ stack, artwork }, { enabled: false })).toEqual(disabled);
+    expect(await render({ stack, artwork, state: { enabled: false } }, { pending: true })).toEqual(await render({ stack, artwork }));
     expect(await render({ stack, artwork, state: { selected: true } })).toEqual(await render({ stack, artwork, selected: true }));
   });
 
@@ -117,14 +118,21 @@ describe('slot state model', () => {
     expect(view({ itemKind: 'coal', quantity: 1 }, { allowItems: ['coal'] }, false)).toBe('refuse');
   });
 
-  it('reports state, cooldown, placeholder, rules and drag, and follows a state getter', () => {
-    let locked = false;
-    const slot = uiSlot({ state: () => (locked ? { locked: { reason: 'Needs Smithing 3' } } : { pending: true }),
+  it('reports state, cooldown, placeholder, rules and drag, and blocks input as soon as the state changes', () => {
+    const slot = uiSlot({ state: { pending: true },
       cooldown: () => ({ fraction: 1.4 }), placeholder: { item: 'wood' }, rules: { readOnly: true }, drag: { split: false } });
     expect(uiSlotView(slot)).toMatchObject({ variant: 'slot', enabled: true, locked: null, pending: true, selected: false,
       cooldown: { fraction: 1 }, placeholder: { item: 'wood' }, rules: { readOnly: true }, drag: { split: false }, dropTarget: null });
-    locked = true;
+    uiSetSlotState(slot, { locked: { reason: 'Needs Smithing 3' } });
+    // Hit-testing reads element.disabled: it changes with the state, without a paint.
+    expect(slot.disabled).toBe(true);
     expect(uiSlotView(slot)).toMatchObject({ enabled: false, locked: { reason: 'Needs Smithing 3' }, pending: false });
+    uiSetSlotState(slot, undefined);
+    expect(slot.disabled).toBe(false);
+    // A state change that leaves blocking alone does not override an external setDisabled.
+    slot.setDisabled(true); uiSetSlotState(slot, { pending: true });
+    expect(slot.disabled).toBe(true);
+    expect(() => uiSetSlotState(uiInventoryGrid({ container: 'chest', count: 1 }), {})).toThrow('needs a slot');
     expect(uiSlotView(uiSlot({ state: { enabled: false } }))?.enabled).toBe(false);
     expect(uiSlotView(uiSlot({}))).toMatchObject({ enabled: true, cooldown: null, placeholder: null, rules: null, drag: null });
   });

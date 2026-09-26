@@ -41,7 +41,6 @@ export interface UiSlotDrag {
 /** Empty-slot placeholder: an equipment silhouette (painted today), or a derived item silhouette or an icon.
  * The item and icon forms are reported by uiSlotView and not painted; their look awaits owner approval. */
 export type UiSlotPlaceholderSource = UiSlotPlaceholder | { readonly item: string } | { readonly icon: UiIconSource };
-type UiSlotValue<T> = T | (() => T);
 export interface UiSlotOptions {
   readonly id?: string; readonly label?: string; readonly stack?: ItemStack | null | (() => ItemStack | null);
   readonly icon?: UiIconSource;
@@ -57,7 +56,8 @@ export interface UiSlotOptions {
   /** What the slot accepts. With a controller, a held stack is shown as refused over a slot these rules refuse,
    * decided by the sim's `slotAcceptsItem` (see `uiSlotAcceptsItem`). */
   readonly rules?: UiSlotRules;
-  readonly state?: UiSlotValue<UiSlotState>;
+  /** The initial state; change it with `uiSetSlotState`, which updates input blocking at once. */
+  readonly state?: UiSlotState;
   readonly cooldown?: () => UiSlotCooldown | null;
   readonly drag?: UiSlotDrag;
   /** Replaces the item icon only: `bounds` is the 16px icon well (uiSlotIconRect). The slot still draws its chrome,
@@ -112,6 +112,12 @@ export interface UiSlotView {
   readonly dropTarget: 'accept' | 'refuse' | null;
 }
 const slotViews = new WeakMap<UiElement, () => UiSlotView>();
+const slotStates = new WeakMap<UiElement, (state: UiSlotState | undefined) => void>();
+/** Changes a slot's state. Enabling or blocking input applies at once (setDisabled), so hit-testing is right even
+ * for a slot that is not painted; an unchanged blocking leaves an external setDisabled alone. */
+export function uiSetSlotState(element: UiElement, state: UiSlotState | undefined): void {
+  const set = slotStates.get(element); if (!set) throw new Error('uiSetSlotState needs a slot made by uiSlot'); set(state);
+}
 /** The derived state of a slot made by `uiSlot`, or undefined for any other element. */
 export function uiSlotView(element: UiElement): UiSlotView | undefined { return slotViews.get(element)?.(); }
 const slotStateBlocksInput = (state: UiSlotState | undefined) => state !== undefined && (state.enabled === false || state.locked !== undefined);
@@ -123,9 +129,9 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   const stack = () => options.controller && options.binding ? options.controller.model.stack(options.binding) : typeof options.stack === 'function' ? options.stack() : options.stack ?? null;
   // One art resolver: the legacy artwork/iconAnimation/contentRegistry options wrap into the same UiSlotArt.
   const slotArt = options.art ?? uiSlotArt({ ...(options.artwork ? { artwork: options.artwork } : {}), ...(options.iconAnimation ? { iconAnimation: options.iconAnimation } : {}), ...(options.contentRegistry ? { contentRegistry: options.contentRegistry } : {}) });
-  const state = (): UiSlotState | undefined => typeof options.state === 'function' ? options.state() : options.state;
-  const initialState = state();
-  const blocked = () => Boolean(options.disabled) || slotStateBlocksInput(state());
+  let current: UiSlotState | undefined = options.state;
+  const state = () => current;
+  const blocked = (next: UiSlotState | undefined = current) => Boolean(options.disabled) || slotStateBlocksInput(next);
   // Against the held stack: the controller's verdict, narrowed by the slot's own rules through the shared sim rule.
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = options.controller?.model.cursor;
@@ -134,7 +140,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     return accepts ? 'accept' : 'refuse';
   };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
-    focusable: Boolean(options.controller || options.onPress), disabled: options.disabled || slotStateBlocksInput(initialState), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? initialState?.selected ?? false },
+    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false },
     style: { width: uiFixed(28), height: uiFixed(31), display: 'stack', padding: 8, shrink: 0, ...options.layout }, children: options.icon ? [uiIcon(options.icon).setStyle({ width: 'grow', height: 'grow' })] : [],
     onPointer(event, element) {
       if (options.controller && options.binding) return options.controller.pointer(event, options.binding);
@@ -153,8 +159,6 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     onDispose() { unregister?.(); },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
-      // A state getter can disable the slot between frames; input follows from the next event.
-      if (typeof options.state === 'function' && element.disabled !== blocked()) element.disabled = blocked();
       context.save(); if (element.disabled) context.globalAlpha *= .6;
       const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind);
       paintUiSkin(context, art.skin.slot, `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
@@ -190,10 +194,15 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       context.restore();
     },
   });
+  slotStates.set(slot, (next) => {
+    const wasBlocked = blocked(); current = next;
+    // Input blocking follows the state as it changes, not when the slot is next painted.
+    if (blocked() !== wasBlocked) slot.setDisabled(blocked()); else slot.invalidateRoot?.(false);
+  });
   slotViews.set(slot, () => {
-    const current = state(), cooldown = options.cooldown?.() ?? null;
+    const cooldown = options.cooldown?.() ?? null;
     return Object.freeze({
-      variant, enabled: !blocked(), locked: current?.locked ?? null,
+      variant, enabled: !slot.disabled, locked: current?.locked ?? null,
       selected: Boolean(slot.props['selected']) || current?.selected === true, pending: current?.pending === true,
       cooldown: cooldown === null ? null : { ...cooldown, fraction: Math.min(1, Math.max(0, cooldown.fraction)) },
       placeholder: options.placeholder ?? null, rules: options.rules ?? null, drag: options.drag ?? null, dropTarget: dropTarget(),
