@@ -68,6 +68,23 @@ describe('authored frame definitions', () => {
     }));
   });
 
+  it('refuses slot item types that no item carries, for required and rejected types alike', () => {
+    const rows = bootstrapContentRows();
+    const withRestriction = (restriction: Record<string, unknown>) => buildContentRegistry(rows.map((row) => {
+      if (row.id !== 'frame:chest') return row;
+      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; restriction?: unknown }[] };
+      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.kind === 'slots'
+        ? { ...pane, restriction } : pane) }) };
+    })).report.errors;
+    expect(withRestriction({ requiredTags: ['item.tool'], rejectedTags: ['tool.farming.cultivate'] })).toEqual([]);
+    for (const field of ['requiredTags', 'rejectedTags']) {
+      expect(withRestriction({ [field]: ['item.tool', 'item.nonexistent_tag'] })).toContainEqual(expect.objectContaining({
+        code: 'unresolved_reference', definitionId: 'frame:chest', message: 'frame slot item type matches no item: item.nonexistent_tag',
+        path: expect.stringMatching(new RegExp(`restriction\\.${field}\\[1\\]$`, 'u')),
+      }));
+    }
+  });
+
   it('owns client surface/custody presentation without deriving it from the frame id', () => {
     const parsed = parseFrameDefinition({
       ...bootstrapFrameDefinitions()[0],

@@ -1222,6 +1222,7 @@ function validateFrameDefinition(
     }
   }
   const entitySlots = new Set<number>();
+  const itemTags = new Set([...byId.values()].flatMap((entry) => entry.kind === 'item' ? entry.tags : []));
   for (const [index, pane] of definition.panes.entries()) {
     const path = `panes[${index}]`;
     if ('entitySlots' in pane.bind) {
@@ -1239,6 +1240,16 @@ function validateFrameDefinition(
     if ('timing' in pane.bind && pane.kind !== 'text') invalid('timing bindings require a text pane', `${path}.bind`);
     if (pane.restriction !== undefined && pane.kind !== 'slots' && pane.kind !== 'paper_doll') {
       invalid('restrictions are valid only on slot panes', `${path}.restriction`);
+    }
+    // A slot's required or rejected item type must be one some item (retired ones included) carries: a typo would
+    // silently make a required type refuse everything, or a deny list refuse nothing.
+    for (const field of ['requiredTags', 'rejectedTags'] as const) {
+      for (const [tagIndex, tag] of (pane.restriction?.[field] ?? []).entries()) {
+        if (!itemTags.has(tag)) {
+          errors.push(issue('error', 'unresolved_reference', `frame slot item type matches no item: ${tag}`,
+            definition.id, `${path}.restriction.${field}[${tagIndex}]`));
+        }
+      }
     }
     const processReferences = [
       ...('recipeFilter' in pane.bind && pane.bind.recipeFilter.process !== undefined ? [pane.bind.recipeFilter.process] : []),
