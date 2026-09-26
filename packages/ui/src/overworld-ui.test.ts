@@ -36,6 +36,7 @@ import {
 } from './overworld-ui.js';
 import type { UiSkin } from './skin.js';
 import { RIBBON_TEXT_TOP_OFFSET, ribbonWidth } from './ribbon.js';
+import { uiSlotIconRect } from './kit/components/inventory.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { SkillTreeModel } from './skill-tree-ui.js';
 
@@ -1104,7 +1105,16 @@ describe('overworld retained UI layout', () => {
 
   it('keeps stack counts above and inside the slot bevel', () => {
     expect(slotStackLabelPosition({ x: 40, y: 70, width: 28, height: 31 }))
-      .toEqual({ x: 63, y: 87 });
+      .toEqual({ x: 63, y: 86 });
+  });
+
+  it('draws legacy slots at the kit slot position B: icon 6 down, count 15 and wear 8 above the foot', () => {
+    // Owner decision 2026-09-26 (wiki Roadmap/Item Slot Component): one slot look on every surface.
+    const slot = { x: 40, y: 70, width: 28, height: 31 }, well = uiSlotIconRect(slot), bar = slotDurabilityBarRect(slot);
+    expect(well).toEqual({ x: 46, y: 76, width: 16, height: 16 });
+    expect(slotStackLabelPosition(slot)).toEqual({ x: slot.x + slot.width - 5, y: slot.y + slot.height - 15 });
+    expect(bar.y).toBe(slot.y + slot.height - 8);
+    expect(bar.y - (well.y + well.height)).toBe(1);
   });
 
   it('places the selected and hovered hotbar reticle outside the slot labels', () => {
@@ -1115,7 +1125,7 @@ describe('overworld retained UI layout', () => {
   it('keeps durability bars inside the usable slot face above the bottom bevel', () => {
     const slot = { x: 40, y: 70, width: 28, height: 31 };
     const bar = slotDurabilityBarRect(slot);
-    expect(bar).toEqual({ x: 45, y: 94, width: 18, height: 3 });
+    expect(bar).toEqual({ x: 45, y: 93, width: 18, height: 3 });
     expect(bar.x).toBeGreaterThan(slot.x);
     expect(bar.x + bar.width).toBeLessThan(slot.x + slot.width);
     expect(bar.y + bar.height).toBeLessThan(slot.y + slot.height);

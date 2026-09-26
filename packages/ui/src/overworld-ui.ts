@@ -647,12 +647,12 @@ export function onlinePlayerListCloseButtonRect(frame: UiRect): UiRect {
 export function slotStackLabelPosition(rect: UiRect): UiPoint {
   return {
     x: rect.x + rect.width - 5,
-    y: rect.y + rect.height - 14,
+    y: rect.y + rect.height - 15,
   };
 }
 
 export function slotDurabilityBarRect(rect: UiRect): UiRect {
-  return { x: rect.x + 5, y: rect.y + rect.height - 7, width: rect.width - 10, height: 3 };
+  return { x: rect.x + 5, y: rect.y + rect.height - 8, width: rect.width - 10, height: 3 };
 }
 
 /** Centres the selector's transparent 60 px canvas around a slot. Its opaque
@@ -4290,7 +4290,7 @@ export class OverworldUi {
     itemKind: string,
     asset: LoadedAsset,
     lit = true,
-    well: UiRect = { x: rect.x + 6, y: rect.y + 7, width: 16, height: 16 },
+    well: UiRect = { x: rect.x + 6, y: rect.y + 6, width: 16, height: 16 },
   ): void {
     const frame = uiAssetFrame(asset, itemIconAnimation(itemKind, this.model.contentRegistry));
     if (!frame) return;

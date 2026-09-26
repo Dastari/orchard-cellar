@@ -2,7 +2,7 @@ import { bootstrapContentRegistry, runtimeCreaturePresentation, type ContentRegi
 import type { LoadedAsset } from '@orchard/ui';
 import { describe, expect, it, vi } from 'vitest';
 import { authoredResourceVisual, type OverworldArt } from './overworld-art.js';
-import { authoredActorShadowBody, authoredWildlifeAnimationName, authoredWildlifeFlipsForDirection, BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, additionalTerrainAssetIds, axeAnimationForDirection, avatarAnimationForDirection, boatCardinalFacing, boatFlipsForDirection, boatRiderLayerMaximumRows, boatRiderOffset, boatTravelBob, bowLocomotionBobOffset, capybaraVisualAtFrame, createOverworldContentArtRequests, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, isPondWaterPixel, natureDecorationFrame, overworldItemIconKey, overworldPlaceableVisualScale, overworldPoiDecorationDepthY, pondShimmerFrameAtTick, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { authoredActorShadowBody, authoredWildlifeAnimationName, authoredWildlifeFlipsForDirection, BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, additionalTerrainAssetIds, axeAnimationForDirection, avatarAnimationForDirection, boatCardinalFacing, boatFlipsForDirection, boatRiderLayerMaximumRows, boatRiderOffset, boatTravelBob, bowLocomotionBobOffset, capybaraVisualAtFrame, createOverworldContentArtRequests, drawOverworldItem, GROUND_DROP_PROP_ITEMS, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, isPondWaterPixel, natureDecorationFrame, overworldItemIconKey, overworldPlaceableVisualScale, overworldPoiDecorationDepthY, pondShimmerFrameAtTick, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './tilemap.js';
 
 describe('overworld art topology', () => {
@@ -258,6 +258,19 @@ describe('overworld art topology', () => {
     expect(overworldItemIconKey('workbench')).toBe('prop_cf_workbench');
     expect(overworldItemIconKey('fiber')).toBe('icon_craft_fiber');
     expect(overworldItemIconKey('future_item')).toBe('system_missing_asset');
+  });
+
+  it('keeps the small prop sprites for fruit, pebble and loose arrow drops whose inventory icon is a 16px UI icon', () => {
+    // Owner decision 2026-09-26 (wiki Roadmap/Item Slot Component): new slot icons, unchanged world drops.
+    expect(GROUND_DROP_PROP_ITEMS).toEqual(['apple', 'pear', 'peach', 'cherry', 'pebble', 'arrow']);
+    for (const kind of GROUND_DROP_PROP_ITEMS) expect(overworldItemIconKey(kind)).toBe(`icon_item_${kind}`);
+    const asset = (name: string) => ({ name, image: { src: name }, anchor: [8, 15], metadata: { image: name, animations: { base: [{ x: 0, y: 0, width: 16, height: 16, durationTicks: 5 }] } } }) as unknown as LoadedAsset;
+    const art = { oreItems: {}, groundItems: { pebble: asset('item_cf_pebble') }, itemIcons: { pebble: asset('icon_item_pebble'), stone: asset('item_cf_stone') }, missingItem: asset('system_missing_asset') } as unknown as OverworldArt;
+    const drawn: unknown[] = [];
+    const context = { save() {}, restore() {}, translate() {}, scale() {}, setTransform() {}, getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }), drawImage: (image: unknown) => drawn.push(image), imageSmoothingEnabled: false, filter: 'none', globalAlpha: 1 } as unknown as CanvasRenderingContext2D;
+    drawOverworldItem(context, art, 'pebble', 40, 40, 0, 0, 0, 1);
+    drawOverworldItem(context, art, 'stone', 40, 40, 0, 0, 0, 1);
+    expect(drawn).toEqual([{ src: 'item_cf_pebble' }, { src: 'item_cf_stone' }]);
   });
 
   it('draws an authored resource named for a nature family from that family', () => {

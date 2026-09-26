@@ -1,0 +1,63 @@
+{
+  "name": "icon_item_pebble",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "......0000......",
+        "....00444300....",
+        "...0455443330...",
+        "..045544333320..",
+        "..044433333320..",
+        "..033333333220..",
+        "..033333322220..",
+        "...0222222210...",
+        "....00211100....",
+        "......0000......",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_pebble.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_pebble.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#262b44",
+    "2": "#3c4258",
+    "3": "#6c7c9d",
+    "4": "#8e9ab4",
+    "5": "#c0cbdc"
+  },
+  "sourcePaletteMode": "exact"
+}

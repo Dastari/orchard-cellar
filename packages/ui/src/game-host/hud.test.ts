@@ -106,7 +106,7 @@ describe('production shared HUD compositions', () => {
       host.draw(context as unknown as CanvasRenderingContext2D);
       host.roots.hotbarVitals.arrange();
       const slot = host.roots.hotbarVitals.entries().find(row => row.element.id === 'game.hud.hotbar.slot.1')!.element.rect;
-      return fill.mock.calls.filter(([x, y, , height]) => x === slot.x + 5 && y === slot.y + slot.height - 7 && height === 3).length;
+      return fill.mock.calls.filter(([x, y, , height]) => x === slot.x + 5 && y === slot.y + slot.height - 8 && height === 3).length;
     };
     // The bootstrap fallback knows nothing of the Studio-only blade; the live registry gives it a wear bar.
     expect(tracks()).toBe(0);

@@ -2,6 +2,18 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.48.0 / UI 0.47.0 / Engine 0.29.2 / Assets 0.24.0 / Studio 0.16.10 — Slot icon position B and eight new item icons
+
+The owner approved both on 2026-09-26 (wiki Roadmap/Item Slot Component, "Owner decisions 2026-09-26").
+
+- **Slot icon position B (#208).** In every item slot, the icon sits 1px higher (6px down instead of 7), and the wear bar and stack count move up 1px to match. The slot stays 28×31. The kit slot, HUD hotbar, character doll and the older game UI painters all move together.
+- **Eight new 16×16 item icons (#208).**
+  - **The icons:** apple, cherries, peach, pear, arrow, pebble, emberglass and guardian seal replace the small ground-drop art that was used in slots. They are project-drawn in the pack palette, with sources in `art/custom/small-item-icons/`.
+  - **Content R22:** eight `icon.asset` upserts.
+  - **Ground drops:** apple, pear, peach, cherry, pebble and arrow keep their small ground-drop sprites. Emberglass and guardian seal drop as their new icons.
+- Also deploys item slot component S0 and slot deny lists (#206, merged via #207; see Client 0.47.2).
+- Workspace 0.63.0.
+
 ## Client 0.47.2 / UI 0.46.0 / Sim 0.33.0 / World 0.26.10 / Studio 0.16.9 — Item slot component S0 and slot deny lists
 
 No visual change, no database schema change and no content change (the item slot plan is on the wiki at Roadmap/Item Slot Component).
