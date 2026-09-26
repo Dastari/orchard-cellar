@@ -2,6 +2,12 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.47.1 / UI 0.45.1 — Window sections top-align (item 8); chat on the hunger strip
+
+- **Item 8 (#202, owner-approved 2026-09-26, including station windows).** Side-by-side window sections share a top edge: EQUIPMENT lines up with BACKPACK, and station panels (furnace, barrel, cooking, press, fermentation, crafting) start level with BACKPACK.
+- **Chat in the narrow keyboard HUD (#203).** Below 480 px logical width, the chat stands on the hunger strip instead of floating 37 px above it, so it shows more history lines. Touch play is unaffected.
+- Workspace 0.61.1.
+
 ## Client 0.47.0 / UI 0.45.0 / Sim 0.32.1 / World 0.26.9 / Studio 0.16.8 — One slot look, caps in game windows, recipe placement clears the grid
 
 The owner approved each change (wiki Roadmap/Game UI Redesign, "Owner decisions, 2026-09-25"). BoldBridge wrote the PRs, and SilverSquirrel finished them after review.
