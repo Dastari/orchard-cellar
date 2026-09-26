@@ -185,8 +185,9 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   const hotbar = definition.hotbar && options.aliases.hotbar ? uiInventoryGrid({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, hotkeys: true, layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
   const storage = options.aliases.entity === 'chest';
   const frame = uiWindow({ id: definition.id, title: definition.title, frame: storage ? 'crate' : 'wood', onClose: options.onClose,
-    // Sections sit side by side and stack on screens too narrow for both.
-    layout: { direction: 'row', wrap: true, gap: 16, align: 'center' }, children, footer: hotbar });
+    // Sections sit side by side, tops aligned so their headings line up (owner item 8),
+    // and stack on screens too narrow for both.
+    layout: { direction: 'row', wrap: true, gap: 16, align: 'start' }, children, footer: hotbar });
   // Hosts may position the window, but it always sizes itself to its content.
   if (options.layout) frame.setStyle({ ...frame.style, ...options.layout, width: frame.style.width, height: frame.style.height });
   const updateState = (next: NonNullable<UiContentFrameOptions['state']>): void => { state = next; for (const update of refresh) update(); };

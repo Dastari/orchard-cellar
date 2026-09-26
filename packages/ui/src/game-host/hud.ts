@@ -86,11 +86,11 @@ export type GameHudArrangement = 'row' | 'stacked';
 export function gameHudArrangement(width: number, touch: boolean): GameHudArrangement {
   return touch || width < HUD_ROW_WIDTH + 8 ? 'stacked' : 'row';
 }
-/** Top of the character card's hunger line in the non-touch HUD; chat sits above it. */
+/** Top of the character card's hunger line in the non-touch HUD; chat sits above it. Both arrangements stand the
+ * card directly on the hotbar (the shortcuts live in the bottom-left corner, never above the frames). */
 export function gameHudCharacterTop(width: number, height: number): number {
-  const barY = Math.max(0, height - 6 - hudHotbarSize(width).height), hunger = barY - 4 - UI_CLASSIC_VITALS.height - 10;
-  // Narrow screens may raise the shortcuts into a row above the frames.
-  return Math.max(0, gameHudArrangement(width, false) === 'row' ? hunger : hunger - 4 - 33);
+  const barY = Math.max(0, height - 6 - hudHotbarSize(width).height);
+  return Math.max(0, barY - 4 - UI_CLASSIC_VITALS.height - 10);
 }
 function scoped(node: UiElement): UiElement { node.setProps({ singlePointer: true }); return node; }
 function vitalLabel(kind: UiVitalKind, value: UiVitalValues | undefined, centi: boolean): string {

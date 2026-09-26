@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { bootstrapContentRegistry } from '@orchard/sim';
-import { GameHud, type GameHudModel, type GameHudSurface } from './hud.js';
+import { GameHud, gameHudArrangement, gameHudCharacterTop, type GameHudModel, type GameHudSurface } from './hud.js';
 import { uiPurseWidth } from '../kit/components/purse.js';
 import { touchControlLayout } from '../touch-control-layout.js';
 import { TouchControls } from '../touch-controls.js';
@@ -215,6 +215,12 @@ describe('desktop HUD arrangement', () => {
     if (width >= 640) expect(purse.rect.y + purse.rect.height).toBe(height - 6);
     else expect(purse.rect.y + purse.rect.height).toBeLessThanOrEqual(first.rect.y - 6);
     for (const other of [card, target, first, last]) expect(purse.rect.x >= other.rect.x + other.rect.width || purse.rect.y >= other.rect.y + other.rect.height || purse.rect.y + purse.rect.height <= other.rect.y, other.id).toBe(true);
+  });
+  it.each([[320, 180], [400, 225], [480, 270], [640, 360]])('tells the chat where the hunger strip really starts at %sx%s, in both arrangements', (width, height) => {
+    const f = fixture(width, height), hunger = f.node('hotbarVitals', 'game.hud.hunger'), card = f.node('hotbarVitals', 'game.hud.character');
+    expect(gameHudArrangement(width, false)).toBe(width < 480 ? 'stacked' : 'row');
+    // The chat stands on the hunger strip, not 37px higher where the shortcuts used to sit.
+    expect(gameHudCharacterTop(width, height)).toBe(hunger.rect.y); expect(hunger.rect.y + 10).toBe(card.rect.y);
   });
   it('caps a huge balance at a plate that still clears the target card', () => {
     const f = fixture(480, 270), purse = f.node('hotbarVitals', 'game.hud.purse'), target = f.node('targetEffects', 'game.hud.target');
