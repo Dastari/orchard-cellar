@@ -32,14 +32,14 @@ export interface UiSlotState {
   readonly selected?: boolean;
   readonly pending?: boolean;
 }
-/** Remaining cooldown, 0..1 of the whole. Carried in the slot's props; the draining shade awaits approval. */
+/** Remaining cooldown, 0..1 of the whole. Reported by uiSlotView; the draining shade awaits approval. */
 export interface UiSlotCooldown { readonly fraction: number; readonly seconds?: number }
-/** How a slot takes part in drag and drop. Carried in the slot's props until the slot controller (S2) reads it. */
+/** How a slot takes part in drag and drop. Reported by uiSlotView until the slot controller (S2) reads it. */
 export interface UiSlotDrag {
   readonly source?: boolean; readonly target?: boolean; readonly split?: boolean; readonly quickMove?: readonly string[];
 }
 /** Empty-slot placeholder: an equipment silhouette (painted today), or a derived item silhouette or an icon.
- * The item and icon forms are carried in the slot's props; their look awaits owner approval. */
+ * The item and icon forms are reported by uiSlotView and not painted; their look awaits owner approval. */
 export type UiSlotPlaceholderSource = UiSlotPlaceholder | { readonly item: string } | { readonly icon: UiIconSource };
 type UiSlotValue<T> = T | (() => T);
 export interface UiSlotOptions {
