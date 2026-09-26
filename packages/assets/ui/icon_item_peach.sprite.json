@@ -1,0 +1,67 @@
+{
+  "name": "icon_item_peach",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....000.0.......",
+        "...0115070......",
+        "..05566070......",
+        "...000007000....",
+        "...0334244220...",
+        "..043342442220..",
+        "..043442422280..",
+        "..044424422280..",
+        "..044424222880..",
+        "..024442222880..",
+        "..022422228880..",
+        "...0222228880...",
+        "....08228880....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_peach.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_peach.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "proposal.small_item_icons"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#5ac54f",
+    "5": "#33984b",
+    "6": "#1e6f50",
+    "7": "#5d2c28",
+    "2": "#e77773",
+    "3": "#fedea5",
+    "4": "#ffb584",
+    "8": "#c15b71"
+  },
+  "sourcePaletteMode": "exact"
+}

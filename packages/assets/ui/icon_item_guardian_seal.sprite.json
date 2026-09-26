@@ -1,0 +1,65 @@
+{
+  "name": "icon_item_guardian_seal",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....00000......",
+        "...003333200....",
+        "..03322222220...",
+        "..03222222220...",
+        ".0322111112220..",
+        ".0322133212240..",
+        ".0322122212240..",
+        ".0222212122240..",
+        "..02222122240...",
+        "..04422222440...",
+        "...064444460....",
+        "..06670006670...",
+        "..06070.06070...",
+        "...0.0...0.0....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_guardian_seal.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_guardian_seal.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "proposal.small_item_icons"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#a28426",
+    "2": "#feae34",
+    "3": "#fee761",
+    "4": "#f77622",
+    "6": "#c42430",
+    "7": "#891e2b"
+  },
+  "sourcePaletteMode": "exact"
+}

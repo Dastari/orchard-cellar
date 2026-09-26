@@ -1,0 +1,66 @@
+{
+  "name": "icon_item_cherry",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "..........000...",
+        "........103320..",
+        ".......1.122110.",
+        ".......1.10000..",
+        "......1...1.....",
+        "......1..0000...",
+        ".....1..077660..",
+        "...000007766650.",
+        "..0776607666650.",
+        ".07766650666550.",
+        ".07666650665550.",
+        ".0666655054440..",
+        ".056655500000...",
+        "..054440........",
+        "...0000.........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_cherry.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_cherry.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "proposal.small_item_icons"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#1e6f50",
+    "2": "#33984b",
+    "3": "#5ac54f",
+    "4": "#571c27",
+    "5": "#891e2b",
+    "6": "#c42430",
+    "7": "#f5555d"
+  },
+  "sourcePaletteMode": "exact"
+}

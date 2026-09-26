@@ -35,3 +35,11 @@ The final background-extraction prompt was:
 > tail. Do not draw a checkerboard, white backdrop, black backdrop, or shadow. The
 > output must have actual alpha=0 background pixels, not a picture of transparency.
 > Retain pixel art edges and original position.
+
+`small-item-icons/` holds project-drawn 16×16 inventory icons proposed on
+2026-09-26 for the eight items whose icon was a small ground-drop sprite (apple,
+cherries, peach, pear, arrow, pebble, emberglass and guardian seal). They were
+hand-authored as `packages/assets/ui/icon_item_*.sprite.json` grids with colours
+taken from the existing Kenmi fruit, arrow and pebble sprites; each PNG is the
+exact 1:1 export of its grid. Proposal only until the owner approves: `items.json`
+still points at the old art. Review renders: wiki `Roadmap/Item Slot Component`.

@@ -1,0 +1,66 @@
+{
+  "name": "icon_item_emberglass",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00.......",
+        "......0540......",
+        ".....055420.....",
+        "....054332100...",
+        "....0573321040..",
+        "...005733214310.",
+        "..0505433214310.",
+        ".05315443214310.",
+        ".05315464214310.",
+        ".05315464214310.",
+        ".05315443214310.",
+        ".05315433214310.",
+        ".02112222112110.",
+        "..000000000000..",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_emberglass.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_emberglass.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original",
+    "proposal.small_item_icons"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#571c27",
+    "2": "#a25126",
+    "3": "#ff2f00",
+    "4": "#ff7800",
+    "5": "#f6aa75",
+    "6": "#ffc825",
+    "7": "#fedea5"
+  },
+  "sourcePaletteMode": "exact"
+}
