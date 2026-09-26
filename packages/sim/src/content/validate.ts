@@ -1202,6 +1202,22 @@ function recipeInputValue(
   return value;
 }
 
+/** A slot's required or rejected item type that no item (retired ones included) carries is probably a typo: it
+ * makes a required type refuse everything, or a deny list refuse nothing. This is a warning only and never
+ * changes validity: published production content (frame:furnace's fuel pane requires fuel.furnace in the
+ * Stage-A pack) already carries such tags, and live payloads must keep validating exactly as before. */
+function frameSlotTagWarnings(
+  definition: FrameContentDefinition,
+  byId: ReadonlyMap<string, SupportedContentDefinition>,
+): readonly ContentValidationIssue[] {
+  const itemTags = new Set([...byId.values()].flatMap((entry) => entry.kind === 'item' ? entry.tags : []));
+  return definition.panes.flatMap((pane, index) => (['requiredTags', 'rejectedTags'] as const).flatMap((field) =>
+    (pane.restriction?.[field] ?? []).flatMap((tag, tagIndex) => itemTags.has(tag) ? [] : [issue(
+      'warning', 'unresolved_reference', `frame slot item type matches no item: ${tag}`,
+      definition.id, `panes[${index}].restriction.${field}[${tagIndex}]`,
+    )])));
+}
+
 function validateFrameDefinition(
   definition: FrameContentDefinition,
   byId: ReadonlyMap<string, SupportedContentDefinition>,
@@ -1222,7 +1238,6 @@ function validateFrameDefinition(
     }
   }
   const entitySlots = new Set<number>();
-  const itemTags = new Set([...byId.values()].flatMap((entry) => entry.kind === 'item' ? entry.tags : []));
   for (const [index, pane] of definition.panes.entries()) {
     const path = `panes[${index}]`;
     if ('entitySlots' in pane.bind) {
@@ -1240,16 +1255,6 @@ function validateFrameDefinition(
     if ('timing' in pane.bind && pane.kind !== 'text') invalid('timing bindings require a text pane', `${path}.bind`);
     if (pane.restriction !== undefined && pane.kind !== 'slots' && pane.kind !== 'paper_doll') {
       invalid('restrictions are valid only on slot panes', `${path}.restriction`);
-    }
-    // A slot's required or rejected item type must be one some item (retired ones included) carries: a typo would
-    // silently make a required type refuse everything, or a deny list refuse nothing.
-    for (const field of ['requiredTags', 'rejectedTags'] as const) {
-      for (const [tagIndex, tag] of (pane.restriction?.[field] ?? []).entries()) {
-        if (!itemTags.has(tag)) {
-          errors.push(issue('error', 'unresolved_reference', `frame slot item type matches no item: ${tag}`,
-            definition.id, `${path}.restriction.${field}[${tagIndex}]`));
-        }
-      }
     }
     const processReferences = [
       ...('recipeFilter' in pane.bind && pane.bind.recipeFilter.process !== undefined ? [pane.bind.recipeFilter.process] : []),
@@ -2054,6 +2059,7 @@ export function validateContentDefinitions(
     }
     if (definition.kind === 'frame') {
       errors.push(...validateFrameDefinition(definition, byId));
+      warnings.push(...frameSlotTagWarnings(definition, byId));
     }
     if (definition.kind === 'loot') {
       errors.push(...validateLootDefinition(definition, byId));
