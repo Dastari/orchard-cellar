@@ -201,7 +201,10 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
     ];
     case 'shop': return definition.offers.map(({ item }) => item);
     case 'tileset': return [];
-    case 'frame': return definition.panes.flatMap((pane) => pane.restriction?.acceptedItems ?? []);
+    case 'frame': return definition.panes.flatMap((pane) => [
+      ...(pane.restriction?.acceptedItems ?? []),
+      ...(pane.restriction?.rejectedItems ?? []),
+    ]);
     case 'loot': return definition.groups.flatMap(({ entries }) => entries.flatMap(({ target }) => (
       'item' in target ? [target.item] : []
     )));
@@ -1199,6 +1202,22 @@ function recipeInputValue(
   return value;
 }
 
+/** A slot's required or rejected item type that no item (retired ones included) carries is probably a typo: it
+ * makes a required type refuse everything, or a deny list refuse nothing. This is a warning only and never
+ * changes validity: published production content (frame:furnace's fuel pane requires fuel.furnace in the
+ * Stage-A pack) already carries such tags, and live payloads must keep validating exactly as before. */
+function frameSlotTagWarnings(
+  definition: FrameContentDefinition,
+  byId: ReadonlyMap<string, SupportedContentDefinition>,
+): readonly ContentValidationIssue[] {
+  const itemTags = new Set([...byId.values()].flatMap((entry) => entry.kind === 'item' ? entry.tags : []));
+  return definition.panes.flatMap((pane, index) => (['requiredTags', 'rejectedTags'] as const).flatMap((field) =>
+    (pane.restriction?.[field] ?? []).flatMap((tag, tagIndex) => itemTags.has(tag) ? [] : [issue(
+      'warning', 'unresolved_reference', `frame slot item type matches no item: ${tag}`,
+      definition.id, `panes[${index}].restriction.${field}[${tagIndex}]`,
+    )])));
+}
+
 function validateFrameDefinition(
   definition: FrameContentDefinition,
   byId: ReadonlyMap<string, SupportedContentDefinition>,
@@ -2040,6 +2059,7 @@ export function validateContentDefinitions(
     }
     if (definition.kind === 'frame') {
       errors.push(...validateFrameDefinition(definition, byId));
+      warnings.push(...frameSlotTagWarnings(definition, byId));
     }
     if (definition.kind === 'loot') {
       errors.push(...validateLootDefinition(definition, byId));
