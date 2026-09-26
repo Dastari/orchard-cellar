@@ -88,15 +88,16 @@ export type UiSlotPlaceholder = (typeof EQUIPMENT_SLOTS)[number]['id'] | 'bag' |
 const LEGACY_SILHOUETTES: Readonly<Record<string, string>> = { bag: 'backpack', ring: 'watch', shield: 'off_hand', weapon: 'main_hand' };
 /** Stack counts and hotkeys: dark ink on a light halo, legible on every slot tone. */
 export const UI_SLOT_INKS = Object.freeze({ color: '#3f2832', outlineColor: '#f8ead0' });
-/** The 16px icon well of a 28x31 slot (scaled with larger slots): 6px in, 7px down. */
+/** The 16px icon well of a 28x31 slot (scaled with larger slots): 6px in, 6px down (owner position B, 2026-09-26). */
 export function uiSlotIconRect(r: UiRect): UiRect {
   const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31))), size = 16 * scale;
-  return { x: r.x + Math.floor((r.width - size) / 2), y: r.y + 7 * scale, width: size, height: size };
+  return { x: r.x + Math.floor((r.width - size) / 2), y: r.y + 6 * scale, width: size, height: size };
 }
 const WEAR_FILLS = { good: 'bar_fill_green.base.0', worn: 'bar_fill_gold.base.0', failing: 'bar_fill_red.base.0' } as const;
-/** The wear bar: a dark 3px track 5px in from the sides and 7px above the foot, filled green, gold then red. */
+/** The wear bar: a dark 3px track 5px in from the sides and 8px above the foot (1px clear below the icon well), filled
+ * green, gold then red. */
 function paintUiSlotWear(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, fraction: number, scale: number): void {
-  const track = { x: r.x + 5 * scale, y: r.y + r.height - 7 * scale, width: r.width - 10 * scale, height: 3 * scale };
+  const track = { x: r.x + 5 * scale, y: r.y + r.height - 8 * scale, width: r.width - 10 * scale, height: 3 * scale };
   context.fillStyle = '#3f2832'; context.fillRect(track.x, track.y, track.width, track.height);
   const width = Math.round(track.width * fraction);
   if (width <= 0) { context.fillStyle = '#c34242'; context.fillRect(track.x, track.y, scale, track.height); return; }
@@ -181,7 +182,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
             context.restore();
           }
         }
-        if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 14 * scale, { align: 'right', ...UI_SLOT_INKS });
+        if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 15 * scale, { align: 'right', ...UI_SLOT_INKS });
         const durability = uiDurabilityFraction(item.itemKind, item.durability, uiSlotArtRegistry(slotArt));
         if (!ghost && durability !== null) paintUiSlotWear(context, art, r, durability, scale);
       } else if (typeof options.placeholder === 'string') paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);

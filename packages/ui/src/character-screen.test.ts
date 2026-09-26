@@ -141,8 +141,8 @@ describe('production retained character adapter', () => {
     const root = new UiRoot({ art, scale: 1 });
     const slot = uiSlot({ stack: { itemKind: 'axe', quantity: 1 } }); root.mount(slot); root.resize(28,31); root.arrange();
     const context = createCanvas(28,31).getContext('2d'); const fill = vi.spyOn(context,'fillRect');
-    // The wear track: 5px in from the sides, 7px above the foot, 3px tall (the classic hotbar bar).
-    try { root.drawInContext(context as unknown as CanvasRenderingContext2D); expect(fill).toHaveBeenCalledWith(slot.rect.x+5,slot.rect.y+slot.rect.height-7,slot.rect.width-10,3); }
+    // The wear track: 5px in from the sides, 8px above the foot (owner position B), 3px tall.
+    try { root.drawInContext(context as unknown as CanvasRenderingContext2D); expect(fill).toHaveBeenCalledWith(slot.rect.x+5,slot.rect.y+slot.rect.height-8,slot.rect.width-10,3); }
     finally { root.dispose(); }
   });
   it('paints worn equipment content once through the authoritative renderer', () => {
@@ -155,7 +155,7 @@ describe('production retained character adapter', () => {
     f.screen.draw(context as unknown as CanvasRenderingContext2D);
     const bounds = f.node('character.equipment.slot.0').rect;
     // The custom renderer draws only the icon, into the slot's icon well; the slot draws the one wear track.
-    const tracks = fill.mock.calls.filter(([x,y,,height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 7 && height === 3);
+    const tracks = fill.mock.calls.filter(([x,y,,height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 8 && height === 3);
     expect(tracks).toHaveLength(1);
     expect(f.drawItem).toHaveBeenCalledExactlyOnceWith(expect.anything(), uiSlotIconRect(bounds), expect.objectContaining({ itemKind: 'axe', quantity: 3, durability: 17, lit: false }));
   });
@@ -172,7 +172,7 @@ describe('production retained character adapter', () => {
       const context = createCanvas(640, 400).getContext('2d'), fill = vi.spyOn(context, 'fillRect');
       screen.draw(context as unknown as CanvasRenderingContext2D);
       const bounds = screen.root.entries().find(entry => entry.element.id === 'character.equipment.slot.0')!.element.rect;
-      return fill.mock.calls.filter(([x, y, , height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 7 && height === 3).length;
+      return fill.mock.calls.filter(([x, y, , height]) => x === bounds.x + 5 && y === bounds.y + bounds.height - 8 && height === 3).length;
     };
     // The bootstrap fallback knows nothing of the Studio-only blade; the live registry gives it a wear bar.
     expect(tracks()).toBe(0);
