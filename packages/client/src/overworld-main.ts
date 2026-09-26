@@ -266,7 +266,7 @@ setLoadingScreenStage({
 });
 const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
 const retainedUi = new GameUiRuntime();
-upgradeLoadingScreen(kitArt, art.fruitItems['apple'] ?? art.missingItem);
+upgradeLoadingScreen(kitArt, art.groundItems['apple'] ?? art.missingItem);
 setLoadingScreenStage({
   title: 'SAILING TO YOUR ISLAND', detail: 'CONNECTING TO THE SHARED WORLD', progress: 58,
 });
@@ -4735,7 +4735,7 @@ function renderFrame(alpha = 1): void {
       presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
       if (gap.kind === 'initial-loading') {
         drawInitialWorldLoading(renderer, {
-          kitArt, apple: art.fruitItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
+          kitArt, apple: art.groundItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
         }, loadingStage, import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
       } else if (gap.kind === 'retained-world') {
         renderer.compositeWorld();

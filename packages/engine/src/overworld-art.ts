@@ -109,7 +109,8 @@ export interface OverworldArt {
   readonly poiDecorations: Readonly<Record<string, LoadedAsset>>;
   readonly natureDecorations: Readonly<Record<string, readonly LoadedAsset[]>>;
   readonly oceanSurfaceDecorations: readonly LoadedAsset[];
-  readonly fruitItems: Readonly<Record<string, LoadedAsset>>;
+  /** World ground-drop sprites by item kind (GROUND_DROP_PROP_ITEMS). */
+  readonly groundItems: Readonly<Record<string, LoadedAsset>>;
   readonly rockStone: LoadedAsset;
   readonly woodFloor: LoadedAsset;
   readonly hearthTownhouseFloor: LoadedAsset;
@@ -418,12 +419,17 @@ async function loadFruitTreeArt(): Promise<
   );
 }
 
-async function loadFruitItemArt(): Promise<
+/** Items whose inventory icon (content `icon.asset`) is a 16px UI icon but whose
+ * ground drop keeps its small Kenmi prop sprite in the world (owner decision
+ * 2026-09-26, wiki Roadmap/Item Slot Component). Landed arrows draw `itemArrow`. */
+export const GROUND_DROP_PROP_ITEMS = ["apple", "pear", "peach", "cherry", "pebble", "arrow"] as const;
+
+async function loadGroundItemArt(): Promise<
   Readonly<Record<string, LoadedAsset>>
 > {
   return Object.fromEntries(
     await Promise.all(
-      ["apple", "pear", "peach", "cherry"].map(async (kind) => [
+      GROUND_DROP_PROP_ITEMS.map(async (kind) => [
         kind,
         await loadGeneratedAsset(`item_cf_${kind}`, "summer"),
       ]),
@@ -811,7 +817,7 @@ export async function loadOverworldArt(
     natureDecorations,
     oceanSurfaceDecorations,
     fruitTrees,
-    fruitItems,
+    groundItems,
     mountedHorses,
     beeHive,
     beeNest,
@@ -989,7 +995,7 @@ export async function loadOverworldArt(
       loadGeneratedAsset("nature_cf_ocean_surface_02", "summer"),
     ]),
     loadFruitTreeArt(),
-    loadFruitItemArt(),
+    loadGroundItemArt(),
     Promise.all(
       Array.from({ length: 5 }, (_, variant) =>
         loadGeneratedAsset(
@@ -1284,7 +1290,7 @@ export async function loadOverworldArt(
     natureDecorations,
     oceanSurfaceDecorations,
     fruitTrees,
-    fruitItems,
+    groundItems,
     grass,
     stoneCliffInverseOverlay,
     dirtTerrace,
@@ -2412,7 +2418,7 @@ export function drawOverworldItem(
   drawAnchored(
     context,
     art.oreItems[itemKind] ??
-      art.fruitItems[itemKind] ??
+      art.groundItems[itemKind] ??
       art.itemIcons[itemKind] ??
       art.missingItem,
     "base",
