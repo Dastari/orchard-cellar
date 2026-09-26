@@ -2,6 +2,22 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.47.2 / UI 0.46.0 / Sim 0.33.0 / World 0.26.10 / Studio 0.16.9 — Item slot component S0 and slot deny lists
+
+No visual change, no database schema change and no content change (the item slot plan is on the wiki at Roadmap/Item Slot Component).
+
+- **Item slot component S0 (#206).** This is groundwork for the owner's rule that one kit slot is the only thing that shows or handles items.
+  - **Opaque art:** the `UiSlotArt` resolver means surfaces can pass item art to a slot but can't draw it.
+  - **Typed state:** slot props carry rules, state (enabled, locked, selected, pending), cooldown, drag and placeholders. Only today's looks are painted; the new states wait for owner PNG approval.
+  - **Shared rules:** the slot's accept/refuse check calls the same `slotAcceptsItem` as the server.
+  - **Boundary test:** a test with an allowlist counted per site (19 files, each mapped to its migration step), which can only shrink.
+  - **Wording:** a refused slot says "THAT ITEM DOESN'T GO IN THAT SLOT".
+- **Slot deny lists (owner requirement).**
+  - **New fields:** frame slot restrictions gain `rejectedItems` and `rejectedTags`. They are enforced by the shared sim rule on every server path, and a deny always wins.
+  - **Studio:** the frame editor shows both fields.
+  - **Validation:** an unknown tag in a slot rule is a validation warning, never an error.
+- Workspace 0.62.0.
+
 ## Client 0.47.1 / UI 0.45.1 — Window sections top-align (item 8); chat on the hunger strip
 
 - **Item 8 (#202, owner-approved 2026-09-26, including station windows).** Side-by-side window sections share a top edge: EQUIPMENT lines up with BACKPACK, and station panels (furnace, barrel, cooking, press, fermentation, crafting) start level with BACKPACK.
