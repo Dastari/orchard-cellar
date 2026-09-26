@@ -48,6 +48,11 @@ export function resolveFrameSlotRestriction(
     ...(restriction.acceptedItems === undefined && source === undefined
       ? {} : { acceptedKinds: Object.freeze([...accepted].sort()) }),
     ...(restriction.requiredTags === undefined ? {} : { requiredTags: Object.freeze([...restriction.requiredTags]) }),
+    // Deny lists stay separate from the allow list so the shared rule can let them win.
+    ...(restriction.rejectedItems === undefined ? {} : {
+      rejectedKinds: Object.freeze([...new Set(restriction.rejectedItems.map(itemSlug))].sort()),
+    }),
+    ...(restriction.rejectedTags === undefined ? {} : { rejectedTags: Object.freeze([...restriction.rejectedTags]) }),
     ...(restriction.readOnly === undefined ? {} : { readOnly: restriction.readOnly }),
   });
 }

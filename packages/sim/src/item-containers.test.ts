@@ -110,6 +110,32 @@ describe('shared container stacking rules', () => {
     expect(slotAcceptsItem(hand, 0, 'wood')).toBe(false);
   });
 
+  it('refuses items on a slot deny list, by item and by item type, and lets the denial win', () => {
+    const byItem = { id: 'bin', capacity: 1, slots: [null], restrictions: { 0: { rejectedKinds: ['wood'] } } } as const;
+    expect(slotAcceptsItem(byItem, 0, 'wood')).toBe(false);
+    expect(slotAcceptsItem(byItem, 0, 'stone')).toBe(true);
+    const byTag = { id: 'bin', capacity: 1, slots: [null], restrictions: { 0: { rejectedTags: ['item.tool'] } } } as const;
+    expect(slotAcceptsItem(byTag, 0, 'axe')).toBe(false);
+    expect(slotAcceptsItem(byTag, 0, 'wood')).toBe(true);
+    // Allow plus deny: the allow list admits both kinds, the deny list removes one of them.
+    const both = { id: 'bin', capacity: 1, slots: [null], restrictions: { 0: {
+      acceptedKinds: ['wood', 'stone'], rejectedKinds: ['stone'],
+    } } } as const;
+    expect(slotAcceptsItem(both, 0, 'wood')).toBe(true);
+    expect(slotAcceptsItem(both, 0, 'stone')).toBe(false);
+    // Required type plus a denied type: tools are required, farming tools are refused.
+    const tools = { id: 'hand', capacity: 1, slots: [null], restrictions: { 0: {
+      requiredTags: ['item.tool'], rejectedTags: ['tool.farming.cultivate'],
+    } } } as const;
+    expect(BOOTSTRAP_ITEM_CONTAINER_CONTENT.hasTag('hoe', 'item.tool')).toBe(true);
+    expect(slotAcceptsItem(tools, 0, 'hoe')).toBe(false);
+    expect(slotAcceptsItem(tools, 0, 'pickaxe')).toBe(true);
+    expect(slotAcceptsItem(tools, 0, 'wood')).toBe(false);
+    // The server refuses denied moves with the same code the UI toasts.
+    expect(clickContainerSlot({ bin: byItem }, { itemKind: 'wood', quantity: 1 }, { container: 'bin', index: 0, button: 'left' }, BOOTSTRAP_ITEM_CONTAINER_CONTENT))
+      .toEqual({ ok: false, code: 'slot_rejects_item' });
+  });
+
   it('treats authority-owned output slots as read-only destinations', () => {
     const output = {
       id: 'processor', capacity: 1, slots: [null], restrictions: { 0: { readOnly: true } },

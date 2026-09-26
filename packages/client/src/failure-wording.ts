@@ -16,7 +16,8 @@ export function failureToastText(error: unknown, overrides: FailureWording = [])
     ['insufficient_vigour', 'INSUFFICIENT VIGOUR'],
     ['anvil_copper_missing', 'ANVIL REPAIR NEEDS 5 COPPER'],
     ['anvil_not_in_reach', 'FACE A NEARBY ANVIL'],
-    ['furnace_slot_restricted', 'ORE GOES ABOVE, WOOD OR PLANKS BELOW'],
+    // Every slot rule (allow and deny lists, item types, take-only outputs) refuses with this one code.
+    ['slot_rejects_item', "THAT ITEM DOESN'T GO IN THAT SLOT"],
     ['recipe_inputs_missing', "THE GRID DOESN'T MATCH THE RECIPE"],
     ['recipe_not_found', 'THAT RECIPE IS NOT AVAILABLE'],
     ['item_reserved', 'THAT DROP IS RESERVED FOR ITS MINER'],

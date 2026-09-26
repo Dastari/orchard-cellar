@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { parseFrameDefinition } from './frame-definition.js';
-import { bootstrapContentRegistry } from './bootstrap-registry.js';
+import { bootstrapContentRegistry, bootstrapContentRows } from './bootstrap-registry.js';
+import { buildContentRegistry } from './registry.js';
+import stageAContentRows from './fixtures/stage-a-content-459.json' with { type: 'json' };
 
 const bootstrapFrameDefinitions = () => [...bootstrapContentRegistry().frames.values()];
 
@@ -35,6 +37,67 @@ describe('authored frame definitions', () => {
     expect(barrel?.buttons).toEqual([expect.objectContaining({
       interaction: 'seal', visibleWhen: { state: 'sealed', equals: false },
     })]);
+  });
+
+  it('round-trips authored deny lists by item and by item type', () => {
+    const chest = bootstrapFrameDefinitions().find(({ id }) => id === 'frame:chest')!;
+    const pane = chest.panes.find(({ kind }) => kind === 'slots')!;
+    const restriction = { acceptedItems: ['item:wood', 'item:coal'], rejectedItems: ['item:coal'], rejectedTags: ['item.tool'] };
+    const parsed = parseFrameDefinition(JSON.stringify({
+      ...chest, panes: chest.panes.map((entry) => entry === pane ? { ...entry, restriction } : entry),
+    }));
+    expect(parsed.panes.find(({ id }) => id === pane.id)?.restriction).toEqual(restriction);
+    expect(() => parseFrameDefinition({
+      ...chest, panes: chest.panes.map((entry) => entry === pane ? { ...entry, restriction: { rejectedTags: ['Not A Tag'] } } : entry),
+    })).toThrow('rejectedTags[0]: invalid stable reference');
+    expect(() => parseFrameDefinition({
+      ...chest, panes: chest.panes.map((entry) => entry === pane ? { ...entry, restriction: { rejectedItems: 'item:coal' } } : entry),
+    })).toThrow('rejectedItems: expected array');
+  });
+
+  it('validates deny-listed items as item references', () => {
+    const rows = bootstrapContentRows();
+    const withDeny = (item: string) => buildContentRegistry(rows.map((row) => {
+      if (row.id !== 'frame:chest') return row;
+      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; restriction?: unknown }[] };
+      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.kind === 'slots'
+        ? { ...pane, restriction: { rejectedItems: [item] } } : pane) }) };
+    }));
+    expect(withDeny('item:coal').report.errors).toEqual([]);
+    expect(withDeny('item:not_present').report.errors).toContainEqual(expect.objectContaining({
+      code: 'unresolved_reference', definitionId: 'frame:chest',
+    }));
+  });
+
+  it('keeps the original production pack valid: its furnace fuel type (no item carries it) is only a warning', () => {
+    const { report } = buildContentRegistry(stageAContentRows);
+    expect(report.valid).toBe(true);
+    expect(report.errors).toEqual([]);
+    expect(report.warnings).toContainEqual(expect.objectContaining({ severity: 'warning', definitionId: 'frame:furnace',
+      message: 'frame slot item type matches no item: fuel.furnace' }));
+  });
+
+  it('warns, without refusing, about slot item types that no item carries, for required and rejected types alike', () => {
+    const rows = bootstrapContentRows();
+    const withRestriction = (restriction: Record<string, unknown>) => buildContentRegistry(rows.map((row) => {
+      if (row.id !== 'frame:chest') return row;
+      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; restriction?: unknown }[] };
+      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.kind === 'slots'
+        ? { ...pane, restriction } : pane) }) };
+    })).report;
+    const known = withRestriction({ requiredTags: ['item.tool'], rejectedTags: ['tool.farming.cultivate'] });
+    expect(known.errors).toEqual([]);
+    expect(known.warnings.filter(({ definitionId }) => definitionId === 'frame:chest')).toEqual([]);
+    for (const field of ['requiredTags', 'rejectedTags']) {
+      const report = withRestriction({ [field]: ['item.tool', 'item.nonexistent_tag'] });
+      // A warning only: live payloads that already carry such a tag (production's furnace fuel pane) stay valid.
+      expect(report.valid).toBe(true);
+      expect(report.errors).toEqual([]);
+      expect(report.warnings).toContainEqual(expect.objectContaining({ severity: 'warning',
+        code: 'unresolved_reference', definitionId: 'frame:chest', message: 'frame slot item type matches no item: item.nonexistent_tag',
+        path: expect.stringMatching(new RegExp(`restriction\\.${field}\\[1\\]$`, 'u')),
+      }));
+    }
   });
 
   it('owns client surface/custody presentation without deriving it from the frame id', () => {

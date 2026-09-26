@@ -91,6 +91,8 @@ export * from './overlays.js';
 export * from './meter.js';
 
 export * from './inventory.js';
+export { uiSlotArt, type UiSlotArt, type UiSlotArtOptions, type UiSlotArtwork } from './slot-art.js';
+export * from './slot-rules.js';
 export * from './inventory-panel.js';
 
 export * from './content-frame.js';
