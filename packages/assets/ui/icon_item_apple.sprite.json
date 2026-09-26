@@ -1,0 +1,67 @@
+{
+  "name": "icon_item_apple",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........0.000...",
+        ".......0903320..",
+        ".......08022110.",
+        "....0000800000..",
+        "...0677656650...",
+        "..067766666650..",
+        "..067666666550..",
+        "..066666666550..",
+        "..066666666550..",
+        "..056666665540..",
+        "..055666655440..",
+        "...0555554440...",
+        "....04444440....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_apple.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_apple.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#1e6f50",
+    "2": "#33984b",
+    "3": "#5ac54f",
+    "4": "#571c27",
+    "5": "#891e2b",
+    "6": "#c42430",
+    "7": "#f5555d",
+    "8": "#5d2c28",
+    "9": "#8a4836"
+  },
+  "sourcePaletteMode": "exact"
+}

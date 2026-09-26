@@ -31,7 +31,7 @@ function fixture() {
     worldGapPresentation, worldGapStartedAt: null as number | null, presentedRecoveryState: null,
     worldUpdateOverlay: { draw: vi.fn(), reset: vi.fn() },
     connectionRecoveryOverlay: { composite: vi.fn(), compositeResync: vi.fn() }, drawInitialWorldLoading: vi.fn(),
-    art: { ui: {}, uiSkin: {}, fruitItems: { apple: {} }, itemIcons: {}, missingItem: {} },
+    art: { ui: {}, uiSkin: {}, groundItems: { apple: {} }, itemIcons: {}, missingItem: {} },
     renderStarted: performance.now(), renderMetrics: { record: vi.fn(), recordRenderSubmit: vi.fn() },
     // Static world S4f: terrain readiness (always ready outside chunk mode `on`).
     spawnReadiness: { status: () => ({ ready: true }) as { ready: boolean } }, WORLD_GAP_GRACE_MS, TOPSIDE_SPACE_ID: 0, TILE_SIZE_FIXED: 256,

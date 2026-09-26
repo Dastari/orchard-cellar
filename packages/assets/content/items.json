@@ -105,7 +105,7 @@
     "schemaVersion": 1,
     "displayName": "Apple",
     "icon": {
-      "asset": "item_cf_apple"
+      "asset": "icon_item_apple"
     },
     "maxStack": 32,
     "tags": [
@@ -193,7 +193,7 @@
     "schemaVersion": 1,
     "displayName": "Arrow",
     "icon": {
-      "asset": "item_cf_arrow"
+      "asset": "icon_item_arrow"
     },
     "maxStack": 99,
     "tags": [
@@ -953,7 +953,7 @@
     "schemaVersion": 1,
     "displayName": "Cherries",
     "icon": {
-      "asset": "item_cf_cherry"
+      "asset": "icon_item_cherry"
     },
     "maxStack": 32,
     "tags": [
@@ -2157,7 +2157,7 @@
     "schemaVersion": 1,
     "displayName": "Emberglass",
     "icon": {
-      "asset": "icon_material_emberglass"
+      "asset": "icon_item_emberglass"
     },
     "quality": "uncommon",
     "maxStack": 99,
@@ -4884,7 +4884,7 @@
     "schemaVersion": 1,
     "displayName": "Guardian Seal",
     "icon": {
-      "asset": "icon_material_guardian_seal"
+      "asset": "icon_item_guardian_seal"
     },
     "quality": "legendary",
     "maxStack": 99,
@@ -9331,7 +9331,7 @@
     "schemaVersion": 1,
     "displayName": "Peach",
     "icon": {
-      "asset": "item_cf_peach"
+      "asset": "icon_item_peach"
     },
     "maxStack": 32,
     "tags": [
@@ -9398,7 +9398,7 @@
     "schemaVersion": 1,
     "displayName": "Pear",
     "icon": {
-      "asset": "item_cf_pear"
+      "asset": "icon_item_pear"
     },
     "maxStack": 32,
     "tags": [
@@ -9465,7 +9465,7 @@
     "schemaVersion": 1,
     "displayName": "Pebble",
     "icon": {
-      "asset": "item_cf_pebble"
+      "asset": "icon_item_pebble"
     },
     "maxStack": 99,
     "tags": [

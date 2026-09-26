@@ -229,7 +229,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // BUG-037 review: closing the crafting window or clicking away retires in-flight recipe placements, so a
 // late success can't restore a dismissed ghost; overworld-ui tests cover it.
 // Integration #188 + #189 + #190: the digest covers both overworld-ui.ts changes together.
-const STRUCTURAL_SEAM_DIGEST = 'b7bf88e5b2f1dbc964993043ef5fed81cff3cdefebe608f2e538e1349af0cf51';
+// Slot position B (owner 2026-09-26, wiki Roadmap/Item Slot Component): ui/overworld-ui.ts moves its legacy slot
+// icon well, stack count and wear bar up 1px with the kit slot (icon 6 down, count 15 and wear 8 above the foot).
+// Overworld-ui tests pin the three offsets; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '16bf0d761ebb4f04c57cb700466127077d92093383692f0b7ceef9e44a83ff50';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

@@ -1,0 +1,65 @@
+{
+  "name": "icon_item_arrow",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........0000..",
+        ".........055550.",
+        ".........055530.",
+        "..........04330.",
+        ".........042030.",
+        "........0420.0..",
+        ".......0420.....",
+        "...00.0420......",
+        "..0880420.......",
+        ".08604200.......",
+        "0860420670......",
+        "060420670.......",
+        ".0420670........",
+        "..00670.........",
+        "....00.........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "icon_item_arrow.png",
+  "sourcePath": "art/custom/small-item-icons/icon_item_arrow.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "source.orchard_original"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "2": "#91533b",
+    "4": "#b86f50",
+    "3": "#92a1b9",
+    "5": "#c7cfdd",
+    "6": "#c42430",
+    "7": "#891e2b",
+    "8": "#f5555d"
+  },
+  "sourcePaletteMode": "exact"
+}
