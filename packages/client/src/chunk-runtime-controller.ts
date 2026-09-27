@@ -21,11 +21,15 @@ export interface ChunkRuntimeSource { readonly mapRevision: number; readonly map
 /**
  * SEAM (static world S2a, PR #162): the server's public chunkAuthority switch, read from the
  * public `space_admin_flag` row of space 0 (flagsJson, `chunkAuthorityModeFromFlagsJson`).
- * A later PR passes a source that reads that row and calls `authorityChanged()` when it changes.
- * Until then the source is unconnected and returns undefined ("unknown").
+ * `chunk-authority-seam.ts` connects it (BUG-053): its source reads that row, and its watch
+ * subscribes to it and calls back on every change so the controller re-applies. Without a
+ * source (tests, or a caller that passes none) the authority is unknown (undefined).
  */
 export type ChunkAuthoritySource = (connection: DbConnection) => ChunkRuntimeMode | undefined;
 export const UNCONNECTED_CHUNK_AUTHORITY: ChunkAuthoritySource = () => undefined;
+/** Starts watching the authority on a connection; `onChange` runs whenever it may have changed.
+ * Returns the function that stops watching. */
+export type ChunkAuthorityWatch = (connection: DbConnection, onChange: () => void) => () => void;
 
 /**
  * The client follows the server's chunkAuthority, capped by what the build was made for.
@@ -79,6 +83,8 @@ export interface ChunkRuntimeStatus {
 export interface ChunkRuntimeControllerOptions {
   readonly buildMode: ChunkRuntimeMode;
   readonly authority?: ChunkAuthoritySource;
+  /** Watches the authority per connection (BUG-053); the controller calls `authorityChanged()` on each change. */
+  readonly watchAuthority?: ChunkAuthorityWatch;
   /** undefined: the browser IndexedDB cache when available; null: memory only. */
   readonly cache?: ChunkBlobCache | null;
   readonly fetchBlob?: (path: string, maxBytes: number) => Promise<Uint8Array>;
@@ -126,6 +132,9 @@ function idleStatus(mode: ChunkRuntimeMode, state: string): ChunkRuntimeStatus {
 export class ChunkRuntimeController {
   readonly buildMode: ChunkRuntimeMode;
   readonly #authority: ChunkAuthoritySource;
+  readonly #watchAuthority: ChunkAuthorityWatch | undefined;
+  #authorityBound: DbConnection | undefined;
+  #stopAuthority: (() => void) | undefined;
   readonly #fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>;
   readonly #cache: ChunkBlobCache | undefined;
   readonly #ownedCache: IndexedDbChunkCache | undefined;
@@ -153,6 +162,7 @@ export class ChunkRuntimeController {
   constructor(options: ChunkRuntimeControllerOptions) {
     this.buildMode = options.buildMode;
     this.#authority = options.authority ?? UNCONNECTED_CHUNK_AUTHORITY;
+    this.#watchAuthority = options.watchAuthority;
     this.#fetchBlob = options.fetchBlob ?? fetchChunkBlob;
     this.#loadAtlasPacks = options.loadAtlasPacks;
     this.#ownedCache = options.cache === undefined ? browserChunkBlobCache() : undefined;
@@ -192,6 +202,13 @@ export class ChunkRuntimeController {
   }
   #apply(): void {
     const input = this.#latest!, connection = input.connection;
+    // Watch the authority on every connection, including while `off`: the switch coming back
+    // is what re-activates the runtime (BUG-053).
+    if (this.#authorityBound !== connection) {
+      this.#stopAuthority?.();
+      this.#authorityBound = connection;
+      this.#stopAuthority = this.#watchAuthority?.(connection, () => this.authorityChanged());
+    }
     const mode = effectiveChunkRuntimeMode(this.buildMode, this.#authority(connection));
     if (mode === 'off') { this.#stop(); return; }
     if (mode !== this.status.mode) {
@@ -429,6 +446,7 @@ export class ChunkRuntimeController {
   }
   dispose(): void {
     this.#disposed = true; this.#subscription?.unsubscribe();
+    this.#stopAuthority?.(); this.#stopAuthority = undefined;
     if (this.#active) this.#drop(this.#active);
     if (this.#pending) this.#drop(this.#pending);
     this.#ownedCache?.close();

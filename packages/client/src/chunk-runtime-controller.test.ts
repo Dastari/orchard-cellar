@@ -5,6 +5,7 @@ import type {ChunkRuntimeMode} from '@orchard/sim/chunk-runtime';
 import {WORLD_CHUNK_STRIDE,decodeWorldChunk,encodeWorldChunk,worldChunkHash,type WorldChunkManifest} from '@orchard/sim/world-chunk';
 import {ChunkRuntimeController,effectiveChunkRuntimeMode,type ChunkRuntimeSource} from './chunk-runtime-controller.js';
 import type {ChunkBlobCache} from './chunk-shadow-cache.js';
+import {OverworldConnection} from './net/overworld-connection.js';
 
 const assets=new TextEncoder().encode('{"assetPacks":{}}'),assetRevision=worldChunkHash(assets);
 const source:ChunkRuntimeSource={mapRevision:3,mapHash:'map-3',contentHash:'content-1'};
@@ -126,6 +127,11 @@ describe('on mode',()=>{
    h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
    expect(h.controller.authorityGate(source)).toBeNull();
+   // BUG-055: the connection passes a serving controller's null through (chunk collision serves).
+   const connectionGate=(runtimeSource:ChunkRuntimeSource)=>OverworldConnection.prototype.chunkAuthorityGate
+    .call({chunkRuntime:h.controller,chunkRuntimeSource:()=>runtimeSource} as unknown as OverworldConnection);
+   expect(connectionGate(source)).toBeNull();
+   expect(connectionGate({...source,mapRevision:4})).toBe('stale_map');
    expect(h.controller.authorityGate({...source,contentHash:'content-9'})).toBe('stale_content');
    expect(h.controller.authorityGate({...source,mapRevision:4})).toBe('stale_map');
    expect(h.controller.authorityGate({...source,mapHash:'map-9'})).toBe('stale_map');

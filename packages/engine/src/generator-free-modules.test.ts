@@ -65,6 +65,8 @@ describe('generator-free client presentation path', () => {
     // Wave-2 chunk runtime (S1b/S4a): must stay loadable without the generator.
     'sim/src/world-chunk.ts', 'sim/src/chunk-runtime.ts', 'sim/src/world-chunk-document.ts', 'client/src/chunk-runtime-controller.ts',
     'client/src/chunk-shadow-cache.ts', 'client/src/chunk-shadow-loader.ts', 'client/src/chunk-shadow-build-gate.ts',
+    // BUG-053: the client's chunkAuthority seam and the shared flag parse.
+    'client/src/chunk-authority-seam.ts', 'sim/src/chunk-authority-mode.ts',
   ])('%s reaches no generator, compiler, map document, terrain.ts or sim barrel module', (file) => {
     expect(legacyModulesReachedFrom(resolve(PACKAGES_ROOT, file))).toEqual([]);
   });
