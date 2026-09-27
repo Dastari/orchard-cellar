@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { drawPixelText } from '../pixel-ui.js';
-import { GameFeedback, GAME_TOAST_MAX_LINES, type GameFeedbackModel } from './feedback.js';
+import { balancedToastWidth, GameFeedback, GAME_TOAST_MAX_LINES, type GameFeedbackModel } from './feedback.js';
 import { uiTextLines } from '../kit/components/text.js';
 import { uiTestArt, uiTestAsset } from '../kit/lab/testing/art.js';
 import { GameUiRuntime } from './runtime.js';
@@ -162,6 +162,34 @@ describe('production feedback compositions', () => {
       const { frame, node, lines } = await toastIn('EMPTY THE EXTRA PACK SLOTS BEFORE UNEQUIPPING IT', 320);
       expect(lines).toHaveLength(2); expect(lines.join(' ')).toBe('EMPTY THE EXTRA PACK SLOTS BEFORE UNEQUIPPING IT');
       expect(node.rect.height).toBe(20); expect(frame.rect.height).toBe(28);
+    });
+    it('never balances a toast into a word break the full width kept whole', async () => {
+      // Raw server errors reach the toast through the failure-wording fallback, so long single words happen.
+      const text = 'UNCHARACTERISTICALLY UNAVAILABLE';
+      let whole = 0;
+      for (let width = 147; width <= 234; width += 1) {
+        const { lines } = await toastIn(text, width);
+        // Whatever the full width does (below 20 columns it must split the long word), balancing never adds a split.
+        const chrome = width >= 160 ? 32 : 16, full = Math.min(320, width - 12) - chrome;
+        expect(lines, `${width}`).toEqual(uiTextLines(text, full, 'body', true, GAME_TOAST_MAX_LINES, true));
+        if (Math.floor((full + 1) / 6) >= 20) { whole += 1; expect(lines.join(' '), `${width}`).toBe(text); }
+      }
+      expect(whole).toBeGreaterThan(60);
+      // The balancer stops at the longest word (20 glyphs) instead of splitting it across the lines.
+      expect(balancedToastWidth(text, 188, 32, 104)).toBe(20 * 6 - 1 + 32);
+    });
+    it('re-sizes a cached toast whenever its text or room changes', async () => {
+      const long = 'MORE SPECIALIZATION RANKS ARE REQUIRED FOR THIS TOOL', short = 'NOT ENOUGH SPACE';
+      const f = await fixture(), m = model();
+      const show = (text: string, width: number) => {
+        f.host.setBounds({ worldWidth: width, worldHeight: 200, hudWidth: width, hudHeight: 200 });
+        f.host.update({ ...m, hud: { ...m.hud, prompt: null, tooltip: null, notice: null, toast: { text, tone: 'danger', anchor: { x: width / 2, y: 180 } } } });
+        const frame = f.host.roots.hud.entries().find(row => row.element.id === 'game.feedback.toast.frame')!.element;
+        return `${frame.rect.width}x${frame.rect.height}`;
+      };
+      const fresh = [show(long, 400), show(short, 400), show(long, 180)];
+      expect(fresh[0]).toMatch(/x28$/u); expect(fresh[1]).toBe(`${16 * 6 - 1 + 36}x24`); expect(fresh[2]).not.toBe(fresh[0]);
+      expect([show(long, 400), show(long, 400), show(short, 400), show(long, 180)]).toEqual([fresh[0], fresh[0], fresh[1], fresh[2]]);
     });
     it('caps a toast at two lines and marks the cut with an ellipsis after a whole word', async () => {
       const text = 'THIS MESSAGE IS FAR TOO LONG FOR ANY TOAST TO SHOW IN FULL BECAUSE IT KEEPS GOING WELL PAST TWO LINES OF TEXT';
