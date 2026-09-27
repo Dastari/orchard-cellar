@@ -184,8 +184,8 @@ describe('renewable orchard authority', () => {
     } }, world_resource_mining_claim: { resourceId: { delete: () => {} } } } };
     const { reconcileGeneratedSurvivalResources } = load(['reconcileGeneratedSurvivalResources'], {
       ...sim, SenderError: Error, TOPSIDE_SPACE_ID: 0,
-      contentRegistry: () => registry, generateSurvivalResources: () => [desired],
-      compiledLiveIslandRuntime: () => null,
+      contentRegistry: () => registry,
+      liveIslandCollisionRuntime: () => null, liveIslandGeneratedResources: () => [desired],
       generatedWorldResourceRow: () => ({ ...desired, id: generated.id, fruitReadyAtTick: 0n, activationOrdinal: 0 }),
     });
     reconcileGeneratedSurvivalResources(ctx); reconcileGeneratedSurvivalResources(ctx);

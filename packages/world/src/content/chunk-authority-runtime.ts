@@ -1,13 +1,13 @@
 import {
   CombatRegionPolicy, resolvedMapBiomeAt,
-  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type MapBiomeId,
+  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type GeneratedSurvivalResource, type MapBiomeId,
   type MapDocumentV3,
 } from '@orchard/sim';
 import { validateRuntimeManifest, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
 import { AuthorityCollisionBuilder, chunkAuthorityMetadata, composeAuthorityCollision } from '@orchard/sim/chunk-collision';
 import {
-  canonicalChunkJson, worldChunkHasAuthority, WORLD_CHUNK_SIZE,
-  type WorldChunkManifest,
+  canonicalChunkJson, worldChunkHash, worldChunkHasAuthority, WORLD_CHUNK_SIZE,
+  type WorldChunkAuthorityResource, type WorldChunkManifest,
 } from '@orchard/sim/world-chunk';
 
 /**
@@ -42,7 +42,7 @@ const MEDIA: readonly ChunkAuthorityMedium[] = ['ground', 'water'];
 const NO_BIOME = 255;
 
 export type ChunkRuntimeIssueKind =
-  | 'head_missing' | 'blob_missing' | 'blob_invalid' | 'authority_missing' | 'record_order';
+  | 'head_missing' | 'blob_missing' | 'blob_invalid' | 'authority_missing' | 'record_order' | 'resource_digest';
 export interface ChunkRuntimeIssue {
   readonly kind: ChunkRuntimeIssueKind;
   readonly cx?: number;
@@ -80,11 +80,42 @@ export interface LiveIslandCollisionRuntime {
    * that cache by object identity (`mapStreetlampPlans`) keep one entry per runtime.
    * Compiled: `documentStaticView(document)`. */
   readonly staticView: LiveIslandStaticView;
+  /**
+   * The topside generated resources (static world S3c) in generator order, at their GENERATED
+   * tiles, with the generator's optional fields: exactly the generator's output for (seed, registry).
+   * Reconcile applies `staticView.resourcePlacements` on top. Live depletion rows reference these ids,
+   * so they and their order must never change. Compiled: runs the generator on every call (it is only
+   * called by reconcile and admin respawn, never per tick). Chunks: rebuilt once from the
+   * `authority.resource` records, which assembly verifies against the manifest's count and hash.
+   */
+  generatedResources(): readonly GeneratedSurvivalResource[];
 }
 
 /** What `resolvedMapBiomeAt` answers outside the survival island (`survivalBiomeAt`): the
- * static view has no cells there, so an out-of-map caller that needs the compiled value uses this. */
+ * static view has no cells there, so an out-of-map caller that needs the compiled value uses this.
+ * Only survival-base 832x832 maps reach a runtime (the compiled guard, the chunk dispatcher's
+ * guard_size/guard_base, and `validateLiveMapShape` at publication), so 'water' is always right. */
 export const LIVE_ISLAND_OUTSIDE_MAP_BIOME: MapBiomeId = 'water';
+
+/** The generator's shape of one `authority.resource` record (generated tile, optional fields only when set). */
+export function generatedResourceFromRecord(record: WorldChunkAuthorityResource): GeneratedSurvivalResource {
+  const { id, kind, generatedTile, nodeClass, richness, spawnSiteId, activationOrdinal } = record;
+  return { id, kind: kind as GeneratedSurvivalResource['kind'], tileX: generatedTile.tileX, tileY: generatedTile.tileY,
+    ...(nodeClass === undefined ? {} : { nodeClass: nodeClass as NonNullable<GeneratedSurvivalResource['nodeClass']> }),
+    ...(richness === undefined ? {} : { richness }), ...(spawnSiteId === undefined ? {} : { spawnSiteId }),
+    ...(activationOrdinal === undefined ? {} : { activationOrdinal }) };
+}
+
+/** The manifest's `metadata.authority.resources` digest (`{ count, hash }`) check for the assembled
+ * records: undefined when they match, else why not. The materializer computes it the same way. */
+export function chunkResourceDigestIssue(manifest: WorldChunkManifest, records: readonly WorldChunkAuthorityResource[]): string | undefined {
+  const authority = manifest.metadata['authority'];
+  const digest = record(authority) ? authority['resources'] : undefined;
+  if (!record(digest) || typeof digest['count'] !== 'number' || typeof digest['hash'] !== 'string') return 'digest missing';
+  if (digest['count'] !== records.length) return `count ${records.length}, published ${digest['count']}`;
+  const hash = worldChunkHash(new TextEncoder().encode(canonicalChunkJson(records)));
+  return hash === digest['hash'] ? undefined : `hash ${hash}, published ${digest['hash']}`;
+}
 
 export interface ChunkLiveIslandRuntime extends LiveIslandCollisionRuntime {
   readonly source: 'chunks';
@@ -131,7 +162,7 @@ export function assembleChunkLiveIslandRuntime(
   // plus the static view's biomes channel and records.
   const builder = new AuthorityCollisionBuilder(manifest, { originX: 0, originY: 0, width, height }, {
     extraChannels: { biomes: { type: 'u8', fill: NO_BIOME } },
-    extraRecordKinds: ['objects', 'landmarks', 'resourcePlacements'],
+    extraRecordKinds: ['objects', 'landmarks', 'resourcePlacements', 'authority.resource'],
   });
   const issues: ChunkRuntimeIssue[] = [];
   const heads = new Map(manifest.chunks.map(head => [`${head.cx}:${head.cy}`, head]));
@@ -175,6 +206,14 @@ export function assembleChunkLiveIslandRuntime(
       return value === NO_BIOME ? undefined : biomePalette[value];
     },
   };
+  // S3c: the generated resources must be exactly the published set (reconcile deletes rows outside
+  // it), so a count or hash mismatch makes the runtime incomplete and the dispatcher never serves it.
+  const resourceRecords = builder.records<WorldChunkAuthorityResource>('authority.resource');
+  if (complete) {
+    const digestIssue = chunkResourceDigestIssue(manifest, resourceRecords);
+    if (digestIssue !== undefined) issues.push({ kind: 'resource_digest', detail: digestIssue });
+  }
+  let generatedResources: readonly GeneratedSurvivalResource[] | undefined;
   for (const detail of builder.orderIssues) issues.push({ kind: 'record_order', detail });
   return {
     source: 'chunks',
@@ -189,6 +228,11 @@ export function assembleChunkLiveIslandRuntime(
     suppressedDecorationObstacleKeys: composition.suppressedObstacleKeys,
     baseObstacles: composition.baseObstacles,
     staticView,
+    generatedResources() {
+      // Fail closed: an incomplete runtime is never served, and never yields a resource set.
+      if (issues.length > 0) throw new Error('chunk_resources_incomplete');
+      return generatedResources ??= Object.freeze(resourceRecords.map(generatedResourceFromRecord));
+    },
     complete: issues.length === 0,
     issues,
     stale: options.shadowContentHash !== undefined && options.shadowContentHash !== registry.contentHash,
