@@ -12,7 +12,7 @@ import {
 } from './chunk-authority-runtime.js';
 
 /**
- * Static-world S2c: the owner `auditChunkAuthority` report, as a pure function of
+ * Static-world S2c: the owner-or-admin `auditChunkAuthority` report, as a pure function of
  * read-only accessors so it can be tested without a host.
  *
  * It answers, for the currently pinned shadow publication, the questions the soak
