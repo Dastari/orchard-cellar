@@ -59,6 +59,7 @@ import {
   contentFrameButtonAt,
   contentFramePaneVisible,
   drawContentFrame,
+  frameSlotAuthorityRestriction,
   layoutContentFrame,
   type ContentFrameLayout,
   type ContentFramePaneLayout,
@@ -1493,7 +1494,8 @@ export class OverworldUi {
     for (const pane of frame.panes) for (const binding of pane.slots) {
       const slot = collections[binding.containerId]?.find(candidate => candidate.index === binding.index);
       if (!slot || !slot.enabled) continue;
-      slot.setRestriction(binding.restriction); slots.add(slot);
+      // The authority's rules only (BUG-050): equipment rules on equipment, none on other self panes.
+      slot.setRestriction(frameSlotAuthorityRestriction(pane.definition, binding)); slots.add(slot);
     }
     if (frame.definition.hotbar) for (const slot of this.inventoryHotbarSlots) slots.add(slot);
     return [...slots];
@@ -3476,8 +3478,10 @@ export class OverworldUi {
             : pane.layout.slots[visualIndex];
         if (rect === undefined) return;
         slot.setBounds(rect);
-        slot.setRestriction(chestSlots === null ? binding.restriction
-          : pane.slots.find((candidate) => candidate.containerId === slot.containerId && candidate.index === slot.index)?.restriction);
+        // The authority's rules only (BUG-050): equipment rules on equipment, none on other self panes.
+        const bound = chestSlots === null ? binding
+          : pane.slots.find((candidate) => candidate.containerId === slot.containerId && candidate.index === slot.index);
+        slot.setRestriction(bound === undefined ? undefined : frameSlotAuthorityRestriction(pane.definition, bound));
         slot.visible = true;
       });
     }

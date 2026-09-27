@@ -2,8 +2,8 @@ import { uiTiming, timingLabels } from './timing.js';
 import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
 import type { ContentRegistry, TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
-import { EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
-import { resolveFramePaneSlots, type FrameContainerAliases, type ResolvedFrameSlotBinding } from '../../content-frame.js';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { frameSlotAuthorityRestriction, resolveFramePaneSlots, type FrameContainerAliases, type ResolvedFrameSlotBinding } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
 import type { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -52,9 +52,7 @@ export const UI_STATION_PLACEHOLDERS: Readonly<Record<string, Readonly<Record<st
  * frame restriction (the server's `frameRestrictions`, so a take-only output is `readOnly`), the equipment paper
  * doll carries the equipment slot rules, and other self panes carry none (the server ignores their restrictions). */
 function framePaneSlotRules(pane: FrameContentDefinition['panes'][number], binding: ResolvedFrameSlotBinding): UiInventoryCell['rules'] {
-  if ('entitySlots' in pane.bind) return uiSlotRulesFromRestriction(binding.restriction);
-  if ('self' in pane.bind && pane.bind.self === 'equipment') return uiSlotRulesFromRestriction(EQUIPMENT_SLOT_RESTRICTIONS[binding.index]);
-  return undefined;
+  return uiSlotRulesFromRestriction(frameSlotAuthorityRestriction(pane, binding));
 }
 /** A frame pane's slot cells, with the rules and placeholders the slots paint and check (S1). */
 export function uiFramePaneCells(definition: Pick<FrameContentDefinition, 'id'>, pane: FrameContentDefinition['panes'][number], bindings: readonly ResolvedFrameSlotBinding[]): UiInventoryCell[] {
