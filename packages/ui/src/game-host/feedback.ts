@@ -254,9 +254,6 @@ function feedbackLabel(kind: string) {
         const toast = kind === 'toast' ? sizeToast(title, widest, chrome, minimum) : null;
         const width = toast?.width ?? widest;
         text.setStyle({ width: 'grow' }); detail.setStyle({ width: 'grow' });
-        // The row measures its text at the full content width (glyph not subtracted), which undercounts a toast that
-        // only just wraps; size the toast text from the lines it will actually paint so no line is clipped.
-        if (toast) text.setStyle({ height: uiFixed(toast.height) });
         frame.setStyle({ width: uiFixed(width), height: 'fit' });
         const maximumHeight = value.maxHeight !== undefined && Number.isFinite(value.maxHeight) ? Math.max(0, value.maxHeight) : available.height;
         const wanted = Math.min(available.height, maximumHeight, measureUiElement(frame, { width, height: available.height }).preferred.height);

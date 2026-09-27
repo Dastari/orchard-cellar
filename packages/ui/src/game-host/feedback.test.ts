@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { drawPixelText } from '../pixel-ui.js';
 import { balancedToastWidth, GameFeedback, GAME_TOAST_MAX_LINES, type GameFeedbackModel } from './feedback.js';
 import { uiTextLines } from '../kit/components/text.js';
+import { UI_TEXT_METRICS } from '../kit/tokens.js';
 import { uiTestArt, uiTestAsset } from '../kit/lab/testing/art.js';
 import { GameUiRuntime } from './runtime.js';
 import type { UiElement } from '../kit/runtime/element.js';
@@ -198,6 +199,20 @@ describe('production feedback compositions', () => {
       expect(text.startsWith(`${lines.join(' ').slice(0, -3)} `)).toBe(true);
       expect(frame.rect.width).toBe(320); expect(frame.rect.height).toBe(28);
     });
+  });
+  // BUG-049: a label with a glyph beside its text used to be measured as if the text had the whole row,
+  // so a wrapped prompt got too little height and its lower lines were clipped.
+  it.each(['danger', 'success'] as const)('fits every wrapped line of a %s prompt with a glyph (BUG-049)', async (tone) => {
+    const f = await fixture(), m = model(), text = '[E] HARVEST THE ANCIENT APPLE TREE AND GATHER ITS FRUIT';
+    f.host.setBounds({ worldWidth: 160, worldHeight: 120, hudWidth: 160, hudHeight: 120 });
+    f.host.update({ ...m, hud: { ...m.hud, toast: null, tooltip: null, notice: null, prompt: { text, tone, anchor: { x: 80, y: 110 } } } });
+    const find = (id: string) => f.host.roots.hud.entries().find(row => row.element.id === id)!.element;
+    const node = find('game.feedback.prompt.text'), frame = find('game.feedback.prompt.frame');
+    const lines = uiTextLines(text, node.rect.width, 'body', true);
+    expect(lines).toHaveLength(4);
+    expect(node.rect.height).toBeGreaterThanOrEqual(lines.length * UI_TEXT_METRICS.body.lineHeight);
+    expect(node.rect.y + node.rect.height).toBeLessThanOrEqual(frame.rect.y + frame.rect.height - 4);
+    expect(node.clip).toEqual(node.rect);
   });
   it('uses stable roots, separate world/safe viewports and no passive input interception', async () => {
     const f = await fixture(), roots = f.host.roots;

@@ -120,6 +120,49 @@ it('measures wrapped growing columns at allocated widths without reserving phant
   root.dispose();
 });
 
+describe('BUG-049: non-wrapping rows measure children at their allocated widths', () => {
+  // A 100px run of text that wraps into 10px lines at whatever width it is given.
+  const wrapping = () => new UiElement({ style: { width: 'grow' }, measure: (_node, available) => {
+    const width = Math.min(100, available.width), height = 10 * Math.ceil(100 / Math.max(1, available.width));
+    return { min: { width: 0, height }, preferred: { width, height } };
+  } });
+  const glyph = () => new UiElement({ style: { width: uiFixed(16), height: uiFixed(16), shrink: 0 } });
+  it('gives wrapped text beside a glyph the height of the lines it paints', () => {
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', gap: 4, align: 'center' }, children: [glyph(), wrapping()] });
+    // The text is allocated 60 - 16 - 4 = 40px, so it wraps onto three lines, not the two it would need at 60px.
+    expect(measureUiElement(row, { width: 60, height: 200 }).preferred).toEqual({ width: 60, height: 30 });
+  });
+  it('lays out a fitted row without clipping the wrapped lines', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(60, 200);
+    const text = wrapping();
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', gap: 4, align: 'center', width: 'grow', height: 'fit' }, children: [glyph(), text] });
+    root.mount(new UiElement({ style: { display: 'flex', direction: 'column', width: 'grow', height: 'grow' }, children: [row] })); root.arrange();
+    expect(text.rect).toMatchObject({ width: 40, height: 30 });
+    expect(row.rect.height).toBe(30); expect(text.clip).toEqual(text.rect);
+    root.dispose();
+  });
+  it('keeps two cached sizes per node, so the parent width and the allocated width do not evict each other', () => {
+    let calls = 0;
+    const text = new UiElement({ style: { width: 'grow' }, measure: (_node, available) => {
+      calls++; return { min: { width: 0, height: 10 }, preferred: { width: available.width, height: 10 } };
+    } });
+    const at = (width: number) => measureUiElement(text, { width, height: 100 }).preferred.width;
+    expect([at(60), at(40), at(60), at(40)]).toEqual([60, 40, 60, 40]);
+    expect(calls).toBe(2);
+    // The most recent request is always the primary slot that arrange and flex read.
+    expect(text.measureWidth).toBe(40); expect(text.measured.preferred.width).toBe(40);
+    // Invalidation drops both sizes.
+    text.invalidate(); expect([at(60), at(40)]).toEqual([60, 40]); expect(calls).toBe(4);
+    // A third width evicts the older one.
+    at(20); at(40); expect(calls).toBe(5); at(60); expect(calls).toBe(6);
+  });
+  it('leaves a row whose children already fit exactly as before', () => {
+    const leaf = (width: number) => new UiElement({ style: { width: uiFixed(width), height: uiFixed(10) } });
+    const row = new UiElement({ style: { display: 'flex', direction: 'row', gap: 4 }, children: [leaf(20), leaf(30)] });
+    expect(measureUiElement(row, { width: 400, height: 100 }).preferred).toEqual({ width: 54, height: 10 });
+  });
+});
+
 describe('BUG-036: wrapping justified rows', () => {
   const leaf = (width: number) => new UiElement({ style: { width: uiFixed(width), height: uiFixed(10) } });
   for (const justify of ['start', 'center', 'end', 'space_between'] as const) it(`measure a ${justify} wrapping row at its content width`, () => {
