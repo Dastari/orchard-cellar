@@ -188,6 +188,54 @@ function randomCase(random: () => number, caseIndex: number) {
   return { containers, recipe, desired, readOnly };
 }
 
+describe('placing a recipe never draws from take-only slots (BUG-045)', () => {
+  const TAKE_ONLY = { 0: { readOnly: true } } as const;
+
+  it('leaves an ingredient held only in a read-only hotbar slot where it is', () => {
+    // The bug page's reproduction: before the fix the plank left the read-only slot.
+    const containers = {
+      hotbar: container('hotbar', [{ itemKind: 'plank', quantity: 5 }], TAKE_ONLY),
+      backpack: container('backpack', [null]),
+      crafting: grid({}),
+    };
+    const placed = fillCraftingRecipeFromInventory(containers, PLANK_ONLY.id, CONTENT, PLANK_ONLY);
+    if (!placed.ok) throw new Error(placed.code);
+    expect(placed.containers.hotbar!.slots).toEqual([{ itemKind: 'plank', quantity: 5 }]);
+    expect(placed.containers.crafting!.slots).toEqual(Array(9).fill(null));
+    expect(placed.movedQuantity).toBe(0);
+  });
+
+  it('takes the ingredient from the next ordinary slot instead', () => {
+    const containers = {
+      hotbar: container('hotbar', [{ itemKind: 'plank', quantity: 5 }, { itemKind: 'plank', quantity: 3 }], TAKE_ONLY),
+      backpack: container('backpack', [{ itemKind: 'plank', quantity: 2 }], TAKE_ONLY),
+      crafting: grid({}),
+    };
+    const placed = fillCraftingRecipeFromInventory(containers, PLANK_ONLY.id, CONTENT, PLANK_ONLY);
+    if (!placed.ok) throw new Error(placed.code);
+    expect(placed.containers.hotbar!.slots).toEqual([{ itemKind: 'plank', quantity: 5 }, { itemKind: 'plank', quantity: 2 }]);
+    expect(placed.containers.backpack!.slots).toEqual([{ itemKind: 'plank', quantity: 2 }]);
+    expect(placed.containers.crafting!.slots).toEqual([{ itemKind: 'plank', quantity: 1 }, ...Array(8).fill(null)]);
+  });
+
+  it('falls back to the backpack and fills only what ordinary slots can supply', () => {
+    // The barrel wants eight planks and two nails; five planks sit in the take-only hotbar slot.
+    const containers = {
+      hotbar: container('hotbar', [{ itemKind: 'plank', quantity: 5 }, { itemKind: 'nails', quantity: 2 }], TAKE_ONLY),
+      backpack: container('backpack', [{ itemKind: 'plank', quantity: 6 }]),
+      crafting: grid({}),
+    };
+    const placed = fillCraftingRecipeFromInventory(containers, 'barrel', CONTENT);
+    if (!placed.ok) throw new Error(placed.code);
+    expect(placed.containers.hotbar!.slots).toEqual([{ itemKind: 'plank', quantity: 5 }, null]);
+    expect(placed.containers.backpack!.slots).toEqual([null]);
+    const cells = placed.containers.crafting!.slots;
+    expect(cells.filter((cell) => cell?.itemKind === 'plank')).toHaveLength(6);
+    expect(cells.filter((cell) => cell?.itemKind === 'nails')).toHaveLength(2);
+    expect(placed.movedQuantity).toBe(8);
+  });
+});
+
 describe('placing a recipe conserves items (property run)', () => {
   it('never duplicates, loses or merges items across 2,000 seeded cases', () => {
     const random = prng(0x0b0037);
@@ -218,11 +266,10 @@ describe('placing a recipe conserves items (property run)', () => {
       if (containers.crafting!.slots.some((cell, index) => cell !== null && cell.itemKind !== desired[index]?.itemKind)) {
         outcomes.returnedStrays += 1;
       }
-      // Read-only hotbar slots never receive anything (the fill may still draw from them: BUG-045).
+      // Take-only (read-only) hotbar slots are never touched: they receive nothing and the fill never
+      // draws ingredients from them (BUG-045).
       for (const index of Object.keys(readOnly).map(Number)) {
-        const was = containers.hotbar!.slots[index] ?? null, now = after.hotbar!.slots[index] ?? null;
-        if (now === null) continue;
-        expect(was !== null && identity(was) === identity(now) && now.quantity <= was.quantity, label).toBe(true);
+        expect(after.hotbar!.slots[index] ?? null, label).toEqual(containers.hotbar!.slots[index] ?? null);
       }
     }
     // The generator must exercise both outcomes and the return path, or the run proves little.
