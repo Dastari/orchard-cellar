@@ -9,6 +9,8 @@ import {
 } from '@orchard/sim';
 import {
   authoredFrameAction,
+  hearthStashFrameRestrictions,
+  legacyWorldChestFrameRestrictions,
   placeableFrameDefinition,
   placeableFrameRestrictions,
 } from './frame-runtime.js';
@@ -192,5 +194,78 @@ describe('world frame resolver', () => {
     expect(authority).not.toContain('PRESSABLE_FRUIT_KINDS');
     expect(readFileSync(new URL('./frame-runtime.ts', import.meta.url), 'utf8'))
       .not.toContain('LEGACY_FRAME_CAPABILITIES');
+  });
+});
+
+describe('BUG-046: hearth stash and legacy chest frame rules on the authority', () => {
+  function withPaneRule(frameId: string, restriction: Record<string, unknown>) {
+    const rows = bootstrapContentRows().map((row) => {
+      if (row.id !== frameId) return row;
+      const frame = JSON.parse(String(row.json)) as { panes: { id: string; restriction?: Record<string, unknown> }[] };
+      return { ...row, json: JSON.stringify({ ...frame, panes: frame.panes.map((pane) => pane.id === 'contents'
+        ? { ...pane, restriction: { ...pane.restriction, ...restriction } } : pane) }) };
+    });
+    const built = buildContentRegistry(rows);
+    expect(built.report.errors).toEqual([]);
+    return built.registry;
+  }
+
+  it('finds no rules on the shipped stash and chest frames, so live behaviour is unchanged', () => {
+    expect(registry.frames.get('frame:hearth_stash')?.panes.some((pane) => pane.id === 'contents')).toBe(true);
+    expect(registry.frames.get('frame:chest')?.panes.some((pane) => pane.id === 'contents')).toBe(true);
+    expect(hearthStashFrameRestrictions(registry)).toEqual({});
+    expect(legacyWorldChestFrameRestrictions(registry)).toEqual({});
+    // Also true of the raw shipped pack, not only the bootstrap registry.
+    const shipped = JSON.parse(readFileSync(new URL('../../../assets/content/frames.json', import.meta.url), 'utf8')) as
+      { id: string; panes: { restriction?: unknown }[] }[];
+    for (const id of ['frame:hearth_stash', 'frame:chest']) {
+      const frame = shipped.find((candidate) => candidate.id === id);
+      expect(frame, id).toBeDefined();
+      expect(frame!.panes.filter((pane) => pane.restriction !== undefined), id).toEqual([]);
+    }
+  });
+
+  it('resolves an authored stash deny list onto every stash slot and enforces it on insertion only', () => {
+    const denied = withPaneRule('frame:hearth_stash', { rejectedItems: ['item:apple'] });
+    const restrictions = hearthStashFrameRestrictions(denied);
+    expect(Object.keys(restrictions).map(Number)).toEqual(Array.from({ length: 20 }, (_, slot) => slot));
+    expect(restrictions[19]).toEqual({ rejectedKinds: ['apple'] });
+    const content = itemContainerContentResolver(denied);
+    const containers = {
+      backpack: { id: 'backpack', capacity: 2, slots: [{ itemKind: 'apple', quantity: 2, lit: true }, null] },
+      stash: { id: 'stash', capacity: 20, restrictions,
+        slots: [{ itemKind: 'apple', quantity: 3, lit: true }, ...Array.from({ length: 19 }, () => null)] },
+    };
+    expect(moveItemStacks(containers, {
+      fromContainer: 'backpack', fromIndex: 0, toContainer: 'stash', toIndex: 0, quantity: 2,
+    }, content)).toMatchObject({ ok: false, code: 'slot_rejects_item' });
+    expect(quickMoveItemStack(containers, { fromContainer: 'backpack', fromIndex: 0, toContainers: ['stash'] }, content).ok)
+      .toBe(false);
+    const out = moveItemStacks(containers, {
+      fromContainer: 'stash', fromIndex: 0, toContainer: 'backpack', toIndex: 1, quantity: 3,
+    }, content);
+    expect(out.ok).toBe(true);
+  });
+
+  it('ignores a retired stash frame, as the client does', () => {
+    const denied = withPaneRule('frame:hearth_stash', { rejectedItems: ['item:apple'] });
+    const frame = denied.frames.get('frame:hearth_stash')!;
+    const frames = new Map(denied.frames);
+    frames.set(frame.id, { ...frame, retired: true });
+    expect(hearthStashFrameRestrictions({ ...denied, frames })).toEqual({});
+  });
+
+  it('applies authored generic-chest rules to the legacy world_chest container', () => {
+    const denied = withPaneRule('frame:chest', { rejectedItems: ['item:apple'] });
+    const restrictions = legacyWorldChestFrameRestrictions(denied);
+    expect(Object.keys(restrictions)).toHaveLength(16);
+    expect(restrictions[0]).toEqual({ rejectedKinds: ['apple'] });
+    expect(restrictions).toEqual(placeableFrameRestrictions(denied, { kind: 'chest', definitionId: 'object:chest' }));
+  });
+
+  it('keeps the stash and legacy chest menu snapshots on the shared frame resolvers', () => {
+    const authority = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
+    expect(authority).toContain('hearthStashFrameRestrictions(contentRegistry(ctx))');
+    expect(authority).toContain('legacyWorldChestFrameRestrictions(contentRegistry(ctx))');
   });
 });

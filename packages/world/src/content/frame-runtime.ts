@@ -58,3 +58,30 @@ export function placeableFrameRestrictions(
   }
   return Object.freeze(restrictions);
 }
+
+/** The client always presents the private hearth stash through this frame. */
+export const HEARTH_STASH_FRAME_ID = 'frame:hearth_stash';
+
+/** The client presents a legacy `world_chest` row as the authored generic chest. */
+export const LEGACY_WORLD_CHEST_PLACEABLE: FramePlaceableRow = Object.freeze({
+  kind: 'chest', definitionId: 'object:chest',
+});
+
+/** Slot rules the authority applies to the private hearth stash. They mirror
+ * the client's `frame:hearth_stash` panes; a missing or retired frame, like on
+ * the client, contributes no rules. Rules govern insertion only, so stored
+ * items that break a newly authored rule stay where they are and can be taken out. */
+export function hearthStashFrameRestrictions(
+  registry: ContentRegistry,
+): Readonly<Record<number, SlotRestriction>> {
+  const frame = registry.frames.get(HEARTH_STASH_FRAME_ID);
+  return frame === undefined || frame.retired === true ? Object.freeze({}) : frameRestrictions(frame, registry);
+}
+
+/** Slot rules the authority applies to a legacy `world_chest` container, resolved
+ * through the same object and frame as the client's generic chest fallback. */
+export function legacyWorldChestFrameRestrictions(
+  registry: ContentRegistry,
+): Readonly<Record<number, SlotRestriction>> {
+  return placeableFrameRestrictions(registry, LEGACY_WORLD_CHEST_PLACEABLE);
+}

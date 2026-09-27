@@ -657,6 +657,8 @@ import { assertContentIntegrity, contentRecoveryConnection } from './content/rec
 import { contentRegistryForRows, invalidateContentRegistryCache } from './content/cache.js';
 import {
   authoredFrameAction,
+  hearthStashFrameRestrictions,
+  legacyWorldChestFrameRestrictions,
   placeableFrameDefinition,
   placeableFrameRestrictions,
 } from './content/frame-runtime.js';
@@ -6403,7 +6405,10 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
     const capacity=activeHearthLobbyDefinition(contentRegistry(ctx))?.stashCapacity;
     if(capacity===undefined)throw new SenderError('stash_unavailable');
     const rowsBySlot=new Map(loadHearthStashRows(ctx).map(row=>[row.slot,row]));
+    // Same authored frame rules the client applies (BUG-046); insertion only.
+    const restrictions=hearthStashFrameRestrictions(contentRegistry(ctx));
     const container:ContainerSnapshot={id:'stash',capacity,
+      ...(Object.keys(restrictions).length===0?{}:{restrictions}),
       slots:Array.from({length:capacity},(_,slot)=>{
         const row=rowsBySlot.get(slot)!;
         return storedStack(ctx,row.itemKind,row.quantity,row.durability,row.lit);
@@ -6419,8 +6424,11 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
       && chest.spaceId === position.spaceId && chestWithinReach(position.x, position.y, chest)) {
       const rows = ensureChestStorageRows(ctx, chest.id);
       const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
+      // Same authored generic-chest rules the client applies (BUG-046); insertion only.
+      const restrictions = legacyWorldChestFrameRestrictions(contentRegistry(ctx));
       const container: ContainerSnapshot = {
         id: 'chest', capacity: CHEST_STORAGE_CAPACITY,
+        ...(Object.keys(restrictions).length === 0 ? {} : { restrictions }),
         slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => {
           const row = rowsBySlot.get(index);
           return row === undefined ? null : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
