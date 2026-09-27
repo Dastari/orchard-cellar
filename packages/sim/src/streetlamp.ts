@@ -18,9 +18,11 @@ export function streetlampState(stateJson:string,calendarTick:bigint):{lit:boole
  return {lit,stateJson:JSON.stringify({mode,lit})};
 }
 export interface StreetlampPlan {readonly id:bigint;readonly tileX:number;readonly tileY:number;readonly objectId:string}
-const plansCache=new WeakMap<MapDocumentV3,readonly StreetlampPlan[]>();
+/** The document fields the plans read: a whole document, or the server's static view (static world S3b). */
+export type StreetlampPlanSource=Pick<MapDocumentV3,'objects'|'prefabs'>;
+const plansCache=new WeakMap<StreetlampPlanSource,readonly StreetlampPlan[]>();
 /** Stable reserved coordinate identities; lamp locations are authored on the map. */
-export function mapStreetlampPlans(document:MapDocumentV3):readonly StreetlampPlan[]{
+export function mapStreetlampPlans(document:StreetlampPlanSource):readonly StreetlampPlan[]{
  const cached=plansCache.get(document);if(cached)return cached;
  const prefabs=new Map(document.prefabs.map(p=>[p.id,p]));
  const plans:StreetlampPlan[]=[];

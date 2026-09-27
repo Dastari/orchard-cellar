@@ -23,8 +23,8 @@ function fixture(index = 0) {
   let currentRegistry = registry;
   const ctx = { db: { outdoor_encounter: { id: { find: () => ({ conflict: switches.conflict }) } } } };
   const deps = { ...sim, contentRegistry: () => currentRegistry, TOPSIDE_SPACE_ID: 0, SenderError: Error,
-    liveIslandCombatPolicy: () => ({ allowsHostileDamage: () => switches.enabled }),
-    liveMapGeneratedResourceSuppressed: () => switches.suppressed, outdoorCollisionMap: (_ctx: unknown, id: bigint) => { exclusions.push(id); return collision; } };
+    liveIslandCollisionRuntime: () => ({ combatPolicy: { allowsHostileDamage: () => switches.enabled } }),
+    liveMapRuntimeResourceSuppressed: () => switches.suppressed, outdoorCollisionMap: (_ctx: unknown, id: bigint) => { exclusions.push(id); return collision; } };
   const check = new Function(...Object.keys(deps), code)(...Object.values(deps));
   return { site, resource, player, collision, exclusions, switches, setRegistry: (next: typeof registry) => { currentRegistry = next; }, check: (row = resource, actor = player) => check(ctx, actor, row) };
 }

@@ -42,7 +42,7 @@ function fixture(kind = 'axe') {
     TOOL_SWING_RESISTANCE: new Set(['target_not_ready']),
     requireAuthorizedSender: vi.fn(), requireUsableTool: vi.fn(), handsOccupiedFor: () => false,
     mountedNpcFor: () => null, contentRegistry: () => registry,
-    collisionForSpace: () => ({ obstacles: [] }), combatElevationAt: () => 0,
+    collisionForSpace: () => ({ obstacles: [] }), liveIslandCollisionRuntime: () => null, combatElevationAt: () => 0,
     combatSegmentObstructed: (_a: unknown, point: { y: number }) => point.y < position.y,
     validateToolVigourSpend: vi.fn(), spendToolVigour: spend, wearInventoryTool: wear,
     nextActionStartedTick: (_old: bigint, tick: bigint) => tick, recordPlayerStatistic: vi.fn(),
@@ -75,7 +75,7 @@ describe('production server swing discovery', () => {
     const placedHit = vi.fn();
     production('applyToolSwingLifecycle', { ...f.dependencies,
       TOOL_SWING_RESISTANCE: new Set(['wrong_tool']),
-      runtimeResourceDefinition: () => ({}), liveMapGeneratedResourceSuppressed: () => false,
+      runtimeResourceDefinition: () => ({}), liveMapRuntimeResourceSuppressed: () => false,
       runtimeResourceTargetVector: () => ({ x: 100, y: 0 }),
       playerInteractionOrigin: (point: unknown) => point,
       authoredHitsDamageable: () => ({}), genericChest: () => false,
@@ -99,7 +99,7 @@ describe('production server swing discovery', () => {
     const validate = vi.fn();
     production('applyToolSwingLifecycle', { ...f.dependencies, validateToolVigourSpend: validate,
       TOOL_SWING_RESISTANCE: new Set(['pickaxe_tier_too_low']),
-      runtimeResourceDefinition: () => ({}), liveMapGeneratedResourceSuppressed: () => false,
+      runtimeResourceDefinition: () => ({}), liveMapRuntimeResourceSuppressed: () => false,
       runtimeResourceTargetVector: () => ({ x: 0, y: 0 }), playerInteractionOrigin: (point: unknown) => point,
       applyHarvestResourceLifecycle: () => { throw new Error('pickaxe_tier_too_low'); },
     })(ctx);
@@ -122,7 +122,7 @@ describe('production server swing discovery', () => {
     } };
     const mined: bigint[] = [];
     production('applyToolSwingLifecycle', { ...f.dependencies,
-      runtimeResourceDefinition: () => ({}), liveMapGeneratedResourceSuppressed: () => false,
+      runtimeResourceDefinition: () => ({}), liveMapRuntimeResourceSuppressed: () => false,
       // One tile straight up, as measured from the interaction origin.
       runtimeResourceTargetVector: () => ({ x: 0, y: -sim.TILE_SIZE_FIXED }),
       combatSegmentObstructed: () => false,
