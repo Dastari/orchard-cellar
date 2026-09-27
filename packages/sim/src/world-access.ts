@@ -11,3 +11,10 @@ export type WorldMembershipRole = (typeof WORLD_MEMBERSHIP_ROLES)[number];
 export function canAdministerWorld(role: string | null | undefined): boolean {
   return role === 'owner' || role === 'admin';
 }
+
+/** Strict world-owner policy for switches that admins must not flip, such as
+ * the static-world chunkAuthority mode. Unlike canAdministerWorld, an admin
+ * role is rejected. */
+export function isWorldOwnerRole(role: string | null | undefined): boolean {
+  return role === 'owner';
+}

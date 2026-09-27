@@ -2,7 +2,11 @@ import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversal
 import { cellFlagsWhere } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
-import { validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
+import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
+import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
+import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
 import { buildAdminAreaPage, type AdminAreaRow } from './admin/spatial-page.js';
@@ -485,6 +489,7 @@ import {
   automaticRegistrationRole,
   canAdministerWorld,
   canManageMembership,
+  isWorldOwnerRole,
   membershipRejection,
   membershipRole,
   productionAuthEnabled,
@@ -3957,14 +3962,14 @@ function collisionForSpace(
   spaceId: number,
   excludedHomesteadSpaceId?: number,
   prefetchedRows?: PrefetchedSpaceCollisionRows,
-  prefetchedLiveMapRuntime?: LiveIslandRuntime | null,
+  prefetchedLiveMapRuntime?: LiveIslandCollisionRuntime | null,
   excludeFurniture = false,
   residenceExpansionRank?: number,
   excludeArchitecture = false,
 ) {
   const unifiedChestReads = chestMigrationReadsUsePlaceables(ctx);
   const liveMapRuntime = prefetchedLiveMapRuntime === undefined
-    ? spaceId === TOPSIDE_SPACE_ID ? compiledLiveIslandRuntime(ctx) : null
+    ? spaceId === TOPSIDE_SPACE_ID ? liveIslandCollisionRuntime(ctx) : null
     : prefetchedLiveMapRuntime;
   const resources = prefetchedRows?.resources
     ?? [...ctx.db.world_resource.by_chunk.filter(spaceId)];
@@ -4076,7 +4081,7 @@ function collisionForSpace(
 function waterCollisionForSpace(
   ctx: WorldReducerContext,
   spaceId: number,
-  prefetchedLiveMapRuntime?: LiveIslandRuntime | null,
+  prefetchedLiveMapRuntime?: LiveIslandCollisionRuntime | null,
   chunkScope?: ReadonlySet<string>,
   groundGeometry?: CollisionMap,
 ) {
@@ -8529,17 +8534,12 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
     return result;
   };
   const registry = contentRegistry(ctx);
-  const flagsBySpace = new Map(take(ctx.db.space_admin_flag.iter()).map((row) => {
-    let flags: AdminJsonObject;
-    try { flags = JSON.parse(row.flagsJson) as AdminJsonObject; }
-    catch { flags = {}; }
-    return [String(row.spaceId), flags] as const;
-  }));
+  const flagsBySpace = adminSpaceFlagsBySpace(take(ctx.db.space_admin_flag.iter())) as Map<string, AdminJsonObject>;
   const spaces = [...registry.spaces.values()].map((space) => ({
     spaceId: String(space.spaceId), sizeTiles: space.sizeTiles,
-    flags: flagsBySpace.get(String(space.spaceId)) ?? {
+    flags: adminVisibleSpaceFlags<AdminJsonObject>(flagsBySpace.get(String(space.spaceId)), {
       ownerOnly: space.ownerOnly ?? false, weather: space.weather,
-    },
+    }),
   }));
   for (const home of take(ctx.db.homestead.iter())) {
     const candidates = [home.spaceId, home.residenceSpaceId].filter((id): id is number => id !== undefined);
@@ -8548,9 +8548,9 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
       const definition = activeSpaceDefinition(ctx, spaceId, home);
       if (definition !== undefined) spaces.push({
         spaceId: String(spaceId), sizeTiles: definition.sizeTiles,
-        flags: flagsBySpace.get(String(spaceId)) ?? {
+        flags: adminVisibleSpaceFlags<AdminJsonObject>(flagsBySpace.get(String(spaceId)), {
           ownerOnly: definition.ownerOnly ?? false, weather: definition.weather,
-        },
+        }),
       });
     }
   }
@@ -9247,6 +9247,17 @@ function requireWorldOwner(
   if (member === null) throw new SenderError('owner_required');
   const actor = requireAuthorizedSender(jwt, member);
   if (!canAdministerWorld(actor.role)) throw new SenderError('owner_required');
+}
+
+/** Strict owner gate for switches admins must not flip (static-world
+ * chunkAuthority). requireWorldOwner also admits admins. */
+function requireStrictWorldOwner(
+  jwt: { readonly issuer: string; readonly audience: readonly string[] } | null,
+  member: MembershipPolicyRow | null,
+): void {
+  if (member === null) throw new SenderError('owner_required');
+  const actor = requireAuthorizedSender(jwt, member);
+  if (!isWorldOwnerRole(actor.role)) throw new SenderError('owner_required');
 }
 
 // --- authoring Phase 6: staged legacy chest continuity migration ---
@@ -12896,16 +12907,88 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
   return liveIslandRuntimeCache;
 }
 
+const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
+
+/**
+ * Static-world S2b: the live-island collision runtime behind the owner
+ * `chunkAuthority` switch. `off` (the default) is exactly the compiled runtime.
+ * `shadow` keeps compiled authoritative while comparing the chunk runtime and
+ * logging disagreements. `on` serves the chunk runtime only when it is complete,
+ * fresh and passes the compiled guards, and otherwise falls back to compiled.
+ * Collision call sites only: combat policy, resource reconcile and the document
+ * consumers still read compiledLiveIslandRuntime (S3a/S3b/S3c move them).
+ */
+function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
+  const mode = chunkAuthorityMode(ctx);
+  if (mode === 'off') {
+    chunkAuthorityDispatcher.release();
+    return compiledLiveIslandRuntime(ctx);
+  }
+  return chunkAuthorityDispatcher.select({ ...chunkAuthoritySource(ctx), mode });
+}
+
+/** Everything the dispatcher (and the S2c audit) reads, as lazy accessors. The
+ * audit uses the same source so it sees exactly what the live dispatcher sees. */
+function chunkAuthoritySource(ctx: WorldReducerContext): Omit<ChunkAuthoritySource, 'mode'> & { readonly compiled: () => LiveIslandRuntime | null } {
+  return {
+    compiled: () => compiledLiveIslandRuntime(ctx),
+    shadow: () => ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID)),
+    liveMap: () => ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID),
+    registryContentHash: () => contentRegistry(ctx).contentHash,
+    traversalPolicyActive: () => runtimeTraversalPolicy(contentRegistry(ctx)) !== null,
+    readBlob: (hash) => {
+      const row = ctx.db.world_chunk_blob.contentHash.find(hash);
+      if (row === null) return undefined;
+      // spacetimedb 2.8.2 deserializes Array<U8> columns to a fresh Uint8Array
+      // (BinaryReader.readUInt8Array slices), so no per-element copy is needed.
+      const bytes: unknown = row.bytes;
+      return bytes instanceof Uint8Array ? bytes : Uint8Array.from(row.bytes);
+    },
+  };
+}
+
+/** S2c audit only: a compiled build that bypasses the module cache (so its time is the
+ * cold cost), then puts back whatever this instance had cached. The audit procedure runs
+ * on its own module instance, so this cache is the procedure instance's, not the one the
+ * reducers' collision call sites use. */
+function coldCompiledLiveIslandRuntime(compiled: () => LiveIslandRuntime | null): LiveIslandRuntime | null {
+  const previous = liveIslandRuntimeCache;
+  liveIslandRuntimeCache = null;
+  try {
+    return compiled();
+  } finally {
+    if (previous !== null) liveIslandRuntimeCache = previous;
+  }
+}
+
+/** Shadow mode only, when `chunkAuthorityDispatcher.sampleRuntime(tick)` is due (at
+ * most once per sample interval): rebuilds this tick's topside collision from the
+ * same rows with the chunk runtime and compares it with the authoritative maps at
+ * player positions. Logs only. */
+function sampleChunkAuthorityShadow(
+  ctx: WorldReducerContext,
+  chunkRuntime: LiveIslandCollisionRuntime,
+  authorityTick: bigint,
+  players: readonly PlayerPositionRow[],
+  compiledFinal: { readonly ground: CollisionMap; readonly water: CollisionMap },
+  rows: PrefetchedSpaceCollisionRows,
+): void {
+  chunkAuthorityDispatcher.recordSample(authorityTick, players.map(({ x, y }) => ({ x, y })), compiledFinal, () => {
+    const ground = collisionForSpace(ctx, TOPSIDE_SPACE_ID, undefined, rows, chunkRuntime);
+    return { ground, water: waterCollisionForSpace(ctx, TOPSIDE_SPACE_ID, chunkRuntime, rows.chunkScope, ground) };
+  });
+}
+
 function liveMapCollisionForSpace(
   ctx: WorldReducerContext,
   spaceId: number,
   medium: 'ground' | 'water',
   base: CollisionMap,
-  prefetchedRuntime?: LiveIslandRuntime | null,
+  prefetchedRuntime?: LiveIslandCollisionRuntime | null,
 ): CollisionMap {
   if (spaceId !== TOPSIDE_SPACE_ID) return base;
   const runtime = prefetchedRuntime === undefined
-    ? compiledLiveIslandRuntime(ctx)
+    ? liveIslandCollisionRuntime(ctx)
     : prefetchedRuntime;
   if (runtime === null) return base;
   const authored = medium === 'ground' ? runtime.ground : runtime.water;
@@ -12921,7 +13004,7 @@ function liveMapCollisionForSpace(
 }
 
 function liveMapRuntimeGeneratedResourceSuppressed(
-  runtime: LiveIslandRuntime | null,
+  runtime: Pick<LiveIslandCollisionRuntime, 'generatedSuppressions'> | null,
   resourceId: bigint,
 ): boolean {
   return runtime?.generatedSuppressions.has(`resource-${resourceId}`) ?? false;
@@ -16363,9 +16446,11 @@ function writeAdminWorldRepairAction(ctx: WorldReducerContext, action: AdminWorl
   if (action.kind === 'set_space_flags') {
     const spaceId = adminWorldSpaceId(action.spaceId);
     const existing = ctx.db.space_admin_flag.spaceId.find(spaceId);
+    // Owner-only keys (chunkAuthority) always keep their CURRENT stored value,
+    // so an admin flag write or undo can never move the owner's switch.
     const row = {
       spaceId,
-      flagsJson: JSON.stringify(action.flags),
+      flagsJson: JSON.stringify(preserveOwnerOnlySpaceFlags(action.flags, spaceAdminFlags(ctx, spaceId))),
       updatedBy: ctx.sender,
       updatedAt: ctx.timestamp,
     };
@@ -22114,7 +22199,7 @@ function outdoorCollisionMap(ctx:WorldReducerContext, excludedResourceId?: bigin
     chests.push(...ctx.db.world_chest.by_chunk.filter([TOPSIDE_SPACE_ID,x,y]));
     combatTargets.push(...ctx.db.world_combat_target.by_chunk.filter([TOPSIDE_SPACE_ID,x,y]));
   }
-  return collisionForSpace(ctx,TOPSIDE_SPACE_ID,undefined,{resources: resources.filter(resource => resource.id !== excludedResourceId),chests,combatTargets,chunkScope:new Set(chunks.keys())},compiledLiveIslandRuntime(ctx));
+  return collisionForSpace(ctx,TOPSIDE_SPACE_ID,undefined,{resources: resources.filter(resource => resource.id !== excludedResourceId),chests,combatTargets,chunkScope:new Set(chunks.keys())},liveIslandCollisionRuntime(ctx));
 }
 function outdoorRecoveryPosition(ctx:WorldReducerContext,policy:CombatRegionPolicy,prefetchedCollision?:CollisionMap):{x:number;y:number}|null {
   const arrival=HEARTH_ISLANDS.cinderwake.arrival,collision=prefetchedCollision??outdoorCollisionMap(ctx);
@@ -25122,9 +25207,10 @@ export const stepWorld = spacetimedb.reducer(
       npcsBySpace.set(spaceId, npcs);
       // Resolve the revision-keyed live runtime once per occupied space. In
       // particular, do not repeat its indexed head/registry lookup for every
-      // generated resource in the collision filter.
+      // generated resource in the collision filter. The owner chunkAuthority
+      // switch selects compiled (off, shadow) or chunk (on) collision here.
       const liveMapRuntime = spaceId === TOPSIDE_SPACE_ID
-        ? compiledLiveIslandRuntime(ctx)
+        ? liveIslandCollisionRuntime(ctx)
         : null;
       // Use the same augmented map as reducers and clients. This adds dynamic
       // Homestead POIs/tents; constructing the base map directly here caused
@@ -25144,6 +25230,13 @@ export const stepWorld = spacetimedb.reducer(
         collision,
       );
       waterCollisionBySpace.set(spaceId, waterCollision);
+      // Shadow-mode sampler: null (no allocation, no work) unless shadow is on and due.
+      const chunkSampleRuntime = spaceId === TOPSIDE_SPACE_ID ? chunkAuthorityDispatcher.sampleRuntime(authorityTick) : null;
+      if (chunkSampleRuntime !== null) {
+        sampleChunkAuthorityShadow(ctx, chunkSampleRuntime, authorityTick, playersBySpace.get(spaceId) ?? [], { ground: collision, water: waterCollision }, {
+          resources, chests, combatTargets, chunkScope: new Set(chunkScope.keys()),
+        });
+      }
       obstacleCount += collision.obstacles?.length ?? 0;
     }
     tickStageTiming(telemetryTimingSample, 'collision', true);
@@ -26050,10 +26143,21 @@ export const stepWorld = spacetimedb.reducer(
   },
 );
 
+/** Known chunk publication refusals reach the client as SenderError codes; anything else is rethrown. */
+function withShadowPublicationRefusals<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    const code = shadowPublicationRefusalCode(error);
+    if (code !== null) throw new SenderError(code);
+    throw error;
+  }
+}
+
 // Shadow-only ingestion. Static serving is a separate guarded publication step.
 export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) }, (ctx, { bytes }) => {
   requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const chunk = validateShadowBlob(Uint8Array.from(bytes));
+  const chunk = withShadowPublicationRefusals(() => validateShadowBlob(Uint8Array.from(bytes)));
   if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) === null) ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
 });
 export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.string(), mapId: t.string(), contentHash: t.string(), expectedRevision: t.u32() }, (ctx, input) => {
@@ -26065,16 +26169,35 @@ export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.str
   if (!Number.isSafeInteger(raw?.spaceId) || raw?.spaceId !== TOPSIDE_SPACE_ID || input.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('chunk_shadow_space_not_supported');
   const spaceId = BigInt(raw.spaceId);
   const previous = ctx.db.world_chunk_shadow.spaceId.find(spaceId);
-  const manifest = validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
+  const manifest = withShadowPublicationRefusals(() => validateShadowPublication(input, { mapRevision: map.revision, mapHash: map.contentHash,
     contentHash: contentRegistry(ctx).contentHash, shadowRevision: previous?.revision ?? 0 }, hash => {
       const row = ctx.db.world_chunk_blob.contentHash.find(hash); return row === null ? undefined : Uint8Array.from(row.bytes);
-    });
+    }));
   if (input.expectedRevision === 0xffffffff) throw new SenderError('chunk_shadow_revision_exhausted');
   const revision = input.expectedRevision + 1;
   for (const row of ctx.db.world_chunk_head.by_space.filter(spaceId)) ctx.db.world_chunk_head.id.delete(row.id);
   for (const head of manifest.chunks) ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
   const row = { spaceId, revision, mapId: input.mapId, contentHash: input.contentHash, manifestJson: input.manifestJson };
   if (previous === null) ctx.db.world_chunk_shadow.insert(row); else ctx.db.world_chunk_shadow.spaceId.update(row);
+});
+
+/** Static-world S2a: owner-only chunkAuthority switch (off | shadow | on),
+ * stored in the public space 0 space_admin_flag row. Idempotent: setting the
+ * current mode writes nothing. Nothing reads the mode for behaviour yet. */
+export const setChunkAuthority = spacetimedb.reducer({ mode: t.string() }, (ctx, { mode }) => {
+  requireStrictWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const next = parseChunkAuthorityMode(mode);
+  if (next === null) throw new SenderError('chunk_authority_mode_invalid');
+  const existing = ctx.db.space_admin_flag.spaceId.find(CHUNK_AUTHORITY_SPACE_ID);
+  const plan = planChunkAuthorityFlags(existing?.flagsJson, next);
+  if (plan === null) return;
+  const row = { spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: plan.flagsJson, updatedBy: ctx.sender, updatedAt: ctx.timestamp };
+  if (existing === null) ctx.db.space_admin_flag.insert(row); else ctx.db.space_admin_flag.spaceId.update(row);
+  ctx.db.world_admin_audit.insert({
+    id: 0n, actor: ctx.sender, action: 'set_chunk_authority', value: `${plan.previous}->${plan.mode}`,
+    occurredAt: ctx.timestamp, occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+    targetKey: CHUNK_AUTHORITY_AUDIT_TARGET_KEY, payload: chunkAuthorityAuditPayload(plan, ctx.timestamp.microsSinceUnixEpoch),
+  });
 });
 const shadowChunkCollision = new ShadowChunkCollisionCache();
 /** Shadow diagnostics only. No movement/pathfinding authority calls this yet. */
@@ -26091,4 +26214,41 @@ export const inspectWorldChunkShadow = spacetimedb.procedure(
     requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
     return JSON.stringify(chunkShadowCollisionAt(tx, spaceId, x, y));
   }),
+);
+
+/** Per module instance: lets the soak see whether procedure globals persist between calls. */
+let chunkAuthorityAuditCalls = 0;
+
+/** Static-world S2c: strict-owner, read-only audit of the pinned chunk publication.
+ * One short transaction checks the owner and copies the rows and blobs the audit reads
+ * (`snapshotChunkAuthorityTables`); the chunk build (a fresh dispatcher resolve, so every
+ * `on` guard is the real one), the cold compiled build and the whole-island compare then
+ * run outside any transaction, over a read-only view of that copy. Returns the JSON
+ * report (`ChunkAuthorityAuditReport`). Writes nothing. */
+export const auditChunkAuthority = spacetimedb.procedure(
+  {}, t.string(),
+  (ctx) => {
+    const clock = chunkAuthorityAuditClock();
+    const snapshotStarted = clock.now();
+    const snapshot = ctx.withTx(tx => {
+      requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+      return {
+        mode: chunkAuthorityMode(tx),
+        tables: snapshotChunkAuthorityTables(tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: LIVE_CONTENT_PACK_ID, spaceId: BigInt(TOPSIDE_SPACE_ID) }),
+      };
+    });
+    const snapshotMs = clock.label === 'none' ? null : Math.round((clock.now() - snapshotStarted) * 100) / 100;
+    chunkAuthorityAuditCalls += 1;
+    const world = chunkAuthoritySnapshotContext(snapshot.tables) as WorldReducerContext;
+    const source = chunkAuthoritySource(world);
+    return JSON.stringify(runChunkAuthorityAudit({
+      mode: snapshot.mode,
+      source,
+      heads: () => [...world.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))],
+      coldCompiled: () => coldCompiledLiveIslandRuntime(source.compiled),
+      clock,
+      snapshotMs,
+      instance: { auditCalls: chunkAuthorityAuditCalls, transaction: 'snapshot' },
+    }));
+  },
 );

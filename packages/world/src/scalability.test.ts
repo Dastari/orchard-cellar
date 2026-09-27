@@ -115,7 +115,9 @@ describe('Architecture/World-SpacetimeDB: stage-1 scalability rules', () => {
     expect(collision).toContain('prefetchedRows?.chests');
     expect(collision).toContain('prefetchedRows?.combatTargets');
     expect(collision).toContain('liveMapRuntimeGeneratedResourceSuppressed(liveMapRuntime, resource.id)');
-    expect(tick.match(/compiledLiveIslandRuntime\(ctx\)/gu)).toHaveLength(1);
+    // One dispatcher lookup per occupied space (static-world S2b: off is exactly the compiled runtime).
+    expect(tick.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+    expect(tick).not.toContain('compiledLiveIslandRuntime(ctx)');
     expect(tick).toContain('collisionForSpace(ctx, spaceId, undefined, {');
     expect(tick).toContain('resources,\n        chests,\n        combatTargets,\n        chunkScope:');
     expect(tick).toContain('waterCollisionForSpace(\n        ctx,\n        spaceId,\n        liveMapRuntime,');
