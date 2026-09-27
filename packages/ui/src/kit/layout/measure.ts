@@ -34,6 +34,14 @@ export function measureUiElement(node: UiElement, available: UiSize): UiMeasurem
     const resolved = uiLayoutFlex(bounds, children, packed);
     wrappedPreferred = { width: Math.max(0, ...resolved.map(box => box.x + box.width)),
       height: Math.max(0, ...resolved.map(box => box.y + box.height)) };
+  } else if (node.style.display !== 'stack' && node.style.display !== 'grid' && node.style.direction !== 'column'
+    && children.length && Number.isFinite(inner.width)) {
+    // A non-wrapping row shares its width between its children, as arrange does: a glyph beside wrapped text
+    // leaves the text less than the full row, so re-measure each child at the width it is actually allocated
+    // (BUG-049). Otherwise the row under-reports the wrapped height and its lower lines are clipped.
+    const boxes = uiLayoutFlex({ x: 0, y: 0, ...inner }, children, node.style);
+    sizes = children.map((child, index) => child.measureWidth === boxes[index]!.width ? sizes[index]!
+      : measureUiElement(child, { width: boxes[index]!.width, height: inner.height }));
   }
   const aggregate = (field: 'min' | 'preferred'): UiSize => {
     if (field === 'preferred' && wrappedPreferred) return wrappedPreferred;
