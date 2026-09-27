@@ -2,11 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
-## Client 0.48.5 / Sim 0.33.5 / World 0.30.2 — One backpack capacity rule (BUG-054)
+## Client 0.48.5 / Sim 0.33.5 / World 0.30.2 — One backpack capacity rule (BUG-054); client follows the chunk authority switch (BUG-053, BUG-055)
 
 - **BUG-054 (#235).** The client and the world server now use one shared rule for backpack capacity, sim `accessibleBackpackCapacity`. It gives at least 8 cells and at most 20, with developer debug slots capped at 20.
   - **Before:** the client used `min(20, bag ?? 8)`. It would have hidden cells the server allows for a bag with fewer than 8 cells, and it didn't cap debug slots.
   - **Server:** its behaviour is unchanged, exhaustively tested against the old formula. No live item is affected.
+- **BUG-053: the chunk runtime never activated (#236).** A client built with the chunk runtime `on` now subscribes to the space-0 `space_admin_flag` row and follows the server's `chunkAuthority` switch. It uses the same parser as the server, which moved to the generator-free `@orchard/sim/chunk-authority-mode`. Server `off` rolls the client back to `off`. Builds with the chunk runtime `off` (production) don't subscribe and are unchanged.
+- **BUG-055: chunk collision and map records never served (#237).** The connection's authority gate no longer turns the controller's "no gate" (`null`) into `not_on`. With a matching publication in `on`, collision and map records now serve from chunks.
 - Workspace 0.71.2.
 
 ## World 0.30.1 — Admin respawn honours resource placements (BUG-052)
