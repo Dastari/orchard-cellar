@@ -29,6 +29,7 @@ import { cellFlags } from '@orchard/sim/cell-flags';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './world-chunk-assets.js';
 import { worldChunkCellMedium } from './world-chunk-medium.js';
 import { serverLiveIslandReference, type ServerLiveIslandReference } from './world-chunk-server-reference.js';
+import { CHUNK_RESOURCE_GENERATOR, chunkResourceGeneratorMismatch } from '../packages/world/src/content/chunk-authority-runtime.js';
 
 type AuthorityMedium = 'ground' | 'water';
 const AUTHORITY_MEDIA = ['ground', 'water'] as const;
@@ -163,7 +164,9 @@ function captureAuthority(server: ServerLiveIslandReference, registry: ContentRe
     reference: { composed: server.composed, suppressedObstacleKeys, combatPolicy: server.combatPolicy, combatRegions: server.combatRegions,
       generatedSuppressions, walkable, resources: server.resources, resourcePlacements: server.orphanResourcePlacements },
     metadata: json({ schema: WORLD_CHUNK_AUTHORITY_SCHEMA, combatRegions: server.combatRegions, generatedSuppressions,
-      resources: recordDigest(server.resources), resourcePlacements: recordDigest(server.orphanResourcePlacements), collisions: { ground: collisionMetadata(ground), water: collisionMetadata(water) } }),
+      resources: recordDigest(server.resources), resourcePlacements: recordDigest(server.orphanResourcePlacements),
+      // The generator the resource records came from; the server treats another stamp as stale (S3c).
+      resourceGenerator: CHUNK_RESOURCE_GENERATOR, collisions: { ground: collisionMetadata(ground), water: collisionMetadata(water) } }),
   };
 }
 /** The terrain channels of the published chunks (everything but collision and authority),
@@ -459,6 +462,8 @@ export function verifyAuthorityParity(store: ChunkTerrainStore, manifest: WorldC
     const actual = value === 0 ? undefined : metadata.combatRegions[value - 1]?.id;
     if (actual !== expected || rebuilt !== expected) throw new Error(`Authority combat region parity failed at ${tileX},${tileY}`);
   }
+  const generatorMismatch = chunkResourceGeneratorMismatch(manifest);
+  if (generatorMismatch !== undefined) throw new Error(`Authority resource generator stamp: ${generatorMismatch}`);
   const resources = store.records('authority.resource').map(record => record.value);
   if (canonicalChunkJson(resources) !== canonicalChunkJson(reference.resources)
     || canonicalChunkJson(metadata.resources) !== canonicalChunkJson(recordDigest(resources))) throw new Error('Authority resource parity failed');

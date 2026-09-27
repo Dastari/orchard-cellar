@@ -9,8 +9,10 @@ import {
   TOPSIDE_SPACE_ID, type ContentRegistry, type MapDocumentV3,
 } from '@orchard/sim';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
-import { canonicalChunkJson, decodeWorldChunk, type WorldChunkAuthorityResource } from '@orchard/sim/world-chunk';
-import { compareLiveIslandRuntime, LIVE_ISLAND_OUTSIDE_MAP_BIOME, type ChunkLiveIslandRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { canonicalChunkJson, decodeWorldChunk, type WorldChunkAuthorityResource, type WorldChunkManifest } from '@orchard/sim/world-chunk';
+import { CHUNK_RESOURCE_GENERATOR, chunkResourceGeneratorMismatch, compareLiveIslandRuntime, LIVE_ISLAND_OUTSIDE_MAP_BIOME,
+  type ChunkLiveIslandRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { materializeWorldChunksFromRows } from './materialize-world-chunks.js';
 import { stableAssetId } from '../packages/tools/src/assets/asset-id.js';
 import { composeHearthContentMap } from '../packages/tools/src/hearth-map-composition.js';
 import { chunkRuntimeParityFixture, type ChunkRuntimeParityFixture } from './world-chunk-runtime-parity.js';
@@ -164,6 +166,18 @@ describe('S3b static document consumers on the production-shaped island', () => 
     expect(JSON.stringify(chunks)).toBe(JSON.stringify(compiled));
     expect({ count: chunks.length, sha256: sha256(JSON.stringify(chunks)) },
       'chunk-built generated resources changed (see PINNED_GENERATED_RESOURCES)').toEqual(PINNED_GENERATED_RESOURCES);
+  }, 120_000);
+
+  it('S3c: the publish path (materializeWorldChunksFromRows: S5b, and the CLI the soak runs) stamps the resource generator', () => {
+    const stamped = (manifest: Pick<WorldChunkManifest, 'metadata'>) => (manifest.metadata['authority'] as Record<string, unknown>)['resourceGenerator'];
+    expect(stamped(fixture.published.manifest)).toEqual(CHUNK_RESOURCE_GENERATOR);
+    const live = materializeWorldChunksFromRows({ row: { mapId: LIVE_ISLAND_MAP_ID, revision: document.revision, contentHash: 'static-view-production',
+      documentJson: serializeMapDocumentV3(document) }, contentRows: null });
+    const manifest = JSON.parse(live.manifestJson) as WorldChunkManifest;
+    expect(stamped(manifest)).toEqual(CHUNK_RESOURCE_GENERATOR);
+    expect(chunkResourceGeneratorMismatch(manifest)).toBeUndefined();
+    // The same publication stamped by an older generator would be refused as stale.
+    expect(chunkResourceGeneratorMismatch(manifest, { ...CHUNK_RESOURCE_GENERATOR, version: CHUNK_RESOURCE_GENERATOR.version + 1 })).toMatch(/^published /u);
   }, 120_000);
 
   it('S3c: the real reconcile writes exactly the same rows from the compiled and the chunk runtime', () => {

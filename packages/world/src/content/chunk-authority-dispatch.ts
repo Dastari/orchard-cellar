@@ -6,7 +6,7 @@ import {
 import { authorityObstacleKey, validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import type { WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
-  assembleChunkLiveIslandRuntime, compareLiveIslandRuntime,
+  assembleChunkLiveIslandRuntime, chunkResourceGeneratorMismatch, compareLiveIslandRuntime,
   type ChunkLiveIslandRuntime, type LiveIslandCollisionRuntime, type LiveIslandRuntimeDisagreement,
 } from './chunk-authority-runtime.js';
 
@@ -21,7 +21,7 @@ import {
  *   sampled at player positions at most once per `sampleIntervalTicks`. Only logs;
  *   nothing is stored.
  * - `on`: the chunk runtime is served only when it is complete, fresh (map
- *   revision/hash and content hash still match the publication) and passes the
+ *   revision/hash, content hash and resource generator stamp still match the publication) and passes the
  *   compiled guards (topside, survival world size, survival island base, a live map
  *   row exists, the ground terrain fields compiled always sets, and traversal-policy
  *   presence on both media). Staleness is checked from the shadow row and manifest
@@ -65,7 +65,7 @@ export interface ChunkAuthoritySource {
 
 export type ChunkAuthorityUnavailableReason =
   | 'shadow_missing' | 'shadow_map_mismatch' | 'map_row_missing' | 'manifest_invalid' | 'assemble_failed'
-  | 'guard_space' | 'guard_size' | 'guard_base' | 'incomplete' | 'stale_content' | 'stale_map' | 'traversal_policy_mismatch'
+  | 'guard_space' | 'guard_size' | 'guard_base' | 'incomplete' | 'stale_content' | 'stale_map' | 'stale_generator' | 'traversal_policy_mismatch'
   | 'ground_fields_missing';
 
 export type ChunkRuntimeResolution =
@@ -309,11 +309,16 @@ export class ChunkAuthorityDispatcher {
     // chunk publication refuses without paying for an assembly (0.2-0.7 s on the island).
     const registryContentHash = source.registryContentHash();
     const manifest = read.manifest;
+    // The resource records also depend on generator code: a module that bumps SURVIVAL_WORLD_VERSION
+    // (the reconcile trigger) must not reconcile from records an older generator produced (#230 review).
+    const generator = chunkResourceGeneratorMismatch(manifest);
     const stale: ChunkRuntimeResolution | null = shadow.contentHash !== registryContentHash
       ? { ok: false, reason: 'stale_content', detail: `published ${shadow.contentHash}, live ${registryContentHash}`, key: preKey }
       : manifest.sourceRevision !== liveMap.revision || manifest.sourceHash !== liveMap.contentHash
         ? { ok: false, reason: 'stale_map', detail: `published ${manifest.sourceRevision}:${manifest.sourceHash}, live ${liveMap.revision}:${liveMap.contentHash}`, key: preKey }
-        : null;
+        : generator !== undefined
+          ? { ok: false, reason: 'stale_generator', detail: generator, key: preKey }
+          : null;
     if (stale !== null) {
       // Nothing can serve until a republish: free the resident runtime.
       this.#runtimeCache = null;

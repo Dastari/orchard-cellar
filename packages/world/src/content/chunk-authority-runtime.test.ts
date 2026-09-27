@@ -24,7 +24,7 @@ const resourceDigest = (values: readonly unknown[]) => ({ count: values.length, 
 
 /** A 100x64 island: chunk 0 is full width, chunk 1 is clipped to 36 columns. */
 function island(recordsFor: (cx: number) => WorldChunkRecord[] = defaultRecords, authoritySchema: 1 | 2 = 1,
-  resources: unknown = resourceDigest(RESOURCES)) {
+  resources: unknown = resourceDigest(RESOURCES), placements: unknown = resourceDigest([])) {
   const blobs = [0, 1].map(cx => {
     const walk = new Uint8Array(CELLS), water = new Uint8Array(CELLS).fill(1);
     return encodeWorldChunk({ schema: 1, mediumSchema: 1, authoritySchema, spaceId: 0, cx, cy: 0, assetRevision: 'assets-1',
@@ -40,7 +40,7 @@ function island(recordsFor: (cx: number) => WorldChunkRecord[] = defaultRecords,
       biomePalette: ['meadow', 'forest'],
       document: { id: 'live-island', prefabs: [] },
       authority: { schema: 1, combatRegions: [{ id: 'arena', spaceId: 0, minX: 0, minY: 0, maxX: 10, maxY: 10, policy: 'hostile' }],
-        generatedSuppressions: ['resource-7'], resources: resources as never,
+        generatedSuppressions: ['resource-7'], resources: resources as never, resourcePlacements: placements as never,
         collisions: { ground: { hasTraversalChannels: true, terrainMinimumElevation: 0, terrainTransitions: [] }, water: { hasTraversalChannels: true } } },
     },
     chunks: blobs.map((bytes, cx) => ({ cx, cy: 0, contentHash: decodeWorldChunk(bytes).contentHash, byteLength: bytes.length })) };
@@ -52,7 +52,9 @@ function defaultRecords(cx: number): WorldChunkRecord[] {
   return cx === 0
     ? [obstacle(0, 'base', 0, 2, 'decoration:1'), obstacle(2, 'authored', 0, 3, 'landmark:a'),
       { kind: 'authority.suppressedObstacleKey', ordinal: 0, tileX: 5, tileY: 1, value: { medium: 'ground', ...box(5, 1) } },
-      { kind: 'objects', ordinal: 0, tileX: 4, tileY: 4, value: { id: 'crate-1', prefabId: 'crate', tileX: 4, tileY: 4 } }, resourceRecord(1)]
+      { kind: 'objects', ordinal: 0, tileX: 4, tileY: 4, value: { id: 'crate-1', prefabId: 'crate', tileX: 4, tileY: 4 } }, resourceRecord(1),
+      // The document placement that moves resource 9 (reconcile reads it from the static view).
+      { kind: 'resourcePlacements', ordinal: 0, tileX: 13, tileY: 5, value: { id: '9', originTileX: 12, originTileY: 5, tileX: 13, tileY: 5 } }]
     : [obstacle(1, 'base', 1, 70, 'decoration:2'), resourceRecord(0)];
 }
 const registry = { contentHash: 'content-1' };
@@ -199,6 +201,44 @@ describe('assembleChunkLiveIslandRuntime', () => {
     const missing = assembleChunkLiveIslandRuntime(manifest, hash => hash === manifest.chunks[1]!.contentHash ? undefined : readBlob(hash), registry);
     expect(missing.issues.map(({ kind }) => kind)).toEqual(['blob_missing']);
     expect(() => missing.generatedResources()).toThrow('chunk_resources_incomplete');
+  });
+
+  it('S3c: checks the placements reconcile reads against the verified records (#230 review)', () => {
+    const orphan = { id: '999999999999', originTile: { tileX: 20, tileY: 20 }, tile: { tileX: 21, tileY: 20 } };
+    const orphanPlacement: WorldChunkRecord = { kind: 'resourcePlacements', ordinal: 1, tileX: 21, tileY: 20,
+      value: { id: orphan.id, originTileX: 20, originTileY: 20, tileX: 21, tileY: 20 } };
+    const orphanRecord: WorldChunkRecord = { kind: 'authority.resourcePlacement', ordinal: 0, tileX: 21, tileY: 20, value: orphan };
+    const withRecords = (extra: WorldChunkRecord[]) => (cx: number) => cx === 0 ? [...defaultRecords(0), ...extra] : defaultRecords(cx);
+    const check = (recordsFor: (cx: number) => WorldChunkRecord[], placements: unknown) => {
+      const { manifest, readBlob } = island(recordsFor, 1, resourceDigest(RESOURCES), placements);
+      return assembleChunkLiveIslandRuntime(manifest, readBlob, registry);
+    };
+    // A published orphan placement with its record and digest assembles complete.
+    const ok = check(withRecords([orphanPlacement, orphanRecord]), resourceDigest([orphan]));
+    expect(ok.issues).toEqual([]);
+    expect(ok.staticView.resourcePlacements.map(({ id }) => id)).toEqual(['9', orphan.id]);
+    // A dropped orphan placement (the view lacks it, the digest still counts it) would delete that row: incomplete.
+    const dropped = check(withRecords([orphanRecord]), resourceDigest([orphan]));
+    expect(dropped.issues).toEqual([{ kind: 'resource_digest', detail: 'placements: 0 orphan placement(s) in the view, 1 published' }]);
+    // A dropped orphan record: the digest no longer matches.
+    expect(check(withRecords([orphanPlacement]), resourceDigest([orphan])).issues)
+      .toEqual([{ kind: 'resource_digest', detail: expect.stringMatching(/^placements count 0, published 1/u) }]);
+    // A dropped generated placement would move resource 9 back to its generated tile.
+    const unmoved = check(cx => defaultRecords(cx).filter(record => record.kind !== 'resourcePlacements'), resourceDigest([]));
+    expect(unmoved.issues).toEqual([{ kind: 'resource_digest', detail: 'placements: resource 9 effective tile' }]);
+    expect(() => unmoved.generatedResources()).toThrow('chunk_resources_incomplete');
+  });
+
+  it('S3c: the runtime diff compares the generated resources, ordered and strict (#230 review)', () => {
+    const { manifest, readBlob } = island();
+    const a = assembleChunkLiveIslandRuntime(manifest, readBlob, registry);
+    const shifted = { ...a, generatedResources: () => [a.generatedResources()[1]!, a.generatedResources()[0]!] };
+    expect(compareLiveIslandRuntime(a, shifted).fields['generatedResources']).toMatchObject({ count: 2 });
+    const richer = { ...a, generatedResources: () => [a.generatedResources()[0]!, { ...a.generatedResources()[1]!, richness: 3 }] };
+    expect(compareLiveIslandRuntime(a, richer).fields['generatedResources']).toMatchObject({ count: 1, samples: [{ index: 1 }] });
+    const unavailable = { ...a, generatedResources: () => { throw new Error('chunk_resources_incomplete'); } };
+    expect(compareLiveIslandRuntime(a, unavailable).fields['generatedResources']).toEqual({ count: 1, samples: [{ a: 'present', b: 'absent' }] });
+    expect(compareLiveIslandRuntime(a, assembleChunkLiveIslandRuntime(manifest, readBlob, registry)).equal).toBe(true);
   });
 
   it('reports a gap in a complete record stream instead of composing a wrong order', () => {

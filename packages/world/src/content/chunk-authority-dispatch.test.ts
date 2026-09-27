@@ -5,15 +5,15 @@ import { LIVE_ISLAND_MAP_ID, mapStreetlampPlans, positionCollides, TILE_SIZE_FIX
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
-import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
+import { assembleChunkLiveIslandRuntime, CHUNK_RESOURCE_GENERATOR, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
 import {
   ChunkAuthorityDispatcher, compareCollisionAtPosition,
   type ChunkAuthorityLogger, type ChunkAuthoritySource, type CompiledCollisionRuntime,
 } from './chunk-authority-dispatch.js';
 
-/** The manifest resource digest of an island with no generated resources (static world S3c). */
 /** A sentinel the injected generator returns (static world S3c wiring tests). */
 const GENERATOR_OUTPUT = Object.freeze([{ id: 99, kind: 'tree_oak', tileX: 5, tileY: 5 }]);
+/** The manifest record digest of an island with no generated resources or orphan placements (static world S3c). */
 const NO_RESOURCES_DIGEST = { count: 0, hash: worldChunkHash(new TextEncoder().encode(canonicalChunkJson([]))) };
 const CELLS = WORLD_CHUNK_STRIDE ** 2;
 const T = TILE_SIZE_FIXED;
@@ -40,7 +40,8 @@ function island(options: { provenance?: unknown; hasTraversalChannels?: boolean;
     metadata: {
       channels: { 'authority.ground.terrainPlaneBlocked': { type: 'u8', planes: 1 } }, biomePalette: ['meadow'],
       document: { id: LIVE_ISLAND_MAP_ID, prefabs: [], provenance: (options.provenance ?? SURVIVAL_PROVENANCE) as never },
-      authority: { schema: 1, combatRegions: [], generatedSuppressions: [], resources: NO_RESOURCES_DIGEST,
+      authority: { schema: 1, combatRegions: [], generatedSuppressions: [], resources: NO_RESOURCES_DIGEST, resourcePlacements: NO_RESOURCES_DIGEST,
+        resourceGenerator: CHUNK_RESOURCE_GENERATOR as never,
         collisions: { ground: options.groundMeta ?? { hasTraversalChannels, terrainMinimumElevation: 0, terrainTransitions: [] },
           water: { hasTraversalChannels: options.waterTraversal ?? hasTraversalChannels } } },
     },
@@ -171,7 +172,8 @@ describe('chunk authority dispatcher: on', () => {
     const { manifest } = island();
     const metadata = Object.fromEntries(Object.entries(manifest.metadata).filter(([key]) => key !== 'authority'));
     for (const [broken, reason, detail] of [
-      [{ ...manifest, metadata }, 'assemble_failed', 'chunk_authority_metadata_missing'],
+      // No authority metadata also means no resource generator stamp: stale before any assembly (S3c).
+      [{ ...manifest, metadata }, 'stale_generator', `stamp missing, live ${CHUNK_RESOURCE_GENERATOR.seed}:${CHUNK_RESOURCE_GENERATOR.version}`],
       [{ ...manifest, chunkSize: 32 }, 'manifest_invalid', 'invalid_chunk_manifest'],
       [{ ...manifest, chunks: [{ ...manifest.chunks[0]!, contentHash: 'not-a-hash' }] }, 'manifest_invalid', 'invalid_chunk_head'],
     ] as const) {
@@ -185,6 +187,30 @@ describe('chunk authority dispatcher: on', () => {
       expect(d.status().fallbacks).toEqual({ [reason]: 2 });
       expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason, detail });
     }
+  });
+
+  it('S3c: refuses records from another resource generator, or with no stamp, before decoding a blob (#230 review)', () => {
+    const { manifest } = island();
+    const withStamp = (stamp: unknown): WorldChunkManifest => ({ ...manifest, metadata: { ...manifest.metadata,
+      authority: Object.fromEntries(Object.entries({ ...(manifest.metadata['authority'] as object), resourceGenerator: stamp })
+        .filter(([, value]) => value !== undefined)) } as WorldChunkManifest['metadata'] });
+    const live = CHUNK_RESOURCE_GENERATOR;
+    for (const [stamp, detail] of [
+      [{ seed: live.seed, version: live.version - 1 }, `published ${live.seed}:${live.version - 1}, live ${live.seed}:${live.version}`],
+      [{ seed: live.seed + 1, version: live.version }, `published ${live.seed + 1}:${live.version}`],
+      [undefined, 'stamp missing'],
+      [{ seed: String(live.seed), version: live.version }, 'stamp missing'],
+    ] as const) {
+      const h = harness({ manifest: withStamp(stamp) });
+      const d = dispatcher(h.logger);
+      expect(d.select(h.source)).toBe(h.compiled);
+      expect(d.status().fallbacks).toEqual({ stale_generator: 1 });
+      expect(h.reads.blobs, 'no blob is decoded for a stale generator').toBe(0);
+      expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason: 'stale_generator', detail: expect.stringContaining(detail) });
+    }
+    // The current stamp serves.
+    const ok = harness({ manifest: withStamp({ ...live }) });
+    expect((dispatcher(ok.logger).select(ok.source) as ChunkLiveIslandRuntime).source).toBe('chunks');
   });
 
   it('caches an unexpected throw during assembly as a failed key instead of retrying every call', () => {
