@@ -13,7 +13,7 @@ import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonOptions } from './button.js';
 import { uiInput } from './input.js';
-import { uiInventoryGrid, uiSetSlotState } from './inventory.js';
+import { uiAdoptSlot, uiInventoryGrid, uiSetSlotState } from './inventory.js';
 import { uiPurseLabel } from './purse.js';
 import { uiTooltip } from './tooltip.js';
 
@@ -70,7 +70,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   // generic slot remains a presentation/callback slot, never an inventory owner.
   const guarded = (base: UiElement, key: () => string = actionKey): UiElement => {
     let pressed: string | null = null, suppress = false;
-    return new UiElement({ ...base.hooks, children: [...base.children],
+    const wrapper: UiElement = new UiElement({ ...base.hooks, children: [...base.children],
       onPointer(event, element) {
         if (event.type === 'down') { pressed = key(); suppress = moneyCommittedOnDown; allowBlurCommit = false; }
         if (event.type === 'up' && (suppress || pressed !== key())) {
@@ -88,6 +88,9 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         return base.hooks.onKey?.(event, element) ?? false;
       },
     });
+    // The wrapper is the live slot: slot state (the disabled face) applies to it (review of #234, finding 8).
+    uiAdoptSlot(base, wrapper);
+    return wrapper;
   };
   const cancelButtons: UiElement[] = [];
   const button = (buttonOptions: UiButtonOptions) => {
@@ -184,7 +187,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       const disabled = row !== undefined && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind);
       if (disabled === entry.disabled) continue;
       entry.disabled = disabled;
-      uiSetSlotState(entry.cell, disabled ? { enabled: false } : undefined); entry.wrapper.setDisabled(disabled);
+      uiSetSlotState(entry.wrapper, disabled ? { enabled: false } : undefined);
     }
   };
   const updateTrade = (next: TradeUiModel): void => {

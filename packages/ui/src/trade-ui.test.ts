@@ -5,6 +5,7 @@ import type { OverworldUiItemArt } from './overworld-ui.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { UiElement } from './kit/runtime/element.js';
 import type { CanvasTextEditor } from './kit/runtime/text-editor.js';
+import { uiSlotView } from './kit/components/inventory.js';
 
 function callbacks() { return { acceptRequest: vi.fn(), declineRequest: vi.fn(), cancel: vi.fn(),
   offerItem: vi.fn(), removeItem: vi.fn(), offerBronze: vi.fn(), setAccepted: vi.fn() } satisfies TradeUiCallbacks; }
@@ -34,8 +35,9 @@ describe('items that cannot be offered (item slot S4)', () => {
     const initial = { ...model(), inventorySlots: [{ slot: 0, itemKind: 'backpack', quantity: 1 }, { slot: 1, itemKind: 'fishing_handbook', quantity: 1 },
       { slot: 2, itemKind: 'wood', quantity: 5 }] };
     const h = setup(initial);
-    // The carried cells are the trade's guarded wrappers of kit slots: disabled blocks their input and paints the grey face.
-    const view = (slot: number) => ({ enabled: !h.node(`trade.inventory.slot.${slot}`).disabled });
+    // The carried cells are the trade's guarded wrappers of kit slots, which adopt the slot: its state (the approved grey
+    // face, render 01 B) is the live cell's slot view, and it blocks the cell's input (review of #234, findings 7 and 8).
+    const view = (slot: number) => uiSlotView(h.node(`trade.inventory.slot.${slot}`));
     // The same rule the server applies (item_not_tradeable): backpacks and unique quest items are not offerable.
     expect([0, 1, 2].map(slot => tradeItemIsOfferable(initial.contentRegistry, initial.inventorySlots[slot]!.itemKind))).toEqual([false, false, true]);
     expect([0, 1, 2].map(slot => view(slot)?.enabled)).toEqual([false, false, true]);

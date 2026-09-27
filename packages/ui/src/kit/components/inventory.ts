@@ -252,6 +252,11 @@ function verdictStack(stack: ItemStack | null, reuse: UiVerdictStack | null | un
 const slotDropTargets = new WeakMap<UiElement, () => 'accept' | 'refuse' | null>();
 /** A slot's drop verdict for the held stack (`UiSlotView.dropTarget`) without building the whole view. */
 export function uiSlotDropTarget(element: UiElement): 'accept' | 'refuse' | null { return slotDropTargets.get(element)?.() ?? null; }
+const slotAdopters = new WeakMap<UiElement, (replacement: UiElement) => void>();
+/** A host that rebuilds a slot's element from its hooks (to guard or wrap its input) hands the slot over to the new,
+ * live element: uiSetSlotState, uiSlotView and uiSlotDropTarget then apply to it, including input blocking. A no-op
+ * for any element not made by uiSlot. */
+export function uiAdoptSlot(original: UiElement, replacement: UiElement): void { slotAdopters.get(original)?.(replacement); }
 const slotViews = new WeakMap<UiElement, () => UiSlotView>();
 const slotStates = new WeakMap<UiElement, (state: UiSlotState | undefined) => void>();
 /** Changes a slot's state. Enabling or blocking input applies at once (setDisabled), so hit-testing is right even
@@ -341,23 +346,27 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       context.restore();
     },
   });
-  slotStates.set(slot, (next) => {
+  // The element the state applies to: the slot itself, or the live element that replaced it (uiAdoptSlot).
+  let live: UiElement = slot;
+  const setState = (next: UiSlotState | undefined) => {
     const wasBlocked = blocked(); current = next; verdict = undefined;
     // A locked slot is hovered although it takes no input, so its red corners (render 01 C) and reason are reachable.
-    if (slot.props['hoverWhenDisabled'] !== (next?.locked !== undefined)) slot.setProps({ hoverWhenDisabled: next?.locked !== undefined }, false);
+    if (live.props['hoverWhenDisabled'] !== (next?.locked !== undefined)) live.setProps({ hoverWhenDisabled: next?.locked !== undefined }, false);
     // Input blocking follows the state as it changes, not when the slot is next painted.
-    if (blocked() !== wasBlocked) slot.setDisabled(blocked()); else slot.invalidateRoot?.(false);
-  });
-  slotDropTargets.set(slot, dropTarget);
-  slotViews.set(slot, () => {
+    if (blocked() !== wasBlocked) live.setDisabled(blocked()); else live.invalidateRoot?.(false);
+  };
+  const view = () => {
     const cooldown = options.cooldown?.() ?? null;
     return Object.freeze({
-      variant, enabled: !slot.disabled, locked: current?.locked ?? null,
-      selected: Boolean(slot.props['selected']) || current?.selected === true, pending: current?.pending === true,
+      variant, enabled: !live.disabled, locked: current?.locked ?? null,
+      selected: Boolean(live.props['selected']) || current?.selected === true, pending: current?.pending === true,
       cooldown: cooldown === null ? null : { ...cooldown, fraction: Math.min(1, Math.max(0, cooldown.fraction)) },
       placeholder: options.placeholder ?? null, rules: options.rules ?? null, drag: options.drag ?? null, dropTarget: dropTarget(),
     });
-  });
+  };
+  const register = (element: UiElement) => { slotStates.set(element, setState); slotDropTargets.set(element, dropTarget); slotViews.set(element, view); };
+  register(slot);
+  slotAdopters.set(slot, replacement => { live = replacement; register(replacement); });
   if (options.controller && options.binding) unregister = options.controller.register(slot, options.binding); return slot;
 }
 export interface UiHeldStackOptions {

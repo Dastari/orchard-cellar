@@ -18,7 +18,7 @@ import { paintUiSkin, type UiKitArt } from './art.js';
 import { paintUiSelector } from './window.js';
 import { UiInventoryController, type UiInventoryModel } from '../runtime/inventory.js';
 import { uiTestArt, uiTestAsset } from '../lab/testing/art.js';
-import { UI_SLOT_INKS, uiItemFrame, uiSetSlotState, uiSlot, uiSlotIconRect, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
+import { UI_SLOT_INKS, uiAdoptSlot, uiItemFrame, uiSetSlotState, uiSlot, uiSlotIconRect, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
 import { uiSlotArt, uiSlotArtPolicy } from './slot-art.js';
 import { uiSlotAcceptsItem, uiSlotRestrictionFromRules, uiSlotRulesFromRestriction, type UiSlotRules } from './slot-rules.js';
 
@@ -326,5 +326,18 @@ describe('slot state model', () => {
     expect(target({ readOnly: true }, undefined, false)).toBe('refuse');
     expect(uiSlotArtPolicy(uiSlotArt())).toBeUndefined();
     expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }))?.maxStackFor('coal')).toBe(BOOTSTRAP_ITEM_CONTAINER_CONTENT.maxStackFor('coal'));
+  });
+});
+
+describe('uiAdoptSlot (review of #234, finding 8)', () => {
+  it('hands a slot\'s state, view and input blocking to the live element that replaced it', () => {
+    const original = uiSlot({}), replacement = new UiElement({ ...original.hooks });
+    uiAdoptSlot(original, replacement);
+    uiSetSlotState(replacement, { enabled: false });
+    expect(replacement.disabled).toBe(true); expect(uiSlotView(replacement)?.enabled).toBe(false);
+    uiSetSlotState(replacement, undefined);
+    expect(replacement.disabled).toBe(false); expect(uiSlotView(replacement)?.enabled).toBe(true);
+    // Not a slot: a no-op.
+    const plain = new UiElement({}); uiAdoptSlot(plain, new UiElement({})); expect(uiSlotView(plain)).toBeUndefined();
   });
 });
