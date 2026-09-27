@@ -1,6 +1,6 @@
-import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { createWriteStream, readFileSync } from 'node:fs';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,12 +66,27 @@ export interface AcceptanceOptions {
   /** Largest share of differing pixels a matched frame may have. */
   readonly maxDiffRatio: number;
   readonly steadyBudgetMiB: number;
+  /** G5a: the rollback drill (on, server off followed, previous-build swap, on again) on its own preview. */
+  readonly rollbackDrill: RollbackDrillOptions | null;
+  /** Phases to skip for quick runs (`invalidation`, `prefetch`). */
+  readonly skip: ReadonlySet<string>;
+}
+
+export interface RollbackDrillOptions {
+  /** Loopback port of the drill's own preview, which the drill stops and restarts to swap builds. */
+  readonly swapPort: number;
+  /** The `on` and legacy builds, and the directory the drill preview serves (replaced on each swap). */
+  readonly distOn: string;
+  readonly distLegacy: string;
+  readonly swapDir: string;
 }
 
 export class AcceptanceUsageError extends Error {}
 
 const FLAGS = new Set(['--host', '--database', '--token-file', '--legacy-url', '--on-url', '--chunk-dir', '--evidence', '--playwright', '--chrome',
-  '--limit', '--pixel-threshold', '--max-diff-ratio', '--steady-budget-mib']);
+  '--limit', '--pixel-threshold', '--max-diff-ratio', '--steady-budget-mib', '--swap-port', '--dist-on', '--dist-legacy', '--swap-dir', '--skip']);
+const BOOLEAN_FLAGS = new Set(['--rollback-drill']);
+const SKIPPABLE = new Set(['invalidation', 'prefetch']);
 
 function loopbackUrl(value: string, label: string): string {
   let url: URL;
@@ -86,8 +101,10 @@ function loopbackUrl(value: string, label: string): string {
 /** Parses and guards the command line: disposable loopback world and loopback preview origins only. */
 export function parseAcceptanceArgs(argv: readonly string[]): AcceptanceOptions {
   const values = new Map<string, string>();
+  const booleans = new Set<string>();
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index]!, value = argv[index + 1];
+    if (BOOLEAN_FLAGS.has(flag) && !booleans.has(flag)) { booleans.add(flag); index -= 1; continue; }
     if (!FLAGS.has(flag) || value === undefined || value.startsWith('--') || values.has(flag)) throw new AcceptanceUsageError(`bad argument ${flag}`);
     values.set(flag, value);
   }
@@ -119,6 +136,21 @@ export function parseAcceptanceArgs(argv: readonly string[]): AcceptanceOptions 
     pixelThreshold: number('--pixel-threshold', 24, value => Number.isInteger(value) && value >= 0 && value <= 255),
     maxDiffRatio: number('--max-diff-ratio', 0.002, value => value >= 0 && value <= 1),
     steadyBudgetMiB: number('--steady-budget-mib', 24, value => value > 0),
+    rollbackDrill: booleans.has('--rollback-drill') ? {
+      swapPort: Number(new URL(loopbackUrl(`http://127.0.0.1:${required('--swap-port')}`, 'swap_port')).port),
+      distOn: absolute('--dist-on'), distLegacy: absolute('--dist-legacy'), swapDir: (() => {
+        const swapDir = absolute('--swap-dir');
+        if (/\/packages\/client\/dist/u.test(swapDir) || swapDir === values.get('--dist-on') || swapDir === values.get('--dist-legacy')) {
+          throw new AcceptanceUsageError('swap_dir_must_be_its_own_directory');
+        }
+        return swapDir;
+      })(),
+    } : null,
+    skip: (() => {
+      const skip = new Set((values.get('--skip') ?? '').split(',').filter(Boolean));
+      for (const phase of skip) if (!SKIPPABLE.has(phase)) throw new AcceptanceUsageError(`invalid --skip ${phase}`);
+      return skip;
+    })(),
   };
 }
 
@@ -732,6 +764,76 @@ const SW_SOURCE = `(async () => {
     worldRequests: worldResources.length, worldViaWorker: worldResources.filter(entry => entry.workerStart > 0).length };
 })()`;
 
+// --- Rollback drill (G5a) ------------------------------------------------------------------------
+
+/** A `vite preview` of one build directory on the drill port, started and stopped by the drill only. */
+class DrillPreview {
+  #child: ChildProcess | null = null;
+  constructor(readonly options: AcceptanceOptions, readonly drill: RollbackDrillOptions, readonly logPath: string) {}
+  get origin(): string { return `http://127.0.0.1:${this.drill.swapPort}`; }
+  /** Replaces the served directory with a copy of `dist` (the release lane's dist swap), then starts the preview. */
+  async serve(dist: string): Promise<void> {
+    await this.stop();
+    await rm(this.drill.swapDir, { recursive: true, force: true });
+    await cp(dist, this.drill.swapDir, { recursive: true, verbatimSymlinks: true });
+    const env: NodeJS.ProcessEnv = { ...process.env, S4G_OUT_DIR: this.drill.swapDir, S4G_PREVIEW_PORT: String(this.drill.swapPort),
+      S4G_WORLD_HOST: this.options.host, VITE_SPACETIMEDB_DATABASE: this.options.database, ORCHARD_WORLD_CHUNK_DIR: this.options.chunkDir,
+      S4G_CHUNK_AUTHORITY: '' };
+    delete env['VITE_SPACETIMEDB_URI']; delete env['VITE_OIDC_CLIENT_ID'];
+    const log = createWriteStream(this.logPath, { flags: 'a' });
+    const child = spawn(process.execPath, [join(REPO_ROOT, 'node_modules/vite/bin/vite.js'), 'preview', '--config',
+      join(REPO_ROOT, 'scripts/chunk-runtime-acceptance.vite.config.ts'), '--mode', 'chunk-runtime-preview'], { cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout?.pipe(log); child.stderr?.pipe(log);
+    this.#child = child;
+    await waitForAsync('drill_preview_ready', async () => (await fetch(`${this.origin}/chunk-runtime-audit.json`).catch(() => null))?.ok === true, 60_000, 200);
+  }
+  async audit(): Promise<Record<string, unknown>> {
+    return await (await fetch(`${this.origin}/chunk-runtime-audit.json`, { headers: { 'Cache-Control': 'no-cache' } })).json() as Record<string, unknown>;
+  }
+  async stop(): Promise<void> {
+    const child = this.#child;
+    this.#child = null;
+    if (child === null || child.exitCode !== null) return;
+    const exited = new Promise<void>(done => child.once('exit', () => done()));
+    child.kill('SIGTERM');
+    await Promise.race([exited, sleep(10_000)]);
+    if (child.exitCode === null) { child.kill('SIGKILL'); await exited; }
+  }
+}
+
+export interface DrillPhase {
+  readonly phase: 'on' | 'server-off' | 'previous-build' | 'on-again';
+  readonly buildMode: unknown;
+  readonly effectiveMode: string | null;
+  readonly servingStore: boolean;
+  readonly collisionFallback: string | null;
+  /** Milliseconds from the switch (or the reload) until the page showed the expected mode. */
+  readonly followMs: number | null;
+  readonly worldRequests: number;
+  readonly terrain: PixelDiff | null;
+  readonly noise: PixelDiff | null;
+  readonly failures: readonly string[];
+}
+
+/** What each drill phase must show. */
+export function drillPhaseFailures(phase: Omit<DrillPhase, 'failures'>, maxDiffRatio: number): string[] {
+  const failures: string[] = [];
+  const expectOn = phase.phase === 'on' || phase.phase === 'on-again';
+  if (phase.followMs === null) failures.push(`${phase.phase}: the page never reached the expected mode`);
+  if (expectOn && (phase.effectiveMode !== 'on' || !phase.servingStore || phase.collisionFallback !== null)) {
+    failures.push(`${phase.phase}: not serving from chunks (mode ${phase.effectiveMode}, fallback ${phase.collisionFallback})`);
+  }
+  if (!expectOn && (phase.servingStore || (phase.effectiveMode !== null && phase.effectiveMode !== 'off'))) {
+    failures.push(`${phase.phase}: still on the chunk runtime (mode ${phase.effectiveMode})`);
+  }
+  if (phase.phase === 'previous-build' && phase.buildMode !== 'off') failures.push(`previous-build: served build mode ${String(phase.buildMode)}`);
+  if (phase.phase !== 'previous-build' && phase.buildMode === 'off') failures.push(`${phase.phase}: served build mode off`);
+  const allowance = Math.max(maxDiffRatio, 1.5 * (phase.noise?.ratio ?? 0));
+  if (phase.terrain === null) failures.push(`${phase.phase}: no frame comparison`);
+  else if (phase.terrain.ratio > allowance) failures.push(`${phase.phase}: frames differ on ${(phase.terrain.ratio * 100).toFixed(3)}% of pixels`);
+  return failures;
+}
+
 // --- The run ------------------------------------------------------------------------------------
 
 interface Evidence {
@@ -749,6 +851,7 @@ interface Evidence {
   criteria: Record<string, unknown>;
   spawnPrefetch?: Record<string, unknown>;
   invalidation?: Record<string, unknown>;
+  rollbackDrill?: Record<string, unknown>;
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
@@ -771,6 +874,101 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   const sessions: Session[] = [];
   const stepsPath = join(options.evidenceDir, 'steps.jsonl');
   await writeFile(stepsPath, '');
+  let legacySession: Session | null = null;
+
+  /** G5a: on, the server switch off (the page follows), the previous build swapped in, the on build and switch back. */
+  const rollbackDrill = async (drillOptions: RollbackDrillOptions): Promise<Record<string, unknown>> => {
+    const legacy = legacySession!;
+    const preview = new DrillPreview(options, drillOptions, join(options.evidenceDir, 'drill-preview.log'));
+    // BUG-053 still on main: the build's seam is the acceptance hook, so the server switch is mirrored on the page.
+    const hooked = (evidence.criteria['seam-unconnected (BUG-053)'] as { effectiveMode?: string } | undefined)?.effectiveMode === 'shadow';
+    const phases: DrillPhase[] = [];
+    try {
+      await preview.serve(drillOptions.distOn);
+      const drill = await openSession(chromium, options, 'on', preview.origin, `Drill${runTag}`, { seam: 'on' });
+      sessions.push(drill);
+      await awaitPlaying(drill);
+      const anchor = (await probe(legacy.page))!.position!;
+      let tile: { tileX: number; tileY: number } | null = null;
+      for (const [dx, dy] of NEIGHBOURS) {
+        if (await owner.teleport(drill.identity, anchor.tileX + dx, anchor.tileY + dy) === null) { tile = { tileX: anchor.tileX + dx, tileY: anchor.tileY + dy }; break; }
+      }
+      if (tile === null) throw new Error('drill_no_tile_beside_the_legacy_player');
+      const at = tile;
+      const camera = cameraOn(anchor.tileX, anchor.tileY);
+      let worldRequests = 0;
+      drill.page.on('request', (request: any) => { if (new URL(request.url()).pathname.startsWith('/world/')) worldRequests++; });
+      const phase = async (name: DrillPhase['phase'], expectOn: boolean, startedAt: number): Promise<void> => {
+        const reached = await waitForAsync(`drill_${name}`, async () => {
+          const value = await probe(drill.page).catch(() => null);
+          if (value === null || value.position === null || value.position.tileX !== at.tileX || value.position.tileY !== at.tileY) return null;
+          if (expectOn) {
+            return value.runtime?.mode === 'on' && value.runtime.state === 'on' && value.store !== null && value.collision?.fallbackReason === null
+              && (value.readiness?.ready ?? false) && (value.staging?.pending ?? null) === null ? value : null;
+          }
+          return value.store === null && (value.runtime === null || value.runtime.mode === 'off') ? value : null;
+        }, 60_000, 50).catch(() => null);
+        const followMs = reached === null ? null : Date.now() - startedAt;
+        await Promise.all([present(legacy.page, true, camera), present(drill.page, true, camera)]);
+        await sleep(800);
+        let best: { a: Uint8Array; b: Uint8Array; diff: PixelDiff } | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) await sleep(400);
+          await Promise.all([frames(legacy.page, 4), frames(drill.page, 4)]);
+          const [a, b] = await Promise.all([legacy.page.screenshot({ type: 'png' }), drill.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
+          const [ia, ib] = await Promise.all([rgba(canvasModule, a), rgba(canvasModule, b)]);
+          const diff = diffRgba(ia.data, ib.data, ia.width, ia.height, options.pixelThreshold);
+          if (best === null || diff.ratio < best.diff.ratio) best = { a, b, diff };
+          if (diff.ratio <= options.maxDiffRatio / 4) break;
+        }
+        await sleep(400);
+        await frames(drill.page, 2);
+        const [first, again] = await Promise.all([rgba(canvasModule, best!.b), rgba(canvasModule, await drill.page.screenshot({ type: 'png' }) as Uint8Array)]);
+        const noise = diffRgba(first.data, again.data, first.width, first.height, options.pixelThreshold);
+        const after = await probe(drill.page);
+        const record = { phase: name, buildMode: (await preview.audit())['mode'], effectiveMode: after?.runtime?.mode ?? null,
+          servingStore: after?.store !== null && after?.store !== undefined, collisionFallback: after?.collision?.fallbackReason ?? null,
+          followMs, worldRequests, terrain: best!.diff, noise };
+        const failures = drillPhaseFailures(record, options.maxDiffRatio);
+        phases.push({ ...record, failures });
+        for (const failure of failures) fail(`rollback drill ${failure}`);
+        await sideBySide(canvasModule, best!.a, best!.b, options.pixelThreshold, join(options.evidenceDir, 'side-by-side', `rollback-drill-${name}.png`),
+          `rollback drill: ${name} (legacy page | drill page)`);
+        log(`drill ${name}: mode ${record.effectiveMode}, follow ${followMs ?? '-'} ms, /world/ requests ${worldRequests}, diff ${(best!.diff.ratio * 100).toFixed(3)}%`);
+        worldRequests = 0;
+      };
+      await phase('on', true, Date.now());
+      // 1. The server switch goes off: the on client must follow and draw from the legacy path.
+      const offAt = Date.now();
+      await owner.setChunkAuthority('off');
+      if (hooked) {
+        // The hook stands in for the unconnected seam (BUG-053); a pin change makes the controller re-read it.
+        await drill.page.evaluate(`globalThis.__s4gChunkAuthority = 'off';`);
+        await present(drill.page, true, cameraOn(anchor.tileX + 3, anchor.tileY));
+        await frames(drill.page, 3);
+        await present(drill.page, true, null);
+      }
+      await phase('server-off', false, offAt);
+      // 2. The previous (legacy) client build is swapped in and the page reloads, as after the lane's dist restore.
+      const swapAt = Date.now();
+      await preview.serve(drillOptions.distLegacy);
+      await drill.page.reload({ waitUntil: 'domcontentloaded' });
+      await awaitPlaying(drill);
+      await phase('previous-build', false, swapAt);
+      // 3. Re-activation: the on build back, then the server switch on.
+      const againAt = Date.now();
+      await preview.serve(drillOptions.distOn);
+      await owner.setChunkAuthority('on');
+      await drill.page.reload({ waitUntil: 'domcontentloaded' });
+      await awaitPlaying(drill);
+      await phase('on-again', true, againAt);
+    } catch (error) {
+      fail(`rollback drill aborted: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      await preview.stop();
+    }
+    return { seamSimulated: hooked, phases, pass: phases.length === 4 && phases.every(phase => phase.failures.length === 0) };
+  };
   try {
     // 1. Map, heads, authority.
     let documentJson: string;
@@ -798,6 +996,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     const legacy = await openSession(chromium, options, 'legacy', options.legacyUrl, `Legacy${runTag}`);
     const on = await openSession(chromium, options, 'on', options.onUrl, `Chunks${runTag}`);
     sessions.push(legacy, on);
+    legacySession = legacy;
     await Promise.all([awaitPlaying(legacy), awaitPlaying(on)]);
     log(`players: legacy ${legacy.identity.slice(0, 12)}…, on ${on.identity.slice(0, 12)}…`);
     // BUG-053: with the seam as on main (no authority), the `on` build only ever runs `shadow`,
@@ -961,114 +1160,123 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     if (!occupancy.pass) for (const reason of occupancy.reasons) fail(`criterion 1: ${reason}`);
     if (!parity.pass) for (const reason of parity.reasons) fail(`criterion 2: ${reason}`);
 
-    // 4. Invalidation on head revision (while the sweep's `on` page is still open).
-    log('invalidation: two map edits republished as head revisions');
-    const invalidation: Record<string, unknown> = {};
-    const at = await probe(on.page);
-    const editChunk = { cx: Math.floor(at!.position!.tileX / WORLD_CHUNK_SIZE), cy: Math.floor(at!.position!.tileY / WORLD_CHUNK_SIZE) };
-    const headOf = (revisionManifest: WorldChunkManifest) => revisionManifest.chunks.find(head => head.cx === editChunk.cx && head.cy === editChunk.cy)!.contentHash;
-    const idb = async () => (await on.page.evaluate(IDB_SOURCE)) as { entries?: { hash: string; spaceId: number }[]; error?: string };
-    const revisions: { revision: number; editedHash: string; manifest: WorldChunkManifest }[] = [{ revision: owner.shadowRevision(), editedHash: headOf(manifest), manifest }];
-    invalidation['editChunk'] = editChunk;
-    invalidation['before'] = { idbEntries: (await idb()).entries?.length ?? null, sw: await on.page.evaluate(SW_SOURCE) };
-    let current = documentJson;
-    const edits: Record<string, unknown>[] = [];
-    // Cells not edited before (a rerun against the same world must still change the chunk).
-    const base = 3 + ((owner.mapRow()?.revision ?? 0) * 7) % 40;
-    for (const [index, offset] of [[1, base], [2, base + 2]] as const) {
-      const tileX = editChunk.cx * WORLD_CHUNK_SIZE + offset, tileY = editChunk.cy * WORLD_CHUNK_SIZE + offset;
-      current = editedDocumentJson(current, tileX, tileY);
-      const map = await owner.publishMap(current);
-      // The gate is synchronous: collision falls back to legacy (stale_map) until the heads follow the map.
-      const stale = await waitForAsync('client_gates_stale_map', async () => {
-        const value = await probe(on.page);
-        return value?.collision?.fallbackReason === 'stale_map' ? { gate: (value.store as { gate?: unknown } | null)?.gate ?? null, collision: value.collision.fallbackReason } : null;
-      }, 30_000).catch(() => null);
-      const swapsBefore = (await probe(on.page))?.runtime?.swaps ?? 0;
-      evidence.pipeline.push(await runPipeline(options, `edit-${index}`));
-      const revision = owner.shadowRevision();
-      const next = owner.manifest();
-      revisions.push({ revision, editedHash: headOf(next), manifest: next });
-      const swapped = await waitForAsync('client_swapped', async () => {
-        const value = await probe(on.page);
-        return value?.runtime?.servingRevision === `0:${revision}` && value.runtime.pendingRevision === null && value.collision?.fallbackReason === null ? value.runtime : null;
-      }, 60_000).catch(() => null);
-      await sleep(1_000);
-      const entries = (await idb()).entries ?? [];
-      const hashes = new Set(entries.map(entry => entry.hash));
-      const keepSet = new Set([...next.chunks, ...revisions.at(-2)!.manifest.chunks].map(head => head.contentHash));
-      const outside = entries.filter(entry => !keepSet.has(entry.hash)).length;
-      edits.push({ index, tile: `${tileX},${tileY}`, map, gatedStaleMap: stale, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
-        servingRevision: swapped?.servingRevision ?? null, editedHashChanged: revisions.at(-1)!.editedHash !== revisions.at(-2)!.editedHash,
-        idbEntries: entries.length, idbHasNewHash: hashes.has(revisions.at(-1)!.editedHash), idbHasPreviousHash: hashes.has(revisions.at(-2)!.editedHash),
-        idbHasRevisionOneHash: hashes.has(revisions[0]!.editedHash), idbEntriesOutsideCurrentAndPrevious: outside });
-      if (stale === null) fail(`invalidation edit ${index}: the on client never gated its collision as stale_map`);
-      if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision} and serve chunk collision again`);
-      if (!hashes.has(revisions.at(-1)!.editedHash)) fail(`invalidation edit ${index}: the new chunk blob is not in IndexedDB`);
-      if (outside > 0) fail(`invalidation edit ${index}: ${outside} IndexedDB entr(ies) outside the current and previous manifests`);
-      if (index === 2 && hashes.has(revisions[0]!.editedHash)) fail('invalidation: the revision-1 blob of the edited chunk was not pruned after two swaps');
+    if (!options.skip.has('invalidation')) {
+      // 4. Invalidation on head revision (while the sweep's `on` page is still open).
+      log('invalidation: two map edits republished as head revisions');
+      const invalidation: Record<string, unknown> = {};
+      const at = await probe(on.page);
+      const editChunk = { cx: Math.floor(at!.position!.tileX / WORLD_CHUNK_SIZE), cy: Math.floor(at!.position!.tileY / WORLD_CHUNK_SIZE) };
+      const headOf = (revisionManifest: WorldChunkManifest) => revisionManifest.chunks.find(head => head.cx === editChunk.cx && head.cy === editChunk.cy)!.contentHash;
+      const idb = async () => (await on.page.evaluate(IDB_SOURCE)) as { entries?: { hash: string; spaceId: number }[]; error?: string };
+      const revisions: { revision: number; editedHash: string; manifest: WorldChunkManifest }[] = [{ revision: owner.shadowRevision(), editedHash: headOf(manifest), manifest }];
+      invalidation['editChunk'] = editChunk;
+      invalidation['before'] = { idbEntries: (await idb()).entries?.length ?? null, sw: await on.page.evaluate(SW_SOURCE) };
+      let current = documentJson;
+      const edits: Record<string, unknown>[] = [];
+      // Cells not edited before (a rerun against the same world must still change the chunk).
+      const base = 3 + ((owner.mapRow()?.revision ?? 0) * 7) % 40;
+      for (const [index, offset] of [[1, base], [2, base + 2]] as const) {
+        const tileX = editChunk.cx * WORLD_CHUNK_SIZE + offset, tileY = editChunk.cy * WORLD_CHUNK_SIZE + offset;
+        current = editedDocumentJson(current, tileX, tileY);
+        const map = await owner.publishMap(current);
+        // The gate is synchronous: collision falls back to legacy (stale_map) until the heads follow the map.
+        const stale = await waitForAsync('client_gates_stale_map', async () => {
+          const value = await probe(on.page);
+          return value?.collision?.fallbackReason === 'stale_map' ? { gate: (value.store as { gate?: unknown } | null)?.gate ?? null, collision: value.collision.fallbackReason } : null;
+        }, 30_000).catch(() => null);
+        const swapsBefore = (await probe(on.page))?.runtime?.swaps ?? 0;
+        evidence.pipeline.push(await runPipeline(options, `edit-${index}`));
+        const revision = owner.shadowRevision();
+        const next = owner.manifest();
+        revisions.push({ revision, editedHash: headOf(next), manifest: next });
+        const swapped = await waitForAsync('client_swapped', async () => {
+          const value = await probe(on.page);
+          return value?.runtime?.servingRevision === `0:${revision}` && value.runtime.pendingRevision === null && value.collision?.fallbackReason === null ? value.runtime : null;
+        }, 60_000).catch(() => null);
+        await sleep(1_000);
+        const entries = (await idb()).entries ?? [];
+        const hashes = new Set(entries.map(entry => entry.hash));
+        const keepSet = new Set([...next.chunks, ...revisions.at(-2)!.manifest.chunks].map(head => head.contentHash));
+        const outside = entries.filter(entry => !keepSet.has(entry.hash)).length;
+        edits.push({ index, tile: `${tileX},${tileY}`, map, gatedStaleMap: stale, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
+          servingRevision: swapped?.servingRevision ?? null, editedHashChanged: revisions.at(-1)!.editedHash !== revisions.at(-2)!.editedHash,
+          idbEntries: entries.length, idbHasNewHash: hashes.has(revisions.at(-1)!.editedHash), idbHasPreviousHash: hashes.has(revisions.at(-2)!.editedHash),
+          idbHasRevisionOneHash: hashes.has(revisions[0]!.editedHash), idbEntriesOutsideCurrentAndPrevious: outside });
+        if (stale === null) fail(`invalidation edit ${index}: the on client never gated its collision as stale_map`);
+        if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision} and serve chunk collision again`);
+        if (!hashes.has(revisions.at(-1)!.editedHash)) fail(`invalidation edit ${index}: the new chunk blob is not in IndexedDB`);
+        if (outside > 0) fail(`invalidation edit ${index}: ${outside} IndexedDB entr(ies) outside the current and previous manifests`);
+        if (index === 2 && hashes.has(revisions[0]!.editedHash)) fail('invalidation: the revision-1 blob of the edited chunk was not pruned after two swaps');
+      }
+      invalidation['edits'] = edits;
+      const sw = await on.page.evaluate(SW_SOURCE) as { controller: string | null; caches: { world: number }[]; worldRequests: number; worldViaWorker: number };
+      invalidation['serviceWorker'] = sw;
+      if (sw.controller === null) fail('invalidation: no service worker controls the on page (cannot show it leaves /world/ alone)');
+      if (sw.caches.some(cache => cache.world > 0)) fail('invalidation: a service worker cache holds /world/ responses');
+      // Both builds agree on the edited chunk after the republish.
+      await sleep(500);
+      const shots = await (async () => {
+        const final = (await probe(legacy.page))?.position;
+        const finalCamera = final ? cameraOn(final.tileX, final.tileY) : null;
+        await Promise.all([present(legacy.page, true, finalCamera), present(on.page, true, finalCamera)]);
+        await Promise.all([frames(legacy.page, 4), frames(on.page, 4)]);
+        return await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
+      })();
+      const [ea, eb] = await Promise.all([rgba(canvasModule, shots[0]), rgba(canvasModule, shots[1])]);
+      invalidation['afterEditParity'] = diffRgba(ea.data, eb.data, ea.width, ea.height, options.pixelThreshold);
+      await sideBySide(canvasModule, shots[0], shots[1], options.pixelThreshold, join(options.evidenceDir, 'side-by-side', 'after-head-revision-3.png'),
+        `after two map edits and head revision ${owner.shadowRevision()}`);
+      // A reload is served from the IndexedDB cache (no /world/ request for chunks it already holds).
+      const reloadRequests: string[] = [];
+      on.page.on('request', (request: any) => { const path = new URL(request.url()).pathname; if (path.startsWith('/world/')) reloadRequests.push(path); });
+      await on.page.reload({ waitUntil: 'domcontentloaded' });
+      await awaitPlaying(on);
+      const reloaded = await awaitReadyAt(on, (await probe(on.page))!.position!, true).catch(() => null);
+      invalidation['reload'] = { servingRevision: reloaded?.runtime?.servingRevision ?? null, worldRequests: reloadRequests.length,
+        store: reloaded?.store ?? null };
+      evidence.invalidation = invalidation;
     }
-    invalidation['edits'] = edits;
-    const sw = await on.page.evaluate(SW_SOURCE) as { controller: string | null; caches: { world: number }[]; worldRequests: number; worldViaWorker: number };
-    invalidation['serviceWorker'] = sw;
-    if (sw.controller === null) fail('invalidation: no service worker controls the on page (cannot show it leaves /world/ alone)');
-    if (sw.caches.some(cache => cache.world > 0)) fail('invalidation: a service worker cache holds /world/ responses');
-    // Both builds agree on the edited chunk after the republish.
-    await sleep(500);
-    const shots = await (async () => {
-      const final = (await probe(legacy.page))?.position;
-      const finalCamera = final ? cameraOn(final.tileX, final.tileY) : null;
-      await Promise.all([present(legacy.page, true, finalCamera), present(on.page, true, finalCamera)]);
-      await Promise.all([frames(legacy.page, 4), frames(on.page, 4)]);
-      return await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
-    })();
-    const [ea, eb] = await Promise.all([rgba(canvasModule, shots[0]), rgba(canvasModule, shots[1])]);
-    invalidation['afterEditParity'] = diffRgba(ea.data, eb.data, ea.width, ea.height, options.pixelThreshold);
-    await sideBySide(canvasModule, shots[0], shots[1], options.pixelThreshold, join(options.evidenceDir, 'side-by-side', 'after-head-revision-3.png'),
-      `after two map edits and head revision ${owner.shadowRevision()}`);
-    // A reload is served from the IndexedDB cache (no /world/ request for chunks it already holds).
-    const reloadRequests: string[] = [];
-    on.page.on('request', (request: any) => { const path = new URL(request.url()).pathname; if (path.startsWith('/world/')) reloadRequests.push(path); });
-    await on.page.reload({ waitUntil: 'domcontentloaded' });
-    await awaitPlaying(on);
-    const reloaded = await awaitReadyAt(on, (await probe(on.page))!.position!, true).catch(() => null);
-    invalidation['reload'] = { servingRevision: reloaded?.runtime?.servingRevision ?? null, worldRequests: reloadRequests.length,
-      store: reloaded?.store ?? null };
-    evidence.invalidation = invalidation;
+
+    if (options.rollbackDrill !== null) {
+      log('rollback drill: on, server off, previous build, on again');
+      evidence.rollbackDrill = await rollbackDrill(options.rollbackDrill);
+    }
 
     for (const session of sessions.splice(0)) await session.browser.close();
 
-    // 3. Spawn-pack prefetch: a fresh profile, delayed chunk responses, a movement key held from the start.
-    log('spawn prefetch: fresh profile with delayed /world/ responses');
-    const delayWorldMs = 700;
-    const mover = await openSession(chromium, options, 'on', options.onUrl, `Mover${runTag}`, { serviceWorkers: 'block', delayWorldMs, seam: 'on' });
-    sessions.push(mover);
-    const spawn = await watchMovement(mover, null, delayWorldMs, join(options.evidenceDir, 'side-by-side', 'spawn-prefetch-spawn.png'));
-    // The in-chunk sweep target farthest from where the mover stands: never resident yet.
-    const from = (await probe(mover.page))?.position ?? null;
-    const far = from === null ? null : plan.filter(step => step.inChunk)
-      .reduce((best, step) => ((step.tileX - from.tileX) ** 2 + (step.tileY - from.tileY) ** 2 > (best.tileX - from.tileX) ** 2 + (best.tileY - from.tileY) ** 2 ? step : best));
-    let teleport: Record<string, unknown> | null = null;
-    if (far !== null) {
-      await mover.page.keyboard.up('ArrowRight');
-      await sleep(300);
-      let landed: { tileX: number; tileY: number } | null = null;
-      const refusals: string[] = [];
-      for (const tile of far.alternatives ?? [far]) {
-        const refusal = await owner.teleport(mover.identity, tile.tileX, tile.tileY);
-        if (refusal === null) { landed = tile; break; }
-        refusals.push(refusal);
+    if (!options.skip.has('prefetch')) {
+      // 3. Spawn-pack prefetch: a fresh profile, delayed chunk responses, a movement key held from the start.
+      log('spawn prefetch: fresh profile with delayed /world/ responses');
+      const delayWorldMs = 700;
+      const mover = await openSession(chromium, options, 'on', options.onUrl, `Mover${runTag}`, { serviceWorkers: 'block', delayWorldMs, seam: 'on' });
+      sessions.push(mover);
+      const spawn = await watchMovement(mover, null, delayWorldMs, join(options.evidenceDir, 'side-by-side', 'spawn-prefetch-spawn.png'));
+      // The in-chunk sweep target farthest from where the mover stands: never resident yet.
+      const from = (await probe(mover.page))?.position ?? null;
+      const far = from === null ? null : plan.filter(step => step.inChunk)
+        .reduce((best, step) => ((step.tileX - from.tileX) ** 2 + (step.tileY - from.tileY) ** 2 > (best.tileX - from.tileX) ** 2 + (best.tileY - from.tileY) ** 2 ? step : best));
+      let teleport: Record<string, unknown> | null = null;
+      if (far !== null) {
+        await mover.page.keyboard.up('ArrowRight');
+        await sleep(300);
+        let landed: { tileX: number; tileY: number } | null = null;
+        const refusals: string[] = [];
+        for (const tile of far.alternatives ?? [far]) {
+          const refusal = await owner.teleport(mover.identity, tile.tileX, tile.tileY);
+          if (refusal === null) { landed = tile; break; }
+          refusals.push(refusal);
+        }
+        teleport = landed !== null ? { chunk: `${far.cx},${far.cy}`, tile: landed, ...await watchMovement(mover, landed, delayWorldMs, join(options.evidenceDir, 'side-by-side', 'spawn-prefetch-teleport.png')) } : { refusal: refusals.slice(0, 3).join('; ') };
       }
-      teleport = landed !== null ? { chunk: `${far.cx},${far.cy}`, tile: landed, ...await watchMovement(mover, landed, delayWorldMs, join(options.evidenceDir, 'side-by-side', 'spawn-prefetch-teleport.png')) } : { refusal: refusals.slice(0, 3).join('; ') };
-    }
-    evidence.spawnPrefetch = { delayWorldMs, spawn, teleport };
-    const waited = (result: Record<string, unknown> | null) => result !== null && (result['summary'] as { waitedMs: number }).waitedMs > 0;
-    for (const [label, result] of [['spawn', spawn], ['teleport', teleport]] as const) {
-      if (result === null || result['refusal'] !== undefined) { fail(`spawn prefetch ${label}: no result ${JSON.stringify(result)}`); continue; }
-      const summary = result['summary'] as ReturnType<typeof movementWhileWaiting>;
-      if (!waited(result)) fail(`spawn prefetch ${label}: movement never waited for terrain`);
-      if (summary.movedWhileWaiting) fail(`spawn prefetch ${label}: the player moved before the spawn ring was resident`);
-      if (!summary.movedAfterReady) fail(`spawn prefetch ${label}: the player never moved once ready`);
+      evidence.spawnPrefetch = { delayWorldMs, spawn, teleport };
+      const waited = (result: Record<string, unknown> | null) => result !== null && (result['summary'] as { waitedMs: number }).waitedMs > 0;
+      for (const [label, result] of [['spawn', spawn], ['teleport', teleport]] as const) {
+        if (result === null || result['refusal'] !== undefined) { fail(`spawn prefetch ${label}: no result ${JSON.stringify(result)}`); continue; }
+        const summary = result['summary'] as ReturnType<typeof movementWhileWaiting>;
+        if (!waited(result)) fail(`spawn prefetch ${label}: movement never waited for terrain`);
+        if (summary.movedWhileWaiting) fail(`spawn prefetch ${label}: the player moved before the spawn ring was resident`);
+        if (!summary.movedAfterReady) fail(`spawn prefetch ${label}: the player never moved once ready`);
+      }
     }
   } catch (error) {
     fail(`aborted: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
