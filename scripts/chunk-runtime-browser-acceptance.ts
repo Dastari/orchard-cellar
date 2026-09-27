@@ -1,0 +1,1028 @@
+import { execFile } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { tables } from '@orchard/world-bindings';
+import { Identity } from 'spacetimedb';
+import {
+  activeSurvivalLandmarks, bootstrapContentRegistry, createLiveIslandMapDocument, parseMapDocumentV3, serializeMapDocumentV3,
+  TILE_SIZE_FIXED, TOPSIDE_SPACE_ID,
+} from '../packages/sim/src/index.js';
+import { validateRuntimeManifest } from '../packages/sim/src/chunk-runtime.js';
+import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
+import { stableAssetId } from '../packages/tools/src/assets/asset-id.js';
+import { composeHearthContentMap } from '../packages/tools/src/hearth-map-composition.js';
+import { assertSoakTarget, connectWorld, readTokenFile, subscribeChunkInputs, withTimeout, type WorldConnection } from './chunk-authority-live-rows.js';
+import { assembleChunkLiveIslandRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { chunkWalkTargets, type WalkTarget } from './chunk-authority-soak.js';
+
+/**
+ * Static-world S4g: browser acceptance for the client chunk runtime. LOCAL (DISPOSABLE) WORLDS ONLY.
+ *
+ * `scripts/run-chunk-runtime-browser-acceptance.sh` starts a disposable in-memory host, builds the
+ * client twice (legacy `off` and `on`, see chunk-runtime-acceptance.vite.config.ts), serves both on
+ * loopback preview ports, and runs this. Against the two builds, in Chromium:
+ *
+ * 1. Publishes the production-shaped island (the full Hearth content composition, as the nightly
+ *    parity tests use) and its chunk heads through the S5b pipeline (world-chunks-publish.ts,
+ *    local origin and chunk directory), then switches the disposable world's chunkAuthority on.
+ * 2. Sweeps all 169 chunk centres with one player per build (admin teleports to the same tile):
+ *    store occupancy, installs and evictions, JS heap plus array-buffer backing store after a
+ *    forced GC (CDP), and a pixel diff of the two builds' frames with entities hidden (terrain)
+ *    and shown (full scene; the players' own sprites masked).
+ * 3. Spawn-pack prefetch: a fresh profile with delayed `/world/` responses holds a movement key
+ *    from the first frame; the server position must not move until the spawn ring is resident.
+ *    The same after a far teleport.
+ * 4. Invalidation on head revision: two map edits republished as head revisions 2 and 3; the
+ *    `on` client swaps, prunes its IndexedDB chunk cache to the current plus previous manifest,
+ *    and the service worker never caches `/world/`.
+ *
+ * Evidence (summary.json, steps.jsonl, memory.csv, diffs.csv, PNGs) goes to --evidence.
+ */
+
+const execFileAsync = promisify(execFile);
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const MIB = 1024 * 1024;
+
+// --- Options ------------------------------------------------------------------------------------
+
+export interface AcceptanceOptions {
+  readonly host: string;
+  readonly database: string;
+  readonly tokenFile: string;
+  readonly legacyUrl: string;
+  readonly onUrl: string;
+  readonly chunkDir: string;
+  readonly evidenceDir: string;
+  readonly playwrightModule: string;
+  readonly chromePath: string;
+  /** Sweep only the first N chunk centres (quick runs). */
+  readonly limit: number | null;
+  /** Channel delta above which a pixel counts as different. */
+  readonly pixelThreshold: number;
+  /** Largest share of differing pixels a matched frame may have. */
+  readonly maxDiffRatio: number;
+  readonly steadyBudgetMiB: number;
+}
+
+export class AcceptanceUsageError extends Error {}
+
+const FLAGS = new Set(['--host', '--database', '--token-file', '--legacy-url', '--on-url', '--chunk-dir', '--evidence', '--playwright', '--chrome',
+  '--limit', '--pixel-threshold', '--max-diff-ratio', '--steady-budget-mib']);
+
+function loopbackUrl(value: string, label: string): string {
+  let url: URL;
+  try { url = new URL(value); } catch { throw new AcceptanceUsageError(`${label}_invalid`); }
+  const loopback = url.hostname === 'localhost' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(url.hostname);
+  if (url.protocol !== 'http:' || !loopback || url.port === '' || url.port === '3000' || url.port === '5173') {
+    throw new AcceptanceUsageError(`${label}_must_be_a_local_preview_port`);
+  }
+  return url.origin;
+}
+
+/** Parses and guards the command line: disposable loopback world and loopback preview origins only. */
+export function parseAcceptanceArgs(argv: readonly string[]): AcceptanceOptions {
+  const values = new Map<string, string>();
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index]!, value = argv[index + 1];
+    if (!FLAGS.has(flag) || value === undefined || value.startsWith('--') || values.has(flag)) throw new AcceptanceUsageError(`bad argument ${flag}`);
+    values.set(flag, value);
+  }
+  const required = (flag: string): string => {
+    const value = values.get(flag);
+    if (value === undefined) throw new AcceptanceUsageError(`missing ${flag}`);
+    return value;
+  };
+  const target = { host: required('--host'), database: required('--database') };
+  assertSoakTarget(target);
+  const number = (flag: string, fallback: number, valid: (value: number) => boolean): number => {
+    const raw = values.get(flag);
+    if (raw === undefined) return fallback;
+    const value = Number(raw);
+    if (!valid(value)) throw new AcceptanceUsageError(`invalid ${flag}`);
+    return value;
+  };
+  const absolute = (flag: string): string => {
+    const value = required(flag);
+    if (!value.startsWith('/')) throw new AcceptanceUsageError(`${flag} must be absolute`);
+    return value;
+  };
+  const limit = values.has('--limit') ? number('--limit', 0, value => Number.isSafeInteger(value) && value >= 1) : null;
+  return {
+    host: target.host, database: target.database, tokenFile: absolute('--token-file'),
+    legacyUrl: loopbackUrl(required('--legacy-url'), 'legacy_url'), onUrl: loopbackUrl(required('--on-url'), 'on_url'),
+    chunkDir: absolute('--chunk-dir'), evidenceDir: absolute('--evidence'), playwrightModule: absolute('--playwright'),
+    chromePath: values.get('--chrome') ?? '/usr/bin/google-chrome', limit,
+    pixelThreshold: number('--pixel-threshold', 24, value => Number.isInteger(value) && value >= 0 && value <= 255),
+    maxDiffRatio: number('--max-diff-ratio', 0.002, value => value >= 0 && value <= 1),
+    steadyBudgetMiB: number('--steady-budget-mib', 24, value => value > 0),
+  };
+}
+
+// --- Pure helpers -------------------------------------------------------------------------------
+
+export interface SweepStep {
+  readonly index: number;
+  readonly cx: number;
+  readonly cy: number;
+  readonly tileX: number;
+  readonly tileY: number;
+  /** False when the chunk has no walkable ground: the nearest walkable tile of any chunk stands in. */
+  readonly inChunk: boolean;
+}
+
+export type NearestWalkable = (tileX: number, tileY: number) => { readonly tileX: number; readonly tileY: number } | null;
+
+/** The walkable tile nearest (Euclidean, then row-major) to a point, from a ground `blocked` grid. */
+export function nearestWalkableIn(width: number, height: number, blocked: ArrayLike<boolean | number>): NearestWalkable {
+  return (tileX, tileY) => {
+    let best: { tileX: number; tileY: number } | null = null, bestDistance = Infinity;
+    for (let y = 0; y < height; y++) {
+      const dy = (y - tileY) ** 2;
+      if (dy >= bestDistance) continue;
+      for (let x = 0; x < width; x++) {
+        if (blocked[y * width + x]) continue;
+        const distance = dy + (x - tileX) ** 2;
+        if (distance < bestDistance) { best = { tileX: x, tileY: y }; bestDistance = distance; }
+      }
+    }
+    return best;
+  };
+}
+
+/**
+ * One step per chunk, row-major (a one-chunk move each step and a long jump at each row end,
+ * so the store both follows the view and evicts). A chunk without walkable ground uses the
+ * walkable tile nearest its centre (`nearest`, else the nearest of every chunk's candidates):
+ * players stand only on walkable ground, and chunk-mode readiness keeps the view on the player.
+ */
+export function sweepPlan(targets: readonly WalkTarget[], nearest?: NearestWalkable): SweepStep[] {
+  const everywhere = targets.flatMap(target => target.candidates);
+  if (everywhere.length === 0) throw new Error('sweep_has_no_walkable_tile');
+  return [...targets].sort((a, b) => a.cy - b.cy || a.cx - b.cx).map((target, index) => {
+    const own = target.candidates[0];
+    if (own !== undefined) return { index, cx: target.cx, cy: target.cy, tileX: own.tileX, tileY: own.tileY, inChunk: true };
+    const centreX = target.cx * WORLD_CHUNK_SIZE + WORLD_CHUNK_SIZE / 2, centreY = target.cy * WORLD_CHUNK_SIZE + WORLD_CHUNK_SIZE / 2;
+    let best = nearest?.(centreX, centreY) ?? everywhere[0]!;
+    if (nearest === undefined) {
+      let bestDistance = Infinity;
+      for (const candidate of everywhere) {
+        const distance = (candidate.tileX - centreX) ** 2 + (candidate.tileY - centreY) ** 2;
+        if (distance < bestDistance) { best = candidate; bestDistance = distance; }
+      }
+    }
+    return { index, cx: target.cx, cy: target.cy, tileX: best.tileX, tileY: best.tileY, inChunk: false };
+  });
+}
+
+export interface Rect { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+
+export interface PixelDiff {
+  readonly pixels: number;
+  /** Pixels whose largest channel delta is above zero. */
+  readonly anyChange: number;
+  /** Pixels whose largest channel delta is above the threshold. */
+  readonly changed: number;
+  readonly ratio: number;
+  readonly maxDelta: number;
+  readonly bbox: Rect | null;
+}
+
+/** Compares two RGBA buffers of the same size; masked pixels are skipped. Fills `heat` (one byte per pixel) if given. */
+export function diffRgba(a: Uint8Array | Uint8ClampedArray, b: Uint8Array | Uint8ClampedArray, width: number, height: number,
+  threshold: number, mask: readonly Rect[] = [], heat?: Uint8Array): PixelDiff {
+  if (a.length !== width * height * 4 || b.length !== a.length) throw new Error('diff_size_mismatch');
+  let pixels = 0, anyChange = 0, changed = 0, maxDelta = 0;
+  let minX = Infinity, minY = Infinity, maxX = -1, maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (mask.some(rect => x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height)) continue;
+      pixels++;
+      const offset = (y * width + x) * 4;
+      const delta = Math.max(Math.abs(a[offset]! - b[offset]!), Math.abs(a[offset + 1]! - b[offset + 1]!),
+        Math.abs(a[offset + 2]! - b[offset + 2]!), Math.abs(a[offset + 3]! - b[offset + 3]!));
+      if (heat !== undefined) heat[y * width + x] = delta;
+      if (delta === 0) continue;
+      anyChange++;
+      if (delta > maxDelta) maxDelta = delta;
+      if (delta <= threshold) continue;
+      changed++;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  return { pixels, anyChange, changed, ratio: pixels === 0 ? 0 : changed / pixels, maxDelta,
+    bbox: changed === 0 ? null : { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 } };
+}
+
+export function percentile(values: readonly number[], q: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
+}
+
+export interface StoreSample { readonly id: number; readonly residentCount: number; readonly residentBytes: number; readonly installs: number;
+  readonly pinned: number; readonly pinnedKeys?: readonly string[]; readonly maxChunks: number; readonly maxBytes: number }
+
+/** Distinct chunks the sweep ever pinned (the view window plus its ring), out of every chunk. */
+export function pinCoverage(records: readonly { readonly store: StoreSample | null }[], allKeys: readonly string[]): { pinned: number; of: number; never: string[] } {
+  const seen = new Set(records.flatMap(record => record.store?.pinnedKeys ?? []));
+  return { pinned: allKeys.filter(key => seen.has(key)).length, of: allKeys.length, never: allKeys.filter(key => !seen.has(key)) };
+}
+
+/** Evictions so far: every install beyond what the store (per store instance) still holds. */
+export function evictionsFrom(samples: readonly (StoreSample | null)[]): number {
+  const latest = new Map<number, StoreSample>();
+  for (const sample of samples) if (sample !== null) latest.set(sample.id, sample);
+  let evictions = 0;
+  for (const sample of latest.values()) evictions += Math.max(0, sample.installs - sample.residentCount);
+  return evictions;
+}
+
+export interface MemorySample { readonly usedBytes: number; readonly backingBytes: number }
+export const totalBytes = (sample: MemorySample): number => sample.usedBytes + sample.backingBytes;
+
+export interface CriterionVerdict { readonly pass: boolean; readonly reasons: readonly string[] }
+
+export interface StepRecord {
+  readonly step: SweepStep;
+  readonly arrivedMs: number;
+  readonly readyMs: number | null;
+  readonly store: StoreSample | null;
+  readonly runtimeState: string | null;
+  readonly readiness: string | null;
+  /** After a forced GC once both pages are settled; `onTransition` on the `on` page right after the teleport (next window loading). */
+  readonly memory: { readonly legacy: MemorySample; readonly on: MemorySample; readonly onTransition?: MemorySample } | null;
+  readonly terrain: PixelDiff | null;
+  readonly full: PixelDiff | null;
+  readonly noise: PixelDiff | null;
+  /** Why the `on` build was not drawing and colliding from chunks at this step (null: it was). */
+  readonly notServing: string | null;
+}
+
+/** Null when the `on` page draws and collides from its chunk window; otherwise why not. */
+export function notServingReason(value: { readonly runtime: { readonly mode: string; readonly state: string; readonly stale: boolean } | null;
+  readonly collision: { readonly fallbackReason: string | null; readonly failures: number } | null;
+  readonly windowStatus: { readonly fallback: boolean; readonly failures: number } | null; readonly records: { readonly failures: number } | null } | null): string | null {
+  if (value === null || value.runtime === null) return 'no_runtime';
+  if (value.runtime.mode !== 'on') return `mode_${value.runtime.mode}`;
+  if (value.runtime.state !== 'on' || value.runtime.stale) return `state_${value.runtime.state}${value.runtime.stale ? '_stale' : ''}`;
+  if (value.windowStatus?.fallback === true || (value.windowStatus?.failures ?? 0) > 0) return 'window_fallback';
+  if (value.collision?.fallbackReason) return `collision_${value.collision.fallbackReason}`;
+  if ((value.collision?.failures ?? 0) > 0) return 'collision_failures';
+  if ((value.records?.failures ?? 0) > 0) return 'records_failures';
+  return null;
+}
+
+/** Criterion 1: bounded store over the whole sweep, and the chunk runtime's memory in the browser. */
+export function occupancyVerdict(records: readonly StepRecord[], expectedSteps: number, steadyBudgetMiB: number): CriterionVerdict & {
+  readonly peakResident: number; readonly peakResidentBytes: number; readonly evictions: number;
+  readonly steadyDeltaMiB: number | null; readonly peakDeltaMiB: number | null; readonly steadyOnMiB: number | null; readonly steadyLegacyMiB: number | null } {
+  const reasons: string[] = [];
+  const stores = records.map(record => record.store);
+  const present = stores.filter((store): store is StoreSample => store !== null);
+  if (records.length !== expectedSteps) reasons.push(`swept ${records.length} of ${expectedSteps} chunk centres`);
+  if (present.length !== records.length) reasons.push(`${records.length - present.length} step(s) without a serving store`);
+  const peakResident = Math.max(0, ...present.map(store => store.residentCount));
+  const peakResidentBytes = Math.max(0, ...present.map(store => store.residentBytes));
+  for (const store of present) {
+    if (store.residentCount > store.maxChunks || store.pinned > store.maxChunks) reasons.push(`store ${store.id} over ${store.maxChunks} chunks`);
+    if (store.residentBytes > store.maxBytes) reasons.push(`store ${store.id} over ${store.maxBytes} bytes`);
+  }
+  const notReady = records.filter(record => record.readyMs === null).length;
+  if (notReady > 0) reasons.push(`${notReady} step(s) never became ready`);
+  const deltas = records.flatMap(record => record.memory === null ? [] : [(totalBytes(record.memory.on) - totalBytes(record.memory.legacy)) / MIB]);
+  const transitions = records.flatMap(record => record.memory?.onTransition === undefined ? []
+    : [(totalBytes(record.memory.onTransition) - totalBytes(record.memory.legacy)) / MIB]);
+  const steadyDeltaMiB = percentile(deltas, 0.5), peakDeltaMiB = deltas.length === 0 ? null : Math.max(...deltas, ...transitions);
+  if (steadyDeltaMiB === null) reasons.push('no memory samples');
+  else if (steadyDeltaMiB > steadyBudgetMiB) reasons.push(`steady chunk-runtime heap ${steadyDeltaMiB.toFixed(1)} MiB over the ${steadyBudgetMiB} MiB budget`);
+  const on = records.flatMap(record => record.memory === null ? [] : [totalBytes(record.memory.on) / MIB]);
+  const legacy = records.flatMap(record => record.memory === null ? [] : [totalBytes(record.memory.legacy) / MIB]);
+  return { pass: reasons.length === 0, reasons: [...new Set(reasons)], peakResident, peakResidentBytes, evictions: evictionsFrom(stores),
+    steadyDeltaMiB, peakDeltaMiB, steadyOnMiB: percentile(on, 0.5), steadyLegacyMiB: percentile(legacy, 0.5) };
+}
+
+/** Criterion 2: every matched terrain frame within the diff ratio. */
+export function parityVerdict(records: readonly StepRecord[], maxDiffRatio: number): CriterionVerdict & {
+  readonly terrainOver: number; readonly fullOver: number; readonly worstTerrain: number; readonly worstFull: number; readonly exactTerrain: number } {
+  const reasons: string[] = [];
+  const terrain = records.flatMap(record => record.terrain === null ? [] : [record.terrain]);
+  const full = records.flatMap(record => record.full === null ? [] : [record.full]);
+  const terrainOver = terrain.filter(diff => diff.ratio > maxDiffRatio).length;
+  const fullOver = full.filter(diff => diff.ratio > maxDiffRatio).length;
+  if (terrain.length !== records.length) reasons.push(`${records.length - terrain.length} step(s) without a terrain comparison`);
+  const notServing = records.filter(record => record.notServing !== null);
+  if (notServing.length > 0) reasons.push(`${notServing.length} step(s) where the on build was not serving from chunks (${[...new Set(notServing.map(record => record.notServing))].join(', ')})`);
+  if (terrainOver > 0) reasons.push(`${terrainOver} terrain frame(s) over ${(maxDiffRatio * 100).toFixed(2)}% differing pixels`);
+  if (fullOver > 0) reasons.push(`${fullOver} full-scene frame(s) over ${(maxDiffRatio * 100).toFixed(2)}% differing pixels`);
+  return { pass: reasons.length === 0, reasons, terrainOver, fullOver,
+    worstTerrain: Math.max(0, ...terrain.map(diff => diff.ratio)), worstFull: Math.max(0, ...full.map(diff => diff.ratio)),
+    exactTerrain: terrain.filter(diff => diff.anyChange === 0).length };
+}
+
+export interface ReadinessSample { readonly t: number; readonly ready: boolean; readonly reason: string | null; readonly state: string | null;
+  readonly tileX: number | null; readonly tileY: number | null; readonly keyHeld: boolean }
+
+/** Movement before the terrain is ready: any server position change while a key was held and readiness was not ready. */
+export function movementWhileWaiting(samples: readonly ReadinessSample[], start: { tileX: number; tileY: number } | null): {
+  readonly waitedMs: number; readonly movedWhileWaiting: boolean; readonly movedAfterReady: boolean; readonly firstReadyAt: number | null } {
+  let origin = start, waitedMs = 0, movedWhileWaiting = false, movedAfterReady = false, firstReadyAt: number | null = null, previous: ReadinessSample | undefined;
+  for (const sample of samples) {
+    if (origin === null && sample.tileX !== null && sample.tileY !== null) origin = { tileX: sample.tileX, tileY: sample.tileY };
+    const moved = origin !== null && sample.tileX !== null && (sample.tileX !== origin.tileX || sample.tileY !== origin.tileY);
+    if (!sample.ready) {
+      if (previous !== undefined && !previous.ready) waitedMs += sample.t - previous.t;
+      if (moved && sample.keyHeld && firstReadyAt === null) movedWhileWaiting = true;
+    } else if (firstReadyAt === null) firstReadyAt = sample.t;
+    if (sample.ready && moved) movedAfterReady = true;
+    previous = sample;
+  }
+  return { waitedMs, movedWhileWaiting, movedAfterReady, firstReadyAt };
+}
+
+// --- The production-shaped island ---------------------------------------------------------------
+
+const assetFor = (name: string) => {
+  const category = name.startsWith('building_') ? 'buildings' : name.startsWith('tree_') ? 'trees' : name.startsWith('crop_') ? 'crops'
+    : name.startsWith('wildlife_') ? 'characters' : 'props';
+  const source = JSON.parse(readFileSync(resolve(REPO_ROOT, 'packages/assets', category, `${name}.sprite.json`), 'utf8')) as { size: [number, number]; anchor: [number, number] };
+  return { id: stableAssetId(name), width: source.size[0], height: source.size[1], anchor: source.anchor };
+};
+
+/** The production-shaped island the nightly parity tests use: the full Hearth content composition. */
+export function productionShapedDocumentJson(): string {
+  const registry = bootstrapContentRegistry();
+  const landmarks = activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID);
+  const composed = composeHearthContentMap(createLiveIslandMapDocument({ landmarks }), assetFor, 'source-fixture');
+  if (composed.document === null) throw new Error(`hearth_composition_conflicts: ${composed.conflicts.slice(0, 5).join(',')}`);
+  return serializeMapDocumentV3(composed.document);
+}
+
+/** A collision-only edit of one cell (changes exactly that chunk's blob). */
+export function editedDocumentJson(documentJson: string, tileX: number, tileY: number): string {
+  const registry = bootstrapContentRegistry();
+  const raw = JSON.parse(documentJson) as { cells?: Record<string, unknown> };
+  raw.cells = { ...(raw.cells ?? {}), [`${tileX},${tileY}`]: { collision: 'force_block', collisionReason: 's4g acceptance edit' } };
+  return serializeMapDocumentV3(parseMapDocumentV3(JSON.stringify(raw), activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID)));
+}
+
+// --- World (owner) ------------------------------------------------------------------------------
+
+const sleep = (ms: number) => new Promise<void>(resolvePromise => setTimeout(resolvePromise, ms));
+
+async function waitFor<T>(label: string, read: () => T | undefined | null | false, timeoutMs: number, everyMs = 25): Promise<T> {
+  const started = Date.now();
+  for (;;) {
+    const value = read();
+    if (value !== undefined && value !== null && value !== false) return value;
+    if (Date.now() - started > timeoutMs) throw new Error(`${label}_timeout`);
+    await sleep(everyMs);
+  }
+}
+
+async function waitForAsync<T>(label: string, read: () => Promise<T | undefined | null | false>, timeoutMs: number, everyMs = 50): Promise<T> {
+  const started = Date.now();
+  for (;;) {
+    const value = await read();
+    if (value !== undefined && value !== null && value !== false) return value;
+    if (Date.now() - started > timeoutMs) throw new Error(`${label}_timeout`);
+    await sleep(everyMs);
+  }
+}
+
+export class OwnerWorld {
+  #sequence = 0;
+  readonly #positionSubscriptions = new Set<string>();
+  readonly #heartbeat: ReturnType<typeof setInterval>;
+  constructor(readonly world: WorldConnection) {
+    this.#heartbeat = setInterval(() => { void world.connection.reducers.heartbeat({ active: true }).catch(() => undefined); }, 5_000);
+  }
+  static async open(options: AcceptanceOptions): Promise<OwnerWorld> {
+    const world = await connectWorld({ host: options.host, database: options.database }, await readTokenFile(options.tokenFile));
+    await subscribeChunkInputs(world);
+    await withTimeout('owner_subscription', new Promise<void>((resolvePromise, reject) => {
+      world.connection.subscriptionBuilder().onApplied(() => resolvePromise()).onError(context => reject(new Error(String(context.event))))
+        .subscribe([tables.ownAdminMutationPreviews]);
+    }), 60_000);
+    return new OwnerWorld(world);
+  }
+  get db() { return this.world.connection.db; }
+  close(): void { clearInterval(this.#heartbeat); this.world.connection.disconnect(); }
+  mapRow() { return this.db.liveMapDocument.mapId.find('live-island'); }
+  shadowRevision(): number { return [...this.db.worldChunkShadow.iter()].find(row => row.spaceId === 0n)?.revision ?? 0; }
+  manifest(): WorldChunkManifest {
+    const row = [...this.db.worldChunkShadow.iter()].find(entry => entry.spaceId === 0n);
+    if (row === undefined) throw new Error('no_published_manifest');
+    return validateRuntimeManifest(JSON.parse(row.manifestJson));
+  }
+  chunkAuthority(): string {
+    const row = this.db.spaceAdminFlag.spaceId.find(0);
+    if (row === null) return 'off';
+    try { return String((JSON.parse(row.flagsJson) as Record<string, unknown>)['chunkAuthority'] ?? 'off'); } catch { return 'off'; }
+  }
+  async publishMap(documentJson: string): Promise<{ revision: number; contentHash: string }> {
+    const current = this.mapRow();
+    const expectedRevision = current?.revision ?? 0;
+    await this.world.connection.reducers.publishLiveMapDocument({ mapId: 'live-island', expectedRevision, documentJson,
+      clientMutationId: `s4g-map-${Date.now()}` });
+    const row = await waitFor('map_published', () => { const next = this.mapRow(); return next !== null && next.revision !== expectedRevision ? next : null; }, 60_000);
+    return { revision: row.revision, contentHash: row.contentHash };
+  }
+  async setChunkAuthority(mode: 'off' | 'shadow' | 'on'): Promise<void> {
+    await this.world.connection.reducers.setChunkAuthority({ mode });
+    await waitFor(`chunk_authority_${mode}`, () => this.chunkAuthority() === mode, 10_000);
+  }
+  async trySetWeather(mode: string): Promise<string | null> {
+    try { await this.world.connection.reducers.setWorldWeather({ weatherMode: mode }); return null; }
+    catch (error) { return error instanceof Error ? error.message : String(error); }
+  }
+  async watchPosition(identityHex: string): Promise<void> {
+    if (this.#positionSubscriptions.has(identityHex)) return;
+    const identity = Identity.fromString(identityHex);
+    await withTimeout('position_subscription', new Promise<void>((resolvePromise, reject) => {
+      this.world.connection.subscriptionBuilder().onApplied(() => resolvePromise()).onError(context => reject(new Error(String(context.event))))
+        .subscribe([tables.playerPosition.where(row => row.identity.eq(identity))]);
+    }), 30_000);
+    this.#positionSubscriptions.add(identityHex);
+  }
+  position(identityHex: string): { spaceId: number; tileX: number; tileY: number } | null {
+    const row = this.db.playerPosition.identity.find(Identity.fromString(identityHex));
+    return row === null ? null : { spaceId: Number(row.spaceId), tileX: Math.floor(row.x / TILE_SIZE_FIXED), tileY: Math.floor(row.y / TILE_SIZE_FIXED) };
+  }
+  /** Admin teleport (dry run, then the previewed mutation); null on arrival, else the refusal. */
+  async teleport(identityHex: string, tileX: number, tileY: number): Promise<string | null> {
+    await this.watchPosition(identityHex);
+    const clientMutationId = `s4g-${Date.now()}-${++this.#sequence}`;
+    const common = { identity: Identity.fromString(identityHex), reason: 's4g chunk runtime acceptance', clientMutationId,
+      spaceId: TOPSIDE_SPACE_ID, tileX, tileY };
+    try {
+      await this.world.connection.reducers.adminTeleportPlayer({ ...common, dryRun: true, expectedBaseVersion: '', previewFingerprint: undefined });
+      const preview = await waitFor('teleport_preview', () => [...this.db.ownAdminMutationPreviews.iter()].find(row => row.clientMutationId === clientMutationId), 10_000);
+      await this.world.connection.reducers.adminTeleportPlayer({ ...common, dryRun: false, expectedBaseVersion: preview.baseVersion, previewFingerprint: preview.fingerprint });
+      await waitFor('teleport_arrival', () => { const at = this.position(identityHex); return at !== null && at.spaceId === TOPSIDE_SPACE_ID && at.tileX === tileX && at.tileY === tileY; }, 10_000);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+}
+
+// --- The S5b publish pipeline (local origin and chunk directory) ----------------------------------
+
+export async function runPipeline(options: AcceptanceOptions, label: string): Promise<Record<string, unknown>> {
+  const common = ['node_modules/tsx/dist/cli.mjs', 'scripts/world-chunks-publish.ts'];
+  const target = ['--host', options.host, '--database', options.database, '--origin', options.onUrl, '--chunk-dir', options.chunkDir];
+  const env: NodeJS.ProcessEnv = { ...process.env, WORLD_CHUNKS_TOKEN_FILE: options.tokenFile };
+  delete env['WORLD_CHUNKS_TOKEN_LABEL']; delete env['WORLD_CHUNKS_PUBLISH_CONFIRM'];
+  const planReport = join(options.evidenceDir, 'pipeline', `${label}-plan.json`), publishReport = join(options.evidenceDir, 'pipeline', `${label}-publish.json`);
+  await mkdir(join(options.evidenceDir, 'pipeline'), { recursive: true });
+  const started = Date.now();
+  await execFileAsync(process.execPath, [...common, 'plan', ...target, '--report', planReport], { cwd: REPO_ROOT, env, maxBuffer: 64 * MIB, timeout: 600_000 });
+  const plan = JSON.parse(await readFile(planReport, 'utf8')) as Record<string, unknown>;
+  const confirmation = plan['confirmation'];
+  if (typeof confirmation !== 'string') throw new Error('pipeline_plan_without_confirmation');
+  await execFileAsync(process.execPath, [...common, 'publish', ...target, '--report', publishReport], {
+    cwd: REPO_ROOT, env: { ...env, WORLD_CHUNKS_PUBLISH_CONFIRM: confirmation }, maxBuffer: 64 * MIB, timeout: 600_000 });
+  const publish = JSON.parse(await readFile(publishReport, 'utf8')) as Record<string, unknown>;
+  return { label, ms: Date.now() - started, outcome: publish['outcome'] ?? publish['ok'], confirmation, publish };
+}
+
+/** Walk targets from the published chunks the local origin serves (the chunk runtime's own ground collision). */
+export async function walkTargets(owner: OwnerWorld, chunkDir: string): Promise<{ targets: WalkTarget[]; nearest: NearestWalkable }> {
+  const manifest = owner.manifest();
+  const blobs = new Map<string, Uint8Array>();
+  for (const head of manifest.chunks) blobs.set(head.contentHash, new Uint8Array(await readFile(join(chunkDir, String(manifest.spaceId), `${head.contentHash}.bin`))));
+  const contentHash = [...owner.db.worldChunkShadow.iter()].find(row => row.spaceId === 0n)!.contentHash;
+  const runtime = assembleChunkLiveIslandRuntime(manifest, hash => blobs.get(hash), { contentHash });
+  return { targets: chunkWalkTargets(manifest.width, manifest.height, runtime.ground.blocked),
+    nearest: nearestWalkableIn(manifest.width, manifest.height, runtime.ground.blocked) };
+}
+
+// --- Browser ------------------------------------------------------------------------------------
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- playwright-core is loaded at runtime from outside the workspace */
+type Browser = any; type Page = any; type CdpSession = any;
+
+interface PageProbe {
+  readonly identity: string | null;
+  readonly connected: boolean;
+  readonly error: string | null;
+  readonly position: { readonly spaceId: number; readonly tileX: number; readonly tileY: number } | null;
+  readonly runtime: { readonly mode: string; readonly state: string; readonly readyChunks: number; readonly residentBytes: number;
+    readonly servingRevision: string | null; readonly pendingRevision: string | null; readonly swaps: number; readonly stale: boolean;
+    readonly staleReasons: readonly string[]; readonly atlasPackFailures: number } | null;
+  readonly readiness: { readonly ready: boolean; readonly reason: string; readonly missing: number } | null;
+  readonly staging: { readonly pending: string | null; readonly staged: number; readonly synchronous: number } | null;
+  readonly collision: { readonly missingChunks: number; readonly fallbackReason: string | null; readonly failures: number } | null;
+  readonly windowStatus: { readonly failures: number; readonly lastError: string | null; readonly fallback: boolean } | null;
+  readonly records: { readonly failures: number } | null;
+  readonly store: StoreSample | null;
+}
+
+const PROBE_SOURCE = `(() => {
+  const o = window.__orchardOverworld; if (!o) return null;
+  const s = o.snapshot(); const me = s.identityHex ? s.players.get(s.identityHex) : undefined;
+  const d = o.diagnostics(); const c = d.chunks ?? {};
+  const tile = ${TILE_SIZE_FIXED};
+  const plain = value => value === undefined ? null : JSON.parse(JSON.stringify(value, (_k, v) => typeof v === 'bigint' ? Number(v) : v instanceof Set ? [...v] : v));
+  return { identity: s.identityHex, connected: s.connected, error: s.error,
+    position: me ? { spaceId: Number(me.spaceId), tileX: Math.floor(Number(me.x) / tile), tileY: Math.floor(Number(me.y) / tile) } : null,
+    runtime: plain(c.runtime), readiness: plain(c.readiness), staging: plain(c.staging), collision: plain(c.collision),
+    windowStatus: plain(c.window), records: plain(c.records), store: o.s4gChunkStore ? o.s4gChunkStore() : null };
+})()`;
+
+async function probe(page: Page): Promise<PageProbe | null> {
+  return await page.evaluate(PROBE_SOURCE) as PageProbe | null;
+}
+
+async function frames(page: Page, count = 3): Promise<void> {
+  await page.evaluate(`new Promise(done => { let n = ${count}; const tick = () => (--n <= 0 ? done() : requestAnimationFrame(tick)); requestAnimationFrame(tick); })`);
+}
+
+async function memory(cdp: CdpSession): Promise<MemorySample> {
+  await cdp.send('HeapProfiler.collectGarbage');
+  await cdp.send('HeapProfiler.collectGarbage');
+  const usage = await cdp.send('Runtime.getHeapUsage') as { usedSize: number; backingStorageSize?: number };
+  return { usedBytes: usage.usedSize, backingBytes: usage.backingStorageSize ?? 0 };
+}
+
+const PRESENTATION = { clockHours: 12, continuousDay: 12, lunarProgress: 0.25, lunarIllumination: 0, cloudCover: 0 };
+
+async function present(page: Page, entitiesHidden: boolean): Promise<void> {
+  await page.evaluate(`(() => { const o = window.__orchardOverworld; o.setInterfaceHidden(true); o.setNameplatesVisible(false);
+    o.setEntitiesHidden(${entitiesHidden}); o.setLightingPreview(${JSON.stringify(PRESENTATION)}); })()`);
+}
+
+interface Session { readonly label: 'legacy' | 'on'; readonly browser: Browser; readonly page: Page; readonly cdp: CdpSession; identity: string }
+
+async function openSession(chromium: any, options: AcceptanceOptions, label: 'legacy' | 'on', url: string, slot: string,
+  extra: { serviceWorkers?: 'allow' | 'block'; delayWorldMs?: number; seam?: 'on' } = {}): Promise<Session> {
+  const browser = await chromium.launch({ executablePath: options.chromePath, headless: true,
+    args: ['--enable-precise-memory-info', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, serviceWorkers: extra.serviceWorkers ?? 'allow' });
+  if (extra.delayWorldMs !== undefined) {
+    const delay = extra.delayWorldMs;
+    await context.route(/\/world\/\d+\/[0-9a-f]{64}\.bin$/u, async (route: any) => { await sleep(delay); await route.continue(); });
+  }
+  if (extra.seam !== undefined) await context.addInitScript(`globalThis.__s4gChunkAuthority = ${JSON.stringify(extra.seam)};`);
+  const page = await context.newPage();
+  page.on('pageerror', (error: Error) => console.error(`[s4g:${label}] pageerror ${error.message}`));
+  const cdp = await context.newCDPSession(page);
+  await page.goto(`${url}/?slot=${slot}`, { waitUntil: 'domcontentloaded' });
+  return { label, browser, page, cdp, identity: '' };
+}
+
+async function awaitPlaying(session: Session, timeoutMs = 180_000): Promise<PageProbe> {
+  const state = await waitForAsync(`${session.label}_playing`, async () => {
+    const value = await probe(session.page).catch(() => null);
+    return value !== null && value.connected && value.identity !== null && value.position !== null ? value : null;
+  }, timeoutMs, 250);
+  session.identity = state.identity!;
+  return state;
+}
+
+/** Ready at the tile: the page sees the position, and in `on` the spawn ring is resident and the window served and complete. */
+async function awaitReadyAt(session: Session, step: { tileX: number; tileY: number }, requireOn: boolean, timeoutMs = 60_000): Promise<PageProbe> {
+  return await waitForAsync(`${session.label}_ready_at_${step.tileX}_${step.tileY}`, async () => {
+    const value = await probe(session.page);
+    if (value === null || value.position === null || value.position.tileX !== step.tileX || value.position.tileY !== step.tileY) return null;
+    if (!requireOn) return value;
+    const runtime = value.runtime;
+    if (runtime === null || runtime.mode !== 'on' || runtime.pendingRevision !== null || !(value.readiness?.ready ?? false)) return null;
+    if ((value.staging?.pending ?? null) !== null || (value.collision?.missingChunks ?? 1) !== 0) return null;
+    return value;
+  }, timeoutMs, 50);
+}
+
+// --- Images -------------------------------------------------------------------------------------
+
+async function loadCanvas(): Promise<any> {
+  return await import('@napi-rs/canvas');
+}
+
+async function rgba(canvasModule: any, png: Uint8Array): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+  const image = await canvasModule.loadImage(Buffer.from(png));
+  const canvas = canvasModule.createCanvas(image.width, image.height);
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  return { data: context.getImageData(0, 0, image.width, image.height).data, width: image.width, height: image.height };
+}
+
+/** legacy | on | heat map of the difference (red above the threshold, amber below, the legacy frame dimmed). */
+async function sideBySide(canvasModule: any, legacy: Uint8Array, on: Uint8Array, threshold: number, path: string, title: string): Promise<void> {
+  const a = await rgba(canvasModule, legacy), b = await rgba(canvasModule, on);
+  const heat = new Uint8Array(a.width * a.height);
+  diffRgba(a.data, b.data, a.width, a.height, threshold, [], heat);
+  const canvas = canvasModule.createCanvas(a.width * 3, a.height + 24);
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#111'; context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(await canvasModule.loadImage(Buffer.from(legacy)), 0, 24);
+  context.drawImage(await canvasModule.loadImage(Buffer.from(on)), a.width, 24);
+  const diff = context.createImageData(a.width, a.height);
+  for (let index = 0; index < heat.length; index++) {
+    const offset = index * 4, delta = heat[index]!;
+    const grey = Math.round((a.data[offset]! * 0.3 + a.data[offset + 1]! * 0.59 + a.data[offset + 2]! * 0.11) * 0.35);
+    diff.data[offset] = delta > threshold ? 255 : delta > 0 ? 255 : grey;
+    diff.data[offset + 1] = delta > threshold ? 0 : delta > 0 ? 176 : grey;
+    diff.data[offset + 2] = delta > threshold ? 0 : delta > 0 ? 0 : grey;
+    diff.data[offset + 3] = 255;
+  }
+  context.putImageData(diff, a.width * 2, 24);
+  context.fillStyle = '#eee'; context.font = '14px sans-serif';
+  context.fillText(`legacy (off)  |  chunk runtime (on)  |  difference (red > ${threshold}, amber 1..${threshold})  —  ${title}`, 8, 17);
+  await writeFile(path, canvas.encodeSync('png'));
+}
+
+async function memoryChart(canvasModule: any, records: readonly StepRecord[], path: string): Promise<void> {
+  const width = 1200, height = 520, left = 64, right = 24, top = 40, bottom = 48;
+  const series = records.filter(record => record.memory !== null);
+  const legacy = series.map(record => totalBytes(record.memory!.legacy) / MIB), on = series.map(record => totalBytes(record.memory!.on) / MIB);
+  const delta = series.map((_record, index) => on[index]! - legacy[index]!);
+  const store = series.map(record => (record.store?.residentBytes ?? 0) / MIB);
+  const all = [...legacy, ...on, ...delta, ...store, 0];
+  const minimum = Math.min(...all), maximum = Math.max(...all) * 1.05;
+  const canvas = canvasModule.createCanvas(width, height);
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff'; context.fillRect(0, 0, width, height);
+  const x = (index: number) => left + (series.length <= 1 ? 0 : index / (series.length - 1)) * (width - left - right);
+  const y = (value: number) => top + (1 - (value - minimum) / (maximum - minimum || 1)) * (height - top - bottom);
+  context.strokeStyle = '#ddd'; context.fillStyle = '#555'; context.font = '12px sans-serif'; context.lineWidth = 1;
+  const stepSize = Math.max(1, Math.ceil((maximum - minimum) / 8 / 10) * 10);
+  for (let value = Math.ceil(minimum / stepSize) * stepSize; value <= maximum; value += stepSize) {
+    context.beginPath(); context.moveTo(left, y(value)); context.lineTo(width - right, y(value)); context.stroke();
+    context.fillText(`${value} MiB`, 4, y(value) + 4);
+  }
+  context.fillText('sweep step (chunk centre, row-major)', width / 2 - 100, height - 14);
+  const lines: [string, string, number[]][] = [['legacy build: heap + buffers', '#2a6fdb', legacy], ['on build: heap + buffers', '#d9480f', on],
+    ['on − legacy (chunk runtime cost)', '#2b8a3e', delta], ['store resident (encoded chunks)', '#7048e8', store]];
+  lines.forEach(([label, colour, values], index) => {
+    context.strokeStyle = colour; context.lineWidth = 2; context.beginPath();
+    values.forEach((value, step) => (step === 0 ? context.moveTo(x(step), y(value)) : context.lineTo(x(step), y(value))));
+    context.stroke();
+    context.fillStyle = colour; context.fillRect(left + index * 280, 12, 14, 4); context.fillStyle = '#222';
+    context.fillText(label, left + index * 280 + 20, 18);
+  });
+  await writeFile(path, canvas.encodeSync('png'));
+}
+
+// --- Page state readers -------------------------------------------------------------------------
+
+const IDB_SOURCE = `new Promise(resolvePromise => {
+  const request = indexedDB.open('orchard-world-chunks-v2');
+  request.onerror = () => resolvePromise({ error: String(request.error) });
+  request.onsuccess = () => {
+    const database = request.result;
+    if (!database.objectStoreNames.contains('meta')) { database.close(); resolvePromise({ entries: [] }); return; }
+    const all = database.transaction('meta', 'readonly').objectStore('meta').getAll();
+    all.onsuccess = () => { database.close(); resolvePromise({ entries: all.result.map(row => ({ hash: row.hash, spaceId: row.spaceId, byteLength: row.byteLength })) }); };
+    all.onerror = () => { database.close(); resolvePromise({ error: String(all.error) }); };
+  };
+})`;
+
+const SW_SOURCE = `(async () => {
+  const names = typeof caches === 'undefined' ? [] : await caches.keys();
+  const caches_ = [];
+  for (const name of names) {
+    const keys = await (await caches.open(name)).keys();
+    caches_.push({ name, entries: keys.length, world: keys.filter(request => new URL(request.url).pathname.startsWith('/world/')).length });
+  }
+  const worldResources = performance.getEntriesByType('resource').filter(entry => new URL(entry.name).pathname.startsWith('/world/'));
+  return { controller: navigator.serviceWorker?.controller?.scriptURL ?? null, caches: caches_,
+    worldRequests: worldResources.length, worldViaWorker: worldResources.filter(entry => entry.workerStart > 0).length };
+})()`;
+
+// --- The run ------------------------------------------------------------------------------------
+
+interface Evidence {
+  schema: 1;
+  startedAt: string;
+  finishedAt?: string;
+  result: 'passed' | 'failed';
+  failures: string[];
+  target: { host: string; database: string; legacyUrl: string; onUrl: string };
+  builds: Record<string, unknown>;
+  map?: Record<string, unknown>;
+  pipeline: Record<string, unknown>[];
+  weather?: string | null;
+  sweep?: Record<string, unknown>;
+  criteria: Record<string, unknown>;
+  spawnPrefetch?: Record<string, unknown>;
+  invalidation?: Record<string, unknown>;
+}
+
+export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
+  const options = parseAcceptanceArgs(argv);
+  const log = (line: string) => console.log(`[s4g] ${new Date().toISOString().slice(11, 19)} ${line}`);
+  await mkdir(join(options.evidenceDir, 'side-by-side'), { recursive: true });
+  const require = createRequire(import.meta.url);
+  const { chromium } = require(options.playwrightModule) as { chromium: any };
+  const canvasModule = await loadCanvas();
+  const evidence: Evidence = { schema: 1, startedAt: new Date().toISOString(), result: 'failed', failures: [],
+    target: { host: options.host, database: options.database, legacyUrl: options.legacyUrl, onUrl: options.onUrl }, builds: {}, pipeline: [], criteria: {} };
+  const fail = (message: string) => { evidence.failures.push(message); log(`FAIL ${message}`); };
+  for (const [label, url] of [['legacy', options.legacyUrl], ['on', options.onUrl]] as const) {
+    evidence.builds[label] = JSON.parse(await (await fetch(`${url}/chunk-runtime-audit.json`)).text());
+  }
+  const owner = await OwnerWorld.open(options);
+  const sessions: Session[] = [];
+  const stepsPath = join(options.evidenceDir, 'steps.jsonl');
+  await writeFile(stepsPath, '');
+  try {
+    // 1. Map, heads, authority.
+    let documentJson: string;
+    if (owner.mapRow() === null) {
+      log('publishing the production-shaped island');
+      documentJson = productionShapedDocumentJson();
+      evidence.map = { initial: await owner.publishMap(documentJson), documentChars: documentJson.length };
+    } else {
+      documentJson = owner.mapRow()!.documentJson;
+      evidence.map = { initial: { revision: owner.mapRow()!.revision, contentHash: owner.mapRow()!.contentHash, existing: true } };
+    }
+    log('publishing chunk heads through the S5b pipeline');
+    evidence.pipeline.push(await runPipeline(options, 'initial'));
+    await waitFor('shadow_revision_1', () => owner.shadowRevision() >= 1, 30_000);
+    await owner.setChunkAuthority('on');
+    evidence.weather = await owner.trySetWeather('clear');
+    const manifest = owner.manifest();
+    const walk = await walkTargets(owner, options.chunkDir);
+    const plan = sweepPlan(walk.targets, walk.nearest);
+    const steps = options.limit === null ? plan : plan.slice(0, options.limit);
+    log(`${manifest.chunks.length} chunk heads at revision ${owner.shadowRevision()}; sweeping ${steps.length} chunk centres`
+      + ` (${plan.filter(step => !step.inChunk).length} without walkable ground use the nearest walkable tile)`);
+
+    // 2. Sweep.
+    const legacy = await openSession(chromium, options, 'legacy', options.legacyUrl, 's4g-legacy');
+    const on = await openSession(chromium, options, 'on', options.onUrl, 's4g-on');
+    sessions.push(legacy, on);
+    await Promise.all([awaitPlaying(legacy), awaitPlaying(on)]);
+    log(`players: legacy ${legacy.identity.slice(0, 12)}…, on ${on.identity.slice(0, 12)}…`);
+    // BUG-053: with the seam as on main (no authority), the `on` build only ever runs `shadow`,
+    // even though the world's chunkAuthority is `on`. Record that, then connect the hook.
+    const unconnected = await waitForAsync('on_build_settles_unconnected', async () => {
+      const value = await probe(on.page);
+      return value?.runtime !== null && value?.runtime !== undefined && value.runtime.state !== 'idle' && value.runtime.state !== 'subscribing' ? value : null;
+    }, 60_000).catch(() => null);
+    await sleep(3_000);
+    const unconnectedLater = await probe(on.page);
+    evidence.criteria['seam-unconnected (BUG-053)'] = { worldChunkAuthority: owner.chunkAuthority(), buildMode: (evidence.builds['on'] as { mode?: string }).mode,
+      effectiveMode: unconnectedLater?.runtime?.mode ?? null, state: unconnectedLater?.runtime?.state ?? null, firstState: unconnected?.runtime?.state ?? null,
+      readiness: unconnectedLater?.readiness?.reason ?? null, servingStore: unconnectedLater?.store !== null };
+    await on.page.evaluate(`globalThis.__s4gChunkAuthority = 'on';`);
+    await on.page.context().addInitScript(`globalThis.__s4gChunkAuthority = 'on';`);
+    const records: StepRecord[] = [];
+    const worst: { index: number; ratio: number; kind: 'terrain' | 'full'; legacy: Uint8Array; on: Uint8Array }[] = [];
+    const keep = new Set([0, Math.floor(steps.length / 4), Math.floor(steps.length / 2), Math.floor((3 * steps.length) / 4), steps.length - 1]);
+    const playerMask: Rect[] = [{ x: 640 - 48, y: 360 - 72, width: 96, height: 120 }];
+    const sweepStarted = Date.now();
+    for (const step of steps) {
+      const began = Date.now();
+      for (const session of [legacy, on]) {
+        const refusal = await owner.teleport(session.identity, step.tileX, step.tileY);
+        if (refusal !== null) throw new Error(`teleport ${session.label} to ${step.tileX},${step.tileY}: ${refusal}`);
+      }
+      const arrivedMs = Date.now() - began;
+      // While the next window loads and is prepared (the Node peak was measured there).
+      const onTransition = step.index === 0 ? undefined : await memory(on.cdp);
+      let ready: PageProbe | null = null;
+      try {
+        await awaitReadyAt(legacy, step, false);
+        ready = await awaitReadyAt(on, step, true);
+      } catch (error) { fail(`step ${step.index} (${step.cx},${step.cy}): ${error instanceof Error ? error.message : String(error)}`); }
+      const readyMs = ready === null ? null : Date.now() - began;
+      // Let the ground cache and the staged window settle before comparing frames.
+      await sleep(500);
+      const capture = async (entitiesHidden: boolean) => {
+        await Promise.all([present(legacy.page, entitiesHidden), present(on.page, entitiesHidden)]);
+        await Promise.all([frames(legacy.page, 4), frames(on.page, 4)]);
+        const [a, b] = await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
+        return { a, b };
+      };
+      const terrainShots = await capture(true);
+      const [ta, tb] = await Promise.all([rgba(canvasModule, terrainShots.a), rgba(canvasModule, terrainShots.b)]);
+      let terrain = diffRgba(ta.data, tb.data, ta.width, ta.height, options.pixelThreshold);
+      let terrainPngs = terrainShots;
+      if (terrain.ratio > options.maxDiffRatio) {
+        // One retry after a second: a frame caught mid-way through a ground cache fill is not a parity failure.
+        await sleep(1_000);
+        terrainPngs = await capture(true);
+        const [ra, rb] = await Promise.all([rgba(canvasModule, terrainPngs.a), rgba(canvasModule, terrainPngs.b)]);
+        terrain = diffRgba(ra.data, rb.data, ra.width, ra.height, options.pixelThreshold);
+      }
+      // Noise floor: the legacy build against itself a moment later (animation phase), every tenth step.
+      let noise: PixelDiff | null = null;
+      if (step.index % 10 === 0) {
+        await sleep(300);
+        await frames(legacy.page, 2);
+        const again = await rgba(canvasModule, await legacy.page.screenshot({ type: 'png' }) as Uint8Array);
+        noise = diffRgba(ta.data, again.data, ta.width, ta.height, options.pixelThreshold);
+      }
+      const fullShots = await capture(false);
+      const [fa, fb] = await Promise.all([rgba(canvasModule, fullShots.a), rgba(canvasModule, fullShots.b)]);
+      const full = diffRgba(fa.data, fb.data, fa.width, fa.height, options.pixelThreshold, playerMask);
+      const [legacyMemory, onMemory] = await Promise.all([memory(legacy.cdp), memory(on.cdp)]);
+      const after = await probe(on.page);
+      const record: StepRecord = { step, arrivedMs, readyMs, store: after?.store ?? null, runtimeState: after?.runtime?.state ?? null,
+        readiness: after?.readiness?.reason ?? null, memory: { legacy: legacyMemory, on: onMemory, ...(onTransition === undefined ? {} : { onTransition }) }, terrain, full, noise, notServing: notServingReason(after) };
+      records.push(record);
+      await writeFile(stepsPath, `${JSON.stringify({ ...record, collision: after?.collision, staging: after?.staging, windowStatus: after?.windowStatus,
+        runtime: after?.runtime })}\n`, { flag: 'a' });
+      const label = `step ${step.index} chunk ${step.cx},${step.cy} tile ${step.tileX},${step.tileY}`;
+      if (keep.has(step.index)) {
+        await sideBySide(canvasModule, terrainPngs.a, terrainPngs.b, options.pixelThreshold, join(options.evidenceDir, 'side-by-side', `step-${String(step.index).padStart(3, '0')}-terrain.png`), `${label}, entities hidden`);
+        await sideBySide(canvasModule, fullShots.a, fullShots.b, options.pixelThreshold, join(options.evidenceDir, 'side-by-side', `step-${String(step.index).padStart(3, '0')}-full.png`), `${label}, full scene`);
+      }
+      for (const [kind, diff, pngs] of [['terrain', terrain, terrainPngs], ['full', full, fullShots]] as const) {
+        worst.push({ index: step.index, ratio: diff.ratio, kind, legacy: pngs.a, on: pngs.b });
+        worst.sort((x, y) => y.ratio - x.ratio);
+        worst.splice(4);
+      }
+      log(`${label}: ready ${readyMs ?? '-'} ms, store ${after?.store?.residentCount ?? '-'}/${after?.store?.pinned ?? '-'} `
+        + `(${((after?.store?.residentBytes ?? 0) / MIB).toFixed(2)} MiB), Δheap ${((totalBytes(onMemory) - totalBytes(legacyMemory)) / MIB).toFixed(1)} MiB, `
+        + `diff terrain ${(terrain.ratio * 100).toFixed(3)}% full ${(full.ratio * 100).toFixed(3)}%`);
+    }
+    for (const entry of worst) {
+      if (entry.ratio === 0) continue;
+      await sideBySide(canvasModule, entry.legacy, entry.on, options.pixelThreshold,
+        join(options.evidenceDir, 'side-by-side', `worst-${entry.kind}-step-${String(entry.index).padStart(3, '0')}.png`),
+        `worst ${entry.kind}: step ${entry.index}, ${(entry.ratio * 100).toFixed(3)}% over threshold`);
+    }
+    await memoryChart(canvasModule, records, join(options.evidenceDir, 'memory.png'));
+    await writeFile(join(options.evidenceDir, 'memory.csv'), ['step,cx,cy,legacy_used,legacy_backing,on_used,on_backing,delta_mib,transition_delta_mib,store_resident,store_bytes,store_installs']
+      .concat(records.map(record => [record.step.index, record.step.cx, record.step.cy, record.memory?.legacy.usedBytes, record.memory?.legacy.backingBytes,
+        record.memory?.on.usedBytes, record.memory?.on.backingBytes,
+        record.memory === null ? '' : ((totalBytes(record.memory.on) - totalBytes(record.memory.legacy)) / MIB).toFixed(3),
+        record.memory?.onTransition === undefined ? '' : ((totalBytes(record.memory.onTransition) - totalBytes(record.memory.legacy)) / MIB).toFixed(3),
+        record.store?.residentCount, record.store?.residentBytes, record.store?.installs].join(','))).join('\n') + '\n');
+    await writeFile(join(options.evidenceDir, 'diffs.csv'), ['step,cx,cy,terrain_ratio,terrain_any,terrain_max,full_ratio,full_any,full_max,noise_ratio']
+      .concat(records.map(record => [record.step.index, record.step.cx, record.step.cy, record.terrain?.ratio, record.terrain?.anyChange, record.terrain?.maxDelta,
+        record.full?.ratio, record.full?.anyChange, record.full?.maxDelta, record.noise?.ratio ?? ''].join(','))).join('\n') + '\n');
+    const occupancy = occupancyVerdict(records, steps.length, options.steadyBudgetMiB);
+    const parity = parityVerdict(records, options.maxDiffRatio);
+    const noiseRatios = records.flatMap(record => record.noise === null ? [] : [record.noise.ratio]);
+    evidence.sweep = { steps: steps.length, sweepMs: Date.now() - sweepStarted, readyP50Ms: percentile(records.flatMap(r => r.readyMs ?? []), 0.5),
+      readyP95Ms: percentile(records.flatMap(r => r.readyMs ?? []), 0.95), noiseFloor: { samples: noiseRatios.length, max: Math.max(0, ...noiseRatios),
+        p50: percentile(noiseRatios, 0.5) }, withoutWalkableGround: steps.filter(step => !step.inChunk).map(step => `${step.cx},${step.cy}`),
+      distinctStandingTiles: new Set(steps.map(step => `${step.tileX},${step.tileY}`)).size,
+      pinCoverage: pinCoverage(records, manifest.chunks.map(head => `${head.cx}:${head.cy}`)) };
+    evidence.criteria['1-occupancy-and-memory'] = occupancy;
+    evidence.criteria['2-visual-parity'] = { ...parity, pixelThreshold: options.pixelThreshold, maxDiffRatio: options.maxDiffRatio };
+    if (!occupancy.pass) for (const reason of occupancy.reasons) fail(`criterion 1: ${reason}`);
+    if (!parity.pass) for (const reason of parity.reasons) fail(`criterion 2: ${reason}`);
+
+    // 4. Invalidation on head revision (while the sweep's `on` page is still open).
+    log('invalidation: two map edits republished as head revisions');
+    const invalidation: Record<string, unknown> = {};
+    const at = await probe(on.page);
+    const editChunk = { cx: Math.floor(at!.position!.tileX / WORLD_CHUNK_SIZE), cy: Math.floor(at!.position!.tileY / WORLD_CHUNK_SIZE) };
+    const headOf = (revisionManifest: WorldChunkManifest) => revisionManifest.chunks.find(head => head.cx === editChunk.cx && head.cy === editChunk.cy)!.contentHash;
+    const idb = async () => (await on.page.evaluate(IDB_SOURCE)) as { entries?: { hash: string; spaceId: number }[]; error?: string };
+    const revisions: { revision: number; editedHash: string; manifest: WorldChunkManifest }[] = [{ revision: owner.shadowRevision(), editedHash: headOf(manifest), manifest }];
+    invalidation['editChunk'] = editChunk;
+    invalidation['before'] = { idbEntries: (await idb()).entries?.length ?? null, sw: await on.page.evaluate(SW_SOURCE) };
+    let current = documentJson;
+    const edits: Record<string, unknown>[] = [];
+    for (const [index, offset] of [[1, 3], [2, 5]] as const) {
+      const tileX = editChunk.cx * WORLD_CHUNK_SIZE + offset, tileY = editChunk.cy * WORLD_CHUNK_SIZE + offset;
+      current = editedDocumentJson(current, tileX, tileY);
+      const map = await owner.publishMap(current);
+      const stale = await waitForAsync('client_sees_stale_map', async () => { const value = await probe(on.page); return value?.runtime?.staleReasons.includes('map') ? value.runtime : null; }, 30_000)
+        .catch(() => null);
+      const swapsBefore = (await probe(on.page))?.runtime?.swaps ?? 0;
+      evidence.pipeline.push(await runPipeline(options, `edit-${index}`));
+      const revision = owner.shadowRevision();
+      const next = owner.manifest();
+      revisions.push({ revision, editedHash: headOf(next), manifest: next });
+      const swapped = await waitForAsync('client_swapped', async () => {
+        const value = await probe(on.page);
+        return value?.runtime?.servingRevision === `0:${revision}` && value.runtime.pendingRevision === null && !value.runtime.stale ? value.runtime : null;
+      }, 60_000).catch(() => null);
+      await sleep(1_000);
+      const entries = (await idb()).entries ?? [];
+      const hashes = new Set(entries.map(entry => entry.hash));
+      const keepSet = new Set([...next.chunks, ...revisions.at(-2)!.manifest.chunks].map(head => head.contentHash));
+      const outside = entries.filter(entry => !keepSet.has(entry.hash)).length;
+      edits.push({ index, tile: `${tileX},${tileY}`, map, sawStaleMap: stale !== null, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
+        servingRevision: swapped?.servingRevision ?? null, editedHashChanged: revisions.at(-1)!.editedHash !== revisions.at(-2)!.editedHash,
+        idbEntries: entries.length, idbHasNewHash: hashes.has(revisions.at(-1)!.editedHash), idbHasPreviousHash: hashes.has(revisions.at(-2)!.editedHash),
+        idbHasRevisionOneHash: hashes.has(revisions[0]!.editedHash), idbEntriesOutsideCurrentAndPrevious: outside });
+      if (stale === null) fail(`invalidation edit ${index}: the on client never reported the map as stale`);
+      if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision}`);
+      if (!hashes.has(revisions.at(-1)!.editedHash)) fail(`invalidation edit ${index}: the new chunk blob is not in IndexedDB`);
+      if (outside > 0) fail(`invalidation edit ${index}: ${outside} IndexedDB entr(ies) outside the current and previous manifests`);
+      if (index === 2 && hashes.has(revisions[0]!.editedHash)) fail('invalidation: the revision-1 blob of the edited chunk was not pruned after two swaps');
+    }
+    invalidation['edits'] = edits;
+    const sw = await on.page.evaluate(SW_SOURCE) as { controller: string | null; caches: { world: number }[]; worldRequests: number; worldViaWorker: number };
+    invalidation['serviceWorker'] = sw;
+    if (sw.controller === null) fail('invalidation: no service worker controls the on page (cannot show it leaves /world/ alone)');
+    if (sw.caches.some(cache => cache.world > 0)) fail('invalidation: a service worker cache holds /world/ responses');
+    // Both builds agree on the edited chunk after the republish.
+    await sleep(500);
+    const shots = await (async () => {
+      await Promise.all([present(legacy.page, true), present(on.page, true)]);
+      await Promise.all([frames(legacy.page, 4), frames(on.page, 4)]);
+      return await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
+    })();
+    const [ea, eb] = await Promise.all([rgba(canvasModule, shots[0]), rgba(canvasModule, shots[1])]);
+    invalidation['afterEditParity'] = diffRgba(ea.data, eb.data, ea.width, ea.height, options.pixelThreshold);
+    await sideBySide(canvasModule, shots[0], shots[1], options.pixelThreshold, join(options.evidenceDir, 'side-by-side', 'after-head-revision-3.png'),
+      `after two map edits and head revision ${owner.shadowRevision()}`);
+    // A reload is served from the IndexedDB cache (no /world/ request for chunks it already holds).
+    const reloadRequests: string[] = [];
+    on.page.on('request', (request: any) => { const path = new URL(request.url()).pathname; if (path.startsWith('/world/')) reloadRequests.push(path); });
+    await on.page.reload({ waitUntil: 'domcontentloaded' });
+    await awaitPlaying(on);
+    const reloaded = await awaitReadyAt(on, (await probe(on.page))!.position!, true).catch(() => null);
+    invalidation['reload'] = { servingRevision: reloaded?.runtime?.servingRevision ?? null, worldRequests: reloadRequests.length,
+      store: reloaded?.store ?? null };
+    evidence.invalidation = invalidation;
+
+    for (const session of sessions.splice(0)) await session.browser.close();
+
+    // 3. Spawn-pack prefetch: a fresh profile, delayed chunk responses, a movement key held from the start.
+    log('spawn prefetch: fresh profile with delayed /world/ responses');
+    const delayWorldMs = 700;
+    const mover = await openSession(chromium, options, 'on', options.onUrl, 's4g-move', { serviceWorkers: 'block', delayWorldMs, seam: 'on' });
+    sessions.push(mover);
+    const spawn = await watchMovement(mover, null, delayWorldMs);
+    // The in-chunk sweep target farthest from where the mover stands: never resident yet.
+    const from = (await probe(mover.page))?.position ?? null;
+    const far = from === null ? null : plan.filter(step => step.inChunk)
+      .reduce((best, step) => ((step.tileX - from.tileX) ** 2 + (step.tileY - from.tileY) ** 2 > (best.tileX - from.tileX) ** 2 + (best.tileY - from.tileY) ** 2 ? step : best));
+    let teleport: Record<string, unknown> | null = null;
+    if (far !== null) {
+      await mover.page.keyboard.up('ArrowRight');
+      await sleep(300);
+      const refusal = await owner.teleport(mover.identity, far.tileX, far.tileY);
+      teleport = refusal === null ? await watchMovement(mover, { tileX: far.tileX, tileY: far.tileY }, delayWorldMs) : { refusal };
+    }
+    evidence.spawnPrefetch = { delayWorldMs, spawn, teleport };
+    const waited = (result: Record<string, unknown> | null) => result !== null && (result['summary'] as { waitedMs: number }).waitedMs > 0;
+    for (const [label, result] of [['spawn', spawn], ['teleport', teleport]] as const) {
+      if (result === null || result['refusal'] !== undefined) { fail(`spawn prefetch ${label}: no result ${JSON.stringify(result)}`); continue; }
+      const summary = result['summary'] as ReturnType<typeof movementWhileWaiting>;
+      if (!waited(result)) fail(`spawn prefetch ${label}: movement never waited for terrain`);
+      if (summary.movedWhileWaiting) fail(`spawn prefetch ${label}: the player moved before the spawn ring was resident`);
+      if (!summary.movedAfterReady) fail(`spawn prefetch ${label}: the player never moved once ready`);
+    }
+  } catch (error) {
+    fail(`aborted: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+  } finally {
+    for (const session of sessions) await session.browser.close().catch(() => undefined);
+    try { if (owner.chunkAuthority() !== 'off') await owner.setChunkAuthority('off'); } catch { /* disposable world */ }
+    owner.close();
+  }
+  evidence.finishedAt = new Date().toISOString();
+  evidence.result = evidence.failures.length === 0 ? 'passed' : 'failed';
+  await writeFile(join(options.evidenceDir, 'summary.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+  log(`${evidence.result}: ${join(options.evidenceDir, 'summary.json')}`);
+  return evidence.result === 'passed' ? 0 : 1;
+}
+
+/** Holds ArrowRight (then other directions) from the first frame and samples readiness and the server position every 50 ms. */
+async function watchMovement(session: Session, start: { tileX: number; tileY: number } | null, delayWorldMs: number): Promise<Record<string, unknown>> {
+  const samples: ReadinessSample[] = [];
+  const started = Date.now();
+  let held = '', readyAt: number | null = null, direction = 0;
+  const directions = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
+  const reasons = new Map<string, number>();
+  while (Date.now() - started < 60_000) {
+    const value = await probe(session.page).catch(() => null);
+    if (value?.identity && session.identity === '') session.identity = value.identity;
+    if (value !== null && held === '' && value.position !== null) {
+      await session.page.keyboard.down(directions[direction]!); held = directions[direction]!;
+    }
+    const ready = value?.readiness?.ready === true && value.runtime?.mode === 'on';
+    const reason = value?.readiness?.reason ?? null;
+    if (reason !== null) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+    samples.push({ t: Date.now() - started, ready, reason, state: value?.runtime?.state ?? null,
+      tileX: value?.position?.tileX ?? null, tileY: value?.position?.tileY ?? null, keyHeld: held !== '' });
+    if (ready && readyAt === null) readyAt = Date.now();
+    if (readyAt !== null) {
+      const summary = movementWhileWaiting(samples, start);
+      if (summary.movedAfterReady) break;
+      // Blocked that way: try the next direction every 2 s.
+      if (Date.now() - readyAt > 2_000 * (direction + 1) && direction < directions.length - 1) {
+        await session.page.keyboard.up(held); direction++; held = directions[direction]!; await session.page.keyboard.down(held);
+      }
+      if (Date.now() - readyAt > 10_000) break;
+    }
+    await sleep(50);
+  }
+  if (held !== '') await session.page.keyboard.up(held);
+  const summary = movementWhileWaiting(samples, start);
+  return { summary, delayWorldMs, reasons: Object.fromEntries(reasons), samples: samples.filter((sample, index) => index % 4 === 0 || sample.ready !== samples[index - 1]?.ready) };
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().then(code => process.exit(code), (error: unknown) => {
+    console.error(`[s4g] ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+    process.exit(2);
+  });
+}
