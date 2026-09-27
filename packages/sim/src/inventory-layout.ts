@@ -77,6 +77,14 @@ export function inventoryContainerSlotCount(containerId: PlayerInventoryContaine
   return containerId === 'equipment' ? EQUIPMENT_SLOT_COUNT : CRAFTING_SLOT_COUNT;
 }
 
+/** The backpack cells a player may use (BUG-054): the equipped bag's authored capacity, never below the base 8 and
+ * never above the 20 backpack cells; a developer's debug slots can open more, up to 20. The world's menu containers
+ * and the client's inventory both use this one rule, so the client never shows a usable cell as unavailable. */
+export function accessibleBackpackCapacity(equippedCapacity: number, debugBackpackSlots = 0): number {
+  const normal = Math.max(BASE_BACKPACK_CAPACITY, Math.min(BACKPACK_SLOT_COUNT, equippedCapacity));
+  return Math.max(normal, Math.min(BACKPACK_SLOT_COUNT, debugBackpackSlots));
+}
+
 export function accessibleBackpackSlotCount(hasBackpack: boolean): number {
   return hasBackpack ? BACKPACK_SLOT_COUNT : BASE_BACKPACK_CAPACITY;
 }

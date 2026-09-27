@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const world = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 const client = readFileSync(new URL('../../client/src/overworld-main.ts', import.meta.url), 'utf8');
+const clientCapacity = readFileSync(new URL('../../client/src/backpack-capacity.ts', import.meta.url), 'utf8');
 const npcUi = readFileSync(new URL('../../ui/src/npc-interaction-ui.ts', import.meta.url), 'utf8');
 
 function between(source: string, start: string, end: string): string {
@@ -37,7 +38,9 @@ describe('active-registry commerce and equipment policy authority', () => {
     const inventory = between(world, 'function equippedInventoryCapacity(', 'function playerDebugBackpackSlots(');
     expect(inventory).toContain('runtimeItemInventoryCapacity(contentRegistry(ctx), row.itemKind)');
     expect(world).not.toContain('inventoryHasEquippedBackpack(');
-    expect(client).toContain('runtimeItemInventoryCapacity(snapshot.content.registry, capacityEquipment.itemKind)');
+    // BUG-054: the client's carried capacity moved to backpack-capacity.ts, still read from active definitions.
+    expect(client).toContain('equippedBackpackCapacity(snapshot.content.registry, capacityEquipment)');
+    expect(clientCapacity).toContain('runtimeItemInventoryCapacity(registry, equipped.itemKind)');
     expect(client).not.toContain('inventoryHasEquippedBackpack(');
     expect(npcUi).toContain('?.equip?.inventoryCapacity');
     expect(npcUi).toContain("!tags.includes('trade.unsellable')");
