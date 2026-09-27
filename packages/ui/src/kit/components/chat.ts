@@ -1,6 +1,6 @@
 import { drawPixelText } from '../../pixel-ui.js';
-import { containsPoint, type UiPoint } from '../../geometry.js';
-import { paintUiHudPlaque } from './hud-game.js';
+import { containsPoint, type UiPoint, type UiRect } from '../../geometry.js';
+import { paintUiSkin, type UiKitArt } from './art.js';
 import { paintUiDarkFrame } from './feedback-game.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
@@ -42,6 +42,15 @@ export interface UiChatElement extends UiElement {
   focusInput(): void;
 }
 /** Chat paints and hits one retained composition; hosts own transport and session preferences. */
+/** The ghost chat glyph: 16px, centred in its hit area. Lit (hover or focus) brightens it; pressed darkens it and moves
+ * it down 1px. Exported for tests. */
+export const UI_CHAT_GHOST_LIT = 'brightness(125%)', UI_CHAT_GHOST_PRESSED = 'brightness(80%)';
+export function paintUiChatGhostGlyph(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, state: { readonly pressed?: boolean; readonly lit?: boolean }): void {
+  context.save();
+  if (state.pressed) context.filter = UI_CHAT_GHOST_PRESSED; else if (state.lit) context.filter = UI_CHAT_GHOST_LIT;
+  paintUiSkin(context, art.skin.icon, 'hud.chat', { x: r.x + Math.floor((r.width - 16) / 2), y: r.y + Math.floor((r.height - 16) / 2) + (state.pressed ? 1 : 0), width: 16, height: 16 });
+  context.restore();
+}
 export function uiChat(options: UiChatOptions): UiChatElement {
   let model = options.model, lineKey = '', wrappedKey = '', suggestionsKey = '', followEnd = false;
   let historyNavigation = false, previousDraft = '', historyClickAllowed = false, revealSuggestion = true;
@@ -114,11 +123,12 @@ export function uiChat(options: UiChatOptions): UiChatElement {
     style: { display: 'stack', width: 'grow', height: uiFixed(24), shrink: 0 }, children: [input],
     paint(element, { context, art }) { if (art) { context.save(); context.globalAlpha *= .88; paintUiDarkFrame(element, context, art); context.restore(); } },
   });
-  // The HUD plaque with the speech symbol, like the other HUD shortcuts but 24px tall so the compact
-  // keyboard-inset layout keeps its editor; a green pip marks unread messages.
+  // A ghost icon (owner request 2026-09-28): the speech glyph alone, with no plaque or frame, over a 28x24 hit area that
+  // keeps the compact keyboard-inset layout. Hover and keyboard focus brighten the glyph, a press darkens it and nudges it
+  // down 1px; no frame ever appears. A green pip marks unread messages.
   const base = uiButton({ id: 'chat.toggle', label: '', ariaLabel: 'Chat', tone: 'primary', layout: { width: uiFixed(28), height: uiFixed(24), padding: 0, shrink: 0 }, onPress: options.onToggle,
     face: (element, { context, art, hovered, focused, pressed }) => {
-      const r = element.rect; paintUiHudPlaque(context, art, r, { icon: 'hud.chat', pressed, lit: hovered || focused });
+      const r = element.rect; paintUiChatGhostGlyph(context, art, r, { pressed, lit: hovered || focused });
       if (element.props['tone'] === 'success') { context.fillStyle = '#3f2832'; context.fillRect(r.x + r.width - 8, r.y + 2, 6, 6); context.fillStyle = '#63c74d'; context.fillRect(r.x + r.width - 7, r.y + 3, 4, 4); }
     } });
   let drag: { start: UiPoint; moved: boolean; pointerId: number } | undefined;
@@ -137,7 +147,8 @@ export function uiChat(options: UiChatOptions): UiChatElement {
       return base.hooks.onPointer?.(event, element) ?? false;
     },
   });
-  const toggleTip = uiTooltip(() => model.touch ? '' : 'CHAT', toggle);
+  // Beside the icon, not below it, so the hint never covers the first line of an open chat log (owner request 2026-09-28).
+  const toggleTip = uiTooltip(() => model.touch ? '' : 'CHAT', toggle, undefined, { side: 'right' });
   const baseShell = uiFlex({ id: 'game.chat', width: 'grow', height: 'grow', gap: 4, ...options.layout }, [
     uiFlex({ direction: 'row', width: 'grow', shrink: 0 }, [toggleTip]), panel, suggestions, inputPanel,
   ]);

@@ -19,7 +19,9 @@ export interface UiTooltipPlacement {
   /** A part of the child to point at (a hovered slot inside a bar); it follows while the popup is open. */
   readonly anchor?: () => UiRect | null;
   /** Below the target (default) or centred above it. */
-  readonly side?: 'below' | 'above';
+  /** Where the popup sits: below (the default, left edges aligned), above, or to the right of the target, vertically
+   * centred (on the left when the right has no room). */
+  readonly side?: 'below' | 'above' | 'right';
 }
 export function uiTooltip(label: string | (() => string), child: UiElement, layout?: UiStyle, placement: UiTooltipPlacement = {}): UiElement {
   const content = uiText(typeof label === 'function' ? label() : label, { wrap: true });
@@ -41,9 +43,12 @@ export function uiTooltip(label: string | (() => string), child: UiElement, layo
     const natural = measureUiElement(content, { width: UI_TOOLTIP_MAX_WIDTH - 12, height: root.rect.height }).preferred.width + 12;
     popup.setStyle({ width: uiFixed(Math.min(natural, UI_TOOLTIP_MAX_WIDTH, root.rect.width)), height: 'fit' });
     const size = measureUiElement(popup, root.rect).preferred, target = placement.anchor?.() ?? element.rect;
-    const above = placement.side === 'above';
-    const rect = layoutUiAnchoredRect(target, { width: Math.min(size.width, root.rect.width), height: Math.min(size.height, root.rect.height) },
-      above ? { targetAnchor: 'top', selfAnchor: 'bottom', offset: { x: 0, y: -4 }, constrainTo: root.rect }
+    const above = placement.side === 'above', fitted = { width: Math.min(size.width, root.rect.width), height: Math.min(size.height, root.rect.height) };
+    const beside = placement.side === 'right' && (target.x + target.width + 4 + fitted.width <= root.rect.x + root.rect.width ? 'right' : 'left');
+    const rect = layoutUiAnchoredRect(target, fitted,
+      beside === 'right' ? { targetAnchor: 'right', selfAnchor: 'left', offset: { x: 4, y: 0 }, constrainTo: root.rect }
+        : beside === 'left' ? { targetAnchor: 'left', selfAnchor: 'right', offset: { x: -4, y: 0 }, constrainTo: root.rect }
+        : above ? { targetAnchor: 'top', selfAnchor: 'bottom', offset: { x: 0, y: -4 }, constrainTo: root.rect }
         : { targetAnchor: 'bottom_left', selfAnchor: 'top_left', offset: { x: 0, y: 4 }, constrainTo: root.rect });
     popup.setStyle({ width: uiFixed(rect.width), height: uiFixed(rect.height), inset: { left: uiFixed(rect.x), top: uiFixed(rect.y) } });
   };
