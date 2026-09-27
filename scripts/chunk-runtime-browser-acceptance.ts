@@ -815,14 +815,14 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     // The controller reads the authority on its next update (a move): step the on player one tile.
     const here = (await probe(on.page))?.position;
     if (here) for (const [dx, dy] of NEIGHBOURS) if (await owner.teleport(on.identity, here.tileX + dx, here.tileY + dy) === null) break;
-    // BUG-054: with the seam connected but the gate as on main, chunk collision and map records never serve.
+    // BUG-055: with the seam connected but the gate as on main, chunk collision and map records never serve.
     const gated = await waitForAsync('on_build_serves_store', async () => {
       const value = await probe(on.page);
       return value?.runtime?.mode === 'on' && value.runtime.state === 'on' && value.store !== null ? value : null;
     }, 60_000).catch(() => null);
     await sleep(1_000);
     const gatedLater = await probe(on.page);
-    evidence.criteria['gate-null-coalesced (BUG-054)'] = { effectiveMode: gatedLater?.runtime?.mode ?? null, state: gatedLater?.runtime?.state ?? null,
+    evidence.criteria['gate-null-coalesced (BUG-055)'] = { effectiveMode: gatedLater?.runtime?.mode ?? null, state: gatedLater?.runtime?.state ?? null,
       servedStore: gated !== null, gate: (gatedLater?.store as { gate?: unknown } | null)?.gate ?? null,
       collisionFallback: gatedLater?.collision?.fallbackReason ?? null };
     await on.page.evaluate(`globalThis.__s4gGateFix = true;`);

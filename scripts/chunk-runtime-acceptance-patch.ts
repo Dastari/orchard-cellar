@@ -14,7 +14,7 @@
  * - The chunk-authority seam: on main the client never reads the server's chunkAuthority
  *   (UNCONNECTED_CHUNK_AUTHORITY, BUG-053), so an `on` build only ever runs `shadow`. With
  *   S4G_CHUNK_AUTHORITY=on the build gets a hook the driver sets to the world's switch.
- * - The authority gate (BUG-054): a runtime switch the driver sets once it has recorded main's
+ * - The authority gate (BUG-055): a runtime switch the driver sets once it has recorded main's
  *   behaviour, so chunk collision and map records can serve as designed.
  * - A read-only store probe on `window.__orchardOverworld` (resident chunks and bytes,
  *   installs, pins, limits) for occupancy and eviction evidence.
@@ -77,7 +77,7 @@ export const SEAM_ANCHOR = 'this.chunkRuntime ??= new ChunkRuntimeController({ b
 export const PROBE_ANCHOR = 'Object.assign(window, {\n  __orchardOverworld: {\n';
 export const GATE_ANCHOR = "    return this.chunkRuntime?.authorityGate(this.chunkRuntimeSource()) ?? 'not_on';\n";
 /**
- * BUG-054: `?? 'not_on'` also turns the controller's `null` ("the serving revision may stand in
+ * BUG-055: `?? 'not_on'` also turns the controller's `null` ("the serving revision may stand in
  * for the server") into `not_on`, so chunk collision and map records never serve. With
  * `globalThis.__s4gGateFix` the acceptance build returns the controller's answer unchanged;
  * the driver records the unfixed behaviour first.
