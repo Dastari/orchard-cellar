@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { drawPixelText } from '../pixel-ui.js';
-import { GameFeedback, type GameFeedbackModel } from './feedback.js';
+import { GameFeedback, GAME_TOAST_MAX_LINES, type GameFeedbackModel } from './feedback.js';
+import { uiTextLines } from '../kit/components/text.js';
 import { uiTestArt, uiTestAsset } from '../kit/lab/testing/art.js';
 import { GameUiRuntime } from './runtime.js';
 import type { UiElement } from '../kit/runtime/element.js';
@@ -117,7 +118,8 @@ describe('production feedback compositions', () => {
     f.host.update({ ...m, hud: { ...m.hud, toast: null } });
     const point = f.point(f.node('game.feedback.notice:open'));
     root.pointer({ type: 'down', point, pointerId: 1, button: 0 });
-    const longToast = { text: 'NOT ENOUGH SPACE IN THIS FULL INVENTORY', tone: 'danger' as const, anchor: { x: 53, y: 48 } };
+    // Toasts stop at two lines (BUG-043), so this one is anchored high enough to leave the notice under 16px.
+    const longToast = { text: 'NOT ENOUGH SPACE IN THIS FULL INVENTORY', tone: 'danger' as const, anchor: { x: 53, y: 40 } };
     f.host.update({ ...m, hud: { ...m.hud, toast: longToast } });
     expect(f.host.noticeVisible).toBe(false); expect(f.host.noticeActive).toBe(false);
     root.pointer({ type: 'up', point, pointerId: 1, button: 0 }); root.key({ key: 'Enter' });
@@ -126,6 +128,48 @@ describe('production feedback compositions', () => {
     expect(f.host.noticeVisible).toBe(true); expect(f.host.noticeActive).toBe(true);
     root.focus.set(f.node('game.feedback.notice:open')); root.key({ key: 'Enter' });
     expect(f.callbacks.onOpenSkillNotice).toHaveBeenCalledExactlyOnceWith({ sessionKey: m.sessionKey, noticeId: m.hud.notice!.id, track: 'farming', points: 2 });
+  });
+  // BUG-043: toasts wrap by words onto a second line instead of losing their ending.
+  describe('toast wrapping (BUG-043)', () => {
+    const toastIn = async (text: string, width = 400, height = 200) => {
+      const f = await fixture(), m = model();
+      f.host.setBounds({ worldWidth: width, worldHeight: height, hudWidth: width, hudHeight: height });
+      f.host.update({ ...m, hud: { ...m.hud, prompt: null, tooltip: null, notice: null, toast: { text, tone: 'danger', anchor: { x: width / 2, y: height - 20 } } } });
+      const find = (id: string) => f.host.roots.hud.entries().find(row => row.element.id === id)!.element;
+      const node = find('game.feedback.toast.text'), frame = find('game.feedback.toast.frame');
+      return { frame, node, lines: uiTextLines(String(node.props['text']), node.rect.width, 'body', true, GAME_TOAST_MAX_LINES, true) };
+    };
+    it('keeps a short toast on one line at its natural width', async () => {
+      const { frame, lines } = await toastIn('NOT ENOUGH INVENTORY SPACE');
+      expect(lines).toEqual(['NOT ENOUGH INVENTORY SPACE']);
+      // Unchanged sizing: 26 glyphs of 6px less the trailing gap, plus the glyph, gap and padding allowance.
+      expect(frame.rect.width).toBe(26 * 6 - 1 + 36); expect(frame.rect.height).toBe(24);
+    });
+    it('wraps a long toast by words onto two balanced lines', async () => {
+      const text = 'MORE SPECIALIZATION RANKS ARE REQUIRED FOR THIS TOOL';
+      const { frame, lines } = await toastIn(text);
+      expect(lines).toEqual(['MORE SPECIALIZATION RANKS', 'ARE REQUIRED FOR THIS TOOL']);
+      expect(frame.rect.width).toBeLessThan(320); expect(frame.rect.height).toBe(28);
+    });
+    it('uses the full width before it wraps: a 48-character toast still fits one line', async () => {
+      const text = 'A FORTY-EIGHT CHARACTER TOAST FITS ON ONE LINE..';
+      expect(text).toHaveLength(48);
+      const { frame, lines } = await toastIn(text);
+      expect(lines).toEqual([text]); expect(frame.rect.width).toBe(320);
+    });
+    it('fits both lines of a toast that only just wraps on a narrow HUD', async () => {
+      // 48 glyphs need 287px; a 320-wide HUD leaves the text 276px beside the glyph.
+      const { frame, node, lines } = await toastIn('EMPTY THE EXTRA PACK SLOTS BEFORE UNEQUIPPING IT', 320);
+      expect(lines).toHaveLength(2); expect(lines.join(' ')).toBe('EMPTY THE EXTRA PACK SLOTS BEFORE UNEQUIPPING IT');
+      expect(node.rect.height).toBe(20); expect(frame.rect.height).toBe(28);
+    });
+    it('caps a toast at two lines and marks the cut with an ellipsis after a whole word', async () => {
+      const text = 'THIS MESSAGE IS FAR TOO LONG FOR ANY TOAST TO SHOW IN FULL BECAUSE IT KEEPS GOING WELL PAST TWO LINES OF TEXT';
+      const { frame, lines } = await toastIn(text);
+      expect(lines).toHaveLength(2); expect(lines[1]!.endsWith('...')).toBe(true);
+      expect(text.startsWith(`${lines.join(' ').slice(0, -3)} `)).toBe(true);
+      expect(frame.rect.width).toBe(320); expect(frame.rect.height).toBe(28);
+    });
   });
   it('uses stable roots, separate world/safe viewports and no passive input interception', async () => {
     const f = await fixture(), roots = f.host.roots;
