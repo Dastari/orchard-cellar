@@ -100,6 +100,18 @@ describe('UiSlotGestures (item slot S2)', () => {
     expect(authority.collect).toHaveBeenCalledTimes(1);
   });
 
+  it('pairs a double-click with the previous click itself, not with any recent press', () => {
+    frozenClock();
+    const { gestures, authority } = harness([{ itemKind: 'wood', quantity: 5 }, null]);
+    click(gestures, 0);
+    tick(10_000);
+    click(gestures, 1, { shift: true });
+    tick(100);
+    click(gestures, 1);
+    expect(authority.collect).not.toHaveBeenCalled();
+    expect(authority.click).toHaveBeenCalledTimes(2);
+  });
+
   it('moves everything of the kind on a double-click that pairs with a transfer click', () => {
     frozenClock();
     const { gestures, authority } = harness([{ itemKind: 'wood', quantity: 5 }, null], { itemKind: 'wood', quantity: 1 });

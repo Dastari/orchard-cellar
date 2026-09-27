@@ -67,8 +67,8 @@ export interface UiSlotPress {
   readonly startPoint: UiPoint;
   /** Shift was held at pointer-down. */
   readonly shift: boolean;
-  /** The press repeats the previous press on the same slot within the double-click window. */
-  readonly double: boolean;
+  /** When the press went down (performance.now): a double-click is decided from it. */
+  readonly pressedAt: number;
   /** Spread targets in visit order (a held stack only). */
   readonly targets: readonly UiSlotRef[];
   /** The press left its origin slot. */
@@ -95,7 +95,6 @@ export class UiSlotGestures {
   private outside: UiSlotButton | null = null;
   private lastShiftClick: ClickRecord | null = null;
   private lastCursorClick: (ClickRecord & { readonly transferCandidate: boolean }) | null = null;
-  private lastPress: { readonly ref: UiSlotRef; readonly at: number } | null = null;
 
   constructor(readonly source: UiSlotSource, readonly authority: UiSlotAuthority) {}
 
@@ -109,14 +108,11 @@ export class UiSlotGestures {
   /** Pointer-down on a slot. Shift and the double-click are read here, at the press. */
   begin(ref: UiSlotRef, point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     if (!this.source.has(ref)) return false;
-    const now = performance.now(), previous = this.lastPress;
-    this.lastPress = { ref, at: now };
     const cursor = this.source.cursor(), cursorWasHeld = cursor != null, stack = this.source.stack(ref);
     const originEligible = cursor != null && this.source.accepts(ref, cursor.itemKind)
       && (stack === null || (itemStacksCompatible(stack, cursor) && stack.quantity < this.source.maxStack(cursor.itemKind)));
     this.current = {
-      origin: ref, button: buttonOf(button), cursorWasHeld, startPoint: point, shift: modifiers.shift === true,
-      double: previous !== null && sameRef(previous.ref, ref) && now - previous.at <= UI_SLOT_DOUBLE_CLICK_MS,
+      origin: ref, button: buttonOf(button), cursorWasHeld, startPoint: point, shift: modifiers.shift === true, pressedAt: performance.now(),
       targets: cursorWasHeld && originEligible ? [ref] : [], dragged: false, pickedUpDuringDrag: false,
     };
     if (cursorWasHeld && originEligible) this.authority.previewSpread(this.current.targets, this.spreadMode(this.current));
@@ -185,11 +181,12 @@ export class UiSlotGestures {
 
   private spreadMode(press: Pick<UiSlotPress, 'button'>): UiSlotSpreadMode { return press.button === 'right' ? 'one_each' : 'even'; }
 
-  /** A double-click pairs with the previous click of the same kind in the same source region, when the releases are
-   * within the window or this press was already a double at pointer-down. */
-  private isDouble(press: UiSlotPress, previous: ClickRecord | null, itemKind: string | undefined, sourceRegion: string, now: number): boolean {
+  /** A double-click pairs with the previous click of the same kind in the same source region when this press went
+   * down within the window of that click. Decided at pointer-down, so a slow second release still counts (a release
+   * within the window always was, and still is). */
+  private isDouble(press: UiSlotPress, previous: ClickRecord | null, itemKind: string | undefined, sourceRegion: string): boolean {
     return itemKind !== undefined && previous !== null && previous.itemKind === itemKind && previous.sourceRegion === sourceRegion
-      && (now - previous.at <= UI_SLOT_DOUBLE_CLICK_MS || press.double);
+      && press.pressedAt - previous.at <= UI_SLOT_DOUBLE_CLICK_MS;
   }
 
   private finishShiftClick(press: UiSlotPress): void {
@@ -197,7 +194,7 @@ export class UiSlotGestures {
     const container = press.origin.container, sourceRegion = this.source.quickMoveSources(container).join('|');
     const now = performance.now(), previous = this.lastShiftClick, item = this.source.stack(press.origin);
     const secondClickKind = item?.itemKind ?? (press.cursorWasHeld ? previous?.itemKind : undefined);
-    if (this.isDouble(press, previous, secondClickKind, sourceRegion, now)) {
+    if (this.isDouble(press, previous, secondClickKind, sourceRegion)) {
       this.authority.quickMoveAll(secondClickKind!, container);
       this.lastShiftClick = null;
     } else if (item !== null) {
@@ -212,7 +209,7 @@ export class UiSlotGestures {
     const clickedKind = cursor?.itemKind ?? item?.itemKind;
     const sourceRegion = this.source.quickMoveSources(press.origin.container).join('|');
     const previous = this.lastCursorClick;
-    if (press.button === 'left' && this.isDouble(press, previous, clickedKind, sourceRegion, now)) {
+    if (press.button === 'left' && this.isDouble(press, previous, clickedKind, sourceRegion)) {
       if (previous!.transferCandidate) this.authority.quickMoveAll(clickedKind!, press.origin.container);
       else this.authority.collect();
       this.lastCursorClick = null;
