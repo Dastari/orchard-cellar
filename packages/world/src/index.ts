@@ -6402,11 +6402,12 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
   const containers: Record<string, ContainerSnapshot> = { ...inventory.containers };
   let stashResult:OpenMenuInventory['stash'];
   if(hearthStashSessionAvailable(ctx)){
-    const capacity=activeHearthLobbyDefinition(contentRegistry(ctx))?.stashCapacity;
+    const registry=contentRegistry(ctx);
+    const capacity=activeHearthLobbyDefinition(registry)?.stashCapacity;
     if(capacity===undefined)throw new SenderError('stash_unavailable');
     const rowsBySlot=new Map(loadHearthStashRows(ctx).map(row=>[row.slot,row]));
     // Same authored frame rules the client applies (BUG-046); insertion only.
-    const restrictions=hearthStashFrameRestrictions(contentRegistry(ctx));
+    const restrictions=hearthStashFrameRestrictions(registry);
     const container:ContainerSnapshot={id:'stash',capacity,
       ...(Object.keys(restrictions).length===0?{}:{restrictions}),
       slots:Array.from({length:capacity},(_,slot)=>{

@@ -247,12 +247,47 @@ describe('BUG-046: hearth stash and legacy chest frame rules on the authority', 
     expect(out.ok).toBe(true);
   });
 
-  it('ignores a retired stash frame, as the client does', () => {
+  function withFrame(source: typeof registry, id: string, patch: Record<string, unknown>) {
+    const frames = new Map(source.frames);
+    frames.set(id, { ...source.frames.get(id)!, ...patch });
+    return { ...source, frames };
+  }
+
+  it('ignores a stash frame the client would not present: retired or off the entity surface', () => {
     const denied = withPaneRule('frame:hearth_stash', { rejectedItems: ['item:apple'] });
-    const frame = denied.frames.get('frame:hearth_stash')!;
-    const frames = new Map(denied.frames);
-    frames.set(frame.id, { ...frame, retired: true });
-    expect(hearthStashFrameRestrictions({ ...denied, frames })).toEqual({});
+    expect(hearthStashFrameRestrictions(denied)).not.toEqual({});
+    expect(hearthStashFrameRestrictions(withFrame(denied, 'frame:hearth_stash', { retired: true }))).toEqual({});
+    expect(hearthStashFrameRestrictions(withFrame(denied, 'frame:hearth_stash', {
+      presentation: { surface: 'inventory' },
+    }))).toEqual({});
+  });
+
+  it('ignores a legacy chest frame the client would not present, and a retired chest object', () => {
+    const denied = withPaneRule('frame:chest', { rejectedItems: ['item:apple'] });
+    expect(legacyWorldChestFrameRestrictions(withFrame(denied, 'frame:chest', { retired: true }))).toEqual({});
+    expect(legacyWorldChestFrameRestrictions(withFrame(denied, 'frame:chest', {
+      presentation: { surface: 'inventory' },
+    }))).toEqual({});
+    const objects = new Map(denied.objects);
+    objects.set('object:chest', { ...denied.objects.get('object:chest')!, retired: true });
+    expect(legacyWorldChestFrameRestrictions({ ...denied, objects })).toEqual({});
+    // Only the legacy path is narrowed: generic placeables keep resolving as before.
+    expect(placeableFrameRestrictions(withFrame(denied, 'frame:chest', { retired: true }), {
+      kind: 'chest', definitionId: 'object:chest',
+    })[0]).toEqual({ rejectedKinds: ['apple'] });
+  });
+
+  it('keeps the chest object\'s own container rules on the legacy chest when the frame is not presented', () => {
+    const base = withPaneRule('frame:chest', { rejectedItems: ['item:apple'] });
+    const chest = base.objects.get('object:chest')!;
+    const objects = new Map(base.objects);
+    objects.set('object:chest', { ...chest, components: { ...chest.components, container: {
+      ...chest.components.container!, restrictions: [{ slots: [2], readOnly: true }],
+    } } });
+    const custom = { ...base, objects };
+    expect(legacyWorldChestFrameRestrictions(custom)[2]).toEqual({ rejectedKinds: ['apple'], readOnly: true });
+    expect(legacyWorldChestFrameRestrictions(withFrame(custom, 'frame:chest', { retired: true })))
+      .toEqual({ 2: { readOnly: true } });
   });
 
   it('applies authored generic-chest rules to the legacy world_chest container', () => {
@@ -265,7 +300,7 @@ describe('BUG-046: hearth stash and legacy chest frame rules on the authority', 
 
   it('keeps the stash and legacy chest menu snapshots on the shared frame resolvers', () => {
     const authority = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
-    expect(authority).toContain('hearthStashFrameRestrictions(contentRegistry(ctx))');
+    expect(authority).toContain('hearthStashFrameRestrictions(registry)');
     expect(authority).toContain('legacyWorldChestFrameRestrictions(contentRegistry(ctx))');
   });
 });
