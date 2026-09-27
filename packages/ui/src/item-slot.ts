@@ -1,4 +1,4 @@
-import type { ItemContainerContentResolver, ItemStack, SlotRestriction } from '@orchard/sim';
+import type { ContainerSnapshot, ItemContainerContentResolver, ItemStack, SlotRestriction } from '@orchard/sim';
 import { EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_RESTRICTIONS as SHARED_EQUIPMENT_SLOT_RESTRICTIONS } from '@orchard/sim/inventory-layout';
 import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, slotAcceptsItem } from '@orchard/sim/item-containers';
 import type { UiRect } from './geometry.js';
@@ -52,11 +52,17 @@ export class ItemSlot {
 
   accepts(itemKind: string): boolean {
     if (!this.enabled) return false;
-    return slotAcceptsItem({
-      id: this.containerId,
-      capacity: this.index + 1,
-      slots: Array.from({ length: this.index + 1 }, (_, index) => index === this.index ? this.item : null),
-      ...(this.restriction ? { restrictions: { [this.index]: this.restriction } } : {}),
-    }, this.index, itemKind, this.contentResolver);
+    // The rule reads the slot's index, capacity and restriction, not its contents; the one-slot container is kept
+    // until the restriction changes, so a check allocates nothing.
+    if (this.acceptContainer === null || this.acceptContainerRestriction !== this.restriction) {
+      this.acceptContainerRestriction = this.restriction;
+      this.acceptContainer = {
+        id: this.containerId, capacity: this.index + 1, slots: [],
+        ...(this.restriction ? { restrictions: { [this.index]: this.restriction } } : {}),
+      };
+    }
+    return slotAcceptsItem(this.acceptContainer, this.index, itemKind, this.contentResolver);
   }
+  private acceptContainer: ContainerSnapshot | null = null;
+  private acceptContainerRestriction: SlotRestriction | undefined;
 }

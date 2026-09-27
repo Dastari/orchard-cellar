@@ -269,23 +269,28 @@ describe('slot state model', () => {
     expect(third).toMatchObject({ enabled: true, rules: null });
   });
 
-  // Refusers dim while a stack is held (S3, render 02 B), so every slot needs its verdict then; it is kept until the
-  // held stack changes or the controller refreshes, and nothing is checked while nothing is held.
-  it('checks drop rules only while a stack is held, once per slot until the controller refreshes, with one cached policy per registry', async () => {
+  // Refusers dim while a stack is held (S3, render 02 B), so every slot needs its verdict then. It is kept until the
+  // held item, the slot's own stack or the rules revision changes: refreshes and idle frames re-check nothing (#226).
+  it('checks drop rules only while a stack is held, once per slot until what the verdict depends on changes, with one cached policy per registry', async () => {
     const canAccept = vi.fn(() => true);
     let held: ItemStack | null = null;
-    const controller = new UiInventoryController({ ...model(null), get cursor() { return held; }, displayedCursor: () => held, canAccept });
+    const own: (ItemStack | null)[] = Array.from({ length: 6 }, () => null);
+    const controller = new UiInventoryController({ ...model(null), get cursor() { return held; }, displayedCursor: () => held, canAccept, stack: ref => own[ref.index] ?? null });
     const root = new UiRoot({ art: await uiTestArt(), scale: 1 }); root.resize(200, 40);
     const grid = root.mount(uiInventoryGrid({ container: 'chest', count: 6, controller, art: uiSlotArt({ contentRegistry: () => registry }),
       cells: Array.from({ length: 6 }, (_, index) => ({ id: String(index), index, rules: { denyItems: ['wood'] } })) }));
     root.arrange(); const canvas = createCanvas(200, 40), context = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
     root.focus.set(grid.children[2]!, 'keyboard'); root.draw(context, 0); expect(canAccept).not.toHaveBeenCalled();
-    held = { itemKind: 'coal', quantity: 1 }; controller.refresh(); root.draw(context, 0);
+    held = { itemKind: 'coal', quantity: 5 }; controller.refresh(); root.draw(context, 0);
     expect(canAccept).toHaveBeenCalledTimes(6); expect(canAccept).toHaveBeenCalledWith({ container: 'chest', index: 2 }, held);
-    root.draw(context, 0); root.focus.set(grid.children[3]!, 'keyboard'); root.draw(context, 0);
+    // Idle frames, refreshes, focus moves and a new held quantity (a spread preview) re-check nothing.
+    for (let frame = 0; frame < 5; frame++) { controller.refresh(); root.draw(context, frame); }
+    root.focus.set(grid.children[3]!, 'keyboard'); held = { itemKind: 'coal', quantity: 2 }; root.draw(context, 0);
     expect(canAccept).toHaveBeenCalledTimes(6);
-    controller.refresh(); root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(12);
-    held = { itemKind: 'coal', quantity: 2 }; root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(18);
+    // A slot whose own stack changes re-checks alone; a new held item or a rules change re-checks every slot.
+    own[4] = { itemKind: 'coal', quantity: 3 }; root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(7);
+    held = { itemKind: 'stone', quantity: 1 }; root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(13);
+    controller.invalidateRules(); root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(19);
     root.dispose(); controller.dispose();
     const policy = uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }));
     expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }))).toBe(policy);

@@ -241,7 +241,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // (drawDraggedItem, drawQuickCraftTargets); the kit's uiHeldStack is composited in their place, legacy windows mark
 // their own spread targets, and a drop the server refuses flashes its slot. held-stack, inventory-menus-held-stack,
 // overworld-ui and ui-layer-order tests cover it; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '392b771547d92ce7589933759200253635beeef3dc193de8234fa7cdaaef0495';
+// S3 review (#226): ui/overworld-ui.ts keeps its retained slot set and a by-ref index per model, layout and window
+// instead of rebuilding them per lookup, and drops late refusals from a closed window; ui/item-slot.ts keeps its
+// one-slot rule container instead of allocating one per check. inventory-menus-held-stack (frame and rule parity),
+// item-slot and overworld-ui tests cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '3c3455f2aca96a5fee1eb54e62ff9e530c6dbeeb3c070a11c7742597f63a7518';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

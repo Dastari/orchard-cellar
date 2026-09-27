@@ -13,7 +13,7 @@ import { uiCraftingFrame, type UiCraftingFrameElement, type UiCraftingSnapshot }
 import { UiInventoryFilter, type UiInventoryControls } from '../kit/components/inventory-panel.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { uiSlotArt } from '../kit/components/slot-art.js';
-import { uiHeldStack, uiSlotView, type UiSlotOptions } from '../kit/components/inventory.js';
+import { uiHeldStack, uiSlotDropTarget, type UiSlotOptions } from '../kit/components/inventory.js';
 
 export interface InventoryMenuSnapshot {
   readonly width: number; readonly height: number;
@@ -70,6 +70,9 @@ export class InventoryMenus {
   /** The held stack's own root, so it draws above every overlay and over any inventory window. */
   private readonly heldRoot: UiRoot;
   private heldPoint: UiPoint | null = null;
+  /** What the slots' drop verdicts were last checked against. */
+  private rules: { readonly definition: FrameContentDefinition; readonly registry: InventoryMenuSnapshot['registry'];
+    readonly contentRegistry: ContentRegistry | undefined; readonly backpackCapacity: number } | null = null;
 
   constructor(art: UiKitArt, private readonly authority: InventoryMenuAuthority) {
     this.root = new UiRoot({ art, scale: 1, label: 'Inventory menu' });
@@ -118,7 +121,9 @@ export class InventoryMenus {
     if (this.root.disposed) return;
     if (snapshot === null) {
       if (this.active) { this.root.input.cancelPointers(); this.controller.cancel(); }
-      this.snapshot = null;
+      // A closed window forgets its refused-drop flashes.
+      this.controller.clearRefusals();
+      this.snapshot = null; this.rules = null;
       this.root.tree.setStyle({ visible: false });
       return;
     }
@@ -129,6 +134,14 @@ export class InventoryMenus {
       this.filter.editor.setValue(snapshot.filter); this.filter.refresh();
     }
     if (this.definition !== snapshot.definition) this.build(snapshot);
+    // The slots' rules and membership come from the frame, the content and the backpack's capacity. Only a change
+    // there makes the slots re-check their drop verdicts; an ordinary frame re-checks nothing.
+    const contentRegistry = this.authority.contentRegistry?.();
+    if (this.rules === null || this.rules.definition !== snapshot.definition || this.rules.registry !== snapshot.registry
+      || this.rules.contentRegistry !== contentRegistry || this.rules.backpackCapacity !== snapshot.backpackCapacity) {
+      this.rules = { definition: snapshot.definition, registry: snapshot.registry, contentRegistry, backpackCapacity: snapshot.backpackCapacity };
+      this.controller.invalidateRules();
+    }
     this.frame!.updateState(snapshot.state);
     this.frame!.updateTiming(snapshot.timing ?? { status: 'idle', reason: null, stage: null, progress: 0,
       remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' });
@@ -139,7 +152,7 @@ export class InventoryMenus {
   }
 
   private build(snapshot: InventoryMenuSnapshot): void {
-    this.root.input.cancelPointers(); this.controller.cancel();
+    this.root.input.cancelPointers(); this.controller.cancel(); this.controller.clearRefusals();
     for (const child of [...this.root.tree.children]) child.dispose();
     this.root.tree.replaceChildren([]);
     this.definition = snapshot.definition;
@@ -206,8 +219,8 @@ export class InventoryMenus {
    * `slotAcceptsItem`), or, over a slot the host still draws, the authority's rule from the gesture source. */
   private refusesAt(point: UiPoint): boolean {
     const cursor = this.authority.displayedCursor(); if (cursor === null) return false;
-    const kit = this.active ? this.controller.slotAt(point) : undefined;
-    if (kit) return uiSlotView(kit.element)?.dropTarget === 'refuse';
+    const kit = this.active ? this.controller.slotElementAt(point) : undefined;
+    if (kit) return uiSlotDropTarget(kit) === 'refuse';
     if (this.active) return false;
     const { source } = this.authority.gestures, ref = source.slotAt(point);
     return ref !== null && !source.accepts(ref, cursor.itemKind);

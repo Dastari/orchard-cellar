@@ -228,6 +228,30 @@ export interface UiSlotView {
   /** Against the held stack: `accept` or `refuse`, from the controller and the slot's rules; null when nothing is held. */
   readonly dropTarget: 'accept' | 'refuse' | null;
 }
+/** What a drop verdict depends on in a stack: its kind and gear copy (rarity included), and for the slot's own stack
+ * its quantity too (a full stack takes no more). The held quantity never matters, so a spread preview re-checks nothing. */
+interface UiVerdictStack { itemKind: string; quantity: number; instance: string; rarity: string }
+interface UiSlotVerdict {
+  readonly held: UiVerdictStack; readonly own: UiVerdictStack | null; readonly policy: unknown; readonly revision: number;
+  readonly value: 'accept' | 'refuse';
+}
+function sameVerdictStack(kept: UiVerdictStack | null, stack: ItemStack | null): boolean {
+  if (kept === null || stack === null) return kept === stack;
+  return kept.itemKind === stack.itemKind && (kept.quantity < 0 || kept.quantity === stack.quantity)
+    && kept.instance === (stack.gear?.instanceId ?? '') && kept.rarity === (stack.gear?.rarity ?? '');
+}
+/** Records a stack's verdict fields, reusing the previous record. */
+function verdictStack(stack: ItemStack, reuse: UiVerdictStack | null | undefined, quantity: boolean): UiVerdictStack;
+function verdictStack(stack: ItemStack | null, reuse: UiVerdictStack | null | undefined, quantity: boolean): UiVerdictStack | null;
+function verdictStack(stack: ItemStack | null, reuse: UiVerdictStack | null | undefined, quantity: boolean): UiVerdictStack | null {
+  if (stack === null) return null;
+  const kept = reuse ?? { itemKind: '', quantity: 0, instance: '', rarity: '' };
+  kept.itemKind = stack.itemKind; kept.quantity = quantity ? stack.quantity : -1; kept.instance = stack.gear?.instanceId ?? ''; kept.rarity = stack.gear?.rarity ?? '';
+  return kept;
+}
+const slotDropTargets = new WeakMap<UiElement, () => 'accept' | 'refuse' | null>();
+/** A slot's drop verdict for the held stack (`UiSlotView.dropTarget`) without building the whole view. */
+export function uiSlotDropTarget(element: UiElement): 'accept' | 'refuse' | null { return slotDropTargets.get(element)?.() ?? null; }
 const slotViews = new WeakMap<UiElement, () => UiSlotView>();
 const slotStates = new WeakMap<UiElement, (state: UiSlotState | undefined) => void>();
 /** Changes a slot's state. Enabling or blocking input applies at once (setDisabled), so hit-testing is right even
@@ -253,17 +277,18 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   const carried = (): ItemStack | null => options.controller && options.binding ? options.controller.model.displayedCursor() ?? options.controller.model.cursor : null;
   // Against the held stack: the controller's verdict, narrowed by the slot's own rules through the shared sim rule
   // and the live content policy. Without a live registry the rules are not checked (never against bootstrap).
-  // While a stack is held every slot needs its verdict (refusers dim), so it is kept until the held stack changes or
-  // the controller refreshes (input, or the host's next update), rather than checked on every paint.
-  let verdict: { readonly cursor: ItemStack; readonly revision: number; readonly value: 'accept' | 'refuse' } | undefined;
+  // While a stack is held every slot needs its verdict (refusers dim), so it is kept until the held item (kind and
+  // gear copy), this slot's own stack, the item policy or the controller's rules revision changes: an idle frame
+  // re-checks nothing.
+  let verdict: UiSlotVerdict | undefined;
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = carried();
     if (!cursor || !options.controller || !options.binding) return null;
-    const revision = options.controller.revision;
-    if (verdict?.cursor === cursor && verdict.revision === revision) return verdict.value;
-    const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt);
+    const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt), own = options.controller.model.stack(options.binding);
+    const revision = options.controller.rulesRevision;
+    if (verdict && verdict.revision === revision && verdict.policy === policy && sameVerdictStack(verdict.held, cursor) && sameVerdictStack(verdict.own, own)) return verdict.value;
     const accepts = options.controller.model.canAccept(options.binding, cursor) && (options.rules === undefined || policy === undefined || uiSlotAcceptsItem(options.rules, cursor.itemKind, policy));
-    verdict = { cursor, revision, value: accepts ? 'accept' : 'refuse' };
+    verdict = { held: verdictStack(cursor, verdict?.held, false), own: verdictStack(own, verdict?.own, true), policy, revision, value: accepts ? 'accept' : 'refuse' };
     return verdict.value;
   };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
@@ -319,6 +344,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     // Input blocking follows the state as it changes, not when the slot is next painted.
     if (blocked() !== wasBlocked) slot.setDisabled(blocked()); else slot.invalidateRoot?.(false);
   });
+  slotDropTargets.set(slot, dropTarget);
   slotViews.set(slot, () => {
     const cooldown = options.cooldown?.() ?? null;
     return Object.freeze({
@@ -348,7 +374,7 @@ export interface UiHeldStackOptions {
  * viewport without taking input, and is empty while nothing is held. */
 export function uiHeldStack(options: UiHeldStackOptions): UiElement {
   const slotArt = options.art ?? uiSlotArt({ ...(options.artwork ? { artwork: options.artwork } : {}), ...(options.iconAnimation ? { iconAnimation: options.iconAnimation } : {}), ...(options.contentRegistry ? { contentRegistry: options.contentRegistry } : {}) });
-  let observed: UiPoint | null = null;
+  let observed: UiPoint | null = null, body: UiSlotBody | undefined;
   const unsubscribe = options.controller.subscribe(() => held.invalidateRoot?.(false));
   const held: UiElement = new UiElement({ id: options.id, kind: 'held-stack', label: 'Held stack', disabled: true,
     style: { position: 'fixed', width: 'grow', height: 'grow', zLayer: 'cursor' },
@@ -357,7 +383,9 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
       const stack = options.controller.model.displayedCursor(), point = options.point?.() ?? observed;
       if (!art || art.missingArt || !stack || !point) return;
       const r = uiHeldStackRect(point);
-      paintUiSlotBody(context, art, r, { item: stack, slotArt });
+      // One body record per held stack, not per frame.
+      if (body?.item !== stack) body = { item: stack, slotArt };
+      paintUiSlotBody(context, art, r, body);
       if (options.refusesAt ? options.refusesAt(point) : uiHeldStackRefusedAt(options.controller, point)) {
         const entry = art.skin.icon['icon_catalog.catalog.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, 'catalog', REFUSED_BADGE);
         if (entry && frame) context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x - 3, r.y - 3, 12, 12);
@@ -369,7 +397,7 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
 }
 /** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
 function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {
-  const under = controller.slotAt(point); return under !== undefined && uiSlotView(under.element)?.dropTarget === 'refuse';
+  const under = controller.slotElementAt(point); return under !== undefined && uiSlotDropTarget(under) === 'refuse';
 }
 /** Where the held stack is drawn for a pointer: a 28x31 slot centred on it. */
 export function uiHeldStackRect(point: UiPoint): UiRect { return { x: point.x - 14, y: point.y - 15, width: 28, height: 31 }; }

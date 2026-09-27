@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { createCanvas } from '@napi-rs/canvas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bootstrapContentRegistry, itemDefinition, type ItemStack } from '@orchard/sim';
+import { bootstrapContentRegistry, itemDefinition, type ContainerSnapshot, type ItemStack, type SlotRestriction } from '@orchard/sim';
+import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
+import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { clickContainerSlot, itemPolicyResolver } from '@orchard/sim/item-containers';
+import { uiSlotDropTarget } from '../kit/components/inventory.js';
 import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
 import type { LoadedAsset } from '../assets.js';
@@ -130,5 +134,112 @@ describe('the held stack is the kit\'s (S3)', () => {
       reject(new Error('slot_rejects_item')); await new Promise(resolve => setTimeout(resolve, 0));
       expect(f.menus.controller.refusalFrame(ref, performance.now())).toBe(1);
     } finally { f.dispose(); }
+  });
+
+  it('forgets a refused flash when the window closes, and a late refusal never flashes the reopened slot', async () => {
+    let reject!: (error: Error) => void;
+    const click = vi.fn(() => new Promise<void>((_resolve, fail) => { reject = fail; }));
+    const f = await fixture('inventory', { cursorStack: { itemKind: 'apple', quantity: 3 } }, { inventoryCursorClick: click });
+    try {
+      const ref = { container: 'backpack', index: 4 }, at = f.centre(f.slot(ref.container, ref.index));
+      f.menus.controller.refuse([ref]);
+      expect(f.menus.controller.refusalFrame(ref, performance.now())).toBe(1);
+      f.ui.openWindow = null;
+      expect(f.menus.controller.refusalFrame(ref, performance.now())).toBe(0);
+      f.ui.openWindow = 'inventory';
+      const node = f.slot(ref.container, ref.index);
+      f.move(at); f.root.pointer({ type: 'down', point: f.centre(node), pointerId: 1, button: 0 }); f.root.pointer({ type: 'up', point: f.centre(node), pointerId: 1, button: 0 });
+      expect(click).toHaveBeenCalledOnce();
+      // The window closes and reopens before the server answers.
+      f.ui.openWindow = null; f.ui.openWindow = 'inventory'; f.slot(ref.container, ref.index);
+      reject(new Error('slot_rejects_item')); await new Promise(resolve => setTimeout(resolve, 0));
+      expect(f.menus.controller.refusalFrame(ref, performance.now())).toBe(0);
+    } finally { f.dispose(); }
+  });
+
+  it('checks no drop rule again across frames while nothing changes, and looks slots up without rebuilding them', async () => {
+    const f = await fixture('content', { activeFrameId: 'frame:furnace', cursorStack: ore, openPlaceableInventory: [{ slot: 2, itemKind: 'copper_bar', quantity: 2 }],
+      inventory: Array.from({ length: 12 }, (_, index) => ({ slot: BACKPACK_SLOT_OFFSET + index, itemKind: index % 2 ? 'wood' : 'apple', quantity: 3 })) });
+    try {
+      const canAccept = vi.spyOn(f.menus.controller.model, 'canAccept');
+      const rebuilds = vi.spyOn(f.ui as unknown as { retainedFrame(): unknown }, 'retainedFrame');
+      const model = (f.ui as unknown as { model: OverworldUiModel }).model;
+      const context = createCanvas(480, 270).getContext('2d') as unknown as CanvasRenderingContext2D;
+      // One production frame: a fresh model, then the window and the cursor pass.
+      const frame = () => { f.ui.update({ ...model }); f.ui.draw(context, false); f.ui.drawCursorOverlay(context); };
+      f.move(f.centre(f.slot('placeable', 1)));
+      frame();
+      const slots = f.root.entries().filter(({ element }) => element.props['binding'] !== undefined).length;
+      expect(canAccept.mock.calls.length).toBeGreaterThan(0); expect(canAccept.mock.calls.length).toBeLessThanOrEqual(slots);
+      canAccept.mockClear(); rebuilds.mockClear();
+      for (let index = 0; index < 5; index++) frame();
+      expect(canAccept).not.toHaveBeenCalled();
+      // The retained slot set is rebuilt at most once per frame (a few frame lookups each), not once per slot lookup.
+      expect(rebuilds.mock.calls.length).toBeLessThanOrEqual(5 * 6);
+      // A different held item re-checks each slot once.
+      f.ui.update({ ...model, cursorStack: { itemKind: 'wood', quantity: 4 } }); f.ui.draw(context, false);
+      expect(canAccept.mock.calls.length).toBeGreaterThan(0); expect(canAccept.mock.calls.length).toBeLessThanOrEqual(slots);
+    } finally { f.dispose(); }
+  });
+});
+
+/** The containers as the authority loads them for a menu (world `loadOpenMenuInventory`): equipment restricted by the
+ * equipment slots, an entity by its frame's panes overlaid with its object's own container rules, the rest free. */
+function authorityContainers(model: OverworldUiModel, frameId: string | undefined): Record<string, ContainerSnapshot> {
+  const inventory = new Map(model.inventory.map(item => [item.slot, item]));
+  const row = (offset: number, count: number) => Array.from({ length: count }, (_, index) => { const item = inventory.get(offset + index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; });
+  const containers: Record<string, ContainerSnapshot> = {
+    hotbar: { id: 'hotbar', capacity: HOTBAR_SLOT_COUNT, slots: row(0, HOTBAR_SLOT_COUNT) },
+    backpack: { id: 'backpack', capacity: model.backpackSlotCapacity!, slots: row(BACKPACK_SLOT_OFFSET, model.backpackSlotCapacity!) },
+    equipment: { id: 'equipment', capacity: EQUIPMENT_SLOT_COUNT, slots: row(EQUIPMENT_SLOT_OFFSET, EQUIPMENT_SLOT_COUNT), restrictions: EQUIPMENT_SLOT_RESTRICTIONS },
+    crafting: { id: 'crafting', capacity: CRAFTING_SLOT_COUNT, slots: row(CRAFTING_SLOT_OFFSET, CRAFTING_SLOT_COUNT) },
+  };
+  const frame = frameId ? registry.frames.get(frameId) : undefined;
+  if (frame) {
+    const restrictions: Record<number, SlotRestriction> = { ...frameRestrictions(frame, registry) };
+    const object = [...registry.objects.values()].find(definition => definition.components.frame?.ref === frame.id);
+    for (const rule of object?.components.container?.restrictions ?? []) for (const slot of rule.slots) restrictions[slot] = { ...restrictions[slot], ...(rule.readOnly === undefined ? {} : { readOnly: rule.readOnly }) };
+    const id = frame.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable';
+    const stored = new Map(((id === 'chest' ? model.openChestInventory : model.openPlaceableInventory) ?? []).map(item => [item.slot, item]));
+    const capacity = Math.max(16, ...stored.keys()) + 1;
+    containers[id] = { id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const item = stored.get(index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; }), restrictions };
+  }
+  return containers;
+}
+
+describe('every kit drop verdict is the authority\'s click outcome (S3 review)', () => {
+  const held = ['copper_ore', 'wood', 'helm', 'apple', 'pickaxe', 'copper_bar', 'watch', 'backpack'];
+  const scenes: readonly { readonly name: string; readonly window: OverworldWindow; readonly model: Partial<OverworldUiModel> }[] = [
+    { name: 'inventory: paper doll, an occupied restricted head, occupied backpack cells', window: 'inventory', model: {
+      inventory: [{ slot: EQUIPMENT_SLOT_OFFSET + 1, itemKind: 'helm', quantity: 1 }, { slot: BACKPACK_SLOT_OFFSET, itemKind: 'apple', quantity: 3 },
+        { slot: BACKPACK_SLOT_OFFSET + 1, itemKind: 'wood', quantity: 4 }, { slot: 2, itemKind: 'torch', quantity: 2 }] } },
+    { name: 'furnace: role slots, an occupied input and a take-only output', window: 'content', model: { activeFrameId: 'frame:furnace',
+      openPlaceableInventory: [{ slot: 0, itemKind: 'copper_ore', quantity: 3 }, { slot: 2, itemKind: 'copper_bar', quantity: 2 }] } },
+    { name: 'press: two take-only outputs', window: 'content', model: { activeFrameId: 'frame:press', openPlaceableInventory: [{ slot: 1, itemKind: 'must', quantity: 1 }] } },
+    { name: 'chest: an unrestricted pane with occupied cells (swaps allowed)', window: 'chest', model: { activeFrameId: 'frame:chest',
+      openChestInventory: [{ slot: 0, itemKind: 'apple', quantity: 5 }, { slot: 3, itemKind: 'pickaxe', quantity: 1 }] } },
+  ];
+  it.each(scenes)('$name', async ({ window, model: overrides }) => {
+    for (const itemKind of held) {
+      const cursor = { itemKind, quantity: 1 };
+      const f = await fixture(window, { ...overrides, cursorStack: cursor });
+      try {
+        expect(f.ui.retainedInventoryActive).toBe(true);
+        const model = (f.ui as unknown as { model: OverworldUiModel }).model, containers = authorityContainers(model, model.activeFrameId);
+        const policy = itemPolicyResolver(registry);
+        f.root.arrange();
+        const bound = f.root.entries().flatMap(({ element }) => { const ref = element.props['binding'] as { container: string; index: number } | undefined; return ref ? [{ element, ref }] : []; });
+        expect(bound.length).toBeGreaterThan(10);
+        let refusals = 0;
+        for (const { element, ref } of bound) {
+          if (!containers[ref.container] || ref.index >= containers[ref.container]!.capacity) continue;
+          const result = clickContainerSlot(containers, cursor, { container: ref.container, index: ref.index, button: 'left' }, policy);
+          const refused = !result.ok && result.code === 'slot_rejects_item';
+          expect(uiSlotDropTarget(element), `${itemKind} over ${ref.container}/${ref.index}: ${result.ok ? result.outcome : result.code}`).toBe(refused ? 'refuse' : 'accept');
+          if (refused) refusals++;
+        }
+        if (window !== 'chest') expect(refusals, itemKind).toBeGreaterThan(0);
+      } finally { f.dispose(); }
+    }
   });
 });

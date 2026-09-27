@@ -1485,25 +1485,39 @@ export class OverworldUi {
   }
 
   /** Complete authored bindings, independent of filter, clipping and scrolling. */
-  private retainedSlots(): ItemSlot[] {
-    const frame = this.retainedFrame(); if (!frame) return [];
+  private retainedSlots(): ItemSlot[] { return this.retainedSlotIndex()?.slots ?? []; }
+
+  private retainedSlot(ref: UiInventorySlotRef): ItemSlot | null { return this.retainedSlotIndex()?.byRef.get(ref.container)?.[ref.index] ?? null; }
+
+  /** The retained frame's slots, and the same slots by container and index. The set and its rules change only with
+   * the model (slot items, enabled cells and cleared restrictions are set in update), the layout or the open window,
+   * so it is rebuilt then and not per lookup: the slot controller asks for slots many times a frame. */
+  private retainedIndex: { readonly model: OverworldUiModel; readonly layout: unknown; readonly window: OverworldWindow | null;
+    readonly slots: ItemSlot[]; readonly byRef: ReadonlyMap<string, readonly (ItemSlot | undefined)[]> } | null = null;
+  private retainedSlotIndex(): { readonly slots: ItemSlot[]; readonly byRef: ReadonlyMap<string, readonly (ItemSlot | undefined)[]> } | null {
+    const cached = this.retainedIndex;
+    if (cached && cached.model === this.model && cached.layout === this.layout && cached.window === this.openWindowValue) return cached;
+    const frame = this.retainedFrame(); if (!frame) { this.retainedIndex = null; return null; }
     const collections: Readonly<Record<string, readonly ItemSlot[]>> = {
       backpack: this.backpackItemSlots, hotbar: this.inventoryHotbarSlots, equipment: this.equipmentItemSlots,
       crafting: this.craftingItemSlots, chest: this.chestItemSlots, placeable: this.placeableItemSlots,
     };
     const slots = new Set<ItemSlot>();
     for (const pane of frame.panes) for (const binding of pane.slots) {
-      const slot = collections[binding.containerId]?.find(candidate => candidate.index === binding.index);
+      const collection = collections[binding.containerId], direct = collection?.[binding.index];
+      const slot = direct?.index === binding.index ? direct : collection?.find(candidate => candidate.index === binding.index);
       if (!slot || !slot.enabled) continue;
       // The authority's rules only (BUG-050): equipment rules on equipment, none on other self panes.
       slot.setRestriction(frameSlotAuthorityRestriction(pane.definition, binding)); slots.add(slot);
     }
     if (frame.definition.hotbar) for (const slot of this.inventoryHotbarSlots) slots.add(slot);
-    return [...slots];
-  }
-
-  private retainedSlot(ref: UiInventorySlotRef): ItemSlot | null {
-    return this.retainedSlots().find(slot => slot.containerId === ref.container && slot.index === ref.index) ?? null;
+    const byRef = new Map<string, (ItemSlot | undefined)[]>();
+    for (const slot of slots) {
+      let row = byRef.get(slot.containerId); if (!row) { row = []; byRef.set(slot.containerId, row); }
+      row[slot.index] = slot;
+    }
+    this.retainedIndex = { model: this.model, layout: this.layout, window: this.openWindowValue, slots: [...slots], byRef };
+    return this.retainedIndex;
   }
 
   private syncRetainedInventory(): void {
@@ -2344,6 +2358,7 @@ export class OverworldUi {
     const requestedWindow = window === 'pack' ? 'inventory' : window;
     const nextWindow = requestedWindow === 'developer' && !this.model.canAdministerWorld ? 'system' : requestedWindow;
     if (nextWindow !== this.openWindowValue) {
+      this.slotSession++;
       this.inventoryTouchStart = null;
       this.inventoryScrollBar.cancelSwipe();
     }
@@ -4096,6 +4111,9 @@ export class OverworldUi {
 
   /** The open surface's live, enabled slot for a ref (the retained frame's bindings, or this host's own slots). */
   private itemSlotFor(ref: UiSlotRef): ItemSlot | null {
+    // The retained frame looks slots up by container and index (its slots are all enabled).
+    const retained = this.retainedSlotIndex();
+    if (retained) return retained.byRef.get(ref.container)?.[ref.index] ?? null;
     return this.visibleItemSlots().find((slot) => slot.enabled && slot.containerId === ref.container && slot.index === ref.index) ?? null;
   }
 
@@ -5066,15 +5084,20 @@ export class OverworldUi {
   /** Rolls a predicted move back if the server rejects it; `refused` are the slots the move placed into, which play
    * the kit's refused-drop flash with the callback's error toast. */
   private trackInventoryPrediction(result: void | Promise<void>, refused: readonly UiSlotRef[] = []): void {
+    // A refusal only flashes in the window it was made in: a late answer after the window closed, or after another
+    // frame opened, must not flash a reopened slot with the same ref.
+    const session = this.slotSession, frame = this.model.activeFrameId;
     void Promise.resolve(result).catch(() => {
       this.cancelQuickCraftPreview();
       this.clearOptimisticMenu();
       // Restore the latest subscribed authority snapshot immediately. The
       // callback owns the error toast; this path only rolls presentation back.
       this.update(this.model);
-      this.slotGestures.refused(refused);
+      if (session === this.slotSession && frame === this.model.activeFrameId) this.slotGestures.refused(refused);
     });
   }
+  /** Counts inventory window openings and closings, so late refusals can tell whether their window is still open. */
+  private slotSession = 0;
 
   private drawBarrel(context: CanvasRenderingContext2D, rect: UiRect): void {
     const firstSlot = this.barrelItemSlots[0]!.bounds;

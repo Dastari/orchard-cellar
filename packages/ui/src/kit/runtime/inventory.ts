@@ -27,16 +27,24 @@ export class UiInventoryController {
   constructor(readonly model: UiInventoryModel, readonly onAction?: (action: UiInventoryAction) => void) {}
   register(element: UiElement, ref: UiInventorySlotRef): () => void { this.slots.set(element, ref); return () => this.slots.delete(element); }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
-  /** Counts refreshes: slots keep their drop verdict for the held stack until the next one. */
-  revision = 0;
-  refresh(): void { this.revision++; for (const element of this.slots.keys()) element.invalidateRoot?.(false); for (const listener of this.listeners) listener(); }
+  refresh(): void { for (const element of this.slots.keys()) element.invalidateRoot?.(false); for (const listener of this.listeners) listener(); }
+  /** Moves only when the slots' rules or membership change (a new frame, content or capacity), never per frame: a
+   * slot keeps its drop verdict for the held stack until this, the held stack or the slot's own stack changes. */
+  rulesRevision = 0;
+  /** The host's slot rules or slot set changed: every slot re-checks its drop verdict. */
+  invalidateRules(): void { this.rulesRevision++; this.refresh(); }
   private refusals = new Map<string, number>();
-  private hit(point: UiPoint): UiInventorySlotRef | undefined { return this.slotAt(point)?.ref; }
-  /** The topmost enabled slot registered with this controller under a point (the held stack's badge reads its verdict). */
-  slotAt(point: UiPoint): { readonly element: UiElement; readonly ref: UiInventorySlotRef } | undefined {
-    const found = [...this.slots].toReversed().find(([node]) => uiElementEnabled(node) && containsPoint(node.clip, point) && containsPoint(node.rect, point));
-    return found ? { element: found[0], ref: found[1] } : undefined;
+  private hit(point: UiPoint): UiInventorySlotRef | undefined { const node = this.slotElementAt(point); return node === undefined ? undefined : this.slots.get(node); }
+  /** The topmost enabled slot element registered with this controller under a point (the held stack's badge reads its
+   * verdict). The last registered match is on top; nothing is allocated. */
+  slotElementAt(point: UiPoint): UiElement | undefined {
+    let found: UiElement | undefined;
+    for (const node of this.slots.keys()) if (uiElementEnabled(node) && containsPoint(node.clip, point) && containsPoint(node.rect, point)) found = node;
+    return found;
   }
+  /** Forgets every pending refused-drop flash: the window closed or its slots were rebuilt, so a late refusal can't
+   * replay on a reopened slot with the same ref. */
+  clearRefusals(): void { if (this.refusals.size > 0) { this.refusals.clear(); this.refresh(); } }
   /** Whether a slot is a target of the spread in progress (white corners; the slot under the pointer is green). */
   spreadTarget(ref: UiInventorySlotRef): boolean { void ref; return false; }
   /** Plays the refused-drop flash on these slots (owner decision 2026-09-27, render 02): released over a slot that
