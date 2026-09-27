@@ -12,6 +12,8 @@ import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone, UiControlSize } from '../tokens.js';
 import { paintUiSkin, paintUiMissingArt, type UiKitArt } from './art.js';
 import { drawUiSkinAsset } from '../../skin.js';
+import { selectAtlasFrame } from '../../sprite.js';
+import { UI_ICON_CATALOG } from '../skin/icon-catalog.js';
 import { uiIcon, type UiIconSource } from './media.js';
 import { uiFlex } from './layout.js';
 import type { UiButtonModifiers } from './button.js';
@@ -23,23 +25,27 @@ export { uiItemFrame };
  * `slot` is the 28x31 face (x2, x3 for md, lg). `inline` (a bare 16px icon for text rows) and `well` (a large
  * preview) are reserved: their looks await owner approval, so `uiSlot` refuses them until they ship (S6, S10). */
 export type UiSlotVariant = 'slot' | 'inline' | 'well';
-/** A slot's authored state. Only `selected` and `enabled: false` have an approved look today, the classic
- * selected corners and the 60% disabled face; `locked` blocks input and paints as disabled until the approved
- * locked face ships (S4). `pending` is carried for the controller and not painted. */
+/** A slot's authored state (owner decisions 2026-09-27, renders 01 and 03 on the wiki page Roadmap/Item Slot
+ * Component). `selected` paints the green corners. `enabled: false` paints the pack's grey face with the item art at
+ * 50%. `locked` is the grey face plus the red "blocked" mark (12px in the top-left corner over an item); it blocks
+ * input like `enabled: false`, and its reason is for the tooltip. `pending` is carried for the controller and is
+ * not painted (not approved). */
 export interface UiSlotState {
   readonly enabled?: boolean;
   readonly locked?: { readonly reason: string };
   readonly selected?: boolean;
   readonly pending?: boolean;
 }
-/** Remaining cooldown, 0..1 of the whole. Reported by uiSlotView; the draining shade awaits approval. */
+/** Remaining cooldown, 0..1 of the whole: a dark shade over the icon well that drains from the top as it ends
+ * (approved 2026-09-27, render 03 A). No item has a cooldown yet; this reserves the look. */
 export interface UiSlotCooldown { readonly fraction: number; readonly seconds?: number }
 /** How a slot takes part in drag and drop. Reported by uiSlotView until the slot controller (S2) reads it. */
 export interface UiSlotDrag {
   readonly source?: boolean; readonly target?: boolean; readonly split?: boolean; readonly quickMove?: readonly string[];
 }
-/** Empty-slot placeholder: an equipment silhouette (painted today), or a derived item silhouette or an icon.
- * The item and icon forms are reported by uiSlotView and not painted; their look awaits owner approval. */
+/** Empty-slot placeholder: an equipment silhouette, or `{ item }`, a flat silhouette cut from that item's own art in
+ * the paper-doll ink (station slots; approved 2026-09-27, render 03 A). The `{ icon }` form is reported by
+ * uiSlotView and not painted; it has no approved look. */
 export type UiSlotPlaceholderSource = UiSlotPlaceholder | { readonly item: string } | { readonly icon: UiIconSource };
 export interface UiSlotOptions {
   readonly id?: string; readonly label?: string; readonly stack?: ItemStack | null | (() => ItemStack | null);
@@ -54,7 +60,8 @@ export interface UiSlotOptions {
   readonly contentRegistry?: () => ContentRegistry | undefined;
   readonly variant?: UiSlotVariant;
   /** What the slot accepts. With a controller, a held stack is shown as refused over a slot these rules refuse,
-   * decided by the sim's `slotAcceptsItem` (see `uiSlotAcceptsItem`). */
+   * decided by the sim's `slotAcceptsItem` (see `uiSlotAcceptsItem`) with the live content policy. Without a live
+   * content registry the rules do not narrow the controller's verdict (they are never checked against bootstrap). */
   readonly rules?: UiSlotRules;
   /** The initial state; change it with `uiSetSlotState`, which updates input blocking at once. */
   readonly state?: UiSlotState;
@@ -69,6 +76,11 @@ export interface UiSlotOptions {
   readonly tone?: UiTone; readonly hotkey?: string; readonly placeholder?: UiSlotPlaceholderSource;
   readonly disabled?: boolean; readonly selected?: boolean; readonly layout?: UiStyle; readonly onPress?: (event: UiButtonModifiers) => void;
   readonly allowSecondary?: boolean; readonly activateOn?: 'down' | 'up';
+  /** How a slot disabled by `disabled` or `setDisabled` looks. `grey` (the default) is the approved disabled face.
+   * `dim` keeps the pre-S1 look (the ordinary face at 60%) for transient busy states that have no approved look,
+   * such as the build palette while a placement waits for the server. `state.enabled: false` and `locked` always
+   * paint grey. */
+  readonly disabledLook?: 'grey' | 'dim';
 }
 /** Bare item art at its native size, centred: station emblems, recipe lines, ingredient rows. */
 export function uiItemImage(options: { readonly itemKind: string; readonly artwork?: UiSlotOptions['artwork']; readonly label?: string; readonly size?: number }): UiElement {
@@ -104,6 +116,40 @@ function paintUiSlotWear(context: CanvasRenderingContext2D, art: UiKitArt, r: Ui
   const fill = art.skin.feedback[WEAR_FILLS[fraction > .5 ? 'good' : fraction > .2 ? 'worn' : 'failing']];
   if (fill) drawUiSkinAsset(context, fill.asset, { ...track, width });
 }
+/** Placeholder silhouettes: the paper-doll ink at 55% (render 03 A). */
+const UI_SLOT_SILHOUETTE = Object.freeze({ ink: '#8d6e55', alpha: .55 });
+/** Cooldown shade (render 03 A). */
+const UI_SLOT_COOLDOWN_SHADE = 'rgba(31, 20, 26, 0.62)';
+const BLOCKED_MARK = UI_ICON_CATALOG.find(icon => icon.name === 'blocked_small')!.index;
+function scratchCanvas(width: number, height: number): HTMLCanvasElement | OffscreenCanvas | null {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; return canvas;
+}
+const silhouettes = new WeakMap<object, Map<string, CanvasImageSource>>();
+/** A flat silhouette of item art at its fitted size, cached per image, frame and size. */
+function itemSilhouette(image: CanvasImageSource, source: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }, width: number, height: number): CanvasImageSource | null {
+  let variants = silhouettes.get(image as object); if (!variants) { variants = new Map(); silhouettes.set(image as object, variants); }
+  const key = `${source.x},${source.y},${source.width},${source.height}:${width}x${height}`, cached = variants.get(key); if (cached) return cached;
+  const canvas = scratchCanvas(width, height), target = canvas?.getContext('2d') as CanvasRenderingContext2D | null | undefined;
+  if (!canvas || !target) return null;
+  target.imageSmoothingEnabled = false; target.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, width, height);
+  target.globalCompositeOperation = 'source-in'; target.fillStyle = UI_SLOT_SILHOUETTE.ink; target.fillRect(0, 0, width, height);
+  if (variants.size >= 64) variants.clear(); variants.set(key, canvas as CanvasImageSource); return canvas as CanvasImageSource;
+}
+/** Item art fitted into the icon well, as drawn for stacks, ghosts and silhouettes. */
+function fitIcon(well: UiRect, source: { readonly width: number; readonly height: number }) {
+  const fit = Math.min(well.width / source.width, well.height / source.height);
+  const width = Math.max(1, Math.round(source.width * fit)), height = Math.max(1, Math.round(source.height * fit));
+  return { x: well.x + Math.round((well.width - width) / 2), y: well.y + Math.round((well.height - height) / 2), width, height };
+}
+/** The pack's red "blocked" mark: centred on an empty slot, 12px in the top-left corner over an item (render 01 C). */
+function paintUiSlotBlockedMark(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, overItem: boolean, scale: number): void {
+  const entry = art.skin.icon['icon_catalog.catalog.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, 'catalog', BLOCKED_MARK);
+  if (!entry || !frame) return;
+  const size = (overItem ? 12 : 16) * scale, offset = overItem ? { x: scale, y: scale } : { x: 6 * scale, y: 7 * scale };
+  context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x + offset.x, r.y + offset.y, size, size);
+}
 /** A slot's derived state: what it would paint and accept right now. */
 export interface UiSlotView {
   readonly variant: UiSlotVariant; readonly enabled: boolean; readonly locked: { readonly reason: string } | null;
@@ -133,11 +179,13 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   let current: UiSlotState | undefined = options.state;
   const state = () => current;
   const blocked = (next: UiSlotState | undefined = current) => Boolean(options.disabled) || slotStateBlocksInput(next);
-  // Against the held stack: the controller's verdict, narrowed by the slot's own rules through the shared sim rule.
+  // Against the held stack: the controller's verdict, narrowed by the slot's own rules through the shared sim rule
+  // and the live content policy. Without a live registry the rules are not checked (never against bootstrap).
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = options.controller?.model.cursor;
     if (!cursor || !options.controller || !options.binding) return null;
-    const accepts = options.controller.model.canAccept(options.binding) && (options.rules === undefined || uiSlotAcceptsItem(options.rules, cursor.itemKind, uiSlotArtPolicy(slotArt)));
+    const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt);
+    const accepts = options.controller.model.canAccept(options.binding) && (options.rules === undefined || policy === undefined || uiSlotAcceptsItem(options.rules, cursor.itemKind, policy));
     return accepts ? 'accept' : 'refuse';
   };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
@@ -160,37 +208,63 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     onDispose() { unregister?.(); },
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
-      context.save(); if (element.disabled) context.globalAlpha *= .6;
+      context.save();
+      // Disabled and locked slots use the pack's grey face (owner decision 2026-09-27, render 01 B and C). A busy
+      // slot asked to dim keeps the ordinary face at 60% instead: it is non-interactive, not disabled.
+      const locked = current?.locked !== undefined, stateDisabled = locked || current?.enabled === false;
+      const dimmed = element.disabled && !stateDisabled && options.disabledLook === 'dim', disabled = (element.disabled || stateDisabled) && !dimmed;
+      if (dimmed) context.globalAlpha *= .6;
       const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind);
-      paintUiSkin(context, art.skin.slot, `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
+      paintUiSkin(context, art.skin.slot, disabled ? 'slot.disabled.0' : `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
       const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
       if (item) {
         // One slot look everywhere (the classic hotbar): the icon in a 16px well, then the stack count,
         // wear bar and hotkey drawn by the slot itself, so a custom icon painter can't change them.
-        if (options.renderContent) options.renderContent(context, uiSlotIconRect(r), item, { ghost: Boolean(ghost) });
+        if (options.renderContent) {
+          context.save(); if (disabled) context.globalAlpha *= .5;
+          options.renderContent(context, uiSlotIconRect(r), item, { ghost: Boolean(ghost) }); context.restore();
+        }
         else {
           const icon = resolveUiSlotIcon(slotArt, item);
           if (icon) {
-            const { image, source } = icon, well = uiSlotIconRect(r), fit = Math.min(well.width / source.width, well.height / source.height);
-            const width = Math.max(1, Math.round(source.width * fit)), height = Math.max(1, Math.round(source.height * fit));
+            const { image, source } = icon, at = fitIcon(uiSlotIconRect(r), source);
             context.save();
             // Crisp pixels at any fit: a smoothed downscale is what made slot icons look faded (owner item 6).
             context.imageSmoothingEnabled = false;
             if (ghost) context.globalAlpha *= .42;
+            if (disabled) context.globalAlpha *= .5;
             if (item.lit === false) { context.filter = 'brightness(42%) saturate(55%)'; context.globalAlpha *= .88; }
-            context.drawImage(image, source.x, source.y, source.width, source.height, well.x + Math.round((well.width - width) / 2), well.y + Math.round((well.height - height) / 2), width, height);
+            context.drawImage(image, source.x, source.y, source.width, source.height, at.x, at.y, at.width, at.height);
             context.restore();
           }
         }
         if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 15 * scale, { align: 'right', ...UI_SLOT_INKS });
+        // A disabled or locked slot shows its item at 50% (render 01 B and C), its count, and its wear bar dimmed with
+        // the item to 50%.
         const durability = uiDurabilityFraction(item.itemKind, item.durability, uiSlotArtRegistry(slotArt));
-        if (!ghost && durability !== null) paintUiSlotWear(context, art, r, durability, scale);
-      } else if (typeof options.placeholder === 'string') paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
+        if (!ghost && durability !== null) {
+          context.save(); if (disabled) context.globalAlpha *= .5;
+          paintUiSlotWear(context, art, r, durability, scale); context.restore();
+        }
+      } else if (!locked && typeof options.placeholder === 'string') paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
+      else if (!locked && typeof options.placeholder === 'object' && 'item' in options.placeholder) {
+        const icon = resolveUiSlotIcon(slotArt, { itemKind: options.placeholder.item });
+        const at = icon && fitIcon(uiSlotIconRect(r), icon.source), silhouette = icon && at && itemSilhouette(icon.image, icon.source, at.width, at.height);
+        if (at && silhouette) { context.save(); context.globalAlpha *= UI_SLOT_SILHOUETTE.alpha; context.drawImage(silhouette, at.x, at.y); context.restore(); }
+      }
       if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, UI_SLOT_INKS);
-      // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop, white hover and keyboard focus.
-      const target = dropTarget(), selected = Boolean(element.props['selected']) || state()?.selected === true;
-      if (selected || (hovered && target === 'accept')) paintUiSelector(context, art.skin.selector, 'confirm', r);
-      else if (hovered && target === 'refuse') paintUiSelector(context, art.skin.selector, 'deny', r);
+      if (locked) paintUiSlotBlockedMark(context, art, r, item !== null && item !== undefined, scale);
+      const cooldown = options.cooldown?.();
+      if (cooldown && item && !disabled) {
+        const well = uiSlotIconRect(r), height = Math.round(well.height * Math.min(1, Math.max(0, cooldown.fraction)));
+        if (height > 0) { context.fillStyle = UI_SLOT_COOLDOWN_SHADE; context.fillRect(r.x + 3 * scale, well.y + well.height - height, r.width - 6 * scale, height); }
+      }
+      // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop or a
+      // locked slot under the pointer, white hover and keyboard focus.
+      // Only the slot under the pointer or keyboard focus shows drop feedback, so only it checks the rules.
+      const target = hovered || focused ? dropTarget() : null, selected = Boolean(element.props['selected']) || state()?.selected === true;
+      if (selected || (hovered && target === 'accept' && !locked)) paintUiSelector(context, art.skin.selector, 'confirm', r);
+      else if (hovered && (target === 'refuse' || locked)) paintUiSelector(context, art.skin.selector, 'deny', r);
       else if (hovered || focused) paintUiSelector(context, art.skin.selector, 'neutral', r);
       context.restore();
     },

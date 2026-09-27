@@ -489,7 +489,6 @@ import {
   automaticRegistrationRole,
   canAdministerWorld,
   canManageMembership,
-  isWorldOwnerRole,
   membershipRejection,
   membershipRole,
   productionAuthEnabled,
@@ -9249,6 +9248,10 @@ function requireAuthorizedSender(
   return { role: member?.role ?? 'owner' };
 }
 
+/** World administration gate: owner or admin (canAdministerWorld). Refuses
+ * missing, revoked or blocked members, bad JWTs and every other role with
+ * `owner_required`. Map, content, chunk publication and the static-world
+ * chunkAuthority switch and audit all use it. */
 function requireWorldOwner(
   jwt: { readonly issuer: string; readonly audience: readonly string[] } | null,
   member: MembershipPolicyRow | null,
@@ -9256,17 +9259,6 @@ function requireWorldOwner(
   if (member === null) throw new SenderError('owner_required');
   const actor = requireAuthorizedSender(jwt, member);
   if (!canAdministerWorld(actor.role)) throw new SenderError('owner_required');
-}
-
-/** Strict owner gate for switches admins must not flip (static-world
- * chunkAuthority). requireWorldOwner also admits admins. */
-function requireStrictWorldOwner(
-  jwt: { readonly issuer: string; readonly audience: readonly string[] } | null,
-  member: MembershipPolicyRow | null,
-): void {
-  if (member === null) throw new SenderError('owner_required');
-  const actor = requireAuthorizedSender(jwt, member);
-  if (!isWorldOwnerRole(actor.role)) throw new SenderError('owner_required');
 }
 
 // --- authoring Phase 6: staged legacy chest continuity migration ---
@@ -16455,8 +16447,9 @@ function writeAdminWorldRepairAction(ctx: WorldReducerContext, action: AdminWorl
   if (action.kind === 'set_space_flags') {
     const spaceId = adminWorldSpaceId(action.spaceId);
     const existing = ctx.db.space_admin_flag.spaceId.find(spaceId);
-    // Owner-only keys (chunkAuthority) always keep their CURRENT stored value,
-    // so an admin flag write or undo can never move the owner's switch.
+    // Switch-only keys (chunkAuthority) always keep their CURRENT stored value,
+    // so a generic admin flag write or undo can never move the switch; only
+    // setChunkAuthority can.
     const row = {
       spaceId,
       flagsJson: JSON.stringify(preserveOwnerOnlySpaceFlags(action.flags, spaceAdminFlags(ctx, spaceId))),
@@ -25216,7 +25209,7 @@ export const stepWorld = spacetimedb.reducer(
       npcsBySpace.set(spaceId, npcs);
       // Resolve the revision-keyed live runtime once per occupied space. In
       // particular, do not repeat its indexed head/registry lookup for every
-      // generated resource in the collision filter. The owner chunkAuthority
+      // generated resource in the collision filter. The chunkAuthority
       // switch selects compiled (off, shadow) or chunk (on) collision here.
       const liveMapRuntime = spaceId === TOPSIDE_SPACE_ID
         ? liveIslandCollisionRuntime(ctx)
@@ -26190,11 +26183,11 @@ export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.str
   if (previous === null) ctx.db.world_chunk_shadow.insert(row); else ctx.db.world_chunk_shadow.spaceId.update(row);
 });
 
-/** Static-world S2a: owner-only chunkAuthority switch (off | shadow | on),
+/** Static-world S2a: owner-or-admin chunkAuthority switch (off | shadow | on),
  * stored in the public space 0 space_admin_flag row. Idempotent: setting the
  * current mode writes nothing. Nothing reads the mode for behaviour yet. */
 export const setChunkAuthority = spacetimedb.reducer({ mode: t.string() }, (ctx, { mode }) => {
-  requireStrictWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const next = parseChunkAuthorityMode(mode);
   if (next === null) throw new SenderError('chunk_authority_mode_invalid');
   const existing = ctx.db.space_admin_flag.spaceId.find(CHUNK_AUTHORITY_SPACE_ID);
@@ -26228,8 +26221,8 @@ export const inspectWorldChunkShadow = spacetimedb.procedure(
 /** Per module instance: lets the soak see whether procedure globals persist between calls. */
 let chunkAuthorityAuditCalls = 0;
 
-/** Static-world S2c: strict-owner, read-only audit of the pinned chunk publication.
- * One short transaction checks the owner and copies the rows and blobs the audit reads
+/** Static-world S2c: owner-or-admin, read-only audit of the pinned chunk publication.
+ * One short transaction checks the caller and copies the rows and blobs the audit reads
  * (`snapshotChunkAuthorityTables`); the chunk build (a fresh dispatcher resolve, so every
  * `on` guard is the real one), the cold compiled build and the whole-island compare then
  * run outside any transaction, over a read-only view of that copy. Returns the JSON
@@ -26240,7 +26233,7 @@ export const auditChunkAuthority = spacetimedb.procedure(
     const clock = chunkAuthorityAuditClock();
     const snapshotStarted = clock.now();
     const snapshot = ctx.withTx(tx => {
-      requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+      requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
       return {
         mode: chunkAuthorityMode(tx),
         tables: snapshotChunkAuthorityTables(tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: LIVE_CONTENT_PACK_ID, spaceId: BigInt(TOPSIDE_SPACE_ID) }),

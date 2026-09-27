@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { LIVE_ISLAND_MAP_ID, TILE_SIZE_FIXED, type MapDocumentV3 } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
-import { authenticationRejection, isWorldOwnerRole, membershipRejection, OIDC_ISSUER } from '../auth-policy.js';
+import { authenticationRejection, canAdministerWorld, membershipRejection, OIDC_ISSUER } from '../auth-policy.js';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
 import { assembleChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource, type CompiledCollisionRuntime } from './chunk-authority-dispatch.js';
@@ -252,7 +252,7 @@ function compile<T>(name: string, scope: Record<string, unknown>): T {
 class SenderError extends Error {}
 const jwt = { issuer: OIDC_ISSUER, audience: ['orchard-web'] };
 const requireAuthorizedSender = compile('requireAuthorizedSender', { authenticationRejection, membershipRejection, SenderError });
-const requireStrictWorldOwner = compile('requireStrictWorldOwner', { requireAuthorizedSender, isWorldOwnerRole, SenderError });
+const requireWorldOwner = compile('requireWorldOwner', { requireAuthorizedSender, canAdministerWorld, SenderError });
 
 /** A read-only table view: any write method access fails the test. */
 function readOnlyTables(tables: Record<string, object>): Record<string, object> {
@@ -305,7 +305,7 @@ function procedureHarness(member: { role: string; blocked: boolean; revokedAt?: 
   const procedure = compile<(ctx: unknown, args: Record<string, never>) => string>('auditChunkAuthority', {
     spacetimedb: { procedure: (_args: unknown, _returns: unknown, handler: unknown) => handler },
     t: { string: () => null },
-    requireStrictWorldOwner,
+    requireWorldOwner,
     chunkAuthorityAuditCalls: 0,
     // The real source helper reads the (snapshot) db; this stand-in does the same, outside the transaction.
     chunkAuthoritySource: (world: SnapshotWorld) => {
@@ -332,8 +332,8 @@ function procedureHarness(member: { role: string; blocked: boolean; revokedAt?: 
 }
 
 describe('auditChunkAuthority procedure', () => {
-  it('snapshots in one short transaction, then builds and compares outside it, without writing', () => {
-    const p = procedureHarness({ role: 'owner', blocked: false });
+  it.each(['owner', 'admin'])('lets the %s audit: snapshots in one short transaction, then builds and compares outside it, without writing', (role) => {
+    const p = procedureHarness({ role, blocked: false });
     const report = JSON.parse(p.call()) as ChunkAuthorityAuditReport;
     expect(p.withTx).toHaveBeenCalledTimes(1);
     expect(report).toMatchObject({ schema: 1, ok: true, mode: 'shadow', instance: { auditCalls: 1, transaction: 'snapshot' },
@@ -347,10 +347,13 @@ describe('auditChunkAuthority procedure', () => {
   });
 
   it.each([
-    ['admin', { role: 'admin', blocked: false }],
-    ['player', { role: 'player', blocked: false }],
+    ['a moderator', { role: 'moderator', blocked: false }],
+    ['a player', { role: 'friend', blocked: false }],
+    ['an unknown role', { role: 'player', blocked: false }],
     ['no membership', null],
     ['a blocked owner', { role: 'owner', blocked: true }],
+    ['a blocked admin', { role: 'admin', blocked: true }],
+    ['a revoked admin', { role: 'admin', blocked: false, revokedAt: 'then' }],
   ])('refuses %s before reading anything', (_label, member) => {
     const p = procedureHarness(member);
     expect(() => p.call()).toThrow(SenderError);
@@ -358,13 +361,13 @@ describe('auditChunkAuthority procedure', () => {
     expect(p.state.tableReads).toEqual(['membership']);
   });
 
-  it('uses the strict owner gate, a snapshot transaction, the dispatcher source and no table writes', () => {
+  it('uses the owner-or-admin world gate, a snapshot transaction, the dispatcher source and no table writes', () => {
     const text = declarationText('auditChunkAuthority');
     expect(text).toContain('spacetimedb.procedure(');
-    expect(text).toContain('requireStrictWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender))');
-    expect(text).not.toMatch(/requireWorldOwner\(/u);
+    expect(text).toContain('requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender))');
+    expect(text.match(/require\w+\(/gu)).toEqual(['requireWorldOwner(']);
     expect(text).not.toMatch(/\.(insert|update|delete|clear)\(/u);
-    // The transaction only checks the owner and copies rows; the builds use the copy.
+    // The transaction only checks the caller and copies rows; the builds use the copy.
     const transaction = text.slice(text.indexOf('ctx.withTx('), text.indexOf('});', text.indexOf('ctx.withTx(')));
     expect(transaction).toContain('snapshotChunkAuthorityTables(tx');
     expect(transaction).not.toMatch(/runChunkAuthorityAudit|coldCompiled|chunkAuthoritySource/u);

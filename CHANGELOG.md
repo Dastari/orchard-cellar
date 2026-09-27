@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.48.2 / UI 0.48.0 / Sim 0.33.3 / World 0.27.2 / Studio 0.16.12 — Item slot S1 states; admins can switch chunk authority
+
+- **Item slot component S1 (#219).** Frames now pass their slot rules, take-only flags and placeholders to each slot. The slot paints the states the owner approved on 2026-09-27:
+  - **Disabled:** the pack's grey face, with the item at 50% and its count still shown.
+  - **Locked:** the grey face with a red blocked mark. Hovering a locked slot shows red corners.
+  - **Placeholders:** station and paper-doll slots show a flat silhouette of what goes in them while they are empty.
+  - **Cooldown:** a draining shade over the icon, reserved for later use.
+  - Slot rules are checked by the same function the server uses. Drag feedback comes in S2 and S3.
+- **Chunk authority for admins (#218).** `setChunkAuthority` and `auditChunkAuthority` now accept an owner or an admin, the same gate as map, content and chunk publishing, so the dev account can run static-world activation. Moderators and players are still refused. No schema change.
+- Workspace 0.66.0.
+
 ## Client 0.48.1 / UI 0.47.1 / Sim 0.33.2 / World 0.27.1 / Studio 0.16.11 / Tools 0.24.5 — Bug fixes: toasts, slot rules, take-only slots, prompt clipping
 
 - **BUG-043: long toasts are cut off at 42 characters (#214).**

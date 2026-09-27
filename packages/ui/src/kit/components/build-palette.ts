@@ -122,7 +122,9 @@ export function uiBuildPalette(options: UiBuildPaletteOptions) {
       const nextSlots = model.entries.map(entry => {
         let retained = slots.get(entry.itemKind);
         if (!retained) {
-          const slot = uiSlot({ id: `build.item.${entry.itemKind}`, artwork: options.artwork,
+          // While a placement waits for the server the slots are busy, not disabled: pending has no approved look,
+          // so they keep the pre-S1 60% dimming rather than the grey disabled face.
+          const slot = uiSlot({ id: `build.item.${entry.itemKind}`, artwork: options.artwork, disabledLook: 'dim',
             // Held items show their art and stack count; items you hold none of stay visible but ghosted.
             stack: () => (model.counts[entry.itemKind] ?? 0) > 0 ? { itemKind: entry.itemKind, quantity: model.counts[entry.itemKind]! } : null,
             ghost: () => ({ itemKind: entry.itemKind, quantity: 0 }),

@@ -1,5 +1,5 @@
 import type { ContentRegistry, ItemPolicyResolver, ItemStack } from '@orchard/sim';
-import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, itemDefinition, itemPolicyResolver } from '@orchard/sim/item-containers';
+import { itemDefinition, itemPolicyResolver } from '@orchard/sim/item-containers';
 import type { LoadedAsset } from '../../assets.js';
 import { selectAtlasFrame, type AtlasFrame } from '../../sprite.js';
 
@@ -60,9 +60,14 @@ export function uiSlotArtRegistry(art: UiSlotArt | undefined): ContentRegistry |
   return art === undefined ? undefined : sources.get(art)?.contentRegistry?.();
 }
 
-/** The item policy slot rules are checked with: the live registry's when the art has one, else bootstrap,
- * matching the legacy `ItemSlot` mirror's default. */
-export function uiSlotArtPolicy(art: UiSlotArt | undefined): ItemPolicyResolver {
+/** The item policy slot rules are checked with: the live registry's, or undefined when the art has none. Slots
+ * without a registry skip their own rule narrowing and keep the controller's verdict, rather than checking live
+ * rules against bootstrap content (wiki Roadmap/Item Slot Component, S1). */
+export function uiSlotArtPolicy(art: UiSlotArt | undefined): ItemPolicyResolver | undefined {
   const registry = uiSlotArtRegistry(art);
-  return registry ? itemPolicyResolver(registry) : BOOTSTRAP_ITEM_CONTAINER_CONTENT;
+  if (!registry) return undefined;
+  // One policy per content registry, shared by every slot, so drop checks allocate nothing per paint.
+  let policy = policies.get(registry); if (!policy) { policy = itemPolicyResolver(registry); policies.set(registry, policy); }
+  return policy;
 }
+const policies = new WeakMap<ContentRegistry, ItemPolicyResolver>();

@@ -24,9 +24,9 @@ import {
  *    (`materialize-world-chunks.ts`, which also checks oracle parity).
  * 2. Stages every blob through `stageWorldChunkBlob`, then CAS-publishes the heads
  *    through `publishWorldChunkShadow` (and checks a stale CAS is refused).
- * 3. Sets `chunkAuthority` to `shadow`, runs the owner `auditChunkAuthority`
+ * 3. Sets `chunkAuthority` to `shadow`, runs the owner-or-admin `auditChunkAuthority`
  *    procedure and requires zero disagreements over a complete publication.
- * 4. Teleports its own character (owner `adminTeleportPlayer`) to the nearest
+ * 4. Teleports its own character (admin `adminTeleportPlayer`) to the nearest
  *    walkable tile of every chunk centre, dwelling long enough for the shadow
  *    per-tick sampler, then reads the host log and requires that the sampler ran
  *    and logged no disagreement.
@@ -350,7 +350,7 @@ export async function runSoak(api: SoakApi, options: Pick<SoakOptions, 'withOn' 
   const fail = (message: string): void => { evidence.failures.push(message); deps.log(`FAIL ${message}`); };
   try {
     await withChunkAuthorityRestoredOff(api, evidence.restore, async () => {
-      // Owner check first: the idempotent `off` fails with owner_required for anyone else.
+      // Gate check first: the idempotent `off` fails with owner_required for anyone but the owner or an admin.
       await api.setChunkAuthority('off');
       await soakBody(api, options, deps, evidence, fail);
     });
