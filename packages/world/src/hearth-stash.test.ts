@@ -3,6 +3,7 @@ import ts from 'typescript';
 import {describe,it,expect} from 'vitest';
 import * as sim from '@orchard/sim';
 import {hearthStashFrameRestrictions,legacyWorldChestFrameRestrictions} from './content/frame-runtime.js';
+import {documentStaticView} from './content/chunk-authority-runtime.js';
 it('keeps cache identity and placement catalogs out of runtime consumers',()=>{
   for(const url of [new URL('../../sim/src/hearth-stash-endpoints.ts',import.meta.url),
     new URL('./index.ts',import.meta.url),new URL('../../client/src/overworld-main.ts',import.meta.url)]){
@@ -90,7 +91,7 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry(),opt
     activeItemContainerContent:()=>sim.itemContainerContentResolver(registry),refreshSenderQuestsFromInventory:()=>{},
     playerInventoryCursor:()=>cursor,writePlayerInventoryCursor:(_ctx:unknown,_id:unknown,next:sim.ItemStack|null)=>{cursor=next;},activeSpaceDefinition:()=>({generator:'delve_lobby'}),
     TOPSIDE_SPACE_ID:0,collisionForSpace:()=>position.spaceId===0?supplyCollision:sim.hearthLobbyCollision(),requireAuthorizedSender:()=>{},
-    compiledLiveIslandRuntime:()=>({document:controls.installed?supplyDocument:null}),
+    liveIslandCollisionRuntime:()=>({staticView:controls.installed?documentStaticView(supplyDocument):null}),
     mountedNpcFor:()=>controls.mounted?{}:null,handsOccupiedFor:()=>controls.hands,
     advancePlayerStats:()=>({healthCenti:controls.settledHealth}),
     requirePersistentInventoryAvailable:()=>{if(locked)throw new Error('descent_inventory_locked');},

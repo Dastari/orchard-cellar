@@ -22,7 +22,7 @@ function fixture(blocked = false){
     live_map_document:{mapId:{find:()=>row,update:(next:typeof row)=>{row=next;}}},
     world_placeable:{by_placer:{filter:()=>[]}},world_environment:{id:{find:()=>null}},
     live_map_revision:{insert:(next:unknown)=>history.push(next)}}};
-  const dependencies={...sim,planLiveMapResourceMoves,planLiveMapEntityStates,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{},settleTownStreetlamps:()=>{},
+  const dependencies={...sim,planLiveMapResourceMoves,planLiveMapEntityStates,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{},settleTownStreetlamps:()=>{},liveIslandCollisionRuntime:()=>null,
     contentRegistry:()=>sim.bootstrapContentRegistry(),
     runtimeResourceDefinition:()=>[...sim.bootstrapContentRegistry().resources.values()].find(d=>d.runtimeKind==='tree_oak'),
     collisionForSpace:()=>({width:832,height:832,blocked:new Uint8Array(832*832).fill(blocked?1:0)}),

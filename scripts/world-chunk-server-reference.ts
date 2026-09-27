@@ -5,6 +5,7 @@ import * as sim from '@orchard/sim';
 import { worldChunkHash } from '@orchard/sim/world-chunk';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { createAuthoritySpaceCollisionMap } from '../packages/world/src/world-rules.js';
+import { documentStaticView, type LiveIslandStaticView } from '../packages/world/src/content/chunk-authority-runtime.js';
 
 /** One generated resource as reconcile would install it: the generator fields
  * (optional ones only when set) plus the map placement and runtime suppression. */
@@ -57,6 +58,8 @@ export interface ServerCompiledLiveIslandRuntime {
   readonly combatPolicy: sim.CombatRegionPolicy;
   /** `document.combatRegions` (undefined when the map declares none). */
   readonly combatRegions: readonly sim.CombatRegion[] | undefined;
+  /** `documentStaticView(document)`, built once per runtime (S3b). */
+  readonly staticView: LiveIslandStaticView;
   readonly document: sim.MapDocumentV3;
   readonly ground: sim.CollisionMap;
   readonly water: sim.CollisionMap;
@@ -188,6 +191,7 @@ runtime === null ? null : ({
     LIVE_CONTENT_PACK_ID: 'live',
     contentRegistry: () => registry,
     createAuthoritySpaceCollisionMap,
+    documentStaticView,
     ctx: { db: {
       live_map_document: { mapId: { find: () => row } },
       content_head: { packId: { find: () => ({ contentHash: registry.contentHash }) } },

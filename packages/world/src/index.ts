@@ -5,7 +5,7 @@ import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult,
 import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
 import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
-import type { LiveIslandCollisionRuntime } from './content/chunk-authority-runtime.js';
+import { documentStaticView, LIVE_ISLAND_OUTSIDE_MAP_BIOME, type LiveIslandCollisionRuntime, type LiveIslandStaticView } from './content/chunk-authority-runtime.js';
 import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
@@ -6330,7 +6330,7 @@ function hearthStashWithinReach(ctx:WorldReducerContext, endpointId: string = 'd
     const tick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
     const action = ctx.db.player_combat_state.identity.find(ctx.sender);
     if (action !== null && (action.kind === 'block' || tick < action.readyTick)) return false;
-    return hearthSupplyCacheInstalled(supplyCache,compiledLiveIslandRuntime(ctx)?.document ?? null)
+    return hearthSupplyCacheInstalled(supplyCache,liveIslandCollisionRuntime(ctx)?.staticView ?? null)
       && hearthSupplyCacheApproachClear(supplyCache,position, collisionForSpace(ctx, position.spaceId));
   }
   if (endpointId !== 'delve_lobby') return false;
@@ -7267,7 +7267,7 @@ function surfaceOreRespawnTileBlocked(
 }
 
 function hearthResourceSiteEnabled(ctx: WorldReducerContext, resource: WorldResourceRow,
-  policy: CombatRegionPolicy | undefined): boolean {
+  runtime: LiveIslandCollisionRuntime | null): boolean {
   const registry = contentRegistry(ctx);
   const site = runtimeHearthResourceSite(registry, resource.id);
   if (site === null || !runtimeHearthResourceRowMatchesSite(registry, resource)) return false;
@@ -7275,9 +7275,10 @@ function hearthResourceSiteEnabled(ctx: WorldReducerContext, resource: WorldReso
   // than consume tools for missing rewards or replenish a retired loot cohort.
   if (!hearthGatheringContentReady(registry)) return false;
   const camp = ctx.db.outdoor_encounter.id.find(site.encounterId);
+  const policy = runtime?.combatPolicy;
   return policy !== undefined && camp !== null && camp.conflict === ''
     && policy.allowsHostileDamage({ spaceId: TOPSIDE_SPACE_ID, tileX: site.tileX + .5, tileY: site.tileY + .5 })
-    && !liveMapGeneratedResourceSuppressed(ctx, resource.spaceId, resource.id);
+    && !liveMapRuntimeResourceSuppressed(runtime, resource.spaceId, resource.id);
 }
 
 /** Hearth nodes are authored, never opportunistically accepted by kind alone.
@@ -7294,7 +7295,7 @@ function requireHearthResourceHarvestAccess(ctx: WorldReducerContext, position: 
     || position.spaceId !== resource.spaceId) {
     throw new SenderError('target_not_ready');
   }
-  if (!hearthResourceSiteEnabled(ctx, resource, liveIslandCombatPolicy(ctx))) throw new SenderError('target_not_ready');
+  if (!hearthResourceSiteEnabled(ctx, resource, liveIslandCollisionRuntime(ctx))) throw new SenderError('target_not_ready');
   if (site.maturityGrowthStage !== null
     && resource.growthStage !== site.maturityGrowthStage) throw new SenderError('resource_not_mature');
   const collision = outdoorCollisionMap(ctx, resource.id);
@@ -7339,7 +7340,7 @@ function installHearthResourceSites(ctx: WorldReducerContext, expectedMapRevisio
   const runtime = liveIslandCollisionRuntime(ctx);
   const policy = runtime?.combatPolicy;
   for (const row of rows) {
-    if (!hearthResourceSiteEnabled(ctx, row, policy)) throw new SenderError('hearth_resource_site_disabled');
+    if (!hearthResourceSiteEnabled(ctx, row, runtime)) throw new SenderError('hearth_resource_site_disabled');
     const site = runtimeHearthResourceSite(registry, row.id)!;
     const definition = runtimeHearthEncounterDefinition(registry, site.encounterDefinitionId);
     if (definition === null) throw new SenderError('hearth_resource_encounter_missing');
@@ -7402,7 +7403,7 @@ function recordHearthResourceDepletion(ctx: WorldReducerContext, resource: World
  * one hertz plus immediate interruptions. Refills and tracker deletion share the
  * authority transaction; no timer callback can replay a reward or generation. */
 function stepHearthResourceRespawns(ctx: WorldReducerContext, tick: bigint, players: readonly PlayerPositionRow[],
-  combatPolicy: CombatRegionPolicy | undefined): void {
+  liveMapRuntime: LiveIslandCollisionRuntime | null): void {
   let collision: CollisionMap | undefined;
   const now = ctx.timestamp.microsSinceUnixEpoch;
   const registry = contentRegistry(ctx);
@@ -7420,7 +7421,7 @@ function stepHearthResourceRespawns(ctx: WorldReducerContext, tick: bigint, play
     const definition = runtimeHearthEncounterDefinition(registry, site.encounterDefinitionId);
     if (definition === null) continue;
     const camp = ctx.db.outdoor_encounter.id.find(site.encounterId);
-    const enabled = hearthResourceSiteEnabled(ctx, resource, combatPolicy);
+    const enabled = hearthResourceSiteEnabled(ctx, resource, liveMapRuntime);
     const visible = players.some(player => player.spaceId === TOPSIDE_SPACE_ID
       && outdoorInsideCamp(definition, player, OUTDOOR_SIGHT_PADDING_TILES));
     const engaged = camp === null || !['dormant', 'active', 'completed'].includes(camp.phase)
@@ -10104,10 +10105,11 @@ function objectGrowthTimeline(ctx: WorldReducerContext, definition: import('@orc
   if (from !== undefined && from > now) throw new SenderError('object_lifecycle_future_tick');
   if (definition.components.growth === undefined) return {};
   const current = recordObjectEnvironment(ctx);
-  const document = row.spaceId === TOPSIDE_SPACE_ID && definition.components.growth.modifiers?.preferredBiomes !== undefined
-    ? compiledLiveIslandRuntime(ctx)?.document : undefined;
+  const view = row.spaceId === TOPSIDE_SPACE_ID && definition.components.growth.modifiers?.preferredBiomes !== undefined
+    ? liveIslandCollisionRuntime(ctx)?.staticView : undefined;
+  // Outside the map the static view has no cell; compiled answered the generator's ocean there.
   const local = { watered: state.watered === true, fertilised: state.fertilised === true,
-    ...(document === undefined ? {} : { biome: resolvedMapBiomeAt(document, row.tileX, row.tileY) }) };
+    ...(view === undefined ? {} : { biome: view.biomeAt(row.tileX, row.tileY) ?? LIVE_ISLAND_OUTSIDE_MAP_BIOME }) };
   const epochs = from === undefined ? [current] : [...ctx.db.object_environment_epoch.iter()].map(epoch => {
     if (!isWeatherMode(epoch.weatherMode)) throw new SenderError('object_environment_invalid');
     return { ...epoch, weatherMode: epoch.weatherMode };
@@ -12761,6 +12763,7 @@ interface LiveIslandRuntime {
   readonly water: CollisionMap;
   readonly generatedSuppressions: ReadonlySet<string>;
   readonly suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>;
+  readonly staticView: LiveIslandStaticView;
 }
 
 let liveIslandRuntimeCache: LiveIslandRuntime | null = null;
@@ -12908,6 +12911,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     water,
     generatedSuppressions,
     suppressedDecorationObstacleKeys,
+    staticView: documentStaticView(document),
   };
   return liveIslandRuntimeCache;
 }
@@ -12920,8 +12924,8 @@ const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
  * `shadow` keeps compiled authoritative while comparing the chunk runtime and
  * logging disagreements. `on` serves the chunk runtime only when it is complete,
  * fresh and passes the compiled guards, and otherwise falls back to compiled.
- * Collision and combat policy (S3a) read it; resource reconcile and the document
- * consumers still read compiledLiveIslandRuntime (S3b/S3c move them).
+ * Collision, combat policy (S3a) and the static document consumers (S3b) read it;
+ * resource reconcile still reads compiledLiveIslandRuntime (S3c moves it).
  */
 function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
   const mode = chunkAuthorityMode(ctx);
@@ -13023,13 +13027,24 @@ function liveMapRuntimeGeneratedResourceSuppressed(
   return runtime?.generatedSuppressions.has(`resource-${resourceId}`) ?? false;
 }
 
+/** `liveMapGeneratedResourceSuppressed` over an already-resolved runtime (topside only). */
+function liveMapRuntimeResourceSuppressed(
+  runtime: Pick<LiveIslandCollisionRuntime, 'generatedSuppressions'> | null,
+  spaceId: number,
+  resourceId: bigint,
+): boolean {
+  return spaceId === TOPSIDE_SPACE_ID && liveMapRuntimeGeneratedResourceSuppressed(runtime, resourceId);
+}
+
+/** Static-world S3b: generated-resource suppression from the dispatcher's runtime
+ * (compiled in off and shadow, chunk-built in on). Only topside resolves a runtime. */
 function liveMapGeneratedResourceSuppressed(
   ctx: WorldReducerContext,
   spaceId: number,
   resourceId: bigint,
 ): boolean {
   if (spaceId !== TOPSIDE_SPACE_ID) return false;
-  return liveMapRuntimeGeneratedResourceSuppressed(compiledLiveIslandRuntime(ctx), resourceId);
+  return liveMapRuntimeGeneratedResourceSuppressed(liveIslandCollisionRuntime(ctx), resourceId);
 }
 
 function validatedLiveMapDocument(
@@ -13195,7 +13210,7 @@ function commitLiveMapSnapshot(
     // Map publication is infrequent; only inspect permanent authority-owned rows.
     for(const lamp of ctx.db.world_placeable.by_placer.filter(ctx.databaseIdentity))
       if(lamp.definitionId===STREETLAMP_DEFINITION&&!active.has(lamp.id)){ ctx.db.object_lifecycle_state.placeableId.delete(lamp.id); ctx.db.world_placeable.id.delete(lamp.id); }
-    settleTownStreetlamps(ctx,ctx.db.world_environment.id.find(0)?.calendarTick??0n);
+    settleTownStreetlamps(ctx,ctx.db.world_environment.id.find(0)?.calendarTick??0n,liveIslandCollisionRuntime(ctx));
   }
   ctx.db.live_map_revision.insert({
     id: 0n,
@@ -13246,11 +13261,11 @@ function ensureLandmarkCampfireStates(ctx: WorldReducerContext, calendarTick: bi
 
 /** Materialize authored lamps as ordinary persistent, interactable placeables.
  * Indexed identities and cached plans avoid scanning player-owned objects. */
-function settleTownStreetlamps(ctx:WorldReducerContext,calendarTick:bigint):void {
-  const runtime=compiledLiveIslandRuntime(ctx);
+function settleTownStreetlamps(ctx:WorldReducerContext,calendarTick:bigint,runtime:LiveIslandCollisionRuntime|null):void {
   const definition=contentRegistry(ctx).objects.get(STREETLAMP_DEFINITION);
   if(!runtime||!definition||definition.retired===true)return;
-  for(const plan of mapStreetlampPlans(runtime.document)){
+  // Cached per static view, which is built once per runtime (static world S3b).
+  for(const plan of mapStreetlampPlans(runtime.staticView)){
     const existing=ctx.db.world_placeable.id.find(plan.id);
     if(existing!==null&&existing.definitionId!==STREETLAMP_DEFINITION)throw new SenderError('streetlamp_identity_conflict');
     const next=streetlampState(existing?.stateJson??'{}',calendarTick);
@@ -23075,9 +23090,11 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
   const resources = chunks.flatMap(([x, y]) => [...ctx.db.world_resource.by_chunk.filter([position.spaceId, x, y])]);
   const chests = chunks.flatMap(([x, y]) => [...ctx.db.world_chest.by_chunk.filter([position.spaceId, x, y])]);
   const combatTargets = chunks.flatMap(([x, y]) => [...ctx.db.world_combat_target.by_chunk.filter([position.spaceId, x, y])]);
+  // One dispatch per swing serves the collision and every resource's suppression check (S3b).
+  const liveMapRuntime = position.spaceId === TOPSIDE_SPACE_ID ? liveIslandCollisionRuntime(ctx) : null;
   const collision = collisionForSpace(ctx, position.spaceId, undefined, {
     resources, chests, combatTargets, chunkScope: new Set(chunks.map(([x, y]) => `${x}:${y}`)),
-  });
+  }, liveMapRuntime);
   const terrainCollision = { ...collision, obstacles: [] };
   const contacts: SwingTarget[] = [];
   // The sector is anchored at the actor's position, so every reach point must be
@@ -23107,7 +23124,7 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
       if (npc.health > 0 && npc.rider === undefined) include('npc', npc.id, npc);
     }
     for (const resource of ctx.db.world_resource.by_chunk.filter(chunk)) {
-      if (!resource.depleted && !liveMapGeneratedResourceSuppressed(ctx, resource.spaceId, resource.id)
+      if (!resource.depleted && !liveMapRuntimeResourceSuppressed(liveMapRuntime, resource.spaceId, resource.id)
         && runtimeResourceDefinition(registry, resource) !== null) {
         const vector = runtimeResourceTargetVector(registry, resource, position.x, position.y, resource.tileX, resource.tileY);
         const origin = playerInteractionOrigin(position);
@@ -24905,7 +24922,10 @@ export const stepWorld = spacetimedb.reducer(
     const authorityTick = clock.authorityTick + 1n;
     ctx.db.world_clock.id.update({ ...clock, authorityTick });
     const calendarTick = authorityTick + calendarOffset;
-    if(authorityTick%20n===0n)settleTownStreetlamps(ctx,calendarTick);
+    // Static-world S3b: on streetlamp ticks the topside runtime is resolved here, once, and the
+    // collision stage reuses it (nothing in between writes the map or content rows).
+    let prefetchedTopsideRuntime: LiveIslandCollisionRuntime | null | undefined;
+    if(authorityTick%20n===0n)settleTownStreetlamps(ctx,calendarTick,prefetchedTopsideRuntime=liveIslandCollisionRuntime(ctx));
     recordTickRowTouch(updateCounters);
     respawnMiningResources(ctx, authorityTick);
     if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {
@@ -25227,7 +25247,7 @@ export const stepWorld = spacetimedb.reducer(
       // generated resource in the collision filter. The chunkAuthority
       // switch selects compiled (off, shadow) or chunk (on) collision here.
       const liveMapRuntime = spaceId === TOPSIDE_SPACE_ID
-        ? liveIslandCollisionRuntime(ctx)
+        ? prefetchedTopsideRuntime !== undefined ? prefetchedTopsideRuntime : liveIslandCollisionRuntime(ctx)
         : null;
       if (spaceId === TOPSIDE_SPACE_ID) topsideLiveMapRuntime = liveMapRuntime;
       // Use the same augmented map as reducers and clients. This adds dynamic
@@ -25761,9 +25781,10 @@ export const stepWorld = spacetimedb.reducer(
     tickStageTiming(telemetryTimingSample, 'npc');
     const outdoorPlayers = onlinePlayers.map(player => ctx.db.player_position.identity.find(player.identity))
       .filter((player): player is PlayerPositionRow => player !== null);
-    const tickCombatPolicy = topsideLiveMapRuntime === undefined ? liveIslandCombatPolicy(ctx) : topsideLiveMapRuntime?.combatPolicy;
-    stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);
-    stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);
+    const tickLiveMapRuntime = topsideLiveMapRuntime !== undefined ? topsideLiveMapRuntime
+      : prefetchedTopsideRuntime !== undefined ? prefetchedTopsideRuntime : liveIslandCollisionRuntime(ctx);
+    stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers, tickLiveMapRuntime?.combatPolicy);
+    stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers, tickLiveMapRuntime);
     const occupiedNpcs = [...npcsBySpace.values()].flat();
     const activeContentRegistry = contentRegistry(ctx);
     const starterHorseDefinition = runtimeStarterHorseDefinition(activeContentRegistry);

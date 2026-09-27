@@ -12,11 +12,11 @@ describe('static-world readiness', () => {
   it('finds the whole-map dependencies the migration still has to remove', () => {
     const byId = new Map(READINESS_PROBES.map((probe) => [probe.id, runProbe(probe, process.cwd())]));
     // These fall to zero as steps 4-6 land; this test then flips to assert zero.
-    // Step-4 baseline after S3a (17 -> 15 -> 7): the collision dispatcher (2: the `off` branch calls
+    // Step-4 baseline after S3b (17 -> 15 -> 7 -> 3): the collision dispatcher (2: the `off` branch calls
     // compiled directly, and the chunk source's compiled accessor, which the S2c audit shares) and
-    // document/resource consumers (5, S3b -> 1). S3a moved the 8 combat-policy reads onto the
-    // dispatcher's runtime. Both dispatcher sites stay until S3-final.
-    expect(byId.get('server.whole-map-compile')!).toMatchObject({ count: 7, files: ['packages/world/src/index.ts'] });
+    // resource reconcile's placements (1, S3c). S3a moved the 8 combat-policy reads and S3b the 4 static
+    // document consumers onto the dispatcher's runtime. Both dispatcher sites stay until S3-final.
+    expect(byId.get('server.whole-map-compile')!).toMatchObject({ count: 3, files: ['packages/world/src/index.ts'] });
     expect(byId.get('client.live-map-document')!.count).toBeGreaterThan(0);
     expect(byId.get('studio.document-json')!.count).toBeGreaterThan(0);
     // Step-6 baseline: studio-connection.ts (3) and admin/live-services.ts (1). S7b/S7c drive it to zero.
