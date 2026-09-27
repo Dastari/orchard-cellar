@@ -171,13 +171,13 @@ export function nearestWalkableIn(width: number, height: number, blocked: ArrayL
  * players stand only on walkable ground, and chunk-mode readiness keeps the view on the player.
  * `alternatives` are tried in order when the server refuses a tile (a tree or rock stands there).
  */
-export function sweepPlan(targets: readonly WalkTarget[], nearest?: NearestWalkable, count = 24): SweepStep[] {
+export function sweepPlan(targets: readonly WalkTarget[], nearest?: NearestWalkable, count = 48): SweepStep[] {
   const everywhere = targets.flatMap(target => target.candidates);
   if (everywhere.length === 0) throw new Error('sweep_has_no_walkable_tile');
   return [...targets].sort((a, b) => a.cy - b.cy || a.cx - b.cx).map((target, index) => {
     const centreX = target.cx * WORLD_CHUNK_SIZE + WORLD_CHUNK_SIZE / 2, centreY = target.cy * WORLD_CHUNK_SIZE + WORLD_CHUNK_SIZE / 2;
     const inChunk = target.candidates.length > 0;
-    const alternatives = inChunk ? target.candidates : nearest !== undefined ? nearest(centreX, centreY, count)
+    const alternatives = inChunk ? [...target.candidates, ...(nearest?.(centreX, centreY, count) ?? [])] : nearest !== undefined ? nearest(centreX, centreY, count)
       : [...everywhere].sort((a, b) => (a.tileX - centreX) ** 2 + (a.tileY - centreY) ** 2 - ((b.tileX - centreX) ** 2 + (b.tileY - centreY) ** 2)).slice(0, count);
     const first = alternatives[0] ?? everywhere[0]!;
     return { index, cx: target.cx, cy: target.cy, tileX: first.tileX, tileY: first.tileY, inChunk, alternatives };
@@ -871,28 +871,33 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         const [a, b] = await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
         return { a, b };
       };
-      const terrainShots = await capture(true);
-      const [ta, tb] = await Promise.all([rgba(canvasModule, terrainShots.a), rgba(canvasModule, terrainShots.b)]);
-      let terrain = diffRgba(ta.data, tb.data, ta.width, ta.height, options.pixelThreshold);
-      let terrainPngs = terrainShots;
-      if (terrain.ratio > options.maxDiffRatio) {
-        // One retry after a second: a frame caught mid-way through a ground cache fill is not a parity failure.
-        await sleep(1_000);
-        terrainPngs = await capture(true);
-        const [ra, rb] = await Promise.all([rgba(canvasModule, terrainPngs.a), rgba(canvasModule, terrainPngs.b)]);
-        terrain = diffRgba(ra.data, rb.data, ra.width, ra.height, options.pixelThreshold);
-      }
-      // Noise floor: the legacy build against itself a moment later (animation phase), every tenth step.
+      // Up to three matched captures 400 ms apart, keeping the closest: animated water and waterfalls,
+      // wildlife and remote-player interpolation are not in phase between two pages.
+      const best = async (entitiesHidden: boolean, mask: readonly Rect[]) => {
+        let chosen: { pngs: { a: Uint8Array; b: Uint8Array }; diff: PixelDiff; attempts: number } | null = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          if (attempt > 1) await sleep(400);
+          const pngs = await capture(entitiesHidden);
+          const [ia, ib] = await Promise.all([rgba(canvasModule, pngs.a), rgba(canvasModule, pngs.b)]);
+          const diff = diffRgba(ia.data, ib.data, ia.width, ia.height, options.pixelThreshold, mask);
+          if (chosen === null || diff.ratio < chosen.diff.ratio) chosen = { pngs, diff, attempts: attempt };
+          if (diff.ratio <= options.maxDiffRatio / 4) break;
+        }
+        return chosen!;
+      };
+      const terrainBest = await best(true, []);
+      const terrain = terrainBest.diff, terrainPngs = terrainBest.pngs;
+      // Noise floor: the legacy build against itself 400 ms later (animation phase alone), every step.
       let noise: PixelDiff | null = null;
-      if (step.index % 10 === 0) {
-        await sleep(300);
+      {
+        const first = await rgba(canvasModule, terrainPngs.a);
+        await sleep(400);
         await frames(legacy.page, 2);
         const again = await rgba(canvasModule, await legacy.page.screenshot({ type: 'png' }) as Uint8Array);
-        noise = diffRgba(ta.data, again.data, ta.width, ta.height, options.pixelThreshold);
+        noise = diffRgba(first.data, again.data, first.width, first.height, options.pixelThreshold);
       }
-      const fullShots = await capture(false);
-      const [fa, fb] = await Promise.all([rgba(canvasModule, fullShots.a), rgba(canvasModule, fullShots.b)]);
-      const full = diffRgba(fa.data, fb.data, fa.width, fa.height, options.pixelThreshold, playerMask);
+      const fullBest = await best(false, playerMask);
+      const full = fullBest.diff, fullShots = fullBest.pngs;
       const [legacyMemory, onMemory] = await Promise.all([memory(legacy.cdp), memory(on.cdp)]);
       const after = await probe(on.page);
       const record: StepRecord = { step, arrivedMs, readyMs, store: after?.store ?? null, runtimeState: after?.runtime?.state ?? null,
@@ -1078,7 +1083,7 @@ export async function watchMovement(session: Session, start: { tileX: number; ti
     }, 15_000, 25).catch(() => undefined);
   }
   const started = Date.now();
-  let held = '', readyAt: number | null = null, direction = 0;
+  let held = '', readyAt: number | null = null, direction = 0, sawWaiting = false, sawReady = false;
   const directions = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
   const reasons = new Map<string, number>();
   while (Date.now() - started < 60_000) {
@@ -1088,6 +1093,10 @@ export async function watchMovement(session: Session, start: { tileX: number; ti
     // Held keys auto-repeat in a real browser (keydown with repeat): send one every sample.
     if (held !== '') await session.page.keyboard.down(held);
     const ready = value?.readiness?.ready === true && value.runtime?.mode === 'on';
+    if (ready && !value.readiness!.reason.startsWith('awaiting')) sawReady = true;
+    // Right after a teleport the readiness of the old position can show for a frame: skip it.
+    if (start !== null && ready && !sawWaiting && Date.now() - started < 1_500) { await sleep(50); continue; }
+    if (!ready) sawWaiting = true;
     const reason = value?.readiness?.reason ?? null;
     if (reason !== null) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
     samples.push({ t: Date.now() - started, ready, reason, state: value?.runtime?.state ?? null,
@@ -1101,7 +1110,7 @@ export async function watchMovement(session: Session, start: { tileX: number; ti
       if (Date.now() - readyAt > 2_000 * (direction + 1) && direction < directions.length - 1) {
         await session.page.keyboard.up(held); direction++; held = directions[direction]!;
       }
-      if (Date.now() - readyAt > 10_000) break;
+      if (Date.now() - readyAt > 10_000 && sawReady) break;
     }
     await sleep(50);
   }
