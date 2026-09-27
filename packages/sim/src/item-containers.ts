@@ -356,6 +356,14 @@ export function maxStackFor(itemKind: string): number | null {
   return itemDefinition(itemKind)?.maxStack ?? null;
 }
 
+/** A take-only cell (`SlotRestriction.readOnly`): station outputs and results.
+ * The player may still extract from it (drag, click pickup, shift-click), and
+ * nothing may ever be placed in it. It is not an ingredient store, so automatic
+ * sourcing such as the recipe-book fill never draws from it (BUG-045). */
+export function slotIsTakeOnly(container: ContainerSnapshot, index: number): boolean {
+  return container.restrictions?.[index]?.readOnly === true;
+}
+
 export function slotAcceptsItem(
   container: ContainerSnapshot, index: number, itemKind: string,
   content: ItemContainerContentResolver = BOOTSTRAP_ITEM_CONTAINER_CONTENT,
@@ -363,7 +371,7 @@ export function slotAcceptsItem(
   if (content.maxStackFor(itemKind) === null
     || !Number.isSafeInteger(index) || index < 0 || index >= container.capacity) return false;
   const restriction = container.restrictions?.[index];
-  if (restriction?.readOnly === true) return false;
+  if (slotIsTakeOnly(container, index)) return false;
   if (!restriction) return true;
   // Deny lists are checked first and always win: an item on both lists, or
   // carrying a rejected tag and every required one, is refused.
@@ -605,7 +613,9 @@ export function moveItemStacks(
  * doesn't fit, the whole operation fails with `container_full` and nothing
  * moves, so the shortcut never drops or overwrites player items. A stray that
  * cannot be moved at all fails with its own code (for example
- * `unknown_item_kind` for an oversize or malformed stack). */
+ * `unknown_item_kind` for an oversize or malformed stack). Ingredients come
+ * only from ordinary carried slots: take-only (`readOnly`) cells are skipped,
+ * so an ingredient held only there stays put and its grid cell stays empty. */
 export function fillCraftingRecipeFromInventory(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   recipeId: string,
@@ -641,8 +651,12 @@ export function fillCraftingRecipeFromInventory(
       let source: { readonly container: 'hotbar' | 'backpack'; readonly index: number } | null = null;
       for (const container of ['hotbar', 'backpack'] as const) {
         const targetStack = next.crafting?.slots[targetIndex];
-        const index = next[container]?.slots.findIndex((stack) => (
+        const snapshot = next[container];
+        // Take-only cells are extracted by the player, never raided as
+        // ingredient sources by the fill (BUG-045).
+        const index = snapshot?.slots.findIndex((stack, slotIndex) => (
           stack !== null && stack.itemKind === itemKind && stack.quantity > 0
+          && !slotIsTakeOnly(snapshot, slotIndex)
           && (!targetStack || itemStacksCompatible(targetStack, stack))
         )) ?? -1;
         if (index >= 0) {

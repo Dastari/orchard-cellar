@@ -21,7 +21,9 @@ import {
   pickupAllToCursor,
   sortAndStackContainer,
   slotAcceptsItem,
+  slotIsTakeOnly,
   toolQualityRequiredRanks,
+  type ItemStack,
 } from './item-containers.js';
 import {
   ACTIVE_EQUIPMENT_SLOTS,
@@ -141,6 +143,34 @@ describe('shared container stacking rules', () => {
       id: 'processor', capacity: 1, slots: [null], restrictions: { 0: { readOnly: true } },
     } as const;
     expect(slotAcceptsItem(output, 0, 'iron_bar')).toBe(false);
+  });
+
+  it('lets the player take from a take-only output but never put anything back (BUG-045)', () => {
+    const content = BOOTSTRAP_ITEM_CONTAINER_CONTENT;
+    const output = (quantity: number) => ({
+      id: 'processor', capacity: 1, slots: [{ itemKind: 'iron_bar', quantity }], restrictions: { 0: { readOnly: true } },
+    });
+    const take = (bag: readonly (ItemStack | null)[], quantity: number) => moveItemStacks(
+      { processor: output(4), bag: { id: 'bag', capacity: bag.length, slots: bag } },
+      { fromContainer: 'processor', fromIndex: 0, toContainer: 'bag', toIndex: 0, quantity }, content,
+    );
+    expect(slotIsTakeOnly(output(4), 0)).toBe(true);
+    expect(slotIsTakeOnly({ id: 'bag', capacity: 1, slots: [null] }, 0)).toBe(false);
+    // Extraction is allowed: a whole move, a split and a merge all leave the output.
+    expect(take([null], 4)).toMatchObject({ ok: true, outcome: 'move', containers: { processor: { slots: [null] } } });
+    expect(take([null], 1)).toMatchObject({ ok: true, outcome: 'split', containers: { processor: { slots: [{ itemKind: 'iron_bar', quantity: 3 }] } } });
+    expect(take([{ itemKind: 'iron_bar', quantity: 2 }], 4)).toMatchObject({ ok: true, outcome: 'merge', movedQuantity: 4 });
+    expect(quickMoveItemStack({ processor: output(4), bag: { id: 'bag', capacity: 1, slots: [null] } },
+      { fromContainer: 'processor', fromIndex: 0, toContainers: ['bag'] }, content)).toMatchObject({ ok: true, movedQuantity: 4 });
+    expect(clickContainerSlot({ processor: output(4) }, null, { container: 'processor', index: 0, button: 'left' }, content))
+      .toMatchObject({ ok: true, outcome: 'pickup', cursor: { itemKind: 'iron_bar', quantity: 4 } });
+    // Nothing enters it: a swap would put the other stack in the output, so it is refused.
+    expect(take([{ itemKind: 'wood', quantity: 1 }], 4)).toEqual({ ok: false, code: 'slot_rejects_item' });
+    expect(moveItemStacks({ processor: output(4), bag: { id: 'bag', capacity: 1, slots: [{ itemKind: 'iron_bar', quantity: 1 }] } },
+      { fromContainer: 'bag', fromIndex: 0, toContainer: 'processor', toIndex: 0, quantity: 1 }, content))
+      .toEqual({ ok: false, code: 'slot_rejects_item' });
+    expect(clickContainerSlot({ processor: output(4) }, { itemKind: 'iron_bar', quantity: 1 },
+      { container: 'processor', index: 0, button: 'left' }, content)).toEqual({ ok: false, code: 'slot_rejects_item' });
   });
 
   it('stacks every raw ore and rejects ore from tool-only slots', () => {
