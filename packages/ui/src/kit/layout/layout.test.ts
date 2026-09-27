@@ -141,6 +141,21 @@ describe('BUG-049: non-wrapping rows measure children at their allocated widths'
     expect(row.rect.height).toBe(30); expect(text.clip).toEqual(text.rect);
     root.dispose();
   });
+  it('keeps two cached sizes per node, so the parent width and the allocated width do not evict each other', () => {
+    let calls = 0;
+    const text = new UiElement({ style: { width: 'grow' }, measure: (_node, available) => {
+      calls++; return { min: { width: 0, height: 10 }, preferred: { width: available.width, height: 10 } };
+    } });
+    const at = (width: number) => measureUiElement(text, { width, height: 100 }).preferred.width;
+    expect([at(60), at(40), at(60), at(40)]).toEqual([60, 40, 60, 40]);
+    expect(calls).toBe(2);
+    // The most recent request is always the primary slot that arrange and flex read.
+    expect(text.measureWidth).toBe(40); expect(text.measured.preferred.width).toBe(40);
+    // Invalidation drops both sizes.
+    text.invalidate(); expect([at(60), at(40)]).toEqual([60, 40]); expect(calls).toBe(4);
+    // A third width evicts the older one.
+    at(20); at(40); expect(calls).toBe(5); at(60); expect(calls).toBe(6);
+  });
   it('leaves a row whose children already fit exactly as before', () => {
     const leaf = (width: number) => new UiElement({ style: { width: uiFixed(width), height: uiFixed(10) } });
     const row = new UiElement({ style: { display: 'flex', direction: 'row', gap: 4 }, children: [leaf(20), leaf(30)] });

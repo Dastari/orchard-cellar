@@ -55,6 +55,9 @@ export class UiElement {
   rect = UI_EMPTY_RECT; clip = UI_EMPTY_RECT; contentRect = UI_EMPTY_RECT;
   measured: UiMeasurement = { min: { width: 0, height: 0 }, preferred: { width: 0, height: 0 } };
   measureWidth = -1; measureHeight = -1;
+  /** Second measure cache slot: the previous size measured since the last invalidation. A row measures a child at
+   * the parent's width and again at its allocated width, so one slot would make the two evict each other. */
+  measureAlt: UiMeasurement | null = null; measureAltWidth = -1; measureAltHeight = -1;
   measureDirty = true; layoutDirty = true; descendantsDirty = true;
   scroll = { x: 0, y: 0, maxX: 0, maxY: 0 };
   invalidateRoot?: (structure: boolean) => void;

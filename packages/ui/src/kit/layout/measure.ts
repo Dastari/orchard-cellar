@@ -1,11 +1,22 @@
 import type { UiSize } from '../../geometry.js';
 import type { UiElement } from '../runtime/element.js';
-import { uiBoundSize, uiPaddingInsets, type UiMeasurement } from './box.js';
+import { uiBoundSize, uiIsFixed, uiPaddingInsets, type UiMeasurement } from './box.js';
 import { uiLayoutFlex } from './flex.js';
 
-/** Intrinsic measure is cached by available size and explicit invalidation. */
+/** Intrinsic measure is cached by available size and explicit invalidation. Each node keeps two sizes, so measuring
+ * at the parent's width and at an allocated width do not evict each other; invalidation drops both. */
 export function measureUiElement(node: UiElement, available: UiSize): UiMeasurement {
-  if (!node.measureDirty && node.measureWidth === available.width && node.measureHeight === available.height) return node.measured;
+  if (!node.measureDirty) {
+    if (node.measureWidth === available.width && node.measureHeight === available.height) return node.measured;
+    if (node.measureAlt && node.measureAltWidth === available.width && node.measureAltHeight === available.height) {
+      // Swap the slots: `measured` and `measureWidth` always describe the most recent request.
+      const measured = node.measureAlt;
+      node.measureAlt = node.measured; node.measureAltWidth = node.measureWidth; node.measureAltHeight = node.measureHeight;
+      node.measureWidth = available.width; node.measureHeight = available.height;
+      return node.measured = measured;
+    }
+    node.measureAlt = node.measured; node.measureAltWidth = node.measureWidth; node.measureAltHeight = node.measureHeight;
+  } else { node.measureAlt = null; node.measureAltWidth = -1; node.measureAltHeight = -1; }
   node.measureWidth = available.width; node.measureHeight = available.height; node.measureDirty = false;
   if (!node.visible) return node.measured = { min: { width: 0, height: 0 }, preferred: { width: 0, height: 0 } };
   const p = uiPaddingInsets(node.style.padding);
@@ -35,13 +46,16 @@ export function measureUiElement(node: UiElement, available: UiSize): UiMeasurem
     wrappedPreferred = { width: Math.max(0, ...resolved.map(box => box.x + box.width)),
       height: Math.max(0, ...resolved.map(box => box.y + box.height)) };
   } else if (node.style.display !== 'stack' && node.style.display !== 'grid' && node.style.direction !== 'column'
-    && children.length && Number.isFinite(inner.width)) {
+    && Number.isFinite(inner.width) && children.some(reflows)) {
     // A non-wrapping row shares its width between its children, as arrange does: a glyph beside wrapped text
     // leaves the text less than the full row, so re-measure each child at the width it is actually allocated
-    // (BUG-049). Otherwise the row under-reports the wrapped height and its lower lines are clipped.
+    // (BUG-049). Otherwise the row under-reports the wrapped height and its lower lines are clipped. A child
+    // that got its full preferred width (or the whole row) is already measured at a width that fits it.
     const boxes = uiLayoutFlex({ x: 0, y: 0, ...inner }, children, node.style);
-    sizes = children.map((child, index) => child.measureWidth === boxes[index]!.width ? sizes[index]!
-      : measureUiElement(child, { width: boxes[index]!.width, height: inner.height }));
+    sizes = children.map((child, index) => {
+      const width = boxes[index]!.width, size = sizes[index]!;
+      return width === inner.width || size.preferred.width <= width ? size : measureUiElement(child, { width, height: inner.height });
+    });
   }
   const aggregate = (field: 'min' | 'preferred'): UiSize => {
     if (field === 'preferred' && wrappedPreferred) return wrappedPreferred;
@@ -74,4 +88,9 @@ export function measureUiElement(node: UiElement, available: UiSize): UiMeasurem
       height: Math.max(preferred.height, intrinsic?.preferred.height ?? 0) + vertical }, available),
   };
   return node.measured;
+}
+
+/** Only a container or a custom measurer that is not fixed-width can change size when its allocated width does. */
+function reflows(child: UiElement): boolean {
+  return (child.children.length > 0 || child.hooks.measure !== undefined) && !uiIsFixed(child.style.width);
 }
