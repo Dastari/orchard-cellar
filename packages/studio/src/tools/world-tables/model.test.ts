@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { bootstrapContentDefinitions, contentDefinitionsHash } from '@orchard/sim';
+import {
+  bootstrapContentDefinitions,
+  contentDefinitionsHash,
+  type FrameContentDefinition,
+  type SupportedContentDefinition,
+} from '@orchard/sim';
 import bootstrapManifest from './fixtures/bootstrap-pack-manifest.json';
 import {
   createWorldAuthoringModel,
@@ -42,6 +47,31 @@ describe('WorldAuthoringModel', () => {
     expect(JSON.parse(request.upserts)).toHaveLength(1);
     expect(publishContentChangeSet).toHaveBeenCalledWith(request);
     expect(model.history()[0]?.note).toBe('fixture');
+  });
+
+  it('shows a client-only frame rule as an error only on the rows the draft edits (BUG-047)', () => {
+    const definitions = bootstrapContentDefinitions();
+    const chest = definitions.find(({ id }) => id === 'frame:chest') as FrameContentDefinition;
+    const selfRule: FrameContentDefinition = { ...chest, panes: chest.panes.map((pane) => pane.id === 'backpack'
+      ? { ...pane, restriction: { rejectedItems: ['item:apple'] } } : pane) };
+    const open = (head: readonly SupportedContentDefinition[]) => createWorldAuthoringModel({
+      access: 'write',
+      head: { packId: 'live', revision: 7n, engineVersion: 1, contentHash: contentDefinitionsHash(head), definitions: head },
+      createPublishAdapter: () => ({ publishContentChangeSet: vi.fn(async () => undefined), restoreContentRevision: async () => undefined }),
+    });
+    // Authoring the rule: the world would refuse it, so the author sees the error before publishing.
+    const authoring = open(definitions).upsert(selfRule);
+    expect(authoring.validation.errors).toContainEqual(expect.objectContaining({
+      code: 'invalid_frame', definitionId: 'frame:chest', severity: 'error',
+    }));
+    expect(authoring.canPublish).toBe(false);
+    // A head that already carries it only warns, and an unrelated edit stays publishable.
+    const existing = open(definitions.map((definition) => definition.id === 'frame:chest' ? selfRule : definition));
+    const crop = existing.browser('crop')[0]!;
+    const unrelated = existing.upsert({ ...existing.definition(crop.id)!, displayName: 'Edited Crop' });
+    expect(unrelated.validation.errors).toEqual([]);
+    expect(unrelated.validation.warnings).toContainEqual(expect.objectContaining({ code: 'invalid_frame', definitionId: 'frame:chest' }));
+    expect(unrelated.canPublish).toBe(true);
   });
 
   it('imports and exports one deterministic, bounded, validated pack', () => {

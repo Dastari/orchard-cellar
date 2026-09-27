@@ -47,6 +47,8 @@ describe('live content authority schema and reducers', () => {
     const restore = slice('export const restoreContentRevision', 'export const grantContentEditor');
     expect(restore).toContain('revision.inverseChangeSetJson');
     expect(restore).toContain("'restore_content_revision'");
+    // Restores are never refused by authoring rules (BUG-047 review).
+    expect(source).toContain("}, { restore: auditAction === 'restore_content_revision' });");
     expect(restore).not.toContain('content_revision.revision.update');
     expect(restore).not.toContain('content_revision.revision.delete');
   });

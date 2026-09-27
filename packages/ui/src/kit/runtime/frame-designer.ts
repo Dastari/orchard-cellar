@@ -99,8 +99,10 @@ export class UiFrameDesignerModel {
 
   snapshot(): UiFrameDesignerSnapshot {
     const definitions = replaceFrame(this.#definitions, this.#definition);
-    // The frame being edited is authored content: authoring rules are errors for it.
-    const validation = validateContentDefinitions(definitions, { authoredIds: new Set([this.#definition.id]) });
+    // A frame being edited is authored content, so authoring rules are errors
+    // for it. A read-only session only inspects the published frame.
+    const validation = validateContentDefinitions(definitions, this.#access === 'read_only'
+      ? {} : { authoredIds: new Set([this.#definition.id]) });
     const dirty = contentDefinitionsHash([this.#definition]) !== this.#initialHash;
     return Object.freeze({
       access: this.#access,

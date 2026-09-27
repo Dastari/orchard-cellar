@@ -213,13 +213,18 @@ export class WorldAuthoringModel {
   snapshot(): WorldAuthoringSnapshot {
     const state = canonical(this.#present);
     const diffs = diffContentDefinitions(this.#base, state.definitions);
+    // The rows this draft creates or edits are authored now, so authoring rules
+    // are errors for them here, exactly as the world will judge the publication.
+    const authoredIds = new Set(diffs.flatMap(({ after }) => after === undefined ? [] : [after.id]));
+    const validation = authoredIds.size === 0 ? state.validation
+      : buildContentRegistry(rows(state.definitions), { authoredIds }).report;
     const conflict = this.#baseRevision !== this.#head.revision;
     const compatible = this.#head.engineVersion === ENGINE_VERSION;
-    return Object.freeze({ definitions: state.definitions, validation: state.validation, diffs,
+    return Object.freeze({ definitions: state.definitions, validation, diffs,
       baseRevision: this.#baseRevision, headRevision: this.#head.revision, contentHash: state.contentHash,
       dirty: diffs.length > 0, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0,
       canPublish: this.#access === 'write' && this.#publisher !== null && compatible && !conflict
-        && state.validation.valid && diffs.length > 0,
+        && validation.valid && diffs.length > 0,
       conflict, engineGate: compatible ? 'compatible' : 'requires_update',
       playtestAvailable: this.#playtester !== null });
   }

@@ -101,6 +101,45 @@ describe('content publication contracts', () => {
     const plan = planContentPublication(current, 2n, input());
     expect(plan.upserts.map(({ id }) => id)).toEqual(['item:wood']);
     expect(plan.definitions.find(({ id }) => id === 'frame:chest')?.json).toBe(chestWithSelfRule());
+
+    const chestUpsert = (json: string) => input({
+      upserts: JSON.stringify([{ id: 'frame:chest', kind: 'frame', json }]),
+      note: 'Touch the chest window',
+    });
+    // Re-upserting that existing row unchanged (byte-identical or merely reformatted) is not new authoring.
+    expect(planContentPublication(current, 2n, chestUpsert(chestWithSelfRule())).upserts.map(({ id }) => id))
+      .toEqual(['frame:chest']);
+    const reformatted = JSON.stringify(JSON.parse(chestWithSelfRule()), null, 2);
+    expect(planContentPublication(current, 2n, chestUpsert(reformatted)).upserts.map(({ id }) => id))
+      .toEqual(['frame:chest']);
+    // Editing it is: the author must remove the client-only rule to change the frame.
+    const retitled = JSON.stringify({ ...JSON.parse(chestWithSelfRule()) as object, title: 'OAK CHEST' });
+    expect(() => planContentPublication(current, 2n, chestUpsert(retitled)))
+      .toThrowError(new ContentAuthorityError('content_validation_failed:invalid_frame'));
+  });
+
+  it('never refuses a restore over rows that predate an authoring rule (BUG-047 review)', () => {
+    // Revision 2 removed a client-only rule from frame:chest; restoring revision 1 re-applies the older
+    // row through the stored inverse, which must stay possible as the rollback safety valve.
+    const chest = JSON.parse(storedBootstrap().find(({ id }) => id === 'frame:chest')!.json) as {
+      panes: { id: string; restriction?: unknown }[];
+    };
+    const older = JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.id === 'backpack'
+      ? { ...pane, restriction: { rejectedItems: ['item:apple'] } } : pane) });
+    const restore = input({
+      expectedRevision: 2n,
+      clientMutationId: 'studio-restore-1',
+      upserts: JSON.stringify([{ id: 'frame:chest', kind: 'frame', json: older }]),
+      note: 'Restore revision 1',
+    });
+    const plan = planContentPublication(storedBootstrap(), 3n, restore, { restore: true });
+    expect(plan.upserts.map(({ id }) => id)).toEqual(['frame:chest']);
+    expect(JSON.parse(plan.upserts[0]!.json)).toMatchObject({ panes: expect.arrayContaining([
+      expect.objectContaining({ id: 'backpack', restriction: { rejectedItems: ['item:apple'] } }),
+    ]) });
+    // The same change submitted as a new publication is authoring, and is refused.
+    expect(() => planContentPublication(storedBootstrap(), 3n, restore))
+      .toThrowError(new ContentAuthorityError('content_validation_failed:invalid_frame'));
   });
 
   it('canonicalizes ordering for stable retry fingerprints', () => {

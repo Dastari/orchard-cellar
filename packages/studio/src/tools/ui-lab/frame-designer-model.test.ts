@@ -53,6 +53,12 @@ describe('Frame Designer model', () => {
     const entityRule = model.updatePaneRestriction('input', { rejectedItems: ['item:apple'] });
     expect(entityRule.validation.valid).toBe(true);
     expect(entityRule.canPublish).toBe(true);
+    // A read-only session inspecting a published frame that already carries such a rule only warns.
+    const published = selfRule.definition;
+    const readOnly = createFrameDesignerModel({ definition: published, definitions: definitions.map((definition) => (
+      definition.id === published.id ? published : definition)), access: 'read_only' }).snapshot();
+    expect(readOnly.validation.valid).toBe(true);
+    expect(readOnly.validation.warnings).toContainEqual(expect.objectContaining({ code: 'invalid_frame', definitionId: 'frame:furnace' }));
   });
 
   it('publishes one CAS upsert only through an authenticated adapter', async () => {

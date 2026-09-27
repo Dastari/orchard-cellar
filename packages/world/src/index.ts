@@ -9963,7 +9963,7 @@ function commitContentPublication(
       upserts,
       deletes,
       note,
-    });
+    }, { restore: auditAction === 'restore_content_revision' });
   } catch (error) {
     if (error instanceof ContentAuthorityError) throw new SenderError(error.code);
     throw error;
