@@ -5421,7 +5421,7 @@ function renderFrame(alpha = 1): void {
     : Math.max(0, Math.min(HUNGER_MAX_CENTI, snapshot.survival.hungerCenti));
   const capacityEquipment = snapshot.inventorySlots.get(EQUIPMENT_SLOT_OFFSET + 4);
   const authoredInventoryCapacity = equippedBackpackCapacity(snapshot.content.registry, capacityEquipment);
-  // The world's own rule (BUG-053): max(8, min(20, bag)), or more debug slots up to 20.
+  // The world's own rule (BUG-054): max(8, min(20, bag)), or more debug slots up to 20.
   const backpackSlotCapacity = clientBackpackSlotCapacity(snapshot.content.registry, capacityEquipment,
     snapshot.survival?.debugBackpackSlots ?? 0);
   const activeChestPlaceable = snapshot.activeChest === null

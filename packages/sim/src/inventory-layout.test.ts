@@ -42,9 +42,9 @@ describe('shared player inventory layout', () => {
   });
 });
 
-describe('accessible backpack capacity (BUG-053)', () => {
+describe('accessible backpack capacity (BUG-054)', () => {
   it('is max(8, min(20, bag)), or more debug slots up to 20: exactly the world rule before it was shared', () => {
-    // The world's accessibleInventoryContainerCapacity for the backpack, verbatim from before BUG-053.
+    // The world's accessibleInventoryContainerCapacity for the backpack, verbatim from before BUG-054.
     const previousWorldRule = (equipped: number, debug: number) => Math.max(Math.max(8, Math.min(BACKPACK_SLOT_COUNT, equipped)), Math.min(BACKPACK_SLOT_COUNT, debug));
     for (let equipped = -2; equipped <= 30; equipped++) for (let debug = 0; debug <= 30; debug++) {
       expect(accessibleBackpackCapacity(equipped, debug), `${equipped}/${debug}`).toBe(previousWorldRule(equipped, debug));

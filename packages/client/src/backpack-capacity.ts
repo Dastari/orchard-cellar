@@ -8,7 +8,7 @@ export function equippedBackpackCapacity(registry: ContentRegistry, equipped: { 
     : runtimeItemInventoryCapacity(registry, equipped.itemKind) ?? BASE_BACKPACK_CAPACITY;
 }
 
-/** The backpack cells the client shows as usable (BUG-053): the world's own rule, `accessibleBackpackCapacity`, so a
+/** The backpack cells the client shows as usable (BUG-054): the world's own rule, `accessibleBackpackCapacity`, so a
  * bag authored below 8 cells still opens the base 8 the server accepts. */
 export function clientBackpackSlotCapacity(registry: ContentRegistry, equipped: { readonly itemKind: string; readonly quantity: number } | undefined, debugBackpackSlots = 0): number {
   return accessibleBackpackCapacity(equippedBackpackCapacity(registry, equipped), debugBackpackSlots);

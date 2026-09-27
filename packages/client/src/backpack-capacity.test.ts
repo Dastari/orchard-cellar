@@ -11,11 +11,11 @@ function withBag(itemId: string, inventoryCapacity: number, retired = false): Co
 }
 const worn = (itemKind: string) => ({ itemKind, quantity: 1 });
 
-describe('BUG-053: the client uses the world\'s backpack capacity rule', () => {
+describe('BUG-054: the client uses the world\'s backpack capacity rule', () => {
   it('opens the base 8 cells for a bag authored with 6, as the server does', () => {
     const small = withBag('pouch', 6);
     expect(equippedBackpackCapacity(small, worn('pouch'))).toBe(6);
-    // Before BUG-053 the client computed min(20, 6) = 6 and showed cells 6 and 7 as unavailable.
+    // Before BUG-054 the client computed min(20, 6) = 6 and showed cells 6 and 7 as unavailable.
     expect(clientBackpackSlotCapacity(small, worn('pouch'))).toBe(BASE_BACKPACK_CAPACITY);
   });
 
