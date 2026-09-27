@@ -2100,7 +2100,9 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('crafting', 0, 'left');
   });
 
-  it('picks a slotted stack up as soon as a drag starts and keeps it held on release', () => {
+  // BUG-051: a drag that leaves its slot is a drag and drop, so the release puts the stack down on the slot under it.
+  // (Before, the release kept it held; a small drag that stays on its slot still only picks it up.)
+  it('picks a slotted stack up as soon as a drag starts and puts it down on the slot it is released over', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
@@ -2131,9 +2133,10 @@ describe('overworld inventory and system menu', () => {
 
     ui.pointerMove(targetPoint);
     ui.pointerUp(targetPoint, 0);
-    expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
-    expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.craftingItemSlots[0]?.item).toBeNull();
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(2);
+    expect(handlers.inventoryCursorClick).toHaveBeenLastCalledWith('crafting', 0, 'left');
+    expect(internal.optimisticMenuCursor).toBeNull();
+    expect(internal.craftingItemSlots[0]?.item).toMatchObject({ itemKind: 'wood', quantity: 8 });
   });
 
   it('cancels when a dragged stack is held before returning to its source slot', () => {

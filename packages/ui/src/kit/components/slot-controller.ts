@@ -77,9 +77,11 @@ export interface UiSlotPress {
   readonly dragged: boolean;
   /** The pressed stack was picked up by moving past the pickup distance. */
   readonly pickedUpDuringDrag: boolean;
+  /** The pointer left the origin slot during the press (over another slot or empty space). */
+  readonly leftOrigin: boolean;
 }
-interface MutablePress extends Omit<UiSlotPress, 'targets' | 'dragged' | 'pickedUpDuringDrag' | 'moved'> {
-  readonly targets: UiSlotRef[]; dragged: boolean; pickedUpDuringDrag: boolean; moved: boolean;
+interface MutablePress extends Omit<UiSlotPress, 'targets' | 'dragged' | 'pickedUpDuringDrag' | 'moved' | 'leftOrigin'> {
+  readonly targets: UiSlotRef[]; dragged: boolean; pickedUpDuringDrag: boolean; moved: boolean; leftOrigin: boolean;
 }
 interface ClickRecord { readonly itemKind: string; readonly sourceRegion: string; readonly at: number }
 
@@ -125,7 +127,7 @@ export class UiSlotGestures {
       && (stack === null || (itemStacksCompatible(stack, cursor) && stack.quantity < this.source.maxStack(cursor.itemKind)));
     this.current = {
       origin: ref, button: buttonOf(button), cursorWasHeld, startPoint: point, shift: modifiers.shift === true, pressedAt: performance.now(),
-      targets: cursorWasHeld && originEligible ? [ref] : [], dragged: false, pickedUpDuringDrag: false, moved: false,
+      targets: cursorWasHeld && originEligible ? [ref] : [], dragged: false, pickedUpDuringDrag: false, moved: false, leftOrigin: false,
     };
     if (cursorWasHeld && originEligible) this.authority.previewSpread(this.current.targets, this.spreadMode(this.current));
     return true;
@@ -141,6 +143,7 @@ export class UiSlotGestures {
   move(point: UiPoint, target: UiSlotRef | null): void {
     const press = this.current;
     if (press !== null && !press.moved && pastPickup(press.startPoint, point)) press.moved = true;
+    if (press !== null && (target === null || !sameRef(target, press.origin))) press.leftOrigin = true;
     if (press !== null && !press.cursorWasHeld && !press.pickedUpDuringDrag && this.source.stack(press.origin) !== null) {
       if (pastPickup(press.startPoint, point) && this.authority.click(press.origin, press.button)) {
         press.pickedUpDuringDrag = true; press.dragged = true;
@@ -175,6 +178,9 @@ export class UiSlotGestures {
       if (press.pickedUpDuringDrag) {
         this.authority.cancelSpread();
         this.lastCursorClick = null;
+        // A real drag and drop puts the stack down where it ends; a small drag that never left its slot only picks
+        // it up (touch and the Minecraft-style pickup keep that: then tap or click where it goes).
+        if (press.leftOrigin) this.dropDragged(point);
       } else if ((shift || (press.shift && !spreading)) && press.button === 'left') this.finishShiftClick(press);
       else if (spreading) this.authority.spread(press.targets, this.spreadMode(press));
       else this.finishClick(press);
@@ -194,6 +200,16 @@ export class UiSlotGestures {
 
   /** Abandons the press (pointer left, swipe took over, window closed): puts back any spread preview. */
   cancel(): void { this.authority.cancelSpread(); this.current = null; this.outside = null; }
+
+  /** Drag and drop (BUG-051): a stack picked up by dragging out of its slot is put down where it is released, as a
+   * left click there (placed, merged or swapped), whether that is back on its origin or another slot. Over a slot that
+   * refuses it, the stack stays held and the slot flashes; over empty space it stays held, as before. */
+  private dropDragged(point: UiPoint): void {
+    const target = this.source.slotAt(point), cursor = this.source.cursor();
+    if (target === null || cursor === null || !this.source.has(target)) return;
+    if (!this.source.accepts(target, cursor.itemKind)) { this.refused([target]); return; }
+    this.authority.click(target, 'left');
+  }
 
   private spreadMode(press: Pick<UiSlotPress, 'button'>): UiSlotSpreadMode { return press.button === 'right' ? 'one_each' : 'even'; }
 

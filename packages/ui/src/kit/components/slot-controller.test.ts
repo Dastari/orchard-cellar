@@ -60,10 +60,54 @@ describe('UiSlotGestures (item slot S2)', () => {
     expect(authority.click).toHaveBeenCalledExactlyOnceWith(bag(0), 'left');
     expect(gestures.press).toMatchObject({ pickedUpDuringDrag: true, dragged: true });
     expect(state.cursor).toEqual({ itemKind: 'wood', quantity: 5 });
-    gestures.finish({ x: 45, y: 15 }, false, true);
+    // Released over empty window space: the stack stays held (BUG-051 only puts it down over a slot).
+    gestures.finish({ x: 45, y: 60 }, false, true);
     expect(authority.click).toHaveBeenCalledTimes(1);
     expect(authority.cancelSpread).toHaveBeenCalledTimes(1);
     expect(gestures.pressing).toBe(false);
+    expect(state.cursor).toEqual({ itemKind: 'wood', quantity: 5 });
+  });
+
+  describe('drag and drop puts the dragged stack down where it is released (BUG-051)', () => {
+    const drag = (gestures: UiSlotGestures, from: number, through: readonly number[], to: number, button = 0) => {
+      gestures.begin(bag(from), centre(from), button);
+      for (const index of [...through, to]) gestures.move(centre(index), bag(index));
+      gestures.finish(centre(to), false, true);
+    };
+    it('back on its origin after crossing a slot that refuses it', () => {
+      const { gestures, authority, state } = harness([{ itemKind: 'arrow', quantity: 12 }, null, null], null, { refuse: ref => ref.index === 1 });
+      const refused = vi.fn(); gestures.onRefused(refused);
+      drag(gestures, 0, [1], 0);
+      expect(authority.click.mock.calls).toEqual([[bag(0), 'left'], [bag(0), 'left']]);
+      expect(state).toMatchObject({ cursor: null, slots: [{ itemKind: 'arrow', quantity: 12 }, null, null] });
+      expect(refused).not.toHaveBeenCalled();
+    });
+    it('on another slot that accepts it, whole even for a right-button drag', () => {
+      const { gestures, authority, state } = harness([{ itemKind: 'arrow', quantity: 12 }, null, null], null, { refuse: ref => ref.index === 1 });
+      drag(gestures, 0, [1], 2);
+      expect(authority.click.mock.calls).toEqual([[bag(0), 'left'], [bag(2), 'left']]);
+      expect(state).toMatchObject({ cursor: null, slots: [null, null, { itemKind: 'arrow', quantity: 12 }] });
+      const right = harness([{ itemKind: 'arrow', quantity: 12 }, null]);
+      drag(right.gestures, 0, [], 1, 2);
+      expect(right.authority.click.mock.calls).toEqual([[bag(0), 'right'], [bag(1), 'left']]);
+      expect(right.state).toMatchObject({ cursor: null, slots: [{ itemKind: 'arrow', quantity: 6 }, { itemKind: 'arrow', quantity: 6 }] });
+    });
+    it('not after a small drag that never left its slot: that only picks it up, as before', () => {
+      const { gestures, authority, state } = harness([{ itemKind: 'arrow', quantity: 12 }, null]);
+      gestures.begin(bag(0), centre(0), 0);
+      gestures.move({ x: centre(0).x + UI_SLOT_PICKUP_DISTANCE + 1, y: centre(0).y }, bag(0));
+      gestures.finish({ x: centre(0).x + UI_SLOT_PICKUP_DISTANCE + 1, y: centre(0).y }, false, true);
+      expect(authority.click.mock.calls).toEqual([[bag(0), 'left']]);
+      expect(state.cursor).toEqual({ itemKind: 'arrow', quantity: 12 });
+    });
+    it('not on a slot that refuses it: the stack stays held and the slot flashes', () => {
+      const { gestures, authority, state } = harness([{ itemKind: 'arrow', quantity: 12 }, null], null, { refuse: ref => ref.index === 1 });
+      const refused = vi.fn(); gestures.onRefused(refused);
+      drag(gestures, 0, [], 1);
+      expect(authority.click.mock.calls).toEqual([[bag(0), 'left']]);
+      expect(state).toMatchObject({ cursor: { itemKind: 'arrow', quantity: 12 }, slots: [null, null] });
+      expect(refused).toHaveBeenCalledExactlyOnceWith([bag(1)]);
+    });
   });
 
   it('clicks on release when the pointer stays within the pickup distance, splitting with the right button', () => {
