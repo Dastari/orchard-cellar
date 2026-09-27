@@ -15,13 +15,18 @@
 
 import { parseAdminReason, serializeAdminAuditPayload } from './admin/contracts.js';
 
-export const CHUNK_AUTHORITY_MODES = ['off', 'shadow', 'on'] as const;
-export type ChunkAuthorityMode = (typeof CHUNK_AUTHORITY_MODES)[number];
+import {
+  CHUNK_AUTHORITY_DEFAULT_MODE, CHUNK_AUTHORITY_FLAG_KEY, CHUNK_AUTHORITY_MODES, CHUNK_AUTHORITY_SPACE_ID,
+  chunkAuthorityModeFromFlags, chunkAuthorityModeFromFlagsJson, parseChunkAuthorityMode, parseSpaceFlagsJson,
+  type ChunkAuthorityMode,
+} from '@orchard/sim/chunk-authority-mode';
 
-/** The space whose admin flag row carries the world-wide switch (topside). */
-export const CHUNK_AUTHORITY_SPACE_ID = 0;
-export const CHUNK_AUTHORITY_FLAG_KEY = 'chunkAuthority';
-export const CHUNK_AUTHORITY_DEFAULT_MODE: ChunkAuthorityMode = 'off';
+// The stored switch and its parse are shared with the client (BUG-053): `@orchard/sim/chunk-authority-mode`.
+export {
+  CHUNK_AUTHORITY_DEFAULT_MODE, CHUNK_AUTHORITY_FLAG_KEY, CHUNK_AUTHORITY_MODES, CHUNK_AUTHORITY_SPACE_ID,
+  chunkAuthorityModeFromFlags, chunkAuthorityModeFromFlagsJson, parseChunkAuthorityMode, parseSpaceFlagsJson,
+  type ChunkAuthorityMode,
+};
 
 /** Space flag keys only their dedicated switch reducer may change (named
  * "owner-only" from when that reducer was owner-only; it now admits owner or
@@ -30,34 +35,6 @@ export const CHUNK_AUTHORITY_DEFAULT_MODE: ChunkAuthorityMode = 'off';
 export const OWNER_ONLY_SPACE_FLAG_KEYS: ReadonlySet<string> = new Set([CHUNK_AUTHORITY_FLAG_KEY]);
 
 type FlagObject = Readonly<Record<string, unknown>>;
-
-export function parseChunkAuthorityMode(value: unknown): ChunkAuthorityMode | null {
-  return typeof value === 'string' && (CHUNK_AUTHORITY_MODES as readonly string[]).includes(value)
-    ? value as ChunkAuthorityMode
-    : null;
-}
-
-/** Parses a stored flagsJson the same way the server's space flag reader does:
- * malformed or non-object JSON counts as no flags. */
-export function parseSpaceFlagsJson(flagsJson: string | null | undefined): Record<string, unknown> {
-  if (flagsJson === null || flagsJson === undefined) return {};
-  try {
-    const parsed: unknown = JSON.parse(flagsJson);
-    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-export function chunkAuthorityModeFromFlags(flags: FlagObject): ChunkAuthorityMode {
-  return parseChunkAuthorityMode(flags[CHUNK_AUTHORITY_FLAG_KEY]) ?? CHUNK_AUTHORITY_DEFAULT_MODE;
-}
-
-export function chunkAuthorityModeFromFlagsJson(flagsJson: string | null | undefined): ChunkAuthorityMode {
-  return chunkAuthorityModeFromFlags(parseSpaceFlagsJson(flagsJson));
-}
 
 /** Structural slice of the reducer context: one primary-key lookup. */
 export interface ChunkAuthorityReadContext {

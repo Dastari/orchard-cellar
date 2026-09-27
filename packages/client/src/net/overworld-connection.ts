@@ -1,6 +1,7 @@
 import { atlasPackDeliveryEnabled, loadAtlasPacks } from '@orchard/ui';
 import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import { ChunkRuntimeController, type ChunkAuthorityGate, type ChunkRuntimeSource, type ChunkView } from '../chunk-runtime-controller.js';
+import { spaceAdminFlagChunkAuthority } from '../chunk-authority-seam.js';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import { chunkWindowForView, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 import {
@@ -349,7 +350,7 @@ function compatibilityChestSlot(row: WorldPlaceableSlot): WorldChestSlot {
 export class OverworldConnection {
   private connection: DbConnection | null = null;
   private chunkRuntime: ChunkRuntimeController | undefined;
-  // Validated by the build gate; `on` still follows the server's chunkAuthority (not yet connected: S2a seam).
+  // Validated by the build gate; `shadow` and `on` follow the server's chunkAuthority (space_admin_flag, BUG-053).
   private readonly chunkRuntimeMode = parseChunkRuntimeMode(import.meta.env.VITE_CHUNK_RUNTIME_MODE);
   get chunkRuntimeStatus() { return this.chunkRuntime?.status; }
   /** The serving chunk store (effective mode `on` only), read by the render window. */
@@ -916,8 +917,12 @@ export class OverworldConnection {
   private updateChunkRuntime(connection: DbConnection, position: PlayerPosition): void {
     if (this.chunkRuntimeMode !== 'shadow' && this.chunkRuntimeMode !== 'on') return;
     // Atlas packs load through the chunk runtime only when pack delivery is enabled (S4f).
-    this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode,
-      ...(atlasPackDeliveryEnabled() ? { loadAtlasPacks: (ids: readonly string[]) => loadAtlasPacks(ids) } : {}) });
+    // The runtime follows the server's chunkAuthority switch; only shadow and on builds subscribe to it.
+    if (this.chunkRuntime === undefined) {
+      const authority = spaceAdminFlagChunkAuthority();
+      this.chunkRuntime = new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode, authority: authority.source, watchAuthority: authority.watch,
+        ...(atlasPackDeliveryEnabled() ? { loadAtlasPacks: (ids: readonly string[]) => loadAtlasPacks(ids) } : {}) });
+    }
     this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), this.chunkRuntimeSource());
   }
 
