@@ -2,15 +2,19 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_ISLAND_MAP_ID, mapStreetlampPlans, positionCollides, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type CollisionMap, type CombatRegionPolicy, type MapDocumentV3 } from '@orchard/sim';
-import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
+import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
-import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
+import { assembleChunkLiveIslandRuntime, CHUNK_RESOURCE_GENERATOR, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
 import {
   ChunkAuthorityDispatcher, compareCollisionAtPosition,
   type ChunkAuthorityLogger, type ChunkAuthoritySource, type CompiledCollisionRuntime,
 } from './chunk-authority-dispatch.js';
 
+/** A sentinel the injected generator returns (static world S3c wiring tests). */
+const GENERATOR_OUTPUT = Object.freeze([{ id: 99, kind: 'tree_oak', tileX: 5, tileY: 5 }]);
+/** The manifest record digest of an island with no generated resources or orphan placements (static world S3c). */
+const NO_RESOURCES_DIGEST = { count: 0, hash: worldChunkHash(new TextEncoder().encode(canonicalChunkJson([]))) };
 const CELLS = WORLD_CHUNK_STRIDE ** 2;
 const T = TILE_SIZE_FIXED;
 const WORLD = { width: 100, height: 64 };
@@ -36,7 +40,8 @@ function island(options: { provenance?: unknown; hasTraversalChannels?: boolean;
     metadata: {
       channels: { 'authority.ground.terrainPlaneBlocked': { type: 'u8', planes: 1 } }, biomePalette: ['meadow'],
       document: { id: LIVE_ISLAND_MAP_ID, prefabs: [], provenance: (options.provenance ?? SURVIVAL_PROVENANCE) as never },
-      authority: { schema: 1, combatRegions: [], generatedSuppressions: [],
+      authority: { schema: 1, combatRegions: [], generatedSuppressions: [], resources: NO_RESOURCES_DIGEST, resourcePlacements: NO_RESOURCES_DIGEST,
+        resourceGenerator: CHUNK_RESOURCE_GENERATOR as never,
         collisions: { ground: options.groundMeta ?? { hasTraversalChannels, terrainMinimumElevation: 0, terrainTransitions: [] },
           water: { hasTraversalChannels: options.waterTraversal ?? hasTraversalChannels } } },
     },
@@ -167,7 +172,8 @@ describe('chunk authority dispatcher: on', () => {
     const { manifest } = island();
     const metadata = Object.fromEntries(Object.entries(manifest.metadata).filter(([key]) => key !== 'authority'));
     for (const [broken, reason, detail] of [
-      [{ ...manifest, metadata }, 'assemble_failed', 'chunk_authority_metadata_missing'],
+      // No authority metadata also means no resource generator stamp: stale before any assembly (S3c).
+      [{ ...manifest, metadata }, 'stale_generator', `stamp missing, live ${CHUNK_RESOURCE_GENERATOR.seed}:${CHUNK_RESOURCE_GENERATOR.version}`],
       [{ ...manifest, chunkSize: 32 }, 'manifest_invalid', 'invalid_chunk_manifest'],
       [{ ...manifest, chunks: [{ ...manifest.chunks[0]!, contentHash: 'not-a-hash' }] }, 'manifest_invalid', 'invalid_chunk_head'],
     ] as const) {
@@ -181,6 +187,30 @@ describe('chunk authority dispatcher: on', () => {
       expect(d.status().fallbacks).toEqual({ [reason]: 2 });
       expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason, detail });
     }
+  });
+
+  it('S3c: refuses records from another resource generator, or with no stamp, before decoding a blob (#230 review)', () => {
+    const { manifest } = island();
+    const withStamp = (stamp: unknown): WorldChunkManifest => ({ ...manifest, metadata: { ...manifest.metadata,
+      authority: Object.fromEntries(Object.entries({ ...(manifest.metadata['authority'] as object), resourceGenerator: stamp })
+        .filter(([, value]) => value !== undefined)) } as WorldChunkManifest['metadata'] });
+    const live = CHUNK_RESOURCE_GENERATOR;
+    for (const [stamp, detail] of [
+      [{ seed: live.seed, version: live.version - 1 }, `published ${live.seed}:${live.version - 1}, live ${live.seed}:${live.version}`],
+      [{ seed: live.seed + 1, version: live.version }, `published ${live.seed + 1}:${live.version}`],
+      [undefined, 'stamp missing'],
+      [{ seed: String(live.seed), version: live.version }, 'stamp missing'],
+    ] as const) {
+      const h = harness({ manifest: withStamp(stamp) });
+      const d = dispatcher(h.logger);
+      expect(d.select(h.source)).toBe(h.compiled);
+      expect(d.status().fallbacks).toEqual({ stale_generator: 1 });
+      expect(h.reads.blobs, 'no blob is decoded for a stale generator').toBe(0);
+      expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ reason: 'stale_generator', detail: expect.stringContaining(detail) });
+    }
+    // The current stamp serves.
+    const ok = harness({ manifest: withStamp({ ...live }) });
+    expect((dispatcher(ok.logger).select(ok.source) as ChunkLiveIslandRuntime).source).toBe('chunks');
   });
 
   it('caches an unexpected throw during assembly as a failed key instead of retrying every call', () => {
@@ -440,7 +470,8 @@ describe('chunk authority dispatcher: shadow', () => {
 function serverFunctions(dependencies: Record<string, unknown>) {
   const source = ts.createSourceFile('index.ts', readFileSync(new URL('../index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
   const names = ['liveIslandCollisionRuntime', 'chunkAuthoritySource', 'liveMapCollisionForSpace', 'liveIslandCombatPolicy',
-    'liveMapRuntimeGeneratedResourceSuppressed', 'liveMapRuntimeResourceSuppressed', 'liveMapGeneratedResourceSuppressed'];
+    'liveMapRuntimeGeneratedResourceSuppressed', 'liveMapRuntimeResourceSuppressed', 'liveMapGeneratedResourceSuppressed',
+    'generatedSurvivalResources', 'liveIslandGeneratedResources'];
   const text = names.map(name => {
     const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
     if (fn === undefined) throw new Error(`missing ${name}`);
@@ -453,6 +484,7 @@ function serverFunctions(dependencies: Record<string, unknown>) {
     liveIslandCombatPolicy(ctx: unknown): CombatRegionPolicy | undefined;
     liveMapGeneratedResourceSuppressed(ctx: unknown, spaceId: number, resourceId: bigint): boolean;
     liveMapRuntimeResourceSuppressed(runtime: unknown, spaceId: number, resourceId: bigint): boolean;
+    liveIslandGeneratedResources(ctx: unknown, runtime?: unknown): readonly unknown[];
   };
 }
 
@@ -463,7 +495,7 @@ describe('index.ts collision dispatcher wiring', () => {
     obstacles: [box(2, 1), box(40, 40)] };
   /** Blob rows arrive as a fresh Uint8Array from the 2.8.2 host (readUInt8Array slices); number[] is the declared type. */
   const hostBlobs = new Map([...store].map(([hash, bytes]) => [hash, bytes.slice()]));
-  function world(initialFlags: string | null, blobShape: 'host' | 'array' = 'host', fixture: { manifest: WorldChunkManifest; compiled: CompiledCollisionRuntime } = { manifest, compiled },
+  function world(initialFlags: string | null, blobShape: 'host' | 'array' = 'host', fixture: { manifest: WorldChunkManifest; compiled: CompiledCollisionRuntime | null } = { manifest, compiled },
     liveMap: { revision: number; contentHash: string } = { revision: 3, contentHash: 'map-3' }) {
     let flagsJson = initialFlags;
     const reads: string[] = [];
@@ -475,14 +507,19 @@ describe('index.ts collision dispatcher wiring', () => {
         { bytes: blobShape === 'host' ? hostBlobs.get(hash)! : Array.from(store.get(hash)!) }) } },
     } };
     let compiledCalls = 0;
+    const generatorCalls: string[] = [];
     const dispatcher = new ChunkAuthorityDispatcher({ worldSize: WORLD, logger: { info() {}, warn() {}, time() {}, timeEnd() {} } });
     const functions = serverFunctions({
       chunkAuthorityMode, TOPSIDE_SPACE_ID, LIVE_ISLAND_MAP_ID,
       compiledLiveIslandRuntime: () => { compiledCalls += 1; return fixture.compiled; },
       chunkAuthorityDispatcher: dispatcher,
       contentRegistry: () => ({ contentHash: REGISTRY_HASH }), runtimeTraversalPolicy: () => ({}),
+      SURVIVAL_WORLD_SEED: 1234, generateSurvivalResources: (seed: number, registry: { contentHash: string }) => {
+        generatorCalls.push(`${seed}:${registry.contentHash}`); return GENERATOR_OUTPUT;
+      },
     });
-    return { ctx, reads, functions, dispatcher, compiledCalls: () => compiledCalls, setFlags: (value: string) => { flagsJson = value; } };
+    return { ctx, reads, functions, dispatcher, compiledCalls: () => compiledCalls, generatorCalls,
+      setFlags: (value: string) => { flagsJson = value; } };
   }
 
   it('off (the default, and any unset or invalid flag) is exactly the compiled runtime with no chunk reads', () => {
@@ -712,22 +749,37 @@ describe('index.ts collision dispatcher wiring', () => {
         expect(start, name).toBeGreaterThan(0);
         return text.slice(start, text.indexOf('\n}\n', start) + 3);
       };
-      // compiledLiveIslandRuntime( is called only by the dispatcher (off branch and the chunk source)
-      // and by resource reconcile (S3c).
+      // compiledLiveIslandRuntime( is called only by the dispatcher (off branch and the chunk source);
+      // S3c moved resource reconcile onto the dispatcher's runtime.
       const callers = [...text.matchAll(/compiledLiveIslandRuntime\(ctx\)/gu)].map(match => {
         const before = text.lastIndexOf('\nfunction ', match.index);
         return text.slice(before + 10, text.indexOf('(', before + 10));
       });
-      expect(callers.sort()).toEqual(['chunkAuthoritySource', 'liveIslandCollisionRuntime', 'reconcileGeneratedSurvivalResources']);
+      expect(callers.sort()).toEqual(['chunkAuthoritySource', 'liveIslandCollisionRuntime']);
       const outside = ['compiledLiveIslandRuntime', 'validatedLiveMapDocument', 'commitLiveMapSnapshot']
         .reduce((rest, name) => rest.replace(functionText(name), ''), text);
       expect(outside).not.toMatch(/resolvedMapBiomeAt\(/u);
-      expect(outside.match(/\?\.document\b/gu)).toEqual(['?.document']);
-      expect(functionText('reconcileGeneratedSurvivalResources')).toContain('compiledLiveIslandRuntime(ctx)?.document.resourcePlacements');
+      expect(outside).not.toMatch(/\?\.document\b/u);
       expect(functionText('compiledLiveIslandRuntime')).toContain('staticView: documentStaticView(document),');
       expect(functionText('settleTownStreetlamps')).toContain('mapStreetlampPlans(runtime.staticView)');
       expect(functionText('settleTownStreetlamps')).not.toContain('liveIslandCollisionRuntime(');
-      expect(functionText('hearthStashWithinReach')).toContain('hearthSupplyCacheInstalled(supplyCache,liveIslandCollisionRuntime(ctx)?.staticView ?? null)');
+      // #225 review: the stash and the hearth harvest resolve one runtime for the check and the collision.
+      const stash = functionText('hearthStashWithinReach');
+      expect(stash.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+      expect(stash).toContain('hearthSupplyCacheInstalled(supplyCache,liveMapRuntime?.staticView ?? null)');
+      expect(stash).toContain('position.spaceId === TOPSIDE_SPACE_ID ? liveMapRuntime : null');
+      const harvest = functionText('requireHearthResourceHarvestAccess');
+      expect(harvest.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+      expect(harvest).toContain('outdoorCollisionMap(ctx, resource.id, liveMapRuntime)');
+      // S3c: one generator call site, only reached by init and a runtime-less map; reconcile and admin
+      // respawn read the dispatcher's runtime.
+      expect(text.match(/\bgenerateSurvivalResources\(/gu)).toHaveLength(1);
+      expect(functionText('generatedSurvivalResources')).toContain('generateSurvivalResources(SURVIVAL_WORLD_SEED, registry)');
+      const reconcile = functionText('reconcileGeneratedSurvivalResources');
+      expect(reconcile.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+      expect(reconcile).toContain('liveMapRuntime?.staticView.resourcePlacements');
+      expect(reconcile).toContain('liveIslandGeneratedResources(ctx, liveMapRuntime)');
+      expect(functionText('adminResourceCandidates')).toContain('liveIslandGeneratedResources(ctx).filter(');
       expect(functionText('objectGrowthTimeline')).toContain('view.biomeAt(row.tileX, row.tileY) ?? LIVE_ISLAND_OUTSIDE_MAP_BIOME');
       // The swing resolves one runtime for its collision and every resource's suppression check.
       const swing = functionText('applyToolSwingLifecycle');
@@ -737,6 +789,46 @@ describe('index.ts collision dispatcher wiring', () => {
       // Hearth site checks use the caller's runtime (the tick passes the one its collision stage resolved).
       const site = functionText('hearthResourceSiteEnabled');
       expect(site).not.toMatch(/liveIslandCollisionRuntime\(|liveMapGeneratedResourceSuppressed\(/u);
+    });
+  });
+
+  describe('generated resources (static-world S3c)', () => {
+    it('off returns the compiled runtime\'s generator output, reading only the flag', () => {
+      const generated = [{ id: 1, kind: 'tree_oak', tileX: 1, tileY: 2 }];
+      const offCompiled = { ...compiled, generatedResources: () => generated };
+      for (const flags of [null, '{"chunkAuthority":"off"}', 'not json']) {
+        const w = world(flags, 'host', { manifest, compiled: offCompiled });
+        expect(w.functions.liveIslandGeneratedResources(w.ctx)).toBe(generated);
+        expect(w.reads).toEqual([`flag:${TOPSIDE_SPACE_ID}`]);
+        expect(w.generatorCalls).toEqual([]);
+      }
+    });
+
+    it('with no runtime (the compiled guards reject the map) it falls back to the generator, as reconcile did', () => {
+      const w = world(null, 'host', { manifest, compiled: null });
+      expect(w.functions.liveIslandGeneratedResources(w.ctx)).toBe(GENERATOR_OUTPUT);
+      expect(w.generatorCalls).toEqual([`1234:${REGISTRY_HASH}`]);
+    });
+
+    it('on serves the verified chunk records; shadow keeps compiled', () => {
+      const on = world('{"chunkAuthority":"on"}');
+      const runtime = on.functions.liveIslandCollisionRuntime(on.ctx) as ChunkLiveIslandRuntime;
+      expect(runtime.source).toBe('chunks');
+      expect(on.functions.liveIslandGeneratedResources(on.ctx)).toBe(runtime.generatedResources());
+      expect(on.compiledCalls()).toBe(0);
+      expect(on.generatorCalls).toEqual([]);
+      const generated = [{ id: 1, kind: 'tree_oak', tileX: 1, tileY: 2 }];
+      const shadow = world('{"chunkAuthority":"shadow"}', 'host', { manifest, compiled: { ...compiled, generatedResources: () => generated } });
+      expect(shadow.functions.liveIslandGeneratedResources(shadow.ctx)).toBe(generated);
+    });
+
+    it('on never serves a runtime whose resource digest fails: it falls back to compiled for everything', () => {
+      const tampered: WorldChunkManifest = { ...manifest, metadata: { ...manifest.metadata,
+        authority: { ...(manifest.metadata['authority'] as object), resources: { count: 1, hash: NO_RESOURCES_DIGEST.hash } } } as WorldChunkManifest['metadata'] };
+      const generated = [{ id: 1, kind: 'tree_oak', tileX: 1, tileY: 2 }];
+      const w = world('{"chunkAuthority":"on"}', 'host', { manifest: tampered, compiled: { ...compiled, generatedResources: () => generated } });
+      expect(w.functions.liveIslandGeneratedResources(w.ctx)).toBe(generated);
+      expect(w.dispatcher.status().fallbacks).toEqual({ incomplete: 1 });
     });
   });
 });

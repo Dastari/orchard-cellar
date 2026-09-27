@@ -60,6 +60,8 @@ export interface ServerCompiledLiveIslandRuntime {
   readonly combatRegions: readonly sim.CombatRegion[] | undefined;
   /** `documentStaticView(document)`, built once per runtime (S3b). */
   readonly staticView: LiveIslandStaticView;
+  /** The generator's resources for the runtime's registry (S3c; runs the generator per call). */
+  generatedResources(): readonly sim.GeneratedSurvivalResource[];
   readonly document: sim.MapDocumentV3;
   readonly ground: sim.CollisionMap;
   readonly water: sim.CollisionMap;
@@ -74,7 +76,7 @@ export interface ServerLiveCollisionRows {
 }
 
 const SERVER_FUNCTIONS = [
-  'authoredMapCollisionObstacles', 'suppressedGeneratedDecorationObstacleKeys', 'compiledLiveIslandRuntime',
+  'authoredMapCollisionObstacles', 'suppressedGeneratedDecorationObstacleKeys', 'compiledLiveIslandRuntime', 'generatedSurvivalResources',
   'liveMapCollisionForSpace', 'liveMapRuntimeGeneratedResourceSuppressed',
 ] as const;
 
@@ -87,9 +89,10 @@ export const SERVER_MIRRORED_FRAGMENTS: Readonly<Record<string, string>> = Objec
   // composeWithLiveRows adds the live resource (runtime-suppression filtered), chest and placeable rows.
   'collisionForSpace:ground-composition': '0292d6d9dcf859df5ccec1277f3b8399e24758708646d8f87dd8d9e2f88ff22f',
   'waterCollisionForSpace:water-composition': 'f641cf8c6a9d2c3e212b78fdd2b58750b4dea0f12f0fd6570d750841a8183c48',
-  // Resource placement, desired set and the orphan-placement keep rule.
-  'reconcileGeneratedSurvivalResources:placements': '51e45c8ccb5e832a991269c4f19e5d21a830bd7e77363481a4152998e8e5cf21',
-  'reconcileGeneratedSurvivalResources:desired': '89e1b09490e5d26ba9162812cb5aac2287d3b58d9ad15710831f5f1f14228f9b',
+  // Resource placement, desired set and the orphan-placement keep rule. S3c: re-pinned after review; the
+  // oracle mirrors them over the compiled runtime (staticView placements, generatedResources()).
+  'reconcileGeneratedSurvivalResources:placements': '34045af4389a2ebf51b969c7ef1c86278d8a3dbed4b3818637fe962efaa32082',
+  'reconcileGeneratedSurvivalResources:desired': 'f688a433d281256fb7bf3517a46aa005e6e23ae1660c15dd43c61d032ce79b12',
   'reconcileGeneratedSurvivalResources:orphan-keep': 'd89e3767d6eecf15a37dca8909ca55343bf676f8db621a37d5b54ddc0c1c19ea',
   // Row construction reads only generator fields that authority.resource carries.
   'generatedWorldResourceRow': '81308373b03baac3f6afb36d13dfa0fd7da34a8ea6a0245ee56187bf69c48c99',
@@ -161,8 +164,8 @@ const base = runtime === null ? null : {
   ground: createAuthoritySpaceCollisionMap(contentRegistry(ctx), TOPSIDE_SPACE_ID, [], [], 'ground', [], null, []),
   water: createAuthoritySpaceCollisionMap(contentRegistry(ctx), TOPSIDE_SPACE_ID, [], [], 'water', [], null),
 };
-const placements = new Map((runtime?.document.resourcePlacements ?? []).map(placement => [BigInt(placement.id), placement]));
-const generated = generateSurvivalResources(SURVIVAL_WORLD_SEED, contentRegistry(ctx));
+const placements = new Map((runtime?.staticView.resourcePlacements ?? []).map(placement => [BigInt(placement.id), placement]));
+const generated = runtime === null ? [] : runtime.generatedResources();
 const generatedIds = new Set(generated.map(resource => BigInt(resource.id)));
 runtime === null ? null : ({
   runtime,

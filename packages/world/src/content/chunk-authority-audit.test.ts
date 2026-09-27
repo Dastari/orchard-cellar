@@ -2,17 +2,19 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { LIVE_ISLAND_MAP_ID, TILE_SIZE_FIXED, type MapDocumentV3 } from '@orchard/sim';
-import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type WorldChunkManifest,
+import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type ChunkArray, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { authenticationRejection, canAdministerWorld, membershipRejection, OIDC_ISSUER } from '../auth-policy.js';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
-import { assembleChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
+import { assembleChunkLiveIslandRuntime, CHUNK_RESOURCE_GENERATOR } from './chunk-authority-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource, type CompiledCollisionRuntime } from './chunk-authority-dispatch.js';
 import {
   CHUNK_AUTHORITY_AUDIT_SCHEMA, ChunkAuthoritySnapshotError, chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, chunkAuthoritySnapshotDb, runChunkAuthorityAudit, snapshotChunkAuthorityTables,
   type ChunkAuthorityAuditClock, type ChunkAuthorityAuditInput, type ChunkAuthorityAuditReport, type ChunkHeadView,
 } from './chunk-authority-audit.js';
 
+/** The manifest record digest of an island with no generated resources or orphan placements (static world S3c). */
+const NO_RESOURCES_DIGEST = { count: 0, hash: worldChunkHash(new TextEncoder().encode(canonicalChunkJson([]))) };
 const CELLS = WORLD_CHUNK_STRIDE ** 2;
 const T = TILE_SIZE_FIXED;
 const WORLD = { width: 100, height: 64 };
@@ -34,7 +36,8 @@ function island(authoritySchema: 1 | 2 = 1) {
     metadata: {
       channels: { 'authority.ground.terrainPlaneBlocked': { type: 'u8', planes: 1 } }, biomePalette: ['meadow'],
       document: { id: LIVE_ISLAND_MAP_ID, prefabs: [], provenance: { kind: 'generated', generator: 'survival-island', generatorSeed: 1 } },
-      authority: { schema: 1, combatRegions: [], generatedSuppressions: [],
+      authority: { schema: 1, combatRegions: [], generatedSuppressions: [], resources: NO_RESOURCES_DIGEST, resourcePlacements: NO_RESOURCES_DIGEST,
+        resourceGenerator: CHUNK_RESOURCE_GENERATOR as never,
         collisions: { ground: { hasTraversalChannels: true, terrainMinimumElevation: 0, terrainTransitions: [] }, water: { hasTraversalChannels: true } } },
     },
     chunks: blobs.map((bytes, cx) => ({ cx, cy: 0, contentHash: decodeWorldChunk(bytes).contentHash, byteLength: bytes.length })) };

@@ -1,13 +1,13 @@
 import {
-  CombatRegionPolicy, resolvedMapBiomeAt,
-  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type MapBiomeId,
+  CombatRegionPolicy, resolvedMapBiomeAt, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION,
+  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type GeneratedSurvivalResource, type MapBiomeId,
   type MapDocumentV3,
 } from '@orchard/sim';
 import { validateRuntimeManifest, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
 import { AuthorityCollisionBuilder, chunkAuthorityMetadata, composeAuthorityCollision } from '@orchard/sim/chunk-collision';
 import {
-  canonicalChunkJson, worldChunkHasAuthority, WORLD_CHUNK_SIZE,
-  type WorldChunkManifest,
+  canonicalChunkJson, worldChunkHash, worldChunkHasAuthority, WORLD_CHUNK_SIZE,
+  type WorldChunkAuthorityResource, type WorldChunkAuthorityResourcePlacement, type WorldChunkManifest,
 } from '@orchard/sim/world-chunk';
 
 /**
@@ -42,7 +42,7 @@ const MEDIA: readonly ChunkAuthorityMedium[] = ['ground', 'water'];
 const NO_BIOME = 255;
 
 export type ChunkRuntimeIssueKind =
-  | 'head_missing' | 'blob_missing' | 'blob_invalid' | 'authority_missing' | 'record_order';
+  | 'head_missing' | 'blob_missing' | 'blob_invalid' | 'authority_missing' | 'record_order' | 'resource_digest';
 export interface ChunkRuntimeIssue {
   readonly kind: ChunkRuntimeIssueKind;
   readonly cx?: number;
@@ -80,11 +80,89 @@ export interface LiveIslandCollisionRuntime {
    * that cache by object identity (`mapStreetlampPlans`) keep one entry per runtime.
    * Compiled: `documentStaticView(document)`. */
   readonly staticView: LiveIslandStaticView;
+  /**
+   * The topside generated resources (static world S3c) in generator order, at their GENERATED
+   * tiles, with the generator's optional fields: exactly the generator's output for (seed, registry).
+   * Reconcile applies `staticView.resourcePlacements` on top. Live depletion rows reference these ids,
+   * so they and their order must never change. Compiled: runs the generator on every call (it is only
+   * called by reconcile and admin respawn, never per tick). Chunks: rebuilt once from the
+   * `authority.resource` records, which assembly verifies against the manifest's count and hash.
+   */
+  generatedResources(): readonly GeneratedSurvivalResource[];
 }
 
 /** What `resolvedMapBiomeAt` answers outside the survival island (`survivalBiomeAt`): the
- * static view has no cells there, so an out-of-map caller that needs the compiled value uses this. */
+ * static view has no cells there, so an out-of-map caller that needs the compiled value uses this.
+ * Only survival-base 832x832 maps reach a runtime (the compiled guard, the chunk dispatcher's
+ * guard_size/guard_base, and `validateLiveMapShape` at publication), so 'water' is always right. */
 export const LIVE_ISLAND_OUTSIDE_MAP_BIOME: MapBiomeId = 'water';
+
+/** The generator's shape of one `authority.resource` record (generated tile, optional fields only when set). */
+export function generatedResourceFromRecord(record: WorldChunkAuthorityResource): GeneratedSurvivalResource {
+  const { id, kind, generatedTile, nodeClass, richness, spawnSiteId, activationOrdinal } = record;
+  return { id, kind: kind as GeneratedSurvivalResource['kind'], tileX: generatedTile.tileX, tileY: generatedTile.tileY,
+    ...(nodeClass === undefined ? {} : { nodeClass: nodeClass as NonNullable<GeneratedSurvivalResource['nodeClass']> }),
+    ...(richness === undefined ? {} : { richness }), ...(spawnSiteId === undefined ? {} : { spawnSiteId }),
+    ...(activationOrdinal === undefined ? {} : { activationOrdinal }) };
+}
+
+/** A `{ count, hash }` record digest in `metadata.authority[key]`, checked the way the materializer
+ * computes it (canonical JSON, SHA-256): undefined when it matches, else why not. */
+function authorityDigestIssue(manifest: WorldChunkManifest, key: 'resources' | 'resourcePlacements', values: readonly unknown[]): string | undefined {
+  const authority = manifest.metadata['authority'];
+  const digest = record(authority) ? authority[key] : undefined;
+  if (!record(digest) || typeof digest['count'] !== 'number' || typeof digest['hash'] !== 'string') return 'digest missing';
+  if (digest['count'] !== values.length) return `count ${values.length}, published ${digest['count']}`;
+  const hash = worldChunkHash(new TextEncoder().encode(canonicalChunkJson(values)));
+  return hash === digest['hash'] ? undefined : `hash ${hash}, published ${digest['hash']}`;
+}
+
+/** The manifest's `metadata.authority.resources` digest check for the assembled `authority.resource` records. */
+export function chunkResourceDigestIssue(manifest: WorldChunkManifest, records: readonly WorldChunkAuthorityResource[]): string | undefined {
+  return authorityDigestIssue(manifest, 'resources', records);
+}
+
+/**
+ * The placements reconcile reads in chunk mode (`staticView.resourcePlacements`) checked against the
+ * verified records, the way the server oracle derives them (#230 review): the orphan
+ * `authority.resourcePlacement` records match the manifest's `resourcePlacements` digest and are
+ * exactly the placements whose ids are not generated (Map by id, as reconcile builds it); and every
+ * generated resource's effective tile is its placement's tile, or its generated tile without one.
+ * A dropped or altered placement record would otherwise delete an orphan row or move a resource.
+ */
+export function chunkResourcePlacementIssue(manifest: WorldChunkManifest, resources: readonly WorldChunkAuthorityResource[],
+  orphans: readonly WorldChunkAuthorityResourcePlacement[], placements: LiveIslandStaticView['resourcePlacements']): string | undefined {
+  const digest = authorityDigestIssue(manifest, 'resourcePlacements', orphans);
+  if (digest !== undefined) return `placements ${digest}`;
+  const byId = new Map(placements.map(placement => [BigInt(placement.id), placement]));
+  const generatedIds = new Set(resources.map(({ id }) => BigInt(id)));
+  const derived = [...byId.values()].filter(placement => !generatedIds.has(BigInt(placement.id)))
+    .map(placement => ({ id: placement.id, originTile: { tileX: placement.originTileX, tileY: placement.originTileY },
+      tile: { tileX: placement.tileX, tileY: placement.tileY } }));
+  if (canonicalChunkJson(derived) !== canonicalChunkJson(orphans)) return `placements: ${derived.length} orphan placement(s) in the view, ${orphans.length} published`;
+  for (const resource of resources) {
+    const placement = byId.get(BigInt(resource.id));
+    const tile = placement === undefined ? resource.generatedTile : { tileX: placement.tileX, tileY: placement.tileY };
+    if (tile.tileX !== resource.effectiveTile.tileX || tile.tileY !== resource.effectiveTile.tileY) return `placements: resource ${resource.id} effective tile`;
+  }
+  return undefined;
+}
+
+/** The generator a chunk publication's resource records were produced with (#230 review). Reconcile
+ * runs when `SURVIVAL_WORLD_VERSION` changes, so records from another generator version are stale. */
+export interface ChunkResourceGeneratorStamp { readonly seed: number; readonly version: number }
+export const CHUNK_RESOURCE_GENERATOR: ChunkResourceGeneratorStamp = Object.freeze({ seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION });
+
+/** Undefined when `metadata.authority.resourceGenerator` equals this server's generator; else why
+ * not. A manifest without the stamp is stale (fails closed). */
+export function chunkResourceGeneratorMismatch(manifest: Pick<WorldChunkManifest, 'metadata'>,
+  live: ChunkResourceGeneratorStamp = CHUNK_RESOURCE_GENERATOR): string | undefined {
+  const authority = manifest.metadata['authority'];
+  const stamp = record(authority) ? authority['resourceGenerator'] : undefined;
+  if (!record(stamp) || typeof stamp['seed'] !== 'number' || typeof stamp['version'] !== 'number') return `stamp missing, live ${live.seed}:${live.version}`;
+  return stamp['seed'] === live.seed && stamp['version'] === live.version ? undefined
+    : `published ${stamp['seed']}:${stamp['version']}, live ${live.seed}:${live.version}`;
+}
 
 export interface ChunkLiveIslandRuntime extends LiveIslandCollisionRuntime {
   readonly source: 'chunks';
@@ -131,7 +209,7 @@ export function assembleChunkLiveIslandRuntime(
   // plus the static view's biomes channel and records.
   const builder = new AuthorityCollisionBuilder(manifest, { originX: 0, originY: 0, width, height }, {
     extraChannels: { biomes: { type: 'u8', fill: NO_BIOME } },
-    extraRecordKinds: ['objects', 'landmarks', 'resourcePlacements'],
+    extraRecordKinds: ['objects', 'landmarks', 'resourcePlacements', 'authority.resource', 'authority.resourcePlacement'],
   });
   const issues: ChunkRuntimeIssue[] = [];
   const heads = new Map(manifest.chunks.map(head => [`${head.cx}:${head.cy}`, head]));
@@ -175,6 +253,17 @@ export function assembleChunkLiveIslandRuntime(
       return value === NO_BIOME ? undefined : biomePalette[value];
     },
   };
+  // S3c: the generated resources must be exactly the published set (reconcile deletes rows outside
+  // it), so a count or hash mismatch makes the runtime incomplete and the dispatcher never serves it.
+  // The placements reconcile reads are checked against the verified records the same way.
+  const resourceRecords = builder.records<WorldChunkAuthorityResource>('authority.resource');
+  const orphanPlacements = builder.records<WorldChunkAuthorityResourcePlacement>('authority.resourcePlacement');
+  if (complete) {
+    const digestIssue = chunkResourceDigestIssue(manifest, resourceRecords)
+      ?? chunkResourcePlacementIssue(manifest, resourceRecords, orphanPlacements, staticView.resourcePlacements);
+    if (digestIssue !== undefined) issues.push({ kind: 'resource_digest', detail: digestIssue });
+  }
+  let generatedResources: readonly GeneratedSurvivalResource[] | undefined;
   for (const detail of builder.orderIssues) issues.push({ kind: 'record_order', detail });
   return {
     source: 'chunks',
@@ -189,6 +278,11 @@ export function assembleChunkLiveIslandRuntime(
     suppressedDecorationObstacleKeys: composition.suppressedObstacleKeys,
     baseObstacles: composition.baseObstacles,
     staticView,
+    generatedResources() {
+      // Fail closed: an incomplete runtime is never served, and never yields a resource set.
+      if (issues.length > 0) throw new Error('chunk_resources_incomplete');
+      return generatedResources ??= Object.freeze(resourceRecords.map(generatedResourceFromRecord));
+    },
     complete: issues.length === 0,
     issues,
     stale: options.shadowContentHash !== undefined && options.shadowContentHash !== registry.contentHash,
@@ -246,6 +340,14 @@ export interface LiveIslandRuntimeDiff {
   readonly total: number;
   /** Only fields that disagree; each keeps at most `limit` samples. */
   readonly fields: Readonly<Record<string, LiveIslandRuntimeFieldDiff>>;
+}
+
+function resourcesOf(runtime: ComparableLiveIslandRuntime): readonly unknown[] | undefined {
+  try {
+    return runtime.generatedResources();
+  } catch {
+    return undefined;
+  }
 }
 
 function staticViewOf(runtime: ComparableLiveIslandRuntime): LiveIslandStaticView {
@@ -319,6 +421,9 @@ export function compareLiveIslandRuntime(a: ComparableLiveIslandRuntime, b: Comp
     list(`suppressedDecorationObstacleKeys.${medium}`, [...a.suppressedDecorationObstacleKeys[medium]], [...b.suppressedDecorationObstacleKeys[medium]]);
   }
   list('generatedSuppressions', [...a.generatedSuppressions], [...b.generatedSuppressions]);
+  // S3c (#230 review): the set reconcile deletes by, ordered and strict. The compiled side runs the
+  // generator once per compare; an unavailable (incomplete) side compares as absent.
+  list('generatedResources', resourcesOf(a), resourcesOf(b));
   // S3a: the combat policy the server reads. The ordered regions are compared below (static
   // view); here whether the map declares any (hearth installation refuses an undeclared map)
   // and the built policy itself at every tile centre.

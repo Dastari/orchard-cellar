@@ -26,8 +26,10 @@ function fixture(patch: Record<string, unknown> = {}, placements: sim.MapResourc
   world_resource_mining_claim: { resourceId: { delete: (id: bigint) => { writes.push(`claim:${id}`); claims.delete(id); } } } } };
   const dependencies = { ...sim, TOPSIDE_SPACE_ID: 0, SenderError: Error,
     contentRegistry: () => sim.bootstrapContentRegistry(),
-    compiledLiveIslandRuntime: () => ({document:{resourcePlacements:placements}}),
-    generateSurvivalResources: () => [desired], generatedWorldResourceRow: (row: Row) => row };
+    // Static-world S3c: placements and the generated set both come from the dispatcher's runtime.
+    liveIslandCollisionRuntime: () => ({ staticView: { resourcePlacements: placements }, generatedResources: () => [desired] }),
+    liveIslandGeneratedResources: (_ctx: unknown, runtime: { generatedResources(): unknown[] }) => runtime.generatedResources(),
+    generatedWorldResourceRow: (row: Row) => row };
   const reconcile = new Function(...Object.keys(dependencies), code)(...Object.values(dependencies));
   return { rows, claims, writes, sites, run: () => reconcile(ctx) };
 }

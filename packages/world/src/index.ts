@@ -6330,8 +6330,11 @@ function hearthStashWithinReach(ctx:WorldReducerContext, endpointId: string = 'd
     const tick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
     const action = ctx.db.player_combat_state.identity.find(ctx.sender);
     if (action !== null && (action.kind === 'block' || tick < action.readyTick)) return false;
-    return hearthSupplyCacheInstalled(supplyCache,liveIslandCollisionRuntime(ctx)?.staticView ?? null)
-      && hearthSupplyCacheApproachClear(supplyCache,position, collisionForSpace(ctx, position.spaceId));
+    // One dispatch serves the installed check and the approach collision (topside only).
+    const liveMapRuntime = liveIslandCollisionRuntime(ctx);
+    return hearthSupplyCacheInstalled(supplyCache,liveMapRuntime?.staticView ?? null)
+      && hearthSupplyCacheApproachClear(supplyCache,position, collisionForSpace(ctx, position.spaceId, undefined, undefined,
+        position.spaceId === TOPSIDE_SPACE_ID ? liveMapRuntime : null));
   }
   if (endpointId !== 'delve_lobby') return false;
   const lobby=activeHearthLobbyDefinition(contentRegistry(ctx));
@@ -7061,9 +7064,26 @@ function generatedWorldResourceRow(resource: GeneratedSurvivalResource, registry
   };
 }
 
+/** The generator's topside resources for this registry: the compiled source (static world
+ * S3c). The only server call of the generator; chunk mode reads `authority.resource` records. */
+function generatedSurvivalResources(registry: ContentRegistry): readonly GeneratedSurvivalResource[] {
+  return generateSurvivalResources(SURVIVAL_WORLD_SEED, registry);
+}
+
+/** Static-world S3c: the generated topside resources from the dispatcher's runtime (compiled in
+ * off and shadow, chunk records in on), or the generator when no runtime resolves (a map the
+ * compiled guards reject; reconcile used the generator with no placements there too). */
+function liveIslandGeneratedResources(ctx: WorldReducerContext,
+  runtime: LiveIslandCollisionRuntime | null = liveIslandCollisionRuntime(ctx)): readonly GeneratedSurvivalResource[] {
+  return runtime === null ? generatedSurvivalResources(contentRegistry(ctx)) : runtime.generatedResources();
+}
+
 /** A terrain version may move generated resources off new contour walls, but
  * unchanged rows retain depletion and regrowth progress. Player inventories,
- * soil, chests, and placeables are never part of this reconciliation. */
+ * soil, chests, and placeables are never part of this reconciliation.
+ * Static-world S3c: placements and the generated set come from one dispatcher runtime; in
+ * `on` that is only ever a complete, verified chunk runtime, so an incomplete chunk set can
+ * never delete rows (the dispatcher falls back to compiled). */
 function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
   const existingRows = [...ctx.db.world_resource.iter()];
   const registry = contentRegistry(ctx);
@@ -7074,9 +7094,10 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
       throw new SenderError('hearth_resource_site_conflict');
     }
   }
-  const placements = new Map((compiledLiveIslandRuntime(ctx)?.document.resourcePlacements ?? [])
+  const liveMapRuntime = liveIslandCollisionRuntime(ctx);
+  const placements = new Map((liveMapRuntime?.staticView.resourcePlacements ?? [])
     .map(placement => [BigInt(placement.id), placement]));
-  const desired = new Map(generateSurvivalResources(SURVIVAL_WORLD_SEED, registry)
+  const desired = new Map(liveIslandGeneratedResources(ctx, liveMapRuntime)
     .map(resource => {
       const placement = placements.get(BigInt(resource.id));
       return [BigInt(resource.id), placement === undefined ? resource
@@ -7295,10 +7316,12 @@ function requireHearthResourceHarvestAccess(ctx: WorldReducerContext, position: 
     || position.spaceId !== resource.spaceId) {
     throw new SenderError('target_not_ready');
   }
-  if (!hearthResourceSiteEnabled(ctx, resource, liveIslandCollisionRuntime(ctx))) throw new SenderError('target_not_ready');
+  // One dispatch serves the site check and the outdoor collision.
+  const liveMapRuntime = liveIslandCollisionRuntime(ctx);
+  if (!hearthResourceSiteEnabled(ctx, resource, liveMapRuntime)) throw new SenderError('target_not_ready');
   if (site.maturityGrowthStage !== null
     && resource.growthStage !== site.maturityGrowthStage) throw new SenderError('resource_not_mature');
-  const collision = outdoorCollisionMap(ctx, resource.id);
+  const collision = outdoorCollisionMap(ctx, resource.id, liveMapRuntime);
   if (!hearthResourceGeometryAllows(position, resource.id, collision, registry)) throw new SenderError('target_out_of_reach');
 }
 
@@ -7430,7 +7453,7 @@ function stepHearthResourceRespawns(ctx: WorldReducerContext, tick: bigint, play
     if (tick % BigInt(AUTHORITY_HZ) !== 0n && !(interrupted && stored.quietSinceTick !== undefined)) continue;
     let clear = false;
     if (!interrupted) {
-      collision ??= outdoorCollisionMap(ctx);
+      collision ??= outdoorCollisionMap(ctx, undefined, liveMapRuntime);
       // Conservative 3x3 approach envelope; native node installation must also
       // validate the authored footprint before creating any manifest row.
       clear = [-1, 0, 1].every(dx => [-1, 0, 1].every(dy => {
@@ -12764,6 +12787,7 @@ interface LiveIslandRuntime {
   readonly generatedSuppressions: ReadonlySet<string>;
   readonly suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>;
   readonly staticView: LiveIslandStaticView;
+  generatedResources(): readonly GeneratedSurvivalResource[];
 }
 
 let liveIslandRuntimeCache: LiveIslandRuntime | null = null;
@@ -12912,6 +12936,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
     generatedSuppressions,
     suppressedDecorationObstacleKeys,
     staticView: documentStaticView(document),
+    generatedResources: () => generatedSurvivalResources(registry),
   };
   return liveIslandRuntimeCache;
 }
@@ -12924,8 +12949,8 @@ const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
  * `shadow` keeps compiled authoritative while comparing the chunk runtime and
  * logging disagreements. `on` serves the chunk runtime only when it is complete,
  * fresh and passes the compiled guards, and otherwise falls back to compiled.
- * Collision, combat policy (S3a) and the static document consumers (S3b) read it;
- * resource reconcile still reads compiledLiveIslandRuntime (S3c moves it).
+ * Collision, combat policy (S3a), the static document consumers (S3b) and the
+ * generated resources with their placements (S3c: reconcile and admin respawn) read it.
  */
 function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
   const mode = chunkAuthorityMode(ctx);
@@ -13359,7 +13384,9 @@ export const init = spacetimedb.init((ctx) => {
     updatedBy: ctx.databaseIdentity,
   });
   const registry = contentRegistry(ctx);
-  for (const resource of generateSurvivalResources(SURVIVAL_WORLD_SEED, registry)) {
+  // A fresh database has no space flags, so chunk authority is necessarily off: the compiled
+  // source (the generator) is the only one, and init needs no map compile (static world S3c).
+  for (const resource of generatedSurvivalResources(registry)) {
     ctx.db.world_resource.insert(generatedWorldResourceRow(resource, registry));
   }
   ctx.db.world_tree.insert({
@@ -15991,11 +16018,12 @@ function adminObjectTarget(ctx: WorldReducerContext, mutation: AdminObjectMutati
 }
 
 function adminResourceCandidates(
+  ctx: WorldReducerContext,
   mutation: AdminObjectMutation,
-  registry: ContentRegistry,
 ): readonly AdminResourceRespawnCandidate[] {
   if (mutation.operation !== 'respawn_resources' || adminObjectSpaceId(mutation.spaceId) !== TOPSIDE_SPACE_ID) return [];
-  return generateSurvivalResources(SURVIVAL_WORLD_SEED, registry).filter((resource) => resource.tileX >= mutation.x0
+  // Generated tiles (not placements), as before; the set comes from the dispatcher's runtime (S3c).
+  return liveIslandGeneratedResources(ctx).filter((resource) => resource.tileX >= mutation.x0
     && resource.tileX <= mutation.x1 && resource.tileY >= mutation.y0 && resource.tileY <= mutation.y1)
     .map((resource) => ({
       entityId: String(resource.id), definitionId: resource.kind, spaceId: String(TOPSIDE_SPACE_ID),
@@ -16005,7 +16033,7 @@ function adminResourceCandidates(
 
 function loadAdminObjectState(ctx: WorldReducerContext, mutation: AdminObjectMutation): AdminObjectState {
   const target = adminObjectTarget(ctx, mutation);
-  const candidates = adminResourceCandidates(mutation, contentRegistry(ctx));
+  const candidates = adminResourceCandidates(ctx, mutation);
   const resources = candidates.flatMap((candidate) => {
     const row = ctx.db.world_resource.id.find(BigInt(candidate.entityId));
     return row === null ? [] : [{ ...candidate, state: { health: row.health, depleted: row.depleted } }];
@@ -16091,9 +16119,11 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
   }
   if (before === undefined) {
     if (mutation.operation === 'respawn_resources') {
+      let generatedResources: readonly GeneratedSurvivalResource[] | undefined;
       for (const candidate of plan.after.resources.filter((resource) => !plan.before.resources.some(({ entityId }) => entityId === resource.entityId))) {
         const registry = contentRegistry(ctx);
-        const generated = generateSurvivalResources(SURVIVAL_WORLD_SEED, registry)
+        // Resolved once per mutation (it was one generator run per candidate), from the runtime (S3c).
+        const generated = (generatedResources ??= liveIslandGeneratedResources(ctx))
           .find(({ id }) => String(id) === candidate.entityId);
         if (generated !== undefined && ctx.db.world_resource.id.find(BigInt(candidate.entityId)) === null) {
           ctx.db.world_resource.insert(generatedWorldResourceRow(generated, registry));
@@ -16212,7 +16242,7 @@ function executeAdminObjectMutation(ctx: WorldReducerContext, mutation: AdminObj
       nowMicros: ctx.timestamp.microsSinceUnixEpoch,
       definitions: adminObjectDefinitions(ctx),
       blockedTiles: adminObjectBlockedTiles(ctx, mutation),
-      resourceCandidates: adminResourceCandidates(mutation, contentRegistry(ctx)),
+      resourceCandidates: adminResourceCandidates(ctx, mutation),
       itemPolicy: itemContainerContentResolver(contentRegistry(ctx)),
     });
   } catch (error) { if (error instanceof AdminObjectError) throw new SenderError(error.code); throw error; }
@@ -22210,7 +22240,8 @@ function outdoorMovementAllowed(policy:CombatRegionPolicy,definition:HearthEncou
 /** One bounded resource/chest/target gather for all authored camps and recovery.
  * The caller reuses this map throughout its reducer; never cache mutable collision
  * across reducers. A chunk of padding includes neighboring resource footprints. */
-function outdoorCollisionMap(ctx:WorldReducerContext, excludedResourceId?: bigint):CollisionMap {
+function outdoorCollisionMap(ctx:WorldReducerContext, excludedResourceId?: bigint,
+  liveMapRuntime:LiveIslandCollisionRuntime|null=liveIslandCollisionRuntime(ctx)):CollisionMap {
   const chunks=new Map<string,readonly [number,number]>();
   const arrival=HEARTH_ISLANDS.cinderwake.arrival;
   const regions=[...activeHearthEncounterDefinitions(contentRegistry(ctx)).map(camp=>({x:camp.tileX,y:camp.tileY,radius:camp.radiusTiles+4})),
@@ -22228,7 +22259,7 @@ function outdoorCollisionMap(ctx:WorldReducerContext, excludedResourceId?: bigin
     chests.push(...ctx.db.world_chest.by_chunk.filter([TOPSIDE_SPACE_ID,x,y]));
     combatTargets.push(...ctx.db.world_combat_target.by_chunk.filter([TOPSIDE_SPACE_ID,x,y]));
   }
-  return collisionForSpace(ctx,TOPSIDE_SPACE_ID,undefined,{resources: resources.filter(resource => resource.id !== excludedResourceId),chests,combatTargets,chunkScope:new Set(chunks.keys())},liveIslandCollisionRuntime(ctx));
+  return collisionForSpace(ctx,TOPSIDE_SPACE_ID,undefined,{resources: resources.filter(resource => resource.id !== excludedResourceId),chests,combatTargets,chunkScope:new Set(chunks.keys())},liveMapRuntime);
 }
 function outdoorRecoveryPosition(ctx:WorldReducerContext,policy:CombatRegionPolicy,prefetchedCollision?:CollisionMap):{x:number;y:number}|null {
   const arrival=HEARTH_ISLANDS.cinderwake.arrival,collision=prefetchedCollision??outdoorCollisionMap(ctx);
