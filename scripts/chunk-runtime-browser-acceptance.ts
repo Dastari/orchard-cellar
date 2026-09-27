@@ -314,20 +314,30 @@ export function occupancyVerdict(records: readonly StepRecord[], expectedSteps: 
     steadyDeltaMiB, peakDeltaMiB, steadyOnMiB: percentile(on, 0.5), steadyLegacyMiB: percentile(legacy, 0.5) };
 }
 
-/** Criterion 2: every matched terrain frame within the diff ratio. */
-export function parityVerdict(records: readonly StepRecord[], maxDiffRatio: number): CriterionVerdict & {
-  readonly terrainOver: number; readonly fullOver: number; readonly worstTerrain: number; readonly worstFull: number; readonly exactTerrain: number } {
+/**
+ * Criterion 2. Terrain frames (entities hidden) must differ by no more than `maxDiffRatio`, or by no
+ * more than 1.5x the step's own noise floor (the legacy build against itself 400 ms later: animated
+ * water and waterfalls are not in phase between two pages). Full-scene frames add wildlife and the
+ * players, which move independently in each page: they must stay under `fullMaxDiffRatio`, and every
+ * one over `maxDiffRatio` is listed for review. The on build must serve from chunks at every step.
+ */
+export function parityVerdict(records: readonly StepRecord[], maxDiffRatio: number, fullMaxDiffRatio = 0.01): CriterionVerdict & {
+  readonly terrainOver: number; readonly fullOver: number; readonly worstTerrain: number; readonly worstFull: number; readonly exactTerrain: number;
+  readonly terrainOverNoise: number; readonly reviewFull: readonly number[] } {
   const reasons: string[] = [];
   const terrain = records.flatMap(record => record.terrain === null ? [] : [record.terrain]);
   const full = records.flatMap(record => record.full === null ? [] : [record.full]);
-  const terrainOver = terrain.filter(diff => diff.ratio > maxDiffRatio).length;
-  const fullOver = full.filter(diff => diff.ratio > maxDiffRatio).length;
+  const terrainAllowance = (record: StepRecord) => Math.max(maxDiffRatio, 1.5 * (record.noise?.ratio ?? 0));
+  const terrainOver = records.filter(record => record.terrain !== null && record.terrain.ratio > terrainAllowance(record)).length;
+  const terrainOverNoise = records.filter(record => record.terrain !== null && record.terrain.ratio > maxDiffRatio).length;
+  const fullOver = full.filter(diff => diff.ratio > fullMaxDiffRatio).length;
+  const reviewFull = records.filter(record => record.full !== null && record.full.ratio > maxDiffRatio).map(record => record.step.index);
   if (terrain.length !== records.length) reasons.push(`${records.length - terrain.length} step(s) without a terrain comparison`);
   const notServing = records.filter(record => record.notServing !== null);
   if (notServing.length > 0) reasons.push(`${notServing.length} step(s) where the on build was not serving from chunks (${[...new Set(notServing.map(record => record.notServing))].join(', ')})`);
-  if (terrainOver > 0) reasons.push(`${terrainOver} terrain frame(s) over ${(maxDiffRatio * 100).toFixed(2)}% differing pixels`);
-  if (fullOver > 0) reasons.push(`${fullOver} full-scene frame(s) over ${(maxDiffRatio * 100).toFixed(2)}% differing pixels`);
-  return { pass: reasons.length === 0, reasons, terrainOver, fullOver,
+  if (terrainOver > 0) reasons.push(`${terrainOver} terrain frame(s) over ${(maxDiffRatio * 100).toFixed(2)}% differing pixels and over 1.5x their noise floor`);
+  if (fullOver > 0) reasons.push(`${fullOver} full-scene frame(s) over ${(fullMaxDiffRatio * 100).toFixed(2)}% differing pixels`);
+  return { pass: reasons.length === 0, reasons, terrainOver, terrainOverNoise, fullOver, reviewFull,
     worstTerrain: Math.max(0, ...terrain.map(diff => diff.ratio)), worstFull: Math.max(0, ...full.map(diff => diff.ratio)),
     exactTerrain: terrain.filter(diff => diff.anyChange === 0).length };
 }
@@ -944,7 +954,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       distinctStandingTiles: new Set(steps.map(step => `${step.tileX},${step.tileY}`)).size,
       pinCoverage: pinCoverage(records, manifest.chunks.map(head => `${head.cx}:${head.cy}`)) };
     evidence.criteria['1-occupancy-and-memory'] = occupancy;
-    evidence.criteria['2-visual-parity'] = { ...parity, pixelThreshold: options.pixelThreshold, maxDiffRatio: options.maxDiffRatio };
+    evidence.criteria['2-visual-parity'] = { ...parity, pixelThreshold: options.pixelThreshold, maxDiffRatio: options.maxDiffRatio, fullMaxDiffRatio: 0.01 };
     if (!occupancy.pass) for (const reason of occupancy.reasons) fail(`criterion 1: ${reason}`);
     if (!parity.pass) for (const reason of parity.reasons) fail(`criterion 2: ${reason}`);
 

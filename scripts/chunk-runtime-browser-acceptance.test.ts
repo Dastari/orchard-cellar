@@ -152,7 +152,11 @@ describe('S4g acceptance driver', () => {
     expect(parityVerdict([record(0), record(1)], 0.002)).toMatchObject({ pass: true, exactTerrain: 2, worstFull: 0.001 });
     const failed = parityVerdict([record(0, { terrain: diff(0.01) }), record(1, { full: diff(0.5) })], 0.002);
     expect(failed.pass).toBe(false);
-    expect(failed).toMatchObject({ terrainOver: 1, fullOver: 1 });
+    expect(failed).toMatchObject({ terrainOver: 1, fullOver: 1, reviewFull: [1] });
+    // A terrain frame within 1.5x its own noise floor (animated water out of phase) passes.
+    expect(parityVerdict([record(0, { terrain: diff(0.004), noise: diff(0.003) })], 0.002)).toMatchObject({ pass: true, terrainOver: 0, terrainOverNoise: 1 });
+    // Full-scene frames between the two bounds pass but are listed for review.
+    expect(parityVerdict([record(0, { full: diff(0.005) })], 0.002)).toMatchObject({ pass: true, fullOver: 0, reviewFull: [0] });
     expect(parityVerdict([record(0, { notServing: 'mode_shadow' })], 0.002).reasons).toEqual(["1 step(s) where the on build was not serving from chunks (mode_shadow)"]);
   });
 
