@@ -33,12 +33,12 @@ function fixture(siteIndex = 0) {
     world_resource_mining_claim: { resourceId: { delete: () => { claimDeletes++; } } },
   } };
   const deps = { ...sim, contentRegistry: () => currentRegistry, TOPSIDE_SPACE_ID: 0,
-    liveMapGeneratedResourceSuppressed: () => false, outdoorInsideCamp: () => switches.visible,
+    liveMapRuntimeResourceSuppressed: () => false, outdoorInsideCamp: () => switches.visible,
     outdoorCollisionMap: () => ({}), positionCollides: () => switches.blocked, combatElevationAt: () => site.elevation };
   const run = new Function(...Object.keys(deps), code)(...Object.values(deps));
   const step = (tick: bigint, wallMicros = tick * 50_000n) => {
     ctx.timestamp.microsSinceUnixEpoch = wallMicros;
-    run(ctx, tick, [{ spaceId: 0 }], { allowsHostileDamage: () => switches.enabled });
+    run(ctx, tick, [{ spaceId: 0 }], { combatPolicy: { allowsHostileDamage: () => switches.enabled } });
   };
   const advance = (start: bigint, end: bigint) => { for (let tick = start; tick <= end; tick += 20n) step(tick); };
   return { switches, step, advance, setRegistry: (next: typeof registry) => { currentRegistry = next; }, resource: () => resource, tracker: () => tracker, writes: () => writes,

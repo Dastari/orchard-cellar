@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LIVE_ISLAND_MAP_ID, positionCollides, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type CollisionMap, type CombatRegionPolicy, type MapDocumentV3 } from '@orchard/sim';
+import { LIVE_ISLAND_MAP_ID, mapStreetlampPlans, positionCollides, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type CollisionMap, type CombatRegionPolicy, type MapDocumentV3 } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
@@ -439,7 +439,8 @@ describe('chunk authority dispatcher: shadow', () => {
 /** Runs the real index.ts dispatcher wiring with injected dependencies. */
 function serverFunctions(dependencies: Record<string, unknown>) {
   const source = ts.createSourceFile('index.ts', readFileSync(new URL('../index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const names = ['liveIslandCollisionRuntime', 'chunkAuthoritySource', 'liveMapCollisionForSpace', 'liveIslandCombatPolicy'];
+  const names = ['liveIslandCollisionRuntime', 'chunkAuthoritySource', 'liveMapCollisionForSpace', 'liveIslandCombatPolicy',
+    'liveMapRuntimeGeneratedResourceSuppressed', 'liveMapRuntimeResourceSuppressed', 'liveMapGeneratedResourceSuppressed'];
   const text = names.map(name => {
     const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
     if (fn === undefined) throw new Error(`missing ${name}`);
@@ -450,6 +451,8 @@ function serverFunctions(dependencies: Record<string, unknown>) {
     liveIslandCollisionRuntime(ctx: unknown): unknown;
     liveMapCollisionForSpace(ctx: unknown, spaceId: number, medium: 'ground' | 'water', base: CollisionMap, runtime?: unknown): CollisionMap;
     liveIslandCombatPolicy(ctx: unknown): CombatRegionPolicy | undefined;
+    liveMapGeneratedResourceSuppressed(ctx: unknown, spaceId: number, resourceId: bigint): boolean;
+    liveMapRuntimeResourceSuppressed(runtime: unknown, spaceId: number, resourceId: bigint): boolean;
   };
 }
 
@@ -639,17 +642,101 @@ describe('index.ts collision dispatcher wiring', () => {
       // Every read of a runtime's policy or regions is on a dispatcher-selected runtime.
       const receivers = [...outside.matchAll(/([\w?.()]+)\.(combatPolicy|combatRegions)\b/gu)].map(match => `${match[1]}.${match[2]}`);
       expect(new Set(receivers)).toEqual(new Set(['runtime?.combatPolicy', 'runtime?.combatRegions', 'liveIslandCollisionRuntime(ctx)?.combatPolicy',
-        'topsideLiveMapRuntime?.combatPolicy']));
+        'topsideLiveMapRuntime?.combatPolicy', 'tickLiveMapRuntime?.combatPolicy']));
       expect(text).toContain('  const runtime = liveIslandCollisionRuntime(ctx);\n  const policy = runtime?.combatPolicy;');
       const tick = text.slice(text.indexOf('export const stepWorld ='));
-      expect(tick.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+      // One dispatch per tick at most: the streetlamp tick's (S3b; the collision stage reuses it), the
+      // collision stage's, and one only while neither ran (topside unoccupied, not a streetlamp tick).
+      // S3b passes the whole runtime to the hearth respawns (policy and suppression).
+      expect(tick.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(3);
+      expect(tick).toContain('if(authorityTick%20n===0n)settleTownStreetlamps(ctx,calendarTick,prefetchedTopsideRuntime=liveIslandCollisionRuntime(ctx));');
+      expect(tick).toContain('? prefetchedTopsideRuntime !== undefined ? prefetchedTopsideRuntime : liveIslandCollisionRuntime(ctx)');
       expect(tick).toContain('if (spaceId === TOPSIDE_SPACE_ID) topsideLiveMapRuntime = liveMapRuntime;');
       expect(tick).toContain('const outdoorProjectilePolicy=topsideLiveMapRuntime?.combatPolicy;');
-      // A second dispatch only while topside is unoccupied (then no collision stage resolved it).
-      expect(tick.match(/liveIslandCombatPolicy\(ctx\)/gu)).toHaveLength(1);
-      expect(tick).toContain('const tickCombatPolicy = topsideLiveMapRuntime === undefined ? liveIslandCombatPolicy(ctx) : topsideLiveMapRuntime?.combatPolicy;');
-      expect(tick).toContain('stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);');
-      expect(tick).toContain('stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);');
+      expect(tick).not.toContain('liveIslandCombatPolicy(ctx)');
+      expect(tick).toContain('const tickLiveMapRuntime = topsideLiveMapRuntime !== undefined ? topsideLiveMapRuntime\n      : prefetchedTopsideRuntime !== undefined ? prefetchedTopsideRuntime : liveIslandCollisionRuntime(ctx);');
+      expect(tick).toContain('stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers, tickLiveMapRuntime?.combatPolicy);');
+      expect(tick).toContain('stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers, tickLiveMapRuntime);');
+    });
+  });
+
+  describe('static document consumers (static-world S3b)', () => {
+    /** The fixture with one generated resource suppressed on the map. */
+    const suppressedManifest: WorldChunkManifest = { ...manifest, metadata: { ...manifest.metadata,
+      document: { ...(manifest.metadata['document'] as object), generatedSuppressions: ['resource-7'] },
+      authority: { ...(manifest.metadata['authority'] as object), generatedSuppressions: ['resource-7'] } } as WorldChunkManifest['metadata'] };
+    const suppressedCompiled = compiledFor(suppressedManifest, hash => store.get(hash));
+    const fixture = { manifest: suppressedManifest, compiled: suppressedCompiled };
+
+    it('off (default, unset or invalid flag) serves the compiled runtime\'s own static view and suppression set, reading only the flag', () => {
+      for (const flags of [null, '{}', '{"chunkAuthority":"off"}', 'not json']) {
+        const w = world(flags, 'host', fixture);
+        const runtime = w.functions.liveIslandCollisionRuntime(w.ctx) as CompiledCollisionRuntime;
+        expect(runtime.staticView).toBe(suppressedCompiled.staticView);
+        expect([7n, 8n].map(id => w.functions.liveMapGeneratedResourceSuppressed(w.ctx, TOPSIDE_SPACE_ID, id))).toEqual([true, false]);
+        // Other spaces never resolve a runtime.
+        expect(w.functions.liveMapGeneratedResourceSuppressed(w.ctx, 7, 7n)).toBe(false);
+        expect(w.reads.every(read => read === `flag:${TOPSIDE_SPACE_ID}`)).toBe(true);
+        expect(w.compiledCalls()).toBe(3);
+      }
+    });
+
+    it('shadow serves compiled; on serves the chunk runtime\'s static view and suppression, equal to compiled', () => {
+      const shadow = world('{"chunkAuthority":"shadow"}', 'host', fixture);
+      expect((shadow.functions.liveIslandCollisionRuntime(shadow.ctx) as CompiledCollisionRuntime).staticView).toBe(suppressedCompiled.staticView);
+      expect(shadow.dispatcher.status().lastCompare).toMatchObject({ equal: true, total: 0 });
+      const on = world('{"chunkAuthority":"on"}', 'host', fixture);
+      const runtime = on.functions.liveIslandCollisionRuntime(on.ctx) as ChunkLiveIslandRuntime;
+      expect(runtime.source).toBe('chunks');
+      expect(runtime.staticView).not.toBe(suppressedCompiled.staticView);
+      expect(compareLiveIslandRuntime(runtime, suppressedCompiled).equal).toBe(true);
+      expect([7n, 8n].map(id => on.functions.liveMapGeneratedResourceSuppressed(on.ctx, TOPSIDE_SPACE_ID, id))).toEqual([true, false]);
+      expect(on.compiledCalls()).toBe(0);
+      // The view is cached with the runtime: identity-keyed consumers (mapStreetlampPlans) keep one entry.
+      expect((on.functions.liveIslandCollisionRuntime(on.ctx) as ChunkLiveIslandRuntime).staticView).toBe(runtime.staticView);
+      expect(mapStreetlampPlans(runtime.staticView)).toBe(mapStreetlampPlans(runtime.staticView));
+    });
+
+    it('the prefetched-runtime suppression helper answers exactly like the dispatching one', () => {
+      const w = world(null, 'host', fixture);
+      for (const [spaceId, id] of [[TOPSIDE_SPACE_ID, 7n], [TOPSIDE_SPACE_ID, 8n], [7, 7n]] as const) {
+        expect(w.functions.liveMapRuntimeResourceSuppressed(suppressedCompiled, spaceId, id)).toBe(w.functions.liveMapGeneratedResourceSuppressed(w.ctx, spaceId, id));
+      }
+      expect(w.functions.liveMapRuntimeResourceSuppressed(null, TOPSIDE_SPACE_ID, 7n)).toBe(false);
+    });
+
+    it('no static consumer reads the compiled document or the generator, and hot paths resolve once', () => {
+      const text = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
+      const functionText = (name: string) => {
+        const start = text.indexOf(`\nfunction ${name}(`);
+        expect(start, name).toBeGreaterThan(0);
+        return text.slice(start, text.indexOf('\n}\n', start) + 3);
+      };
+      // compiledLiveIslandRuntime( is called only by the dispatcher (off branch and the chunk source)
+      // and by resource reconcile (S3c).
+      const callers = [...text.matchAll(/compiledLiveIslandRuntime\(ctx\)/gu)].map(match => {
+        const before = text.lastIndexOf('\nfunction ', match.index);
+        return text.slice(before + 10, text.indexOf('(', before + 10));
+      });
+      expect(callers.sort()).toEqual(['chunkAuthoritySource', 'liveIslandCollisionRuntime', 'reconcileGeneratedSurvivalResources']);
+      const outside = ['compiledLiveIslandRuntime', 'validatedLiveMapDocument', 'commitLiveMapSnapshot']
+        .reduce((rest, name) => rest.replace(functionText(name), ''), text);
+      expect(outside).not.toMatch(/resolvedMapBiomeAt\(/u);
+      expect(outside.match(/\?\.document\b/gu)).toEqual(['?.document']);
+      expect(functionText('reconcileGeneratedSurvivalResources')).toContain('compiledLiveIslandRuntime(ctx)?.document.resourcePlacements');
+      expect(functionText('compiledLiveIslandRuntime')).toContain('staticView: documentStaticView(document),');
+      expect(functionText('settleTownStreetlamps')).toContain('mapStreetlampPlans(runtime.staticView)');
+      expect(functionText('settleTownStreetlamps')).not.toContain('liveIslandCollisionRuntime(');
+      expect(functionText('hearthStashWithinReach')).toContain('hearthSupplyCacheInstalled(supplyCache,liveIslandCollisionRuntime(ctx)?.staticView ?? null)');
+      expect(functionText('objectGrowthTimeline')).toContain('view.biomeAt(row.tileX, row.tileY) ?? LIVE_ISLAND_OUTSIDE_MAP_BIOME');
+      // The swing resolves one runtime for its collision and every resource's suppression check.
+      const swing = functionText('applyToolSwingLifecycle');
+      expect(swing.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+      expect(swing).not.toContain('liveMapGeneratedResourceSuppressed(');
+      expect(swing).toContain('liveMapRuntimeResourceSuppressed(liveMapRuntime, resource.spaceId, resource.id)');
+      // Hearth site checks use the caller's runtime (the tick passes the one its collision stage resolved).
+      const site = functionText('hearthResourceSiteEnabled');
+      expect(site).not.toMatch(/liveIslandCollisionRuntime\(|liveMapGeneratedResourceSuppressed\(/u);
     });
   });
 });

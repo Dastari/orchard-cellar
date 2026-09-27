@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, WORLD_CHUNK_VOID, type ChunkArray, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
-import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision } from './chunk-authority-runtime.js';
+import { createLiveIslandMapDocument, resolvedMapBiomeAt } from '@orchard/sim';
+import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, documentStaticView,
+  LIVE_ISLAND_OUTSIDE_MAP_BIOME } from './chunk-authority-runtime.js';
 
 const CELLS = WORLD_CHUNK_STRIDE ** 2;
 const T = 256;
@@ -139,6 +141,19 @@ describe('assembleChunkLiveIslandRuntime', () => {
     expect(diff.fields['combatPolicy.regionAt']).toEqual({ count: 4, samples: [{ tileX: 2, tileY: 2, a: 'camp', b: 'arena' }, { tileX: 3, tileY: 2, a: 'camp', b: 'arena' }] });
     expect([diff.fields['combatRegions']?.count, diff.fields['combatRegions.length']?.count]).toEqual([1, 1]);
     expect(compareLiveIslandRuntime(nested, assembleChunkLiveIslandRuntime(withCombat([arena, camp], [arena, camp]), readBlob, registry)).equal).toBe(true);
+  });
+
+  it('S3b: the compiled static view answers resolvedMapBiomeAt inside the map, and the outside fallback equals it outside', () => {
+    const document = createLiveIslandMapDocument();
+    const view = documentStaticView(document);
+    const size = document.width;
+    for (const [tileX, tileY] of [[0, 0], [3, 3], [416, 416], [300, 500], [size - 1, size - 1], [size - 4, 200]]) {
+      expect(view.biomeAt(tileX!, tileY!), `${tileX},${tileY}`).toBe(resolvedMapBiomeAt(document, tileX!, tileY!));
+    }
+    for (const [tileX, tileY] of [[-1, 0], [0, -1], [size, 0], [0, size], [size + 40, size + 40]]) {
+      expect(view.biomeAt(tileX!, tileY!)).toBeUndefined();
+      expect(view.biomeAt(tileX!, tileY!) ?? LIVE_ISLAND_OUTSIDE_MAP_BIOME, `${tileX},${tileY}`).toBe(resolvedMapBiomeAt(document, tileX!, tileY!));
+    }
   });
 
   it('reports a gap in a complete record stream instead of composing a wrong order', () => {

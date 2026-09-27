@@ -50,7 +50,8 @@ export interface ChunkRuntimeIssue {
   readonly detail?: string;
 }
 
-/** The document fields S3b consumers read, narrowed; `biomeAt` replaces `resolvedMapBiomeAt(document, ...)`. */
+/** The document fields the server's static consumers read (S3b), narrowed; `biomeAt` replaces
+ * `resolvedMapBiomeAt(document, ...)` inside the map. */
 export interface LiveIslandStaticView {
   readonly id: string;
   readonly objects: MapDocumentV3['objects'];
@@ -75,13 +76,20 @@ export interface LiveIslandCollisionRuntime {
   readonly water: CollisionMap;
   readonly generatedSuppressions: ReadonlySet<string>;
   readonly suppressedDecorationObstacleKeys: Readonly<Record<ChunkAuthorityMedium, ReadonlySet<string>>>;
+  /** The static document view (S3b): built once per runtime and cached with it, so consumers
+   * that cache by object identity (`mapStreetlampPlans`) keep one entry per runtime.
+   * Compiled: `documentStaticView(document)`. */
+  readonly staticView: LiveIslandStaticView;
 }
+
+/** What `resolvedMapBiomeAt` answers outside the survival island (`survivalBiomeAt`): the
+ * static view has no cells there, so an out-of-map caller that needs the compiled value uses this. */
+export const LIVE_ISLAND_OUTSIDE_MAP_BIOME: MapBiomeId = 'water';
 
 export interface ChunkLiveIslandRuntime extends LiveIslandCollisionRuntime {
   readonly source: 'chunks';
   /** Static base obstacle group in server order, before the suppressed-key filter. */
   readonly baseObstacles: Readonly<Record<ChunkAuthorityMedium, readonly CollisionObstacle[]>>;
-  readonly staticView: LiveIslandStaticView;
   /** True when every expected chunk decoded and every record stream is contiguous. */
   readonly complete: boolean;
   readonly issues: readonly ChunkRuntimeIssue[];
@@ -217,9 +225,8 @@ export function documentStaticView(document: MapDocumentV3): LiveIslandStaticVie
   };
 }
 
-/** Either runtime: the compiled one carries `document`, the chunk one `staticView`. */
-export type ComparableLiveIslandRuntime = LiveIslandCollisionRuntime
-  & ({ readonly document: MapDocumentV3 } | { readonly staticView: LiveIslandStaticView });
+/** Either runtime: both carry `staticView` (S3b); the compiled one also carries `document`. */
+export type ComparableLiveIslandRuntime = LiveIslandCollisionRuntime;
 
 export interface LiveIslandRuntimeDisagreement {
   readonly index?: number;
@@ -242,7 +249,7 @@ export interface LiveIslandRuntimeDiff {
 }
 
 function staticViewOf(runtime: ComparableLiveIslandRuntime): LiveIslandStaticView {
-  return 'staticView' in runtime ? runtime.staticView : documentStaticView(runtime.document);
+  return runtime.staticView;
 }
 
 /**

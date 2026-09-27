@@ -37,7 +37,7 @@ function fixture() {
   const deps = { ...sim, SenderError: Error, LIVE_ISLAND_MAP_ID: 'island', TOPSIDE_SPACE_ID: 0,
     contentRegistry: () => ({ ...registry, contentHash: 'content', items: switches.item ? registry.items : new Map() }),
     liveIslandCollisionRuntime: () => ({ combatPolicy: { allowsHostileDamage: () => switches.policy }, combatRegions: document.combatRegions }),
-    liveMapGeneratedResourceSuppressed: () => switches.suppressed, outdoorInsideCamp: () => switches.visible,
+    liveMapRuntimeResourceSuppressed: () => switches.suppressed, outdoorInsideCamp: () => switches.visible,
     collisionForSpace: () => collision, outdoorRecoveryPosition: () => switches.recovery ? { x: (652 + .5) * sim.TILE_SIZE_FIXED, y: (211 + .5) * sim.TILE_SIZE_FIXED } : null,
     outdoorMovementAllowed: () => switches.home };
   const install = new Function(...Object.keys(deps), code)(...Object.values(deps));
