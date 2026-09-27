@@ -36,6 +36,31 @@ describe('Frame Designer model', () => {
     expect(() => readOnly.movePane('output', 0)).toThrow('frame_designer_read_only');
   });
 
+  it('refuses to publish a restriction the server would not enforce (BUG-047)', () => {
+    const model = createFrameDesignerModel({
+      definition: furnace, definitions, access: 'write', baseRevision: 42n,
+      createPublishAdapter: () => ({ publishContentChangeSet: vi.fn(async () => undefined) }),
+    });
+    // The backpack pane is bound to the player's own backpack, so the rule would be client-only.
+    const selfRule = model.updatePaneRestriction('backpack', { rejectedItems: ['item:apple'] });
+    expect(selfRule.validation.valid).toBe(false);
+    expect(selfRule.validation.errors).toContainEqual(expect.objectContaining({
+      code: 'invalid_frame', definitionId: 'frame:furnace', severity: 'error',
+    }));
+    expect(selfRule.canPublish).toBe(false);
+    // The same rule on an entity-bound pane is enforced by the server and stays publishable.
+    model.updatePaneRestriction('backpack', undefined);
+    const entityRule = model.updatePaneRestriction('input', { rejectedItems: ['item:apple'] });
+    expect(entityRule.validation.valid).toBe(true);
+    expect(entityRule.canPublish).toBe(true);
+    // A read-only session inspecting a published frame that already carries such a rule only warns.
+    const published = selfRule.definition;
+    const readOnly = createFrameDesignerModel({ definition: published, definitions: definitions.map((definition) => (
+      definition.id === published.id ? published : definition)), access: 'read_only' }).snapshot();
+    expect(readOnly.validation.valid).toBe(true);
+    expect(readOnly.validation.warnings).toContainEqual(expect.objectContaining({ code: 'invalid_frame', definitionId: 'frame:furnace' }));
+  });
+
   it('publishes one CAS upsert only through an authenticated adapter', async () => {
     const publishContentChangeSet = vi.fn(async () => undefined);
     const model = createFrameDesignerModel({

@@ -3,7 +3,7 @@ import type {NpcDefinitionId,NpcVillageOrderContentDefinition} from './content/n
 import {runtimeItemEconomy,runtimeMaxStack,runtimeDurabilityDefinition,runtimeItemHasTag,runtimeItemInventoryCapacity} from './content/runtime.js';
 import {estateVintageTier} from './homestead-upgrades.js';
 import {planMerchantSale} from './merchant-cart.js';
-import type {ContainerSnapshot} from './item-containers.js';
+import {slotIsTakeOnly,type ContainerSnapshot} from './item-containers.js';
 
 export interface VillageOrderDefinition extends NpcVillageOrderContentDefinition {
   readonly npc: NpcDefinitionId;
@@ -65,7 +65,7 @@ export function planVillageOrderDelivery(input:{readonly registry:ContentRegistr
       if(index>=container.capacity)return fail('order_inventory_invalid');
       if(stack.itemKind!==quote.itemKind)continue;
       if(!Number.isSafeInteger(stack.quantity)||stack.quantity<=0||(stack.durability??0)!==0
-        ||container.restrictions?.[index]?.readOnly===true)return fail('order_inventory_invalid');
+        ||slotIsTakeOnly(container,index))return fail('order_inventory_invalid');
     }
   }
   const registry=input.registry;

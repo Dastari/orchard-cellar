@@ -5546,7 +5546,8 @@ function renderFrame(alpha = 1): void {
     pwaUpdateStatus: pwaClient.status,
     interactionSessionKey: `${snapshot.identityHex}:${network.sessionGeneration}:${snapshot.connected}`,
     prompt,
-    toast: toastTicks > 0 ? toast.slice(0, 42) : null,
+    // BUG-043: the whole message; the HUD toast wraps it by words (two lines, then '...').
+    toast: toastTicks > 0 ? toast : null,
     toastKind,
     skillPointNotice,
     nearbyCraftingStations: nearbyCraftingStations(snapshot),

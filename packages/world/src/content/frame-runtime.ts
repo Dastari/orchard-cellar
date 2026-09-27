@@ -39,7 +39,15 @@ export function placeableFrameRestrictions(
   registry: ContentRegistry,
   placeable: FramePlaceableRow,
 ): Readonly<Record<number, SlotRestriction>> {
-  const definition = placeableFrameDefinition(registry, placeable);
+  return frameAndContainerRestrictions(registry, placeable, placeableFrameDefinition(registry, placeable));
+}
+
+/** Frame pane rules for `definition`, overlaid with the object's own container rules. */
+function frameAndContainerRestrictions(
+  registry: ContentRegistry,
+  placeable: FramePlaceableRow,
+  definition: FrameContentDefinition | null,
+): Readonly<Record<number, SlotRestriction>> {
   const restrictions: Record<number, SlotRestriction> = definition === null
     ? {} : { ...frameRestrictions(definition, registry) };
   for (const restriction of placeableObjectDefinition(registry, placeable)
@@ -57,4 +65,46 @@ export function placeableFrameRestrictions(
     }
   }
   return Object.freeze(restrictions);
+}
+
+/** The client always presents the private hearth stash through this frame. */
+export const HEARTH_STASH_FRAME_ID = 'frame:hearth_stash';
+
+/** The client presents a legacy `world_chest` row as the authored generic chest. */
+export const LEGACY_WORLD_CHEST_PLACEABLE: FramePlaceableRow = Object.freeze({
+  kind: 'chest', definitionId: 'object:chest',
+});
+
+/** A frame the client would actually present in an entity window: present,
+ * not retired, and on the `entity` surface (see the UI's `activeContentFrame`). */
+function presentedEntityFrame(frame: FrameContentDefinition | null | undefined): FrameContentDefinition | null {
+  return frame === null || frame === undefined || frame.retired === true
+    || frame.presentation?.surface !== 'entity' ? null : frame;
+}
+
+/** Slot rules the authority applies to the private hearth stash. They mirror
+ * the client's `frame:hearth_stash` panes; a frame the client would not present
+ * (missing, retired or off the entity surface) contributes no rules. Rules
+ * govern insertion only, so stored items that break a newly authored rule stay
+ * where they are and can be taken out. */
+export function hearthStashFrameRestrictions(
+  registry: ContentRegistry,
+): Readonly<Record<number, SlotRestriction>> {
+  const frame = presentedEntityFrame(registry.frames.get(HEARTH_STASH_FRAME_ID));
+  return frame === null ? Object.freeze({}) : frameRestrictions(frame, registry);
+}
+
+/** Slot rules the authority applies to a legacy `world_chest` container, resolved
+ * through the same object and frame as the client's generic chest fallback
+ * (`activeObjectFrameId`): a retired chest object contributes nothing, and a
+ * frame the client would not present contributes no pane rules. The object's
+ * own container rules still apply, as they do for a generic chest placeable.
+ * Only this legacy path is narrowed; `placeableFrameRestrictions` is unchanged. */
+export function legacyWorldChestFrameRestrictions(
+  registry: ContentRegistry,
+): Readonly<Record<number, SlotRestriction>> {
+  const object = placeableObjectDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE);
+  if (object === undefined || object.retired === true) return Object.freeze({});
+  return frameAndContainerRestrictions(registry, LEGACY_WORLD_CHEST_PLACEABLE,
+    presentedEntityFrame(placeableFrameDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE)));
 }

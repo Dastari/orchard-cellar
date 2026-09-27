@@ -4,6 +4,7 @@ import {
   contentDefinitionRowsHash,
   definitionSlug,
   MAX_CONTENT_DEFINITION_BYTES,
+  parseContentDefinition,
   serializeContentDefinitionForTransport,
   type ContentDefinitionRow,
   type ContentRegistry,
@@ -42,6 +43,13 @@ export interface ContentUpsertInput {
 export interface CanonicalContentChangeSet {
   readonly upserts: readonly ContentUpsertInput[];
   readonly deletes: readonly string[];
+}
+
+export interface ContentPublicationOptions {
+  /** A restore re-applies a stored inverse change set. Nothing in it is newly
+   * authored, so authoring rules never refuse it: rollback stays available
+   * even over rows published before a stricter rule existed. */
+  readonly restore?: boolean;
 }
 
 export interface ContentPublicationPlan {
@@ -190,6 +198,16 @@ function definitionHash(definition: SupportedContentDefinition): string {
   return contentDefinitionsHash([definition]);
 }
 
+/** Semantic identity of a stored or submitted row under the current parser;
+ * null when it doesn't parse (the registry build reports that itself). */
+function rowDefinitionHash(kind: string, json: string): string | null {
+  try {
+    return definitionHash(parseContentDefinition(kind, json));
+  } catch {
+    return null;
+  }
+}
+
 /** Builds and validates the complete resulting registry before exposing any
  * mutations to a reducer. A thrown reducer error therefore leaves every table
  * untouched under SpaceTimeDB transaction semantics. */
@@ -197,6 +215,7 @@ export function planContentPublication(
   current: readonly StoredContentDefinition[],
   nextRevision: bigint,
   input: ContentChangeSetInput,
+  options: ContentPublicationOptions = {},
 ): ContentPublicationPlan {
   const normalized = normalizedContentRequest(input);
   const working = new Map(current.map((row) => [row.id, row]));
@@ -211,13 +230,22 @@ export function planContentPublication(
   }
   for (const id of normalized.changeSet.deletes) working.delete(id);
 
-  const built = buildContentRegistry([...working.values()]);
+  const changedIds = new Set(normalized.changeSet.upserts.map(({ id }) => id));
+  // Authoring rules bind only the definitions this publication actually
+  // changes. Rows already in the head, a re-upsert identical to its head row,
+  // and every row of a restore keep validating as before (warnings only).
+  const authoredIds = new Set(options.restore === true ? [] : normalized.changeSet.upserts.filter(({ id, kind, json }) => {
+    const old = previous.get(id);
+    if (old === undefined) return true;
+    const next = rowDefinitionHash(kind, json);
+    return next === null || next !== rowDefinitionHash(old.kind, old.json);
+  }).map(({ id }) => id));
+  const built = buildContentRegistry([...working.values()], { authoredIds });
   if (!built.report.valid) fail(`content_validation_failed:${built.report.errors[0]?.code ?? 'unknown'}`);
 
   const canonicalById = new Map<string, SupportedContentDefinition>(
     [...built.registry.definitions.values()].map((definition) => [definition.id, definition] as const),
   );
-  const changedIds = new Set(normalized.changeSet.upserts.map(({ id }) => id));
   const definitions = [...working.values()].map((row): StoredContentDefinition => {
     // Parser upgrades are semantic projections, not an implicit rewrite of
     // every durable definition during an unrelated content publication.

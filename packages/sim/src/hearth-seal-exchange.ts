@@ -1,6 +1,6 @@
 import type { ContentRegistry } from './content/registry.js';
 import type { NpcContentDefinition, NpcDefinitionId } from './content/npc-definition.js';
-import type { ContainerSnapshot } from './item-containers.js';
+import { slotIsTakeOnly, type ContainerSnapshot } from './item-containers.js';
 
 export function hearthRecipeExchangeNpcForRuntimeId(
   registry: ContentRegistry,
@@ -55,7 +55,7 @@ export function planHearthSealExchange(input: {
       if (!stack || stack.itemKind !== offer.paymentItemKind) continue;
       if (index >= container.capacity || !Number.isSafeInteger(stack.quantity) || stack.quantity <= 0
         || stack.quantity > paymentItem.maxStack || (stack.durability ?? 0) !== 0
-        || container.restrictions?.[index]?.readOnly === true) return fail('seal_inventory_invalid');
+        || slotIsTakeOnly(container, index)) return fail('seal_inventory_invalid');
       const count = Math.min(remaining, stack.quantity);
       remaining -= count;
       slots[index] = count === stack.quantity ? null : { ...stack, quantity: stack.quantity - count };

@@ -59,8 +59,8 @@ describe('authored frame definitions', () => {
     const rows = bootstrapContentRows();
     const withDeny = (item: string) => buildContentRegistry(rows.map((row) => {
       if (row.id !== 'frame:chest') return row;
-      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; restriction?: unknown }[] };
-      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.kind === 'slots'
+      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; bind: object; restriction?: unknown }[] };
+      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => 'entitySlots' in pane.bind
         ? { ...pane, restriction: { rejectedItems: [item] } } : pane) }) };
     }));
     expect(withDeny('item:coal').report.errors).toEqual([]);
@@ -81,8 +81,8 @@ describe('authored frame definitions', () => {
     const rows = bootstrapContentRows();
     const withRestriction = (restriction: Record<string, unknown>) => buildContentRegistry(rows.map((row) => {
       if (row.id !== 'frame:chest') return row;
-      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; restriction?: unknown }[] };
-      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.kind === 'slots'
+      const chest = JSON.parse(String(row.json)) as { panes: { kind: string; bind: object; restriction?: unknown }[] };
+      return { ...row, json: JSON.stringify({ ...chest, panes: chest.panes.map((pane) => 'entitySlots' in pane.bind
         ? { ...pane, restriction } : pane) }) };
     })).report;
     const known = withRestriction({ requiredTags: ['item.tool'], rejectedTags: ['tool.farming.cultivate'] });
@@ -98,6 +98,61 @@ describe('authored frame definitions', () => {
         path: expect.stringMatching(new RegExp(`restriction\\.${field}\\[1\\]$`, 'u')),
       }));
     }
+  });
+
+  describe('restrictions on panes the server does not enforce (BUG-047)', () => {
+    type Pane = { id: string; kind: string; bind: Record<string, unknown>; restriction?: unknown };
+    /** Adds `restriction` to one pane of one bootstrap frame. */
+    const withPaneRestriction = (frameId: string, paneId: string, restriction: Record<string, unknown>) => (
+      bootstrapContentRows().map((row) => {
+        if (row.id !== frameId) return row;
+        const frame = JSON.parse(String(row.json)) as { panes: Pane[] };
+        expect(frame.panes.some(({ id }) => id === paneId)).toBe(true);
+        return { ...row, json: JSON.stringify({ ...frame, panes: frame.panes.map((pane) => pane.id === paneId
+          ? { ...pane, restriction } : pane) }) };
+      }));
+    const selfPaneCases = [
+      ['frame:chest', 'backpack', { rejectedItems: ['item:apple'] }],
+      ['frame:crafting', 'crafting', { requiredTags: ['item.tool'] }],
+      ['frame:pack', 'equipment', { readOnly: true }],
+      ['frame:shop', 'backpack', { acceptedItems: ['item:apple'] }],
+    ] as const;
+
+    it.each(selfPaneCases)('refuses a new restriction on %s\'s self-bound %s pane', (frameId, paneId, restriction) => {
+      const rows = withPaneRestriction(frameId, paneId, restriction);
+      const paneIndex = (JSON.parse(String(rows.find(({ id }) => id === frameId)!.json)) as { panes: Pane[] }).panes
+        .findIndex(({ id }) => id === paneId);
+      const expected = { code: 'invalid_frame', definitionId: frameId, path: `panes[${paneIndex}].restriction` };
+      // Authored now (the repository, a publication that writes the frame, the frame designer): an error.
+      for (const authoredIds of ['all', new Set([frameId])] as const) {
+        const { report } = buildContentRegistry(rows, { authoredIds });
+        expect(report.valid).toBe(false);
+        expect(report.errors).toEqual([expect.objectContaining({ ...expected, severity: 'error' })]);
+      }
+      // Already in a head (loading live content, or a publication that doesn't touch this frame): only a warning.
+      for (const options of [{}, { authoredIds: new Set(['frame:barrel']) }]) {
+        const { report } = buildContentRegistry(rows, options);
+        expect(report.valid).toBe(true);
+        expect(report.errors).toEqual([]);
+        expect(report.warnings).toContainEqual(expect.objectContaining({ ...expected, severity: 'warning' }));
+      }
+    });
+
+    it('still accepts restrictions on panes bound to entity slots, which the server enforces', () => {
+      const rows = withPaneRestriction('frame:chest', 'contents', { rejectedItems: ['item:apple'] });
+      const { report } = buildContentRegistry(rows, { authoredIds: 'all' });
+      expect(report.errors).toEqual([]);
+      expect(report.warnings.filter(({ definitionId }) => definitionId === 'frame:chest')).toEqual([]);
+    });
+
+    it('finds nothing to flag in the shipped content or the original production pack', () => {
+      const shipped = buildContentRegistry(bootstrapContentRows(), { authoredIds: 'all' }).report;
+      expect(shipped.errors).toEqual([]);
+      expect(shipped.warnings.filter(({ code }) => code === 'invalid_frame')).toEqual([]);
+      // Even judged as newly authored, production's first pack has no restriction on a self-bound pane.
+      const production = buildContentRegistry(stageAContentRows, { authoredIds: 'all' }).report;
+      expect(production.errors.filter(({ code }) => code === 'invalid_frame')).toEqual([]);
+    });
   });
 
   it('owns client surface/custody presentation without deriving it from the frame id', () => {
