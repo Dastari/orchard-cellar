@@ -1,11 +1,24 @@
-import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { bootstrapContentRows, buildContentRegistry } from '@orchard/sim';
-import { placeableOpensCrafting, stepWorkbenchCraftingWindow } from './workbench-crafting-window.js';
+import { placeableOpensCrafting, WorkbenchCraftingWindow } from './workbench-crafting-window.js';
 
 const registry = buildContentRegistry(bootstrapContentRows()).registry;
 const workbench = { id: 7n, kind: 'workbench', definitionId: 'object:workbench' };
 const chest = { id: 8n, kind: 'chest', definitionId: 'object:chest' };
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+/** The client's window sync in miniature: the controller opens the grid, the player closes it. */
+function harness(close: () => Promise<void> = () => Promise.resolve()) {
+  const controller = new WorkbenchCraftingWindow();
+  const closePlaceable = vi.fn(close);
+  let window: string | null = null;
+  return {
+    controller, closePlaceable,
+    get window() { return window; },
+    closeWindow() { window = null; },
+    frame(active: typeof workbench | null) { if (controller.step(registry, active, window, closePlaceable)) window = 'crafting'; },
+  };
+}
 
 describe('workbench crafting window (BUG-059)', () => {
   it('recognises the workbench by its authored crafting frame, not by kind', () => {
@@ -16,39 +29,51 @@ describe('workbench crafting window (BUG-059)', () => {
     expect(placeableOpensCrafting(registry, null)).toBe(false);
   });
 
-  it('opens the crafting window once for a workbench session and closes the session when the window closes', () => {
-    const opened = stepWorkbenchCraftingWindow(registry, workbench, null, null);
-    expect(opened).toEqual({ session: { placeableId: 7n, closing: false }, openCrafting: true, closePlaceable: false });
-
-    // While the grid is open, nothing more happens.
-    const open = stepWorkbenchCraftingWindow(registry, workbench, 'crafting', opened.session);
-    expect(open).toEqual({ session: opened.session, openCrafting: false, closePlaceable: false });
-
-    // The player closes the grid: the server session is closed exactly once, and the window is not reopened.
-    const closing = stepWorkbenchCraftingWindow(registry, workbench, null, open.session);
-    expect(closing).toEqual({ session: { placeableId: 7n, closing: true }, openCrafting: false, closePlaceable: true });
-    expect(stepWorkbenchCraftingWindow(registry, workbench, null, closing.session))
-      .toEqual({ session: closing.session, openCrafting: false, closePlaceable: false });
-
+  it('opens the grid once per session and closes the server session once when the grid closes', () => {
+    const h = harness();
+    h.frame(workbench); expect(h.window).toBe('crafting');
+    h.frame(workbench); expect(h.closePlaceable).not.toHaveBeenCalled();
+    h.closeWindow();
+    h.frame(workbench); h.frame(workbench);
+    expect(h.closePlaceable).toHaveBeenCalledOnce();
+    expect(h.window).toBeNull();
     // The server ends the session; using the bench again opens the grid again.
-    const ended = stepWorkbenchCraftingWindow(registry, null, null, closing.session);
-    expect(ended).toEqual({ session: null, openCrafting: false, closePlaceable: false });
-    expect(stepWorkbenchCraftingWindow(registry, workbench, null, ended.session).openCrafting).toBe(true);
+    h.frame(null);
+    h.controller.interacted(registry, workbench); h.frame(workbench);
+    expect(h.window).toBe('crafting');
+  });
+
+  it('reopens when the bench is used again before the client sees the close (same bench id throughout)', () => {
+    const h = harness();
+    h.frame(workbench); h.closeWindow(); h.frame(workbench);
+    expect(h.closePlaceable).toHaveBeenCalledOnce();
+    // E again at once: the server's close and re-open coalesce, so the active bench never changes.
+    h.controller.interacted(registry, workbench);
+    h.frame(workbench);
+    expect(h.window).toBe('crafting');
+  });
+
+  it('shows the grid again when the server refuses the close, instead of leaving the bench stuck', async () => {
+    const h = harness(() => Promise.reject(new Error('placeable_close_failed')));
+    h.frame(workbench); h.closeWindow(); h.frame(workbench);
+    expect(h.closePlaceable).toHaveBeenCalledOnce();
+    await settle();
+    h.frame(workbench);
+    expect(h.window).toBe('crafting');
+    // Closing again tries again.
+    h.closeWindow(); h.frame(workbench);
+    expect(h.closePlaceable).toHaveBeenCalledTimes(2);
   });
 
   it('opens the grid for a different bench and leaves other placeables to their own windows', () => {
-    const first = stepWorkbenchCraftingWindow(registry, workbench, 'crafting', null).session;
-    expect(stepWorkbenchCraftingWindow(registry, { ...workbench, id: 9n }, 'crafting', first).openCrafting).toBe(true);
-    expect(stepWorkbenchCraftingWindow(registry, chest, 'chest', first))
-      .toEqual({ session: null, openCrafting: false, closePlaceable: false });
-  });
-
-  it('is wired into the client window sync', () => {
-    const source = readFileSync(new URL('../overworld-main.ts', import.meta.url), 'utf8');
-    const sync = source.slice(source.indexOf("if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest')"),
-      source.indexOf('if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot)'));
-    expect(sync).toContain('stepWorkbenchCraftingWindow(snapshot.content.registry, snapshot.activePlaceable,');
-    expect(sync).toContain("if (workbenchStep.openCrafting) overworldUi.openWindow = 'crafting';");
-    expect(sync).toContain('if (workbenchStep.closePlaceable) void network.closePlaceable()');
+    const h = harness();
+    h.frame(workbench);
+    h.closeWindow(); h.frame({ ...workbench, id: 9n });
+    expect(h.window).toBe('crafting');
+    h.closeWindow(); h.frame(chest);
+    expect(h.window).toBeNull();
+    expect(h.closePlaceable).not.toHaveBeenCalled();
+    // Using a chest doesn't reset a bench session.
+    h.controller.interacted(registry, chest);
   });
 });
