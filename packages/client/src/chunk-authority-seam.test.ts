@@ -6,6 +6,7 @@ import type { ChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import * as worldSetting from '../../world/src/chunk-authority-setting.js';
 import { CHUNK_AUTHORITY_QUERY, spaceAdminFlagChunkAuthority } from './chunk-authority-seam.js';
 import { ChunkRuntimeController } from './chunk-runtime-controller.js';
+import { OverworldConnection } from './net/overworld-connection.js';
 
 /** BUG-053: the client's chunkAuthority seam, driven by space_admin_flag row events. */
 type FlagRow = { readonly spaceId: number; readonly flagsJson: string };
@@ -155,6 +156,39 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
       if (flagsJson === undefined) h.rows.delete(0); else h.rows.set(0, { spaceId: 0, flagsJson });
       expect(authority.source(h.connection), String(flagsJson)).toBe(chunkAuthorityModeFromFlagsJson(flagsJson));
     }
+  });
+
+  it('OverworldConnection.updateChunkRuntime wires the seam: its runtime follows a row event (#236 review)', () => {
+    const h = world();
+    const self = { chunkRuntimeMode: 'on', chunkRuntime: undefined as ChunkRuntimeController | undefined,
+      chunkPinFor: () => [0, 0, 128, 128], chunkRuntimeSource: () => ({ mapRevision: 1, mapHash: 'map', contentHash: 'content' }) };
+    const updateChunkRuntime = (OverworldConnection.prototype as unknown as {
+      updateChunkRuntime(this: typeof self, connection: DbConnection, position: { spaceId: number }): void }).updateChunkRuntime;
+    try {
+      updateChunkRuntime.call(self, h.connection, { spaceId: 0 });
+      const runtime = self.chunkRuntime!;
+      expect(runtime).toBeInstanceOf(ChunkRuntimeController);
+      // The connection's runtime subscribed to the flag row and follows it.
+      expect(h.authoritySubscription()?.queries).toEqual([CHUNK_AUTHORITY_QUERY]);
+      expect(runtime.status.mode).toBe('shadow');
+      h.applyAuthority();
+      h.insert({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('on') });
+      expect(runtime.status.mode).toBe('on');
+      h.update({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('off') });
+      expect(runtime.status.mode).toBe('off');
+      // Later updates reuse the same runtime (one seam, one subscription).
+      updateChunkRuntime.call(self, h.connection, { spaceId: 0 });
+      expect(self.chunkRuntime).toBe(runtime);
+      expect(h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(1);
+    } finally {
+      self.chunkRuntime?.dispose();
+    }
+    // An off build returns before creating anything.
+    const off = { ...self, chunkRuntimeMode: 'off', chunkRuntime: undefined };
+    const quiet = world();
+    updateChunkRuntime.call(off, quiet.connection, { spaceId: 0 });
+    expect(off.chunkRuntime).toBeUndefined();
+    expect(quiet.subscriptions).toEqual([]);
   });
 
   it('an off build never creates the runtime, so it never subscribes to the flag row', () => {
