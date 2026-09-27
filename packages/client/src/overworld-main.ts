@@ -109,6 +109,7 @@ import { authoredSpacePortalPrompt } from './content/portal-interaction.js';
 import { readPlayerNameplates, writePlayerNameplates } from './player-ui-preferences.js';
 import { calendarTickForSnapshot, cropCalendarOffsetForSnapshot, snapshotTimingClocks } from './content/timing-clock.js';
 import { activeObjectFrameId, activeObjectFrameState, processJobFrameState, processJobMatchesFrame } from './content/frame-presentation.js';
+import { stepWorkbenchCraftingWindow, type WorkbenchCraftingSession } from './content/workbench-crafting-window.js';
 import {
   DEFAULT_UI_SCALE,
   DEFAULT_WORLD_ZOOM,
@@ -664,6 +665,8 @@ const timingHoverIndex = new TimingHoverIndex();
 const growthTimingHoverIndex = new GrowthTimingHoverIndex();
 let hoveredInteractionTile: { readonly tileX: number; readonly tileY: number } | null = null;
 let animatedOpenChestId: bigint | null = null;
+/** The workbench placeable session the crafting window was opened for (BUG-059). */
+let workbenchCraftingSession: WorkbenchCraftingSession | null = null;
 let chestAnimationStartedAtMs = 0;
 let closingChestId: bigint | null = null;
 let latestCameraX = 0;
@@ -2350,6 +2353,12 @@ function update(): void {
   if (!snapshot.hearthStashOpen && snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace'
     || overworldUi.openWindow === 'cooking' || overworldUi.openWindow === 'press'
     || overworldUi.openWindow === 'fermentation' || overworldUi.openWindow === 'content')) overworldUi.openWindow = null;
+  // A workbench's session opens the crafting grid (its frame is the crafting surface); closing the grid ends it.
+  const workbenchStep = stepWorkbenchCraftingWindow(snapshot.content.registry, snapshot.activePlaceable,
+    overworldUi.openWindow, workbenchCraftingSession);
+  workbenchCraftingSession = workbenchStep.session;
+  if (workbenchStep.openCrafting) overworldUi.openWindow = 'crafting';
+  if (workbenchStep.closePlaceable) void network.closePlaceable().catch(() => undefined);
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
