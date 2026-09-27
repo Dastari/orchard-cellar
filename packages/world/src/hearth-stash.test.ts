@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {describe,it,expect} from 'vitest';
 import * as sim from '@orchard/sim';
+import {hearthStashFrameRestrictions,legacyWorldChestFrameRestrictions} from './content/frame-runtime.js';
 it('keeps cache identity and placement catalogs out of runtime consumers',()=>{
   for(const url of [new URL('../../sim/src/hearth-stash-endpoints.ts',import.meta.url),
     new URL('./index.ts',import.meta.url),new URL('../../client/src/overworld-main.ts',import.meta.url)]){
@@ -14,7 +15,8 @@ const source=ts.createSourceFile('index.ts',readFileSync(new URL('./index.ts',im
 function authority(dependencies:Record<string,unknown>){
   const names=['hearthStashWithinReach','hearthStashSessionAvailable','clearActiveHearthStash','loadHearthStashRows',
     'openHearthStashEndpoint','openHearthStash','openHearthSupplyCache','closeHearthStash','loadOpenMenuInventory','writeOpenMenuInventory','clearActivePlaceable',
-    'ownActiveHearthStash','ownHearthStashSlots'];
+    'ownActiveHearthStash','ownHearthStashSlots','moveOpenMenuItem','distributeOpenMenuItem','quickMoveMenuItem',
+    'quickMoveAllMenuItems','inventoryCursorClick','inventoryCursorQuickCraft','sortMenuContainer','inventoryCursorSwapHotbar'];
   const definitions=names.map(name=>{
     const fn=source.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text===name);
     if(fn)return fn.getText(source);
@@ -33,7 +35,8 @@ function authority(dependencies:Record<string,unknown>){
 function identity(value:string){return {toHexString:()=>value,isEqual:(other:{toHexString:()=>string})=>other.toHexString()===value};}
 type Identity=ReturnType<typeof identity>;
 type Slot={id:string;identity:Identity;slot:number;itemKind:string;quantity:number;durability:number;lit:boolean};
-function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
+type ChestSlot={id:bigint;chestId:bigint;slot:number;itemKind:string;quantity:number;durability:number;lit:boolean};
+function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry(),options:{legacyChest?:boolean}={}){
   const alice=identity('alice'),bob=identity('bob'),connection=identity('a1');
   const supplyCache=sim.runtimeHearthSupplyCache(registry);
   if(supplyCache===null)throw new Error('missing fixture supply cache');
@@ -58,12 +61,21 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
   };
   const position={spaceId:sim.HEARTH_LOBBY_SPACE_ID,x:8.5*sim.TILE_SIZE_FIXED,y:13.5*sim.TILE_SIZE_FIXED};
   const empty={identity:{find:()=>null,delete:()=>{}},id:{find:()=>null}};
+  // Optional open legacy `world_chest` (id 7) within reach of the player.
+  const chestSlots=new Map<number,ChestSlot>(Array.from({length:sim.CHEST_STORAGE_CAPACITY},(_,slot)=>[slot,
+    {id:BigInt(100+slot),chestId:7n,slot,itemKind:'empty',quantity:0,durability:0,lit:true}]));
+  const legacyChest={id:7n,spaceId:position.spaceId,tileX:8,tileY:13};
+  const chestTables=options.legacyChest!==true?{active_chest:empty,world_chest:empty}:{
+    active_chest:{identity:{find:(id:Identity)=>id.isEqual(alice)?{identity:alice,chestId:7n}:null,delete:()=>{}}},
+    world_chest:{id:{find:(id:bigint)=>id===7n?legacyChest:null}},
+  };
   const ctx={sender:alice,connectionId:connection,senderAuth:{jwt:null},db:{
     player_position:{identity:{find:()=>position}},player_stats:{identity:{find:()=>({healthCenti:controls.health})}},
     bow_charge:{identity:{find:()=>controls.bow?{}:null}},player_seat:empty,
     world_clock:{id:{find:()=>({authorityTick:100n})}},
     player_combat_state:{identity:{find:()=>controls.recovery?{kind:'recovery',readyTick:101n}:null}},
-    membership:empty,active_chest:empty,world_chest:empty,active_placeable:empty,active_dialogue:empty,
+    membership:empty,...chestTables,active_placeable:empty,active_dialogue:empty,
+    world_chest_slot:{id:{update:(row:ChestSlot)=>chestSlots.set(row.slot,row)}},
     active_hearth_stash:{identity:{find:(id:Identity)=>sessions.get(id.toHexString())??null,
       delete:(id:Identity)=>sessions.delete(id.toHexString()),update:(row:{identity:Identity;connectionId:Identity})=>sessions.set(row.identity.toHexString(),row)},
       insert:(row:{identity:Identity;connectionId:Identity})=>sessions.set(row.identity.toHexString(),row)},
@@ -71,7 +83,12 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
       insert:(row:Slot)=>{slots.set(row.id,row);return row;},id:{update:(row:Slot)=>slots.set(row.id,row)}},
   }};
   let cursorSettlements=0;
-  const api=authority({...sim,SenderError:Error,contentRegistry:()=>registry,activeSpaceDefinition:()=>({generator:'delve_lobby'}),
+  let cursor:sim.ItemStack|null=null;
+  const api=authority({...sim,SenderError:Error,contentRegistry:()=>registry,
+    hearthStashFrameRestrictions,legacyWorldChestFrameRestrictions,
+    ensureChestStorageRows:()=>[...chestSlots.values()],chestWithinReach:()=>true,requireWorldModificationAuthorized:()=>{},
+    activeItemContainerContent:()=>sim.itemContainerContentResolver(registry),refreshSenderQuestsFromInventory:()=>{},
+    playerInventoryCursor:()=>cursor,writePlayerInventoryCursor:(_ctx:unknown,_id:unknown,next:sim.ItemStack|null)=>{cursor=next;},activeSpaceDefinition:()=>({generator:'delve_lobby'}),
     TOPSIDE_SPACE_ID:0,collisionForSpace:()=>position.spaceId===0?supplyCollision:sim.hearthLobbyCollision(),requireAuthorizedSender:()=>{},
     compiledLiveIslandRuntime:()=>({document:controls.installed?supplyDocument:null}),
     mountedNpcFor:()=>controls.mounted?{}:null,handsOccupiedFor:()=>controls.hands,
@@ -87,8 +104,9 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
       containers={hotbar:after.hotbar!,backpack:after.backpack!};},
     updateEquippedForIdentity:()=>{},
   });
-  return {api,ctx,alice,bob,position,slots,sessions,controls,supplyCache,supplyCollision,lock:()=>{locked=true;},cursorSettlements:()=>cursorSettlements,
-    setInventory:(value:Readonly<Record<string,sim.ContainerSnapshot>>)=>{containers=value;}};
+  return {api,ctx,alice,bob,position,slots,chestSlots,sessions,controls,supplyCache,supplyCollision,lock:()=>{locked=true;},cursorSettlements:()=>cursorSettlements,
+    setInventory:(value:Readonly<Record<string,sim.ContainerSnapshot>>)=>{containers=value;},
+    setCursor:(value:sim.ItemStack|null)=>{cursor=value;},cursor:()=>cursor};
 }
 describe('private lobby stash authority',()=>{
   it('materializes exactly one owner store and never exposes another owner through views or menu IDs',()=>{
@@ -195,4 +213,185 @@ it('refuses supply access during action/custody conflicts or failed cursor settl
   }
   const f=fixture();f.position.spaceId=0;f.position.x=650.5*sim.TILE_SIZE_FIXED;f.position.y=204.5*sim.TILE_SIZE_FIXED;
   f.lock();expect(()=>f.api.openHearthSupplyCache(f.ctx)).toThrow('descent_inventory_locked');expect(f.slots.size).toBe(0);
+});
+
+/** Registry whose `frame:hearth_stash` contents pane carries an authored rule. */
+function stashRuleRegistry(restriction:Record<string,unknown>):sim.ContentRegistry{
+  const rows=sim.bootstrapContentRows().map(row=>{
+    if(row.id!=='frame:hearth_stash')return row;
+    const frame=JSON.parse(String(row.json)) as {panes:{id:string;restriction?:Record<string,unknown>}[]};
+    return {...row,json:JSON.stringify({...frame,panes:frame.panes.map(pane=>pane.id==='contents'
+      ?{...pane,restriction:{...pane.restriction,...restriction}}:pane)})};
+  });
+  const built=sim.buildContentRegistry(rows);
+  expect(built.report.errors).toEqual([]);
+  return built.registry;
+}
+describe('BUG-046: the authority applies hearth stash frame slot rules',()=>{
+  const apple={itemKind:'apple',quantity:5,durability:0,lit:true};
+  const wood={itemKind:'wood',quantity:5,durability:0,lit:true};
+  function opened(registry:sim.ContentRegistry){
+    const f=fixture(registry);f.api.openHearthStash(f.ctx);
+    const initial=f.api.loadOpenMenuInventory(f.ctx).containers;
+    f.setInventory({hotbar:{...initial.hotbar,slots:[apple,wood,...Array(8).fill(null)]},backpack:initial.backpack});
+    return f;
+  }
+  const stored=(f:ReturnType<typeof fixture>)=>[...f.slots.values()].map(row=>[row.slot,row.itemKind,row.quantity]);
+  it('leaves shipped stash content unrestricted, so live behaviour is unchanged',()=>{
+    const f=opened(sim.bootstrapContentRegistry());
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash).not.toHaveProperty('restrictions');
+    f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5});
+    expect(f.slots.get('alice:0')).toMatchObject({itemKind:'apple',quantity:5});
+  });
+  it('refuses an authored rejectedItems deposit through every insertion reducer before any write',()=>{
+    const f=opened(stashRuleRegistry({rejectedItems:['item:apple']}));
+    const stash=f.api.loadOpenMenuInventory(f.ctx).containers.stash;
+    expect(Object.keys(stash.restrictions)).toHaveLength(20);
+    expect(stash.restrictions[0]).toEqual({rejectedKinds:['apple']});
+    const before=stored(f);
+    expect(()=>f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5}))
+      .toThrow('slot_rejects_item');
+    expect(()=>f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:2}))
+      .toThrow('slot_rejects_item');
+    expect(()=>f.api.distributeOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,quantity:4,
+      targetContainers:['stash','stash'],targetIndexes:[0,1]})).toThrow();
+    expect(()=>f.api.quickMoveMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainers:['stash']})).toThrow();
+    expect(()=>f.api.quickMoveAllMenuItems(f.ctx,{itemKind:'apple',fromContainers:['hotbar'],toContainers:['stash']})).toThrow();
+    f.setCursor({...apple});
+    expect(()=>f.api.inventoryCursorClick(f.ctx,{container:'stash',index:0,button:'left'})).toThrow('slot_rejects_item');
+    expect(()=>f.api.inventoryCursorClick(f.ctx,{container:'stash',index:0,button:'right'})).toThrow('slot_rejects_item');
+    expect(()=>f.api.inventoryCursorQuickCraft(f.ctx,{targetContainers:['stash','stash'],targetIndexes:[0,1],mode:'even'})).toThrow();
+    expect(f.cursor()).toEqual(apple);f.setCursor(null);
+    expect(stored(f)).toEqual(before);
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[0]).toEqual(apple);
+    // Items the rule does not name still go in.
+    f.api.quickMoveMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:1,toContainers:['stash']});
+    expect(f.slots.get('alice:0')).toMatchObject({itemKind:'wood',quantity:5});
+  });
+  it('keeps stored items that break a new rule, and lets the owner take them out',()=>{
+    const f=opened(stashRuleRegistry({rejectedItems:['item:apple']}));
+    f.slots.set('alice:3',{...f.slots.get('alice:3')!,itemKind:'apple',quantity:7,durability:0,lit:true});
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash.slots[3]).toMatchObject({itemKind:'apple',quantity:7});
+    expect(f.slots.get('alice:3')).toMatchObject({itemKind:'apple',quantity:7});
+    f.api.moveOpenMenuItem(f.ctx,{fromContainer:'stash',fromIndex:3,toContainer:'backpack',toIndex:0,quantity:3});
+    expect(f.slots.get('alice:3')).toMatchObject({itemKind:'apple',quantity:4});
+    f.api.inventoryCursorClick(f.ctx,{container:'stash',index:3,button:'left'});
+    expect(f.cursor()).toMatchObject({itemKind:'apple',quantity:4});
+    expect(f.slots.get('alice:3')).toMatchObject({itemKind:'empty',quantity:0});
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.backpack.slots[0]).toMatchObject({itemKind:'apple',quantity:3});
+  });
+  it('applies authored allow lists and required tags as well as deny lists',()=>{
+    const allow=opened(stashRuleRegistry({acceptedItems:['item:wood']}));
+    expect(()=>allow.api.moveOpenMenuItem(allow.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5}))
+      .toThrow('slot_rejects_item');
+    allow.api.moveOpenMenuItem(allow.ctx,{fromContainer:'hotbar',fromIndex:1,toContainer:'stash',toIndex:0,quantity:5});
+    expect(allow.slots.get('alice:0')).toMatchObject({itemKind:'wood',quantity:5});
+    const tagged=opened(stashRuleRegistry({rejectedTags:['item.food']}));
+    expect(()=>tagged.api.moveOpenMenuItem(tagged.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5}))
+      .toThrow('slot_rejects_item');
+    tagged.api.moveOpenMenuItem(tagged.ctx,{fromContainer:'hotbar',fromIndex:1,toContainer:'stash',toIndex:0,quantity:5});
+    expect(tagged.slots.get('alice:0')).toMatchObject({itemKind:'wood',quantity:5});
+    const required=opened(stashRuleRegistry({requiredTags:['item.food']}));
+    expect(()=>required.api.moveOpenMenuItem(required.ctx,{fromContainer:'hotbar',fromIndex:1,toContainer:'stash',toIndex:0,quantity:5}))
+      .toThrow('slot_rejects_item');
+    required.api.moveOpenMenuItem(required.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5});
+    expect(required.slots.get('alice:0')).toMatchObject({itemKind:'apple',quantity:5});
+  });
+});
+
+describe('BUG-046: stash sort and hotbar swap respect frame slot rules',()=>{
+  const apple={itemKind:'apple',quantity:5,durability:0,lit:true};
+  const wood={itemKind:'wood',quantity:5,durability:0,lit:true};
+  it('refuses to sort a stash holding a rule-breaking item, changing nothing',()=>{
+    const f=fixture(stashRuleRegistry({rejectedItems:['item:apple']}));f.api.openHearthStash(f.ctx);
+    f.slots.set('alice:3',{...f.slots.get('alice:3')!,...apple});
+    f.slots.set('alice:5',{...f.slots.get('alice:5')!,...wood});
+    const before=[...f.slots.values()].map(row=>({...row}));
+    expect(()=>f.api.sortMenuContainer(f.ctx,{container:'stash'})).toThrow('slot_rejects_item');
+    expect([...f.slots.values()]).toEqual(before);
+  });
+  it('refuses a hotbar swap that would put a rejected item into the stash',()=>{
+    const f=fixture(stashRuleRegistry({rejectedItems:['item:apple']}));f.api.openHearthStash(f.ctx);
+    const initial=f.api.loadOpenMenuInventory(f.ctx).containers;
+    f.setInventory({hotbar:{...initial.hotbar,slots:[apple,...Array(9).fill(null)]},backpack:initial.backpack});
+    // Empty stash slot: the hotbar apple would move in.
+    expect(()=>f.api.inventoryCursorSwapHotbar(f.ctx,{container:'stash',index:0,hotbarIndex:0})).toThrow('slot_rejects_item');
+    // Occupied stash slot: the swap would put the hotbar apple in its place.
+    f.slots.set('alice:1',{...f.slots.get('alice:1')!,...wood});
+    const before=[...f.slots.values()].map(row=>({...row}));
+    expect(()=>f.api.inventoryCursorSwapHotbar(f.ctx,{container:'stash',index:1,hotbarIndex:0})).toThrow('slot_rejects_item');
+    expect([...f.slots.values()]).toEqual(before);
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[0]).toEqual(apple);
+    // Taking the stored wood onto an empty hotbar slot is still allowed.
+    f.api.inventoryCursorSwapHotbar(f.ctx,{container:'stash',index:1,hotbarIndex:1});
+    expect(f.slots.get('alice:1')).toMatchObject({itemKind:'empty',quantity:0});
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[1]).toEqual(wood);
+  });
+});
+
+/** Registry whose `frame:chest` contents pane carries an authored rule. */
+function chestRuleRegistry(restriction:Record<string,unknown>):sim.ContentRegistry{
+  const rows=sim.bootstrapContentRows().map(row=>{
+    if(row.id!=='frame:chest')return row;
+    const frame=JSON.parse(String(row.json)) as {panes:{id:string;restriction?:Record<string,unknown>}[]};
+    return {...row,json:JSON.stringify({...frame,panes:frame.panes.map(pane=>pane.id==='contents'
+      ?{...pane,restriction:{...pane.restriction,...restriction}}:pane)})};
+  });
+  const built=sim.buildContentRegistry(rows);
+  expect(built.report.errors).toEqual([]);
+  return built.registry;
+}
+describe('BUG-046: the authority applies generic chest frame slot rules to a legacy world_chest',()=>{
+  const apple={itemKind:'apple',quantity:5,durability:0,lit:true};
+  const wood={itemKind:'wood',quantity:5,durability:0,lit:true};
+  function opened(registry:sim.ContentRegistry){
+    const f=fixture(registry,{legacyChest:true});
+    const initial=f.api.loadOpenMenuInventory(f.ctx).containers;
+    f.setInventory({hotbar:{...initial.hotbar,slots:[apple,wood,...Array(8).fill(null)]},backpack:initial.backpack});
+    return f;
+  }
+  const stored=(f:ReturnType<typeof fixture>)=>[...f.chestSlots.values()].map(row=>({...row}));
+  it('leaves the shipped legacy chest unrestricted, so live behaviour is unchanged',()=>{
+    const f=opened(sim.bootstrapContentRegistry());
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.chest).not.toHaveProperty('restrictions');
+    f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'chest',toIndex:0,quantity:5});
+    expect(f.chestSlots.get(0)).toMatchObject({itemKind:'apple',quantity:5});
+  });
+  it('refuses an authored rejectedItems deposit through every insertion reducer before any write',()=>{
+    const f=opened(chestRuleRegistry({rejectedItems:['item:apple']}));
+    const chest=f.api.loadOpenMenuInventory(f.ctx).containers.chest;
+    expect(Object.keys(chest.restrictions)).toHaveLength(sim.CHEST_STORAGE_CAPACITY);
+    expect(chest.restrictions[0]).toEqual({rejectedKinds:['apple']});
+    const before=stored(f);
+    expect(()=>f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'chest',toIndex:0,quantity:5}))
+      .toThrow('slot_rejects_item');
+    expect(()=>f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'chest',toIndex:0,quantity:2}))
+      .toThrow('slot_rejects_item');
+    expect(()=>f.api.distributeOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,quantity:4,
+      targetContainers:['chest','chest'],targetIndexes:[0,1]})).toThrow();
+    expect(()=>f.api.quickMoveMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainers:['chest']})).toThrow();
+    expect(()=>f.api.quickMoveAllMenuItems(f.ctx,{itemKind:'apple',fromContainers:['hotbar'],toContainers:['chest']})).toThrow();
+    expect(()=>f.api.inventoryCursorSwapHotbar(f.ctx,{container:'chest',index:0,hotbarIndex:0})).toThrow('slot_rejects_item');
+    f.setCursor({...apple});
+    expect(()=>f.api.inventoryCursorClick(f.ctx,{container:'chest',index:0,button:'left'})).toThrow('slot_rejects_item');
+    expect(()=>f.api.inventoryCursorClick(f.ctx,{container:'chest',index:0,button:'right'})).toThrow('slot_rejects_item');
+    expect(()=>f.api.inventoryCursorQuickCraft(f.ctx,{targetContainers:['chest','chest'],targetIndexes:[0,1],mode:'even'})).toThrow();
+    expect(f.cursor()).toEqual(apple);f.setCursor(null);
+    expect(stored(f)).toEqual(before);
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[0]).toEqual(apple);
+    f.api.quickMoveMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:1,toContainers:['chest']});
+    expect(f.chestSlots.get(0)).toMatchObject({itemKind:'wood',quantity:5});
+  });
+  it('keeps stored items that break a new rule, lets them out, and refuses to sort them',()=>{
+    const f=opened(chestRuleRegistry({rejectedItems:['item:apple']}));
+    f.chestSlots.set(3,{...f.chestSlots.get(3)!,itemKind:'apple',quantity:7});
+    const before=stored(f);
+    expect(()=>f.api.sortMenuContainer(f.ctx,{container:'chest'})).toThrow('slot_rejects_item');
+    expect(stored(f)).toEqual(before);
+    f.api.moveOpenMenuItem(f.ctx,{fromContainer:'chest',fromIndex:3,toContainer:'backpack',toIndex:0,quantity:3});
+    expect(f.chestSlots.get(3)).toMatchObject({itemKind:'apple',quantity:4});
+    f.api.inventoryCursorClick(f.ctx,{container:'chest',index:3,button:'left'});
+    expect(f.cursor()).toMatchObject({itemKind:'apple',quantity:4});
+    expect(f.chestSlots.get(3)).toMatchObject({itemKind:'empty',quantity:0});
+  });
 });
