@@ -458,7 +458,9 @@ WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=own
 
 **Candidate and live-row parity.** `--candidate-out DIR` (with `plan` or `publish`, an
 absolute path whose parent exists and which does not) keeps exactly what the run
-materialised, before anything is installed or staged: `DIR/manifest.json` (the exact
+materialised. For `publish` it saves only once the confirmation is accepted, so an exit
+`77` does not use up the directory; either way it saves before anything is installed or
+staged, and a failure report records where: `DIR/manifest.json` (the exact
 `manifestJson`) and `DIR/<contentHash>.bin` per head, `0600` in a new `0700` directory. That
 is the layout the live-row parity gate's `--candidate` reads. After a publish, run the gate
 on that directory with the served atlas index and `--require-published`. The run then also

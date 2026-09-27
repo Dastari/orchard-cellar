@@ -247,6 +247,48 @@ describe('world chunk publish pipeline', () => {
     expect(plain).not.toHaveProperty('candidateOut');
   });
 
+  it('--candidate-out saves after the confirmation and before install and stage; an unconfirmed run keeps the directory (#241 review)', async () => {
+    const h = harness(), root = await temporary(), dir = join(root, 'candidate');
+    const save = (candidate: Candidate) => { h.events.push('save'); return writeCandidateDir(dir, candidate); };
+    // Exit 77 does not use up the directory.
+    await expectPipelineError(runPublishPipeline({ ...h.deps, saveCandidate: save }, { mode: 'publish', database: DATABASE, confirm: 'publish:wrong' }),
+      'world_chunks_confirmation_required', EXIT.confirm);
+    expect(h.events).not.toContain('save');
+    await expect(stat(dir)).rejects.toThrow(/ENOENT/u);
+    // Confirmed: saved once, before the first install and the first stage.
+    const report = await runPublishPipeline({ ...h.deps, saveCandidate: save }, { mode: 'publish', database: DATABASE, confirm: h.confirm() });
+    expect(report.candidateOut).toBe(dir);
+    const first = (name: string) => h.events.indexOf(name);
+    expect(h.events.filter(event => event === 'save')).toHaveLength(1);
+    expect(first('save')).toBeGreaterThanOrEqual(0);
+    expect(first('save')).toBeLessThan(first('install'));
+    expect(first('save')).toBeLessThan(first('stage'));
+    // A plan (dry run) saves too.
+    const planDir = join(root, 'plan');
+    expect(await runPublishPipeline({ ...harness().deps, saveCandidate: candidate => writeCandidateDir(planDir, candidate) }, { mode: 'plan', database: DATABASE }))
+      .toMatchObject({ outcome: 'planned', candidateOut: planDir });
+  });
+
+  it('the failure report records where the candidate was saved', async () => {
+    const h = harness(), dir = join(await temporary(), 'candidate'), trace: PipelineTrace = { step: 'read' };
+    h.store.install = async () => { throw new PipelineError('install_failed'); };
+    const error = await runPublishPipeline({ ...h.deps, saveCandidate: candidate => writeCandidateDir(dir, candidate) },
+      { mode: 'publish', database: DATABASE, confirm: h.confirm() }, trace).then(() => null, (caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PipelineError);
+    const failure = failureReport({ command: 'publish', host: 'h', database: DATABASE, origin: 'o' }, trace, error);
+    expect(failure).toMatchObject({ step: 'install', candidateOut: dir });
+    expect(failureReport({ command: 'publish', host: 'h', database: DATABASE, origin: 'o' }, { step: 'confirm' }, error).candidateOut).toBeNull();
+  });
+
+  it('refuses an existing --candidate-out directory before reading the token or connecting', async () => {
+    const directory = await temporary(), existing = join(directory, 'candidate');
+    await mkdir(existing);
+    const args = ['plan', '--host', 'http://127.0.0.1:1', '--database', 'orchard-chunk-soak-local01', '--origin', 'http://127.0.0.1:5199',
+      '--chunk-dir', join(directory, 'chunks'), '--candidate-out', existing];
+    // The token file does not exist: reaching the token step would fail differently.
+    await expect(main(args, { WORLD_CHUNKS_TOKEN_FILE: join(directory, 'missing-token') })).rejects.toMatchObject({ code: 'candidate_out_exists', exitCode: EXIT.usage });
+  });
+
   it('installs, verifies over the origin, stages, then CAS-publishes the heads, in that order', async () => {
     const h = harness();
     const report = await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: h.confirm() });

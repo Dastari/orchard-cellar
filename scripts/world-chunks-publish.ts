@@ -40,8 +40,8 @@ import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
  * --report FILE writes a 0600 JSON report on success and on failure (step, error code,
  * required confirmation); tokens are redacted from reports and logs.
  *
- * --candidate-out DIR (plan/publish) keeps exactly the materialised candidate, before any
- * install or stage: DIR/manifest.json (the exact manifestJson) and DIR/<contentHash>.bin,
+ * --candidate-out DIR (plan/publish) keeps exactly the materialised candidate (for publish
+ * only once the confirmation is accepted), before any install or stage: DIR/manifest.json (the exact manifestJson) and DIR/<contentHash>.bin,
  * 0600 in a new 0700 DIR, the layout `world:chunks:parity-gate --candidate` reads. The gate
  * then compares precisely what was staged (S5c runbook G8).
  *
@@ -295,6 +295,8 @@ export interface PipelineTrace {
   registryContentHash?: string;
   /** The value WORLD_CHUNKS_PUBLISH_CONFIRM must have, once known. */
   confirmation?: string;
+  /** Where --candidate-out saved the candidate, once saved. */
+  candidateOut?: string;
 }
 export interface PipelineOptions {
   readonly mode: 'plan' | 'publish';
@@ -341,8 +343,17 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   await deps.world.suspend();
   const candidate = await deps.materialize({ mapRow: initial.mapRow, contentRows: initial.contentRows, atlasIndex });
   assertCandidate(candidate, initial, assetRevision, registryContentHash);
-  // Saved before anything is installed or staged, so the gate can compare exactly this candidate (G8).
-  const candidateOut = deps.saveCandidate === undefined ? undefined : await deps.saveCandidate(candidate);
+  // --candidate-out (G8): saved for a plan, and for a publish only once its confirmation is
+  // accepted (an unconfirmed exit 77 must not use up the directory), always before any
+  // install or stage, so the gate compares exactly what is staged.
+  let candidateOut: string | undefined;
+  const saveCandidate = async (): Promise<void> => {
+    if (deps.saveCandidate === undefined) return;
+    candidateOut = await deps.saveCandidate(candidate);
+    trace.candidateOut = candidateOut;
+  };
+  const withCandidate = <T extends object>(report: T): T & { candidateOut?: string } =>
+    candidateOut === undefined ? report : { ...report, candidateOut };
   const spaceId = candidate.manifest.spaceId;
   const confirmation = publishConfirmation(candidate.manifestJson, registryContentHash, options.database);
   trace.manifestHash = manifestHash(candidate.manifestJson);
@@ -358,18 +369,19 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
     manifestHash: manifestHash(candidate.manifestJson), confirmation,
     source: { mapRevision: initial.mapRow.revision, mapHash: initial.mapRow.contentHash, contentHash: candidate.registryContentHash, assetRevision },
     chunks: candidate.blobs.length, bytes: candidate.blobs.reduce((total, blob) => total + blob.bytes.byteLength, 0), before,
-    ...(candidateOut === undefined ? {} : { candidateOut }),
   };
 
   // 2 (dry run). Report only: read-only store inspection, no writes, no reducers.
   if (options.mode === 'plan') {
     const counts = { installed: 0, present: 0, incomplete: 0, missing: 0 };
     for (const blob of candidate.blobs) counts[await deps.store.status(spaceId, blob.contentHash)] += 1;
+    await saveCandidate();
     trace.step = 'done';
-    return { ...base, outcome: 'planned', install: counts, verify: null, stage: { staged: 0, skipped: true }, publish: null };
+    return withCandidate({ ...base, outcome: 'planned', install: counts, verify: null, stage: { staged: 0, skipped: true }, publish: null });
   }
   trace.step = 'confirm';
   if (options.confirm !== confirmation) throw new PipelineError('world_chunks_confirmation_required', EXIT.confirm, `set WORLD_CHUNKS_PUBLISH_CONFIRM=${confirmation}`);
+  await saveCandidate();
   await deps.world.resume();
   if (sourceKey(deps.world.read()) !== sourceKey(initial)) throw new PipelineError('source_changed', EXIT.retry, 'the live map or content changed while materialising; run again');
 
@@ -403,7 +415,7 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   if (sourceKey(current) !== sourceKey(initial)) throw new PipelineError('source_changed', EXIT.retry, 'the live map or content changed while publishing; run again');
   if (isPublished(current, candidate)) {
     trace.step = 'done';
-    return { ...base, outcome: 'unchanged', install, verify, stage: { staged, skipped: alreadyPublished }, publish: null };
+    return withCandidate({ ...base, outcome: 'unchanged', install, verify, stage: { staged, skipped: alreadyPublished }, publish: null });
   }
   const expectedRevision = current.shadow?.revision ?? 0;
   let recovered = false;
@@ -422,7 +434,7 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   if (!isPublished(after, candidate)) throw new PipelineError('publish_not_observed', EXIT.failed, `expected revision ${expectedRevision + 1}`);
   log(`published heads at shadow revision ${after.shadow!.revision}`);
   trace.step = 'done';
-  return { ...base, outcome: 'published', install, verify, stage: { staged, skipped: false }, publish: { expectedRevision, revision: after.shadow!.revision, recovered } };
+  return withCandidate({ ...base, outcome: 'published', install, verify, stage: { staged, skipped: false }, publish: { expectedRevision, revision: after.shadow!.revision, recovered } });
 }
 
 export interface CheckReport {
@@ -475,6 +487,8 @@ export interface FailureReport {
   readonly manifestHash: string | null;
   readonly registryContentHash: string | null;
   readonly confirmation: string | null;
+  /** --candidate-out: where the candidate was saved before the failure (null if it was not). */
+  readonly candidateOut: string | null;
 }
 
 /** The evidence written when a run fails (including the expected exit 77). Never contains the token. */
@@ -485,6 +499,7 @@ export function failureReport(options: Pick<CliOptions, 'command' | 'host' | 'da
     step: trace.step,
     error: { code, exitCode: error instanceof PipelineError ? error.exitCode : EXIT.unexpected, message: redact(errorText(error), token) },
     manifestHash: trace.manifestHash ?? null, registryContentHash: trace.registryContentHash ?? null, confirmation: trace.confirmation ?? null,
+    candidateOut: trace.candidateOut ?? null,
   };
 }
 
