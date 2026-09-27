@@ -4,8 +4,9 @@ import type { UiPoint, UiRect } from '../geometry.js';
 import { containsPoint } from '../geometry.js';
 import { UiRoot } from '../kit/runtime/root.js';
 import { CanvasTextEditor } from '../kit/runtime/text-editor.js';
-import { UiElement, type UiElementKey, type UiElementPointer } from '../kit/runtime/element.js';
-import { UiInventoryController, type UiInventoryModel, type UiInventorySlotRef } from '../kit/runtime/inventory.js';
+import { UiElement, type UiElementKey } from '../kit/runtime/element.js';
+import type { UiInventorySlotRef } from '../kit/runtime/inventory.js';
+import { UiSlotController, type UiSlotGestures } from '../kit/components/slot-controller.js';
 import { uiContentFrame, type UiContentFrameElement } from '../kit/components/content-frame.js';
 import { uiViewport } from '../kit/components/viewport.js';
 import { uiCraftingFrame, type UiCraftingFrameElement, type UiCraftingSnapshot } from '../kit/components/crafting-frame.js';
@@ -28,13 +29,17 @@ export interface InventoryMenuSnapshot {
   readonly artwork: NonNullable<UiSlotOptions['artwork']>;
   /** Paints the wearer into the paper-doll well. */
   readonly portrait?: (context: CanvasRenderingContext2D, bounds: UiRect) => void;
+  /** The selected hotbar slot, shown on the window's footer hotbar. */
+  readonly selectedHotbar?: number;
 }
 
-/** Presentation/gesture boundary. Every mutation remains in OverworldUi. */
-export interface InventoryMenuAuthority extends Omit<UiInventoryModel, 'pointerDown' | 'pointerUp' | 'pointerEnter'> {
-  begin(ref: UiInventorySlotRef, point: UiPoint, button: number): void;
-  finish(point: UiPoint, shift: boolean, inside: boolean): void;
-  background(event: UiElementPointer, inside: boolean): void;
+/** Presentation boundary. Every mutation remains in OverworldUi: slot gestures run in the kit's shared
+ * `UiSlotGestures`, whose source and authority the host implements. */
+export interface InventoryMenuAuthority {
+  /** The host's slot gesture state machine, shared with its own hit-tested input. */
+  readonly gestures: UiSlotGestures;
+  /** The held stack as drawn: the original stack while a spread is previewed. */
+  displayedCursor(): ItemStack | null;
   hover(point: UiPoint): void;
   key(event: UiElementKey): boolean;
   close(): void;
@@ -53,7 +58,7 @@ export interface InventoryMenuAuthority extends Omit<UiInventoryModel, 'pointerD
 /** One stable unbound root; neither this adapter nor its controller owns stacks. */
 export class InventoryMenus {
   readonly root: UiRoot;
-  readonly controller: UiInventoryController;
+  readonly controller: UiSlotController;
   private frame: UiContentFrameElement | UiCraftingFrameElement | null = null;
   private snapshot: InventoryMenuSnapshot | null = null;
   private definition: FrameContentDefinition | null = null;
@@ -61,20 +66,11 @@ export class InventoryMenus {
 
   constructor(art: UiKitArt, private readonly authority: InventoryMenuAuthority) {
     this.root = new UiRoot({ art, scale: 1, label: 'Inventory menu' });
-    const model: UiInventoryModel = {
-      get cursor() { return authority.cursor; }, get status() { return authority.status; },
-      get dragging() { return authority.dragging; },
-      stack: (ref, preview) => authority.stack(ref, preview),
-      displayedCursor: () => authority.displayedCursor(), canAccept: (ref, item) => authority.canAccept(ref, item),
-      pointerDown: (ref, button) => { authority.begin(ref, this.controller.point, button); return { ok: true, status: '' }; },
-      pointerEnter: () => false, pointerMove: (point, ref) => authority.pointerMove?.(point, ref),
-      pointerUp: (_ref, options) => {
-        authority.finish(this.controller.point, options?.shift === true, this.contains(this.controller.point));
-        return { ok: true, status: '' };
-      }, cancel: () => authority.cancel(),
-    };
-    this.controller = new UiInventoryController(model);
+    this.controller = new UiSlotController(authority.gestures, {
+      displayedCursor: () => authority.displayedCursor(), contains: point => this.contains(point),
+    });
   }
+  private get cursor(): ItemStack | null { return this.authority.gestures.source.cursor(); }
 
   get active(): boolean { return this.snapshot !== null && this.frame !== null && !this.root.disposed; }
   contains(point: UiPoint): boolean { return this.frame !== null && containsPoint(this.frame.rect, point); }
@@ -91,7 +87,7 @@ export class InventoryMenus {
   itemAt(point: UiPoint): ItemStack | null {
     const slot = this.slotAt(point);
     if (slot) {
-      const actual = this.authority.stack(slot.ref);
+      const actual = this.authority.gestures.source.stack(slot.ref);
       const ghost = slot.ref.container === 'crafting' ? this.snapshot?.crafting?.pattern[slot.ref.index] : null;
       return actual ?? (ghost ? { itemKind: ghost, quantity: 1 } : null);
     }
@@ -138,7 +134,7 @@ export class InventoryMenus {
     this.definition = snapshot.definition;
     const chest = snapshot.aliases.entity === 'chest';
     const controls = (container: string, showFilter: boolean): UiInventoryControls => ({
-      filterModel: this.filter, showFilter, sortEnabled: () => this.authority.cursor === null,
+      filterModel: this.filter, showFilter, sortEnabled: () => this.cursor === null,
       onFilter: value => this.authority.filter(value), onSort: () => this.authority.sort(container),
       itemLabel: item => this.authority.label(item),
       capacity: () => container === 'backpack' ? this.snapshot?.backpackCapacity ?? 0 : Infinity,
@@ -152,10 +148,11 @@ export class InventoryMenus {
       inventoryControls: { backpack: controls('backpack', !chest),
         ...(chest ? { chest: controls('chest', true) } : {}),
         ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),
-          showFilter: false, sortEnabled: () => this.authority.cursor === null } } : {}),
+          showFilter: false, sortEnabled: () => this.cursor === null } } : {}),
       },
       onInvoke: (id: string) => this.authority.invoke(id), onClose: () => this.authority.close(),
       portrait: uiViewport({ label: 'Character preview', render: (context, bounds) => this.snapshot?.portrait?.(context, bounds) }),
+      hotbarSelected: () => this.snapshot?.selectedHotbar ?? -1,
     };
     this.frame = snapshot.crafting ? uiCraftingFrame({ ...options, crafting: snapshot.crafting,
       recipeFilter: snapshot.recipeFilter, onRecipe: id => this.authority.recipe(id),
@@ -165,7 +162,7 @@ export class InventoryMenus {
       props: { touchScroll: true, singlePointer: true }, style: { display: 'flex', justify: 'center', align: 'center', width: 'grow', height: 'grow', zLayer: 'modal' },
       pointerMode: 'capture', children: [this.frame],
       onPointerObserved: event => this.authority.hover(event.point),
-      onPointer: event => this.controller.background(event, () => this.authority.background(event, this.contains(event.point))),
+      onPointer: event => this.controller.backgroundPointer(event, this.contains(event.point)),
       onKeyCapture: event => {
         const focused = this.root.focus.current;
         const editor = focused?.props['editor'];

@@ -2,8 +2,8 @@ import { uiTiming, timingLabels } from './timing.js';
 import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
 import type { ContentRegistry, TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
-import { EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
-import { resolveFramePaneSlots, type FrameContainerAliases, type ResolvedFrameSlotBinding } from '../../content-frame.js';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { frameSlotAuthorityRestriction, resolveFramePaneSlots, type FrameContainerAliases, type ResolvedFrameSlotBinding } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
 import type { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -12,7 +12,7 @@ import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton } from './button.js';
 import { uiMeter } from './meter.js';
-import { uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
+import { uiHotbar, uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
 import { uiSlotRulesFromRestriction } from './slot-rules.js';
 import { uiInventoryPanel, type UiInventoryControls } from './inventory-panel.js';
 import type { UiTone } from '../tokens.js';
@@ -29,6 +29,8 @@ export interface UiContentFrameOptions {
   readonly layout?: UiStyle;
   /** Wearer preview for paper-doll panes. */
   readonly portrait?: UiElement;
+  /** The selected hotbar slot, painted on the window's footer hotbar like the HUD's (-1 or omitted: none). */
+  readonly hotbarSelected?: () => number;
 }
 export interface UiContentFrameElement extends UiElement {
   /** Refresh authored state without replacing inventory controls or their editors. */
@@ -50,9 +52,7 @@ export const UI_STATION_PLACEHOLDERS: Readonly<Record<string, Readonly<Record<st
  * frame restriction (the server's `frameRestrictions`, so a take-only output is `readOnly`), the equipment paper
  * doll carries the equipment slot rules, and other self panes carry none (the server ignores their restrictions). */
 function framePaneSlotRules(pane: FrameContentDefinition['panes'][number], binding: ResolvedFrameSlotBinding): UiInventoryCell['rules'] {
-  if ('entitySlots' in pane.bind) return uiSlotRulesFromRestriction(binding.restriction);
-  if ('self' in pane.bind && pane.bind.self === 'equipment') return uiSlotRulesFromRestriction(EQUIPMENT_SLOT_RESTRICTIONS[binding.index]);
-  return undefined;
+  return uiSlotRulesFromRestriction(frameSlotAuthorityRestriction(pane, binding));
 }
 /** A frame pane's slot cells, with the rules and placeholders the slots paint and check (S1). */
 export function uiFramePaneCells(definition: Pick<FrameContentDefinition, 'id'>, pane: FrameContentDefinition['panes'][number], bindings: readonly ResolvedFrameSlotBinding[]): UiInventoryCell[] {
@@ -210,7 +210,12 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   }
   if (backpackPane) { const node = panel(backpackPane, 'BACKPACK'); if (node) children.push(node); }
   // The hotbar keeps one row of ten where it fits and breaks into rows of five on narrow screens.
-  const hotbar = definition.hotbar && options.aliases.hotbar ? uiInventoryGrid({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, hotkeys: true, layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
+  // It is the game's hotbar, selection included (green corners on the selected slot); digit keys stay with the host.
+  const hotbar = definition.hotbar && options.aliases.hotbar ? uiHotbar({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false,
+    selected: options.hotbarSelected ?? (() => -1), layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
+  // uiHotbar applies a controlled selection when it measures, so a changed selection re-measures it on the host's update.
+  const hotbarSelected = options.hotbarSelected;
+  if (hotbar && hotbarSelected) refresh.push(() => { if (hotbar.props['selected'] !== hotbarSelected()) hotbar.invalidate(); });
   const storage = options.aliases.entity === 'chest';
   const frame = uiWindow({ id: definition.id, title: definition.title, frame: storage ? 'crate' : 'wood', onClose: options.onClose,
     // Sections sit side by side, tops aligned so their headings line up (owner item 8),
