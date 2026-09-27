@@ -1,5 +1,5 @@
 import { createCanvas } from '@napi-rs/canvas';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ItemStack, SlotRestriction } from '@orchard/sim';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
@@ -10,6 +10,8 @@ import { UiElement } from '../runtime/element.js';
 import { uiFixed } from '../layout/box.js';
 import type { LoadedAsset } from '../../assets.js';
 import { drawOutlinedPixelText } from '../../pixel-ui.js';
+import { drawUiSkinAsset } from '../../skin.js';
+import { uiDurabilityFraction } from '../../item-durability.js';
 import { selectAtlasFrame } from '../../sprite.js';
 import { uiInventorySlotTone } from '../../design-system/inventory.js';
 import { paintUiSkin, type UiKitArt } from './art.js';
@@ -125,6 +127,12 @@ describe('approved slot states', () => {
   };
   const grey = (context: CanvasRenderingContext2D, kit: UiKitArt) => paintUiSkin(context, kit.skin.slot, 'slot.disabled.0', r);
   const count = (context: CanvasRenderingContext2D, kit: UiKitArt, text: string) => drawOutlinedPixelText(context, kit.pixel, text, 23, 16, { align: 'right', ...UI_SLOT_INKS });
+  // The wear bar at 50%, dimmed with the item on a disabled or locked slot (#219 review: never hidden).
+  const halfWear = (context: CanvasRenderingContext2D, kit: UiKitArt, fraction: number) => {
+    context.save(); context.globalAlpha *= .5; context.fillStyle = '#3f2832'; context.fillRect(5, 23, 18, 3);
+    const width = Math.round(18 * fraction), fill = kit.skin.feedback[fraction > .5 ? 'bar_fill_green.base.0' : fraction > .2 ? 'bar_fill_gold.base.0' : 'bar_fill_red.base.0']!;
+    if (width > 0) drawUiSkinAsset(context, fill.asset, { x: 5, y: 23, width, height: 3 }); context.restore();
+  };
 
   it('paints disabled as the pack\'s grey face with the item at 50% and its count (01 B)', async () => {
     const empty = await oracle(grey);
@@ -135,15 +143,17 @@ describe('approved slot states', () => {
     expect(await slotPixels({ artwork: art, stack: { itemKind: 'iron_ore', quantity: 5 }, disabled: true })).toEqual(withItem);
     const external = uiSlot({ artwork: art, stack: { itemKind: 'iron_ore', quantity: 5 } }); external.setDisabled(true);
     expect(await paintRoot(external)).toEqual(withItem);
-    // The item's quality face gives way to the grey face, and a disabled tool shows no wear bar.
+    // The grey face replaces the item's quality face, and a disabled tool's wear bar dims to 50% with it.
+    const worn = uiDurabilityFraction('pickaxe', 10)!;
+    expect(worn).toBeGreaterThan(0); expect(worn).toBeLessThan(.2);
     expect(await slotPixels({ artwork: art, stack: { itemKind: 'pickaxe', quantity: 1, durability: 10 }, state: { enabled: false } }))
-      .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); }));
+      .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); halfWear(context, kit, worn); }));
   });
 
   it('paints locked as the grey face plus the red blocked mark, in the corner over an item (01 C)', async () => {
     expect(await slotPixels({ state: { locked: { reason: 'Needs Smithing 3' } } })).toEqual(await oracle((context, kit) => { grey(context, kit); blocked(context, kit, 6, 7, 16); }));
     expect(await slotPixels({ artwork: art, stack: { itemKind: 'pickaxe', quantity: 1 }, state: { locked: { reason: 'Needs Mining 2' } } }))
-      .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); blocked(context, kit, 1, 1, 12); }));
+      .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); halfWear(context, kit, uiDurabilityFraction('pickaxe', undefined)!); blocked(context, kit, 1, 1, 12); }));
     // A locked slot hides any placeholder under its mark.
     expect(await slotPixels({ placeholder: 'main_hand', state: { locked: { reason: 'Needs a level' } } })).toEqual(await slotPixels({ state: { locked: { reason: 'Needs a level' } } }));
     // Under the pointer it shows the red corners. The kit never hovers a disabled slot today, so the paint is forced.
@@ -182,6 +192,19 @@ describe('approved slot states', () => {
     expect(await slotPixels({ artwork: art, stack: tea, cooldown: () => ({ fraction: 4 }) })).toEqual(await shade(1));
     // An empty slot has no icon to shade.
     expect(await slotPixels({ cooldown: () => ({ fraction: .5 }) })).toEqual(await slotPixels({}));
+  });
+
+  it('keeps the 60% dimming, not the grey face, for a busy slot that asks for it', async () => {
+    const stack: ItemStack = { itemKind: 'iron_ore', quantity: 5 };
+    const busy = uiSlot({ artwork: art, stack, disabledLook: 'dim' }); busy.setDisabled(true);
+    const enabled = uiSlot({ artwork: art, stack });
+    const dimmed = new UiElement({ kind: 'dimmed', style: { width: uiFixed(28), height: uiFixed(31) }, paint(element, paint) {
+      paint.context.save(); paint.context.globalAlpha *= .6; enabled.hooks.paint!(element, paint); paint.context.restore(); } });
+    expect(await paintRoot(busy)).toEqual(await paintRoot(dimmed));
+    expect(busy.disabled).toBe(true);
+    // The approved states still paint grey whatever the busy look.
+    expect(await slotPixels({ artwork: art, stack, disabledLook: 'dim', state: { enabled: false } })).toEqual(await slotPixels({ artwork: art, stack, state: { enabled: false } }));
+    expect(await slotPixels({ artwork: art, stack, disabledLook: 'dim', state: { locked: { reason: 'Locked' } } })).toEqual(await slotPixels({ artwork: art, stack, state: { locked: { reason: 'Locked' } } }));
   });
 
   it('scales the grey face, blocked mark and silhouette with larger slots', async () => {
@@ -244,6 +267,23 @@ describe('slot state model', () => {
     expect(second).toMatchObject({ enabled: false, locked: { reason: 'Locked' } });
     expect(grid.children[1]?.disabled).toBe(true);
     expect(third).toMatchObject({ enabled: true, rules: null });
+  });
+
+  it('checks drop rules only for the slot under the pointer or focus, with one cached policy per registry', async () => {
+    const canAccept = vi.fn(() => true);
+    const controller = new UiInventoryController({ ...model({ itemKind: 'coal', quantity: 1 }), canAccept });
+    const root = new UiRoot({ art: await uiTestArt(), scale: 1 }); root.resize(200, 40);
+    const grid = root.mount(uiInventoryGrid({ container: 'chest', count: 6, controller, art: uiSlotArt({ contentRegistry: () => registry }),
+      cells: Array.from({ length: 6 }, (_, index) => ({ id: String(index), index, rules: { denyItems: ['wood'] } })) }));
+    root.arrange(); const canvas = createCanvas(200, 40), context = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
+    root.draw(context, 0); expect(canAccept).not.toHaveBeenCalled();
+    root.focus.set(grid.children[2]!, 'keyboard'); root.draw(context, 0);
+    expect(canAccept).toHaveBeenCalledTimes(1); expect(canAccept).toHaveBeenCalledWith({ container: 'chest', index: 2 });
+    root.dispose(); controller.dispose();
+    const policy = uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }));
+    expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }))).toBe(policy);
+    const published = { ...registry };
+    expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => published }))).not.toBe(policy);
   });
 
   it('checks rules with the live registry the art carries, and skips them without one', () => {

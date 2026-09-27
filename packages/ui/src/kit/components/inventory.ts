@@ -76,6 +76,11 @@ export interface UiSlotOptions {
   readonly tone?: UiTone; readonly hotkey?: string; readonly placeholder?: UiSlotPlaceholderSource;
   readonly disabled?: boolean; readonly selected?: boolean; readonly layout?: UiStyle; readonly onPress?: (event: UiButtonModifiers) => void;
   readonly allowSecondary?: boolean; readonly activateOn?: 'down' | 'up';
+  /** How a slot disabled by `disabled` or `setDisabled` looks. `grey` (the default) is the approved disabled face.
+   * `dim` keeps the pre-S1 look (the ordinary face at 60%) for transient busy states that have no approved look,
+   * such as the build palette while a placement waits for the server. `state.enabled: false` and `locked` always
+   * paint grey. */
+  readonly disabledLook?: 'grey' | 'dim';
 }
 /** Bare item art at its native size, centred: station emblems, recipe lines, ingredient rows. */
 export function uiItemImage(options: { readonly itemKind: string; readonly artwork?: UiSlotOptions['artwork']; readonly label?: string; readonly size?: number }): UiElement {
@@ -204,8 +209,11 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     paint(element, { context, art, hovered, focused }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
       context.save();
-      // Disabled and locked slots use the pack's grey face (owner decision 2026-09-27, render 01 B and C).
-      const locked = current?.locked !== undefined, disabled = element.disabled || locked;
+      // Disabled and locked slots use the pack's grey face (owner decision 2026-09-27, render 01 B and C). A busy
+      // slot asked to dim keeps the ordinary face at 60% instead: it is non-interactive, not disabled.
+      const locked = current?.locked !== undefined, stateDisabled = locked || current?.enabled === false;
+      const dimmed = element.disabled && !stateDisabled && options.disabledLook === 'dim', disabled = (element.disabled || stateDisabled) && !dimmed;
+      if (dimmed) context.globalAlpha *= .6;
       const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind);
       paintUiSkin(context, art.skin.slot, disabled ? 'slot.disabled.0' : `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
       const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
@@ -231,9 +239,13 @@ export function uiSlot(options: UiSlotOptions): UiElement {
           }
         }
         if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 15 * scale, { align: 'right', ...UI_SLOT_INKS });
-        // A disabled or locked slot shows its item at 50% and its count, but no wear bar (render 01 B and C).
-        const durability = disabled ? null : uiDurabilityFraction(item.itemKind, item.durability, uiSlotArtRegistry(slotArt));
-        if (!ghost && durability !== null) paintUiSlotWear(context, art, r, durability, scale);
+        // A disabled or locked slot shows its item at 50% (render 01 B and C), its count, and its wear bar dimmed with
+        // the item to 50%.
+        const durability = uiDurabilityFraction(item.itemKind, item.durability, uiSlotArtRegistry(slotArt));
+        if (!ghost && durability !== null) {
+          context.save(); if (disabled) context.globalAlpha *= .5;
+          paintUiSlotWear(context, art, r, durability, scale); context.restore();
+        }
       } else if (!locked && typeof options.placeholder === 'string') paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
       else if (!locked && typeof options.placeholder === 'object' && 'item' in options.placeholder) {
         const icon = resolveUiSlotIcon(slotArt, { itemKind: options.placeholder.item });
@@ -249,7 +261,8 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       }
       // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop or a
       // locked slot under the pointer, white hover and keyboard focus.
-      const target = dropTarget(), selected = Boolean(element.props['selected']) || state()?.selected === true;
+      // Only the slot under the pointer or keyboard focus shows drop feedback, so only it checks the rules.
+      const target = hovered || focused ? dropTarget() : null, selected = Boolean(element.props['selected']) || state()?.selected === true;
       if (selected || (hovered && target === 'accept' && !locked)) paintUiSelector(context, art.skin.selector, 'confirm', r);
       else if (hovered && (target === 'refuse' || locked)) paintUiSelector(context, art.skin.selector, 'deny', r);
       else if (hovered || focused) paintUiSelector(context, art.skin.selector, 'neutral', r);

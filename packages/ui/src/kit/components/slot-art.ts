@@ -65,5 +65,9 @@ export function uiSlotArtRegistry(art: UiSlotArt | undefined): ContentRegistry |
  * rules against bootstrap content (wiki Roadmap/Item Slot Component, S1). */
 export function uiSlotArtPolicy(art: UiSlotArt | undefined): ItemPolicyResolver | undefined {
   const registry = uiSlotArtRegistry(art);
-  return registry ? itemPolicyResolver(registry) : undefined;
+  if (!registry) return undefined;
+  // One policy per content registry, shared by every slot, so drop checks allocate nothing per paint.
+  let policy = policies.get(registry); if (!policy) { policy = itemPolicyResolver(registry); policies.set(registry, policy); }
+  return policy;
 }
+const policies = new WeakMap<ContentRegistry, ItemPolicyResolver>();

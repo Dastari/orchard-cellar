@@ -37,7 +37,9 @@ export interface UiContentFrameElement extends UiElement {
 }
 /** Empty station slots show a flat silhouette of an item they take or make (owner decision 2026-09-27, render 03 A),
  * keyed by authored frame id and pane id, one item per slot in pane order (the last repeats). Presentation only:
- * what a slot accepts still comes from its restriction. */
+ * what a slot accepts still comes from its restriction.
+ * STOPGAP (S1, PR #219): placeholders belong in the frame content as an authored pane field, so Studio frames get
+ * them too. That is a follow-up content-schema change (wiki Roadmap/Item Slot Component); this map then goes. */
 export const UI_STATION_PLACEHOLDERS: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   'frame:furnace': { input: ['iron_ore'], fuel: ['wood'], output: ['iron_bar'] },
   'frame:cooking': { input: ['raw_beef'], output: ['cooked_beef'] },

@@ -1,4 +1,4 @@
-import type { ItemPolicyResolver, SlotRestriction } from '@orchard/sim';
+import type { ContainerSnapshot, ItemPolicyResolver, SlotRestriction } from '@orchard/sim';
 import { slotAcceptsItem } from '@orchard/sim/item-containers';
 
 /** What a slot accepts, in the slot's own words. It mirrors the server's `SlotRestriction` field for field and
@@ -44,8 +44,14 @@ export function uiSlotRestrictionFromRules(rules: UiSlotRules): SlotRestriction 
  * the active content's (`itemPolicyResolver(registry)`); unknown or retired items are refused, as on the server.
  * Server-only rules (a backpack still in use, gear rank requirements, untradeable items) are not visible here. */
 export function uiSlotAcceptsItem(rules: UiSlotRules | undefined, itemKind: string, policy: ItemPolicyResolver): boolean {
-  return slotAcceptsItem({
-    id: 'slot', capacity: 1, slots: [null],
-    ...(rules === undefined ? {} : { restrictions: { 0: uiSlotRestrictionFromRules(rules) } }),
-  }, 0, itemKind, policy);
+  return slotAcceptsItem(rulesContainer(rules), 0, itemKind, policy);
+}
+const UNRESTRICTED: ContainerSnapshot = Object.freeze({ id: 'slot', capacity: 1, slots: Object.freeze([null]) });
+const containers = new WeakMap<UiSlotRules, ContainerSnapshot>();
+/** The one-slot container the sim rule checks, built once per rules object (slots pass the same rules every paint). */
+function rulesContainer(rules: UiSlotRules | undefined): ContainerSnapshot {
+  if (rules === undefined) return UNRESTRICTED;
+  let container = containers.get(rules);
+  if (!container) { container = Object.freeze({ ...UNRESTRICTED, restrictions: Object.freeze({ 0: uiSlotRestrictionFromRules(rules) }) }); containers.set(rules, container); }
+  return container;
 }
