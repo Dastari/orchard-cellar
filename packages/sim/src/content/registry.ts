@@ -45,6 +45,7 @@ import {
 import {
   validateContentDefinitions,
   type ContentValidationIssue,
+  type ContentValidationOptions,
   type ContentValidationReport,
 } from './validate.js';
 
@@ -122,8 +123,9 @@ function invalidBuildReport(
   parsed: readonly SupportedContentDefinition[],
   parsingErrors: readonly ContentValidationIssue[],
   allowLegacyStageA:boolean,
+  authoredIds: ContentValidationOptions['authoredIds'],
 ): ContentValidationReport {
-  const validation = validateContentDefinitions(parsed,{allowLegacyStageA});
+  const validation = validateContentDefinitions(parsed,{allowLegacyStageA,...(authoredIds===undefined?{}:{authoredIds})});
   const errors = [...parsingErrors, ...validation.errors];
   return Object.freeze({
     valid: errors.length === 0,
@@ -132,7 +134,13 @@ function invalidBuildReport(
   });
 }
 
-export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): BuildContentRegistryResult {
+/** `authoredIds` names the definitions being authored now (see
+ * `ContentValidationOptions.authoredIds`). Loading a live head omits it, so a
+ * newer authoring rule can never make existing content fail to load. */
+export function buildContentRegistry(
+  rows: readonly ContentDefinitionRow[],
+  options: Pick<ContentValidationOptions, 'authoredIds'> = {},
+): BuildContentRegistryResult {
   const allowLegacyStageA=contentDefinitionRowIdentityHash(rows)==='0c7aa788';
   const parsed: SupportedContentDefinition[] = [];
   const parsingErrors: ContentValidationIssue[] = [];
@@ -231,5 +239,5 @@ export function buildContentRegistry(rows: readonly ContentDefinitionRow[]): Bui
     compiled: compiledProjection(items, recipes, processes, shops, crops, creatures, spawns, spaces,
       skillTrees, effects, statistics, upgrades),
   });
-  return Object.freeze({ registry, report: invalidBuildReport(sorted, parsingErrors,allowLegacyStageA) });
+  return Object.freeze({ registry, report: invalidBuildReport(sorted, parsingErrors,allowLegacyStageA,options.authoredIds) });
 }

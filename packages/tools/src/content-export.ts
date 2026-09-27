@@ -73,7 +73,8 @@ export async function exportBootstrapContent(
   outputDirectory = OUTPUT_DIRECTORY,
   check = false,
 ): Promise<readonly BootstrapContentFile[]> {
-  const build = buildContentRegistry(bootstrapContentRows());
+  // The repository is the authoring source, so every authoring rule is an error here.
+  const build = buildContentRegistry(bootstrapContentRows(), { authoredIds: 'all' });
   if (!build.report.valid) {
     const details = build.report.errors.map(({ code, definitionId, message }) => (
       `${code}${definitionId === undefined ? '' : ` (${definitionId})`}: ${message}`
