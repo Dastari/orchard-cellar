@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.48.4 / UI 0.50.0 / Studio 0.16.14 — Item slot S3: held stack and drag feedback in the kit
+
+- **Item slot S3 (#226).** The kit draws the held stack and the drag feedback the owner approved; the host's own painters are deleted:
+  - **Pack cross:** shown over a slot that refuses the held item.
+  - **Dimmed refusers:** slots that can't take the held item fade while a stack is held.
+  - **Refused-drop flash:** two frames of 150 ms each, shown on a local refusal and when the server rejects a drop or spread.
+  - **Spread corners:** kit slots draw them.
+- **Same rule as the server.** Refusal uses the same rule as the server, so a swap onto an occupied slot is never shown as refused.
+- **Performance.** Drop checks are cached per held item and per slot, so idle frames re-check nothing. Slot lookup is O(1).
+- Workspace 0.69.0.
+
 ## World 0.28.0 — Static world S3a: server combat policy through the chunk dispatcher
 
 - **S3a (#220).** Every server read of the combat-region policy now goes through `liveIslandCombatPolicy(ctx)`: hearth harvest and installation, the ferry, encounter activation, outdoor enemy damage, the hazard knockout, and projectiles, outdoor encounters and resource respawns in `stepWorld`.
