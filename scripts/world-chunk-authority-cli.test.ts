@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CHUNK_RESOURCE_GENERATOR } from '../packages/world/src/content/chunk-authority-runtime.js';
 import {
-  auditSummary, headsFile, moduleLogFiles, moduleLogMessages, parseCli, run, setConfirmation, statusReport,
+  auditSummary, headsFile, main, moduleLogFiles, moduleLogMessages, parseCli, run, setConfirmation, statusReport,
   type AuthorityHead, type AuthorityShadow, type AuthorityWorld, type CliOptions, type RunDeps,
 } from './world-chunk-authority.js';
 import { EXIT, PipelineError, sha256Hex } from './world-chunks-publish.js';
@@ -37,6 +37,11 @@ class FakeWorld implements AuthorityWorld {
     disagreements: { compared: true, count: 0, fields: {} }, keys: { chunks: 'k' }, timings: { totalMs: 6500 } });
   applies = true;
   closed = 0;
+  #drop: (error: Error) => void = () => undefined;
+  readonly lost = new Promise<never>((_resolve, reject) => { this.#drop = reject; });
+  constructor() { this.lost.catch(() => undefined); }
+  /** The SDK's onDisconnect: the connection is gone and pending calls never settle. */
+  drop() { this.#drop(new PipelineError('connection_lost', EXIT.failed, 'disconnected')); }
   readonly calls: string[] = [];
   flagsJson() { return this.flags; }
   shadow() { return this.publication; }
@@ -125,6 +130,65 @@ describe('set', () => {
     expect(JSON.parse(d.out[0]!)).toMatchObject({ before: 'off', requested: 'on', after: 'off', reached: false });
     // No refresh unless asked.
     expect(d.deps.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('lost calls fail, never pass (#240 review)', () => {
+  const never = <T>() => new Promise<T>(() => undefined);
+  const setEnv = { ...ENV, WORLD_CHUNK_AUTHORITY_CONFIRM: 'set:on:orchard-s5c-disposable' };
+
+  it('a connection dropped mid-set fails with connection_lost and says the switch may have committed', async () => {
+    const world = new FakeWorld();
+    world.setChunkAuthority = async () => { world.calls.push('set:on'); setTimeout(() => world.drop(), 5); return never<void>(); };
+    const d = deps(world), report = join(temp(), 'set.json');
+    expect(await run(options(['set', 'on', ...LOCAL, '--report', report], setEnv), d.deps)).toBe(EXIT.failed);
+    expect(d.err.join('\n')).toMatch(/may still have committed: re-check the mode with `status`/u);
+    expect(JSON.parse(readFileSync(report, 'utf8'))).toMatchObject({ ok: false, command: 'set', error: { code: 'connection_lost' } });
+    expect(world.closed).toBe(1);
+  });
+
+  it('a connection dropped mid-audit fails, and a silent audit times out', async () => {
+    const dropped = new FakeWorld();
+    dropped.audit = async () => { setTimeout(() => dropped.drop(), 5); return never<string>(); };
+    const a = deps(dropped);
+    expect(await run(options(['audit', ...LOCAL, '--report', join(temp(), 'a.json')]), a.deps)).toBe(EXIT.failed);
+    expect(a.err.join('\n')).toContain('connection_lost');
+    const silent = new FakeWorld();
+    silent.audit = () => never<string>();
+    const b = deps(silent, { timeouts: { audit: 20 } }), report = join(temp(), 'b.json');
+    expect(await run(options(['audit', ...LOCAL, '--report', report]), b.deps)).toBe(EXIT.failed);
+    expect(JSON.parse(readFileSync(report, 'utf8'))).toMatchObject({ ok: false, error: { code: 'audit_timeout' } });
+  });
+
+  it('a silent set times out, and a row that never follows is reported with a re-check hint', async () => {
+    const silent = new FakeWorld();
+    silent.setChunkAuthority = () => never<void>();
+    const a = deps(silent, { timeouts: { set: 20 } });
+    expect(await run(options(['set', 'on', ...LOCAL], setEnv), a.deps)).toBe(EXIT.failed);
+    expect(a.err.join('\n')).toMatch(/set_timeout.*may still have committed/su);
+    const stuck = new FakeWorld(); stuck.applies = false;
+    const b = deps(stuck);
+    expect(await run(options(['set', 'on', ...LOCAL], setEnv), b.deps)).toBe(EXIT.failed);
+    expect(b.err.join('\n')).toMatch(/public row still says off .*re-check with `status`/su);
+  });
+
+  it('main keeps the exit code at unexpected until run settles', async () => {
+    const saved = process.exitCode;
+    try {
+      let release!: () => void;
+      const world = new FakeWorld();
+      world.audit = () => new Promise<string>(resolve => { release = () => resolve(world.auditText); });
+      const d = deps(world);
+      const pending = main(['audit', ...LOCAL, '--report', join(temp(), 'm.json')], ENV, d.deps);
+      await vi.waitFor(() => expect(world.calls.length + (release === undefined ? 0 : 1)).toBeGreaterThan(0));
+      // Were Node to exit now (an empty event loop around a call the SDK never settles), it would not exit 0.
+      expect(process.exitCode).toBe(EXIT.unexpected);
+      release();
+      expect(await pending).toBe(EXIT.ok);
+      expect(process.exitCode).toBe(EXIT.ok);
+    } finally {
+      process.exitCode = saved;
+    }
   });
 });
 
@@ -223,6 +287,11 @@ describe('logs (module log files, G11)', () => {
     const fail = deps(new FakeWorld());
     expect(await run(options(['logs', '--log-dir', dir], {}), fail.deps)).toBe(EXIT.failed);
     expect(JSON.parse(fail.out[0]!).failures).toEqual(['a shadow full compare disagreed']);
+    expect(summary.skipped).toBe(1);
+    // A line with a message but no numeric ts cannot be placed in the window: skipped, never let through.
+    const noTs = moduleLogMessages([JSON.stringify({ level: 'Info', message: event({ event: 'chunk_authority_shadow_compare', equal: false }) }),
+      JSON.stringify({ level: 'Info', ts: 'soon', message: 'x' })].join('\n'), { sinceMs: since, untilMs: null });
+    expect(noTs).toEqual({ messages: [], lines: 2, skipped: 2 });
     // An --until before the sampler window drops it.
     const early = moduleLogMessages(readFileSync(join(dir, '2026-09-28.log'), 'utf8'), { sinceMs: since, untilMs: Date.parse('2026-09-28T00:10:30Z') });
     expect(early.messages).toHaveLength(3);

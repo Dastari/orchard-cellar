@@ -155,7 +155,29 @@ export interface AuthorityWorld {
   audit(): Promise<string>;
   /** Waits until `predicate` holds or `timeoutMs` passes; returns whether it held. */
   waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean>;
+  /**
+   * Rejects when the connection drops (or errors), and never resolves. A dropped SDK 2.8.2
+   * connection never settles a pending reducer or procedure call, so every call races this
+   * (#240 review): a lost call must fail, never let Node exit 0 with no output.
+   */
+  readonly lost: Promise<never>;
   close(): void;
+}
+
+/** Call deadlines: the reducer, the procedure (6-8 s of procedure time, plus queueing) and the row wait. */
+export const CALL_TIMEOUTS_MS = { set: 30_000, audit: 120_000, row: 10_000 } as const;
+
+/** `promise`, or a PipelineError when the connection is lost or `ms` passes first. */
+export async function settleWithin<T>(label: string, promise: Promise<T>, lost: Promise<never>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new PipelineError(`${label}_timeout`, EXIT.failed, `no answer in ${ms} ms; the call may still have committed`)), ms);
+  });
+  try {
+    return await Promise.race([promise, lost, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function currentMode(world: Pick<AuthorityWorld, 'flagsJson'>): ChunkAuthorityMode {
@@ -248,9 +270,10 @@ export function moduleLogMessages(text: string, window: ModuleLogWindow): { read
     lines++;
     let entry: unknown;
     try { entry = JSON.parse(line); } catch { skipped++; continue; }
-    if (!record(entry) || typeof entry['message'] !== 'string') { skipped++; continue; }
-    const ts = typeof entry['ts'] === 'number' ? entry['ts'] / 1000 : null;
-    if (ts !== null && ((window.sinceMs !== null && ts < window.sinceMs) || (window.untilMs !== null && ts > window.untilMs))) continue;
+    // Without a message or a numeric ts a line cannot be placed in the window: counted, never let through.
+    if (!record(entry) || typeof entry['message'] !== 'string' || typeof entry['ts'] !== 'number' || !Number.isFinite(entry['ts'])) { skipped++; continue; }
+    const ts = entry['ts'] / 1000;
+    if ((window.sinceMs !== null && ts < window.sinceMs) || (window.untilMs !== null && ts > window.untilMs)) continue;
     messages.push(entry['message']);
   }
   return { messages, lines, skipped };
@@ -318,7 +341,8 @@ export interface RunDeps {
   readonly refresh: (tokenFile: string, target: { readonly host: string; readonly database: string }) => Promise<void>;
   readonly stdout: (line: string) => void;
   readonly stderr: (line: string) => void;
-  readonly setTimeoutMs?: number;
+  /** Overrides CALL_TIMEOUTS_MS (tests). */
+  readonly timeouts?: Partial<Record<keyof typeof CALL_TIMEOUTS_MS, number>>;
   readonly now?: () => Date;
 }
 
@@ -347,7 +371,7 @@ export async function run(options: CliOptions, deps: RunDeps): Promise<number> {
     if (options.command.kind === 'logs') {
       const report = await readModuleLogs(options.logDir!, { sinceMs: options.sinceMs, untilMs: options.untilMs });
       await writeReport(report);
-      print({ command: 'logs', files: report.files, lines: report.lines, events: report.summary.events, compares: report.summary.compares.length,
+      print({ command: 'logs', files: report.files, lines: report.lines, skipped: report.skipped, events: report.summary.events, compares: report.summary.compares.length,
         sampledTicks: report.summary.sampledTicks, sampleDisagreements: report.summary.sampleDisagreements, fallbacks: report.summary.fallbacks.length,
         errors: report.summary.errors.length, failures: report.failures });
       return report.failures.length === 0 ? EXIT.ok : EXIT.failed;
@@ -366,8 +390,9 @@ export async function run(options: CliOptions, deps: RunDeps): Promise<number> {
         await writeReport(report); print(report);
         return EXIT.ok;
       }
+      const timeout = (name: keyof typeof CALL_TIMEOUTS_MS): number => deps.timeouts?.[name] ?? CALL_TIMEOUTS_MS[name];
       if (command.kind === 'audit') {
-        const text = await world.audit();
+        const text = await settleWithin('audit', world.audit(), world.lost, timeout('audit'));
         const { ok, summary } = auditSummary(text);
         // The procedure's own JSON, unchanged apart from redaction.
         if (options.report !== null) await writeFile(options.report, `${redact(text, token)}\n`, { flag: 'wx', mode: 0o600 });
@@ -376,8 +401,18 @@ export async function run(options: CliOptions, deps: RunDeps): Promise<number> {
       }
       if (command.kind === 'set') {
         const before = currentMode(world);
-        await world.setChunkAuthority(command.mode);
-        const reached = await world.waitFor(() => currentMode(world) === command.mode, deps.setTimeoutMs ?? 10_000);
+        try {
+          await settleWithin('set', world.setChunkAuthority(command.mode), world.lost, timeout('set'));
+        } catch (error) {
+          deps.stderr(`[world-chunk-authority] set ${command.mode}: the reducer call did not complete. It may still have committed: `
+            + 're-check the mode with `status` before retrying.');
+          throw error;
+        }
+        const reached = await settleWithin('row', world.waitFor(() => currentMode(world) === command.mode, timeout('row')), world.lost, timeout('row') + 1_000);
+        if (!reached) {
+          deps.stderr(`[world-chunk-authority] set ${command.mode}: the reducer returned but the public row still says ${currentMode(world)} after `
+            + `${timeout('row')} ms. The switch may have committed: re-check with \`status\` before retrying.`);
+        }
         const report = { command: 'set', database: target.database, identity: world.identityHex, before, requested: command.mode,
           after: currentMode(world), reached, at: (deps.now ?? (() => new Date()))().toISOString() };
         await writeReport(report); print(report);
@@ -413,11 +448,19 @@ export async function connectAuthorityWorld(target: { readonly host: string; rea
   const { DbConnection, tables } = await import('@orchard/world-bindings');
   (await import('spacetimedb')).setGlobalLogLevel('warn');
   type Connection = InstanceType<typeof DbConnection>;
+  let loseConnection: (error: PipelineError) => void = () => undefined;
+  const lost = new Promise<never>((_resolve, reject) => { loseConnection = reject; });
+  lost.catch(() => undefined); // observed by each call's race; never an unhandled rejection
+  let closing = false;
   const connection = await new Promise<Connection>((resolvePromise, reject) => {
     const timer = setTimeout(() => reject(new PipelineError('connect_timeout')), 30_000);
     DbConnection.builder().withUri(target.host).withDatabaseName(target.database).withToken(token)
       .onConnect(ready => { clearTimeout(timer); resolvePromise(ready); })
       .onConnectError((_context, error) => { clearTimeout(timer); reject(new PipelineError('connect_failed', EXIT.failed, String(error))); })
+      // A dropped connection never settles pending calls in SDK 2.8.2: fail them instead.
+      .onDisconnect((_context, error) => {
+        if (!closing) loseConnection(new PipelineError('connection_lost', EXIT.failed, error === undefined ? 'disconnected' : String(error)));
+      })
       .build();
   });
   try {
@@ -453,7 +496,8 @@ export async function connectAuthorityWorld(target: { readonly host: string; rea
       }
       return true;
     },
-    close: () => connection.disconnect(),
+    lost,
+    close: () => { closing = true; connection.disconnect(); },
   };
 }
 
@@ -472,12 +516,20 @@ export function rejoinRefresh(tokenFile: string, target: { readonly host: string
   });
 }
 
-export async function main(argv: readonly string[] = process.argv.slice(2), env: NodeJS.ProcessEnv = process.env): Promise<number> {
-  const options = parseCli(argv, env);
-  return run(options, {
-    connect: connectAuthorityWorld, readToken: readTokenFile, refresh: rejoinRefresh,
-    stdout: line => console.log(line), stderr: line => console.error(line),
-  });
+export const REAL_DEPS: RunDeps = {
+  connect: connectAuthorityWorld, readToken: readTokenFile, refresh: rejoinRefresh,
+  stdout: line => console.log(line), stderr: line => console.error(line),
+};
+
+/**
+ * Fails closed if Node ever exits before `run` settles (an empty event loop around a call the
+ * SDK never settles): the exit code is `unexpected` until `run` returns (#240 review).
+ */
+export async function main(argv: readonly string[] = process.argv.slice(2), env: NodeJS.ProcessEnv = process.env, deps: RunDeps = REAL_DEPS): Promise<number> {
+  process.exitCode = EXIT.unexpected;
+  const code = await run(parseCli(argv, env), deps);
+  process.exitCode = code;
+  return code;
 }
 
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

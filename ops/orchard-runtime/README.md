@@ -545,6 +545,15 @@ npm run world:chunks:authority -- dump /private/evidence/published "${T[@]}"
   the public `space_admin_flag` row says the new mode, and exits `1` if the row never
   gets there. Each call writes an admin audit row. Do not switch while a routine release
   is between its rejoin `capture` and `verify`.
+- Calls fail closed.
+  - **Deadlines:** 30 seconds for the `set` reducer, 120 seconds for the audit procedure, and
+    10 seconds for the row to follow.
+  - **Dropped connections:** a dropped connection fails the pending call with
+    `connection_lost`.
+  - **Exit code:** it stays `70` until the command settles, so a lost call never looks like
+    a pass.
+  - **After a failed `set`:** the switch may still have committed, so re-check with `status`
+    before retrying.
 - `dump <dir>` creates `<dir>` (`0700`, it must not exist) with the exact published
   `manifest.json` and a `heads.txt` for `CLIENT_VALIDATE_WORLD_CHUNK_HEADS`.
 
