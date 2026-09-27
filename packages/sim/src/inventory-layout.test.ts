@@ -5,7 +5,9 @@ import {
   HOTBAR_SLOT_BINDINGS,
   HOTBAR_SLOT_COUNT,
   INVENTORY_SLOT_COUNT,
+  accessibleBackpackCapacity,
   accessibleBackpackSlotCount,
+  BACKPACK_SLOT_COUNT,
   hotbarSlotForInputCode,
   hotbarSlotLabel,
   isHotbarSlot,
@@ -37,5 +39,17 @@ describe('shared player inventory layout', () => {
     expect(inventoryContainerSlotCount('hotbar')).toBe(HOTBAR_SLOT_COUNT);
     expect(accessibleBackpackSlotCount(false)).toBe(8);
     expect(accessibleBackpackSlotCount(true)).toBe(20);
+  });
+});
+
+describe('accessible backpack capacity (BUG-053)', () => {
+  it('is max(8, min(20, bag)), or more debug slots up to 20: exactly the world rule before it was shared', () => {
+    // The world's accessibleInventoryContainerCapacity for the backpack, verbatim from before BUG-053.
+    const previousWorldRule = (equipped: number, debug: number) => Math.max(Math.max(8, Math.min(BACKPACK_SLOT_COUNT, equipped)), Math.min(BACKPACK_SLOT_COUNT, debug));
+    for (let equipped = -2; equipped <= 30; equipped++) for (let debug = 0; debug <= 30; debug++) {
+      expect(accessibleBackpackCapacity(equipped, debug), `${equipped}/${debug}`).toBe(previousWorldRule(equipped, debug));
+    }
+    expect(accessibleBackpackCapacity(6)).toBe(8);
+    expect(accessibleBackpackCapacity(20)).toBe(20);
   });
 });

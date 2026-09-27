@@ -176,6 +176,7 @@ import {
   ANVIL_REPAIR_COST_BRONZE,
   UNIQUE_QUEST_ITEM_TAG,
   inventoryContainerSlotCount,
+  accessibleBackpackCapacity,
   inventoryContainerSlotOffset,
   isHotbarSlot,
   itemStacksCompatible,
@@ -795,11 +796,8 @@ function accessibleInventoryContainerCapacity(
   debugBackpackSlots = 0,
 ): number {
   if (containerId !== 'backpack') return inventoryContainerCapacity(containerId);
-  const normalCapacity = Math.max(
-    DEFAULT_BACKPACK_CAPACITY,
-    Math.min(inventoryContainerCapacity(containerId), equippedCapacity),
-  );
-  return Math.max(normalCapacity, Math.min(inventoryContainerCapacity(containerId), debugBackpackSlots));
+  // The one rule the client shares (BUG-053): max(8, min(20, equipped)), or more debug slots up to 20.
+  return accessibleBackpackCapacity(equippedCapacity, debugBackpackSlots);
 }
 
 function equippedInventoryCapacity(
