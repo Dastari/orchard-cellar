@@ -213,6 +213,9 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   // It is the game's hotbar, selection included (green corners on the selected slot); digit keys stay with the host.
   const hotbar = definition.hotbar && options.aliases.hotbar ? uiHotbar({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false,
     selected: options.hotbarSelected ?? (() => -1), layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
+  // uiHotbar applies a controlled selection when it measures, so a changed selection re-measures it on the host's update.
+  const hotbarSelected = options.hotbarSelected;
+  if (hotbar && hotbarSelected) refresh.push(() => { if (hotbar.props['selected'] !== hotbarSelected()) hotbar.invalidate(); });
   const storage = options.aliases.entity === 'chest';
   const frame = uiWindow({ id: definition.id, title: definition.title, frame: storage ? 'crate' : 'wood', onClose: options.onClose,
     // Sections sit side by side, tops aligned so their headings line up (owner item 8),
