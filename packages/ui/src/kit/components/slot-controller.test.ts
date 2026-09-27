@@ -100,6 +100,30 @@ describe('UiSlotGestures (item slot S2)', () => {
     expect(authority.collect).toHaveBeenCalledTimes(1);
   });
 
+  it('places the held stack from a second press held past the window, instead of collecting', () => {
+    frozenClock();
+    const { gestures, authority, state } = harness([{ itemKind: 'wood', quantity: 5 }, null]);
+    click(gestures, 0); // picks the wood up
+    tick(400);
+    click(gestures, 1, { holdMs: 2000 }); // pressed in time, released 2 s later
+    expect(authority.collect).not.toHaveBeenCalled();
+    expect(authority.click).toHaveBeenLastCalledWith(bag(1), 'left');
+    expect(state.slots[1]).toEqual({ itemKind: 'wood', quantity: 5 });
+  });
+
+  it('places the held stack from a quick second press that moved the pickup distance', () => {
+    frozenClock();
+    const { gestures, authority } = harness([{ itemKind: 'wood', quantity: 5 }, null]);
+    click(gestures, 0);
+    tick(400);
+    gestures.begin(bag(1), centre(1), 0);
+    gestures.move({ x: centre(1).x + UI_SLOT_PICKUP_DISTANCE, y: centre(1).y }, bag(1));
+    tick(200); // released 600 ms after the first click, 200 ms after its own press
+    gestures.finish({ x: centre(1).x + UI_SLOT_PICKUP_DISTANCE, y: centre(1).y }, false, true);
+    expect(authority.collect).not.toHaveBeenCalled();
+    expect(authority.click).toHaveBeenLastCalledWith(bag(1), 'left');
+  });
+
   it('pairs a double-click with the previous click itself, not with any recent press', () => {
     frozenClock();
     const { gestures, authority } = harness([{ itemKind: 'wood', quantity: 5 }, null]);
@@ -130,6 +154,26 @@ describe('UiSlotGestures (item slot S2)', () => {
     gestures.finish(centre(0), false, true);
     expect(authority.quickMove).toHaveBeenCalledExactlyOnceWith(bag(0));
     expect(authority.click).not.toHaveBeenCalled();
+  });
+
+  it('commits a spread when Shift, held at pointer-down, is released during the drag', () => {
+    frozenClock();
+    const { gestures, authority } = harness([null, null, null], { itemKind: 'wood', quantity: 6 });
+    gestures.begin(bag(0), centre(0), 0, { shift: true });
+    gestures.move(centre(1), bag(1)); gestures.move(centre(2), bag(2));
+    gestures.finish(centre(2), false, true);
+    expect(authority.spread).toHaveBeenCalledExactlyOnceWith([bag(0), bag(1), bag(2)], 'even');
+    expect(authority.quickMove).not.toHaveBeenCalled(); expect(authority.quickMoveAll).not.toHaveBeenCalled();
+  });
+
+  it('keeps Shift at the release winning over a spread, as before', () => {
+    frozenClock();
+    const { gestures, authority } = harness([null, null], { itemKind: 'wood', quantity: 6 });
+    gestures.begin(bag(0), centre(0), 0);
+    gestures.move(centre(1), bag(1));
+    gestures.finish(centre(1), true, true);
+    expect(authority.spread).not.toHaveBeenCalled();
+    expect(authority.cancelSpread).toHaveBeenCalled();
   });
 
   it('moves every stack of the kind on a Shift double-click', () => {

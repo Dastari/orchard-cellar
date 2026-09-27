@@ -69,6 +69,8 @@ export interface UiSlotPress {
   readonly shift: boolean;
   /** When the press went down (performance.now): a double-click is decided from it. */
   readonly pressedAt: number;
+  /** The pointer travelled the pickup distance from where the press went down. */
+  readonly moved: boolean;
   /** Spread targets in visit order (a held stack only). */
   readonly targets: readonly UiSlotRef[];
   /** The press left its origin slot. */
@@ -76,13 +78,16 @@ export interface UiSlotPress {
   /** The pressed stack was picked up by moving past the pickup distance. */
   readonly pickedUpDuringDrag: boolean;
 }
-interface MutablePress extends Omit<UiSlotPress, 'targets' | 'dragged' | 'pickedUpDuringDrag'> {
-  readonly targets: UiSlotRef[]; dragged: boolean; pickedUpDuringDrag: boolean;
+interface MutablePress extends Omit<UiSlotPress, 'targets' | 'dragged' | 'pickedUpDuringDrag' | 'moved'> {
+  readonly targets: UiSlotRef[]; dragged: boolean; pickedUpDuringDrag: boolean; moved: boolean;
 }
 interface ClickRecord { readonly itemKind: string; readonly sourceRegion: string; readonly at: number }
 
 const sameRef = (left: UiSlotRef, right: UiSlotRef) => left.container === right.container && left.index === right.index;
 const buttonOf = (button: number): UiSlotButton => button === 2 ? 'right' : 'left';
+const pastPickup = (from: UiPoint, to: UiPoint) => {
+  const dx = to.x - from.x, dy = to.y - from.y; return dx * dx + dy * dy >= UI_SLOT_PICKUP_DISTANCE * UI_SLOT_PICKUP_DISTANCE;
+};
 
 /**
  * The inventory gesture state machine: pickup past 3px, click, right-click split, drag to spread (evenly or one
@@ -102,10 +107,8 @@ export class UiSlotGestures {
   get press(): UiSlotPress | null { return this.current; }
   /** A slot press is in progress (the kit's `dragging`). */
   get pressing(): boolean { return this.current !== null; }
-  /** A press on empty space with a held stack is waiting for its release. */
-  get outsidePress(): UiSlotButton | null { return this.outside; }
 
-  /** Pointer-down on a slot. Shift and the double-click are read here, at the press. */
+  /** Pointer-down on a slot. Shift and the press time (for the double-click) are read here, at the press. */
   begin(ref: UiSlotRef, point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     if (!this.source.has(ref)) return false;
     const cursor = this.source.cursor(), cursorWasHeld = cursor != null, stack = this.source.stack(ref);
@@ -113,7 +116,7 @@ export class UiSlotGestures {
       && (stack === null || (itemStacksCompatible(stack, cursor) && stack.quantity < this.source.maxStack(cursor.itemKind)));
     this.current = {
       origin: ref, button: buttonOf(button), cursorWasHeld, startPoint: point, shift: modifiers.shift === true, pressedAt: performance.now(),
-      targets: cursorWasHeld && originEligible ? [ref] : [], dragged: false, pickedUpDuringDrag: false,
+      targets: cursorWasHeld && originEligible ? [ref] : [], dragged: false, pickedUpDuringDrag: false, moved: false,
     };
     if (cursorWasHeld && originEligible) this.authority.previewSpread(this.current.targets, this.spreadMode(this.current));
     return true;
@@ -128,9 +131,9 @@ export class UiSlotGestures {
   /** Pointer motion during a press; `target` is the slot under the pointer, or null. */
   move(point: UiPoint, target: UiSlotRef | null): void {
     const press = this.current;
+    if (press !== null && !press.moved && pastPickup(press.startPoint, point)) press.moved = true;
     if (press !== null && !press.cursorWasHeld && !press.pickedUpDuringDrag && this.source.stack(press.origin) !== null) {
-      const dx = point.x - press.startPoint.x, dy = point.y - press.startPoint.y;
-      if (dx * dx + dy * dy >= UI_SLOT_PICKUP_DISTANCE * UI_SLOT_PICKUP_DISTANCE && this.authority.click(press.origin, press.button)) {
+      if (pastPickup(press.startPoint, point) && this.authority.click(press.origin, press.button)) {
         press.pickedUpDuringDrag = true; press.dragged = true;
       }
     }
@@ -147,19 +150,25 @@ export class UiSlotGestures {
     }
   }
 
-  /** Pointer-up. `shift` is the modifier at the release (a press with Shift at pointer-down counts as well);
-   * `inside` says whether the point is inside the window. True when a press or outside press was consumed. */
+  /** Pointer-up. `shift` is the modifier at the release; `inside` says whether the point is inside the window.
+   * True when a press or outside press was consumed.
+   *
+   * The Shift rule for a left press that did not pick its stack up by dragging:
+   * - Shift held at the release quick-moves, as before, even over a spread.
+   * - Shift held only at pointer-down quick-moves too, unless the press turned into a spread (a held stack dragged
+   *   across targets): then the spread commits, as it did before S2. */
   finish(point: UiPoint, shift: boolean, inside: boolean): boolean {
     const press = this.current;
     if (press !== null) {
       this.current = null;
+      if (!press.moved && pastPickup(press.startPoint, point)) press.moved = true;
+      const spreading = press.cursorWasHeld && press.targets.length > 0 && (press.dragged || press.targets.length > 1);
       if (press.pickedUpDuringDrag) {
         this.authority.cancelSpread();
         this.lastCursorClick = null;
-      } else if ((press.shift || shift) && press.button === 'left') this.finishShiftClick(press);
-      else if (press.cursorWasHeld && press.targets.length > 0 && (press.dragged || press.targets.length > 1)) {
-        this.authority.spread(press.targets, this.spreadMode(press));
-      } else this.finishClick(press);
+      } else if ((shift || (press.shift && !spreading)) && press.button === 'left') this.finishShiftClick(press);
+      else if (spreading) this.authority.spread(press.targets, this.spreadMode(press));
+      else this.finishClick(press);
       return true;
     }
     if (this.outside !== null) {
@@ -175,18 +184,19 @@ export class UiSlotGestures {
   }
 
   /** Abandons the press (pointer left, swipe took over, window closed): puts back any spread preview. */
-  cancel(): void { this.authority.cancelSpread(); this.reset(); }
-  /** Forgets the press without touching the preview; the click history is kept. */
-  reset(): void { this.current = null; this.outside = null; }
+  cancel(): void { this.authority.cancelSpread(); this.current = null; this.outside = null; }
 
   private spreadMode(press: Pick<UiSlotPress, 'button'>): UiSlotSpreadMode { return press.button === 'right' ? 'one_each' : 'even'; }
 
-  /** A double-click pairs with the previous click of the same kind in the same source region when this press went
-   * down within the window of that click. Decided at pointer-down, so a slow second release still counts (a release
-   * within the window always was, and still is). */
-  private isDouble(press: UiSlotPress, previous: ClickRecord | null, itemKind: string | undefined, sourceRegion: string): boolean {
-    return itemKind !== undefined && previous !== null && previous.itemKind === itemKind && previous.sourceRegion === sourceRegion
-      && press.pressedAt - previous.at <= UI_SLOT_DOUBLE_CLICK_MS;
+  /** A double-click pairs with the previous click (the same kind, in the same source region) when either:
+   * - this release is within UI_SLOT_DOUBLE_CLICK_MS of that click (the pre-S2 rule, unchanged); or
+   * - this press went down within UI_SLOT_DOUBLE_CLICK_MS of that click, was released within
+   *   UI_SLOT_DOUBLE_CLICK_MS of its own pointer-down, and never moved the pickup distance (a quick second click
+   *   whose release was a little late). A second press held longer, or moved, is an ordinary click. */
+  private isDouble(press: UiSlotPress, previous: ClickRecord | null, itemKind: string | undefined, sourceRegion: string, now: number): boolean {
+    if (itemKind === undefined || previous === null || previous.itemKind !== itemKind || previous.sourceRegion !== sourceRegion) return false;
+    return now - previous.at <= UI_SLOT_DOUBLE_CLICK_MS || (press.pressedAt - previous.at <= UI_SLOT_DOUBLE_CLICK_MS
+      && now - press.pressedAt <= UI_SLOT_DOUBLE_CLICK_MS && !press.moved);
   }
 
   private finishShiftClick(press: UiSlotPress): void {
@@ -194,7 +204,7 @@ export class UiSlotGestures {
     const container = press.origin.container, sourceRegion = this.source.quickMoveSources(container).join('|');
     const now = performance.now(), previous = this.lastShiftClick, item = this.source.stack(press.origin);
     const secondClickKind = item?.itemKind ?? (press.cursorWasHeld ? previous?.itemKind : undefined);
-    if (this.isDouble(press, previous, secondClickKind, sourceRegion)) {
+    if (this.isDouble(press, previous, secondClickKind, sourceRegion, now)) {
       this.authority.quickMoveAll(secondClickKind!, container);
       this.lastShiftClick = null;
     } else if (item !== null) {
@@ -209,7 +219,7 @@ export class UiSlotGestures {
     const clickedKind = cursor?.itemKind ?? item?.itemKind;
     const sourceRegion = this.source.quickMoveSources(press.origin.container).join('|');
     const previous = this.lastCursorClick;
-    if (press.button === 'left' && this.isDouble(press, previous, clickedKind, sourceRegion)) {
+    if (press.button === 'left' && this.isDouble(press, previous, clickedKind, sourceRegion, now)) {
       if (previous!.transferCandidate) this.authority.quickMoveAll(clickedKind!, press.origin.container);
       else this.authority.collect();
       this.lastCursorClick = null;

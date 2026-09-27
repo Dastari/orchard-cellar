@@ -725,6 +725,8 @@ describe('BUG-050: the host checks drops with the authority rules', () => {
     const f = fixture('inventory', { inventory: [], cursorStack: { itemKind: 'apple', quantity: 1 } });
     f.ui.disposeRetainedInventory();
     try {
+      // Re-run the legacy layout, which sets each slot's restriction itself (not the retained path's retainedSlots).
+      f.update({});
       const slots = (f.ui as unknown as { visibleItemSlots(): { containerId: string; index: number; accepts(kind: string): boolean }[] }).visibleItemSlots();
       const helmet = slots.find(slot => slot.containerId === 'equipment' && slot.index === head)!;
       expect(helmet.accepts('apple')).toBe(false);
