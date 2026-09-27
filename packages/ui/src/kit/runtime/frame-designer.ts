@@ -99,7 +99,8 @@ export class UiFrameDesignerModel {
 
   snapshot(): UiFrameDesignerSnapshot {
     const definitions = replaceFrame(this.#definitions, this.#definition);
-    const validation = validateContentDefinitions(definitions);
+    // The frame being edited is authored content: authoring rules are errors for it.
+    const validation = validateContentDefinitions(definitions, { authoredIds: new Set([this.#definition.id]) });
     const dirty = contentDefinitionsHash([this.#definition]) !== this.#initialHash;
     return Object.freeze({
       access: this.#access,

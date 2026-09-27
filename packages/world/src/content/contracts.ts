@@ -211,13 +211,15 @@ export function planContentPublication(
   }
   for (const id of normalized.changeSet.deletes) working.delete(id);
 
-  const built = buildContentRegistry([...working.values()]);
+  const changedIds = new Set(normalized.changeSet.upserts.map(({ id }) => id));
+  // Authoring rules bind only the definitions this publication writes; rows
+  // already in the head keep validating as before (warnings only).
+  const built = buildContentRegistry([...working.values()], { authoredIds: changedIds });
   if (!built.report.valid) fail(`content_validation_failed:${built.report.errors[0]?.code ?? 'unknown'}`);
 
   const canonicalById = new Map<string, SupportedContentDefinition>(
     [...built.registry.definitions.values()].map((definition) => [definition.id, definition] as const),
   );
-  const changedIds = new Set(normalized.changeSet.upserts.map(({ id }) => id));
   const definitions = [...working.values()].map((row): StoredContentDefinition => {
     // Parser upgrades are semantic projections, not an implicit rewrite of
     // every durable definition during an unrelated content publication.

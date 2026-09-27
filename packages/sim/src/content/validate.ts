@@ -72,6 +72,13 @@ export interface ContentValidationOptions {
   /** Accept parser projections only for the byte-identical Stage-A production
    * pack. Callers must establish that raw row fingerprint before enabling it. */
   readonly allowLegacyStageA?: boolean;
+  /** Definitions being authored now: new or edited in this publication or
+   * editor session, or `'all'` for the repository's own content. Authoring
+   * rules that already-published content may predate are errors for these and
+   * warnings for every other definition, so a stricter rule never makes a live
+   * content head fail to load or blocks an unrelated publication (PR #206).
+   * Omitted: every definition is treated as existing. */
+  readonly authoredIds?: 'all' | ReadonlySet<string>;
 }
 
 export interface ContentValidationReport {
@@ -1218,6 +1225,25 @@ function frameSlotTagWarnings(
     )])));
 }
 
+/** The server enforces a pane's slot restriction only where the pane is bound
+ * to entity slots (`frameRestrictions`). On a pane bound to the player's own
+ * containers (`self`) or to merchant offers the rule would be client-only: the
+ * UI would refuse items the server accepts (BUG-047). It is an error for
+ * content being authored and a warning for existing content (see
+ * `ContentValidationOptions.authoredIds`). */
+function frameClientOnlyRestrictionIssues(
+  definition: FrameContentDefinition,
+  severity: ContentValidationIssue['severity'],
+): readonly ContentValidationIssue[] {
+  return definition.panes.flatMap((pane, index) => (
+    pane.restriction === undefined || 'entitySlots' in pane.bind ? [] : [issue(
+      severity, 'invalid_frame',
+      'slot restrictions are enforced only on panes bound to entity slots; on this pane the server would ignore them',
+      definition.id, `panes[${index}].restriction`,
+    )]
+  ));
+}
+
 function validateFrameDefinition(
   definition: FrameContentDefinition,
   byId: ReadonlyMap<string, SupportedContentDefinition>,
@@ -2060,6 +2086,8 @@ export function validateContentDefinitions(
     if (definition.kind === 'frame') {
       errors.push(...validateFrameDefinition(definition, byId));
       warnings.push(...frameSlotTagWarnings(definition, byId));
+      const authored = options.authoredIds === 'all' || options.authoredIds?.has(definition.id) === true;
+      (authored ? errors : warnings).push(...frameClientOnlyRestrictionIssues(definition, authored ? 'error' : 'warning'));
     }
     if (definition.kind === 'loot') {
       errors.push(...validateLootDefinition(definition, byId));

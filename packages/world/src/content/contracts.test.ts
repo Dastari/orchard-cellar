@@ -82,6 +82,27 @@ describe('content publication contracts', () => {
     }))).toThrow(/content_validation_failed:unresolved_reference/u);
   });
 
+  it('refuses a newly published client-only frame restriction but never an existing one (BUG-047)', () => {
+    // A deny list on frame:chest's backpack pane (bound to the player's own backpack) would be client-only.
+    const chestWithSelfRule = () => {
+      const chest = JSON.parse(storedBootstrap().find(({ id }) => id === 'frame:chest')!.json) as {
+        panes: { id: string; restriction?: unknown }[];
+      };
+      return JSON.stringify({ ...chest, panes: chest.panes.map((pane) => pane.id === 'backpack'
+        ? { ...pane, restriction: { rejectedItems: ['item:apple'] } } : pane) });
+    };
+    // Publishing it is refused, and nothing is planned.
+    expect(() => planContentPublication(storedBootstrap(), 2n, input({
+      upserts: JSON.stringify([{ id: 'frame:chest', kind: 'frame', json: chestWithSelfRule() }]),
+      note: 'Deny apples in the chest window backpack',
+    }))).toThrowError(new ContentAuthorityError('content_validation_failed:invalid_frame'));
+    // A head that already carries it (published before this rule) still accepts unrelated publications.
+    const current = storedBootstrap().map((row) => row.id === 'frame:chest' ? { ...row, json: chestWithSelfRule() } : row);
+    const plan = planContentPublication(current, 2n, input());
+    expect(plan.upserts.map(({ id }) => id)).toEqual(['item:wood']);
+    expect(plan.definitions.find(({ id }) => id === 'frame:chest')?.json).toBe(chestWithSelfRule());
+  });
+
   it('canonicalizes ordering for stable retry fingerprints', () => {
     const left = normalizedContentRequest(input({
       upserts: JSON.stringify([
