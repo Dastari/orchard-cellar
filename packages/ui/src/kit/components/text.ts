@@ -13,8 +13,10 @@ export interface UiTextOptions {
   /** Inside caps surfaces (game windows and books) short labels paint in caps. Wrapped text is a paragraph
    * (a hint, a status sentence, an error) and keeps its authored case unless this asks for 'upper'. */
   readonly textCase?: 'upper' | 'as-authored';
+  /** Wrapped text that needs more than `maxLines` ends its last shown line with '...' instead of stopping silently. */
+  readonly lastLineEllipsis?: boolean;
 }
-export function uiTextLines(value: string, width: number, role: UiTextRole, wrap = true, maxLines = Infinity): string[] {
+export function uiTextLines(value: string, width: number, role: UiTextRole, wrap = true, maxLines = Infinity, lastLineEllipsis = false): string[] {
   const cell = UI_TEXT_METRICS[role].glyphWidth + 1;
   const columns = Math.max(0, Math.floor((width + 1) / cell));
   if (columns === 0) return [''];
@@ -29,12 +31,18 @@ export function uiTextLines(value: string, width: number, role: UiTextRole, wrap
     }
     lines.push(remaining);
   }
-  return lines.slice(0, maxLines);
+  if (!lastLineEllipsis || lines.length <= maxLines || maxLines < 1) return lines.slice(0, maxLines);
+  // Keep whole words on the last line and mark the cut; only a single over-long word is split.
+  const kept = lines.slice(0, maxLines), last = kept[maxLines - 1]!, room = Math.max(0, columns - 3);
+  const space = last.lastIndexOf(' ', room);
+  const head = last.length <= room ? last : space > 0 ? last.slice(0, space) : last.slice(0, room);
+  kept[maxLines - 1] = `${head.trimEnd()}${'.'.repeat(Math.min(3, columns))}`;
+  return kept;
 }
 export function uiText(value: string, options: UiTextOptions = {}): UiElement {
   const role = options.role ?? 'body', metrics = UI_TEXT_METRICS[role];
   const linesFor = (text: string, width: number) => options.overflow === 'clip' ? text.split('\n').slice(0, options.maxLines)
-    : uiTextLines(text, width, role, options.overflow ? options.overflow === 'wrap' : options.wrap, options.maxLines);
+    : uiTextLines(text, width, role, options.overflow ? options.overflow === 'wrap' : options.wrap, options.maxLines, options.lastLineEllipsis);
   // Owner item 10: paragraphs (wrapped text) stay as authored inside caps windows; labels follow the surface.
   const wrapped = options.overflow ? options.overflow === 'wrap' : options.wrap === true;
   const textCase = options.textCase ?? (wrapped ? 'as-authored' : undefined);

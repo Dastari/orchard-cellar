@@ -3,10 +3,10 @@ import { uiActionNotice } from '../kit/components/action-notice.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { paintUiDarkFrame } from '../kit/components/feedback-game.js';
 import { paintUiSkin } from '../kit/components/art.js';
-import { UI_ITEM_INKS } from '../kit/tokens.js';
+import { UI_ITEM_INKS, UI_TEXT_METRICS } from '../kit/tokens.js';
 import { uiMeter } from '../kit/components/meter.js';
 import { uiNameplates, type UiNameplateLabel } from '../kit/components/nameplates.js';
-import { uiText } from '../kit/components/text.js';
+import { uiText, uiTextLines } from '../kit/components/text.js';
 import { uiFlex } from '../kit/components/layout.js';
 import { uiWorldFeedback, type UiWorldFeedbackEntry } from '../kit/components/world-feedback.js';
 import { uiWorldHint, type UiWorldHint } from '../kit/components/world-hint.js';
@@ -184,11 +184,29 @@ const NOTICE_STYLE: Partial<Record<UiTone, { readonly frame: string; readonly in
   danger: { frame: 'tooltip_dark.poor', ink: UI_ITEM_INKS.unmet, glyph: 'glyph.cross.red' },
   success: { frame: 'tooltip_dark.uncommon', ink: UI_ITEM_INKS.equip, glyph: 'glyph.check' },
 };
+/** BUG-043: a toast shows its whole message, wrapping by words onto a second line. Only text too long even for
+ * two lines ends in '...'; the client no longer cuts it to a fixed character count. */
+export const GAME_TOAST_MAX_LINES = 2;
+/** A wrapped toast narrows to the least width that keeps its line count, so the words share the lines evenly
+ * instead of leaving one word alone underneath. One-line toasts and toasts past the line cap keep their width.
+ * It never narrows below its longest word, so balancing can't split a word the full width kept whole. */
+export function balancedToastWidth(text: string, width: number, chrome: number, minimum: number): number {
+  const cell = UI_TEXT_METRICS.body.glyphWidth + 1;
+  const count = (textWidth: number) => uiTextLines(text, textWidth, 'body').length;
+  const lines = count(width - chrome);
+  if (lines < 2 || lines > GAME_TOAST_MAX_LINES) return width;
+  const longestWord = Math.max(0, ...text.split(/\s+/u).map(word => word.length));
+  let columns = Math.floor((width - chrome + 1) / cell);
+  while (columns - 1 >= Math.max(1, longestWord) && (columns - 1) * cell - 1 + chrome >= minimum
+    && count((columns - 1) * cell - 1) === lines) columns -= 1;
+  return Math.min(width, columns * cell - 1 + chrome);
+}
 /** Shared frame/text composition; no legacy pixel painter or pointer handlers. */
 function feedbackLabel(kind: string) {
   let model: GameFeedbackLabel | null = null;
   const style = () => NOTICE_STYLE[tone] ?? { frame: 'tooltip_dark.neutral', ink: UI_ITEM_INKS.body, glyph: kind === 'toast' ? 'notice.info' : undefined };
-  const textNode = () => uiText('', { id: `game.feedback.${kind}.text`, wrap: true, align: kind === 'tooltip' ? 'left' : 'center', layout: { width: 'grow' } }).setProps({ ink: style().ink });
+  const textNode = () => uiText('', { id: `game.feedback.${kind}.text`, wrap: true, align: kind === 'tooltip' ? 'left' : 'center', layout: { width: 'grow' },
+    ...(kind === 'toast' ? { maxLines: GAME_TOAST_MAX_LINES, lastLineEllipsis: true } : {}) }).setProps({ ink: style().ink });
   let text: UiElement, tone: UiTone = 'primary';
   text = textNode();
   // Tooltips title their first line in gold like the item tooltip; the rest reads in the body ink.
@@ -207,6 +225,16 @@ function feedbackLabel(kind: string) {
   const glyphShown = (width: number) => { const shown = glyph !== null && width >= 160; glyph?.setStyle({ visible: shown }); frame.setStyle({ padding: { left: shown ? 4 : 8, right: 8, top: 4, bottom: 4 } }); return shown;
   };
   let frame = makeFrame();
+  // The HUD updates every frame; size a toast once per (text, width bounds, chrome) rather than re-wrapping it.
+  let toastSize: { readonly key: string; readonly width: number; readonly height: number } | null = null;
+  const sizeToast = (title: string, widest: number, chrome: number, minimum: number) => {
+    const key = `${widest}|${chrome}|${minimum}|${title}`;
+    if (toastSize?.key !== key) {
+      const width = balancedToastWidth(title, widest, chrome, minimum);
+      toastSize = { key, width, height: UI_TEXT_METRICS.body.lineHeight * uiTextLines(title, width - chrome, 'body', true, GAME_TOAST_MAX_LINES, true).length };
+    }
+    return toastSize;
+  };
   const element = new UiElement({ id: `game.feedback.${kind}`, style: { display: 'stack', width: 'grow', height: 'grow' }, children: [frame],
     measure(_element, available) {
       const value = model;
@@ -218,10 +246,17 @@ function feedbackLabel(kind: string) {
         if (kind === 'tooltip') { text.setProps({ ink: rest.length ? UI_ITEM_INKS.flavour : UI_ITEM_INKS.body }); detail.setProps({ text: rest.join('\n') }).setStyle({ visible: rest.length > 0 }); }
         const maximum = Math.max(0, Math.min(kind === 'tooltip' ? 390 : 320, available.width - 12));
         text.setStyle({ width: 'fit' }); detail.setStyle({ width: 'fit' });
-        const inset = glyphShown(available.width) ? 36 : 16, room = { width: Math.max(0, maximum - inset), height: available.height };
+        const shown = glyphShown(available.width), inset = shown ? 36 : 16, room = { width: Math.max(0, maximum - inset), height: available.height };
         const natural = { width: Math.max(measureUiElement(text, room).preferred.width, rest.length ? measureUiElement(detail, room).preferred.width : 0) };
-        const width = Math.min(maximum, Math.max(kind === 'tooltip' ? 48 : 104, natural.width + inset));
+        const minimum = kind === 'tooltip' ? 48 : 104, widest = Math.min(maximum, Math.max(minimum, natural.width + inset));
+        // The text's real room: the frame's padding, plus the glyph and its gap when shown.
+        const chrome = shown ? 4 + 16 + 4 + 8 : 16;
+        const toast = kind === 'toast' ? sizeToast(title, widest, chrome, minimum) : null;
+        const width = toast?.width ?? widest;
         text.setStyle({ width: 'grow' }); detail.setStyle({ width: 'grow' });
+        // The row measures its text at the full content width (glyph not subtracted), which undercounts a toast that
+        // only just wraps; size the toast text from the lines it will actually paint so no line is clipped.
+        if (toast) text.setStyle({ height: uiFixed(toast.height) });
         frame.setStyle({ width: uiFixed(width), height: 'fit' });
         const maximumHeight = value.maxHeight !== undefined && Number.isFinite(value.maxHeight) ? Math.max(0, value.maxHeight) : available.height;
         const wanted = Math.min(available.height, maximumHeight, measureUiElement(frame, { width, height: available.height }).preferred.height);
