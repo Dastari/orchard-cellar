@@ -1,6 +1,6 @@
 {
   "name": "orchard-cellar",
-  "version": "0.71.2",
+  "version": "0.72.0",
   "private": true,
   "type": "module",
   "workspaces": [
