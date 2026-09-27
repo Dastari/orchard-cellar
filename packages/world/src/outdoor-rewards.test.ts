@@ -71,7 +71,7 @@ function fixture(contentMode:'active'|'missing'|'retired'='active'){
   const registry=sim.buildContentRegistry([...sim.bootstrapContentRows(),
     ...(contentMode==='missing'?[]:[{id:campDefinition.id,kind:campDefinition.kind,json:campDefinition}])]).registry;
   const api=production({...sim,Identity,SenderError:Error,OUTDOOR_RETURN_PATHS:new Map(),HEARTH_ENCOUNTERS:[{id:'camp',tileX:4,tileY:4,radiusTiles:6,elevation:0}],
-    compiledLiveIslandRuntime:()=>({combatPolicy:policy}),collisionForSpace:()=>collision,outdoorCollisionMap:()=>collision,outdoorRecoveryPosition:()=>recoveryAvailable?{x:0,y:0}:null,
+    liveIslandCombatPolicy:()=>policy,collisionForSpace:()=>collision,outdoorCollisionMap:()=>collision,outdoorRecoveryPosition:()=>recoveryAvailable?{x:0,y:0}:null,
     updateWorldNpc:(_ctx:unknown,npc:Npc)=>npcs.set(npc.id,npc),recordPlayerStatistic:(_ctx:unknown,identity:Identity,kind:string,value:bigint,_tick:bigint,subject:string)=>statistics.push({identity:identity.toHexString(),kind,value,subject}),requireAuthorizedSender:()=>{},
     requirePersistentInventoryAvailable:()=>{if(locked)throw new Error('descent_inventory_locked');},contentRegistry:()=>registry,
     grantSkillExperience:(_ctx:unknown,identity:Identity,_track:string,amount:bigint)=>xp.set(identity.toHexString(),(xp.get(identity.toHexString())??0n)+amount),

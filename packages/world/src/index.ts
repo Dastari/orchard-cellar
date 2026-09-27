@@ -43,7 +43,7 @@ import {
   runtimeRogueEnemyAttackPattern,
   hearthAttackImpactsSeparated, hearthWardenDesiredPhase, hearthWardenAttack, WARDEN_PHASE_CUE_TICKS, type HearthWardenPhase,
   hearthEnemyAttack, hearthEnemyMovement, hearthEnemyStepDistance, type HearthEncounterDefinition,
-  CombatRegionPolicy, DODGE, BLOCK, dodgeInvulnerable, frontalBlockApplies, resolveHeldBlock,
+  CombatRegionPolicy, type CombatRegion, DODGE, BLOCK, dodgeInvulnerable, frontalBlockApplies, resolveHeldBlock,
   commitEnemyAttack, enemyAttackPhaseAt, enemyAttackSegmentAt, combatPointWithinSegment,
   MAX_COMMITTED_ATTACKERS, closestCombatPointOnSegment, combatSegmentObstructed, type EnemyAttackPattern,
   AUTHORITY_TICK_MICROS,
@@ -7266,14 +7266,14 @@ function surfaceOreRespawnTileBlocked(
   return occupiedTiles.has(`${tileX}:${tileY}`);
 }
 
-function hearthResourceSiteEnabled(ctx: WorldReducerContext, resource: WorldResourceRow): boolean {
+function hearthResourceSiteEnabled(ctx: WorldReducerContext, resource: WorldResourceRow,
+  policy: CombatRegionPolicy | undefined): boolean {
   const registry = contentRegistry(ctx);
   const site = runtimeHearthResourceSite(registry, resource.id);
   if (site === null || !runtimeHearthResourceRowMatchesSite(registry, resource)) return false;
   // Content can be republished after installation. Suspend work/refill rather
   // than consume tools for missing rewards or replenish a retired loot cohort.
   if (!hearthGatheringContentReady(registry)) return false;
-  const policy = compiledLiveIslandRuntime(ctx)?.combatPolicy;
   const camp = ctx.db.outdoor_encounter.id.find(site.encounterId);
   return policy !== undefined && camp !== null && camp.conflict === ''
     && policy.allowsHostileDamage({ spaceId: TOPSIDE_SPACE_ID, tileX: site.tileX + .5, tileY: site.tileY + .5 })
@@ -7294,7 +7294,7 @@ function requireHearthResourceHarvestAccess(ctx: WorldReducerContext, position: 
     || position.spaceId !== resource.spaceId) {
     throw new SenderError('target_not_ready');
   }
-  if (!hearthResourceSiteEnabled(ctx, resource)) throw new SenderError('target_not_ready');
+  if (!hearthResourceSiteEnabled(ctx, resource, liveIslandCombatPolicy(ctx))) throw new SenderError('target_not_ready');
   if (site.maturityGrowthStage !== null
     && resource.growthStage !== site.maturityGrowthStage) throw new SenderError('resource_not_mature');
   const collision = outdoorCollisionMap(ctx, resource.id);
@@ -7335,8 +7335,11 @@ function installHearthResourceSites(ctx: WorldReducerContext, expectedMapRevisio
   });
   if (!hearthGatheringContentReady(registry)) throw new SenderError('hearth_resource_content_missing');
   const players = [...ctx.db.player_position.iter()].filter(player => player.spaceId === TOPSIDE_SPACE_ID);
+  // Combat policy and regions from the dispatcher's runtime (static-world S3a), resolved once.
+  const runtime = liveIslandCollisionRuntime(ctx);
+  const policy = runtime?.combatPolicy;
   for (const row of rows) {
-    if (!hearthResourceSiteEnabled(ctx, row)) throw new SenderError('hearth_resource_site_disabled');
+    if (!hearthResourceSiteEnabled(ctx, row, policy)) throw new SenderError('hearth_resource_site_disabled');
     const site = runtimeHearthResourceSite(registry, row.id)!;
     const definition = runtimeHearthEncounterDefinition(registry, site.encounterDefinitionId);
     if (definition === null) throw new SenderError('hearth_resource_encounter_missing');
@@ -7361,9 +7364,7 @@ function installHearthResourceSites(ctx: WorldReducerContext, expectedMapRevisio
   // Installation proves routes across the whole island, so the camp-scoped
   // tick collision is insufficient: it can omit resources on detour corridors.
   const collision = hearthResourceInstallationGeometry(collisionForSpace(ctx, TOPSIDE_SPACE_ID), missing, registry);
-  const runtime = compiledLiveIslandRuntime(ctx);
-  const policy = runtime?.combatPolicy;
-  const regions = runtime?.document.combatRegions;
+  const regions = runtime?.combatRegions;
   if (collision === null || runtime === null || policy === undefined || regions === undefined)
     throw new SenderError('hearth_resource_geometry_conflict');
   const recovery = outdoorRecoveryPosition(ctx, policy, collision);
@@ -7400,7 +7401,8 @@ function recordHearthResourceDepletion(ctx: WorldReducerContext, resource: World
 /** Bounded authored-site probes. Observe presence every tick, persisting quiet samples at
  * one hertz plus immediate interruptions. Refills and tracker deletion share the
  * authority transaction; no timer callback can replay a reward or generation. */
-function stepHearthResourceRespawns(ctx: WorldReducerContext, tick: bigint, players: readonly PlayerPositionRow[]): void {
+function stepHearthResourceRespawns(ctx: WorldReducerContext, tick: bigint, players: readonly PlayerPositionRow[],
+  combatPolicy: CombatRegionPolicy | undefined): void {
   let collision: CollisionMap | undefined;
   const now = ctx.timestamp.microsSinceUnixEpoch;
   const registry = contentRegistry(ctx);
@@ -7418,7 +7420,7 @@ function stepHearthResourceRespawns(ctx: WorldReducerContext, tick: bigint, play
     const definition = runtimeHearthEncounterDefinition(registry, site.encounterDefinitionId);
     if (definition === null) continue;
     const camp = ctx.db.outdoor_encounter.id.find(site.encounterId);
-    const enabled = hearthResourceSiteEnabled(ctx, resource);
+    const enabled = hearthResourceSiteEnabled(ctx, resource, combatPolicy);
     const visible = players.some(player => player.spaceId === TOPSIDE_SPACE_ID
       && outdoorInsideCamp(definition, player, OUTDOOR_SIGHT_PADDING_TILES));
     const engaged = camp === null || !['dormant', 'active', 'completed'].includes(camp.phase)
@@ -12752,6 +12754,7 @@ const LIVE_MAP_ALLOWED_BEHAVIORS = new Set([
 
 interface LiveIslandRuntime {
   readonly combatPolicy: CombatRegionPolicy;
+  readonly combatRegions: readonly CombatRegion[] | undefined;
   readonly key: string;
   readonly document: MapDocumentV3;
   readonly ground: CollisionMap;
@@ -12898,6 +12901,7 @@ function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime 
   } as const;
   liveIslandRuntimeCache = {
     combatPolicy: new CombatRegionPolicy(document.combatRegions ?? []),
+    combatRegions: document.combatRegions,
     key,
     document,
     ground,
@@ -12916,8 +12920,8 @@ const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
  * `shadow` keeps compiled authoritative while comparing the chunk runtime and
  * logging disagreements. `on` serves the chunk runtime only when it is complete,
  * fresh and passes the compiled guards, and otherwise falls back to compiled.
- * Collision call sites only: combat policy, resource reconcile and the document
- * consumers still read compiledLiveIslandRuntime (S3a/S3b/S3c move them).
+ * Collision and combat policy (S3a) read it; resource reconcile and the document
+ * consumers still read compiledLiveIslandRuntime (S3b/S3c move them).
  */
 function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
   const mode = chunkAuthorityMode(ctx);
@@ -12926,6 +12930,14 @@ function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisi
     return compiledLiveIslandRuntime(ctx);
   }
   return chunkAuthorityDispatcher.select({ ...chunkAuthoritySource(ctx), mode });
+}
+
+/** Static-world S3a: the live-island combat policy (hostile/sanctuary regions) from the
+ * runtime the dispatcher selects: compiled in `off` and `shadow`, chunk-built in `on`.
+ * Built once per runtime and cached with it; never read from the document or generator.
+ * stepWorld passes the runtime its collision stage already resolved instead. */
+function liveIslandCombatPolicy(ctx: WorldReducerContext): CombatRegionPolicy | undefined {
+  return liveIslandCollisionRuntime(ctx)?.combatPolicy;
 }
 
 /** Everything the dispatcher (and the S2c audit) reads, as lazy accessors. The
@@ -17769,7 +17781,7 @@ export const travelHearthFerry=spacetimedb.reducer({fromDock:t.string(),toDock:t
   if(!tileTargetWithinFixedReach(position.x,position.y,source,2*TILE_SIZE_FIXED))throw new SenderError('ferry_out_of_reach');
   const tick=ctx.db.world_clock.id.find(0)?.authorityTick??position.authorityTick;
   if(advancePlayerStats(ctx,ctx.sender,tick).healthCenti<=0)throw new SenderError('ferry_player_unavailable');
-  const policy=compiledLiveIslandRuntime(ctx)?.combatPolicy;
+  const policy=liveIslandCombatPolicy(ctx);
   const arrival=destination.arrival;
   // New routes become available only with the authored island policy. The
   // free homeward route remains usable if that policy is later removed.
@@ -22324,9 +22336,9 @@ function moveOutdoorNpc(ctx:WorldReducerContext,npc:WorldNpcRow,target:{x:number
 }
 /** Five indexed camp probes, with no island-wide NPC/resource scan. Existing
  * generations/claims survive restarts; only a completed quiet camp advances. */
-function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers:readonly PlayerPositionRow[]):void {
+function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers:readonly PlayerPositionRow[],
+  policy:CombatRegionPolicy|undefined):void {
   const registry=contentRegistry(ctx),definitions=activeHearthEncounterDefinitions(registry);
-  const policy=compiledLiveIslandRuntime(ctx)?.combatPolicy;
   let tickCollision:CollisionMap|undefined;
   const getCollision=()=>tickCollision??=outdoorCollisionMap(ctx);
   for(const definition of definitions) {
@@ -22490,7 +22502,7 @@ function stepOutdoorEncounters(ctx:WorldReducerContext,tick:bigint,onlinePlayers
 export const activateOutdoorEncounter=spacetimedb.reducer({encounterId:t.string()},(ctx,{encounterId})=>{
   requireAuthorizedSender(ctx.senderAuth.jwt,ctx.db.membership.identity.find(ctx.sender));
   const definition=runtimeHearthEncounterDefinition(contentRegistry(ctx),encounterId),camp=ctx.db.outdoor_encounter.id.find(encounterId);
-  const player=ctx.db.player_position.identity.find(ctx.sender),policy=compiledLiveIslandRuntime(ctx)?.combatPolicy;
+  const player=ctx.db.player_position.identity.find(ctx.sender),policy=liveIslandCombatPolicy(ctx);
   if(definition===null||definition.activation!=='interact'||camp?.phase!=='dormant'||camp.conflict||player===null
     ||player.spaceId!==TOPSIDE_SPACE_ID||policy===undefined)throw new SenderError('encounter_unavailable');
   const point={x:(definition.tileX+.5)*TILE_SIZE_FIXED,y:(definition.tileY+.5)*TILE_SIZE_FIXED};
@@ -22527,7 +22539,7 @@ function outdoorEnemyDamageAllowed(ctx:WorldReducerContext,npc:WorldNpcRow,attac
   const definition=runtimeHearthEncounterDefinition(contentRegistry(ctx),camp.id);
   if(definition===null||runtimeHearthEnemyDefinition(contentRegistry(ctx),profile.enemyKind)===null
     ||!outdoorInsideCamp(definition,npc,2)||!outdoorInsideCamp(definition,origin,2))return false;
-  const policy=compiledLiveIslandRuntime(ctx)?.combatPolicy;
+  const policy=liveIslandCombatPolicy(ctx);
   if(policy===undefined)return false;
   const collision=outdoorCollisionMap(ctx);
   if(outdoorRecoveryPosition(ctx,policy,collision)===null||!policy.allowsHostileSegment(
@@ -22767,7 +22779,7 @@ function stepTraversalHazards(ctx: WorldReducerContext, tick: bigint,
     const nextHealth = Math.max(0, stats.healthCenti - damage);
     const member = ctx.db.rogue_run_member.identity.find(player.identity);
     const run = member === null ? null : ctx.db.rogue_run.id.find(member.runId);
-    const combat = compiledLiveIslandRuntime(ctx)?.combatPolicy;
+    const combat = liveIslandCombatPolicy(ctx);
     const recoveryCollision = collisionForSpace(ctx, TOPSIDE_SPACE_ID);
     // Same recovery preflight as combat: never strand a zero-health character
     // when authored arrival content has no safe recovery point.
@@ -25186,6 +25198,9 @@ export const stepWorld = spacetimedb.reducer(
     const combatTargetsBySpace = new Map<number, WorldCombatTargetRow[]>();
     const projectilesBySpace = new Map<number, WorldProjectileRow[]>();
     const npcsBySpace = new Map<number, WorldNpcRow[]>();
+    // Static-world S3a: the topside runtime the collision stage resolves (undefined while
+    // topside is unoccupied) also supplies this tick's combat policy, with no second dispatch.
+    let topsideLiveMapRuntime: LiveIslandCollisionRuntime | null | undefined;
     for (const spaceId of playersBySpace.keys()) {
       const projectiles = [...ctx.db.world_projectile.by_chunk.filter(spaceId)];
       projectilesBySpace.set(spaceId, projectiles);
@@ -25214,6 +25229,7 @@ export const stepWorld = spacetimedb.reducer(
       const liveMapRuntime = spaceId === TOPSIDE_SPACE_ID
         ? liveIslandCollisionRuntime(ctx)
         : null;
+      if (spaceId === TOPSIDE_SPACE_ID) topsideLiveMapRuntime = liveMapRuntime;
       // Use the same augmented map as reducers and clients. This adds dynamic
       // Homestead POIs/tents; constructing the base map directly here caused
       // authority to walk through them while prediction correctly stopped.
@@ -25504,7 +25520,7 @@ export const stepWorld = spacetimedb.reducer(
     tickStageTiming(telemetryTimingSample, 'movement', true);
 
     tickStageTiming(telemetryTimingSample, 'projectiles');
-    const outdoorProjectilePolicy=playersBySpace.has(TOPSIDE_SPACE_ID)?compiledLiveIslandRuntime(ctx)?.combatPolicy:undefined;
+    const outdoorProjectilePolicy=topsideLiveMapRuntime?.combatPolicy;
     const occupiedProjectiles = [...projectilesBySpace.values()].flat();
     for (const projectile of occupiedProjectiles) {
       let collision = projectileCollisionBySpace.get(projectile.spaceId);
@@ -25745,8 +25761,9 @@ export const stepWorld = spacetimedb.reducer(
     tickStageTiming(telemetryTimingSample, 'npc');
     const outdoorPlayers = onlinePlayers.map(player => ctx.db.player_position.identity.find(player.identity))
       .filter((player): player is PlayerPositionRow => player !== null);
-    stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers);
-    stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers);
+    const tickCombatPolicy = topsideLiveMapRuntime === undefined ? liveIslandCombatPolicy(ctx) : topsideLiveMapRuntime?.combatPolicy;
+    stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);
+    stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);
     const occupiedNpcs = [...npcsBySpace.values()].flat();
     const activeContentRegistry = contentRegistry(ctx);
     const starterHorseDefinition = runtimeStarterHorseDefinition(activeContentRegistry);

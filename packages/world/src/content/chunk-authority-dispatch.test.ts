@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LIVE_ISLAND_MAP_ID, positionCollides, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type CollisionMap, type MapDocumentV3 } from '@orchard/sim';
+import { LIVE_ISLAND_MAP_ID, positionCollides, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, type CollisionMap, type CombatRegionPolicy, type MapDocumentV3 } from '@orchard/sim';
 import { decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
@@ -439,7 +439,7 @@ describe('chunk authority dispatcher: shadow', () => {
 /** Runs the real index.ts dispatcher wiring with injected dependencies. */
 function serverFunctions(dependencies: Record<string, unknown>) {
   const source = ts.createSourceFile('index.ts', readFileSync(new URL('../index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const names = ['liveIslandCollisionRuntime', 'chunkAuthoritySource', 'liveMapCollisionForSpace'];
+  const names = ['liveIslandCollisionRuntime', 'chunkAuthoritySource', 'liveMapCollisionForSpace', 'liveIslandCombatPolicy'];
   const text = names.map(name => {
     const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
     if (fn === undefined) throw new Error(`missing ${name}`);
@@ -449,6 +449,7 @@ function serverFunctions(dependencies: Record<string, unknown>) {
   return new Function(...Object.keys(dependencies), javascript)(...Object.values(dependencies)) as {
     liveIslandCollisionRuntime(ctx: unknown): unknown;
     liveMapCollisionForSpace(ctx: unknown, spaceId: number, medium: 'ground' | 'water', base: CollisionMap, runtime?: unknown): CollisionMap;
+    liveIslandCombatPolicy(ctx: unknown): CombatRegionPolicy | undefined;
   };
 }
 
@@ -459,13 +460,14 @@ describe('index.ts collision dispatcher wiring', () => {
     obstacles: [box(2, 1), box(40, 40)] };
   /** Blob rows arrive as a fresh Uint8Array from the 2.8.2 host (readUInt8Array slices); number[] is the declared type. */
   const hostBlobs = new Map([...store].map(([hash, bytes]) => [hash, bytes.slice()]));
-  function world(initialFlags: string | null, blobShape: 'host' | 'array' = 'host') {
+  function world(initialFlags: string | null, blobShape: 'host' | 'array' = 'host', fixture: { manifest: WorldChunkManifest; compiled: CompiledCollisionRuntime } = { manifest, compiled },
+    liveMap: { revision: number; contentHash: string } = { revision: 3, contentHash: 'map-3' }) {
     let flagsJson = initialFlags;
     const reads: string[] = [];
     const ctx = { db: {
       space_admin_flag: { spaceId: { find: (id: number) => (reads.push(`flag:${id}`), flagsJson === null ? null : { flagsJson }) } },
-      world_chunk_shadow: { spaceId: { find: (id: bigint) => (reads.push(`shadow:${id}`), { revision: 1, mapId: LIVE_ISLAND_MAP_ID, contentHash: REGISTRY_HASH, manifestJson: JSON.stringify(manifest) }) } },
-      live_map_document: { mapId: { find: (id: string) => (reads.push(`map:${id}`), { revision: 3, contentHash: 'map-3' }) } },
+      world_chunk_shadow: { spaceId: { find: (id: bigint) => (reads.push(`shadow:${id}`), { revision: 1, mapId: LIVE_ISLAND_MAP_ID, contentHash: REGISTRY_HASH, manifestJson: JSON.stringify(fixture.manifest) }) } },
+      live_map_document: { mapId: { find: (id: string) => (reads.push(`map:${id}`), liveMap) } },
       world_chunk_blob: { contentHash: { find: (hash: string) => (reads.push('blob'),
         { bytes: blobShape === 'host' ? hostBlobs.get(hash)! : Array.from(store.get(hash)!) }) } },
     } };
@@ -473,7 +475,7 @@ describe('index.ts collision dispatcher wiring', () => {
     const dispatcher = new ChunkAuthorityDispatcher({ worldSize: WORLD, logger: { info() {}, warn() {}, time() {}, timeEnd() {} } });
     const functions = serverFunctions({
       chunkAuthorityMode, TOPSIDE_SPACE_ID, LIVE_ISLAND_MAP_ID,
-      compiledLiveIslandRuntime: () => { compiledCalls += 1; return compiled; },
+      compiledLiveIslandRuntime: () => { compiledCalls += 1; return fixture.compiled; },
       chunkAuthorityDispatcher: dispatcher,
       contentRegistry: () => ({ contentHash: REGISTRY_HASH }), runtimeTraversalPolicy: () => ({}),
     });
@@ -556,6 +558,99 @@ describe('index.ts collision dispatcher wiring', () => {
     shadow.setFlags('{"chunkAuthority":"off"}');
     expect(shadow.functions.liveIslandCollisionRuntime(shadow.ctx)).toBe(compiled);
     expect(shadow.dispatcher.sampleRuntime(20n)).toBeNull();
+  });
+
+  describe('combat policy (static-world S3a)', () => {
+    const arena = { id: 'arena', spaceId: TOPSIDE_SPACE_ID, minX: 4, minY: 0, maxX: 80, maxY: 40, policy: 'hostile' as const };
+    const camp = { id: 'arena-camp', spaceId: TOPSIDE_SPACE_ID, minX: 60, minY: 10, maxX: 70, maxY: 20, policy: 'sanctuary' as const, parentId: 'arena' };
+    /** The fixture with authored regions: the chunk manifest carries them, compiled is built from the same publication. */
+    const combatManifest: WorldChunkManifest = { ...manifest, metadata: { ...manifest.metadata,
+      document: { ...(manifest.metadata['document'] as object), combatRegions: [arena, camp] },
+      authority: { ...(manifest.metadata['authority'] as object), combatRegions: [arena, camp] } } as WorldChunkManifest['metadata'] };
+    const combatCompiled = compiledFor(combatManifest, hash => store.get(hash));
+    const combat = { manifest: combatManifest, compiled: combatCompiled };
+    const probes = (policy: CombatRegionPolicy | undefined) => {
+      const out: (string | null)[] = [];
+      for (let tileY = 0; tileY < WORLD.height; tileY++) for (let tileX = 0; tileX < WORLD.width; tileX++) {
+        out.push(policy?.regionAt({ spaceId: TOPSIDE_SPACE_ID, tileX: tileX + .5, tileY: tileY + .5 })?.id ?? null);
+      }
+      return out;
+    };
+
+    it('off (default, unset or invalid flag) returns the compiled runtime\'s own policy object, reading only the flag', () => {
+      for (const flags of [null, '{}', '{"chunkAuthority":"off"}', '{"chunkAuthority":"banana"}', 'not json']) {
+        const w = world(flags, 'host', combat);
+        expect(w.functions.liveIslandCombatPolicy(w.ctx)).toBe(combatCompiled.combatPolicy);
+        expect(w.compiledCalls()).toBe(1);
+        expect(w.reads).toEqual([`flag:${TOPSIDE_SPACE_ID}`]);
+      }
+    });
+
+    it('shadow returns the compiled policy object; on returns the chunk-built policy, equal at every tile', () => {
+      const shadow = world('{"chunkAuthority":"shadow"}', 'host', combat);
+      expect(shadow.functions.liveIslandCombatPolicy(shadow.ctx)).toBe(combatCompiled.combatPolicy);
+      expect(shadow.dispatcher.status().lastCompare).toMatchObject({ equal: true, total: 0 });
+      const on = world('{"chunkAuthority":"on"}', 'host', combat);
+      const runtime = on.functions.liveIslandCollisionRuntime(on.ctx) as ChunkLiveIslandRuntime;
+      expect(runtime.source).toBe('chunks');
+      const policy = on.functions.liveIslandCombatPolicy(on.ctx);
+      expect(policy).toBe(runtime.combatPolicy);
+      expect(policy).not.toBe(combatCompiled.combatPolicy);
+      expect(on.compiledCalls()).toBe(0);
+      expect(runtime.combatRegions).toEqual(combatCompiled.combatRegions);
+      const chunkProbes = probes(policy);
+      expect(chunkProbes).toEqual(probes(combatCompiled.combatPolicy));
+      expect(new Set(chunkProbes)).toEqual(new Set([null, 'arena', 'arena-camp']));
+      // Cached with the runtime: later calls return the same object and decode nothing.
+      const decoded = on.reads.filter(read => read === 'blob').length;
+      expect(on.functions.liveIslandCombatPolicy(on.ctx)).toBe(policy);
+      expect(on.reads.filter(read => read === 'blob')).toHaveLength(decoded);
+    });
+
+    it('on falls back to the compiled policy object when the chunk runtime cannot serve (stale map)', () => {
+      const stale = world('{"chunkAuthority":"on"}', 'host', combat, { revision: 4, contentHash: 'map-4' });
+      expect(stale.functions.liveIslandCombatPolicy(stale.ctx)).toBe(combatCompiled.combatPolicy);
+      expect(stale.dispatcher.status().fallbacks).toEqual({ stale_map: 1 });
+    });
+
+    it('an undeclared map stays undeclared through the chunks (hearth installation refuses it in every mode)', () => {
+      expect(compiled.combatRegions).toBeUndefined();
+      const on = world('{"chunkAuthority":"on"}');
+      const runtime = on.functions.liveIslandCollisionRuntime(on.ctx) as ChunkLiveIslandRuntime;
+      expect(runtime.source).toBe('chunks');
+      expect(runtime.combatRegions).toBeUndefined();
+      expect(probes(runtime.combatPolicy).every(id => id === null)).toBe(true);
+    });
+
+    it('no server combat-policy read bypasses the dispatcher, and stepWorld reuses its collision runtime', () => {
+      const text = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
+      const functionText = (name: string) => {
+        const start = text.indexOf(`\nfunction ${name}(`);
+        expect(start, name).toBeGreaterThan(0);
+        return text.slice(start, text.indexOf('\n}\n', start) + 3);
+      };
+      // Outside: the compiled builder itself, and the map publication path, which validates and
+      // preserves the document's authored regions (a write, not a combat read).
+      const outside = ['compiledLiveIslandRuntime', 'validatedLiveMapDocument', 'commitLiveMapSnapshot']
+        .reduce((rest, name) => rest.replace(functionText(name), ''), text);
+      expect(outside).not.toMatch(/compiledLiveIslandRuntime\(ctx\)\??\.combatPolicy/u);
+      expect(outside).not.toMatch(/\.document\.combatRegions/u);
+      expect(outside).not.toMatch(/new CombatRegionPolicy\(/u);
+      // Every read of a runtime's policy or regions is on a dispatcher-selected runtime.
+      const receivers = [...outside.matchAll(/([\w?.()]+)\.(combatPolicy|combatRegions)\b/gu)].map(match => `${match[1]}.${match[2]}`);
+      expect(new Set(receivers)).toEqual(new Set(['runtime?.combatPolicy', 'runtime?.combatRegions', 'liveIslandCollisionRuntime(ctx)?.combatPolicy',
+        'topsideLiveMapRuntime?.combatPolicy']));
+      expect(text).toContain('  const runtime = liveIslandCollisionRuntime(ctx);\n  const policy = runtime?.combatPolicy;');
+      const tick = text.slice(text.indexOf('export const stepWorld ='));
+      expect(tick.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
+      expect(tick).toContain('if (spaceId === TOPSIDE_SPACE_ID) topsideLiveMapRuntime = liveMapRuntime;');
+      expect(tick).toContain('const outdoorProjectilePolicy=topsideLiveMapRuntime?.combatPolicy;');
+      // A second dispatch only while topside is unoccupied (then no collision stage resolved it).
+      expect(tick.match(/liveIslandCombatPolicy\(ctx\)/gu)).toHaveLength(1);
+      expect(tick).toContain('const tickCombatPolicy = topsideLiveMapRuntime === undefined ? liveIslandCombatPolicy(ctx) : topsideLiveMapRuntime?.combatPolicy;');
+      expect(tick).toContain('stepOutdoorEncounters(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);');
+      expect(tick).toContain('stepHearthResourceRespawns(ctx, authorityTick, outdoorPlayers, tickCombatPolicy);');
+    });
   });
 });
 

@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## World 0.28.0 — Static world S3a: server combat policy through the chunk dispatcher
+
+- **S3a (#220).** Every server read of the combat-region policy now goes through `liveIslandCombatPolicy(ctx)`: hearth harvest and installation, the ferry, encounter activation, outdoor enemy damage, the hazard knockout, and projectiles, outdoor encounters and resource respawns in `stepWorld`.
+  - With chunk authority `off` (production), it returns the compiled runtime's own policy object, so behaviour is unchanged.
+  - `shadow` also compares declared regions and the region at every tile centre.
+  - `on` serves the policy built from the published chunks.
+- The tick reuses the topside runtime that the collision stage already resolved. Resource respawns no longer compile once per depleted site.
+- Static-world readiness: `server.whole-map-compile` goes from 15 to 7.
+- New nightly parity file `world-chunk-combat-policy-parity.test.ts` pins the production Hearth regions (digest and tile counts) for v1 and v2 blobs.
+- No schema change. Workspace 0.68.0.
+
 ## Client 0.48.3 / UI 0.49.0 / Studio 0.16.13 — Item slot S2: one slot controller; equipment rules match the server (BUG-050)
 
 - **Item slot S2 (#222).** The inventory's drag, click, spread and quick-move handling moved out of the game host into the kit as `UiSlotController`. Behaviour is the same, except:

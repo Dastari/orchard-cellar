@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, generateSurvivalResources, SURVIVAL_WORLD_SEED,
-  type CollisionMap, type CollisionObstacle, type ContentRegistry } from '@orchard/sim';
+  type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry } from '@orchard/sim';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { authorityObstacleKey } from '@orchard/sim/chunk-runtime';
-import { canonicalChunkJson } from '@orchard/sim/world-chunk';
+import { canonicalChunkJson, decodeWorldChunk, WORLD_CHUNK_AUTHORITY_SCHEMA_V2 } from '@orchard/sim/world-chunk';
 import { createAuthoritySpaceCollisionMap } from '../packages/world/src/world-rules.js';
-import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime,
+  type LiveIslandCollisionRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
 import { captureWorldChunkSnapshot, materializeWorldChunks, type MaterializedWorldChunks, type WorldChunkSnapshot } from './materialize-world-chunks.js';
 import { serverLiveIslandReference, type ServerLiveCollisionRows, type ServerLiveIslandReference } from './world-chunk-server-reference.js';
 
@@ -89,6 +90,55 @@ export function liveBaseObstacles(registry: ContentRegistry, runtime: ChunkLiveI
   return { staticBase: all.slice(0, staticCount), live: all.slice(staticCount) };
 }
 
+/**
+ * Static-world S3a: every answer the server's combat consumers can get from a runtime's
+ * `combatPolicy`/`combatRegions`, compared between two runtimes: whether the map declares
+ * regions, the ordered regions, `regionAt` (so `allowsHostileDamage`) at every tile centre and
+ * tile corner (the half-open boundary), and `allowsHostileSegment` from every region centre to
+ * every other centre and to a point just outside each edge (both directions). Returns at most
+ * `limit` disagreements plus the number of probes, so an empty list is not vacuous.
+ */
+export function combatPolicyDisagreements(a: Pick<LiveIslandCollisionRuntime, 'combatPolicy' | 'combatRegions'>,
+  b: Pick<LiveIslandCollisionRuntime, 'combatPolicy' | 'combatRegions'>, width: number, height: number, limit = 16): { readonly disagreements: string[]; readonly probes: number } {
+  const disagreements: string[] = [];
+  let probes = 0;
+  const note = (label: string, left: unknown, right: unknown): void => {
+    probes += 1;
+    if (left !== right && disagreements.length < limit) disagreements.push(`${label}: ${String(left)} != ${String(right)}`);
+  };
+  note('declared', a.combatRegions !== undefined, b.combatRegions !== undefined);
+  note('regions', canonicalChunkJson(a.combatRegions ?? []), canonicalChunkJson(b.combatRegions ?? []));
+  const regions = [...(a.combatRegions ?? []), ...(b.combatRegions ?? [])];
+  const spaces = new Set([TOPSIDE_SPACE_ID, ...regions.map(({ spaceId }) => spaceId)]);
+  for (const spaceId of spaces) for (let tileY = 0; tileY < height; tileY++) for (let tileX = 0; tileX < width; tileX++) {
+    for (const offset of [.5, 0]) {
+      const point = { spaceId, tileX: tileX + offset, tileY: tileY + offset };
+      note(`regionAt ${spaceId}:${point.tileX},${point.tileY}`, a.combatPolicy.regionAt(point)?.id ?? null, b.combatPolicy.regionAt(point)?.id ?? null);
+    }
+  }
+  const centre = (region: CombatRegion) => ({ spaceId: region.spaceId, tileX: (region.minX + region.maxX + 1) / 2, tileY: (region.minY + region.maxY + 1) / 2 });
+  for (const region of regions) {
+    const from = centre(region);
+    const targets = [...regions.map(centre),
+      { ...from, tileX: region.minX - .5 }, { ...from, tileX: region.maxX + 1.5 }, { ...from, tileY: region.minY - .5 }, { ...from, tileY: region.maxY + 1.5 }];
+    for (const to of targets) for (const [start, end] of [[from, to], [to, from]] as const) {
+      note(`segment ${region.id} ${start.tileX},${start.tileY}->${end.tileX},${end.tileY}`,
+        a.combatPolicy.allowsHostileSegment(start, end), b.combatPolicy.allowsHostileSegment(start, end));
+    }
+  }
+  return { disagreements, probes };
+}
+
+/** Tiles per region id (`regionAt` at every tile centre): a readable pin of a policy. */
+export function combatPolicyTileCounts(policy: LiveIslandCollisionRuntime['combatPolicy'], width: number, height: number): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (let tileY = 0; tileY < height; tileY++) for (let tileX = 0; tileX < width; tileX++) {
+    const id = policy.regionAt({ spaceId: TOPSIDE_SPACE_ID, tileX: tileX + .5, tileY: tileY + .5 })?.id ?? 'none';
+    counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export const obstacleKeys = (obstacles: readonly CollisionObstacle[] | undefined): Set<string> => new Set((obstacles ?? []).map(authorityObstacleKey));
 
 /** The S1b parity suite shared by the bootstrap and authored fixtures (one snapshot per file). */
@@ -156,6 +206,18 @@ export function describeChunkRuntimeParity(label: string, setup: () => { readonl
         const unfiltered = [...runtime.baseObstacles.ground, ...liveObstacles, ...(runtime.ground.obstacles ?? [])];
         expect(unfiltered.length).toBeGreaterThan(expected.obstacles!.length);
       }
+    }, 120_000);
+
+    it('S3a: the chunk runtime (authority schema 2 blobs) serves the same combat policy as compiled', () => {
+      const { runtime, server, published } = context;
+      expect(new Set(published.blobs.map(bytes => decodeWorldChunk(bytes).authoritySchema))).toEqual(new Set([WORLD_CHUNK_AUTHORITY_SCHEMA_V2]));
+      // Compiled: `new CombatRegionPolicy(document.combatRegions ?? [])` with `combatRegions: document.combatRegions`.
+      expect(server.runtime.combatRegions).toBe(server.runtime.document.combatRegions);
+      const { disagreements, probes } = combatPolicyDisagreements(runtime, server.runtime, runtime.ground.width, runtime.ground.height);
+      expect(disagreements).toEqual([]);
+      expect(probes).toBeGreaterThan(2 * runtime.ground.width * runtime.ground.height);
+      expect(combatPolicyTileCounts(runtime.combatPolicy, runtime.ground.width, runtime.ground.height))
+        .toEqual(combatPolicyTileCounts(server.runtime.combatPolicy, runtime.ground.width, runtime.ground.height));
     }, 120_000);
 
     extra?.(() => context);
