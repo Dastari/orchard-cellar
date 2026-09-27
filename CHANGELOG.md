@@ -2,6 +2,21 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.48.1 / UI 0.47.1 / Sim 0.33.2 / World 0.27.1 / Studio 0.16.11 / Tools 0.24.5 — Bug fixes: toasts, slot rules, take-only slots, prompt clipping
+
+- **BUG-043: long toasts are cut off at 42 characters (#214).**
+  - The whole message now shows: long toasts word-wrap onto two balanced lines, and short toasts are unchanged.
+  - A toast longer than two lines ends in "..." after a whole word.
+  - It also fixes a clipped second line on 320-wide screens.
+- **BUG-045: crafting fill takes ingredients from read-only hotbar slots (#211).** "Place in grid" never takes ingredients from take-only slots. Taking items out of station outputs still works.
+- **BUG-046: hearth stash and chests ignore frame slot rules on the server (#212).** The server now applies the frame's slot rules (allow, required types, deny) when items are put into the hearth stash and legacy chests. Stored items that break a rule can still be taken out.
+- **BUG-047: frame rules on the player's own panes are client-only (#213).** A slot rule on a pane bound to the player's own containers is an error for newly authored or edited content, and only a warning for content already published. Restores and unchanged rows are never refused.
+- **BUG-048: merchant sale takes from take-only slots (#215).** Sales skip take-only carried slots, and a sale that can't be covered otherwise fails cleanly.
+- **BUG-049: a prompt label with a glyph clips wrapped lines (#216).**
+  - **Fix:** kit rows now measure children at the width they are actually given, which fixes the clipped gateway error notice.
+  - **Speed:** a second measurement cache slot keeps layout faster than before overall.
+- Workspace 0.65.0.
+
 ## World 0.27.0 / World bindings 0.19.0 / Sim 0.33.1 — Static world S2: chunk authority switch, server dual-read, audit (migration release)
 
 **Schema-only migration release (new reducer and procedure; no table changes).** Chunk authority stays `off`, so gameplay is unchanged.
