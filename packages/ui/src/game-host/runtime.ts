@@ -24,6 +24,21 @@ export class GameUiRuntime {
   private readonly pointers = new Map<number, { host: GameUiHost; event: UiRootPointer }>();
   private readonly cancelled = new Set<number>();
   private keyboard: GameUiHost | null = null;
+  private readonly reportedErrors = new Set<string>();
+
+  /** A host whose tree is broken (a kit invariant such as a duplicate UI id) is reported once and treated as not
+   * handling the event, so keys such as Escape still reach the game and the other hosts (BUG-063). */
+  constructor(private readonly onHostError: (hostId: string, error: unknown) => void = (hostId, error) => {
+    console.error(`Orchard UI: the ${hostId} host failed and was skipped`, error);
+  }) {}
+
+  private guard<T>(host: GameUiHost, fallback: T, run: () => T): T {
+    try { return run(); } catch (error) {
+      const key = `${host.id}:${error instanceof Error ? error.message : String(error)}`;
+      if (!this.reportedErrors.has(key)) { this.reportedErrors.add(key); this.onHostError(host.id, error); }
+      return fallback;
+    }
+  }
 
   register(host: GameUiHost): () => void {
     if (this.hosts.has(host.id)) throw new Error(`Duplicate game UI host: ${host.id}`);
@@ -46,7 +61,7 @@ export class GameUiRuntime {
   private cancelHost(host: GameUiHost): void {
     for (const [id, owned] of this.pointers) {
       if (owned.host !== host) continue;
-      host.root.pointer({ ...owned.event, type: 'cancel' });
+      this.guard(host, false, () => host.root.pointer({ ...owned.event, type: 'cancel' }));
       this.pointers.delete(id);
       this.cancelled.add(id);
     }
@@ -74,7 +89,7 @@ export class GameUiRuntime {
   cancelPointer(pointerId: number): void {
     const owned = this.pointers.get(pointerId);
     if (!owned) return;
-    owned.host.root.pointer({ ...owned.event, type: 'cancel' });
+    this.guard(owned.host, false, () => owned.host.root.pointer({ ...owned.event, type: 'cancel' }));
     this.pointers.delete(pointerId);
     this.cancelled.add(pointerId);
   }
@@ -102,7 +117,7 @@ export class GameUiRuntime {
     const owned = this.pointers.get(event.pointerId);
     if (owned) {
       owned.event = event;
-      owned.host.root.pointer(event);
+      this.guard(owned.host, false, () => owned.host.root.pointer(event));
       this.clearOtherHover(owned.host);
       if (event.type === 'up' || event.type === 'cancel') this.pointers.delete(event.pointerId);
       return true;
@@ -111,7 +126,7 @@ export class GameUiRuntime {
     const candidates = this.eligible().filter(host => !scope || host.id === scope.hostId);
     if (event.type === 'up' || event.type === 'cancel') return candidates.some(host => host.blocking());
     for (const host of candidates) {
-      if (host.root.pointer(event) || host.blocking()) {
+      if (this.guard(host, false, () => host.root.pointer(event)) || host.blocking()) {
         this.clearOtherHover(host);
         if (event.type === 'down') {
           this.pointers.set(event.pointerId, { host, event });
@@ -126,7 +141,7 @@ export class GameUiRuntime {
 
   wheel(event: UiElementWheel, hostId?: string): boolean {
     this.reconcile();
-    for (const host of this.eligible()) if ((!hostId || host.id === hostId) && (host.root.wheel(event) || host.blocking())) return true;
+    for (const host of this.eligible()) if ((!hostId || host.id === hostId) && (this.guard(host, false, () => host.root.wheel(event)) || host.blocking())) return true;
     return false;
   }
 
@@ -143,7 +158,7 @@ export class GameUiRuntime {
     const host = this.hosts.get(id);
     if (!host || !this.eligible().includes(host)) return false;
     this.keyboard = host;
-    host.root.arrange();
+    this.guard(host, undefined, () => host.root.arrange());
     return true;
   }
 
@@ -151,22 +166,24 @@ export class GameUiRuntime {
     this.reconcile();
     const host = this.keyboardHost();
     if (!host || (hostId !== undefined && host.id !== hostId)) return false;
-    host.root.arrange();
-    // An empty passive root must not consume the game's Tab roster shortcut.
-    if (!host.blocking() && !host.root.entries().some(({ element }) => element.focusable && element.visible && !element.disabled)) return false;
-    // A held activation key is one gesture. Text editors retain native repeat
-    // (spaces, deletion and navigation); their submission policy belongs to the host.
-    const focused = host.root.focus.current;
-    if (event.repeat && focused && !focused.props['editor']
-      && ['Enter', ' ', 'ContextMenu'].includes(event.key)) return true;
-    return host.root.key(event) || host.blocking();
+    return this.guard(host, false, () => {
+      host.root.arrange();
+      // An empty passive root must not consume the game's Tab roster shortcut.
+      if (!host.blocking() && !host.root.entries().some(({ element }) => element.focusable && element.visible && !element.disabled)) return false;
+      // A held activation key is one gesture. Text editors retain native repeat
+      // (spaces, deletion and navigation); their submission policy belongs to the host.
+      const focused = host.root.focus.current;
+      if (event.repeat && focused && !focused.props['editor']
+        && ['Enter', ' ', 'ContextMenu'].includes(event.key)) return true;
+      return host.root.key(event) || host.blocking();
+    });
   }
 
   get focusedElement(): UiElement | null {
     this.reconcile();
     const host = this.keyboardHost();
-    host?.root.arrange();
-    return host?.root.focus.current ?? null;
+    if (!host) return null;
+    return this.guard(host, null, () => { host.root.arrange(); return host.root.focus.current; });
   }
 
   resize(width: number, height: number): void {

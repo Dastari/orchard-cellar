@@ -104,3 +104,30 @@ it('draws the Records chapter when a statistic arrives twice for the same subjec
   (f.ui as unknown as { drawWindow(ctx: CanvasRenderingContext2D, name: string): void }).drawWindow(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 'statistics');
   f.runtime.key({ key: 'Escape' }); expect(f.ui.openWindow).toBeNull();
 });
+it('contains a broken retained view: the frame, Escape and the other windows keep working (BUG-063)', () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const f = fixture();
+    // Any kit invariant failure inside the Records view (the owner's was a duplicate UI id).
+    const broken = () => { throw new Error('Duplicate UI id: statistics.record:connections_opened:'); };
+    const screen = (f.ui as unknown as { statisticsScreen: { update(): void; draw(): void } }).statisticsScreen;
+    screen.update = broken; screen.draw = broken;
+    f.roots.statistics.arrange = broken;
+    expect(() => { f.ui.openWindow = 'statistics'; }).not.toThrow();
+    expect(() => f.update({})).not.toThrow();
+    const canvas = createCanvas(800, 600);
+    expect(() => (f.ui as unknown as { drawWindow(ctx: CanvasRenderingContext2D, name: string): void })
+      .drawWindow(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 'statistics')).not.toThrow();
+    // Keys routed to the broken host fall through to the game, so Escape still closes the window.
+    expect(f.runtime.key({ key: 'Escape' })).toBe(false);
+    expect(f.ui.handleKeyDown('Escape', false)).toBe(true);
+    expect(f.ui.openWindow).toBeNull();
+    // Reported once per view and error, not every frame.
+    const reports = errors.mock.calls.filter(call => String(call[0]).includes('statistics') || String(call[0]).includes('character'));
+    expect(reports.length).toBeGreaterThan(0);
+    f.update({}); f.ui.openWindow = 'statistics'; f.update({});
+    expect(errors.mock.calls.filter(call => String(call[0]).includes('statistics') || String(call[0]).includes('character')).length).toBe(reports.length);
+    f.ui.openWindow = 'character';
+    expect(element(f.roots.character, 'game.character.host').kind).toBeDefined();
+  } finally { errors.mockRestore(); }
+});
