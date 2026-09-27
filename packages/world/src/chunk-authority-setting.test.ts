@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { authenticationRejection, isWorldOwnerRole, membershipRejection, OIDC_ISSUER } from './auth-policy.js';
+import { authenticationRejection, canAdministerWorld, membershipRejection, OIDC_ISSUER } from './auth-policy.js';
 import {
   CHUNK_AUTHORITY_AUDIT_TARGET_KEY,
   CHUNK_AUTHORITY_SPACE_ID,
@@ -48,11 +48,11 @@ const now = { microsSinceUnixEpoch: 1_700_000_000_000_000n };
 type Membership = { role: string; revokedAt?: unknown; blocked: boolean } | null;
 const jwt = { issuer: OIDC_ISSUER, audience: ['orchard-web'] };
 const requireAuthorizedSender = compile('requireAuthorizedSender', { authenticationRejection, membershipRejection, SenderError });
-const requireStrictWorldOwner = compile('requireStrictWorldOwner', { requireAuthorizedSender, isWorldOwnerRole, SenderError });
+const requireWorldOwner = compile('requireWorldOwner', { requireAuthorizedSender, canAdministerWorld, SenderError });
 const setChunkAuthority = compile<(ctx: unknown, args: { mode: string }) => void>('setChunkAuthority', {
   spacetimedb: { reducer: (_schema: unknown, handler: unknown) => handler },
   t: { string: () => null },
-  requireStrictWorldOwner,
+  requireWorldOwner,
   parseChunkAuthorityMode,
   planChunkAuthorityFlags,
   CHUNK_AUTHORITY_SPACE_ID,
@@ -155,12 +155,13 @@ describe('setChunkAuthority reducer', () => {
   });
 
   it.each([
-    ['admin', { role: 'admin', blocked: false }],
     ['moderator', { role: 'moderator', blocked: false }],
     ['player', { role: 'friend', blocked: false }],
     ['missing membership', null],
     ['blocked owner', { role: 'owner', blocked: true }],
     ['revoked owner', { role: 'owner', blocked: false, revokedAt: 'then' }],
+    ['blocked admin', { role: 'admin', blocked: true }],
+    ['revoked admin', { role: 'admin', blocked: false, revokedAt: 'then' }],
   ] as const)('rejects %s without writing', (_label, member) => {
     const state = world(member, '{"chunkAuthority":"off"}');
     expect(() => setChunkAuthority(state.ctx, { mode: 'on' })).toThrow(SenderError);
@@ -169,15 +170,41 @@ describe('setChunkAuthority reducer', () => {
     expect(state.ctx.audits).toEqual([]);
   });
 
-  it('rejects an admin with owner_required', () => {
-    const state = world({ role: 'admin', blocked: false });
+  it('accepts an admin (owner decision 2026-09-27: the dev account runs activation), recording the admin as actor', () => {
+    const state = world({ role: 'admin', blocked: false }, '{"weather":true}');
+    setChunkAuthority(state.ctx, { mode: 'shadow' });
+    expect(chunkAuthorityMode(state.ctx)).toBe('shadow');
+    expect(state.row()).toMatchObject({ flagsJson: '{"weather":true,"chunkAuthority":"shadow"}', updatedBy: 'sender', updatedAt: now });
+    expect(state.ctx.audits).toHaveLength(1);
+    expect(state.ctx.audits[0]).toMatchObject({ actor: 'sender', action: 'set_chunk_authority', value: 'off->shadow', targetKey: 'space:0' });
+    setChunkAuthority(state.ctx, { mode: 'on' });
+    setChunkAuthority(state.ctx, { mode: 'off' });
+    expect(chunkAuthorityMode(state.ctx)).toBe('off');
+    expect(state.ctx.audits.map((audit) => audit['value'])).toEqual(['off->shadow', 'shadow->on', 'on->off']);
+  });
+
+  it.each([
+    ['moderator', { role: 'moderator', blocked: false }],
+    ['player', { role: 'friend', blocked: false }],
+    ['missing membership', null],
+  ] as const)('rejects %s with owner_required', (_label, member) => {
+    const state = world(member);
     expect(() => setChunkAuthority(state.ctx, { mode: 'on' })).toThrow('owner_required');
   });
 
-  it('rejects an unauthenticated owner session', () => {
-    const state = world({ role: 'owner', blocked: false });
+  it.each(['owner', 'admin'])('rejects an unauthenticated %s session', (role) => {
+    const state = world({ role, blocked: false });
     state.ctx.senderAuth = { jwt: null as unknown as typeof jwt };
     expect(() => setChunkAuthority(state.ctx, { mode: 'on' })).toThrow('authentication_required');
+  });
+
+  it.each(['owner', 'admin'])('rejects a %s token from another issuer or audience', (role) => {
+    for (const token of [{ issuer: 'https://evil.example/realms/orchard', audience: ['orchard-web'] }, { issuer: OIDC_ISSUER, audience: ['other-client'] }]) {
+      const state = world({ role, blocked: false });
+      state.ctx.senderAuth = { jwt: token };
+      expect(() => setChunkAuthority(state.ctx, { mode: 'on' })).toThrow(SenderError);
+      expect(state.ctx.audits).toEqual([]);
+    }
   });
 
   it.each(['', 'ON', 'active', 'true'])('rejects invalid mode %j without writing', (mode) => {
@@ -188,15 +215,15 @@ describe('setChunkAuthority reducer', () => {
   });
 });
 
-describe('admin space flag writes keep the owner chunkAuthority switch', () => {
-  it('preserves the current owner-only value and strips it from snapshots', () => {
+describe('admin space flag writes keep the chunkAuthority switch (only setChunkAuthority moves it)', () => {
+  it('preserves the current switch value and strips it from snapshots', () => {
     expect(withoutOwnerOnlySpaceFlags({ weather: true, chunkAuthority: 'on' })).toEqual({ weather: true });
     expect(preserveOwnerOnlySpaceFlags({ weather: false, chunkAuthority: 'off' }, { weather: true, chunkAuthority: 'on' }))
       .toEqual({ weather: false, chunkAuthority: 'on' });
     expect(preserveOwnerOnlySpaceFlags({ weather: false, chunkAuthority: 'on' }, { weather: true })).toEqual({ weather: false });
   });
 
-  it('an admin undo executed after an owner switch leaves the switch in place', () => {
+  it.each(['owner', 'admin'])('an admin undo executed after a switch by the %s leaves the switch in place', (switchRole) => {
     const parsedReason = parseAdminReason('Undo space flags ticket 77');
     if (!parsedReason.ok) throw new Error('invalid reason');
     const before: AdminWorldState = {
@@ -214,8 +241,8 @@ describe('admin space flag writes keep the owner chunkAuthority switch', () => {
     const inverse = (plan.audit.inverse?.args['actions'] as readonly { kind: string; spaceId: string; flags: Record<string, unknown> }[])[0]!;
     expect(inverse.flags).toEqual({ ownerOnly: false, weather: true });
 
-    // The owner switches to `on` after the admin change; the admin then undoes.
-    const state = world({ role: 'owner', blocked: false }, JSON.stringify({ ownerOnly: false, weather: false, chunkAuthority: 'off' }));
+    // setChunkAuthority switches to `on` after the admin change; the admin then undoes.
+    const state = world({ role: switchRole, blocked: false }, JSON.stringify({ ownerOnly: false, weather: false, chunkAuthority: 'off' }));
     setChunkAuthority(state.ctx, { mode: 'on' });
     const spaceAdminFlags = compile('spaceAdminFlags', {});
     const writeAdminWorldRepairAction = compile<(ctx: unknown, action: unknown) => void>('writeAdminWorldRepairAction', {

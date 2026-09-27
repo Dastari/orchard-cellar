@@ -1,6 +1,6 @@
-import { canAdministerWorld, isWorldOwnerRole } from '@orchard/sim';
+import { canAdministerWorld } from '@orchard/sim';
 
-export { canAdministerWorld, isWorldOwnerRole };
+export { canAdministerWorld };
 
 export const OIDC_ISSUER = 'https://auth.orchard.dastari.net/realms/orchard';
 

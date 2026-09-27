@@ -1,11 +1,13 @@
 /**
- * Static-world S2a: the owner-only chunkAuthority switch.
+ * Static-world S2a: the chunkAuthority switch (owner or admin).
  *
  * The mode lives in the public `space_admin_flag` row for space 0 under the
  * `chunkAuthority` key of `flagsJson`, so no stored schema changes and every
  * client can read it (the table is public). Absent or invalid values mean
- * `off`. Only the world owner may change it (reducer `setChunkAuthority`);
- * the admin space-flag repair surface can neither patch nor undo it.
+ * `off`. Only the dedicated reducer `setChunkAuthority` changes it, and it
+ * admits the world owner or an admin (owner decision 2026-09-27, so the dev
+ * account can run activation). The generic admin space-flag repair surface can
+ * neither patch nor undo it, so a flags restore never flips it silently.
  *
  * Nothing reads the mode for behaviour yet. S2b's collision dispatcher will
  * call `chunkAuthorityMode(ctx)`.
@@ -21,9 +23,10 @@ export const CHUNK_AUTHORITY_SPACE_ID = 0;
 export const CHUNK_AUTHORITY_FLAG_KEY = 'chunkAuthority';
 export const CHUNK_AUTHORITY_DEFAULT_MODE: ChunkAuthorityMode = 'off';
 
-/** Space flag keys only the world owner may change. Admin flag patches reject
- * them, and every admin flag write (including undo) keeps their current
- * stored value. */
+/** Space flag keys only their dedicated switch reducer may change (named
+ * "owner-only" from when that reducer was owner-only; it now admits owner or
+ * admin). Generic admin flag patches reject them, and every generic admin flag
+ * write (including undo) keeps their current stored value. */
 export const OWNER_ONLY_SPACE_FLAG_KEYS: ReadonlySet<string> = new Set([CHUNK_AUTHORITY_FLAG_KEY]);
 
 type FlagObject = Readonly<Record<string, unknown>>;
@@ -92,15 +95,16 @@ export function planChunkAuthorityFlags(
   return { previous, mode, flagsJson: JSON.stringify({ ...flags, [CHUNK_AUTHORITY_FLAG_KEY]: mode }) };
 }
 
-/** Removes owner-only keys, e.g. from an admin undo snapshot, so a recorded
- * inverse never claims to restore an owner switch. */
+/** Removes owner-only (switch-only) keys, e.g. from an admin undo snapshot, so
+ * a recorded inverse never claims to restore the chunkAuthority switch. */
 export function withoutOwnerOnlySpaceFlags<T extends FlagObject>(flags: T): T {
   return Object.fromEntries(Object.entries(flags).filter(([key]) => !OWNER_ONLY_SPACE_FLAG_KEYS.has(key))) as T;
 }
 
 /** Admin flag writes replace the whole flags object. This keeps the CURRENT
- * owner-only values from `current` whatever `next` carries, so neither an
- * admin patch nor an undo can move the owner's chunkAuthority switch. */
+ * owner-only (switch-only) values from `current` whatever `next` carries, so
+ * neither a generic admin patch nor an undo can move the chunkAuthority switch;
+ * only setChunkAuthority can. */
 export function preserveOwnerOnlySpaceFlags<T extends FlagObject>(next: T, current: FlagObject): T {
   const result: Record<string, unknown> = withoutOwnerOnlySpaceFlags(next);
   for (const key of OWNER_ONLY_SPACE_FLAG_KEYS) {
@@ -130,14 +134,14 @@ export function adminSpaceFlagsBySpace(
   return result;
 }
 
-/** Audit target for owner chunkAuthority switches: the space 0 flag row that
+/** Audit target for chunkAuthority switches: the space 0 flag row that
  * holds it, the same key Studio uses for that space's flag history. */
 export const CHUNK_AUTHORITY_AUDIT_TARGET_KEY = `space:${CHUNK_AUTHORITY_SPACE_ID}`;
-const CHUNK_AUTHORITY_AUDIT_REASON = parseAdminReason('Owner switched static-world chunk authority');
+const CHUNK_AUTHORITY_AUDIT_REASON = parseAdminReason('Static-world chunk authority switched');
 
 /** A standard v1 audit payload (parsed by the audit page and Studio) whose
  * single change is `/chunkAuthority`: previous -> next. No inverse is
- * offered; rollback is another owner switch. */
+ * offered; rollback is another setChunkAuthority call. */
 export function chunkAuthorityAuditPayload(plan: ChunkAuthorityFlagsPlan, occurredAtMicros: bigint): string {
   if (!CHUNK_AUTHORITY_AUDIT_REASON.ok) throw new Error('chunk_authority_audit_reason_invalid');
   return serializeAdminAuditPayload({
