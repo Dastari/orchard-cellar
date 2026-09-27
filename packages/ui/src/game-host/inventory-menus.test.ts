@@ -703,3 +703,59 @@ describe('production retained processor authority bridge',()=>{
   });
 
 });
+
+describe('BUG-050: the host checks drops with the authority rules', () => {
+  const head = EQUIPMENT_SLOTS.find(slot => slot.id === 'head')!.index;
+  const controller = (f: ReturnType<typeof fixture>) => (f.ui as unknown as { retainedMenus: { controller: { model: { canAccept(ref: { container: string; index: number }): boolean } } } }).retainedMenus.controller;
+
+  it('refuses a non-gear item on an equipment slot, as the server does, and never calls the reducer', () => {
+    const f = fixture('inventory', { inventory: [], cursorStack: { itemKind: 'apple', quantity: 1 } });
+    try {
+      expect(controller(f).model.canAccept({ container: 'equipment', index: head })).toBe(false);
+      f.click(f.slot('equipment', head));
+      expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
+      f.update({ cursorStack: { itemKind: 'hearth_common_head', quantity: 1 } });
+      expect(controller(f).model.canAccept({ container: 'equipment', index: head })).toBe(true);
+      f.click(f.slot('equipment', head));
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('equipment', head, 'left');
+    } finally { f.dispose(); }
+  });
+
+  it('refuses it on the legacy hit-tested host too', () => {
+    const f = fixture('inventory', { inventory: [], cursorStack: { itemKind: 'apple', quantity: 1 } });
+    f.ui.disposeRetainedInventory();
+    try {
+      // Re-run the legacy layout, which sets each slot's restriction itself (not the retained path's retainedSlots).
+      f.update({});
+      const slots = (f.ui as unknown as { visibleItemSlots(): { containerId: string; index: number; accepts(kind: string): boolean }[] }).visibleItemSlots();
+      const helmet = slots.find(slot => slot.containerId === 'equipment' && slot.index === head)!;
+      expect(helmet.accepts('apple')).toBe(false);
+      expect(helmet.accepts('hearth_common_head')).toBe(true);
+    } finally { f.dispose(); }
+  });
+
+  it('ignores a restriction authored on a pane bound to the player\'s own containers (BUG-047)', () => {
+    const base = registry.frames.get('frame:chest')!;
+    const frame: FrameContentDefinition = { ...base, panes: base.panes.map(pane => 'self' in pane.bind ? { ...pane, restriction: { rejectedItems: ['item:apple'] } } : pane) };
+    const f = fixture('chest', { inventory: [], cursorStack: { itemKind: 'apple', quantity: 1 }, contentRegistry: { ...registry, frames: new Map(registry.frames).set(frame.id, frame) } });
+    try {
+      expect(controller(f).model.canAccept({ container: 'backpack', index: 0 })).toBe(true);
+      f.click(f.slot('backpack', 0));
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('backpack', 0, 'left');
+    } finally { f.dispose(); }
+  });
+});
+
+describe('window footer hotbar', () => {
+  it('shows the selected hotbar slot like the HUD hotbar', () => {
+    const f = fixture('inventory', { selectedSlot: 2 });
+    try {
+      const selected = () => Array.from({ length: 10 }, (_, index) => f.slot('hotbar', index).props['selected']);
+      expect(selected()).toEqual([false, false, true, false, false, false, false, false, false, false]);
+      f.update({ selectedSlot: 5 }); f.root.arrange();
+      expect(selected().indexOf(true)).toBe(5);
+      f.update({ selectedSlot: 99 }); f.root.arrange();
+      expect(selected()).not.toContain(true);
+    } finally { f.dispose(); }
+  });
+});

@@ -6,7 +6,7 @@ import type {
   SlotRestriction,
 } from '@orchard/sim';
 import { resolveFrameSlotRestriction } from '@orchard/sim/content/frame-runtime';
-import { inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
+import { EQUIPMENT_SLOT_RESTRICTIONS, inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
 import type { PixelUi } from './pixel-ui.js';
 import { drawPixelTextInRect } from './pixel-ui.js';
 import type { UiPoint, UiRect, UiSize } from './geometry.js';
@@ -115,6 +115,19 @@ export function resolveFramePaneSlots(
     index,
     ...(restriction === undefined ? {} : { restriction }),
   }));
+}
+
+/** The restriction the authority applies to one bound slot, and nothing it does not: entity panes carry their
+ * resolved frame restriction (the server's `frameRestrictions`), equipment slots the equipment rules
+ * (`EQUIPMENT_SLOT_RESTRICTIONS`, as the server's player inventory loads them), and other self panes none, because
+ * the server ignores their restrictions (BUG-047, BUG-050). */
+export function frameSlotAuthorityRestriction(
+  pane: Pick<FramePaneDefinition, 'bind'>,
+  binding: Pick<ResolvedFrameSlotBinding, 'index' | 'restriction'>,
+): SlotRestriction | undefined {
+  if ('entitySlots' in pane.bind) return binding.restriction;
+  if ('self' in pane.bind && pane.bind.self === 'equipment') return EQUIPMENT_SLOT_RESTRICTIONS[binding.index];
+  return undefined;
 }
 
 function storagePane(pane: FramePaneDefinition): StorageFrameSpec['panes'][number] {
