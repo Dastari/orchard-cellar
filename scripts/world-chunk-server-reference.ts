@@ -91,8 +91,8 @@ export const SERVER_MIRRORED_FRAGMENTS: Readonly<Record<string, string>> = Objec
   'waterCollisionForSpace:water-composition': 'f641cf8c6a9d2c3e212b78fdd2b58750b4dea0f12f0fd6570d750841a8183c48',
   // Resource placement, desired set and the orphan-placement keep rule. S3c: re-pinned after review; the
   // oracle mirrors them over the compiled runtime (staticView placements, generatedResources()).
-  'reconcileGeneratedSurvivalResources:placements': '34045af4389a2ebf51b969c7ef1c86278d8a3dbed4b3818637fe962efaa32082',
-  'reconcileGeneratedSurvivalResources:desired': 'f688a433d281256fb7bf3517a46aa005e6e23ae1660c15dd43c61d032ce79b12',
+  'placedLiveIslandResources': 'ad7076e54ceeb6ef94a7a84052d711998c7eae7d7491e37dd186250db9e80574',
+  'reconcileGeneratedSurvivalResources:placed': 'cd0d34a8a86710e20fddc923093c595813483b238fb3b9632359a8fff9ec2f4b',
   'reconcileGeneratedSurvivalResources:orphan-keep': 'd89e3767d6eecf15a37dca8909ca55343bf676f8db621a37d5b54ddc0c1c19ea',
   // Row construction reads only generator fields that authority.resource carries.
   'generatedWorldResourceRow': '81308373b03baac3f6afb36d13dfa0fd7da34a8ea6a0245ee56187bf69c48c99',
@@ -129,8 +129,9 @@ export function serverMirroredFragments(sourceText: string): Record<string, stri
   const nodes: Record<string, ts.Node> = {
     'collisionForSpace:ground-composition': compositionCall(source, 'collisionForSpace', 'ground'),
     'waterCollisionForSpace:water-composition': compositionCall(source, 'waterCollisionForSpace', 'water'),
-    'reconcileGeneratedSurvivalResources:placements': variable(source, reconcile, 'placements'),
-    'reconcileGeneratedSurvivalResources:desired': variable(source, reconcile, 'desired'),
+    // BUG-052: placements and the desired set live in the helper reconcile and admin respawn share.
+    'placedLiveIslandResources': topLevelFunction(source, 'placedLiveIslandResources'),
+    'reconcileGeneratedSurvivalResources:placed': variable(source, reconcile, '{ placements, desired }'),
     'reconcileGeneratedSurvivalResources:orphan-keep': single(descendants(reconcile, node => ts.isIfStatement(node)
       && node.expression.getText(source) === 'generated === undefined'), 'reconcile orphan keep'),
     'generatedWorldResourceRow': topLevelFunction(source, 'generatedWorldResourceRow'),
