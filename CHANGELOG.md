@@ -2,6 +2,22 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Workspace 0.72.0 — Static world S5c operator tooling (scripts only)
+
+- **`npm run world:chunks:authority` (#240).** A new operator tool for chunk authority:
+  - `status`: shows the mode, the publication and the generator stamp.
+  - `audit --report`: runs `auditChunkAuthority`.
+  - `set <mode>`: switches the mode. It needs an exact confirmation string and waits for the flag row to change.
+  - `dump`: writes the manifest and the heads.
+  - `logs`: summarises the module-log shadow events.
+
+  It uses the dev-account token file and accepts only the canonical host for production. Reports are written 0600, and tokens are redacted. A lost connection or a missed deadline fails with a non-zero exit, never 0. The README documents where the module logs are.
+- **Stale publications and parity (#241):**
+  - `world:chunks:publish check` reports a missing or wrong generator stamp as stale (`generator`), matching the server's `stale_generator`.
+  - The parity gate gains `--require-published`.
+  - The publish pipeline gains `--candidate-out DIR`, which saves the exact candidate that gets staged.
+- No game, world or client change.
+
 ## Client 0.48.5 / Sim 0.33.5 / World 0.30.2 — One backpack capacity rule (BUG-054); client follows the chunk authority switch (BUG-053, BUG-055)
 
 - **BUG-054 (#235).** The client and the world server now use one shared rule for backpack capacity, sim `accessibleBackpackCapacity`. It gives at least 8 cells and at most 20, with developer debug slots capped at 20.

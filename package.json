@@ -1,6 +1,6 @@
 {
   "name": "orchard-cellar",
-  "version": "0.71.2",
+  "version": "0.72.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -38,6 +38,7 @@
     "content:db-measure": "tsx scripts/content-database-measure.ts",
     "world:content-head": "tsx scripts/content-head-release.ts",
     "world:chunks:publish": "tsx scripts/world-chunks-publish.ts",
+    "world:chunks:authority": "tsx scripts/world-chunk-authority.ts",
     "content:load:acceptance": "bash scripts/run-content-load-acceptance.sh",
     "lifecycle:verify": "tsx scripts/lifecycle-code-build.ts verify",
     "lifecycle:build": "tsx scripts/lifecycle-code-build.ts build",

@@ -456,12 +456,34 @@ WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=own
 # --report path) and WORLD_CHUNKS_PUBLISH_CONFIRM set to the printed confirmation.
 ```
 
+**Candidate and live-row parity.** `--candidate-out DIR` (with `plan` or `publish`, an
+absolute path whose parent exists and which does not) keeps exactly what the run
+materialised. For `publish` it saves only once the confirmation is accepted, so an exit
+`77` does not use up the directory; either way it saves before anything is installed or
+staged, and a failure report records where: `DIR/manifest.json` (the exact
+`manifestJson`) and `DIR/<contentHash>.bin` per head, `0600` in a new `0700` directory. That
+is the layout the live-row parity gate's `--candidate` reads. After a publish, run the gate
+on that directory with the served atlas index and `--require-published`. The run then also
+fails unless the manifest the world now serves equals the live-row materialization
+(`published.vsLive.equal`). Without the flag that comparison is only reported:
+
+```bash
+curl -fsS https://orchard.dastari.net/generated/atlas.packs.json -o /private/evidence/atlas.packs.json
+CHUNK_PARITY_TOKEN_FILE=/private/rejoin-tokens.json CHUNK_PARITY_TOKEN_LABEL=owner \
+  npm run world:chunks:parity-gate -- --host http://127.0.0.1:3000 --database orchard-cellar-world \
+  --candidate /private/evidence/candidate --atlas-index /private/evidence/atlas.packs.json \
+  --out /private/evidence/parity-gate --require-published
+```
+
 `check` is the release check, and it is read only. It reports as stale (exit `3`):
 
 - heads that no longer match the live map revision and hash;
 - heads that no longer match the registry content hash (the bootstrap registry when
   there is no content head);
 - heads that no longer match the served asset revision;
+- a manifest whose resource-generator stamp (`metadata.authority.resourceGenerator`) is
+  missing or differs from this checkout's (`generator`): the server refuses it as
+  `stale_generator`, so it must be republished;
 - heads that disagree with the manifest;
 - heads whose blobs are not served.
 
@@ -506,6 +528,93 @@ The confirmation can be supplied up front only when it is already known: nothing
 the release changes the map, the registry content hash or the served atlas, and a
 `plan` against the live world printed it. In that case, though, the heads are usually
 fresh already and `publish` does nothing.
+
+### Chunk authority switch, audit and module logs (S5c)
+
+`npm run world:chunks:authority` is the operator tool for the server's `chunkAuthority`
+switch (`off`, `shadow` or `on`). It signs in with the same private credential file as
+the publish pipeline: `WORLD_CHUNKS_TOKEN_FILE`, with `WORLD_CHUNKS_TOKEN_LABEL` for a
+multi-entry rejoin file. The token is never printed. `--refresh` runs the rejoin refresh
+on that file first, as the release lane's chunk hook does; only one process may refresh
+a file at a time. The production database is accepted only on `http://127.0.0.1:3000`.
+Reports (`--report FILE`, absolute) are written `0600` and never overwrite an existing
+file, and tokens are redacted from them. Every connection is a full sign-in of the
+credential's account (`client_connected` runs).
+
+```bash
+export WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=owner
+T=(--host http://127.0.0.1:3000 --database orchard-cellar-world --refresh)
+npm run world:chunks:authority -- status "${T[@]}"             # mode, publication, heads, generator stamp
+npm run world:chunks:authority -- audit "${T[@]}" --report /private/evidence/audit.json
+WORLD_CHUNK_AUTHORITY_CONFIRM=set:shadow:orchard-cellar-world \
+  npm run world:chunks:authority -- set shadow "${T[@]}" --report /private/evidence/set-shadow.json
+npm run world:chunks:authority -- dump /private/evidence/published "${T[@]}"
+```
+
+- `status` is read only. It reports:
+  - the mode;
+  - the published revision and the SHA-256 of the exact `manifestJson`;
+  - the heads, in total and at that revision;
+  - whether the manifest's source still matches the live map;
+  - the manifest's `resourceGenerator` stamp compared with this checkout's. A missing or
+    different stamp means the server treats the publication as `stale_generator`.
+- `audit --report FILE` runs the owner/admin `auditChunkAuthority` procedure. It costs
+  6 to 8 seconds of procedure time on the island, so run it in a maintenance window. It
+  writes the procedure's JSON to `FILE`, prints the headline fields, and exits `1`
+  unless the audit's `ok` is true.
+- `set <mode>` needs `WORLD_CHUNK_AUTHORITY_CONFIRM=set:<mode>:<database>`. Without it,
+  it exits `77` before refreshing or connecting. It calls `setChunkAuthority`, waits until
+  the public `space_admin_flag` row says the new mode, and exits `1` if the row never
+  gets there. Each call writes an admin audit row. Do not switch while a routine release
+  is between its rejoin `capture` and `verify`.
+- Calls fail closed.
+  - **Deadlines:** 30 seconds for the `set` reducer, 120 seconds for the audit procedure, and
+    10 seconds for the row to follow.
+  - **Dropped connections:** a dropped connection fails the pending call with
+    `connection_lost`.
+  - **Exit code:** it stays `70` until the command settles, so a lost call never looks like
+    a pass.
+  - **After a failed `set`:** the switch may still have committed, so re-check with `status`
+    before retrying.
+- `dump <dir>` creates `<dir>` (`0700`, it must not exist) with the exact published
+  `manifest.json` and a `heads.txt` for `CLIENT_VALIDATE_WORLD_CHUNK_HEADS`.
+
+**Module logs.** The chunk-authority dispatcher's events (`chunk_authority_shadow_compare`,
+`chunk_authority_sample_window`, `chunk_authority_sample_disagreement`,
+`chunk_authority_fallback`, `chunk_authority_serving` and so on) are the module's
+`console.*` output. They are **not** in `journalctl -u orchard-world`. SpacetimeDB writes
+them to one JSON-lines file per UTC day under the world service's data directory:
+
+```text
+/home/toby/projects/orchard-cellar/.spacetime-data/replicas/<replica>/module_logs/YYYY-MM-DD.log
+```
+
+Each line is `{"level", "ts" (microseconds), "function", "message"}`, and the module's
+JSON event is the escaped `message` string. The production replica was `8000000` on
+2026-09-28. Confirm it is the one being written before relying on it:
+
+```bash
+ls -t /home/toby/projects/orchard-cellar/.spacetime-data/replicas/*/module_logs/*.log | head -1
+```
+
+`logs` summarises a window of those files with the soak's analyser (`summarizeHostLog`)
+and the S5c shadow pass rules. It needs no credential and makes no connection:
+
+```bash
+npm run world:chunks:authority -- logs \
+  --log-dir /home/toby/projects/orchard-cellar/.spacetime-data/replicas/8000000/module_logs \
+  --since 2026-09-28T02:00:00Z [--until ISO] [--report /private/evidence/shadow-logs.json]
+```
+
+It exits `1` if any of these holds:
+
+- no full compare was logged, or one disagreed;
+- no sampler window was logged;
+- the sampler logged disagreements;
+- a `chunk_authority_shadow_error`, `chunk_authority_sample_error` or
+  `chunk_authority_shadow_unavailable` was logged.
+
+`step_world` delays are host warnings, so they are in the journal, not in the module log.
 
 ## Orchard Studio repository deployment inputs
 

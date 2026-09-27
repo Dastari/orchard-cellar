@@ -25,6 +25,9 @@ import {
  *   Without a candidate the gate still materializes and reports, but never passes
  *   (`no_candidate`).
  * - the manifest currently published on the world (reported; a first publish has none).
+ *   With `--require-published` it must exist and equal the live-row materialization too
+ *   (`published.vsLive.equal`): the check after a publish that what the world serves is
+ *   exactly what the live rows produce (S5c runbook gap G8).
  *
  * The connection is a full sign-in for the credential's identity, not a passive read.
  * `client_connected` runs: it writes connection audit rows, statistics and time played,
@@ -38,7 +41,7 @@ import {
  *
  *   CHUNK_PARITY_TOKEN_FILE=/private/path npm run world:chunks:parity-gate -- \
  *     --host https://HOST --database DATABASE --candidate DIR \
- *     [--atlas-index PATH] [--asset-revision REV] [--out DIR]
+ *     [--atlas-index PATH] [--asset-revision REV] [--out DIR] [--require-published]
  */
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -52,17 +55,21 @@ export interface ParityGateOptions {
   readonly atlasIndex: string | undefined;
   readonly assetRevision: string | undefined;
   readonly out: string;
+  /** Fail unless the published manifest exists and equals the live-row materialization. */
+  readonly requirePublished: boolean;
 }
 
 export class ParityGateUsageError extends Error {}
 
-const USAGE = 'Usage: CHUNK_PARITY_TOKEN_FILE=PATH tsx scripts/chunk-authority-parity-gate.ts --host URL --database NAME --candidate DIR [--atlas-index PATH] [--asset-revision REV] [--out DIR]';
+const USAGE = 'Usage: CHUNK_PARITY_TOKEN_FILE=PATH tsx scripts/chunk-authority-parity-gate.ts --host URL --database NAME --candidate DIR [--atlas-index PATH] [--asset-revision REV] [--out DIR] [--require-published]';
 
 export function parseParityGateArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): ParityGateOptions {
   const known = new Set(['--host', '--database', '--candidate', '--out', '--atlas-index', '--asset-revision']);
   const values = new Map<string, string>();
+  let requirePublished = false;
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index]!, value = argv[index + 1];
+    if (flag === '--require-published') { requirePublished = true; index -= 1; continue; }
     // Tokens only ever come from a file: a token on the command line would show in `ps`.
     if (/token/iu.test(flag)) throw new ParityGateUsageError('pass the token file with CHUNK_PARITY_TOKEN_FILE, never on the command line');
     if (!known.has(flag) || value === undefined || value.startsWith('--')) throw new ParityGateUsageError(USAGE);
@@ -83,6 +90,7 @@ export function parseParityGateArgs(argv: readonly string[], env: Readonly<Recor
     atlasIndex: values.get('--atlas-index'),
     assetRevision: values.get('--asset-revision'),
     out: values.get('--out') ?? resolve(REPO_ROOT, 'output', `chunk-parity-gate-${stamp}`),
+    requirePublished,
   };
 }
 
@@ -105,7 +113,19 @@ export interface ParityGateReport {
     readonly shadowRevision: number | null;
     readonly heads: number;
     readonly vsLive: ManifestComparison | null;
+    /** Whether `--require-published` made `vsLive.equal` a pass condition. */
+    readonly required: boolean;
   };
+}
+
+function comparisonParts(comparison: ManifestComparison): string {
+  const parts = [
+    ...(comparison.heads.differences.length > 0 ? [`${comparison.heads.differences.length} chunk head(s)`] : []),
+    ...(comparison.heads.source.equal ? [] : ['map source']),
+    ...(comparison.fields.length > 0 ? [`fields ${comparison.fields.join(',')}`] : []),
+    ...(comparison.metadata.length > 0 ? [`metadata ${comparison.metadata.join(',')}`] : []),
+  ];
+  return parts.length > 0 ? parts.join('; ') : 'canonical JSON';
 }
 
 /** Pure decision over the gathered inputs, so the gate's pass rule is unit-tested. */
@@ -116,6 +136,7 @@ export function parityGateReport(input: {
   readonly live: Pick<MaterializedChunks, 'summary' | 'manifest' | 'materializeMs'> | null;
   readonly materializeError: string | null;
   readonly candidate: Pick<MaterializedChunks, 'manifest'> | null;
+  readonly requirePublished?: boolean;
 }): ParityGateReport {
   const failures: string[] = [];
   if (input.rows.mapRow === null) failures.push('the world has no live map row');
@@ -126,13 +147,7 @@ export function parityGateReport(input: {
   if (input.candidate === null) failures.push('no_candidate: pass --candidate DIR (the materialized output the release would publish)');
   const candidate = live === null || input.candidate === null ? null : compareManifests(input.candidate.manifest, live.manifest);
   if (candidate !== null && !candidate.equal) {
-    const parts = [
-      ...(candidate.heads.differences.length > 0 ? [`${candidate.heads.differences.length} chunk head(s)`] : []),
-      ...(candidate.heads.source.equal ? [] : ['map source']),
-      ...(candidate.fields.length > 0 ? [`fields ${candidate.fields.join(',')}`] : []),
-      ...(candidate.metadata.length > 0 ? [`metadata ${candidate.metadata.join(',')}`] : []),
-    ];
-    failures.push(`candidate manifest differs from the live-row materialization (${parts.length > 0 ? parts.join('; ') : 'canonical JSON'})`);
+    failures.push(`candidate manifest differs from the live-row materialization (${comparisonParts(candidate)})`);
   }
   const shadow = input.rows.published.shadow;
   let vsLive: ManifestComparison | null = null;
@@ -142,6 +157,10 @@ export function parityGateReport(input: {
     } catch (error) {
       failures.push(`published manifest unreadable: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+  if (input.requirePublished === true && live !== null) {
+    if (shadow === null) failures.push('require_published: the world has no published manifest');
+    else if (vsLive !== null && !vsLive.equal) failures.push(`require_published: the published manifest differs from the live-row materialization (${comparisonParts(vsLive)})`);
   }
   return {
     schema: 1,
@@ -158,7 +177,7 @@ export function parityGateReport(input: {
     materialized: live === null ? null : { ...live.summary, materializeMs: live.materializeMs, chunks: live.manifest.chunks.length },
     registryMatchesContentHead,
     candidate,
-    published: { shadowRevision: shadow?.revision ?? null, heads: input.rows.published.heads.length, vsLive },
+    published: { shadowRevision: shadow?.revision ?? null, heads: input.rows.published.heads.length, vsLive, required: input.requirePublished === true },
   };
 }
 
@@ -189,10 +208,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
   } catch (error) {
     materializeError = error instanceof Error ? error.message.split('\n')[0]!.slice(0, 400) : String(error);
   }
-  const report = parityGateReport({ target: { host: options.host, database: options.database }, readAt, rows, live, materializeError, candidate });
+  const report = parityGateReport({ target: { host: options.host, database: options.database }, readAt, rows, live, materializeError, candidate,
+    requirePublished: options.requirePublished });
   await writeFile(resolve(options.out, 'parity-gate.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
   console.log(JSON.stringify({ passed: report.passed, failures: report.failures, report: resolve(options.out, 'parity-gate.json'),
-    chunks: report.materialized?.chunks ?? null, candidateEqual: report.candidate?.equal ?? null, publishedShadowRevision: report.published.shadowRevision }));
+    chunks: report.materialized?.chunks ?? null, candidateEqual: report.candidate?.equal ?? null, publishedShadowRevision: report.published.shadowRevision,
+    publishedEqual: report.published.vsLive?.equal ?? null, publishedRequired: report.published.required }));
   return report.passed ? 0 : 1;
 }
 

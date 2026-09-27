@@ -7,10 +7,12 @@ import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { bootstrapContentRegistry, bootstrapContentRows, contentDefinitionRowsHash } from '@orchard/sim';
 import { createWorldChunkMiddleware } from '../packages/client/world-chunk-serving.js';
+import { CHUNK_RESOURCE_GENERATOR } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { loadMaterialized } from './chunk-authority-live-rows.js';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
 import {
   EXIT, PipelineError, checkPublishedHeads, checkServedBlob, failureReport, fileChunkStore, httpOrigin, isPublished, liveRegistryContentHash, main,
-  parseCli, publishConfirmation, readTokenFile, redact, runPublishPipeline, sha256Hex, verifyServed, type ContentRow, type PipelineTrace,
+  parseCli, publishConfirmation, readTokenFile, redact, runPublishPipeline, sha256Hex, verifyServed, writeCandidateDir, type ContentRow, type PipelineTrace,
   type Candidate, type ChunkStorePort, type LiveMapRow, type LiveState, type OriginPort, type PipelineDeps, type ServedBlob, type ShadowPublication, type WorldPort,
 } from './world-chunks-publish.js';
 
@@ -44,7 +46,8 @@ function candidateFor(map: LiveMapRow, atlas: Uint8Array, contentHash = REGISTRY
   }));
   const manifest: WorldChunkManifest = {
     schema: 1, chunkSize: 64, spaceId: 0, width: 128, height: 128, assetRevision,
-    sourceRevision: map.revision, sourceHash: map.contentHash, metadata: { note: 'test' },
+    // Stamped like the materializer (S3c), or `check` reports the generator as stale.
+    sourceRevision: map.revision, sourceHash: map.contentHash, metadata: { note: 'test', authority: { resourceGenerator: { ...CHUNK_RESOURCE_GENERATOR } } },
     chunks: blobs.map(bytes => { const chunk = decodeWorldChunk(bytes); return { cx: chunk.cx, cy: chunk.cy, contentHash: chunk.contentHash, byteLength: bytes.length }; }),
   };
   return {
@@ -222,6 +225,70 @@ describe('world chunk publish pipeline', () => {
     expect(h.store.installCalls + h.world.stageCalls + h.world.publishCalls).toBe(0);
   });
 
+  it('--candidate-out keeps exactly the materialised candidate in the parity gate layout (S5c G8)', async () => {
+    const h = harness(), dir = join(await temporary(), 'candidate');
+    const saved: Candidate[] = [];
+    const report = await runPublishPipeline({ ...h.deps, saveCandidate: async candidate => { saved.push(candidate); return writeCandidateDir(dir, candidate); } },
+      { mode: 'publish', database: DATABASE, confirm: h.confirm() });
+    expect(report).toMatchObject({ outcome: 'published', candidateOut: dir });
+    // Saved before anything was installed or staged.
+    expect(saved).toHaveLength(1);
+    const loaded = await loadMaterialized(dir);
+    expect(loaded.manifestJson).toBe(saved[0]!.manifestJson);
+    expect(sha256Hex(loaded.manifestJson)).toBe(report.manifestHash);
+    expect(loaded.blobs.map(blob => [blob.contentHash, Buffer.from(blob.bytes).toString('hex')]))
+      .toEqual(saved[0]!.blobs.map(blob => [blob.contentHash, Buffer.from(blob.bytes).toString('hex')]));
+    expect((await stat(dir)).mode & 0o777).toBe(0o700);
+    expect((await stat(join(dir, 'manifest.json'))).mode & 0o777).toBe(0o600);
+    // Never merged into: a second save to the same directory fails.
+    await expect(writeCandidateDir(dir, saved[0]!)).rejects.toThrow(/EEXIST/u);
+    // Without the option nothing is saved and the report has no candidateOut.
+    const plain = await runPublishPipeline(harness().deps, { mode: 'plan', database: DATABASE });
+    expect(plain).not.toHaveProperty('candidateOut');
+  });
+
+  it('--candidate-out saves after the confirmation and before install and stage; an unconfirmed run keeps the directory (#241 review)', async () => {
+    const h = harness(), root = await temporary(), dir = join(root, 'candidate');
+    const save = (candidate: Candidate) => { h.events.push('save'); return writeCandidateDir(dir, candidate); };
+    // Exit 77 does not use up the directory.
+    await expectPipelineError(runPublishPipeline({ ...h.deps, saveCandidate: save }, { mode: 'publish', database: DATABASE, confirm: 'publish:wrong' }),
+      'world_chunks_confirmation_required', EXIT.confirm);
+    expect(h.events).not.toContain('save');
+    await expect(stat(dir)).rejects.toThrow(/ENOENT/u);
+    // Confirmed: saved once, before the first install and the first stage.
+    const report = await runPublishPipeline({ ...h.deps, saveCandidate: save }, { mode: 'publish', database: DATABASE, confirm: h.confirm() });
+    expect(report.candidateOut).toBe(dir);
+    const first = (name: string) => h.events.indexOf(name);
+    expect(h.events.filter(event => event === 'save')).toHaveLength(1);
+    expect(first('save')).toBeGreaterThanOrEqual(0);
+    expect(first('save')).toBeLessThan(first('install'));
+    expect(first('save')).toBeLessThan(first('stage'));
+    // A plan (dry run) saves too.
+    const planDir = join(root, 'plan');
+    expect(await runPublishPipeline({ ...harness().deps, saveCandidate: candidate => writeCandidateDir(planDir, candidate) }, { mode: 'plan', database: DATABASE }))
+      .toMatchObject({ outcome: 'planned', candidateOut: planDir });
+  });
+
+  it('the failure report records where the candidate was saved', async () => {
+    const h = harness(), dir = join(await temporary(), 'candidate'), trace: PipelineTrace = { step: 'read' };
+    h.store.install = async () => { throw new PipelineError('install_failed'); };
+    const error = await runPublishPipeline({ ...h.deps, saveCandidate: candidate => writeCandidateDir(dir, candidate) },
+      { mode: 'publish', database: DATABASE, confirm: h.confirm() }, trace).then(() => null, (caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PipelineError);
+    const failure = failureReport({ command: 'publish', host: 'h', database: DATABASE, origin: 'o' }, trace, error);
+    expect(failure).toMatchObject({ step: 'install', candidateOut: dir });
+    expect(failureReport({ command: 'publish', host: 'h', database: DATABASE, origin: 'o' }, { step: 'confirm' }, error).candidateOut).toBeNull();
+  });
+
+  it('refuses an existing --candidate-out directory before reading the token or connecting', async () => {
+    const directory = await temporary(), existing = join(directory, 'candidate');
+    await mkdir(existing);
+    const args = ['plan', '--host', 'http://127.0.0.1:1', '--database', 'orchard-chunk-soak-local01', '--origin', 'http://127.0.0.1:5199',
+      '--chunk-dir', join(directory, 'chunks'), '--candidate-out', existing];
+    // The token file does not exist: reaching the token step would fail differently.
+    await expect(main(args, { WORLD_CHUNKS_TOKEN_FILE: join(directory, 'missing-token') })).rejects.toMatchObject({ code: 'candidate_out_exists', exitCode: EXIT.usage });
+  });
+
   it('installs, verifies over the origin, stages, then CAS-publishes the heads, in that order', async () => {
     const h = harness();
     const report = await runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: h.confirm() });
@@ -307,7 +374,7 @@ describe('world chunk publish pipeline', () => {
   it('treats a lost CAS race as a conflict to re-run, never overwriting the winner', async () => {
     const h = harness();
     const other = candidateFor(mapRow(), ATLAS, REGISTRY_HASH);
-    const rival = { ...other, manifest: { ...other.manifest, metadata: { note: 'other publisher' } } };
+    const rival = { ...other, manifest: { ...other.manifest, metadata: { ...other.manifest.metadata, note: 'other publisher' } } };
     const rivalCandidate = { ...rival, manifestJson: `${canonicalChunkJson(rival.manifest)}\n` };
     h.world.beforePublish = world => { world.publishOther(rivalCandidate); world.beforePublish = null; };
     await expectPipelineError(runPublishPipeline(h.deps, { mode: 'publish', database: DATABASE, confirm: h.confirm() }), 'cas_conflict', EXIT.retry);
@@ -388,6 +455,19 @@ describe('world chunk publish pipeline', () => {
     h.origin.down.clear();
     h.world.state = { ...published, heads: published.heads.slice(1) };
     expect((await check()).stale).toEqual(['heads']);
+    // S5c G2: a publication the server would refuse as stale_generator (unstamped, or from another
+    // generator version) is stale here too, so the release hook republishes it.
+    const restamp = (stamp: unknown) => {
+      const manifest = JSON.parse(published.shadow!.manifestJson) as { metadata: { authority: Record<string, unknown> } };
+      if (stamp === null) delete manifest.metadata.authority['resourceGenerator']; else manifest.metadata.authority['resourceGenerator'] = stamp;
+      return { ...published, shadow: { ...published.shadow!, manifestJson: JSON.stringify(manifest) } };
+    };
+    h.world.state = restamp(null);
+    expect(await check()).toMatchObject({ fresh: false, stale: ['generator'] });
+    h.world.state = restamp({ ...CHUNK_RESOURCE_GENERATOR, version: CHUNK_RESOURCE_GENERATOR.version - 1 });
+    expect((await check()).stale).toEqual(['generator']);
+    h.world.state = restamp({ ...CHUNK_RESOURCE_GENERATOR });
+    expect((await check()).stale).toEqual([]);
     // Nothing is ever removed or disabled: the heads and blobs stay exactly as published.
     expect(h.world.publishCalls).toBe(1);
     expect(h.world.stageCalls).toBe(4);
@@ -503,6 +583,13 @@ describe('command line', () => {
     expect(() => parseCli(['publish', ...target], env)).toThrow('chunk_dir_required');
     expect(() => parseCli(['publish', ...target, '--chunk-dir', 'relative'], env)).toThrow('chunk_dir_required');
     expect(() => parseCli(target, {})).toThrow('usage');
+  });
+
+  it('takes --candidate-out (absolute) for plan and publish only', () => {
+    expect(parseCli([...target, '--chunk-dir', '/data/chunks', '--candidate-out', '/evidence/candidate'], env)).toMatchObject({ candidateOut: '/evidence/candidate' });
+    expect(parseCli([...target, '--chunk-dir', '/data/chunks'], env)).toMatchObject({ candidateOut: null });
+    expect(() => parseCli([...target, '--chunk-dir', '/data/chunks', '--candidate-out', 'relative'], env)).toThrow('candidate_out_must_be_absolute');
+    expect(() => parseCli(['check', ...target, '--candidate-out', '/evidence/candidate'], env)).toThrow('candidate_out_needs_plan_or_publish');
   });
 
   it('only targets the production database from its canonical host and public origin', () => {

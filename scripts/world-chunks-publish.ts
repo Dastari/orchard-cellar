@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants, gunzipSync, gzipSync } from 'node:zlib';
 import { CHUNK_RUNTIME_MAX_BLOB_BYTES, chunkBlobPath, validateRuntimeManifest, verifyRuntimeChunk } from '../packages/sim/src/chunk-runtime.js';
 import { canonicalChunkJson, decodeWorldChunk, worldChunkHash, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
+import { chunkResourceGeneratorMismatch } from '../packages/world/src/content/chunk-authority-runtime.js';
 import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
 
 /**
@@ -39,6 +40,11 @@ import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
  * --report FILE writes a 0600 JSON report on success and on failure (step, error code,
  * required confirmation); tokens are redacted from reports and logs.
  *
+ * --candidate-out DIR (plan/publish) keeps exactly the materialised candidate (for publish
+ * only once the confirmation is accepted), before any install or stage: DIR/manifest.json (the exact manifestJson) and DIR/<contentHash>.bin,
+ * 0600 in a new 0700 DIR, the layout `world:chunks:parity-gate --candidate` reads. The gate
+ * then compares precisely what was staged (S5c runbook G8).
+ *
  * The connection signs in as the credential's identity (client_connected runs). Use an
  * owner or admin release credential, refreshed first (npm run world:rejoin-smoke --
  * refresh). The token comes only from the private file named by WORLD_CHUNKS_TOKEN_FILE
@@ -46,7 +52,7 @@ import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
  *
  *   WORLD_CHUNKS_TOKEN_FILE=/private/tokens.json WORLD_CHUNKS_TOKEN_LABEL=owner \
  *   npm run world:chunks:publish -- [plan|publish|check] --host URL --database NAME \
- *     --origin URL [--chunk-dir DIR] [--report FILE]
+ *     --origin URL [--chunk-dir DIR] [--report FILE] [--candidate-out DIR]
  */
 
 export const PRODUCTION_DATABASE = 'orchard-cellar-world';
@@ -147,7 +153,7 @@ export async function liveRegistryContentHash(rows: readonly ContentRow[] | null
   return built.registry.contentHash;
 }
 
-export type StaleReason = 'unpublished' | 'map' | 'content' | 'asset' | 'heads' | 'manifest';
+export type StaleReason = 'unpublished' | 'map' | 'content' | 'asset' | 'generator' | 'heads' | 'manifest';
 
 /** Why the published heads do not describe the live world. Empty means fresh. */
 export function staleReasons(state: LiveState, expected: { readonly contentHash: string; readonly assetRevision: string }): { readonly reasons: StaleReason[]; readonly manifest: WorldChunkManifest | null } {
@@ -159,6 +165,9 @@ export function staleReasons(state: LiveState, expected: { readonly contentHash:
   if (state.mapRow === null || shadow.mapId !== state.mapRow.mapId || manifest.sourceRevision !== state.mapRow.revision || manifest.sourceHash !== state.mapRow.contentHash) reasons.push('map');
   if (shadow.contentHash !== expected.contentHash) reasons.push('content');
   if (manifest.assetRevision !== expected.assetRevision) reasons.push('asset');
+  // The server refuses records from another resource generator, or unstamped, as stale_generator
+  // (S3c), so the check must too, or the release hook skips the republish (S5c runbook G2).
+  if (chunkResourceGeneratorMismatch(manifest) !== undefined) reasons.push('generator');
   if (!headsMatch(state.heads, manifest, shadow.revision)) reasons.push('heads');
   return { reasons, manifest };
 }
@@ -252,6 +261,18 @@ export async function verifyServed(origin: OriginPort, spaceId: number, heads: r
   return { served: heads.length, encodings };
 }
 
+/**
+ * `--candidate-out DIR`: creates DIR (0700; its parent must exist and DIR must not) with the exact
+ * `manifest.json` and one `<contentHash>.bin` per head, 0600, never overwriting: the layout the
+ * parity gate's `--candidate` reads (`loadMaterialized`), so it compares precisely what was staged.
+ */
+export async function writeCandidateDir(dir: string, candidate: Candidate): Promise<string> {
+  await mkdir(dir, { mode: 0o700 });
+  await writeFile(join(dir, 'manifest.json'), candidate.manifestJson, { flag: 'wx', mode: 0o600 });
+  for (const blob of candidate.blobs) await writeFile(join(dir, `${blob.contentHash}.bin`), blob.bytes, { flag: 'wx', mode: 0o600 });
+  return dir;
+}
+
 // ---------------------------------------------------------------------------
 // The pipeline.
 
@@ -264,6 +285,8 @@ export interface PipelineDeps {
   readonly log?: (line: string) => void;
   /** How long to wait for the published rows to appear (default 60 s). */
   readonly observeTimeoutMs?: number;
+  /** `--candidate-out`: keeps the exact candidate (manifest.json and blobs) for the parity gate; returns where. */
+  readonly saveCandidate?: (candidate: Candidate) => Promise<string>;
 }
 /** Where a run got to, for the failure report. Never holds a secret. */
 export interface PipelineTrace {
@@ -272,6 +295,8 @@ export interface PipelineTrace {
   registryContentHash?: string;
   /** The value WORLD_CHUNKS_PUBLISH_CONFIRM must have, once known. */
   confirmation?: string;
+  /** Where --candidate-out saved the candidate, once saved. */
+  candidateOut?: string;
 }
 export interface PipelineOptions {
   readonly mode: 'plan' | 'publish';
@@ -296,6 +321,8 @@ export interface PublishReport {
   readonly verify: ServedReport | null;
   readonly stage: { readonly staged: number; readonly skipped: boolean };
   readonly publish: { readonly expectedRevision: number; readonly revision: number; readonly recovered: boolean } | null;
+  /** `--candidate-out`: the directory holding exactly what this run materialised (and, for `publish`, staged). */
+  readonly candidateOut?: string;
 }
 
 export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOptions, trace: PipelineTrace = { step: 'read' }): Promise<PublishReport> {
@@ -316,6 +343,17 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   await deps.world.suspend();
   const candidate = await deps.materialize({ mapRow: initial.mapRow, contentRows: initial.contentRows, atlasIndex });
   assertCandidate(candidate, initial, assetRevision, registryContentHash);
+  // --candidate-out (G8): saved for a plan, and for a publish only once its confirmation is
+  // accepted (an unconfirmed exit 77 must not use up the directory), always before any
+  // install or stage, so the gate compares exactly what is staged.
+  let candidateOut: string | undefined;
+  const saveCandidate = async (): Promise<void> => {
+    if (deps.saveCandidate === undefined) return;
+    candidateOut = await deps.saveCandidate(candidate);
+    trace.candidateOut = candidateOut;
+  };
+  const withCandidate = <T extends object>(report: T): T & { candidateOut?: string } =>
+    candidateOut === undefined ? report : { ...report, candidateOut };
   const spaceId = candidate.manifest.spaceId;
   const confirmation = publishConfirmation(candidate.manifestJson, registryContentHash, options.database);
   trace.manifestHash = manifestHash(candidate.manifestJson);
@@ -337,11 +375,13 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   if (options.mode === 'plan') {
     const counts = { installed: 0, present: 0, incomplete: 0, missing: 0 };
     for (const blob of candidate.blobs) counts[await deps.store.status(spaceId, blob.contentHash)] += 1;
+    await saveCandidate();
     trace.step = 'done';
-    return { ...base, outcome: 'planned', install: counts, verify: null, stage: { staged: 0, skipped: true }, publish: null };
+    return withCandidate({ ...base, outcome: 'planned', install: counts, verify: null, stage: { staged: 0, skipped: true }, publish: null });
   }
   trace.step = 'confirm';
   if (options.confirm !== confirmation) throw new PipelineError('world_chunks_confirmation_required', EXIT.confirm, `set WORLD_CHUNKS_PUBLISH_CONFIRM=${confirmation}`);
+  await saveCandidate();
   await deps.world.resume();
   if (sourceKey(deps.world.read()) !== sourceKey(initial)) throw new PipelineError('source_changed', EXIT.retry, 'the live map or content changed while materialising; run again');
 
@@ -375,7 +415,7 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   if (sourceKey(current) !== sourceKey(initial)) throw new PipelineError('source_changed', EXIT.retry, 'the live map or content changed while publishing; run again');
   if (isPublished(current, candidate)) {
     trace.step = 'done';
-    return { ...base, outcome: 'unchanged', install, verify, stage: { staged, skipped: alreadyPublished }, publish: null };
+    return withCandidate({ ...base, outcome: 'unchanged', install, verify, stage: { staged, skipped: alreadyPublished }, publish: null });
   }
   const expectedRevision = current.shadow?.revision ?? 0;
   let recovered = false;
@@ -394,7 +434,7 @@ export async function runPublishPipeline(deps: PipelineDeps, options: PipelineOp
   if (!isPublished(after, candidate)) throw new PipelineError('publish_not_observed', EXIT.failed, `expected revision ${expectedRevision + 1}`);
   log(`published heads at shadow revision ${after.shadow!.revision}`);
   trace.step = 'done';
-  return { ...base, outcome: 'published', install, verify, stage: { staged, skipped: false }, publish: { expectedRevision, revision: after.shadow!.revision, recovered } };
+  return withCandidate({ ...base, outcome: 'published', install, verify, stage: { staged, skipped: false }, publish: { expectedRevision, revision: after.shadow!.revision, recovered } });
 }
 
 export interface CheckReport {
@@ -447,6 +487,8 @@ export interface FailureReport {
   readonly manifestHash: string | null;
   readonly registryContentHash: string | null;
   readonly confirmation: string | null;
+  /** --candidate-out: where the candidate was saved before the failure (null if it was not). */
+  readonly candidateOut: string | null;
 }
 
 /** The evidence written when a run fails (including the expected exit 77). Never contains the token. */
@@ -457,6 +499,7 @@ export function failureReport(options: Pick<CliOptions, 'command' | 'host' | 'da
     step: trace.step,
     error: { code, exitCode: error instanceof PipelineError ? error.exitCode : EXIT.unexpected, message: redact(errorText(error), token) },
     manifestHash: trace.manifestHash ?? null, registryContentHash: trace.registryContentHash ?? null, confirmation: trace.confirmation ?? null,
+    candidateOut: trace.candidateOut ?? null,
   };
 }
 
@@ -749,9 +792,11 @@ export interface CliOptions {
   readonly tokenFile: string;
   readonly tokenLabel: string | undefined;
   readonly confirm: string | undefined;
+  /** plan/publish only: keep the exact candidate here (G8). */
+  readonly candidateOut: string | null;
 }
 
-const USAGE = 'usage: WORLD_CHUNKS_TOKEN_FILE=PATH [WORLD_CHUNKS_TOKEN_LABEL=LABEL] world-chunks-publish [plan|publish|check] --host URL --database NAME --origin URL [--chunk-dir DIR] [--report FILE]';
+const USAGE = 'usage: WORLD_CHUNKS_TOKEN_FILE=PATH [WORLD_CHUNKS_TOKEN_LABEL=LABEL] world-chunks-publish [plan|publish|check] --host URL --database NAME --origin URL [--chunk-dir DIR] [--report FILE] [--candidate-out DIR]';
 
 export function parseCli(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): CliOptions {
   const args = [...argv];
@@ -760,7 +805,7 @@ export function parseCli(argv: readonly string[], env: Readonly<Record<string, s
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index]!, value = args[index + 1];
     if (/token|confirm/iu.test(flag)) throw new PipelineError('secrets_and_confirmations_come_from_the_environment', EXIT.usage);
-    if (!['--host', '--database', '--origin', '--chunk-dir', '--report'].includes(flag) || value === undefined || value.startsWith('--') || values.has(flag)) throw new PipelineError('usage', EXIT.usage, USAGE);
+    if (!['--host', '--database', '--origin', '--chunk-dir', '--report', '--candidate-out'].includes(flag) || value === undefined || value.startsWith('--') || values.has(flag)) throw new PipelineError('usage', EXIT.usage, USAGE);
     values.set(flag, value);
   }
   const host = values.get('--host'), database = values.get('--database'), origin = values.get('--origin');
@@ -780,9 +825,12 @@ export function parseCli(argv: readonly string[], env: Readonly<Record<string, s
   if (command !== 'check' && (chunkDir === null || !isAbsolute(chunkDir))) throw new PipelineError('chunk_dir_required', EXIT.usage, 'pass an absolute --chunk-dir or ORCHARD_WORLD_CHUNK_DIR');
   const report = values.get('--report') ?? null;
   if (report !== null && !isAbsolute(report)) throw new PipelineError('report_path_must_be_absolute', EXIT.usage);
+  const candidateOut = values.get('--candidate-out') ?? null;
+  if (candidateOut !== null && command === 'check') throw new PipelineError('candidate_out_needs_plan_or_publish', EXIT.usage);
+  if (candidateOut !== null && !isAbsolute(candidateOut)) throw new PipelineError('candidate_out_must_be_absolute', EXIT.usage);
   return {
     command, host: new URL(host).origin, database, origin: new URL(origin).origin, chunkDir, report, tokenFile,
-    tokenLabel: env['WORLD_CHUNKS_TOKEN_LABEL'] || undefined, confirm: env['WORLD_CHUNKS_PUBLISH_CONFIRM'] || undefined,
+    tokenLabel: env['WORLD_CHUNKS_TOKEN_LABEL'] || undefined, confirm: env['WORLD_CHUNKS_PUBLISH_CONFIRM'] || undefined, candidateOut,
   };
 }
 
@@ -795,6 +843,14 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
       throw error;
     });
     if (exists) throw new PipelineError('report_exists', EXIT.usage, options.report);
+  }
+  if (options.candidateOut !== null) {
+    // Likewise the candidate directory: refused before materialising, never merged into.
+    const exists = await lstat(options.candidateOut).then(() => true, (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return false;
+      throw error;
+    });
+    if (exists) throw new PipelineError('candidate_out_exists', EXIT.usage, options.candidateOut);
   }
   const writeReport = async (value: unknown): Promise<void> => {
     if (options.report !== null) await writeFile(options.report, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
@@ -816,12 +872,14 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
           served: report.verify?.served ?? null, encodings: report.verify?.encodings ?? null, verifyError: report.verifyError === null ? null : redact(report.verifyError, token) }));
         return report.fresh ? EXIT.ok : EXIT.stale;
       }
-      const report = await runPublishPipeline({ world, origin, store: fileChunkStore(options.chunkDir!), materialize: materializeInProcess, registryContentHash: liveRegistryContentHash, log },
+      const candidateOut = options.candidateOut;
+      const report = await runPublishPipeline({ world, origin, store: fileChunkStore(options.chunkDir!), materialize: materializeInProcess, registryContentHash: liveRegistryContentHash, log,
+        ...(candidateOut === null ? {} : { saveCandidate: (candidate: Candidate) => writeCandidateDir(candidateOut, candidate) }) },
         { mode: options.command, database: options.database, confirm: options.confirm }, trace);
       await writeReport(report);
       console.log(JSON.stringify({ command: options.command, outcome: report.outcome, manifestHash: report.manifestHash, confirmation: report.confirmation,
         chunks: report.chunks, bytes: report.bytes, before: report.before, install: report.install, served: report.verify?.served ?? null,
-        encodings: report.verify?.encodings ?? null, staged: report.stage.staged, publish: report.publish }));
+        encodings: report.verify?.encodings ?? null, staged: report.stage.staged, publish: report.publish, candidateOut: report.candidateOut ?? null }));
       return EXIT.ok;
     } finally {
       world.close();
