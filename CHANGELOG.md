@@ -2,6 +2,15 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.48.3 / UI 0.49.0 / Studio 0.16.13 — Item slot S2: one slot controller; equipment rules match the server (BUG-050)
+
+- **Item slot S2 (#222).** The inventory's drag, click, spread and quick-move handling moved out of the game host into the kit as `UiSlotController`. Behaviour is the same, except:
+  - **Shift** held at pointer-down now quick-moves even if it is released before pointer-up, unless the press turned into a spread, which then commits as before.
+  - **A double-click** also counts when the second press starts within 500 ms of the first click and is a quick, still click.
+- **BUG-050: equipment slots accepted any item on the client (#222).** The client checks each slot with the same rule the server applies: equipment slots use the equipment restrictions, entity panes use their frame rules, and the player's own panes have none.
+- The inventory window footer's hotbar shows the selected slot.
+- Workspace 0.67.0.
+
 ## Client 0.48.2 / UI 0.48.0 / Sim 0.33.3 / World 0.27.2 / Studio 0.16.12 — Item slot S1 states; admins can switch chunk authority
 
 - **Item slot component S1 (#219).** Frames now pass their slot rules, take-only flags and placeholders to each slot. The slot paints the states the owner approved on 2026-09-27:
