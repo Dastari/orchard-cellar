@@ -25,7 +25,7 @@ import { chunkRuntimeParityFixture, type ChunkRuntimeParityFixture } from './wor
 /** `generateSurvivalResources(SURVIVAL_WORLD_SEED, bootstrap registry)`: count and SHA-256 of its JSON (pinned at S3a head 560ed7b6). */
 const PINNED_GENERATED_RESOURCES = { count: 5_981, sha256: '238de603a4ccf0d398b8f1b789a81edb127f763a6f6ef43445124913f74475fa' };
 /** SHA-256 of the production map's `authority.resource` records in ordinal order (canonical JSON). */
-const PINNED_RESOURCE_RECORDS_SHA256 = 'PINNED_RECORDS_PLACEHOLDER';
+const PINNED_RESOURCE_RECORDS_SHA256 = '11d67440992496db61ca8ac6b15ebffdb481586c1de1c065a3b4c8754a779691';
 
 const assetFor = (name: string) => {
   const category = name.startsWith('building_') ? 'buildings' : name.startsWith('tree_') ? 'trees' : name.startsWith('crop_') ? 'crops' : name.startsWith('wildlife_') ? 'characters' : 'props';
