@@ -45,7 +45,10 @@ describe('overworld UI compositing order', () => {
     const overlayStart = ui.indexOf('drawCursorOverlay(');
     const overlayEnd = ui.indexOf('systemCursorMove(', overlayStart);
     const overlay = ui.slice(overlayStart, overlayEnd);
-    expect(overlay.indexOf('drawDraggedItem')).toBeLessThan(overlay.indexOf('this.drawCursor(context)'));
+    // The kit's held stack (item slot S3) is composited just under the cursor.
+    expect(overlay.indexOf('drawHeldStack(')).toBeGreaterThan(0);
+    expect(overlay.indexOf('drawHeldStack(')).toBeLessThan(overlay.indexOf('this.drawCursor(context)'));
+    expect(ui).not.toMatch(/drawDraggedItem|drawQuickCraftTargets/u);
   });
 
   it('updates the system cursor before modal routing and clears it when the window blurs', () => {

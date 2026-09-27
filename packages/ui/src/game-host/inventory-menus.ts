@@ -12,7 +12,8 @@ import { uiViewport } from '../kit/components/viewport.js';
 import { uiCraftingFrame, type UiCraftingFrameElement, type UiCraftingSnapshot } from '../kit/components/crafting-frame.js';
 import { UiInventoryFilter, type UiInventoryControls } from '../kit/components/inventory-panel.js';
 import type { UiKitArt } from '../kit/components/art.js';
-import type { UiSlotOptions } from '../kit/components/inventory.js';
+import { uiSlotArt } from '../kit/components/slot-art.js';
+import { uiHeldStack, uiSlotView, type UiSlotOptions } from '../kit/components/inventory.js';
 
 export interface InventoryMenuSnapshot {
   readonly width: number; readonly height: number;
@@ -53,6 +54,8 @@ export interface InventoryMenuAuthority {
   iconAnimation(item: ItemStack): string;
   /** The live content registry, so slot wear bars read authored (published or Studio) durability. */
   contentRegistry?(): ContentRegistry | undefined;
+  /** Item art for the held stack, which also shows over windows the host still draws. Defaults to the open frame's. */
+  artwork?(): NonNullable<UiSlotOptions['artwork']>;
 }
 
 /** One stable unbound root; neither this adapter nor its controller owns stacks. */
@@ -64,11 +67,19 @@ export class InventoryMenus {
   private definition: FrameContentDefinition | null = null;
   private readonly filter = new UiInventoryFilter();
 
+  /** The held stack's own root, so it draws above every overlay and over any inventory window. */
+  private readonly heldRoot: UiRoot;
+  private heldPoint: UiPoint | null = null;
+
   constructor(art: UiKitArt, private readonly authority: InventoryMenuAuthority) {
     this.root = new UiRoot({ art, scale: 1, label: 'Inventory menu' });
     this.controller = new UiSlotController(authority.gestures, {
       displayedCursor: () => authority.displayedCursor(), contains: point => this.contains(point),
     });
+    this.heldRoot = new UiRoot({ art, scale: 1, label: 'Held stack' });
+    this.heldRoot.mount(uiHeldStack({ id: 'game.inventory-menus.held-stack', controller: this.controller, point: () => this.heldPoint,
+      refusesAt: point => this.refusesAt(point),
+      art: uiSlotArt({ artwork: () => authority.artwork?.() ?? this.snapshot?.artwork, iconAnimation: item => authority.iconAnimation(item), contentRegistry: () => authority.contentRegistry?.() }) }));
   }
   private get cursor(): ItemStack | null { return this.authority.gestures.source.cursor(); }
 
@@ -182,5 +193,24 @@ export class InventoryMenus {
   }
 
   draw(context: CanvasRenderingContext2D): void { if (this.active) this.root.drawInContext(context); }
-  dispose(): void { this.controller.dispose(); this.root.dispose(); this.snapshot = null; }
+  /** The held stack under the pointer, composited by the host after every other overlay and just under the system
+   * cursor. It is the kit's `uiHeldStack` on its own root, so it also shows over the one inventory window still drawn
+   * by the host (the hearth stash). */
+  drawHeldStack(context: CanvasRenderingContext2D, pointer: UiPoint, width: number, height: number): void {
+    if (this.heldRoot.disposed || this.authority.displayedCursor() === null) return;
+    this.heldPoint = pointer;
+    if (this.heldRoot.viewport.width !== width || this.heldRoot.viewport.height !== height) this.heldRoot.resize(width, height, 1);
+    this.heldRoot.drawInContext(context);
+  }
+  /** Whether the slot under a point refuses the held stack: the kit slot's own verdict (its rules through the sim's
+   * `slotAcceptsItem`), or, over a slot the host still draws, the authority's rule from the gesture source. */
+  private refusesAt(point: UiPoint): boolean {
+    const cursor = this.authority.displayedCursor(); if (cursor === null) return false;
+    const kit = this.active ? this.controller.slotAt(point) : undefined;
+    if (kit) return uiSlotView(kit.element)?.dropTarget === 'refuse';
+    if (this.active) return false;
+    const { source } = this.authority.gestures, ref = source.slotAt(point);
+    return ref !== null && !source.accepts(ref, cursor.itemKind);
+  }
+  dispose(): void { this.controller.dispose(); this.root.dispose(); this.heldRoot.dispose(); this.snapshot = null; }
 }

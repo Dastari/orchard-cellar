@@ -100,8 +100,17 @@ export class UiSlotGestures {
   private outside: UiSlotButton | null = null;
   private lastShiftClick: ClickRecord | null = null;
   private lastCursorClick: (ClickRecord & { readonly transferCandidate: boolean }) | null = null;
+  private readonly refusalListeners = new Set<(refs: readonly UiSlotRef[]) => void>();
 
   constructor(readonly source: UiSlotSource, readonly authority: UiSlotAuthority) {}
+
+  /** Reports slots that refused the held stack: a release over a slot that refuses it, or a move the server
+   * rejected (the host calls this). The kit plays the refused-drop flash on them. */
+  refused(refs: readonly UiSlotRef[]): void { if (refs.length > 0) for (const listener of this.refusalListeners) listener(refs); }
+  /** Listens for refused slots; returns the unsubscribe. */
+  onRefused(listener: (refs: readonly UiSlotRef[]) => void): () => void {
+    this.refusalListeners.add(listener); return () => this.refusalListeners.delete(listener);
+  }
 
   /** The press in progress, if any. */
   get press(): UiSlotPress | null { return this.current; }
@@ -226,7 +235,8 @@ export class UiSlotGestures {
       return;
     }
     const transferCandidate = cursor !== null && item !== null && itemStacksCompatible(cursor, item);
-    this.authority.click(press.origin, press.button);
+    // A held stack released over a slot that refuses it: nothing moves, and the slot flashes red.
+    if (!this.authority.click(press.origin, press.button) && cursor !== null && !this.source.accepts(press.origin, cursor.itemKind)) this.refused([press.origin]);
     this.lastCursorClick = press.button !== 'left' || clickedKind === undefined ? null
       : { itemKind: clickedKind, sourceRegion, transferCandidate, at: now };
   }
@@ -270,7 +280,17 @@ export class UiSlotController extends UiInventoryController {
     const at = { point: (): UiPoint => ({ x: 0, y: 0 }) };
     super(slotModel(gestures, view, () => at.point()));
     at.point = () => this.point; this.gestures = gestures;
+    this.stopRefusals = gestures.onRefused(refs => this.refuse(refs));
   }
+  private readonly stopRefusals: () => void;
+
+  /** A slot the held stack is being spread over (a press that has visited more than one slot). */
+  override spreadTarget(ref: UiSlotRef): boolean {
+    const press = this.gestures.press;
+    return press !== null && press.cursorWasHeld && press.targets.length > 1 && press.targets.some(target => sameRef(target, ref));
+  }
+
+  override dispose(): void { this.stopRefusals(); super.dispose(); }
 
   /** Pointer input on empty space: with a held stack, a press there drops it on release (outside the window) or
    * returns it (inside). It shares the slot pointer's ownership. */

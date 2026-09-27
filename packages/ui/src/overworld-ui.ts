@@ -1409,6 +1409,7 @@ export class OverworldUi {
       label: item => this.itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
       iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry),
       contentRegistry: () => this.model.contentRegistry,
+      artwork: () => this.retainedArtwork!,
     };
     this.retainedMenus = new InventoryMenus(art, authority);
     this.syncRetainedInventory();
@@ -1688,8 +1689,10 @@ export class OverworldUi {
     slotAt: point => this.itemSlotRef(this.inventoryItemSlotAt(point)),
   }, {
     click: (ref, button) => {
+      // Only a drop (a held stack placed) flashes when the server refuses it, not a pickup.
+      const dropping = this.heldCursorStack() !== null;
       if (!this.predictCursorClick(ref, button)) return false;
-      this.trackInventoryPrediction(this.callbacks.inventoryCursorClick(ref.container, ref.index, button));
+      this.trackInventoryPrediction(this.callbacks.inventoryCursorClick(ref.container, ref.index, button), dropping ? [ref] : []);
       return true;
     },
     previewSpread: (targets, mode) => this.applyQuickCraftPreview(targets, mode),
@@ -1699,7 +1702,7 @@ export class OverworldUi {
       this.promoteQuickCraftPreview();
       this.trackInventoryPrediction(this.callbacks.inventoryCursorQuickCraft(
         targets.map((target) => ({ container: target.container, index: target.index })), mode,
-      ));
+      ), targets);
     },
     quickMove: ref => this.callbacks.quickMoveInventoryItem(ref.container, ref.index, this.quickMoveDestinations(ref.container)),
     quickMoveAll: (itemKind, container) => {
@@ -2990,7 +2993,6 @@ export class OverworldUi {
       }
       this.drawWindow(context, this.openWindowValue);
     }
-    if (this.isInventoryWindow(this.openWindowValue)) this.drawQuickCraftTargets(context);
     if (!this.retainedFeedback) {
       if (this.openWindowValue === null || this.openWindowValue === 'system'
         || this.isInventoryWindow(this.openWindowValue)) this.drawTooltip(context);
@@ -3064,7 +3066,8 @@ export class OverworldUi {
   drawCursorOverlay(context: CanvasRenderingContext2D): void {
     // The scene restores the native cursor while the blocking update is shown.
     if (this.blockingUpdatePromptVisible) return;
-    if (this.isInventoryWindow(this.openWindowValue)) this.drawDraggedItem(context);
+    // The held stack is the kit's uiHeldStack, composited just under the cursor.
+    if (this.isInventoryWindow(this.openWindowValue)) this.retainedMenus?.drawHeldStack(context, this.pointer, this.model.width, this.model.height);
     this.drawCursor(context);
   }
 
@@ -3796,14 +3799,6 @@ export class OverworldUi {
     });
   }
 
-  private drawQuickCraftTargets(context: CanvasRenderingContext2D): void {
-    if (!this.cursorPress?.cursorWasHeld || this.cursorPress.targets.length <= 1) return;
-    for (const slot of this.cursorPress.targets) {
-      if (!slot.visible || !slot.enabled) continue;
-      drawUiSkinNatural(context, this.skin.selectorNeutral, slot.bounds.x - 10, slot.bounds.y - 9, 'idle');
-    }
-  }
-
   tooltipText(): string | null {
     if (this.retainedInventoryActive) return this.retainedMenus!.tooltipAt(this.pointer);
     if (this.backpackSortNode.contains(this.pointer)
@@ -4108,7 +4103,7 @@ export class OverworldUi {
     return slot === null ? null : { container: slot.containerId, index: slot.index };
   }
 
-  /** The slot press in progress, with its spread targets as this host's slots (drawn by drawQuickCraftTargets). */
+  /** The slot press in progress, with its spread targets as this host's slots (legacy windows mark them). */
   private get cursorPress(): { readonly cursorWasHeld: boolean; readonly targets: readonly ItemSlot[] } | null {
     const press = this.slotGestures.press;
     return press === null ? null : {
@@ -4187,32 +4182,13 @@ export class OverworldUi {
     context.restore();
   }
 
-  private drawDraggedItem(context: CanvasRenderingContext2D): void {
-    // During QUICK_CRAFT the item under the pointer is a ghost of the original
-    // carried stack. Destination cells preview the allocation independently;
-    // the ghost remains visible until mouse-up even when the preview remainder is zero.
-    const cursor = this.slotGestures.press?.cursorWasHeld && this.quickCraftPreviewCursor !== undefined
-      ? this.quickCraftOriginalCursor
-      : this.heldCursorStack();
-    if (cursor == null) return;
-    const destination = { x: this.pointer.x - 14, y: this.pointer.y - 15, width: 28, height: 31 };
-    drawUiInventorySlotBacking(context, this.skin, destination, cursor.itemKind);
-    this.drawInventoryItem(context, destination, cursor.itemKind, cursor.quantity, cursor.durability, cursor.lit);
-    const target = this.inventoryItemSlotAt(this.pointer);
-    if (target !== null && itemSlotRejectsCursor(target, cursor)) {
-      const deny = { x: destination.x - 2, y: destination.y - 2, width: 10, height: 10 };
-      context.fillStyle = '#a9363e';
-      context.fillRect(deny.x, deny.y, deny.width, deny.height);
-      context.fillStyle = '#fff1cf';
-      for (let offset = 2; offset <= 7; offset += 1) {
-        context.fillRect(deny.x + offset, deny.y + offset, 1, 1);
-        context.fillRect(deny.x + 9 - offset, deny.y + offset, 1, 1);
-      }
-    }
-  }
-
   private drawItemSlotBacking(context: CanvasRenderingContext2D, slot: ItemSlot): void {
     drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind, !slot.enabled);
+    // Legacy windows (only the hearth stash still runs here) mark their own spread targets; kit slots draw theirs.
+    const press = this.cursorPress;
+    if (press?.cursorWasHeld && press.targets.length > 1 && slot.enabled && press.targets.includes(slot)) {
+      drawUiSkinNatural(context, this.skin.selectorNeutral, slot.bounds.x - 10, slot.bounds.y - 9, 'idle');
+    }
     if (!itemSlotRejectsCursor(slot, this.heldCursorStack())) return;
     context.save();
     context.fillStyle = 'rgba(169, 54, 62, 0.58)';
@@ -5087,13 +5063,16 @@ export class OverworldUi {
     this.optimisticMenuStartedAt = null;
   }
 
-  private trackInventoryPrediction(result: void | Promise<void>): void {
+  /** Rolls a predicted move back if the server rejects it; `refused` are the slots the move placed into, which play
+   * the kit's refused-drop flash with the callback's error toast. */
+  private trackInventoryPrediction(result: void | Promise<void>, refused: readonly UiSlotRef[] = []): void {
     void Promise.resolve(result).catch(() => {
       this.cancelQuickCraftPreview();
       this.clearOptimisticMenu();
       // Restore the latest subscribed authority snapshot immediately. The
       // callback owns the error toast; this path only rolls presentation back.
       this.update(this.model);
+      this.slotGestures.refused(refused);
     });
   }
 

@@ -237,7 +237,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // keeps only the reducer callbacks and predictions; its slots take the authority's rules (BUG-050: equipment rules on
 // equipment, none on other self panes) and the window footer shows the selected hotbar slot. The existing
 // inventory-menus, overworld-ui and lab tests pin the gestures unchanged; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = 'f909931297623ed6f5c6518c087298269c57f879fe0feea83420ccf0ce57e899';
+// Item slot S3 (wiki Roadmap/Item Slot Component): ui/overworld-ui.ts deletes its held-stack and spread-corner painters
+// (drawDraggedItem, drawQuickCraftTargets); the kit's uiHeldStack is composited in their place, legacy windows mark
+// their own spread targets, and a drop the server refuses flashes its slot. held-stack, inventory-menus-held-stack,
+// overworld-ui and ui-layer-order tests cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '392b771547d92ce7589933759200253635beeef3dc193de8234fa7cdaaef0495';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

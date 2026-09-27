@@ -2,7 +2,7 @@ import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { itemDefinition } from '@orchard/sim/item-containers';
 import { uiDurabilityFraction } from '../../item-durability.js';
-import { containsPoint, type UiRect } from '../../geometry.js';
+import { containsPoint, type UiPoint, type UiRect } from '../../geometry.js';
 import type { LoadedAsset } from '../../assets.js';
 import { drawOutlinedPixelText } from '../../pixel-ui.js';
 import { uiInventorySlotTone } from '../../design-system/inventory.js';
@@ -122,6 +122,8 @@ const UI_SLOT_SILHOUETTE = Object.freeze({ ink: '#8d6e55', alpha: .55 });
 /** Cooldown shade (render 03 A). */
 const UI_SLOT_COOLDOWN_SHADE = 'rgba(31, 20, 26, 0.62)';
 const BLOCKED_MARK = UI_ICON_CATALOG.find(icon => icon.name === 'blocked_small')!.index;
+/** The pack's red cross, badged on the held stack over a slot that refuses it (render 02, "Pack cross"). */
+const REFUSED_BADGE = UI_ICON_CATALOG.find(icon => icon.name === 'cross_red_small')!.index;
 function scratchCanvas(width: number, height: number): HTMLCanvasElement | OffscreenCanvas | null {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
   if (typeof document === 'undefined') return null;
@@ -150,6 +152,73 @@ function paintUiSlotBlockedMark(context: CanvasRenderingContext2D, art: UiKitArt
   if (!entry || !frame) return;
   const size = (overItem ? 12 : 16) * scale, offset = overItem ? { x: scale, y: scale } : { x: 6 * scale, y: 7 * scale };
   context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x + offset.x, r.y + offset.y, size, size);
+}
+/** Slots that would refuse the held stack fade to this while it is carried (owner decision 2026-09-27, render 02 B). */
+export const UI_SLOT_REFUSER_ALPHA = .45;
+/** The refused-drop flash's first frame: a red wash over the slot's face (render 02). */
+const UI_SLOT_REFUSED_WASH = 'rgba(169, 54, 62, 0.45)';
+/** The refused-drop flash (render 02, about 300ms): frame 1 is the red wash with the red corners pushed out 1px,
+ * frame 2 the red corners alone. */
+function paintUiSlotRefusedFlash(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, frame: 1 | 2): void {
+  if (frame === 1) {
+    const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
+    context.save(); context.fillStyle = UI_SLOT_REFUSED_WASH; context.fillRect(r.x + 3 * scale, r.y + 3 * scale, r.width - 6 * scale, r.height - 6 * scale); context.restore();
+  }
+  paintUiSelector(context, art.skin.selector, 'deny', r, frame === 1 ? 1 : 0);
+}
+interface UiSlotBody {
+  readonly item: ItemStack | null | undefined; readonly ghost?: boolean; readonly disabled?: boolean; readonly locked?: boolean;
+  readonly slotArt: UiSlotArt; readonly renderContent?: UiSlotOptions['renderContent']; readonly placeholder?: UiSlotPlaceholderSource;
+  readonly hotkey?: string; readonly cooldown?: UiSlotCooldown | null;
+}
+/** The one slot face: quality (or grey) face, item icon, count, wear bar, placeholder, hotkey, blocked mark and
+ * cooldown. Every slot and the held stack paint through it. */
+function paintUiSlotBody(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, body: UiSlotBody): void {
+  const { item, ghost = false, disabled = false, locked = false, slotArt } = body, rarity = uiInventorySlotTone(item?.itemKind);
+  paintUiSkin(context, art.skin.slot, disabled ? 'slot.disabled.0' : `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
+  const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
+  if (item) {
+    // One slot look everywhere (the classic hotbar): the icon in a 16px well, then the stack count,
+    // wear bar and hotkey drawn by the slot itself, so a custom icon painter can't change them.
+    if (body.renderContent) {
+      context.save(); if (disabled) context.globalAlpha *= .5;
+      body.renderContent(context, uiSlotIconRect(r), item, { ghost }); context.restore();
+    }
+    else {
+      const icon = resolveUiSlotIcon(slotArt, item);
+      if (icon) {
+        const { image, source } = icon, at = fitIcon(uiSlotIconRect(r), source);
+        context.save();
+        // Crisp pixels at any fit: a smoothed downscale is what made slot icons look faded (owner item 6).
+        context.imageSmoothingEnabled = false;
+        if (ghost) context.globalAlpha *= .42;
+        if (disabled) context.globalAlpha *= .5;
+        if (item.lit === false) { context.filter = 'brightness(42%) saturate(55%)'; context.globalAlpha *= .88; }
+        context.drawImage(image, source.x, source.y, source.width, source.height, at.x, at.y, at.width, at.height);
+        context.restore();
+      }
+    }
+    if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 15 * scale, { align: 'right', ...UI_SLOT_INKS });
+    // A disabled or locked slot shows its item at 50% (render 01 B and C), its count, and its wear bar dimmed with
+    // the item to 50%.
+    const durability = uiDurabilityFraction(item.itemKind, item.durability, uiSlotArtRegistry(slotArt));
+    if (!ghost && durability !== null) {
+      context.save(); if (disabled) context.globalAlpha *= .5;
+      paintUiSlotWear(context, art, r, durability, scale); context.restore();
+    }
+  } else if (!locked && typeof body.placeholder === 'string') paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[body.placeholder] ?? body.placeholder}`, r);
+  else if (!locked && typeof body.placeholder === 'object' && 'item' in body.placeholder) {
+    const icon = resolveUiSlotIcon(slotArt, { itemKind: body.placeholder.item });
+    const at = icon && fitIcon(uiSlotIconRect(r), icon.source), silhouette = icon && at && itemSilhouette(icon.image, icon.source, at.width, at.height);
+    if (at && silhouette) { context.save(); context.globalAlpha *= UI_SLOT_SILHOUETTE.alpha; context.drawImage(silhouette, at.x, at.y); context.restore(); }
+  }
+  if (body.hotkey) drawOutlinedPixelText(context, art.pixel, body.hotkey, r.x + 3, r.y + 3, UI_SLOT_INKS);
+  if (locked) paintUiSlotBlockedMark(context, art, r, item !== null && item !== undefined, scale);
+  const cooldown = body.cooldown;
+  if (cooldown && item && !disabled) {
+    const well = uiSlotIconRect(r), height = Math.round(well.height * Math.min(1, Math.max(0, cooldown.fraction)));
+    if (height > 0) { context.fillStyle = UI_SLOT_COOLDOWN_SHADE; context.fillRect(r.x + 3 * scale, well.y + well.height - height, r.width - 6 * scale, height); }
+  }
 }
 /** A slot's derived state: what it would paint and accept right now. */
 export interface UiSlotView {
@@ -180,14 +249,22 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   let current: UiSlotState | undefined = options.state;
   const state = () => current;
   const blocked = (next: UiSlotState | undefined = current) => Boolean(options.disabled) || slotStateBlocksInput(next);
+  // The held stack as drawn under the pointer: during a spread preview, the original stack.
+  const carried = (): ItemStack | null => options.controller && options.binding ? options.controller.model.displayedCursor() ?? options.controller.model.cursor : null;
   // Against the held stack: the controller's verdict, narrowed by the slot's own rules through the shared sim rule
   // and the live content policy. Without a live registry the rules are not checked (never against bootstrap).
+  // While a stack is held every slot needs its verdict (refusers dim), so it is kept until the held stack changes or
+  // the controller refreshes (input, or the host's next update), rather than checked on every paint.
+  let verdict: { readonly cursor: ItemStack; readonly revision: number; readonly value: 'accept' | 'refuse' } | undefined;
   const dropTarget = (): 'accept' | 'refuse' | null => {
-    const cursor = options.controller?.model.cursor;
+    const cursor = carried();
     if (!cursor || !options.controller || !options.binding) return null;
+    const revision = options.controller.revision;
+    if (verdict?.cursor === cursor && verdict.revision === revision) return verdict.value;
     const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt);
-    const accepts = options.controller.model.canAccept(options.binding) && (options.rules === undefined || policy === undefined || uiSlotAcceptsItem(options.rules, cursor.itemKind, policy));
-    return accepts ? 'accept' : 'refuse';
+    const accepts = options.controller.model.canAccept(options.binding, cursor) && (options.rules === undefined || policy === undefined || uiSlotAcceptsItem(options.rules, cursor.itemKind, policy));
+    verdict = { cursor, revision, value: accepts ? 'accept' : 'refuse' };
+    return verdict.value;
   };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
     focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false },
@@ -207,66 +284,33 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     onKey(event) { if (event.key === 'Escape') { options.controller?.cancel(); return true; } if (!['Enter', ' ', 'ContextMenu'].includes(event.key)) return false;
       if (options.controller && options.binding) options.controller.activate(options.binding, event.key === 'ContextMenu' ? 2 : 0, event.shiftKey); else options.onPress?.({...event,button:event.key==='ContextMenu'?2:0}); return true; },
     onDispose() { unregister?.(); },
-    paint(element, { context, art, hovered, focused }) {
+    paint(element, { context, art, hovered, focused, now }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
       context.save();
       // Disabled and locked slots use the pack's grey face (owner decision 2026-09-27, render 01 B and C). A busy
       // slot asked to dim keeps the ordinary face at 60% instead: it is non-interactive, not disabled.
       const locked = current?.locked !== undefined, stateDisabled = locked || current?.enabled === false;
-      const dimmed = element.disabled && !stateDisabled && options.disabledLook === 'dim', disabled = (element.disabled || stateDisabled) && !dimmed;
-      if (dimmed) context.globalAlpha *= .6;
-      const actual = stack(), ghost = actual ? null : options.ghost?.(), item = actual ?? ghost, r = element.rect, rarity = uiInventorySlotTone(item?.itemKind);
-      paintUiSkin(context, art.skin.slot, disabled ? 'slot.disabled.0' : `slot.${rarity === 'common' ? 'idle' : rarity}.0`, r);
-      const scale = Math.max(1, Math.floor(Math.min(r.width / 28, r.height / 31)));
-      if (item) {
-        // One slot look everywhere (the classic hotbar): the icon in a 16px well, then the stack count,
-        // wear bar and hotkey drawn by the slot itself, so a custom icon painter can't change them.
-        if (options.renderContent) {
-          context.save(); if (disabled) context.globalAlpha *= .5;
-          options.renderContent(context, uiSlotIconRect(r), item, { ghost: Boolean(ghost) }); context.restore();
-        }
-        else {
-          const icon = resolveUiSlotIcon(slotArt, item);
-          if (icon) {
-            const { image, source } = icon, at = fitIcon(uiSlotIconRect(r), source);
-            context.save();
-            // Crisp pixels at any fit: a smoothed downscale is what made slot icons look faded (owner item 6).
-            context.imageSmoothingEnabled = false;
-            if (ghost) context.globalAlpha *= .42;
-            if (disabled) context.globalAlpha *= .5;
-            if (item.lit === false) { context.filter = 'brightness(42%) saturate(55%)'; context.globalAlpha *= .88; }
-            context.drawImage(image, source.x, source.y, source.width, source.height, at.x, at.y, at.width, at.height);
-            context.restore();
-          }
-        }
-        if (!ghost && item.quantity > 1) drawOutlinedPixelText(context, art.pixel, String(item.quantity), r.x + r.width - 5 * scale, r.y + r.height - 15 * scale, { align: 'right', ...UI_SLOT_INKS });
-        // A disabled or locked slot shows its item at 50% (render 01 B and C), its count, and its wear bar dimmed with
-        // the item to 50%.
-        const durability = uiDurabilityFraction(item.itemKind, item.durability, uiSlotArtRegistry(slotArt));
-        if (!ghost && durability !== null) {
-          context.save(); if (disabled) context.globalAlpha *= .5;
-          paintUiSlotWear(context, art, r, durability, scale); context.restore();
-        }
-      } else if (!locked && typeof options.placeholder === 'string') paintUiSkin(context, art.skin.equipment, `silhouette.${LEGACY_SILHOUETTES[options.placeholder] ?? options.placeholder}`, r);
-      else if (!locked && typeof options.placeholder === 'object' && 'item' in options.placeholder) {
-        const icon = resolveUiSlotIcon(slotArt, { itemKind: options.placeholder.item });
-        const at = icon && fitIcon(uiSlotIconRect(r), icon.source), silhouette = icon && at && itemSilhouette(icon.image, icon.source, at.width, at.height);
-        if (at && silhouette) { context.save(); context.globalAlpha *= UI_SLOT_SILHOUETTE.alpha; context.drawImage(silhouette, at.x, at.y); context.restore(); }
-      }
-      if (options.hotkey) drawOutlinedPixelText(context, art.pixel, options.hotkey, r.x + 3, r.y + 3, UI_SLOT_INKS);
-      if (locked) paintUiSlotBlockedMark(context, art, r, item !== null && item !== undefined, scale);
-      const cooldown = options.cooldown?.();
-      if (cooldown && item && !disabled) {
-        const well = uiSlotIconRect(r), height = Math.round(well.height * Math.min(1, Math.max(0, cooldown.fraction)));
-        if (height > 0) { context.fillStyle = UI_SLOT_COOLDOWN_SHADE; context.fillRect(r.x + 3 * scale, well.y + well.height - height, r.width - 6 * scale, height); }
-      }
+      const busy = element.disabled && !stateDisabled && options.disabledLook === 'dim', disabled = (element.disabled || stateDisabled) && !busy;
+      if (busy) context.globalAlpha *= .6;
+      const actual = stack(), ghost = actual ? null : options.ghost?.() ?? null, r = element.rect;
+      // While a stack is held, every slot that would refuse it fades (render 02 B, 04 B). The slot under the pointer
+      // stays clear and shows its corners; disabled and busy slots keep their own look.
+      const refuser = !hovered && !disabled && !busy && carried() !== null && dropTarget() === 'refuse';
+      context.save(); if (refuser) context.globalAlpha *= UI_SLOT_REFUSER_ALPHA;
+      paintUiSlotBody(context, art, r, { item: actual ?? ghost, ghost: Boolean(ghost), disabled, locked, slotArt,
+        ...(options.renderContent ? { renderContent: options.renderContent } : {}), ...(options.placeholder ? { placeholder: options.placeholder } : {}),
+        ...(options.hotkey ? { hotkey: options.hotkey } : {}), cooldown: options.cooldown?.() ?? null });
+      context.restore();
       // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop or a
-      // locked slot under the pointer, white hover and keyboard focus.
+      // locked slot under the pointer, white a spread target, hover and keyboard focus. A refused drop flashes red.
       // Only the slot under the pointer or keyboard focus shows drop feedback, so only it checks the rules.
+      const flash = options.controller && options.binding ? options.controller.refusalFrame(options.binding, now) : 0;
       const target = hovered || focused ? dropTarget() : null, selected = Boolean(element.props['selected']) || state()?.selected === true;
-      if (selected || (hovered && target === 'accept' && !locked)) paintUiSelector(context, art.skin.selector, 'confirm', r);
+      const spreading = options.controller && options.binding ? options.controller.spreadTarget(options.binding) : false;
+      if (flash) paintUiSlotRefusedFlash(context, art, r, flash);
+      else if (selected || (hovered && target === 'accept' && !locked)) paintUiSelector(context, art.skin.selector, 'confirm', r);
       else if (hovered && (target === 'refuse' || locked)) paintUiSelector(context, art.skin.selector, 'deny', r);
-      else if (hovered || focused) paintUiSelector(context, art.skin.selector, 'neutral', r);
+      else if (spreading || hovered || focused) paintUiSelector(context, art.skin.selector, 'neutral', r);
       context.restore();
     },
   });
@@ -286,6 +330,49 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   });
   if (options.controller && options.binding) unregister = options.controller.register(slot, options.binding); return slot;
 }
+export interface UiHeldStackOptions {
+  readonly id?: string;
+  /** The root's slot controller: the held stack is its displayed cursor, and its slots give the verdict. */
+  readonly controller: UiInventoryController;
+  /** Item art; preferred over artwork, iconAnimation and contentRegistry (see UiSlotOptions). */
+  readonly art?: UiSlotArt;
+  readonly artwork?: UiSlotOptions['artwork']; readonly iconAnimation?: UiSlotOptions['iconAnimation']; readonly contentRegistry?: UiSlotOptions['contentRegistry'];
+  /** Where the pointer is. By default, the last pointer position the root observed. */
+  readonly point?: () => UiPoint | null;
+  /** Whether the slot under a point refuses the held stack. By default, the verdict of the controller's slot there. */
+  readonly refusesAt?: (point: UiPoint) => boolean;
+}
+/** The held stack drawn under the pointer (wiki Roadmap/Item Slot Component, S3): the slot face centred on the pointer.
+ * Over a slot that refuses it, it wears the pack's red cross in its top-left corner, because on touch the finger hides
+ * the slot's own red corners (owner decision 2026-09-27, render 02). It paints on the root's `cursor` layer, covers the
+ * viewport without taking input, and is empty while nothing is held. */
+export function uiHeldStack(options: UiHeldStackOptions): UiElement {
+  const slotArt = options.art ?? uiSlotArt({ ...(options.artwork ? { artwork: options.artwork } : {}), ...(options.iconAnimation ? { iconAnimation: options.iconAnimation } : {}), ...(options.contentRegistry ? { contentRegistry: options.contentRegistry } : {}) });
+  let observed: UiPoint | null = null;
+  const unsubscribe = options.controller.subscribe(() => held.invalidateRoot?.(false));
+  const held: UiElement = new UiElement({ id: options.id, kind: 'held-stack', label: 'Held stack', disabled: true,
+    style: { position: 'fixed', width: 'grow', height: 'grow', zLayer: 'cursor' },
+    onPointerObserved(event) { observed = event.point; },
+    paint(_element, { context, art }) {
+      const stack = options.controller.model.displayedCursor(), point = options.point?.() ?? observed;
+      if (!art || art.missingArt || !stack || !point) return;
+      const r = uiHeldStackRect(point);
+      paintUiSlotBody(context, art, r, { item: stack, slotArt });
+      if (options.refusesAt ? options.refusesAt(point) : uiHeldStackRefusedAt(options.controller, point)) {
+        const entry = art.skin.icon['icon_catalog.catalog.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, 'catalog', REFUSED_BADGE);
+        if (entry && frame) context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x - 3, r.y - 3, 12, 12);
+      }
+    },
+    onDispose() { unsubscribe(); },
+  });
+  return held;
+}
+/** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
+function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {
+  const under = controller.slotAt(point); return under !== undefined && uiSlotView(under.element)?.dropTarget === 'refuse';
+}
+/** Where the held stack is drawn for a pointer: a 28x31 slot centred on it. */
+export function uiHeldStackRect(point: UiPoint): UiRect { return { x: point.x - 14, y: point.y - 15, width: 28, height: 31 }; }
 export interface UiInventoryCell {
   readonly id: string; readonly index?: number; readonly icon?: UiIconSource; readonly placeholder?: UiSlotOptions['placeholder']; readonly disabled?: boolean;
   /** Per-cell rules and state, passed straight to the cell's slot (see UiSlotOptions). */

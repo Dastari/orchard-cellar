@@ -1,14 +1,12 @@
 import { selectAtlasFrame } from '../../sprite.js';
 import { nineSlicePatches } from '../../nine-slice.js';
 import { UiElement } from '../runtime/element.js';
-import type { UiInventoryController } from '../runtime/inventory.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone } from '../tokens.js';
 import { UI_TONE_FACES } from '../skin/contrast.js';
 import { paintUiSkin, uiSkinFrame } from './art.js';
 import { uiText } from './text.js';
 import { uiButton } from './button.js';
-import { uiSlot, type UiSlotOptions } from './inventory.js';
 export interface UiSpeechBubbleOptions {
   readonly id?: string; readonly text: string; readonly name?: string; readonly nameplate?: boolean;
   readonly tone?: UiTone; readonly tail?: 'up' | 'down' | 'left' | 'right' | 'none'; readonly maxWidth?: ReturnType<typeof uiFixed>; readonly layout?: UiStyle;
@@ -60,15 +58,13 @@ export function uiLoadingSpinner(options: { readonly id?: string; readonly layou
 export function uiCrosshair(options: { readonly id?: string; readonly layout?: UiStyle } = {}): UiElement {
   return new UiElement({ id: options.id, kind: 'crosshair', style: { width: uiFixed(16), height: uiFixed(16), ...options.layout }, paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.cursor, 'crosshair.idle.0', element.rect); } });
 }
-export function uiCursor(options: { readonly id?: string; readonly controller?: UiInventoryController; readonly artwork?: UiSlotOptions['artwork']; readonly point?: () => { readonly x: number; readonly y: number }; readonly layout?: UiStyle } = {}): UiElement {
-  let unsubscribe: (() => void) | undefined;
-  const slot = options.controller ? uiSlot({ stack: () => options.controller!.model.displayedCursor(), artwork: options.artwork }) : undefined;
-  const stack = slot ? new UiElement({ ...slot.hooks, focusable: false, pointerMode: 'passthrough', onPointer: undefined, onKey: undefined }) : undefined;
+/** The pointer arrow, following the observed pointer. The held stack is `uiHeldStack` (kit/components/inventory.ts). */
+export function uiCursor(options: { readonly id?: string; readonly point?: () => { readonly x: number; readonly y: number }; readonly layout?: UiStyle } = {}): UiElement {
   let observed = { x: 0, y: 0 };
-  const cursor = new UiElement({ id: options.id, kind: 'cursor', style: { position: 'fixed', zLayer: 'cursor', width: uiFixed(32), height: uiFixed(32), ...options.layout }, children: stack ? [stack] : [],
+  return new UiElement({ id: options.id, kind: 'cursor', style: { position: 'fixed', zLayer: 'cursor', width: uiFixed(32), height: uiFixed(32), ...options.layout },
     onPointerObserved(event, element) { observed = event.point; element.invalidate(); },
-    onPlace(element, viewport) { const point = options.point?.() ?? observed; element.setStyle({ inset: { left: uiFixed(Math.max(0, Math.min(viewport.width - 32, point.x))), top: uiFixed(Math.max(0, Math.min(viewport.height - 32, point.y))) } }); stack?.setStyle({ visible: Boolean(options.controller?.model.displayedCursor()) }); },
-    paint(element, { context, art }) { if (art && !options.controller?.model.displayedCursor()) paintUiSkin(context, art.skin.cursor, 'cursor.idle.0', { ...element.rect, width: 16, height: 16 }); }, onDispose() { unsubscribe?.(); },
-  }); if (options.controller) unsubscribe = options.controller.subscribe(() => cursor.invalidate()); return cursor;
+    onPlace(element, viewport) { const point = options.point?.() ?? observed; element.setStyle({ inset: { left: uiFixed(Math.max(0, Math.min(viewport.width - 32, point.x))), top: uiFixed(Math.max(0, Math.min(viewport.height - 32, point.y))) } }); },
+    paint(element, { context, art }) { if (art) paintUiSkin(context, art.skin.cursor, 'cursor.idle.0', { ...element.rect, width: 16, height: 16 }); },
+  });
 }
 export { uiTouchControls, type UiTouchControlsOptions } from './touch-controls.js';

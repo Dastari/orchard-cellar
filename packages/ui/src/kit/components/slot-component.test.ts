@@ -269,16 +269,23 @@ describe('slot state model', () => {
     expect(third).toMatchObject({ enabled: true, rules: null });
   });
 
-  it('checks drop rules only for the slot under the pointer or focus, with one cached policy per registry', async () => {
+  // Refusers dim while a stack is held (S3, render 02 B), so every slot needs its verdict then; it is kept until the
+  // held stack changes or the controller refreshes, and nothing is checked while nothing is held.
+  it('checks drop rules only while a stack is held, once per slot until the controller refreshes, with one cached policy per registry', async () => {
     const canAccept = vi.fn(() => true);
-    const controller = new UiInventoryController({ ...model({ itemKind: 'coal', quantity: 1 }), canAccept });
+    let held: ItemStack | null = null;
+    const controller = new UiInventoryController({ ...model(null), get cursor() { return held; }, displayedCursor: () => held, canAccept });
     const root = new UiRoot({ art: await uiTestArt(), scale: 1 }); root.resize(200, 40);
     const grid = root.mount(uiInventoryGrid({ container: 'chest', count: 6, controller, art: uiSlotArt({ contentRegistry: () => registry }),
       cells: Array.from({ length: 6 }, (_, index) => ({ id: String(index), index, rules: { denyItems: ['wood'] } })) }));
     root.arrange(); const canvas = createCanvas(200, 40), context = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
-    root.draw(context, 0); expect(canAccept).not.toHaveBeenCalled();
-    root.focus.set(grid.children[2]!, 'keyboard'); root.draw(context, 0);
-    expect(canAccept).toHaveBeenCalledTimes(1); expect(canAccept).toHaveBeenCalledWith({ container: 'chest', index: 2 });
+    root.focus.set(grid.children[2]!, 'keyboard'); root.draw(context, 0); expect(canAccept).not.toHaveBeenCalled();
+    held = { itemKind: 'coal', quantity: 1 }; controller.refresh(); root.draw(context, 0);
+    expect(canAccept).toHaveBeenCalledTimes(6); expect(canAccept).toHaveBeenCalledWith({ container: 'chest', index: 2 }, held);
+    root.draw(context, 0); root.focus.set(grid.children[3]!, 'keyboard'); root.draw(context, 0);
+    expect(canAccept).toHaveBeenCalledTimes(6);
+    controller.refresh(); root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(12);
+    held = { itemKind: 'coal', quantity: 2 }; root.draw(context, 0); expect(canAccept).toHaveBeenCalledTimes(18);
     root.dispose(); controller.dispose();
     const policy = uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }));
     expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }))).toBe(policy);
