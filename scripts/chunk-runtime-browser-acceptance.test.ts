@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  acceptancePatch, AcceptancePatchError, assertAcceptanceBuildEnvironment, LOCAL_PROFILES_ANCHOR, PROBE_ANCHOR, SEAM_ANCHOR, SEAM_HOOK,
+  acceptancePatch, AcceptancePatchError, assertAcceptanceBuildEnvironment, GATE_ANCHOR, GATE_FIX, LOCAL_PROFILES_ANCHOR, PROBE_ANCHOR, SEAM_ANCHOR, SEAM_HOOK,
 } from './chunk-runtime-acceptance-patch.js';
 import {
   AcceptanceUsageError, diffRgba, evictionsFrom, movementWhileWaiting, nearestWalkableIn, notServingReason, occupancyVerdict, parityVerdict, parseAcceptanceArgs, pinCoverage, sweepPlan,
@@ -18,7 +18,7 @@ describe('S4g acceptance build patches', () => {
 
   it('finds every anchor exactly once in the current client sources', () => {
     const files = { auth: 'packages/auth/src/oidc.ts', connection: 'packages/client/src/net/overworld-connection.ts', main: 'packages/client/src/overworld-main.ts' };
-    for (const [path, anchor] of [[files.auth, LOCAL_PROFILES_ANCHOR], [files.connection, SEAM_ANCHOR], [files.main, PROBE_ANCHOR]] as const) {
+    for (const [path, anchor] of [[files.auth, LOCAL_PROFILES_ANCHOR], [files.main, PROBE_ANCHOR]] as const) {
       const text = source(path);
       expect(text.split(anchor).length - 1, `${path} anchor`).toBe(1);
       const patched = acceptancePatch(`/repo/${path}`, text, { chunkAuthority: 'on' });
@@ -27,7 +27,14 @@ describe('S4g acceptance build patches', () => {
     }
     expect(acceptancePatch(`/repo/${files.auth}`, source(files.auth), { chunkAuthority: null }))
       .toContain("export const localProfilesEnabled = true\n  && (import.meta.env['VITE_ENABLE_LOCAL_PROFILES']");
-    expect(acceptancePatch(`/repo/${files.connection}`, source(files.connection), { chunkAuthority: 'on' })).toContain(`${SEAM_ANCHOR} ${SEAM_HOOK}`);
+    // The bug workarounds apply while main still has the bugs (BUG-053, BUG-055), and never twice.
+    const connection = source(files.connection);
+    for (const [anchor, patched] of [[SEAM_ANCHOR, `${SEAM_ANCHOR} ${SEAM_HOOK}`], [GATE_ANCHOR, `${GATE_FIX}${GATE_ANCHOR}`]] as const) {
+      expect(connection.split(anchor).length - 1).toBeLessThanOrEqual(1);
+      if (connection.includes(anchor)) expect(acceptancePatch(`/repo/${files.connection}`, connection, { chunkAuthority: 'on' })).toContain(patched);
+    }
+    const fixed = connection.replace(SEAM_ANCHOR, 'SEAM_FIXED').replace(GATE_ANCHOR, 'GATE_FIXED');
+    expect(acceptancePatch(`/repo/${files.connection}`, fixed, { chunkAuthority: 'on' })).toBe(fixed);
     // A legacy build leaves the seam alone.
     expect(acceptancePatch(`/repo/${files.connection}`, source(files.connection), { chunkAuthority: null })).toBeNull();
     expect(acceptancePatch(`/repo/${files.main}`, source(files.main), { chunkAuthority: null })).toContain('s4gChunkStore: (() => {');
@@ -74,7 +81,7 @@ describe('S4g acceptance driver', () => {
     expect(parseAcceptanceArgs([...args, '--limit', '12']).limit).toBe(12);
   });
 
-  it('plans one row-major step per chunk and stands in the nearest walkable tile for a chunk without ground', () => {
+  it('plans one row-major step per chunk and stands in the nearest walkable tiles for a chunk without ground', () => {
     const plan = sweepPlan([
       { cx: 1, cy: 0, candidates: [{ tileX: 90, tileY: 30 }] },
       { cx: 0, cy: 0, candidates: [{ tileX: 30, tileY: 31 }, { tileX: 31, tileY: 31 }] },
@@ -82,16 +89,20 @@ describe('S4g acceptance driver', () => {
     ]);
     expect(plan.map(step => [step.cx, step.cy, step.tileX, step.tileY, step.inChunk])).toEqual([
       [0, 0, 30, 31, true], [1, 0, 90, 30, true], [0, 1, 31, 31, false]]);
+    expect(plan[0]!.alternatives).toEqual([{ tileX: 30, tileY: 31 }, { tileX: 31, tileY: 31 }]);
+    expect(plan[2]!.alternatives!.map(tile => `${tile.tileX},${tile.tileY}`)).toEqual(['31,31', '30,31', '90,30']);
     expect(plan.map(step => step.index)).toEqual([0, 1, 2]);
     expect(() => sweepPlan([{ cx: 0, cy: 0, candidates: [] }])).toThrow('sweep_has_no_walkable_tile');
-    // With the whole ground grid, the nearest walkable tile of any chunk stands in.
-    const blocked = new Uint8Array(4 * 4).fill(1);
-    blocked[2 * 4 + 1] = 0; blocked[3 * 4 + 3] = 0;
-    const nearest = nearestWalkableIn(4, 4, blocked);
-    expect(nearest(0, 3)).toEqual({ tileX: 1, tileY: 2 });
-    expect(nearest(3, 2)).toEqual({ tileX: 3, tileY: 3 });
-    expect(nearestWalkableIn(1, 1, [1])(0, 0)).toBeNull();
-    expect(sweepPlan([{ cx: 0, cy: 0, candidates: [{ tileX: 5, tileY: 5 }] }, { cx: 0, cy: 1, candidates: [] }], () => ({ tileX: 7, tileY: 70 }))[1])
+    // With the whole ground grid, the nearest interior walkable tiles (all eight neighbours walkable) stand in.
+    const blocked = new Uint8Array(6 * 6).fill(1);
+    for (const [x, y] of [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2], [3, 3], [4, 4]]) blocked[y! * 6 + x!] = 0;
+    const nearest = nearestWalkableIn(6, 6, blocked);
+    // (1,1) is the only tile whose whole neighbourhood is walkable; (3,3), (4,4) and the edges are not.
+    expect(nearest(4, 4, 3)).toEqual([{ tileX: 1, tileY: 1 }]);
+    blocked.fill(0);
+    expect(nearest(0, 0, 2)).toEqual([{ tileX: 1, tileY: 1 }, { tileX: 2, tileY: 1 }]);
+    expect(nearestWalkableIn(1, 1, [1])(0, 0, 3)).toEqual([]);
+    expect(sweepPlan([{ cx: 0, cy: 0, candidates: [{ tileX: 5, tileY: 5 }] }, { cx: 0, cy: 1, candidates: [] }], () => [{ tileX: 7, tileY: 70 }])[1])
       .toMatchObject({ tileX: 7, tileY: 70, inChunk: false });
   });
 

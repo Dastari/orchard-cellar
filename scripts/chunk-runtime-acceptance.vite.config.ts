@@ -13,8 +13,8 @@ import { acceptancePatch, assertAcceptanceBuildEnvironment, type AcceptanceBuild
  * - `vite preview` with this config listens on 127.0.0.1:S4G_PREVIEW_PORT and proxies
  *   `/v1` to the disposable S4G_WORLD_HOST (never the production host on port 3000).
  * - The acceptance transform (chunk-runtime-acceptance-patch.ts) enables local profiles in
- *   this production build, connects the chunk-authority seam to S4G_CHUNK_AUTHORITY (the
- *   client's seam is still unconnected on main), and adds a read-only store probe.
+ *   this production build, installs a chunk-authority seam hook the driver sets (the client's
+ *   seam is still unconnected on main, BUG-053), and adds a read-only store probe.
  */
 const clientRoot = fileURLToPath(new URL('../packages/client/', import.meta.url));
 

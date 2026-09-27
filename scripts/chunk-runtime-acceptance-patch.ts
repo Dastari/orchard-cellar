@@ -4,7 +4,9 @@
  * only; never to a release build, which uses packages/client/vite.config.ts directly).
  *
  * Each patch replaces one exact anchor. An anchor that is missing or not unique fails the
- * build, so a source change can never silently turn the acceptance into a no-op.
+ * build, so a source change can never silently turn the acceptance into a no-op. The two bug
+ * workarounds (BUG-053 seam, BUG-055 gate) are the exception: they apply only while their
+ * anchor still exists, and the driver records whether the build needed them.
  *
  * - Local profiles in a production (PROD) build: the disposable world has production
  *   OIDC switched off, and a DEV build would not register the service worker or minify
@@ -12,6 +14,8 @@
  * - The chunk-authority seam: on main the client never reads the server's chunkAuthority
  *   (UNCONNECTED_CHUNK_AUTHORITY, BUG-053), so an `on` build only ever runs `shadow`. With
  *   S4G_CHUNK_AUTHORITY=on the build gets a hook the driver sets to the world's switch.
+ * - The authority gate (BUG-054): a runtime switch the driver sets once it has recorded main's
+ *   behaviour, so chunk collision and map records can serve as designed.
  * - A read-only store probe on `window.__orchardOverworld` (resident chunks and bytes,
  *   installs, pins, limits) for occupancy and eviction evidence.
  */
@@ -71,6 +75,14 @@ function replaceOnce(file: string, code: string, { anchor, replacement }: Replac
 export const LOCAL_PROFILES_ANCHOR = 'export const localProfilesEnabled = import.meta.env.DEV\n';
 export const SEAM_ANCHOR = 'this.chunkRuntime ??= new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode,';
 export const PROBE_ANCHOR = 'Object.assign(window, {\n  __orchardOverworld: {\n';
+export const GATE_ANCHOR = "    return this.chunkRuntime?.authorityGate(this.chunkRuntimeSource()) ?? 'not_on';\n";
+/**
+ * BUG-054: `?? 'not_on'` also turns the controller's `null` ("the serving revision may stand in
+ * for the server") into `not_on`, so chunk collision and map records never serve. With
+ * `globalThis.__s4gGateFix` the acceptance build returns the controller's answer unchanged;
+ * the driver records the unfixed behaviour first.
+ */
+export const GATE_FIX = "    if ((globalThis as { __s4gGateFix?: boolean }).__s4gGateFix === true) return this.chunkRuntime === undefined ? 'not_on' : this.chunkRuntime.authorityGate(this.chunkRuntimeSource());\n";
 /**
  * The seam hook: the authority is whatever the acceptance driver sets on
  * `globalThis.__s4gChunkAuthority`, and undefined (exactly main's unconnected seam) until then.
@@ -84,8 +96,9 @@ const PROBE = `    s4gChunkStore: (() => {
       return () => {
         const store = network.chunkTerrainStore;
         if (store === undefined) return null;
+        const gate = network.chunkAuthorityGate();
         let id = ids.get(store); if (id === undefined) { id = ++next; ids.set(store, id); }
-        return { id, residentCount: store.residentCount, residentBytes: store.residentBytes, installs: store.installs,
+        return { id, gate, residentCount: store.residentCount, residentBytes: store.residentBytes, installs: store.installs,
           pinned: store.pinnedKeys.length, pinnedKeys: store.pinnedKeys, maxChunks: store.maxChunks, maxBytes: store.maxBytes, manifestChunks: store.manifest.chunks.length };
       };
     })(),
@@ -98,7 +111,9 @@ export function acceptancePatch(id: string, code: string, settings: Pick<Accepta
   }
   if (id.endsWith('/packages/client/src/net/overworld-connection.ts')) {
     if (settings.chunkAuthority === null) return null;
-    return replaceOnce(id, code, { anchor: SEAM_ANCHOR, replacement: `${SEAM_ANCHOR} ${SEAM_HOOK}` });
+    // Once BUG-053 / BUG-055 are fixed on main their anchors are gone and the build runs the real code.
+    const seamed = code.includes(SEAM_ANCHOR) ? replaceOnce(id, code, { anchor: SEAM_ANCHOR, replacement: `${SEAM_ANCHOR} ${SEAM_HOOK}` }) : code;
+    return seamed.includes(GATE_ANCHOR) ? replaceOnce(id, seamed, { anchor: GATE_ANCHOR, replacement: `${GATE_FIX}${GATE_ANCHOR}` }) : seamed;
   }
   if (id.endsWith('/packages/client/src/overworld-main.ts')) {
     return replaceOnce(id, code, { anchor: PROBE_ANCHOR, replacement: `${PROBE_ANCHOR}${PROBE}` });

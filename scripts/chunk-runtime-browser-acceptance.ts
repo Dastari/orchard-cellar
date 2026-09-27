@@ -132,49 +132,55 @@ export interface SweepStep {
   readonly tileY: number;
   /** False when the chunk has no walkable ground: the nearest walkable tile of any chunk stands in. */
   readonly inChunk: boolean;
+  readonly alternatives?: readonly { readonly tileX: number; readonly tileY: number }[];
 }
 
-export type NearestWalkable = (tileX: number, tileY: number) => { readonly tileX: number; readonly tileY: number } | null;
+export type NearestWalkable = (tileX: number, tileY: number, count: number) => readonly { readonly tileX: number; readonly tileY: number }[];
 
-/** The walkable tile nearest (Euclidean, then row-major) to a point, from a ground `blocked` grid. */
+/**
+ * The `count` walkable tiles nearest a point (Euclidean, then row-major), from a ground `blocked`
+ * grid. Only tiles whose eight neighbours are walkable too: a shoreline tile is walkable ground
+ * but the player's collision box there overlaps the water, so the server refuses the teleport.
+ */
 export function nearestWalkableIn(width: number, height: number, blocked: ArrayLike<boolean | number>): NearestWalkable {
-  return (tileX, tileY) => {
-    let best: { tileX: number; tileY: number } | null = null, bestDistance = Infinity;
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && !blocked[y * width + x];
+  const interior = (x: number, y: number) => open(x - 1, y - 1) && open(x, y - 1) && open(x + 1, y - 1) && open(x - 1, y) && open(x, y)
+    && open(x + 1, y) && open(x - 1, y + 1) && open(x, y + 1) && open(x + 1, y + 1);
+  return (tileX, tileY, count) => {
+    const best: { tileX: number; tileY: number; distance: number }[] = [];
     for (let y = 0; y < height; y++) {
       const dy = (y - tileY) ** 2;
-      if (dy >= bestDistance) continue;
+      if (best.length === count && dy > best[best.length - 1]!.distance) continue;
       for (let x = 0; x < width; x++) {
-        if (blocked[y * width + x]) continue;
+        if (!interior(x, y)) continue;
         const distance = dy + (x - tileX) ** 2;
-        if (distance < bestDistance) { best = { tileX: x, tileY: y }; bestDistance = distance; }
+        if (best.length === count && distance >= best[best.length - 1]!.distance) continue;
+        best.push({ tileX: x, tileY: y, distance });
+        best.sort((a, b) => a.distance - b.distance || a.tileY - b.tileY || a.tileX - b.tileX);
+        if (best.length > count) best.pop();
       }
     }
-    return best;
+    return best.map(({ tileX: x, tileY: y }) => ({ tileX: x, tileY: y }));
   };
 }
 
 /**
  * One step per chunk, row-major (a one-chunk move each step and a long jump at each row end,
  * so the store both follows the view and evicts). A chunk without walkable ground uses the
- * walkable tile nearest its centre (`nearest`, else the nearest of every chunk's candidates):
+ * walkable tiles nearest its centre (`nearest`, else the nearest of every chunk's candidates):
  * players stand only on walkable ground, and chunk-mode readiness keeps the view on the player.
+ * `alternatives` are tried in order when the server refuses a tile (a tree or rock stands there).
  */
-export function sweepPlan(targets: readonly WalkTarget[], nearest?: NearestWalkable): SweepStep[] {
+export function sweepPlan(targets: readonly WalkTarget[], nearest?: NearestWalkable, count = 24): SweepStep[] {
   const everywhere = targets.flatMap(target => target.candidates);
   if (everywhere.length === 0) throw new Error('sweep_has_no_walkable_tile');
   return [...targets].sort((a, b) => a.cy - b.cy || a.cx - b.cx).map((target, index) => {
-    const own = target.candidates[0];
-    if (own !== undefined) return { index, cx: target.cx, cy: target.cy, tileX: own.tileX, tileY: own.tileY, inChunk: true };
     const centreX = target.cx * WORLD_CHUNK_SIZE + WORLD_CHUNK_SIZE / 2, centreY = target.cy * WORLD_CHUNK_SIZE + WORLD_CHUNK_SIZE / 2;
-    let best = nearest?.(centreX, centreY) ?? everywhere[0]!;
-    if (nearest === undefined) {
-      let bestDistance = Infinity;
-      for (const candidate of everywhere) {
-        const distance = (candidate.tileX - centreX) ** 2 + (candidate.tileY - centreY) ** 2;
-        if (distance < bestDistance) { best = candidate; bestDistance = distance; }
-      }
-    }
-    return { index, cx: target.cx, cy: target.cy, tileX: best.tileX, tileY: best.tileY, inChunk: false };
+    const inChunk = target.candidates.length > 0;
+    const alternatives = inChunk ? target.candidates : nearest !== undefined ? nearest(centreX, centreY, count)
+      : [...everywhere].sort((a, b) => (a.tileX - centreX) ** 2 + (a.tileY - centreY) ** 2 - ((b.tileX - centreX) ** 2 + (b.tileY - centreY) ** 2)).slice(0, count);
+    const first = alternatives[0] ?? everywhere[0]!;
+    return { index, cx: target.cx, cy: target.cy, tileX: first.tileX, tileY: first.tileY, inChunk, alternatives };
   });
 }
 
@@ -327,7 +333,8 @@ export function parityVerdict(records: readonly StepRecord[], maxDiffRatio: numb
 }
 
 export interface ReadinessSample { readonly t: number; readonly ready: boolean; readonly reason: string | null; readonly state: string | null;
-  readonly tileX: number | null; readonly tileY: number | null; readonly keyHeld: boolean }
+  readonly tileX: number | null; readonly tileY: number | null; readonly keyHeld: boolean; readonly key?: string;
+  readonly predicted?: string | null; readonly ui?: string | null }
 
 /** Movement before the terrain is ready: any server position change while a key was held and readiness was not ready. */
 export function movementWhileWaiting(samples: readonly ReadinessSample[], start: { tileX: number; tileY: number } | null): {
@@ -523,18 +530,23 @@ interface PageProbe {
   readonly windowStatus: { readonly failures: number; readonly lastError: string | null; readonly fallback: boolean } | null;
   readonly records: { readonly failures: number } | null;
   readonly store: StoreSample | null;
+  readonly predicted?: { readonly tileX: number; readonly tileY: number } | null;
+  readonly ui?: string | null;
 }
 
 const PROBE_SOURCE = `(() => {
   const o = window.__orchardOverworld; if (!o) return null;
-  const s = o.snapshot(); const me = s.identityHex ? s.players.get(s.identityHex) : undefined;
+  const s = o.snapshot(); const hex = value => value && typeof value.toHexString === 'function' ? value.toHexString() : String(value);
+  const me = s.identityHex ? s.players.find(player => hex(player.identity) === s.identityHex) : undefined;
   const d = o.diagnostics(); const c = d.chunks ?? {};
   const tile = ${TILE_SIZE_FIXED};
   const plain = value => value === undefined ? null : JSON.parse(JSON.stringify(value, (_k, v) => typeof v === 'bigint' ? Number(v) : v instanceof Set ? [...v] : v));
   return { identity: s.identityHex, connected: s.connected, error: s.error,
     position: me ? { spaceId: Number(me.spaceId), tileX: Math.floor(Number(me.x) / tile), tileY: Math.floor(Number(me.y) / tile) } : null,
     runtime: plain(c.runtime), readiness: plain(c.readiness), staging: plain(c.staging), collision: plain(c.collision),
-    windowStatus: plain(c.window), records: plain(c.records), store: o.s4gChunkStore ? o.s4gChunkStore() : null };
+    windowStatus: plain(c.window), records: plain(c.records), store: o.s4gChunkStore ? o.s4gChunkStore() : null,
+    predicted: (() => { const p = o.predictedPosition ? o.predictedPosition() : null; return p ? { tileX: Math.floor(Number(p.x) / tile), tileY: Math.floor(Number(p.y) / tile) } : null; })(),
+    ui: o.uiWindow ? o.uiWindow() : null, error2: s.error };
 })()`;
 
 async function probe(page: Page): Promise<PageProbe | null> {
@@ -554,14 +566,27 @@ async function memory(cdp: CdpSession): Promise<MemorySample> {
 
 const PRESENTATION = { clockHours: 12, continuousDay: 12, lunarProgress: 0.25, lunarIllumination: 0, cloudCover: 0 };
 
-async function present(page: Page, entitiesHidden: boolean): Promise<void> {
-  await page.evaluate(`(() => { const o = window.__orchardOverworld; o.setInterfaceHidden(true); o.setNameplatesVisible(false);
-    o.setEntitiesHidden(${entitiesHidden}); o.setLightingPreview(${JSON.stringify(PRESENTATION)}); })()`);
+/** The shared camera (world pixels, top-left) centred on a tile, for a 1280 x 720 viewport at the default 2x world scale. */
+export function cameraOn(tileX: number, tileY: number): { cameraX: number; cameraY: number } {
+  return { cameraX: tileX * 16 + 8 - 320, cameraY: tileY * 16 + 8 - 180 };
 }
+
+/**
+ * Fixed noon lighting, no clouds, no HUD or nameplates, and one camera for both builds (the two
+ * players cannot share a tile, so they stand side by side and the camera, which also chooses the
+ * chunk window, is pinned to the same world position in both pages). Null clears the preview.
+ */
+async function present(page: Page, entitiesHidden: boolean, camera: { cameraX: number; cameraY: number } | null): Promise<void> {
+  const preview = camera === null ? null : { ...PRESENTATION, ...camera };
+  await page.evaluate(`(() => { const o = window.__orchardOverworld; o.setInterfaceHidden(true); o.setNameplatesVisible(false);
+    o.setEntitiesHidden(${entitiesHidden}); o.setLightingPreview(${JSON.stringify(preview)}); })()`);
+}
+
+const NEIGHBOURS: readonly (readonly [number, number])[] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
 
 interface Session { readonly label: 'legacy' | 'on'; readonly browser: Browser; readonly page: Page; readonly cdp: CdpSession; identity: string }
 
-async function openSession(chromium: any, options: AcceptanceOptions, label: 'legacy' | 'on', url: string, slot: string,
+export async function openSession(chromium: any, options: AcceptanceOptions, label: 'legacy' | 'on', url: string, slot: string,
   extra: { serviceWorkers?: 'allow' | 'block'; delayWorldMs?: number; seam?: 'on' } = {}): Promise<Session> {
   const browser = await chromium.launch({ executablePath: options.chromePath, headless: true,
     args: ['--enable-precise-memory-info', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
@@ -570,7 +595,7 @@ async function openSession(chromium: any, options: AcceptanceOptions, label: 'le
     const delay = extra.delayWorldMs;
     await context.route(/\/world\/\d+\/[0-9a-f]{64}\.bin$/u, async (route: any) => { await sleep(delay); await route.continue(); });
   }
-  if (extra.seam !== undefined) await context.addInitScript(`globalThis.__s4gChunkAuthority = ${JSON.stringify(extra.seam)};`);
+  if (extra.seam !== undefined) await context.addInitScript(`globalThis.__s4gChunkAuthority = ${JSON.stringify(extra.seam)}; globalThis.__s4gGateFix = true;`);
   const page = await context.newPage();
   page.on('pageerror', (error: Error) => console.error(`[s4g:${label}] pageerror ${error.message}`));
   const cdp = await context.newCDPSession(page);
@@ -726,6 +751,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   const evidence: Evidence = { schema: 1, startedAt: new Date().toISOString(), result: 'failed', failures: [],
     target: { host: options.host, database: options.database, legacyUrl: options.legacyUrl, onUrl: options.onUrl }, builds: {}, pipeline: [], criteria: {} };
   const fail = (message: string) => { evidence.failures.push(message); log(`FAIL ${message}`); };
+  // Letters only, unique per run: the slot becomes the character name, and a name the server
+  // refuses (digits, a duplicate) opens the naming dialog, which then holds the keyboard.
+  const runTag = Array.from({ length: 5 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
   for (const [label, url] of [['legacy', options.legacyUrl], ['on', options.onUrl]] as const) {
     evidence.builds[label] = JSON.parse(await (await fetch(`${url}/chunk-runtime-audit.json`)).text());
   }
@@ -757,8 +785,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       + ` (${plan.filter(step => !step.inChunk).length} without walkable ground use the nearest walkable tile)`);
 
     // 2. Sweep.
-    const legacy = await openSession(chromium, options, 'legacy', options.legacyUrl, 's4g-legacy');
-    const on = await openSession(chromium, options, 'on', options.onUrl, 's4g-on');
+    const legacy = await openSession(chromium, options, 'legacy', options.legacyUrl, `Legacy${runTag}`);
+    const on = await openSession(chromium, options, 'on', options.onUrl, `Chunks${runTag}`);
     sessions.push(legacy, on);
     await Promise.all([awaitPlaying(legacy), awaitPlaying(on)]);
     log(`players: legacy ${legacy.identity.slice(0, 12)}…, on ${on.identity.slice(0, 12)}…`);
@@ -766,39 +794,79 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     // even though the world's chunkAuthority is `on`. Record that, then connect the hook.
     const unconnected = await waitForAsync('on_build_settles_unconnected', async () => {
       const value = await probe(on.page);
-      return value?.runtime !== null && value?.runtime !== undefined && value.runtime.state !== 'idle' && value.runtime.state !== 'subscribing' ? value : null;
-    }, 60_000).catch(() => null);
-    await sleep(3_000);
+      return value?.runtime?.state === 'shadow' ? value : null;
+    }, 30_000).catch(() => null);
+    await sleep(2_000);
     const unconnectedLater = await probe(on.page);
     evidence.criteria['seam-unconnected (BUG-053)'] = { worldChunkAuthority: owner.chunkAuthority(), buildMode: (evidence.builds['on'] as { mode?: string }).mode,
       effectiveMode: unconnectedLater?.runtime?.mode ?? null, state: unconnectedLater?.runtime?.state ?? null, firstState: unconnected?.runtime?.state ?? null,
       readiness: unconnectedLater?.readiness?.reason ?? null, servingStore: unconnectedLater?.store !== null };
     await on.page.evaluate(`globalThis.__s4gChunkAuthority = 'on';`);
-    await on.page.context().addInitScript(`globalThis.__s4gChunkAuthority = 'on';`);
+    // The controller reads the authority on its next update (a move): step the on player one tile.
+    const here = (await probe(on.page))?.position;
+    if (here) for (const [dx, dy] of NEIGHBOURS) if (await owner.teleport(on.identity, here.tileX + dx, here.tileY + dy) === null) break;
+    // BUG-054: with the seam connected but the gate as on main, chunk collision and map records never serve.
+    const gated = await waitForAsync('on_build_serves_store', async () => {
+      const value = await probe(on.page);
+      return value?.runtime?.mode === 'on' && value.runtime.state === 'on' && value.store !== null ? value : null;
+    }, 60_000).catch(() => null);
+    await sleep(1_000);
+    const gatedLater = await probe(on.page);
+    evidence.criteria['gate-null-coalesced (BUG-054)'] = { effectiveMode: gatedLater?.runtime?.mode ?? null, state: gatedLater?.runtime?.state ?? null,
+      servedStore: gated !== null, gate: (gatedLater?.store as { gate?: unknown } | null)?.gate ?? null,
+      collisionFallback: gatedLater?.collision?.fallbackReason ?? null };
+    await on.page.evaluate(`globalThis.__s4gGateFix = true;`);
+    await on.page.context().addInitScript(`globalThis.__s4gChunkAuthority = 'on'; globalThis.__s4gGateFix = true;`);
     const records: StepRecord[] = [];
     const worst: { index: number; ratio: number; kind: 'terrain' | 'full'; legacy: Uint8Array; on: Uint8Array }[] = [];
     const keep = new Set([0, Math.floor(steps.length / 4), Math.floor(steps.length / 2), Math.floor((3 * steps.length) / 4), steps.length - 1]);
-    const playerMask: Rect[] = [{ x: 640 - 48, y: 360 - 72, width: 96, height: 120 }];
+    // Both players stand within two tiles of the camera centre: their sprites differ by build (own versus remote).
+    const playerMask: Rect[] = [{ x: 640 - 112, y: 360 - 104, width: 224, height: 176 }];
     const sweepStarted = Date.now();
-    for (const step of steps) {
+    for (const planned of steps) {
       const began = Date.now();
-      for (const session of [legacy, on]) {
-        const refusal = await owner.teleport(session.identity, step.tileX, step.tileY);
-        if (refusal !== null) throw new Error(`teleport ${session.label} to ${step.tileX},${step.tileY}: ${refusal}`);
+      // The camera follows each player again while they move (a pinned camera would hold the window).
+      await Promise.all([present(legacy.page, true, null), present(on.page, true, null)]);
+      // The legacy player on the first tile the server accepts, the on player right beside it.
+      let step: SweepStep | null = null, onTile: { tileX: number; tileY: number } | null = null;
+      const refusals: string[] = [];
+      for (const tile of planned.alternatives ?? [planned]) {
+        const first = await owner.teleport(legacy.identity, tile.tileX, tile.tileY);
+        if (first !== null) { refusals.push(`${tile.tileX},${tile.tileY}:${first}`); continue; }
+        for (const [dx, dy] of NEIGHBOURS) {
+          const second = await owner.teleport(on.identity, tile.tileX + dx, tile.tileY + dy);
+          if (second === null) { onTile = { tileX: tile.tileX + dx, tileY: tile.tileY + dy }; break; }
+        }
+        if (onTile !== null) { step = { ...planned, tileX: tile.tileX, tileY: tile.tileY }; break; }
+        refusals.push(`${tile.tileX},${tile.tileY}:no_neighbour_for_on`);
       }
+      if (step === null || onTile === null) { fail(`step ${planned.index} (${planned.cx},${planned.cy}): no tile accepted (${refusals.slice(0, 3).join('; ')})`); continue; }
       const arrivedMs = Date.now() - began;
       // While the next window loads and is prepared (the Node peak was measured there).
       const onTransition = step.index === 0 ? undefined : await memory(on.cdp);
+      const camera = cameraOn(step.tileX, step.tileY);
       let ready: PageProbe | null = null;
       try {
         await awaitReadyAt(legacy, step, false);
-        ready = await awaitReadyAt(on, step, true);
+        await awaitReadyAt(on, onTile, true);
+        // Both cameras on the legacy player's tile; the on window follows the camera, so wait again.
+        await Promise.all([present(legacy.page, true, camera), present(on.page, true, camera)]);
+        await Promise.all([frames(legacy.page, 3), frames(on.page, 3)]);
+        ready = await awaitReadyAt(on, onTile, true);
       } catch (error) { fail(`step ${step.index} (${step.cx},${step.cy}): ${error instanceof Error ? error.message : String(error)}`); }
       const readyMs = ready === null ? null : Date.now() - began;
-      // Let the ground cache and the staged window settle before comparing frames.
-      await sleep(500);
+      // Each page must also show the other player where it stands (remote positions arrive with the region subscription).
+      await Promise.all([[legacy, on.identity, onTile], [on, legacy.identity, step]].map(([session, other, tile]) =>
+        waitForAsync('remote_player_settled', async () => (await (session as Session).page.evaluate(`(() => {
+          const s = window.__orchardOverworld.snapshot(); const hex = v => v && v.toHexString ? v.toHexString() : String(v);
+          const p = s.players.find(q => hex(q.identity) === ${JSON.stringify(other)});
+          return p !== undefined && Math.floor(Number(p.x) / ${TILE_SIZE_FIXED}) === ${(tile as { tileX: number }).tileX}
+            && Math.floor(Number(p.y) / ${TILE_SIZE_FIXED}) === ${(tile as { tileY: number }).tileY};
+        })()`)) as boolean, 5_000).catch(() => undefined)));
+      // Let the ground cache, the staged window and remote interpolation settle before comparing frames.
+      await sleep(800);
       const capture = async (entitiesHidden: boolean) => {
-        await Promise.all([present(legacy.page, entitiesHidden), present(on.page, entitiesHidden)]);
+        await Promise.all([present(legacy.page, entitiesHidden, camera), present(on.page, entitiesHidden, camera)]);
         await Promise.all([frames(legacy.page, 4), frames(on.page, 4)]);
         const [a, b] = await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
         return { a, b };
@@ -887,12 +955,17 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     invalidation['before'] = { idbEntries: (await idb()).entries?.length ?? null, sw: await on.page.evaluate(SW_SOURCE) };
     let current = documentJson;
     const edits: Record<string, unknown>[] = [];
-    for (const [index, offset] of [[1, 3], [2, 5]] as const) {
+    // Cells not edited before (a rerun against the same world must still change the chunk).
+    const base = 3 + ((owner.mapRow()?.revision ?? 0) * 7) % 40;
+    for (const [index, offset] of [[1, base], [2, base + 2]] as const) {
       const tileX = editChunk.cx * WORLD_CHUNK_SIZE + offset, tileY = editChunk.cy * WORLD_CHUNK_SIZE + offset;
       current = editedDocumentJson(current, tileX, tileY);
       const map = await owner.publishMap(current);
-      const stale = await waitForAsync('client_sees_stale_map', async () => { const value = await probe(on.page); return value?.runtime?.staleReasons.includes('map') ? value.runtime : null; }, 30_000)
-        .catch(() => null);
+      // The gate is synchronous: collision falls back to legacy (stale_map) until the heads follow the map.
+      const stale = await waitForAsync('client_gates_stale_map', async () => {
+        const value = await probe(on.page);
+        return value?.collision?.fallbackReason === 'stale_map' ? { gate: (value.store as { gate?: unknown } | null)?.gate ?? null, collision: value.collision.fallbackReason } : null;
+      }, 30_000).catch(() => null);
       const swapsBefore = (await probe(on.page))?.runtime?.swaps ?? 0;
       evidence.pipeline.push(await runPipeline(options, `edit-${index}`));
       const revision = owner.shadowRevision();
@@ -900,19 +973,19 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       revisions.push({ revision, editedHash: headOf(next), manifest: next });
       const swapped = await waitForAsync('client_swapped', async () => {
         const value = await probe(on.page);
-        return value?.runtime?.servingRevision === `0:${revision}` && value.runtime.pendingRevision === null && !value.runtime.stale ? value.runtime : null;
+        return value?.runtime?.servingRevision === `0:${revision}` && value.runtime.pendingRevision === null && value.collision?.fallbackReason === null ? value.runtime : null;
       }, 60_000).catch(() => null);
       await sleep(1_000);
       const entries = (await idb()).entries ?? [];
       const hashes = new Set(entries.map(entry => entry.hash));
       const keepSet = new Set([...next.chunks, ...revisions.at(-2)!.manifest.chunks].map(head => head.contentHash));
       const outside = entries.filter(entry => !keepSet.has(entry.hash)).length;
-      edits.push({ index, tile: `${tileX},${tileY}`, map, sawStaleMap: stale !== null, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
+      edits.push({ index, tile: `${tileX},${tileY}`, map, gatedStaleMap: stale, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
         servingRevision: swapped?.servingRevision ?? null, editedHashChanged: revisions.at(-1)!.editedHash !== revisions.at(-2)!.editedHash,
         idbEntries: entries.length, idbHasNewHash: hashes.has(revisions.at(-1)!.editedHash), idbHasPreviousHash: hashes.has(revisions.at(-2)!.editedHash),
         idbHasRevisionOneHash: hashes.has(revisions[0]!.editedHash), idbEntriesOutsideCurrentAndPrevious: outside });
-      if (stale === null) fail(`invalidation edit ${index}: the on client never reported the map as stale`);
-      if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision}`);
+      if (stale === null) fail(`invalidation edit ${index}: the on client never gated its collision as stale_map`);
+      if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision} and serve chunk collision again`);
       if (!hashes.has(revisions.at(-1)!.editedHash)) fail(`invalidation edit ${index}: the new chunk blob is not in IndexedDB`);
       if (outside > 0) fail(`invalidation edit ${index}: ${outside} IndexedDB entr(ies) outside the current and previous manifests`);
       if (index === 2 && hashes.has(revisions[0]!.editedHash)) fail('invalidation: the revision-1 blob of the edited chunk was not pruned after two swaps');
@@ -925,7 +998,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     // Both builds agree on the edited chunk after the republish.
     await sleep(500);
     const shots = await (async () => {
-      await Promise.all([present(legacy.page, true), present(on.page, true)]);
+      const final = (await probe(legacy.page))?.position;
+      const finalCamera = final ? cameraOn(final.tileX, final.tileY) : null;
+      await Promise.all([present(legacy.page, true, finalCamera), present(on.page, true, finalCamera)]);
       await Promise.all([frames(legacy.page, 4), frames(on.page, 4)]);
       return await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
     })();
@@ -948,9 +1023,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     // 3. Spawn-pack prefetch: a fresh profile, delayed chunk responses, a movement key held from the start.
     log('spawn prefetch: fresh profile with delayed /world/ responses');
     const delayWorldMs = 700;
-    const mover = await openSession(chromium, options, 'on', options.onUrl, 's4g-move', { serviceWorkers: 'block', delayWorldMs, seam: 'on' });
+    const mover = await openSession(chromium, options, 'on', options.onUrl, `Mover${runTag}`, { serviceWorkers: 'block', delayWorldMs, seam: 'on' });
     sessions.push(mover);
-    const spawn = await watchMovement(mover, null, delayWorldMs);
+    const spawn = await watchMovement(mover, null, delayWorldMs, join(options.evidenceDir, 'side-by-side', 'spawn-prefetch-spawn.png'));
     // The in-chunk sweep target farthest from where the mover stands: never resident yet.
     const from = (await probe(mover.page))?.position ?? null;
     const far = from === null ? null : plan.filter(step => step.inChunk)
@@ -959,8 +1034,14 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     if (far !== null) {
       await mover.page.keyboard.up('ArrowRight');
       await sleep(300);
-      const refusal = await owner.teleport(mover.identity, far.tileX, far.tileY);
-      teleport = refusal === null ? await watchMovement(mover, { tileX: far.tileX, tileY: far.tileY }, delayWorldMs) : { refusal };
+      let landed: { tileX: number; tileY: number } | null = null;
+      const refusals: string[] = [];
+      for (const tile of far.alternatives ?? [far]) {
+        const refusal = await owner.teleport(mover.identity, tile.tileX, tile.tileY);
+        if (refusal === null) { landed = tile; break; }
+        refusals.push(refusal);
+      }
+      teleport = landed !== null ? { chunk: `${far.cx},${far.cy}`, tile: landed, ...await watchMovement(mover, landed, delayWorldMs, join(options.evidenceDir, 'side-by-side', 'spawn-prefetch-teleport.png')) } : { refusal: refusals.slice(0, 3).join('; ') };
     }
     evidence.spawnPrefetch = { delayWorldMs, spawn, teleport };
     const waited = (result: Record<string, unknown> | null) => result !== null && (result['summary'] as { waitedMs: number }).waitedMs > 0;
@@ -986,8 +1067,16 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 }
 
 /** Holds ArrowRight (then other directions) from the first frame and samples readiness and the server position every 50 ms. */
-async function watchMovement(session: Session, start: { tileX: number; tileY: number } | null, delayWorldMs: number): Promise<Record<string, unknown>> {
+export async function watchMovement(session: Session, start: { tileX: number; tileY: number } | null, delayWorldMs: number,
+  screenshot?: string): Promise<Record<string, unknown>> {
   const samples: ReadinessSample[] = [];
+  // After a teleport, start once the page itself shows the player on the new tile.
+  if (start !== null) {
+    await waitForAsync('mover_at_start', async () => {
+      const at = (await probe(session.page).catch(() => null))?.position;
+      return at !== undefined && at !== null && at.tileX === start.tileX && at.tileY === start.tileY;
+    }, 15_000, 25).catch(() => undefined);
+  }
   const started = Date.now();
   let held = '', readyAt: number | null = null, direction = 0;
   const directions = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
@@ -995,27 +1084,29 @@ async function watchMovement(session: Session, start: { tileX: number; tileY: nu
   while (Date.now() - started < 60_000) {
     const value = await probe(session.page).catch(() => null);
     if (value?.identity && session.identity === '') session.identity = value.identity;
-    if (value !== null && held === '' && value.position !== null) {
-      await session.page.keyboard.down(directions[direction]!); held = directions[direction]!;
-    }
+    if (value !== null && held === '' && value.position !== null) held = directions[direction]!;
+    // Held keys auto-repeat in a real browser (keydown with repeat): send one every sample.
+    if (held !== '') await session.page.keyboard.down(held);
     const ready = value?.readiness?.ready === true && value.runtime?.mode === 'on';
     const reason = value?.readiness?.reason ?? null;
     if (reason !== null) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
     samples.push({ t: Date.now() - started, ready, reason, state: value?.runtime?.state ?? null,
-      tileX: value?.position?.tileX ?? null, tileY: value?.position?.tileY ?? null, keyHeld: held !== '' });
+      tileX: value?.position?.tileX ?? null, tileY: value?.position?.tileY ?? null, keyHeld: held !== '', key: held,
+      predicted: value?.predicted ? `${value.predicted.tileX},${value.predicted.tileY}` : null, ui: value?.ui ?? null });
     if (ready && readyAt === null) readyAt = Date.now();
     if (readyAt !== null) {
       const summary = movementWhileWaiting(samples, start);
       if (summary.movedAfterReady) break;
       // Blocked that way: try the next direction every 2 s.
       if (Date.now() - readyAt > 2_000 * (direction + 1) && direction < directions.length - 1) {
-        await session.page.keyboard.up(held); direction++; held = directions[direction]!; await session.page.keyboard.down(held);
+        await session.page.keyboard.up(held); direction++; held = directions[direction]!;
       }
       if (Date.now() - readyAt > 10_000) break;
     }
     await sleep(50);
   }
   if (held !== '') await session.page.keyboard.up(held);
+  if (screenshot !== undefined) await session.page.screenshot({ path: screenshot, type: 'png' }).catch(() => undefined);
   const summary = movementWhileWaiting(samples, start);
   return { summary, delayWorldMs, reasons: Object.fromEntries(reasons), samples: samples.filter((sample, index) => index % 4 === 0 || sample.ready !== samples[index - 1]?.ready) };
 }
