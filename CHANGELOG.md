@@ -2,6 +2,19 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## World 0.30.0 — Static world S3c: resource placements and generation from chunk records
+
+- **S3c (#230).** Resource reconcile and the admin respawn now take resource placements and the generated resource set from the runtime the dispatcher selects, through a new `generatedResources()`:
+  - **Off (production):** the compiled runtime runs the same generator call as before, so writes are unchanged.
+  - **On:** the resources are rebuilt from the `authority.resource` chunk records.
+- **Fails closed:**
+  - Chunk assembly checks the resource records and placements against the digests in the manifest. Any mismatch marks the runtime incomplete, so it is never served and never used to delete rows.
+  - Chunk publications now carry a generator stamp (world seed and `SURVIVAL_WORLD_VERSION`). A publication with a missing or different stamp is stale (`stale_generator`) and falls back to compiled, so a world-version bump can't reconcile from records an old generator made.
+  - The shadow compare now covers the generated resource list.
+- **Also:** the hearth stash and hearth harvest resolve the runtime once per call.
+- **Readiness:** static-world readiness goes to 2 for `server.whole-map-compile` and 1 for `server.generated-resources`.
+- No schema change. Workspace 0.71.0.
+
 ## World 0.29.0 / Sim 0.33.4 — Static world S3b: static document consumers through the chunk dispatcher
 
 - **S3b (#225).** Four more server reads of the map now use the runtime the dispatcher selects:
