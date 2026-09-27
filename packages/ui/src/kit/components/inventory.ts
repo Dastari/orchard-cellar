@@ -379,7 +379,7 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
   const held: UiElement = new UiElement({ id: options.id, kind: 'held-stack', label: 'Held stack', disabled: true,
     style: { position: 'fixed', width: 'grow', height: 'grow', zLayer: 'cursor' },
     onPointerObserved(event) { observed = event.point; },
-    paint(_element, { context, art }) {
+    paint(_element, { context, art, now }) {
       const stack = options.controller.model.displayedCursor(), point = options.point?.() ?? observed;
       if (!art || art.missingArt || !stack || !point) return;
       const r = uiHeldStackRect(point);
@@ -390,10 +390,27 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
         const entry = art.skin.icon['icon_catalog.catalog.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, 'catalog', REFUSED_BADGE);
         if (entry && frame) context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x - 3, r.y - 3, 12, 12);
       }
+      // The refused-drop flash is drawn again ABOVE the held stack for its 300ms (owner decision 2026-09-28, "ship as
+      // shown in mock"), so the stack released over the refusing slot doesn't hide it. The pointer arrow stays on top:
+      // the host composites it after this layer. Each flash keeps to its slot's scroll area.
+      options.controller.forEachRefusal(now, (slot, _ref, flashFrame) => {
+        const clip = uiSlotScrollClip(slot);
+        context.save();
+        if (clip) { context.beginPath(); context.rect(clip.x, clip.y, clip.width, clip.height); context.clip(); }
+        paintUiSlotRefusedFlash(context, art, slot.rect, flashFrame); context.restore();
+      });
     },
     onDispose() { unsubscribe(); },
   });
   return held;
+}
+/** The clip of a slot's nearest scrolling or clipping ancestor, or null when nothing clips it but the viewport. */
+function uiSlotScrollClip(slot: UiElement): UiRect | null {
+  for (let node = slot.parent; node; node = node.parent) {
+    const overflow = node.style.overflow;
+    if (overflow !== undefined) return node.clip;
+  }
+  return null;
 }
 /** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
 function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {
