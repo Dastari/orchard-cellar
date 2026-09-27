@@ -36,7 +36,7 @@ function fixture() {
   } };
   const deps = { ...sim, SenderError: Error, LIVE_ISLAND_MAP_ID: 'island', TOPSIDE_SPACE_ID: 0,
     contentRegistry: () => ({ ...registry, contentHash: 'content', items: switches.item ? registry.items : new Map() }),
-    compiledLiveIslandRuntime: () => ({ combatPolicy: { allowsHostileDamage: () => switches.policy }, document }),
+    liveIslandCollisionRuntime: () => ({ combatPolicy: { allowsHostileDamage: () => switches.policy }, combatRegions: document.combatRegions }),
     liveMapGeneratedResourceSuppressed: () => switches.suppressed, outdoorInsideCamp: () => switches.visible,
     collisionForSpace: () => collision, outdoorRecoveryPosition: () => switches.recovery ? { x: (652 + .5) * sim.TILE_SIZE_FIXED, y: (211 + .5) * sim.TILE_SIZE_FIXED } : null,
     outdoorMovementAllowed: () => switches.home };

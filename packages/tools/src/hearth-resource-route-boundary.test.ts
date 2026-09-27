@@ -16,7 +16,12 @@ it('keeps Hearth resource route proof on neutral active map authority', () => {
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   const installation = world.slice(start, end);
-  expect(installation).toContain('runtime?.document.combatRegions');
+  // Static-world S3a: the authored regions come from the dispatcher's runtime (compiled in off and
+  // shadow, chunk-built in on), never from the live document.
+  expect(installation).toContain('const runtime = liveIslandCollisionRuntime(ctx);');
+  expect(installation).toContain('runtime?.combatRegions');
+  expect(installation).not.toContain('.document.combatRegions');
+  expect(installation).not.toContain('compiledLiveIslandRuntime(');
   expect(installation).toContain('regions,');
   expect(installation).not.toContain('HEARTH_ISLANDS');
   expect(installation).not.toContain('cinderwake');

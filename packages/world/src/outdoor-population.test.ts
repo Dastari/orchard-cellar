@@ -55,7 +55,7 @@ function fixture(actualAttacks=false,boundedCollision=false){
   const ctx={db,sender,senderAuth:{jwt:{}}};
   const kinds={ember_slime:'slime_small_red',ember_cowling:'cowling',cowling_pyromancer:'cowling_mage',cinder_skull:'flying_skull',caldera_warden:'cowling'};
   const api=production({...sim,SenderError:Error,OUTDOOR_NPC_ID_BASE:8_900_000_000_000n,OUTDOOR_NATIVE_KINDS:kinds,OUTDOOR_NAMES:kinds,OUTDOOR_RETURN_PATHS:new Map(),
-    contentRegistry:()=>sim.bootstrapContentRegistry(),compiledLiveIslandRuntime:()=>policy===undefined?null:{combatPolicy:policy},
+    contentRegistry:()=>sim.bootstrapContentRegistry(),liveIslandCombatPolicy:()=>policy,
     liveIslandCollisionRuntime:()=>policy===undefined?null:{combatPolicy:policy},
     waterCollisionForSpace:()=>collision,
     collisionForSpace:()=>{collisionBuilds++;return collision;},outdoorCollisionMap:()=>collision,combatElevationAt:(_collision:unknown,x:number,y:number)=>elevations[Math.floor(y/unit)*width+Math.floor(x/unit)]??-32768,
@@ -68,8 +68,8 @@ function fixture(actualAttacks=false,boundedCollision=false){
     combatRecovery:(_ctx:unknown,identity:Identity,tick:bigint,readyTick:bigint)=>db.player_combat_state.identity.update({identity,tick,readyTick}),
   },actualAttacks,boundedCollision);
   return {api,ctx,db,player,unit,collision,scopeQueries,collisionBuilds:()=>collisionBuilds,policy:()=>policy!,removePolicy:()=>{policy=undefined;},restorePolicy:()=>{policy=new sim.CombatRegionPolicy(sim.HEARTH_COMBAT_REGIONS);},
-    spawn:()=>api.stepOutdoorEncounters(ctx,20n,[]),camp:(id='cinder-ash-shore')=>db.outdoor_encounter.id.find(id)!,
-    tick:(tick:bigint,players:readonly typeof player[]=[player])=>api.stepOutdoorEncounters(ctx,tick,players)};
+    spawn:()=>api.stepOutdoorEncounters(ctx,20n,[],policy),camp:(id='cinder-ash-shore')=>db.outdoor_encounter.id.find(id)!,
+    tick:(tick:bigint,players:readonly typeof player[]=[player])=>api.stepOutdoorEncounters(ctx,tick,players,policy)};
 }
 describe('outdoor population authority',()=>{
   it('creates exactly five packs/seven members once and leaves the Warden dormant',()=>{
