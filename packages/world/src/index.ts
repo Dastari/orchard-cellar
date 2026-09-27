@@ -7078,6 +7078,25 @@ function liveIslandGeneratedResources(ctx: WorldReducerContext,
   return runtime === null ? generatedSurvivalResources(contentRegistry(ctx)) : runtime.generatedResources();
 }
 
+/** Where each generated topside resource lives, by reconcile's rule: its map placement's tile when
+ * one exists, otherwise its generated tile, in generator order (keyed by id). Also returns the map's
+ * placements by id (reconcile keeps rows of orphan placements). Reconcile and admin respawn share it
+ * (BUG-052), so a respawned resource lands exactly where reconcile would put it. */
+function placedLiveIslandResources(ctx: WorldReducerContext, liveMapRuntime: LiveIslandCollisionRuntime | null): {
+  readonly placements: ReadonlyMap<bigint, LiveIslandStaticView['resourcePlacements'][number]>;
+  readonly desired: Map<bigint, GeneratedSurvivalResource>;
+} {
+  const placements = new Map((liveMapRuntime?.staticView.resourcePlacements ?? [])
+    .map(placement => [BigInt(placement.id), placement]));
+  const desired = new Map(liveIslandGeneratedResources(ctx, liveMapRuntime)
+    .map(resource => {
+      const placement = placements.get(BigInt(resource.id));
+      return [BigInt(resource.id), placement === undefined ? resource
+        : {...resource, tileX: placement.tileX, tileY: placement.tileY}] as const;
+    }));
+  return { placements, desired };
+}
+
 /** A terrain version may move generated resources off new contour walls, but
  * unchanged rows retain depletion and regrowth progress. Player inventories,
  * soil, chests, and placeables are never part of this reconciliation.
@@ -7095,14 +7114,7 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
     }
   }
   const liveMapRuntime = liveIslandCollisionRuntime(ctx);
-  const placements = new Map((liveMapRuntime?.staticView.resourcePlacements ?? [])
-    .map(placement => [BigInt(placement.id), placement]));
-  const desired = new Map(liveIslandGeneratedResources(ctx, liveMapRuntime)
-    .map(resource => {
-      const placement = placements.get(BigInt(resource.id));
-      return [BigInt(resource.id), placement === undefined ? resource
-        : {...resource, tileX: placement.tileX, tileY: placement.tileY}] as const;
-    }));
+  const { placements, desired } = placedLiveIslandResources(ctx, liveMapRuntime);
   for (const existing of existingRows) {
     if (existing.spaceId !== TOPSIDE_SPACE_ID
       || isPlantedFruitTreeId(existing.id)
@@ -16022,8 +16034,8 @@ function adminResourceCandidates(
   mutation: AdminObjectMutation,
 ): readonly AdminResourceRespawnCandidate[] {
   if (mutation.operation !== 'respawn_resources' || adminObjectSpaceId(mutation.spaceId) !== TOPSIDE_SPACE_ID) return [];
-  // Generated tiles (not placements), as before; the set comes from the dispatcher's runtime (S3c).
-  return liveIslandGeneratedResources(ctx).filter((resource) => resource.tileX >= mutation.x0
+  // BUG-052: selected and placed at the tile reconcile uses (the map placement, else the generated tile).
+  return [...placedLiveIslandResources(ctx, liveIslandCollisionRuntime(ctx)).desired.values()].filter((resource) => resource.tileX >= mutation.x0
     && resource.tileX <= mutation.x1 && resource.tileY >= mutation.y0 && resource.tileY <= mutation.y1)
     .map((resource) => ({
       entityId: String(resource.id), definitionId: resource.kind, spaceId: String(TOPSIDE_SPACE_ID),
@@ -16119,14 +16131,16 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
   }
   if (before === undefined) {
     if (mutation.operation === 'respawn_resources') {
-      let generatedResources: readonly GeneratedSurvivalResource[] | undefined;
+      let placed: ReadonlyMap<bigint, GeneratedSurvivalResource> | undefined;
       for (const candidate of plan.after.resources.filter((resource) => !plan.before.resources.some(({ entityId }) => entityId === resource.entityId))) {
         const registry = contentRegistry(ctx);
-        // Resolved once per mutation (it was one generator run per candidate), from the runtime (S3c).
-        const generated = (generatedResources ??= liveIslandGeneratedResources(ctx))
-          .find(({ id }) => String(id) === candidate.entityId);
-        if (generated !== undefined && ctx.db.world_resource.id.find(BigInt(candidate.entityId)) === null) {
-          ctx.db.world_resource.insert(generatedWorldResourceRow(generated, registry));
+        // Resolved once per mutation, from the runtime (S3c). BUG-052: inserted at the tile reconcile
+        // uses (the map placement, else the generated tile), not always the generated tile.
+        const resource = /^\d+$/u.test(candidate.entityId)
+          ? (placed ??= placedLiveIslandResources(ctx, liveIslandCollisionRuntime(ctx)).desired).get(BigInt(candidate.entityId))
+          : undefined;
+        if (resource !== undefined && ctx.db.world_resource.id.find(BigInt(candidate.entityId)) === null) {
+          ctx.db.world_resource.insert(generatedWorldResourceRow(resource, registry));
         }
       }
     }
