@@ -5,7 +5,7 @@ import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiInput } from './input.js';
 import { uiGlyph, uiGlyphButton } from './window.js';
-import { uiInventoryGrid, uiSetSlotState, type UiInventoryCell, type UiInventoryGridOptions } from './inventory.js';
+import { uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
 import { uiFixed } from '../layout/box.js';
 
 export interface UiInventoryControls {
@@ -44,24 +44,14 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
     : uiFlex({ width: 'grow' }, [grid]);
   const sort = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
     label: 'Sort inventory', onPress: () => { if (options.sortEnabled?.() !== false) options.onSort?.(); } }) : null;
-  let previous = '', appliedCapacity = Infinity;
+  let previous = '';
   const refresh = () => {
     sort?.setDisabled(options.sortEnabled?.() === false);
     const query = editor.snapshot().value.trim().toLowerCase();
-    // Cells past the capacity are shown disabled (approved grey face, 2026-09-27, render 01 B) and refuse drops, as the
-    // authority has no such slot; a search hides them with the other empty cells.
-    const capacity = options.capacity?.() ?? Infinity;
-    if (capacity !== appliedCapacity) {
-      appliedCapacity = capacity;
-      grid.children.forEach((child, index) => {
-        const cell: UiInventoryCell = cells[index]!;
-        uiSetSlotState(child, cell.index! >= capacity ? { ...cell.state, enabled: false } : cell.state);
-      });
-    }
     const visible = cells.filter(cell => {
       const index = cell.index;
+      if (index >= (options.capacity?.() ?? Infinity)) return false;
       if (!query) return true;
-      if (index >= capacity) return false;
       const item = options.controller ? options.controller.model.stack({ container: options.container, index }) : options.stack?.(index);
       return Boolean(item && (item.itemKind.toLowerCase().includes(query)
         || (options.itemLabel?.(item) ?? itemDefinition(item.itemKind)?.displayName ?? '').toLowerCase().includes(query)));

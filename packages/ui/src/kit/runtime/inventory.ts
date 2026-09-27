@@ -42,18 +42,6 @@ export class UiInventoryController {
     for (const node of this.slots.keys()) if (uiElementEnabled(node) && containsPoint(node.clip, point) && containsPoint(node.rect, point)) found = node;
     return found;
   }
-  /** The topmost registered slot under a point that is shown but disabled or locked (a backpack cell past its
-   * capacity): it takes no input, so a release there is a refused drop, not a press on empty space. */
-  blockedSlotAt(point: UiPoint): { readonly element: UiElement; readonly ref: UiInventorySlotRef } | undefined {
-    let found: UiElement | undefined;
-    for (const node of this.slots.keys()) {
-      if (!node.disabled || !node.visible || !containsPoint(node.rect, point) || !containsPoint(node.clip, point)) continue;
-      let shown = true;
-      for (let parent = node.parent; shown && parent; parent = parent.parent) shown = parent.visible && !parent.disabled;
-      if (shown) found = node;
-    }
-    return found ? { element: found, ref: this.slots.get(found)! } : undefined;
-  }
   /** Forgets every pending refused-drop flash: the window closed or its slots were rebuilt, so a late refusal can't
    * replay on a reopened slot with the same ref. */
   clearRefusals(): void { if (this.refusals.size > 0) { this.refusals.clear(); this.refresh(); } }

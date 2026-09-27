@@ -284,7 +284,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = carried();
     if (!cursor || !options.controller || !options.binding) return null;
-    // A disabled or locked slot takes nothing (S4): past a backpack's capacity the server has no such slot.
+    // A disabled or locked slot takes nothing (S4).
     if (blocked()) return 'refuse';
     const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt), own = options.controller.model.stack(options.binding);
     const revision = options.controller.rulesRevision;
@@ -401,10 +401,7 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
 }
 /** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
 function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {
-  const under = controller.slotElementAt(point);
-  if (under !== undefined) return uiSlotDropTarget(under) === 'refuse';
-  // A shown but disabled or locked slot (a backpack cell past its capacity) refuses everything (S4).
-  return controller.blockedSlotAt(point) !== undefined;
+  const under = controller.slotElementAt(point); return under !== undefined && uiSlotDropTarget(under) === 'refuse';
 }
 /** Where the held stack is drawn for a pointer: a 28x31 slot centred on it. */
 export function uiHeldStackRect(point: UiPoint): UiRect { return { x: point.x - 14, y: point.y - 15, width: 28, height: 31 }; }

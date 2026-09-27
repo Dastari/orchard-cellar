@@ -131,11 +131,6 @@ export class UiSlotGestures {
     return true;
   }
 
-  /** A press on empty space is pending (a held stack drops or returns on its release). */
-  get outsidePressing(): boolean { return this.outside !== null; }
-  /** Forgets the pending press on empty space: its release landed on a slot that refuses the held stack. */
-  cancelOutside(): void { this.outside = null; }
-
   /** Pointer-down on empty space: with a held stack, its release drops (outside the window) or returns it. */
   pressOutside(button: number): boolean {
     if (this.source.cursor() === null) return false;
@@ -302,14 +297,7 @@ export class UiSlotController extends UiInventoryController {
   backgroundPointer(event: UiElementPointer, inside: boolean): boolean {
     return this.background(event, () => {
       if (event.type === 'down' && (event.button === 0 || event.button === 2)) { if (this.gestures.pressOutside(event.button)) event.capture(); }
-      else if (event.type === 'up') {
-        // A release on a disabled or locked slot (a backpack cell past its capacity) is not empty space: the held
-        // stack neither returns nor drops; it stays held and the slot flashes, as the server has no such slot (S4).
-        const blocked = this.gestures.outsidePressing ? this.blockedSlotAt(event.point) : undefined;
-        if (blocked) { this.gestures.cancelOutside(); this.refuse([blocked.ref]); }
-        else this.gestures.finish(event.point, event.shiftKey === true, inside);
-        event.release();
-      }
+      else if (event.type === 'up') { this.gestures.finish(event.point, event.shiftKey === true, inside); event.release(); }
       else if (event.type === 'cancel') { this.gestures.cancel(); event.release(); }
     });
   }

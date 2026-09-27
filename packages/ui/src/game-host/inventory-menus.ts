@@ -221,8 +221,7 @@ export class InventoryMenus {
     const cursor = this.authority.displayedCursor(); if (cursor === null) return false;
     const kit = this.active ? this.controller.slotElementAt(point) : undefined;
     if (kit) return uiSlotDropTarget(kit) === 'refuse';
-    // A backpack cell past its capacity is shown disabled and refuses everything (S4).
-    if (this.active) return this.controller.blockedSlotAt(point) !== undefined;
+    if (this.active) return false;
     const { source } = this.authority.gestures, ref = source.slotAt(point);
     return ref !== null && !source.accepts(ref, cursor.itemKind);
   }
