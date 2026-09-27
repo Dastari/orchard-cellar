@@ -102,7 +102,7 @@ function sinkFixture(rogue = false, role = 'guard') {
   const dependencies = { contentRegistry: () => ({}), runtimeTraversalPolicy: () => ({ mode: 'active' }),
     advancePlayerStats: () => stats, resolvedStatsForRow: () => ({ maxHealthCenti: 100 }),
     traversalHazardDamage: () => incoming, mountedNpcFor: () => null,
-    compiledLiveIslandRuntime: () => ({ combatPolicy: {} }), collisionForSpace: () => ({}),
+    liveIslandCombatPolicy: () => ({}), collisionForSpace: () => ({}),
     TOPSIDE_SPACE_ID: 1, outdoorRecoveryPosition: () => ({x:0,y:0}),
     cancelFishingCastFor: () => events.push('cancel_fishing'), clearTraversalHazards: () => events.push('clear_hazards'),
     finishRogueRun: () => events.push('finish_run'), recoverOutdoorKnockout: () => events.push('recover'),

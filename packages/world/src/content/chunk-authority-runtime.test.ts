@@ -111,6 +111,36 @@ describe('assembleChunkLiveIslandRuntime', () => {
     expect(headless.issues).toEqual([{ kind: 'head_missing', cx: 1, cy: 0 }]);
   });
 
+  it('S3a: carries the combat policy and its declared regions, and the diff catches any combat difference', () => {
+    const { manifest, readBlob } = island();
+    const withCombat = (combatRegions: unknown[], documentRegions?: unknown[]): WorldChunkManifest => ({ ...manifest, metadata: { ...manifest.metadata,
+      document: { id: 'live-island', prefabs: [], ...(documentRegions === undefined ? {} : { combatRegions: documentRegions }) },
+      authority: { ...(manifest.metadata['authority'] as object), combatRegions } } as WorldChunkManifest['metadata'] });
+    const arena = { id: 'arena', spaceId: 0, minX: 0, minY: 0, maxX: 10, maxY: 10, policy: 'hostile' };
+    const camp = { id: 'camp', spaceId: 0, minX: 2, minY: 2, maxX: 3, maxY: 3, policy: 'sanctuary', parentId: 'arena' };
+    // The policy's regions always win when set, even if metadata.document lost its key.
+    const runtime = assembleChunkLiveIslandRuntime(manifest, readBlob, registry);
+    expect(runtime.combatRegions).toEqual([arena]);
+    expect(runtime.combatRegions).toBe(runtime.staticView.combatRegions);
+    // A map that declares no regions stays undeclared (the compiled `document.combatRegions` is undefined);
+    // one that declares an empty list stays declared.
+    const undeclared = assembleChunkLiveIslandRuntime(withCombat([]), readBlob, registry);
+    const declaredEmpty = assembleChunkLiveIslandRuntime(withCombat([], []), readBlob, registry);
+    expect(undeclared.combatRegions).toBeUndefined();
+    expect(declaredEmpty.combatRegions).toEqual([]);
+    for (const empty of [undeclared, declaredEmpty]) expect(empty.combatPolicy.regionAt({ spaceId: 0, tileX: 5, tileY: 5 })).toBeNull();
+    expect(compareLiveIslandRuntime(undeclared, declaredEmpty).fields).toEqual({ 'combatRegions.declared': { count: 1, samples: [{ a: false, b: true }] } });
+    // A nested sanctuary: the policy answers per tile centre, and a differing policy is caught per tile.
+    const nested = assembleChunkLiveIslandRuntime(withCombat([arena, camp], [arena, camp]), readBlob, registry);
+    expect([[5.5, 5.5], [2.5, 3.5], [11.5, 5.5]].map(([tileX, tileY]) => nested.combatPolicy.regionAt({ spaceId: 0, tileX: tileX!, tileY: tileY! })?.id ?? null))
+      .toEqual(['arena', 'camp', null]);
+    expect(nested.combatPolicy.allowsHostileSegment({ spaceId: 0, tileX: 1.5, tileY: 2.5 }, { spaceId: 0, tileX: 5.5, tileY: 2.5 })).toBe(false);
+    const diff = compareLiveIslandRuntime(nested, runtime, 2);
+    expect(diff.fields['combatPolicy.regionAt']).toEqual({ count: 4, samples: [{ tileX: 2, tileY: 2, a: 'camp', b: 'arena' }, { tileX: 3, tileY: 2, a: 'camp', b: 'arena' }] });
+    expect([diff.fields['combatRegions']?.count, diff.fields['combatRegions.length']?.count]).toEqual([1, 1]);
+    expect(compareLiveIslandRuntime(nested, assembleChunkLiveIslandRuntime(withCombat([arena, camp], [arena, camp]), readBlob, registry)).equal).toBe(true);
+  });
+
   it('reports a gap in a complete record stream instead of composing a wrong order', () => {
     const { manifest, readBlob } = island(cx => cx === 0 ? [obstacle(0, 'base', 0, 2, 'decoration:1')] : [obstacle(2, 'base', 1, 70, 'decoration:2')]);
     const runtime = assembleChunkLiveIslandRuntime(manifest, readBlob, registry);

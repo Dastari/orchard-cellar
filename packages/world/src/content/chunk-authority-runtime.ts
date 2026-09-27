@@ -65,7 +65,11 @@ export interface LiveIslandStaticView {
 
 /** The collision/combat/suppression subset of the server's `LiveIslandRuntime`. */
 export interface LiveIslandCollisionRuntime {
+  /** Built once per runtime (cached with it); every server combat-policy read goes through it (S3a). */
   readonly combatPolicy: CombatRegionPolicy;
+  /** The regions `combatPolicy` was built from, in policy order; undefined when the map
+   * declares none (the policy is then empty). Compiled: `document.combatRegions`. */
+  readonly combatRegions: readonly CombatRegion[] | undefined;
   readonly key: string;
   readonly ground: CollisionMap;
   readonly water: CollisionMap;
@@ -168,6 +172,9 @@ export function assembleChunkLiveIslandRuntime(
     source: 'chunks',
     key: chunkLiveIslandRuntimeKey(manifest, registry.contentHash, options.shadowRevision),
     combatPolicy: new CombatRegionPolicy(meta.combatRegions),
+    // metadata.document keeps the document's own key (JSON drops an undeclared one), so a map
+    // with no regions stays distinguishable from `[]`. The policy's regions always win when set.
+    combatRegions: has(documentMeta, 'combatRegions') || meta.combatRegions.length > 0 ? meta.combatRegions : undefined,
     ground,
     water,
     generatedSuppressions: new Set(meta.generatedSuppressions),
@@ -305,6 +312,16 @@ export function compareLiveIslandRuntime(a: ComparableLiveIslandRuntime, b: Comp
     list(`suppressedDecorationObstacleKeys.${medium}`, [...a.suppressedDecorationObstacleKeys[medium]], [...b.suppressedDecorationObstacleKeys[medium]]);
   }
   list('generatedSuppressions', [...a.generatedSuppressions], [...b.generatedSuppressions]);
+  // S3a: the combat policy the server reads. The ordered regions are compared below (static
+  // view); here whether the map declares any (hearth installation refuses an undeclared map)
+  // and the built policy itself at every tile centre.
+  scalar('combatRegions.declared', a.combatRegions !== undefined, b.combatRegions !== undefined);
+  const combatSpaces = new Set([...a.combatRegions ?? [], ...b.combatRegions ?? []].map(({ spaceId }) => spaceId));
+  for (const spaceId of combatSpaces) for (let tileY = 0; tileY < a.ground.height; tileY++) for (let tileX = 0; tileX < a.ground.width; tileX++) {
+    const point = { spaceId, tileX: tileX + .5, tileY: tileY + .5 };
+    const left = a.combatPolicy.regionAt(point)?.id, right = b.combatPolicy.regionAt(point)?.id;
+    if (left !== right) note('combatPolicy.regionAt', { tileX, tileY, a: left ?? null, b: right ?? null });
+  }
   const va = staticViewOf(a), vb = staticViewOf(b);
   scalar('staticView.id', va.id, vb.id);
   list('combatRegions', va.combatRegions, vb.combatRegions);

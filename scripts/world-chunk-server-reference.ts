@@ -55,6 +55,8 @@ export interface ServerLiveIslandReference {
 export interface ServerCompiledLiveIslandRuntime {
   readonly key: string;
   readonly combatPolicy: sim.CombatRegionPolicy;
+  /** `document.combatRegions` (undefined when the map declares none). */
+  readonly combatRegions: readonly sim.CombatRegion[] | undefined;
   readonly document: sim.MapDocumentV3;
   readonly ground: sim.CollisionMap;
   readonly water: sim.CollisionMap;

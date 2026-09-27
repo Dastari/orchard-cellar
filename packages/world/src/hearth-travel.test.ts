@@ -26,7 +26,7 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry()){
   const travel=reducer({...sim,SenderError:Error,requireAuthorizedSender:()=>{},advancePlayerStats:()=>({healthCenti:health}),
     contentRegistry:()=>registry,
     clearBowCharge:()=>{},updateEquippedForIdentity:()=>{},
-    compiledLiveIslandRuntime:()=>({combatPolicy:policy}),collisionForSpace:()=>collision,
+    liveIslandCombatPolicy:()=>policy,collisionForSpace:()=>collision,
     combatElevationAt:(_collision:unknown,x:number,y:number)=>collision.elevations[Math.floor(y/unit)*width+Math.floor(x/unit)],
     usePortalRow:(_ctx:unknown,_position:unknown,portal:Record<string,unknown>,range:boolean)=>{expect(range).toBe(false);transitions.push(portal);}});
   return {travel,ctx,position,collision,transitions,unit,removePolicy:()=>{policy=undefined;},unready:()=>{ready=false;},dead:()=>{health=0;}};
@@ -53,7 +53,7 @@ describe('authoritative ferry departure',()=>{
       active_chest:{identity:{delete:deleted}},active_dialogue:{identity:{delete:deleted}}}};
     const policy=new sim.CombatRegionPolicy(sim.HEARTH_COMBAT_REGIONS);
     const travel=reducer({...sim,SenderError:Error,requireAuthorizedSender:()=>{},advancePlayerStats:()=>stats,
-      contentRegistry:()=>registry,compiledLiveIslandRuntime:()=>({combatPolicy:policy}),collisionForSpace:()=>collision,combatElevationAt:()=>0,
+      contentRegistry:()=>registry,liveIslandCombatPolicy:()=>policy,collisionForSpace:()=>collision,combatElevationAt:()=>0,
       homesteadForSpace:()=>null,activeSpaceDefinition:()=>({generator:'island'}),mountedNpcFor:()=>null,
       combatRecovery:(_ctx:unknown,_id:unknown,_tick:unknown,readyTick:bigint)=>{defense={readyTick};},
       spendPlayerHunger:()=>{hungerSpends++;},updateEquippedForIdentity:()=>{equipmentRefreshes++;},
