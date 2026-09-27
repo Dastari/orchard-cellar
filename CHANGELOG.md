@@ -2,6 +2,21 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## World 0.29.0 / Sim 0.33.4 — Static world S3b: static document consumers through the chunk dispatcher
+
+- **S3b (#225).** Four more server reads of the map now use the runtime the dispatcher selects:
+  - the hearth supply cache;
+  - the object-growth biome;
+  - generated-resource suppression;
+  - the town streetlamp plans.
+
+  With chunk authority `off` (production), they get the compiled runtime's own values, so behaviour is unchanged. `shadow` compares every one of them, including the biome at every cell. `on` serves them from the published chunks.
+- **Performance:** streetlamp ticks, hearth respawn probes and tool swings resolve one runtime instead of one compiled lookup per site.
+- **Sim:** `mapStreetlampPlans` accepts any document shape with `objects` and `prefabs`.
+- **Readiness:** static-world `server.whole-map-compile` readiness goes from 7 to 3.
+- **Nightly parity:** a new nightly parity file pins the generated resources (5,981, with a digest) and the production map's `authority.resource` records ahead of S3c.
+- No schema change. Workspace 0.70.0.
+
 ## Client 0.48.4 / UI 0.50.0 / Studio 0.16.14 — Item slot S3: held stack and drag feedback in the kit
 
 - **Item slot S3 (#226).** The kit draws the held stack and the drag feedback the owner approved; the host's own painters are deleted:
