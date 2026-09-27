@@ -4,6 +4,8 @@ import {uiTestArt} from '../lab/testing/art.js';
 import {paintUiSkin,type UiKitArt} from './art.js';
 import {UiRoot} from '../runtime/root.js';
 import {uiChat,type UiChatModel} from './chat.js';
+import {UiElement} from '../runtime/element.js';
+import {uiFixed} from '../layout/box.js';
 it('virtualizes wrapped chat, follows arrivals only at the end, and retains native editing state',()=>{
  const model:UiChatModel={open:true,collapsed:false,unread:false,hovered:false,touch:false,blocked:false,lines:Array.from({length:2000},(_,index)=>({id:String(index),text:`[General] Farmer ${index}: apples for sale`,arrivedAt:0})),suggestions:[],suggestionIndex:0};
  const onToggle=vi.fn(),onMove=vi.fn(),onMoveEnd=vi.fn();
@@ -87,6 +89,21 @@ describe('the ghost chat icon', () => {
    expect(popup.rect.y+popup.rect.height/2).toBeCloseTo(t.y+t.height/2,0);
    const overlaps=(a:typeof t,b:typeof t)=>a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height;
    expect(overlaps(popup.rect,h)).toBe(false);expect(overlaps(popup.rect,t)).toBe(false);root.dispose();
+  }finally{vi.useRealTimers();}
+ });
+ it('puts the CHAT hint on the left of the icon when the right has no room',async()=>{
+  vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+  try{
+   const art=await uiTestArt();
+   const chat=uiChat({model,onSubmit:vi.fn(),onChange:vi.fn(),onSuggestionIndex:vi.fn(),onToggle:vi.fn(),onComplete:vi.fn(),onMove:vi.fn(),onMoveEnd:vi.fn()});
+   // The chat dragged to the right edge: the host places it there.
+   const root=new UiRoot({scale:1,art});root.resize(320,200);
+   root.mount(new UiElement({style:{width:'grow',height:'grow',display:'flex',direction:'row'},children:[new UiElement({style:{width:uiFixed(292),shrink:0}}),new UiElement({style:{width:uiFixed(28),height:'grow',display:'flex',direction:'column'},children:[chat]})]}));root.arrange();
+   const t=chat.toggle.rect;expect(t.x+t.width).toBeGreaterThan(300);
+   root.pointer({type:'move',point:{x:t.x+14,y:t.y+12},pointerId:1,button:-1});vi.advanceTimersByTime(2000);root.arrange();
+   const popup=root.entries().find(entry=>entry.element.kind==='tooltip-popup'&&entry.element.visible)!.element;
+   expect(popup.rect.x+popup.rect.width).toBe(t.x-4);
+   expect(popup.rect.y+popup.rect.height/2).toBeCloseTo(t.y+t.height/2,0);root.dispose();
   }finally{vi.useRealTimers();}
  });
 });

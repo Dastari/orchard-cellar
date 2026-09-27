@@ -41,16 +41,16 @@ export interface UiChatElement extends UiElement {
   scrollHistory(key: UiElementKey['key']): boolean;
   focusInput(): void;
 }
-/** Chat paints and hits one retained composition; hosts own transport and session preferences. */
-/** The ghost chat glyph: 16px, centred in its hit area. Lit (hover or focus) brightens it; pressed darkens it and moves
- * it down 1px. Exported for tests. */
+/** Filters on the ghost chat glyph: lit (hover or keyboard focus) brightens it, pressed darkens it. */
 export const UI_CHAT_GHOST_LIT = 'brightness(125%)', UI_CHAT_GHOST_PRESSED = 'brightness(80%)';
+/** The ghost chat glyph: 16px, centred in its hit area; pressed also moves it down 1px. */
 export function paintUiChatGhostGlyph(context: CanvasRenderingContext2D, art: UiKitArt, r: UiRect, state: { readonly pressed?: boolean; readonly lit?: boolean }): void {
   context.save();
   if (state.pressed) context.filter = UI_CHAT_GHOST_PRESSED; else if (state.lit) context.filter = UI_CHAT_GHOST_LIT;
   paintUiSkin(context, art.skin.icon, 'hud.chat', { x: r.x + Math.floor((r.width - 16) / 2), y: r.y + Math.floor((r.height - 16) / 2) + (state.pressed ? 1 : 0), width: 16, height: 16 });
   context.restore();
 }
+/** Chat paints and hits one retained composition; hosts own transport and session preferences. */
 export function uiChat(options: UiChatOptions): UiChatElement {
   let model = options.model, lineKey = '', wrappedKey = '', suggestionsKey = '', followEnd = false;
   let historyNavigation = false, previousDraft = '', historyClickAllowed = false, revealSuggestion = true;
