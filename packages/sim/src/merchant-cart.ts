@@ -6,6 +6,7 @@ import {
   itemHasTag,
   maxStackFor,
   quickMoveItemStack,
+  slotIsTakeOnly,
   type ContainerSnapshot,
 } from './item-containers.js';
 
@@ -135,7 +136,8 @@ export function planMerchantPurchase(
 
 /** Computes an exact mixed sale from the authoritative accessible inventory.
  * Missing quantities reject the whole plan, so stale client carts cannot mint
- * money after their items have moved or been dropped. */
+ * money after their items have moved or been dropped. Only ordinary carried
+ * slots are sold from; take-only (`readOnly`) cells are never drawn on. */
 export function planMerchantSale(
   before: Readonly<Record<string, ContainerSnapshot>>,
   lines: readonly MerchantCartLine[],
@@ -166,6 +168,9 @@ export function planMerchantSale(
       for (let index = 0; index < Math.min(container.capacity, slots.length) && remaining > 0; index += 1) {
         const stack = slots[index];
         if (stack?.itemKind !== line.itemKind) continue;
+        // Take-only cells are outputs, not stores: automatic sourcing skips
+        // them, exactly like the recipe fill (BUG-045, BUG-048).
+        if (slotIsTakeOnly(container, index)) continue;
         const removed = Math.min(remaining, stack.quantity);
         slots[index] = removed === stack.quantity ? null : { ...stack, quantity: stack.quantity - removed };
         remaining -= removed;

@@ -215,4 +215,41 @@ describe('authoritative merchant cart plans', () => {
       content,
     )).toEqual({ ok: false, code: 'backpack_not_empty' });
   });
+
+  // BUG-048: take-only (`readOnly`) cells are outputs, not stores, so a sale
+  // never draws from them; it sells only from ordinary carried slots.
+  it('never sells from take-only carried slots (BUG-048)', () => {
+    const takeOnly = { readOnly: true } as const;
+    const base = inventory(
+      [{ itemKind: 'wood', quantity: 2 }, { itemKind: 'wood', quantity: 3 }],
+      [{ itemKind: 'wood', quantity: 1 }],
+    );
+    const before: Readonly<Record<string, ContainerSnapshot>> = {
+      ...base,
+      hotbar: { ...base.hotbar!, restrictions: { 0: takeOnly } },
+    };
+    const snapshot = structuredClone(before);
+
+    // Only the ordinary hotbar and backpack stacks are sold; the take-only stack stays.
+    const sale = planMerchantSale(before, [{ itemKind: 'wood', quantity: 4 }]);
+    expect(sale.ok).toBe(true);
+    if (!sale.ok) return;
+    expect(sale.totalBronze).toBe(8n);
+    expect(sale.containers.hotbar?.slots).toEqual([{ itemKind: 'wood', quantity: 2 }, null]);
+    expect(sale.containers.hotbar?.restrictions).toEqual({ 0: takeOnly });
+    expect(sale.containers.backpack?.slots).toEqual([null]);
+
+    // Asking for more than the ordinary slots hold fails cleanly and leaves
+    // every stack where it was: nothing is duplicated or lost.
+    expect(planMerchantSale(before, [{ itemKind: 'wood', quantity: 5 }]))
+      .toEqual({ ok: false, code: 'sale_quantity_missing' });
+    const onlyTakeOnly: Readonly<Record<string, ContainerSnapshot>> = {
+      ...inventory([{ itemKind: 'wood', quantity: 2 }]),
+      hotbar: { id: 'hotbar', capacity: 1, slots: [{ itemKind: 'wood', quantity: 2 }], restrictions: { 0: takeOnly } },
+    };
+    expect(planMerchantSale(onlyTakeOnly, [{ itemKind: 'wood', quantity: 1 }]))
+      .toEqual({ ok: false, code: 'sale_quantity_missing' });
+    expect(onlyTakeOnly.hotbar?.slots).toEqual([{ itemKind: 'wood', quantity: 2 }]);
+    expect(before).toEqual(snapshot);
+  });
 });
