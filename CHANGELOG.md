@@ -2,6 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.48.5 / Sim 0.33.5 / World 0.30.2 — One backpack capacity rule (BUG-054)
+
+- **BUG-054 (#235).** The client and the world server now use one shared rule for backpack capacity, sim `accessibleBackpackCapacity`. It gives at least 8 cells and at most 20, with developer debug slots capped at 20.
+  - **Before:** the client used `min(20, bag ?? 8)`. It would have hidden cells the server allows for a bag with fewer than 8 cells, and it didn't cap debug slots.
+  - **Server:** its behaviour is unchanged, exhaustively tested against the old formula. No live item is affected.
+- Workspace 0.71.2.
+
 ## World 0.30.1 — Admin respawn honours resource placements (BUG-052)
 
 - **BUG-052 (#232).** The admin resource respawn inserted each resource at its generated tile and ignored the map's resource placements. Admin respawn and reconcile now share one helper, `placedLiveIslandResources`, so a respawned resource lands exactly where reconcile would place it. The respawn area also matches resources by that tile. Reconcile itself is unchanged, and the live map has no placements today, so no production resources move.
