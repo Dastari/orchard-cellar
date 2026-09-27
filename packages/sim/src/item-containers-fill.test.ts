@@ -239,7 +239,7 @@ describe('placing a recipe never draws from take-only slots (BUG-045)', () => {
 describe('placing a recipe conserves items (property run)', () => {
   it('never duplicates, loses or merges items across 2,000 seeded cases', () => {
     const random = prng(0x0b0037);
-    const outcomes = { placed: 0, refused: 0, returnedStrays: 0 };
+    const outcomes = { placed: 0, refused: 0, returnedStrays: 0, takeOnlyIngredients: 0 };
     for (let caseIndex = 0; caseIndex < 2000; caseIndex += 1) {
       const { containers, recipe, desired, readOnly } = randomCase(random, caseIndex);
       const before = JSON.stringify(containers);
@@ -268,13 +268,20 @@ describe('placing a recipe conserves items (property run)', () => {
       }
       // Take-only (read-only) hotbar slots are never touched: they receive nothing and the fill never
       // draws ingredients from them (BUG-045).
+      const wanted = new Set(desired.flatMap((cell) => cell === null ? [] : [cell.itemKind]));
+      let heldWanted = false;
       for (const index of Object.keys(readOnly).map(Number)) {
-        expect(after.hotbar!.slots[index] ?? null, label).toEqual(containers.hotbar!.slots[index] ?? null);
+        const was = containers.hotbar!.slots[index] ?? null;
+        expect(after.hotbar!.slots[index] ?? null, label).toEqual(was);
+        if (was !== null && was.quantity > 0 && wanted.has(was.itemKind)) heldWanted = true;
       }
+      if (heldWanted) outcomes.takeOnlyIngredients += 1;
     }
     // The generator must exercise both outcomes and the return path, or the run proves little.
     expect(outcomes.placed).toBeGreaterThan(200);
     expect(outcomes.refused).toBeGreaterThan(200);
     expect(outcomes.returnedStrays).toBeGreaterThan(100);
+    // A take-only slot must really hold an ingredient the recipe wants, or the untouched check is vacuous.
+    expect(outcomes.takeOnlyIngredients).toBeGreaterThan(50);
   });
 });
