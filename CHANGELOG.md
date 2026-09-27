@@ -2,6 +2,23 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## World 0.27.0 / World bindings 0.19.0 / Sim 0.33.1 — Static world S2: chunk authority switch, server dual-read, audit (migration release)
+
+**Schema-only migration release (new reducer and procedure; no table changes).** Chunk authority stays `off`, so gameplay is unchanged.
+
+- **S2a (#162).** The owner-only `setChunkAuthority({ mode: off | shadow | on })` reducer stores the switch in `space_admin_flag`, which clients can read. It writes an audit entry, and the undo guard keeps the owner's setting.
+- **S2b (#174).** `liveIslandCollisionRuntime(ctx)` serves collision by mode:
+  - `off`: the compiled runtime, exactly as today;
+  - `shadow`: compiled stays authoritative, with bounded comparisons against the chunk runtime;
+  - `on`: collision is served from the published chunks.
+
+  It falls back to compiled on stale, incomplete, missing or policy-mismatched chunks.
+- **S2c (#186).**
+  - **Audit:** the owner-only `auditChunkAuthority` procedure takes a snapshot in a short transaction, then compares outside it, so ticks keep running.
+  - **Soak and parity gate:** the local soak harness and the live-row parity gate.
+  - **Error codes:** `stageWorldChunkBlob` / `publishWorldChunkShadow` now report their `chunk_*` refusal codes to the client, instead of "fatal error".
+- Workspace 0.64.0.
+
 ## Client 0.48.0 / UI 0.47.0 / Engine 0.29.2 / Assets 0.24.0 / Studio 0.16.10 — Slot icon position B and eight new item icons
 
 The owner approved both on 2026-09-26 (wiki Roadmap/Item Slot Component, "Owner decisions 2026-09-26").
