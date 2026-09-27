@@ -2,8 +2,8 @@ import { uiTiming, timingLabels } from './timing.js';
 import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
 import type { ContentRegistry, TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
-import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
-import { resolveFramePaneSlots, type FrameContainerAliases } from '../../content-frame.js';
+import { EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { resolveFramePaneSlots, type FrameContainerAliases, type ResolvedFrameSlotBinding } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
 import type { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -12,7 +12,8 @@ import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton } from './button.js';
 import { uiMeter } from './meter.js';
-import { uiInventoryGrid, uiItemImage, uiPaperDoll, type UiSlotOptions } from './inventory.js';
+import { uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
+import { uiSlotRulesFromRestriction } from './slot-rules.js';
 import { uiInventoryPanel, type UiInventoryControls } from './inventory-panel.js';
 import type { UiTone } from '../tokens.js';
 export interface UiContentFrameOptions {
@@ -34,6 +35,31 @@ export interface UiContentFrameElement extends UiElement {
   updateTiming(timing: TimingProjection): void;
   updateState(state: NonNullable<UiContentFrameOptions['state']>): void;
 }
+/** Empty station slots show a flat silhouette of an item they take or make (owner decision 2026-09-27, render 03 A),
+ * keyed by authored frame id and pane id, one item per slot in pane order (the last repeats). Presentation only:
+ * what a slot accepts still comes from its restriction. */
+export const UI_STATION_PLACEHOLDERS: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
+  'frame:furnace': { input: ['iron_ore'], fuel: ['wood'], output: ['iron_bar'] },
+  'frame:cooking': { input: ['raw_beef'], output: ['cooked_beef'] },
+  'frame:press': { input: ['apple'], output: ['must', 'pomace'] },
+  'frame:fermentation': { input: ['must'], output: ['bottles'] },
+};
+/** The rules the authority applies to a pane's slots, and nothing it does not: entity panes carry their resolved
+ * frame restriction (the server's `frameRestrictions`, so a take-only output is `readOnly`), the equipment paper
+ * doll carries the equipment slot rules, and other self panes carry none (the server ignores their restrictions). */
+function framePaneSlotRules(pane: FrameContentDefinition['panes'][number], binding: ResolvedFrameSlotBinding): UiInventoryCell['rules'] {
+  if ('entitySlots' in pane.bind) return uiSlotRulesFromRestriction(binding.restriction);
+  if ('self' in pane.bind && pane.bind.self === 'equipment') return uiSlotRulesFromRestriction(EQUIPMENT_SLOT_RESTRICTIONS[binding.index]);
+  return undefined;
+}
+/** A frame pane's slot cells, with the rules and placeholders the slots paint and check (S1). */
+export function uiFramePaneCells(definition: Pick<FrameContentDefinition, 'id'>, pane: FrameContentDefinition['panes'][number], bindings: readonly ResolvedFrameSlotBinding[]): UiInventoryCell[] {
+  const placeholders = UI_STATION_PLACEHOLDERS[definition.id]?.[pane.id];
+  return bindings.map((binding, slot) => {
+    const rules = framePaneSlotRules(pane, binding), item = placeholders?.[Math.min(slot, placeholders.length - 1)];
+    return { id: String(binding.index), index: binding.index, ...(rules ? { rules } : {}), ...(item ? { placeholder: { item } } : {}) };
+  });
+}
 /** Frame definitions remain presentation data; the host retains write authority. The game renders the
  * approved designed layouts (station, storage, pack); the frame designer keeps the per-pane preview. */
 export function uiContentFrame(options: UiContentFrameOptions): UiContentFrameElement {
@@ -51,7 +77,7 @@ function uiPaneContentFrame(options: UiContentFrameOptions): UiContentFrameEleme
     const controls = bindings.length ? options.inventoryControls?.[bindings[0]!.containerId] : undefined;
     const timer = 'timing' in pane.bind ? uiTiming({ timing: options.timing ?? { status: 'idle', reason: null, stage: null, progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' } }) : null;
     if (timer !== null && custom === undefined) timers.push(timer);
-    const content = custom ?? timer ?? (bindings.length ? (pane.kind === 'paper_doll' ? uiPaperDoll : controls ? uiInventoryPanel : uiInventoryGrid)({ id: `preview.${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: bindings.map(binding => ({ id: String(binding.index), index: binding.index })), columns: pane.columns ?? 'auto', slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, ...controls })
+    const content = custom ?? timer ?? (bindings.length ? (pane.kind === 'paper_doll' ? uiPaperDoll : controls ? uiInventoryPanel : uiInventoryGrid)({ id: `preview.${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: uiFramePaneCells(definition, pane, bindings), columns: pane.columns ?? 'auto', slotSize: 'sm', controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, ...controls })
       : pane.kind === 'bar' ? uiMeter({ label: pane.label ?? 'Progress', value: 'state' in pane.bind ? Number(options.state?.[pane.bind.state] ?? 0) : options.progress ?? 0, tone: 'success' })
         : uiText('state' in pane.bind ? String(options.state?.[pane.bind.state] ?? '') : pane.label ?? ''));
     const body = uiFlex({ id: `pane:${pane.id}`, width: 'grow', basis: uiFixed(pane.minWidth ?? Math.max(80, (pane.columns ?? 1) * 36)), gap: 4 }, [
@@ -116,7 +142,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   const bindingsOf = (pane: Pane) => resolveFramePaneSlots(pane, options.aliases, options.registry);
   const common = { controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry };
   const custom = (pane: Pane) => options.renderPane?.(pane);
-  const cells = (pane: Pane) => bindingsOf(pane).map(binding => ({ id: String(binding.index), index: binding.index }));
+  const cells = (pane: Pane) => uiFramePaneCells(definition, pane, bindingsOf(pane));
   const grid = (pane: Pane) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;
     return uiInventoryGrid({ ...common, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 'auto', fixedColumns: true, layout: { width: 'fit' } }); };
   const panel = (pane: Pane, label: string) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;

@@ -563,6 +563,8 @@ export const UI_SKIN_MANIFEST = {
   },
   slot: {
     "slot.idle.0": {"asset":"ui_cf_slot","group":"idle","index":0,"sizing":"fixed","size":[28,31]},
+    // The pack's grey face: disabled and locked slots (owner decision 2026-09-27, render 01 B and C).
+    "slot.disabled.0": {"asset":"ui_cf_slot","group":"disabled","index":0,"sizing":"fixed","size":[28,31]},
     "slot.quest.0": {"asset":"ui_cf_slot","group":"quest","index":0,"sizing":"fixed","size":[28,31]},
     "slot.uncommon.0": {"asset":"ui_cf_slot","group":"uncommon","index":0,"sizing":"fixed","size":[28,31]},
     "slot.rare.0": {"asset":"ui_cf_slot","group":"rare","index":0,"sizing":"fixed","size":[28,31]},

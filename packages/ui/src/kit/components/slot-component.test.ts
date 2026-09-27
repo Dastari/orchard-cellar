@@ -4,12 +4,20 @@ import type { ItemStack, SlotRestriction } from '@orchard/sim';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
 import { EQUIPMENT_SLOT_RESTRICTIONS } from '@orchard/sim/inventory-layout';
-import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, itemPolicyResolver, slotAcceptsItem } from '@orchard/sim/item-containers';
+import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, itemDefinition, itemPolicyResolver, slotAcceptsItem } from '@orchard/sim/item-containers';
 import { UiRoot } from '../runtime/root.js';
+import { UiElement } from '../runtime/element.js';
+import { uiFixed } from '../layout/box.js';
+import type { LoadedAsset } from '../../assets.js';
+import { drawOutlinedPixelText } from '../../pixel-ui.js';
+import { selectAtlasFrame } from '../../sprite.js';
+import { uiInventorySlotTone } from '../../design-system/inventory.js';
+import { paintUiSkin, type UiKitArt } from './art.js';
+import { paintUiSelector } from './window.js';
 import { UiInventoryController, type UiInventoryModel } from '../runtime/inventory.js';
 import { uiTestArt, uiTestAsset } from '../lab/testing/art.js';
-import { uiSetSlotState, uiSlot, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
-import { uiSlotArt } from './slot-art.js';
+import { UI_SLOT_INKS, uiItemFrame, uiSetSlotState, uiSlot, uiSlotIconRect, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
+import { uiSlotArt, uiSlotArtPolicy } from './slot-art.js';
 import { uiSlotAcceptsItem, uiSlotRestrictionFromRules, uiSlotRulesFromRestriction, type UiSlotRules } from './slot-rules.js';
 
 const registry = bootstrapContentRegistry();
@@ -52,7 +60,7 @@ describe('slot rules mirror the authority', () => {
   });
 });
 
-describe('slot component S0 is pixel-neutral', () => {
+describe('slot component art and unpainted state', () => {
   const stack: ItemStack = { itemKind: 'wood', quantity: 7 };
   const artwork = { wood: uiTestAsset('item_cf_wood', 'props') };
   const render = async (options: UiSlotOptions, change?: UiSlotState) => {
@@ -71,29 +79,117 @@ describe('slot component S0 is pixel-neutral', () => {
       .toEqual(await render({ stack, artwork, iconAnimation: () => 'base', contentRegistry: () => registry }));
   });
 
-  it('keeps today\'s look for rules, cooldown, drag, pending and the placeholders awaiting approval', async () => {
+  it('keeps the look for rules, drag and pending, which have no approved paint', async () => {
     const baseline = await render({ stack, artwork });
-    expect(await render({ stack, artwork, rules: { denyItems: ['wood'] }, cooldown: () => ({ fraction: 0.5, seconds: 3 }),
-      drag: { source: true, target: false }, state: { pending: true } })).toEqual(baseline);
-    const empty = await render({});
-    expect(await render({ placeholder: { item: 'wood' } })).toEqual(empty);
-    expect(await render({ placeholder: 'main_hand' })).not.toEqual(empty);
-  });
-
-  it('paints enabled: false and locked as today\'s disabled slot, and selected as today\'s selected slot', async () => {
-    const disabled = await render({ stack, artwork, disabled: true });
-    expect(await render({ stack, artwork })).not.toEqual(disabled);
-    expect(await render({ stack, artwork, state: { enabled: false } })).toEqual(disabled);
-    expect(await render({ stack, artwork, state: { locked: { reason: 'Needs Smithing 3' } } })).toEqual(disabled);
-    expect(await render({ stack, artwork }, { enabled: false })).toEqual(disabled);
-    expect(await render({ stack, artwork, state: { enabled: false } }, { pending: true })).toEqual(await render({ stack, artwork }));
+    expect(await render({ stack, artwork, rules: { denyItems: ['wood'] }, drag: { source: true, target: false }, state: { pending: true } })).toEqual(baseline);
+    expect(await render({ placeholder: { icon: { lucide: 'lock' } } })).toEqual(await render({}));
+    // A state change repaints: re-enabling a disabled slot restores the ordinary face, and selected is the classic corners.
+    expect(await render({ stack, artwork, state: { enabled: false } }, { pending: true })).toEqual(baseline);
+    expect(await render({ stack, artwork }, { enabled: false })).toEqual(await render({ stack, artwork, state: { enabled: false } }));
     expect(await render({ stack, artwork, state: { selected: true } })).toEqual(await render({ stack, artwork, selected: true }));
+    expect(await render({ stack, artwork, state: { selected: true } })).not.toEqual(baseline);
   });
 
   it('refuses the variants whose looks await approval', () => {
     expect(() => uiSlot({ variant: 'inline' })).toThrow('awaits owner approval');
     expect(() => uiSlot({ variant: 'well' })).toThrow('awaits owner approval');
     expect(() => uiSlot({ variant: 'slot' })).not.toThrow();
+  });
+});
+
+// The approved looks (owner decisions 2026-09-27, wiki Roadmap/Item Slot Component renders 01 and 03). Each oracle
+// is the approval render's own prototype painter, with the icon well and count at today's position B.
+describe('approved slot states', () => {
+  const r = { x: 0, y: 0, width: 28, height: 31 };
+  const tea: ItemStack = { itemKind: 'orchard_tea', quantity: 3 };
+  // Item art as the approval render loaded it: props for ground sprites, ui for icons.
+  const asset = (kind: string) => { const name = itemDefinition(kind)!.iconKey!; return uiTestAsset(name, name.startsWith('item_') || name.startsWith('prop_') ? 'props' : 'ui'); };
+  const art = { iron_ore: asset('iron_ore'), pickaxe: asset('pickaxe'), wood: asset('wood'), orchard_tea: asset('orchard_tea') };
+  const paintRoot = async (element: UiElement, size = { width: 28, height: 31 }) => {
+    const root = new UiRoot({ art: await uiTestArt(), scale: 1 }); root.resize(size.width, size.height); root.mount(element);
+    const canvas = createCanvas(size.width, size.height); root.draw(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 0);
+    const pixels = canvas.toBuffer('image/png'); root.dispose(); return pixels;
+  };
+  const slotPixels = (options: UiSlotOptions) => paintRoot(uiSlot(options));
+  const oracle = (paint: (context: CanvasRenderingContext2D, kit: UiKitArt) => void) => paintRoot(new UiElement({ kind: 'oracle', style: { width: uiFixed(28), height: uiFixed(31) },
+    paint(_element, { context, art: kit }) { if (kit) paint(context, kit); } }));
+  const icon = (context: CanvasRenderingContext2D, asset: LoadedAsset, alpha: number) => {
+    const source = uiItemFrame(asset)!, well = uiSlotIconRect(r), fit = Math.min(well.width / source.width, well.height / source.height);
+    const width = Math.max(1, Math.round(source.width * fit)), height = Math.max(1, Math.round(source.height * fit));
+    context.save(); context.imageSmoothingEnabled = false; context.globalAlpha *= alpha;
+    context.drawImage(asset.image, source.x, source.y, source.width, source.height, well.x + Math.round((well.width - width) / 2), well.y + Math.round((well.height - height) / 2), width, height); context.restore();
+  };
+  const blocked = (context: CanvasRenderingContext2D, kit: UiKitArt, x: number, y: number, size: number) => {
+    const entry = kit.skin.icon['icon_catalog.catalog.0']!, frame = selectAtlasFrame(entry.asset.metadata, 'catalog', 208)!;
+    context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, x, y, size, size);
+  };
+  const grey = (context: CanvasRenderingContext2D, kit: UiKitArt) => paintUiSkin(context, kit.skin.slot, 'slot.disabled.0', r);
+  const count = (context: CanvasRenderingContext2D, kit: UiKitArt, text: string) => drawOutlinedPixelText(context, kit.pixel, text, 23, 16, { align: 'right', ...UI_SLOT_INKS });
+
+  it('paints disabled as the pack\'s grey face with the item at 50% and its count (01 B)', async () => {
+    const empty = await oracle(grey);
+    expect(await slotPixels({ state: { enabled: false } })).toEqual(empty);
+    const withItem = await oracle((context, kit) => { grey(context, kit); icon(context, art.iron_ore, .5); count(context, kit, '5'); });
+    expect(await slotPixels({ artwork: art, stack: { itemKind: 'iron_ore', quantity: 5 }, state: { enabled: false } })).toEqual(withItem);
+    // Every way a slot is disabled paints the one approved face: the legacy option, the cell flag and setDisabled.
+    expect(await slotPixels({ artwork: art, stack: { itemKind: 'iron_ore', quantity: 5 }, disabled: true })).toEqual(withItem);
+    const external = uiSlot({ artwork: art, stack: { itemKind: 'iron_ore', quantity: 5 } }); external.setDisabled(true);
+    expect(await paintRoot(external)).toEqual(withItem);
+    // The item's quality face gives way to the grey face, and a disabled tool shows no wear bar.
+    expect(await slotPixels({ artwork: art, stack: { itemKind: 'pickaxe', quantity: 1, durability: 10 }, state: { enabled: false } }))
+      .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); }));
+  });
+
+  it('paints locked as the grey face plus the red blocked mark, in the corner over an item (01 C)', async () => {
+    expect(await slotPixels({ state: { locked: { reason: 'Needs Smithing 3' } } })).toEqual(await oracle((context, kit) => { grey(context, kit); blocked(context, kit, 6, 7, 16); }));
+    expect(await slotPixels({ artwork: art, stack: { itemKind: 'pickaxe', quantity: 1 }, state: { locked: { reason: 'Needs Mining 2' } } }))
+      .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); blocked(context, kit, 1, 1, 12); }));
+    // A locked slot hides any placeholder under its mark.
+    expect(await slotPixels({ placeholder: 'main_hand', state: { locked: { reason: 'Needs a level' } } })).toEqual(await slotPixels({ state: { locked: { reason: 'Needs a level' } } }));
+    // Under the pointer it shows the red corners. The kit never hovers a disabled slot today, so the paint is forced.
+    const locked = uiSlot({ state: { locked: { reason: 'Needs a pack' } } });
+    const hovered = new UiElement({ kind: 'hovered', style: { width: uiFixed(28), height: uiFixed(31) }, paint(element, paint) { locked.hooks.paint!(element, { ...paint, hovered: true }); } });
+    expect(await paintRoot(hovered)).toEqual(await oracle((context, kit) => { grey(context, kit); blocked(context, kit, 6, 7, 16); paintUiSelector(context, kit.skin.selector, 'deny', r); }));
+  });
+
+  it('paints an item placeholder as a flat silhouette of that item\'s art, only while the slot is empty (03 A)', async () => {
+    const silhouette = (asset: LoadedAsset) => oracle((context, kit) => {
+      paintUiSkin(context, kit.skin.slot, 'slot.idle.0', r);
+      const source = uiItemFrame(asset)!, well = uiSlotIconRect(r), fit = Math.min(well.width / source.width, well.height / source.height);
+      const width = Math.max(1, Math.round(source.width * fit)), height = Math.max(1, Math.round(source.height * fit));
+      const tmp = createCanvas(width, height), t = tmp.getContext('2d');
+      t.imageSmoothingEnabled = false; t.drawImage(asset.image as never, source.x, source.y, source.width, source.height, 0, 0, width, height);
+      t.globalCompositeOperation = 'source-in'; t.fillStyle = '#8d6e55'; t.fillRect(0, 0, width, height);
+      context.save(); context.globalAlpha *= .55; context.drawImage(tmp as never, well.x + Math.round((well.width - width) / 2), well.y + Math.round((well.height - height) / 2)); context.restore();
+    });
+    expect(await slotPixels({ artwork: art, placeholder: { item: 'iron_ore' } })).toEqual(await silhouette(art.iron_ore));
+    expect(await slotPixels({ art: uiSlotArt({ artwork: art }), placeholder: { item: 'wood' } })).toEqual(await silhouette(art.wood));
+    expect(await slotPixels({ artwork: art, placeholder: { item: 'wood' }, stack: { itemKind: 'iron_ore', quantity: 2 } })).toEqual(await slotPixels({ artwork: art, stack: { itemKind: 'iron_ore', quantity: 2 } }));
+    // No art for the item: nothing to cut, so the slot stays plain.
+    expect(await slotPixels({ placeholder: { item: 'iron_ore' } })).toEqual(await slotPixels({}));
+  });
+
+  it('paints the cooldown as a shade over the icon well that drains from the top (03 A)', async () => {
+    const shade = (fraction: number) => oracle((context, kit) => {
+      paintUiSkin(context, kit.skin.slot, `slot.${uiInventorySlotTone('orchard_tea') === 'common' ? 'idle' : uiInventorySlotTone('orchard_tea')}.0`, r);
+      icon(context, art.orchard_tea, 1); count(context, kit, '3');
+      if (fraction > 0) { const well = uiSlotIconRect(r), height = Math.round(well.height * fraction); context.fillStyle = 'rgba(31, 20, 26, 0.62)'; context.fillRect(3, well.y + well.height - height, 22, height); }
+    });
+    for (const fraction of [.75, .3]) expect(await slotPixels({ artwork: art, stack: tea, cooldown: () => ({ fraction }) }), String(fraction)).toEqual(await shade(fraction));
+    const ready = await slotPixels({ artwork: art, stack: tea });
+    expect(ready).toEqual(await shade(0));
+    for (const cooldown of [null, { fraction: 0 }, { fraction: -1 }]) expect(await slotPixels({ artwork: art, stack: tea, cooldown: () => cooldown })).toEqual(ready);
+    expect(await slotPixels({ artwork: art, stack: tea, cooldown: () => ({ fraction: 4 }) })).toEqual(await shade(1));
+    // An empty slot has no icon to shade.
+    expect(await slotPixels({ cooldown: () => ({ fraction: .5 }) })).toEqual(await slotPixels({}));
+  });
+
+  it('scales the grey face, blocked mark and silhouette with larger slots', async () => {
+    const md = { width: 56, height: 62 };
+    const big = (options: UiSlotOptions) => paintRoot(uiSlot({ ...options, layout: { width: uiFixed(56), height: uiFixed(62) } }), md);
+    const locked = await big({ state: { locked: { reason: 'Locked' } } });
+    expect(locked).not.toEqual(await big({ state: { enabled: false } }));
+    expect(await big({ artwork: art, placeholder: { item: 'iron_ore' } })).not.toEqual(await big({}));
   });
 });
 
@@ -106,7 +202,7 @@ describe('slot state model', () => {
 
   it('derives the drop target from the controller and the slot rules', () => {
     const view = (cursor: ItemStack | null, rules?: UiSlotRules, accepts = true) => uiSlotView(uiSlot({
-      binding, controller: new UiInventoryController(model(cursor, accepts)), ...(rules ? { rules } : {}),
+      binding, controller: new UiInventoryController(model(cursor, accepts)), ...(rules ? { rules } : {}), art: uiSlotArt({ contentRegistry: () => registry }),
     }))!.dropTarget;
     expect(view(null)).toBeNull();
     expect(view({ itemKind: 'coal', quantity: 1 })).toBe('accept');
@@ -150,14 +246,19 @@ describe('slot state model', () => {
     expect(third).toMatchObject({ enabled: true, rules: null });
   });
 
-  it('checks rules with the live registry the art carries, else bootstrap content', () => {
+  it('checks rules with the live registry the art carries, and skips them without one', () => {
     const retired = { ...registry, items: new Map([...registry.items].map(([id, item]) => [id, id === 'item:coal' ? { ...item, retired: true } : item])) };
-    const target = (art?: ReturnType<typeof uiSlotArt>) => uiSlotView(uiSlot({ binding, rules: {}, ...(art ? { art } : {}),
-      controller: new UiInventoryController(model({ itemKind: 'coal', quantity: 1 })) }))!.dropTarget;
-    expect(BOOTSTRAP_ITEM_CONTAINER_CONTENT.maxStackFor('coal')).not.toBeNull();
-    expect(target()).toBe('accept');
-    expect(target(uiSlotArt({ contentRegistry: () => registry }))).toBe('accept');
+    const target = (rules: UiSlotRules, art?: ReturnType<typeof uiSlotArt>, accepts = true) => uiSlotView(uiSlot({ binding, rules, ...(art ? { art } : {}),
+      controller: new UiInventoryController(model({ itemKind: 'coal', quantity: 1 }, accepts)) }))!.dropTarget;
+    expect(target({}, uiSlotArt({ contentRegistry: () => registry }))).toBe('accept');
+    expect(target({ denyItems: ['coal'] }, uiSlotArt({ contentRegistry: () => registry }))).toBe('refuse');
     // A retired item is unknown to the live policy, which refuses it exactly as the server does.
-    expect(target(uiSlotArt({ contentRegistry: () => retired }))).toBe('refuse');
+    expect(target({}, uiSlotArt({ contentRegistry: () => retired }))).toBe('refuse');
+    // Without a live registry the rules are never checked against bootstrap content: the controller's verdict stands.
+    expect(target({ denyItems: ['coal'] })).toBe('accept');
+    expect(target({ denyItems: ['coal'] }, uiSlotArt({ contentRegistry: () => undefined }))).toBe('accept');
+    expect(target({ readOnly: true }, undefined, false)).toBe('refuse');
+    expect(uiSlotArtPolicy(uiSlotArt())).toBeUndefined();
+    expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }))?.maxStackFor('coal')).toBe(BOOTSTRAP_ITEM_CONTAINER_CONTENT.maxStackFor('coal'));
   });
 });
