@@ -361,6 +361,30 @@ describe('live-row parity gate', () => {
     expect(broken).toMatchObject({ passed: false, failures: ['materialize: Authority collision parity failed: ground'] });
   });
 
+  it('--require-published also requires the published manifest to equal the live rows (S5c G8)', () => {
+    // A manifest the runtime validator accepts (one chunk covering the 64 x 64 test island).
+    const manifest = { ...materialized.manifest, chunks: [{ cx: 0, cy: 0, contentHash: 'a'.repeat(64), byteLength: 100 }] };
+    const live = { summary: materialized.summary, manifest, materializeMs: 1 };
+    const rowsWith = (manifest: unknown) => ({ ...fakeWorld().api.liveRows(),
+      published: { shadow: manifest === null ? null : { revision: 3, mapId: 'live-island', contentHash: 'c', manifestJson: JSON.stringify(manifest) }, heads: [] } });
+    const gate = (manifest: unknown, requirePublished: boolean) => parityGateReport({ target: { host: 'h', database: 'd' }, readAt: 't',
+      rows: rowsWith(manifest), materializeError: null, live, candidate: { manifest: live.manifest }, requirePublished });
+    // Equal: passes either way, and the report says whether it was required.
+    expect(gate(live.manifest, true)).toMatchObject({ passed: true, failures: [], published: { shadowRevision: 3, vsLive: { equal: true }, required: true } });
+    // Differs: reported only by default (the pre-publish run), a failure when required (the post-publish run).
+    const stale = { ...live.manifest, chunks: live.manifest.chunks.map((head, index) => index === 0 ? { ...head, contentHash: 'f'.repeat(64) } : head) };
+    expect(gate(stale, false)).toMatchObject({ passed: true, published: { vsLive: { equal: false }, required: false } });
+    const required = gate(stale, true);
+    expect(required.passed).toBe(false);
+    expect(required.failures).toEqual(['require_published: the published manifest differs from the live-row materialization (1 chunk head(s))']);
+    // Nothing published: fine before a first publish, a failure when required.
+    expect(gate(null, false).passed).toBe(true);
+    expect(gate(null, true).failures).toEqual(['require_published: the world has no published manifest']);
+    expect(parseParityGateArgs(['--host', 'http://127.0.0.1:3100', '--database', 'orchard-local-01', '--require-published', '--candidate', '/c'],
+      { CHUNK_PARITY_TOKEN_FILE: '/t' })).toMatchObject({ requirePublished: true, candidate: '/c' });
+    expect(parseParityGateArgs(['--host', 'http://127.0.0.1:3100', '--database', 'orchard-local-01'], { CHUNK_PARITY_TOKEN_FILE: '/t' }).requirePublished).toBe(false);
+  });
+
   it('never passes without a candidate, even when the live rows materialize cleanly', () => {
     const rows = fakeWorld().api.liveRows();
     const live = { summary: materialized.summary, manifest: materialized.manifest, materializeMs: 1 };

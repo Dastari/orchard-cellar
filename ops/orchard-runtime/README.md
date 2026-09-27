@@ -456,12 +456,32 @@ WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=own
 # --report path) and WORLD_CHUNKS_PUBLISH_CONFIRM set to the printed confirmation.
 ```
 
+**Candidate and live-row parity.** `--candidate-out DIR` (with `plan` or `publish`, an
+absolute path whose parent exists and which does not) keeps exactly what the run
+materialised, before anything is installed or staged: `DIR/manifest.json` (the exact
+`manifestJson`) and `DIR/<contentHash>.bin` per head, `0600` in a new `0700` directory. That
+is the layout the live-row parity gate's `--candidate` reads. After a publish, run the gate
+on that directory with the served atlas index and `--require-published`. The run then also
+fails unless the manifest the world now serves equals the live-row materialization
+(`published.vsLive.equal`). Without the flag that comparison is only reported:
+
+```bash
+curl -fsS https://orchard.dastari.net/generated/atlas.packs.json -o /private/evidence/atlas.packs.json
+CHUNK_PARITY_TOKEN_FILE=/private/rejoin-tokens.json CHUNK_PARITY_TOKEN_LABEL=owner \
+  npm run world:chunks:parity-gate -- --host http://127.0.0.1:3000 --database orchard-cellar-world \
+  --candidate /private/evidence/candidate --atlas-index /private/evidence/atlas.packs.json \
+  --out /private/evidence/parity-gate --require-published
+```
+
 `check` is the release check, and it is read only. It reports as stale (exit `3`):
 
 - heads that no longer match the live map revision and hash;
 - heads that no longer match the registry content hash (the bootstrap registry when
   there is no content head);
 - heads that no longer match the served asset revision;
+- a manifest whose resource-generator stamp (`metadata.authority.resourceGenerator`) is
+  missing or differs from this checkout's (`generator`): the server refuses it as
+  `stale_generator`, so it must be republished;
 - heads that disagree with the manifest;
 - heads whose blobs are not served.
 
