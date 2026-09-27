@@ -13,7 +13,7 @@ import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonOptions } from './button.js';
 import { uiInput } from './input.js';
-import { uiInventoryGrid } from './inventory.js';
+import { uiInventoryGrid, uiSetSlotState } from './inventory.js';
 import { uiPurseLabel } from './purse.js';
 import { uiTooltip } from './tooltip.js';
 
@@ -120,6 +120,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   let otherMoney: UiElement | undefined, accept: UiElement | undefined, requestLabel: UiElement | undefined;
   let ownTick: UiElement | undefined, otherTick: UiElement | undefined, status: UiElement | undefined;
   let carriedHost: UiElement | undefined, inventoryStructure = '';
+  let carriedCells: { readonly cell: UiElement; readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
     const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, inputMode: 'numeric', size: 'sm', leading: uiGlyph(`coin.${label.toLowerCase()}`), layout: { width: uiFixed(index === 0 ? 64 : 44) },
@@ -163,15 +164,28 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         options.callbacks.offerItem(model.session.id, index, free, event.button === 2 ? 1 : row.quantity);
       },
     });
+    carriedCells = [];
     for (const [index, cell] of [...carried.children].entries()) {
       const slot = inventory()[index]!.slot;
       carried.remove(cell);
-      carried.append(guarded(cell, () => {
+      const wrapper = guarded(cell, () => {
         const row = model.inventorySlots.find(row => row.slot === slot);
         return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`;
-      }));
+      });
+      carried.append(wrapper); carriedCells.push({ cell, wrapper, slot, disabled: false });
     }
     carriedHost.append(carried);
+  };
+  // Items the authority won't take in a trade (quest items, backpacks, purchase grants, retired items; the server's
+  // item_not_tradeable) show the approved disabled face (render 01 B) and take no input (S4).
+  const refreshOfferable = () => {
+    for (const entry of carriedCells) {
+      const row = model.inventorySlots.find(row => row.slot === entry.slot);
+      const disabled = row !== undefined && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind);
+      if (disabled === entry.disabled) continue;
+      entry.disabled = disabled;
+      uiSetSlotState(entry.cell, disabled ? { enabled: false } : undefined); entry.wrapper.setDisabled(disabled);
+    }
   };
   const updateTrade = (next: TradeUiModel): void => {
     if (!live) return;
@@ -240,7 +254,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       }
       rebuilding = false;
     }
-    if (model.session.state === 'active') refreshInventory();
+    if (model.session.state === 'active') { refreshInventory(); refreshOfferable(); }
     const other = own() ? model.recipientName : model.requesterName;
     base.setWindowTitle(model.session.state === 'requested' ? 'TRADE REQUEST' : `TRADE WITH ${other.toUpperCase()}`);
     requestLabel?.setProps({ text: own() ? `Waiting for ${model.recipientName} to answer.` : `${model.requesterName} wants to trade with you.` });

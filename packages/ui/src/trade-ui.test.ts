@@ -29,6 +29,30 @@ function setup(initial = model()) {
   return { ui, handlers, node, reveal, point, click, key, edit };
 }
 
+describe('items that cannot be offered (item slot S4)', () => {
+  it('show the approved disabled face and take no input, and follow the carried item', () => {
+    const initial = { ...model(), inventorySlots: [{ slot: 0, itemKind: 'backpack', quantity: 1 }, { slot: 1, itemKind: 'fishing_handbook', quantity: 1 },
+      { slot: 2, itemKind: 'wood', quantity: 5 }] };
+    const h = setup(initial);
+    // The carried cells are the trade's guarded wrappers of kit slots: disabled blocks their input and paints the grey face.
+    const view = (slot: number) => ({ enabled: !h.node(`trade.inventory.slot.${slot}`).disabled });
+    // The same rule the server applies (item_not_tradeable): backpacks and unique quest items are not offerable.
+    expect([0, 1, 2].map(slot => tradeItemIsOfferable(initial.contentRegistry, initial.inventorySlots[slot]!.itemKind))).toEqual([false, false, true]);
+    expect([0, 1, 2].map(slot => view(slot)?.enabled)).toEqual([false, false, true]);
+    expect(h.node('trade.inventory.slot.0').disabled).toBe(true);
+    const cell = h.node('trade.inventory.slot.0').rect, p = { x: cell.x + 14, y: cell.y + 15 };
+    h.ui.root.pointer({ type: 'down', point: p, pointerId: 1, button: 0 }); h.ui.root.pointer({ type: 'up', point: p, pointerId: 1, button: 0 });
+    expect(h.handlers.offerItem).not.toHaveBeenCalled();
+    // The same cell becomes offerable when its item changes, without rebuilding the grid.
+    const cellNode = h.node('trade.inventory.slot.0');
+    h.ui.update({ ...initial, inventorySlots: [{ slot: 0, itemKind: 'apple', quantity: 2 }, ...initial.inventorySlots.slice(1)] }); h.ui.root.arrange();
+    expect(h.node('trade.inventory.slot.0')).toBe(cellNode);
+    expect(view(0)?.enabled).toBe(true); expect(cellNode.disabled).toBe(false);
+    h.click('trade.inventory.slot.0');
+    expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', 0, 0, 2); h.ui.dispose();
+  });
+});
+
 describe('production retained trade host', () => {
   it('keeps secondary touch from moving focus or issuing a second offer', () => {
     const h = setup(), slot = h.point('trade.inventory.slot.0');

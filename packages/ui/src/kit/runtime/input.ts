@@ -116,7 +116,7 @@ export class UiInput {
       }
     }
     if (event.type === 'down' && event.button === 2) for (const node of hits) if (node.hooks.onContextMenu?.({ ...event, capture() {}, release() {} }, node)) return true;
-    if (event.type === 'move' || event.type === 'down') { this.hoverPoint = event.point; this.setHover(hits[0] ?? null); }
+    if (event.type === 'move' || event.type === 'down') { this.hoverPoint = event.point; this.setHover(this.hoverAt(event.point, hits[0] ?? null)); }
     if (event.type === 'down') {
       this.focus.set(hits.find(node => node.focusable) ?? null, 'pointer');
       for (const node of hits) for (const axis of ['y', 'x'] as const) {
@@ -212,7 +212,21 @@ export class UiInput {
     this.invalidate();
   }
   /** Layout and retained-tree replacement can change the hit without a mouse move. */
-  reconcileHover(): void { if (this.hoverPoint) this.setHover(this.hits(this.hoverPoint)[0] ?? null); }
+  reconcileHover(): void { if (this.hoverPoint) this.setHover(this.hoverAt(this.hoverPoint, this.hits(this.hoverPoint)[0] ?? null)); }
+  /** The hovered element: the topmost hit, unless a disabled element that opts in with `hoverWhenDisabled` (a locked
+   * item slot, whose red corners and reason show on hover) is on top of it. Such an element still takes no input. */
+  private hoverAt(point: UiPoint, hit: UiElement | null): UiElement | null {
+    const entries = this.entries(), modal = uiTopModal(entries);
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const node = entries[i]!.element;
+      if (node === hit) return hit;
+      if (!node.disabled || node.props['hoverWhenDisabled'] !== true || (modal && !node.isDescendantOf(modal))) continue;
+      let shown = node.visible;
+      for (let parent = node.parent; shown && parent; parent = parent.parent) shown = parent.visible && !parent.disabled;
+      if (shown && containsPoint(node.rect, point) && containsPoint(node.clip, point)) return node;
+    }
+    return hit;
+  }
   clearHover(): void { this.hoverPoint = null; this.setHover(null); }
   /** A hidden/replaced host must not retain a physical gesture across reconnect. */
   cancelPointers(): void {

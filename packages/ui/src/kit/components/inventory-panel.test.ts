@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { UiRoot } from '../runtime/root.js';
 import { UiInventoryController, UiInventoryInteractionModel } from '../runtime/inventory.js';
 import { uiInventoryPanel } from './inventory-panel.js';
+import { uiSlotView } from './inventory.js';
 
 it('filters by display name without renumbering bindings or losing editing focus', () => {
   const model = new UiInventoryInteractionModel({ bag: { id: 'bag', capacity: 4, slots: [null, { itemKind: 'wood', quantity: 8 }, null, { itemKind: 'apple', quantity: 2 }] } });
@@ -27,9 +28,33 @@ it('filters by display name without renumbering bindings or losing editing focus
   expect(sort).toHaveBeenCalledOnce(); root.dispose(); controller.dispose();
 });
 
-it('limits host capacity while retaining the authored slot indices', () => {
+// S4 (wiki Roadmap/Item Slot Component): cells past the host's capacity are shown disabled (the approved grey face,
+// render 01 B), not hidden, and take no input; the authored slot indices never change.
+it('shows cells past the host capacity disabled while retaining the authored slot indices', () => {
+  const capacity = 2;
   const root = new UiRoot({ scale: 1 }); root.resize(320,200);
-  root.mount(uiInventoryPanel({ container: 'bag', cells: [{ id: 'first' }, { id: 'second' }, { id: 'last', index: 9 }], capacity: () => 2 })); root.arrange();
-  expect(root.entries().filter(entry => entry.element.kind === 'slot').map(entry => entry.element.props['binding']))
-    .toEqual([{ container: 'bag', index: 0 }, { container: 'bag', index: 1 }]); root.dispose();
+  root.mount(uiInventoryPanel({ container: 'bag', cells: [{ id: 'first' }, { id: 'second' }, { id: 'last', index: 9 }], capacity: () => capacity })); root.arrange();
+  const slots = () => root.entries().filter(entry => entry.element.kind === 'slot').map(entry => entry.element);
+  expect(slots().map(slot => slot.props['binding'])).toEqual([{ container: 'bag', index: 0 }, { container: 'bag', index: 1 }, { container: 'bag', index: 9 }]);
+  expect(slots().map(slot => uiSlotView(slot)!.enabled)).toEqual([true, true, false]);
+  expect(slots()[2]!.disabled).toBe(true); expect(root.input.hits({ x: slots()[2]!.rect.x + 4, y: slots()[2]!.rect.y + 4 })).not.toContain(slots()[2]);
+  root.dispose();
+});
+
+it('follows a capacity change and hides disabled cells while searching', () => {
+  let capacity = 1;
+  const model = new UiInventoryInteractionModel({ bag: { id: 'bag', capacity: 3, slots: [{ itemKind: 'wood', quantity: 2 }, null, null] } });
+  const controller = new UiInventoryController(model);
+  const root = new UiRoot({ scale: 1 }); root.resize(320, 240);
+  root.mount(uiInventoryPanel({ id: 'bag', container: 'bag', count: 3, columns: 3, controller, capacity: () => capacity })); root.arrange();
+  const slots = () => root.entries().filter(entry => entry.element.kind === 'slot').map(entry => entry.element);
+  expect(slots().map(slot => uiSlotView(slot)!.enabled)).toEqual([true, false, false]);
+  capacity = 3; controller.refresh(); root.arrange();
+  expect(slots().map(slot => uiSlotView(slot)!.enabled)).toEqual([true, true, true]);
+  capacity = 2; controller.refresh(); root.arrange();
+  expect(slots().map(slot => uiSlotView(slot)!.enabled)).toEqual([true, true, false]);
+  const input = root.entries().find(entry => entry.element.id === 'bag.filter')!.element;
+  root.focus.set(input, 'keyboard'); root.text('wood'); root.arrange();
+  expect(slots().map(slot => slot.props['binding'])).toEqual([{ container: 'bag', index: 0 }]);
+  root.dispose(); controller.dispose();
 });

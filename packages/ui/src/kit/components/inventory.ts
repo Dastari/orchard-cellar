@@ -284,6 +284,8 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = carried();
     if (!cursor || !options.controller || !options.binding) return null;
+    // A disabled or locked slot takes nothing (S4): past a backpack's capacity the server has no such slot.
+    if (blocked()) return 'refuse';
     const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt), own = options.controller.model.stack(options.binding);
     const revision = options.controller.rulesRevision;
     if (verdict && verdict.revision === revision && verdict.policy === policy && sameVerdictStack(verdict.held, cursor) && sameVerdictStack(verdict.own, own)) return verdict.value;
@@ -292,7 +294,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     return verdict.value;
   };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
-    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false },
+    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false, hoverWhenDisabled: current?.locked !== undefined },
     style: { width: uiFixed(28), height: uiFixed(31), display: 'stack', padding: 8, shrink: 0, ...options.layout }, children: options.icon ? [uiIcon(options.icon).setStyle({ width: 'grow', height: 'grow' })] : [],
     onPointer(event, element) {
       if (options.controller && options.binding) return options.controller.pointer(event, options.binding);
@@ -340,7 +342,9 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     },
   });
   slotStates.set(slot, (next) => {
-    const wasBlocked = blocked(); current = next;
+    const wasBlocked = blocked(); current = next; verdict = undefined;
+    // A locked slot is hovered although it takes no input, so its red corners (render 01 C) and reason are reachable.
+    if (slot.props['hoverWhenDisabled'] !== (next?.locked !== undefined)) slot.setProps({ hoverWhenDisabled: next?.locked !== undefined }, false);
     // Input blocking follows the state as it changes, not when the slot is next painted.
     if (blocked() !== wasBlocked) slot.setDisabled(blocked()); else slot.invalidateRoot?.(false);
   });
@@ -397,7 +401,10 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
 }
 /** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
 function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {
-  const under = controller.slotElementAt(point); return under !== undefined && uiSlotDropTarget(under) === 'refuse';
+  const under = controller.slotElementAt(point);
+  if (under !== undefined) return uiSlotDropTarget(under) === 'refuse';
+  // A shown but disabled or locked slot (a backpack cell past its capacity) refuses everything (S4).
+  return controller.blockedSlotAt(point) !== undefined;
 }
 /** Where the held stack is drawn for a pointer: a 28x31 slot centred on it. */
 export function uiHeldStackRect(point: UiPoint): UiRect { return { x: point.x - 14, y: point.y - 15, width: 28, height: 31 }; }

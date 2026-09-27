@@ -5,7 +5,7 @@ import { bootstrapContentRegistry, itemDefinition, type ContainerSnapshot, type 
 import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
 import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { clickContainerSlot, itemPolicyResolver } from '@orchard/sim/item-containers';
-import { uiSlotDropTarget } from '../kit/components/inventory.js';
+import { uiSlotDropTarget, uiSlotView } from '../kit/components/inventory.js';
 import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
 import type { LoadedAsset } from '../assets.js';
@@ -216,6 +216,8 @@ describe('every kit drop verdict is the authority\'s click outcome (S3 review)',
     { name: 'furnace: role slots, an occupied input and a take-only output', window: 'content', model: { activeFrameId: 'frame:furnace',
       openPlaceableInventory: [{ slot: 0, itemKind: 'copper_ore', quantity: 3 }, { slot: 2, itemKind: 'copper_bar', quantity: 2 }] } },
     { name: 'press: two take-only outputs', window: 'content', model: { activeFrameId: 'frame:press', openPlaceableInventory: [{ slot: 1, itemKind: 'must', quantity: 1 }] } },
+    { name: 'inventory without a backpack: the cells past capacity 8 (S4)', window: 'inventory', model: { hasBackpack: false, backpackSlotCapacity: 8,
+      inventory: [{ slot: BACKPACK_SLOT_OFFSET + 7, itemKind: 'apple', quantity: 3 }] } },
     { name: 'chest: an unrestricted pane with occupied cells (swaps allowed)', window: 'chest', model: { activeFrameId: 'frame:chest',
       openChestInventory: [{ slot: 0, itemKind: 'apple', quantity: 5 }, { slot: 3, itemKind: 'pickaxe', quantity: 1 }] } },
   ];
@@ -232,14 +234,55 @@ describe('every kit drop verdict is the authority\'s click outcome (S3 review)',
         expect(bound.length).toBeGreaterThan(10);
         let refusals = 0;
         for (const { element, ref } of bound) {
-          if (!containers[ref.container] || ref.index >= containers[ref.container]!.capacity) continue;
+          if (!containers[ref.container]) continue;
           const result = clickContainerSlot(containers, cursor, { container: ref.container, index: ref.index, button: 'left' }, policy);
-          const refused = !result.ok && result.code === 'slot_rejects_item';
+          // S4: a backpack cell past the capacity is shown disabled; the authority has no such slot.
+          const refused = !result.ok && (result.code === 'slot_rejects_item' || result.code === 'index_out_of_capacity');
           expect(uiSlotDropTarget(element), `${itemKind} over ${ref.container}/${ref.index}: ${result.ok ? result.outcome : result.code}`).toBe(refused ? 'refuse' : 'accept');
           if (refused) refusals++;
         }
         if (window !== 'chest') expect(refusals, itemKind).toBeGreaterThan(0);
       } finally { f.dispose(); }
     }
+  });
+});
+
+describe('backpack cells past the capacity are shown disabled and refuse drops (S4)', () => {
+  const apples: ItemStack = { itemKind: 'apple', quantity: 3 };
+  it('shows every authored backpack cell, disabled past the capacity, and follows a capacity change', async () => {
+    const f = await fixture('inventory', { hasBackpack: false, backpackSlotCapacity: 8 });
+    try {
+      const enabled = () => Array.from({ length: 20 }, (_, index) => uiSlotView(f.slot('backpack', index))!.enabled);
+      expect(enabled()).toEqual(Array.from({ length: 20 }, (_, index) => index < 8));
+      expect(f.slot('backpack', 12).visible).toBe(true);
+      f.ui.update({ ...(f.ui as unknown as { model: OverworldUiModel }).model, hasBackpack: true, backpackSlotCapacity: 20 });
+      expect(enabled()).toEqual(Array.from({ length: 20 }, () => true));
+    } finally { f.dispose(); }
+  });
+
+  it('keeps a held stack and flashes the cell when it is released there, as the server refuses the slot', async () => {
+    const returned = vi.fn(), dropped = vi.fn(), click = vi.fn();
+    const f = await fixture('inventory', { hasBackpack: false, backpackSlotCapacity: 8, cursorStack: apples },
+      { returnInventoryCursor: returned, dropInventoryCursor: dropped, inventoryCursorClick: click });
+    try {
+      const cell = f.slot('backpack', 12), at = f.centre(cell);
+      f.move(at);
+      f.root.pointer({ type: 'down', point: at, pointerId: 1, button: 0 }); f.root.pointer({ type: 'up', point: at, pointerId: 1, button: 0 });
+      expect(click).not.toHaveBeenCalled(); expect(returned).not.toHaveBeenCalled(); expect(dropped).not.toHaveBeenCalled();
+      expect(f.menus.controller.refusalFrame({ container: 'backpack', index: 12 }, performance.now())).toBe(1);
+      expect(uiSlotDropTarget(cell)).toBe('refuse');
+      // The server has no such slot.
+      const model = (f.ui as unknown as { model: OverworldUiModel }).model;
+      const result = clickContainerSlot(authorityContainers(model, undefined), apples, { container: 'backpack', index: 12, button: 'left' }, itemPolicyResolver(registry));
+      expect(result).toMatchObject({ ok: false, code: 'index_out_of_capacity' });
+      // The held stack wears the pack cross over the disabled cell, as over any refusing slot.
+      const alpha = f.overlay();
+      expect(alpha(at.x - 17, at.y - 18, 3, 12) + alpha(at.x - 14, at.y - 18, 12, 3)).toBeGreaterThan(0);
+      // Empty window space still returns the stack, as before.
+      const first = f.slot('backpack', 0).rect, space = { x: first.x - 6, y: first.y + 40 };
+      expect(f.menus.contains(space)).toBe(true); expect(f.menus.slotAt(space)).toBeNull();
+      f.root.pointer({ type: 'down', point: space, pointerId: 1, button: 0 }); f.root.pointer({ type: 'up', point: space, pointerId: 1, button: 0 });
+      expect(returned).toHaveBeenCalledOnce();
+    } finally { f.dispose(); }
   });
 });
