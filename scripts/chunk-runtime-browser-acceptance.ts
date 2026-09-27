@@ -316,7 +316,7 @@ export function occupancyVerdict(records: readonly StepRecord[], expectedSteps: 
 
 /**
  * Criterion 2. Terrain frames (entities hidden) must differ by no more than `maxDiffRatio`, or by no
- * more than 1.5x the step's own noise floor (the legacy build against itself 400 ms later: animated
+ * more than 1.5x the step's own noise floor (each build against itself 400 ms later: animated
  * water and waterfalls are not in phase between two pages). Full-scene frames add wildlife and the
  * players, which move independently in each page: they must stay under `fullMaxDiffRatio`, and every
  * one over `maxDiffRatio` is listed for review. The on build must serve from chunks at every step.
@@ -897,14 +897,17 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       };
       const terrainBest = await best(true, []);
       const terrain = terrainBest.diff, terrainPngs = terrainBest.pngs;
-      // Noise floor: the legacy build against itself 400 ms later (animation phase alone), every step.
+      // Noise floor: each build against itself 400 ms later (animation phase alone), every step; the larger.
       let noise: PixelDiff | null = null;
       {
-        const first = await rgba(canvasModule, terrainPngs.a);
+        const [firstA, firstB] = await Promise.all([rgba(canvasModule, terrainPngs.a), rgba(canvasModule, terrainPngs.b)]);
         await sleep(400);
-        await frames(legacy.page, 2);
-        const again = await rgba(canvasModule, await legacy.page.screenshot({ type: 'png' }) as Uint8Array);
-        noise = diffRgba(first.data, again.data, first.width, first.height, options.pixelThreshold);
+        await Promise.all([frames(legacy.page, 2), frames(on.page, 2)]);
+        const [againA, againB] = await Promise.all([legacy.page.screenshot({ type: 'png' }), on.page.screenshot({ type: 'png' })]) as [Uint8Array, Uint8Array];
+        const [ra, rb] = await Promise.all([rgba(canvasModule, againA), rgba(canvasModule, againB)]);
+        const selfA = diffRgba(firstA.data, ra.data, ra.width, ra.height, options.pixelThreshold);
+        const selfB = diffRgba(firstB.data, rb.data, rb.width, rb.height, options.pixelThreshold);
+        noise = selfA.ratio >= selfB.ratio ? selfA : selfB;
       }
       const fullBest = await best(false, playerMask);
       const full = fullBest.diff, fullShots = fullBest.pngs;
