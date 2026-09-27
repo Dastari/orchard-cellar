@@ -33,8 +33,22 @@ const CATEGORY_ORDER: readonly PlayerStatisticCategory[] = [
   'commerce', 'items', 'tools', 'world', 'creatures', 'combat', 'future',
 ];
 
+/** One row per statistic and subject (BUG-063). The ledger keys its lines by statistic and subject, so a second row
+ * for the same pair (a duplicated subscription row) would give two lines one UI id and the kit would refuse to draw
+ * the Records chapter. Duplicates collapse to the larger value: an identical copy is shown once, and a stale partial
+ * copy never hides the fuller count. */
+function uniquePlayerStatistics(statistics: readonly PlayerStatisticModel[]): readonly PlayerStatisticModel[] {
+  const unique = new Map<string, PlayerStatisticModel>();
+  for (const entry of statistics) {
+    const key = JSON.stringify([entry.statisticKind, entry.subjectKind]);
+    const previous = unique.get(key);
+    if (previous === undefined || entry.value > previous.value) unique.set(key, entry);
+  }
+  return unique.size === statistics.length ? statistics : [...unique.values()];
+}
+
 export function visiblePlayerStatisticRows(model: StatisticsScreenModel): readonly StatisticsScreenRow[] {
-  return model.statistics.flatMap((entry) => {
+  return uniquePlayerStatistics(model.statistics).flatMap((entry) => {
     const definition = model.contentRegistry === undefined
       ? playerStatisticDefinition(entry.statisticKind)
       : runtimeStatisticDefinition(model.contentRegistry, entry.statisticKind);

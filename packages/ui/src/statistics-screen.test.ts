@@ -19,6 +19,19 @@ describe('statistics screen', () => {
     ]);
   });
 
+  it('shows one row per statistic and subject, keeping the larger value (BUG-063)', () => {
+    const rows = visiblePlayerStatisticRows({ statistics: [
+      { statisticKind: 'connections_opened', subjectKind: '', value: 5n },
+      { statisticKind: 'crops_harvested', subjectKind: 'strawberry', value: 6n },
+      { statisticKind: 'connections_opened', subjectKind: '', value: 3n },
+      { statisticKind: 'crops_harvested', subjectKind: 'strawberry', value: 9n },
+      { statisticKind: 'crops_harvested', subjectKind: 'carrot', value: 1n },
+    ] });
+    expect(rows.map(row => [row.statisticKind, row.subjectKind, row.value])).toEqual([
+      ['connections_opened', '', 5n], ['crops_harvested', 'carrot', 1n], ['crops_harvested', 'strawberry', 9n],
+    ]);
+  });
+
   it('formats each specialised statistic unit for players', () => {
     expect(formatPlayerStatisticValue(1_220n, playerStatisticDefinition('time_played')!)).toBe('1M 1S');
     expect(formatPlayerStatisticValue(12_345n, playerStatisticDefinition('bronze_earned')!)).toBe('1G 23S 45B');

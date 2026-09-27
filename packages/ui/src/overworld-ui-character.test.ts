@@ -87,3 +87,20 @@ it('preserves parent shortcuts, shared navigation and compact bounds without leg
   }
   f.ui.openWindow = 'statistics'; f.roots.statistics.focus.set(element(f.roots.statistics, 'book.tab.character')); f.runtime.key({ key: 'Enter' }); expect(f.ui.openWindow).toBe('character');
 });
+it('draws the Records chapter when a statistic arrives twice for the same subject (BUG-063)', () => {
+  const f = fixture();
+  // The same statistic and subject in two subscription rows: the ledger shows one line, with the larger value.
+  f.update({ statistics: { statistics: [
+    { statisticKind: 'connections_opened', subjectKind: '', value: 3n },
+    { statisticKind: 'time_played', subjectKind: '', value: 400n },
+    { statisticKind: 'connections_opened', subjectKind: '', value: 5n },
+  ] } });
+  f.ui.openWindow = 'statistics';
+  const root = f.roots.statistics; root.arrange();
+  const records = root.entries().filter(entry => entry.element.id === 'statistics.record:connections_opened:');
+  expect(records).toHaveLength(1);
+  expect(records[0]!.element.props['value']).toBe('5');
+  const canvas = createCanvas(800, 600);
+  (f.ui as unknown as { drawWindow(ctx: CanvasRenderingContext2D, name: string): void }).drawWindow(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 'statistics');
+  f.runtime.key({ key: 'Escape' }); expect(f.ui.openWindow).toBeNull();
+});
