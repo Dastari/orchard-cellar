@@ -44,6 +44,8 @@ const DEFAULT_DATABASE = 'orchard-cellar-world';
 const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILES);
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
+/** Presence heartbeat cadence; the server's lease is 30 s (PRESENCE_LEASE_MICROS). */
+export const HEARTBEAT_INTERVAL_MS = 10_000;
 const RTT_SAMPLE_CAPACITY = 256;
 const WORLD_REGION_RANGE_QUERIES = 17;
 const ROGUE_REGION_RANGE_QUERIES = 6;
@@ -550,7 +552,24 @@ export class OverworldConnection {
     if (this.gameplayReady) this.sendDesiredDirection();
     this.recovery.pause();
   }
-  resume(): void { this.clearHeldInput(); this.recovery.resume(); this.onChanged(); }
+  resume(): void {
+    this.clearHeldInput();
+    this.recovery.resume();
+    // Back from a hidden or frozen tab (BUG-062): renew the presence lease now rather than at the
+    // next interval tick, and refresh the sign-in if it lapsed so a needed reconnect is quick.
+    const connection = this.connection;
+    if (connection !== null && this.gameplayReady) this.sendHeartbeat(connection);
+    if (oidcConfigured && !document.hidden) void ensureOidcSession().catch(() => undefined);
+    this.onChanged();
+  }
+  private sendHeartbeat(connection: DbConnection): void {
+    if (!this.currentConnection(connection) || !navigator.onLine) return;
+    const active = this.activitySinceHeartbeat && !document.hidden;
+    this.activitySinceHeartbeat = false;
+    void this.call(() => connection.reducers.heartbeat({ active })).catch(() => {
+      if (active && this.currentConnection(connection)) this.activitySinceHeartbeat = true;
+    });
+  }
   retryConnection(): void { this.clearHeldInput(); this.recovery.retry(); }
   dispose(): void { window.clearInterval(this.connectionMonitorTimer); this.recovery.stop(); }
 
@@ -608,14 +627,10 @@ export class OverworldConnection {
         if (localProfilesEnabled && oidcSession === null) {
           void this.call(() => connection.reducers.setDisplayName({ displayName: this.displayName() })).catch(() => undefined);
         }
-        this.heartbeatTimer = window.setInterval(() => {
-          if (!this.currentConnection(connection) || document.hidden || !navigator.onLine) return;
-          const active = this.activitySinceHeartbeat;
-          this.activitySinceHeartbeat = false;
-          void this.call(() => connection.reducers.heartbeat({ active })).catch(() => {
-            if (active && this.currentConnection(connection)) this.activitySinceHeartbeat = true;
-          });
-        }, 10_000);
+        // Hidden tabs keep their presence lease (the server's 30 s idle timeout) as inactive
+        // heartbeats: time away from the tab is not counted as leaving (BUG-062). Browsers still
+        // throttle these timers, and a frozen tab sends nothing; `resume` then heartbeats at once.
+        this.heartbeatTimer = window.setInterval(() => this.sendHeartbeat(connection), HEARTBEAT_INTERVAL_MS);
         this.timeCacheWatchdogTimer = window.setInterval(() => {
           if (!this.currentConnection(connection) || document.hidden || !navigator.onLine) return;
           if (!this.hasTimeState(connection)) this.scheduleTimeStateRecovery(connection, identity);
@@ -1648,7 +1663,10 @@ export class OverworldConnection {
     connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => {
       const id = identityHex(row.identity);
       if (this.profiles.delete(id)) this.presenceRevisionValue += 1;
-      this.visiblePlayers.delete(id);
+      // The own player never depends on its public profile being `online` (as in setPosition):
+      // a lapsed presence lease (a hidden or frozen tab) drops the row from the online-profile
+      // subscription, and removing the player here blanked the world until the next heartbeat (BUG-062).
+      if (this.identity === null || !row.identity.isEqual(this.identity)) this.visiblePlayers.delete(id);
     }));
     connection.db.playerAppearance.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
     connection.db.playerAppearance.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));

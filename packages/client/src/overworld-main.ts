@@ -123,7 +123,7 @@ import {
 } from '@orchard/engine/display';
 import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
-import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
+import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState, type WorldGapPresentation } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
@@ -295,6 +295,8 @@ let hasRenderedWorldFrame = false;
 /** When the current not-ready gap began, and the recovery modal it shows (BUG-040). */
 let worldGapStartedAt: number | null = null;
 let presentedRecoveryState: ConnectionRecoveryState | null = null;
+/** What the last frame showed (debug seam for connection-gap acceptance, BUG-062). */
+let lastFramePresentation: 'playing' | WorldGapPresentation['kind'] | 'update-prompt' = 'initial-loading';
 const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
@@ -4734,6 +4736,7 @@ function renderFrame(alpha = 1): void {
         WORLD_GAP_GRACE_MS, terrainWait,
       );
       presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
+      lastFramePresentation = gap.kind;
       if (gap.kind === 'initial-loading') {
         drawInitialWorldLoading(renderer, {
           kitArt, apple: art.groundItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
@@ -4756,6 +4759,7 @@ function renderFrame(alpha = 1): void {
   dismissLoadingScreen();
   worldGapStartedAt = null;
   presentedRecoveryState = null;
+  lastFramePresentation = 'playing';
   const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localJumpState?.fromX,
@@ -7758,6 +7762,8 @@ Object.assign(window, {
       model: lightingModel,
     }),
     netcodeMetrics: () => network.metrics(),
+    connectionStatus: () => ({ recoveryState: network.recoveryState, gameplayReady: network.gameplayReady,
+      generation: network.sessionGeneration, presentation: lastFramePresentation, recoveryModal: presentedRecoveryState }),
     audioStatus: () => audio.getStatus(),
     predictedPosition: () => predicted === null ? null : { ...predicted.position },
     remoteBufferDepths: () => [...remoteBuffers.entries()].map(([identity, buffer]) => ({ identity, depth: buffer.depth })),

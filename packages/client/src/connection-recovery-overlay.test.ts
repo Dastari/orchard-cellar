@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PixelUi, UiSkin } from '@orchard/ui';
 import {
-  ConnectionRecoveryOverlay, TERRAIN_GAP_GRACE_MS, WORLD_GAP_GRACE_MS, connectionRecoveryLayout, worldGapPresentation,
-} from './connection-recovery-overlay.js';
+  ConnectionRecoveryOverlay, TERRAIN_GAP_GRACE_MS, WORLD_GAP_GRACE_MS, connectionRecoveryLayout, worldGapPresentation, RECONNECT_GRACE_MS } from './connection-recovery-overlay.js';
 
 function overlay() { return new ConnectionRecoveryOverlay({} as PixelUi, {} as UiSkin); }
 const viewport = { width: 257, height: 555, scale: 2, left: 12, top: 24 };
@@ -102,11 +101,20 @@ describe('world gap presentation (BUG-040)', () => {
     expect(worldGapPresentation(null, true, true, 1_000, 1_000 + WORLD_GAP_GRACE_MS * 10)).toEqual({ kind: 'initial-loading' });
   });
 
-  it.each(['reconnecting', 'offline', 'sign-in-required', 'content-incompatible'] as const)(
+  it.each(['offline', 'sign-in-required', 'content-incompatible'] as const)(
     'shows an explicit %s state at once, with or without a world frame', (state) => {
       expect(worldGapPresentation(state, true, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
       expect(worldGapPresentation(state, false, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
     });
+
+  it('BUG-062: keeps the last frame through a quick reconnect, then shows RECONNECTING', () => {
+    expect(worldGapPresentation('reconnecting', true, false, 1_000, 1_000)).toEqual({ kind: 'retained-world' });
+    expect(worldGapPresentation('reconnecting', true, false, 1_000, 1_000 + RECONNECT_GRACE_MS - 1)).toEqual({ kind: 'retained-world' });
+    expect(worldGapPresentation('reconnecting', true, false, 1_000, 1_000 + RECONNECT_GRACE_MS)).toEqual({ kind: 'recovery', state: 'reconnecting' });
+    // Without a world frame, or on an error stage, there is nothing to keep: at once, as before.
+    expect(worldGapPresentation('reconnecting', false, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state: 'reconnecting' });
+    expect(worldGapPresentation('reconnecting', true, true, 1_000, 1_000)).toEqual({ kind: 'recovery', state: 'reconnecting' });
+  });
 
   it('shows a topside arrival waiting for terrain as a light note over the retained world (static world S4f)', () => {
     expect(worldGapPresentation(null, true, false, 1_000, 1_000, WORLD_GAP_GRACE_MS, true)).toEqual({ kind: 'retained-world' });

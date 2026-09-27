@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Identity } from 'spacetimedb';
 import { bootstrapContentRows, contentDefinitionRowsHash, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID } from '@orchard/sim';
-import { OverworldConnection } from './overworld-connection.js';
+import { HEARTBEAT_INTERVAL_MS, OverworldConnection } from './overworld-connection.js';
 import { LatencyInjector } from './netcode.js';
 import { clientErrorReporter } from '../client-error-reporter.js';
 import { CLIENT_CONTENT_ENGINE_VERSION } from '../content/live-content.js';
@@ -176,6 +176,39 @@ describe('authenticated OverworldConnection recovery', () => {
     second.subscriptions[2]?.error();
     expect(network.gameplayReady).toBe(false);
     expect(network.view().error).toBe('self_subscription_failed');
+  });
+
+  it('BUG-062: a hidden tab keeps its lease, a lapsed lease never blanks the own player, and return is instant', async () => {
+    const network = create(); await flush();
+    const connection = connections[0]!;
+    await hydrate(connection);
+    connection.subscriptions[4]?.applied(); await flush();
+    expect(network.gameplayReady).toBe(true);
+    const own = () => network.view().players.get(identity.toHexString());
+    expect(own()).toBeDefined();
+    const heartbeat = connection.reducers.heartbeat;
+    heartbeat.mockClear();
+    // Hidden (alt-tab): heartbeats continue as inactive, so the server's 30 s lease does not lapse
+    // while the page can run (throttled timers still fire; before the fix they returned early).
+    vi.stubGlobal('document', { hidden: true }); network.pause();
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_INTERVAL_MS * 3 + 10);
+    expect(heartbeat.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect((heartbeat.mock.calls as unknown as [{ active: boolean }][]).every(([args]) => args.active === false)).toBe(true);
+    // Frozen past the lease: the server marks the player offline and the own public row leaves the
+    // online-profile subscription. The own player stays in the world (it blanked it for up to 10 s).
+    connection.table('playerPublic').deleted.forEach(callback => callback({ event: { id: 'lease-lapsed' } }, { identity, online: false }));
+    await flush();
+    expect(own()).toBeDefined();
+    // Back: the lease is renewed at once, the sign-in refreshed ahead of any reconnect, and no reconnect happens.
+    heartbeat.mockClear();
+    const ensureCalls = mocked.ensure.mock.calls.length;
+    vi.stubGlobal('document', { hidden: false }); network.resume();
+    await flush();
+    expect(heartbeat).toHaveBeenCalledTimes(1);
+    expect(mocked.ensure.mock.calls.length).toBe(ensureCalls + 1);
+    expect(network.gameplayReady).toBe(true);
+    expect(connections).toHaveLength(1);
+    expect(connection.disconnect).not.toHaveBeenCalled();
   });
 
   it('waits for persisted cellar excavation before enabling movement after a rejoin', async () => {
