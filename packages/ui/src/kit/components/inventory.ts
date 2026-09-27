@@ -39,7 +39,8 @@ export interface UiSlotState {
 /** Remaining cooldown, 0..1 of the whole: a dark shade over the icon well that drains from the top as it ends
  * (approved 2026-09-27, render 03 A). No item has a cooldown yet; this reserves the look. */
 export interface UiSlotCooldown { readonly fraction: number; readonly seconds?: number }
-/** How a slot takes part in drag and drop. Reported by uiSlotView until the slot controller (S2) reads it. */
+/** How a slot takes part in drag and drop. Reported by uiSlotView; no surface passes it yet, so the slot controller
+ * (S2) does not read it. */
 export interface UiSlotDrag {
   readonly source?: boolean; readonly target?: boolean; readonly split?: boolean; readonly quickMove?: readonly string[];
 }

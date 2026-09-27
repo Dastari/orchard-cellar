@@ -8,6 +8,7 @@ import type { UiKitArt } from './kit/components/art.js';
 import type { UiRoot } from './kit/runtime/root.js';
 import { UiElement } from './kit/runtime/element.js';
 import type { UiInventorySlotRef } from './kit/runtime/inventory.js';
+import { UI_SLOT_PICKUP_DISTANCE, UiSlotGestures, type UiSlotRef, type UiSlotSpreadMode } from './kit/components/slot-controller.js';
 import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
 import { HEARTH_LOBBY_STASH_CAPACITY } from '@orchard/sim/hearth-lobby';
@@ -31,7 +32,7 @@ import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtim
 import { runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
 import { MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
 import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, hotbarSlotForInputCode, hotbarSlotLabel } from '@orchard/sim/inventory-layout';
-import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, itemStacksCompatible, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
+import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
 import { recipeDefinition } from '@orchard/sim/recipes';
 import type { LoadedAsset } from './assets.js';
 import { isolatedAtlasFrameImage } from './atlas-frame-image.js';
@@ -572,8 +573,8 @@ const NAMEPLATE_HEIGHT = 11;
 export const ONLINE_PLAYER_LIST_BOTTOM_PADDING = 12;
 const ONLINE_PLAYER_LIST_CONTENT_TOP = 29;
 const ONLINE_PLAYER_LIST_ROW_HEIGHT = 12;
-const INVENTORY_DOUBLE_CLICK_MS = 500;
-const INVENTORY_DRAG_START_DISTANCE = 3;
+/** A touch drag past this distance leaves the backpack swipe to the slot pickup. */
+const INVENTORY_DRAG_START_DISTANCE = UI_SLOT_PICKUP_DISTANCE;
 
 export const CHEST_STORAGE_FRAME_SPEC: StorageFrameSpec = {
   title: 'CHEST',
@@ -1388,25 +1389,9 @@ export class OverworldUi {
     if (this.retainedMenus) return this.retainedMenus.root;
     this.retainedArtwork = new Proxy(this.itemArt, { get: (assets, key) => typeof key === 'string'
       ? overworldItemArtwork(assets, key, this.model.contentRegistry) : Reflect.get(assets, key) });
-    const cursor = () => this.heldCursorStack();
-    const dragging = () => this.cursorPress !== null;
     const authority: InventoryMenuAuthority = {
-      get cursor() { return cursor(); }, get status() { return ''; },
-      get dragging() { return dragging(); },
-      stack: ref => this.retainedSlot(ref)?.item ?? null,
+      gestures: this.slotGestures,
       displayedCursor: () => this.quickCraftPreviewCursor === undefined ? this.heldCursorStack() : this.quickCraftOriginalCursor,
-      canAccept: (ref, item) => { const slot = this.retainedSlot(ref), cursor = item ?? this.heldCursorStack();
-        return slot !== null && (cursor === null || slot.accepts(cursor.itemKind)); },
-      pointerMove: (point, ref) => this.moveInventoryGesture(point, ref ? this.retainedSlot(ref) : null),
-      begin: (ref, point, button) => { const slot = this.retainedSlot(ref); if (slot) this.beginInventoryGesture(slot, point, button); },
-      finish: (point, shift, inside) => { this.finishInventoryGesture(point, shift, inside); },
-      cancel: () => { this.cancelQuickCraftPreview(); this.cursorPress = null; this.inventoryOutsidePress = null; },
-      background: (event, inside) => {
-        if (event.type === 'down' && (event.button === 0 || event.button === 2) && this.heldCursorStack() !== null) {
-          this.inventoryOutsidePress = event.button === 2 ? 'right' : 'left'; event.capture();
-        } else if (event.type === 'up') { this.finishInventoryGesture(event.point, event.shiftKey === true, inside); event.release(); }
-        else if (event.type === 'cancel') { authority.cancel(); event.release(); }
-      },
       hover: (point) => { this.pointer = point; this.systemCursorMove(point); },
       key: (event) => {
         const code = 'code' in event && typeof event.code === 'string' ? event.code
@@ -1533,6 +1518,7 @@ export class OverworldUi {
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
       // The paper doll shows the wearer with the same painter as the character screen.
       portrait: (context, bounds) => { const appearance = this.model.character?.appearance; if (appearance) this.drawPlayerDoll(context, appearance, 'down', bounds); },
+      selectedHotbar: this.model.selectedSlot,
       ...(this.openWindowValue === 'crafting' ? { crafting: {
         recipes: this.recipeBookEntries().map(entry => ({ id: entry.recipeId,
           label: this.itemDefinition(entry.outputKind)?.displayName ?? entry.outputKind,
@@ -1688,15 +1674,43 @@ export class OverworldUi {
   private hoveredSlot: number | null = null;
   private inventoryTouchStart: UiPoint | null = null;
   private readonly equipmentTooltipDwell = new EquipmentTooltipDwell();
-  private cursorPress: {
-    readonly origin: ItemSlot;
-    readonly button: 'left' | 'right';
-    readonly cursorWasHeld: boolean;
-    readonly startPoint: UiPoint;
-    readonly targets: ItemSlot[];
-    dragged: boolean;
-    pickedUpDuringDrag: boolean;
-  } | null = null;
+  /** The inventory gesture state machine (kit `UiSlotGestures`), shared by the retained kit menus and this host's own
+   * hit-tested slots. It reads the predicted slots below and changes them only through these reducer callbacks. */
+  private readonly slotGestures = new UiSlotGestures({
+    cursor: () => this.heldCursorStack(),
+    has: ref => this.itemSlotFor(ref) !== null,
+    stack: ref => this.itemSlotFor(ref)?.item ?? null,
+    accepts: (ref, itemKind) => this.itemSlotFor(ref)?.accepts(itemKind) ?? false,
+    maxStack: itemKind => this.maxStackFor(itemKind),
+    quickMoveSources: container => this.quickMoveSourceContainers(container),
+    slotAt: point => this.itemSlotRef(this.inventoryItemSlotAt(point)),
+  }, {
+    click: (ref, button) => {
+      if (!this.predictCursorClick(ref, button)) return false;
+      this.trackInventoryPrediction(this.callbacks.inventoryCursorClick(ref.container, ref.index, button));
+      return true;
+    },
+    previewSpread: (targets, mode) => this.applyQuickCraftPreview(targets, mode),
+    cancelSpread: () => this.cancelQuickCraftPreview(),
+    spread: (targets, mode) => {
+      if (this.quickCraftPreviewCursor === undefined) { this.cancelQuickCraftPreview(); return; }
+      this.promoteQuickCraftPreview();
+      this.trackInventoryPrediction(this.callbacks.inventoryCursorQuickCraft(
+        targets.map((target) => ({ container: target.container, index: target.index })), mode,
+      ));
+    },
+    quickMove: ref => this.callbacks.quickMoveInventoryItem(ref.container, ref.index, this.quickMoveDestinations(ref.container)),
+    quickMoveAll: (itemKind, container) => {
+      const sources = this.quickMoveSourceContainers(container), destinations = this.quickMoveDestinations(container);
+      this.predictQuickMoveAll(itemKind, sources, destinations);
+      this.trackInventoryPrediction(this.callbacks.quickMoveAllInventoryItems(itemKind, sources, destinations));
+    },
+    collect: () => {
+      if (this.predictPickupAll()) this.trackInventoryPrediction(this.callbacks.inventoryCursorPickupAll(this.visibleContainerOrder()));
+    },
+    drop: button => { if (this.predictCursorDrop(button)) this.trackInventoryPrediction(this.callbacks.dropInventoryCursor(button)); },
+    return: () => { this.cancelQuickCraftPreview(); this.clearOptimisticMenu(); this.callbacks.returnInventoryCursor(); },
+  });
   private readonly quickCraftOriginalItems = new Map<ItemSlot, ItemStack | null>();
   private readonly quickCraftPreviewItems = new Map<ItemSlot, ItemStack | null>();
   private quickCraftOriginalCursor: ItemStack | null = null;
@@ -1704,14 +1718,6 @@ export class OverworldUi {
   private readonly optimisticMenuItems = new Map<ItemSlot, ItemStack | null>();
   private optimisticMenuCursor: ItemStack | null | undefined;
   private optimisticMenuStartedAt: number | null = null;
-  private inventoryOutsidePress: 'left' | 'right' | null = null;
-  private lastShiftClick: { readonly sourceRegion: string; readonly itemKind: string; readonly at: number } | null = null;
-  private lastCursorClick: {
-    readonly itemKind: string;
-    readonly sourceRegion: string;
-    readonly transferCandidate: boolean;
-    readonly at: number;
-  } | null = null;
   private clickStartedAt = Number.NEGATIVE_INFINITY;
   private openWindowValue: OverworldWindow | null = null;
   private pendingTouchRecipeId: string | null = null;
@@ -2345,10 +2351,8 @@ export class OverworldUi {
       this.callbacks.closeCrafting();
     }
     if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
-      this.cancelQuickCraftPreview();
+      this.slotGestures.cancel();
       this.clearOptimisticMenu();
-      this.cursorPress = null;
-      this.inventoryOutsidePress = null;
       this.callbacks.returnInventoryCursor();
     }
     if (nextWindow === 'help' && this.openWindowValue !== 'help') this.helpBook?.reset();
@@ -2465,7 +2469,8 @@ export class OverworldUi {
       node.enabled = model.cursorStack === null || model.cursorStack === undefined;
     }
     this.reconcileOptimisticMenu();
-    if (this.cursorPress?.cursorWasHeld && this.cursorPress.targets.length > 0) this.applyQuickCraftPreview();
+    const press = this.slotGestures.press;
+    if (press?.cursorWasHeld && press.targets.length > 0) this.applyQuickCraftPreview(press.targets, press.button === 'right' ? 'one_each' : 'even');
     this.resumeNode.setBounds(this.layout.resumeButton);
     this.delveConfirmButton.setBounds(this.layout.delveConfirmButton);
     this.delveCancelButton.setBounds(this.layout.delveCancelButton);
@@ -2706,9 +2711,7 @@ export class OverworldUi {
     if (inventorySwiped || recipesSwiped) {
       this.inventoryTouchStart = null;
       this.pendingTouchRecipeId = null;
-      this.cancelQuickCraftPreview();
-      this.cursorPress = null;
-      this.inventoryOutsidePress = null;
+      this.slotGestures.cancel();
       return;
     }
     const slotNodes = this.openWindowValue === 'inventory' ? this.inventoryHotbarSlots.map((slot) => slot.node) : this.hotbarNodes;
@@ -2719,7 +2722,7 @@ export class OverworldUi {
     // threshold. Keep vertical/tied touch movement pending until scrolling
     // takes ownership; a release below that threshold remains an ordinary tap.
     if (this.inventoryTouchStart !== null) return;
-    this.moveInventoryGesture(point, this.inventoryItemSlotAt(point));
+    this.slotGestures.move(point, this.itemSlotRef(this.inventoryItemSlotAt(point)));
     this.timeSlider.pointerMove(point);
     this.touchBottomOffsetSlider.pointerMove(point);
     this.masterSlider.pointerMove(point);
@@ -2836,10 +2839,10 @@ export class OverworldUi {
     if (this.isInventoryWindow(this.openWindowValue)) {
       const slot = this.inventoryItemSlotAt(point);
       if (slot !== null && (button === 0 || button === 2)) {
-        return this.beginInventoryGesture(slot, point, button);
+        return this.slotGestures.begin(this.itemSlotRef(slot)!, point, button, { shift: modifiers.shift === true });
       }
       if ((button === 0 || button === 2) && this.heldCursorStack() != null) {
-        this.inventoryOutsidePress = button === 2 ? 'right' : 'left';
+        this.slotGestures.pressOutside(button);
         return true;
       }
     }
@@ -2862,9 +2865,7 @@ export class OverworldUi {
     const touchSwipeConsumed = inventorySwipeConsumed || recipeSwipeConsumed;
     if (touchSwipeConsumed) {
       this.pendingTouchRecipeId = null;
-      this.cancelQuickCraftPreview();
-      this.cursorPress = null;
-      this.inventoryOutsidePress = null;
+      this.slotGestures.cancel();
       return true;
     }
     if (this.pendingTouchRecipeId !== null) {
@@ -2876,7 +2877,7 @@ export class OverworldUi {
     if(this.openWindowValue==='outdoor-rewards'&&this.outdoorRewards.pointerUp())return true;
     if (this.inventoryScrollBar.pointerUp()) return true;
     if (this.craftingRecipeScrollBar.pointerUp()) return true;
-    if (this.finishInventoryGesture(point, modifiers.shift === true, containsPoint(this.activeWindowRect(), point))) return true;
+    if (this.slotGestures.finish(point, modifiers.shift === true, containsPoint(this.activeWindowRect(), point))) return true;
     const consumed = this.router.routePointer({ kind: 'pointer_up', point, button });
     return this.timeSlider.pointerUp(point)
       || this.touchBottomOffsetSlider.pointerUp(point)
@@ -2886,159 +2887,11 @@ export class OverworldUi {
       || consumed;
   }
 
-  private beginInventoryGesture(slot: ItemSlot, point: UiPoint, button: number): boolean {
-    const cursor = this.heldCursorStack();
-    const cursorWasHeld = cursor != null;
-    const stack = slot.item;
-    const originEligible = cursor !== null && cursor !== undefined && slot.accepts(cursor.itemKind)
-      && (stack === null || (itemStacksCompatible(stack, cursor)
-        && stack.quantity < this.maxStackFor(cursor.itemKind)));
-    this.cursorPress = {
-      origin: slot, button: button === 2 ? 'right' : 'left', cursorWasHeld,
-      startPoint: point,
-      targets: cursorWasHeld && originEligible ? [slot] : [], dragged: false,
-      pickedUpDuringDrag: false,
-    };
-    if (cursorWasHeld && originEligible) this.applyQuickCraftPreview();
-    return true;
-  }
-
-  private moveInventoryGesture(point: UiPoint, target: ItemSlot | null): void {
-    if (this.cursorPress !== null && !this.cursorPress.cursorWasHeld
-      && !this.cursorPress.pickedUpDuringDrag && this.cursorPress.origin.item !== null) {
-      const dx = point.x - this.cursorPress.startPoint.x;
-      const dy = point.y - this.cursorPress.startPoint.y;
-      if (dx * dx + dy * dy >= INVENTORY_DRAG_START_DISTANCE * INVENTORY_DRAG_START_DISTANCE
-        && this.predictCursorClick(this.cursorPress.origin, this.cursorPress.button)) {
-        this.cursorPress.pickedUpDuringDrag = true;
-        this.cursorPress.dragged = true;
-        this.trackInventoryPrediction(this.callbacks.inventoryCursorClick(
-          this.cursorPress.origin.containerId,
-          this.cursorPress.origin.index,
-          this.cursorPress.button,
-        ));
-      }
-    }
-    if (this.cursorPress?.cursorWasHeld) {
-      const cursor = this.heldCursorStack();
-      const targetStack = target?.item ?? null;
-      const targetCompatible = targetStack === null || (cursor !== null && cursor !== undefined
-        && itemStacksCompatible(targetStack, cursor)
-        && targetStack.quantity < this.maxStackFor(cursor.itemKind));
-      if (target !== null && cursor != null && target.accepts(cursor.itemKind) && targetCompatible
-        && !this.cursorPress.targets.includes(target)) {
-        this.cursorPress.targets.push(target);
-        if (target !== this.cursorPress.origin) this.cursorPress.dragged = true;
-        if (this.cursorPress.targets.length > 1) this.applyQuickCraftPreview();
-      }
-    }
-  }
-
-  private finishInventoryGesture(point: UiPoint, shift: boolean, inside: boolean): boolean {
-    if (this.cursorPress !== null) {
-      const press = this.cursorPress;
-      this.cursorPress = null;
-      const pressed = press.origin;
-      if (press.pickedUpDuringDrag) {
-        this.cancelQuickCraftPreview();
-        this.lastCursorClick = null;
-      } else if (shift && press.button === 'left') {
-          this.cancelQuickCraftPreview();
-          const sourceContainers = this.quickMoveSourceContainers(pressed.containerId);
-          const sourceRegion = sourceContainers.join('|');
-          const now = performance.now();
-          const previousClick = this.lastShiftClick;
-          const secondClickKind = pressed.item?.itemKind
-            ?? (press.cursorWasHeld ? previousClick?.itemKind : undefined);
-          const doubleClick = secondClickKind !== undefined && previousClick !== null
-            && previousClick.sourceRegion === sourceRegion && previousClick.itemKind === secondClickKind
-            && now - previousClick.at <= INVENTORY_DOUBLE_CLICK_MS;
-          if (doubleClick) {
-            const destinations = this.quickMoveDestinations(pressed.containerId);
-            this.predictQuickMoveAll(secondClickKind, sourceContainers, destinations);
-            this.trackInventoryPrediction(this.callbacks.quickMoveAllInventoryItems(
-              secondClickKind, sourceContainers, destinations,
-            ));
-            this.lastShiftClick = null;
-          } else if (pressed.item !== null) {
-            const itemKind = pressed.item.itemKind;
-            this.callbacks.quickMoveInventoryItem(pressed.containerId, pressed.index, this.quickMoveDestinations(pressed.containerId));
-            this.lastShiftClick = { sourceRegion, itemKind, at: now };
-          } else {
-            this.lastShiftClick = null;
-          }
-      } else if (press.cursorWasHeld && press.targets.length > 0
-        && (press.dragged || press.targets.length > 1)) {
-        if (this.quickCraftPreviewCursor === undefined) {
-          this.cancelQuickCraftPreview();
-          return true;
-        }
-        this.promoteQuickCraftPreview();
-        this.trackInventoryPrediction(this.callbacks.inventoryCursorQuickCraft(
-          press.targets.map((slot) => ({ container: slot.containerId, index: slot.index })),
-          press.button === 'right' ? 'one_each' : 'even',
-        ));
-      } else {
-        this.cancelQuickCraftPreview();
-        const cursor = this.heldCursorStack();
-        const now = performance.now();
-        const clickedKind = cursor?.itemKind ?? pressed.item?.itemKind;
-        const sourceContainers = this.quickMoveSourceContainers(pressed.containerId);
-        const sourceRegion = sourceContainers.join('|');
-        const previousClick = this.lastCursorClick;
-        const doubleClick = press.button === 'left' && clickedKind !== undefined
-          && previousClick?.itemKind === clickedKind && previousClick.sourceRegion === sourceRegion
-          && now - previousClick.at <= INVENTORY_DOUBLE_CLICK_MS;
-        if (doubleClick) {
-          if (previousClick.transferCandidate) {
-            const destinations = this.quickMoveDestinations(pressed.containerId);
-            this.predictQuickMoveAll(clickedKind, sourceContainers, destinations);
-            this.trackInventoryPrediction(this.callbacks.quickMoveAllInventoryItems(
-              clickedKind, sourceContainers, destinations,
-            ));
-          } else if (this.predictPickupAll()) {
-            this.trackInventoryPrediction(this.callbacks.inventoryCursorPickupAll(this.visibleContainerOrder()));
-          }
-          this.lastCursorClick = null;
-        } else {
-          const transferCandidate = cursor !== null && pressed.item !== null
-            && itemStacksCompatible(cursor, pressed.item);
-          if (this.predictCursorClick(pressed, press.button)) {
-            this.trackInventoryPrediction(
-              this.callbacks.inventoryCursorClick(pressed.containerId, pressed.index, press.button),
-            );
-          }
-          this.lastCursorClick = press.button !== 'left' || clickedKind === undefined
-            ? null
-            : { itemKind: clickedKind, sourceRegion, transferCandidate, at: now };
-        }
-      }
-      return true;
-    }
-    if (this.inventoryOutsidePress !== null) {
-      const outsideButton = this.inventoryOutsidePress;
-      this.inventoryOutsidePress = null;
-      if (this.inventoryItemSlotAt(point) === null) {
-        if (inside) {
-          this.cancelQuickCraftPreview();
-          this.clearOptimisticMenu();
-          this.callbacks.returnInventoryCursor();
-        } else if (this.predictCursorDrop(outsideButton)) {
-          this.trackInventoryPrediction(this.callbacks.dropInventoryCursor(outsideButton));
-        }
-      }
-      return true;
-    }
-    return false;
-  }
-
   pointerLeave(): void {
     this.inventoryTouchStart = null;
     this.systemCursorLeave();
     this.hoveredSlot = null;
-    this.cancelQuickCraftPreview();
-    this.cursorPress = null;
-    this.inventoryOutsidePress = null;
+    this.slotGestures.cancel();
     this.timeSlider.pointerLeave();
     this.touchBottomOffsetSlider.pointerLeave();
     this.masterSlider.pointerLeave();
@@ -4242,6 +4095,24 @@ export class OverworldUi {
     });
   }
 
+  /** The open surface's live, enabled slot for a ref (the retained frame's bindings, or this host's own slots). */
+  private itemSlotFor(ref: UiSlotRef): ItemSlot | null {
+    return this.visibleItemSlots().find((slot) => slot.enabled && slot.containerId === ref.container && slot.index === ref.index) ?? null;
+  }
+
+  private itemSlotRef(slot: ItemSlot | null): UiSlotRef | null {
+    return slot === null ? null : { container: slot.containerId, index: slot.index };
+  }
+
+  /** The slot press in progress, with its spread targets as this host's slots (drawn by drawQuickCraftTargets). */
+  private get cursorPress(): { readonly cursorWasHeld: boolean; readonly targets: readonly ItemSlot[] } | null {
+    const press = this.slotGestures.press;
+    return press === null ? null : {
+      cursorWasHeld: press.cursorWasHeld,
+      targets: press.targets.flatMap((target) => this.itemSlotFor(target) ?? []),
+    };
+  }
+
   private inventoryItemSlotAt(point: UiPoint): ItemSlot | null {
     if (this.retainedInventoryActive) {
       const target = this.retainedMenus!.slotAt(point);
@@ -4316,7 +4187,7 @@ export class OverworldUi {
     // During QUICK_CRAFT the item under the pointer is a ghost of the original
     // carried stack. Destination cells preview the allocation independently;
     // the ghost remains visible until mouse-up even when the preview remainder is zero.
-    const cursor = this.cursorPress?.cursorWasHeld && this.quickCraftPreviewCursor !== undefined
+    const cursor = this.slotGestures.press?.cursorWasHeld && this.quickCraftPreviewCursor !== undefined
       ? this.quickCraftOriginalCursor
       : this.heldCursorStack();
     if (cursor == null) return;
@@ -5033,10 +4904,9 @@ export class OverworldUi {
   /** Recomputes QUICK_CRAFT from the gesture's original snapshots every time a
    * new slot is visited. This is presentation prediction only; release still
    * emits one reducer transaction containing the complete visited-slot list. */
-  private applyQuickCraftPreview(): void {
-    const press = this.cursorPress;
+  private applyQuickCraftPreview(targets: readonly UiSlotRef[], mode: UiSlotSpreadMode): void {
     const cursor = this.heldCursorStack();
-    if (!press?.cursorWasHeld || press.targets.length === 0 || cursor == null) return;
+    if (targets.length === 0 || cursor == null) return;
     const slots = this.visibleItemSlots();
     if (this.quickCraftOriginalItems.size === 0) {
       this.quickCraftOriginalCursor = { ...cursor };
@@ -5062,8 +4932,7 @@ export class OverworldUi {
       };
     }
     const preview = quickCraftCursorStack(containers, cursor, {
-      mode: press.button === 'right' ? 'one_each' : 'even',
-      targets: press.targets.map((slot) => ({ container: slot.containerId, index: slot.index })),
+      mode, targets: targets.map((target) => ({ container: target.container, index: target.index })),
     }, this.itemContainerContent());
     if (!preview.ok) return;
     this.quickCraftPreviewItems.clear();
@@ -5143,9 +5012,9 @@ export class OverworldUi {
     this.reapplyOptimisticMenu();
   }
 
-  private predictCursorClick(slot: ItemSlot, button: 'left' | 'right'): boolean {
+  private predictCursorClick(ref: UiSlotRef, button: 'left' | 'right'): boolean {
     const result = clickContainerSlot(this.visibleMenuContainers(), this.heldCursorStack(), {
-      container: slot.containerId, index: slot.index, button,
+      container: ref.container, index: ref.index, button,
     }, this.itemContainerContent());
     if (!result.ok) return false;
     this.acceptOptimisticMenu(result.containers, result.cursor);

@@ -12,7 +12,7 @@ import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton } from './button.js';
 import { uiMeter } from './meter.js';
-import { uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
+import { uiHotbar, uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
 import { uiSlotRulesFromRestriction } from './slot-rules.js';
 import { uiInventoryPanel, type UiInventoryControls } from './inventory-panel.js';
 import type { UiTone } from '../tokens.js';
@@ -29,6 +29,8 @@ export interface UiContentFrameOptions {
   readonly layout?: UiStyle;
   /** Wearer preview for paper-doll panes. */
   readonly portrait?: UiElement;
+  /** The selected hotbar slot, painted on the window's footer hotbar like the HUD's (-1 or omitted: none). */
+  readonly hotbarSelected?: () => number;
 }
 export interface UiContentFrameElement extends UiElement {
   /** Refresh authored state without replacing inventory controls or their editors. */
@@ -210,7 +212,9 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   }
   if (backpackPane) { const node = panel(backpackPane, 'BACKPACK'); if (node) children.push(node); }
   // The hotbar keeps one row of ten where it fits and breaks into rows of five on narrow screens.
-  const hotbar = definition.hotbar && options.aliases.hotbar ? uiInventoryGrid({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, hotkeys: true, layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
+  // It is the game's hotbar, selection included (green corners on the selected slot); digit keys stay with the host.
+  const hotbar = definition.hotbar && options.aliases.hotbar ? uiHotbar({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false,
+    selected: options.hotbarSelected ?? (() => -1), layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
   const storage = options.aliases.entity === 'chest';
   const frame = uiWindow({ id: definition.id, title: definition.title, frame: storage ? 'crate' : 'wood', onClose: options.onClose,
     // Sections sit side by side, tops aligned so their headings line up (owner item 8),
