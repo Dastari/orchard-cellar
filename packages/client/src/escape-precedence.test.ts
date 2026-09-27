@@ -33,6 +33,26 @@ describe('BUG-060: Escape closes the topmost open surface before opening the men
     guard.closed('chest:1', 9_000); guard.observe('placeable:2', 9_010); expect(guard.suppresses('chest:1')).toBe(false);
   });
 
+  it('records the window on screen, not the newest snapshot\'s entity, when the server switches entities (review finding 1)', () => {
+    const guard = new ClosingEntityWindows();
+    // Frame 1: the chest window is on screen.
+    guard.observe('chest:7', 1_000); guard.showing('chest:7');
+    // Frame 2: the server switched the session to a furnace; the sync closes the chest window (closeChest), which
+    // records what was on screen, the chest.
+    guard.observe('placeable:3', 1_016); guard.closedShown(1_016);
+    expect(guard.suppresses('placeable:3')).toBe(false);
+    // Nothing on screen: a later close records nothing.
+    guard.showing(null); guard.closedShown(1_100); expect(guard.suppresses('placeable:3')).toBe(false);
+  });
+
+  it('lets a fresh interact reopen the same chest at once (review finding 2)', () => {
+    const guard = new ClosingEntityWindows();
+    guard.showing('chest:7'); guard.closedShown(1_000);
+    guard.observe('chest:7', 1_010); expect(guard.suppresses('chest:7')).toBe(true);
+    guard.interacted();
+    expect(guard.suppresses('chest:7')).toBe(false);
+  });
+
   it('keys chests, the hearth stash and placeables apart', () => {
     expect(entityWindowKey({ activeChest: { id: 4n }, activePlaceable: null, hearthStashOpen: false })).toBe('chest:4');
     expect(entityWindowKey({ activeChest: null, activePlaceable: { id: 4n }, hearthStashOpen: false })).toBe('placeable:4');
@@ -48,6 +68,13 @@ describe('BUG-060: Escape closes the topmost open surface before opening the men
     expect(sync).toContain('closingEntityWindows.observe(closingEntityKey');
     expect(sync.match(/!closingEntityWindows\.suppresses\(closingEntityKey\)/gu)?.length).toBeGreaterThanOrEqual(8);
     const callbacks = main.slice(main.indexOf('closeChest: () =>'), main.indexOf('closePlaceable: () =>') + 300);
-    expect(callbacks).toContain('closingEntityWindows.closed(');
+    expect(callbacks.match(/closingEntityWindows\.closedShown\(/gu)?.length).toBe(2);
+    expect(sync).not.toContain('closingEntityWindows.closed(');
+    const syncTail = main.slice(main.indexOf('closingEntityWindows.showing('), main.indexOf('closingEntityWindows.showing(') + 200);
+    expect(syncTail).toContain('closingEntityKey');
+    // Every entity interact resets the guard: chest, placeable and hearth stash.
+    const interactStart = main.indexOf("case 'hearth_stash':\n      closingEntityWindows");
+    const interact = main.slice(interactStart, main.indexOf("case 'merchant':", interactStart));
+    expect(interact.match(/closingEntityWindows\.interacted\(\)/gu)?.length).toBe(3);
   });
 });

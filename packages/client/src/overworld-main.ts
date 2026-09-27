@@ -870,8 +870,8 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     network.fillCraftingRecipe(recipeId), 'RECIPE PATTERN LOADED', RECIPE_PLACE_FAILURES,
   ),
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
-  closeChest: () => { closingEntityWindows.closed(entityWindowKey(latestSnapshot), performance.now()); void network.closeChest().catch(() => undefined); },
-  closePlaceable: () => { closingEntityWindows.closed(entityWindowKey(latestSnapshot), performance.now()); void (latestSnapshot.hearthStashOpen?network.closeHearthStash():network.closePlaceable()).catch(() => undefined); },
+  closeChest: () => { closingEntityWindows.closedShown(performance.now()); void network.closeChest().catch(() => undefined); },
+  closePlaceable: () => { closingEntityWindows.closedShown(performance.now()); void (latestSnapshot.hearthStashOpen?network.closeHearthStash():network.closePlaceable()).catch(() => undefined); },
   frameAction: (actionId) => showResult(network.frameAction(actionId), null),
 }, (context, playerId, rect) => {
   const appearance = latestSnapshot.appearances.get(playerId) ?? undefined;
@@ -2356,6 +2356,9 @@ function update(): void {
   if (!snapshot.hearthStashOpen && snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace'
     || overworldUi.openWindow === 'cooking' || overworldUi.openWindow === 'press'
     || overworldUi.openWindow === 'fermentation' || overworldUi.openWindow === 'content')) overworldUi.openWindow = null;
+  // BUG-060: the entity whose window is now on screen, for the close callbacks to record.
+  closingEntityWindows.showing(['chest', 'content', 'barrel', 'furnace', 'cooking', 'press', 'fermentation'].includes(overworldUi.openWindow ?? '')
+    ? closingEntityKey : null);
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
@@ -4099,7 +4102,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
 function activateInteraction(target: EInteractionTarget, snapshot: OverworldView): void {
   switch (target.kind) {
     case 'hearth_stash':
-      showResult(network.openHearthStash(),null);return;
+      closingEntityWindows.interacted(); showResult(network.openHearthStash(),null);return;
     case 'hearth_supply_cache':
       showResult(network.openHearthSupplyCache(), 'PERSONAL STASH: SHARED WITH DELVE LOBBY');return;
     case 'ferry':
@@ -4115,12 +4118,14 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
       if(hearthFurnitureShapeForPlaceable(
         snapshot.content.registry, target.placeable,
       )?.seatPoseOffsetPixels!==undefined){showResult(network.sitHearthFurniture(target.placeable.id),null);return;}
+      closingEntityWindows.interacted();
       showResult(
         network.interactEntity('placeable', target.placeable.id, 'use'),
         target.presentation?.feedback ?? null,
       );
       return;
     case 'chest':
+      closingEntityWindows.interacted();
       showResult(network.interactEntity('placeable', target.chest.id, 'use'), 'CHEST OPENED');
       return;
     case 'merchant':

@@ -34,8 +34,18 @@ export const CLOSING_ENTITY_WINDOW_MS = 2_000;
  */
 export class ClosingEntityWindows {
   private closing: { readonly key: string; readonly at: number } | null = null;
+  private shown: string | null = null;
+  /** The entity whose window the last snapshot sync left on screen (null when none is). The close callbacks record
+   * this one, not the newest snapshot's entity: when the sync itself closes a window because the server switched to
+   * another entity, the new entity must not be suppressed (review of #252, finding 1). */
+  showing(key: string | null): void { this.shown = key; }
+  /** The player closed the window on screen (Escape, the close button, a key, or the sync switching entities). */
+  closedShown(now: number): void { this.closed(this.shown, now); this.shown = null; }
   /** The player closed the window of this entity (a chest id, a placeable id, or the hearth stash). */
   closed(key: string | null, now: number): void { this.closing = key === null ? null : { key, at: now }; }
+  /** The player interacted with an entity again: a fresh open must never wait for an old close (review of #252,
+   * finding 2). */
+  interacted(): void { this.closing = null; }
   /** Called with the server's currently open entity each snapshot; forgets the guard once it no longer applies. */
   observe(active: string | null, now: number): void {
     if (this.closing !== null && (active !== this.closing.key || now - this.closing.at >= CLOSING_ENTITY_WINDOW_MS)) this.closing = null;
