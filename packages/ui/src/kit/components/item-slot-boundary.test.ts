@@ -62,8 +62,8 @@ const ALLOWLIST: Readonly<Record<string, Counts>> = {
   'ui/src/npc-interaction-ui.ts': { 'item-art-lookup': 1 },
   // Expedition Rewards window, legacy drawItem rows (S7).
   'ui/src/outdoor-rewards.ts': { 'item-painter': 2 },
-  // Held stack, spread corners, drawItemIcon and the legacy window painters (S2, S3, S5, S9).
-  'ui/src/overworld-ui.ts': { 'slot-internals': 15, 'item-painter': 52, 'item-art-lookup': 2, 'item-art-pixels': 3 },
+  // drawItemIcon and the legacy window painters (S5, S9). The held stack and spread corners moved to the kit (S3).
+  'ui/src/overworld-ui.ts': { 'slot-internals': 14, 'item-painter': 49, 'item-art-lookup': 2, 'item-art-pixels': 3 },
   // The legacy second slot painter, drawUiInventorySlot* (S9).
   'ui/src/design-system/inventory.ts': { 'slot-internals': 5, 'item-painter': 2, 'item-art-lookup': 1, 'item-art-pixels': 2 },
   // HUD hotbar renderContent and the main-hand disc (S5).

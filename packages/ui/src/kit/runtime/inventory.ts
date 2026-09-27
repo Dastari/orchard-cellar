@@ -15,6 +15,8 @@ export interface UiInventoryModel {
   pointerUp(ref?: UiInventorySlotRef, options?: { readonly shift?: boolean }): UiInventoryAction; cancel(): void;
 }
 export { UiInventoryInteractionModel };
+/** Each of the refused-drop flash's two frames lasts this long: about 300ms in all (render 02). */
+export const UI_SLOT_REFUSED_FLASH_FRAME_MS = 150;
 export type { UiInventorySlotRef };
 export class UiInventoryController {
   private slots = new Map<UiElement, UiInventorySlotRef>();
@@ -26,8 +28,41 @@ export class UiInventoryController {
   register(element: UiElement, ref: UiInventorySlotRef): () => void { this.slots.set(element, ref); return () => this.slots.delete(element); }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   refresh(): void { for (const element of this.slots.keys()) element.invalidateRoot?.(false); for (const listener of this.listeners) listener(); }
-  private hit(point: UiPoint): UiInventorySlotRef | undefined {
-    return [...this.slots].toReversed().find(([node]) => uiElementEnabled(node) && containsPoint(node.clip, point) && containsPoint(node.rect, point))?.[1];
+  /** Moves only when the slots' rules or membership change (a new frame, content or capacity), never per frame: a
+   * slot keeps its drop verdict for the held stack until this, the held stack or the slot's own stack changes. */
+  rulesRevision = 0;
+  /** The host's slot rules or slot set changed: every slot re-checks its drop verdict. */
+  invalidateRules(): void { this.rulesRevision++; this.refresh(); }
+  private refusals = new Map<string, number>();
+  private hit(point: UiPoint): UiInventorySlotRef | undefined { const node = this.slotElementAt(point); return node === undefined ? undefined : this.slots.get(node); }
+  /** The topmost enabled slot element registered with this controller under a point (the held stack's badge reads its
+   * verdict). The last registered match is on top; nothing is allocated. */
+  slotElementAt(point: UiPoint): UiElement | undefined {
+    let found: UiElement | undefined;
+    for (const node of this.slots.keys()) if (uiElementEnabled(node) && containsPoint(node.clip, point) && containsPoint(node.rect, point)) found = node;
+    return found;
+  }
+  /** Forgets every pending refused-drop flash: the window closed or its slots were rebuilt, so a late refusal can't
+   * replay on a reopened slot with the same ref. */
+  clearRefusals(): void { if (this.refusals.size > 0) { this.refusals.clear(); this.refresh(); } }
+  /** Whether a slot is a target of the spread in progress (white corners; the slot under the pointer is green). */
+  spreadTarget(ref: UiInventorySlotRef): boolean { void ref; return false; }
+  /** Plays the refused-drop flash on these slots (owner decision 2026-09-27, render 02): released over a slot that
+   * refuses the held stack, or refused by the server. */
+  refuse(refs: readonly UiInventorySlotRef[], now = performance.now()): void {
+    for (const ref of refs) this.refusals.set(`${ref.container}:${ref.index}`, now);
+    this.refresh();
+  }
+  /** The refused-drop flash frame at `now`: 1 (red wash and pushed-out red corners), 2 (red corners), or 0 (rest). */
+  refusalFrame(ref: UiInventorySlotRef, now: number): 0 | 1 | 2 {
+    if (this.refusals.size === 0) return 0;
+    const key = `${ref.container}:${ref.index}`, at = this.refusals.get(key);
+    if (at === undefined) return 0;
+    const elapsed = now - at;
+    if (elapsed >= 0 && elapsed < UI_SLOT_REFUSED_FLASH_FRAME_MS) return 1;
+    if (elapsed >= 0 && elapsed < 2 * UI_SLOT_REFUSED_FLASH_FRAME_MS) return 2;
+    if (elapsed >= 2 * UI_SLOT_REFUSED_FLASH_FRAME_MS) this.refusals.delete(key);
+    return 0;
   }
   private claimPointer(event: UiElementPointer): boolean {
     if (this.ownerPointerId !== null && this.ownerPointerId !== event.pointerId) return false;
@@ -70,5 +105,5 @@ export class UiInventoryController {
     if (this.model.dragging) { const released = this.model.pointerUp(ref, { shift }); this.onAction?.(released); } this.refresh();
   }
   cancel(): void { this.ownerPointerId = null; this.model.cancel(); this.refresh(); }
-  dispose(): void { this.ownerPointerId = null; this.model.cancel(); this.slots.clear(); this.listeners.clear(); }
+  dispose(): void { this.ownerPointerId = null; this.model.cancel(); this.slots.clear(); this.listeners.clear(); this.refusals.clear(); }
 }

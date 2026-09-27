@@ -9,7 +9,7 @@ export const inventorySpecimen: UiLabSpecimen = {
       ui.scrollArea({ gap: 8, width: 'grow', height: 'grow' }, [status, ui.text('Backpack'), ui.inventoryGrid({ container: 'backpack', count: 12, controller, artwork, columns: props['columns'] as 'auto' | number, slotSize: 'auto' }),
         ui.text('Storage'), ui.inventoryGrid({ container: 'entity', count: 12, controller, artwork, columns: 'auto', slotSize: 'auto' }), ui.text('Restricted equipment'), ui.paperDoll({ container: 'equipment', controller, artwork }),
         ui.hotbar({ container: 'hotbar', count: 9, controller, artwork }), ui.button({ label: 'Cancel drag', onPress: () => { controller.cancel(); mock.activate('cancel'); } }),
-      ]), ui.cursor({ controller, artwork }),
+      ]), ui.heldStack({ controller, artwork }), ui.cursor(),
     ] });
   },
 };
