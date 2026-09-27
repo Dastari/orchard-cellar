@@ -359,7 +359,9 @@ export class OverworldConnection {
   get chunkFailedKeys(): ReadonlySet<string> | undefined { return this.chunkRuntime?.failedChunks; }
   /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
   chunkAuthorityGate(): ChunkAuthorityGate | null {
-    return this.chunkRuntime?.authorityGate(this.chunkRuntimeSource()) ?? 'not_on';
+    // BUG-055: `not_on` only without a controller. The controller's `null` (no gate: the serving
+    // revision may stand in for the server) must pass through, or chunk collision never serves.
+    return this.chunkRuntime === undefined ? 'not_on' : this.chunkRuntime.authorityGate(this.chunkRuntimeSource());
   }
   private chunkRuntimeSource(): ChunkRuntimeSource {
     return { mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash };
