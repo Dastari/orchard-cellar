@@ -777,9 +777,12 @@ describe('index.ts collision dispatcher wiring', () => {
       expect(functionText('generatedSurvivalResources')).toContain('generateSurvivalResources(SURVIVAL_WORLD_SEED, registry)');
       const reconcile = functionText('reconcileGeneratedSurvivalResources');
       expect(reconcile.match(/liveIslandCollisionRuntime\(ctx\)/gu)).toHaveLength(1);
-      expect(reconcile).toContain('liveMapRuntime?.staticView.resourcePlacements');
-      expect(reconcile).toContain('liveIslandGeneratedResources(ctx, liveMapRuntime)');
-      expect(functionText('adminResourceCandidates')).toContain('liveIslandGeneratedResources(ctx).filter(');
+      // BUG-052: reconcile and admin respawn share one placement rule.
+      expect(reconcile).toContain('const { placements, desired } = placedLiveIslandResources(ctx, liveMapRuntime);');
+      const placed = functionText('placedLiveIslandResources');
+      expect(placed).toContain('liveMapRuntime?.staticView.resourcePlacements');
+      expect(placed).toContain('liveIslandGeneratedResources(ctx, liveMapRuntime)');
+      expect(functionText('adminResourceCandidates')).toContain('placedLiveIslandResources(ctx, liveIslandCollisionRuntime(ctx)).desired.values()');
       expect(functionText('objectGrowthTimeline')).toContain('view.biomeAt(row.tileX, row.tileY) ?? LIVE_ISLAND_OUTSIDE_MAP_BIOME');
       // The swing resolves one runtime for its collision and every resource's suppression check.
       const swing = functionText('applyToolSwingLifecycle');

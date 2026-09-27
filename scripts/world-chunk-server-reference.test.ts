@@ -17,7 +17,9 @@ describe('world chunk server oracle mirror guard', () => {
     const edits: readonly (readonly [string, string, string])[] = [
       ['collisionForSpace:ground-composition', "'ground',\n    placeables,", "'ground',\n    [],"],
       ['waterCollisionForSpace:water-composition', "'water', [], instanceForSpace(ctx, spaceId)", "'water', [], null"],
-      ['reconcileGeneratedSurvivalResources:desired', 'tileX: placement.tileX, tileY: placement.tileY', 'tileX: placement.originTileX, tileY: placement.tileY'],
+      ['placedLiveIslandResources', 'tileX: placement.tileX, tileY: placement.tileY', 'tileX: placement.originTileX, tileY: placement.tileY'],
+      ['reconcileGeneratedSurvivalResources:placed', 'const { placements, desired } = placedLiveIslandResources(ctx, liveMapRuntime);',
+        'const { placements, desired } = placedLiveIslandResources(ctx, null);'],
       ['reconcileGeneratedSurvivalResources:orphan-keep', 'if (placements.has(existing.id)) continue;', ''],
       ['generatedWorldResourceRow', 'activationOrdinal: resource.activationOrdinal ?? 0,', 'activationOrdinal: resource.activationOrdinal ?? 0, variant: resource.variant,'],
     ];

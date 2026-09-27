@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## World 0.30.1 — Admin respawn honours resource placements (BUG-052)
+
+- **BUG-052 (#232).** The admin resource respawn inserted each resource at its generated tile and ignored the map's resource placements. Admin respawn and reconcile now share one helper, `placedLiveIslandResources`, so a respawned resource lands exactly where reconcile would place it. The respawn area also matches resources by that tile. Reconcile itself is unchanged, and the live map has no placements today, so no production resources move.
+- Workspace 0.71.1.
+
 ## World 0.30.0 — Static world S3c: resource placements and generation from chunk records
 
 - **S3c (#230).** Resource reconcile and the admin respawn now take resource placements and the generated resource set from the runtime the dispatcher selects, through a new `generatedResources()`:

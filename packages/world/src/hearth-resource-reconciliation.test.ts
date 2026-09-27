@@ -3,9 +3,12 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'reconcileGeneratedSurvivalResources');
-if (!declaration) throw new Error('missing production resource reconciliation');
-const code = ts.transpileModule(`${declaration.getText(source)}\nreturn reconcileGeneratedSurvivalResources;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+const declarations = ['reconcileGeneratedSurvivalResources', 'placedLiveIslandResources'].map(name => {
+  const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
+  if (!declaration) throw new Error(`missing production ${name}`);
+  return declaration.getText(source);
+});
+const code = ts.transpileModule(`${declarations.join('\n')}\nreturn reconcileGeneratedSurvivalResources;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function fixture(patch: Record<string, unknown> = {}, placements: sim.MapResourcePlacement[] = []) {
   type Row = { id: bigint; kind: string; tileX: number; tileY: number; chunkX: number; chunkY: number; spaceId: number; [key: string]: unknown };
   const sites: Row[] = sim.HEARTH_RESOURCE_SITES.map(site => ({ id: site.id, kind: site.kind, spaceId: 0,
