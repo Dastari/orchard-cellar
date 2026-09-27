@@ -182,6 +182,7 @@ import SendChatMessageReducer from "./send_chat_message_reducer";
 import SendWhisperReducer from "./send_whisper_reducer";
 import SendWorldSpeechReducer from "./send_world_speech_reducer";
 import SetAppearanceReducer from "./set_appearance_reducer";
+import SetChunkAuthorityReducer from "./set_chunk_authority_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetHomesteadMemberRoleReducer from "./set_homestead_member_role_reducer";
 import SetInputReducer from "./set_input_reducer";
@@ -229,6 +230,7 @@ import * as AdminStudioMembersProcedure from "./admin_studio_members_procedure";
 import * as AdminStudioScopesProcedure from "./admin_studio_scopes_procedure";
 import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
+import * as AuditChunkAuthorityProcedure from "./audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "./inspect_world_chunk_shadow_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
 import * as StudioScopeReceiptProcedure from "./studio_scope_receipt_procedure";
@@ -1542,6 +1544,7 @@ const reducersSchema = __reducers(
   __reducerSchema("send_whisper", SendWhisperReducer),
   __reducerSchema("send_world_speech", SendWorldSpeechReducer),
   __reducerSchema("set_appearance", SetAppearanceReducer),
+  __reducerSchema("set_chunk_authority", SetChunkAuthorityReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("set_homestead_member_role", SetHomesteadMemberRoleReducer),
   __reducerSchema("set_input", SetInputReducer),
@@ -1591,6 +1594,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_studio_scopes", AdminStudioScopesProcedure.params, AdminStudioScopesProcedure.returnType),
   __procedureSchema("admin_telemetry", AdminTelemetryProcedure.params, AdminTelemetryProcedure.returnType),
   __procedureSchema("admin_validate_world", AdminValidateWorldProcedure.params, AdminValidateWorldProcedure.returnType),
+  __procedureSchema("audit_chunk_authority", AuditChunkAuthorityProcedure.params, AuditChunkAuthorityProcedure.returnType),
   __procedureSchema("inspect_world_chunk_shadow", InspectWorldChunkShadowProcedure.params, InspectWorldChunkShadowProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
   __procedureSchema("studio_scope_receipt", StudioScopeReceiptProcedure.params, StudioScopeReceiptProcedure.returnType),

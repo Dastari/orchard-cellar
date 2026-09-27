@@ -56,6 +56,7 @@ function fixture(actualAttacks=false,boundedCollision=false){
   const kinds={ember_slime:'slime_small_red',ember_cowling:'cowling',cowling_pyromancer:'cowling_mage',cinder_skull:'flying_skull',caldera_warden:'cowling'};
   const api=production({...sim,SenderError:Error,OUTDOOR_NPC_ID_BASE:8_900_000_000_000n,OUTDOOR_NATIVE_KINDS:kinds,OUTDOOR_NAMES:kinds,OUTDOOR_RETURN_PATHS:new Map(),
     contentRegistry:()=>sim.bootstrapContentRegistry(),compiledLiveIslandRuntime:()=>policy===undefined?null:{combatPolicy:policy},
+    liveIslandCollisionRuntime:()=>policy===undefined?null:{combatPolicy:policy},
     waterCollisionForSpace:()=>collision,
     collisionForSpace:()=>{collisionBuilds++;return collision;},outdoorCollisionMap:()=>collision,combatElevationAt:(_collision:unknown,x:number,y:number)=>elevations[Math.floor(y/unit)*width+Math.floor(x/unit)]??-32768,
     chunkAt:(value:number)=>Math.floor(value/(unit*16)),parseNpcFacing:(value:string)=>value,requireAuthorizedSender:()=>{},stepCommittedRogueAttack:()=>true,
