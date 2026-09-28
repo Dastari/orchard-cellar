@@ -375,11 +375,20 @@ export interface UiHeldStackOptions {
 export function uiHeldStack(options: UiHeldStackOptions): UiElement {
   const slotArt = options.art ?? uiSlotArt({ ...(options.artwork ? { artwork: options.artwork } : {}), ...(options.iconAnimation ? { iconAnimation: options.iconAnimation } : {}), ...(options.contentRegistry ? { contentRegistry: options.contentRegistry } : {}) });
   let observed: UiPoint | null = null, body: UiSlotBody | undefined;
+  // One flash painter per held stack, not per frame: nothing is allocated while a stack is held and no flash plays.
+  const flashTarget: { context: CanvasRenderingContext2D | null; art: UiKitArt | null } = { context: null, art: null };
+  const paintFlash = (slot: UiElement, _ref: UiInventorySlotRef, flashFrame: 1 | 2) => {
+    const context = flashTarget.context, art = flashTarget.art; if (!context || !art) return;
+    const clip = uiSlotScrollClip(slot);
+    context.save();
+    if (clip) { context.beginPath(); context.rect(clip.x, clip.y, clip.width, clip.height); context.clip(); }
+    paintUiSlotRefusedFlash(context, art, slot.rect, flashFrame); context.restore();
+  };
   const unsubscribe = options.controller.subscribe(() => held.invalidateRoot?.(false));
   const held: UiElement = new UiElement({ id: options.id, kind: 'held-stack', label: 'Held stack', disabled: true,
     style: { position: 'fixed', width: 'grow', height: 'grow', zLayer: 'cursor' },
     onPointerObserved(event) { observed = event.point; },
-    paint(_element, { context, art }) {
+    paint(_element, { context, art, now }) {
       const stack = options.controller.model.displayedCursor(), point = options.point?.() ?? observed;
       if (!art || art.missingArt || !stack || !point) return;
       const r = uiHeldStackRect(point);
@@ -390,10 +399,23 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
         const entry = art.skin.icon['icon_catalog.catalog.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, 'catalog', REFUSED_BADGE);
         if (entry && frame) context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x - 3, r.y - 3, 12, 12);
       }
+      // The refused-drop flash is drawn again ABOVE the held stack for its 300ms (owner decision 2026-09-28, "ship as
+      // shown in mock"), so the stack released over the refusing slot doesn't hide it. The pointer arrow stays on top:
+      // the host composites it after this layer. Each flash keeps to its slot's scroll area.
+      flashTarget.context = context; flashTarget.art = art;
+      options.controller.forEachRefusal(now, paintFlash);
     },
     onDispose() { unsubscribe(); },
   });
   return held;
+}
+/** The clip of a slot's nearest scrolling or clipping ancestor, or null when nothing clips it but the viewport. */
+function uiSlotScrollClip(slot: UiElement): UiRect | null {
+  for (let node = slot.parent; node; node = node.parent) {
+    const overflow = node.style.overflow;
+    if (overflow !== undefined) return node.clip;
+  }
+  return null;
 }
 /** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
 function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {
