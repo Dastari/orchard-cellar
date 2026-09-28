@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { ItemStack } from '@orchard/sim';
 import { UiRoot } from '../runtime/root.js';
 import { UiInventoryController, type UiInventoryModel } from '../runtime/inventory.js';
-import type { UiElement } from '../runtime/element.js';
+import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { scrollUiElement } from '../layout/scroll.js';
 import { uiGamepadPagingKeys, uiInventoryPagingTarget, uiInventoryPanel, uiPlayerInventoryPane } from './inventory-panel.js';
 import { uiSlotDropTarget } from './inventory.js';
+import { uiFlex } from './layout.js';
+import { uiButton } from './button.js';
+import { uiPlayerHotbar } from './inventory-panel.js';
 
 // Uncapped Storage step 2 (wiki Roadmap/Uncapped Storage): a panel over many cells keeps (visible rows + 1) x columns
 // slots and recycles them as it scrolls; paging keys move focus and keep it in view.
@@ -133,13 +136,97 @@ describe('inventory paging keys', () => {
     expect(uiInventoryPagingTarget('End', 0, 0, 5, 4)).toBeNull();
   });
 
-  it('turns gamepad shoulder presses into one PageUp or PageDown each', () => {
-    const buttons = (...pressed: number[]) => Array.from({ length: 8 }, (_, index) => ({ pressed: pressed.includes(index) }));
-    let state = uiGamepadPagingKeys(buttons(5), new Set());
-    expect(state.keys).toEqual(['PageDown']);
-    state = uiGamepadPagingKeys(buttons(5), state.held); expect(state.keys).toEqual([]);
-    state = uiGamepadPagingKeys(buttons(4, 5), state.held); expect(state.keys).toEqual(['PageUp']);
-    state = uiGamepadPagingKeys(buttons(), state.held); expect(state.keys).toEqual([]);
-    state = uiGamepadPagingKeys(buttons(4), state.held); expect(state.keys).toEqual(['PageUp']);
+  it('turns gamepad shoulder presses on any pad into one PageUp or PageDown each', () => {
+    const pad = (...pressed: number[]) => ({ buttons: Array.from({ length: 8 }, (_, index) => ({ pressed: pressed.includes(index) })) });
+    const state = { held: 0 }, keys: string[] = [], send = (key: string) => keys.push(key);
+    uiGamepadPagingKeys([pad(5)], state, send); expect(keys).toEqual(['PageDown']);
+    uiGamepadPagingKeys([pad(5)], state, send); expect(keys).toEqual(['PageDown']);
+    uiGamepadPagingKeys([pad(4, 5)], state, send); expect(keys).toEqual(['PageDown', 'PageUp']);
+    uiGamepadPagingKeys([pad()], state, send);
+    uiGamepadPagingKeys([null, pad(), pad(4)], state, send); expect(keys).toEqual(['PageDown', 'PageUp', 'PageUp']);
+  });
+});
+
+describe('#270 review', () => {
+  it('lets arrows leave a 20-cell pane at its edges: the window, not the grid, takes the key there', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(480, 360);
+    const reached: string[] = [];
+    const pane = uiPlayerInventoryPane({ id: 'pack', label: 'BACKPACK', container: 'backpack', count: 20, rows: 4, onActivate: () => undefined, stack: () => null });
+    const hotbar = uiPlayerHotbar({ id: 'bar', container: 'hotbar', selected: () => -1, onActivate: () => undefined, stack: () => null });
+    const done = uiButton({ id: 'done', label: 'Done', onPress: () => undefined });
+    root.mount(new UiElement({ kind: 'window', children: [uiFlex({ direction: 'column' }, [pane, hotbar, done])],
+      onKey(event: UiElementKey) { reached.push(event.key); return false; } }));
+    root.arrange();
+    const slot = (index: number) => root.entries().find(entry => entry.element.id === `pack.slot.${index}`)!.element;
+    const press = (key: string) => { root.key({ key }); root.arrange(); };
+    root.focus.set(slot(0), 'keyboard');
+    press('ArrowUp'); press('ArrowLeft');
+    expect(reached).toEqual(['ArrowUp', 'ArrowLeft']); expect(root.focus.current).toBe(slot(0));
+    press('ArrowRight'); expect(root.focus.current).toBe(slot(1)); expect(reached).toHaveLength(2);
+    root.focus.set(slot(19), 'keyboard');
+    press('ArrowRight'); press('ArrowDown');
+    expect(reached).toEqual(['ArrowUp', 'ArrowLeft', 'ArrowRight', 'ArrowDown']);
+    // The walk out of the pane is the window's: Tab from the last cell reaches the hotbar, then the button.
+    press('Tab'); expect(root.focus.current?.id).toBe('bar.slot.0');
+    for (let i = 0; i < 10; i++) press('Tab');
+    expect(root.focus.current?.id).toBe('done');
+    root.dispose();
+  });
+
+  it('moves focus off a slot whose cell scrolls out of view, and hover follows the pointer', () => {
+    const f = mount(1000);
+    const cell2 = f.shown().find(node => bindingOf(node) === 2)!;
+    f.root.focus.set(cell2, 'keyboard');
+    // Scrolled six rows by the wheel or scrollbar: cell 2 is gone, and its slot now shows cell 52.
+    f.scroll(6 * PITCH);
+    expect(bindingOf(cell2)).toBe(52);
+    expect(bindingOf(f.root.focus.current!)).toBe(32);
+    expect(f.inView(f.root.focus.current!)).toBe(true);
+    // Scrolled back up past it from below, focus lands on the last row in view, same column.
+    f.root.focus.set(f.shown().find(node => bindingOf(node) === 52)!, 'keyboard');
+    f.scroll(0);
+    expect(bindingOf(f.root.focus.current!)).toBe(17);
+    const under = f.shown().find(node => bindingOf(node) === 7)!;
+    const point = { x: under.rect.x + 4, y: under.rect.y + 4 };
+    f.root.pointer({ type: 'move', point, pointerId: 1, button: 0, pointerType: 'mouse' }); f.root.arrange();
+    f.scroll(3 * PITCH);
+    const hovered = f.root.input.hovered!;
+    expect(hovered.kind).toBe('slot');
+    expect(bindingOf(hovered)).toBe(22);
+    expect(hovered.rect.y).toBeLessThanOrEqual(point.y); expect(hovered.rect.y + hovered.rect.height).toBeGreaterThan(point.y);
+    f.root.dispose();
+  });
+
+  it('does not re-filter on pointer motion, only when the stacks, query or capacity change', () => {
+    let reads = 0;
+    const apple: ItemStack = { itemKind: 'apple', quantity: 1 };
+    const model: UiInventoryModel = { cursor: null, status: '', dragging: false, stack: () => { reads++; return apple; }, displayedCursor: () => null,
+      canAccept: () => true, pointerDown: () => ({ type: 'none' }) as never, pointerEnter: () => false,
+      pointerUp: () => ({ type: 'none' }) as never, cancel: () => undefined };
+    const controller = new UiInventoryController(model);
+    const f = mount(300, { controller, filter: 'apple' });
+    const slot = f.shown()[3]!, point = { x: slot.rect.x + 4, y: slot.rect.y + 4 };
+    reads = 0;
+    for (let i = 0; i < 20; i++) { f.root.pointer({ type: 'move', point: { x: point.x + (i % 3), y: point.y }, pointerId: 1, button: 0, pointerType: 'mouse' }); f.root.arrange(); }
+    controller.pointer({ type: 'move', point, pointerId: 1, button: 0, pointerType: 'mouse', capture: () => undefined, release: () => undefined } as never, { container: 'bag', index: 3 });
+    expect(reads).toBe(0);
+    controller.refresh();
+    expect(reads).toBeGreaterThanOrEqual(300);
+    f.root.dispose(); controller.dispose();
+  });
+
+  it('rebinds a recycled slot\'s icon with its cell', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(480, 360);
+    root.mount(uiInventoryPanel({ id: 'bag', container: 'bag', columns: 5, visibleRows: 4, onActivate: () => undefined, stack: () => null,
+      cells: Array.from({ length: 100 }, (_, index) => ({ id: String(index), index, ...(index === 30 ? { icon: { lucide: 'star' } as const } : {}) })) }));
+    root.arrange();
+    const area = root.entries().find(entry => entry.element.kind === 'scroll-area')!.element;
+    const slot5 = root.entries().find(entry => entry.element.id === 'bag.slot.5')!.element;
+    expect(slot5.children).toHaveLength(0);
+    scrollUiElement(area, 0, 6 * PITCH); root.arrange();
+    expect(bindingOf(slot5)).toBe(30); expect(slot5.children).toHaveLength(1);
+    scrollUiElement(area, 0, 0); root.arrange();
+    expect(bindingOf(slot5)).toBe(5); expect(slot5.children).toHaveLength(0);
+    root.dispose();
   });
 });

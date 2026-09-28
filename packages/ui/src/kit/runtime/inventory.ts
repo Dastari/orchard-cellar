@@ -27,7 +27,12 @@ export class UiInventoryController {
   constructor(readonly model: UiInventoryModel, readonly onAction?: (action: UiInventoryAction) => void) {}
   register(element: UiElement, ref: UiInventorySlotRef): () => void { this.slots.set(element, ref); return () => this.slots.delete(element); }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
-  refresh(): void { for (const element of this.slots.keys()) element.invalidateRoot?.(false); for (const listener of this.listeners) listener(); }
+  /** Moves whenever the stacks may have changed (the host refreshed, or a press, release or cancel acted), but not on
+   * pointer motion alone, so a panel's filter isn't re-run as the pointer moves. */
+  stacksRevision = 0;
+  refresh(): void { this.stacksRevision++; this.repaint(); }
+  /** Redraws the slots and tells listeners, without claiming the stacks changed (pointer motion). */
+  private repaint(): void { for (const element of this.slots.keys()) element.invalidateRoot?.(false); for (const listener of this.listeners) listener(); }
   /** Moves only when the slots' rules or membership change (a new frame, content or capacity), never per frame: a
    * slot keeps its drop verdict for the held stack until this, the held stack or the slot's own stack changes. */
   rulesRevision = 0;
@@ -101,7 +106,7 @@ export class UiInventoryController {
         if (this.model.pointerMove) this.model.pointerMove(event.point, target);
         else if (target) this.model.pointerEnter(target);
       }
-      this.refresh(); return true;
+      this.repaint(); return true;
     }
     if (event.type === 'up') { if (this.model.dragging) { const action = this.model.pointerUp(this.hit(event.point), { shift: event.shiftKey }); this.onAction?.(action); } this.ownerPointerId = null; event.release(); this.refresh(); return true; }
     if (event.type === 'cancel') { this.cancel(); event.release(); return true; } return false;
