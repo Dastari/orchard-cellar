@@ -161,18 +161,6 @@ export function frameStorageSpec(definition: FrameContentDefinition): StorageFra
   };
 }
 
-/** Search shares the space between the chest panes and the hotbar. */
-export function chestInventorySearchRect(frame: ContentFrameLayout): UiRect | null {
-  if (frame.definition.presentation?.surface !== 'entity'
-    || frame.definition.presentation.entityContainer !== 'chest') return null;
-  return {
-    x: frame.storage.frame.x + 17,
-    y: Math.max(...frame.panes.map(({ layout }) => layout.grid.y + layout.grid.height)) + 4,
-    width: frame.storage.frame.width - 34,
-    height: 22,
-  };
-}
-
 function frameButtons(
   frame: StorageFrameLayout,
   definitions: readonly FrameButtonDefinition[],

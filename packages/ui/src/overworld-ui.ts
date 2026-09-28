@@ -46,20 +46,17 @@ import { MAX_TOUCH_BOTTOM_OFFSET, DEFAULT_TOUCH_CONTROL_PREFERENCES, type TouchC
 import { BUTTON_HEIGHT, CanvasButton } from './button.js';
 import { drawToggleSwitch, Toggle } from './toggle.js';
 import { Ribbon, STACKED_RIBBON_HEIGHT } from './ribbon.js';
-import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot, itemSlotRejectsCursor } from './item-slot.js';
+import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot } from './item-slot.js';
 import { HelpBook } from './help-book.js';
 import { ScrollBar } from './scrollbar.js';
 import {
-  drawStorageFrameChrome,
   layoutStorageFrame,
   type StorageFrameLayout,
   type StorageFrameSpec,
 } from './storage-frame.js';
 import {
-  chestInventorySearchRect,
   contentFrameButtonAt,
   contentFramePaneVisible,
-  drawContentFrame,
   frameSlotAuthorityRestriction,
   layoutContentFrame,
   type ContentFrameLayout,
@@ -67,7 +64,6 @@ import {
 import { CurrencyDisplay } from './currency-display.js';
 import { PlayerResourceFrame } from './player-resource-frame.js';
 import { pwaUpdateLabel, type PwaUpdateStatus } from './pwa-update.js';
-import { drawCanvasTextInput } from './canvas-text-input.js';
 import {
   drawUiLabelPlate,
   drawUiSkinAsset,
@@ -83,7 +79,7 @@ import type { SkillPointNotice } from './skill-point-notice.js';
 import { StatisticsScreen, type StatisticsScreenModel } from './statistics-screen.js';
 import { type ProgressionTab } from './progression-tabs.js';
 import { QuestLog, type QuestLogEntry } from './quest-log.js';
-import { drawUiInventorySlotBacking, uiInventorySelectorRect } from './design-system/inventory.js';
+import { drawUiInventorySlotBacking } from './design-system/inventory.js';
 import { uiDurabilityFraction } from './item-durability.js';
 import {
   drawFantasyButton,
@@ -1485,11 +1481,10 @@ export class OverworldUi {
   private retainedFrame(): ContentFrameLayout | null {
     if (!this.retainedMenus) return null;
     const frame = this.activeContentFrame();
-    // Authored placeables and the hearth stash enter through the generic content window. Adopt only reviewed frame
-    // IDs, so every window that shows the player's inventory uses the shared kit pane (BUG-067).
-    if (this.openWindowValue === 'content') return frame && [
-      'frame:barrel', 'frame:furnace', 'frame:cooking', 'frame:press', 'frame:fermentation', 'frame:hearth_stash',
-    ].includes(frame.definition.id) ? frame : null;
+    // Authored placeables and the hearth stash enter through the generic content window. Every entity frame is the
+    // kit's, whatever its id (a new Studio-authored frame too), so every window that shows the player's inventory
+    // uses the shared kit pane (BUG-067, item slot S9).
+    if (this.openWindowValue === 'content') return frame?.definition.presentation?.surface === 'entity' ? frame : null;
     return ['inventory', 'crafting', 'chest', 'barrel', 'furnace', 'cooking', 'press', 'fermentation']
       .includes(this.openWindowValue ?? '') ? frame : null;
   }
@@ -2562,8 +2557,8 @@ export class OverworldUi {
   private inventorySearchRect(): UiRect | null {
     if (this.openWindowValue === 'inventory') return this.layout.inventoryFilter;
     if (this.openWindowValue === 'crafting') return this.layout.craftingInventoryFilter;
-    const frame = this.activeContentFrame();
-    return frame === null ? null : chestInventorySearchRect(frame);
+    // Storage and authored entity frames search with the kit pane's own filter (BUG-067).
+    return null;
   }
 
   private inventorySlotMatchesSearch(slot: ItemSlot): boolean {
@@ -3446,18 +3441,6 @@ export class OverworldUi {
       if (this.inventoryFilterInput) { this.inventoryFilterInput.hidden = true; this.inventoryFilterInput.blur(); }
       if (this.recipeFilterInput) { this.recipeFilterInput.hidden = true; this.recipeFilterInput.blur(); }
     }
-    const chestFrame = this.activeContentFrame();
-    if (chestFrame !== null && chestInventorySearchRect(chestFrame) !== null) {
-      for (const [container, node] of [['chest', this.chestSortNode], ['backpack', this.backpackSortNode]] as const) {
-        const pane = chestFrame.panes.find((candidate) => candidate.slots.some((binding) => binding.containerId === container)
-          && contentFramePaneVisible(candidate.definition, this.activeContentFrameState()));
-        node.visible = pane !== undefined;
-        if (pane !== undefined) node.setBounds({
-          x: pane.layout.grid.x + pane.layout.grid.width - 16,
-          y: pane.layout.labelPosition.y - 4, width: 16, height: 16,
-        });
-      }
-    }
   }
 
   /** Projects authored pane bindings onto the stable retained ItemSlot nodes.
@@ -3951,50 +3934,13 @@ export class OverworldUi {
       }
       return;
     }
+    // Inventory, crafting, storage and authored entity windows are the kit's (BUG-067, item slot S9): the host never
+    // draws the player's inventory or any item slot itself.
+    if (this.isInventoryWindow(window)) return;
     const rect = this.activeWindowRect();
-    const contentFrame = this.activeContentFrame(window);
-    const authoredEntityFrame = contentFrame?.definition.presentation?.surface === 'entity';
-    const chestSearch = contentFrame === null ? null : chestInventorySearchRect(contentFrame);
-    if (contentFrame !== null) drawContentFrame(context, contentFrame, {
-      progress: this.model.activeFrameProgress,
-      timing: this.model.activeFrameTiming,
-      state: this.activeContentFrameState(),
-    }, {
-      skin: this.skin,
-      fonts: this.fonts,
-      pointer: this.pointer,
-      drawSlot: (_drawContext, _pane, slotRect, binding) => {
-        if (!authoredEntityFrame) return;
-        const collection = binding.containerId === 'chest' ? this.chestItemSlots
-          : binding.containerId === 'stash' ? this.stashItemSlots
-          : binding.containerId === 'placeable' ? this.placeableItemSlots
-            : binding.containerId === 'backpack' ? this.backpackItemSlots
-              : binding.containerId === 'hotbar' ? this.inventoryHotbarSlots
-                : binding.containerId === 'equipment' ? this.equipmentItemSlots
-                  : binding.containerId === 'crafting' ? this.craftingItemSlots : [];
-        const chestPane = chestSearch !== null
-          && (binding.containerId === 'chest' || binding.containerId === 'backpack');
-        const slot = chestPane
-          ? collection.find((candidate) => candidate.visible && candidate.bounds.x === slotRect.x && candidate.bounds.y === slotRect.y)
-          : collection.find((candidate) => candidate.index === binding.index);
-        if (slot === undefined) {
-          if (chestPane) drawUiInventorySlotBacking(_drawContext, this.skin, slotRect, undefined);
-          return;
-        }
-        this.drawItemSlotBacking(_drawContext, slot);
-        if (slot.item) this.drawInventoryItem(
-          _drawContext, slotRect, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit,
-        );
-      },
-      drawPane: authoredEntityFrame ? undefined : (_context, pane) => !('state' in pane.definition.bind),
-      drawResizeHandles: false,
-    });
-    else if (window === 'chest') drawStorageFrameChrome(context, this.skin, this.layout.chestStorageFrame);
-    else {
-      drawUiSkinAsset(context, this.skin.panelWood, rect);
-      drawUiSkinAsset(context, this.skin.panelParchment, { x: rect.x + 10, y: rect.y + 13, width: rect.width - 20, height: rect.height - 23 });
-    }
-    const title = contentFrame?.definition.title ?? (window === 'inventory' || window === 'pack' ? 'INVENTORY'
+    drawUiSkinAsset(context, this.skin.panelWood, rect);
+    drawUiSkinAsset(context, this.skin.panelParchment, { x: rect.x + 10, y: rect.y + 13, width: rect.width - 20, height: rect.height - 23 });
+    const title = (window === 'inventory' || window === 'pack' ? 'INVENTORY'
       : window === 'crafting' ? 'CRAFTING'
         : window === 'chest' ? 'CHEST'
           : window === 'barrel' ? 'BARREL'
@@ -4012,17 +3958,7 @@ export class OverworldUi {
       tone: 'red', shape: 'square', size: 'small', glyph: 'cross',
       hovered: containsPoint(this.closeNode.bounds, this.pointer), hoverOutline: 'white',
     });
-    if (authoredEntityFrame) {
-      if (chestSearch !== null) {
-        if (this.chestSortNode.visible) this.drawStorageSortButton(context, this.chestSortNode, 'chest');
-        if (this.backpackSortNode.visible) this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
-        this.drawInventorySearch(context, chestSearch);
-      }
-      if (contentFrame.storage.hotbar !== undefined) this.drawWindowHotbar(context, rect, contentFrame.storage);
-    }
-    // Inventory windows are the kit's (BUG-067, item slot S9); the host never draws the player's inventory.
-    else if (this.isInventoryWindow(window)) return;
-    else if(window==='outdoor-rewards')this.outdoorRewards.draw(context,rect);
+    if(window==='outdoor-rewards')this.outdoorRewards.draw(context,rect);
     else if(window==='ferry')this.ferryMenu.draw(context,rect);
     else if (window === 'delve-confirmation') this.drawDelveConfirmation(context, rect);
     else if (window === 'settings') this.drawSettings(context);
@@ -4049,21 +3985,6 @@ export class OverworldUi {
     this.delveCancelButton.draw(context);
   }
 
-  private drawInventorySearch(context: CanvasRenderingContext2D, rect: UiRect): void {
-    drawUiSkinAsset(context, this.skin.frameThin, rect);
-    if (this.inventoryFilterInput !== null) {
-      drawCanvasTextInput(context, this.fonts, this.inventoryFilterInput, {
-        x: rect.x + 6,
-        y: rect.y + 5,
-        width: rect.width - 12,
-        placeholder: 'FILTER ITEMS',
-        color: '#51351f',
-        placeholderColor: '#986846',
-      });
-    } else drawLabel(context, this.fonts, this.inventoryFilterText || 'FILTER ITEMS', rect.x + 6, rect.y + 5, {
-      color: this.inventoryFilterText ? '#51351f' : '#986846',
-    });
-  }
 
 
   /** The open surface's live, enabled slot for a ref (the retained frame's bindings, or this host's own slots). */
@@ -4157,20 +4078,6 @@ export class OverworldUi {
     context.restore();
   }
 
-  private drawItemSlotBacking(context: CanvasRenderingContext2D, slot: ItemSlot): void {
-    drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind, !slot.enabled);
-    // Legacy windows (only the hearth stash still runs here) mark their own spread targets; kit slots draw theirs.
-    const press = this.cursorPress;
-    if (press?.cursorWasHeld && press.targets.length > 1 && slot.enabled && press.targets.includes(slot)) {
-      drawUiSkinNatural(context, this.skin.selectorNeutral, slot.bounds.x - 10, slot.bounds.y - 9, 'idle');
-    }
-    if (!itemSlotRejectsCursor(slot, this.heldCursorStack())) return;
-    context.save();
-    context.fillStyle = 'rgba(169, 54, 62, 0.58)';
-    context.fillRect(slot.bounds.x + 3, slot.bounds.y + 3, slot.bounds.width - 6, slot.bounds.height - 6);
-    drawUiSkinAsset(context, this.skin.selectorDeny, uiInventorySelectorRect(slot.bounds), 'idle');
-    context.restore();
-  }
 
   private drawSystemMenu(context: CanvasRenderingContext2D): void {
     const updateStatus = this.model.pwaUpdateStatus ?? 'unsupported';
@@ -4397,20 +4304,6 @@ export class OverworldUi {
 
 
 
-  private drawWindowHotbar(context: CanvasRenderingContext2D, rect: UiRect, storageFrame?: StorageFrameLayout): void {
-    storageFrame ??= this.activeContentFrame()?.storage;
-    const divider = storageFrame?.divider ?? { x: rect.x + 17, y: rect.y + rect.height - 61, width: rect.width - 34, height: 1 };
-    const label = storageFrame?.hotbar?.label ?? 'HOT BAR';
-    const labelPosition = storageFrame?.hotbar?.labelPosition
-      ?? { x: this.inventoryHotbarSlots[0]!.bounds.x, y: rect.y + rect.height - 59 };
-    context.fillStyle = '#9d6843'; context.fillRect(divider.x, divider.y, divider.width, divider.height);
-    drawLabel(context, this.fonts, label, labelPosition.x, labelPosition.y, { color: '#6b4428' });
-    this.inventoryHotbarSlots.forEach((slot, index) => {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-      drawLabel(context, this.fonts, hotbarSlotLabel(index) ?? '', slot.bounds.x + 3, slot.bounds.y + 3, { color: '#51351f' });
-    });
-  }
 
   private isInventoryWindow(window: OverworldWindow | null): boolean {
     return window === 'inventory' || window === 'pack' || window === 'crafting' || window === 'content' || window === 'chest' || window === 'barrel' || window === 'furnace' || window === 'cooking' || window === 'press' || window === 'fermentation';
@@ -4818,27 +4711,6 @@ export class OverworldUi {
 
 
 
-  private drawStorageSortButton(
-    context: CanvasRenderingContext2D,
-    node: WidgetNode,
-    container: 'backpack' | 'chest' | 'placeable',
-  ): void {
-    const pressed = node.enabled && this.sortButtonPressed === container
-      && performance.now() - this.sortButtonPressedAt < 140;
-    const state = node.enabled ? (pressed ? 'pressed' : 'idle') : 'disabled';
-    drawUiSkinAsset(context, this.skin.buttonSmall, node.bounds, state);
-    const frame = uiAssetFrame(this.skin.craftingIcon, 'base');
-    if (frame === null) return;
-    context.save();
-    if (!node.enabled) context.globalAlpha *= 0.45;
-    const y = node.bounds.y + 3 + (pressed ? 1 : 0);
-    context.drawImage(
-      this.skin.craftingIcon.image,
-      frame.x, frame.y, frame.width, frame.height,
-      node.bounds.x + 3, y, 10, 10,
-    );
-    context.restore();
-  }
 
   private drawCursor(context: CanvasRenderingContext2D): void {
     if (this.model.touchControls === true || this.pointer.x < 0 || this.pointer.y < 0) return;

@@ -141,19 +141,15 @@ describe('authored content frames in Overworld UI', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     update(ui, registry, 480, 270, definition.id);
     ui.openWindow = 'content';
-    const internal = ui as unknown as {
-      activeContentFrame(): {
-        definition: FrameContentDefinition;
-        buttons: readonly { rect: { x: number; y: number; width: number; height: number } }[];
-      } | null;
-      visibleItemSlots(): readonly { containerId: string; index: number }[];
-    };
-    expect(internal.activeContentFrame()?.definition.title).toBe('MOON ENGINE');
-    expect(internal.visibleItemSlots()).toEqual([
-      expect.objectContaining({ containerId: 'placeable', index: 7 }),
-    ]);
-    const button = internal.activeContentFrame()!.buttons[0]!.rect;
-    expect(ui.pointerDown({ x: button.x + 1, y: button.y + 1 }, 0)).toBe(true);
+    // Adopted by its entity surface, not its id: the kit window binds its slot and runs its authored button (BUG-067).
+    const root = ui.retainedInventoryRoot!;
+    root.arrange();
+    const bound = root.entries().map(({ element }) => element.props['binding'] as { container?: string; index?: number } | undefined)
+      .filter(binding => binding?.container === 'placeable');
+    expect(bound).toEqual([expect.objectContaining({ container: 'placeable', index: 7 })]);
+    const button = root.entries().find(({ element }) => element.label === 'Charge')!.element;
+    root.focus.set(button, 'keyboard');
+    root.key({ key: 'Enter' });
     expect(handlers.frameAction!).toHaveBeenCalledWith('charge');
   });
 });
@@ -186,37 +182,32 @@ describe('chest search and sort controls', () => {
     return { ui, handlers, internal, refresh };
   }
 
-  it.each([[384, 270], [480, 270], [1470, 820]])('fits search and sort around the grids at %ix%i', (width, height) => {
-    const { ui, internal, handlers } = setup(width, height, true);
-    const frame = internal.activeContentFrame();
-    const search = internal.inventorySearchRect()!;
-    expect(search.y).toBeGreaterThanOrEqual(Math.max(...frame.panes.map(({ layout }) => layout.grid.y + layout.grid.height)));
-    expect(search.y + search.height).toBeLessThanOrEqual(frame.storage.divider!.y);
-    expect(search.x).toBeGreaterThan(frame.storage.frame.x);
-    expect(search.x + search.width).toBeLessThan(frame.storage.frame.x + frame.storage.frame.width);
-    for (const [container, node] of [['chest', internal.chestSortNode], ['backpack', internal.backpackSortNode]] as const) {
-      expect(node.visible).toBe(true);
-      expect(node.enabled).toBe(true);
-      const pane = frame.panes.find((pane) => pane.slots.some((binding) => binding.containerId === container))!;
-      expect(node.bounds.y + node.bounds.height).toBeLessThanOrEqual(pane.layout.grid.y);
-      expect(node.bounds.x + node.bounds.width).toBe(pane.layout.grid.x + pane.layout.grid.width);
-      ui.pointerDown({ x: node.bounds.x + 8, y: node.bounds.y + 8 }, 0);
+  it.each([[384, 270], [480, 270], [1470, 820]])('gives a renamed chest frame the kit filters and sorts at %ix%i', (width, height) => {
+    const { ui, handlers } = setup(width, height, true);
+    const root = ui.retainedInventoryRoot!;
+    root.arrange();
+    const ids = root.entries().map(({ element }) => element.id);
+    expect(ids).toContain('frame:orchard_storage.pane.contents.filter');
+    expect(ids).toContain('frame:orchard_storage.pane.backpack.filter');
+    for (const [container, pane] of [['chest', 'contents'], ['backpack', 'backpack']] as const) {
+      root.arrange();
+      const sort = root.entries().find(({ element }) => element.id === `frame:orchard_storage.pane.${pane}.sort`)!.element;
+      const point = { x: sort.clip.x + sort.clip.width / 2, y: sort.clip.y + sort.clip.height / 2 };
+      root.pointer({ type: 'down', point, pointerId: 1, button: 0 });
+      root.pointer({ type: 'up', point, pointerId: 1, button: 0 });
       expect(handlers.sortInventoryContainer).toHaveBeenLastCalledWith(container);
     }
   });
 
-  it('shows and focuses the shared search input for chest frames, then hides it on close', () => {
+  it('keeps the host search input hidden while a kit chest frame is open', () => {
     const { ui, internal, refresh } = setup(480, 270, true);
-    const input = { hidden: true, focus: vi.fn(), blur: vi.fn() };
+    const input = { hidden: false, focus: vi.fn(), blur: vi.fn() };
     internal.inventoryFilterInput = input;
     refresh();
-    expect(input.hidden).toBe(false);
-    const rect = internal.inventorySearchRect()!;
-    ui.pointerDown({ x: rect.x + 8, y: rect.y + 8 }, 0);
-    expect(input.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(input.hidden).toBe(true);
+    expect(internal.inventorySearchRect()).toBeNull();
     ui.openWindow = null;
     expect(input.hidden).toBe(true);
-    expect(input.blur).toHaveBeenCalled();
   });
 
   it('disables sorting while holding a stack and hides chest search after closing', () => {
