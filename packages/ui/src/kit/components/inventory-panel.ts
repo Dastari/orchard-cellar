@@ -7,7 +7,8 @@ import { uiInput } from './input.js';
 import { uiText } from './text.js';
 import { uiTooltip } from './tooltip.js';
 import { uiGlyph, uiGlyphButton } from './window.js';
-import { uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
+import { uiHotbar, uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { uiFixed } from '../layout/box.js';
 
 export interface UiInventoryControls {
@@ -107,4 +108,13 @@ export function uiPlayerInventoryPane(options: UiPlayerInventoryPaneOptions): Ui
   const width = uiFixed(columns * 30 - 2 + 24);
   return uiFlex({ id: options.paneId ?? (options.id ? `pane:${options.id}` : undefined), direction: 'column', gap: 4, shrink: 0, width }, [uiText(options.label, { role: 'label' }),
     uiInventoryPanel({ ...options, columns, visibleRows: Math.min(4, options.rows ?? 4), layout: { width } })]);
+}
+
+/**
+ * The hotbar row every inventory window shows as its footer (under the window's carved divider): ten slots in one row
+ * where they fit, the player's selected slot marked as on the HUD, digit keys left to the host (BUG-067).
+ */
+export function uiPlayerHotbar(options: UiInventoryGridOptions & { readonly selected: () => number; readonly onSelect?: (index: number) => void }): UiElement {
+  return uiHotbar({ ...options, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false,
+    layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } });
 }

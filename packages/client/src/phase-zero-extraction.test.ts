@@ -256,8 +256,6 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // inventory pane) and aliases its entity pane to 'stash'; inventory-menus and the player-inventory boundary test cover it.
 // BUG-067 review: the hearth stash offers the same sort as a chest (sortInventoryContainer takes 'stash').
 const STRUCTURAL_SEAM_DIGEST = '0cd1d116859ea8a08e28c36babd0e355db94e194d95679e0385faabe64711048';
-// Shared authored timing pane: optional projection model and game-safe kit bridge exports.
-// Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
