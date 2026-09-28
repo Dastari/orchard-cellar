@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 import * as sim from '@orchard/sim';
+import { PLAYER_CELL_HELPER_NAMES, copiedPlaceableTables, currentContainerLayout, legacySlotCellTable, placeableCellTable, playerCellDependencies } from './player-cells.fixture.js';
 import { resolvePlaceableObject } from './content/object-runtime.js';
 import { cellFlags } from '@orchard/sim/cell-flags';
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 function authority(dependencies: Record<string, unknown>, names = ['requireFurnitureBuilder', 'furnitureInResidence', 'requireFurnitureReach', 'requireFurnitureDestination',
-  'requireFurnitureRow', 'placeHearthFurniture', 'moveHearthFurniture', 'pickupHearthFurniture']) {
+  'requireFurnitureRow', 'placeHearthFurniture', 'moveHearthFurniture', 'pickupHearthFurniture',
+  'loadPlaceableCells', 'ensurePlaceableContainerCells', 'withSenderErrors']) {
   const code = names.map(name => {
     const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
     if (fn) return fn.getText(source);
@@ -26,7 +28,9 @@ function authority(dependencies: Record<string, unknown>, names = ['requireFurni
 type Row = { id: bigint; kind: string; definitionId: string; spaceId: number; tileX: number; tileY: number;
   stateJson: string; lit: boolean; facing: string; carriedBy?: string };
 function fixture() {
-  const rows = new Map<bigint, Row>(), slots = new Map<string, { id: string; placeableId: bigint; itemKind: string; quantity: number }>();
+  // Placeable storage is read through the sparse `placeable_container_cell` table (the chest has no legacy rows).
+  const cells = placeableCellTable();
+  const rows = new Map<bigint, Row>(), slots = cells.rows;
   const received: unknown[] = [];
   let nextId = 1n, consumed = 0, full = false, role = 'builder', locked = false, mounted = false;
   const position = { spaceId: 30000, identity: 'alice', x: 6.5 * sim.TILE_SIZE_FIXED, y: 7.5 * sim.TILE_SIZE_FIXED };
@@ -53,18 +57,17 @@ function fixture() {
         footprint: Array.from({ length: shape.height }, () => Array(shape.width).fill(15)) } },
   }]));
   const empty = { find: () => null, delete: () => {} };
-  const ctx = { sender: 'alice', senderAuth: { jwt: null }, db: {
+  const ctx = { sender: 'alice', senderAuth: { jwt: null }, timestamp: { microsSinceUnixEpoch: 0n }, db: {
     membership: { identity: empty }, player_position: { identity: { find: () => position }, by_chunk: { filter: () => [position] } },
     player_stats: { identity: { find: () => ({ healthCenti: 100 }) } },
     world_placeable: { id: { find: (id: bigint) => rows.get(id) ?? null, update: (row: Row) => rows.set(row.id, row), delete: (id: bigint) => rows.delete(id) },
       by_chunk: { filter: (space: number) => [...rows.values()].filter(row => row.spaceId === space) } },
-    world_placeable_slot: { by_placeable: { filter: (id: bigint) => [...slots.values()].filter(row => row.placeableId === id) },
-      id: { delete: (id: string) => slots.delete(id) } },
+    placeable_container_cell: cells, ...copiedPlaceableTables(),
     object_lifecycle_state: { placeableId: empty },
     world_placeable_build: { placeableId: empty }, world_placeable_damage: { placeableId: empty },
     player_seat: { placeableId: empty }, active_placeable: { by_placeable: { filter: () => [] } },
   } };
-  const api = authority({ ...sim, resolvePlaceableObject, SenderError: Error, requireAuthorizedSender: () => {},
+  const api = authority({ ...sim, ...playerCellDependencies, resolvePlaceableObject, SenderError: Error, requireAuthorizedSender: () => {},
     requirePersistentInventoryAvailable: () => { if (locked) throw new Error('descent_inventory_locked'); },
     requireWorldModificationAuthorized: () => {}, mountedNpcFor: () => mounted ? {} : null, handsOccupiedFor: () => false,
     homesteadForSpace: () => ({ residenceSpaceId: 30000 }), activeSpaceDefinition: () => ({ generator: 'residence' }),
@@ -99,22 +102,25 @@ describe('furniture authority transactions', () => {
     expect(f.consumed()).toBe(1); expect(f.received).toEqual([]);
   });
   it('round trips an unlit lamp through actual inventory helpers and cannot stack it into lit lamps in a full bag', () => {
+    const alice = { toHexString: () => 'alice' };
     const rows = new Map(Array.from({ length: sim.INVENTORY_SLOT_COUNT }, (_, slot) => [slot, {
-      id: `alice:${slot}`, identity: 'alice', slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
+      id: `alice:${slot}`, identity: alice as unknown, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
     }]));
     const initial = { ...rows.get(0)!, itemKind: 'furniture_townhouse_table_lamp', quantity: 2, lit: false };
     rows.set(0, initial);
-    const ctx = { sender: 'alice', db: {
-      inventory_slot: { by_identity: { filter: () => [...rows.values()] }, id: { update: (row: typeof initial) => rows.set(row.slot, row) } },
+    const overflow: unknown[] = [];
+    const ctx = { sender: alice, db: {
+      player_container_cell: legacySlotCellTable(rows, alice), inventory_migration: currentContainerLayout(alice),
       world_clock: { id: { find: () => ({ authorityTick: 1n }) } },
+      inventory_overflow: { insert: (row: unknown) => { overflow.push(row); return row; } },
       inventory_overflow_retry: { identity: { find: () => null } },
     } };
-    const api = authority({ ...sim, DEFAULT_BACKPACK_CAPACITY: sim.BASE_BACKPACK_CAPACITY, SenderError: Error,
+    const api = authority({ ...sim, ...playerCellDependencies, DEFAULT_BACKPACK_CAPACITY: sim.BASE_BACKPACK_CAPACITY, SenderError: Error,
       contentRegistry: () => sim.bootstrapContentRegistry(), equippedInventoryCapacity: () => sim.BASE_BACKPACK_CAPACITY,
       playerDebugBackpackSlots: () => 0, updateEquippedForIdentity: () => {},
     }, ['insertPlayerCarriedItem', 'removePlayerBuildItem', 'loadPlayerInventory', 'writePlayerInventory',
-      'storedStack', 'storedDurability', 'storedLit', 'sameStoredStack', 'inventorySlotOffset', 'inventoryContainerCapacity',
-      'accessibleInventoryContainerCapacity', 'activeItemContainerContent']);
+      'storedStack', 'storedDurability', 'storedLit', 'sameStoredStack', 'inventoryContainerCapacity',
+      'accessibleInventoryContainerCapacity', 'activeItemContainerContent', ...PLAYER_CELL_HELPER_NAMES]);
     const removed = api.removePlayerBuildItem(ctx, initial.itemKind);
     expect(removed.lit).toBe(false); expect(rows.get(0)?.quantity).toBe(1);
     expect(api.insertPlayerCarriedItem(ctx, initial.itemKind, 1, { lit: removed.lit })).toBe(true);
@@ -128,6 +134,14 @@ describe('furniture authority transactions', () => {
     expect([...rows.values()]).toEqual(before);
     expect(api.insertPlayerCarriedItem(ctx, initial.itemKind, 1, { lit: true })).toBe(true);
     expect(rows.get(0)).toMatchObject({ lit: true, quantity: 16 });
+    // The wood filled past the accessible backpack was never an insertion target; the write moves it, intact, to
+    // overflow custody rather than leaving it stranded past the capacity.
+    const hidden = sim.EQUIPMENT_SLOT_OFFSET - sim.BACKPACK_SLOT_OFFSET - sim.BASE_BACKPACK_CAPACITY;
+    expect(overflow).toEqual(Array.from({ length: hidden }, () => ({ id: 0n, identity: alice, itemKind: 'wood', quantity: 99, durability: 0, lit: true })));
+    for (let slot = sim.BACKPACK_SLOT_OFFSET; slot < sim.EQUIPMENT_SLOT_OFFSET; slot++) {
+      expect(rows.get(slot), `slot ${slot}`).toMatchObject(slot < sim.BACKPACK_SLOT_OFFSET + sim.BASE_BACKPACK_CAPACITY
+        ? { itemKind: 'wood', quantity: 99 } : { itemKind: 'empty', quantity: 0 });
+    }
   });
   it('places supported furniture, preserves identity during moves, and returns an intact unlit lamp', () => {
     const f = fixture();
@@ -158,7 +172,7 @@ describe('furniture authority transactions', () => {
   it('keeps rows and contents when storage is occupied or the bag is full', () => {
     const f = fixture();
     f.api.placeHearthFurniture(f.ctx, { itemKind: 'furniture_rustic_chest', tileX: 5, tileY: 5 });
-    f.slots.set('1:0', { id: '1:0', placeableId: 1n, itemKind: 'wood', quantity: 3 });
+    f.slots.set('1:0', { id: '1:0', placeableId: 1n, index: 0, itemKind: 'wood', quantity: 3, durability: 0, lit: true });
     expect(() => f.api.pickupHearthFurniture(f.ctx, { placeableId: 1n })).toThrow('furniture_not_empty');
     f.api.moveHearthFurniture(f.ctx, { expectedRevision: 0n, placeableId: 1n, tileX: 7, tileY: 5 });
     expect(f.slots.get('1:0')?.quantity).toBe(3);

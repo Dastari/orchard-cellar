@@ -44,8 +44,8 @@ function fixture() {
     requireAuthorizedSender: () => {}, requirePersistentInventoryAvailable: () => { if (locked) throw new Error('descent_inventory_locked'); },
     npcWithinInteractionReach: () => reachable, advancePlayerStats: () => ({ healthCenti: alive ? 100 : 0 }),
     mountedNpcFor: () => mounted ? {} : null, handsOccupiedFor: () => hands,
-    inventorySlotOffset: sim.inventoryContainerSlotOffset,
-    loadPlayerInventory: () => ({ containers: inventory, rowBySlot: new Map() }),
+    // Raw stored cells are covered by hearth-seal-inventory.test.ts; this fixture has no raw metadata to validate.
+    loadPlayerInventory: () => ({ containers: inventory, builds: { hotbar: { cellsByIndex: new Map() }, backpack: { cellsByIndex: new Map() } } }),
     writePlayerInventory: (_ctx: unknown, _rows: unknown, _old: unknown, next: typeof inventory) => { inventory = next; writes.push('inventory'); },
     updateEquippedFromInventory: () => {}, refreshSenderQuestsFromInventory: () => {}, recordPlayerStatistic: () => {},
   };

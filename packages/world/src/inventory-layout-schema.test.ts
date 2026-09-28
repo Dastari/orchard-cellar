@@ -19,7 +19,9 @@ describe('shared hotbar layout authority', () => {
   });
 
   it('derives container offsets and new-player row count from the sim contract', () => {
-    expect(source).toContain('return inventoryContainerSlotOffset(containerId)');
+    // Container offsets now come from the sim's frozen legacy layout contract, not from a world-side offset table.
+    expect(source).toContain('? cellToLegacyGlobalSlot({ container: cell.container, index: cell.index }) ?? -1 : -1;');
+    expect(source).not.toContain('inventoryContainerSlotOffset');
     expect(source).toContain('return inventoryContainerSlotCount(containerId)');
     expect(source).toContain('slot < INVENTORY_SLOT_COUNT');
     expect(source).not.toContain('const BACKPACK_SLOT_OFFSET =');

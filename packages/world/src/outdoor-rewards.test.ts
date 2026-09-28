@@ -3,6 +3,7 @@ import ts from 'typescript';
 import {describe,it,expect} from 'vitest';
 import {Identity} from 'spacetimedb';
 import * as sim from '@orchard/sim';
+import {currentContainerLayout,playerCellDependencies} from './player-cells.fixture.js';
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('./index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 function production(dependencies:Record<string,unknown>,names:readonly string[]=['clearOutdoorAdds','outdoorInsideCamp','combatElevationAt','outdoorEnemyDamageAllowed','damageOutdoorEnemy','outdoorProjectileSegmentAllowed','persistOutdoorEncounterDamage','claimOutdoorReward','insertEscrowStacksIntoInventory','tradeStack','storedStack']){
   const definitions=names.map(name=>{
@@ -62,7 +63,7 @@ function fixture(contentMode:'active'|'missing'|'retired'='active'){
     outdoor_encounter_completion:completions,outdoor_reward_claim:claims,
     world_npc:{id:{find:(id:bigint)=>npcs.get(id)??null,delete:(id:bigint)=>npcs.delete(id)}},
     outdoor_enemy_profile:{by_encounter:{filter:(id:string)=>[...profiles.values()].filter(row=>row.encounterId===id)},npcId:{find:(id:bigint)=>profiles.get(id)??null,delete:(id:bigint)=>profiles.delete(id),update:(row:NonNullable<ReturnType<typeof profiles.get>>)=>profiles.set(row.npcId,row)}},player_position:{identity:{find:()=>player}},
-    enemy_attack:{npcId:{delete:()=>{}}},world_clock:{id:{find:()=>({authorityTick:101n})}}}};
+    enemy_attack:{npcId:{delete:()=>{}}},world_clock:{id:{find:()=>({authorityTick:101n})}},inventory_migration:currentContainerLayout()}};
   const campDefinition={id:'encounter:test_camp',kind:'encounter',schemaVersion:1,
       runtimeId:'camp',runtimeIndex:99,tileX:4,tileY:4,radiusTiles:6,elevation:0,activation:'proximity',
       respawnDelayTicks:6000,roles:[],members:[{enemy:'enemy:ember_slime',tileX:4,tileY:4}],
@@ -70,12 +71,12 @@ function fixture(contentMode:'active'|'missing'|'retired'='active'){
       ...(contentMode==='retired'?{retired:true,replacement:'encounter:cinder_ash_shore'}:{})};
   const registry=sim.buildContentRegistry([...sim.bootstrapContentRows(),
     ...(contentMode==='missing'?[]:[{id:campDefinition.id,kind:campDefinition.kind,json:campDefinition}])]).registry;
-  const api=production({...sim,Identity,SenderError:Error,OUTDOOR_RETURN_PATHS:new Map(),HEARTH_ENCOUNTERS:[{id:'camp',tileX:4,tileY:4,radiusTiles:6,elevation:0}],
+  const api=production({...sim,...playerCellDependencies,Identity,SenderError:Error,OUTDOOR_RETURN_PATHS:new Map(),HEARTH_ENCOUNTERS:[{id:'camp',tileX:4,tileY:4,radiusTiles:6,elevation:0}],
     liveIslandCombatPolicy:()=>policy,collisionForSpace:()=>collision,outdoorCollisionMap:()=>collision,outdoorRecoveryPosition:()=>recoveryAvailable?{x:0,y:0}:null,
     updateWorldNpc:(_ctx:unknown,npc:Npc)=>npcs.set(npc.id,npc),recordPlayerStatistic:(_ctx:unknown,identity:Identity,kind:string,value:bigint,_tick:bigint,subject:string)=>statistics.push({identity:identity.toHexString(),kind,value,subject}),requireAuthorizedSender:()=>{},
     requirePersistentInventoryAvailable:()=>{if(locked)throw new Error('descent_inventory_locked');},contentRegistry:()=>registry,
     grantSkillExperience:(_ctx:unknown,identity:Identity,_track:string,amount:bigint)=>xp.set(identity.toHexString(),(xp.get(identity.toHexString())??0n)+amount),
-    loadPlayerInventory:()=>({containers,rowBySlot:new Map()}),activeItemContainerContent:()=>sim.itemContainerContentResolver(registry),
+    loadPlayerInventory:()=>({containers,builds:{}}),activeItemContainerContent:()=>sim.itemContainerContentResolver(registry),
     writePlayerInventory:(_ctx:unknown,_rows:unknown,_old:unknown,next:typeof containers)=>{containers=next;},
     updateEquippedForIdentity:()=>{},stashOverflow:()=>{throw new Error('unexpected_overflow');},
   });

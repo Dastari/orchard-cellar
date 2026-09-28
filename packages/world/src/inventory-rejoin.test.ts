@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell } from '@orchard/sim';
+import { playerCellDependencies, playerCellTable } from './player-cells.fixture.js';
 import { contentRecoveryConnection } from './content/recovery.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -66,12 +67,14 @@ function runInventoryConnection(
   })));
   const cursor = table([{identity:sender,itemKind:'torch',quantity:1,durability:73,lit:false}]);
   const inventory = table(inventoryRows, 'id');
+  const cells = playerCellTable();
   const ctx = { sender, connectionId: {}, db: {
     player_survival: table(newCharacter ? [] : [{ identity: sender }]),
     player_spawn: table(newCharacter ? [] : [{ identity: sender, tileX: 1, tileY: 1, spaceId: 0 }]),
     player_survival_migration: table(newCharacter ? [] : [{ identity: sender, hungerVersion: 1 }]),
-    inventory_migration: table(newCharacter ? [] : [{ identity: sender, hotbarLayoutVersion: legacy?.hotbarVersion ?? 1, durabilityVersion: 1, equipmentLayoutVersion: legacy === undefined ? CURRENT_EQUIPMENT_LAYOUT_VERSION : 0 }]),
-    inventory_slot: inventory, inventory_cursor: cursor,
+    // An existing character has not connected since the container-cell publish: its rows are still on the legacy layout.
+    inventory_migration: table(newCharacter ? [] : [{ identity: sender, hotbarLayoutVersion: legacy?.hotbarVersion ?? 1, durabilityVersion: 1, equipmentLayoutVersion: legacy === undefined ? CURRENT_EQUIPMENT_LAYOUT_VERSION : 0, containerLayoutVersion: 0 }]),
+    inventory_slot: inventory, inventory_cursor: cursor, hearth_stash_slot: table([], 'id'), player_container_cell: cells,
     world_resource: table(), world_chest: table(), world_npc: table(), world_clock: table([], 'id'),
   } };
   let callback: ts.ArrowFunction | undefined;
@@ -90,6 +93,8 @@ function runInventoryConnection(
   if (end < 0) throw new Error('inventory phase boundary missing');
   const body = callback.body.statements.slice(0, end).map((statement) => printer.printNode(ts.EmitHint.Unspecified, statement, source)).join('\n');
   const dependencies = {
+    ...playerCellDependencies, SenderError: Error, legacyGlobalSlotToCell, CURRENT_CONTAINER_LAYOUT_VERSION,
+    runtimeNormalizeDurability: () => { throw new Error('unexpected_durability_normalization'); },
     contentRecoveryConnection,
     requireContentEditor: () => { throw new Error('unexpected_recovery_authorization'); },
     ensureContentPublicationBase: () => { throw new Error('unexpected_recovery_integrity_check'); },
@@ -104,14 +109,19 @@ function runInventoryConnection(
     storedLit: () => true, contentRegistry: () => ({}), runtimeDurabilityDefinition: () => null,
     activeWorldPolicyBalance: () => ({ survivalSpawnSearchRadiusTiles: 60 }),
   };
-  const javascript = ts.transpileModule(`(ctx) => { ${body} }`, {
+  const withSenderErrors = source.statements.find(statement => ts.isFunctionDeclaration(statement)
+    && statement.name?.text === 'withSenderErrors')!.getText(source);
+  const javascript = ts.transpileModule(`(ctx) => { ${withSenderErrors}\n${body} }`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
   const connect = new Function(...Object.keys(dependencies), `return ${javascript}`)(...Object.values(dependencies)) as (context: typeof ctx) => void;
   connect(ctx);
   connect(ctx);
   return {
-    rows: [...inventory.iter()],
+    legacyRows: [...inventory.iter()],
+    // The authoritative sparse cells, each with its frozen legacy slot so assertions can name positions by slot.
+    rows: [...cells.iter()].map((cell): Row => ({ ...cell, slot: isPlayerContainerId(cell.container)
+      ? cellToLegacyGlobalSlot({ container: cell.container, index: cell.index }) : null })),
     survival: ctx.db.player_survival.identity.find(sender),
     migration: ctx.db.inventory_migration.identity.find(sender),
     cursor: cursor.identity.find(sender),
@@ -120,17 +130,23 @@ function runInventoryConnection(
 
 describe('inventory preservation on reconnect', () => {
   it.each([false, true])('never replenishes spent, sold, or stored-away starter items (occupied=%s)', (occupied) => {
-    const {rows} = runInventoryConnection(false, occupied);
-    expect(rows).toHaveLength(INVENTORY_SLOT_COUNT);
-    expect(rows.every((row) => row['itemKind'] === (occupied ? 'fiber' : 'empty'))).toBe(true);
+    const {rows, legacyRows, migration} = runInventoryConnection(false, occupied);
+    // Only occupied cells are stored: an emptied inventory moves as no cells, and nothing is granted in their place.
+    expect(rows).toHaveLength(occupied ? INVENTORY_SLOT_COUNT : 0);
+    expect(rows.every((row) => row['itemKind'] === 'fiber')).toBe(true);
     expect(rows.reduce((quantity, row) => quantity + Number(row['quantity']), 0)).toBe(occupied ? INVENTORY_SLOT_COUNT * 3 : 0);
+    expect(legacyRows.every((row) => row['itemKind'] === (occupied ? 'fiber' : 'empty'))).toBe(true);
+    expect(migration).toMatchObject({ containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION });
   });
 
   it('creates the initial starter kit once for a new character, then preserves it on reconnect', () => {
-    const {rows} = runInventoryConnection(true);
+    const {rows, legacyRows, migration} = runInventoryConnection(true);
     expect(rows.filter((row) => row['itemKind'] === 'arrow')).toMatchObject([{ quantity: 32 }]);
     expect(rows.filter((row) => row['itemKind'] === 'bow')).toMatchObject([{ quantity: 1 }]);
-    expect(rows).toHaveLength(INVENTORY_SLOT_COUNT);
+    // A new character starts on the cell layout: exactly the six authored stacks, once, and no legacy rows.
+    expect(rows.map((row) => row['slot'])).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(legacyRows).toHaveLength(0);
+    expect(migration).toMatchObject({ containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION });
   });
 
   it('persists arbitrary authored slots and selection without a starter-kind branch', () => {
@@ -161,17 +177,17 @@ describe('equipment migration through the real connection callback', () => {
       {slot:39+offset,itemKind:'wood',quantity:7,durability:0,lit:true},
       {slot:47+offset,itemKind:'stone',quantity:11,durability:0,lit:true},
     );
-    const {rows,migration,cursor}=runInventoryConnection(false,false,{hotbarVersion,rows:oldRows});
-    expect(rows).toHaveLength(49);
+    const {rows,legacyRows,migration,cursor}=runInventoryConnection(false,false,{hotbarVersion,rows:oldRows});
+    expect(legacyRows).toHaveLength(49);
     const at=(slot:number)=>rows.find(row=>row['slot']===slot);
     expect(at(10)).toMatchObject({itemKind:'fiber',quantity:23});
     expect(at(33)).toMatchObject({itemKind:'sword',quantity:1,durability:17});
     expect(at(35)).toMatchObject({itemKind:'torch',quantity:1,durability:73,lit:false});
-    expect(at(39)).toMatchObject({itemKind:'empty',quantity:0});
+    expect(at(39)).toBeUndefined();
     expect(at(40)).toMatchObject({itemKind:'wood',quantity:7});
     expect(at(48)).toMatchObject({itemKind:'stone',quantity:11});
-    expect(rows.filter(row=>Number(row['quantity'])>0)).toHaveLength(5);
+    expect(rows).toHaveLength(5);expect(rows.every(row=>Number(row['quantity'])>0)).toBe(true);
     expect(cursor).toMatchObject({itemKind:'torch',quantity:1,durability:73,lit:false});
-    expect(migration).toMatchObject({durabilityVersion:1,hotbarLayoutVersion:1,equipmentLayoutVersion:1});
+    expect(migration).toMatchObject({durabilityVersion:1,hotbarLayoutVersion:1,equipmentLayoutVersion:1,containerLayoutVersion:CURRENT_CONTAINER_LAYOUT_VERSION});
   });
 });

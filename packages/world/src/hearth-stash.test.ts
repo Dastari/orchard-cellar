@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {describe,it,expect} from 'vitest';
 import * as sim from '@orchard/sim';
+import {PLAYER_CELL_HELPER_NAMES,playerCellDependencies,playerCellTable,type FixtureCellRow} from './player-cells.fixture.js';
 import {hearthStashFrameRestrictions,legacyWorldChestFrameRestrictions} from './content/frame-runtime.js';
 import {documentStaticView} from './content/chunk-authority-runtime.js';
 it('keeps cache identity and placement catalogs out of runtime consumers',()=>{
@@ -14,7 +15,7 @@ it('keeps cache identity and placement catalogs out of runtime consumers',()=>{
 });
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('./index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 function authority(dependencies:Record<string,unknown>){
-  const names=['hearthStashWithinReach','hearthStashSessionAvailable','clearActiveHearthStash','loadHearthStashRows',
+  const names=['hearthStashWithinReach','hearthStashSessionAvailable','clearActiveHearthStash','loadHearthStashBuild','ownPlayerContainerCells',...PLAYER_CELL_HELPER_NAMES,
     'openHearthStashEndpoint','openHearthStash','openHearthSupplyCache','closeHearthStash','loadOpenMenuInventory','writeOpenMenuInventory','clearActivePlaceable',
     'ownActiveHearthStash','ownHearthStashSlots','moveOpenMenuItem','distributeOpenMenuItem','quickMoveMenuItem',
     'quickMoveAllMenuItems','inventoryCursorClick','inventoryCursorQuickCraft','sortMenuContainer','inventoryCursorSwapHotbar'];
@@ -35,13 +36,18 @@ function authority(dependencies:Record<string,unknown>){
 }
 function identity(value:string){return {toHexString:()=>value,isEqual:(other:{toHexString:()=>string})=>other.toHexString()===value};}
 type Identity=ReturnType<typeof identity>;
-type Slot={id:string;identity:Identity;slot:number;itemKind:string;quantity:number;durability:number;lit:boolean};
+type Stack={itemKind:string;quantity:number;durability?:number;lit?:boolean};
 type ChestSlot={id:bigint;chestId:bigint;slot:number;itemKind:string;quantity:number;durability:number;lit:boolean};
 function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry(),options:{legacyChest?:boolean}={}){
   const alice=identity('alice'),bob=identity('bob'),connection=identity('a1');
   const supplyCache=sim.runtimeHearthSupplyCache(registry);
   if(supplyCache===null)throw new Error('missing fixture supply cache');
-  const slots=new Map<string,Slot>(),sessions=new Map<string,{identity:Identity;connectionId:Identity}>();
+  // The stash is the owner's sparse `stash` cells in `player_container_cell` (keys `hex:stash:index`); only
+  // occupied cells are rows. The legacy `hearth_stash_slot` table is frozen: it has no write methods here.
+  const cells=playerCellTable(),slots=cells.rows;
+  const store=(index:number,stack:Stack,owner:Identity=alice)=>{const row:FixtureCellRow={id:`${owner.toHexString()}:stash:${index}`,
+    identity:owner,container:'stash',index,durability:0,lit:true,...stack};slots.set(row.id,row);return row;};
+  const sessions=new Map<string,{identity:Identity;connectionId:Identity}>();
   let locked=false;
   const controls = { installed: true, mounted: false, hands: false, bow: false, recovery: false,
     health: 1000, settledHealth: 1000, cursorFails: false };
@@ -80,12 +86,12 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry(),opt
     active_hearth_stash:{identity:{find:(id:Identity)=>sessions.get(id.toHexString())??null,
       delete:(id:Identity)=>sessions.delete(id.toHexString()),update:(row:{identity:Identity;connectionId:Identity})=>sessions.set(row.identity.toHexString(),row)},
       insert:(row:{identity:Identity;connectionId:Identity})=>sessions.set(row.identity.toHexString(),row)},
-    hearth_stash_slot:{by_identity:{filter:(id:Identity)=>[...slots.values()].filter(row=>row.identity.isEqual(id))},
-      insert:(row:Slot)=>{slots.set(row.id,row);return row;},id:{update:(row:Slot)=>slots.set(row.id,row)}},
+    hearth_stash_slot:{by_identity:{filter:()=>[]}},player_container_cell:cells,
+    inventory_overflow:{insert:()=>{throw new Error('unexpected_overflow');}},inventory_overflow_retry:{identity:{find:()=>null}},
   }};
   let cursorSettlements=0;
   let cursor:sim.ItemStack|null=null;
-  const api=authority({...sim,SenderError:Error,contentRegistry:()=>registry,
+  const api=authority({...sim,...playerCellDependencies,SenderError:Error,contentRegistry:()=>registry,
     hearthStashFrameRestrictions,legacyWorldChestFrameRestrictions,
     ensureChestStorageRows:()=>[...chestSlots.values()],chestWithinReach:()=>true,requireWorldModificationAuthorized:()=>{},
     activeItemContainerContent:()=>sim.itemContainerContentResolver(registry),refreshSenderQuestsFromInventory:()=>{},
@@ -96,7 +102,7 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry(),opt
     advancePlayerStats:()=>({healthCenti:controls.settledHealth}),
     requirePersistentInventoryAvailable:()=>{if(locked)throw new Error('descent_inventory_locked');},
     returnInventoryCursorToStorage:()=>{if(controls.cursorFails)throw new Error('cursor_storage_full');cursorSettlements++;},syncLegacyChestGenericMirror:()=>{},
-    loadPlayerInventory:()=>({containers,rowBySlot:new Map()}),
+    loadPlayerInventory:()=>({containers,builds:{}}),
     storedStack:(_ctx:unknown,itemKind:string,quantity:number,durability:number,lit:boolean)=>quantity===0?null:{itemKind,quantity,durability,lit},
     sameStoredStack:(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b),
     storedDurability:(_ctx:unknown,_kind:string,value:number|undefined)=>value??0,
@@ -105,42 +111,58 @@ function fixture(registry:sim.ContentRegistry=sim.bootstrapContentRegistry(),opt
       containers={hotbar:after.hotbar!,backpack:after.backpack!};},
     updateEquippedForIdentity:()=>{},
   });
-  return {api,ctx,alice,bob,position,slots,chestSlots,sessions,controls,supplyCache,supplyCollision,lock:()=>{locked=true;},cursorSettlements:()=>cursorSettlements,
+  return {api,ctx,alice,bob,position,slots,store,chestSlots,sessions,controls,supplyCache,supplyCollision,lock:()=>{locked=true;},cursorSettlements:()=>cursorSettlements,
     setInventory:(value:Readonly<Record<string,sim.ContainerSnapshot>>)=>{containers=value;},
     setCursor:(value:sim.ItemStack|null)=>{cursor=value;},cursor:()=>cursor};
 }
 describe('private lobby stash authority',()=>{
   it('materializes exactly one owner store and never exposes another owner through views or menu IDs',()=>{
+    // Opening creates no rows: the one owner store is the owner's `stash` cells, empty until something is stored.
     const f=fixture();f.api.openHearthStash(f.ctx);
-    expect(f.slots.size).toBe(20);expect(f.api.ownHearthStashSlots(f.ctx)).toHaveLength(20);
-    f.api.openHearthStash(f.ctx);expect(f.slots.size).toBe(20);
+    expect(f.slots.size).toBe(0);expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash).toMatchObject({id:'stash',capacity:20});
+    f.api.openHearthStash(f.ctx);expect(f.slots.size).toBe(0);
+    const aliceCell=f.store(0,{itemKind:'axe',quantity:1,durability:73,lit:false});
+    expect(f.api.ownPlayerContainerCells(f.ctx)).toEqual([aliceCell]);
     const bob={...f.ctx,sender:f.bob,connectionId:identity('b1')};
-    expect(f.api.ownHearthStashSlots(bob)).toEqual([]);expect(f.api.ownActiveHearthStash(bob)).toBeUndefined();
+    expect(f.api.ownPlayerContainerCells(bob)).toEqual([]);expect(f.api.ownActiveHearthStash(bob)).toBeUndefined();
     expect(f.api.loadOpenMenuInventory(bob).containers.stash).toBeUndefined();
-    f.api.openHearthStash(bob);expect(f.slots.size).toBe(40);
-    expect(f.api.loadOpenMenuInventory(bob).stash.rowsBySlot.get(0).identity).toBe(f.bob);
+    f.api.openHearthStash(bob);expect(f.slots.size).toBe(1);
+    const bobMenu=f.api.loadOpenMenuInventory(bob);
+    expect(bobMenu.stash.build.cellsByIndex.size).toBe(0);expect(bobMenu.containers.stash.slots.every((slot:unknown)=>slot===null)).toBe(true);
+    // Bob's deposit lands in Bob's own cell; Alice's cell at the same index is untouched.
+    f.setInventory({...bobMenu.containers,hotbar:{...bobMenu.containers.hotbar,slots:[{itemKind:'wood',quantity:4},...Array(9).fill(null)]}});
+    f.api.moveOpenMenuItem(bob,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:4});
+    expect(f.slots.get('bob:stash:0')).toMatchObject({identity:f.bob,container:'stash',index:0,itemKind:'wood',quantity:4});
+    expect(f.slots.get('alice:stash:0')).toEqual(aliceCell);
+    expect(f.api.ownPlayerContainerCells(bob).map((row:FixtureCellRow)=>row.id)).toEqual(['bob:stash:0']);
+    // The legacy per-owner stash projection is frozen and never written.
+    expect(f.api.ownHearthStashSlots(f.ctx)).toEqual([]);expect(f.api.ownHearthStashSlots(bob)).toEqual([]);
   });
   it('preserves exact item metadata through shared transfers and refuses a full destination',()=>{
     const f=fixture();f.api.openHearthStash(f.ctx);
     const initial=f.api.loadOpenMenuInventory(f.ctx).containers;
-    const stack={itemKind:'torch',quantity:1,durability:73,lit:false};
+    // The stash reads and writes through the real stored-stack codec, which normalizes a nondurable item's
+    // durability; a durable axe carries both exact durability and lit metadata through the round trip.
+    const stack={itemKind:'axe',quantity:1,durability:73,lit:false};
     f.setInventory({...initial,hotbar:{...initial.hotbar,slots:[stack,...Array(9).fill(null)]}});
     let menu=f.api.loadOpenMenuInventory(f.ctx);
     const moved=sim.moveItemStacks(menu.containers,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:1},sim.BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(moved.ok).toBe(true);if(!moved.ok)throw new Error(moved.code);
     f.api.writeOpenMenuInventory(f.ctx,menu,moved.containers);
-    expect(f.slots.get('alice:0')).toMatchObject(stack);
+    expect(f.slots.get('alice:stash:0')).toMatchObject(stack);
     menu=f.api.loadOpenMenuInventory(f.ctx);
     const back=sim.moveItemStacks(menu.containers,{fromContainer:'stash',fromIndex:0,toContainer:'hotbar',toIndex:0,quantity:1},sim.BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(back.ok).toBe(true);if(!back.ok)throw new Error(back.code);
     f.api.writeOpenMenuInventory(f.ctx,menu,back.containers);
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[0]).toEqual(stack);
+    expect(f.slots.has('alice:stash:0')).toBe(false);
     const full:Readonly<Record<string,sim.ContainerSnapshot>>={...back.containers,stash:{id:'stash',capacity:20,slots:Array(20).fill({itemKind:'stone',quantity:99})}};
     const failed=sim.quickMoveItemStack(full,{fromContainer:'hotbar',fromIndex:0,toContainers:['stash']},sim.BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(failed.ok).toBe(false);expect(full.hotbar!.slots[0]).toEqual(stack);
   });
   it('rejects stale range, other connection, replaced session and Delve access before writes',()=>{
-    const f=fixture();f.api.openHearthStash(f.ctx);const menu=f.api.loadOpenMenuInventory(f.ctx);
+    const f=fixture();f.api.openHearthStash(f.ctx);f.store(0,{itemKind:'wood',quantity:3});
+    const menu=f.api.loadOpenMenuInventory(f.ctx),stored=[...f.slots.values()].map(row=>({...row}));
     const other={...f.ctx,connectionId:identity('a2')};
     expect(f.api.loadOpenMenuInventory(other).containers.stash).toBeUndefined();
     f.api.openHearthStash(other);expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash).toBeUndefined();
@@ -149,11 +171,11 @@ describe('private lobby stash authority',()=>{
     expect(f.api.loadOpenMenuInventory(other).containers.stash).toBeUndefined();
     expect(()=>f.api.writeOpenMenuInventory(other,menu,menu.containers)).toThrow('stash_out_of_reach');
     f.lock();expect(()=>f.api.loadOpenMenuInventory(other)).toThrow('descent_inventory_locked');
-    expect(f.slots.size).toBe(20);
+    expect([...f.slots.values()]).toEqual(stored);
   });
   it('rejects unique quest deposits before carried or stored inventory can change',()=>{
-    const f=fixture();f.api.openHearthStash(f.ctx);
-    const menu=f.api.loadOpenMenuInventory(f.ctx),before=[...f.slots.values()];
+    const f=fixture();f.api.openHearthStash(f.ctx);f.store(1,{itemKind:'wood',quantity:3});
+    const menu=f.api.loadOpenMenuInventory(f.ctx),before=[...f.slots.values()].map(row=>({...row}));
     const forged={...menu.containers,stash:{...menu.containers.stash,
       slots:[{itemKind:'marlow_book',quantity:1},...Array(19).fill(null)]}};
     expect(()=>f.api.writeOpenMenuInventory(f.ctx,menu,forged)).toThrow('item_not_tradeable');
@@ -161,7 +183,8 @@ describe('private lobby stash authority',()=>{
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots.every((slot:unknown)=>slot===null)).toBe(true);
   });
   it('settles cursor on explicit close and preserves all stored rows during cleanup',()=>{
-    const f=fixture();f.api.openHearthStash(f.ctx);const rows=[...f.slots.values()];
+    const f=fixture();f.api.openHearthStash(f.ctx);f.store(2,{itemKind:'wood',quantity:3});
+    const rows=[...f.slots.values()].map(row=>({...row}));
     f.api.closeHearthStash(f.ctx);expect(f.cursorSettlements()).toBe(2);
     expect(f.sessions.size).toBe(0);expect([...f.slots.values()]).toEqual(rows);
     f.api.openHearthStash(f.ctx);f.api.clearActivePlaceable(f.ctx,f.alice);
@@ -171,12 +194,12 @@ describe('private lobby stash authority',()=>{
 
 it('opens the same private store at the landing, binds endpoint and connection, and preserves contents when removed',()=>{
   const f=fixture();f.api.openHearthStash(f.ctx);
-  const stack={itemKind:'torch',quantity:2,durability:73,lit:false};
-  f.slots.set('alice:0',{...f.slots.get('alice:0')!,...stack});
+  const stack={itemKind:'axe',quantity:1,durability:73,lit:false};
+  f.store(0,stack);
   f.position.spaceId=0;f.position.x=650.5*sim.TILE_SIZE_FIXED;f.position.y=204.5*sim.TILE_SIZE_FIXED;
   expect(f.api.hearthStashSessionAvailable(f.ctx)).toBe(false);
   f.api.openHearthSupplyCache(f.ctx);
-  expect(f.slots.size).toBe(20);expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash.slots[0]).toEqual(stack);
+  expect(f.slots.size).toBe(1);expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash.slots[0]).toEqual(stack);
   expect(f.sessions.get('alice')).toMatchObject({endpointId:f.supplyCache.endpointId});
   const bob={...f.ctx,sender:f.bob,connectionId:identity('b1')};
   expect(f.api.loadOpenMenuInventory(bob).containers.stash).toBeUndefined();
@@ -237,12 +260,12 @@ describe('BUG-046: the authority applies hearth stash frame slot rules',()=>{
     f.setInventory({hotbar:{...initial.hotbar,slots:[apple,wood,...Array(8).fill(null)]},backpack:initial.backpack});
     return f;
   }
-  const stored=(f:ReturnType<typeof fixture>)=>[...f.slots.values()].map(row=>[row.slot,row.itemKind,row.quantity]);
+  const stored=(f:ReturnType<typeof fixture>)=>[...f.slots.values()].map(row=>[row.index,row.itemKind,row.quantity]);
   it('leaves shipped stash content unrestricted, so live behaviour is unchanged',()=>{
     const f=opened(sim.bootstrapContentRegistry());
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash).not.toHaveProperty('restrictions');
     f.api.moveOpenMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5});
-    expect(f.slots.get('alice:0')).toMatchObject({itemKind:'apple',quantity:5});
+    expect(f.slots.get('alice:stash:0')).toMatchObject({itemKind:'apple',quantity:5});
   });
   it('refuses an authored rejectedItems deposit through every insertion reducer before any write',()=>{
     const f=opened(stashRuleRegistry({rejectedItems:['item:apple']}));
@@ -267,18 +290,18 @@ describe('BUG-046: the authority applies hearth stash frame slot rules',()=>{
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[0]).toEqual(apple);
     // Items the rule does not name still go in.
     f.api.quickMoveMenuItem(f.ctx,{fromContainer:'hotbar',fromIndex:1,toContainers:['stash']});
-    expect(f.slots.get('alice:0')).toMatchObject({itemKind:'wood',quantity:5});
+    expect(f.slots.get('alice:stash:0')).toMatchObject({itemKind:'wood',quantity:5});
   });
   it('keeps stored items that break a new rule, and lets the owner take them out',()=>{
     const f=opened(stashRuleRegistry({rejectedItems:['item:apple']}));
-    f.slots.set('alice:3',{...f.slots.get('alice:3')!,itemKind:'apple',quantity:7,durability:0,lit:true});
+    f.store(3,{itemKind:'apple',quantity:7,durability:0,lit:true});
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.stash.slots[3]).toMatchObject({itemKind:'apple',quantity:7});
-    expect(f.slots.get('alice:3')).toMatchObject({itemKind:'apple',quantity:7});
+    expect(f.slots.get('alice:stash:3')).toMatchObject({itemKind:'apple',quantity:7});
     f.api.moveOpenMenuItem(f.ctx,{fromContainer:'stash',fromIndex:3,toContainer:'backpack',toIndex:0,quantity:3});
-    expect(f.slots.get('alice:3')).toMatchObject({itemKind:'apple',quantity:4});
+    expect(f.slots.get('alice:stash:3')).toMatchObject({itemKind:'apple',quantity:4});
     f.api.inventoryCursorClick(f.ctx,{container:'stash',index:3,button:'left'});
     expect(f.cursor()).toMatchObject({itemKind:'apple',quantity:4});
-    expect(f.slots.get('alice:3')).toMatchObject({itemKind:'empty',quantity:0});
+    expect(f.slots.has('alice:stash:3')).toBe(false);
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.backpack.slots[0]).toMatchObject({itemKind:'apple',quantity:3});
   });
   it('applies authored allow lists and required tags as well as deny lists',()=>{
@@ -286,17 +309,17 @@ describe('BUG-046: the authority applies hearth stash frame slot rules',()=>{
     expect(()=>allow.api.moveOpenMenuItem(allow.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5}))
       .toThrow('slot_rejects_item');
     allow.api.moveOpenMenuItem(allow.ctx,{fromContainer:'hotbar',fromIndex:1,toContainer:'stash',toIndex:0,quantity:5});
-    expect(allow.slots.get('alice:0')).toMatchObject({itemKind:'wood',quantity:5});
+    expect(allow.slots.get('alice:stash:0')).toMatchObject({itemKind:'wood',quantity:5});
     const tagged=opened(stashRuleRegistry({rejectedTags:['item.food']}));
     expect(()=>tagged.api.moveOpenMenuItem(tagged.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5}))
       .toThrow('slot_rejects_item');
     tagged.api.moveOpenMenuItem(tagged.ctx,{fromContainer:'hotbar',fromIndex:1,toContainer:'stash',toIndex:0,quantity:5});
-    expect(tagged.slots.get('alice:0')).toMatchObject({itemKind:'wood',quantity:5});
+    expect(tagged.slots.get('alice:stash:0')).toMatchObject({itemKind:'wood',quantity:5});
     const required=opened(stashRuleRegistry({requiredTags:['item.food']}));
     expect(()=>required.api.moveOpenMenuItem(required.ctx,{fromContainer:'hotbar',fromIndex:1,toContainer:'stash',toIndex:0,quantity:5}))
       .toThrow('slot_rejects_item');
     required.api.moveOpenMenuItem(required.ctx,{fromContainer:'hotbar',fromIndex:0,toContainer:'stash',toIndex:0,quantity:5});
-    expect(required.slots.get('alice:0')).toMatchObject({itemKind:'apple',quantity:5});
+    expect(required.slots.get('alice:stash:0')).toMatchObject({itemKind:'apple',quantity:5});
   });
 });
 
@@ -305,8 +328,7 @@ describe('BUG-046: stash sort and hotbar swap respect frame slot rules',()=>{
   const wood={itemKind:'wood',quantity:5,durability:0,lit:true};
   it('refuses to sort a stash holding a rule-breaking item, changing nothing',()=>{
     const f=fixture(stashRuleRegistry({rejectedItems:['item:apple']}));f.api.openHearthStash(f.ctx);
-    f.slots.set('alice:3',{...f.slots.get('alice:3')!,...apple});
-    f.slots.set('alice:5',{...f.slots.get('alice:5')!,...wood});
+    f.store(3,apple);f.store(5,wood);
     const before=[...f.slots.values()].map(row=>({...row}));
     expect(()=>f.api.sortMenuContainer(f.ctx,{container:'stash'})).toThrow('slot_rejects_item');
     expect([...f.slots.values()]).toEqual(before);
@@ -318,15 +340,16 @@ describe('BUG-046: stash sort and hotbar swap respect frame slot rules',()=>{
     // Empty stash slot: the hotbar apple would move in.
     expect(()=>f.api.inventoryCursorSwapHotbar(f.ctx,{container:'stash',index:0,hotbarIndex:0})).toThrow('slot_rejects_item');
     // Occupied stash slot: the swap would put the hotbar apple in its place.
-    f.slots.set('alice:1',{...f.slots.get('alice:1')!,...wood});
+    f.store(1,wood);
     const before=[...f.slots.values()].map(row=>({...row}));
     expect(()=>f.api.inventoryCursorSwapHotbar(f.ctx,{container:'stash',index:1,hotbarIndex:0})).toThrow('slot_rejects_item');
     expect([...f.slots.values()]).toEqual(before);
     expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[0]).toEqual(apple);
     // Taking the stored wood onto an empty hotbar slot is still allowed.
     f.api.inventoryCursorSwapHotbar(f.ctx,{container:'stash',index:1,hotbarIndex:1});
-    expect(f.slots.get('alice:1')).toMatchObject({itemKind:'empty',quantity:0});
-    expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[1]).toEqual(wood);
+    expect(f.slots.has('alice:stash:1')).toBe(false);
+    // A nondurable stack reads back from its cell without a durability field.
+    expect(f.api.loadOpenMenuInventory(f.ctx).containers.hotbar.slots[1]).toEqual({itemKind:'wood',quantity:5,lit:true});
   });
 });
 
