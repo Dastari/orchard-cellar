@@ -1079,6 +1079,7 @@ const npcInteractionUi = new NpcInteractionUi(kitArt, itemArt, {
   unlockHearthLegendaryRecipe: offer => network.unlockHearthLegendaryRecipe(offer.recipeId, offer.expectedContentHash, offer.expectedSeals),
   fulfillVillageOrder:offer=>network.fulfillVillageOrder(offer.id,offer.revision,offer.contentHash,offer.totalBronze),
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
+  sortBackpack: () => { showPredictedInventoryResult(network.sortMenuContainer('backpack'), 'STORAGE SORTED'); },
   closeDialogue: () => { void network.closeNpcDialogue().catch(() => undefined); },
   buy: (lines) => showMerchantResult(network.buyMerchantCart(lines), 'PURCHASE COMPLETE'),
   sell: (lines) => showMerchantResult(network.sellMerchantCart(lines), 'SALE COMPLETE'),
@@ -5715,6 +5716,8 @@ function renderFrame(alpha = 1): void {
     nodeId: snapshot.activeDialogue.nodeId,
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
     inventory: [...snapshot.inventorySlots],
+    inventoryRevision: snapshot.inventorySlots.revision,
+    selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     backpackSlotCapacity,
     sellPriceOverrides: Object.fromEntries([...snapshot.content.registry.items.values()]
       .filter((definition) => runtimeItemSalePremium(
