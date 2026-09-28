@@ -23,6 +23,7 @@ import type {
   WorldSurface,
 } from '@orchard/world-bindings/types';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
+import { ActivePlaceableSession } from './active-placeable-session.js';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
 import {
   LatencyInjector, LocalPredictionBuffer, latencyFromSearch,
@@ -480,8 +481,14 @@ export class OverworldConnection {
   private membership: Membership | null = null;
   private survival: PlayerSurvival | null = null;
   private stats: PlayerStats | null = null;
-  private activeChest: WorldChest | null = null;
-  private activePlaceable: WorldPlaceable | null = null;
+  /** The open placeable session and its chest copies; removals of a replaced session are ignored (BUG-058). */
+  private readonly placeableSession = new ActivePlaceableSession<WorldChest, WorldChestSlot>(
+    this.openPlaceableSlots, this.openChestSlots, {
+      isChest: (row) => isUnifiedChest(this.content.state.registry, row),
+      toChest: compatibilityChest, toChestSlot: compatibilityChestSlot,
+    });
+  private get activeChest(): WorldChest | null { return this.placeableSession.activeChest; }
+  private get activePlaceable(): WorldPlaceable | null { return this.placeableSession.active; }
   private cookingJob: PlayerCookingJob | null = null;
   private fishingCast: FishingCast | null = null;
   private activeDialogue: ActiveDialogue | null = null;
@@ -705,7 +712,7 @@ export class OverworldConnection {
     this.characterProfile = null; this.membership = null; this.survival = null; this.stats = null;
     this.villageOrders.clear();
     this.hearthStashOpen=false;this.hearthStashSlots.clear();
-    this.activePlaceable = null; this.activeChest = null; this.cookingJob = null; this.activeDialogue = null;
+    this.placeableSession.reset(); this.cookingJob = null; this.activeDialogue = null;
     this.wallet = null; this.thought = null;
     this.clearSpaceScopedCaches();
     this.campfires.clear(); this.merchants.clear(); this.combatTargets.clear();
@@ -1944,11 +1951,6 @@ export class OverworldConnection {
     connection.db.ownPlayerThought.onInsert((context, row) => incoming(context.event.id, () => { this.thought = row; }));
     connection.db.ownPlayerThought.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.thought = row; }));
     connection.db.ownPlayerThought.onDelete((context) => incoming(context.event.id, () => { this.thought = null; }));
-    const setActivePlaceable = (row: WorldPlaceable): void => {
-      this.activePlaceable = row;
-      this.activeChest = isUnifiedChest(this.content.state.registry, row) ? compatibilityChest(row) : null;
-      if (!isUnifiedChest(this.content.state.registry, row)) this.openChestSlots.clear();
-    };
     const stashActive=(row:{connectionId:{toHexString:()=>string}})=>{
       this.hearthStashOpen=row.connectionId.toHexString()===connection.connectionId?.toHexString();
     };
@@ -1961,23 +1963,12 @@ export class OverworldConnection {
     connection.db.ownHearthStashSlots.onInsert((context,row)=>incoming(context.event.id,()=>this.hearthStashSlots.set(row.slot,row)));
     connection.db.ownHearthStashSlots.onUpdate((context,_old,row)=>incoming(context.event.id,()=>this.hearthStashSlots.set(row.slot,row)));
     connection.db.ownHearthStashSlots.onDelete((context,row)=>incoming(context.event.id,()=>this.hearthStashSlots.delete(row.slot)));
-    connection.db.ownActivePlaceable.onInsert((context, row) => incoming(context.event.id, () => setActivePlaceable(row)));
-    connection.db.ownActivePlaceable.onUpdate((context, _old, row) => incoming(context.event.id, () => setActivePlaceable(row)));
-    connection.db.ownActivePlaceable.onDelete((context) => incoming(context.event.id, () => {
-      this.activePlaceable = null; this.activeChest = null;
-      this.openPlaceableSlots.clear(); this.openChestSlots.clear();
-    }));
-    const setOpenPlaceableSlot = (row: WorldPlaceableSlot): void => {
-      this.openPlaceableSlots.set(row.slot, row);
-      if (this.activePlaceable !== null && isUnifiedChest(this.content.state.registry, this.activePlaceable)) {
-        this.openChestSlots.set(row.slot, compatibilityChestSlot(row));
-      }
-    };
-    connection.db.ownOpenPlaceableSlots.onInsert((context, row) => incoming(context.event.id, () => setOpenPlaceableSlot(row)));
-    connection.db.ownOpenPlaceableSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => setOpenPlaceableSlot(row)));
-    connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => {
-      this.openPlaceableSlots.delete(row.slot); this.openChestSlots.delete(row.slot);
-    }));
+    connection.db.ownActivePlaceable.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setActive(row)));
+    connection.db.ownActivePlaceable.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setActive(row)));
+    connection.db.ownActivePlaceable.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteActive(row)));
+    connection.db.ownOpenPlaceableSlots.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
+    connection.db.ownOpenPlaceableSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
+    connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteSlot(row)));
     connection.db.ownChatChannels.onInsert((context, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onUpdate((context, _old, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onDelete((context, row) => incoming(context.event.id, () => this.chatChannels.delete(row.id)));
@@ -2137,18 +2128,7 @@ export class OverworldConnection {
     this.hearthStashOpen=[...connection.db.ownActiveHearthStash.iter()].some(row=>row.connectionId.toHexString()===connection.connectionId?.toHexString());
     this.villageOrders.clear();for(const row of connection.db.ownVillageOrders.iter())this.villageOrders.set(row.id,row);
     this.hearthStashSlots.clear();for(const row of connection.db.ownHearthStashSlots.iter())this.hearthStashSlots.set(row.slot,row);
-    this.activePlaceable = [...connection.db.ownActivePlaceable.iter()][0] ?? null;
-    this.activeChest = this.activePlaceable !== null
-      && isUnifiedChest(this.content.state.registry, this.activePlaceable)
-      ? compatibilityChest(this.activePlaceable) : null;
-    this.openChestSlots.clear(); this.openPlaceableSlots.clear();
-    for (const row of connection.db.ownOpenPlaceableSlots.iter()) {
-      this.openPlaceableSlots.set(row.slot, row);
-      if (this.activePlaceable !== null
-        && isUnifiedChest(this.content.state.registry, this.activePlaceable)) {
-        this.openChestSlots.set(row.slot, compatibilityChestSlot(row));
-      }
-    }
+    this.placeableSession.hydrate([...connection.db.ownActivePlaceable.iter()][0] ?? null, connection.db.ownOpenPlaceableSlots.iter());
     for (const row of connection.db.ownChatChannels.iter()) this.chatChannels.set(row.id, row);
     for (const row of connection.db.visibleChatMessages.iter()) this.chatMessages.set(row.id, row);
     this.sessionChatNotices.clear();
