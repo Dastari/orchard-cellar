@@ -248,7 +248,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // BUG-063 (#248): ui/overworld-ui.ts runs each retained view's sync, focus and paint through `contained`, so a view
 // that throws (the owner's duplicate UI id) is reported once and skipped instead of aborting the frame and every key.
 // overworld-ui-character and game-host runtime tests cover it; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = 'c715afa6c76b361baf129da73debb09135a426fe62f04ca4a4fd091cc8357052';
+// BUG-066: ui/overworld-ui.ts's `contained` rethrows under the kit failure policy's `throw` (development, the lab
+// and tests) and contains only in production builds; overworld-ui-character tests cover both; other seams unchanged.
+// BUG-066 review: ui/overworld-ui.ts records contained view failures in a capped UiFailureLog and reports them
+// through reportUiFailure (console and the client's error telemetry); failure-policy tests cover it.
+const STRUCTURAL_SEAM_DIGEST = 'de610aea80a58900e884042080742810dc3921f6011d4f64539282f6a0de29e6';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

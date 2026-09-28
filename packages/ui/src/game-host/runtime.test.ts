@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
+import { setUiFailurePolicy } from '../kit/runtime/failure-policy.js';
 import { GameUiRuntime } from './runtime.js';
 import { UiRoot } from '../kit/runtime/root.js';
 import { UiElement } from '../kit/runtime/element.js';
@@ -241,8 +242,16 @@ describe('game retained host input ownership', () => {
 
 });
 
-describe('game retained host containment (BUG-063)', () => {
-  it('skips a host whose tree throws, reports it once, and lets the event reach the next host or the game', () => {
+describe('game retained host containment (BUG-063, BUG-066)', () => {
+  it('keeps a throwing host a hard error in tests and development', () => {
+    const runtime = new GameUiRuntime(() => {}), broken = fixture(2);
+    broken.root.key = () => { throw new Error('Duplicate UI id: x'); }; broken.block();
+    runtime.register(broken.host); runtime.focus(broken.host.id);
+    expect(() => runtime.key({ key: 'Escape' })).toThrow('Duplicate UI id');
+  });
+  it('in production skips a host whose tree throws, reports it once, and lets the event reach the next host or the game', () => {
+    const policy = setUiFailurePolicy('contain');
+    onTestFinished(() => { setUiFailurePolicy(policy); });
     const reports: string[] = [];
     const runtime = new GameUiRuntime(hostId => reports.push(hostId));
     const lower = fixture(1), broken = fixture(2);

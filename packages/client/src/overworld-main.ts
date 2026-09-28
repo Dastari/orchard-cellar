@@ -1,4 +1,5 @@
-import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { clientErrorReporter } from './client-error-reporter.js';
+import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt, setUiFailureReporter } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { cellFlagsWhere } from '@orchard/sim/cell-flags';
@@ -268,6 +269,8 @@ setLoadingScreenStage({
   title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
 });
 const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
+// Contained UI failures (a screen that throws in production, BUG-066) reach the audited, rate-limited error telemetry.
+setUiFailureReporter((_scope, error) => { clientErrorReporter.capture('error', error); });
 const retainedUi = new GameUiRuntime();
 upgradeLoadingScreen(kitArt, art.groundItems['apple'] ?? art.missingItem);
 setLoadingScreenStage({
