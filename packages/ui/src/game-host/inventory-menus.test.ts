@@ -167,6 +167,22 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
+  it('starts each chest window and each frame with an empty chest filter (BUG-065)', () => {
+    const f = fixture('chest', { openChestInventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }] });
+    try {
+      const chestFilter = () => { f.root.arrange(); return f.root.entries().find(({ element }) => element.id === 'frame:chest.pane.contents.filter')?.element; };
+      f.root.focus.set(chestFilter()!, 'keyboard'); f.root.text('wood'); f.root.arrange();
+      const value = () => (chestFilter()!.props['editor'] as { snapshot(): { value: string } }).snapshot().value;
+      expect(value()).toBe('wood');
+      f.ui.openWindow = null; f.ui.openWindow = 'chest';
+      expect(value()).toBe('');
+      f.root.focus.set(chestFilter()!, 'keyboard'); f.root.text('wood'); f.root.arrange();
+      f.update({ activeFrameId: 'frame:barrel' }); f.ui.openWindow = 'barrel'; f.root.arrange();
+      f.update({ activeFrameId: 'frame:chest' }); f.ui.openWindow = 'chest';
+      expect(value()).toBe('');
+    } finally { f.dispose(); }
+  });
+
   it('rolls back a rejected real gesture prediction to the next authoritative snapshot', async () => {
     const f = fixture();
     try {

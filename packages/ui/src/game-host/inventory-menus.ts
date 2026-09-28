@@ -159,6 +159,8 @@ export class InventoryMenus {
     for (const child of [...this.root.tree.children]) child.dispose();
     this.root.tree.replaceChildren([]);
     this.definition = snapshot.definition;
+    // A different frame starts with an empty entity filter (BUG-065 review).
+    if (this.entityFilter.editor.snapshot().value) { this.entityFilter.editor.setValue(''); this.entityFilter.refresh(); }
     const chest = snapshot.aliases.entity === 'chest';
     // Each pane filters only itself (BUG-065): the backpack keeps the host's filter, the same one the inventory window
     // uses, and a chest's contents get their own, cleared whenever the window closes.
