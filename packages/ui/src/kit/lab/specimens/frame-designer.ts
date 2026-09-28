@@ -7,12 +7,14 @@ export const frameDesignerSpecimen: UiLabSpecimen = {
   build(ui, _props, mock) {
     const definitions = bootstrapContentDefinitions(), frames = definitions.filter((definition): definition is FrameContentDefinition => definition.kind === 'frame');
     const { controller, artwork } = uiLabInventory(mock);
+    // The objects and spaces give a frame bound to a whole container its size (Uncapped Storage step 3).
+    const previewRegistry = { items: new Map(definitions.filter(definition => definition.kind === 'item').map(definition => [definition.id, definition])), processes: new Map(definitions.filter(definition => definition.kind === 'process').map(definition => [definition.id, definition])), objects: new Map(definitions.filter(definition => definition.kind === 'object').map(definition => [definition.id, definition])), spaces: new Map(definitions.filter(definition => definition.kind === 'space').map(definition => [definition.id, definition])) };
     return ui.frameDesigner({ definitions: mock.frameDefinitions ?? frames, createModel: mock.createFrameDesigner ?? (definition => createUiFrameDesignerModel({ definition, definitions, access: 'anonymous' })),
       preview: { aliases: { entity: 'entity', backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting', merchant: 'merchant' }, controller, artwork,
-        registry: { items: new Map(definitions.filter(definition => definition.kind === 'item').map(definition => [definition.id, definition])), processes: new Map(definitions.filter(definition => definition.kind === 'process').map(definition => [definition.id, definition])) } },
+        registry: previewRegistry },
       previewFor: definition => {
         const aliases = { entity: 'entity', backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting', merchant: 'merchant' };
-        const registry = { items: new Map(definitions.filter(definition => definition.kind === 'item').map(definition => [definition.id, definition])), processes: new Map(definitions.filter(definition => definition.kind === 'process').map(definition => [definition.id, definition])) };
+        const registry = previewRegistry;
         const { controller, artwork } = uiLabInventory(mock, undefined, false, { definition, aliases, registry });
         return { aliases, registry, controller, artwork };
       },

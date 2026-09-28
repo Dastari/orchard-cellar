@@ -1,6 +1,6 @@
 import type { SlotRestriction } from '../item-containers.js';
 import type { ItemContentDefinition, ProcessContentDefinition } from './definitions.js';
-import type { FrameContentDefinition, FrameSlotRestriction } from './frame-definition.js';
+import { frameEntitySlotIndexes, type FrameContentDefinition, type FrameSlotRestriction } from './frame-definition.js';
 
 export interface FrameRestrictionRegistry {
   readonly items: ReadonlyMap<string, ItemContentDefinition>;
@@ -62,13 +62,16 @@ export function resolveFrameSlotRestriction(
 export function frameRestrictions(
   definition: FrameContentDefinition,
   registry: FrameRestrictionRegistry,
+  /** The entity container's capacity, which a pane bound to `entitySlots: all` covers. */
+  entityCapacity = 0,
 ): Readonly<Record<number, SlotRestriction>> {
   const entries: [number, SlotRestriction][] = [];
   for (const pane of definition.panes) {
     if (!('entitySlots' in pane.bind)) continue;
     const restriction = resolveFrameSlotRestriction(pane.restriction, registry);
     if (restriction === undefined || Object.keys(restriction).length === 0) continue;
-    for (const slot of pane.bind.entitySlots) entries.push([slot, restriction]);
+    for (const slot of frameEntitySlotIndexes(pane.bind, entityCapacity)) entries.push([slot, restriction]);
   }
   return Object.freeze(Object.fromEntries(entries));
 }
+export { frameEntitySlotIndexes } from './frame-definition.js';

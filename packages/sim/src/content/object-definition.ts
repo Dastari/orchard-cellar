@@ -10,7 +10,7 @@ import {
   type ValueThreshold,
 } from '../behaviour/effects.js';
 import type { InteractionDefinition } from '../behaviour/handler.js';
-import { ContentParseError, CONTENT_SCHEMA_VERSION } from './parse-contract.js';
+import { ContentParseError, CONTENT_SCHEMA_VERSION, MAX_CONTAINER_CAPACITY } from './parse-contract.js';
 import type {
   ContentToolSpecialization,
   ItemDefinitionId,
@@ -108,6 +108,8 @@ export interface ObjectSlotRestriction {
 }
 
 export interface ObjectContainerComponent {
+  /** Slots in the container, 1 to 256 for now: storage slot numbers are one byte until the container migration
+   * (wiki Roadmap/Uncapped Storage). A frame pane with `entitySlots: all` shows every one and scrolls. */
   readonly slotCount: number;
   readonly access: 'public' | 'private';
   readonly sortAllowed: boolean;
@@ -1017,7 +1019,7 @@ export function parseObjectDefinition(value: string | unknown): ObjectContentDef
         ...(light.offsetY === undefined ? {} : { offsetY: integer(light.offsetY, '$.components.light.offsetY', Number.MIN_SAFE_INTEGER) }),
       } }),
       ...(container === undefined ? {} : { container: {
-        slotCount: integer(container.slotCount, '$.components.container.slotCount', 1),
+        slotCount: integer(container.slotCount, '$.components.container.slotCount', 1, MAX_CONTAINER_CAPACITY),
         access: (() => {
           const access = stringValue(container.access, '$.components.container.access');
           if (access !== 'public' && access !== 'private') fail('$.components.container.access', 'unknown container access');

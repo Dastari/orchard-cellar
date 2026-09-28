@@ -3,7 +3,7 @@ import { uiGlyphButton, uiWindow } from './window.js';
 import { uiStationLayout, uiStationMachine, uiStationSlot, type UiStationMood } from './station.js';
 import type { ContentRegistry, TimingProjection, FrameContentDefinition, FrameRestrictionRegistry } from '@orchard/sim';
 import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
-import { frameSlotAuthorityRestriction, resolveFramePaneSlots, type FrameContainerAliases, type ResolvedFrameSlotBinding } from '../../content-frame.js';
+import { frameDefaultEntityCapacity, frameSlotAuthorityRestriction, resolveFramePaneSlots, type FrameContainerAliases, type FrameContainerCapacities, type ResolvedFrameSlotBinding } from '../../content-frame.js';
 import type { UiInventoryController } from '../runtime/inventory.js';
 import type { UiElement } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
@@ -18,6 +18,8 @@ import { uiInventoryPanel, uiPlayerHotbar, uiPlayerInventoryPane, type UiInvento
 import type { UiTone } from '../tokens.js';
 export interface UiContentFrameOptions {
   readonly definition: FrameContentDefinition; readonly aliases: FrameContainerAliases;
+  /** The open entity's container size, for panes bound to `entitySlots: all` (they scroll through all of it). */
+  readonly capacities?: FrameContainerCapacities;
   readonly registry: Pick<FrameRestrictionRegistry, 'items' | 'processes'>; readonly controller?: UiInventoryController;
   readonly artwork?: UiSlotOptions['artwork']; readonly state?: Readonly<Record<string, boolean | number | string>>; readonly progress?: number | (() => number);
   readonly timing?: TimingProjection;
@@ -64,6 +66,10 @@ export function uiFramePaneCells(definition: Pick<FrameContentDefinition, 'id'>,
 }
 /** Frame definitions remain presentation data; the host retains write authority. The game renders the
  * approved designed layouts (station, storage, pack); the frame designer keeps the per-pane preview. */
+/** The open entity's size, or the frame's default (see frameDefaultEntityCapacity) for a preview. */
+function frameCapacities(options: Pick<UiContentFrameOptions, 'capacities' | 'definition' | 'registry'>) {
+  return { entity: options.capacities?.entity ?? frameDefaultEntityCapacity(options.definition, options.registry) };
+}
 export function uiContentFrame(options: UiContentFrameOptions): UiContentFrameElement {
   return options.onPaneSelect ? uiPaneContentFrame(options) : uiDesignedContentFrame(options);
 }
@@ -74,7 +80,7 @@ function uiPaneContentFrame(options: UiContentFrameOptions): UiContentFrameEleme
   const timers: ReturnType<typeof uiTiming>[] = [];
   const definition = options.definition, shown = (value?: { readonly state: string; readonly equals: boolean | number | string }) => !value || state[value.state] === value.equals;
   const panes = definition.panes.map(pane => {
-    const bindings = resolveFramePaneSlots(pane, options.aliases, options.registry);
+    const bindings = resolveFramePaneSlots(pane, options.aliases, options.registry, frameCapacities(options));
     const custom = options.renderPane?.(pane);
     const controls = bindings.length ? options.inventoryControls?.[bindings[0]!.containerId] : undefined;
     const timer = 'timing' in pane.bind ? uiTiming({ timing: options.timing ?? { status: 'idle', reason: null, stage: null, progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' } }) : null;
@@ -141,7 +147,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   const definition = options.definition, refresh: (() => void)[] = [];
   let state = options.state ?? {}, timing: TimingProjection = options.timing ?? { status: 'idle', reason: null, stage: null, progress: 0, remainingActiveTicks: null, nextTransitionTick: null, confidence: 'estimated' };
   const shown = (value?: { readonly state: string; readonly equals: boolean | number | string }) => !value || state[value.state] === value.equals;
-  const bindingsOf = (pane: Pane) => resolveFramePaneSlots(pane, options.aliases, options.registry);
+  const bindingsOf = (pane: Pane) => resolveFramePaneSlots(pane, options.aliases, options.registry, frameCapacities(options));
   const common = { controller: options.controller, artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry };
   const custom = (pane: Pane) => options.renderPane?.(pane);
   const cells = (pane: Pane) => uiFramePaneCells(definition, pane, bindingsOf(pane));

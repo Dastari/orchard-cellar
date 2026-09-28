@@ -8,7 +8,9 @@ import type { UiGameSurfaceOptions, UiGameRow } from '../components/game-surface
 import type { UiLabMocks } from './registry.js';
 import { uiLabInventory } from './inventory-mock.js';
 const definitions = bootstrapContentDefinitions();
-const registry = { items: new Map(definitions.filter(definition => definition.kind === 'item').map(definition => [definition.id, definition])), processes: new Map(definitions.filter(definition => definition.kind === 'process').map(definition => [definition.id, definition])) };
+const registry = { items: new Map(definitions.filter(definition => definition.kind === 'item').map(definition => [definition.id, definition])), processes: new Map(definitions.filter(definition => definition.kind === 'process').map(definition => [definition.id, definition])),
+  // The objects and spaces give a frame bound to a whole container its size (Uncapped Storage step 3).
+  objects: new Map(definitions.filter(definition => definition.kind === 'object').map(definition => [definition.id, definition])), spaces: new Map(definitions.filter(definition => definition.kind === 'space').map(definition => [definition.id, definition])) };
 const aliases = { entity: 'entity', backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting', merchant: 'merchant' } as const;
 /** Deterministic host data. Inventory writes use the same local authority as the
  * transaction district; all other actions remain observable through the lab. */

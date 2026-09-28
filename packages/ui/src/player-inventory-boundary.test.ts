@@ -57,10 +57,12 @@ const EXCEPTIONS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
   'ui/src/kit/components/content-frame.ts': { 'player-container-grid': 1 },
   // Studio's game-surface specimen of the HUD's hotbar and vitals row: the HUD, not an inventory window.
   'ui/src/kit/components/game-surface.ts': { 'player-container-grid': 1 },
-  // Trade maps the shared pane's cells to its inventory slots to offer them (the pane draws them).
-  'ui/src/kit/components/trade.ts': { 'backpack-range': 6 },
-  // The merchant's Sell tab maps the shared pane's cells to inventory slots (the pane draws them) ...
-  'ui/src/kit/components/merchant.ts': { 'backpack-range': 4 },
+  // Trade maps the shared pane's cells to its inventory slots to offer them (the pane draws them), and guards and
+  // disables each slot by the cell it shows (Uncapped Storage step 3).
+  'ui/src/kit/components/trade.ts': { 'backpack-range': 8 },
+  // The merchant's Sell tab maps the shared pane's cells to inventory slots (the pane draws them), each slot's
+  // sellable state by the cell it shows ...
+  'ui/src/kit/components/merchant.ts': { 'backpack-range': 5 },
   // ... and the NPC window works out which carried slots and how many cells that pane shows.
   'ui/src/npc-interaction-ui.ts': { 'backpack-range': 6 },
   // The host's gesture source reads backpack capacity; its slot table (Uncapped Storage step 2) replaced the host-drawn

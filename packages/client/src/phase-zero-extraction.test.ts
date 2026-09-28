@@ -262,7 +262,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // index (ItemSlotTable) instead of fixed-length arrays; ui/index.ts exports uiGamepadPagingKeys for the client's
 // shoulder-button paging. item-slot, inventory-menus, overworld-ui and gamepad-paging tests cover it; the other three
 // seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '1a6d2b7b65a247991bbdd6a577bf87d4c3990096d3035a61dd3454cb982e86d6';
+// Uncapped Storage step 3 (wiki Roadmap/Uncapped Storage): ui/overworld-ui.ts resolves a retained pane bound to
+// `entitySlots: all` over the open entity's container (openEntityCapacity) and hands that size to the kit menus.
+// inventory-menus-held-stack (256-slot chest and stash) covers it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '994f3ad5e633c4160360ea9276b245bbb9e327615361c04829628f25a62ff2f6';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

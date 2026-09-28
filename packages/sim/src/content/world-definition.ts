@@ -4,7 +4,7 @@ import type { SpaceRunEntrance } from '../spaces.js';
 import type { Modifier } from '../modifiers.js';
 import type { BalanceDefinitionId } from './balance-definition.js';
 import type { ObjectDefinitionId } from './object-definition.js';
-import { CONTENT_SCHEMA_VERSION, ContentParseError } from './parse-contract.js';
+import { CONTENT_SCHEMA_VERSION, ContentParseError, MAX_CONTAINER_CAPACITY } from './parse-contract.js';
 
 type WildlifeHabitat = 'pasture' | 'farmyard' | 'freshwater' | 'lakeshore' | 'wetland'
   | 'woodland' | 'meadow_air' | 'hive_air' | 'desert';
@@ -310,6 +310,8 @@ export interface HearthLobbyContentDefinition {
     'arrival' | 'exit' | 'stash' | 'descent' | 'counter' | 'practice',
     readonly [tileX: number, tileY: number]
   >>;
+  /** Slots in the hearth stash, 1 to 256 for now: storage slot numbers are one byte until the container migration
+   * (wiki Roadmap/Uncapped Storage). */
   readonly stashCapacity: number;
   readonly floorThresholdY: number;
   readonly carves: readonly (readonly [left: number, top: number, right: number, bottom: number])[];
@@ -505,8 +507,9 @@ const string = (value: unknown, path: string): string => {
   if (typeof value !== 'string' || value.length === 0) throw new ContentParseError('invalid_type', path, 'expected non-empty string');
   return value;
 };
-const integer = (value: unknown, path: string, minimum = 0): number => {
+const integer = (value: unknown, path: string, minimum = 0, maximum = Number.MAX_SAFE_INTEGER): number => {
   if (!Number.isSafeInteger(value) || (value as number) < minimum) throw new ContentParseError('invalid_type', path, `expected safe integer >= ${minimum}`);
+  if ((value as number) > maximum) throw new ContentParseError('invalid_type', path, `expected safe integer <= ${maximum}`);
   return value as number;
 };
 const number = (value: unknown, path: string, minimum = 0): number => {
@@ -945,7 +948,7 @@ function parseHearthLobby(value: unknown): HearthLobbyContentDefinition {
   };
   return {
     points,
-    stashCapacity: integer(source.stashCapacity, '$.hearthLobby.stashCapacity', 1),
+    stashCapacity: integer(source.stashCapacity, '$.hearthLobby.stashCapacity', 1, MAX_CONTAINER_CAPACITY),
     floorThresholdY: integer(source.floorThresholdY, '$.hearthLobby.floorThresholdY'),
     carves: array(source.carves, '$.hearthLobby.carves').map((entry, index) => {
       const path = `$.hearthLobby.carves[${index}]`, values = tuple(entry, path, 4);

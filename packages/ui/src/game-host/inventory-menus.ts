@@ -25,6 +25,9 @@ export interface InventoryMenuSnapshot {
   readonly progress?: number;
   readonly crafting?: UiCraftingSnapshot;
   readonly backpackCapacity: number;
+  /** The open entity's container size (a chest's or placeable's slot count, the stash's capacity), which a pane bound
+   * to `entitySlots: all` shows in full. */
+  readonly entityCapacity?: number;
   readonly filter: string;
   readonly recipeFilter: string;
   readonly artwork: NonNullable<UiSlotOptions['artwork']>;
@@ -65,6 +68,7 @@ export class InventoryMenus {
   private frame: UiContentFrameElement | UiCraftingFrameElement | null = null;
   private snapshot: InventoryMenuSnapshot | null = null;
   private definition: FrameContentDefinition | null = null;
+  private entityCapacity: number | undefined;
   private readonly filter = new UiInventoryFilter();
   /** The entity pane's own filter (a chest's contents), never shared with the backpack (BUG-065). */
   private readonly entityFilter = new UiInventoryFilter();
@@ -141,7 +145,7 @@ export class InventoryMenus {
     if (this.filter.editor.snapshot().value !== snapshot.filter) {
       this.filter.editor.setValue(snapshot.filter); this.filter.refresh();
     }
-    if (this.definition !== snapshot.definition) this.build(snapshot);
+    if (this.definition !== snapshot.definition || this.entityCapacity !== snapshot.entityCapacity) this.build(snapshot);
     // The slots' rules and membership come from the frame, the content and the backpack's capacity. Only a change
     // there makes the slots re-check their drop verdicts; an ordinary frame re-checks nothing.
     const contentRegistry = this.authority.contentRegistry?.();
@@ -163,7 +167,7 @@ export class InventoryMenus {
     this.root.input.cancelPointers(); this.controller.cancel(); this.controller.clearRefusals();
     for (const child of [...this.root.tree.children]) child.dispose();
     this.root.tree.replaceChildren([]);
-    this.definition = snapshot.definition;
+    this.definition = snapshot.definition; this.entityCapacity = snapshot.entityCapacity;
     // A different frame starts with an empty entity filter (BUG-065 review).
     if (this.entityFilter.editor.snapshot().value) { this.entityFilter.editor.setValue(''); this.entityFilter.refresh(); }
     const chest = snapshot.aliases.entity === 'chest';
@@ -177,6 +181,7 @@ export class InventoryMenus {
     });
     const options = {
       definition: snapshot.definition, aliases: snapshot.aliases, registry: snapshot.registry,
+      ...(snapshot.entityCapacity === undefined ? {} : { capacities: { entity: snapshot.entityCapacity } }),
       controller: this.controller, artwork: snapshot.artwork, state: snapshot.state, timing: snapshot.timing,
       progress: () => this.snapshot?.progress ?? 0,
       iconAnimation: (item: ItemStack) => this.authority.iconAnimation(item),
