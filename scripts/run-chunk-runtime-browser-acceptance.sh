@@ -194,6 +194,6 @@ status=0
   --host "${host}" --database "${database}" --token-file "${work_dir}/owner-token" \
   --legacy-url "http://127.0.0.1:${legacy_port}" --on-url "http://127.0.0.1:${on_port}" \
   --chunk-dir "${chunk_dir}" --evidence "${evidence_dir}" --playwright "${playwright_module}" --chrome "${chrome}" \
-  --swap-port "${swap_port}" --dist-on "${work_dir}/dist-on" --dist-legacy "${work_dir}/dist-legacy" --swap-dir "${work_dir}/dist-swap" "$@") || status=$?
+  --swap-port "${swap_port}" --dist-on "${work_dir}/dist-on" --dist-legacy "${work_dir}/dist-legacy" --swap-dir "${work_dir}/dist-swap" --work-dir "${work_dir}" "$@") || status=$?
 echo "${evidence_dir}/summary.json"
 exit "${status}"

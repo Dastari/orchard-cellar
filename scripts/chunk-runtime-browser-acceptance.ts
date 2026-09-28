@@ -1,8 +1,8 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { tables } from '@orchard/world-bindings';
@@ -79,12 +79,39 @@ export interface RollbackDrillOptions {
   readonly distOn: string;
   readonly distLegacy: string;
   readonly swapDir: string;
+  /** The harness work directory (`/tmp/orchard-s4g-acceptance.*`): the swap directory is a direct child of it. */
+  readonly workDir: string;
+}
+
+/** The run script's mktemp work directory: the only place the drill ever deletes. */
+const WORK_DIR = /^\/tmp\/orchard-s4g-acceptance\.[A-Za-z0-9]{6,}$/u;
+
+/**
+ * The swap directory is deleted recursively on every build swap, so it must be a direct child of
+ * the harness work directory (`/tmp/orchard-s4g-acceptance.*`), not one of the builds, and never
+ * `packages/client/dist`.
+ */
+export function assertSwapDirShape(workDir: string, swapDir: string, keep: readonly string[]): void {
+  if (!WORK_DIR.test(workDir)) throw new AcceptanceUsageError('work_dir_must_be_the_harness_temporary_directory');
+  if (dirname(swapDir) !== workDir || !/^[A-Za-z0-9._-]+$/u.test(basename(swapDir)) || basename(swapDir).startsWith('.')) {
+    throw new AcceptanceUsageError('swap_dir_must_be_a_direct_child_of_the_work_dir');
+  }
+  if (keep.includes(swapDir) || /\/packages\/client\/dist/u.test(swapDir)) throw new AcceptanceUsageError('swap_dir_must_be_its_own_directory');
+}
+
+/** On disk, right before each recursive delete: no symlink anywhere on the way, and still inside the work directory. */
+export async function assertSwapDirOnDisk(workDir: string, swapDir: string): Promise<void> {
+  const work = await lstat(workDir);
+  if (!work.isDirectory() || work.isSymbolicLink() || await realpath(workDir) !== workDir) throw new Error('drill_work_dir_not_a_real_directory');
+  const existing = await lstat(swapDir).catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return null; throw error; });
+  if (existing !== null && (existing.isSymbolicLink() || !existing.isDirectory())) throw new Error('drill_swap_dir_not_a_real_directory');
+  if (existing !== null && await realpath(swapDir) !== join(workDir, basename(swapDir))) throw new Error('drill_swap_dir_outside_work_dir');
 }
 
 export class AcceptanceUsageError extends Error {}
 
 const FLAGS = new Set(['--host', '--database', '--token-file', '--legacy-url', '--on-url', '--chunk-dir', '--evidence', '--playwright', '--chrome',
-  '--limit', '--pixel-threshold', '--max-diff-ratio', '--steady-budget-mib', '--swap-port', '--dist-on', '--dist-legacy', '--swap-dir', '--skip']);
+  '--limit', '--pixel-threshold', '--max-diff-ratio', '--steady-budget-mib', '--swap-port', '--dist-on', '--dist-legacy', '--swap-dir', '--work-dir', '--skip']);
 const BOOLEAN_FLAGS = new Set(['--rollback-drill']);
 const SKIPPABLE = new Set(['invalidation', 'prefetch']);
 
@@ -138,11 +165,9 @@ export function parseAcceptanceArgs(argv: readonly string[]): AcceptanceOptions 
     steadyBudgetMiB: number('--steady-budget-mib', 24, value => value > 0),
     rollbackDrill: booleans.has('--rollback-drill') ? {
       swapPort: Number(new URL(loopbackUrl(`http://127.0.0.1:${required('--swap-port')}`, 'swap_port')).port),
-      distOn: absolute('--dist-on'), distLegacy: absolute('--dist-legacy'), swapDir: (() => {
+      distOn: absolute('--dist-on'), distLegacy: absolute('--dist-legacy'), workDir: absolute('--work-dir'), swapDir: (() => {
         const swapDir = absolute('--swap-dir');
-        if (/\/packages\/client\/dist/u.test(swapDir) || swapDir === values.get('--dist-on') || swapDir === values.get('--dist-legacy')) {
-          throw new AcceptanceUsageError('swap_dir_must_be_its_own_directory');
-        }
+        assertSwapDirShape(absolute('--work-dir'), swapDir, [values.get('--dist-on') ?? '', values.get('--dist-legacy') ?? '']);
         return swapDir;
       })(),
     } : null,
@@ -774,6 +799,8 @@ class DrillPreview {
   /** Replaces the served directory with a copy of `dist` (the release lane's dist swap), then starts the preview. */
   async serve(dist: string): Promise<void> {
     await this.stop();
+    assertSwapDirShape(this.drill.workDir, this.drill.swapDir, [this.drill.distOn, this.drill.distLegacy]);
+    await assertSwapDirOnDisk(this.drill.workDir, this.drill.swapDir);
     await rm(this.drill.swapDir, { recursive: true, force: true });
     await cp(dist, this.drill.swapDir, { recursive: true, verbatimSymlinks: true });
     const env: NodeJS.ProcessEnv = { ...process.env, S4G_OUT_DIR: this.drill.swapDir, S4G_PREVIEW_PORT: String(this.drill.swapPort),
