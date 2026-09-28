@@ -2,6 +2,23 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.52.0 / UI 0.53.0 / World 0.30.5 / Studio 0.16.17 / Tools 0.24.6 — One player-inventory pane everywhere; scrolling storage grid
+
+- **BUG-067: every window that shows the player's inventory uses the one shared pane (#264, #265, #266, #269), as the owner decided.**
+  - The hearth stash, trade and merchant Sell join the inventory, chest, crafting and station windows. All of them have the same filter and sort, empty cells always visible, and the same footer hotbar showing the selected slot.
+  - Trade disables items that can't be traded and greys the sort button during a live trade.
+  - Merchant Sell picks from your bag, capped at what you carry.
+  - Stash sort is enabled.
+  - Any entity window, including new Studio-authored frames, is drawn by the kit; the legacy host-drawn inventory windows are deleted.
+  - A boundary test fails if any surface draws the player's inventory another way.
+- **Uncapped Storage step 2 (#270):**
+  - The kit inventory grid virtualises large containers: a 1000-cell pack keeps about 25 slot nodes.
+  - Keyboard paging (PageUp/PageDown, Home/End, arrow keys) and gamepad shoulder paging.
+  - Drop-check verdicts are keyed by container and index.
+  - The host slot model is keyed by container and index, with no fixed caps.
+  - Nothing looks different at 20 slots.
+- Workspace 0.76.0.
+
 ## Client 0.51.0 / UI 0.52.1 / Sim 0.33.7 / World 0.30.4 — Static world: the client runs on chunks (S5c activation); bow arrows from reachable cells
 
 - **Static world S5c activation (#259).**
