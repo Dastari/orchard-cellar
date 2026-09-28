@@ -7,11 +7,13 @@ import { resolve } from 'node:path';
 import { createServer } from 'vite';
 
 const root = resolve(import.meta.dirname, '../../..');
-const args = process.argv.slice(2);
+const args = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
 const output = resolve(root, args[0] ?? 'output/player-inventory-surfaces');
 const ALL = ['inventory', 'crafting', 'chest', 'furnace', 'stash', 'trade', 'merchant-sell'] as const;
 const surfaces = args.slice(1).length ? args.slice(1) : [...ALL];
-const size = { width: 1440, height: 810, uiWidth: 480, uiHeight: 270, scale: 3 };
+// The game's logical UI at 1280x720 and UI scale 2 (640x360); --compact renders the smallest 480x270 layout.
+const compact = process.argv.includes('--compact');
+const size = compact ? { width: 1440, height: 810, uiWidth: 480, uiHeight: 270, scale: 3 } : { width: 1280, height: 720, uiWidth: 640, uiHeight: 360, scale: 2 };
 
 const scene = `
 import { bootstrapContentRegistry, MAIN_HAND_INVENTORY_SLOT } from '/packages/sim/src/index.ts';
@@ -42,7 +44,7 @@ try {
       const trade = new TradeUi(kitArt, itemArt, callbacks); trade.resize(size.uiWidth, size.uiHeight);
       const self = { toHexString: () => 'self' }, peer = { toHexString: () => 'peer' };
       trade.update({ contentRegistry: registry, identityHex: 'self', requesterName: 'Mara', recipientName: 'Toby', walletBronze: 10000n,
-        inventorySlots: inventory, backpackCapacity: 20, offers: [{ id: 'o1', tradeId: 't', owner: self, slot: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: false }],
+        inventorySlots: inventory, backpackSlotCapacity: 20, offers: [{ id: 'o1', tradeId: 't', owner: self, slot: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: false }],
         session: { id: 't', requester: self, recipient: peer, state: 'active', requesterAccepted: false, recipientAccepted: false,
           requesterBronze: 0n, recipientBronze: 0n, revision: 1n, createdTick: 0n } });
       trade.draw(ctx, size.uiWidth, size.uiHeight);

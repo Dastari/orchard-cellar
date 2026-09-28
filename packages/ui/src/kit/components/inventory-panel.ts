@@ -98,6 +98,7 @@ export interface UiPlayerInventoryPaneOptions extends UiInventoryGridOptions, Ui
  */
 export function uiPlayerInventoryPane(options: UiPlayerInventoryPaneOptions): UiElement {
   const columns = typeof options.columns === 'number' ? options.columns : 5;
-  return uiFlex({ id: options.paneId ?? (options.id ? `pane:${options.id}` : undefined), direction: 'column', gap: 4, shrink: 0 }, [uiText(options.label, { role: 'label' }),
-    uiInventoryPanel({ ...options, columns, visibleRows: Math.min(4, options.rows ?? 4), layout: { width: uiFixed(columns * 30 - 2 + 24) } })]);
+  const width = uiFixed(columns * 30 - 2 + 24);
+  return uiFlex({ id: options.paneId ?? (options.id ? `pane:${options.id}` : undefined), direction: 'column', gap: 4, shrink: 0, width }, [uiText(options.label, { role: 'label' }),
+    uiInventoryPanel({ ...options, columns, visibleRows: Math.min(4, options.rows ?? 4), layout: { width } })]);
 }
