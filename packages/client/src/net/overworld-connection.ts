@@ -1030,7 +1030,7 @@ export class OverworldConnection {
   inventoryCursorClick(container: string, index: number, button: 'left' | 'right'): Promise<void> {
     return this.reducer((connection) => connection.reducers.inventoryCursorClick({ container, index, button }));
   }
-  sortMenuContainer(container: 'backpack' | 'chest' | 'placeable'): Promise<void> {
+  sortMenuContainer(container: 'backpack' | 'chest' | 'placeable' | 'stash'): Promise<void> {
     return this.reducer((connection) => connection.reducers.sortMenuContainer({ container }));
   }
   inventoryCursorQuickCraft(targets: readonly { container: string; index: number }[], mode: 'even' | 'one_each'): Promise<void> {

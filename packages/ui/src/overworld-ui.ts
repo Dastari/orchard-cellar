@@ -401,7 +401,7 @@ export interface OverworldUiCallbacks {
   readonly quickMoveAllInventoryItems: (itemKind: string, fromContainers: readonly string[], toContainers: readonly string[]) => void | Promise<void>;
   readonly distributeInventoryItem: (fromContainer: string, fromIndex: number, targets: readonly { container: string; index: number }[], quantity: number) => void;
   readonly inventoryCursorClick: (container: string, index: number, button: 'left' | 'right') => void | Promise<void>;
-  readonly sortInventoryContainer: (container: 'backpack' | 'chest' | 'placeable') => void | Promise<void>;
+  readonly sortInventoryContainer: (container: 'backpack' | 'chest' | 'placeable' | 'stash') => void | Promise<void>;
   readonly inventoryCursorQuickCraft: (targets: readonly { container: string; index: number }[], mode: 'even' | 'one_each') => void | Promise<void>;
   readonly inventoryCursorPickupAll: (containerOrder: readonly string[]) => void | Promise<void>;
   readonly inventoryCursorSwapHotbar: (container: string, index: number, hotbarIndex: number) => void;
@@ -1409,7 +1409,7 @@ export class OverworldUi {
         return this.handleKeyDown(code, 'repeat' in event && event.repeat === true, { ctrl: event.ctrlKey });
       },
       close: () => { this.openWindow = null; }, invoke: (id) => { this.callbacks.frameAction?.(id); },
-      sort: (container) => { if (this.heldCursorStack() === null && (container === 'backpack' || container === 'chest' || container === 'placeable')) this.trackInventoryPrediction(this.callbacks.sortInventoryContainer(container)); },
+      sort: (container) => { if (this.heldCursorStack() === null && (container === 'backpack' || container === 'chest' || container === 'placeable' || container === 'stash')) this.trackInventoryPrediction(this.callbacks.sortInventoryContainer(container)); },
       filter: (value) => { this.inventoryFilterText = value; }, recipeFilter: (value) => { this.recipeFilterText = value; },
       recipe: (id) => { this.placeCraftingRecipe(id); this.syncRetainedInventory(); },
       craft: (all) => { const id = this.currentRecipeId(); if (id !== null && !this.currentRecipeLocked()) this.callbacks.craftInventoryRecipe(id, all); },

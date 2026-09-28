@@ -194,11 +194,11 @@ describe('production retained inventory authority bridge', () => {
       f.root.arrange();
       expect(f.ui.retainedInventoryActive).toBe(true);
       const ids = f.root.entries().map(({ element }) => element.id);
-      // The same backpack pane, filter and sort as the inventory and chest windows; the stash filters on its own.
+      // The same backpack pane, filter and sort as the inventory and chest windows; the stash has its own filter and sort.
       expect(ids).toContain('frame:hearth_stash.pane.backpack.filter');
       expect(ids).toContain('frame:hearth_stash.pane.backpack.sort');
       expect(ids).toContain('frame:hearth_stash.pane.contents.filter');
-      expect(ids).not.toContain('frame:hearth_stash.pane.contents.sort');
+      expect(ids).toContain('frame:hearth_stash.pane.contents.sort');
       f.click(f.slot('stash', 0));
       expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('stash', 0, 'left');
     } finally { f.dispose(); }
