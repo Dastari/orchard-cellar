@@ -3,7 +3,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bootstrapContentRegistry, itemDefinition, type ContainerSnapshot, type ItemStack, type SlotRestriction } from '@orchard/sim';
 import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
-import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { CRAFTING_SLOT_COUNT, EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { clickContainerSlot, itemPolicyResolver } from '@orchard/sim/item-containers';
 import { uiSlotDropTarget } from '../kit/components/inventory.js';
 import { scrollUiElement } from '../kit/layout/scroll.js';
@@ -44,7 +44,7 @@ async function fixture(window: OverworldWindow, overrides: Partial<OverworldUiMo
   const handlers = new Proxy(callbacks, { get: (target, key) => (target as Record<string | symbol, unknown>)[key] ?? vi.fn() }) as OverworldUiCallbacks;
   const ui = new OverworldUi(skin, art.pixel, itemArt, handlers);
   const model = { width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0, touchControls: false,
-    inventory: [{ slot: 10, itemKind: 'wood', quantity: 8 }], hasBackpack: true, backpackSlotCapacity: 20, contentRegistry: registry,
+    inventory: [{ container: 'backpack', index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: true, backpackSlotCapacity: 20, contentRegistry: registry,
     activeFrameState: {}, knownRecipeIds: [], audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
     dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0, raining: false, weatherMode: 'auto', prompt: null, toast: null, ...overrides } as OverworldUiModel;
   ui.update(model); ui.openWindow = window;
@@ -161,8 +161,8 @@ describe('the held stack is the kit\'s (S3)', () => {
   });
 
   it('checks no drop rule again across frames while nothing changes, and looks slots up without rebuilding them', async () => {
-    const f = await fixture('content', { activeFrameId: 'frame:furnace', cursorStack: ore, openPlaceableInventory: [{ slot: 2, itemKind: 'copper_bar', quantity: 2 }],
-      inventory: Array.from({ length: 12 }, (_, index) => ({ slot: BACKPACK_SLOT_OFFSET + index, itemKind: index % 2 ? 'wood' : 'apple', quantity: 3 })) });
+    const f = await fixture('content', { activeFrameId: 'frame:furnace', cursorStack: ore, openPlaceableInventory: [{ index: 2, itemKind: 'copper_bar', quantity: 2 }],
+      inventory: Array.from({ length: 12 }, (_, index) => ({ container: 'backpack' as const, index, itemKind: index % 2 ? 'wood' : 'apple', quantity: 3 })) });
     try {
       const canAccept = vi.spyOn(f.menus.controller.model, 'canAccept');
       const rebuilds = vi.spyOn(f.ui as unknown as { retainedFrame(): unknown }, 'retainedFrame');
@@ -189,13 +189,13 @@ describe('the held stack is the kit\'s (S3)', () => {
 /** The containers as the authority loads them for a menu (world `loadOpenMenuInventory`): equipment restricted by the
  * equipment slots, an entity by its frame's panes overlaid with its object's own container rules, the rest free. */
 function authorityContainers(model: OverworldUiModel, frameId: string | undefined): Record<string, ContainerSnapshot> {
-  const inventory = new Map(model.inventory.map(item => [item.slot, item]));
-  const row = (offset: number, count: number) => Array.from({ length: count }, (_, index) => { const item = inventory.get(offset + index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; });
+  const inventory = new Map(model.inventory.map(item => [`${item.container}:${item.index}`, item]));
+  const row = (container: string, count: number) => Array.from({ length: count }, (_, index) => { const item = inventory.get(`${container}:${index}`); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; });
   const containers: Record<string, ContainerSnapshot> = {
-    hotbar: { id: 'hotbar', capacity: HOTBAR_SLOT_COUNT, slots: row(0, HOTBAR_SLOT_COUNT) },
-    backpack: { id: 'backpack', capacity: model.backpackSlotCapacity!, slots: row(BACKPACK_SLOT_OFFSET, model.backpackSlotCapacity!) },
-    equipment: { id: 'equipment', capacity: EQUIPMENT_SLOT_COUNT, slots: row(EQUIPMENT_SLOT_OFFSET, EQUIPMENT_SLOT_COUNT), restrictions: EQUIPMENT_SLOT_RESTRICTIONS },
-    crafting: { id: 'crafting', capacity: CRAFTING_SLOT_COUNT, slots: row(CRAFTING_SLOT_OFFSET, CRAFTING_SLOT_COUNT) },
+    hotbar: { id: 'hotbar', capacity: HOTBAR_SLOT_COUNT, slots: row('hotbar', HOTBAR_SLOT_COUNT) },
+    backpack: { id: 'backpack', capacity: model.backpackSlotCapacity!, slots: row('backpack', model.backpackSlotCapacity!) },
+    equipment: { id: 'equipment', capacity: EQUIPMENT_SLOT_COUNT, slots: row('equipment', EQUIPMENT_SLOT_COUNT), restrictions: EQUIPMENT_SLOT_RESTRICTIONS },
+    crafting: { id: 'crafting', capacity: CRAFTING_SLOT_COUNT, slots: row('crafting', CRAFTING_SLOT_COUNT) },
   };
   const frame = frameId ? registry.frames.get(frameId) : undefined;
   if (frame) {
@@ -203,7 +203,7 @@ function authorityContainers(model: OverworldUiModel, frameId: string | undefine
     const object = [...registry.objects.values()].find(definition => definition.components.frame?.ref === frame.id);
     for (const rule of object?.components.container?.restrictions ?? []) for (const slot of rule.slots) restrictions[slot] = { ...restrictions[slot], ...(rule.readOnly === undefined ? {} : { readOnly: rule.readOnly }) };
     const id = frame.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable';
-    const stored = new Map(((id === 'chest' ? model.openChestInventory : model.openPlaceableInventory) ?? []).map(item => [item.slot, item]));
+    const stored = new Map(((id === 'chest' ? model.openChestInventory : model.openPlaceableInventory) ?? []).map(item => [item.index, item]));
     const capacity = Math.max(16, ...stored.keys()) + 1;
     containers[id] = { id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const item = stored.get(index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; }), restrictions };
   }
@@ -214,13 +214,13 @@ describe('every kit drop verdict is the authority\'s click outcome (S3 review)',
   const held = ['copper_ore', 'wood', 'helm', 'apple', 'pickaxe', 'copper_bar', 'watch', 'backpack'];
   const scenes: readonly { readonly name: string; readonly window: OverworldWindow; readonly model: Partial<OverworldUiModel> }[] = [
     { name: 'inventory: paper doll, an occupied restricted head, occupied backpack cells', window: 'inventory', model: {
-      inventory: [{ slot: EQUIPMENT_SLOT_OFFSET + 1, itemKind: 'helm', quantity: 1 }, { slot: BACKPACK_SLOT_OFFSET, itemKind: 'apple', quantity: 3 },
-        { slot: BACKPACK_SLOT_OFFSET + 1, itemKind: 'wood', quantity: 4 }, { slot: 2, itemKind: 'torch', quantity: 2 }] } },
+      inventory: [{ container: 'equipment', index: 1, itemKind: 'helm', quantity: 1 }, { container: 'backpack', index: 0, itemKind: 'apple', quantity: 3 },
+        { container: 'backpack', index: 1, itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 2, itemKind: 'torch', quantity: 2 }] } },
     { name: 'furnace: role slots, an occupied input and a take-only output', window: 'content', model: { activeFrameId: 'frame:furnace',
-      openPlaceableInventory: [{ slot: 0, itemKind: 'copper_ore', quantity: 3 }, { slot: 2, itemKind: 'copper_bar', quantity: 2 }] } },
-    { name: 'press: two take-only outputs', window: 'content', model: { activeFrameId: 'frame:press', openPlaceableInventory: [{ slot: 1, itemKind: 'must', quantity: 1 }] } },
+      openPlaceableInventory: [{ index: 0, itemKind: 'copper_ore', quantity: 3 }, { index: 2, itemKind: 'copper_bar', quantity: 2 }] } },
+    { name: 'press: two take-only outputs', window: 'content', model: { activeFrameId: 'frame:press', openPlaceableInventory: [{ index: 1, itemKind: 'must', quantity: 1 }] } },
     { name: 'chest: an unrestricted pane with occupied cells (swaps allowed)', window: 'chest', model: { activeFrameId: 'frame:chest',
-      openChestInventory: [{ slot: 0, itemKind: 'apple', quantity: 5 }, { slot: 3, itemKind: 'pickaxe', quantity: 1 }] } },
+      openChestInventory: [{ index: 0, itemKind: 'apple', quantity: 5 }, { index: 3, itemKind: 'pickaxe', quantity: 1 }] } },
   ];
   it.each(scenes)('$name', async ({ window, model: overrides }) => {
     for (const itemKind of held) {
@@ -306,7 +306,7 @@ describe('a 256-slot chest and stash (Uncapped Storage step 3)', () => {
     { name: 'stash', window: 'content' as const, frameId: 'frame:hearth_stash' as const, container: 'stash', stored: 'openStashInventory' as const },
   ];
   it.each(scenes)('the $name scrolls through all 256 slots with bounded slots, and every drop verdict is the authority\'s', async scene => {
-    const items = [{ slot: 0, itemKind: 'apple', quantity: 5 }, { slot: 130, itemKind: 'pickaxe', quantity: 1 }, { slot: 255, itemKind: 'wood', quantity: 3 }];
+    const items = [{ index: 0, itemKind: 'apple', quantity: 5 }, { index: 130, itemKind: 'pickaxe', quantity: 1 }, { index: 255, itemKind: 'wood', quantity: 3 }];
     const restrictions = frameRestrictions(variant.frames.get(scene.frameId)!, variant, CAPACITY);
     expect(Object.keys(restrictions)).toHaveLength(CAPACITY);
     const policy = itemPolicyResolver(variant);
@@ -315,7 +315,7 @@ describe('a 256-slot chest and stash (Uncapped Storage step 3)', () => {
       const f = await fixture(scene.window, { activeFrameId: scene.frameId, contentRegistry: variant, [scene.stored]: items, openEntityCapacity: CAPACITY, cursorStack: cursor });
       try {
         expect(f.ui.retainedInventoryActive).toBe(true);
-        const stored = new Map(items.map(item => [item.slot, item]));
+        const stored = new Map(items.map(item => [item.index, item]));
         const containers: Record<string, ContainerSnapshot> = { [scene.container]: { id: scene.container, capacity: CAPACITY, restrictions,
           slots: Array.from({ length: CAPACITY }, (_, index) => { const item = stored.get(index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; }) } };
         f.root.arrange();
@@ -342,7 +342,7 @@ describe('a 256-slot chest and stash (Uncapped Storage step 3)', () => {
   it.each(scenes)('the $name picks up from its last slot through the host\'s gesture source', async scene => {
     const click = vi.fn().mockResolvedValue(undefined);
     const f = await fixture(scene.window, { activeFrameId: scene.frameId, contentRegistry: variant,
-      [scene.stored]: [{ slot: 255, itemKind: 'wood', quantity: 3 }], openEntityCapacity: CAPACITY }, { inventoryCursorClick: click });
+      [scene.stored]: [{ index: 255, itemKind: 'wood', quantity: 3 }], openEntityCapacity: CAPACITY }, { inventoryCursorClick: click });
     try {
       f.root.arrange();
       const area = f.root.entries().find(({ element }) => element.kind === 'scroll-area' && element.label === `${scene.container} slots`)!.element;

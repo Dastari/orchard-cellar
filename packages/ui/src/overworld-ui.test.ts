@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { bootstrapContentRows, buildContentRegistry, bootstrapContentRegistry, runtimePlayerAppearanceCatalog, SKILL_NODE_DEFINITIONS, BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS, MAIN_HAND_INVENTORY_SLOT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT } from '@orchard/sim';
+import { bootstrapContentRows, buildContentRegistry, bootstrapContentRegistry, runtimePlayerAppearanceCatalog, SKILL_NODE_DEFINITIONS, BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS, MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import type { PixelUi } from './pixel-ui.js';
 import {
   DEVELOPER_TABS,
@@ -439,8 +439,8 @@ describe('overworld retained UI layout', () => {
       contentRegistry: buildContentRegistry(bootstrapContentRows()).registry, activeFrameId: 'frame:furnace',
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [], openPlaceableInventory: [
-        { slot: 0, itemKind: 'iron_ore', quantity: 1 },
-        { slot: 1, itemKind: 'wood', quantity: 1 },
+        { index: 0, itemKind: 'iron_ore', quantity: 1 },
+        { index: 1, itemKind: 'wood', quantity: 1 },
       ], furnaceProgress: 0.5, hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -653,7 +653,7 @@ describe('overworld retained UI layout', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: '[E] OPEN CHEST',
@@ -697,18 +697,18 @@ describe('overworld retained UI layout', () => {
     const layout = overworldUiLayout(480, 270);
     ui.pointerMove({ x: layout.watchStatus.x + 20, y: layout.watchStatus.y + 8 });
     expect(ui.tooltipText()).toBeNull();
-    expect(hasEquippedWatch([{ slot: 0, itemKind: 'watch', quantity: 1 }])).toBe(false);
+    expect(hasEquippedWatch([{ container: 'hotbar', index: 0, itemKind: 'watch', quantity: 1 }])).toBe(false);
 
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: EQUIPMENT_SLOT_OFFSET + 2, itemKind: 'watch', quantity: 1 }],
+      inventory: [{ container: 'equipment' as const, index: 2, itemKind: 'watch', quantity: 1 }],
       hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 12', timeLabel: '14:35', timeFraction: 0.6,
       moonPhase: 'waxing_crescent', moonIlluminationPerMille: 250,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
-    expect(hasEquippedWatch([{ slot: EQUIPMENT_SLOT_OFFSET + 2, itemKind: 'watch', quantity: 1 }])).toBe(true);
+    expect(hasEquippedWatch([{ container: 'equipment', index: 2, itemKind: 'watch', quantity: 1 }])).toBe(true);
     expect(ui.tooltipText()).toBe('TIME 14:35 · SPRING 12 · WAXING CRESCENT');
     expect(watchStatusLabel('14:35', 'SPRING 12', 'waxing_crescent'))
       .toBe('Time 14:35 · SPRING 12 · Waxing Crescent');
@@ -722,10 +722,10 @@ describe('overworld retained UI layout', () => {
     })());
     const active = buildContentRegistry(rows).registry;
     expect(hasEquippedWatch([{
-      slot: EQUIPMENT_SLOT_OFFSET + 2, itemKind: 'pocket_clock', quantity: 1,
+      container: 'equipment', index: 2, itemKind: 'pocket_clock', quantity: 1,
     }], active)).toBe(true);
     expect(hasEquippedWatch([{
-      slot: EQUIPMENT_SLOT_OFFSET + 2, itemKind: 'watch', quantity: 1,
+      container: 'equipment', index: 2, itemKind: 'watch', quantity: 1,
     }], active)).toBe(false);
   });
 
@@ -1012,7 +1012,7 @@ describe('overworld retained UI layout', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     const model = {
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 10, itemKind: 'wood', quantity: 2, durability: 0, lit: false }], hasBackpack: true,
+      inventory: [{ container: 'backpack' as const, index: 0, itemKind: 'wood', quantity: 2, durability: 0, lit: false }], hasBackpack: true,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
@@ -1180,13 +1180,13 @@ describe('overworld inventory and system menu', () => {
   it('selects the equipped weapon from its HUD shortcut without creating a hotbar copy', () => {
     const handlers=callbacks();
     const ui=new OverworldUi({} as UiSkin,{} as PixelUi,{} as OverworldUiItemArt,handlers);
-    const inventory=[{slot:MAIN_HAND_INVENTORY_SLOT,itemKind:'hearth_common_sword',quantity:1,durability:250}];
+    const inventory=[{container:'equipment' as const,index:MAIN_HAND_EQUIPMENT_INDEX,itemKind:'hearth_common_sword',quantity:1,durability:250}];
     ui.update({width:480,height:270,connected:true,playerCount:1,selectedSlot:0,inventory,
       hasBackpack:false,timeFraction:0,prompt:null,toast:null,audioVolumes:{master:1,music:1,sfx:1},
       canAdministerWorld:false,dateLabel:'SPRING 1',timeLabel:'06:00',raining:false,weatherMode:'auto'});
     const button=overworldUiLayout(480,270).weaponShortcut;
     ui.pointerDown({x:button.x+10,y:button.y+10},0,{});
-    expect(handlers.selectHotbar).toHaveBeenCalledWith(MAIN_HAND_INVENTORY_SLOT);
+    expect(handlers.selectHotbar).toHaveBeenCalledWith(MAIN_HAND_SELECTED_SLOT);
     expect(inventory).toHaveLength(1);
     for (const width of [360,390,480]) {
       const layout=overworldUiLayout(width,270);
@@ -1225,7 +1225,7 @@ describe('overworld inventory and system menu', () => {
     for (const width of [360, 480, 600, 480]) {
       ui.update({
         width, height: 300, connected: true, playerCount: 1, selectedSlot: 0,
-        inventory: [{ slot: CRAFTING_SLOT_OFFSET, itemKind: 'wood', quantity: 1 }], hasBackpack: true, contentRegistry, knownRecipeIds: ['planks'],
+        inventory: [{ container: 'crafting' as const, index: 0, itemKind: 'wood', quantity: 1 }], hasBackpack: true, contentRegistry, knownRecipeIds: ['planks'],
         audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
         dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
         raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -1256,7 +1256,7 @@ describe('overworld inventory and system menu', () => {
       width: 360, height: 270, connected: true, touchControls: true,
       playerCount: 1, selectedSlot: 0,
       inventory: Array.from({ length: 20 }, (_, index) => ({
-        slot: 10 + index, itemKind: 'wood', quantity: 1,
+        container: 'backpack' as const, index, itemKind: 'wood', quantity: 1,
       })),
       hasBackpack: true, backpackSlotCapacity: 20,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -1285,7 +1285,7 @@ describe('overworld inventory and system menu', () => {
         width: 360, height: 270, connected: true, touchControls: true,
         playerCount: 1, selectedSlot: 0,
         inventory: Array.from({ length: capacity }, (_, index) => ({
-          slot: 10 + index, itemKind: 'wood', quantity: 1,
+          container: 'backpack' as const, index, itemKind: 'wood', quantity: 1,
         })),
         cursorStack: cursorQuantity > 0 ? { itemKind: 'wood', quantity: cursorQuantity } : null,
         hasBackpack: true, backpackSlotCapacity: capacity,
@@ -1414,7 +1414,7 @@ describe('overworld inventory and system menu', () => {
       ui.pointerUp(target, 0);
       expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
       expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledExactlyOnceWith([
-        { container: 'backpack', index: 0 }, { container: 'backpack', index: 1 },
+        { container: 'backpack' as const, index: 0 }, { container: 'backpack' as const, index: 1 },
       ], 'even');
     });
 
@@ -1522,7 +1522,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'chest';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 10, itemKind: 'wood', quantity: 3 }],
+      inventory: [{ container: 'backpack' as const, index: 0, itemKind: 'wood', quantity: 3 }],
       openChestInventory: [], hasBackpack: true,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -1716,7 +1716,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'inventory';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'axe', quantity: 1 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'axe', quantity: 1 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -1857,7 +1857,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'inventory';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'axe', quantity: 1 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'axe', quantity: 1 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -1878,7 +1878,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'inventory';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'axe', quantity: 1 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'axe', quantity: 1 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -1898,7 +1898,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 9 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 9 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -1919,8 +1919,8 @@ describe('overworld inventory and system menu', () => {
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [
-        { slot: 0, itemKind: 'wood', quantity: 36 },
-        { slot: CRAFTING_SLOT_OFFSET + 3, itemKind: 'empty', quantity: 0 },
+        { container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 36 },
+        { container: 'crafting' as const, index: 3, itemKind: 'empty', quantity: 0 },
       ],
       hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -1941,7 +1941,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: CRAFTING_SLOT_OFFSET + 3, itemKind: 'wood', quantity: 1 }],
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 3 }, { container: 'crafting' as const, index: 3, itemKind: 'wood', quantity: 1 }],
       hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -1960,7 +1960,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: kind, quantity: 1, durability: 7 }, { slot: CRAFTING_SLOT_OFFSET + 3, itemKind: 'wood', quantity: 1 }],
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: kind, quantity: 1, durability: 7 }, { container: 'crafting' as const, index: 3, itemKind: 'wood', quantity: 1 }],
       hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -1983,7 +1983,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'inventory';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 10, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [{ container: 'backpack' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2039,7 +2039,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2070,7 +2070,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2097,7 +2097,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2133,7 +2133,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2162,7 +2162,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2185,7 +2185,7 @@ describe('overworld inventory and system menu', () => {
     const last = layout.craftingSlots[2]!;
     ui.pointerUp({ x: last.x + 4, y: last.y + 4 }, 0);
     expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledWith([
-      { container: 'crafting', index: 0 }, { container: 'crafting', index: 1 }, { container: 'crafting', index: 2 },
+      { container: 'crafting' as const, index: 0 }, { container: 'crafting' as const, index: 1 }, { container: 'crafting' as const, index: 2 },
     ], 'even');
   });
 
@@ -2233,7 +2233,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'inventory';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2273,7 +2273,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'chest';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }, { slot: 1, itemKind: 'wood', quantity: 9 }],
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }, { container: 'hotbar' as const, index: 1, itemKind: 'wood', quantity: 9 }],
       openChestInventory: [], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -2305,7 +2305,7 @@ describe('overworld inventory and system menu', () => {
     };
     ui.update({
       ...common,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }, { slot: 1, itemKind: 'wood', quantity: 9 }],
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }, { container: 'hotbar' as const, index: 1, itemKind: 'wood', quantity: 9 }],
       openChestInventory: [],
     });
     const slot = overworldUiLayout(480, 270).chestHotbarSlots[0]!;
@@ -2319,8 +2319,8 @@ describe('overworld inventory and system menu', () => {
     // clicked stack has already moved before the second click arrives.
     ui.update({
       ...common,
-      inventory: [{ slot: 1, itemKind: 'wood', quantity: 9 }],
-      openChestInventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }],
+      inventory: [{ container: 'hotbar' as const, index: 1, itemKind: 'wood', quantity: 9 }],
+      openChestInventory: [{ index: 0, itemKind: 'wood', quantity: 8 }],
     });
     now.mockReturnValue(450);
     ui.pointerDown(point, 0, { shift: true });
@@ -2339,7 +2339,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'chest';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }, { slot: 1, itemKind: 'wood', quantity: 9 }],
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }, { container: 'hotbar' as const, index: 1, itemKind: 'wood', quantity: 9 }],
       cursorStack: { itemKind: 'wood', quantity: 5 }, openChestInventory: [], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -2372,7 +2372,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: CRAFTING_SLOT_OFFSET, itemKind: 'wood', quantity: 25 }], hasBackpack: false,
+      inventory: [{ container: 'crafting' as const, index: 0, itemKind: 'wood', quantity: 25 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2391,9 +2391,9 @@ describe('overworld inventory and system menu', () => {
       contentRegistry: buildContentRegistry(bootstrapContentRows()).registry,
       knownRecipeIds: ['furniture_rustic_dining_table'], nearbyCraftingStations: ['workbench'],
       inventory: [
-        ...[0, 1, 2, 3, 4, 5].map((index) => ({ slot: CRAFTING_SLOT_OFFSET + index, itemKind: 'plank', quantity: 1 })),
-        { slot: CRAFTING_SLOT_OFFSET + 6, itemKind: 'stick', quantity: 1 },
-        { slot: CRAFTING_SLOT_OFFSET + 8, itemKind: 'stick', quantity: 1 },
+        ...[0, 1, 2, 3, 4, 5].map((index) => ({ container: 'crafting' as const, index: index, itemKind: 'plank', quantity: 1 })),
+        { container: 'crafting' as const, index: 6, itemKind: 'stick', quantity: 1 },
+        { container: 'crafting' as const, index: 8, itemKind: 'stick', quantity: 1 },
       ], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -2416,7 +2416,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     const model = {
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: CRAFTING_SLOT_OFFSET, itemKind: 'wood', quantity: 1 }], hasBackpack: false,
+      inventory: [{ container: 'crafting' as const, index: 0, itemKind: 'wood', quantity: 1 }], hasBackpack: false,
       contentRegistry: registry, knownRecipeIds: [] as string[],
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -2442,7 +2442,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     const model = {
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: CRAFTING_SLOT_OFFSET, itemKind: 'wood', quantity: 1 }], hasBackpack: false,
+      inventory: [{ container: 'crafting' as const, index: 0, itemKind: 'wood', quantity: 1 }], hasBackpack: false,
       contentRegistry: registry, knownRecipeIds: ['planks'],
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -2466,7 +2466,7 @@ describe('overworld inventory and system menu', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
     const inventory = Array.from({ length: 9 }, (_, index) => ({
-      slot: CRAFTING_SLOT_OFFSET + index,
+      container: 'crafting' as const, index,
       itemKind: index === 4 ? 'empty' : 'plank',
       quantity: index === 4 ? 0 : 1,
     }));
@@ -2496,7 +2496,7 @@ describe('overworld inventory and system menu', () => {
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [0, 2, 3, 4, 5].map((index) => ({
-        slot: CRAFTING_SLOT_OFFSET + index, itemKind: 'plank', quantity: 4,
+        container: 'crafting' as const, index, itemKind: 'plank', quantity: 4,
       })),
       hasBackpack: false,
       nearbyCraftingStations: ['workbench'],
@@ -2517,7 +2517,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'plank', quantity: 4 }], hasBackpack: false,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'plank', quantity: 4 }], hasBackpack: false,
       nearbyCraftingStations: [],
       knownRecipeIds: ['planks', 'sticks', 'torch', 'campfire', 'workbench'],
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -2701,9 +2701,9 @@ describe('overworld inventory and system menu', () => {
     const last = targets[2]!;
     ui.pointerUp({ x: last.x + 4, y: last.y + 4 }, 0);
     expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledWith([
-      { container: 'crafting', index: 0 },
-      { container: 'crafting', index: 1 },
-      { container: 'crafting', index: 2 },
+      { container: 'crafting' as const, index: 0 },
+      { container: 'crafting' as const, index: 1 },
+      { container: 'crafting' as const, index: 2 },
     ], 'even');
   });
 
@@ -2726,9 +2726,9 @@ describe('overworld inventory and system menu', () => {
     const lastPoint = { x: targets[2]!.x + 4, y: targets[2]!.y + 4 };
     ui.pointerUp(lastPoint, 2);
     expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledWith([
-      { container: 'crafting', index: 0 },
-      { container: 'crafting', index: 1 },
-      { container: 'crafting', index: 2 },
+      { container: 'crafting' as const, index: 0 },
+      { container: 'crafting' as const, index: 1 },
+      { container: 'crafting' as const, index: 2 },
     ], 'one_each');
   });
 
@@ -2738,7 +2738,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 10, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
+      inventory: [{ container: 'backpack' as const, index: 0, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -2758,7 +2758,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: true,
+      inventory: [{ container: 'hotbar' as const, index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: true,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,

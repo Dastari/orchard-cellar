@@ -16,10 +16,12 @@ const SHARED_PANE_MODULES = new Set([
   'ui/src/kit/components/inventory.ts',
 ]);
 
-/** Modules that read the backpack range without showing it: recipe ingredient counts and the client's capacity
- * projection for the UI model. */
+/** Modules that read the backpack range without showing it: recipe ingredient counts, the client's capacity
+ * projection for the UI model, and the carried-cell rule (`isAccessibleCarriedCell`, Uncapped Storage step 4c) that
+ * crafting, selling and bow ammunition all read. */
 const NOT_DISPLAYS = new Set([
   'ui/src/recipe-book.ts',
+  'ui/src/player-cells.ts',
   'client/src/backpack-capacity.ts',
 ]);
 
@@ -57,14 +59,13 @@ const EXCEPTIONS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
   'ui/src/kit/components/content-frame.ts': { 'player-container-grid': 1 },
   // Studio's game-surface specimen of the HUD's hotbar and vitals row: the HUD, not an inventory window.
   'ui/src/kit/components/game-surface.ts': { 'player-container-grid': 1 },
-  // Trade maps the shared pane's cells to its inventory slots to offer them (the pane draws them), and guards and
-  // disables each slot by the cell it shows (Uncapped Storage step 3).
-  'ui/src/kit/components/trade.ts': { 'backpack-range': 8 },
-  // The merchant's Sell tab maps the shared pane's cells to inventory slots (the pane draws them), each slot's
-  // sellable state by the cell it shows ...
-  'ui/src/kit/components/merchant.ts': { 'backpack-range': 5 },
-  // ... and the NPC window works out which carried slots and how many cells that pane shows.
-  'ui/src/npc-interaction-ui.ts': { 'backpack-range': 6 },
+  // Trade clamps the shared pane to the bag's capacity (the pane draws the cells). Uncapped Storage step 4c: it offers
+  // the pane's cells by container and index, so the BACKPACK_SLOT_OFFSET arithmetic is gone (8 -> 2).
+  'ui/src/kit/components/trade.ts': { 'backpack-range': 2 },
+  // The NPC window works out how many cells the merchant's Sell pane shows. Step 4c: the Sell tab reads carried cells
+  // by container and index (isAccessibleCarriedCell), so merchant.ts no longer maps cells to global slots (5 -> 0) and
+  // this window keeps only the capacity rule (6 -> 2).
+  'ui/src/npc-interaction-ui.ts': { 'backpack-range': 2 },
   // The host's gesture source reads backpack capacity; its slot table (Uncapped Storage step 2) replaced the host-drawn
   // backpack slot arrays.
   'ui/src/overworld-ui.ts': { 'backpack-range': 2 },

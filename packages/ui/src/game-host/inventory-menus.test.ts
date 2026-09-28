@@ -2,7 +2,7 @@ import { GameOnlinePlayers } from './online-players.js';
 import { GameUiRuntime } from './runtime.js';
 import { nextHomesteadMemberRole } from '../overworld-ui.js';
 import { describe, expect, it, vi } from 'vitest';
-import { bootstrapContentRegistry, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, runtimeMaxStack, projectTiming, processTopologyForObject, type ProcessTimingSource, type ItemStack, type FrameContentDefinition } from '@orchard/sim';
+import { bootstrapContentRegistry, EQUIPMENT_SLOTS, runtimeMaxStack, projectTiming, processTopologyForObject, type ProcessTimingSource, type ItemStack, type FrameContentDefinition } from '@orchard/sim';
 import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
 import type { PixelUi } from '../pixel-ui.js';
@@ -71,7 +71,7 @@ function fixture(window: OverworldWindow = 'inventory', overrides: Partial<Overw
   const handlers = callbacks();
   const ui = new OverworldUi(paint?.skin ?? {} as UiSkin, paint?.fonts ?? {} as PixelUi, {} as OverworldUiItemArt, handlers);
   let model: OverworldUiModel = { width: 800, height: 600, connected: true, playerCount: 1, selectedSlot: 0,
-    inventory: [{ slot: 10, itemKind: 'wood', quantity: 8 }], hasBackpack: true, backpackSlotCapacity: 20,
+    inventory: [{ container: 'backpack', index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: true, backpackSlotCapacity: 20,
     contentRegistry: registry, activeFrameId: window === 'chest' ? 'frame:chest' : window === 'barrel' ? 'frame:barrel' : undefined,
     activeFrameState: { sealed: false }, knownRecipeIds: ['planks'],
     audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -143,8 +143,8 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('gives the chest and the backpack their own filters without removing hidden occupied slots from authority (BUG-065)', () => {
-    const f = fixture('chest', { openChestInventory: [{slot:0,itemKind:'wood',quantity:3},{slot:15,itemKind:'apple',quantity:5}],
-      inventory: [{ slot: 10, itemKind: 'apple', quantity: 2 }] });
+    const f = fixture('chest', { openChestInventory: [{index:0,itemKind:'wood',quantity:3},{index:15,itemKind:'apple',quantity:5}],
+      inventory: [{ container: 'backpack', index: 0, itemKind: 'apple', quantity: 2 }] });
     try {
       const inputs = f.root.entries().filter(({element}) => element.label === 'Filter items');
       expect(inputs).toHaveLength(2);
@@ -172,7 +172,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('starts each chest window and each frame with an empty chest filter (BUG-065)', () => {
-    const f = fixture('chest', { openChestInventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }] });
+    const f = fixture('chest', { openChestInventory: [{ index: 0, itemKind: 'wood', quantity: 3 }] });
     try {
       const chestFilter = () => { f.root.arrange(); return f.root.entries().find(({ element }) => element.id === 'frame:chest.pane.contents.filter')?.element; };
       f.root.focus.set(chestFilter()!, 'keyboard'); f.root.text('wood'); f.root.arrange();
@@ -189,7 +189,7 @@ describe('production retained inventory authority bridge', () => {
 
   it('draws the hearth stash with the shared player inventory pane (BUG-067)', () => {
     const f = fixture('content', { activeFrameId: 'frame:hearth_stash',
-      openStashInventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: 19, itemKind: 'apple', quantity: 5 }] });
+      openStashInventory: [{ index: 0, itemKind: 'wood', quantity: 3 }, { index: 19, itemKind: 'apple', quantity: 5 }] });
     try {
       f.root.arrange();
       expect(f.ui.retainedInventoryActive).toBe(true);
@@ -222,7 +222,7 @@ describe('production retained inventory authority bridge', () => {
   it('keeps full destinations and disallowed barrel input unchanged', () => {
     const max = runtimeMaxStack(registry, 'wood')!;
     const f = fixture('barrel', { cursorStack: {itemKind:'wood',quantity:3},
-      inventory: Array.from({length:20},(_,index)=>({slot:10+index,itemKind:'wood',quantity:max})) });
+      inventory: Array.from({length:20},(_,index)=>({container:'backpack' as const,index,itemKind:'wood',quantity:max})) });
     try {
       f.click(f.slot('backpack', 0));
       expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
@@ -233,7 +233,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('forwards one Shift transfer to the existing chest transport', () => {
-    const f = fixture('chest', { openChestInventory: [{ slot: 0, itemKind: 'apple', quantity: 5 }] });
+    const f = fixture('chest', { openChestInventory: [{ index: 0, itemKind: 'apple', quantity: 5 }] });
     try {
       f.click(f.slot('chest', 0), { shiftKey: true });
       expect(f.handlers.quickMoveInventoryItem).toHaveBeenCalledExactlyOnceWith('chest', 0, ['hotbar', 'backpack']);
@@ -293,7 +293,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('ignores a second pointer without replacing the first inventory gesture', () => {
-    const f = fixture('inventory', {inventory:[{slot:10,itemKind:'wood',quantity:8},{slot:11,itemKind:'apple',quantity:4}]});
+    const f = fixture('inventory', {inventory:[{container:'backpack', index:0,itemKind:'wood',quantity:8},{container:'backpack', index:1,itemKind:'apple',quantity:4}]});
     try {
       const first=f.slot('backpack',0), second=f.slot('backpack',1);
       f.pointer('down',first,{pointerType:'touch',isPrimary:true});
@@ -325,7 +325,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('activates the focused real slot with keyboard modifiers and closes with Escape', () => {
-    const f=fixture('chest',{openChestInventory:[{slot:0,itemKind:'apple',quantity:5}]});
+    const f=fixture('chest',{openChestInventory:[{index:0,itemKind:'apple',quantity:5}]});
     try {
       const source=f.slot('chest',0); f.root.focus.set(source,'keyboard');
       f.root.key({key:'Enter',shiftKey:true});
@@ -410,7 +410,7 @@ describe('production retained inventory authority bridge', () => {
   });
 
   it('crafts the real recipe once on release with Shift while preserving the grid authority', () => {
-    const f=fixture('crafting',{inventory:[{slot:CRAFTING_SLOT_OFFSET,itemKind:'wood',quantity:25}]});
+    const f=fixture('crafting',{inventory:[{container:'crafting', index:0,itemKind:'wood',quantity:25}]});
     try {
       const result=f.root.entries().find(({element})=>element.label==='Craft result')!.element;
       expect(result.disabled).toBe(false);
@@ -539,7 +539,7 @@ describe('production retained inventory authority bridge', () => {
 
   it('adopts the actual authored barrel content route with real slot and seal commands', () => {
     const f=fixture('content',{activeFrameId:'frame:barrel',activeFrameState:{sealed:false},
-      openPlaceableInventory:[{slot:0,itemKind:'apple',quantity:4}]});
+      openPlaceableInventory:[{index:0,itemKind:'apple',quantity:4}]});
     try {
       expect(f.ui.retainedInventoryActive).toBe(true);
       expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')).toHaveLength(8);
@@ -589,7 +589,7 @@ describe('Uncapped Storage: host slots past the old fixed lengths', () => {
     { window: 'content' as const, frame: 'frame:hearth_stash', container: 'stash', cell: 24, rows: 'openStashInventory' as const },
   ])('picks up $container cell $cell through the host slot lookup', ({ window, frame, container, cell, rows }) => {
     const f = fixture(window, { contentRegistry: widened(frame, 30), activeFrameId: frame as FrameContentDefinition['id'],
-      [rows]: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: cell, itemKind: 'apple', quantity: 5 }] });
+      [rows]: [{ index: 0, itemKind: 'wood', quantity: 3 }, { index: cell, itemKind: 'apple', quantity: 5 }] });
     try {
       expect(f.ui.retainedInventoryActive).toBe(true);
       // Keyboard activation: the cell sits in the panel's buffer row, below the rows in view.
@@ -603,7 +603,7 @@ describe('Uncapped Storage: host slots past the old fixed lengths', () => {
 
 describe('production retained processor authority bridge',()=>{
   it.each(processorCases)('adopts $frame through its real content route and keeps processor roles unsortable',spec=>{
-    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:0,itemKind:spec.input,quantity:6}]});
+    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{index:0,itemKind:spec.input,quantity:6}]});
     try {
       expect(f.ui.retainedInventoryActive).toBe(true);
       expect(f.root.entries().filter(({element})=>(element.props['binding'] as {container?:string}|undefined)?.container==='placeable')).toHaveLength(spec.slots);
@@ -617,7 +617,7 @@ describe('production retained processor authority bridge',()=>{
   });
 
   it('keeps a touch-reachable sort for the preserving barrel',()=>{
-    const f=fixture('content',{activeFrameId:'frame:barrel',openPlaceableInventory:[{slot:0,itemKind:'apple',quantity:3},{slot:2,itemKind:'apple',quantity:2}]});
+    const f=fixture('content',{activeFrameId:'frame:barrel',openPlaceableInventory:[{index:0,itemKind:'apple',quantity:3},{index:2,itemKind:'apple',quantity:2}]});
     try {
       const sort=f.root.entries().find(({element})=>element.id==='frame:barrel.pane.contents.sort'||(element.label==='Sort & stack'&&element.kind==='button'))?.element;
       expect(sort,'barrel sort glyph').toBeDefined();
@@ -630,7 +630,7 @@ describe('production retained processor authority bridge',()=>{
   });
 
   it.each(processorCases)('allows output extraction but rejects insertion in $frame',spec=>{
-    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:spec.outputIndex,itemKind:spec.output,quantity:2}]});
+    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{index:spec.outputIndex,itemKind:spec.output,quantity:2}]});
     try {
       f.click(f.slot('placeable',spec.outputIndex));
       expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',spec.outputIndex,'left');
@@ -647,7 +647,7 @@ describe('production retained processor authority bridge',()=>{
   it.each(processorCases)('uses the real timing projection in $frame without creating unsettled output',spec=>{
     const source=processorTimingSource(spec);
     const f=fixture('content',{activeFrameId:spec.frame,activeFrameTiming:projectTiming(source,120n),
-      openPlaceableInventory:source.state!.slots.flatMap((stack,slot)=>stack?[{slot,...stack}]:[])});
+      openPlaceableInventory:source.state!.slots.flatMap((stack,index)=>stack?[{index,...stack}]:[])});
     try {
       const text=()=>f.root.entries().map(({element})=>element.props['text']);
       expect(text()).toContain('In progress');
@@ -678,7 +678,7 @@ describe('production retained processor authority bridge',()=>{
     try {f.click(f.slot('placeable',0));expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();}
     finally {f.dispose();}
     const existing=fixture('content',{activeFrameId:'frame:furnace',contentRegistry:retired,
-      openPlaceableInventory:[{slot:0,itemKind:'copper_ore',quantity:3}]});
+      openPlaceableInventory:[{index:0,itemKind:'copper_ore',quantity:3}]});
     try {existing.click(existing.slot('placeable',0));expect(existing.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('placeable',0,'left');}
     finally {existing.dispose();}
   });
@@ -721,7 +721,7 @@ describe('production retained processor authority bridge',()=>{
     const base=registry.frames.get('frame:press')!;
     const frame:FrameContentDefinition={...base,panes:base.panes.map(pane=>pane.id==='output'?{...pane,visibleWhen:{state:'showOutputs',equals:true}}:pane)};
     const f=fixture('content',{activeFrameId:frame.id,contentRegistry:{...registry,frames:new Map(registry.frames).set(frame.id,frame)},
-      activeFrameState:{showOutputs:false},openPlaceableInventory:[{slot:0,itemKind:'apple',quantity:4},{slot:1,itemKind:'must',quantity:2},{slot:2,itemKind:'pomace',quantity:1}]});
+      activeFrameState:{showOutputs:false},openPlaceableInventory:[{index:0,itemKind:'apple',quantity:4},{index:1,itemKind:'must',quantity:2},{index:2,itemKind:'pomace',quantity:1}]});
     try {
       expect(f.root.entries().some(({element})=>(element.props['binding'] as {container?:string;index?:number}|undefined)?.container==='placeable' && (element.props['binding'] as {index:number}).index===2)).toBe(false);
       f.click(f.slot('placeable',0));
@@ -734,7 +734,7 @@ describe('production retained processor authority bridge',()=>{
 
 
   it.each(processorCases)('restores rejected output custody and reconnects the same $frame root',async spec=>{
-    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{slot:spec.outputIndex,itemKind:spec.output,quantity:2}]});
+    const f=fixture('content',{activeFrameId:spec.frame,openPlaceableInventory:[{index:spec.outputIndex,itemKind:spec.output,quantity:2}]});
     try {
       let reject!:(error:Error)=>void;
       vi.mocked(f.handlers.inventoryCursorClick).mockImplementationOnce(()=>new Promise<void>((_resolve,failure)=>{reject=failure;}));
@@ -752,7 +752,7 @@ describe('production retained processor authority bridge',()=>{
 
   it.each(processorCases)('keeps a carried $frame output when the backpack destination is full',spec=>{
     const f=fixture('content',{activeFrameId:spec.frame,cursorStack:{itemKind:spec.output,quantity:2},
-      inventory:Array.from({length:20},(_,index)=>({slot:10+index,itemKind:spec.output,quantity:runtimeMaxStack(registry,spec.output)!}))});
+      inventory:Array.from({length:20},(_,index)=>({container:'backpack' as const,index,itemKind:spec.output,quantity:runtimeMaxStack(registry,spec.output)!}))});
     try {
       f.click(f.slot('backpack',0));expect(f.handlers.inventoryCursorClick).not.toHaveBeenCalled();
       expect(cursor(f.ui)).toBeUndefined();

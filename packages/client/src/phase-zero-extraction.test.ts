@@ -265,7 +265,13 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Uncapped Storage step 3 (wiki Roadmap/Uncapped Storage): ui/overworld-ui.ts resolves a retained pane bound to
 // `entitySlots: all` over the open entity's container (openEntityCapacity) and hands that size to the kit menus.
 // inventory-menus-held-stack (256-slot chest and stash) covers it; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '994f3ad5e633c4160360ea9276b245bbb9e327615361c04829628f25a62ff2f6';
+// Uncapped Storage step 4c (wiki Roadmap/Uncapped Storage): ui/overworld-ui.ts reads the player's items by container and
+// index (OverworldUiInventorySlot is { container, index }, open chest/station/stash rows are { index }), resolves the Main
+// Hand through MAIN_HAND_SELECTED_SLOT / isMainHandSelectedSlot, and hands the HUD its hotbar cells and main-hand stack;
+// ui/index.ts exports player-cells and the one legacy-slot boundary (legacy-global-slots). overworld-ui, hud,
+// hotbar-empty-slots, player-cells and the player-inventory boundary tests cover it; lab snapshot hashes are unchanged;
+// the other three seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '26ed42518ae3b9c5979652fed39bebedf967de3a224573d02aa63ae03d85f623';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

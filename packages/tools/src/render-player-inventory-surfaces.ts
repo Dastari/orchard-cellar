@@ -16,7 +16,7 @@ const compact = process.argv.includes('--compact');
 const size = compact ? { width: 1440, height: 810, uiWidth: 480, uiHeight: 270, scale: 3 } : { width: 1280, height: 720, uiWidth: 640, uiHeight: 360, scale: 2 };
 
 const scene = `
-import { bootstrapContentRegistry, MAIN_HAND_INVENTORY_SLOT } from '/packages/sim/src/index.ts';
+import { bootstrapContentRegistry } from '/packages/sim/src/index.ts';
 import { loadUiKitArt } from '/packages/ui/src/kit/components/art.ts';
 import { NpcInteractionUi } from '/packages/ui/src/npc-interaction-ui.ts';
 import { TradeUi } from '/packages/ui/src/trade-ui.ts';
@@ -27,10 +27,10 @@ const post = body => fetch('/__result', { method: 'POST', body: JSON.stringify(b
 try {
   const art = await loadOverworldArt(), kitArt = await loadUiKitArt(), registry = bootstrapContentRegistry();
   const itemArt = { missing: art.missingItem, avatar: art.avatar, ...art.itemIcons };
-  const inventory = [{ slot: 0, itemKind: 'axe', quantity: 1, durability: 250 }, { slot: 1, itemKind: 'wood', quantity: 25 },
-    { slot: 2, itemKind: 'apple', quantity: 12 }, { slot: 10, itemKind: 'stone', quantity: 40 }, { slot: 11, itemKind: 'plank', quantity: 30 },
-    { slot: 12, itemKind: 'carrot_seeds', quantity: 8 }, { slot: 13, itemKind: 'copper_ore', quantity: 10 }, { slot: 16, itemKind: 'arrow', quantity: 20 },
-    { slot: 34, itemKind: 'backpack', quantity: 1 }];
+  const inventory = [{ container: 'hotbar', index: 0, itemKind: 'axe', quantity: 1, durability: 250 }, { container: 'hotbar', index: 1, itemKind: 'wood', quantity: 25 },
+    { container: 'hotbar', index: 2, itemKind: 'apple', quantity: 12 }, { container: 'backpack', index: 0, itemKind: 'stone', quantity: 40 }, { container: 'backpack', index: 1, itemKind: 'plank', quantity: 30 },
+    { container: 'backpack', index: 2, itemKind: 'carrot_seeds', quantity: 8 }, { container: 'backpack', index: 3, itemKind: 'copper_ore', quantity: 10 }, { container: 'backpack', index: 6, itemKind: 'arrow', quantity: 20 },
+    { container: 'equipment', index: 4, itemKind: 'backpack', quantity: 1 }];
   const callbacks = new Proxy({}, { get: () => () => Promise.resolve() });
   const base = { width: size.uiWidth, height: size.uiHeight, connected: true, playerCount: 1, selectedSlot: 0, inventory, hasBackpack: true,
     backpackSlotCapacity: 20, contentRegistry: registry, balanceBronze: 10000n, audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -57,8 +57,8 @@ try {
       const ui = new OverworldUi(art.uiSkin, art.ui, itemArt, callbacks);
       const frame = { chest: 'frame:chest', furnace: 'frame:furnace', stash: 'frame:hearth_stash' }[surface];
       const model = { ...base, ...(frame ? { activeFrameId: frame } : {}),
-        ...(surface === 'chest' ? { openChestInventory: [{ slot: 0, itemKind: 'wood', quantity: 50 }, { slot: 5, itemKind: 'arrow', quantity: 12 }] } : {}),
-        ...(surface === 'stash' ? { openStashInventory: [{ slot: 0, itemKind: 'torch', quantity: 1, durability: 73, lit: false }, { slot: 3, itemKind: 'arrow', quantity: 12 }] } : {}) };
+        ...(surface === 'chest' ? { openChestInventory: [{ index: 0, itemKind: 'wood', quantity: 50 }, { index: 5, itemKind: 'arrow', quantity: 12 }] } : {}),
+        ...(surface === 'stash' ? { openStashInventory: [{ index: 0, itemKind: 'torch', quantity: 1, durability: 73, lit: false }, { index: 3, itemKind: 'arrow', quantity: 12 }] } : {}) };
       ui.update(model); ui.enableRetainedInventory(kitArt);
       ui.openWindow = surface === 'stash' ? 'content' : surface; ui.update(model);
       ui.draw(ctx);

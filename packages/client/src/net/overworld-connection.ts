@@ -5,7 +5,7 @@ import { spaceAdminFlagChunkAuthority } from '../chunk-authority-seam.js';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import { chunkWindowForView, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 import {
-  INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY, CURRENT_INVENTORY_PROTOCOL_VERSION,
+  INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY, CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
   collisionCellIndex, instanceSpaceRowFor,
   LIVE_ISLAND_MAP_ID, runtimeResourcePerception,
@@ -18,12 +18,13 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from '@orchard/world-bindings';
 import { ensureOidcSession, localProfilesEnabled, oidcConfigured, readOidcSession } from '@orchard/auth';
 import type {
-  VillageOrderQuote, HearthStashSlot, OutdoorEnemyProfile, OutdoorRewardClaim, PlayerCombatState, EnemyAttack, CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, RuntimeContentDefinition, ContentHead, FishingCast, Homestead, HomesteadGuest, HomesteadUpgrade, InventorySlot, Membership, PlayerAppearance, PlayerCookingJob, PlayerEffect, PlayerJumpState, PlayerKnownRecipe, PlayerPosition, PlayerPredictionState, PlayerPublic, PlayerQuest, PlayerQuestBaseline as StoredPlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, RogueEnemyProfile, RogueRewardOffer, RogueRoomExit, RogueRun, RogueRunUpgrade, SessionChatNotice,
-  LiveMapDocument, SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  VillageOrderQuote, OutdoorEnemyProfile, OutdoorRewardClaim, PlayerCombatState, EnemyAttack, CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, RuntimeContentDefinition, ContentHead, FishingCast, Homestead, HomesteadGuest, HomesteadUpgrade, Membership, PlayerAppearance, PlayerCookingJob, PlayerEffect, PlayerJumpState, PlayerKnownRecipe, PlayerPosition, PlayerPredictionState, PlayerPublic, PlayerQuest, PlayerQuestBaseline as StoredPlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, RogueEnemyProfile, RogueRewardOffer, RogueRoomExit, RogueRun, RogueRunUpgrade, SessionChatNotice,
+  LiveMapDocument, SpacePortal, WorldCampfireState, WorldChest, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, PlaceableContainerCell, WorldPlaceable, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
   WorldSurface,
 } from '@orchard/world-bindings/types';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { ActivePlaceableSession } from './active-placeable-session.js';
+import { PlayerContainerCells, type PlayerCellRow, type ReadonlyPlayerContainerCells } from './player-container-cells.js';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
 import {
   LatencyInjector, LocalPredictionBuffer, latencyFromSearch,
@@ -199,15 +200,17 @@ export interface OverworldView {
   readonly homesteadMembers: ReadonlyKeyedStore<string, HomesteadGuest>;
   readonly cellarExcavations: ReadonlyKeyedStore<string, CellarExcavation>;
   readonly surfaces: ReadonlyKeyedStore<bigint, WorldSurface>;
-  readonly inventorySlots: ReadonlyKeyedStore<number, InventorySlot>;
+  /** The player's items by container and cell, the stash included (`own_player_container_cells`). */
+  readonly playerCells: ReadonlyPlayerContainerCells;
   readonly knownRecipes: ReadonlyKeyedStore<string, PlayerKnownRecipe>;
   readonly inventoryCursor: ItemStack | null;
   readonly effects: ReadonlyKeyedStore<bigint, PlayerEffect>;
-  readonly openChestSlots: ReadonlyKeyedStore<number, WorldChestSlot>;
+  /** The open chest's cells by index: the open placeable's own cells when it is a chest. */
+  readonly openChestSlots: ReadonlyKeyedStore<number, PlaceableContainerCell>;
   readonly villageOrders?:ReadonlyKeyedStore<string,VillageOrderQuote>;
   readonly hearthStashOpen?:boolean;
-  readonly hearthStashSlots?:ReadonlyKeyedStore<number,HearthStashSlot>;
-  readonly openPlaceableSlots: ReadonlyKeyedStore<number, WorldPlaceableSlot>;
+  /** The open placeable's cells by index (`own_open_placeable_container_cells`). */
+  readonly openPlaceableSlots: ReadonlyKeyedStore<number, PlaceableContainerCell>;
   readonly chatChannels: ReadonlyKeyedStore<bigint, ChatChannel>;
   readonly chatMessages: ReadonlyKeyedStore<bigint, ChatMessage>;
   readonly sessionChatNotices: ReadonlyKeyedStore<bigint, SessionChatNotice>;
@@ -265,8 +268,8 @@ export interface OverworldSnapshot {
   readonly cellarExcavations: readonly CellarExcavation[];
   readonly surfaces: readonly WorldSurface[];
   readonly villageOrders?:readonly VillageOrderQuote[];
-  readonly hearthStashOpen?:boolean;readonly hearthStashSlots?:readonly HearthStashSlot[];
-  readonly inventorySlots: readonly InventorySlot[]; readonly knownRecipes: readonly PlayerKnownRecipe[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
+  readonly hearthStashOpen?:boolean;
+  readonly playerCells: readonly PlayerCellRow[]; readonly knownRecipes: readonly PlayerKnownRecipe[]; readonly openChestSlots: readonly PlaceableContainerCell[]; readonly openPlaceableSlots: readonly PlaceableContainerCell[]; readonly chatChannels: readonly ChatChannel[];
   readonly inventoryCursor: ItemStack | null;
   readonly effects: readonly PlayerEffect[];
   readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly operationalChatNotices: readonly OperationalChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
@@ -344,17 +347,6 @@ function compatibilityChest(row: WorldPlaceable): WorldChest {
   };
 }
 
-function compatibilityChestSlot(row: WorldPlaceableSlot): WorldChestSlot {
-  return {
-    id: row.id,
-    chestId: row.placeableId,
-    slot: row.slot,
-    itemKind: row.itemKind,
-    quantity: row.quantity,
-    durability: row.durability,
-    lit: row.lit,
-  };
-}
 
 export class OverworldConnection {
   private connection: DbConnection | null = null;
@@ -471,15 +463,14 @@ export class OverworldConnection {
   private readonly homesteadMembers = new KeyedStore<string, HomesteadGuest>();
   private readonly cellarExcavations = new KeyedStore<string, CellarExcavation>();
   private readonly surfaces = new KeyedStore<bigint, WorldSurface>();
-  private readonly inventorySlots = new KeyedStore<number, InventorySlot>();
+  private readonly playerCells = new PlayerContainerCells();
   private readonly knownRecipes = new KeyedStore<string, PlayerKnownRecipe>();
   private inventoryCursor: ItemStack | null = null;
   private readonly effects = new KeyedStore<bigint, PlayerEffect>();
-  private readonly openChestSlots = new KeyedStore<number, WorldChestSlot>();
+  private readonly openChestSlots = new KeyedStore<number, PlaceableContainerCell>();
   private readonly villageOrders=new KeyedStore<string,VillageOrderQuote>();
   private hearthStashOpen=false;
-  private readonly hearthStashSlots=new KeyedStore<number,HearthStashSlot>();
-  private readonly openPlaceableSlots = new KeyedStore<number, WorldPlaceableSlot>();
+  private readonly openPlaceableSlots = new KeyedStore<number, PlaceableContainerCell>();
   private readonly chatChannels = new KeyedStore<bigint, ChatChannel>();
   private readonly chatMessages = new KeyedStore<bigint, ChatMessage>();
   private readonly sessionChatNotices = new KeyedStore<bigint, SessionChatNotice>();
@@ -492,10 +483,11 @@ export class OverworldConnection {
   private survival: PlayerSurvival | null = null;
   private stats: PlayerStats | null = null;
   /** The open placeable session and its chest copies; removals of a replaced session are ignored (BUG-058). */
-  private readonly placeableSession = new ActivePlaceableSession<WorldChest, WorldChestSlot>(
+  private readonly placeableSession = new ActivePlaceableSession<WorldChest, PlaceableContainerCell>(
     this.openPlaceableSlots, this.openChestSlots, {
       isChest: (row) => isUnifiedChest(this.content.state.registry, row),
-      toChest: compatibilityChest, toChestSlot: compatibilityChestSlot,
+      // The chest window reads the chest's own cells.
+      toChest: compatibilityChest, toChestSlot: (row) => row,
     });
   private get activeChest(): WorldChest | null { return this.placeableSession.activeChest; }
   private get activePlaceable(): WorldPlaceable | null { return this.placeableSession.active; }
@@ -622,7 +614,9 @@ export class OverworldConnection {
         }
         if (localProfilesEnabled && oidcSession === null && savedToken === undefined) localStorage.setItem(tokenKey, token);
         try {
-          await connection.reducers.acknowledgeInventoryProtocol({ version: CURRENT_INVENTORY_PROTOCOL_VERSION });
+          // Inventory protocol 2 (Uncapped Storage step 4): this client reads container cells and sends container +
+          // u32 index; the world refuses a client that cannot.
+          await connection.reducers.acknowledgeInventoryProtocol({ version: CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION });
         } catch (error) {
           if (!this.recovery.isCurrent(generation)) return;
           const message = error instanceof Error ? error.message : 'inventory_client_update_required';
@@ -741,14 +735,14 @@ export class OverworldConnection {
     this.clock = null; this.environment = null; this.worldSeed = null; this.wind = null;
     this.characterProfile = null; this.membership = null; this.survival = null; this.stats = null;
     this.villageOrders.clear();
-    this.hearthStashOpen=false;this.hearthStashSlots.clear();
+    this.hearthStashOpen=false;
     this.placeableSession.reset(); this.cookingJob = null; this.activeDialogue = null;
     this.wallet = null; this.thought = null;
     this.clearSpaceScopedCaches();
     this.campfires.clear(); this.merchants.clear(); this.combatTargets.clear();
     this.combatTextCommits.length = 0; this.motd = null;
     this.profiles.clear(); this.appearances.clear(); this.portals.clear(); this.homesteads.clear();
-    this.inventorySlots.clear(); this.effects.clear(); this.openChestSlots.clear(); this.openPlaceableSlots.clear();
+    this.playerCells.clear(); this.effects.clear(); this.openChestSlots.clear(); this.openPlaceableSlots.clear();
     this.chatChannels.clear(); this.chatMessages.clear(); this.quests.clear(); this.questBaselines.clear();
     this.playerStatistics.clear(); this.skillTracks.clear(); this.skillNodes.clear(); this.activeFarmSkillNodes.clear(); this.equipmentSkillPriority=[]; this.combatState=null; this.questWorldItems.clear();
     this.positionCommits.drain(() => undefined); this.npcCommits.drain(() => undefined); this.projectileCommits.drain(() => undefined);
@@ -765,10 +759,10 @@ export class OverworldConnection {
       content: this.content.state,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers, playerJumps: this.playerJumps, fishingCasts: this.fishingCasts,
       resources: this.resources, soil: this.soil, crops: this.crops, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
-      wildlifeProfiles: this.wildlifeProfiles, outdoorEnemyProfiles:this.outdoorEnemyProfiles,outdoorRewards:this.outdoorRewards,outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles, enemyAttacks:this.enemyAttacks, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, activeFarmUpgrades: this.activeFarmUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
+      wildlifeProfiles: this.wildlifeProfiles, outdoorEnemyProfiles:this.outdoorEnemyProfiles,outdoorRewards:this.outdoorRewards,outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles, enemyAttacks:this.enemyAttacks, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, activeFarmUpgrades: this.activeFarmUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, playerCells: this.playerCells, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
       villageOrders:this.villageOrders,
-      hearthStashOpen:this.hearthStashOpen,hearthStashSlots:this.hearthStashSlots,
+      hearthStashOpen:this.hearthStashOpen,
       openPlaceableSlots: this.openPlaceableSlots,
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, operationalChatNotices: this.operationalChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable, cookingJob: this.cookingJob, fishingCast: this.fishingCast,
@@ -789,13 +783,12 @@ export class OverworldConnection {
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
       players: this.visiblePlayers.toArray(), playerJumps: this.playerJumps.toArray(), fishingCasts: this.fishingCasts.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), crops: this.crops.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
       wildlifeProfiles: this.wildlifeProfiles.toArray(), outdoorEnemyProfiles:this.outdoorEnemyProfiles.toArray(),outdoorRewards:this.outdoorRewards.toArray(),outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles.toArray(), enemyAttacks:this.enemyAttacks.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), homesteadUpgrades: this.homesteadUpgrades.toArray(), activeFarmUpgrades: this.activeFarmUpgrades.toArray(), homesteadMembers: this.homesteadMembers.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
-      inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
+      playerCells: [...this.playerCells],
       knownRecipes: this.knownRecipes.toArray().sort((left, right) => left.recipeId.localeCompare(right.recipeId)),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
-      openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
+      openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.index - right.index),
       villageOrders:this.villageOrders.toArray(),
-      hearthStashSlots:this.hearthStashSlots.toArray(),
-      openPlaceableSlots: this.openPlaceableSlots.toArray().sort((left, right) => left.slot - right.slot),
+      openPlaceableSlots: this.openPlaceableSlots.toArray().sort((left, right) => left.index - right.index),
       chatChannels: this.chatChannels.toArray(),
       chatMessages: this.chatMessages.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       sessionChatNotices: this.sessionChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
@@ -905,7 +898,7 @@ export class OverworldConnection {
         rogueEnemyProfile: this.rogueEnemyProfiles.size,
         enemyAttack: this.enemyAttacks.size,
         merchant: this.merchants.size,
-        inventory: this.inventorySlots.size,
+        inventory: this.playerCells.size,
         effects: this.effects.size,
         chat: this.chatMessages.size,
         chatNotices: this.sessionChatNotices.size,
@@ -1021,7 +1014,7 @@ export class OverworldConnection {
   }
   distributeInventoryItem(fromContainer: string, fromIndex: number, targets: readonly { container: string; index: number }[], quantity: number): Promise<void> {
     const request = { fromContainer, fromIndex, targetContainers: targets.map((target) => target.container),
-      targetIndexes: Uint8Array.from(targets.map((target) => target.index)), quantity };
+      targetIndexes: targets.map((target) => target.index), quantity };
     const involvesChest = fromContainer === 'chest' || targets.some((target) => target.container === 'chest');
     return this.reducer((connection) => involvesChest
       ? connection.reducers.distributeChestItem(request)
@@ -1036,7 +1029,7 @@ export class OverworldConnection {
   inventoryCursorQuickCraft(targets: readonly { container: string; index: number }[], mode: 'even' | 'one_each'): Promise<void> {
     return this.reducer((connection) => connection.reducers.inventoryCursorQuickCraft({
       targetContainers: targets.map((target) => target.container),
-      targetIndexes: Uint8Array.from(targets.map((target) => target.index)), mode,
+      targetIndexes: targets.map((target) => target.index), mode,
     }));
   }
   inventoryCursorPickupAll(containerOrder: readonly string[]): Promise<void> {
@@ -1119,8 +1112,11 @@ export class OverworldConnection {
   cancelTrade(tradeId: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.cancelTrade({ tradeId }));
   }
-  setTradeOfferItem(tradeId: string, inventorySlot: number, tradeSlot: number, quantity: number): Promise<void> {
-    return this.reducer((connection) => connection.reducers.setTradeOfferItem({ tradeId, inventorySlot, tradeSlot, quantity }));
+  /** Offers a stack from a carried cell: the container and its u32 index, never a global slot. */
+  setTradeOfferItem(tradeId: string, cell: { readonly container: string; readonly index: number }, tradeSlot: number, quantity: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setTradeOfferItem({
+      tradeId, inventoryContainer: cell.container, inventoryIndex: cell.index, tradeSlot, quantity,
+    }));
   }
   removeTradeOfferItem(tradeId: string, tradeSlot: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.removeTradeOfferItem({ tradeId, tradeSlot }));
@@ -1418,12 +1414,12 @@ export class OverworldConnection {
       tables.ownRogueRoomExits,
       tables.ownRogueRewardOffers,
       tables.ownRogueRunUpgrades,
-      tables.ownInventorySlots,
+      tables.ownPlayerContainerCells,
       tables.ownKnownRecipes,
       tables.ownInventoryCursor,
-      tables.ownActiveHearthStash,tables.ownHearthStashSlots,tables.ownVillageOrders,
+      tables.ownActiveHearthStash,tables.ownVillageOrders,
       tables.ownActivePlaceable,
-      tables.ownOpenPlaceableSlots,
+      tables.ownOpenPlaceableContainerCells,
       tables.ownActiveDialogue,
       tables.ownPlayerQuests,
       tables.ownPlayerQuestBaselines,
@@ -1926,9 +1922,9 @@ export class OverworldConnection {
     connection.db.ownSessionChatNotices.onDelete((context, row) => incoming(context.event.id, () => {
       if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.delete(row.id);
     }));
-    connection.db.ownInventorySlots.onInsert((context, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
-    connection.db.ownInventorySlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
-    connection.db.ownInventorySlots.onDelete((context, row) => incoming(context.event.id, () => this.inventorySlots.delete(row.slot)));
+    connection.db.ownPlayerContainerCells.onInsert((context, row) => incoming(context.event.id, () => this.playerCells.set(row)));
+    connection.db.ownPlayerContainerCells.onUpdate((context, _old, row) => incoming(context.event.id, () => this.playerCells.set(row)));
+    connection.db.ownPlayerContainerCells.onDelete((context, row) => incoming(context.event.id, () => this.playerCells.delete(row)));
     connection.db.ownKnownRecipes.onInsert((context, row) => incoming(context.event.id, () => this.knownRecipes.set(row.recipeId, row)));
     connection.db.ownKnownRecipes.onUpdate((context, _old, row) => incoming(context.event.id, () => this.knownRecipes.set(row.recipeId, row)));
     connection.db.ownKnownRecipes.onDelete((context, row) => incoming(context.event.id, () => this.knownRecipes.delete(row.recipeId)));
@@ -1993,15 +1989,12 @@ export class OverworldConnection {
     connection.db.ownVillageOrders.onInsert((context,row)=>incoming(context.event.id,()=>this.villageOrders.set(row.id,row)));
     connection.db.ownVillageOrders.onUpdate((context,_old,row)=>incoming(context.event.id,()=>this.villageOrders.set(row.id,row)));
     connection.db.ownVillageOrders.onDelete((context,row)=>incoming(context.event.id,()=>this.villageOrders.delete(row.id)));
-    connection.db.ownHearthStashSlots.onInsert((context,row)=>incoming(context.event.id,()=>this.hearthStashSlots.set(row.slot,row)));
-    connection.db.ownHearthStashSlots.onUpdate((context,_old,row)=>incoming(context.event.id,()=>this.hearthStashSlots.set(row.slot,row)));
-    connection.db.ownHearthStashSlots.onDelete((context,row)=>incoming(context.event.id,()=>this.hearthStashSlots.delete(row.slot)));
     connection.db.ownActivePlaceable.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setActive(row)));
     connection.db.ownActivePlaceable.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setActive(row)));
     connection.db.ownActivePlaceable.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteActive(row)));
-    connection.db.ownOpenPlaceableSlots.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
-    connection.db.ownOpenPlaceableSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
-    connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteSlot(row)));
+    connection.db.ownOpenPlaceableContainerCells.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
+    connection.db.ownOpenPlaceableContainerCells.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
+    connection.db.ownOpenPlaceableContainerCells.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteSlot(row)));
     connection.db.ownChatChannels.onInsert((context, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onUpdate((context, _old, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onDelete((context, row) => incoming(context.event.id, () => this.chatChannels.delete(row.id)));
@@ -2152,7 +2145,7 @@ export class OverworldConnection {
   }
   private hydrateSelf(connection: DbConnection): void {
     this.predictionState = [...connection.db.ownPlayerPrediction.iter()][0] ?? null;
-    for (const row of connection.db.ownInventorySlots.iter()) this.inventorySlots.set(row.slot, row);
+    this.playerCells.clear(); for (const row of connection.db.ownPlayerContainerCells.iter()) this.playerCells.set(row);
     this.knownRecipes.clear(); for (const row of connection.db.ownKnownRecipes.iter()) this.knownRecipes.set(row.recipeId, row);
     const cursor = [...connection.db.ownInventoryCursor.iter()][0];
     this.inventoryCursor = cursor === undefined ? null : {
@@ -2160,8 +2153,7 @@ export class OverworldConnection {
     };
     this.hearthStashOpen=[...connection.db.ownActiveHearthStash.iter()].some(row=>row.connectionId.toHexString()===connection.connectionId?.toHexString());
     this.villageOrders.clear();for(const row of connection.db.ownVillageOrders.iter())this.villageOrders.set(row.id,row);
-    this.hearthStashSlots.clear();for(const row of connection.db.ownHearthStashSlots.iter())this.hearthStashSlots.set(row.slot,row);
-    this.placeableSession.hydrate([...connection.db.ownActivePlaceable.iter()][0] ?? null, connection.db.ownOpenPlaceableSlots.iter());
+    this.placeableSession.hydrate([...connection.db.ownActivePlaceable.iter()][0] ?? null, connection.db.ownOpenPlaceableContainerCells.iter());
     for (const row of connection.db.ownChatChannels.iter()) this.chatChannels.set(row.id, row);
     for (const row of connection.db.visibleChatMessages.iter()) this.chatMessages.set(row.id, row);
     this.sessionChatNotices.clear();

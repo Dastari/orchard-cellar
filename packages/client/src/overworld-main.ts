@@ -102,7 +102,7 @@ import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
 import { ClosingEntityWindows, entityWindowKey, escapeClosesSurface } from './escape-precedence.js';
 import { GamepadPaging } from './gamepad-paging.js';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity, reachableCarriedRows } from './backpack-capacity.js';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CHEST_STORAGE_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_SELECTED_SLOT, selectedSlotCell, compileEquipmentLoadout, itemContainerContentResolver, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CHEST_STORAGE_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -234,6 +234,7 @@ import {
 import { CharacterNamePrompt } from '@orchard/ui';
 import { NpcInteractionUi } from '@orchard/ui';
 import { TradeUi } from '@orchard/ui';
+import { BACKPACK_EQUIPMENT_INDEX, OFF_HAND_EQUIPMENT_INDEX, legacyEquipmentUseSlot, legacySlotRows } from '@orchard/ui';
 import { QuestTracker, type QuestTrackerEntry } from '@orchard/ui';
 import { HomesteadBuildPalette, type HomesteadBuildPaletteModel } from '@orchard/ui';
 import type { QuestLogEntry } from '@orchard/ui';
@@ -1098,8 +1099,8 @@ const tradeUi = new TradeUi(kitArt, itemArt, {
   acceptRequest: (tradeId) => showResult(network.acceptTradeRequest(tradeId), 'TRADE OPENED'),
   declineRequest: (tradeId) => showResult(network.declineTrade(tradeId), 'TRADE DECLINED'),
   cancel: (tradeId) => showResult(network.cancelTrade(tradeId), 'TRADE CANCELLED'),
-  offerItem: (tradeId, inventorySlot, tradeSlot, quantity) => showResult(
-    network.setTradeOfferItem(tradeId, inventorySlot, tradeSlot, quantity), 'OFFER UPDATED',
+  offerItem: (tradeId, cell, tradeSlot, quantity) => showResult(
+    network.setTradeOfferItem(tradeId, cell, tradeSlot, quantity), 'OFFER UPDATED',
   ),
   removeItem: (tradeId, tradeSlot) => showResult(
     network.removeTradeOfferItem(tradeId, tradeSlot), 'ITEM REMOVED FROM OFFER',
@@ -1301,7 +1302,7 @@ function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
     row.value,
   ]));
   const itemCounts = new Map<string, number>();
-  for (const slot of snapshot.inventorySlots) {
+  for (const slot of snapshot.playerCells.carried()) {
     if (slot.itemKind === 'empty' || slot.quantity === 0) continue;
     itemCounts.set(slot.itemKind, (itemCounts.get(slot.itemKind) ?? 0) + slot.quantity);
   }
@@ -2744,14 +2745,20 @@ function liveItemLabel(snapshot: OverworldView, itemKind: string): string {
     ?? hotbarItemLabel(itemKind, snapshot.content.registry);
 }
 
+/** The selected item's row: the hotbar cell or the Main Hand cell the stored selection names. */
 function selectedItemRow(snapshot: OverworldView) {
   const selected = optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0;
-  return snapshot.inventorySlots.get(selected);
+  return snapshot.playerCells.get(selectedSlotCell(selected));
+}
+
+/** The hotbar and backpack rows: what the build palette and furniture placement draw from. */
+function bagAndHotbarRows(snapshot: OverworldView) {
+  return [...snapshot.playerCells.container('hotbar'), ...snapshot.playerCells.container('backpack')];
 }
 
 function equippedLightRow(snapshot: OverworldView) {
   if (bowChargeStartedAtMs !== null) return null;
-  const row = snapshot.inventorySlots.get(EQUIPMENT_SLOT_OFFSET + 5);
+  const row = snapshot.playerCells.get({ container: 'equipment', index: OFF_HAND_EQUIPMENT_INDEX });
   if (row === undefined || row.quantity <= 0) return null;
   const definition = liveItemContentDefinition(snapshot, row.itemKind);
   return definition?.light !== undefined
@@ -2770,7 +2777,7 @@ function snapshotEffectModifiers(snapshot: OverworldView) {
 
 function snapshotPlayerModifiers(snapshot: OverworldView) {
   const loadout = compileEquipmentLoadout({
-    registry:snapshot.content.registry, inventory:[...snapshot.inventorySlots],
+    registry:snapshot.content.registry, inventory:legacySlotRows(snapshot.playerCells.carried()),
     selectedSlot:optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     skillPriority:snapshot.equipmentSkillPriority??[],
     trainedRanks:Object.fromEntries([...snapshot.skillNodes].map(({nodeId,rank})=>[nodeId,rank])),
@@ -2846,7 +2853,7 @@ function performToolAction(
 ): boolean {
   const rejection = itemActionRejection(
     selectedItemRow(latestSnapshot),
-    reachableCarriedRows(latestSnapshot.content.registry, latestSnapshot.inventorySlots, latestSnapshot.survival?.debugBackpackSlots ?? 0),
+    reachableCarriedRows(latestSnapshot.content.registry, latestSnapshot.playerCells.carried(), latestSnapshot.survival?.debugBackpackSlots ?? 0),
     (kind) => runtimeRangedWeaponDefinition(
       latestSnapshot.content.registry, kind,
     )?.ammunitionItemKind ?? null,
@@ -4389,7 +4396,7 @@ function currentFurniture() {
 }
 
 function furniturePreviewAt(tile: { tileX: number; tileY: number }, itemKind: string, movingId?: string) {
-  const quantity = movingId !== undefined ? 1 : [...latestSnapshot.inventorySlots].filter(row => row.slot < EQUIPMENT_SLOT_OFFSET && row.itemKind === itemKind)
+  const quantity = movingId !== undefined ? 1 : bagAndHotbarRows(latestSnapshot).filter(row => row.itemKind === itemKind)
     .reduce((sum, row) => sum + row.quantity, 0);
   const position = predicted?.position ?? { x: 0, y: 0 };
   const occupants = [...latestSnapshot.players].filter(row => row.spaceId === activeSpaceDefinition.spaceId);
@@ -5336,7 +5343,7 @@ function renderFrame(alpha = 1): void {
     liveItemContentDefinition(snapshot, groundLightItem.itemKind),
     'worldItemUse',
   );
-  const hotbarLightEquip = selectedLightEquipRequest(selectedContentDefinition, selectedItemRow(snapshot)?.slot ?? -1);
+  const hotbarLightEquip = selectedLightEquipRequest(selectedContentDefinition, selectedItemRow(snapshot));
   const lightPrompt = groundLightItem !== null && groundItemUseAction !== null
     ? `[F] TURN ${groundLightItem.lit ? 'OFF' : 'ON'} ${liveItemLabel(snapshot, groundLightItem.itemKind)}`
     : hotbarLightEquip !== null ? `[F] EQUIP ${liveItemLabel(snapshot, selectedItem(snapshot))}`
@@ -5455,7 +5462,7 @@ function renderFrame(alpha = 1): void {
   const hunger = snapshot.survival === null
     ? HUNGER_MAX_CENTI
     : Math.max(0, Math.min(HUNGER_MAX_CENTI, snapshot.survival.hungerCenti));
-  const capacityEquipment = snapshot.inventorySlots.get(EQUIPMENT_SLOT_OFFSET + 4);
+  const capacityEquipment = snapshot.playerCells.get({ container: 'equipment', index: BACKPACK_EQUIPMENT_INDEX });
   const authoredInventoryCapacity = equippedBackpackCapacity(snapshot.content.registry, capacityEquipment);
   // The world's own rule (BUG-054): max(8, min(20, bag)), or more debug slots up to 20.
   const backpackSlotCapacity = clientBackpackSlotCapacity(snapshot.content.registry, capacityEquipment,
@@ -5510,7 +5517,7 @@ function renderFrame(alpha = 1): void {
         .join(' '),
     selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
-    inventory: [...snapshot.inventorySlots],
+    inventory: snapshot.playerCells.carried(),
     cursorStack: snapshot.inventoryCursor,
     ...(playerVitals === null ? {} : { vitals: {
       playerId: snapshot.identityHex ?? 'local',
@@ -5522,7 +5529,7 @@ function renderFrame(alpha = 1): void {
     effects: visibleEffects,
     openChestInventory: [...snapshot.openChestSlots],
     openPlaceableInventory: [...snapshot.openPlaceableSlots],
-    openStashInventory:[...(snapshot.hearthStashSlots??[])],
+    openStashInventory: snapshot.playerCells.container('stash'),
     ...(openEntityCapacity === undefined ? {} : { openEntityCapacity }),
     inventoryFrameState,
     ...(activeFrameId === null ? {} : {
@@ -5601,7 +5608,7 @@ function renderFrame(alpha = 1): void {
       nodes: snapshot.content.registry.compiled.skillNodes,
       tracks: skillTracks,
       ranks: skillRanks,
-      equipmentSkills:compileEquipmentLoadout({registry:snapshot.content.registry,inventory:[...snapshot.inventorySlots],skillPriority:snapshot.equipmentSkillPriority??[],
+      equipmentSkills:compileEquipmentLoadout({registry:snapshot.content.registry,inventory:legacySlotRows(snapshot.playerCells.carried()),skillPriority:snapshot.equipmentSkillPriority??[],
         selectedSlot:optimisticSelectedSlot??snapshot.survival?.selectedSlot??0,
         trainedRanks:Object.fromEntries(skillRanks.map(({nodeId,rank})=>[nodeId,rank])),bowDrawn:bowChargeStartedAtMs!==null}).skills,
       balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
@@ -5634,13 +5641,13 @@ function renderFrame(alpha = 1): void {
       maxVigour: playerVitals.maxVigour,
       tracks: skillTracks.map(({ track, experience }) => ({ track, experience })),
       effects: visibleEffects.map((effect) => effect.name),
-      equipment: [...snapshot.inventorySlots]
-        .filter((row) => row.slot >= EQUIPMENT_SLOT_OFFSET
-          && ACTIVE_EQUIPMENT_SLOT_INDEXES.includes(row.slot - EQUIPMENT_SLOT_OFFSET)
-          && activeEquipmentSlotAccepts(row.slot - EQUIPMENT_SLOT_OFFSET, row.itemKind, itemContainerContentResolver(snapshot.content.registry))
+      equipment: snapshot.playerCells.container('equipment')
+        .filter((row) => ACTIVE_EQUIPMENT_SLOT_INDEXES.includes(row.index)
+          && activeEquipmentSlotAccepts(row.index, row.itemKind, itemContainerContentResolver(snapshot.content.registry))
           && row.itemKind !== 'empty' && row.quantity > 0)
         .map((row) => ({
-          slot: row.slot - EQUIPMENT_SLOT_OFFSET,
+          // The character screen's paper-doll cell: the equipment container's own index.
+          slot: row.index,
           itemKind: row.itemKind,
           quantity: row.quantity,
           durability: row.durability,
@@ -5689,8 +5696,8 @@ function renderFrame(alpha = 1): void {
       ? furnishingPaletteEntries
       : activeSpaceDefinition.generator === 'cellar' ? [] : homesteadPaletteEntries,
     upgrades: homesteadPaletteUpgrades,
-    counts: [...snapshot.inventorySlots]
-      .filter((row) => row.slot < EQUIPMENT_SLOT_OFFSET && row.itemKind !== 'empty' && row.quantity > 0)
+    counts: bagAndHotbarRows(snapshot)
+      .filter((row) => row.itemKind !== 'empty' && row.quantity > 0)
       .reduce<Record<string, number>>((counts, row) => {
         counts[row.itemKind] = (counts[row.itemKind] ?? 0) + row.quantity;
         return counts;
@@ -5709,7 +5716,7 @@ function renderFrame(alpha = 1): void {
     identityHex: snapshot.identityHex,
     session: tradeSession,
     offers: [...snapshot.tradeOffers],
-    inventorySlots: [...snapshot.inventorySlots],
+    inventorySlots: snapshot.playerCells.carried(),
     walletBronze: snapshot.wallet?.balanceBronze ?? 0n,
     requesterName: snapshot.profiles.get(tradeSession.requester.toHexString())?.displayName ?? 'Player',
     recipientName: snapshot.profiles.get(tradeSession.recipient.toHexString())?.displayName ?? 'Player',
@@ -5728,8 +5735,8 @@ function renderFrame(alpha = 1): void {
     shopId: snapshot.merchants.get(snapshot.activeDialogue.npcId)?.shopId,
     nodeId: snapshot.activeDialogue.nodeId,
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
-    inventory: [...snapshot.inventorySlots],
-    inventoryRevision: snapshot.inventorySlots.revision,
+    inventory: snapshot.playerCells.carried(),
+    inventoryRevision: snapshot.playerCells.revision,
     selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     backpackSlotCapacity,
     sellPriceOverrides: Object.fromEntries([...snapshot.content.registry.items.values()]
@@ -6336,7 +6343,7 @@ function releaseBowShot(): void {
   clearBowChargePresentation();
   const rejection = itemActionRejection(
     selectedItemRow(latestSnapshot),
-    reachableCarriedRows(latestSnapshot.content.registry, latestSnapshot.inventorySlots, latestSnapshot.survival?.debugBackpackSlots ?? 0),
+    reachableCarriedRows(latestSnapshot.content.registry, latestSnapshot.playerCells.carried(), latestSnapshot.survival?.debugBackpackSlots ?? 0),
     (kind) => runtimeRangedWeaponDefinition(
       latestSnapshot.content.registry, kind,
     )?.ammunitionItemKind ?? null,
@@ -6824,10 +6831,10 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     const hotbarLight = selectedItemRow(snapshot);
-    const equipLight = selectedLightEquipRequest(selectedUseDefinition, hotbarLight?.slot ?? -1);
+    const equipLight = selectedLightEquipRequest(selectedUseDefinition, hotbarLight);
     if (equipLight !== null && hotbarLight !== undefined) {
       showResult(network.moveInventoryItem(equipLight).then(() => hotbarLight.lit === false
-        ? network.useSelected('equipment_use', { equipmentSlot: EQUIPMENT_SLOT_OFFSET + 5 }) : undefined),
+        ? network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(OFF_HAND_EQUIPMENT_INDEX) }) : undefined),
         `${liveItemLabel(snapshot, hotbarLight.itemKind)} EQUIPPED AND LIT`);
       event.preventDefault();
       return;
@@ -6839,7 +6846,7 @@ window.addEventListener('keydown', (event) => {
     );
     if (selectedLight !== null && equippedLightUseAction !== null) {
       showResult(
-        network.useSelected('equipment_use', { equipmentSlot: selectedLight.slot }),
+        network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(selectedLight.index) }),
         `${liveItemLabel(snapshot, selectedLight.itemKind)} TURNED ${selectedLight.lit === false ? 'ON' : 'OFF'}`,
       );
       event.preventDefault();
@@ -7103,8 +7110,8 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyV' && !event.repeat) {
-    const weapon=latestSnapshot.inventorySlots.get(MAIN_HAND_INVENTORY_SLOT);
-    if (weapon !== undefined && weapon.itemKind !== 'empty' && weapon.quantity > 0) selectSlotOptimistically(MAIN_HAND_INVENTORY_SLOT);
+    const weapon=latestSnapshot.playerCells.get(selectedSlotCell(MAIN_HAND_SELECTED_SLOT));
+    if (weapon !== undefined && weapon.itemKind !== 'empty' && weapon.quantity > 0) selectSlotOptimistically(MAIN_HAND_SELECTED_SLOT);
     else setToast('EQUIP A WEAPON IN MAIN HAND FIRST', 'failure');
     event.preventDefault();
     return;
@@ -7497,7 +7504,7 @@ function performWorldPointerAction(
     && worldPointerAvailable) {
     const rejection = itemActionRejection(
       selectedItemRow(latestSnapshot),
-      reachableCarriedRows(latestSnapshot.content.registry, latestSnapshot.inventorySlots, latestSnapshot.survival?.debugBackpackSlots ?? 0),
+      reachableCarriedRows(latestSnapshot.content.registry, latestSnapshot.playerCells.carried(), latestSnapshot.survival?.debugBackpackSlots ?? 0),
       (kind) => runtimeRangedWeaponDefinition(
         latestSnapshot.content.registry, kind,
       )?.ammunitionItemKind ?? null,

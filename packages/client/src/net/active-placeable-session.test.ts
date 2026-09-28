@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bootstrapContentRegistry, runtimeChestObjectDefinition } from '@orchard/sim';
-import type { WorldPlaceable, WorldPlaceableSlot } from '@orchard/world-bindings/types';
+import type { PlaceableContainerCell, WorldPlaceable } from '@orchard/world-bindings/types';
 import { ActivePlaceableSession } from './active-placeable-session.js';
 import { KeyedStore } from './keyed-store.js';
 
@@ -10,16 +10,16 @@ function placeable(id: bigint, definitionId: string): WorldPlaceable {
   return { id, kind: definitionId.slice('object:'.length), definitionId, tileX: 60, tileY: 76, chunkX: 3, chunkY: 4,
     spaceId: 10_000, open: true, lit: false, facing: 'down', stateJson: '{}' } as unknown as WorldPlaceable;
 }
-function slot(placeableId: bigint, index: number, itemKind = 'empty'): WorldPlaceableSlot {
-  return { id: `${placeableId}:${index}`, placeableId, slot: index, itemKind, quantity: itemKind === 'empty' ? 0 : 3, durability: 0, lit: true };
+function slot(placeableId: bigint, index: number, itemKind = 'empty'): PlaceableContainerCell {
+  return { id: `${placeableId}:${index}`, placeableId, index, itemKind, quantity: itemKind === 'empty' ? 0 : 3, durability: 0, lit: true };
 }
 function session() {
-  const slots = new KeyedStore<number, WorldPlaceableSlot>();
-  const chestSlots = new KeyedStore<number, { chestId: bigint; slot: number; itemKind: string }>();
+  const slots = new KeyedStore<number, PlaceableContainerCell>();
+  const chestSlots = new KeyedStore<number, { chestId: bigint; index: number; itemKind: string }>();
   const value = new ActivePlaceableSession(slots, chestSlots, {
     isChest: row => runtimeChestObjectDefinition(registry, row) !== null,
     toChest: row => ({ id: row.id }),
-    toChestSlot: row => ({ chestId: row.placeableId, slot: row.slot, itemKind: row.itemKind }),
+    toChestSlot: row => ({ chestId: row.placeableId, index: row.index, itemKind: row.itemKind }),
   });
   return { value, slots, chestSlots };
 }
@@ -45,7 +45,7 @@ describe('active placeable session (BUG-058)', () => {
       if (insertFirst) { insert(); value.deleteActive(workbench); } else { value.deleteActive(workbench); insert(); }
       expect(value.active?.id, `insert first: ${insertFirst}`).toBe(7n);
       expect(value.activeChest).toEqual({ id: 7n });
-      expect(chestSlots.get(0)).toEqual({ chestId: 7n, slot: 0, itemKind: 'apple' });
+      expect(chestSlots.get(0)).toEqual({ chestId: 7n, index: 0, itemKind: 'apple' });
       expect(chestSlots.size).toBe(16);
     }
   });
@@ -69,7 +69,7 @@ describe('active placeable session (BUG-058)', () => {
       expect([...s.slots].every(row => row.placeableId === 6n), label).toBe(true);
       expect(s.slots.size, label).toBe(16);
       expect(s.chestSlots.size, label).toBe(16);
-      expect(s.chestSlots.get(0), label).toEqual({ chestId: 6n, slot: 0, itemKind: 'wood' });
+      expect(s.chestSlots.get(0), label).toEqual({ chestId: 6n, index: 0, itemKind: 'wood' });
     }
   });
 
@@ -91,7 +91,7 @@ describe('active placeable session (BUG-058)', () => {
     value.hydrate(chestB, [...slotsOf(6n, 'wood'), slot(7n, 3, 'apple')]);
     expect(value.active?.id).toBe(6n);
     expect(chestSlots.size).toBe(16);
-    expect(chestSlots.get(0)).toEqual({ chestId: 6n, slot: 0, itemKind: 'wood' });
+    expect(chestSlots.get(0)).toEqual({ chestId: 6n, index: 0, itemKind: 'wood' });
     value.hydrate(null, []);
     expect(value.active).toBeNull(); expect(chestSlots.size).toBe(0);
   });
@@ -100,7 +100,7 @@ describe('active placeable session (BUG-058)', () => {
     const { readFileSync } = await import('node:fs');
     const source = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
     expect(source).toContain('connection.db.ownActivePlaceable.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteActive(row)));');
-    expect(source).toContain('connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteSlot(row)));');
+    expect(source).toContain('connection.db.ownOpenPlaceableContainerCells.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteSlot(row)));');
     expect(source).not.toMatch(/ownActivePlaceable\.onDelete\(\(context\) =>/);
   });
 });

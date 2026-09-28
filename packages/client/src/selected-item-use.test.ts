@@ -32,10 +32,13 @@ function item(onUse: ItemContentDefinition['onUse']): ItemContentDefinition {
 describe('selected item use lifecycle', () => {
   it('routes selected lanterns and torches into the off-hand equipment slot', () => {
     const registry = bootstrapContentRegistry();
-    for (const kind of ['lantern', 'torch']) expect(selectedLightEquipRequest(registry.items.get(`item:${kind}`), 5))
+    const hotbar5 = { container: 'hotbar' as const, index: 5 };
+    for (const kind of ['lantern', 'torch']) expect(selectedLightEquipRequest(registry.items.get(`item:${kind}`), hotbar5))
       .toEqual({ fromContainer: 'hotbar', fromIndex: 5, toContainer: 'equipment', toIndex: 5, quantity: 1 });
-    expect(selectedLightEquipRequest(registry.items.get('item:axe'), 5)).toBeNull();
-    expect(selectedLightEquipRequest(registry.items.get('item:lantern'), 35)).toBeNull();
+    expect(selectedLightEquipRequest(registry.items.get('item:axe'), hotbar5)).toBeNull();
+    // Only a hotbar cell equips: the Off Hand itself (and any other container) does not.
+    expect(selectedLightEquipRequest(registry.items.get('item:lantern'), { container: 'equipment', index: 5 })).toBeNull();
+    expect(selectedLightEquipRequest(registry.items.get('item:lantern'), undefined)).toBeNull();
   });
   it('advertises direct use for authored foods and tea but not deliberately inedible food tags', () => {
     const items = bootstrapContentRegistry().items;

@@ -1,12 +1,14 @@
 import type { ItemStack, CraftingStation, ContentRegistry, MoveItemRequest, RecipeDefinition } from '@orchard/sim';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeRecipeDefinition, runtimeMaxStack } from '@orchard/sim/content/runtime';
-import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, isAccessibleCarriedSlot } from '@orchard/sim/inventory-layout';
+import type { PlayerContainerCellRef } from '@orchard/sim/container-addressing';
+import { CRAFTING_SLOT_COUNT, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { maxStackFor } from '@orchard/sim/item-containers';
 import { RECIPES, normalizeShapedRecipe, recipeGridStacks } from '@orchard/sim/recipes';
+import { isAccessibleCarriedCell } from './player-cells.js';
 
-export interface RecipeBookInventoryRow {
-  readonly slot: number;
+/** A carried stack by container and cell (Uncapped Storage step 4c). */
+export interface RecipeBookInventoryRow extends PlayerContainerCellRef {
   readonly itemKind: string;
   readonly quantity: number;
 }
@@ -62,10 +64,10 @@ export function craftingRecipeStacks(recipeId: string, knownRecipeIds: readonly 
 /** The carried cells crafting reads, as the world does (BUG-056): the hotbar, the backpack cells the equipped bag
  * opens (`accessibleBackpackCapacity`, never a fixed 20), and the crafting grid itself. Items left in cells past the
  * capacity after a swap to a smaller bag, and equipped gear, are not ingredients. */
-function craftingReadsSlot(slot: number, backpackCapacity: number): boolean {
+function craftingReadsCell(cell: PlayerContainerCellRef, backpackCapacity: number): boolean {
   // The carried cells the bow and expedition readiness also use (BUG-068), plus the grid the world's fill reuses.
-  return isAccessibleCarriedSlot(slot, backpackCapacity)
-    || (Number.isInteger(slot) && slot >= CRAFTING_SLOT_OFFSET && slot < CRAFTING_SLOT_OFFSET + CRAFTING_SLOT_COUNT);
+  return isAccessibleCarriedCell(cell, backpackCapacity)
+    || (cell.container === 'crafting' && Number.isInteger(cell.index) && cell.index >= 0 && cell.index < CRAFTING_SLOT_COUNT);
 }
 
 function ingredientCounts(recipe: RecipeDefinition): Readonly<Record<string, number>> {
@@ -88,7 +90,7 @@ export function craftingRecipeBookEntries(
   const available = new Set(stations);
   const known = new Set(knownRecipeIds);
   const carried: Record<string, number> = {};
-  for (const row of inventory) if (row.itemKind !== 'empty' && row.quantity > 0 && craftingReadsSlot(row.slot, backpackCapacity)) {
+  for (const row of inventory) if (row.itemKind !== 'empty' && row.quantity > 0 && craftingReadsCell(row, backpackCapacity)) {
     carried[row.itemKind] = (carried[row.itemKind] ?? 0) + row.quantity;
   }
   return (Object.values(registry?.compiled.recipes ?? RECIPES) as readonly RecipeDefinition[])
@@ -119,31 +121,37 @@ export function ghostFillRecipeMoves(
 ): readonly MoveItemRequest[] | null {
   const desired = craftingRecipeStacks(recipeId, knownRecipeIds, registry);
   if (desired === null) return null;
-  const bySlot = new Map(inventory.map((row) => [row.slot, { ...row }]));
-  const sourceEnd = BACKPACK_SLOT_OFFSET + accessibleBackpackCapacity(backpackCapacity);
+  const cellKey = (container: string, index: number) => `${container}:${index}`;
+  const byCell = new Map(inventory.map((row) => [cellKey(row.container, row.index), { ...row }]));
+  // Ingredients come from the hotbar, then the backpack cells the bag opens, in cell order.
+  const sources: readonly { readonly container: 'hotbar' | 'backpack'; readonly index: number }[] = [
+    ...Array.from({ length: HOTBAR_SLOT_COUNT }, (_, index) => ({ container: 'hotbar' as const, index })),
+    ...Array.from({ length: accessibleBackpackCapacity(backpackCapacity) }, (_, index) => ({ container: 'backpack' as const, index })),
+  ];
   const moves: MoveItemRequest[] = [];
   for (let targetIndex = 0; targetIndex < CRAFTING_SLOT_COUNT; targetIndex += 1) {
     const target = desired[targetIndex] ?? null;
     const kind = target?.itemKind ?? null;
-    const current = bySlot.get(CRAFTING_SLOT_OFFSET + targetIndex);
+    const current = byCell.get(cellKey('crafting', targetIndex));
     if (kind === null) {
       if (current !== undefined && current.itemKind !== 'empty' && current.quantity > 0) return null;
       continue;
     }
     if (current !== undefined && current.itemKind !== kind && current.itemKind !== 'empty' && current.quantity > 0) return null;
     let needed = target!.quantity - (current?.itemKind === kind ? current.quantity : 0);
-    for (let sourceSlot = 0; sourceSlot < sourceEnd && needed > 0; sourceSlot += 1) {
-      const source = bySlot.get(sourceSlot);
+    for (const cell of sources) {
+      if (needed <= 0) break;
+      const source = byCell.get(cellKey(cell.container, cell.index));
       if (source?.itemKind !== kind || source.quantity <= 0) continue;
       // Missing ingredients no longer invalidate recipe selection. Move the
       // ingredients that are available and let the client retain ghosts for the
       // remaining cells so the player can still learn the complete pattern.
       const quantity = Math.min(needed, source.quantity);
       needed -= quantity;
-      bySlot.set(sourceSlot, { ...source, quantity: source.quantity - quantity });
+      byCell.set(cellKey(cell.container, cell.index), { ...source, quantity: source.quantity - quantity });
       moves.push({
-        fromContainer: sourceSlot < HOTBAR_SLOT_COUNT ? 'hotbar' : 'backpack',
-        fromIndex: sourceSlot < HOTBAR_SLOT_COUNT ? sourceSlot : sourceSlot - BACKPACK_SLOT_OFFSET,
+        fromContainer: cell.container,
+        fromIndex: cell.index,
         toContainer: 'crafting',
         toIndex: targetIndex,
         quantity,

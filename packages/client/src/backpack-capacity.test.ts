@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BACKPACK_SLOT_COUNT, BASE_BACKPACK_CAPACITY, bootstrapContentRegistry, type ContentRegistry } from '@orchard/sim';
+import { BACKPACK_SLOT_COUNT, BASE_BACKPACK_CAPACITY, bootstrapContentRegistry, type ContentRegistry, type PlayerContainerCellRef, type PlayerContainerId } from '@orchard/sim';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity, reachableCarriedRows } from './backpack-capacity.js';
 
 const registry = bootstrapContentRegistry();
@@ -41,15 +41,17 @@ describe('BUG-054: the client uses the world\'s backpack capacity rule', () => {
 });
 
 describe('BUG-068: the client refuses a bow draw the server would refuse', () => {
-  const arrows = (slot: number) => ({ slot, itemKind: 'arrow', quantity: 10 });
+  const arrows = (container: PlayerContainerId, index: number) => ({ container, index, itemKind: 'arrow', quantity: 10 });
+  const bag = (itemKind: string) => ({ container: 'equipment' as const, index: 4, itemKind, quantity: 1 });
   it('keeps only the hotbar and the accessible backpack, for the equipped bag and debug slots', () => {
-    const rows = [arrows(1), arrows(10 + 7), arrows(10 + 11), arrows(10 + 12), arrows(10 + 19), arrows(40), arrows(48)];
-    const slots = (registry: ContentRegistry, carried: readonly { slot: number; itemKind: string; quantity: number }[], debug = 0) =>
-      reachableCarriedRows(registry, carried, debug).map(row => row.slot);
-    expect(slots(registry, rows)).toEqual([1, 17]);
-    expect(slots(registry, rows, 12)).toEqual([1, 17, 21]);
-    expect(slots(withBag('satchel', 12), [...rows, { slot: 34, itemKind: 'satchel', quantity: 1 }])).toEqual([1, 17, 21]);
-    expect(slots(registry, [...rows, { slot: 34, itemKind: 'backpack', quantity: 1 }])).toEqual([1, 17, 21, 22, 29]);
+    const rows = [arrows('hotbar', 1), arrows('backpack', 7), arrows('backpack', 11), arrows('backpack', 12), arrows('backpack', 19),
+      arrows('crafting', 0), arrows('crafting', 8), arrows('stash', 0)];
+    const cells = (registry: ContentRegistry, carried: readonly (PlayerContainerCellRef & { itemKind: string; quantity: number })[], debug = 0) =>
+      reachableCarriedRows(registry, carried, debug).map(row => `${row.container}:${row.index}`);
+    expect(cells(registry, rows)).toEqual(['hotbar:1', 'backpack:7']);
+    expect(cells(registry, rows, 12)).toEqual(['hotbar:1', 'backpack:7', 'backpack:11']);
+    expect(cells(withBag('satchel', 12), [...rows, bag('satchel')])).toEqual(['hotbar:1', 'backpack:7', 'backpack:11']);
+    expect(cells(registry, [...rows, bag('backpack')])).toEqual(['hotbar:1', 'backpack:7', 'backpack:11', 'backpack:12', 'backpack:19']);
   });
 
   it('feeds every client bow readiness check', () => {

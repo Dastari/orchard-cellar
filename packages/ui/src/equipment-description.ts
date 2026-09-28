@@ -1,8 +1,11 @@
-import type { ContentRegistry, EquippedInventoryEntry, Modifier } from '@orchard/sim';
-import { compileEquipmentLoadout, MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
-import { activeEquipmentSlotAccepts, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim/inventory-layout';
+import type { ContentRegistry, Modifier } from '@orchard/sim';
+import { MAIN_HAND_SELECTED_SLOT } from '@orchard/sim/container-addressing';
+import { compileEquipmentLoadout } from '@orchard/sim/equipment-loadout';
+import { activeEquipmentSlotAccepts, EQUIPMENT_SLOTS } from '@orchard/sim/inventory-layout';
 import { itemContainerContentResolver } from '@orchard/sim/item-containers';
 import { TILE_SIZE_FIXED } from '@orchard/sim/state';
+import { legacySlotRows } from './legacy-global-slots.js';
+import type { PlayerCellStack } from './player-cells.js';
 const labels: Partial<Record<Modifier['target'],string>> = {
   attackPower:'MELEE POWER',rangedPower:'RANGED POWER',maxHealth:'MAX HEALTH',maxVigour:'MAX VIGOUR',maxMana:'MAX MANA',
   criticalChance:'CRITICAL CHANCE',armor:'ARMOR',armorPct:'DAMAGE REDUCTION',
@@ -31,7 +34,7 @@ export function equipmentModifierLabel(mod:Modifier):string {
 /** The same preview serves inventory and purchase/crafting cards. It never
  * changes the player's trained ranks, selected item or inventory custody. */
 export function equipmentDescriptionLines(
-  registry:ContentRegistry, itemKind:string, inventory:readonly EquippedInventoryEntry[], selectedSlot:number,
+  registry:ContentRegistry, itemKind:string, inventory:readonly PlayerCellStack[], selectedSlot:number,
   trainedRanks:Readonly<Record<string,number>>, skillPriority:readonly string[] = [],
 ): readonly string[] | null {
   const item=registry.items.get(`item:${itemKind}`);
@@ -40,15 +43,15 @@ export function equipmentDescriptionLines(
   const content=itemContainerContentResolver(registry);
   const slot=EQUIPMENT_SLOTS.find(slot=>activeEquipmentSlotAccepts(slot.index,itemKind,content));
   if (slot===undefined) return null;
-  const globalSlot=EQUIPMENT_SLOT_OFFSET+slot.index;
-  const previous=inventory.find(row=>row.slot===globalSlot);
+  const isTarget=(row:PlayerCellStack)=>row.container==='equipment' && row.index===slot.index;
+  const previous=inventory.find(isTarget);
   const previousItem=previous===undefined?undefined:registry.items.get(`item:${previous.itemKind}`);
-  const previewInventory=[...inventory.filter(row=>row.slot!==globalSlot),{
-    slot:globalSlot,itemKind,quantity:1,...(item.durability===undefined?{}:{durability:item.durability.max}),
+  const previewInventory:PlayerCellStack[]=[...inventory.filter(row=>!isTarget(row)),{
+    container:'equipment',index:slot.index,itemKind,quantity:1,...(item.durability===undefined?{}:{durability:item.durability.max}),
   }];
-  const previewSelected=slot.id==='main_hand'?MAIN_HAND_INVENTORY_SLOT:selectedSlot;
-  const before=compileEquipmentLoadout({registry,inventory,selectedSlot:previewSelected,trainedRanks,skillPriority});
-  const after=compileEquipmentLoadout({registry,inventory:previewInventory,selectedSlot:previewSelected,trainedRanks,skillPriority});
+  const previewSelected=slot.id==='main_hand'?MAIN_HAND_SELECTED_SLOT:selectedSlot;
+  const before=compileEquipmentLoadout({registry,inventory:legacySlotRows(inventory),selectedSlot:previewSelected,trainedRanks,skillPriority});
+  const after=compileEquipmentLoadout({registry,inventory:legacySlotRows(previewInventory),selectedSlot:previewSelected,trainedRanks,skillPriority});
   const lines=[item.displayName.toUpperCase(),`${item.quality.toUpperCase()} / ${slot.label}`];
   if (item.combat!==undefined) {
     const old=previousItem?.combat;
