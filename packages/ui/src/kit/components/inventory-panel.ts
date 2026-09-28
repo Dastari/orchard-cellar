@@ -5,6 +5,7 @@ import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiInput } from './input.js';
 import { uiText } from './text.js';
+import { uiTooltip } from './tooltip.js';
 import { uiGlyph, uiGlyphButton } from './window.js';
 import { uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
 import { uiFixed } from '../layout/box.js';
@@ -21,6 +22,8 @@ export interface UiInventoryControls {
   readonly visibleRows?: number;
   /** Capacity belongs to the host; filtering never renumbers slot bindings. */
   readonly capacity?: () => number;
+  /** Why sort is disabled (for example mid-trade), shown on the sort button; the button stays, disabled. */
+  readonly sortDisabledReason?: () => string | null;
 }
 
 /** One editor/query may filter several panes without changing logical bindings. */
@@ -43,11 +46,14 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   // Large packs scroll inside a fixed number of rows; the scrollbar gutter is always reserved so slots never shift.
   const body = options.visibleRows ? uiScrollArea({ scrollStyle: 'wood', label: `${options.container} slots`, height: uiFixed(options.visibleRows * 33 - 2), padding: { right: 24 }, overflow: 'scroll-y' }, [grid])
     : uiFlex({ width: 'grow' }, [grid]);
-  const sort = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
-    label: 'Sort inventory', onPress: () => { if (options.sortEnabled?.() !== false) options.onSort?.(); } }) : null;
+  const sortReason = () => options.sortDisabledReason?.() ?? null;
+  const sortAllowed = () => options.sortEnabled?.() !== false && sortReason() === null;
+  const sortButton = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
+    label: 'Sort inventory', onPress: () => { if (sortAllowed()) options.onSort?.(); } }) : null;
+  const sort = sortButton && options.sortDisabledReason ? uiTooltip(() => sortReason() ?? 'Sort & stack', sortButton, { shrink: 0 }) : sortButton;
   let previous = '';
   const refresh = () => {
-    sort?.setDisabled(options.sortEnabled?.() === false);
+    sortButton?.setDisabled(!sortAllowed());
     const query = editor.snapshot().value.trim().toLowerCase();
     const visible = cells.filter(cell => {
       const index = cell.index;
