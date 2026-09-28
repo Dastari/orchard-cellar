@@ -81,7 +81,7 @@ export interface WorldSourceCollisionStatus {
   readonly failures: number;
   readonly lastError: string | null;
   /** The server-mirroring reason the legacy collision is in use, e.g. `superseded`,
-   * `stale_map`, `incomplete: head_missing@3,4`, `traversal_policy_mismatch`. */
+   * `shadow_missing`, `incomplete: head_missing@3,4`, `traversal_policy_mismatch`. */
   readonly fallbackReason: string | null;
   /** The serving publication is incomplete or malformed (the server's `incomplete`). */
   readonly authorityIncomplete: boolean;

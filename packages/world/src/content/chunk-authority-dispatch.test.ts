@@ -153,8 +153,6 @@ describe('chunk authority dispatcher: on', () => {
     ['shadow_missing', { shadow: 'none' as const }],
     ['shadow_map_mismatch', { shadow: { mapId: 'other-map' } }],
     ['map_row_missing', { liveMap: null }],
-    ['stale_content', { shadow: { contentHash: 'older-content' } }],
-    ['stale_map', { liveMap: { revision: 4, contentHash: 'map-4' } }],
     ['traversal_policy_mismatch', { traversal: false }],
     ['manifest_invalid', { manifestJson: '{not json' }],
   ])('falls back to compiled and logs once when %s', (reason, overrides) => {
@@ -227,28 +225,54 @@ describe('chunk authority dispatcher: on', () => {
     expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_fallback')?.event).toMatchObject({ detail: 'timer unavailable' });
   });
 
-  it('refuses stale content or a moved map from the shadow row and manifest header without decoding a blob', () => {
-    for (const [overrides, reason] of [
-      [{ shadow: { contentHash: 'older-content' } }, 'stale_content'],
-      [{ liveMap: { revision: 4, contentHash: 'map-4' } }, 'stale_map'],
-      [{ liveMap: { revision: 3, contentHash: 'map-3b' } }, 'stale_map'],
+  it('keeps serving the pinned publication when the content or the map moves on (SW-D2), and reports the lag', () => {
+    for (const [overrides, lag] of [
+      [{ shadow: { contentHash: 'older-content' } }, ['content']],
+      [{ liveMap: { revision: 4, contentHash: 'map-4' } }, ['map']],
+      [{ liveMap: { revision: 3, contentHash: 'map-3b' } }, ['map']],
+      [{ shadow: { contentHash: 'older-content' }, liveMap: { revision: 4, contentHash: 'map-4' } }, ['content', 'map']],
     ] as const) {
       const h = harness(overrides);
       const d = dispatcher(h.logger);
-      expect(d.select(h.source), reason).toBe(h.compiled);
-      expect(d.status().fallbacks, reason).toEqual({ [reason]: 1 });
-      expect(h.reads.blobs, `${reason}: no assembly`).toBe(0);
-      expect(h.events.some(({ event }) => event['event'] === 'chunk_authority_assembled')).toBe(false);
+      const served = d.select(h.source) as ChunkLiveIslandRuntime;
+      expect(served.source, JSON.stringify(lag)).toBe('chunks');
+      expect(d.select(h.source)).toBe(served);
+      expect(d.status().fallbacks).toEqual({});
+      expect(d.status().lastResolution).toMatchObject({ ok: true, lag });
+      const pinned = h.events.filter(({ event }) => event['event'] === 'chunk_authority_serving_pinned');
+      expect(pinned).toHaveLength(1);
+      expect(pinned[0]).toMatchObject({ level: 'info', event: { lag } });
     }
-    // A content publication after serving frees the resident runtime and stops serving it.
+    // A content publication after serving neither unpins nor re-assembles the resident runtime:
+    // clients keep drawing exactly these chunks, so the server keeps colliding with them.
     let registryHash = REGISTRY_HASH;
     const h = harness();
     const source = { ...h.source, registryContentHash: () => registryHash };
     const d = dispatcher(h.logger);
-    expect((d.select(source) as ChunkLiveIslandRuntime).source).toBe('chunks');
+    const first = d.select(source) as ChunkLiveIslandRuntime;
+    expect(first.source).toBe('chunks');
+    const blobs = h.reads.blobs;
     registryHash = 'content-2';
-    expect(d.select(source)).toBe(h.compiled);
-    expect(d.status().fallbacks).toEqual({ stale_content: 1 });
+    expect(d.select(source)).toBe(first);
+    expect(h.reads.blobs).toBe(blobs);
+    expect(d.status().fallbacks).toEqual({});
+    expect(d.status().lastResolution).toMatchObject({ ok: true, lag: ['content'] });
+  });
+
+  it('swaps in a republished publication cleanly and stops reporting the lag', () => {
+    // Published from map 3 while the live map is at 4: the pinned publication serves, with a lag.
+    const stale = harness({ liveMap: { revision: 4, contentHash: 'map-4' } });
+    const d = dispatcher(stale.logger);
+    const pinned = d.select(stale.source) as ChunkLiveIslandRuntime;
+    expect(pinned.source).toBe('chunks');
+    expect(d.status().lastResolution).toMatchObject({ ok: true, lag: ['map'] });
+    // The heads catch up: a new shadow revision whose manifest describes the live map.
+    const fresh = harness({ shadow: { revision: 2 } });
+    const served = d.select(fresh.source) as ChunkLiveIslandRuntime;
+    expect(served.source).toBe('chunks');
+    expect(served).not.toBe(pinned);
+    expect(d.status().lastResolution).toEqual({ ok: true, key: served.key });
+    expect(d.status().fallbacks).toEqual({});
   });
 
   it('refuses a runtime missing the ground terrain fields compiled always sets (no fall-through to base transitions)', () => {
@@ -386,12 +410,12 @@ describe('chunk authority dispatcher: shadow', () => {
   });
 
   it('logs unavailable chunks once, never throws, and still returns compiled', () => {
-    const h = harness({ mode: 'shadow', shadow: { contentHash: 'older' } });
+    const h = harness({ mode: 'shadow', liveMap: null });
     const d = dispatcher(h.logger);
     expect(d.select(h.source)).toBe(h.compiled);
     expect(d.select(h.source)).toBe(h.compiled);
     expect(h.events.filter(({ event }) => event['event'] === 'chunk_authority_shadow_unavailable')).toEqual([
-      { level: 'warn', event: expect.objectContaining({ reason: 'stale_content' }) },
+      { level: 'warn', event: expect.objectContaining({ reason: 'map_row_missing' }) },
     ]);
     expect(d.sampleRuntime(40n)).toBeNull();
     const throwing = { ...h.source, liveMap: () => { throw new Error('boom'); } };
@@ -647,10 +671,12 @@ describe('index.ts collision dispatcher wiring', () => {
       expect(on.reads.filter(read => read === 'blob')).toHaveLength(decoded);
     });
 
-    it('on falls back to the compiled policy object when the chunk runtime cannot serve (stale map)', () => {
+    it('on keeps the pinned chunk policy when the live map moved on (SW-D2 lag), never the compiled one', () => {
       const stale = world('{"chunkAuthority":"on"}', 'host', combat, { revision: 4, contentHash: 'map-4' });
-      expect(stale.functions.liveIslandCombatPolicy(stale.ctx)).toBe(combatCompiled.combatPolicy);
-      expect(stale.dispatcher.status().fallbacks).toEqual({ stale_map: 1 });
+      const policy = stale.functions.liveIslandCombatPolicy(stale.ctx);
+      expect(policy).not.toBe(combatCompiled.combatPolicy);
+      expect(stale.dispatcher.status().fallbacks).toEqual({});
+      expect(stale.dispatcher.status().lastResolution).toMatchObject({ ok: true, lag: ['map'] });
     });
 
     it('an undeclared map stays undeclared through the chunks (hearth installation refuses it in every mode)', () => {
