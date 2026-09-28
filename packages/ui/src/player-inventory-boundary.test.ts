@@ -64,7 +64,7 @@ const EXCEPTIONS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
   // ... and the NPC window works out which carried slots and how many cells that pane shows.
   'ui/src/npc-interaction-ui.ts': { 'backpack-range': 6 },
   // The host's pre-kit item-slot windows, unused by the game since every window moved to the kit (BUG-067 cleanup).
-  'ui/src/overworld-ui.ts': { 'backpack-range': 4, 'host-drawn-backpack': 25 },
+  'ui/src/overworld-ui.ts': { 'backpack-range': 4, 'host-drawn-backpack': 17 },
 };
 
 function sources(dir: URL, prefix: string): { readonly path: string; readonly source: string }[] {

@@ -254,8 +254,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // through reportUiFailure (console and the client's error telemetry); failure-policy tests cover it.
 // BUG-067: ui/overworld-ui.ts adopts the hearth stash frame into the retained kit inventory (the shared player
 // inventory pane) and aliases its entity pane to 'stash'; inventory-menus and the player-inventory boundary test cover it.
-// BUG-067 review: ui/trade-ui.ts caps the trade window to the viewport so a compact screen scrolls its body.
-const STRUCTURAL_SEAM_DIGEST = 'c75a975396ffc5bac3636f6e84e318975f4bec1188e84b69bd8ff884620763f5';
+// Item slot S9 (BUG-067 part 4): ui/overworld-ui.ts owns its retained kit inventory from construction and no longer
+// draws the player's inventory itself (drawInventory, drawCrafting, drawChest, the station windows and chestPaneSlots
+// are gone); overworld-ui, content-frame-overworld and the player-inventory boundary tests cover it.
+// BUG-067 part 4: every entity-surface frame is the kit's; the host content-frame item path is deleted
+const STRUCTURAL_SEAM_DIGEST = '2c510ea46df207e40ee2b82882232596b01de5302decbba8aa5238808e0f1374';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

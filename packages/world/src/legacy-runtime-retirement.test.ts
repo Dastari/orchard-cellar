@@ -11,6 +11,7 @@ const gameSource = readFileSync(
   'utf8',
 );
 const uiSource = readFileSync(new URL('../../ui/src/overworld-ui.ts', import.meta.url), 'utf8');
+const itemDurabilitySource = readFileSync(new URL('../../ui/src/item-durability.ts', import.meta.url), 'utf8');
 const worldRulesSource = readFileSync(new URL('./world-rules.ts', import.meta.url), 'utf8');
 const merchantCartSource = readFileSync(new URL('../../sim/src/merchant-cart.ts', import.meta.url), 'utf8');
 const itemContainersSource = readFileSync(new URL('../../sim/src/item-containers.ts', import.meta.url), 'utf8');
@@ -153,7 +154,8 @@ describe('Phase 6 legacy runtime retirement', () => {
     expect(worldSource).toContain('runtimeVigourDefinition(registry, itemKind)');
     expect(worldSource).toContain('runtimeDurabilityDefinition(contentRegistry(ctx),');
     expect(gameSource).toContain('runtimeToolDefinition(latestSnapshot.content.registry, itemKind)');
-    expect(uiSource).toContain('runtimeDurabilityDefinition(');
+    // The game UI's wear bars read authored durability through one helper (the host no longer draws item slots, S9).
+    expect(itemDurabilitySource).toContain('runtimeDurabilityDefinition(');
   });
 
   it('routes wildlife policy and generation through the active content registry', () => {
