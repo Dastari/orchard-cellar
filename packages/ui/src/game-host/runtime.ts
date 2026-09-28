@@ -1,3 +1,4 @@
+import { uiFailurePolicy } from '../kit/runtime/failure-policy.js';
 import type { UiElement, UiElementKey, UiElementWheel } from '../kit/runtime/element.js';
 import type { UiRootPointer } from '../kit/runtime/input.js';
 import type { UiRoot } from '../kit/runtime/root.js';
@@ -34,6 +35,8 @@ export class GameUiRuntime {
 
   private guard<T>(host: GameUiHost, fallback: T, run: () => T): T {
     try { return run(); } catch (error) {
+      // Development, the lab and tests keep the error hard (BUG-066); production skips the host.
+      if (uiFailurePolicy() === 'throw') throw error;
       const key = `${host.id}:${error instanceof Error ? error.message : String(error)}`;
       if (!this.reportedErrors.has(key)) { this.reportedErrors.add(key); this.onHostError(host.id, error); }
       return fallback;

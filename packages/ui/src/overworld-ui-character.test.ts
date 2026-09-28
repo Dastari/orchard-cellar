@@ -8,6 +8,7 @@ import { uiTestArt } from './kit/lab/testing/art.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { UiRoot } from './kit/runtime/root.js';
 import { GameUiRuntime } from './game-host/runtime.js';
+import { setUiFailurePolicy, uiFailurePolicy } from './kit/runtime/failure-policy.js';
 import { runtimePlayerAppearanceCatalog } from '@orchard/sim';
 import { cycleAppearanceValue, type CharacterScreenModel } from './character-screen.js';
 
@@ -104,8 +105,16 @@ it('draws the Records chapter when a statistic arrives twice for the same subjec
   (f.ui as unknown as { drawWindow(ctx: CanvasRenderingContext2D, name: string): void }).drawWindow(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 'statistics');
   f.runtime.key({ key: 'Escape' }); expect(f.ui.openWindow).toBeNull();
 });
-it('contains a broken retained view: the frame, Escape and the other windows keep working (BUG-063)', () => {
+it('keeps a broken retained view a hard error in tests and development (BUG-066)', () => {
+  expect(uiFailurePolicy()).toBe('throw');
+  const f = fixture();
+  const screen = (f.ui as unknown as { statisticsScreen: { update(): void } }).statisticsScreen;
+  screen.update = () => { throw new Error('Duplicate UI id: statistics.record:connections_opened:'); };
+  expect(() => { f.ui.openWindow = 'statistics'; f.update({}); }).toThrow('Duplicate UI id');
+});
+it('contains a broken retained view in production: the frame, Escape and the other windows keep working (BUG-063, BUG-066)', () => {
   const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const policy = setUiFailurePolicy('contain');
   try {
     const f = fixture();
     // Any kit invariant failure inside the Records view (the owner's was a duplicate UI id).
@@ -129,5 +138,5 @@ it('contains a broken retained view: the frame, Escape and the other windows kee
     expect(errors.mock.calls.filter(call => String(call[0]).includes('statistics') || String(call[0]).includes('character')).length).toBe(reports.length);
     f.ui.openWindow = 'character';
     expect(element(f.roots.character, 'game.character.host').kind).toBeDefined();
-  } finally { errors.mockRestore(); }
+  } finally { errors.mockRestore(); setUiFailurePolicy(policy); }
 });

@@ -4,6 +4,7 @@ import { DelveConfirmationUi, UpdateReadyUi } from './game-host/overlays.js';
 import { SystemMenus } from './game-host/system-menus.js';
 import type { TimingProjection } from '@orchard/sim';
 import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
+import { uiFailurePolicy } from './kit/runtime/failure-policy.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { UiRoot } from './kit/runtime/root.js';
 import { UiElement } from './kit/runtime/element.js';
@@ -3927,9 +3928,11 @@ export class OverworldUi {
 
   private readonly reportedViewErrors = new Set<string>();
   /** Runs one retained view's sync or paint. A view that throws (a kit invariant such as a duplicate UI id) is
-   * reported once and skipped, so it can't abort the frame, the other windows or the HUD (BUG-063). */
+   * reported once and skipped, so it can't abort the frame, the other windows or the HUD (BUG-063, BUG-066). */
   private contained(view: string, run: () => void): void {
     try { run(); } catch (error) {
+      // Development, the lab and tests keep the error hard (BUG-066); production skips the view.
+      if (uiFailurePolicy() === 'throw') throw error;
       const key = `${view}:${error instanceof Error ? error.message : String(error)}`;
       if (this.reportedViewErrors.has(key)) return;
       this.reportedViewErrors.add(key);
