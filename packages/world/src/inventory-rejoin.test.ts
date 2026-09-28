@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, playerContainerCellsFingerprint, type PlayerContainerMigrationPlan } from '@orchard/sim';
+import * as containerCells from './container-cells.js';
 import { playerCellDependencies, playerCellTable } from './player-cells.fixture.js';
 import { contentRecoveryConnection } from './content/recovery.js';
 
@@ -9,16 +10,18 @@ const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts'
 const printer = ts.createPrinter();
 type Row = Record<string, unknown>;
 
+/** Every write any fixture table takes, in order, so a test can prove a connect wrote nothing. */
+const writes: string[] = [];
 function table(initial: readonly Row[] = [], key = 'identity') {
   const rows = new Map(initial.map((row) => [row[key], { ...row }]));
   const index = {
     find: (id: unknown) => rows.get(id) ?? null,
-    update: (row: Row) => { rows.set(row[key], row); return row; },
-    delete: (id: unknown) => rows.delete(id),
+    update: (row: Row) => { writes.push(`update:${String(row[key])}`); rows.set(row[key], row); return row; },
+    delete: (id: unknown) => { writes.push(`delete:${String(id)}`); return rows.delete(id); },
   };
   return {
     identity: index, id: index,
-    insert: (row: Row) => { rows.set(row[key], row); return row; },
+    insert: (row: Row) => { writes.push(`insert:${String(row[key])}`); rows.set(row[key], row); return row; },
     iter: () => rows.values(), count: () => BigInt(rows.size),
     by_identity: { filter: (identity: unknown) => [...rows.values()].filter((row) => row['identity'] === identity) },
   };
@@ -54,12 +57,21 @@ const starterLoadout: AuthoredLoadoutFixture = {
   }),
 };
 
+interface LegacyFixture {
+  readonly hotbarVersion: number;
+  readonly equipmentVersion?: number;
+  readonly rows: readonly Row[];
+  readonly stash?: readonly Row[];
+  readonly selectedSlot?: number;
+}
+
 function runInventoryConnection(
   newCharacter: boolean,
   occupied = false,
-  legacy?: { hotbarVersion: number; rows: readonly Row[] },
+  legacy?: LegacyFixture,
   authoredLoadout: AuthoredLoadoutFixture = starterLoadout,
 ) {
+  writes.length = 0;
   const sender = { toHexString: () => 'fixture-player' };
   const inventoryRows = legacy?.rows.map(row=>({...row,identity:sender,id:`fixture-player:${row['slot']}`})) ?? (newCharacter ? [] : Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => ({
     id: `fixture-player:${slot}`, identity: sender, slot,
@@ -69,12 +81,14 @@ function runInventoryConnection(
   const inventory = table(inventoryRows, 'id');
   const cells = playerCellTable();
   const ctx = { sender, connectionId: {}, db: {
-    player_survival: table(newCharacter ? [] : [{ identity: sender }]),
+    player_survival: table(newCharacter ? [] : [{ identity: sender, selectedSlot: legacy?.selectedSlot ?? 0 }]),
     player_spawn: table(newCharacter ? [] : [{ identity: sender, tileX: 1, tileY: 1, spaceId: 0 }]),
     player_survival_migration: table(newCharacter ? [] : [{ identity: sender, hungerVersion: 1 }]),
     // An existing character has not connected since the container-cell publish: its rows are still on the legacy layout.
-    inventory_migration: table(newCharacter ? [] : [{ identity: sender, hotbarLayoutVersion: legacy?.hotbarVersion ?? 1, durabilityVersion: 1, equipmentLayoutVersion: legacy === undefined ? CURRENT_EQUIPMENT_LAYOUT_VERSION : 0, containerLayoutVersion: 0 }]),
-    inventory_slot: inventory, inventory_cursor: cursor, hearth_stash_slot: table([], 'id'), player_container_cell: cells,
+    inventory_migration: table(newCharacter ? [] : [{ identity: sender, hotbarLayoutVersion: legacy?.hotbarVersion ?? 1, durabilityVersion: 1, equipmentLayoutVersion: legacy === undefined ? CURRENT_EQUIPMENT_LAYOUT_VERSION : legacy.equipmentVersion ?? 0, containerLayoutVersion: 0 }]),
+    inventory_slot: inventory, inventory_cursor: cursor,
+    hearth_stash_slot: table((legacy?.stash ?? []).map(row => ({ ...row, identity: sender, id: `fixture-player:${row['slot']}` })), 'id'),
+    player_container_cell: cells,
     world_resource: table(), world_chest: table(), world_npc: table(), world_clock: table([], 'id'),
   } };
   let callback: ts.ArrowFunction | undefined;
@@ -92,8 +106,17 @@ function runInventoryConnection(
     && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(source) === 'ensurePlayerStats');
   if (end < 0) throw new Error('inventory phase boundary missing');
   const body = callback.body.statements.slice(0, end).map((statement) => printer.printNode(ts.EmitHint.Unspecified, statement, source)).join('\n');
+  // The dry run the release-lane batch and status make from the untouched legacy rows, before any connect step.
+  const migrationBefore = ctx.db.inventory_migration.identity.find(sender);
+  const dryRun = migrationBefore === null ? null : containerCells.planLegacyPlayerContainerMove(ctx.db as never, sender as never, migrationBefore as never);
+  const plans: (PlayerContainerMigrationPlan | null)[] = [];
   const dependencies = {
     ...playerCellDependencies, SenderError: Error, legacyGlobalSlotToCell, CURRENT_CONTAINER_LAYOUT_VERSION,
+    movePlayerToContainerCells: (...args: Parameters<typeof containerCells.movePlayerToContainerCells>) => {
+      const plan = containerCells.movePlayerToContainerCells(...args);
+      plans.push(plan);
+      return plan;
+    },
     runtimeNormalizeDurability: () => { throw new Error('unexpected_durability_normalization'); },
     contentRecoveryConnection,
     requireContentEditor: () => { throw new Error('unexpected_recovery_authorization'); },
@@ -109,15 +132,22 @@ function runInventoryConnection(
     storedLit: () => true, contentRegistry: () => ({}), runtimeDurabilityDefinition: () => null,
     activeWorldPolicyBalance: () => ({ survivalSpawnSearchRadiusTiles: 60 }),
   };
-  const withSenderErrors = source.statements.find(statement => ts.isFunctionDeclaration(statement)
-    && statement.name?.text === 'withSenderErrors')!.getText(source);
-  const javascript = ts.transpileModule(`(ctx) => { ${withSenderErrors}\n${body} }`, {
+  // The connect callback and the helpers it calls, all from the module source: the legacy layout steps and the move
+  // live in migrateLegacyPlayerStorage, which the release-lane batch runs too.
+  const helpers = ['withSenderErrors', 'migrateLegacyPlayerStorage'].map(name => source.statements.find(statement => ts.isFunctionDeclaration(statement)
+    && statement.name?.text === name)!.getText(source)).join('\n');
+  const javascript = ts.transpileModule(`(ctx) => { ${helpers}\n${body} }`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
   const connect = new Function(...Object.keys(dependencies), `return ${javascript}`)(...Object.values(dependencies)) as (context: typeof ctx) => void;
   connect(ctx);
+  const firstConnectWrites = writes.length;
   connect(ctx);
   return {
+    dryRun, plans,
+    firstConnectWrites,
+    secondConnectWrites: writes.slice(firstConnectWrites),
+    stash: [...ctx.db.hearth_stash_slot.iter()],
     legacyRows: [...inventory.iter()],
     // The authoritative sparse cells, each with its frozen legacy slot so assertions can name positions by slot.
     rows: [...cells.iter()].map((cell): Row => ({ ...cell, slot: isPlayerContainerId(cell.container)
@@ -189,5 +219,60 @@ describe('equipment migration through the real connection callback', () => {
     expect(rows).toHaveLength(5);expect(rows.every(row=>Number(row['quantity'])>0)).toBe(true);
     expect(cursor).toMatchObject({itemKind:'torch',quantity:1,durability:73,lit:false});
     expect(migration).toMatchObject({durabilityVersion:1,hotbarLayoutVersion:1,equipmentLayoutVersion:1,containerLayoutVersion:CURRENT_CONTAINER_LAYOUT_VERSION});
+  });
+});
+
+describe('a character last seen on the nine-slot hotbar (hotbar layout 0, equipment layout 0)', () => {
+  // The oldest stored layout: hotbar 0-8, backpack 9-28, equipment 29-37 (nine cells; Body came later), crafting 38-46.
+  // The rehearsal restore of production holds one such player. Every item below must reach its current cell.
+  const item = (slot: number, itemKind: string, quantity: number, durability = 0, lit = true) => ({ slot, itemKind, quantity, durability, lit });
+  const oldRows = (): Row[] => {
+    const occupied = new Map<number, Row>([
+      [0, item(0, 'axe', 1, 61)], [3, item(3, 'torch', 7, 0, false)], [8, item(8, 'apple', 12)],
+      [9, item(9, 'wood', 40)], [28, item(28, 'arrow', 18)],
+      [30, item(30, 'hearth_rare_helm', 1, 44)], [32, item(32, 'hearth_rare_bow', 1, 88)], [33, item(33, 'backpack', 1)],
+      [34, item(34, 'hearth_rare_shield', 1)], [37, item(37, 'hearth_rare_boots', 1, 9)],
+      [38, item(38, 'stone', 3)], [46, item(46, 'fiber', 5)],
+    ]);
+    return Array.from({ length: 47 }, (_, slot) => occupied.get(slot) ?? item(slot, 'empty', 0));
+  };
+  const stash = Array.from({ length: 20 }, (_, slot) => slot === 0 ? item(0, 'apple', 9) : slot === 17 ? item(17, 'sword', 1, 12) : item(slot, 'empty', 0));
+  const expected = [
+    ['hotbar', 0, 'axe', 1, 61, true], ['hotbar', 3, 'torch', 7, 0, false], ['hotbar', 8, 'apple', 12, 0, true],
+    ['backpack', 0, 'wood', 40, 0, true], ['backpack', 19, 'arrow', 18, 0, true],
+    ['equipment', 1, 'hearth_rare_helm', 1, 44, true], ['equipment', MAIN_HAND_EQUIPMENT_INDEX, 'hearth_rare_bow', 1, 88, true],
+    ['equipment', 4, 'backpack', 1, 0, true], ['equipment', 5, 'hearth_rare_shield', 1, 0, true], ['equipment', 8, 'hearth_rare_boots', 1, 9, true],
+    ['crafting', 0, 'stone', 3, 0, true], ['crafting', 8, 'fiber', 5, 0, true],
+    ['stash', 0, 'apple', 9, 0, true], ['stash', 17, 'sword', 1, 12, true],
+  ];
+
+  it.each([
+    ['the Main Hand', MAIN_HAND_SELECTED_SLOT, { container: 'equipment', index: MAIN_HAND_EQUIPMENT_INDEX }],
+    ['the last old hotbar cell', 8, { container: 'hotbar', index: 8 }],
+  ] as const)('moves every item to its cell on connect, keeping equipment and a selection of %s', (_label, selectedSlot, selectedCell) => {
+    const result = runInventoryConnection(false, false, { hotbarVersion: 0, equipmentVersion: 0, rows: oldRows(), stash, selectedSlot });
+    // Every item, and only items, is a cell: 12 carried plus 2 stash, with exact columns.
+    const cells = result.rows.map(row => [row['container'], row['index'], row['itemKind'], row['quantity'], row['durability'], row['lit']]);
+    expect(cells.sort((left, right) => `${left[0]}:${String(left[1]).padStart(3, '0')}`.localeCompare(`${right[0]}:${String(right[1]).padStart(3, '0')}`)))
+      .toEqual([...expected].sort((left, right) => `${left[0]}:${String(left[1]).padStart(3, '0')}`.localeCompare(`${right[0]}:${String(right[1]).padStart(3, '0')}`)));
+    // The move ran once (the second connect returned before reading) and its read-back matched its source fingerprint.
+    expect(result.plans).toHaveLength(1);
+    const plan = result.plans[0]!;
+    const stored = result.rows.map(row => ({ container: row['container'], index: row['index'], itemKind: row['itemKind'], quantity: row['quantity'], durability: row['durability'], lit: row['lit'] }));
+    expect(playerContainerCellsFingerprint(stored as never)).toBe(plan.sourceFingerprint);
+    expect(plan.counts).toMatchObject({ cells: 14, totalQuantity: 1 + 7 + 12 + 40 + 18 + 1 + 1 + 1 + 1 + 1 + 3 + 5 + 9 + 1 });
+    // The release-lane dry run over the untouched nine-slot rows plans exactly the connect path's move.
+    expect(result.dryRun?.sourceFingerprint).toBe(plan.sourceFingerprint);
+    expect(result.dryRun?.cells).toEqual(plan.cells);
+    // selectedSlot is stored unchanged: appending hotbar cell 9 renumbers no hotbar index, and 33 names the Main Hand.
+    expect(result.survival).toMatchObject({ selectedSlot });
+    expect(plan.selectedCell).toEqual(selectedCell);
+    expect(result.migration).toMatchObject({ hotbarLayoutVersion: 1, equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION, containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION });
+    // The legacy steps left the frozen rows on the current 49-slot numbering; the stash rows were only read.
+    expect(result.legacyRows).toHaveLength(INVENTORY_SLOT_COUNT);
+    expect(result.stash).toHaveLength(20);
+    // A second connect is a no-op: no table is written (the first wrote the legacy steps and the version).
+    expect(result.firstConnectWrites).toBeGreaterThan(0);
+    expect(result.secondConnectWrites).toEqual([]);
   });
 });

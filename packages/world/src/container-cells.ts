@@ -1,6 +1,7 @@
 import {
   CURRENT_CONTAINER_LAYOUT_VERSION,
   CURRENT_EQUIPMENT_LAYOUT_VERSION,
+  HOTBAR_SLOT_COUNT,
   LEGACY_CONTAINER_LAYOUT_VERSION,
   cellToLegacyGlobalSlot,
   containerCellStack,
@@ -214,16 +215,69 @@ function legacyStack(row: { readonly itemKind: string; readonly quantity: number
   return { itemKind: row.itemKind, quantity: row.quantity, durability: row.durability, lit: row.lit };
 }
 
-/** The pure move plan for one player's legacy rows. It reads only: the release status uses it as a dry run. */
+/** Persistent hotbar layout history. Add the outgoing shared count before changing HOTBAR_SLOT_COUNT again so existing
+ * global inventory slots shift atomically. Version 0 is the nine-slot hotbar. */
+export const HOTBAR_LAYOUT_SLOT_COUNTS = [9, HOTBAR_SLOT_COUNT] as const;
+export const CURRENT_HOTBAR_LAYOUT_VERSION = HOTBAR_LAYOUT_SLOT_COUNTS.length - 1;
+
+export function hotbarSlotCountForLayoutVersion(version: number): number {
+  const bounded = Math.max(0, Math.min(CURRENT_HOTBAR_LAYOUT_VERSION, Math.floor(version)));
+  return HOTBAR_LAYOUT_SLOT_COUNTS[bounded] ?? HOTBAR_SLOT_COUNT;
+}
+
+/** A player's stored legacy layout versions. A character with no `inventory_migration` row predates the table and is
+ * on the oldest layouts, as the connect path treats it. */
+export interface LegacyPlayerLayout {
+  readonly hotbarLayoutVersion: number;
+  readonly equipmentLayoutVersion: number;
+}
+export const UNVERSIONED_PLAYER_LAYOUT: LegacyPlayerLayout = Object.freeze({ hotbarLayoutVersion: 0, equipmentLayoutVersion: 0 });
+
+/**
+ * The pure move plan for one player's legacy rows. It reads only: the release status and the release-lane batch use it
+ * as a dry run. Rows stored under an older, shorter hotbar are planned where the connect-time hotbar step puts them
+ * (every row past the old hotbar shifts up by the slots added), and an older equipment layout is relocated inside the
+ * sim plan, so the plan equals the one the move makes after those steps have run.
+ */
 export function planLegacyPlayerContainerMove(
-  db: Omit<PlayerMoveDb, 'player_container_cell'>, identity: Identity, equipmentLayoutVersion: number,
+  db: Omit<PlayerMoveDb, 'player_container_cell'>, identity: Identity, layout: LegacyPlayerLayout,
 ): PlayerContainerMigrationPlan {
+  const previousHotbarSlotCount = hotbarSlotCountForLayoutVersion(layout.hotbarLayoutVersion);
+  if (previousHotbarSlotCount > HOTBAR_SLOT_COUNT) fail('hotbar_layout_shrink_unsupported');
+  const addedHotbarSlots = layout.hotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION ? HOTBAR_SLOT_COUNT - previousHotbarSlotCount : 0;
   return planPlayerContainerMigration({
-    inventoryRows: [...db.inventory_slot.by_identity.filter(identity)].map(row => ({ slot: row.slot, ...legacyStack(row) })),
-    equipmentLayoutVersion,
+    inventoryRows: [...db.inventory_slot.by_identity.filter(identity)].map(row => ({
+      slot: row.slot >= previousHotbarSlotCount ? row.slot + addedHotbarSlots : row.slot, ...legacyStack(row),
+    })),
+    equipmentLayoutVersion: layout.equipmentLayoutVersion,
     stashRows: [...db.hearth_stash_slot.by_identity.filter(identity)].map(row => ({ slot: row.slot, ...legacyStack(row) })),
     selectedSlot: db.player_survival.identity.find(identity)?.selectedSlot ?? 0,
   });
+}
+
+/** One player whose storage is still on the legacy layout: a version-0 `inventory_migration` row, or a character with
+ * no row at all. `character` is false for a migration row with no `player_survival` row; connecting creates that
+ * character, so nothing but the connect path may touch it. */
+export interface LegacyPlayerStorage extends LegacyPlayerLayout {
+  readonly identity: Identity;
+  readonly character: boolean;
+}
+
+export function legacyPlayerStorage(db: Pick<Db, 'inventory_migration' | 'player_survival'>): LegacyPlayerStorage[] {
+  const players: LegacyPlayerStorage[] = [];
+  for (const migration of db.inventory_migration.iter()) {
+    if (migration.containerLayoutVersion >= CURRENT_CONTAINER_LAYOUT_VERSION) continue;
+    players.push({
+      identity: migration.identity, hotbarLayoutVersion: migration.hotbarLayoutVersion,
+      equipmentLayoutVersion: migration.equipmentLayoutVersion,
+      character: db.player_survival.identity.find(migration.identity) !== null,
+    });
+  }
+  for (const survival of db.player_survival.iter()) {
+    if (db.inventory_migration.identity.find(survival.identity) !== null) continue;
+    players.push({ identity: survival.identity, ...UNVERSIONED_PLAYER_LAYOUT, character: true });
+  }
+  return players;
 }
 
 function storedPlayerCells(db: PlayerCellDb, identity: Identity): PlayerContainerCell[] {
@@ -253,7 +307,7 @@ export function movePlayerToContainerCells(
   }
   if (migration.containerLayoutVersion >= CURRENT_CONTAINER_LAYOUT_VERSION) return null;
   if (migration.containerLayoutVersion !== LEGACY_CONTAINER_LAYOUT_VERSION) fail('container_layout_version_unsupported');
-  const plan = planLegacyPlayerContainerMove(db, identity, migration.equipmentLayoutVersion);
+  const plan = planLegacyPlayerContainerMove(db, identity, migration);
   if (firstOf(db.player_container_cell.by_identity.filter(identity)) !== undefined) fail('container_migration_conflict');
   for (const cell of plan.cells) {
     db.player_container_cell.insert(playerCellValues(identity, cell.container, cell.index, cell));
@@ -389,14 +443,16 @@ export function containerCellMigrationStatus(
   let current = 0; let legacy = 0; let planned = 0; let planTruncated = false;
   const playerTotals = { rows: 0, cells: 0, quantity: 0 };
   for (const migration of db.inventory_migration.iter()) {
-    if (migration.containerLayoutVersion >= CURRENT_CONTAINER_LAYOUT_VERSION) { current += 1; continue; }
+    if (migration.containerLayoutVersion >= CURRENT_CONTAINER_LAYOUT_VERSION) current += 1;
+  }
+  for (const player of legacyPlayerStorage(db)) {
     legacy += 1;
     if (planned >= maximumPlayerPlans) { planTruncated = true; continue; }
     planned += 1;
     try {
-      addCounts(playerTotals, planLegacyPlayerContainerMove(db, migration.identity, migration.equipmentLayoutVersion).counts);
+      addCounts(playerTotals, planLegacyPlayerContainerMove(db, player.identity, player).counts);
     } catch (error) {
-      issue({ kind: 'player_plan_refused', id: migration.identity.toHexString(), code: error instanceof Error ? error.message : 'unknown' });
+      issue({ kind: 'player_plan_refused', id: player.identity.toHexString(), code: error instanceof Error ? error.message : 'unknown' });
     }
   }
   const legacyByPlaceable = new Map<bigint, ReturnType<typeof legacyPlaceableRows>>();

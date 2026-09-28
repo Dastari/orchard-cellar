@@ -468,7 +468,7 @@ if [[ "$container_cell_migration" = run ]]; then
     CONTAINER_CELL_MIGRATION_TARGET=production \
     CONTAINER_CELL_MIGRATION_CONFIRM="migrate:$database" \
     CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM="$database" \
-    CONTAINER_CELL_MIGRATION_OWNER_LABEL="$content_owner_label" \
+    CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL="$content_owner_label" \
     CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT="$rehearsal_container_cell_fingerprint" \
     node --import tsx scripts/container-cell-migration-runner.ts | tee "$production_container_cell_log")
   production_container_cell_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \

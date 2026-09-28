@@ -29,10 +29,13 @@ describe('shared hotbar layout authority', () => {
 
   it('retains the historical nine-slot boundary only as versioned migration data', () => {
     const migration = sourceBetween(
-      'const inventoryMigration = ctx.db.inventory_migration.identity.find(ctx.sender);',
-      'if (ctx.db.inventory_migration.identity.find(ctx.sender) === null)',
+      'const inventoryMigration = ctx.db.inventory_migration.identity.find(identity);',
+      'if (ctx.db.inventory_migration.identity.find(identity) === null)',
     );
-    expect(source).toContain('const HOTBAR_LAYOUT_SLOT_COUNTS = [9, HOTBAR_SLOT_COUNT] as const');
+    // The layout history lives beside the container-cell move, which plans older hotbars the same way.
+    const cells = readFileSync(new URL('./container-cells.ts', import.meta.url), 'utf8');
+    expect(cells).toContain('export const HOTBAR_LAYOUT_SLOT_COUNTS = [9, HOTBAR_SLOT_COUNT] as const');
+    expect(source).not.toContain('const HOTBAR_LAYOUT_SLOT_COUNTS');
     expect(migration).toContain('hotbarSlotCountForLayoutVersion(storedHotbarLayoutVersion)');
     expect(migration).toContain('row.slot >= previousHotbarSlotCount');
     expect(migration).toContain('row.slot + addedHotbarSlots');

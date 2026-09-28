@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
+import { resolveStudioScopes } from '../../sim/src/studio-scopes.js';
+import { requireOwnerOrAdminRead } from './admin/procedures.js';
+import { OIDC_ISSUER, authenticationRejection, canAdministerWorld, membershipRejection } from './auth-policy.js';
 import * as cells from './container-cells.js';
 
 /**
@@ -400,19 +403,24 @@ describe('connect-time wiring', () => {
   const onConnect = text.slice(text.indexOf('export const onConnect = spacetimedb.clientConnected('),
     text.indexOf('export const onDisconnect'));
 
+  const migrateFn = text.slice(text.indexOf('function migrateLegacyPlayerStorage('), text.indexOf('export const onConnect = spacetimedb.clientConnected('));
+
   it('runs the legacy layout steps only before the move, then moves in the same transaction before any inventory read', () => {
-    const gate = onConnect.indexOf('const legacyContainerLayout = !enteringSurvivalWorld');
-    const hotbar = onConnect.indexOf('storedHotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION');
-    const equipment = onConnect.indexOf('migrateEquipmentLayout(equipmentRows, equipmentVersion)');
-    const move = onConnect.indexOf('movePlayerToContainerCells(ctx.db, ctx.sender, CURRENT_HOTBAR_LAYOUT_VERSION)');
+    const gate = onConnect.indexOf('if (!enteringSurvivalWorld) migrateLegacyPlayerStorage(ctx, ctx.sender);');
     const stats = onConnect.indexOf('ensurePlayerStats(ctx, ctx.sender');
     const drain = onConnect.indexOf('drainPlayerOverflow(ctx, ctx.sender)');
-    expect([gate, hotbar, equipment, move, stats, drain].every(index => index > 0)).toBe(true);
-    expect(gate).toBeLessThan(hotbar);
+    expect([gate, stats, drain].every(index => index > 0)).toBe(true);
+    expect(gate).toBeLessThan(stats);
+    expect(stats).toBeLessThan(drain);
+    // Inside the shared step: the version gate, then hotbar, then equipment, then the move.
+    const current = migrateFn.indexOf('>= CURRENT_CONTAINER_LAYOUT_VERSION) {\n    return null;');
+    const hotbar = migrateFn.indexOf('storedHotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION');
+    const equipment = migrateFn.indexOf('migrateEquipmentLayout(equipmentRows, equipmentVersion)');
+    const move = migrateFn.indexOf('movePlayerToContainerCells(ctx.db, identity, CURRENT_HOTBAR_LAYOUT_VERSION)');
+    expect([current, hotbar, equipment, move].every(index => index > 0)).toBe(true);
+    expect(current).toBeLessThan(hotbar);
     expect(hotbar).toBeLessThan(equipment);
     expect(equipment).toBeLessThan(move);
-    expect(move).toBeLessThan(stats);
-    expect(stats).toBeLessThan(drain);
     // New characters start on the cell layout; no legacy row is written for them.
     const created = onConnect.slice(onConnect.indexOf('if (survival === null) {'), gate);
     expect(created).toContain('putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index');
@@ -420,12 +428,15 @@ describe('connect-time wiring', () => {
     expect(created).not.toMatch(/db\.inventory_slot/u);
   });
 
-  it('writes legacy tables nowhere but the gated connect steps, and views both generations', () => {
+  it('writes legacy tables nowhere but the gated legacy steps, and views both generations', () => {
     const writes = [...text.matchAll(/ctx\.db\.(inventory_slot|hearth_stash_slot|world_placeable_slot)\.(insert|id\.update|id\.delete)/gu)];
-    const gated = onConnect.slice(onConnect.indexOf('const legacyContainerLayout'), onConnect.indexOf('movePlayerToContainerCells('));
+    const gated = migrateFn.slice(0, migrateFn.indexOf('movePlayerToContainerCells('));
     expect(writes.length).toBeGreaterThan(0);
     for (const write of writes) expect(gated).toContain(write[0]);
     expect(writes.every(write => write[1] === 'inventory_slot')).toBe(true);
+    // Only connect (for an existing character) and the release-lane batch run those steps.
+    const callers = [...text.matchAll(/migrateLegacyPlayerStorage\((ctx, [a-z.]+)\)/gu)].map(match => match[1]);
+    expect(callers.sort()).toEqual(['ctx, ctx.sender', 'ctx, player.identity']);
     for (const view of ['own_player_container_cells', 'own_open_placeable_container_cells', 'own_placed_placeable_container_cells',
       'own_inventory_slots', 'own_hearth_stash_slots', 'own_placed_placeable_slots']) {
       expect(text).toContain(`name: '${view}'`.replace("name: 'own_hearth_stash_slots'", "name:'own_hearth_stash_slots'"));
@@ -437,5 +448,187 @@ describe('connect-time wiring', () => {
     expect(text).toContain('acknowledgement.version !== CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION');
     expect(text).not.toMatch(/\b(?:index|fromIndex|toIndex|hotbarIndex|inventoryIndex|tradeSlot): t\.u8\(\)/u);
     expect(text).not.toContain('targetIndexes: t.array(t.u8())');
+  });
+});
+
+// --- the release-lane entry points, from the module source ---
+
+/** One `export const name = spacetimedb.reducer|procedure(..., handler)` handler, compiled from the module source. */
+function entryPoint(name: string, dependencies: Record<string, unknown>) {
+  let handler: string | undefined;
+  for (const node of source.statements) {
+    if (!ts.isVariableStatement(node)) continue;
+    const declaration = node.declarationList.declarations.find(candidate => candidate.name.getText(source) === name);
+    if (declaration?.initializer !== undefined && ts.isCallExpression(declaration.initializer)) {
+      handler = declaration.initializer.arguments[declaration.initializer.arguments.length - 1]!.getText(source);
+    }
+  }
+  if (handler === undefined) throw new Error(`Missing entry point ${name}`);
+  const javascript = ts.transpileModule(`return ${handler};`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+  return new Function(...Object.keys(dependencies), javascript)(...Object.values(dependencies));
+}
+
+describe('release-lane batches and status (owner or admin)', () => {
+  const registry = sim.bootstrapContentRegistry();
+  const carol = identity('c3');
+  const dave = identity('d4');
+  const erin = identity('e5');
+  const jwt = { issuer: OIDC_ISSUER, audience: ['orchard-web'] };
+  type Member = { role: string; blocked: boolean; revokedAt?: unknown } | null;
+
+  /** The oldest stored layout (hotbar layout 0, equipment layout 0): 47 dense rows, hotbar 0-8, backpack 9-28,
+   * equipment 29-37, crafting 38-46. `versioned: false` is a character from before `inventory_migration` existed. */
+  function seedNineSlotPlayer(db: World, who: ReturnType<typeof identity>, versioned = true) {
+    const items: Record<number, Row> = {
+      0: { itemKind: 'apple', quantity: 4, durability: 0, lit: true }, 8: { itemKind: 'torch', quantity: 2, durability: 0, lit: false },
+      9: { itemKind: 'wood', quantity: 40, durability: 0, lit: true }, 32: { itemKind: 'hearth_rare_bow', quantity: 1, durability: 0, lit: true },
+      33: { itemKind: 'backpack', quantity: 1, durability: 0, lit: true }, 46: { itemKind: 'stone', quantity: 6, durability: 0, lit: true },
+    };
+    for (let slot = 0; slot < 47; slot += 1) {
+      db.inventory_slot.insert({ id: `${who.toHexString()}:${slot}`, identity: who, slot, ...(items[slot] ?? empty) });
+    }
+    db.hearth_stash_slot.insert({ id: `${who.toHexString()}:3`, identity: who, slot: 3, itemKind: 'sword', quantity: 1, durability: 0, lit: true });
+    db.player_survival.insert({ identity: who, selectedSlot: sim.MAIN_HAND_SELECTED_SLOT, debugBackpackSlots: 0 });
+    if (versioned) {
+      db.inventory_migration.insert({ identity: who, durabilityVersion: 1, hotbarLayoutVersion: 0, equipmentLayoutVersion: 0, containerLayoutVersion: 0 });
+    }
+  }
+
+  function lane(member: Member, options: { scopeGrant?: boolean } = {}) {
+    const db = world();
+    const full = {
+      ...db,
+      membership: { identity: { find: () => member } },
+      content_editor_grant: { identity: { find: () => null } },
+      support_grant: { identity: { find: () => null } },
+      studio_scope_grant: {
+        id: { find: (key: string) => options.scopeGrant === true && key === 'a1:operate.world' ? { scope: 'operate.world', revokedAt: undefined } : null },
+        by_identity: { filter: () => options.scopeGrant === true ? [{ scope: 'operate.world', revokedAt: undefined }] : [] },
+      },
+    };
+    // The placeable batch walks `by_placeable` with an open or cursor Range; serve rows in placeable order.
+    full.world_placeable_slot = { ...db.world_placeable_slot, by_placeable: { filter: () => [...db.world_placeable_slot.rows.values()]
+      .sort((left, right) => (left['placeableId'] as bigint) < (right['placeableId'] as bigint) ? -1 : 1) } } as never;
+    const ctx = { sender: alice, senderAuth: { jwt }, timestamp: { microsSinceUnixEpoch: 3n }, db: full };
+    const helpers = authority([
+      'requireAuthorizedSender', 'requireWorldOwner', 'scopesFor', 'requireStudioScope', 'requireAdminProcedure',
+      'requireWorldAdministrationRead', 'migrateLegacyPlayerStorage', 'withSenderErrors', 'ensureContainerCellMigrationControl',
+      'ensurePlaceableContainerCells',
+    ], {
+      ...sim, ...cells, SenderError: Error, authenticationRejection, membershipRejection, canAdministerWorld, requireOwnerOrAdminRead,
+      resolveStudioScopes,
+      contentRegistry: () => registry, CONTAINER_CELL_MIGRATION_CONTROL_ID: 0,
+    });
+    const dependencies = {
+      ...sim, ...cells, ...helpers, SenderError: Error, Range: class { constructor(readonly bound?: unknown) {} },
+      CONTAINER_CELL_BACKFILL_MAX: 100, CONTAINER_CELL_STATUS_PLAN_MAX: 10_000,
+    };
+    return {
+      db, ctx,
+      players: (limit = 100) => entryPoint('adminBackfillPlayerContainerCells', dependencies)(ctx, { limit }),
+      placeables: (limit = 100) => entryPoint('adminBackfillPlaceableContainerCells', dependencies)(ctx, { limit }),
+      status: (maximumPlayerPlans = 100) => JSON.parse(entryPoint('adminContainerCellMigrationStatus', dependencies)(
+        { withTx: (run: (tx: unknown) => unknown) => run({ sender: alice, db: full }) }, { maximumPlayerPlans })) as cells.ContainerCellMigrationStatus,
+    };
+  }
+
+  const owner = { role: 'owner', blocked: false };
+  const admin = { role: 'admin', blocked: false };
+
+  it.each([['owner', owner], ['admin', admin]] as const)('lets the %s run the placeable copy, the player move and the status', (_label, member) => {
+    const run = lane(member);
+    seedPlayer(run.db, bob);
+    run.db.world_placeable_slot.insert({ id: '5:0', placeableId: 5n, slot: 0, itemKind: 'apple', quantity: 12, durability: 0, lit: true });
+    expect(run.status().players).toMatchObject({ legacy: 1, current: 0 });
+    run.placeables();
+    run.players();
+    const after = run.status();
+    expect(after.players).toMatchObject({ legacy: 0, current: 1, cells: 12 });
+    expect(after.placeables).toMatchObject({ copied: 1, uncopied: 0, backfillComplete: true });
+    expect(after.issues).toEqual([]);
+  });
+
+  it.each([
+    ['moderator', { role: 'moderator', blocked: false }, 'studio_scope_required:operate.world'],
+    ['plain player', { role: 'friend', blocked: false }, 'studio_scope_required:operate.world'],
+    ['missing member', null, 'membership_required'],
+    ['blocked admin', { role: 'admin', blocked: true }, 'membership_blocked'],
+    ['revoked owner', { role: 'owner', blocked: false, revokedAt: 'then' }, 'membership_revoked'],
+  ] as const)('refuses a %s on every entry point, writing nothing', (_label, member, code) => {
+    const run = lane(member);
+    seedPlayer(run.db, bob);
+    run.db.world_placeable_slot.insert({ id: '5:0', placeableId: 5n, slot: 0, itemKind: 'apple', quantity: 12, durability: 0, lit: true });
+    expect(() => run.players()).toThrow(code);
+    expect(() => run.placeables()).toThrow(code);
+    expect(() => run.status()).toThrow(member === null ? 'studio_scope_required:operate.world' : /studio_scope_required|admin_role_forbidden/u);
+    expect(run.db.player_container_cell.rows.size + run.db.placeable_container_cell.rows.size + run.db.container_cell_migration.rows.size).toBe(0);
+  });
+
+  it('refuses a moderator holding an explicit operate.world grant: the role must be owner or admin', () => {
+    const run = lane({ role: 'moderator', blocked: false }, { scopeGrant: true });
+    seedPlayer(run.db, bob);
+    expect(() => run.players()).toThrow('owner_required');
+    expect(() => run.placeables()).toThrow('owner_required');
+    expect(() => run.status()).toThrow('owner_required');
+    expect(run.db.player_container_cell.rows.size).toBe(0);
+  });
+
+  it('moves characters on the nine-slot hotbar and with no migration row, skips a refused plan, leaves a characterless row', () => {
+    const run = lane(admin);
+    seedPlayer(run.db, alice);
+    seedPlayer(run.db, bob);
+    run.db.inventory_slot.insert({ id: 'b2:99', identity: bob, slot: 99, itemKind: 'wood', quantity: 1, durability: 0, lit: true });
+    seedNineSlotPlayer(run.db, carol);
+    seedNineSlotPlayer(run.db, dave, false);
+    // A migration row whose character does not exist: connecting would create the character, so only connect may act.
+    run.db.inventory_migration.insert({ identity: erin, durabilityVersion: 1, hotbarLayoutVersion: 0, equipmentLayoutVersion: 0, containerLayoutVersion: 0 });
+    const before = run.status();
+    expect(before.players).toMatchObject({ current: 0, legacy: 5, planned: 5 });
+    expect(before.issues).toEqual([{ kind: 'player_plan_refused', id: 'b2', code: 'inventory_layout_rows_invalid' }]);
+    const carolPlan = cells.planLegacyPlayerContainerMove(run.db as never, carol as never, { hotbarLayoutVersion: 0, equipmentLayoutVersion: 0 });
+    const legacyStash = snapshotOf(run.db.hearth_stash_slot.rows);
+
+    run.players();
+    const after = run.status();
+    expect(after.players).toMatchObject({ current: 3, legacy: 2 });
+    expect(after.issues).toEqual(before.issues);
+    for (const who of [alice, carol, dave]) {
+      expect(run.db.inventory_migration.identity.find(who)).toMatchObject({ hotbarLayoutVersion: 1, equipmentLayoutVersion: 1, containerLayoutVersion: 1 });
+    }
+    // Carol went through the connect path's hotbar and equipment steps: her items sit in their current cells, and the
+    // read-back equals the dry run the status made from her nine-slot rows.
+    const carolCells = [...run.db.player_container_cell.rows.values()].filter(row => row['identity'] === carol);
+    expect(carolCells.map(row => `${row['container']}:${row['index']}:${row['itemKind']}x${row['quantity']}`).sort()).toEqual([
+      'backpack:0:woodx40', 'crafting:8:stonex6', 'equipment:3:hearth_rare_bowx1', 'equipment:4:backpackx1',
+      'hotbar:0:applex4', 'hotbar:8:torchx2', 'stash:3:swordx1',
+    ]);
+    expect(sim.playerContainerCellsFingerprint(carolCells.map(row => ({ container: row['container'], index: row['index'], ...stackOf(row) })) as never))
+      .toBe(carolPlan.sourceFingerprint);
+    expect(run.db.player_survival.identity.find(carol)?.['selectedSlot']).toBe(sim.MAIN_HAND_SELECTED_SLOT);
+    // Dave had no migration row: the same steps created it (current versions) and moved him.
+    expect([...run.db.player_container_cell.rows.values()].filter(row => row['identity'] === dave)).toHaveLength(7);
+    // Bob (refused) and Erin (no character) were not touched.
+    expect([...run.db.player_container_cell.rows.values()].some(row => row['identity'] === bob || row['identity'] === erin)).toBe(false);
+    expect(run.db.inventory_migration.identity.find(bob)?.['containerLayoutVersion']).toBe(0);
+    expect(run.db.inventory_migration.identity.find(erin)).toMatchObject({ hotbarLayoutVersion: 0, containerLayoutVersion: 0 });
+    expect(snapshotOf(run.db.hearth_stash_slot.rows)).toBe(legacyStash);
+
+    // Idempotent: a second batch writes no cell and no version.
+    const cellWrites = run.db.player_container_cell.writes.length;
+    const versionWrites = run.db.inventory_migration.writes.length;
+    run.players();
+    expect(run.db.player_container_cell.writes).toHaveLength(cellWrites);
+    expect(run.db.inventory_migration.writes).toHaveLength(versionWrites);
+  });
+
+  it('moves at most `limit` characters per call', () => {
+    const run = lane(owner);
+    seedPlayer(run.db, alice);
+    seedNineSlotPlayer(run.db, carol);
+    run.players(1);
+    expect(run.status().players).toMatchObject({ current: 1, legacy: 1 });
+    run.players(1);
+    expect(run.status().players).toMatchObject({ current: 2, legacy: 0 });
+    expect(() => run.players(0)).toThrow('container_migration_limit_invalid');
   });
 });

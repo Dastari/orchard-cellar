@@ -299,7 +299,7 @@ if [[ "$migration_kind" = schema-only ]]; then
       SPACETIMEDB_DATABASE="$database" \
       CONTAINER_CELL_MIGRATION_TARGET=rehearsal \
       CONTAINER_CELL_MIGRATION_CONFIRM="migrate:$database" \
-      CONTAINER_CELL_MIGRATION_OWNER_LABEL="$content_owner_label" \
+      CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL="$content_owner_label" \
       node --import tsx "$repository/scripts/container-cell-migration-runner.ts" | tee "$container_cell_log")
     container_cell_fingerprint=$(node --import tsx "$repository/scripts/container-cell-migration-runner.ts" \
       final-fingerprint "$container_cell_log")

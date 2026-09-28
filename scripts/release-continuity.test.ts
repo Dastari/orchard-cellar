@@ -109,10 +109,15 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     expect(production).toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT="$rehearsal_container_cell_fingerprint"');
     expect(production).toContain('CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM="$database"');
     expect(production).toContain('| tee "$production_container_cell_log"');
+    // Both runs use the lane's content-publication credential; the batches accept a world owner or admin.
+    expect(production).toContain('CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL="$content_owner_label"');
+    expect(branch).toContain('CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL="$content_owner_label"');
     expect(release).toContain('container_cell_migration=${WORLD_RELEASE_CONTAINER_CELL_MIGRATION:-skip}');
     const operations = readFileSync(new URL('../ops/orchard-runtime/README.md', import.meta.url), 'utf8');
     expect(operations).toContain('WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run');
     expect(operations).toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT');
+    expect(operations).toContain('The batches and the status accept a world owner or admin');
+    expect(operations).not.toContain('CONTAINER_CELL_MIGRATION_OWNER_LABEL');
   });
 
   it('refuses the container-cell migration outside a schema-only publishing lane or with an unknown value', () => {

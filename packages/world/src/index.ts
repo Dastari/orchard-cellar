@@ -434,8 +434,9 @@ import {
   type SparseContainerBuild,
 } from '@orchard/sim';
 import {
-  CARRIED_CONTAINERS, applyPlaceableContainerWrites, applyPlayerContainerWrites, carriedPlayerCellRows,
-  containerCellMigrationStatus, copyPlaceableToContainerCells, deletePlaceableCells, isCarriedContainer, legacySlotRows,
+  CARRIED_CONTAINERS, CURRENT_HOTBAR_LAYOUT_VERSION, applyPlaceableContainerWrites, applyPlayerContainerWrites, carriedPlayerCellRows,
+  containerCellMigrationStatus, copyPlaceableToContainerCells, deletePlaceableCells, hotbarSlotCountForLayoutVersion,
+  isCarriedContainer, legacyPlayerStorage, legacySlotRows,
   movePlayerToContainerCells, placeableCellRows, planLegacyPlayerContainerMove, playerCellOrVacant, playerContainerCellsCurrent, playerContainerRows,
   putPlaceableCell, putPlayerCell, spillToOverflow,
   type CarriedContainerId, type PlaceableCellRow, type PlayerCellRow,
@@ -763,15 +764,6 @@ import {
 import { raiseSystemLifecycleEvent } from './behaviour/system-events.js';
 
 const DEFAULT_BACKPACK_CAPACITY = BASE_BACKPACK_CAPACITY;
-/** Persistent layout history. Add the outgoing shared count before changing
- * HOTBAR_SLOT_COUNT again so existing global inventory slots shift atomically. */
-const HOTBAR_LAYOUT_SLOT_COUNTS = [9, HOTBAR_SLOT_COUNT] as const;
-const CURRENT_HOTBAR_LAYOUT_VERSION = HOTBAR_LAYOUT_SLOT_COUNTS.length - 1;
-
-function hotbarSlotCountForLayoutVersion(version: number): number {
-  const bounded = Math.max(0, Math.min(CURRENT_HOTBAR_LAYOUT_VERSION, Math.floor(version)));
-  return HOTBAR_LAYOUT_SLOT_COUNTS[bounded] ?? HOTBAR_SLOT_COUNT;
-}
 const STARTING_CURRENCY_BRONZE = BRONZE_PER_GOLD;
 const MAX_WORLD_CALENDAR_TICK = BigInt(AUTHORITY_TICKS_PER_DAY * DAYS_PER_SEASON * 4 * 999);
 const HIVE_PRODUCTION_INTERVAL_TICKS = BigInt(Math.max(1, Math.floor(AUTHORITY_TICKS_PER_DAY / 20)));
@@ -13847,6 +13839,102 @@ function prepareConnection(ctx: WorldReducerContext): {
   };
 }
 
+/**
+ * Uncapped Storage step 4: the one-time storage move for an existing character still on the legacy layout. The legacy
+ * layout steps (older hotbar, older equipment layout, missing vacant rows, first-version durability) touch only that
+ * player's `inventory_slot` rows and complete first; then the move copies the inventory and stash rows into
+ * `player_container_cell`, reads them back, compares fingerprints and sets containerLayoutVersion, all in the caller's
+ * transaction. A refusal throws and rolls everything back, so no item is lost or doubled; once moved, the legacy rows
+ * are never written again and this returns null without reading them. The identity is explicit and nothing here needs
+ * a connection: onConnect runs it for the sender, and the release-lane batch (adminBackfillPlayerContainerCells) runs
+ * the same steps for offline characters.
+ */
+function migrateLegacyPlayerStorage(ctx: WorldReducerContext, identity: Identity) {
+  if ((ctx.db.inventory_migration.identity.find(identity)?.containerLayoutVersion ?? 0) >= CURRENT_CONTAINER_LAYOUT_VERSION) {
+    return null;
+  }
+  const inventoryMigration = ctx.db.inventory_migration.identity.find(identity);
+  const storedHotbarLayoutVersion = inventoryMigration?.hotbarLayoutVersion ?? 0;
+  if (storedHotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION) {
+    const previousHotbarSlotCount = hotbarSlotCountForLayoutVersion(storedHotbarLayoutVersion);
+    if (previousHotbarSlotCount > HOTBAR_SLOT_COUNT) throw new SenderError('hotbar_layout_shrink_unsupported');
+    const addedHotbarSlots = HOTBAR_SLOT_COUNT - previousHotbarSlotCount;
+    const shifted = [...ctx.db.inventory_slot.by_identity.filter(identity)]
+      .filter((row) => row.slot >= previousHotbarSlotCount)
+      .sort((left, right) => right.slot - left.slot);
+    for (const row of shifted) {
+      ctx.db.inventory_slot.id.delete(row.id);
+      ctx.db.inventory_slot.insert({
+        ...row,
+        id: `${identity.toHexString()}:${row.slot + addedHotbarSlots}`,
+        slot: row.slot + addedHotbarSlots,
+      });
+    }
+    for (let slot = previousHotbarSlotCount; slot < HOTBAR_SLOT_COUNT; slot += 1) {
+      ctx.db.inventory_slot.insert({
+        id: `${identity.toHexString()}:${slot}`, identity, slot,
+        itemKind: 'empty', quantity: 0, durability: 0, lit: true,
+      });
+    }
+    if (inventoryMigration !== null) {
+      ctx.db.inventory_migration.identity.update({
+        ...inventoryMigration,
+        hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
+      });
+    }
+  }
+  // Hotbar relocation above completes first. This plan rejects unexpected old
+  // indices before any writes, then moves all nine crafting cells atomically.
+  const equipmentVersion = inventoryMigration?.equipmentLayoutVersion ?? 0;
+  const equipmentRows = [...ctx.db.inventory_slot.by_identity.filter(identity)];
+  const equipmentPlan = migrateEquipmentLayout(equipmentRows, equipmentVersion);
+  const byOldId = new Map(equipmentRows.map(row => [row.id, row]));
+  const relocated = equipmentPlan.slots.filter(row => row.slot !== byOldId.get(row.id)!.slot);
+  for (const row of relocated) ctx.db.inventory_slot.id.delete(row.id);
+  for (const row of relocated) ctx.db.inventory_slot.insert({
+    ...row, id: `${identity.toHexString()}:${row.slot}`,
+  });
+  for (const slot of equipmentPlan.insertedEmptySlots) ctx.db.inventory_slot.insert({
+    id: `${identity.toHexString()}:${slot}`, identity, slot,
+    itemKind: 'empty', quantity: 0, durability: 0, lit: true,
+  });
+  // The cursor and processing queues do not contain global inventory offsets;
+  // leave their exact item metadata untouched by this relocation.
+  const refreshedMigration = ctx.db.inventory_migration.identity.find(identity);
+  if (refreshedMigration !== null) ctx.db.inventory_migration.identity.update({
+    ...refreshedMigration, equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
+  });
+  for (let slot = HOTBAR_SLOT_COUNT; slot < INVENTORY_SLOT_COUNT; slot += 1) {
+    const id = `${identity.toHexString()}:${slot}`;
+    if (ctx.db.inventory_slot.id.find(id) === null) ctx.db.inventory_slot.insert({
+      id,
+      identity,
+      slot,
+      itemKind: 'empty',
+      quantity: 0,
+      durability: 0,
+      lit: true,
+    });
+  }
+  if (ctx.db.inventory_migration.identity.find(identity) === null) {
+    for (const row of ctx.db.inventory_slot.by_identity.filter(identity)) {
+      if (runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind) === null) continue;
+      ctx.db.inventory_slot.id.update({
+        ...row,
+        durability: runtimeNormalizeDurability(contentRegistry(ctx), row.itemKind),
+      });
+    }
+    ctx.db.inventory_migration.insert({
+      identity,
+      durabilityVersion: 1,
+      hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
+      equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
+      containerLayoutVersion: 0,
+    });
+  }
+  return withSenderErrors(() => movePlayerToContainerCells(ctx.db, identity, CURRENT_HOTBAR_LAYOUT_VERSION));
+}
+
 export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
   if (contentRecoveryConnection({
@@ -13962,96 +14050,9 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       spaceId: TOPSIDE_SPACE_ID,
     });
   }
-  // Uncapped Storage step 4: the legacy layout steps below touch only `inventory_slot`, and only for a player whose rows
-  // have not moved to `player_container_cell`. They complete first, then the one-time move copies the player's
-  // inventory and stash rows into cells, reads them back, compares fingerprints and sets containerLayoutVersion in this
-  // same transaction. A refused move rejects the connection and rolls everything back, so no item is lost or doubled;
-  // the legacy rows are never written again once moved.
-  const legacyContainerLayout = !enteringSurvivalWorld
-    && (ctx.db.inventory_migration.identity.find(ctx.sender)?.containerLayoutVersion ?? 0) < CURRENT_CONTAINER_LAYOUT_VERSION;
-  if (legacyContainerLayout) {
-    const inventoryMigration = ctx.db.inventory_migration.identity.find(ctx.sender);
-    const storedHotbarLayoutVersion = inventoryMigration?.hotbarLayoutVersion ?? 0;
-    if (!enteringSurvivalWorld && storedHotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION) {
-      const previousHotbarSlotCount = hotbarSlotCountForLayoutVersion(storedHotbarLayoutVersion);
-      if (previousHotbarSlotCount > HOTBAR_SLOT_COUNT) throw new SenderError('hotbar_layout_shrink_unsupported');
-      const addedHotbarSlots = HOTBAR_SLOT_COUNT - previousHotbarSlotCount;
-      const shifted = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-        .filter((row) => row.slot >= previousHotbarSlotCount)
-        .sort((left, right) => right.slot - left.slot);
-      for (const row of shifted) {
-        ctx.db.inventory_slot.id.delete(row.id);
-        ctx.db.inventory_slot.insert({
-          ...row,
-          id: `${ctx.sender.toHexString()}:${row.slot + addedHotbarSlots}`,
-          slot: row.slot + addedHotbarSlots,
-        });
-      }
-      for (let slot = previousHotbarSlotCount; slot < HOTBAR_SLOT_COUNT; slot += 1) {
-        ctx.db.inventory_slot.insert({
-          id: `${ctx.sender.toHexString()}:${slot}`, identity: ctx.sender, slot,
-          itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-        });
-      }
-      if (inventoryMigration !== null) {
-        ctx.db.inventory_migration.identity.update({
-          ...inventoryMigration,
-          hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
-        });
-      }
-    }
-    // Hotbar relocation above completes first. This plan rejects unexpected old
-    // indices before any writes, then moves all nine crafting cells atomically.
-    const equipmentVersion = enteringSurvivalWorld ? CURRENT_EQUIPMENT_LAYOUT_VERSION
-      : inventoryMigration?.equipmentLayoutVersion ?? 0;
-    const equipmentRows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-    const equipmentPlan = migrateEquipmentLayout(equipmentRows, equipmentVersion);
-    const byOldId = new Map(equipmentRows.map(row => [row.id, row]));
-    const relocated = equipmentPlan.slots.filter(row => row.slot !== byOldId.get(row.id)!.slot);
-    for (const row of relocated) ctx.db.inventory_slot.id.delete(row.id);
-    for (const row of relocated) ctx.db.inventory_slot.insert({
-      ...row, id: `${ctx.sender.toHexString()}:${row.slot}`,
-    });
-    for (const slot of equipmentPlan.insertedEmptySlots) ctx.db.inventory_slot.insert({
-      id: `${ctx.sender.toHexString()}:${slot}`, identity: ctx.sender, slot,
-      itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-    });
-    // The cursor and processing queues do not contain global inventory offsets;
-    // leave their exact item metadata untouched by this relocation.
-    const refreshedMigration = ctx.db.inventory_migration.identity.find(ctx.sender);
-    if (refreshedMigration !== null) ctx.db.inventory_migration.identity.update({
-      ...refreshedMigration, equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
-    });
-    for (let slot = HOTBAR_SLOT_COUNT; slot < INVENTORY_SLOT_COUNT; slot += 1) {
-      const id = `${ctx.sender.toHexString()}:${slot}`;
-      if (ctx.db.inventory_slot.id.find(id) === null) ctx.db.inventory_slot.insert({
-        id,
-        identity: ctx.sender,
-        slot,
-        itemKind: 'empty',
-        quantity: 0,
-        durability: 0,
-        lit: true,
-      });
-    }
-    if (ctx.db.inventory_migration.identity.find(ctx.sender) === null) {
-      for (const row of ctx.db.inventory_slot.by_identity.filter(ctx.sender)) {
-        if (runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind) === null) continue;
-        ctx.db.inventory_slot.id.update({
-          ...row,
-          durability: runtimeNormalizeDurability(contentRegistry(ctx), row.itemKind),
-        });
-      }
-      ctx.db.inventory_migration.insert({
-        identity: ctx.sender,
-        durabilityVersion: 1,
-        hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
-        equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
-        containerLayoutVersion: 0,
-      });
-    }
-    withSenderErrors(() => movePlayerToContainerCells(ctx.db, ctx.sender, CURRENT_HOTBAR_LAYOUT_VERSION));
-  }
+  // Uncapped Storage step 4: an existing character still on the legacy layout completes the legacy layout steps and
+  // moves to `player_container_cell` in this transaction, before any inventory read (see migrateLegacyPlayerStorage).
+  if (!enteringSurvivalWorld) migrateLegacyPlayerStorage(ctx, ctx.sender);
   ensurePlayerStats(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   syncDelveCompletionKeepsake(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   const spawn = {
@@ -17761,7 +17762,7 @@ const CONTAINER_CELL_BACKFILL_MAX = 100;
 const CONTAINER_CELL_STATUS_PLAN_MAX = 10_000;
 
 /**
- * Release-lane report for the container-cell migration (wiki Roadmap/Uncapped Storage): player layout versions with a
+ * Release-lane report (owner or admin) for the container-cell migration (wiki Roadmap/Uncapped Storage): player layout versions with a
  * dry-run plan of every legacy player's move (at most `maximumPlayerPlans`), and the placeable copy's counts,
  * whole-table legacy fingerprint and receipt fingerprint. The lane compares `placeables.legacyFingerprint` with the
  * value computed from the pre-publish backup (`legacyPlaceableSlotsFingerprint` over `world_placeable_slot`) and
@@ -17771,11 +17772,22 @@ export const adminContainerCellMigrationStatus = spacetimedb.procedure(
   { maximumPlayerPlans: t.u32() },
   t.string(),
   (ctx, { maximumPlayerPlans }) => ctx.withTx((tx) => {
-    requireAdminProcedure(tx, 'operate.world');
+    requireWorldAdministrationRead(tx);
     if (maximumPlayerPlans > CONTAINER_CELL_STATUS_PLAN_MAX) throw new SenderError('container_migration_limit_invalid');
     return JSON.stringify(containerCellMigrationStatus(tx.db, maximumPlayerPlans));
   }),
 );
+
+/** The read that pairs with the owner-or-admin release-lane reducers: the operate.world scope and the owner or admin
+ * role (canAdministerWorld), as requireWorldOwner requires of the batches, so an explicit scope grant alone does not
+ * open it. Missing, blocked and revoked members and every other role are refused. */
+function requireWorldAdministrationRead(tx: AdminProcedureTx): void {
+  requireAdminProcedure(tx, 'operate.world');
+  const member = tx.db.membership.identity.find(tx.sender);
+  if (member === null || member.blocked || member.revokedAt !== undefined || !canAdministerWorld(member.role)) {
+    throw new SenderError('owner_required');
+  }
+}
 
 function ensureContainerCellMigrationControl(ctx: WorldReducerContext) {
   return ctx.db.container_cell_migration.id.find(CONTAINER_CELL_MIGRATION_CONTROL_ID)
@@ -17786,7 +17798,7 @@ function ensureContainerCellMigrationControl(ctx: WorldReducerContext) {
 }
 
 /**
- * Owner-only, release-lane batch of the one-time placeable copy: the next `limit` placeables (by id) that have legacy
+ * Release-lane batch (owner or admin) of the one-time placeable copy: the next `limit` placeables (by id) that have legacy
  * `world_placeable_slot` rows are copied exactly as the lazy on-access copy does (plan, write, read back, compare
  * fingerprints, receipt), each at most once. Idempotent: a copied placeable is skipped, so re-running a batch or
  * racing the lazy copy never duplicates an item. Call until `placeableBackfillComplete`, then check the status.
@@ -17821,10 +17833,12 @@ export const adminBackfillPlaceableContainerCells = spacetimedb.reducer(
 );
 
 /**
- * Owner-only, release-lane batch of the one-time player move for players who have not connected since the publish
- * (connecting moves a player too). Moves up to `limit` legacy players whose hotbar layout is current; a player whose
- * plan is refused is skipped (the status lists it) and keeps the legacy layout, so one bad row cannot block the rest
- * and nothing is written for that player.
+ * Release-lane batch (owner or admin) of the one-time player move for characters who have not connected since the
+ * publish (connecting moves a player too). Moves up to `limit` legacy characters, including those on an older hotbar or
+ * equipment layout or with no `inventory_migration` row: each runs exactly the connect path's steps
+ * (migrateLegacyPlayerStorage) in this transaction, after a read-only dry run of the same plan. A character whose dry
+ * run is refused is skipped (the status lists it as `player_plan_refused`) and keeps the legacy layout, so one bad row
+ * cannot block the rest and nothing is written for that player. A migration row with no character is left for connect.
  */
 export const adminBackfillPlayerContainerCells = spacetimedb.reducer(
   { limit: t.u16() },
@@ -17833,16 +17847,15 @@ export const adminBackfillPlayerContainerCells = spacetimedb.reducer(
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (limit < 1 || limit > CONTAINER_CELL_BACKFILL_MAX) throw new SenderError('container_migration_limit_invalid');
     let moved = 0;
-    for (const migration of [...ctx.db.inventory_migration.iter()]) {
+    for (const player of legacyPlayerStorage(ctx.db)) {
       if (moved >= limit) break;
-      if (migration.containerLayoutVersion >= CURRENT_CONTAINER_LAYOUT_VERSION
-        || migration.hotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION) continue;
+      if (!player.character) continue;
       try {
-        planLegacyPlayerContainerMove(ctx.db, migration.identity, migration.equipmentLayoutVersion);
+        planLegacyPlayerContainerMove(ctx.db, player.identity, player);
       } catch {
         continue;
       }
-      withSenderErrors(() => movePlayerToContainerCells(ctx.db, migration.identity, CURRENT_HOTBAR_LAYOUT_VERSION));
+      migrateLegacyPlayerStorage(ctx, player.identity);
       moved += 1;
     }
   },

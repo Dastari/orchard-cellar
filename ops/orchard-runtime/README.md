@@ -100,13 +100,18 @@ to stderr. The order is:
    reconnect comparison with the rehearsal's first capture runs next.
 
 The final report must be complete: every placeable with legacy rows is copied
-with a matching receipt, and no player plan is refused or truncated. Offline
-players on an older hotbar layout may remain legacy; they move when they
-connect. The production legacy fingerprint must equal the rehearsal's. Any
-failure, including missing or non-JSON rehearsal evidence, fails closed. Before
-publication, the unchanged world restarts with traffic closed. After
-publication, the world and traffic stay stopped for investigation. The runner
-uses the content owner credential (`CONTAINER_CELL_MIGRATION_OWNER_LABEL`).
+with a matching receipt, and no player plan is refused or truncated. The player
+batch moves every offline character, including those on the nine-slot hotbar
+(hotbar layout 0), an older equipment layout or with no `inventory_migration`
+row: it runs the connect path's own layout steps, then the move, in one
+transaction. Only an `inventory_migration` row with no character stays legacy;
+connecting handles it. The production legacy fingerprint must equal the
+rehearsal's. Any failure, including missing or non-JSON rehearsal evidence,
+fails closed. Before publication, the unchanged world restarts with traffic
+closed. After publication, the world and traffic stay stopped for
+investigation. The batches and the status accept a world owner or admin
+(`canAdministerWorld`), so the dev account (admin) runs them; the lane passes
+its content-publication credential as `CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL`.
 It is idempotent, so a second pass changes nothing.
 Choose the mode from the actual live/candidate stored schema and intended data
 changes, not from the size of the working-tree diff or an unrelated Studio guard.

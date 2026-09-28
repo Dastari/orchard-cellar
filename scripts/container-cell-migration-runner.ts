@@ -11,8 +11,9 @@ import {
 /**
  * Release-lane runner for Uncapped Storage step 4 (wiki Roadmap/Uncapped Storage), the container-cell migration.
  * After the non-destructive publish it copies every placeable's legacy `world_placeable_slot` rows into
- * `placeable_container_cell` and moves every offline player whose layout allows it into `player_container_cell`, in
- * owner-only batches that are idempotent, then requires the world's own status report to be complete: every
+ * `placeable_container_cell` and moves every offline character into `player_container_cell` (older hotbar and
+ * equipment layouts included, through the connect path's own steps), in idempotent batches that a world owner or admin
+ * may run (the dev account is an admin), then requires the world's own status report to be complete: every
  * placeable with legacy rows has a receipt whose source fingerprint matches its (never rewritten) legacy rows, no
  * player plan is refused, and, when given, the whole-table legacy fingerprint equals the expected value (for example
  * the isolated restore rehearsal's). Connected players move at connect time regardless.
@@ -207,14 +208,19 @@ async function refreshCredential(credential: Required<Pick<StoredRejoinCredentia
     ? payload['refresh_token'] : credential.refreshToken };
 }
 
-async function ownerToken(): Promise<string> {
+/**
+ * The operator credential: a world owner or admin (the batches and the status accept either, through
+ * canAdministerWorld). `CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL` names it in the rejoin credential file; the lane
+ * passes its content-publication credential, normally the dev account.
+ */
+async function operatorToken(): Promise<string> {
   const path = process.env['WORLD_REJOIN_TOKENS_FILE'];
   if (path === undefined) throw new Error('WORLD_REJOIN_TOKENS_FILE_required');
   const resolved = await refreshRejoinCredentialFile({ path, refresh: refreshCredential, requireRefresh: true });
-  const label = process.env['CONTAINER_CELL_MIGRATION_OWNER_LABEL'];
+  const label = process.env['CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL'];
   const selected = label === undefined ? resolved.credentials[0]
     : resolved.credentials.find((credential) => credential.label === label);
-  if (selected === undefined) throw new Error('container_cell_migration_owner_credential_missing');
+  if (selected === undefined) throw new Error('container_cell_migration_credential_missing');
   return selected.token;
 }
 
@@ -252,7 +258,8 @@ export async function runContainerCellMigration(
     await timeout('container_cell_migration_placeables', connection.reducers.adminBackfillPlaceableContainerCells({ limit: BATCH_LIMIT }));
     current = await status(connection);
   }
-  // Offline players with a valid plan; a refused plan stays on the legacy layout and is reported as an issue.
+  // Offline characters with a valid plan, on any older layout; a refused plan stays on the legacy layout and is reported
+  // as an issue. A migration row with no character is left for connect and stays counted as legacy.
   for (let previous = Number.POSITIVE_INFINITY; current.players.legacy > 0 && current.players.legacy < previous;) {
     previous = current.players.legacy;
     await timeout('container_cell_migration_players', connection.reducers.adminBackfillPlayerContainerCells({ limit: BATCH_LIMIT }));
@@ -283,7 +290,7 @@ async function main(): Promise<void> {
   // Production always compares against the isolated restore rehearsal's legacy fingerprint.
   if (expected !== '' && !LEGACY_PLACEABLE_FINGERPRINT.test(expected)) throw new Error('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT_invalid');
   if (target === 'production' && expected === '') throw new Error('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT_required');
-  const connection = await connect(await ownerToken());
+  const connection = await connect(await operatorToken());
   try {
     const final = await runContainerCellMigration(connection, expected === '' ? undefined : expected);
     process.stdout.write(`${JSON.stringify({ ok: true, target, database: DATABASE,

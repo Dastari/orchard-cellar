@@ -20,7 +20,9 @@ describe('P0 active-content world wiring', () => {
     expect(connect.indexOf('if (!newPlayerLoadout.ok) throw new SenderError(newPlayerLoadout.code)'))
       .toBeGreaterThan(planning);
     expect(connect.indexOf('ctx.db.player_survival.insert({')).toBeGreaterThan(planning);
-    expect(connect.indexOf('ctx.db.inventory_slot.insert({')).toBeGreaterThan(planning);
+    // New characters write their loadout as container cells; the legacy steps live in migrateLegacyPlayerStorage.
+    expect(connect.indexOf('putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index')).toBeGreaterThan(planning);
+    expect(connect).not.toContain('ctx.db.inventory_slot.insert(');
     expect(connect).toContain('selectedSlot: newPlayerLoadout.selectedSlot');
     expect(connect).toContain('for (const slot of newPlayerLoadout.slots)');
     expect(connect).not.toContain('STARTER_HOTBAR_ITEMS');
