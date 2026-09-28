@@ -5,7 +5,7 @@ import {projectPointLightToTerrain} from './light-projection.js';
 import type {TerrainArray} from './terrain.js';
 vi.mock('@orchard/ui',async importOriginal=>({...await importOriginal<typeof import('@orchard/ui')>(),
   loadGeneratedAsset:async()=>({metadata:{image:'fixture.png',animations:{burn:[{x:0,y:0,width:16,height:32,durationTicks:1}],base:[{x:0,y:0,width:16,height:48,durationTicks:1}]},states:{}},anchor:[8,31]})}));
-vi.mock('./terrain.js',async importOriginal=>({...await importOriginal<typeof import('./terrain.js')>(),
+vi.mock('./terrain-sampling.js',async importOriginal=>({...await importOriginal<typeof import('./terrain-sampling.js')>(),
   terrainElevationAtWorldFoot:(_terrain:unknown,x:number)=>x<180?2:0}));
 const registry=bootstrapContentRegistry();
 function fixture(turn:0|1|2|3=0){

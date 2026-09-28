@@ -47,8 +47,8 @@ const terrainFormulas = vi.hoisted(() => ({
   sortOffset: (elevation: number) => elevation * 0.25,
 }));
 
-vi.mock('./terrain.js', async (original) => ({
-  ...await original<typeof import('./terrain.js')>(),
+vi.mock('./terrain-sampling.js', async (original) => ({
+  ...await original<typeof import('./terrain-sampling.js')>(),
   terrainElevationAtWorldFoot: terrainFormulas.elevation,
   terrainProjectedDepthAtFoot: terrainFormulas.depth,
   terrainProjectedElevationAtFoot: terrainFormulas.sortElevation,

@@ -20,8 +20,8 @@ const terrainFormulas = vi.hoisted(() => ({
   sortElevation: (_terrain: unknown, x: number, y: number) => (((x * 3 + y) >> 4) % 4) * 0.75,
   sortOffset: (elevation: number) => elevation * 0.25,
 }));
-vi.mock('@orchard/engine/terrain', async (original) => ({
-  ...await original<typeof import('@orchard/engine/terrain')>(),
+vi.mock('@orchard/engine/terrain-sampling', async (original) => ({
+  ...await original<typeof import('@orchard/engine/terrain-sampling')>(),
   terrainElevationAtWorldFoot: terrainFormulas.elevation,
   terrainProjectedDepthAtFoot: terrainFormulas.depth,
   terrainProjectedElevationAtFoot: terrainFormulas.sortElevation,
