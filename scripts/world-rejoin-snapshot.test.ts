@@ -138,6 +138,12 @@ describe('world rejoin snapshot normalization', () => {
       { identity: 'identity-a', statisticKind: 'trees_tended', value: 9n },
     ];
     expect(normalizeRejoinTables(tables, 'identity-a')['ownPlayerStatistics']).toHaveLength(1);
+    // A release's own reconnects can cross an observer milestone (world_entries 500 on 2026-09-28); other milestones stay exact.
+    tables['ownPlayerStatisticMilestones'] = [
+      { identity: 'identity-a', statisticKind: 'world_entries', subjectKind: '', threshold: 500n, achievedTick: 7n },
+      { identity: 'identity-a', statisticKind: 'trees_tended', subjectKind: '', threshold: 10n, achievedTick: 3n },
+    ];
+    expect(normalizeRejoinTables(tables, 'identity-a')['ownPlayerStatisticMilestones']).toHaveLength(1);
     const presenceTables = rawTables();
     presenceTables['playerPublic'] = [{ identity: 'identity-a', displayName: 'Toby', online: true, lastActiveAtMicros: 4n }];
     expect(normalizeRejoinTables(presenceTables, 'identity-a')['playerPublic']).toEqual([

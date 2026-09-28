@@ -169,7 +169,9 @@ export function normalizeRejoinValue(value: unknown): unknown {
 }
 
 function normalizedRows(accessor: string, rows: readonly unknown[]): readonly unknown[] {
-  const filtered = accessor !== 'ownPlayerStatistics' ? rows : rows.filter((row) => {
+  // Observer-effect counters (and the milestones they cross) move because the release's own reconnects count as
+  // connections and world entries; a milestone such as world_entries 500 can be crossed mid-release.
+  const filtered = accessor !== 'ownPlayerStatistics' && accessor !== 'ownPlayerStatisticMilestones' ? rows : rows.filter((row) => {
     const kind = record(row)?.['statisticKind'];
     return typeof kind !== 'string' || !(OBSERVER_EFFECT_STATISTICS as readonly string[]).includes(kind);
   });
