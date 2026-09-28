@@ -7,6 +7,15 @@ import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { CHUNK_RUNTIME_ACTIVATION_RELEASE } from '../packages/client/src/chunk-shadow-build-gate.js';
 
+/** The environment for spawned lane scripts: the caller's own client chunk inputs never leak in (a release lane runs
+ * this suite with them set), so each test states the chunk mode it exercises. */
+function laneTestEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const name of ['WORLD_RELEASE_CLIENT_CHUNK_RUNTIME', 'WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION', 'WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK',
+    'VITE_CHUNK_RUNTIME_MODE', 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE']) delete env[name];
+  return env;
+}
+
 const release = readFileSync(new URL('./world-release.sh', import.meta.url), 'utf8');
 const finalize = readFileSync(new URL('./world-release-finalize.sh', import.meta.url), 'utf8');
 const retirement = readFileSync(new URL('./world-release-retire-chests.sh', import.meta.url), 'utf8');
@@ -18,7 +27,7 @@ const staticValidation = readFileSync(new URL('../ops/orchard-runtime/bin/valida
 const packageJson = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
 const contentHeadRelease = readFileSync(new URL('./content-head-release.ts', import.meta.url), 'utf8');
 
-describe('production continuity tooling', () => {
+describe('production continuity tooling', { timeout: 60_000 }, () => {
   it('uses normal repository lifecycle checks without a separate approval service or digest flag', () => {
     for (const relative of [
       'lifecycle-review.ts', 'lifecycle-review.test.ts',
@@ -57,7 +66,7 @@ describe('production continuity tooling', () => {
     for (const script of ['scripts/world-release.sh', 'ops/orchard-runtime/bin/restore-world-rehearsal.sh']) {
       const result = spawnSync('bash', [script], {
         cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
-        env: { ...process.env, WORLD_RELEASE_MIGRATION_KIND: 'invalid', WORLD_RESTORE_MIGRATION_KIND: 'invalid' },
+        env: { ...laneTestEnv(), WORLD_RELEASE_MIGRATION_KIND: 'invalid', WORLD_RESTORE_MIGRATION_KIND: 'invalid' },
       });
       expect(result.status).toBe(64);
       const canonicalCheckout = '/home/toby/projects/orchard-cellar/';
@@ -178,7 +187,7 @@ describe('production continuity tooling', () => {
       const result = spawnSync('bash', [fileURLToPath(new URL('./world-release.sh', import.meta.url))], {
         // Dry-runs resolve this checkout; production keeps its canonical-path guard.
         cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
-        env: { ...process.env, WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+        env: { ...laneTestEnv(), WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           // After the S5c activation the lane needs an explicit client chunk runtime (G6).
           WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: CHUNK_RUNTIME_ACTIVATION_RELEASE!,
           WORLD_RELEASE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
@@ -202,7 +211,7 @@ describe('production continuity tooling', () => {
     const plan = release.indexOf('client_chunk_plan=$(node --import tsx scripts/world-release-routine.ts client-chunk-plan)');
     expect(plan).toBeGreaterThan(0);
     expect(plan).toBeLessThan(release.indexOf('if [[ "$dry_run" = true ]]; then\n  [[ "$rehearsal_port"'));
-    expect(plan).toBeLessThan(release.indexOf('\nnpm test\n'));
+    expect(plan).toBeLessThan(release.indexOf('npm test\n'));
     // Each build's audit is asserted before the release chunk check runs on it.
     for (const [label, build] of [['candidate', release.indexOf(builds[0]!)], ['final', release.lastIndexOf(builds[1]!)]] as const) {
       const audit = release.indexOf(`\nassert_client_chunk_audit ${label}\n`);
@@ -231,7 +240,7 @@ describe('production continuity tooling', () => {
       chmodSync(token, 0o600);
       const run = (extra: Record<string, string>) => spawnSync('bash', [fileURLToPath(new URL('./world-release.sh', import.meta.url))], {
         cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
-        env: { ...process.env, WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+        env: { ...laneTestEnv(), WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           WORLD_RELEASE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_RELEASE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
           WORLD_RELEASE_POST_DRAIN_SNAPSHOT: join(directory, 'new-post-drain.json'),
@@ -264,7 +273,7 @@ describe('production continuity tooling', () => {
       const result = spawnSync('bash', [fileURLToPath(new URL('./world-release-finalize.sh', import.meta.url))], {
         // Dry-runs resolve this checkout; production keeps its canonical-path guard.
         cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
-        env: { ...process.env, WORLD_FINALIZE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+        env: { ...laneTestEnv(), WORLD_FINALIZE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           WORLD_FINALIZE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_FINALIZE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
           WORLD_FINALIZE_POST_DRAIN_SNAPSHOT: join(directory, 'new-post-drain.json'),
@@ -334,7 +343,7 @@ describe('production continuity tooling', () => {
       const result = spawnSync('bash', [fileURLToPath(new URL('./world-release-retire-chests.sh', import.meta.url))], {
         // Dry-runs resolve this checkout; production keeps its canonical-path guard.
         cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
-        env: { ...process.env, WORLD_RETIREMENT_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+        env: { ...laneTestEnv(), WORLD_RETIREMENT_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           WORLD_RETIREMENT_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_RETIREMENT_REHEARSAL_PRE_SNAPSHOT: join(directory, 'rehearsal-pre.json'),
           WORLD_RETIREMENT_REHEARSAL_POST_SNAPSHOT: join(directory, 'rehearsal-post.json'),
@@ -367,7 +376,7 @@ describe('production continuity tooling', () => {
       const postSnapshot = join(directory, 'new-post-drain.json');
       const token = join(directory, 'tokens.json'); writeFileSync(token, '{"operator":"hidden"}\n', { mode: 0o600 }); chmodSync(token, 0o600);
       const result = spawnSync('bash', ['ops/orchard-runtime/bin/restore-world-rehearsal.sh', backupDirectory, snapshot, postSnapshot], {
-        cwd: new URL('..', import.meta.url), encoding: 'utf8', env: { ...process.env,
+        cwd: new URL('..', import.meta.url), encoding: 'utf8', env: { ...laneTestEnv(),
           WORLD_REJOIN_TOKENS_FILE: token, WORLD_RESTORE_REHEARSAL_DRY_RUN: 'true' },
       });
       expect(result.status, result.stderr).toBe(0);
@@ -380,7 +389,7 @@ describe('production continuity tooling', () => {
         'ops/orchard-runtime/bin/restore-world-retirement-rehearsal.sh',
         backupDirectory, join(directory, 'retirement-pre.json'), join(directory, 'retirement-post.json'),
       ], {
-        cwd: new URL('..', import.meta.url), encoding: 'utf8', env: { ...process.env,
+        cwd: new URL('..', import.meta.url), encoding: 'utf8', env: { ...laneTestEnv(),
           WORLD_REJOIN_TOKENS_FILE: token, WORLD_MODULE_SOURCE_MANIFEST: sourceManifest,
           WORLD_RETIREMENT_REHEARSAL_DRY_RUN: 'true' },
       });

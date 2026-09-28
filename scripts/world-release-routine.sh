@@ -148,7 +148,8 @@ npm run lifecycle:integrity
 node --import tsx scripts/legacy-cooking-release-gate.ts "$repository"
 npm run typecheck
 npm run world:release:typecheck
-npx vitest run
+# The repository gate never sees the lane's own client chunk inputs; tests that exercise the lanes set them explicitly.
+env -u WORLD_RELEASE_CLIENT_CHUNK_RUNTIME -u WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION -u WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK npx vitest run
 npm run lint
 npm run content:validate
 npm run build --workspace @orchard/world
