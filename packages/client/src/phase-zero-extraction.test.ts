@@ -252,7 +252,7 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // and tests) and contains only in production builds; overworld-ui-character tests cover both; other seams unchanged.
 // BUG-066 review: ui/overworld-ui.ts records contained view failures in a capped UiFailureLog and reports them
 // through reportUiFailure (console and the client's error telemetry); failure-policy tests cover it.
-const STRUCTURAL_SEAM_DIGEST = 'de610aea80a58900e884042080742810dc3921f6011d4f64539282f6a0de29e6';
+const STRUCTURAL_SEAM_DIGEST = '7a35744b508f216844811097d729304d713656c43fc649f1bfa07d11d203794f';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
