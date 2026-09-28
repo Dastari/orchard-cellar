@@ -31,9 +31,14 @@ export interface AcceptancePlaceable {
   readonly processInputKind: string | null;
 }
 
-export interface AcceptanceSlot {
+/**
+ * One occupied cell of the target, from `own_placed_placeable_container_cells` or `own_open_placeable_container_cells`
+ * (inventory protocol 2, Uncapped Storage step 4). The views are sparse: an empty cell has no row, so an empty
+ * container is an empty list, never a row per slot.
+ */
+export interface AcceptanceCell {
   readonly placeableId: bigint;
-  readonly slot: number;
+  readonly index: number;
   readonly itemKind: string;
   readonly quantity: number;
   readonly durability: number;
@@ -50,7 +55,7 @@ export interface AcceptancePlanInput {
   readonly kind: PlaceableAcceptanceKind;
   readonly target: AcceptancePlaceable;
   readonly position: AcceptancePosition;
-  readonly slots: readonly AcceptanceSlot[];
+  readonly cells: readonly AcceptanceCell[];
   readonly activePlaceableId: bigint | null;
   readonly confirmation?: string;
   readonly allowProduction: boolean;
@@ -119,19 +124,34 @@ export function placeableAcceptanceConfirmation(input: Pick<AcceptancePlanInput,
   ].join('|');
 }
 
-function slotFingerprint(slots: readonly AcceptanceSlot[]): string {
-  return JSON.stringify([...slots]
-    .sort((left, right) => left.slot - right.slot)
-    .map(({ placeableId, slot, itemKind, quantity, durability, lit }) => ({
-      placeableId: placeableId.toString(), slot, itemKind, quantity, durability, lit,
+function cellFingerprint(cells: readonly AcceptanceCell[]): string {
+  return JSON.stringify([...cells]
+    .sort((left, right) => left.placeableId < right.placeableId ? -1 : left.placeableId > right.placeableId ? 1
+      : left.index - right.index)
+    .map(({ placeableId, index, itemKind, quantity, durability, lit }) => ({
+      placeableId: placeableId.toString(), index, itemKind, quantity, durability, lit,
     })));
 }
 
-export function acceptanceSlotsEqual(
-  before: readonly AcceptanceSlot[],
-  after: readonly AcceptanceSlot[],
+/** Exact custody equality of two sparse cell sets (row order ignored). */
+export function acceptanceCellsEqual(
+  before: readonly AcceptanceCell[],
+  after: readonly AcceptanceCell[],
 ): boolean {
-  return slotFingerprint(before) === slotFingerprint(after);
+  return cellFingerprint(before) === cellFingerprint(after);
+}
+
+/**
+ * Whether a sparse cell projection is a well-formed view of one container of `capacity` cells: every row names the
+ * target, has a distinct integer index inside the capacity and holds an item. Absent indices are empty cells. A cell
+ * past the capacity (a shrunk container's stranded item) is still custody, but the harness refuses to act on it.
+ */
+export function acceptanceCellsWellFormed(
+  cells: readonly AcceptanceCell[], placeableId: bigint, capacity: number,
+): boolean {
+  return new Set(cells.map(({ index }) => index)).size === cells.length
+    && cells.every(({ placeableId: owner, index, itemKind, quantity }) => owner === placeableId
+      && Number.isSafeInteger(index) && index >= 0 && index < capacity && itemKind !== 'empty' && quantity > 0);
 }
 
 export function planPlaceableAcceptance(input: AcceptancePlanInput): {
@@ -156,9 +176,9 @@ export function planPlaceableAcceptance(input: AcceptancePlanInput): {
   if (input.target.kind !== input.kind || inspection.runtimeDefinitionId !== DEFINITIONS[input.kind]) {
     issues.push('acceptance_target_kind_mismatch');
   }
-  // Authority allows shared containers, but own_placed_placeable_slots is the
-  // only durable pre-open fingerprint exposed to this safety harness. Refuse
-  // mutation when it cannot prove the before state; inspection remains useful.
+  // Authority allows shared containers, but own_placed_placeable_container_cells
+  // is the only durable pre-open fingerprint exposed to this safety harness.
+  // Refuse mutation when it cannot prove the before state; inspection remains useful.
   if (!owned) issues.push('acceptance_target_not_owned');
   if (input.target.carriedBy !== null) issues.push('acceptance_target_carried');
   if (input.activePlaceableId !== null) issues.push('acceptance_session_already_active');
@@ -182,18 +202,14 @@ export function planPlaceableAcceptance(input: AcceptancePlanInput): {
   }
   const capacity = placeableAcceptanceCapacity(input.registry, input.target);
   if (capacity === 0) issues.push('acceptance_container_definition_unavailable');
-  if (owned && (input.slots.length !== capacity
-    || new Set(input.slots.map(({ slot }) => slot)).size !== capacity
-    || input.slots.some(({ placeableId, slot }) => placeableId !== input.target.id
-      || !Number.isSafeInteger(slot) || slot < 0 || slot >= capacity))) {
-    issues.push('acceptance_slot_projection_incomplete');
+  if (owned && capacity > 0 && !acceptanceCellsWellFormed(input.cells, input.target.id, capacity)) {
+    issues.push('acceptance_cell_projection_invalid');
   }
   if (input.kind !== 'chest') {
     if (input.target.processStartTick !== null || input.target.processStartedBy !== null
       || input.target.processInputKind !== null) issues.push('acceptance_processor_active');
-    if (input.slots.some(({ itemKind, quantity }) => itemKind !== 'empty' || quantity !== 0)) {
-      issues.push('acceptance_processor_not_empty');
-    }
+    // Sparse: any row at all is an occupied cell.
+    if (input.cells.length > 0) issues.push('acceptance_processor_not_empty');
   }
   if (input.target.open) issues.push('acceptance_target_already_open');
   if (input.mode === 'interact') {

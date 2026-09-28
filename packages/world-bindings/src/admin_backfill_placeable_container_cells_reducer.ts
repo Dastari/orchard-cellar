@@ -11,7 +11,5 @@ import {
 } from "spacetimedb";
 
 export default {
-  targetContainers: __t.array(__t.string()),
-  targetIndexes: __t.array(__t.u32()),
-  mode: __t.string(),
+  limit: __t.u16(),
 };

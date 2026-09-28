@@ -12,7 +12,8 @@ import {
 
 export default {
   tradeId: __t.string(),
-  inventorySlot: __t.u8(),
-  tradeSlot: __t.u8(),
+  inventoryContainer: __t.string(),
+  inventoryIndex: __t.u32(),
+  tradeSlot: __t.u32(),
   quantity: __t.u16(),
 };

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConnectionRecovery, RESUME_PROBE_MS } from './connection-recovery.js';
+import { ConnectionRecovery, RESUME_PROBE_MS, recoveryTerminalFor } from './connection-recovery.js';
 
 function harness(connect = vi.fn(async (): Promise<void> => undefined)) {
   const environment = { online: true, visible: true, socketClosed: false };
@@ -127,6 +127,27 @@ describe('connection recovery controller', () => {
     await vi.advanceTimersByTimeAsync(120_000);
     expect(connect).toHaveBeenCalledOnce();
     expect(recovery.state).toBe('sign-in-required');
+  });
+
+  it('asks for a reload, not a sign-in, when the world refuses this client version, and never retries', async () => {
+    const { recovery, connect, changed } = harness();
+    recovery.resume();
+    const refusal = 'inventory_client_update_required';
+    recovery.fail(recovery.generation, refusal, recoveryTerminalFor(refusal));
+    expect(recovery.state).toBe('update-required');
+    expect(changed).toHaveBeenLastCalledWith(refusal);
+    recovery.resume(); recovery.retry(); recovery.check();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(connect).toHaveBeenCalledOnce();
+    expect(recovery.state).toBe('update-required');
+  });
+
+  it('maps only client-version refusals to the reload state', () => {
+    expect(recoveryTerminalFor('inventory_client_update_required')).toBe('update-required');
+    expect(recoveryTerminalFor('SenderError: inventory_client_update_required')).toBe('update-required');
+    for (const other of ['authentication_required', 'membership_blocked', 'content_registry_invalid', 'disconnected']) {
+      expect(recoveryTerminalFor(other), other).toBe('sign-in-required');
+    }
   });
 
   it('ignores old failure, hydration, and traffic callbacks after replacement', async () => {

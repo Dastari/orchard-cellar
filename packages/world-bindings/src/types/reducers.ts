@@ -13,6 +13,8 @@ import AcceptTradeRequestReducer from "../accept_trade_request_reducer";
 import AcknowledgeInventoryProtocolReducer from "../acknowledge_inventory_protocol_reducer";
 import ActivateOutdoorEncounterReducer from "../activate_outdoor_encounter_reducer";
 import AdminBackfillLegacyChestsReducer from "../admin_backfill_legacy_chests_reducer";
+import AdminBackfillPlaceableContainerCellsReducer from "../admin_backfill_placeable_container_cells_reducer";
+import AdminBackfillPlayerContainerCellsReducer from "../admin_backfill_player_container_cells_reducer";
 import AdminClearCursorReducer from "../admin_clear_cursor_reducer";
 import AdminDespawnEntityReducer from "../admin_despawn_entity_reducer";
 import AdminDrainLegacyChestsReducer from "../admin_drain_legacy_chests_reducer";
@@ -189,6 +191,8 @@ export type AcceptTradeRequestParams = __Infer<typeof AcceptTradeRequestReducer>
 export type AcknowledgeInventoryProtocolParams = __Infer<typeof AcknowledgeInventoryProtocolReducer>;
 export type ActivateOutdoorEncounterParams = __Infer<typeof ActivateOutdoorEncounterReducer>;
 export type AdminBackfillLegacyChestsParams = __Infer<typeof AdminBackfillLegacyChestsReducer>;
+export type AdminBackfillPlaceableContainerCellsParams = __Infer<typeof AdminBackfillPlaceableContainerCellsReducer>;
+export type AdminBackfillPlayerContainerCellsParams = __Infer<typeof AdminBackfillPlayerContainerCellsReducer>;
 export type AdminClearCursorParams = __Infer<typeof AdminClearCursorReducer>;
 export type AdminDespawnEntityParams = __Infer<typeof AdminDespawnEntityReducer>;
 export type AdminDrainLegacyChestsParams = __Infer<typeof AdminDrainLegacyChestsReducer>;

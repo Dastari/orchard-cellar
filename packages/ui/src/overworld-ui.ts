@@ -30,8 +30,8 @@ import type { ContainerSnapshot, ContentRegistry, ItemContainerContentResolver, 
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeCraftingRecipeOutput, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
-import { MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
-import { BACKPACK_SLOT_COUNT, CRAFTING_SLOT_COUNT, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel, inventoryContainerSlotCount, inventoryContainerSlotOffset, type PlayerInventoryContainerId } from '@orchard/sim/inventory-layout';
+import { MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, isMainHandSelectedSlot, type PlayerContainerId } from '@orchard/sim/container-addressing';
+import { BACKPACK_SLOT_COUNT, CRAFTING_SLOT_COUNT, EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel, inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
 import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
 import { recipeDefinition } from '@orchard/sim/recipes';
 import type { LoadedAsset } from './assets.js';
@@ -46,6 +46,7 @@ import { BUTTON_HEIGHT, CanvasButton } from './button.js';
 import { drawToggleSwitch, Toggle } from './toggle.js';
 import { Ribbon, STACKED_RIBBON_HEIGHT } from './ribbon.js';
 import { EQUIPMENT_SLOT_RESTRICTIONS, INVENTORY_CONTAINER_IDS, ItemSlot, ItemSlotTable, type InventoryContainerId } from './item-slot.js';
+import { isCarriedPlayerContainer, isOccupiedCell, selectedCellRow, type PlayerCellStack } from './player-cells.js';
 import { HelpBook } from './help-book.js';
 import { ScrollBar } from './scrollbar.js';
 import {
@@ -131,12 +132,23 @@ export type DeveloperTab = (typeof DEVELOPER_TABS)[number];
 
 type AudioVolumeBus = 'master' | 'music' | 'sfx';
 
-export interface OverworldUiInventorySlot {
-  readonly slot: number;
+/** A stack in one cell of an open chest, station or stash, by that container's own index. */
+export interface OverworldUiContainerSlot {
+  readonly index: number;
   readonly itemKind: string;
   readonly quantity: number;
   readonly durability?: number;
   readonly lit?: boolean;
+}
+
+/** A stack the player carries, by container and index (Uncapped Storage step 4c): never a global slot number. */
+export interface OverworldUiInventorySlot extends OverworldUiContainerSlot, PlayerCellStack {
+  readonly container: PlayerContainerId;
+}
+
+/** The Main Hand weapon's row, when one is equipped. */
+export function mainHandRow<T extends OverworldUiInventorySlot>(inventory: readonly T[]): T | undefined {
+  return inventory.find(row => row.container === 'equipment' && row.index === MAIN_HAND_EQUIPMENT_INDEX && isOccupiedCell(row));
 }
 
 export interface OverworldUiVitals {
@@ -229,7 +241,7 @@ export function hasEquippedWatch(
   inventory: readonly OverworldUiInventorySlot[],
   registry: ContentRegistry = bootstrapContentRegistry(),
 ): boolean {
-  return inventory.some((slot) => slot.slot === EQUIPMENT_SLOT_OFFSET + RING_EQUIPMENT_SLOT_INDEX
+  return inventory.some((slot) => slot.container === 'equipment' && slot.index === RING_EQUIPMENT_SLOT_INDEX
     && slot.quantity > 0
     && runtimeItemDefinition(registry, slot.itemKind)?.tags.includes('utility.time') === true
     && runtimeItemDefinition(registry, slot.itemKind)?.tags.includes('gear.ring') === true);
@@ -282,9 +294,9 @@ export interface OverworldUiModel {
   readonly targetVitals?: OverworldUiTargetVitals;
   readonly effects?: readonly OverworldUiEffect[];
   readonly vigourDenied?: boolean;
-  readonly openChestInventory?: readonly OverworldUiInventorySlot[];
-  readonly openStashInventory?:readonly OverworldUiInventorySlot[];
-  readonly openPlaceableInventory?: readonly OverworldUiInventorySlot[];
+  readonly openChestInventory?: readonly OverworldUiContainerSlot[];
+  readonly openStashInventory?:readonly OverworldUiContainerSlot[];
+  readonly openPlaceableInventory?: readonly OverworldUiContainerSlot[];
   /** The open chest's, placeable's or stash's container size, so a frame pane bound to `entitySlots: all` shows it all. */
   readonly openEntityCapacity?: number;
   readonly furnaceProgress?: number;
@@ -570,23 +582,18 @@ function modelBackpackCapacity(model: Pick<OverworldUiModel, 'backpackSlotCapaci
   return accessibleBackpackCapacity(model.backpackSlotCapacity ?? (model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS));
 }
 
-const PLAYER_INVENTORY_CONTAINERS: readonly PlayerInventoryContainerId[] = ['hotbar', 'backpack', 'equipment', 'crafting'];
-
-/** The model's stacks by container and cell: the player's rows split out of their global slot numbers, and the open
- * chest's, station's and stash's rows by their own. Built once per update; a slot reads its cell from here. */
-function modelItemRows(model: Pick<OverworldUiModel, 'inventory' | 'openChestInventory' | 'openPlaceableInventory' | 'openStashInventory'>): Readonly<Record<InventoryContainerId, ReadonlyMap<number, OverworldUiInventorySlot>>> {
-  const rows = Object.fromEntries(INVENTORY_CONTAINER_IDS.map(container => [container, new Map<number, OverworldUiInventorySlot>()])) as Record<InventoryContainerId, Map<number, OverworldUiInventorySlot>>;
-  // The world table keeps explicit `empty` rows for vacant cells. Those are a persistence detail, not an item stack:
-  // retaining them here makes a slot look empty while drop validation sees an incompatible item occupying it.
-  const stacks = (items: readonly OverworldUiInventorySlot[] | undefined) => (items ?? []).filter(item => item.itemKind !== 'empty' && item.quantity > 0);
-  for (const item of stacks(model.inventory)) {
-    const container = PLAYER_INVENTORY_CONTAINERS.find(candidate => item.slot >= inventoryContainerSlotOffset(candidate)
-      && item.slot < inventoryContainerSlotOffset(candidate) + inventoryContainerSlotCount(candidate));
-    if (container) rows[container].set(item.slot - inventoryContainerSlotOffset(container), item);
-  }
-  for (const item of stacks(model.openChestInventory)) rows.chest.set(item.slot, item);
-  for (const item of stacks(model.openPlaceableInventory)) rows.placeable.set(item.slot, item);
-  for (const item of stacks(model.openStashInventory)) rows.stash.set(item.slot, item);
+/** The model's stacks by container and cell: the player's carried rows by their own container and index, and the open
+ * chest's, station's and stash's rows by theirs. Built once per update; a slot reads its cell from here. */
+function modelItemRows(model: Pick<OverworldUiModel, 'inventory' | 'openChestInventory' | 'openPlaceableInventory' | 'openStashInventory'>): Readonly<Record<InventoryContainerId, ReadonlyMap<number, OverworldUiContainerSlot>>> {
+  const rows = Object.fromEntries(INVENTORY_CONTAINER_IDS.map(container => [container, new Map<number, OverworldUiContainerSlot>()])) as Record<InventoryContainerId, Map<number, OverworldUiContainerSlot>>;
+  // An explicit `empty` row (the legacy tables kept them for vacant cells; the sparse cells never store one) is not an
+  // item stack: retaining it here makes a slot look empty while drop validation sees an incompatible item occupying it.
+  const stacks = <T extends OverworldUiContainerSlot>(items: readonly T[] | undefined) => (items ?? []).filter(isOccupiedCell);
+  // The stash is its own window's entity pane: it comes only from the open stash's rows.
+  for (const item of stacks(model.inventory)) if (isCarriedPlayerContainer(item.container)) rows[item.container].set(item.index, item);
+  for (const item of stacks(model.openChestInventory)) rows.chest.set(item.index, item);
+  for (const item of stacks(model.openPlaceableInventory)) rows.placeable.set(item.index, item);
+  for (const item of stacks(model.openStashInventory)) rows.stash.set(item.index, item);
   return rows;
 }
 
@@ -1292,13 +1299,13 @@ export class OverworldUi {
       },
       minimapTrackingEnabled: model.minimapTrackingEnabled === true, trackedQuestCount: model.trackedQuestCount,
       touchControls: { enabled: model.touchControls === true, preferences: model.touchControlPreferences ?? DEFAULT_TOUCH_CONTROL_PREFERENCES },
-      inventory: { rows: model.inventory.filter(row => row.itemKind !== 'empty' && row.quantity > 0).map(row => ({ slot: row.slot, stack: row })),
-        selectedSlot: model.selectedSlot, mainHandIndex: MAIN_HAND_INVENTORY_SLOT, balanceBronze: model.balanceBronze ?? 0n },
+      inventory: { hotbar: model.inventory.filter(row => row.container === 'hotbar' && isOccupiedCell(row)).map(row => ({ index: row.index, stack: row })),
+        mainHand: mainHandRow(model.inventory) ?? null, selectedSlot: model.selectedSlot, balanceBronze: model.balanceBronze ?? 0n },
       ...(vitals ? { player: { id: vitals.playerId, values: vitals, hunger: model.hunger, vigourDenied: model.vigourDenied } } : {}),
       ...(target ? { target: { id: target.targetId, name: target.displayName, values: target } } : {}),
       effects: (model.effects ?? []).map(effect => ({ ...effect, id: effect.effectKind })), ticksPerSecond: 20,
       visible: { zoneMinimap: true, hotbarVitals: !this.isInventoryWindow(this.openWindowValue), targetEffects: !this.isInventoryWindow(this.openWindowValue) },
-      controls: { weapon: this.openWindowValue === null && model.inventory.some(row => row.slot === MAIN_HAND_INVENTORY_SLOT && row.itemKind !== 'empty' && row.quantity > 0),
+      controls: { weapon: this.openWindowValue === null && mainHandRow(model.inventory) !== undefined,
         crafting: this.openWindowValue === null, build: this.openWindowValue === null && Boolean(this.callbacks.toggleBuild), system: this.openWindowValue === null },
     });
     // Legacy HUD hit nodes and painters retire together; inventory nodes retain custody.
@@ -1724,6 +1731,7 @@ export class OverworldUi {
   };
   private layout = overworldUiLayout(480, 270);
   private pointer: UiPoint = { x: -100, y: -100 };
+  /** The hovered HUD slot as a selected-slot value: a hotbar index or `MAIN_HAND_SELECTED_SLOT`. */
   private hoveredSlot: number | null = null;
   private inventoryTouchStart: UiPoint | null = null;
   private readonly equipmentTooltipDwell = new EquipmentTooltipDwell();
@@ -1998,7 +2006,7 @@ export class OverworldUi {
     this.weaponShortcutNode = widget('slot','hud.equipped_weapon',{
       onPointer: event => {
         if (event.kind !== 'pointer_down') return false;
-        this.callbacks.selectHotbar(MAIN_HAND_INVENTORY_SLOT);
+        this.callbacks.selectHotbar(MAIN_HAND_SELECTED_SLOT);
         return true;
       },
     });
@@ -2448,7 +2456,7 @@ export class OverworldUi {
     this.hotbarNodes.forEach((node, slot) => node.setBounds(this.layout.slots[slot]!));
     this.weaponShortcutNode.setBounds(this.layout.weaponShortcut);
     this.weaponShortcutNode.visible = this.openWindowValue === null
-      && model.inventory.some(item => item.slot === MAIN_HAND_INVENTORY_SLOT && item.itemKind !== 'empty' && item.quantity > 0);
+      && mainHandRow(model.inventory) !== undefined;
     this.itemRows = modelItemRows(model);
     for (const slot of this.itemSlots.all()) this.syncItemSlot(slot);
     this.backpackSortNode.setBounds(this.openWindowValue === 'chest'
@@ -2741,7 +2749,7 @@ export class OverworldUi {
     const slotNodes = this.openWindowValue === 'inventory' ? this.hostSlots('hotbar').map((slot) => slot.node) : this.hotbarNodes;
     this.hoveredSlot = slotNodes.findIndex((node) => node.contains(point));
     if (this.hoveredSlot < 0) this.hoveredSlot = null;
-    if (this.openWindowValue === null && this.weaponShortcutNode.visible && this.weaponShortcutNode.contains(point)) this.hoveredSlot = MAIN_HAND_INVENTORY_SLOT;
+    if (this.openWindowValue === null && this.weaponShortcutNode.visible && this.weaponShortcutNode.contains(point)) this.hoveredSlot = MAIN_HAND_SELECTED_SLOT;
     // Pickup starts at 3 logical pixels, before the scrollbar's 4-pixel swipe
     // threshold. Keep vertical/tied touch movement pending until scrolling
     // takes ownership; a release below that threshold remains an ordinary tap.
@@ -3141,7 +3149,7 @@ export class OverworldUi {
       .asset(this.skin.barGreen).asset(this.skin.barGold).asset(this.skin.barRed);
     this.hudHotbarItems.fill(undefined);
     for (const item of this.model.inventory) {
-      if (Number.isInteger(item.slot) && item.slot >= 0 && item.slot < HOTBAR_SLOT_COUNT) this.hudHotbarItems[item.slot] = item;
+      if (item.container === 'hotbar' && Number.isInteger(item.index) && item.index >= 0 && item.index < HOTBAR_SLOT_COUNT) this.hudHotbarItems[item.index] = item;
     }
     let right = 0;
     for (let slot = 0; slot < HOTBAR_SLOT_COUNT; slot++) {
@@ -3555,14 +3563,14 @@ export class OverworldUi {
   }
 
   private drawWeaponShortcut(context: CanvasRenderingContext2D): void {
-    const item=this.model.inventory.find(item=>item.slot===MAIN_HAND_INVENTORY_SLOT && item.quantity>0);
+    const item=mainHandRow(this.model.inventory);
     if (item===undefined) return;
     const rect=this.layout.weaponShortcut;
     drawUiInventorySlotBacking(context,this.skin,rect,item.itemKind);
     const asset=overworldItemArtwork(this.itemArt,item.itemKind,this.model.contentRegistry);
     if (asset!==undefined) this.drawItemArtwork(context,rect,item.itemKind,asset);
-    if (this.model.selectedSlot===MAIN_HAND_INVENTORY_SLOT || this.hoveredSlot===MAIN_HAND_INVENTORY_SLOT) {
-      drawUiSkinAsset(context,this.model.selectedSlot===MAIN_HAND_INVENTORY_SLOT ? this.skin.selectorConfirm : this.skin.selectorNeutral,hotbarReticleRect(rect),'idle');
+    if (isMainHandSelectedSlot(this.model.selectedSlot) || (this.hoveredSlot!==null && isMainHandSelectedSlot(this.hoveredSlot))) {
+      drawUiSkinAsset(context,isMainHandSelectedSlot(this.model.selectedSlot) ? this.skin.selectorConfirm : this.skin.selectorNeutral,hotbarReticleRect(rect),'idle');
     }
     drawLabel(context,this.fonts,'V',rect.x+3,rect.y+3,{color:'#51351f'});
     this.drawDurabilityBar(context,rect,item.itemKind,item.durability);
@@ -3570,8 +3578,8 @@ export class OverworldUi {
 
   private drawHotbar(context: CanvasRenderingContext2D): void {
     const itemBySlot = new Map(this.model.inventory
-      .filter(item => item.itemKind !== 'empty' && item.quantity > 0)
-      .map(item => [item.slot, item]));
+      .filter(item => item.container === 'hotbar' && isOccupiedCell(item))
+      .map(item => [item.index, item]));
     for (let slot = 0; slot < HOTBAR_SLOT_COUNT; slot += 1) {
       const rect = this.layout.slots[slot]!;
       const item = itemBySlot.get(slot);
@@ -3893,8 +3901,8 @@ export class OverworldUi {
         .find((slot) => slot.node.contains(this.pointer))?.item ?? null;
     }
     if (this.hoveredSlot === null) return null;
-    const hovered = this.model.inventory.find((item) => item.slot === this.hoveredSlot);
-    return hovered && hovered.itemKind !== 'empty' && hovered.quantity > 0 ? hovered : null;
+    const hovered = selectedCellRow(this.model.inventory, this.hoveredSlot);
+    return hovered && isOccupiedCell(hovered) ? hovered : null;
   }
 
   private readonly viewFailures = new UiFailureLog();

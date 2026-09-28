@@ -1,4 +1,6 @@
-import type { InteractionDefinition, ItemContentDefinition, ItemOnUseEventType, MoveItemRequest } from '@orchard/sim';
+import type { InteractionDefinition, ItemContentDefinition, ItemOnUseEventType, MoveItemRequest, PlayerContainerCellRef } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { OFF_HAND_EQUIPMENT_INDEX } from '@orchard/ui';
 import lifecycleMetadata from '@orchard/lifecycle-authoring/metadata' with { type: 'json' };
 
 interface ItemLifecycleClientMetadata {
@@ -211,9 +213,13 @@ export function selectedItemUsePrompt(
   return selectedItemLifecyclePrompt(definition, 'secondary', key);
 }
 
-/** Hotbar use equips a switchable light before invoking its equipment lifecycle. */
-export function selectedLightEquipRequest(definition: ItemContentDefinition | null | undefined, slot: number): MoveItemRequest | null {
+/** Hotbar use equips a switchable light (from the selected hotbar cell into the Off Hand) before invoking its
+ * equipment lifecycle. */
+export function selectedLightEquipRequest(
+  definition: ItemContentDefinition | null | undefined, cell: PlayerContainerCellRef | null | undefined,
+): MoveItemRequest | null {
   if (definition?.light === undefined || definition.equip?.slot !== 'off_hand'
-    || selectedItemLifecycleAction(definition, 'equipmentUse') === null || slot < 0 || slot >= 10) return null;
-  return { fromContainer: 'hotbar', fromIndex: slot, toContainer: 'equipment', toIndex: 5, quantity: 1 };
+    || selectedItemLifecycleAction(definition, 'equipmentUse') === null
+    || cell?.container !== 'hotbar' || cell.index < 0 || cell.index >= HOTBAR_SLOT_COUNT) return null;
+  return { fromContainer: 'hotbar', fromIndex: cell.index, toContainer: 'equipment', toIndex: OFF_HAND_EQUIPMENT_INDEX, quantity: 1 };
 }

@@ -46,11 +46,20 @@ export interface TradeUiModel {
   readonly recipientName: string;
 }
 
+/** The carried containers a trade offers from: the hotbar and the open backpack cells. */
+export type TradeCarriedContainer = 'hotbar' | 'backpack';
+/** The carried cell an offer takes its stack from (Uncapped Storage step 4c): the world's `setTradeOfferItem` takes this
+ * container and u32 index, never a global slot. */
+export interface TradeOfferCell {
+  readonly container: TradeCarriedContainer;
+  readonly index: number;
+}
+
 export interface TradeUiCallbacks {
   readonly acceptRequest: (tradeId: string) => void;
   readonly declineRequest: (tradeId: string) => void;
   readonly cancel: (tradeId: string) => void;
-  readonly offerItem: (tradeId: string, inventorySlot: number, tradeSlot: number, quantity: number) => void;
+  readonly offerItem: (tradeId: string, cell: TradeOfferCell, tradeSlot: number, quantity: number) => void;
   readonly removeItem: (tradeId: string, tradeSlot: number) => void;
   readonly offerBronze: (tradeId: string, amount: bigint) => void;
   readonly setAccepted: (tradeId: string, accepted: boolean, revision: bigint) => void;

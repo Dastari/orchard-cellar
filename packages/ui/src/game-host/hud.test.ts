@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createCanvas } from '@napi-rs/canvas';
-import { bootstrapContentRegistry } from '@orchard/sim';
+import { bootstrapContentRegistry, MAIN_HAND_SELECTED_SLOT } from '@orchard/sim';
 import { GameHud, gameHudArrangement, gameHudCharacterTop, type GameHudModel, type GameHudSurface } from './hud.js';
 import { uiPurseWidth } from '../kit/components/purse.js';
 import { touchControlLayout } from '../touch-control-layout.js';
@@ -18,7 +18,7 @@ const hosts: GameHud[] = [];
 afterEach(() => { hosts.splice(0).forEach(host => host.dispose()); vi.useRealTimers(); });
 function model(): GameHudModel {
   return { sessionKey: 'session-a', zone: { title: 'ORCHARD', onlineCount: 2, moon: { phase: 3, label: 'Waxing moon' } }, minimapTrackingEnabled: true,
-    inventory: { rows: [{ slot: 0, stack: { itemKind: 'wood', quantity: 123 } }, { slot: 42, stack: { itemKind: 'stone_axe', quantity: 1, durability: 12 } }], selectedSlot: 0, mainHandIndex: 42, balanceBronze: 9007199254740993n },
+    inventory: { hotbar: [{ index: 0, stack: { itemKind: 'wood', quantity: 123 } }], mainHand: { itemKind: 'stone_axe', quantity: 1, durability: 12 }, selectedSlot: 0, balanceBronze: 9007199254740993n },
     player: { id: 'self', values: { health: 8000, maxHealth: 10000, mana: 2500, maxMana: 10000, vigour: 3000, maxVigour: 10000 }, hunger: { current: 2000, maximum: 10000 } },
     target: { id: 'target-a', name: 'A very long authoritative creature name', values: { health: 8, maxHealth: 10 } },
     effects: [{ id: 'tea', effectKind: 'orchard_tea', name: 'Orchard tea', remainingTicks: 200, durationTicks: 1000, stacks: 2 }], ticksPerSecond: 20,
@@ -46,7 +46,8 @@ describe('production shared HUD compositions', () => {
     expect(root.key({ key: '4' })).toBe(false); expect(root.key({ key: 'v' })).toBe(false); expect(f.callbacks.selectHotbar).toHaveBeenCalledTimes(1);
     root.key({ key: 'Enter', repeat: true }); expect(f.callbacks.selectHotbar).toHaveBeenCalledTimes(1);
     root.key({ key: 'Enter' }); expect(f.callbacks.selectHotbar).toHaveBeenCalledTimes(2);
-    f.click('hotbarVitals', 'game.hud.weapon'); expect(f.callbacks.selectHotbar).toHaveBeenLastCalledWith(42);
+    // The weapon disc selects the Main Hand by its stored selected-slot name, never by a global slot number.
+    f.click('hotbarVitals', 'game.hud.weapon'); expect(f.callbacks.selectHotbar).toHaveBeenLastCalledWith(MAIN_HAND_SELECTED_SLOT);
   });
   it('shows the classic target frame without a clear button; its name sits just above the frame', () => {
     const f = fixture(640, 360), root = f.host.roots.targetEffects; root.arrange();
@@ -101,7 +102,7 @@ describe('production shared HUD compositions', () => {
       const painters = { itemLabel: () => 'BLADE', drawItem: vi.fn(), drawPlayerHead: vi.fn(), drawTargetPortrait: vi.fn(), drawMinimap: vi.fn(), drawMoon: vi.fn(), drawEffect: vi.fn(),
         ...(registry ? { contentRegistry: () => registry } : {}) };
       const host = new GameHud(art, callbacks, painters); hosts.push(host); host.resize(320, 180);
-      const base = model(); host.update({ ...base, inventory: { ...base.inventory, rows: [{ slot: 1, stack: { itemKind: 'studio_blade', quantity: 1, durability: 25 } }] } });
+      const base = model(); host.update({ ...base, inventory: { ...base.inventory, hotbar: [{ index: 1, stack: { itemKind: 'studio_blade', quantity: 1, durability: 25 } }] } });
       const context = createCanvas(320, 180).getContext('2d'), fill = vi.spyOn(context, 'fillRect');
       host.draw(context as unknown as CanvasRenderingContext2D);
       host.roots.hotbarVitals.arrange();
@@ -115,7 +116,7 @@ describe('production shared HUD compositions', () => {
   it('uses actual item, portrait, moon, map and effect painters once, preserving stack metadata and authoritative time', () => {
     vi.useFakeTimers(); const f = fixture(), context = createCanvas(320, 180).getContext('2d') as unknown as CanvasRenderingContext2D;
     f.host.draw(context);
-    expect(f.painters.drawItem.mock.calls.map(call => call[2])).toEqual(model().inventory.rows.map(row => row.stack));
+    expect(f.painters.drawItem.mock.calls.map(call => call[2])).toEqual([...model().inventory.hotbar.map(row => row.stack), model().inventory.mainHand]);
     expect(f.painters.drawPlayerHead).toHaveBeenCalledExactlyOnceWith(context, 'self', expect.any(Object));
     expect(f.painters.drawTargetPortrait).toHaveBeenCalledExactlyOnceWith(context, 'target-a', expect.any(Object));
     expect(f.painters.drawMinimap).toHaveBeenCalledExactlyOnceWith(context, expect.any(Object), 2, true);
@@ -138,7 +139,7 @@ describe('production shared HUD compositions', () => {
     expect(popup.y + popup.height).toBeLessThanOrEqual(slot.y);
     expect(Math.abs(popup.x + popup.width / 2 - (slot.x + slot.width / 2))).toBeLessThanOrEqual(1);
     // It follows focus to the next filled slot and closes over an empty one.
-    f.host.update({ ...model(), inventory: { ...model().inventory, rows: [...model().inventory.rows, { slot: 3, stack: { itemKind: 'stone', quantity: 4 } }] } });
+    f.host.update({ ...model(), inventory: { ...model().inventory, hotbar: [...model().inventory.hotbar, { index: 3, stack: { itemKind: 'stone', quantity: 4 } }] } });
     const context = createCanvas(320, 180).getContext('2d') as unknown as CanvasRenderingContext2D;
     hotRoot.focus.set(f.node('hotbarVitals', 'game.hud.hotbar.slot.3')); f.host.draw(context);
     const fourth = f.node('hotbarVitals', 'game.hud.hotbar.slot.3').rect;
@@ -147,7 +148,7 @@ describe('production shared HUD compositions', () => {
     expect(hotRoot.entries().some(row => row.element.label === 'STONE X4' && row.element.kind === 'text')).toBe(true);
     // It re-fits to each label: a longer name widens the frame instead of wrapping or clipping in the first size.
     expect(moved.width).toBeLessThan(popup.width + 1);
-    f.host.update({ ...model(), inventory: { ...model().inventory, rows: [...model().inventory.rows, { slot: 3, stack: { itemKind: 'reinforced_iron_pickaxe', quantity: 1 } }] } });
+    f.host.update({ ...model(), inventory: { ...model().inventory, hotbar: [...model().inventory.hotbar, { index: 3, stack: { itemKind: 'reinforced_iron_pickaxe', quantity: 1 } }] } });
     f.host.draw(context);
     const long = hotRoot.entries().find(row => row.element.kind === 'tooltip-popup' && row.element.visible)!.element;
     const longText = hotRoot.entries().find(row => row.element.label === 'REINFORCED_IRON_PICKAXE X1' && row.element.kind === 'text')!.element;

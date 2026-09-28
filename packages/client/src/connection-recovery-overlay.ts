@@ -4,8 +4,8 @@ import {
   type PixelUi, type UiPoint, type UiRect, type UiSize, type UiSkin,
 } from '@orchard/ui';
 
-export type ConnectionRecoveryState = 'reconnecting' | 'offline' | 'sign-in-required' | 'content-incompatible';
-export type ConnectionRecoveryAction = 'retry' | 'sign-in';
+export type ConnectionRecoveryState = 'reconnecting' | 'offline' | 'sign-in-required' | 'content-incompatible' | 'update-required';
+export type ConnectionRecoveryAction = 'retry' | 'sign-in' | 'reload';
 
 export interface ConnectionRecoveryViewport extends UiSize {
   readonly scale: number;
@@ -32,7 +32,10 @@ const copy: Readonly<Record<ConnectionRecoveryState, { readonly title: string; r
   reconnecting: { title: 'RECONNECTING', lines: ['RESTORING CONNECTION.', 'RETRY IF NEEDED.'] },
   offline: { title: 'CONNECTION LOST', lines: ['CONNECTION INTERRUPTED.', 'CHECK YOUR CONNECTION.'] },
   'sign-in-required': { title: 'SIGN IN REQUIRED', lines: ['PLEASE SIGN IN AGAIN.', 'REJOIN YOUR WORLD.'] },
+  'update-required': { title: 'UPDATE REQUIRED', lines: ['A NEWER GAME VERSION IS LIVE.', 'RELOAD TO PLAY.'] },
 };
+
+const ACTION_LABEL: Readonly<Record<ConnectionRecoveryAction, string>> = { retry: 'RETRY', 'sign-in': 'SIGN IN', reload: 'RELOAD' };
 
 /** How long a returning world may sit not-ready (tab resume, subscription re-sync)
  * behind its last frame before the reconnecting modal appears. */
@@ -85,7 +88,9 @@ export class ConnectionRecoveryOverlay {
   constructor(private readonly fonts: PixelUi, private readonly skin: UiSkin) {}
 
   primaryAction(state: ConnectionRecoveryState | null, blockedByUpdate = false): ConnectionRecoveryAction | null {
-    return blockedByUpdate || state === null ? null : state === 'sign-in-required' ? 'sign-in' : 'retry';
+    if (blockedByUpdate || state === null) return null;
+    // A refused client version is fixed by loading the new one, never by signing in again (which would loop).
+    return state === 'sign-in-required' ? 'sign-in' : state === 'update-required' ? 'reload' : 'retry';
   }
 
   actionAt(point: UiPoint, viewport: UiSize, state: ConnectionRecoveryState | null, blockedByUpdate = false): ConnectionRecoveryAction | null {
@@ -104,7 +109,8 @@ export class ConnectionRecoveryOverlay {
 
   /** Draw in UI-local coordinates after restoring the retained world image. */
   draw(context: CanvasRenderingContext2D, viewport: UiSize, state: ConnectionRecoveryState): void {
-    this.drawPanel(context, viewport, copy[state], state === 'sign-in-required' ? 'SIGN IN' : 'RETRY');
+    const action = this.primaryAction(state);
+    this.drawPanel(context, viewport, copy[state], action === null ? null : ACTION_LABEL[action]);
   }
 
   private drawPanel(

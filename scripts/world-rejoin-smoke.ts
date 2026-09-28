@@ -84,7 +84,8 @@ async function credentials(): Promise<readonly RejoinCredential[]> {
   return [{ label: process.env['WORLD_REJOIN_LABEL'] ?? 'operator', token }];
 }
 
-function assertCurrentBindings(): void {
+/** The generated bindings expose every table the continuity invariant requires (checked before any credential). */
+export function assertCurrentBindings(): void {
   const querySurface = tables as unknown as Record<string, unknown>;
   assertRejoinTableCoverage(new Set(REQUIRED_REJOIN_TABLES
     .map(({ accessor }) => accessor)

@@ -1,7 +1,7 @@
 import { coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim/commerce';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY } from '@orchard/sim/item-containers';
-import { tradeItemDisplayName, tradeItemIsOfferable, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
+import { tradeItemDisplayName, tradeItemIsOfferable, type TradeCarriedContainer, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
 import type { LoadedAsset } from '../../assets.js';
 import { containsPoint } from '../../geometry.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
@@ -43,7 +43,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     && entry.owner.toHexString() === owner && entry.slot === slot);
   // The world's one capacity rule (BUG-056), not a second clamp of its own.
   const capacity = () => accessibleBackpackCapacity(Math.floor(model.backpackSlotCapacity ?? BASE_BACKPACK_CAPACITY));
-  const carriedRow = (slot: number) => model.inventorySlots.find(row => row.slot === slot) ?? null;
+  const carriedRow = (container: TradeCarriedContainer, index: number) => model.inventorySlots.find(row => row.container === container && row.index === index) ?? null;
   const actionKey = () => `${model.session.id}:${model.identityHex}:${model.session.state}:${model.session.revision}`;
   const artwork: Record<string, LoadedAsset> = { ...options.artwork };
   const iconAnimation = (item: { readonly itemKind: string }) => model.contentRegistry.items.get(`item:${item.itemKind}`)?.icon.animation ?? 'base';
@@ -144,7 +144,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   let otherMoney: UiElement | undefined, accept: UiElement | undefined, requestLabel: UiElement | undefined;
   let ownTick: UiElement | undefined, otherTick: UiElement | undefined, status: UiElement | undefined;
   let carriedHost: UiElement | undefined, inventoryStructure = '';
-  let carriedCells: { readonly grid: UiElement; readonly offset: number }[] = [];
+  let carriedCells: { readonly grid: UiElement; readonly container: TradeCarriedContainer }[] = [];
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
     const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, inputMode: 'numeric', size: 'sm', leading: uiGlyph(`coin.${label.toLowerCase()}`), layout: { width: uiFixed(index === 0 ? 64 : 44) },
@@ -175,11 +175,11 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   // What you carry is the shared player inventory pane (owner 2026-09-28, BUG-067) and the window's hotbar row: the
   // same layout, capacity, filter, empty cells and slots as every other window. Offering is this window's own action.
   const backpackFilter = new UiInventoryFilter();
-  const offerFrom = (slot: number, secondary: boolean) => {
+  const offerFrom = (container: TradeCarriedContainer, index: number, secondary: boolean) => {
     if (!live) return;
-    const row = carriedRow(slot), free = Array.from({ length: 6 }, (_, i) => i).find(i => !offer(model.identityHex, i));
+    const row = carriedRow(container, index), free = Array.from({ length: 6 }, (_, i) => i).find(i => !offer(model.identityHex, i));
     if (!row || row.itemKind === 'empty' || row.quantity <= 0 || !tradeItemIsOfferable(model.contentRegistry, row.itemKind) || free === undefined) return;
-    options.callbacks.offerItem(model.session.id, slot, free, secondary ? 1 : row.quantity);
+    options.callbacks.offerItem(model.session.id, { container, index }, free, secondary ? 1 : row.quantity);
   };
   const refreshInventory = () => {
     if (!carriedHost) return;
@@ -188,34 +188,34 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     inventoryStructure = key;
     for (const child of [...carriedHost.children, ...footerHost.children]) child.dispose();
     const common = { artwork, iconAnimation, allowSecondary: true } as const;
-    const rowKey = (slot: number) => () => { const row = carriedRow(slot); return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`; };
+    const rowKey = (container: TradeCarriedContainer, index: number) => () => { const row = carriedRow(container, index); return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`; };
     // Items the authority won't take in a trade show the disabled face, by the cell each slot shows (S4).
-    const offerState = (slot: number) => { const row = carriedRow(slot);
+    const offerState = (container: TradeCarriedContainer, index: number) => { const row = carriedRow(container, index);
       return row !== null && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind) ? { enabled: false } : undefined; };
     const pane = uiPlayerInventoryPane({ ...common, id: 'trade.backpack', label: 'BACKPACK', container: 'backpack',
       // The key names the cell too, so a release after a scroll recycled the slot never acts on another cell.
-      cellIntercept: index => guardedCell(() => `${index()}:${rowKey(BACKPACK_SLOT_OFFSET + index())()}`), cellState: index => offerState(BACKPACK_SLOT_OFFSET + index),
+      cellIntercept: index => guardedCell(() => `${index()}:${rowKey('backpack', index())()}`), cellState: index => offerState('backpack', index),
       cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
       filterModel: backpackFilter, capacity, itemLabel: item => tradeItemDisplayName(model.contentRegistry, item.itemKind),
-      stack: index => carriedRow(BACKPACK_SLOT_OFFSET + index),
-      onActivate: (index, event) => offerFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
+      stack: index => carriedRow('backpack', index),
+      onActivate: (index, event) => offerFrom('backpack', index, event.button === 2),
       // The same header as every pane: sort stays, disabled, because offers point at bag slots mid-trade.
       onSort: () => undefined, sortDisabledReason: () => 'No sorting during a trade: offers point at bag slots.' });
     const hotbar = uiPlayerHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', activateOn: 'up',
-      selected: () => model.selectedSlot ?? -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2),
-      cellIntercept: index => guardedCell(() => `${index()}:${rowKey(index())()}`), cellState: index => offerState(index) });
+      selected: () => model.selectedSlot ?? -1, stack: index => carriedRow('hotbar', index), onActivate: (index, event) => offerFrom('hotbar', index, event.button === 2),
+      cellIntercept: index => guardedCell(() => `${index()}:${rowKey('hotbar', index())()}`), cellState: index => offerState('hotbar', index) });
     const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
     // The carried slots, each read by the cell it shows now: a recycled pane slot moves between cells.
-    carriedCells = [{ grid: grids[0]!, offset: BACKPACK_SLOT_OFFSET }, { grid: hotbar, offset: 0 }];
+    carriedCells = [{ grid: grids[0]!, container: 'backpack' }, { grid: hotbar, container: 'hotbar' }];
     carriedHost.append(pane); footerHost.append(hotbar);
   };
   // Items the authority won't take in a trade (quest items, backpacks, purchase grants, retired items; the server's
   // item_not_tradeable) show the approved disabled face (render 01 B) and take no input (S4).
   const offered = new WeakMap<UiElement, string>();
   const refreshOfferable = () => {
-    for (const { grid, offset } of carriedCells) for (const cell of grid.children) {
+    for (const { grid, container } of carriedCells) for (const cell of grid.children) {
       const index = (cell.props['binding'] as { index?: number } | undefined)?.index; if (index === undefined) continue;
-      const row = carriedRow(offset + index);
+      const row = carriedRow(container, index);
       const disabled = row !== null && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind);
       const key = `${index}:${disabled}`;
       if (offered.get(cell) === key) continue;

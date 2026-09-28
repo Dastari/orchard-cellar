@@ -1,4 +1,5 @@
 import type { ContentRegistry, ItemStack } from '@orchard/sim';
+import { MAIN_HAND_SELECTED_SLOT, isMainHandSelectedSlot } from '@orchard/sim/container-addressing';
 import { containsPoint, type UiRect } from '../geometry.js';
 import type { UiKitArt } from '../kit/components/art.js';
 import { uiButton } from '../kit/components/button.js';
@@ -30,9 +31,12 @@ export interface GameHudModel {
   readonly minimapTrackingEnabled: boolean;
   readonly trackedQuestCount?: number;
   readonly touchControls?: { readonly enabled: boolean; readonly preferences: TouchControlPreferences };
+  /** The hotbar's stacks by hotbar index and the Main Hand weapon; `selectedSlot` is the stored selection (a hotbar
+   * index, or `MAIN_HAND_SELECTED_SLOT` for the weapon). */
   readonly inventory: {
-    readonly rows: readonly { readonly slot: number; readonly stack: ItemStack }[];
-    readonly selectedSlot: number; readonly mainHandIndex: number; readonly balanceBronze: bigint;
+    readonly hotbar: readonly { readonly index: number; readonly stack: ItemStack }[];
+    readonly mainHand: ItemStack | null;
+    readonly selectedSlot: number; readonly balanceBronze: bigint;
   };
   readonly player?: { readonly id: string; readonly values: UiVitalValues; readonly hunger?: { readonly current: number; readonly maximum: number }; readonly vigourDenied?: boolean };
   readonly target?: { readonly id: string; readonly name: string; readonly values: UiVitalValues };
@@ -229,11 +233,11 @@ export class GameHud {
           paintUiTouchDisc(context, art, r, { tone: lit?.() ? 'success' : 'primary', icon: shown ? undefined : icon, pressed, lit: hovered || focused });
           if (shown) content!.draw(context, bounds);
         } })));
-    this.weapon = roundShortcut('game.hud.weapon', () => { const item = this.model && this.stack(this.model.inventory.mainHandIndex); return item ? `MAIN HAND · ${this.painters.itemLabel(item)} · V` : 'MAIN HAND · V'; },
-      () => { if (this.model) this.callbacks.selectHotbar(this.model.inventory.mainHandIndex); }, 'touch.tool',
-      { shown: () => Boolean(this.model && this.stack(this.model.inventory.mainHandIndex)),
-        draw: (context, bounds) => { const item = this.model && this.stack(this.model.inventory.mainHandIndex); if (item) this.painters.drawItem(context, bounds, item); } },
-      () => this.model !== null && this.model.inventory.selectedSlot === this.model.inventory.mainHandIndex);
+    this.weapon = roundShortcut('game.hud.weapon', () => { const item = this.model?.inventory.mainHand; return item ? `MAIN HAND · ${this.painters.itemLabel(item)} · V` : 'MAIN HAND · V'; },
+      () => { if (this.model) this.callbacks.selectHotbar(MAIN_HAND_SELECTED_SLOT); }, 'touch.tool',
+      { shown: () => Boolean(this.model?.inventory.mainHand),
+        draw: (context, bounds) => { const item = this.model?.inventory.mainHand; if (item) this.painters.drawItem(context, bounds, item); } },
+      () => this.model !== null && isMainHandSelectedSlot(this.model.inventory.selectedSlot));
     mount('hotbarVitals', this.weapon);
     const action = (id: string, _hotkey: string, icon: string, tooltip: string, press: () => void) => roundShortcut(id, tooltip, press, icon);
     this.crafting = action('game.hud.crafting', 'C', 'hud.wrench', 'Crafting · C', () => this.callbacks.toggleCrafting());
@@ -323,7 +327,7 @@ export class GameHud {
     const bottom = this.height - 6 - hudHotbarSize(this.width, this.compactTouchLayout).height - 4;
     return { x: left, y: 40, width: Math.max(0, right - left), height: Math.max(0, bottom - 40) };
   }
-  private stack(index: number): ItemStack | null { return this.model?.inventory.rows.find(row => row.slot === index)?.stack ?? null; }
+  private stack(index: number): ItemStack | null { return this.model?.inventory.hotbar.find(row => row.index === index)?.stack ?? null; }
   get active(): boolean { return this.model !== null; }
   isVisible(surface: GameHudSurface): boolean { return this.model !== null && this.model.visible?.[surface] !== false; }
   get minimapBounds(): UiRect { return { ...this.map.rect }; }

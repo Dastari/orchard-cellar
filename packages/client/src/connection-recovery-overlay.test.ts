@@ -7,15 +7,31 @@ function overlay() { return new ConnectionRecoveryOverlay({} as PixelUi, {} as U
 const viewport = { width: 257, height: 555, scale: 2, left: 12, top: 24 };
 
 describe('canvas connection recovery', () => {
-  it.each(['reconnecting', 'offline', 'sign-in-required', 'content-incompatible'] as const)('activates only the visible %s button once', state => {
+  const expectedAction = (state: string) => state === 'sign-in-required' ? 'sign-in' : state === 'update-required' ? 'reload' : 'retry';
+  it.each(['reconnecting', 'offline', 'sign-in-required', 'content-incompatible', 'update-required'] as const)('activates only the visible %s button once', state => {
     const ui = overlay();
     const action = vi.fn();
     const { button } = connectionRecoveryLayout(viewport);
     expect(ui.activate({ x: button.x + 2, y: button.y + 2 }, viewport, state, action)).toBe(true);
-    expect(action).toHaveBeenCalledExactlyOnceWith(state === 'sign-in-required' ? 'sign-in' : 'retry');
+    expect(action).toHaveBeenCalledExactlyOnceWith(expectedAction(state));
     expect(ui.activate({ x: button.x - 1, y: button.y }, viewport, state, action)).toBe(false);
     expect(action).toHaveBeenCalledTimes(1);
-    expect(ui.primaryAction(state)).toBe(state === 'sign-in-required' ? 'sign-in' : 'retry');
+    expect(ui.primaryAction(state)).toBe(expectedAction(state));
+  });
+
+  it('shows a refused client version as UPDATE REQUIRED with a RELOAD button, never SIGN IN', () => {
+    const ui = overlay();
+    const drawn: string[] = [];
+    const panel = vi.spyOn(ui as unknown as { drawPanel: (...args: unknown[]) => void }, 'drawPanel')
+      .mockImplementation((_context, _viewport, text, label) => {
+        drawn.push((text as { title: string }).title, ...(text as { lines: string[] }).lines, String(label));
+      });
+    ui.draw({} as CanvasRenderingContext2D, viewport, 'update-required');
+    expect(drawn).toEqual(['UPDATE REQUIRED', 'A NEWER GAME VERSION IS LIVE.', 'RELOAD TO PLAY.', 'RELOAD']);
+    expect(drawn.join(' ')).not.toContain('SIGN IN');
+    panel.mockRestore();
+    // The PWA update prompt still takes precedence over it.
+    expect(ui.primaryAction('update-required', true)).toBeNull();
   });
 
   it.each([{ width: 257, height: 555 }, { width: 320, height: 180 }, { width: 160, height: 138 }])(
@@ -72,7 +88,7 @@ describe('canvas connection recovery', () => {
     const { button } = connectionRecoveryLayout(viewport);
     const point = { x: button.x + 2, y: button.y + 2 };
     const action = vi.fn();
-    for (const state of ['reconnecting', 'offline', 'sign-in-required', 'content-incompatible'] as const) {
+    for (const state of ['reconnecting', 'offline', 'sign-in-required', 'content-incompatible', 'update-required'] as const) {
       expect(ui.composite(renderer, viewport, state, true, true)).toBe(false);
       expect(ui.activate(point, viewport, state, action, true)).toBe(false);
       expect(ui.primaryAction(state, true)).toBeNull();
@@ -101,7 +117,7 @@ describe('world gap presentation (BUG-040)', () => {
     expect(worldGapPresentation(null, true, true, 1_000, 1_000 + WORLD_GAP_GRACE_MS * 10)).toEqual({ kind: 'initial-loading' });
   });
 
-  it.each(['offline', 'sign-in-required', 'content-incompatible'] as const)(
+  it.each(['offline', 'sign-in-required', 'content-incompatible', 'update-required'] as const)(
     'shows an explicit %s state at once, with or without a world frame', (state) => {
       expect(worldGapPresentation(state, true, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });
       expect(worldGapPresentation(state, false, false, 1_000, 1_000)).toEqual({ kind: 'recovery', state });

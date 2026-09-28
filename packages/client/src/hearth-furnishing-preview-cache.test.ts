@@ -6,19 +6,22 @@ import { cellFlags } from '@orchard/sim/cell-flags';
 const source = ts.createSourceFile('main.ts', readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'furniturePreviewAt');
 if (!fn) throw new Error('Missing actual furniture preview adapter');
+const rowsFn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'bagAndHotbarRows');
+if (!rowsFn) throw new Error('Missing actual carried rows adapter');
 function fixture() {
-  const inventorySlots = [{ slot: 0, itemKind: 'furniture_rustic_chair', quantity: 1 }];
+  const inventorySlots = [{ container: 'hotbar', index: 0, itemKind: 'furniture_rustic_chair', quantity: 1 }];
+  const playerCells = { container: (container: string) => inventorySlots.filter(row => row.container === container) };
   const players = [{ spaceId: 30000, x: 100, y: 120 }];
   const placeables: { id: bigint; kind: string; spaceId: number; stateJson: string }[] = [];
   const predicted = { position: { x: 100, y: 120 } }, network = { resourceRevision: 1 };
   const calculate = vi.fn((): {candidate:sim.HearthFurniturePlacement|null;failure:string|null} => ({ candidate: null, failure: null }));
   const dependencies = { ...sim, predicted, network, furnishingPreview: calculate,
-    latestSnapshot: { content: { registry: sim.bootstrapContentRegistry() }, inventorySlots, players, placeables },
+    latestSnapshot: { content: { registry: sim.bootstrapContentRegistry() }, playerCells, players, placeables },
     activeSpaceDefinition: { spaceId: 30000 } as {spaceId:number;residenceExpansionRank?:number;residenceArchitectureJson?:string}, currentFurniture: () => [], canUseHomesteadBuildMode: () => true,
     objectPresentations: { resolve: () => ({ stateJsonValid: false }) },
   };
   const api = new Function(...Object.keys(dependencies), ts.transpileModule(
-    `let furniturePreviewCache=null;let furnitureCollision={};${fn!.getText(source)};return {preview:furniturePreviewAt,newCollision:()=>{furnitureCollision={};},setCollision:value=>{furnitureCollision=value;}};`,
+    `let furniturePreviewCache=null;let furnitureCollision={};${rowsFn!.getText(source)};${fn!.getText(source)};return {preview:furniturePreviewAt,newCollision:()=>{furnitureCollision={};},setCollision:value=>{furnitureCollision=value;}};`,
     { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText)(...Object.values(dependencies));
   return { api, calculate, inventorySlots, players, predicted, network, placeables,activeSpaceDefinition:dependencies.activeSpaceDefinition };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BACKPACK_SLOT_OFFSET, BASE_BACKPACK_CAPACITY, EQUIPMENT_SLOT_OFFSET, legacyGlobalSlotToCell } from '@orchard/sim';
+import { BACKPACK_SLOT_COUNT, BASE_BACKPACK_CAPACITY } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import { TradeUi, type TradeUiModel } from '../packages/ui/src/trade-ui.js';
 import type { UiKitArt } from '../packages/ui/src/kit/components/art.js';
@@ -9,14 +9,8 @@ import { tradeHarness } from './player-trade-test-harness.js';
 /** Real retained gestures -> current production reducers under two distinct
  * authorized identities. The existing in-memory table adapter supplies rollback;
  * no server transport, JWT verification, subscription delivery or live writes.
- * Transitional (until the trade panel speaks container cells, Uncapped Storage step 4c): the panel still names a
- * legacy global slot, so this adapter translates it to the reducer's container cell and serves the panel the
- * player's cells with their legacy slots. */
-function offeredCell(inventorySlot: number) {
-  const cell = legacyGlobalSlotToCell(inventorySlot);
-  return cell === null ? { inventoryContainer: 'invalid', inventoryIndex: inventorySlot }
-    : { inventoryContainer: cell.container, inventoryIndex: cell.index };
-}
+ * The panel names the offered cell by container and index and reads the player's cells as the client's view
+ * delivers them (Uncapped Storage step 4c): the callback passes both straight to the reducer, with no translation. */
 
 function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
   const errors: string[] = [], commands: string[] = [];
@@ -27,8 +21,8 @@ function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
   const ui = new TradeUi({} as UiKitArt, {} as OverworldUiItemArt, {
     acceptRequest: tradeId => run('acceptTradeRequest', { tradeId }),
     declineRequest: tradeId => run('declineTrade', { tradeId }), cancel: tradeId => run('cancelTrade', { tradeId }),
-    offerItem: (tradeId, inventorySlot, tradeSlot, quantity) =>
-      run('setTradeOfferItem', { tradeId, ...offeredCell(inventorySlot), tradeSlot, quantity }),
+    offerItem: (tradeId, cell, tradeSlot, quantity) =>
+      run('setTradeOfferItem', { tradeId, inventoryContainer: cell.container, inventoryIndex: cell.index, tradeSlot, quantity }),
     removeItem: (tradeId, tradeSlot) => run('removeTradeOfferItem', { tradeId, tradeSlot }),
     offerBronze: (tradeId, amount) => run('setTradeOfferBronze', { tradeId, amount }),
     setAccepted: (tradeId, accepted, revision) => run('setTradeAccepted', { tradeId, accepted, revision }),
@@ -39,7 +33,7 @@ function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
       session, contentRegistry: h.registry, identityHex: identity.toHexString(), requesterName: 'Alice', recipientName: 'Bob',
       walletBronze: h.wallets.identity.find(identity)!.balanceBronze,
       offers: h.api.ownTradeOffers(h.context(identity)), backpackSlotCapacity: BASE_BACKPACK_CAPACITY,
-      inventorySlots: h.inventorySlots(identity),
+      inventorySlots: h.playerCells(identity),
     };
     ui.update(model); ui.root.arrange();
   };
@@ -54,7 +48,7 @@ function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
 describe('production TradeUi with two-identity reducer authority', () => {
   it('accepts the real request and exchanges metadata/escrow once through retained gestures', () => {
     const h = tradeHarness(); expect(h.alice.isEqual(h.bob)).toBe(false);
-    h.put(h.alice, 0, 'axe', 1, 73, false); h.put(h.bob, 0, 'wood', 12);
+    h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73, false); h.put(h.bob, { container: 'hotbar', index: 0 }, 'wood', 12);
     h.run('requestTrade', h.alice, { target: h.bob });
     const alice = client(h, h.alice), bob = client(h, h.bob);
     bob.activate('trade.request.accept'); alice.sync(); bob.sync();
@@ -72,7 +66,7 @@ describe('production TradeUi with two-identity reducer authority', () => {
   });
 
   it('exposes reducer rejection for a stale subscription without optimistic acceptance or lost escrow', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 3); h.put(h.bob, 0, 'stone', 4); h.start();
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 3); h.put(h.bob, { container: 'hotbar', index: 0 }, 'stone', 4); h.start();
     const alice = client(h, h.alice), bob = client(h, h.bob);
     bob.activate('trade.hotbar.slot.0'); // Alice has not received the revised subscription yet.
     alice.activate('trade.accept'); expect(alice.errors[0]).toContain('trade_offer_changed');
@@ -83,7 +77,7 @@ describe('production TradeUi with two-identity reducer authority', () => {
   });
 
   it('retains full-inventory escrow after refusal and cancels it safely to overflow', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'axe', 1, 55, false); h.start();
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 55, false); h.start();
     const alice = client(h, h.alice), bob = client(h, h.bob);
     alice.activate('trade.hotbar.slot.0'); h.fill(h.bob); alice.sync(); bob.sync();
     alice.activate('trade.accept'); bob.activate('trade.accept');
@@ -96,10 +90,11 @@ describe('production TradeUi with two-identity reducer authority', () => {
   });
 
   it('does not offer equipped slots (BUG-018) and closes from real disconnect cleanup', () => {
-    const h = tradeHarness(); h.put(h.alice, EQUIPMENT_SLOT_OFFSET, 'axe', 1); h.put(h.alice, 0, 'wood', 5);
+    const h = tradeHarness(); h.put(h.alice, { container: 'equipment', index: 0 }, 'axe', 1); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 5);
     const tradeId = h.start(); const alice = client(h, h.alice);
-    expect(alice.ui.root.entries().some(entry => entry.element.id === `trade.backpack.slot.${EQUIPMENT_SLOT_OFFSET - BACKPACK_SLOT_OFFSET}`)).toBe(false);
-    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, ...offeredCell(EQUIPMENT_SLOT_OFFSET), tradeSlot: 0, quantity: 1 })).toThrow('trade_slot_inaccessible');
+    // The pane shows only hotbar and backpack cells, and the authority refuses an equipment cell outright.
+    expect(alice.ui.root.entries().some(entry => entry.element.id === `trade.backpack.slot.${BACKPACK_SLOT_COUNT}`)).toBe(false);
+    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'equipment', inventoryIndex: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_slot_inaccessible');
     alice.activate('trade.hotbar.slot.0'); alice.sync();
     h.run('onDisconnect', h.alice); alice.sync(); expect(alice.ui.active).toBe(false);
     expect(h.owned(h.alice).find(row => row.itemKind === 'wood')?.quantity).toBe(5);

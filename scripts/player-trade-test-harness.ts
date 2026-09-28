@@ -54,8 +54,8 @@ type Key = string | number | bigint | { toHexString(): string };
 const keyOf = (key: Key): string => typeof key === 'object' ? key.toHexString() : String(key);
 export interface StackRow { itemKind: string; quantity: number; durability: number; lit: boolean }
 export interface CellRow extends StackRow { id: string; identity: Identity; container: string; index: number }
-/** A carried cell with its frozen legacy global slot, the shape the trade panel still reads until step 4c. */
-export type LegacySlotRow = CellRow & { slot: number };
+/** A stored player cell in a container the client knows: the shape the trade panel reads (Uncapped Storage step 4c). */
+export type PlayerCellRow = CellRow & { container: sim.PlayerContainerId };
 interface MigrationRow {
   identity: Identity; durabilityVersion: number; hotbarLayoutVersion: number;
   equipmentLayoutVersion: number; containerLayoutVersion: number;
@@ -165,27 +165,26 @@ export function tradeHarness() {
     run('acceptTradeRequest', bob, { tradeId });
     return tradeId;
   }
-  /** Stores one carried cell addressed by its legacy global slot (an empty stack deletes the row). */
-  function put(identity: Identity, slot: number, itemKind: string, quantity: number, durability = 0, lit = true) {
-    const cell = sim.legacyGlobalSlotToCell(slot);
-    if (cell === null) throw new Error(`harness_slot_invalid:${slot}`);
+  /** Stores one player cell (an empty stack deletes the row). */
+  function put(identity: Identity, cell: sim.PlayerContainerCellRef, itemKind: string, quantity: number, durability = 0, lit = true) {
     const id = sim.playerContainerCellKey(identity.toHexString(), cell);
     if (itemKind === 'empty' || quantity <= 0) { inventory.id.delete(id); return; }
     const row = { id, identity, container: cell.container, index: cell.index, itemKind, quantity, durability, lit };
     if (inventory.id.find(id) === null) inventory.insert(row); else inventory.id.update(row);
   }
   function fill(identity: Identity) {
-    for (let slot = 0; slot < sim.HOTBAR_SLOT_COUNT + sim.BASE_BACKPACK_CAPACITY; slot++) {
-      put(identity, slot, 'stone', sim.runtimeMaxStack(registry, 'stone')!);
-    }
+    const stone = sim.runtimeMaxStack(registry, 'stone')!;
+    for (let index = 0; index < sim.HOTBAR_SLOT_COUNT; index++) put(identity, { container: 'hotbar', index }, 'stone', stone);
+    for (let index = 0; index < sim.BASE_BACKPACK_CAPACITY; index++) put(identity, { container: 'backpack', index }, 'stone', stone);
   }
-  /** The identity's stored cells with their legacy global slot, in slot order. Every stored cell is occupied. */
-  const inventorySlots = (identity: Identity): LegacySlotRow[] => [...inventory.iter()]
-    .filter(row => row.identity.isEqual(identity))
-    .map(row => ({ ...row, slot: sim.cellToLegacyGlobalSlot({ container: row.container as sim.PlayerContainerId, index: row.index }) ?? -1 }))
-    .sort((left, right) => left.slot - right.slot);
-  const owned = (identity: Identity) => inventorySlots(identity).filter(row => row.quantity > 0);
+  /** The identity's stored cells, container by container in index order, as the client's `own_player_container_cells`
+   * view delivers them. Every stored cell is occupied. */
+  const playerCells = (identity: Identity): PlayerCellRow[] => [...inventory.iter()]
+    .filter((row): row is PlayerCellRow => row.identity.isEqual(identity) && sim.isPlayerContainerId(row.container))
+    .sort((left, right) => sim.PLAYER_CONTAINERS.indexOf(left.container) - sim.PLAYER_CONTAINERS.indexOf(right.container)
+      || left.index - right.index);
+  const owned = (identity: Identity) => playerCells(identity).filter(row => row.quantity > 0);
   const snapshot = () => stores.map(store => ({ table: store.name, rows: store.inspect() }));
-  return { alice, bob, outsider, api, context, run, start, session, put, fill, owned, inventorySlots, snapshot, writes,
+  return { alice, bob, outsider, api, context, run, start, session, put, fill, owned, playerCells, snapshot, writes,
     offers, trades, members, wallets, positions, publicPlayers, cursors, overflow, clock, inventory, migrations, registry };
 }

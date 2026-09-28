@@ -2,6 +2,7 @@ import type { GameplayCelestialPass } from './gameplay-celestial-pass.js';
 import type { generateSurvivalDecorations, CollisionMap, Direction, PlayerState, SpaceDefinition, MiningNodeClass, GeneratedSurvivalDecoration, MapLandmarkInstance, RuntimeObjectProcessor } from '@orchard/sim';
 import type { WorldPlaceable, WorldResource } from '@orchard/world-bindings/types';
 import type { OverworldView } from './net/overworld-connection.js';
+import type { PlayerCellRow } from './net/player-container-cells.js';
 import type { AvatarAnimationController, LocalActionPresentation, RenderTickClock, VisualTickClock, SampledProjectile, SampledRemote } from './net/netcode.js';
 import type { WorldVisualBounds } from '@orchard/engine/overworld-art';
 import type { GroundChunkCache } from '@orchard/engine/ground-cache';
@@ -118,7 +119,7 @@ export interface GameplayPainterInputs {
   readonly previousRemoteDisplay: Map<string, SampledRemote>;
   readonly renderedLocal: { readonly x: number; readonly y: number; } | null;
   readonly renderedPlayerAnchors: Map<string, { readonly x: number; readonly y: number; }>;
-  readonly equippedLightRow: (snapshot: OverworldView) => { id: string; identity: import("spacetimedb").Identity; slot: number; itemKind: string; quantity: number; durability: number; lit: boolean; } | null;
+  readonly equippedLightRow: (snapshot: OverworldView) => PlayerCellRow | null;
   readonly selectedItem: (snapshot: OverworldView) => string;
   readonly lightPreviewKind: "lantern" | "torch" | null;
   readonly predicted: PlayerState | null;

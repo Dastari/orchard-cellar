@@ -137,7 +137,7 @@
     },
     {
       "id": "equipped-light-toggle",
-      "anchor": "network.useSelected('equipment_use', { equipmentSlot: selectedLight.slot })",
+      "anchor": "network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(selectedLight.index) })",
       "selectedKinds": [
         "lantern",
         "torch"

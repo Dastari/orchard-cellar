@@ -51,6 +51,7 @@
     "./npc": "./src/npc.ts",
     "./character-name": "./src/character-name.ts",
     "./inventory-layout": "./src/inventory-layout.ts",
+    "./container-addressing": "./src/container-addressing.ts",
     "./content/frame-runtime": "./src/content/frame-runtime.ts",
     "./commerce": "./src/commerce.ts",
     "./equipment-loadout": "./src/equipment-loadout.ts",
