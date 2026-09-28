@@ -18,7 +18,7 @@ import { paintUiSkin, type UiKitArt } from './art.js';
 import { paintUiSelector } from './window.js';
 import { UiInventoryController, type UiInventoryModel } from '../runtime/inventory.js';
 import { uiTestArt, uiTestAsset } from '../lab/testing/art.js';
-import { UI_SLOT_INKS, uiItemFrame, uiSetSlotState, uiSlot, uiSlotIconRect, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
+import { UI_SLOT_INKS, uiAdoptSlot, uiItemFrame, uiSetSlotState, uiSlot, uiSlotIconRect, uiSlotView, uiInventoryGrid, type UiSlotOptions, type UiSlotState } from './inventory.js';
 import { uiSlotArt, uiSlotArtPolicy } from './slot-art.js';
 import { uiSlotAcceptsItem, uiSlotRestrictionFromRules, uiSlotRulesFromRestriction, type UiSlotRules } from './slot-rules.js';
 
@@ -156,10 +156,21 @@ describe('approved slot states', () => {
       .toEqual(await oracle((context, kit) => { grey(context, kit); icon(context, art.pickaxe, .5); halfWear(context, kit, uiDurabilityFraction('pickaxe', undefined)!); blocked(context, kit, 1, 1, 12); }));
     // A locked slot hides any placeholder under its mark.
     expect(await slotPixels({ placeholder: 'main_hand', state: { locked: { reason: 'Needs a level' } } })).toEqual(await slotPixels({ state: { locked: { reason: 'Needs a level' } } }));
-    // Under the pointer it shows the red corners. The kit never hovers a disabled slot today, so the paint is forced.
-    const locked = uiSlot({ state: { locked: { reason: 'Needs a pack' } } });
-    const hovered = new UiElement({ kind: 'hovered', style: { width: uiFixed(28), height: uiFixed(31) }, paint(element, paint) { locked.hooks.paint!(element, { ...paint, hovered: true }); } });
-    expect(await paintRoot(hovered)).toEqual(await oracle((context, kit) => { grey(context, kit); blocked(context, kit, 6, 7, 16); paintUiSelector(context, kit.skin.selector, 'deny', r); }));
+    // Under the pointer it shows the red corners (S4: a locked slot is hovered although it takes no input).
+    const onPress = vi.fn(), locked = uiSlot({ state: { locked: { reason: 'Needs a pack' } }, onPress });
+    const root = new UiRoot({ art: await uiTestArt(), scale: 1 }); root.resize(28, 31); root.mount(locked); root.arrange();
+    root.pointer({ type: 'move', point: { x: 14, y: 15 }, pointerId: 1, button: -1 });
+    expect(root.input.hovered).toBe(locked);
+    const canvas = createCanvas(28, 31); root.draw(canvas.getContext('2d') as unknown as CanvasRenderingContext2D, 0);
+    expect(canvas.toBuffer('image/png')).toEqual(await oracle((context, kit) => { grey(context, kit); blocked(context, kit, 6, 7, 16); paintUiSelector(context, kit.skin.selector, 'deny', r); }));
+    root.pointer({ type: 'down', point: { x: 14, y: 15 }, pointerId: 1, button: 0 }); root.pointer({ type: 'up', point: { x: 14, y: 15 }, pointerId: 1, button: 0 });
+    expect(onPress).not.toHaveBeenCalled();
+    // Unlocked, it is hovered and pressed as usual; a merely disabled slot is not hovered (no approved hover look).
+    uiSetSlotState(locked, { enabled: false }); root.arrange(); root.pointer({ type: 'move', point: { x: 13, y: 15 }, pointerId: 1, button: -1 });
+    expect(root.input.hovered).not.toBe(locked);
+    uiSetSlotState(locked, undefined); root.arrange(); root.pointer({ type: 'move', point: { x: 14, y: 15 }, pointerId: 1, button: -1 });
+    expect(root.input.hovered).toBe(locked);
+    root.dispose();
   });
 
   it('paints an item placeholder as a flat silhouette of that item\'s art, only while the slot is empty (03 A)', async () => {
@@ -235,6 +246,9 @@ describe('slot state model', () => {
     expect(view({ itemKind: 'coal', quantity: 1 }, { allowItems: ['coal'] })).toBe('accept');
     // The rules narrow the controller's verdict; they never overrule a refusal.
     expect(view({ itemKind: 'coal', quantity: 1 }, { allowItems: ['coal'] }, false)).toBe('refuse');
+    // A disabled or locked slot takes nothing (S4), whatever the controller says.
+    for (const state of [{ enabled: false }, { locked: { reason: 'Needs a pack' } }]) expect(uiSlotView(uiSlot({ binding, state,
+      controller: new UiInventoryController(model({ itemKind: 'coal', quantity: 1 })) }))!.dropTarget).toBe('refuse');
   });
 
   it('reports state, cooldown, placeholder, rules and drag, and blocks input as soon as the state changes', () => {
@@ -312,5 +326,18 @@ describe('slot state model', () => {
     expect(target({ readOnly: true }, undefined, false)).toBe('refuse');
     expect(uiSlotArtPolicy(uiSlotArt())).toBeUndefined();
     expect(uiSlotArtPolicy(uiSlotArt({ contentRegistry: () => registry }))?.maxStackFor('coal')).toBe(BOOTSTRAP_ITEM_CONTAINER_CONTENT.maxStackFor('coal'));
+  });
+});
+
+describe('uiAdoptSlot (review of #234, finding 8)', () => {
+  it('hands a slot\'s state, view and input blocking to the live element that replaced it', () => {
+    const original = uiSlot({}), replacement = new UiElement({ ...original.hooks });
+    uiAdoptSlot(original, replacement);
+    uiSetSlotState(replacement, { enabled: false });
+    expect(replacement.disabled).toBe(true); expect(uiSlotView(replacement)?.enabled).toBe(false);
+    uiSetSlotState(replacement, undefined);
+    expect(replacement.disabled).toBe(false); expect(uiSlotView(replacement)?.enabled).toBe(true);
+    // Not a slot: a no-op.
+    const plain = new UiElement({}); uiAdoptSlot(plain, new UiElement({})); expect(uiSlotView(plain)).toBeUndefined();
   });
 });

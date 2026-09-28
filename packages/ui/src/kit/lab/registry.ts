@@ -9,6 +9,7 @@ import { frameDesignerSpecimen } from './specimens/frame-designer.js';
 import { authoredSpecimen } from './specimens/authored.js';
 import { inventorySpecimen } from './specimens/inventory.js';
 import { dragFeedbackSpecimen } from './specimens/drag-feedback.js';
+import { slotLockedSpecimen } from './specimens/slot-locked.js';
 import { booksSpecimen } from './specimens/books.js';
 import { anchorsSpecimen, touchSpecimen } from './specimens/anchors.js';
 import { formsSpecimen, fieldsSpecimen } from './specimens/forms.js';
@@ -41,7 +42,7 @@ export interface UiLabSpecimen {
   readonly closable?: boolean; readonly matrix?: Readonly<Record<string, readonly unknown[]>>;
   readonly build: (ui: UiFactory, props: Readonly<Record<string, unknown>>, mock: UiLabMocks) => UiElement;
 }
-export const UI_LAB_SPECIMENS: readonly UiLabSpecimen[] = [foundationsSpecimen, framesSpecimen, controlsSpecimen, furnaceSpecimen, actorsSpecimen, formsSpecimen, fieldsSpecimen, dataSpecimen, schemaFormsSpecimen, patternsSpecimen, compositionPatternsSpecimen, workbenchSpecimen, editorPrimitivesSpecimen, feedbackSpecimen, inventorySpecimen, dragFeedbackSpecimen, booksSpecimen, anchorsSpecimen, touchSpecimen, authoredSpecimen, frameDesignerSpecimen, ...migrationSpecimens, diagnosticsSpecimen];
+export const UI_LAB_SPECIMENS: readonly UiLabSpecimen[] = [foundationsSpecimen, framesSpecimen, controlsSpecimen, furnaceSpecimen, actorsSpecimen, formsSpecimen, fieldsSpecimen, dataSpecimen, schemaFormsSpecimen, patternsSpecimen, compositionPatternsSpecimen, workbenchSpecimen, editorPrimitivesSpecimen, feedbackSpecimen, inventorySpecimen, dragFeedbackSpecimen, slotLockedSpecimen, booksSpecimen, anchorsSpecimen, touchSpecimen, authoredSpecimen, frameDesignerSpecimen, ...migrationSpecimens, diagnosticsSpecimen];
 export function uiLabVariants(specimen: UiLabSpecimen): Readonly<Record<string, unknown>>[] {
   let variants: Readonly<Record<string, unknown>>[] = [{}];
   for (const [key, values] of Object.entries(specimen.matrix ?? {})) variants = variants.flatMap(props => values.map(value => ({ ...props, [key]: value })));
