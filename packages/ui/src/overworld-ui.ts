@@ -30,7 +30,7 @@ import { renderProtocolAction } from './render-protocol-action.js';
 import type { ContainerSnapshot, ContentRegistry, CraftingStation, FrameDefinitionId, ItemDefinition, ItemStack, MoonPhase, MoveItemRequest, WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
-import { runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
+import { runtimeCraftingRecipeOutput, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
 import { MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
 import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel } from '@orchard/sim/inventory-layout';
 import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
@@ -63,7 +63,6 @@ import {
   frameSlotAuthorityRestriction,
   layoutContentFrame,
   type ContentFrameLayout,
-  type ContentFramePaneLayout,
 } from './content-frame.js';
 import { CurrencyDisplay } from './currency-display.js';
 import { PlayerResourceFrame } from './player-resource-frame.js';
@@ -1394,7 +1393,11 @@ export class OverworldUi {
 
   /** Central client registers this stable root once; no DOM listeners or RAF. */
   enableRetainedInventory(art: UiKitArt): UiRoot {
-    if (this.retainedMenus) return this.retainedMenus.root;
+    const menus = this.createRetainedInventory(); menus.setArt(art); return menus.root;
+  }
+
+  private createRetainedInventory(): InventoryMenus {
+    if (this.retainedMenus) return this.retainedMenus;
     this.retainedArtwork = new Proxy(this.itemArt, { get: (assets, key) => typeof key === 'string'
       ? overworldItemArtwork(assets, key, this.model.contentRegistry) : Reflect.get(assets, key) });
     const authority: InventoryMenuAuthority = {
@@ -1418,9 +1421,9 @@ export class OverworldUi {
       contentRegistry: () => this.model.contentRegistry,
       artwork: () => this.retainedArtwork!,
     };
-    this.retainedMenus = new InventoryMenus(art, authority);
+    this.retainedMenus = new InventoryMenus(undefined, authority);
     this.syncRetainedInventory();
-    return this.retainedMenus.root;
+    return this.retainedMenus;
   }
 
   disposeRetainedInventory(): void { this.retainedMenus?.dispose(); this.retainedMenus = null; }
@@ -1556,7 +1559,7 @@ export class OverworldUi {
           ingredients: entry.ingredients.map(ingredient => ({ ...ingredient, name: this.itemDefinition(ingredient.itemKind)?.displayName ?? ingredient.itemKind })) })),
         selected: this.selectedCraftingRecipeId, pattern: (pattern ?? []).map(stack => stack?.itemKind ?? null),
         output: this.recipeOutput(recipeId ?? ''),
-        requirement: this.currentRecipeLocked() ? this.recipeSkillRequirement(recipeId ?? '') ?? 'RECIPE REQUIREMENTS NOT MET' : undefined,
+        requirement: this.currentRecipeLocked() ? this.craftResultRequirement() ?? 'RECIPE REQUIREMENTS NOT MET' : undefined,
       } } : {}),
     });
   }
@@ -2290,6 +2293,9 @@ export class OverworldUi {
       this.updatePromptNode,
     );
     this.router = new UiInputRouter(this.root);
+    // Every inventory window is the kit's (BUG-067, item slot S9): the retained inventory exists from the start; the
+    // host hands it the kit art when it has loaded (enableRetainedInventory).
+    this.createRetainedInventory();
   }
 
   openFerry(source:HearthFerryDock):void {this.ferryMenu.open(source);this.openWindow='ferry';}
@@ -2568,14 +2574,6 @@ export class OverworldUi {
       || (this.itemDefinition(slot.item.itemKind)?.displayName.toLowerCase().includes(query) ?? false);
   }
 
-  private chestPaneSlots(pane: ContentFramePaneLayout): readonly ItemSlot[] {
-    const backpack = this.filteredInventoryBackpackSlots();
-    return pane.slots.flatMap((binding) => {
-      const collection = binding.containerId === 'chest' ? this.chestItemSlots : backpack;
-      const slot = collection.find((candidate) => candidate.index === binding.index);
-      return slot !== undefined && this.inventorySlotMatchesSearch(slot) ? [slot] : [];
-    });
-  }
 
   private filteredInventoryBackpackSlots(): ItemSlot[] {
     const capacity = modelBackpackCapacity(this.model);
@@ -3470,7 +3468,6 @@ export class OverworldUi {
     if (frame === null) return;
     const state = this.activeContentFrameState();
     const craftingSurface = frame.definition.presentation?.surface === 'crafting';
-    const chestSurface = chestInventorySearchRect(frame) !== null;
     const craftingBackpack = craftingSurface ? this.filteredInventoryBackpackSlots() : [];
     const entitySlots = frame.definition.presentation?.entityContainer === 'chest'
       ? this.chestItemSlots : this.placeableItemSlots;
@@ -3485,13 +3482,8 @@ export class OverworldUi {
     };
     for (const pane of frame.panes) {
       if (!contentFramePaneVisible(pane.definition, state)) continue;
-      const chestSlots = chestSurface
-        && pane.slots.every((binding) => binding.containerId === 'chest' || binding.containerId === 'backpack')
-        ? this.chestPaneSlots(pane) : null;
       pane.slots.forEach((binding, visualIndex) => {
-        const slot = chestSlots === null
-          ? collections[binding.containerId]?.find((candidate) => candidate.index === binding.index)
-          : chestSlots[visualIndex];
+        const slot = collections[binding.containerId]?.find((candidate) => candidate.index === binding.index);
         if (slot === undefined) return;
         // Crafting's recipe list, grid, and result share one composed layout.
         // Keep its retained draw/hit nodes on that same grid while authored
@@ -3504,9 +3496,7 @@ export class OverworldUi {
         if (rect === undefined) return;
         slot.setBounds(rect);
         // The authority's rules only (BUG-050): equipment rules on equipment, none on other self panes.
-        const bound = chestSlots === null ? binding
-          : pane.slots.find((candidate) => candidate.containerId === slot.containerId && candidate.index === slot.index);
-        slot.setRestriction(bound === undefined ? undefined : frameSlotAuthorityRestriction(pane.definition, bound));
+        slot.setRestriction(frameSlotAuthorityRestriction(pane.definition, binding));
         slot.visible = true;
       });
     }
@@ -4030,14 +4020,8 @@ export class OverworldUi {
       }
       if (contentFrame.storage.hotbar !== undefined) this.drawWindowHotbar(context, rect, contentFrame.storage);
     }
-    else if (window === 'inventory' || window === 'pack') this.drawInventory(context, rect);
-    else if (window === 'crafting') this.drawCrafting(context, rect);
-    else if (window === 'chest') this.drawChest(context, rect);
-    else if (window === 'barrel') this.drawBarrel(context, rect);
-    else if (window === 'furnace') this.drawFurnace(context, rect);
-    else if (window === 'cooking') this.drawCooking(context, rect);
-    else if (window === 'press') this.drawFruitPress(context, rect);
-    else if (window === 'fermentation') this.drawFermentation(context, rect);
+    // Inventory windows are the kit's (BUG-067, item slot S9); the host never draws the player's inventory.
+    else if (this.isInventoryWindow(window)) return;
     else if(window==='outdoor-rewards')this.outdoorRewards.draw(context,rect);
     else if(window==='ferry')this.ferryMenu.draw(context,rect);
     else if (window === 'delve-confirmation') this.drawDelveConfirmation(context, rect);
@@ -4081,52 +4065,6 @@ export class OverworldUi {
     });
   }
 
-  private drawInventory(context: CanvasRenderingContext2D, rect: UiRect): void {
-    drawLabel(context, this.fonts, 'EQUIPMENT', rect.x + 21, rect.y + 35, { color: '#6b4428' });
-    this.drawInventorySearch(context, this.layout.inventoryFilter);
-    this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
-    this.equipmentItemSlots.forEach((slot, visualIndex) => {
-      const equipmentSlot = slot.bounds;
-      const definition = EQUIPMENT_SLOTS[visualIndex]!;
-      const locked = false;
-      drawUiInventorySlotBacking(context, this.skin, equipmentSlot, slot.item?.itemKind, locked);
-      if (slot.item === null) {
-        context.save();
-        if (locked) context.globalAlpha *= 0.42;
-        drawUiSkinNatural(
-          context,
-          this.skin.equipmentSlotIcons,
-          equipmentSlot.x + Math.round((equipmentSlot.width - 16) / 2),
-          equipmentSlot.y + Math.round((equipmentSlot.height - 16) / 2) - 1,
-          definition.iconAnimation,
-        );
-        context.restore();
-      } else this.drawInventoryItem(context, equipmentSlot, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-      if (itemSlotRejectsCursor(slot, this.heldCursorStack())) {
-        drawUiSkinAsset(context, this.skin.selectorDeny, uiInventorySelectorRect(slot.bounds), 'idle');
-      }
-    });
-    for (const slot of this.backpackItemSlots) {
-      if (!slot.visible) continue;
-      this.drawItemSlotBacking(context, slot);
-      if (slot.enabled && slot.item !== null) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.inventoryScrollBar.draw(context);
-    context.fillStyle = '#9d6843';
-    context.fillRect(rect.x + 17, rect.y + rect.height - 61, rect.width - 34, 1);
-    drawLabel(context, this.fonts, 'HOTBAR', rect.x + 21, rect.y + rect.height - 59, { color: '#6b4428' });
-    this.inventoryHotbarSlots.forEach((slot, index) => {
-      const slotRect = slot.bounds;
-      const item = slot.item;
-      this.drawItemSlotBacking(context, slot);
-      if (index === this.model.selectedSlot || index === this.hoveredSlot) {
-        const selector = index === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
-        drawUiSkinAsset(context, selector, hotbarReticleRect(slotRect), 'idle');
-      }
-      if (item) this.drawInventoryItem(context, slotRect, item.itemKind, item.quantity, item.durability, item.lit);
-      drawLabel(context, this.fonts, hotbarSlotLabel(index) ?? '', slotRect.x + 3, slotRect.y + 3, { color: '#51351f' });
-    });
-  }
 
   /** The open surface's live, enabled slot for a ref (the retained frame's bindings, or this host's own slots). */
   private itemSlotFor(ref: UiSlotRef): ItemSlot | null {
@@ -4454,250 +4392,10 @@ export class OverworldUi {
     }, { align: 'center', color: '#8c6c54', overflow: 'ellipsis' });
   }
 
-  private drawCooking(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const [input, output] = this.cookingFireItemSlots;
-    drawLabel(context, this.fonts, 'RAW', input!.bounds.x + input!.bounds.width / 2, input!.bounds.y - 12, {
-      align: 'center', color: '#6b4428',
-    });
-    drawLabel(context, this.fonts, 'COOKED', output!.bounds.x + output!.bounds.width / 2, output!.bounds.y - 12, {
-      align: 'center', color: '#6b4428',
-    });
-    this.drawDownChevron(
-      context,
-      input!.bounds.x + input!.bounds.width / 2,
-      input!.bounds.y + input!.bounds.height + 7,
-    );
-    for (const slot of this.cookingFireItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    const progress = Math.max(0, Math.min(1, this.model.cookingFireProgress ?? 0));
-    const status = this.model.cookingFireLit === false
-      ? 'PRESS F TO LIGHT'
-      : this.model.cookingFireRemainingSeconds != null ? 'COOKING' : 'ADD RAW FOOD';
-    this.drawCookingProgress(
-      context,
-      progress,
-      this.model.cookingFireRemainingSeconds,
-      status,
-      this.model.cookingFireLit === false ? '#a5483f' : '#6b4428',
-    );
-    drawLabel(context, this.fonts, 'BACKPACK', this.layout.backpackSlots[0]!.x, rect.y + 35, { color: '#6b4428' });
-    for (const slot of this.backpackItemSlots) {
-      if (!slot.visible) continue;
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.inventoryScrollBar.draw(context);
-    this.drawWindowHotbar(context, rect);
-  }
 
-  private drawFruitPress(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const [input, must, pomace] = this.pressItemSlots;
-    drawLabel(context, this.fonts, 'FRUIT', input!.bounds.x, input!.bounds.y - 12, { color: '#6b4428' });
-    drawLabel(context, this.fonts, 'MUST', must!.bounds.x, must!.bounds.y - 12, { color: '#6b4428' });
-    drawLabel(context, this.fonts, 'POMACE', pomace!.bounds.x, pomace!.bounds.y - 12, { color: '#6b4428' });
-    for (const slot of this.pressItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    const progress = Math.max(0, Math.min(1, this.model.cellarProcessorProgress ?? 0));
-    this.drawProcessorProgress(
-      context,
-      this.layout.pressProgress,
-      progress,
-      this.model.cellarProcessorRemainingSeconds,
-      this.model.cellarProcessorRemainingSeconds != null ? 'PRESSING FRUIT' : 'ADD FRUIT',
-      '#6b4428',
-    );
-    drawLabel(context, this.fonts, 'BACKPACK', this.layout.backpackSlots[0]!.x, rect.y + 35, { color: '#6b4428' });
-    for (const slot of this.backpackItemSlots) {
-      if (!slot.visible) continue;
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.inventoryScrollBar.draw(context);
-    this.drawWindowHotbar(context, rect);
-  }
 
-  private drawFermentation(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const [input, output] = this.fermentationItemSlots;
-    drawLabel(context, this.fonts, '3 MUST', input!.bounds.x + input!.bounds.width / 2, input!.bounds.y - 12, {
-      align: 'center', color: '#6b4428',
-    });
-    drawLabel(context, this.fonts, (this.model.cellarProductLabel ?? 'BOTTLES').toUpperCase(), output!.bounds.x + output!.bounds.width / 2, output!.bounds.y - 12, {
-      align: 'center', color: '#6b4428',
-    });
-    this.drawDownChevron(context, input!.bounds.x + input!.bounds.width / 2, input!.bounds.y + input!.bounds.height + 7);
-    for (const slot of this.fermentationItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    const remaining = this.model.cellarProcessorRemainingSeconds;
-    this.drawCookingProgress(
-      context,
-      Math.max(0, Math.min(1, this.model.cellarProcessorProgress ?? 0)),
-      remaining,
-      remaining != null ? 'FERMENTING' : 'ADD 3 MUST',
-      '#6b4428',
-    );
-    drawLabel(context, this.fonts, 'BACKPACK', this.layout.backpackSlots[0]!.x, rect.y + 35, { color: '#6b4428' });
-    for (const slot of this.backpackItemSlots) {
-      if (!slot.visible) continue;
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.inventoryScrollBar.draw(context);
-    this.drawWindowHotbar(context, rect);
-  }
 
-  private drawCrafting(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const gridLeft = this.layout.craftingSlots[0]!.x;
-    drawUiSkinAsset(context, this.skin.frameThin, this.layout.craftingRecipeFilter);
-    if (this.recipeFilterInput !== null) {
-      drawCanvasTextInput(context, this.fonts, this.recipeFilterInput, {
-        x: this.layout.craftingRecipeFilter.x + 6,
-        y: this.layout.craftingRecipeFilter.y + 5,
-        width: this.layout.craftingRecipeFilter.width - 12,
-        placeholder: 'SEARCH RECIPES',
-        color: '#51351f',
-        placeholderColor: '#986846',
-      });
-    } else drawLabel(context, this.fonts, this.recipeFilterText || 'SEARCH RECIPES',
-      this.layout.craftingRecipeFilter.x + 6, this.layout.craftingRecipeFilter.y + 5, {
-        color: this.recipeFilterText ? '#51351f' : '#986846',
-      });
-    const selectedRecipe = this.selectedCraftingRecipeEntry();
-    const selectedStationLocked = selectedRecipe?.stationAvailable === false;
-    const craftingGridLabel = selectedStationLocked && selectedRecipe.requiredStation !== null
-      ? `NEEDS ${this.craftingStationLabel(selectedRecipe.requiredStation)}`
-      : selectedRecipe?.skillAvailable === false ? 'SKILL REQUIRED' : 'CRAFTING GRID';
-    drawLabel(context, this.fonts, craftingGridLabel, gridLeft, rect.y + 35, {
-      color: selectedStationLocked || selectedRecipe?.skillAvailable === false ? '#a5483f' : '#6b4428',
-    });
-    const previewPattern = this.selectedCraftingRecipeId === null ? null : craftingRecipeStacks(
-      this.selectedCraftingRecipeId,
-      this.model.knownRecipeIds ?? [],
-      this.model.contentRegistry,
-    );
-    this.craftingItemSlots.forEach((slot, index) => {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-      else {
-        const ghost = previewPattern?.[index] ?? null;
-        if (ghost !== null) {
-          context.save();
-          context.globalAlpha *= 0.42;
-          context.filter = 'grayscale(35%)';
-          this.drawInventoryItem(context, slot.bounds, ghost.itemKind, ghost.quantity);
-          context.restore();
-        }
-      }
-    });
-    const gridRight = Math.max(...this.layout.craftingSlots.map((slot) => slot.x + slot.width));
-    drawLabel(context, this.fonts, '>', (gridRight + this.layout.craftingResult.x) / 2, this.layout.craftingResult.y + 6, {
-      align: 'center', color: '#6b4428', font: 'header',
-    });
-    const stationLocked = this.currentRecipeLocked();
-    const output = this.recipeOutput(this.currentRecipeId() ?? '');
-    drawUiInventorySlotBacking(
-      context,
-      this.skin,
-      this.layout.craftingResult,
-      output?.itemKind,
-      this.currentRecipeId() === null || stationLocked,
-    );
-    if (output) this.drawInventoryItem(context, this.layout.craftingResult, output.itemKind, output.quantity);
-    if (stationLocked) {
-      context.fillStyle = 'rgba(47, 34, 39, 0.72)';
-      context.fillRect(this.layout.craftingResult.x + 3, this.layout.craftingResult.y + 3, this.layout.craftingResult.width - 6, this.layout.craftingResult.height - 6);
-      drawLabel(context, this.fonts, 'LOCK', this.layout.craftingResult.x + this.layout.craftingResult.width / 2, this.layout.craftingResult.y + 12, { align: 'center', color: '#f7dca0' });
-    }
-    drawLabel(context, this.fonts, output ? 'TAKE' : 'RECIPE',
-      this.layout.craftingResult.x + this.layout.craftingResult.width / 2,
-      this.layout.craftingResult.y + this.layout.craftingResult.height + 8,
-      { align: 'center', color: '#6b4428' });
-    const entries = this.recipeBookEntries();
-    if (entries.length === 0) {
-      const firstRow = this.layout.craftingRecipeRows[0];
-      if (firstRow !== undefined) {
-        drawLabel(context, this.fonts, this.recipeFilterText ? 'NO MATCHING RECIPES' : 'READ RECIPE BOOKS', firstRow.x + firstRow.width / 2, firstRow.y + 4, {
-          align: 'center', color: '#8e8177',
-        });
-        drawLabel(context, this.fonts, this.recipeFilterText ? 'CLEAR THE SEARCH' : 'TO REVEAL PATTERNS', firstRow.x + firstRow.width / 2, firstRow.y + 16, {
-          align: 'center', color: '#8e8177',
-        });
-      }
-    }
-    this.layout.craftingRecipeRows.forEach((row, index) => {
-      const entry = entries[this.craftingRecipeScrollBar.position + index];
-      if (entry === undefined) return;
-      const selected = entry.recipeId === this.selectedCraftingRecipeId;
-      const stationLocked = !entry.stationAvailable || !entry.skillAvailable;
-      context.fillStyle = selected
-        ? 'rgba(245, 203, 91, 0.62)'
-        : stationLocked ? 'rgba(126, 61, 54, 0.32)'
-          : entry.missingIngredients ? 'rgba(104, 82, 71, 0.25)' : 'rgba(239, 213, 163, 0.5)';
-      context.fillRect(row.x, row.y, row.width, row.height);
-      if (selected) {
-        context.strokeStyle = '#8a5a22';
-        context.lineWidth = 1;
-        context.strokeRect(row.x + 0.5, row.y + 0.5, row.width - 1, row.height - 1);
-      }
-      const name = this.itemDefinition(entry.outputKind)?.displayName ?? entry.outputKind;
-      const stationCode = entry.requiredStation !== null
-        ? this.craftingStationCode(entry.requiredStation, row.width < 72)
-        : null;
-      const reservedWidth = stationCode === null ? 0 : measurePixelText(stationCode) + 5;
-      const maximumCharacters = Math.max(2, Math.floor((row.width - 6 - reservedWidth) / 6));
-      drawLabel(context, this.fonts, fitLabel(`${entry.outputQuantity} ${name.toUpperCase()}`, maximumCharacters), row.x + 3, row.y + 4, {
-        color: stationLocked ? '#9a5147' : entry.missingIngredients ? '#8e8177' : '#5f3b24',
-      });
-      if (stationCode !== null) drawLabel(context, this.fonts, stationCode, row.x + row.width - 3, row.y + 4, {
-        align: 'right', color: stationLocked ? '#a5483f' : '#6b4428',
-      });
-    });
-    this.craftingRecipeScrollBar.draw(context);
-    drawUiSkinAsset(context, this.skin.frameThin, this.layout.craftingInventoryFilter);
-    if (this.inventoryFilterInput !== null) {
-      drawCanvasTextInput(context, this.fonts, this.inventoryFilterInput, {
-        x: this.layout.craftingInventoryFilter.x + 6,
-        y: this.layout.craftingInventoryFilter.y + 5,
-        width: this.layout.craftingInventoryFilter.width - 12,
-        placeholder: this.model.hasBackpack ? 'SEARCH BACKPACK' : 'SEARCH INVENTORY',
-        color: '#51351f',
-        placeholderColor: '#986846',
-      });
-    } else drawLabel(context, this.fonts, this.inventoryFilterText || 'SEARCH ITEMS',
-      this.layout.craftingInventoryFilter.x + 6, this.layout.craftingInventoryFilter.y + 5, {
-        color: this.inventoryFilterText ? '#51351f' : '#986846',
-      });
-    this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
-    for (const slot of this.backpackItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.drawWindowHotbar(context, rect);
-  }
 
-  private drawChest(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const chestPane = this.layout.chestStorageFrame.panes.find((pane) => pane.id === 'chest')!;
-    const backpackPane = this.layout.chestStorageFrame.panes.find((pane) => pane.id === 'backpack')!;
-    drawLabel(context, this.fonts, chestPane.label, chestPane.labelPosition.x, chestPane.labelPosition.y, { color: '#6b4428' });
-    this.drawStorageSortButton(context, this.chestSortNode, 'chest');
-    for (const slot of this.chestItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK' : backpackPane.label,
-      backpackPane.labelPosition.x, backpackPane.labelPosition.y, { color: '#6b4428' });
-    this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
-    for (const slot of this.backpackItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.drawWindowHotbar(context, rect, this.layout.chestStorageFrame);
-  }
 
   private drawWindowHotbar(context: CanvasRenderingContext2D, rect: UiRect, storageFrame?: StorageFrameLayout): void {
     storageFrame ??= this.activeContentFrame()?.storage;
@@ -4749,11 +4447,6 @@ export class OverworldUi {
     return overworldItemDefinition(itemKind, this.model.contentRegistry);
   }
 
-  private durabilityDefinition(itemKind: string) {
-    return runtimeDurabilityDefinition(
-      this.model.contentRegistry ?? bootstrapContentRegistry(), itemKind,
-    );
-  }
 
   private maxStackFor(itemKind: string): number {
     return overworldItemMaxStack(itemKind, this.model.contentRegistry);
@@ -4783,6 +4476,14 @@ export class OverworldUi {
       && !(this.model.knownRecipeIds??[]).includes(id);
   }
 
+  /** Why the crafting result can't be taken: an unlearned recipe, a station out of reach or a missing skill rank. */
+  private craftResultRequirement(): string | null {
+    if (this.currentRecipeKnowledgeMissing()) return 'LEARN THIS RECIPE FIRST';
+    const station = this.recipeDefinition(this.currentRecipeId() ?? '')?.station;
+    if (station !== undefined && !(this.model.nearbyCraftingStations ?? []).includes(station)) return this.craftingStationRequirement(station);
+    return this.recipeSkillRequirement(this.currentRecipeId() ?? '');
+  }
+
   private currentRecipeLocked(): boolean {
     const recipe = this.recipeDefinition(this.currentRecipeId() ?? '');
     return this.currentRecipeKnowledgeMissing() || (recipe?.station !== undefined
@@ -4804,19 +4505,11 @@ export class OverworldUi {
     return `REQUIRES ${name.toUpperCase()} RANK ${requirement.minimumRank}`;
   }
 
-  private selectedCraftingRecipeEntry() {
-    if (this.selectedCraftingRecipeId === null) return null;
-    return this.recipeBookEntries().find((entry) => entry.recipeId === this.selectedCraftingRecipeId) ?? null;
-  }
 
   private craftingStationLabel(station: CraftingStation): string {
     return station.replaceAll('_', ' ').toUpperCase();
   }
 
-  private craftingStationCode(station: CraftingStation, compact: boolean): string {
-    if (compact) return ({ workbench: 'W', furnace: 'F', anvil: 'A', campfire: 'C' })[station];
-    return ({ workbench: 'WB', furnace: 'FUR', anvil: 'ANV', campfire: 'FIRE' })[station];
-  }
 
   private craftingStationRequirement(station: CraftingStation): string {
     return `REQUIRES A ${this.craftingStationLabel(station)} WITHIN 2 TILES`;
@@ -5119,156 +4812,11 @@ export class OverworldUi {
   /** Counts inventory window openings and closings, so late refusals can tell whether their window is still open. */
   private slotSession = 0;
 
-  private drawBarrel(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const firstSlot = this.barrelItemSlots[0]!.bounds;
-    drawLabel(context, this.fonts, '8-SLOT STORAGE', firstSlot.x, rect.y + 35, { color: '#6b4428' });
-    this.drawStorageSortButton(context, this.barrelSortNode, 'placeable');
-    for (const slot of this.barrelItemSlots) {
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    const progress = Math.max(0, Math.min(1, this.model.barrelProgress ?? 0));
-    const sealButton = this.activeContentFrame()?.buttons
-      .find(({ definition }) => definition.interaction === 'seal')?.rect ?? barrelSealButtonRect(rect);
-    drawUiSkinAsset(context, this.skin.button, sealButton, this.model.barrelSealed ? 'disabled' : 'idle');
-    drawLabel(context, this.fonts, this.model.barrelSealed
-      ? `CURING ${Math.floor(progress * 100)}%`
-      : '[S] SEAL 4-24 MATCHING CROPS', sealButton.x + sealButton.width / 2, sealButton.y + 6, {
-      align: 'center', color: '#6b4428',
-    });
-    this.drawWindowHotbar(context, rect);
-  }
 
-  private drawFurnace(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const labels = ['ORE', 'FUEL', 'BAR'] as const;
-    for (const [index, slot] of this.furnaceItemSlots.entries()) {
-      drawPixelTextInRect(context, this.fonts, labels[index]!, {
-        x: slot.bounds.x - 5,
-        y: slot.bounds.y - 13,
-        width: slot.bounds.width + 10,
-        height: 10,
-      }, { align: 'center', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    const inputRight = this.furnaceItemSlots[0]!.bounds.x + this.furnaceItemSlots[0]!.bounds.width;
-    const outputLeft = this.furnaceItemSlots[2]!.bounds.x;
-    drawLabel(context, this.fonts, '>', (inputRight + outputLeft) / 2,
-      this.furnaceItemSlots[2]!.bounds.y + 7, { align: 'center', color: '#6b4428', font: 'header' });
-    const progress = Math.max(0, Math.min(1, this.model.furnaceProgress ?? 0));
-    this.drawVerticalProcessorProgress(
-      context,
-      this.layout.furnaceProgress,
-      this.layout.furnaceTimer,
-      this.layout.furnaceStatus,
-      progress,
-      this.model.furnaceRemainingSeconds,
-      this.model.furnaceRemainingSeconds != null ? 'SMELTING' : 'ADD INPUTS',
-      '#6b4428',
-    );
-    drawLabel(context, this.fonts, 'BACKPACK', this.layout.backpackSlots[0]!.x, rect.y + 35, { color: '#6b4428' });
-    for (const slot of this.backpackItemSlots) {
-      if (!slot.visible) continue;
-      this.drawItemSlotBacking(context, slot);
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
-    }
-    this.inventoryScrollBar.draw(context);
-    this.drawWindowHotbar(context, rect);
-  }
 
-  private drawProcessorProgress(
-    context: CanvasRenderingContext2D,
-    rect: UiRect,
-    progress: number,
-    remainingSeconds: number | null | undefined,
-    status: string,
-    statusColor: string,
-  ): void {
-    const active = remainingSeconds !== null && remainingSeconds !== undefined;
-    const track = {
-      x: rect.x,
-      y: rect.y + Math.round((rect.height - 6) / 2),
-      width: rect.width,
-      height: 6,
-    };
-    drawUiSkinAsset(context, this.skin.sliderTrack, track, 'base', 2);
-    if (active) {
-      const fillWidth = Math.max(1, Math.round((track.width - 2) * Math.max(0, Math.min(1, progress))));
-      drawUiSkinAsset(context, this.skin.sliderFill, {
-        x: track.x + 1,
-        y: track.y + 1,
-        width: fillWidth,
-        height: 4,
-      }, 'base', 2);
-    }
-    const statusWithTimer = active ? `${status} ${processorCountdownLabel(remainingSeconds)}` : status;
-    drawPixelTextInRect(context, this.fonts, statusWithTimer, this.layout.processorStatus, {
-      align: 'center', verticalAlign: 'center', color: statusColor, overflow: 'ellipsis',
-    });
-  }
 
-  private drawCookingProgress(
-    context: CanvasRenderingContext2D,
-    progress: number,
-    remainingSeconds: number | null | undefined,
-    status: string,
-    statusColor: string,
-  ): void {
-    this.drawVerticalProcessorProgress(
-      context,
-      this.layout.cookingProgress,
-      this.layout.cookingTimer,
-      this.layout.processorStatus,
-      progress,
-      remainingSeconds,
-      status,
-      statusColor,
-    );
-  }
 
-  private drawVerticalProcessorProgress(
-    context: CanvasRenderingContext2D,
-    track: UiRect,
-    timer: UiRect,
-    statusRect: UiRect,
-    progress: number,
-    remainingSeconds: number | null | undefined,
-    status: string,
-    statusColor: string,
-  ): void {
-    const active = remainingSeconds !== null && remainingSeconds !== undefined;
-    drawUiSkinAsset(context, this.skin.sliderTrackVertical, track, 'base', 2);
-    if (active) {
-      const fillHeight = Math.max(1, Math.round(track.height * Math.max(0, Math.min(1, progress))));
-      context.save();
-      context.beginPath();
-      context.rect(track.x, track.y + track.height - fillHeight, track.width, fillHeight);
-      context.clip();
-      drawUiSkinAsset(context, this.skin.sliderFillVertical, track, 'base', 2);
-      context.restore();
-    }
-    drawPixelTextInRect(
-      context,
-      this.fonts,
-      active ? processorCountdownLabel(remainingSeconds) : '--:--',
-      timer,
-      { align: 'center', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' },
-    );
-    drawPixelTextInRect(context, this.fonts, status, statusRect, {
-      align: 'center', verticalAlign: 'center', color: statusColor, overflow: 'ellipsis',
-    });
-  }
 
-  private drawDownChevron(context: CanvasRenderingContext2D, centerX: number, top: number): void {
-    context.save();
-    context.fillStyle = '#6b4428';
-    context.fillRect(Math.round(centerX) - 4, top, 2, 2);
-    context.fillRect(Math.round(centerX) + 3, top, 2, 2);
-    context.fillRect(Math.round(centerX) - 2, top + 2, 2, 2);
-    context.fillRect(Math.round(centerX) + 1, top + 2, 2, 2);
-    context.fillRect(Math.round(centerX), top + 4, 1, 2);
-    context.restore();
-  }
 
   private drawStorageSortButton(
     context: CanvasRenderingContext2D,
