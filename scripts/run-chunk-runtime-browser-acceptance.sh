@@ -28,6 +28,10 @@ set -euo pipefail
 #                        which needs S4G_ACTIVATION_RELEASE equal to the committed
 #                        CHUNK_RUNTIME_ACTIVATION_RELEASE (S5c G5a)
 #   S4G_ACTIVATION_RELEASE  the activation release id for a client-production on build
+#   S4G_LEGACY_DIST      an existing client dist to serve as the baseline ("legacy") build instead of
+#                        building one (static world S6: the previous release's client; the S6 client has
+#                        no whole-map path, so an `off` build of it only shows "world updating")
+#   S4G_KEEP_DISTS       a directory to copy both built dists into (for a later S4G_LEGACY_DIST run)
 # Extra arguments pass through to the driver (for example --limit 12).
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -154,6 +158,12 @@ client_env() { # label out_dir port chunk_mode authority
 }
 for build in "legacy ${legacy_port} off" "on ${on_port} on"; do
   read -r label port mode <<<"${build}"
+  if [[ "${label}" == legacy && -n "${S4G_LEGACY_DIST:-}" ]]; then
+    [[ -f "${S4G_LEGACY_DIST}/index.html" && -f "${S4G_LEGACY_DIST}/chunk-runtime-audit.json" ]] || { echo "s4g_legacy_dist_invalid" >&2; exit 64; }
+    cp -a "${S4G_LEGACY_DIST}" "${work_dir}/dist-legacy"
+    echo "baseline: ${S4G_LEGACY_DIST} ($(jq -c . "${work_dir}/dist-legacy/chunk-runtime-audit.json"))" >"${work_dir}/build-legacy.log"
+    continue
+  fi
   authority=""; [[ "${mode}" == "on" ]] && authority="on"
   build_mode=chunk-runtime-preview; expected_release=""
   if [[ "${label}" == on && "${on_build_mode}" == client-production ]]; then build_mode=client-production; expected_release="${activation_release}"; fi
@@ -172,6 +182,9 @@ for build in "legacy ${legacy_port} off" "on ${on_port} on"; do
       >"${work_dir}/release-check.log" 2>&1 || { echo "s4g_client_production_release_check_failed" >&2; tail -40 "${work_dir}/release-check.log" >&2; exit 1; }
   fi
 done
+if [[ -n "${S4G_KEEP_DISTS:-}" ]]; then
+  mkdir -p "${S4G_KEEP_DISTS}" && cp -a "${work_dir}/dist-legacy" "${work_dir}/dist-on" "${S4G_KEEP_DISTS}/"
+fi
 for build in "legacy ${legacy_port} off" "on ${on_port} on"; do
   read -r label port mode <<<"${build}"
   authority=""; [[ "${mode}" == "on" ]] && authority="on"

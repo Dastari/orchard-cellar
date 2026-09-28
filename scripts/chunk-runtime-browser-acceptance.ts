@@ -651,7 +651,20 @@ async function present(page: Page, entitiesHidden: boolean, camera: { cameraX: n
 
 const NEIGHBOURS: readonly (readonly [number, number])[] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
 
-interface Session { readonly label: 'legacy' | 'on'; readonly browser: Browser; readonly page: Page; readonly cdp: CdpSession; identity: string }
+/** Bytes a page downloaded, by kind (CDP encoded lengths; WebSocket frames decoded). */
+export interface LoadBytes { script: number; atlas: number; world: number; websocket: number; other: number; requests: number }
+
+/** The byte category of a request path. */
+export function loadCategory(path: string): keyof Omit<LoadBytes, 'websocket' | 'requests'> {
+  if (/^\/world\//u.test(path)) return 'world';
+  if (/^\/generated\//u.test(path)) return 'atlas';
+  if (/^\/assets\/.*\.(?:js|css)$/u.test(path)) return 'script';
+  return 'other';
+}
+
+interface Session { readonly label: 'legacy' | 'on'; readonly browser: Browser; readonly page: Page; readonly cdp: CdpSession; identity: string;
+  /** Everything downloaded since the session opened (a cold profile). */
+  readonly load: LoadBytes }
 
 export async function openSession(chromium: any, options: AcceptanceOptions, label: 'legacy' | 'on', url: string, slot: string,
   extra: { serviceWorkers?: 'allow' | 'block'; delayWorldMs?: number; seam?: 'on' } = {}): Promise<Session> {
@@ -666,8 +679,23 @@ export async function openSession(chromium: any, options: AcceptanceOptions, lab
   const page = await context.newPage();
   page.on('pageerror', (error: Error) => console.error(`[s4g:${label}] pageerror ${error.message}`));
   const cdp = await context.newCDPSession(page);
+  const load: LoadBytes = { script: 0, atlas: 0, world: 0, websocket: 0, other: 0, requests: 0 };
+  const paths = new Map<string, string>();
+  await cdp.send('Network.enable');
+  cdp.on('Network.requestWillBeSent', (event: { requestId: string; request: { url: string } }) => {
+    try { paths.set(event.requestId, new URL(event.request.url).pathname); } catch { /* data: URLs */ }
+  });
+  cdp.on('Network.loadingFinished', (event: { requestId: string; encodedDataLength: number }) => {
+    const path = paths.get(event.requestId);
+    if (path === undefined) return;
+    load[loadCategory(path)] += event.encodedDataLength; load.requests += 1;
+  });
+  cdp.on('Network.webSocketFrameReceived', (event: { response: { opcode: number; payloadData: string } }) => {
+    const data = event.response.payloadData;
+    load.websocket += event.response.opcode === 2 ? Math.floor(data.length * 3 / 4) : data.length;
+  });
   await page.goto(`${url}/?slot=${slot}`, { waitUntil: 'domcontentloaded' });
-  return { label, browser, page, cdp, identity: '' };
+  return { label, browser, page, cdp, identity: '', load };
 }
 
 async function awaitPlaying(session: Session, timeoutMs = 180_000): Promise<PageProbe> {
@@ -837,6 +865,8 @@ export interface DrillPhase {
   /** Milliseconds from the switch (or the reload) until the page showed the expected mode. */
   readonly followMs: number | null;
   readonly worldRequests: number;
+  /** Static world S6: the page showed "world updating" (no whole-map fallback) instead of the legacy path. */
+  readonly worldUpdating?: boolean;
   readonly terrain: PixelDiff | null;
   readonly noise: PixelDiff | null;
   readonly failures: readonly string[];
@@ -853,8 +883,13 @@ export function drillPhaseFailures(phase: Omit<DrillPhase, 'failures'>, maxDiffR
   if (!expectOn && (phase.servingStore || (phase.effectiveMode !== null && phase.effectiveMode !== 'off'))) {
     failures.push(`${phase.phase}: still on the chunk runtime (mode ${phase.effectiveMode})`);
   }
-  if (phase.phase === 'previous-build' && phase.buildMode !== 'off') failures.push(`previous-build: served build mode ${String(phase.buildMode)}`);
+  // The previous build is any build that draws without chunks once the server is off: a legacy `off`
+  // build, or (static world S6) the previous release's `on` client, which then falls back to its map.
   if (phase.phase !== 'previous-build' && phase.buildMode === 'off') failures.push(`${phase.phase}: served build mode off`);
+  // Static world S6: with the server off, the S6 client shows "world updating" (there is no whole map to
+  // fall back to), so its frame is not compared with the legacy page; the previous build then serves.
+  if (phase.phase === 'server-off' && phase.worldUpdating === true) return failures;
+  if (phase.phase === 'previous-build' && phase.worldUpdating === true) failures.push('previous-build: the previous client shows "world updating"');
   const allowance = Math.max(maxDiffRatio, 1.5 * (phase.noise?.ratio ?? 0));
   if (phase.terrain === null) failures.push(`${phase.phase}: no frame comparison`);
   else if (phase.terrain.ratio > allowance) failures.push(`${phase.phase}: frames differ on ${(phase.terrain.ratio * 100).toFixed(3)}% of pixels`);
@@ -879,6 +914,7 @@ interface Evidence {
   spawnPrefetch?: Record<string, unknown>;
   invalidation?: Record<string, unknown>;
   rollbackDrill?: Record<string, unknown>;
+  coldLoad?: Record<string, unknown>;
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
@@ -955,7 +991,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         const after = await probe(drill.page);
         const record = { phase: name, buildMode: (await preview.audit())['mode'], effectiveMode: after?.runtime?.mode ?? null,
           servingStore: after?.store !== null && after?.store !== undefined, collisionFallback: after?.collision?.fallbackReason ?? null,
-          followMs, worldRequests, terrain: best!.diff, noise };
+          followMs, worldRequests, terrain: best!.diff, noise, worldUpdating: after?.readiness?.reason === 'world_updating' };
         const failures = drillPhaseFailures(record, options.maxDiffRatio);
         phases.push({ ...record, failures });
         for (const failure of failures) fail(`rollback drill ${failure}`);
@@ -1026,6 +1062,19 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     legacySession = legacy;
     await Promise.all([awaitPlaying(legacy), awaitPlaying(on)]);
     log(`players: legacy ${legacy.identity.slice(0, 12)}…, on ${on.identity.slice(0, 12)}…`);
+    // Cold load: bytes each fresh profile downloaded until it plays and its spawn ring is resident,
+    // with the heap after a forced GC at that moment (static world S6 and atlas-pack measurements).
+    {
+      const coldLoad: Record<string, unknown> = {};
+      for (const session of [legacy, on]) {
+        const at = await probe(session.page);
+        if (at?.position) await awaitReadyAt(session, at.position, session.label === 'on').catch(() => null);
+        await sleep(1_500);
+        coldLoad[session.label] = { bytes: { ...session.load }, memory: await memory(session.cdp) };
+      }
+      evidence.coldLoad = coldLoad;
+      log(`cold load: ${JSON.stringify(coldLoad)}`);
+    }
     // BUG-053: with the seam as on main (no authority), the `on` build only ever runs `shadow`,
     // even though the world's chunkAuthority is `on`. Record that, then connect the hook.
     const unconnected = await waitForAsync('on_build_settles_unconnected', async () => {
@@ -1210,8 +1259,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         // chunks, collision included (the server does the same), never a legacy fallback.
         const stale = await waitForAsync('client_reports_map_lag', async () => {
           const value = await probe(on.page);
-          return value?.runtime?.staleReasons.includes('map') === true && value.collision?.fallbackReason === null
-            ? { staleReasons: value.runtime.staleReasons, gate: (value.store as { gate?: unknown } | null)?.gate ?? null, collision: value.collision.fallbackReason } : null;
+          const lagging = value?.runtime?.staleReasons.includes('map') === true
+            || (value?.collision?.fallbackReason === null && value.runtime?.servingRevision !== null);
+          return lagging && value?.collision?.fallbackReason === null
+            ? { staleReasons: value.runtime?.staleReasons ?? [], collision: value.collision.fallbackReason } : null;
         }, 30_000).catch(() => null);
         const swapsBefore = (await probe(on.page))?.runtime?.swaps ?? 0;
         evidence.pipeline.push(await runPipeline(options, `edit-${index}`));
@@ -1231,7 +1282,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
           servingRevision: swapped?.servingRevision ?? null, editedHashChanged: revisions.at(-1)!.editedHash !== revisions.at(-2)!.editedHash,
           idbEntries: entries.length, idbHasNewHash: hashes.has(revisions.at(-1)!.editedHash), idbHasPreviousHash: hashes.has(revisions.at(-2)!.editedHash),
           idbHasRevisionOneHash: hashes.has(revisions[0]!.editedHash), idbEntriesOutsideCurrentAndPrevious: outside });
-        if (stale === null) fail(`invalidation edit ${index}: the on client never reported the map lag while serving its pinned chunks`);
+        if (stale === null) fail(`invalidation edit ${index}: the on client stopped serving its pinned chunks while the map lagged`);
         if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision} and serve chunk collision again`);
         if (!hashes.has(revisions.at(-1)!.editedHash)) fail(`invalidation edit ${index}: the new chunk blob is not in IndexedDB`);
         if (outside > 0) fail(`invalidation edit ${index}: ${outside} IndexedDB entr(ies) outside the current and previous manifests`);
