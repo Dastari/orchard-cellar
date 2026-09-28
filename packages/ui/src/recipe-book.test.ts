@@ -30,7 +30,7 @@ describe('crafting recipe list', () => {
     expect(built.report.valid).toBe(true);
     const inventory = [{ slot: 0, itemKind: 'wood', quantity: 10 }];
     const entry = (ranks: Readonly<Record<string, number>>) =>
-      craftingRecipeBookEntries([], inventory, ['planks'], built.registry, ranks)[0];
+      craftingRecipeBookEntries([], inventory, BASE_BACKPACK_CAPACITY, ['planks'], built.registry, ranks)[0];
     expect(entry({})).toMatchObject({ recipeId: 'planks', stationAvailable: true, skillAvailable: false });
     expect(entry({ unrelated: 5 })).toMatchObject({ skillAvailable: false });
     expect(entry({ greenhouse_charter: 1 })).toMatchObject({ skillAvailable: false });
@@ -51,7 +51,7 @@ describe('crafting recipe list', () => {
     expect(craftingRecipePattern('planks', ['planks'], registry)).toEqual([
       'stone', null, null, null, null, null, null, null, null,
     ]);
-    expect(craftingRecipeBookEntries([], [{ slot: 0, itemKind: 'stone', quantity: 1 }], ['planks'], registry))
+    expect(craftingRecipeBookEntries([], [{ slot: 0, itemKind: 'stone', quantity: 1 }], BASE_BACKPACK_CAPACITY, ['planks'], registry))
       .toContainEqual(expect.objectContaining({ recipeId: 'planks', outputQuantity: 7, missingIngredients: false }));
   });
 
@@ -62,7 +62,7 @@ describe('crafting recipe list', () => {
     const retired = buildContentRegistry(rows).registry;
     expect(retired.compiled.recipes.planks).toBeDefined();
     expect(craftingRecipeStacks('planks', ['planks'], retired)).toBeNull();
-    expect(craftingRecipeBookEntries([], [{ slot: 0, itemKind: 'wood', quantity: 99 }],
+    expect(craftingRecipeBookEntries([], [{ slot: 0, itemKind: 'wood', quantity: 99 }], BASE_BACKPACK_CAPACITY,
       ['planks'], retired)).toEqual([]);
     expect(ghostFillRecipeMoves('planks', [{ slot: 0, itemKind: 'wood', quantity: 99 }],
       BASE_BACKPACK_CAPACITY, ['planks'], retired)).toBeNull();
@@ -71,7 +71,7 @@ describe('crafting recipe list', () => {
   it('keeps station recipes visible, marks their requirement, and unlocks them beside a workbench', () => {
     const inventory = [{ slot: 0, itemKind: 'plank', quantity: 8 }];
     const known = ['workbench', 'chest', 'standing_torch'];
-    const hand = craftingRecipeBookEntries([], inventory, known);
+    const hand = craftingRecipeBookEntries([], inventory, BASE_BACKPACK_CAPACITY, known);
     expect(hand.find((entry) => entry.recipeId === 'chest')).toMatchObject({
       requiredStation: 'workbench',
       stationAvailable: false,
@@ -82,7 +82,7 @@ describe('crafting recipe list', () => {
       requiredStation: null,
       stationAvailable: true,
     });
-    const workbench = craftingRecipeBookEntries(['workbench'], inventory, known);
+    const workbench = craftingRecipeBookEntries(['workbench'], inventory, BASE_BACKPACK_CAPACITY, known);
     expect(workbench.find((entry) => entry.recipeId === 'chest')).toMatchObject({
       stationAvailable: true,
       missingIngredients: false,
@@ -133,7 +133,7 @@ describe('crafting recipe list', () => {
     // Twenty planks sat in backpack cells 12-19 of the 20-cell bag; the player then equipped a 12-cell bag.
     const stranded = Array.from({ length: 8 }, (_, index) => ({ slot: BACKPACK_SLOT_OFFSET + 12 + index, itemKind: 'plank', quantity: 1 }));
     const entry = (rows: typeof stranded, capacity: number) =>
-      craftingRecipeBookEntries([], rows, ['workbench'], undefined, {}, capacity).find(candidate => candidate.recipeId === 'workbench');
+      craftingRecipeBookEntries([], rows, capacity, ['workbench']).find(candidate => candidate.recipeId === 'workbench');
     expect(entry(stranded, 12)).toMatchObject({ missingIngredients: true, ingredients: [{ itemKind: 'plank', need: 4, have: 0 }] });
     expect(ghostFillRecipeMoves('workbench', stranded, 12, ['workbench'])).toEqual([]);
     // The same cells count once the bag opens them, and cell 11 of the 12-cell bag always counts.

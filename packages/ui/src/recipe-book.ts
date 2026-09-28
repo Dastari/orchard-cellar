@@ -2,7 +2,7 @@ import type { ItemStack, CraftingStation, ContentRegistry, MoveItemRequest, Reci
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeRecipeDefinition, runtimeMaxStack } from '@orchard/sim/content/runtime';
 import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
-import { BASE_BACKPACK_CAPACITY, maxStackFor } from '@orchard/sim/item-containers';
+import { maxStackFor } from '@orchard/sim/item-containers';
 import { RECIPES, normalizeShapedRecipe, recipeGridStacks } from '@orchard/sim/recipes';
 
 export interface RecipeBookInventoryRow {
@@ -79,11 +79,12 @@ function ingredientCounts(recipe: RecipeDefinition): Readonly<Record<string, num
 export function craftingRecipeBookEntries(
   stations: readonly CraftingStation[],
   inventory: readonly RecipeBookInventoryRow[],
+  /** The player's accessible backpack capacity, required so no caller silently falls back to the base 8 (BUG-056).
+   * It goes through `accessibleBackpackCapacity`. */
+  backpackCapacity: number,
   knownRecipeIds: readonly string[],
   registry?: ContentRegistry,
   skillRanks: Readonly<Record<string, number>> = {},
-  /** The player's accessible backpack capacity; anything else is passed through `accessibleBackpackCapacity`. */
-  backpackCapacity: number = BASE_BACKPACK_CAPACITY,
 ): readonly RecipeBookEntry[] {
   const available = new Set(stations);
   const known = new Set(knownRecipeIds);

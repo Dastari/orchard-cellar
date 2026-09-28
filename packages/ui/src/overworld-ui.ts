@@ -4811,10 +4811,10 @@ export class OverworldUi {
     const entries = craftingRecipeBookEntries(
       this.model.nearbyCraftingStations ?? [],
       this.model.inventory,
+      modelBackpackCapacity(this.model),
       this.model.knownRecipeIds ?? [],
       this.model.contentRegistry,
       this.recipeSkillRanks(),
-      modelBackpackCapacity(this.model),
     );
     const query = this.recipeFilterText.trim().toLowerCase();
     if (!query) return entries;
