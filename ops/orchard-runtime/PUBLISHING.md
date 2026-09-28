@@ -173,6 +173,14 @@ restart, the lane fetches the served `/chunk-runtime-audit.json`
 (`client-chunk-runtime-audit-served.json`), compares it byte for byte with the staged
 audit, and checks it again.
 
+The guarded full lane (`npm run world:release`, `scripts/world-release.sh`) takes the same
+three inputs, applies the same rules and refusals (its dry run checks them too), and scopes
+both of its client builds the same way. It asserts each build's audit
+(`client-chunk-runtime-audit-candidate.json` and `-final.json`) before
+`client:chunks:check`. After traffic returns, it checks the served audit against the final
+build. The plan and the audits are kept in the `/tmp/orchard-release-client-chunk.*`
+directory, and the lane prints its path when it completes.
+
 Execute from `/home/toby/projects/orchard-cellar`; the routine script intentionally
 rejects another working directory. Do not switch an actively used checkout or
 install another agent's unreviewed changes. Run the required checks on the exact

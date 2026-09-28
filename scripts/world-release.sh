@@ -103,6 +103,20 @@ fi
   exit 77
 }
 
+# Client chunk runtime (static world S5c, G3/G6): the same plan as the routine lane.
+# WORLD_RELEASE_CLIENT_CHUNK_RUNTIME=off|shadow|on, WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION=<committed id>
+# for on, WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1 to build off/shadow once CHUNK_RUNTIME_ACTIVATION_RELEASE
+# is committed. The raw VITE_CHUNK_RUNTIME_MODE / ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE are refused
+# here and set only on the client build lines, so the test suite never sees them.
+client_chunk_plan=$(node --import tsx scripts/world-release-routine.ts client-chunk-plan) || {
+  printf 'Client chunk runtime plan refused (see the error above and "Client chunk runtime in the routine lane" in ops/orchard-runtime/PUBLISHING.md).\n' >&2
+  exit 64
+}
+client_chunk_mode=$(jq -r '.mode' <<<"$client_chunk_plan")
+client_chunk_activation=$(jq -r '.activationRelease // ""' <<<"$client_chunk_plan")
+client_chunk_build_env=(VITE_CHUNK_RUNTIME_MODE="$client_chunk_mode")
+[[ -z "$client_chunk_activation" ]] || client_chunk_build_env+=(ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE="$client_chunk_activation")
+
 if [[ "$dry_run" = true ]]; then
   [[ "$rehearsal_port" =~ ^[0-9]+$ && "$rehearsal_port" -ge 1024
     && "$rehearsal_port" -le 65535 && "$rehearsal_port" -ne 3000 ]] || usage
@@ -121,6 +135,7 @@ if [[ "$dry_run" = true ]]; then
     printf 'A release publish command is missing --delete-data=never.\n' >&2
     exit 65
   }
+  printf 'Client chunk runtime plan: %s\n' "$client_chunk_plan"
   printf 'World release stage-A dry-run passed: gates, reviewed additive content-head CAS, quiesced backup, isolated pre/post-drain expectations, production no-delete publish, placeable-read migration, parity verify, and static-service validation are ordered.\n'
   exit 0
 fi
@@ -206,6 +221,9 @@ ops/orchard-runtime/bin/package-rollback-artifacts.sh "$rollback_artifacts"
 # Pin the explicitly handed-off Studio before any candidate build. A preserved
 # editor must match both its reviewed output and reviewed source/API snapshot.
 studio_stage=$(mktemp -d /tmp/orchard-release-reviewed-studio.XXXXXX)
+# The client chunk runtime plan and every staged and served audit, kept as release evidence.
+client_chunk_stage=$(mktemp -d /tmp/orchard-release-client-chunk.XXXXXX)
+printf '%s\n' "$client_chunk_plan" > "$client_chunk_stage/client-chunk-runtime.json"
 if [[ "$studio_mode" = preserve-current ]]; then
   node scripts/studio-release-inputs.mjs "$studio_reviewed_source" "$studio_stage/source-before.json"
   cmp "$studio_reviewed_source/source-manifest.json" "$studio_stage/source-before.json"
@@ -279,7 +297,10 @@ traffic_stopped=true
 if [[ "$frontend_was_active" = true ]]; then sudo systemctl stop orchard-frontend.service; fi
 if [[ "$studio_was_active" = true ]]; then sudo systemctl stop orchard-studio.service; fi
 
-npm run build --workspace @orchard/client -- --mode client-production
+env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production
+cp packages/client/dist/chunk-runtime-audit.json "$client_chunk_stage/client-chunk-runtime-audit-candidate.json"
+node --import tsx scripts/world-release-routine.ts client-chunk-audit \
+  "$client_chunk_stage/client-chunk-runtime-audit-candidate.json" "$client_chunk_stage/client-chunk-runtime.json"
 npm run client:chunks:check
 CLIENT_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-client-static.sh
 install_reviewed_studio
@@ -364,7 +385,10 @@ npm run world:content-head -- apply \
 
 npm run generate --workspace @orchard/world
 npm run typecheck --workspace @orchard/world-bindings
-npm run build --workspace @orchard/client -- --mode client-production
+env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production
+cp packages/client/dist/chunk-runtime-audit.json "$client_chunk_stage/client-chunk-runtime-audit-final.json"
+node --import tsx scripts/world-release-routine.ts client-chunk-audit \
+  "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime.json"
 npm run client:chunks:check
 CLIENT_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-client-static.sh
 install_reviewed_studio
@@ -432,6 +456,12 @@ if [[ "$frontend_was_active" = true ]]; then
     CLIENT_VALIDATE_ORIGIN=https://orchard.dastari.net \
       ops/orchard-runtime/bin/validate-client-static.sh
   }
+  # The served client carries the planned chunk runtime (mode and activation release).
+  curl --max-time 20 -fsS -H 'Cache-Control: no-cache' https://orchard.dastari.net/chunk-runtime-audit.json \
+    -o "$client_chunk_stage/client-chunk-runtime-audit-served.json"
+  cmp "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime-audit-served.json"
+  node --import tsx scripts/world-release-routine.ts client-chunk-audit \
+    "$client_chunk_stage/client-chunk-runtime-audit-served.json" "$client_chunk_stage/client-chunk-runtime.json"
 fi
 if [[ "$studio_was_active" = true ]]; then
   studio_ready=false
@@ -454,6 +484,7 @@ release_world_quiescence_started=false
 live_publish_started=false
 rm -f -- "$module_source_manifest"
 module_source_manifest=''
+printf 'Client chunk runtime evidence (plan and audits): %s\n' "$client_chunk_stage"
 printf 'World release completed (%s); backup=%s expected=%s rehearsal-reconnect=%s production=%s rehearsal-pre-log=%s rehearsal-post-log=%s production-pre-log=%s\n' \
   "$migration_kind" \
   "$backup_directory" "$pre_drain_snapshot" "$post_drain_snapshot" \
