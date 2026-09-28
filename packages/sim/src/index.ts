@@ -134,6 +134,9 @@ export * from './hearth-building-asset.js';
 export * from './equipment-skills.js';
 export * from './skill-gear-metadata.js';
 export * from './inventory-migration.js';
+export * from './container-addressing.js';
+export * from './sparse-containers.js';
+export * from './container-migration.js';
 export * from './equipment-budget.js';
 export * from './equipment-loadout.js';
 
