@@ -57,8 +57,8 @@ const EXCEPTIONS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
   'ui/src/kit/components/content-frame.ts': { 'player-container-grid': 1 },
   // Studio's game-surface specimen of the HUD's hotbar and vitals row: the HUD, not an inventory window.
   'ui/src/kit/components/game-surface.ts': { 'player-container-grid': 1 },
-  // Trade's carried items: a ten-column grid of its own (BUG-067 follow-up PR).
-  'ui/src/kit/components/trade.ts': { 'player-container-grid': 1, 'backpack-range': 5 },
+  // Trade maps the shared pane's cells to its inventory slots to offer them (the pane draws them).
+  'ui/src/kit/components/trade.ts': { 'backpack-range': 6 },
   // The merchant's Sell tab lists the backpack as rows (BUG-067 follow-up PR).
   'ui/src/npc-interaction-ui.ts': { 'backpack-range': 4 },
   // The host's pre-kit item-slot windows, unused by the game since every window moved to the kit (BUG-067 cleanup).

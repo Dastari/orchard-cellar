@@ -488,8 +488,9 @@ export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
   }); return grid;
 }
 export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?: number | (() => number); readonly digitKeys?: boolean; readonly onSelect?: (index: number) => void }): UiElement {
-  const base = uiInventoryGrid({ ...options, count: options.count ?? HOTBAR_SLOT_COUNT, columns: options.columns ?? options.count ?? HOTBAR_SLOT_COUNT, hotkeys: true, activateOn: 'down',
-    onActivate: options.controller ? options.onActivate : index => select(index) });
+  const base = uiInventoryGrid({ ...options, count: options.count ?? HOTBAR_SLOT_COUNT, columns: options.columns ?? options.count ?? HOTBAR_SLOT_COUNT, hotkeys: true, activateOn: options.activateOn ?? 'down',
+    // Without a controller a press selects, unless the window gives the press its own action (trade offers the item).
+    onActivate: options.controller ? options.onActivate : options.onActivate ?? (index => select(index)) });
   const controlled = typeof options.selected === 'function' ? options.selected : undefined;
   const applySelection = (index: number) => {
     if (grid.props['selected'] !== index) grid.setProps({ selected: index }, false);
