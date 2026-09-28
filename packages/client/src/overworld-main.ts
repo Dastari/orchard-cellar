@@ -179,7 +179,7 @@ import { RainWeather } from '@orchard/engine/particles';
 import { TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from '@orchard/engine/terrain-array-map-object-sampler';
 import { clearMapObjectShadowCaches as clearLiveMapShadowCaches } from '@orchard/engine/map-object-presentation';
 import { spaceTerrain, terrainWithCellarExcavations } from '@orchard/engine/space-terrain';
-import { homesteadBiomeAt, homesteadTerrainGenerators, homesteadTreeKindAt } from './homestead-terrain-source.js';
+import { homesteadExteriorBiomeAt, homesteadTerrainGenerators, homesteadTreeKindAt } from './homestead-terrain-source.js';
 import { mapObjectLightFrameKey, mapObjectLightOccluders } from '@orchard/engine/map-object-presentation';
 import type { RenderBenchmarkScenarioId } from '@orchard/engine/render-benchmark-scenarios';
 import { WeatherEffects, windDirectionLabel } from '@orchard/engine/weather-effects';
@@ -926,7 +926,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   // draw their own terrain.
   const minimap = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     ? worldSource.minimapTerrain(emptyTopsideWindow, snapshot.content.registry)
-    : { terrain: spaceTerrainForSnapshot(snapshot), key: '' };
+    : { terrain: spaceTerrainForSnapshot(snapshot), key: homesteadIslandKey() };
   const terrain = minimap.terrain;
   const columns = Math.ceil(rect.width / pixelsPerTile) + 2;
   const rows = Math.ceil(rect.height / pixelsPerTile) + 2;
@@ -1757,13 +1757,23 @@ let homesteadSurroundingsKey = '';
 let cachedHomesteadResources: readonly RenderWorldResource[] = [];
 let cachedHomesteadDecorations: readonly GeneratedSurvivalDecoration[] = [];
 
+/** Static world S6: a homestead exterior samples the topside chunks around its site. The key of
+ * the loaded patch: '' outside homesteads, 'awaiting' while it loads (see `terrainReadiness`). */
+function homesteadIslandKey(): string {
+  const site = activeSpaceDefinition.homesteadSite;
+  if (activeSpaceDefinition.generator !== 'homestead' || site === undefined) return '';
+  return network.homesteadIslandPatch(site, activeSpaceDefinition.sizeTiles)?.key ?? 'awaiting';
+}
+
 function ensureHomesteadSurroundings(seed: number): void {
   const site = activeSpaceDefinition.homesteadSite;
   const registry = latestSnapshot.content.registry;
+  const island = homesteadIslandKey();
   const key = site === undefined ? ''
-    : `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${site.worldTileX}:${site.worldTileY}:${seed}:${registry.contentHash}`;
+    : `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${site.worldTileX}:${site.worldTileY}:${seed}:${registry.contentHash}:${island}`;
   if (key === homesteadSurroundingsKey) return;
   homesteadSurroundingsKey = key;
+  if (island === 'awaiting') { cachedHomesteadResources = []; cachedHomesteadDecorations = []; return; }
   cachedHomesteadResources = buildHomesteadSurroundingResources(seed, registry);
   cachedHomesteadDecorations = buildHomesteadSurroundingDecorations(seed, registry);
 }
@@ -1782,7 +1792,7 @@ function buildHomesteadSurroundingResources(
     for (let tileX = 1; tileX < activeSpaceDefinition.sizeTiles - 1; tileX += 1) {
       if (tileX >= plotBounds.minimumX - 2 && tileX <= plotBounds.maximumX + 2
         && tileY >= plotBounds.minimumY - 2 && tileY <= plotBounds.maximumY + 2) continue;
-      const biome = homesteadBiomeAt(seed, site, tileX, tileY, activeSpaceDefinition.sizeTiles);
+      const biome = homesteadExteriorBiomeAt(site, tileX, tileY, activeSpaceDefinition.sizeTiles);
       const distanceWest = plotBounds.minimumX - tileX;
       const distanceEast = tileX - plotBounds.maximumX;
       const distanceNorth = plotBounds.minimumY - tileY;
@@ -1803,7 +1813,8 @@ function buildHomesteadSurroundingResources(
       if (score % 100 >= density) continue;
       const sourceX = site.worldTileX + Math.floor((tileX - terrainCenter) / 4);
       const sourceY = site.worldTileY + Math.floor((tileY - terrainCenter) / 4);
-      const kind = homesteadTreeKindAt(seed, sourceX, sourceY, registry);
+      const kind = homesteadTreeKindAt(site, seed, sourceX, sourceY, registry);
+      if (kind === null) continue;
       const definition = runtimeResourceDefinition(registry, kind);
       if (definition === null) continue;
       const key = `${tileX}:${tileY}`;
@@ -1970,10 +1981,25 @@ function emptyTopsideWindow(): TerrainArray {
   return emptyTopsideTerrain;
 }
 
+let awaitingHomesteadTerrain: TerrainArray | null = null;
+/** A homestead exterior whose topside patch is still loading: all blocked, behind the terrain wait. */
+function awaitingHomesteadWindow(seed: number, version: number): TerrainArray {
+  const size = activeSpaceDefinition.sizeTiles, length = size * size;
+  if (awaitingHomesteadTerrain?.spaceId !== activeSpaceDefinition.spaceId || awaitingHomesteadTerrain.width !== size) {
+    awaitingHomesteadTerrain = Object.freeze({
+      spaceId: activeSpaceDefinition.spaceId, seed, version, width: size, height: size, generator: 'homestead' as const,
+      biomes: new Uint8Array(length).fill(Math.max(0, SURVIVAL_BIOMES.indexOf('plains'))), blocked: new Uint8Array(length).fill(1),
+      horseJumpableTerrain: new Uint8Array(length), elevations: new Int16Array(length), dirtCliffRoles: new Uint8Array(length), dirtTerraces: new Uint8Array(length),
+    });
+  }
+  return awaitingHomesteadTerrain;
+}
+
 /** A non-topside space's terrain (homestead, residence, cellar, delve, interiors, rogue rooms). */
 function spaceTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
+  if (homesteadIslandKey() === 'awaiting') return awaitingHomesteadWindow(seed, version);
   const base = spaceTerrain(activeSpaceDefinition, seed, version, snapshot.content.registry, homesteadTerrainGenerators);
   if (activeSpaceDefinition.generator !== 'cellar') return base;
   const key = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.cellarExcavationRevision}`;
@@ -2026,7 +2052,7 @@ function refreshCollision(snapshot: OverworldView): void {
   const rogueKey = rogueRoom === undefined ? ''
     : `${rogueRoom.seed}:${rogueRoom.roomNumber}:${rogueRoom.roomKind}:${rogueRoom.theme}`;
   const chunkCollision = topsideChunkCollision(snapshot);
-  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}:${chunkCollision === undefined ? 'none' : `chunks:${chunkCollision.serial}`}`;
+  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}:${chunkCollision === undefined ? 'none' : `chunks:${chunkCollision.serial}`}:${homesteadIslandKey()}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
   appliedChunkCollisionSerial = chunkCollision?.serial ?? 0;
@@ -6406,7 +6432,7 @@ function terrainReadiness(): SpawnReadiness {
   const status = network.chunkRuntimeStatus;
   return spawnReadiness.update({
     mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys,
-    window: worldSource.servedWindow, spaceId: position?.spaceId,
+    window: worldSource.servedWindow, spaceId: position?.spaceId, awaitingSpaceTerrain: homesteadIslandKey() === 'awaiting',
     tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
     tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
   }, performance.now());

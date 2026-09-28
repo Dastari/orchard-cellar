@@ -2,6 +2,9 @@ import { atlasPackDeliveryEnabled, loadAtlasPacks } from '@orchard/ui';
 import { parseChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import { ChunkRuntimeController, type ChunkAuthorityGate, type ChunkRuntimeSource, type ChunkView } from '../chunk-runtime-controller.js';
 import { spaceAdminFlagChunkAuthority } from '../chunk-authority-seam.js';
+import { browserChunkBlobCache, type ChunkBlobCache } from '../chunk-shadow-cache.js';
+import { fetchChunkBlob } from '../chunk-shadow-loader.js';
+import { ensureHomesteadIslandPatch, loadedHomesteadIslandPatch, type HomesteadIslandPatch } from '../homestead-terrain-source.js';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import { chunkWindowForView, chunkWindowPinBounds } from '@orchard/engine/chunk-terrain-window';
 import {
@@ -356,7 +359,6 @@ export class OverworldConnection {
   get chunkTerrainStore(): BoundedChunkTerrainStore | undefined { return this.chunkRuntime?.store; }
   /** Chunks of the serving store whose load failed (static world S4f spawn readiness). */
   get chunkFailedKeys(): ReadonlySet<string> | undefined { return this.chunkRuntime?.failedChunks; }
-  /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
   #lastChunkRetryAt = -Infinity;
   /** Static world S6 "world updating": re-apply the chunk runtime (re-reads the server switch and
    * the publication, re-subscribes after an error) at most every `intervalMs`. */
@@ -365,6 +367,7 @@ export class OverworldConnection {
     this.#lastChunkRetryAt = now;
     this.chunkRuntime?.retry();
   }
+  /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
   chunkAuthorityGate(): ChunkAuthorityGate | null {
     // BUG-055: `not_on` only without a controller. The controller's `null` (no gate: the serving
     // revision may stand in for the server) must pass through, or chunk collision never serves.
@@ -704,6 +707,27 @@ export class OverworldConnection {
     this.error = null;
     this.recovery.ready(this.connectionGeneration);
     this.sendDesiredDirection();
+  }
+
+  #topsideShadowFor: DbConnection | undefined;
+  #homesteadChunkCache: ChunkBlobCache | null | undefined;
+  /**
+   * Static world S6: the published topside chunks around a homestead site, which its exterior
+   * enlarges (biomes and woodland; see `homestead-terrain-source.ts`). Subscribes to the topside
+   * publication row once per connection and loads the site's one to four chunks; `undefined` until
+   * they are loaded (the caller keeps its terrain wait up meanwhile).
+   */
+  homesteadIslandPatch(site: { readonly worldTileX: number; readonly worldTileY: number }, sizeTiles: number): HomesteadIslandPatch | undefined {
+    const connection = this.connection;
+    if (connection === null) return loadedHomesteadIslandPatch(site);
+    if (this.#topsideShadowFor !== connection) {
+      this.#topsideShadowFor = connection;
+      connection.subscriptionBuilder().subscribe([`SELECT * FROM world_chunk_shadow WHERE space_id = ${TOPSIDE_SPACE_ID}`]);
+    }
+    if (this.#homesteadChunkCache === undefined) this.#homesteadChunkCache = browserChunkBlobCache() ?? null;
+    const row = connection.db.worldChunkShadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
+    return ensureHomesteadIslandPatch(site, sizeTiles, row ? { revision: Number(row.revision), manifestJson: row.manifestJson } : null,
+      fetchChunkBlob, this.#homesteadChunkCache ?? undefined);
   }
 
   private releaseConnection(): void {

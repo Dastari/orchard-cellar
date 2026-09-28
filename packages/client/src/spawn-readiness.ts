@@ -7,7 +7,8 @@ import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-ch
  *
  * On topside, movement, rendering and collision come only from the chunk window
  * (static world S6), whose missing chunks are solid void. The player's chunk and its
- * ring of eight must be resident first. Every other space is always ready.
+ * ring of eight must be resident first. Every other space is ready once its terrain has its
+ * source (a homestead exterior samples the topside chunks around its site).
  *
  * Static world S6 replaced the S4f "never lock a player out" fallback, since the client no
  * longer has a whole map to fall back to: with no serving store (server `off`, nothing
@@ -22,7 +23,10 @@ export type SpawnReadinessReason =
   | 'awaiting_store' | 'awaiting_pin' | 'awaiting_chunks' | 'awaiting_window'
   /** Static world S6: topside has no chunk runtime serving (server `off`, nothing published, a
    * subscription or load error) and there is no whole-map fallback: "world updating", retried. */
-  | 'world_updating';
+  | 'world_updating'
+  /** Static world S6: another space whose terrain is still loading its source (a homestead's
+   * exterior samples the topside chunks around its site). Never times out: there is no terrain. */
+  | 'awaiting_space_terrain';
 
 export interface SpawnReadiness {
   readonly ready: boolean;
@@ -57,6 +61,8 @@ export interface SpawnReadinessInput {
   readonly spaceId: number | undefined;
   readonly tileX: number | undefined;
   readonly tileY: number | undefined;
+  /** Another space's terrain still waits for its source (a homestead's topside chunks, S6). */
+  readonly awaitingSpaceTerrain?: boolean;
 }
 
 /** Runtime states in which a first serving store is still on its way. */
@@ -65,7 +71,9 @@ const LOADING_STATES: ReadonlySet<string> = new Set(['idle', 'subscribing', 'loa
 /** Chunk-level readiness for one instant (no timeout). */
 export function chunkSpawnReadiness(input: SpawnReadinessInput): SpawnReadiness {
   const ready = (reason: SpawnReadinessReason): SpawnReadiness => ({ ready: true, reason, missing: 0 });
-  if (input.spaceId !== TOPSIDE_SPACE_ID) return ready('other_space');
+  if (input.spaceId !== TOPSIDE_SPACE_ID) {
+    return input.awaitingSpaceTerrain === true ? { ready: false, reason: 'awaiting_space_terrain', missing: 0 } : ready('other_space');
+  }
   if (input.tileX === undefined || input.tileY === undefined) return ready('no_position');
   // Static world S6: topside only ever draws and collides from chunks. Without a serving store there
   // is nothing to stand on, so movement waits ("world updating") instead of falling back.
@@ -119,7 +127,8 @@ export class SpawnReadinessGate {
       if (this.#waitingSince === undefined) { this.#waitingSince = now; this.#waits++; }
       // Only missing chunks may be given up on (they read as solid void); with no serving store
       // at all there is no world to release the player into, so that wait never times out (S6).
-      if (now - this.#waitingSince >= this.timeoutMs && result.reason !== 'world_updating' && result.reason !== 'awaiting_store') {
+      if (now - this.#waitingSince >= this.timeoutMs && result.reason !== 'world_updating' && result.reason !== 'awaiting_store'
+        && result.reason !== 'awaiting_space_terrain') {
         if (this.#last.reason !== 'timeout') this.#timeouts++;
         if (manifest !== undefined && result.missingKeys !== undefined) {
           this.#givenUp ??= { manifest, keys: new Set() };

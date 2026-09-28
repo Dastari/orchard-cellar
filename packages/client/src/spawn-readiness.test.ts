@@ -24,6 +24,15 @@ describe('spawn readiness (static world S4f)', () => {
     expect(chunkSpawnReadiness(on({ tileX: undefined }))).toMatchObject({ ready: true, reason: 'no_position' });
   });
 
+  it('waits, without timing out, for a homestead exterior\'s topside patch (S6)', () => {
+    const waiting = on({ spaceId: 5, store: undefined, awaitingSpaceTerrain: true });
+    expect(chunkSpawnReadiness(waiting)).toEqual({ ready: false, reason: 'awaiting_space_terrain', missing: 0 });
+    const gate = new SpawnReadinessGate();
+    gate.update(waiting, 0);
+    expect(gate.update(waiting, SPAWN_READINESS_TIMEOUT_MS * 3)).toMatchObject({ ready: false, reason: 'awaiting_space_terrain' });
+    expect(gate.update({ ...waiting, awaitingSpaceTerrain: false }, SPAWN_READINESS_TIMEOUT_MS * 3)).toMatchObject({ ready: true, reason: 'other_space' });
+  });
+
   it('waits in `on` for a serving store while one is loading, and shows "world updating" when none will serve (S6)', () => {
     for (const state of ['idle', 'subscribing', 'loading', 'awaiting_heads']) {
       expect(chunkSpawnReadiness(on({ store: undefined, state }))).toMatchObject({ ready: false, reason: 'awaiting_store' });
