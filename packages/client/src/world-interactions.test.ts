@@ -89,7 +89,9 @@ it('uses the production provider and E handler to resolve fresh state before act
   const activate = vi.fn();
   const open = vi.fn();
   const snapshot = {};
-  const dependencies = {
+  // BUG-060: an E/touch activation resets the closing-window guard first.
+  const closingEntityWindows = { interacted: vi.fn() };
+  const dependencies = { closingEntityWindows,
     worldInteractions: registry, collectLegacyInteractions: () => targets,
     localMount: () => null, interactionPrompt: () => '[E] PICK APPLE', activateInteraction: activate,
     predicted: { position: { x: 0, y: 0 } }, latestSnapshot: snapshot,
@@ -102,6 +104,7 @@ it('uses the production provider and E handler to resolve fresh state before act
   expect(registry.resolve(snapshot, 0, 0)?.prompt).toBe('[E] PICK APPLE');
   run(`${selector.getText(source)}\n${handler.getText(source)}`);
   expect(activate).toHaveBeenCalledWith(tree, snapshot);
+  expect(closingEntityWindows.interacted).toHaveBeenCalledOnce();
   targets = [];
   registry.register('new-ui', () => [{ kind: 'new-ui', stableId: 'panel:1', x: 0, y: 0,
     reachFixed: 10, prompt: '[E] OPEN', activate: open }]);
