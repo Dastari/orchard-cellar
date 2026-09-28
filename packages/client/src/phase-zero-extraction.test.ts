@@ -248,7 +248,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // BUG-063 (#248): ui/overworld-ui.ts runs each retained view's sync, focus and paint through `contained`, so a view
 // that throws (the owner's duplicate UI id) is reported once and skipped instead of aborting the frame and every key.
 // overworld-ui-character and game-host runtime tests cover it; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = 'c715afa6c76b361baf129da73debb09135a426fe62f04ca4a4fd091cc8357052';
+// BUG-056 (wiki Roadmap/Uncapped Storage, step 1): ui/overworld-ui.ts reads its backpack capacity through one
+// modelBackpackCapacity() (the world's accessibleBackpackCapacity rule) instead of four 20-or-8 fallbacks, and passes it
+// to the recipe book. recipe-book, trade-ui and npc-interaction-ui tests cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = 'c27165a78ab0b1b7fea9f2cc1cb344956bcfed11047cf954b551142f76dbaf4e';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

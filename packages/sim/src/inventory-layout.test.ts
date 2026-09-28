@@ -6,7 +6,6 @@ import {
   HOTBAR_SLOT_COUNT,
   INVENTORY_SLOT_COUNT,
   accessibleBackpackCapacity,
-  accessibleBackpackSlotCount,
   BACKPACK_SLOT_COUNT,
   hotbarSlotForInputCode,
   hotbarSlotLabel,
@@ -37,8 +36,7 @@ describe('shared player inventory layout', () => {
     expect(inventoryContainerSlotOffset('backpack')).toBe(BACKPACK_SLOT_OFFSET);
     expect(inventoryContainerSlotOffset('crafting')).toBe(CRAFTING_SLOT_OFFSET);
     expect(inventoryContainerSlotCount('hotbar')).toBe(HOTBAR_SLOT_COUNT);
-    expect(accessibleBackpackSlotCount(false)).toBe(8);
-    expect(accessibleBackpackSlotCount(true)).toBe(20);
+    expect(inventoryContainerSlotCount('backpack')).toBe(BACKPACK_SLOT_COUNT);
   });
 });
 
@@ -51,5 +49,10 @@ describe('accessible backpack capacity (BUG-054)', () => {
     }
     expect(accessibleBackpackCapacity(6)).toBe(8);
     expect(accessibleBackpackCapacity(20)).toBe(20);
+  });
+
+  it('leaves an already accessible capacity unchanged, so the UI can pass a projected capacity back through it (BUG-056)', () => {
+    for (let capacity = 8; capacity <= BACKPACK_SLOT_COUNT; capacity++) expect(accessibleBackpackCapacity(capacity)).toBe(capacity);
+    expect(accessibleBackpackCapacity(BACKPACK_SLOT_COUNT + 5)).toBe(BACKPACK_SLOT_COUNT);
   });
 });

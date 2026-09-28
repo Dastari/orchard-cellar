@@ -20,6 +20,21 @@ describe('expedition preparation and introductory progression',()=>{
     for(const invalid of [{...arrows,quantity:9},{...arrows,slot:40},{...arrows,slot:29},{...arrows,itemKind:'stone'}])expect(hearthExpeditionPreparation(registry,[bow,body,invalid]).weapon).toBe(0);
     expect(hearthExpeditionPreparation(registry,[bow,body,{...arrows,quantity:5},{...arrows,slot:10,quantity:5}]).weapon).toBe(1);
   });
+  it('counts shots only in the backpack cells the equipped bag opens, not a fixed 20 (BUG-056)',()=>{
+    const backpack=registry.items.get('item:backpack')!;
+    const withBag=(capacity:number)=>({...registry,items:new Map(registry.items).set('item:small_bag',{...backpack,id:'item:small_bag',equip:{...backpack.equip!,inventoryCapacity:capacity}})});
+    const bag={slot:34,itemKind:'small_bag',quantity:1},arrowsAt=(cell:number)=>({slot:10+cell,itemKind:'arrow',quantity:10});
+    const ready=(reg:typeof registry,...rows:{slot:number;itemKind:string;quantity:number}[])=>hearthExpeditionPreparation(reg,[bow,body,...rows]).weapon;
+    // A 12-cell bag after a swap from the 20-cell one: arrows left in cells 12-19 are out of reach.
+    expect(ready(withBag(12),bag,arrowsAt(11))).toBe(1);
+    expect(ready(withBag(12),bag,arrowsAt(12))).toBe(0);
+    expect(ready(withBag(12),bag,arrowsAt(19))).toBe(0);
+    // The 20-cell bag still opens every cell; no bag, or a bag below 8, opens the base 8.
+    expect(ready(registry,{...bag,itemKind:'backpack'},arrowsAt(19))).toBe(1);
+    expect(ready(registry,arrowsAt(7))).toBe(1);
+    expect(ready(registry,arrowsAt(8))).toBe(0);
+    expect(ready(withBag(4),bag,arrowsAt(7))).toBe(1);
+  });
   it('credits pre-equipped gear, requires a fresh outpost clear and accepts already-carried basalt',()=>{
     const prepare=runtimeQuestDefinition(registry,'hearth_prepare_expedition')!,clear=runtimeQuestDefinition(registry,'hearth_clear_ash_shore')!,delivery=runtimeQuestDefinition(registry,'hearth_return_basalt')!;
     let clears=3n,basalt=2,gear={weapon:1,body:1};
