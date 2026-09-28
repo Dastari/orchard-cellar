@@ -38,7 +38,7 @@ import {
 } from '../content/live-content.js';
 import { clientErrorReporter } from '../client-error-reporter.js';
 import { resourceDiscoveryQueries, resourceDiscoveryRadii } from './resource-discovery-queries.js';
-import { ConnectionRecovery, type ConnectionRecoveryState } from './connection-recovery.js';
+import { ConnectionRecovery, recoveryTerminalFor, type ConnectionRecoveryState } from './connection-recovery.js';
 
 type PlayerQuestBaseline=StoredPlayerQuestBaseline & {readonly currentValue?:bigint};
 
@@ -620,7 +620,9 @@ export class OverworldConnection {
         } catch (error) {
           if (!this.recovery.isCurrent(generation)) return;
           const message = error instanceof Error ? error.message : 'inventory_client_update_required';
-          this.recovery.fail(generation, message, true);
+          // A protocol refusal needs a newer client, not a new sign-in: reconnecting (or signing in) with this
+          // bundle would only be refused again.
+          this.recovery.fail(generation, message, recoveryTerminalFor(message));
           connection.disconnect();
           return;
         }

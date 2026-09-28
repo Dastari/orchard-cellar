@@ -385,6 +385,21 @@ describe('container cells (Uncapped Storage step 4c)', () => {
     }
   });
 
+  it('shows update-required, not sign-in, when the world refuses this client\'s inventory protocol, and stops reconnecting', async () => {
+    const network = new OverworldConnection('owner', () => undefined, 'http://example.test', 'world', new LatencyInjector(0, 0));
+    networks.push(network); await flush();
+    const connection = connections[0]!;
+    connection.reducers.acknowledgeInventoryProtocol.mockRejectedValueOnce(new Error('inventory_client_update_required'));
+    await connection.connected(connection, identity, 'test-token'); await flush();
+    expect(network.recoveryState).toBe('update-required');
+    expect(network.gameplayReady).toBe(false);
+    // No retry, reconnect or sign-in loop: the same bundle would only be refused again.
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(connections).toHaveLength(1);
+    expect(network.recoveryState).toBe('update-required');
+    expect(mocked.ensure).toHaveBeenCalledTimes(1);
+  });
+
   it('maps own_player_container_cells rows into the container model: all five containers, u32 indices, no legacy rows', async () => {
     const { network, connection } = await ready();
     const cells = network.view().playerCells;

@@ -128,7 +128,7 @@ import {
 } from '@orchard/engine/display';
 import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
-import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState, type WorldGapPresentation } from './connection-recovery-overlay.js';
+import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryAction, type ConnectionRecoveryState, type WorldGapPresentation } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
@@ -6433,7 +6433,7 @@ function chatInteractionBlocked(): boolean {
 function connectionRecoveryState(): ConnectionRecoveryState | null {
   if (latestSnapshot.error === 'content_registry_invalid') return 'content-incompatible';
   const state = network.recoveryState;
-  if (state === 'offline' || state === 'sign-in-required') return state;
+  if (state === 'offline' || state === 'sign-in-required' || state === 'update-required') return state;
   return hasRenderedWorldFrame && state !== 'ready' ? 'reconnecting' : null;
 }
 
@@ -6488,8 +6488,10 @@ function clearConnectionInput(): void {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }
 
-function activateConnectionRecovery(action: 'retry' | 'sign-in'): void {
+function activateConnectionRecovery(action: ConnectionRecoveryAction): void {
   if (action === 'sign-in') location.assign('/?menu=1');
+  // The world refused this client's protocol: a navigation reload fetches the current client (network-first shell).
+  else if (action === 'reload') location.reload();
   else network.retryConnection();
 }
 

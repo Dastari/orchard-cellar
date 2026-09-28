@@ -60,7 +60,7 @@ describe('initial world loading versus reconnection', () => {
     expect(f.deps.connectionRecoveryOverlay.composite).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'reconnecting', true);
     expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();
   });
-  it.each(['offline', 'sign-in-required', 'content-incompatible'])('preserves initial %s actions and returns to normal loading when resolved', state => {
+  it.each(['offline', 'sign-in-required', 'content-incompatible', 'update-required'])('preserves initial %s actions and returns to normal loading when resolved', state => {
     const f = fixture();
     if (state === 'content-incompatible') f.deps.latestSnapshot.error = 'content_registry_invalid';
     else f.deps.network.recoveryState = state;
@@ -69,6 +69,22 @@ describe('initial world loading versus reconnection', () => {
     f.deps.network.recoveryState = 'connecting'; f.deps.latestSnapshot.error = null;
     f.render();
     expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledTimes(1);
+  });
+  it('shows a client-version refusal as update-required over the retained world at once, never as sign-in', () => {
+    const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'update-required';
+    f.render();
+    expect(f.deps.connectionRecoveryOverlay.composite).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'update-required', true);
+    expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'sign-in-required', true);
+  });
+  it('reloads for the update-required action and never routes it to sign-in', () => {
+    const activate = declaration('activateConnectionRecovery');
+    const run = new Function('location', 'network', `${ts.transpileModule(activate.getText(source), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText}\nreturn activateConnectionRecovery;`);
+    const location = { assign: vi.fn(), reload: vi.fn() };
+    const network = { retryConnection: vi.fn() };
+    run(location, network)('reload');
+    expect(location.reload).toHaveBeenCalledOnce();
+    expect(location.assign).not.toHaveBeenCalled();
+    expect(network.retryConnection).not.toHaveBeenCalled();
   });
   it('keeps the last world frame while a returning tab re-syncs, then a neutral note without RETRY (BUG-040)', () => {
     const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'ready';
