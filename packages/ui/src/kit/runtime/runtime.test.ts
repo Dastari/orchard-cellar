@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { uiFixed } from '../layout/box.js';
 import { UiElement } from './element.js';
-import { UiRoot } from './root.js';
+import { UiRoot, uiFocusRingTarget } from './root.js';
 import { UiAnimations } from './animation.js';
 import { createUiRecordingCanvas } from './recording-canvas.js';
 import { uiInput } from '../components/input.js';
@@ -27,10 +27,11 @@ describe('retained input and lifecycle', () => {
   });
   it('passes over a skipAutoFocus control for a modal\'s first keyboard focus when another can hold it (BUG-064)', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(320, 200);
-    const filter = uiInput({ label: 'Filter items', placeholder: 'Filter' }).setProps({ skipAutoFocus: true }), slot = control('slot');
+    const filter = uiInput({ label: 'Filter items', placeholder: 'Filter', clearable: true }).setProps({ skipAutoFocus: true }), slot = control('slot');
     root.mount(new UiElement({ style: { zLayer: 'modal', width: uiFixed(200), height: uiFixed(100) }, children: [filter, slot] }));
     root.arrange();
     expect(root.focus.current).toBe(slot);
+    expect(root.focus.inputSource).toBe('pointer');
     // A dialog whose only control is skipped still focuses it, and an ordinary text field still takes first focus.
     const only = new UiRoot({ scale: 1 }); only.resize(320, 200);
     const name = uiInput({ label: 'Name' }).setProps({ skipAutoFocus: true });
@@ -43,7 +44,14 @@ describe('retained input and lifecycle', () => {
     prompt.arrange();
     expect(prompt.focus.current).toBe(field);
     // Tab still reaches the field.
-    root.key({ key: 'Tab', shiftKey: true }); expect(root.focus.current).toBe(filter);
+    const edit = root.entries().map(entry => entry.element).find(node => node.props['editor'] && node.isDescendantOf(filter))!;
+    for (let step = 0; step < 4 && root.focus.current !== edit; step++) root.key({ key: 'Tab' });
+    expect(root.focus.current).toBe(edit);
+    expect(root.focus.inputSource).toBe('keyboard');
+    // The ring goes around the whole field chrome, not the inner editor (the owner's inset ring).
+    expect(filter.kind).toBe('input-field');
+    expect(uiFocusRingTarget(root.focus.current!)).toBe(filter);
+    expect(uiFocusRingTarget(slot)).toBe(slot);
   });
   it('routes captured pointers outside a box and releases capture on unmount', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(100, 100); const seen: string[] = [];

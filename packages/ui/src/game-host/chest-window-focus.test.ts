@@ -97,6 +97,8 @@ describe('chest window keyboard focus (BUG-064)', () => {
       expect(focused).not.toBeNull();
       expect(focused!.props['editor']).toBeUndefined();
       expect(focused!.label).not.toBe('Filter items');
+      // The automatic first focus draws no ring (:focus-visible): it is not keyboard focus.
+      expect(f.root.focus.inputSource).toBe('pointer');
       // Escape closes the chest at once (it used to clear, then refocus, the filter).
       f.root.key({ key: 'Escape' });
       expect(f.ui.openWindow).toBeNull();
@@ -112,6 +114,8 @@ describe('chest window keyboard focus (BUG-064)', () => {
       f.pointer('down', filter); f.pointer('up', filter); f.root.arrange();
       expect(f.root.focus.current).toBe(filter);
       expect(f.root.focus.inputSource).toBe('pointer');
+      f.root.text('apple'); f.root.arrange();
+      expect((filter.props['editor'] as { snapshot(): { value: string } }).snapshot().value).toBe('apple');
     } finally { f.dispose(); }
   });
 });

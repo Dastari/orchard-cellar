@@ -83,7 +83,8 @@ export class UiRoot {
         const clip = viewportClip ? uiIntersectRect(element.clip, viewportClip) : element.clip;
         if (clip.width <= 0 || clip.height <= 0) return;
         context.save(); context.beginPath(); context.rect(clip.x, clip.y, clip.width, clip.height); context.clip();
-        try { hook(element, { art: this.art, context, now, focused: this.focus.current === element,
+        // `focused` is focus-visible: pointer and automatic focus don't light a control's focus look (BUG-064).
+        try { hook(element, { art: this.art, context, now, focused: this.focus.current === element && this.focus.inputSource === 'keyboard',
           hovered: this.input.hovered?.isDescendantOf(element) ?? false, reducedMotion: this.reducedMotion }); }
         finally { context.restore(); }
       };
@@ -93,7 +94,8 @@ export class UiRoot {
       const flush = (count = overlays.length) => {
         for (let i = 0; i < count; i++) {
           const node = overlays.pop()!; paint(node, node.hooks.paintOverlay);
-          if (this.focus.current === node && this.focus.inputSource === 'keyboard' && !node.props['focusChrome']) paint(node, (element, { context }) => {
+          const ring = uiFocusRingTarget(node);
+          if (this.focus.current === node && this.focus.inputSource === 'keyboard' && !node.props['focusChrome']) paint(ring, (element, { context }) => {
             if (this.art && !this.art.missingArt) paintUiSkin(context, this.art.skin.button, 'outline.md.chamfered.idle.white', element.rect);
           });
         }
@@ -204,4 +206,10 @@ export class UiRoot {
     if (this.disposed) return;
     this.cleanup?.(); this.disposed = true; this.tree.dispose(); this.animations.dispose(); this.input.dispose(); this.focus.dispose(); this.paintList = [];
   }
+}
+
+/** The element the keyboard focus ring is drawn around: a text field's whole chrome (glyph, text and clear button),
+ * not its inner editor, so the ring lines up with the field (BUG-064). */
+export function uiFocusRingTarget(node: UiElement): UiElement {
+  return node.parent?.kind === 'input-field' ? node.parent : node;
 }
