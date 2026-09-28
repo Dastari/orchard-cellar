@@ -6935,6 +6935,10 @@ function applyPlayerOverflowDrain(
  * Kept rows are logged the same way. Returns whether the drain ran.
  */
 function drainPlayerOverflowSafely(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): boolean {
+  // A player still on the legacy layout has no cells to drain into, and every inventory write refuses them
+  // (`inventory_migration_pending`) outside this function's catch. Their overflow waits for the connect that moves
+  // them (which drains right after). The legacy farm recipients are not filtered by layout, so this guard is theirs.
+  if (!playerContainerCellsCurrent(ctx.db, identity)) return false;
   let plan: ReturnType<typeof planPlayerOverflowDrain>;
   try {
     plan = planPlayerOverflowDrain(ctx, identity);

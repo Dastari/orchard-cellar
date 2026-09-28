@@ -515,6 +515,21 @@ describe('stranded retired items and over-maximum stacks: spill, drain, connect 
     expect(warnings).toEqual([]);
   });
 
+  it('leaves a legacy-layout player\'s overflow for the connect that moves them, without throwing or writing', () => {
+    const { db, ctx, api } = strandedWorld();
+    db.inventory_migration.identity.update({ ...db.inventory_migration.identity.find(bob), containerLayoutVersion: 0 });
+    db.inventory_overflow.insert({ id: 0n, identity: bob, itemKind: 'apple', quantity: 4, durability: 0, lit: true });
+    const bobCells = snapshotOf(new Map([...db.player_container_cell.rows].filter(([key]) => key.startsWith('b2:'))));
+    let drained = true;
+    expect(() => { drained = api.drainPlayerOverflowSafely(ctx, bob); }).not.toThrow();
+    expect(drained).toBe(false);
+    expect(overflowOf(db, bob)).toEqual(['applex4']);
+    expect(snapshotOf(new Map([...db.player_container_cell.rows].filter(([key]) => key.startsWith('b2:'))))).toBe(bobCells);
+    // The 1 Hz pass skips them the same way and carries on.
+    expect(() => api.runOneHertzTickMaintenance(ctx, 20n, {})).not.toThrow();
+    expect(overflowOf(db, bob)).toEqual(['applex4']);
+  });
+
   it('wires connect and the legacy farm recipients to the per-owner safe drain', () => {
     const text = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     expect(text).not.toMatch(/(?<![A-Za-z])drainPlayerOverflow\(/u);
