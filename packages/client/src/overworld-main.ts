@@ -5588,6 +5588,7 @@ function renderFrame(alpha = 1): void {
         statisticKind: row.statisticKind,
         subjectKind: row.subjectKind,
         value: row.value,
+        id: row.id, createdTick: row.createdTick, updatedTick: row.updatedTick,
       })),
     },
     quests,

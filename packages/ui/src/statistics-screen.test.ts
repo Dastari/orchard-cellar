@@ -3,6 +3,7 @@ import { bootstrapContentRegistry, bootstrapContentRows, buildContentRegistry, p
 import {
   formatPlayerStatisticValue,
   playerStatisticSubjectLabel,
+  resetDuplicateStatisticsReport,
   visiblePlayerStatisticRows,
 } from './statistics-screen.js';
 
@@ -17,6 +18,37 @@ describe('statistics screen', () => {
     expect(rows.map((row) => row.statisticKind)).toEqual([
       'time_played', 'messages_sent', 'crops_harvested',
     ]);
+  });
+
+  it('shows one row per statistic and subject, keeping the larger value (BUG-063)', () => {
+    const rows = visiblePlayerStatisticRows({ statistics: [
+      { statisticKind: 'connections_opened', subjectKind: '', value: 5n },
+      { statisticKind: 'crops_harvested', subjectKind: 'strawberry', value: 6n },
+      { statisticKind: 'connections_opened', subjectKind: '', value: 3n },
+      { statisticKind: 'crops_harvested', subjectKind: 'strawberry', value: 9n },
+      { statisticKind: 'crops_harvested', subjectKind: 'carrot', value: 1n },
+    ] });
+    expect(rows.map(row => [row.statisticKind, row.subjectKind, row.value])).toEqual([
+      ['connections_opened', '', 5n], ['crops_harvested', 'carrot', 1n], ['crops_harvested', 'strawberry', 9n],
+    ]);
+  });
+
+  it('reports duplicate rows once per session with both authority ids and ticks (BUG-063)', () => {
+    resetDuplicateStatisticsReport();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const statistics = [
+        { statisticKind: 'connections_opened', subjectKind: '', value: 5n, id: 'row-a', createdTick: 10n, updatedTick: 90n },
+        { statisticKind: 'connections_opened', subjectKind: '', value: 3n, id: 'row-b', createdTick: 20n, updatedTick: 40n },
+      ];
+      visiblePlayerStatisticRows({ statistics });
+      visiblePlayerStatisticRows({ statistics });
+      expect(warn).toHaveBeenCalledOnce();
+      const detail = String(warn.mock.calls[0]![1]);
+      for (const text of ['row-a', 'row-b', '"createdTick":"10"', '"updatedTick":"90"', '"createdTick":"20"', '"updatedTick":"40"']) expect(detail).toContain(text);
+      visiblePlayerStatisticRows({ statistics: [statistics[0]!] });
+      expect(warn).toHaveBeenCalledOnce();
+    } finally { warn.mockRestore(); resetDuplicateStatisticsReport(); }
   });
 
   it('formats each specialised statistic unit for players', () => {

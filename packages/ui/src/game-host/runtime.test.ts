@@ -240,3 +240,28 @@ describe('game retained host input ownership', () => {
   });
 
 });
+
+describe('game retained host containment (BUG-063)', () => {
+  it('skips a host whose tree throws, reports it once, and lets the event reach the next host or the game', () => {
+    const reports: string[] = [];
+    const runtime = new GameUiRuntime(hostId => reports.push(hostId));
+    const lower = fixture(1), broken = fixture(2);
+    const fail = () => { throw new Error('Duplicate UI id: statistics.record:connections_opened:'); };
+    broken.root.arrange = fail; broken.root.pointer = fail; broken.root.key = fail; broken.root.wheel = fail;
+    broken.block();
+    runtime.register(lower.host); runtime.register(broken.host);
+    runtime.focus(broken.host.id);
+    // The blocking host is broken: the key is not consumed, so the game (Escape and so on) still gets it.
+    expect(runtime.key({ key: 'Escape' })).toBe(false);
+    expect(runtime.key({ key: 'Escape' })).toBe(false);
+    expect(runtime.focusedElement).toBeNull();
+    expect(() => runtime.pointer(pointer('down'))).not.toThrow();
+    expect(() => runtime.wheel({ point: { x: 10, y: 10 }, deltaX: 0, deltaY: 4 })).not.toThrow();
+    expect(new Set(reports)).toEqual(new Set([broken.host.id]));
+    expect(reports.length).toBeLessThanOrEqual(2);
+    // Once the broken host is gone, the lower host works as before.
+    broken.hide();
+    runtime.pointer(pointer('down', 10, 8)); runtime.pointer(pointer('up', 10, 8));
+    expect(lower.commands).toBe(1);
+  });
+});
