@@ -10,8 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  targetContainers: __t.array(__t.string()),
-  targetIndexes: __t.array(__t.u32()),
-  mode: __t.string(),
+export const params = {
+  maximumPlayerPlans: __t.u32(),
 };
+export const returnType = __t.string()

@@ -10,6 +10,7 @@ import * as AdminAuditPageProcedure from "../admin_audit_page_procedure";
 import * as AdminChestMigrationStatusProcedure from "../admin_chest_migration_status_procedure";
 import * as AdminClientErrorsProcedure from "../admin_client_errors_procedure";
 import * as AdminConnectionsPageProcedure from "../admin_connections_page_procedure";
+import * as AdminContainerCellMigrationStatusProcedure from "../admin_container_cell_migration_status_procedure";
 import * as AdminContainerContentsProcedure from "../admin_container_contents_procedure";
 import * as AdminEntitiesInAreaProcedure from "../admin_entities_in_area_procedure";
 import * as AdminEntitiesInAreaPageProcedure from "../admin_entities_in_area_page_procedure";
@@ -39,6 +40,8 @@ export type AdminClientErrorsArgs = __Infer<typeof AdminClientErrorsProcedure.pa
 export type AdminClientErrorsResult = __Infer<typeof AdminClientErrorsProcedure.returnType>;
 export type AdminConnectionsPageArgs = __Infer<typeof AdminConnectionsPageProcedure.params>;
 export type AdminConnectionsPageResult = __Infer<typeof AdminConnectionsPageProcedure.returnType>;
+export type AdminContainerCellMigrationStatusArgs = __Infer<typeof AdminContainerCellMigrationStatusProcedure.params>;
+export type AdminContainerCellMigrationStatusResult = __Infer<typeof AdminContainerCellMigrationStatusProcedure.returnType>;
 export type AdminContainerContentsArgs = __Infer<typeof AdminContainerContentsProcedure.params>;
 export type AdminContainerContentsResult = __Infer<typeof AdminContainerContentsProcedure.returnType>;
 export type AdminEntitiesInAreaArgs = __Infer<typeof AdminEntitiesInAreaProcedure.params>;

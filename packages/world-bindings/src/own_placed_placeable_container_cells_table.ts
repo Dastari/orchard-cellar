@@ -10,8 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  targetContainers: __t.array(__t.string()),
-  targetIndexes: __t.array(__t.u32()),
-  mode: __t.string(),
-};
+export default __t.row({
+  id: __t.string().primaryKey(),
+  placeableId: __t.u64().name("placeable_id"),
+  index: __t.u32(),
+  itemKind: __t.string().name("item_kind"),
+  quantity: __t.u16(),
+  durability: __t.u16(),
+  lit: __t.bool(),
+});

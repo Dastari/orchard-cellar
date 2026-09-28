@@ -41,6 +41,8 @@ import AcceptTradeRequestReducer from "./accept_trade_request_reducer";
 import AcknowledgeInventoryProtocolReducer from "./acknowledge_inventory_protocol_reducer";
 import ActivateOutdoorEncounterReducer from "./activate_outdoor_encounter_reducer";
 import AdminBackfillLegacyChestsReducer from "./admin_backfill_legacy_chests_reducer";
+import AdminBackfillPlaceableContainerCellsReducer from "./admin_backfill_placeable_container_cells_reducer";
+import AdminBackfillPlayerContainerCellsReducer from "./admin_backfill_player_container_cells_reducer";
 import AdminClearCursorReducer from "./admin_clear_cursor_reducer";
 import AdminDespawnEntityReducer from "./admin_despawn_entity_reducer";
 import AdminDrainLegacyChestsReducer from "./admin_drain_legacy_chests_reducer";
@@ -215,6 +217,7 @@ import * as AdminAuditPageProcedure from "./admin_audit_page_procedure";
 import * as AdminChestMigrationStatusProcedure from "./admin_chest_migration_status_procedure";
 import * as AdminClientErrorsProcedure from "./admin_client_errors_procedure";
 import * as AdminConnectionsPageProcedure from "./admin_connections_page_procedure";
+import * as AdminContainerCellMigrationStatusProcedure from "./admin_container_cell_migration_status_procedure";
 import * as AdminContainerContentsProcedure from "./admin_container_contents_procedure";
 import * as AdminEntitiesInAreaProcedure from "./admin_entities_in_area_procedure";
 import * as AdminEntitiesInAreaPageProcedure from "./admin_entities_in_area_page_procedure";
@@ -276,10 +279,13 @@ import OwnInventorySlotsRow from "./own_inventory_slots_table";
 import OwnKnownRecipesRow from "./own_known_recipes_table";
 import OwnMembershipRow from "./own_membership_table";
 import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
+import OwnOpenPlaceableContainerCellsRow from "./own_open_placeable_container_cells_table";
 import OwnOpenPlaceableSlotsRow from "./own_open_placeable_slots_table";
 import OwnOutdoorRewardsRow from "./own_outdoor_rewards_table";
+import OwnPlacedPlaceableContainerCellsRow from "./own_placed_placeable_container_cells_table";
 import OwnPlacedPlaceableDamageRow from "./own_placed_placeable_damage_table";
 import OwnPlacedPlaceableSlotsRow from "./own_placed_placeable_slots_table";
+import OwnPlayerContainerCellsRow from "./own_player_container_cells_table";
 import OwnPlayerPredictionRow from "./own_player_prediction_table";
 import OwnPlayerQuestBaselinesRow from "./own_player_quest_baselines_table";
 import OwnPlayerQuestsRow from "./own_player_quests_table";
@@ -1182,6 +1188,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnOpenChestSlotsRow),
+  ownOpenPlaceableContainerCells: __table({
+    name: 'own_open_placeable_container_cells',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnOpenPlaceableContainerCellsRow),
   ownOpenPlaceableSlots: __table({
     name: 'own_open_placeable_slots',
     indexes: [
@@ -1196,6 +1209,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnOutdoorRewardsRow),
+  ownPlacedPlaceableContainerCells: __table({
+    name: 'own_placed_placeable_container_cells',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlacedPlaceableContainerCellsRow),
   ownPlacedPlaceableDamage: __table({
     name: 'own_placed_placeable_damage',
     indexes: [
@@ -1210,6 +1230,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnPlacedPlaceableSlotsRow),
+  ownPlayerContainerCells: __table({
+    name: 'own_player_container_cells',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerContainerCellsRow),
   ownPlayerPrediction: __table({
     name: 'own_player_prediction',
     indexes: [
@@ -1403,6 +1430,8 @@ const reducersSchema = __reducers(
   __reducerSchema("acknowledge_inventory_protocol", AcknowledgeInventoryProtocolReducer),
   __reducerSchema("activate_outdoor_encounter", ActivateOutdoorEncounterReducer),
   __reducerSchema("admin_backfill_legacy_chests", AdminBackfillLegacyChestsReducer),
+  __reducerSchema("admin_backfill_placeable_container_cells", AdminBackfillPlaceableContainerCellsReducer),
+  __reducerSchema("admin_backfill_player_container_cells", AdminBackfillPlayerContainerCellsReducer),
   __reducerSchema("admin_clear_cursor", AdminClearCursorReducer),
   __reducerSchema("admin_despawn_entity", AdminDespawnEntityReducer),
   __reducerSchema("admin_drain_legacy_chests", AdminDrainLegacyChestsReducer),
@@ -1579,6 +1608,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_chest_migration_status", AdminChestMigrationStatusProcedure.params, AdminChestMigrationStatusProcedure.returnType),
   __procedureSchema("admin_client_errors", AdminClientErrorsProcedure.params, AdminClientErrorsProcedure.returnType),
   __procedureSchema("admin_connections_page", AdminConnectionsPageProcedure.params, AdminConnectionsPageProcedure.returnType),
+  __procedureSchema("admin_container_cell_migration_status", AdminContainerCellMigrationStatusProcedure.params, AdminContainerCellMigrationStatusProcedure.returnType),
   __procedureSchema("admin_container_contents", AdminContainerContentsProcedure.params, AdminContainerContentsProcedure.returnType),
   __procedureSchema("admin_entities_in_area", AdminEntitiesInAreaProcedure.params, AdminEntitiesInAreaProcedure.returnType),
   __procedureSchema("admin_entities_in_area_page", AdminEntitiesInAreaPageProcedure.params, AdminEntitiesInAreaPageProcedure.returnType),

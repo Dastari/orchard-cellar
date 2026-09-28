@@ -12,6 +12,6 @@ import {
 
 export default {
   container: __t.string(),
-  index: __t.u8(),
+  index: __t.u32(),
   wholeStack: __t.bool(),
 };
