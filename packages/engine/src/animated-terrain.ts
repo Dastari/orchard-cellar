@@ -1,9 +1,9 @@
 import { worldAssetFrameSource } from './world-asset-presentation.js';
 import type { LoadedAsset } from '@orchard/ui';
-import { animatedWaterRockAllowedAt, grassTuftAllowedAt, terrainBiomeAt, terrainDecorationHash, waterfallTopLeftAt, waterfallUsesRaisedCompositionAt, type TerrainArray } from './terrain.js';
+import { animatedWaterRockAllowedAt, grassTuftAllowedAt, terrainBiomeAt, terrainDecorationHash, waterfallTopLeftAt, waterfallUsesRaisedCompositionAt, type TerrainArray } from './terrain-sampling.js';
 import { terrainTileBounds } from './terrain-index.js';
 
-export { waterfallUsesRaisedCompositionAt } from './terrain.js';
+export { waterfallUsesRaisedCompositionAt } from './terrain-sampling.js';
 
 const TILE_SIZE_PIXELS = 16;
 

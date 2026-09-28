@@ -1,7 +1,7 @@
 import { type CollisionMap } from '@orchard/sim';
 import { prepareClientTerrainCollision, type PreparedClientTerrainCollision } from '@orchard/engine/collision';
 import { prepareLightTerrainOcclusion, type PreparedLightTerrainOcclusion } from '@orchard/engine/light-occlusion';
-import type { TerrainArray } from '@orchard/engine/terrain';
+import type { TerrainArray } from '@orchard/engine/terrain-sampling';
 import { chunkWindowReuseSource, chunkWindowTileReuse, type ChunkTerrainWindow, type ChunkWindowReuseSource } from '@orchard/engine/chunk-terrain-window';
 import type { LoadedAsset } from '@orchard/ui';
 

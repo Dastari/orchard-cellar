@@ -1,6 +1,6 @@
 import { mapDocumentTraversalChannels, mapTraversalChannels, runtimeTraversalPolicy } from '@orchard/sim';
 import type {LightTrunkOccluder} from './light-occlusion.js';
-import {terrainElevationAtWorldFoot,terrainProjectedDepthAtFoot,terrainProjectedElevationAtFoot,terrainProjectedSortOffset} from './terrain.js';
+import {terrainElevationAtWorldFoot,terrainProjectedDepthAtFoot,terrainProjectedElevationAtFoot,terrainProjectedSortOffset} from './terrain-sampling.js';
 import {
   enqueueMapObjects,
   mapObjectLightFrameKey,
@@ -37,7 +37,7 @@ import {
 } from '@orchard/sim';
 import { terrainArrayForMapDocument } from './editor-terrain.js';
 import { terrainForWorld } from './terrain.js';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 
 export interface LiveMapDocumentRow {
   readonly mapId: string;

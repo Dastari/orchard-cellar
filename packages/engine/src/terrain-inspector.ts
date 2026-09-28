@@ -26,7 +26,7 @@ import {
   terrainProjectedRowsPerLevel,
   terrainVisualProjectionRowsPerLevel,
   type TerrainArray,
-} from './terrain.js';
+} from './terrain-sampling.js';
 
 export interface TerrainInspectorLayer {
   readonly asset: string;

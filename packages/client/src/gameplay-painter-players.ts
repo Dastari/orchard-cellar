@@ -16,7 +16,7 @@ import { worldPointVisible } from '@orchard/engine/camera';
 import { drawFishingLine, fishingRodTipOffset } from '@orchard/engine/fishing-line';
 import { playerLightPosition } from '@orchard/engine/lighting';
 import { deterministicFlameFlicker } from '@orchard/engine/light-sources';
-import { terrainContactWorldYForPlayer } from '@orchard/engine/terrain';
+import { terrainContactWorldYForPlayer } from '@orchard/engine/terrain-sampling';
 import { interpolateFixedPosition, presentationMoving } from './overworld-prediction.js';
 import { worldPlayerIsOffline } from './player-presence.js';
 import type { GameplayPainterInputs } from './gameplay-painter-inputs.js';

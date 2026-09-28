@@ -11,7 +11,7 @@ import { sortWorldDepthItems, type WorldDepthItem } from './renderer.js';
 import { createSpriteLightOccluder, createLightOcclusionMap, resetSpriteLightMasks } from './light-occlusion.js';
 import { compositeBasicLighting } from './lighting-quality.js';
 import { TileLightmap, LANTERN_LIGHT } from './lighting.js';
-import { terrainElevationAtWorldFoot, terrainProjectedDepthAtFoot, type TerrainArray } from './terrain.js';
+import { terrainElevationAtWorldFoot, terrainProjectedDepthAtFoot, type TerrainArray } from './terrain-sampling.js';
 
 const yieldFrame = () => new Promise<void>((resolve) => { const channel = new MessageChannel(); channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve(); }; channel.port2.postMessage(null); });
 

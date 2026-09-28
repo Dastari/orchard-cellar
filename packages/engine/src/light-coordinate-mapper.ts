@@ -1,5 +1,5 @@
 import { LIGHT_HEIGHT_SUBUNITS_PER_LEVEL } from './lighting-types.js';
-import { terrainProjectedDepthForElevation, terrainVisualProjectionRowsPerLevel, type TerrainArray } from './terrain.js';
+import { terrainProjectedDepthForElevation, terrainVisualProjectionRowsPerLevel, type TerrainArray } from './terrain-sampling.js';
 
 /** All height conversions use the terrain's existing projection scale. */
 export class LightCoordinateMapper {

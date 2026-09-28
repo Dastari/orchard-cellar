@@ -1,4 +1,4 @@
-import {terrainProjectedElevationAtFoot,terrainProjectedSortOffset,terrainProjectedDepthAtFoot,type TerrainArray} from '@orchard/engine/terrain';
+import {terrainProjectedElevationAtFoot,terrainProjectedSortOffset,terrainProjectedDepthAtFoot,type TerrainArray} from '@orchard/engine/terrain-sampling';
 import type {LightTrunkOccluder} from '@orchard/engine/light-occlusion';
 
 export function lightCasterPainterOrder(

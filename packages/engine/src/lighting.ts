@@ -6,7 +6,7 @@ import {
   type LightProfile,
 } from './light-flood.js';
 import { buildLightOcclusionPrefix, rasterizeLightOcclusion, type LightOcclusionMap } from './light-occlusion.js';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 import { terrainTileBounds } from './terrain-index.js';
 
 export interface RgbColor {

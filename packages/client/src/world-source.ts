@@ -11,7 +11,7 @@ import {
   CHUNK_WINDOW_CHUNKS, CHUNK_WINDOW_MARGIN_TILES, ChunkTerrainWindowTracker, buildChunkTerrainWindow, chunkWindowForView, chunkWindowKey,
   chunkWindowPinBounds, type ChunkTerrainWindow, type ChunkWindowInvalidation, type ChunkWindowRect, type TileBounds,
 } from '@orchard/engine/chunk-terrain-window';
-import type { TerrainArray } from '@orchard/engine/terrain';
+import type { TerrainArray } from '@orchard/engine/terrain-sampling';
 import { buildChunkWindowMapRecords, chunkMapViewAllowanceTiles, type ChunkWindowMapRecords } from '@orchard/engine/chunk-map-records';
 
 export type ChunkPinBounds = readonly [number, number, number, number];

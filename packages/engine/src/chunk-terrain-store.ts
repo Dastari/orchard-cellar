@@ -1,4 +1,4 @@
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 import type { CellPart, MediumCollisionChannels, CollisionMap, CollisionObstacle, RuntimeTilesetResolver, MapSurfaceKind, TerrainOverride, TerrainTransition, TerrainSurfaceFamilyId } from '@orchard/sim';
 import { WORLD_CHUNK_VOID, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, decodeWorldChunk, type ChunkArray, type ChunkJson, type WorldChunk, type WorldChunkManifest, type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { cellFlags } from '@orchard/sim/cell-flags';

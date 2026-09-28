@@ -2,7 +2,7 @@ import type { ContentRegistry, SurvivalOreKind, runtimeResourcePerception } from
 import { cellarOreKindAt } from '@orchard/sim/cellar-excavation';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { runtimeResourceDefinition } from '@orchard/sim/content/runtime';
-import type { TerrainArray } from '@orchard/engine/terrain';
+import type { TerrainArray } from '@orchard/engine/terrain-sampling';
 import { terrainIsWindow, terrainSparseKey, terrainSparseKeyTile } from '@orchard/engine/terrain-index';
 
 export type DetectedOre = {

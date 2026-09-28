@@ -23,7 +23,7 @@ import {
 import {
   terrainProjectedRowsPerLevel,
   type TerrainArray,
-} from '@orchard/engine/terrain';
+} from '@orchard/engine/terrain-sampling';
 
 export const PROCEDURAL_EDITOR_SPACE_ID = 4_300_001;
 export const PROCEDURAL_EDITOR_RADIUS_CHUNKS = 12;

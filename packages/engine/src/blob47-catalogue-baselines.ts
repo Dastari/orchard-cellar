@@ -1,7 +1,7 @@
 /** Frozen pre-migration layer probes. Bit order NESW, NE SE SW NW. */
 import { MAP_BIOME_IDS, surfaceFamilyIndex, type TerrainSurfaceFamilyId } from '@orchard/sim';
 import { authoredFarmlandGroundLayersAt, authoredGrassFringeLayersAt } from './ground-cache.js';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 export const blobOffsets = [[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]] as const;
 function base(): TerrainArray {
   return {spaceId:0,seed:0,version:0,width:3,height:3,biomes:new Uint8Array(9).fill(MAP_BIOME_IDS.indexOf('plains')),blocked:new Uint8Array(9),horseJumpableTerrain:new Uint8Array(9),elevations:new Int16Array(9),dirtCliffRoles:new Uint8Array(9),dirtTerraces:new Uint8Array(9),surfaceFamilies:new Uint8Array(9)};
