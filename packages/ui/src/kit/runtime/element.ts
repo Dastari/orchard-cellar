@@ -46,7 +46,8 @@ export interface UiElementOptions extends UiElementHooks {
 }
 let nextId = 0;
 export class UiElement {
-  readonly id: string; readonly kind: string; readonly hooks: UiElementHooks;
+  /** Stable for ordinary elements. A virtualised grid's reused slot takes the id of the cell it currently shows. */
+  id: string; readonly kind: string; readonly hooks: UiElementHooks;
   private childList: UiElement[] = [];
   parent: UiElement | null = null;
   private currentStyle: UiStyle; private currentProps: Readonly<Record<string, unknown>>;
@@ -96,6 +97,15 @@ export class UiElement {
   remove(child: UiElement): boolean {
     const index = this.childList.indexOf(child); if (index < 0) return false;
     this.childList.splice(index, 1); child.parent = null; child.connect(undefined); this.invalidate(true); return true;
+  }
+  /** Puts the existing children in a new order without detaching them (a virtualised grid recycling its slots):
+   * focus, hover and registrations stay with each child. `order` must hold exactly the current children. */
+  reorderChildren(order: readonly UiElement[]): this {
+    if (order.length !== this.childList.length || order.some(child => child.parent !== this) || new Set(order).size !== order.length) {
+      throw new Error('reorderChildren needs exactly the current children');
+    }
+    if (order.every((child, index) => child === this.childList[index])) return this;
+    this.childList = [...order]; this.invalidate(true); return this;
   }
   replaceChildren(children: readonly UiElement[]): this {
     for (const child of [...this.childList]) this.remove(child);
