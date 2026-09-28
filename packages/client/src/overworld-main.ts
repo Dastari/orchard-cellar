@@ -1079,6 +1079,7 @@ const npcInteractionUi = new NpcInteractionUi(kitArt, itemArt, {
   unlockHearthLegendaryRecipe: offer => network.unlockHearthLegendaryRecipe(offer.recipeId, offer.expectedContentHash, offer.expectedSeals),
   fulfillVillageOrder:offer=>network.fulfillVillageOrder(offer.id,offer.revision,offer.contentHash,offer.totalBronze),
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
+  sortBackpack: () => { showPredictedInventoryResult(network.sortMenuContainer('backpack'), 'STORAGE SORTED'); },
   closeDialogue: () => { void network.closeNpcDialogue().catch(() => undefined); },
   buy: (lines) => showMerchantResult(network.buyMerchantCart(lines), 'PURCHASE COMPLETE'),
   sell: (lines) => showMerchantResult(network.sellMerchantCart(lines), 'SALE COMPLETE'),

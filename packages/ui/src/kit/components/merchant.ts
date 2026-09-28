@@ -63,6 +63,8 @@ export interface UiMerchantOptions {
     readonly onQuantity: (itemKind: string, quantity: number) => void;
     /** A press on a carried item in the Sell tab: add its stack (or one) to the sale. */
     readonly onSellSlot?: (slot: number, one: boolean) => void;
+    /** Sort the backpack from the Sell tab's pane (the sale is by item, so sorting never breaks it). */
+    readonly onSortBackpack?: () => void;
     readonly onCommit: () => void;
     readonly onBack: () => void;
     readonly onClose: () => void;
@@ -124,23 +126,29 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
     // The Sell tab picks what to sell from the shared player inventory pane and hotbar row, beside the sale ledger.
     const sellFilter = new UiInventoryFilter();
     const sellHost = uiFlex({ id: 'merchant.sell-inventory', direction: 'column', gap: 4, shrink: 0 });
+    // Selling, the hotbar is the window's footer, a carved divider and a centred row, as in every inventory window.
+    const footerHost = uiFlex({ shrink: 0 });
     let sellStructure = '', sellCells: { readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
     const carried = (slot: number) => model.sell?.slots.get(slot) ?? null;
     const sellFrom = (slot: number, one: boolean) => { const item = carried(slot);
         if (!item || model.pending || !model.sell?.sellable(item.itemKind)) return; options.onSellSlot?.(slot, one); };
     const buildSellInventory = () => {
-        for (const child of [...sellHost.children]) child.dispose();
+        for (const child of [...sellHost.children, ...footerHost.children]) child.dispose();
         const common = { artwork: options.artwork, allowSecondary: true, activateOn: 'up' } as const;
         const pane = uiPlayerInventoryPane({ ...common, id: 'merchant.backpack', label: 'BACKPACK', container: 'backpack',
             cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
             filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
-            stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2) });
-        const hotbar = uiHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, selected: () => -1, layout: { width: 'fit', shrink: 0 },
+            stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
+            // The same header as every pane. The sale counts items, not slots, so sorting is safe; it waits for a sale in flight.
+            onSort: () => { if (!model.pending) options.onSortBackpack?.(); },
+            sortDisabledReason: () => !options.onSortBackpack ? 'Sorting is not available here.' : model.pending ? 'Wait for the sale to finish.' : null });
+        const hotbar = uiHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false, selected: () => -1,
+            layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } },
             stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2) });
         const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
         sellCells = [...grids[0]!.children.map((wrapper, index) => ({ wrapper, slot: BACKPACK_SLOT_OFFSET + index, disabled: false })),
             ...hotbar.children.map((wrapper, index) => ({ wrapper, slot: index, disabled: false }))];
-        sellHost.append(pane); sellHost.append(hotbar);
+        sellHost.append(pane); footerHost.append(hotbar);
     };
     // Items this merchant won't buy show the approved disabled face and take no input, as unofferable trade items do.
     const refreshSellable = () => {
@@ -151,8 +159,9 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         }
         sellFilter.refresh();
     };
-    const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
-            uiFlex({ direction: 'row', gap: 8, align: 'start' }, [uiStack({ shrink: 0 }, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), sellHost]), notice,
+    const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, footer: footerHost, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
+            // Selling, the ledger and the pane sit side by side like a chest window's two panes (16 apart, tops aligned).
+            uiFlex({ direction: 'row', gap: 16, align: 'start' }, [uiStack({ shrink: 0 }, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), sellHost]), notice,
             uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]),
             uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]),
         ] });
@@ -213,6 +222,7 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         const selling = next.tab === 'sell' && next.sell !== undefined;
         // Selling filters with the pane's own filter; the search field stays with the Buy tab's wares.
         input.setStyle({ visible: !selling }); sellHost.setStyle({ visible: selling, display: selling ? 'flex' : 'none' });
+        footerHost.parent?.setStyle({ display: selling ? 'flex' : 'none' });
         // Selling, the ledger narrows so it and the pane fit side by side.
         panel.setStyle({ width: uiFixed(selling ? SELL_LIST_WIDTH : LIST_WIDTH), maxWidth: selling ? undefined : fit });
         if (selling) {

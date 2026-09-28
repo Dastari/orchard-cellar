@@ -58,6 +58,8 @@ export interface NpcInteractionCallbacks {
     readonly fulfillVillageOrder?: (offer: VillageOrderOffer) => Promise<void>;
     readonly chooseDialogueOption: (choiceId: string) => void;
     readonly closeDialogue: () => void;
+    /** Sorts the player's backpack (the merchant's Sell pane offers the same sort as every inventory pane). */
+    readonly sortBackpack?: () => void;
     readonly buy: (lines: readonly MerchantCartLine[]) => Promise<void>;
     readonly sell: (lines: readonly MerchantCartLine[]) => Promise<void>;
 }
@@ -239,7 +241,7 @@ export class NpcInteractionUi {
                 this.host.append(this.panel);
             }
             else if (this.shopOpen) {
-                this.merchant = uiMerchant({ model: this.merchantModel(), style: frame?.style, artwork: this.itemArt, onTab: tab => { this.tab = tab; this.inspectingItemKind = null; this.refresh(); }, onFilter: query => this.setFilterText(query), onQuantity: (id, value) => this.setQuantity(id, value), onSellSlot: (slot, one) => this.sellSlot(slot, one), onCommit: () => this.commitCart(), onBack: () => this.callbacks.chooseDialogueOption('back'), onClose: () => this.callbacks.closeDialogue(), onSeals: () => { this.sealsOpen = true; this.refresh(); }, canInspect: id => !!furnitureShopDetails(this.model?.contentRegistry, id), onInspect: id => { if (this.tab === 'buy' && this.allShopRows().some(row => row.itemKind === id)) {
+                this.merchant = uiMerchant({ model: this.merchantModel(), style: frame?.style, artwork: this.itemArt, onTab: tab => { this.tab = tab; this.inspectingItemKind = null; this.refresh(); }, onFilter: query => this.setFilterText(query), onQuantity: (id, value) => this.setQuantity(id, value), onSellSlot: (slot, one) => this.sellSlot(slot, one), ...(this.callbacks.sortBackpack ? { onSortBackpack: () => this.callbacks.sortBackpack!() } : {}), onCommit: () => this.commitCart(), onBack: () => this.callbacks.chooseDialogueOption('back'), onClose: () => this.callbacks.closeDialogue(), onSeals: () => { this.sealsOpen = true; this.refresh(); }, canInspect: id => !!furnitureShopDetails(this.model?.contentRegistry, id), onInspect: id => { if (this.tab === 'buy' && this.allShopRows().some(row => row.itemKind === id)) {
                         this.inspectingItemKind = id;
                         this.refresh();
                     } } });

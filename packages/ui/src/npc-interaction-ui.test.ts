@@ -246,7 +246,9 @@ it('sells from the shared player inventory pane: its filter, every empty cell, d
     press(ui, 'merchant.sell');
     const ids = new Set(ui.root.entries().map(entry => entry.element.id));
     expect(ids.has('merchant.backpack.filter')).toBe(true);
-    expect(ids.has('merchant.backpack.sort')).toBe(false);
+    // The same header as every pane: filter and sort (disabled here, where the host offers no sort).
+    expect(node(ui, 'merchant.backpack.sort').disabled).toBe(true);
+    expect(node(ui, 'merchant.hotbar').parent?.parent?.children[0]?.kind).toBe('window-divider');
     // Selling filters with the pane's own filter; the Buy tab's search field is hidden.
     expect(ui.root.entries().some(entry => entry.element.id === 'merchant.filter')).toBe(false);
     press(ui, 'merchant.buy'); expect(node(ui, 'merchant.filter').visible).toBe(true); press(ui, 'merchant.sell');
@@ -259,4 +261,12 @@ it('sells from the shared player inventory pane: its filter, every empty cell, d
     expect(ui.shopState.lines).toEqual([{ itemKind: 'stone', quantity: 5 }, { itemKind: 'wood', quantity: 1 }]);
     // Picking never goes past what is carried.
     pick(ui, 12); expect(ui.shopState.lines[0]).toEqual({ itemKind: 'stone', quantity: 5 });
+});
+it('sorts the backpack from the Sell pane when the host offers it, and not while a sale is in flight (BUG-067)', () => {
+    const sortBackpack = vi.fn();
+    const { ui } = fixture({ inventory: [{ slot: 12, itemKind: 'stone', quantity: 5 }] }, { sortBackpack });
+    press(ui, 'merchant.sell');
+    expect(node(ui, 'merchant.backpack.sort').disabled).toBe(false);
+    press(ui, 'merchant.backpack.sort');
+    expect(sortBackpack).toHaveBeenCalledOnce();
 });
