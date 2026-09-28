@@ -72,9 +72,7 @@ describe('BUG-060: Escape closes the topmost open surface before opening the men
     expect(sync).not.toContain('closingEntityWindows.closed(');
     const syncTail = main.slice(main.indexOf('closingEntityWindows.showing('), main.indexOf('closingEntityWindows.showing(') + 200);
     expect(syncTail).toContain('closingEntityKey');
-    // Every entity interact resets the guard: chest, placeable and hearth stash.
-    const interactStart = main.indexOf("case 'hearth_stash':\n      closingEntityWindows");
-    const interact = main.slice(interactStart, main.indexOf("case 'merchant':", interactStart));
-    expect(interact.match(/closingEntityWindows\.interacted\(\)/gu)?.length).toBe(3);
+    // Every E/touch interaction (chests, placeables and the hearth stash among them) resets the guard first.
+    expect(main).toContain('activate: () => { closingEntityWindows.interacted(); activateInteraction(target, snapshot); },');
   });
 });

@@ -4022,7 +4022,8 @@ worldInteractions.register('existing-world-entities', snapshot => {
     ...target,
     exclusive: riding && (target.kind === 'horse' || target.kind === 'boat'),
     prompt: interactionPrompt(target, snapshot),
-    activate: () => activateInteraction(target, snapshot),
+    // BUG-060: a fresh interact never waits for an old close (review of #252, finding 2).
+    activate: () => { closingEntityWindows.interacted(); activateInteraction(target, snapshot); },
     payload: target,
   }));
 });
@@ -4102,7 +4103,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
 function activateInteraction(target: EInteractionTarget, snapshot: OverworldView): void {
   switch (target.kind) {
     case 'hearth_stash':
-      closingEntityWindows.interacted(); showResult(network.openHearthStash(),null);return;
+      showResult(network.openHearthStash(),null);return;
     case 'hearth_supply_cache':
       showResult(network.openHearthSupplyCache(), 'PERSONAL STASH: SHARED WITH DELVE LOBBY');return;
     case 'ferry':
@@ -4118,14 +4119,12 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
       if(hearthFurnitureShapeForPlaceable(
         snapshot.content.registry, target.placeable,
       )?.seatPoseOffsetPixels!==undefined){showResult(network.sitHearthFurniture(target.placeable.id),null);return;}
-      closingEntityWindows.interacted();
       showResult(
         network.interactEntity('placeable', target.placeable.id, 'use'),
         target.presentation?.feedback ?? null,
       );
       return;
     case 'chest':
-      closingEntityWindows.interacted();
       showResult(network.interactEntity('placeable', target.chest.id, 'use'), 'CHEST OPENED');
       return;
     case 'merchant':
