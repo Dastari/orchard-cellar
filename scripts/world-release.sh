@@ -224,6 +224,18 @@ studio_stage=$(mktemp -d /tmp/orchard-release-reviewed-studio.XXXXXX)
 # The client chunk runtime plan and every staged and served audit, kept as release evidence.
 client_chunk_stage=$(mktemp -d /tmp/orchard-release-client-chunk.XXXXXX)
 printf '%s\n' "$client_chunk_plan" > "$client_chunk_stage/client-chunk-runtime.json"
+printf 'Client chunk runtime evidence (plan and audits): %s\n' "$client_chunk_stage"
+client_chunk_audit_failed() {
+  printf 'Client chunk runtime audit check failed (%s): the client is not the planned %s build. Evidence: %s\n' \
+    "$1" "$client_chunk_mode" "$client_chunk_stage" >&2
+  exit 65
+}
+# Staged (candidate, final) or served audit against the plan: releasable, mode and activation release.
+assert_client_chunk_audit() {
+  node --import tsx scripts/world-release-routine.ts client-chunk-audit \
+    "$client_chunk_stage/client-chunk-runtime-audit-$1.json" "$client_chunk_stage/client-chunk-runtime.json" \
+    || client_chunk_audit_failed "$1"
+}
 if [[ "$studio_mode" = preserve-current ]]; then
   node scripts/studio-release-inputs.mjs "$studio_reviewed_source" "$studio_stage/source-before.json"
   cmp "$studio_reviewed_source/source-manifest.json" "$studio_stage/source-before.json"
@@ -299,8 +311,7 @@ if [[ "$studio_was_active" = true ]]; then sudo systemctl stop orchard-studio.se
 
 env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production
 cp packages/client/dist/chunk-runtime-audit.json "$client_chunk_stage/client-chunk-runtime-audit-candidate.json"
-node --import tsx scripts/world-release-routine.ts client-chunk-audit \
-  "$client_chunk_stage/client-chunk-runtime-audit-candidate.json" "$client_chunk_stage/client-chunk-runtime.json"
+assert_client_chunk_audit candidate
 npm run client:chunks:check
 CLIENT_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-client-static.sh
 install_reviewed_studio
@@ -387,8 +398,7 @@ npm run generate --workspace @orchard/world
 npm run typecheck --workspace @orchard/world-bindings
 env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production
 cp packages/client/dist/chunk-runtime-audit.json "$client_chunk_stage/client-chunk-runtime-audit-final.json"
-node --import tsx scripts/world-release-routine.ts client-chunk-audit \
-  "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime.json"
+assert_client_chunk_audit final
 npm run client:chunks:check
 CLIENT_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-client-static.sh
 install_reviewed_studio
@@ -456,12 +466,15 @@ if [[ "$frontend_was_active" = true ]]; then
     CLIENT_VALIDATE_ORIGIN=https://orchard.dastari.net \
       ops/orchard-runtime/bin/validate-client-static.sh
   }
-  # The served client carries the planned chunk runtime (mode and activation release).
-  curl --max-time 20 -fsS -H 'Cache-Control: no-cache' https://orchard.dastari.net/chunk-runtime-audit.json \
-    -o "$client_chunk_stage/client-chunk-runtime-audit-served.json"
-  cmp "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime-audit-served.json"
-  node --import tsx scripts/world-release-routine.ts client-chunk-audit \
-    "$client_chunk_stage/client-chunk-runtime-audit-served.json" "$client_chunk_stage/client-chunk-runtime.json"
+  # The served client carries the planned chunk runtime (mode and activation release). The fetch
+  # retries a transient error (the lane has already published; the EXIT trap would stop every
+  # service), but the comparison and the audit stay strict.
+  curl --max-time 20 --retry 5 --retry-all-errors --retry-delay 2 -fsS -H 'Cache-Control: no-cache' \
+    https://orchard.dastari.net/chunk-runtime-audit.json -o "$client_chunk_stage/client-chunk-runtime-audit-served.json" \
+    || client_chunk_audit_failed served-fetch
+  cmp "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime-audit-served.json" \
+    || client_chunk_audit_failed served-differs-from-final
+  assert_client_chunk_audit served
 fi
 if [[ "$studio_was_active" = true ]]; then
   studio_ready=false
@@ -484,9 +497,8 @@ release_world_quiescence_started=false
 live_publish_started=false
 rm -f -- "$module_source_manifest"
 module_source_manifest=''
-printf 'Client chunk runtime evidence (plan and audits): %s\n' "$client_chunk_stage"
-printf 'World release completed (%s); backup=%s expected=%s rehearsal-reconnect=%s production=%s rehearsal-pre-log=%s rehearsal-post-log=%s production-pre-log=%s\n' \
-  "$migration_kind" \
+printf 'World release completed (%s); client-chunk-evidence=%s backup=%s expected=%s rehearsal-reconnect=%s production=%s rehearsal-pre-log=%s rehearsal-post-log=%s production-pre-log=%s\n' \
+  "$migration_kind" "$client_chunk_stage" \
   "$backup_directory" "$pre_drain_snapshot" "$post_drain_snapshot" \
   "$production_pre_drain_snapshot" "$rehearsal_pre_drain_log" \
   "$rehearsal_post_drain_log" "$production_pre_drain_log"

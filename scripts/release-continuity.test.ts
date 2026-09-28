@@ -202,14 +202,22 @@ describe('production continuity tooling', () => {
     expect(plan).toBeLessThan(release.indexOf('\nnpm test\n'));
     // Each build's audit is asserted before the release chunk check runs on it.
     for (const [label, build] of [['candidate', release.indexOf(builds[0]!)], ['final', release.lastIndexOf(builds[1]!)]] as const) {
-      const audit = release.indexOf(`client-chunk-audit \\\n  "$client_chunk_stage/client-chunk-runtime-audit-${label}.json"`);
+      const audit = release.indexOf(`\nassert_client_chunk_audit ${label}\n`);
       expect(audit, label).toBeGreaterThan(build);
       expect(audit, label).toBeLessThan(release.indexOf('npm run client:chunks:check', build));
     }
-    const served = release.indexOf('"$client_chunk_stage/client-chunk-runtime-audit-served.json" "$client_chunk_stage/client-chunk-runtime.json"');
+    // The evidence path is printed as soon as it exists, and every audit failure is named.
+    expect(release.indexOf('printf \'Client chunk runtime evidence (plan and audits): %s\\n\' "$client_chunk_stage"'))
+      .toBeLessThan(release.indexOf(builds[0]!));
+    expect(release).toContain('|| client_chunk_audit_failed "$1"');
+    const served = release.indexOf('\n  assert_client_chunk_audit served\n');
     expect(served).toBeGreaterThan(release.lastIndexOf('\nrestore_traffic\n'));
     expect(served).toBeLessThan(release.lastIndexOf('\ntraffic_stopped=false\nrelease_world_quiescence_started=false'));
-    expect(release).toContain('cmp "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime-audit-served.json"');
+    // After a successful publish a transient fetch error must not trip the EXIT trap: bounded retries,
+    // but the comparison and the audit stay strict.
+    const fetch = release.indexOf('https://orchard.dastari.net/chunk-runtime-audit.json');
+    expect(release.slice(release.lastIndexOf('curl', fetch), fetch)).toContain('--retry 5 --retry-all-errors --retry-delay 2');
+    expect(release).toContain('cmp "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime-audit-served.json" \\\n    || client_chunk_audit_failed served-differs-from-final');
   });
 
   it('refuses the raw chunk build variables and an unapproved on before any release work (S5c G3/G6)', () => {
@@ -227,9 +235,9 @@ describe('production continuity tooling', () => {
           WORLD_RELEASE_PRODUCTION_PRE_DRAIN_SNAPSHOT: join(directory, 'new-production-pre-drain.json'), ...extra },
       });
       for (const [extra, code] of [
-        [{ VITE_CHUNK_RUNTIME_MODE: 'off' }, 'routine_raw_chunk_runtime_variable:VITE_CHUNK_RUNTIME_MODE'],
-        [{ ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: '' }, 'routine_raw_chunk_runtime_variable:ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE'],
-        [{ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'unreviewed' }, 'routine_chunk_runtime_on_not_approved'],
+        [{ VITE_CHUNK_RUNTIME_MODE: 'off' }, 'release_raw_chunk_runtime_variable:VITE_CHUNK_RUNTIME_MODE'],
+        [{ ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: '' }, 'release_raw_chunk_runtime_variable:ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE'],
+        [{ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'unreviewed' }, 'release_chunk_runtime_on_not_approved'],
       ] as const) {
         const result = run(extra);
         expect(result.status, JSON.stringify(extra)).toBe(64);
