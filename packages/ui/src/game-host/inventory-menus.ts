@@ -66,6 +66,8 @@ export class InventoryMenus {
   private snapshot: InventoryMenuSnapshot | null = null;
   private definition: FrameContentDefinition | null = null;
   private readonly filter = new UiInventoryFilter();
+  /** The entity pane's own filter (a chest's contents), never shared with the backpack (BUG-065). */
+  private readonly entityFilter = new UiInventoryFilter();
 
   /** The held stack's own root, so it draws above every overlay and over any inventory window. */
   private readonly heldRoot: UiRoot;
@@ -123,6 +125,7 @@ export class InventoryMenus {
       if (this.active) { this.root.input.cancelPointers(); this.controller.cancel(); }
       // A closed window forgets its refused-drop flashes.
       this.controller.clearRefusals();
+      if (this.entityFilter.editor.snapshot().value) { this.entityFilter.editor.setValue(''); this.entityFilter.refresh(); }
       this.snapshot = null; this.rules = null;
       this.root.tree.setStyle({ visible: false });
       return;
@@ -156,10 +159,14 @@ export class InventoryMenus {
     for (const child of [...this.root.tree.children]) child.dispose();
     this.root.tree.replaceChildren([]);
     this.definition = snapshot.definition;
+    // A different frame starts with an empty entity filter (BUG-065 review).
+    if (this.entityFilter.editor.snapshot().value) { this.entityFilter.editor.setValue(''); this.entityFilter.refresh(); }
     const chest = snapshot.aliases.entity === 'chest';
+    // Each pane filters only itself (BUG-065): the backpack keeps the host's filter, the same one the inventory window
+    // uses, and a chest's contents get their own, cleared whenever the window closes.
     const controls = (container: string, showFilter: boolean): UiInventoryControls => ({
-      filterModel: this.filter, showFilter, sortEnabled: () => this.cursor === null,
-      onFilter: value => this.authority.filter(value), onSort: () => this.authority.sort(container),
+      filterModel: container === 'backpack' ? this.filter : this.entityFilter, showFilter, sortEnabled: () => this.cursor === null,
+      onFilter: container === 'backpack' ? value => this.authority.filter(value) : undefined, onSort: () => this.authority.sort(container),
       itemLabel: item => this.authority.label(item),
       capacity: () => container === 'backpack' ? this.snapshot?.backpackCapacity ?? 0 : Infinity,
     });
@@ -169,7 +176,7 @@ export class InventoryMenus {
       progress: () => this.snapshot?.progress ?? 0,
       iconAnimation: (item: ItemStack) => this.authority.iconAnimation(item),
       contentRegistry: () => this.authority.contentRegistry?.(),
-      inventoryControls: { backpack: controls('backpack', !chest),
+      inventoryControls: { backpack: controls('backpack', true),
         ...(chest ? { chest: controls('chest', true) } : {}),
         ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),
           showFilter: false, sortEnabled: () => this.cursor === null } } : {}),
