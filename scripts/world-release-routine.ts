@@ -7,6 +7,8 @@ import { pathToFileURL } from 'node:url';
 import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
 import { parseContentHeadCandidate, type ContentHeadCandidate } from './content-head-release.js';
 import { parseWorldRejoinSnapshot, type WorldRejoinSnapshot } from './world-rejoin-snapshot.js';
+import { CHUNK_RUNTIME_ACTIVATION_RELEASE, CHUNK_RUNTIME_BUILD_MODES, validChunkRuntimeBuildAudit,
+  type ChunkRuntimeBuildMode } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 const HOST = 'http://127.0.0.1:3000';
 const DATABASE = 'orchard-cellar-world';
@@ -254,6 +256,82 @@ async function liveProgram(output?: string): Promise<{ identity: string; program
   return { identity, programHash };
 }
 
+/** The client chunk runtime a routine release builds (static world S5c, runbook G3 and G6). */
+export interface ClientChunkRuntimePlan {
+  readonly mode: ChunkRuntimeBuildMode;
+  /** The activation release id the build carries (`on` only), else null. */
+  readonly activationRelease: string | null;
+  /** The committed CHUNK_RUNTIME_ACTIVATION_RELEASE when the plan was made. */
+  readonly approvedRelease: string | null;
+  /** True for a deliberate deactivation after activation (WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1). */
+  readonly rollback: boolean;
+}
+
+/** Build-only variables the lane sets itself, on the client build line and nowhere else. */
+export const CLIENT_CHUNK_BUILD_VARIABLES = ['VITE_CHUNK_RUNTIME_MODE', 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE'] as const;
+
+/**
+ * Chooses the client chunk runtime for a routine release from WORLD_RELEASE_CLIENT_CHUNK_RUNTIME
+ * (off | shadow | on), WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION and WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK.
+ *
+ * - The raw build variables must not be in the environment at all: the lane passes them to the
+ *   client build only, so tests, typecheck and the Studio build never see them.
+ * - Before activation (no committed release id) the default is `off`, `on` is refused and no
+ *   activation id may be given.
+ * - After activation (G6) the mode must be explicit, so a later release can never deactivate the
+ *   client by default: `on` needs the committed id, and `off` or `shadow` needs
+ *   WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1.
+ */
+export function clientChunkRuntimePlan(env: Readonly<Record<string, string | undefined>>,
+  approvedRelease: string | null = CHUNK_RUNTIME_ACTIVATION_RELEASE): ClientChunkRuntimePlan {
+  for (const name of CLIENT_CHUNK_BUILD_VARIABLES) {
+    if (env[name] !== undefined) throw new Error(`routine_raw_chunk_runtime_variable:${name}`);
+  }
+  const requested = env['WORLD_RELEASE_CLIENT_CHUNK_RUNTIME'];
+  const activation = env['WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION'] ?? '';
+  const rollbackFlag = env['WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK'] ?? '';
+  if (rollbackFlag !== '' && rollbackFlag !== '1') throw new Error('routine_chunk_rollback_flag_invalid');
+  const rollback = rollbackFlag === '1';
+  if (requested !== undefined && !(CHUNK_RUNTIME_BUILD_MODES as readonly string[]).includes(requested)) {
+    throw new Error('routine_chunk_runtime_mode_invalid');
+  }
+  const approved = approvedRelease === '' ? null : approvedRelease;
+  if (approved === null) {
+    const mode = (requested ?? 'off') as ChunkRuntimeBuildMode;
+    if (mode === 'on') throw new Error('routine_chunk_runtime_on_not_approved');
+    if (activation !== '') throw new Error('routine_chunk_activation_not_approved');
+    if (rollback) throw new Error('routine_chunk_rollback_before_activation');
+    return { mode, activationRelease: null, approvedRelease: null, rollback: false };
+  }
+  if (requested === undefined) throw new Error('routine_chunk_runtime_mode_required_after_activation');
+  const mode = requested as ChunkRuntimeBuildMode;
+  if (mode === 'on') {
+    if (activation !== approved) throw new Error('routine_chunk_activation_mismatch');
+    if (rollback) throw new Error('routine_chunk_rollback_with_on');
+    return { mode, activationRelease: approved, approvedRelease: approved, rollback: false };
+  }
+  if (!rollback) throw new Error('routine_chunk_deactivation_requires_rollback');
+  if (activation !== '') throw new Error('routine_chunk_activation_with_deactivation');
+  return { mode, activationRelease: null, approvedRelease: approved, rollback: true };
+}
+
+export function parseClientChunkRuntimePlan(value: unknown): ClientChunkRuntimePlan {
+  const plan = value as Partial<ClientChunkRuntimePlan> | null;
+  if (plan === null || typeof plan !== 'object' || !(CHUNK_RUNTIME_BUILD_MODES as readonly unknown[]).includes(plan.mode)
+    || !(plan.activationRelease === null || (typeof plan.activationRelease === 'string' && plan.activationRelease !== ''))
+    || !(plan.approvedRelease === null || typeof plan.approvedRelease === 'string') || typeof plan.rollback !== 'boolean'
+    || (plan.mode === 'on') !== (plan.activationRelease !== null)) throw new Error('routine_chunk_plan_invalid');
+  return plan as ClientChunkRuntimePlan;
+}
+
+/** The staged or served chunk-runtime-audit.json is releasable and is exactly what the plan built. */
+export function assertClientChunkRuntimeAudit(audit: unknown, plan: ClientChunkRuntimePlan,
+  approvedRelease: string | null = CHUNK_RUNTIME_ACTIVATION_RELEASE): void {
+  if (!validChunkRuntimeBuildAudit(audit, 'production', approvedRelease)) throw new Error('routine_chunk_runtime_audit_not_releasable');
+  const { mode, activationRelease } = audit as { mode: unknown; activationRelease?: unknown };
+  if (mode !== plan.mode || (activationRelease ?? null) !== plan.activationRelease) throw new Error('routine_chunk_runtime_audit_mismatch');
+}
+
 async function main(): Promise<void> {
   const [mode, first, second, third] = process.argv.slice(2);
   if (mode === 'live-program') {
@@ -275,6 +353,12 @@ async function main(): Promise<void> {
     const candidate = parseContentHeadCandidate(JSON.parse(await readFile(second, 'utf8')) as unknown);
     const expected = expectedContentSnapshot(snapshot, candidate, process.env['WORLD_RELEASE_CONTENT_OWNER_LABEL'] ?? '');
     await writeFile(third, `${JSON.stringify(expected, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  } else if (mode === 'client-chunk-plan') {
+    process.stdout.write(`${JSON.stringify(clientChunkRuntimePlan(process.env))}\n`);
+  } else if (mode === 'client-chunk-audit' && first !== undefined && second !== undefined) {
+    const plan = parseClientChunkRuntimePlan(JSON.parse(await readFile(second, 'utf8')) as unknown);
+    if (plan.approvedRelease !== (CHUNK_RUNTIME_ACTIVATION_RELEASE ?? null)) throw new Error('routine_chunk_approved_release_changed');
+    assertClientChunkRuntimeAudit(JSON.parse(await readFile(first, 'utf8')) as unknown, plan);
   } else throw new Error('routine_helper_usage');
 }
 

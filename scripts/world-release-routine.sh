@@ -48,7 +48,20 @@ esac
   && "$(stat -c '%a' "$token_file")" = 600 ]] || exit 77
 export WORLD_REJOIN_REQUIRE_REFRESH=1 SPACETIMEDB_HOST="$canonical_host" SPACETIMEDB_DATABASE="$database"
 helper=(node --import tsx scripts/world-release-routine.ts)
+# Client chunk runtime (static world S5c, G3/G6): WORLD_RELEASE_CLIENT_CHUNK_RUNTIME=off|shadow|on,
+# WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION=<committed id> for on, and WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1
+# to build off/shadow once CHUNK_RUNTIME_ACTIVATION_RELEASE is committed. The raw
+# VITE_CHUNK_RUNTIME_MODE / ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE are refused here and set only
+# on the client build line, so tests and the Studio build never see them.
+client_chunk_plan=$("${helper[@]}" client-chunk-plan) || {
+  printf 'Client chunk runtime plan refused (see the error above and "Client chunk runtime in the routine lane" in PUBLISHING.md).\n' >&2; exit 64;
+}
+client_chunk_mode=$(jq -r '.mode' <<<"$client_chunk_plan")
+client_chunk_activation=$(jq -r '.activationRelease // ""' <<<"$client_chunk_plan")
+client_chunk_build_env=(VITE_CHUNK_RUNTIME_MODE="$client_chunk_mode")
+[[ -z "$client_chunk_activation" ]] || client_chunk_build_env+=(ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE="$client_chunk_activation")
 install -d -m 0700 "$evidence" "$evidence/rollback" "$evidence/staged/packages/client" "$evidence/staged/packages/studio"
+printf '%s\n' "$client_chunk_plan" > "$evidence/client-chunk-runtime.json"
 exec 9>"$repository/.git/orchard-release.lock"
 flock -n 9 || { printf 'Another guarded release is running.\n' >&2; exit 75; }
 printf 'candidate\n' > "$evidence/status"
@@ -158,7 +171,9 @@ spacetime generate --lang typescript --js-path "$evidence/candidate-world.js" \
   --out-dir "$evidence/public-bindings" --no-config --yes
 "${helper[@]}" same-schema "$evidence/public-bindings-before" "$evidence/public-bindings"
 "${helper[@]}" same-schema "$evidence/public-bindings" packages/world-bindings/src
-npm run build --workspace @orchard/client -- --mode client-production --outDir "$evidence/staged/packages/client/dist"
+env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production --outDir "$evidence/staged/packages/client/dist"
+cp "$evidence/staged/packages/client/dist/chunk-runtime-audit.json" "$evidence/client-chunk-runtime-audit.json"
+"${helper[@]}" client-chunk-audit "$evidence/client-chunk-runtime-audit.json" "$evidence/client-chunk-runtime.json"
 if [[ "$studio_mode" = preserve-current ]]; then
   # Same-schema publication retains the independently reviewed, installed UI.
   # Keep the source UI-kit guard and every static, source, CAS and parity gate.
@@ -239,6 +254,11 @@ for app in client studio; do
   cmp "packages/$app/dist/index.html" "$evidence/$app-served.html"
   "${helper[@]}" static "$repository/packages/$app/dist" "$origin"
 done
+# The served client carries the planned chunk runtime (mode and activation release).
+curl --max-time 20 -fsS -H 'Cache-Control: no-cache' "https://orchard.dastari.net/chunk-runtime-audit.json" \
+  -o "$evidence/client-chunk-runtime-audit-served.json"
+cmp "$evidence/client-chunk-runtime-audit.json" "$evidence/client-chunk-runtime-audit-served.json"
+"${helper[@]}" client-chunk-audit "$evidence/client-chunk-runtime-audit-served.json" "$evidence/client-chunk-runtime.json"
 complete=true
 traffic_stopped=false
 # After the content CAS and with the new build served: the chunk heads must describe
