@@ -245,7 +245,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // instead of rebuilding them per lookup, and drops late refusals from a closed window; ui/item-slot.ts keeps its
 // one-slot rule container instead of allocating one per check. inventory-menus-held-stack (frame and rule parity),
 // item-slot and overworld-ui tests cover it; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '3c3455f2aca96a5fee1eb54e62ff9e530c6dbeeb3c070a11c7742597f63a7518';
+// BUG-056 (wiki Roadmap/Uncapped Storage, step 1): ui/overworld-ui.ts reads its backpack capacity through one
+// modelBackpackCapacity() (the world's accessibleBackpackCapacity rule) instead of four 20-or-8 fallbacks, and passes it
+// to the recipe book. recipe-book, trade-ui and npc-interaction-ui tests cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = 'edb290495769889ba816cc10c145b9262e224364ef2567230bb5c8d451663453';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
