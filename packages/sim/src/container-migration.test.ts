@@ -4,11 +4,15 @@ import {
   CURRENT_CONTAINER_LAYOUT_VERSION,
   LEGACY_CONTAINER_LAYOUT_VERSION,
   legacyPlaceableSlotsFingerprint,
-  legacyPlayerInventoryFingerprint,
+  legacyPlayerCustodyEntries,
+  legacyPlayerCustodyFingerprint,
   placeableContainerCellsFingerprint,
   planPlaceableContainerMigration,
   planPlayerContainerMigration,
+  playerCellCustodyEntries,
   playerContainerCellsFingerprint,
+  playerCustodyFingerprint,
+  worldPlayerCustodyFingerprint,
   type LegacyContainerSlotRow,
   type LegacyPlaceableSlotRow,
   type PlayerContainerCell,
@@ -79,8 +83,10 @@ describe('player container migration plan', () => {
       .toEqual([[0, 'copper_bar', 0, true], [2, 'gold_axe', 399, false], [15, 'apple', 0, true]]);
     expect(plan.selectedSlot).toBe(33);
     expect(plan.selectedCell).toEqual({ container: 'equipment', index: 3 });
-    expect(plan.sourceFingerprint).toBe(plan.resultFingerprint);
-    expect(plan.sourceFingerprint).toMatch(/^player-cells:52:\d+:[0-9a-f]{8}$/u);
+    expect(plan.legacyCustodyFingerprint).toBe(playerCustodyFingerprint(playerCellCustodyEntries(plan.cells)));
+    expect(plan.legacyCustodyFingerprint).toMatch(/^player-custody:52:\d+:[0-9a-f]{8}$/u);
+    expect(plan.cellsFingerprint).toBe(playerContainerCellsFingerprint(plan.cells));
+    expect(plan.cellsFingerprint).toMatch(/^player-cells:52:\d+:[0-9a-f]{8}$/u);
   });
 
   it('round-trips through dense containers and back to legacy rows with equal fingerprints', () => {
@@ -97,12 +103,12 @@ describe('player container migration plan', () => {
     }
     const legacyAgain = asLegacyRows(plan.cells);
     const stashAgain = plan.cells.filter(cell => cell.container === 'stash').map(cell => ({ slot: cell.index, itemKind: cell.itemKind, quantity: cell.quantity, durability: cell.durability, lit: cell.lit }));
-    expect(legacyPlayerInventoryFingerprint({ inventoryRows: legacyAgain, equipmentLayoutVersion: 1, stashRows: stashAgain }))
-      .toBe(plan.sourceFingerprint);
-    expect(playerContainerCellsFingerprint([...plan.cells].reverse())).toBe(plan.resultFingerprint);
+    expect(legacyPlayerCustodyFingerprint({ inventoryRows: legacyAgain, equipmentLayoutVersion: 1, stashRows: stashAgain }))
+      .toBe(plan.legacyCustodyFingerprint);
+    expect(playerContainerCellsFingerprint([...plan.cells].reverse())).toBe(plan.cellsFingerprint);
     // Vacant rows never change custody or the fingerprint.
-    expect(legacyPlayerInventoryFingerprint({ inventoryRows: rows.filter(row => row.itemKind !== 'empty'), equipmentLayoutVersion: 1, stashRows: stash }))
-      .toBe(plan.sourceFingerprint);
+    expect(legacyPlayerCustodyFingerprint({ inventoryRows: rows.filter(row => row.itemKind !== 'empty'), equipmentLayoutVersion: 1, stashRows: stash }))
+      .toBe(plan.legacyCustodyFingerprint);
   });
 
   it('applies the pre-Body equipment layout first, so a version 0 inventory lands in the same cells', () => {
@@ -112,7 +118,8 @@ describe('player container migration plan', () => {
     const fromNew = planPlayerContainerMigration({ inventoryRows: current, equipmentLayoutVersion: 1, stashRows: [], selectedSlot: 0 });
     expect(fromOld.cells).toEqual(fromNew.cells);
     expect(fromOld.cells.filter(cell => cell.container === 'crafting').map(cell => cell.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(fromOld.resultFingerprint).toBe(fromNew.resultFingerprint);
+    expect(fromOld.cellsFingerprint).toBe(fromNew.cellsFingerprint);
+    expect(fromOld.legacyCustodyFingerprint).toBe(fromNew.legacyCustodyFingerprint);
   });
 
   it('keeps a stranded backpack cell, which spills to overflow when built at a smaller capacity', () => {
@@ -122,16 +129,52 @@ describe('player container migration plan', () => {
     expect(build.spill).toEqual(plan.cells);
   });
 
-  it('changes the fingerprint when any custody detail changes', () => {
+  it('changes the custody fingerprint when kind, quantity or place changes, and only the exact one for durability or lit', () => {
     const base = { inventoryRows: fullInventory(), equipmentLayoutVersion: 1, stashRows: stashRows() };
-    const reference = legacyPlayerInventoryFingerprint(base);
-    const changed = (patch: (rows: Row[]) => Row[]) => legacyPlayerInventoryFingerprint({ ...base, inventoryRows: patch(fullInventory()) });
+    const reference = legacyPlayerCustodyFingerprint(base);
+    const changed = (patch: (rows: Row[]) => Row[]) => legacyPlayerCustodyFingerprint({ ...base, inventoryRows: patch(fullInventory()) });
     expect(changed(rows => rows.map(row => row.slot === 12 ? { ...row, quantity: row.quantity - 1 } : row))).not.toBe(reference);
-    expect(changed(rows => rows.map(row => row.slot === 33 ? { ...row, durability: 186 } : row))).not.toBe(reference);
-    expect(changed(rows => rows.map(row => row.slot === 4 ? { ...row, lit: true } : row))).not.toBe(reference);
     expect(changed(rows => rows.map(row => row.slot === 12 ? { ...row, itemKind: 'plank' } : row))).not.toBe(reference);
     expect(changed(rows => rows.map(row => row.slot === 12 ? { ...row, slot: 13 } : row.slot === 13 ? { ...row, slot: 12 } : row))).not.toBe(reference);
     expect(changed(rows => [...rows].reverse())).toBe(reference);
+    expect(legacyPlayerCustodyFingerprint({ ...base, stashRows: stashRows().map(row => row.slot === 15 ? { ...row, slot: 14 } : row) })).not.toBe(reference);
+    // The first-version durability step rewrites durability on old characters; custody must not move with it.
+    const durable = (patch: (rows: Row[]) => Row[]) => planPlayerContainerMigration({ ...base, inventoryRows: patch(fullInventory()), selectedSlot: 0 });
+    const plan = durable(rows => rows);
+    for (const patched of [durable(rows => rows.map(row => row.slot === 33 ? { ...row, durability: 186 } : row)),
+      durable(rows => rows.map(row => row.slot === 4 ? { ...row, lit: true } : row))]) {
+      expect(patched.legacyCustodyFingerprint).toBe(plan.legacyCustodyFingerprint);
+      expect(patched.cellsFingerprint).not.toBe(plan.cellsFingerprint);
+    }
+  });
+
+  it('computes legacy custody independently of the planned cells, so a wrong cell never matches it', () => {
+    const input = { inventoryRows: fullInventory(), equipmentLayoutVersion: 1, stashRows: stashRows() };
+    const plan = planPlayerContainerMigration({ ...input, selectedSlot: 0 });
+    const reference = legacyPlayerCustodyFingerprint(input);
+    const custodyOf = (cells: readonly PlayerContainerCell[]) => playerCustodyFingerprint(playerCellCustodyEntries(cells));
+    expect(custodyOf(plan.cells)).toBe(reference);
+    expect(custodyOf(plan.cells.slice(1))).not.toBe(reference);
+    expect(custodyOf(plan.cells.map((cell, index) => index === 0 ? { ...cell, quantity: cell.quantity + 1 } : cell))).not.toBe(reference);
+    expect(custodyOf(plan.cells.map((cell, index) => index === 0 ? { ...cell, container: 'stash' as const, index: 40 } : cell))).not.toBe(reference);
+    // A backpack index the legacy layout never had carries no legacy slot, so it cannot stand in for a legacy row.
+    expect(playerCellCustodyEntries([{ container: 'backpack', index: 25, itemKind: 'wood', quantity: 1, durability: 0, lit: true }])[0]!.legacySlot).toBeNull();
+    // The legacy side maps a pre-Body layout itself.
+    expect(legacyPlayerCustodyEntries({ inventoryRows: [item(39, 'plank', 2)], equipmentLayoutVersion: 0, stashRows: [] }))
+      .toEqual([{ container: 'crafting', index: 0, legacySlot: 40, itemKind: 'plank', quantity: 2 }]);
+  });
+
+  it('fingerprints world custody by owner, independent of order, empty players and row form', () => {
+    const alice = legacyPlayerCustodyEntries({ inventoryRows: fullInventory(), equipmentLayoutVersion: 1, stashRows: [] });
+    const bob = legacyPlayerCustodyEntries({ inventoryRows: [], equipmentLayoutVersion: 1, stashRows: stashRows() });
+    const reference = worldPlayerCustodyFingerprint([{ owner: 'a', entries: alice }, { owner: 'b', entries: bob }]);
+    expect(reference).toMatch(/^player-custody-world:2:52:\d+:[0-9a-f]{8}$/u);
+    const bobCells = planPlayerContainerMigration({ inventoryRows: [], equipmentLayoutVersion: 1, stashRows: stashRows(), selectedSlot: 0 }).cells;
+    expect(worldPlayerCustodyFingerprint([{ owner: 'c', entries: [] }, { owner: 'b', entries: playerCellCustodyEntries(bobCells) },
+      { owner: 'a', entries: [...alice].reverse() }])).toBe(reference);
+    expect(worldPlayerCustodyFingerprint([{ owner: 'a', entries: bob }, { owner: 'b', entries: alice }])).not.toBe(reference);
+    expect(worldPlayerCustodyFingerprint([{ owner: 'a', entries: alice }])).not.toBe(reference);
+    expect(() => worldPlayerCustodyFingerprint([{ owner: 'a', entries: alice }, { owner: 'a', entries: bob }])).toThrow('player_custody_owner_duplicate');
   });
 
   it('fails closed on invalid, duplicate or out-of-layout rows instead of losing items', () => {
@@ -168,8 +211,7 @@ describe('placeable container migration plan', () => {
     ]);
     expect(plan.counts).toEqual({ sourceRows: 5, vacantRows: 2, cells: 3, totalQuantity: 107,
       quantityByKind: { apple: 7, copper_sword: 1, wood: 99 }, placeables: 2 });
-    expect(plan.sourceFingerprint).toBe(plan.resultFingerprint);
-    expect(placeableContainerCellsFingerprint([...plan.cells].reverse())).toBe(plan.resultFingerprint);
+    expect(placeableContainerCellsFingerprint([...plan.cells].reverse())).toBe(plan.sourceFingerprint);
     expect(legacyPlaceableSlotsFingerprint(rows().reverse())).toBe(plan.sourceFingerprint);
     expect(legacyPlaceableSlotsFingerprint(rows().map(row => row.slot === 3 ? { ...row, quantity: 98 } : row))).not.toBe(plan.sourceFingerprint);
     expect(legacyPlaceableSlotsFingerprint(rows().map(row => row.slot === 3 ? { ...row, placeableId: 43n } : row))).not.toBe(plan.sourceFingerprint);
