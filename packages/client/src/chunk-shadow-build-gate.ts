@@ -77,8 +77,10 @@ export function chunkRuntimeBuildAudit(rawMode: string | undefined, moduleIds: r
   // A stray or mismatched release id is an error, never silently ignored.
   if (release !== undefined && !activationAllowed) throw new Error('chunk_runtime_activation_release_mismatch');
   if (mode === 'on' && options.production === true && !activationAllowed) throw new Error('chunk_runtime_activation_not_approved');
+  // Repository-relative (`packages/...`): the audit is served publicly with the build, so it
+  // must never carry the build host's absolute paths (BUG-057).
   const legacyModules = [...new Set(moduleIds.map(id=>id.replaceAll('\\','/').split('?')[0]!)
-    .filter(id=>/\/packages\/(?:sim\/src\/(?:procedural-terrain|survival-world|map-compiler)[^/]*|engine\/src\/(?:terrain|live-map-runtime))\.ts$/u.test(id)))].sort();
+    .flatMap(id=>/\/(packages\/(?:sim\/src\/(?:procedural-terrain|survival-world|map-compiler)[^/]*|engine\/src\/(?:terrain|live-map-runtime))\.ts)$/u.exec(id)?.[1] ?? []))].sort();
   if (options.requireGeneratorFree === true && legacyModules.length) throw new Error(`chunk_generator_retirement_incomplete: ${legacyModules.join(', ')}`);
   return { schema: 1, mode, legacyModules, activationAllowed, activationRelease: activationAllowed ? release! : null };
 }

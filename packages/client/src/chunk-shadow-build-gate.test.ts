@@ -8,6 +8,15 @@ it('records bundled legacy modules and fails explicit retirement and unknown mod
  expect(()=>chunkRuntimeBuildAudit('live',[])).toThrow(/mode_invalid/);
  expect(chunkRuntimeBuildAudit('off',[]).activationAllowed).toBe(false);
 });
+it('records legacy modules relative to the repository, never with the build host path (BUG-057)',()=>{
+ const modules=['/home/builder/projects/orchard-cellar/packages/sim/src/procedural-terrain.ts?v=1','C:\\work\\orchard\\packages\\engine\\src\\terrain.ts',
+  '/home/builder/projects/orchard-cellar/packages/sim/src/procedural-terrain.ts','/repo/packages/engine/src/live-map-runtime.ts'];
+ const audit=chunkRuntimeBuildAudit('shadow',modules);
+ expect(audit.legacyModules).toEqual(['packages/engine/src/live-map-runtime.ts','packages/engine/src/terrain.ts','packages/sim/src/procedural-terrain.ts']);
+ expect(JSON.stringify(audit)).not.toMatch(/home|builder|work|repo\//u);
+ expect(()=>chunkRuntimeBuildAudit('shadow',modules,{requireGeneratorFree:true})).toThrow('chunk_generator_retirement_incomplete: packages/engine/src/live-map-runtime.ts, packages/engine/src/terrain.ts, packages/sim/src/procedural-terrain.ts');
+ expect(validChunkRuntimeBuildAudit(audit)).toBe(true);
+});
 it('does not mistake the chunk-native decoder for legacy generation',()=>{
  expect(chunkRuntimeBuildAudit('shadow',['/repo/packages/sim/src/world-chunk.ts','/repo/packages/engine/src/bounded-chunk-terrain-store.ts'],{requireGeneratorFree:true}).legacyModules).toEqual([]);
 });
