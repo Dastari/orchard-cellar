@@ -95,6 +95,7 @@ import {
   runtimeSkillCapabilities,
 } from '@orchard/sim';
 
+import { BasicObjectLight } from '@orchard/engine/basic-object-light';
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity } from './backpack-capacity.js';
@@ -547,6 +548,9 @@ function loadTerrainInspector(): Promise<TerrainInspectorModule> {
 const lightingQuality = new LightingQualityState(readLightingQuality(localStorage));
 if (lightingQuality.requested === 'dynamic') lightingQuality.fallback(lightingQuality.generation, 'preparing');
 let lightingEffectsDisabled = lightingQuality.effective === 'basic';
+/** BUG-061 proposal (owner approval pending): Basic lighting draws hard-edged object light pools. */
+let basicObjectLightEnabled = true;
+const basicObjectLight = new BasicObjectLight();
 function setLightingQuality(quality: LightingQuality): void {
   lightingFailure = null;
   if (atlasPresentation.failure !== null) atlasPresentation.reset();
@@ -4909,7 +4913,7 @@ function renderFrame(alpha = 1): void {
     context, seasonalDynamic, localX, localTerrainContactY, art,
     groundCache, viewportWidth, viewportHeight, debugEntitiesHidden, projectedLocalY,
     snapshot, celestialPass, activeSpaceDefinition, renderItems, weatherVisualTick,
-    lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting,
+    lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting: dynamicLighting || basicObjectLightEnabled,
     objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, topsideMapRecords: topsideMapRecords(snapshot), visualTickClock,
     frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining, resourceGlanceRemaining,
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
@@ -5074,7 +5078,9 @@ function renderFrame(alpha = 1): void {
   renderMetrics.recordStage('weather', weatherStageMs);
   if (!dynamicLighting) {
     const basicStartedAt = performance.now();
-    compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
+    // BUG-061 proposal: Basic keeps object light as hard-edged two-band pools (owner approval pending).
+    if (basicObjectLightEnabled) basicObjectLight.composite(context, frame.layout.width, frame.layout.height, scale, cameraX, cameraY, frameAmbient, pointLights);
+    else compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
     renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
   } else if (!seasonalDynamic) {
     // Original one-pass lightmap: baked sprite shadows plus object illumination.
@@ -7768,6 +7774,8 @@ Object.assign(window, {
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },
     setWorldTime: (tick: bigint) => network.setWorldTime(tick),
     setLightPreview: (kind: 'lantern' | 'torch' | null) => { lightPreviewKind = kind; },
+    /** BUG-061 review renders: switch the proposed Basic object light on or off. */
+    setBasicObjectLight: (enabled: boolean) => { basicObjectLightEnabled = enabled; },
     setWorldWeather: (mode: WeatherMode) => network.setWorldWeather(mode),
     setWorldWindDirection: (direction: WindDirectionMode) => network.setWorldWindDirection(direction),
     setNameplatesVisible,
