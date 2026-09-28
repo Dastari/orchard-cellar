@@ -16,6 +16,8 @@ function model(state = 'active'): TradeUiModel {
     session: { id: 'trade', requester, recipient, state, requesterAccepted: false, recipientAccepted: false,
       requesterBronze: 0n, recipientBronze: 0n, revision: 0n, createdTick: 1n } };
 }
+/** What you carry is the shared player inventory pane and the hotbar row (BUG-067): a carried slot's cell id. */
+const cell = (slot: number): string => slot < BACKPACK_SLOT_OFFSET ? `trade.hotbar.slot.${slot}` : `trade.backpack.slot.${slot - BACKPACK_SLOT_OFFSET}`;
 function setup(initial = model()) {
   const handlers = callbacks(), ui = new TradeUi({} as UiKitArt, {} as OverworldUiItemArt, handlers);
   ui.resize(800, 600); ui.update(initial); ui.root.arrange();
@@ -27,7 +29,9 @@ function setup(initial = model()) {
   const key = (id: string, key = 'Enter') => { reveal(id); ui.root.key({ key }); };
   const edit = (id: string, value: string) => { const n = reveal(id), editor = n.props['editor'] as CanvasTextEditor;
     editor.setSelection(0, editor.snapshot().value.length); ui.root.text(value); return editor; };
-  return { ui, handlers, node, reveal, point, click, key, edit };
+  /** A cell the window shows (the pane keeps cells past the bag's capacity out of view). */
+  const shown = (id: string): boolean => ui.root.entries().some(entry => entry.element.id === id && entry.element.style.display !== 'none');
+  return { ui, handlers, node, reveal, point, click, key, edit, shown };
 }
 
 describe('items that cannot be offered (item slot S4)', () => {
@@ -37,27 +41,27 @@ describe('items that cannot be offered (item slot S4)', () => {
     const h = setup(initial);
     // The carried cells are the trade's guarded wrappers of kit slots, which adopt the slot: its state (the approved grey
     // face, render 01 B) is the live cell's slot view, and it blocks the cell's input (review of #234, findings 7 and 8).
-    const view = (slot: number) => uiSlotView(h.node(`trade.inventory.slot.${slot}`));
+    const view = (slot: number) => uiSlotView(h.node(cell(slot)));
     // The same rule the server applies (item_not_tradeable): backpacks and unique quest items are not offerable.
     expect([0, 1, 2].map(slot => tradeItemIsOfferable(initial.contentRegistry, initial.inventorySlots[slot]!.itemKind))).toEqual([false, false, true]);
     expect([0, 1, 2].map(slot => view(slot)?.enabled)).toEqual([false, false, true]);
-    expect(h.node('trade.inventory.slot.0').disabled).toBe(true);
-    const cell = h.node('trade.inventory.slot.0').rect, p = { x: cell.x + 14, y: cell.y + 15 };
+    expect(h.node(cell(0)).disabled).toBe(true);
+    const box = h.node(cell(0)).rect, p = { x: box.x + 14, y: box.y + 15 };
     h.ui.root.pointer({ type: 'down', point: p, pointerId: 1, button: 0 }); h.ui.root.pointer({ type: 'up', point: p, pointerId: 1, button: 0 });
     expect(h.handlers.offerItem).not.toHaveBeenCalled();
     // The same cell becomes offerable when its item changes, without rebuilding the grid.
-    const cellNode = h.node('trade.inventory.slot.0');
+    const cellNode = h.node(cell(0));
     h.ui.update({ ...initial, inventorySlots: [{ slot: 0, itemKind: 'apple', quantity: 2 }, ...initial.inventorySlots.slice(1)] }); h.ui.root.arrange();
-    expect(h.node('trade.inventory.slot.0')).toBe(cellNode);
+    expect(h.node(cell(0))).toBe(cellNode);
     expect(view(0)?.enabled).toBe(true); expect(cellNode.disabled).toBe(false);
-    h.click('trade.inventory.slot.0');
+    h.click(cell(0));
     expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', 0, 0, 2); h.ui.dispose();
   });
 });
 
 describe('production retained trade host', () => {
   it('keeps secondary touch from moving focus or issuing a second offer', () => {
-    const h = setup(), slot = h.point('trade.inventory.slot.0');
+    const h = setup(), slot = h.point(cell(0));
     h.ui.root.pointer({ type: 'down', point: slot, pointerId: 1, button: 0, pointerType: 'touch', isPrimary: true });
     const focused = h.ui.root.focus.current, money = h.node('trade.money.gold').rect;
     h.ui.root.pointer({ type: 'down', point: { x: money.x + 2, y: money.y + 2 }, pointerId: 2,
@@ -98,9 +102,9 @@ describe('production retained trade host', () => {
   });
 
   it('sends one primary stack or secondary single-item offer without mutating inventory', () => {
-    const initial = model(), h = setup(initial); h.click('trade.inventory.slot.0');
+    const initial = model(), h = setup(initial); h.click(cell(0));
     expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', 0, 0, 12);
-    h.click('trade.inventory.slot.0', 2); h.key('trade.inventory.slot.0', 'ContextMenu');
+    h.click(cell(0), 2); h.key(cell(0), 'ContextMenu');
     expect(h.handlers.offerItem).toHaveBeenNthCalledWith(2, 'trade', 0, 0, 1);
     expect(h.handlers.offerItem).toHaveBeenNthCalledWith(3, 'trade', 0, 0, 1);
     expect(initial.inventorySlots[0]?.quantity).toBe(12); h.ui.dispose();
@@ -111,12 +115,12 @@ describe('production retained trade host', () => {
       { slot: 0, itemKind: 'marlow_book', quantity: 1 }, { slot: 1, itemKind: 'unknown', quantity: 1 },
       { slot: EQUIPMENT_SLOT_OFFSET, itemKind: 'axe', quantity: 1 }, { slot: BACKPACK_SLOT_OFFSET, itemKind: 'wood', quantity: 4 },
     ] };
-    const h = setup(initial); h.key('trade.inventory.slot.0'); h.key('trade.inventory.slot.1');
-    expect(h.ui.root.entries().some(e => e.element.id === `trade.inventory.slot.${EQUIPMENT_SLOT_OFFSET}`)).toBe(false);
+    const h = setup(initial); h.key(cell(0)); h.key(cell(1));
+    expect(h.shown(cell(EQUIPMENT_SLOT_OFFSET))).toBe(false);
     expect(h.handlers.offerItem).not.toHaveBeenCalled();
     h.ui.update({ ...initial, offers: Array.from({ length: 6 }, (_, slot) => ({ id: `offer${slot}`, tradeId: 'trade',
       owner: initial.session.requester, slot, itemKind: 'wood', quantity: 1, durability: 0, lit: false })) });
-    h.key(`trade.inventory.slot.${BACKPACK_SLOT_OFFSET}`); expect(h.handlers.offerItem).not.toHaveBeenCalled();
+    h.key(cell(BACKPACK_SLOT_OFFSET)); expect(h.handlers.offerItem).not.toHaveBeenCalled();
     h.key('trade.own.slot.2'); expect(h.handlers.removeItem).toHaveBeenCalledExactlyOnceWith('trade', 2); h.ui.dispose();
   });
 
@@ -126,7 +130,7 @@ describe('production retained trade host', () => {
       { id: 'peer', tradeId: 'trade', owner: initial.session.recipient, slot: 1, itemKind: 'wood', quantity: 1, durability: 0, lit: false },
     ] });
     h.key('trade.own.slot.0'); expect(h.handlers.removeItem).not.toHaveBeenCalled();
-    expect(h.node('trade.other.slot.1').focusable).toBe(false); h.key('trade.inventory.slot.0');
+    expect(h.node('trade.other.slot.1').focusable).toBe(false); h.key(cell(0));
     expect(h.handlers.offerItem).toHaveBeenCalledWith('trade', 0, 0, 12); h.ui.dispose();
   });
 
@@ -137,7 +141,7 @@ describe('production retained trade host', () => {
     h.ui.update(next); h.ui.root.pointer({ type: 'up', point: p, pointerId: 1, button: 0 });
     expect(h.handlers.setAccepted).not.toHaveBeenCalled(); h.key('trade.accept');
     expect(h.handlers.setAccepted).toHaveBeenCalledExactlyOnceWith('trade', false, 9n);
-    const q = h.point('trade.inventory.slot.0'); h.ui.root.pointer({ type: 'down', point: q, pointerId: 2, button: 0 });
+    const q = h.point(cell(0)); h.ui.root.pointer({ type: 'down', point: q, pointerId: 2, button: 0 });
     h.ui.update({ ...next, inventorySlots: [{ slot: 0, itemKind: 'axe', quantity: 1 }] });
     h.ui.root.pointer({ type: 'up', point: q, pointerId: 2, button: 0 });
     expect(h.handlers.offerItem).not.toHaveBeenCalled(); h.ui.dispose();
@@ -205,14 +209,14 @@ describe('production retained trade host', () => {
     h.ui.update({ ...initial, inventorySlots: [...initial.inventorySlots, { slot: 1, itemKind: 'stone', quantity: 3 }] });
     h.ui.root.arrange(); expect(h.node('trade.money.gold')).toBe(field); expect(h.ui.root.focus.current).toBe(field);
     expect(editor.snapshot().value).toBe('123'); expect(h.handlers.offerBronze).not.toHaveBeenCalled();
-    h.key('trade.inventory.slot.1'); expect(h.handlers.offerItem).toHaveBeenCalledWith('trade', 1, 0, 3); h.ui.dispose();
+    h.key(cell(1)); expect(h.handlers.offerItem).toHaveBeenCalledWith('trade', 1, 0, 3); h.ui.dispose();
   });
 
   it('uses authoritative expanded backpack capacity and excludes inaccessible rows', () => {
     const initial = { ...model(), inventorySlots: [{ slot: BACKPACK_SLOT_OFFSET + 15, itemKind: 'wood', quantity: 2 }] };
     const h = setup({ ...initial, backpackSlotCapacity: 10 });
-    expect(h.ui.root.entries().some(e => e.element.id === `trade.inventory.slot.${BACKPACK_SLOT_OFFSET + 15}`)).toBe(false);
-    h.ui.update({ ...initial, backpackSlotCapacity: 20 }); h.key(`trade.inventory.slot.${BACKPACK_SLOT_OFFSET + 15}`);
+    expect(h.shown(cell(BACKPACK_SLOT_OFFSET + 15))).toBe(false);
+    h.ui.update({ ...initial, backpackSlotCapacity: 20 }); h.key(cell(BACKPACK_SLOT_OFFSET + 15));
     expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', BACKPACK_SLOT_OFFSET + 15, 0, 2); h.ui.dispose();
   });
 
@@ -220,8 +224,8 @@ describe('production retained trade host', () => {
     const cells = [7, 11, 12, 19].map(cell => ({ slot: BACKPACK_SLOT_OFFSET + cell, itemKind: 'wood', quantity: 1 }));
     const offerable = (backpackSlotCapacity: number) => {
       const h = setup({ ...model(), inventorySlots: [...cells, { slot: EQUIPMENT_SLOT_OFFSET, itemKind: 'wood', quantity: 1 }], backpackSlotCapacity });
-      const ids = new Set(h.ui.root.entries().map(entry => entry.element.id)); h.ui.dispose();
-      return [...cells.map(row => row.slot), EQUIPMENT_SLOT_OFFSET].filter(slot => ids.has(`trade.inventory.slot.${slot}`)).map(slot => slot - BACKPACK_SLOT_OFFSET);
+      const shown = [...cells.map(row => row.slot), EQUIPMENT_SLOT_OFFSET].filter(slot => h.shown(cell(slot))); h.ui.dispose();
+      return shown.map(slot => slot - BACKPACK_SLOT_OFFSET);
     };
     expect(offerable(12)).toEqual([7, 11]);
     expect(offerable(4)).toEqual([7]);
@@ -274,5 +278,27 @@ describe('production retained trade host', () => {
       } },
     ]).registry;
     expect(tradeItemIsOfferable(grantRegistry, 'moon_ledger')).toBe(false);
+  });
+});
+
+describe('what you carry is the shared player inventory pane (BUG-067)', () => {
+  it('shows the backpack pane with its filter and every empty cell, and the hotbar row, like every inventory window', () => {
+    const initial = { ...model(), backpackSlotCapacity: 12, inventorySlots: [{ slot: 0, itemKind: 'wood', quantity: 12 },
+      { slot: BACKPACK_SLOT_OFFSET + 2, itemKind: 'apple', quantity: 3 }, { slot: BACKPACK_SLOT_OFFSET + 5, itemKind: 'stone', quantity: 9 }] };
+    const h = setup(initial);
+    const ids = new Set(h.ui.root.entries().map(entry => entry.element.id));
+    expect(ids.has('pane:trade.backpack')).toBe(true);
+    expect(ids.has('trade.backpack.filter')).toBe(true);
+    // No sort mid-trade: offers name inventory slots.
+    expect(ids.has('trade.backpack.sort')).toBe(false);
+    const shownBackpack = () => Array.from({ length: 20 }, (_, index) => index).filter(index => h.shown(`trade.backpack.slot.${index}`));
+    expect(shownBackpack()).toEqual(Array.from({ length: 12 }, (_, index) => index));
+    expect(Array.from({ length: 10 }, (_, index) => h.shown(`trade.hotbar.slot.${index}`)).every(Boolean)).toBe(true);
+    // Filtering hides only non-matching items; empty cells stay (owner 2026-09-28).
+    h.edit('trade.backpack.filter', 'apple'); h.ui.root.arrange();
+    expect(shownBackpack()).toEqual(Array.from({ length: 12 }, (_, index) => index).filter(index => index !== 5));
+    h.click(cell(BACKPACK_SLOT_OFFSET + 2));
+    expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', BACKPACK_SLOT_OFFSET + 2, 0, 3);
+    h.ui.dispose();
   });
 });

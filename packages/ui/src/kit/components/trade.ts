@@ -1,5 +1,5 @@
 import { coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim/commerce';
-import { BACKPACK_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY } from '@orchard/sim/item-containers';
 import { tradeItemDisplayName, tradeItemIsOfferable, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
 import type { LoadedAsset } from '../../assets.js';
@@ -13,7 +13,8 @@ import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonOptions } from './button.js';
 import { uiInput } from './input.js';
-import { uiAdoptSlot, uiInventoryGrid, uiSetSlotState } from './inventory.js';
+import { uiAdoptSlot, uiHotbar, uiInventoryGrid, uiSetSlotState } from './inventory.js';
+import { UiInventoryFilter, uiPlayerInventoryPane } from './inventory-panel.js';
 import { uiPurseLabel } from './purse.js';
 import { uiTooltip } from './tooltip.js';
 
@@ -40,12 +41,9 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   const otherAccepted = () => own() ? model.session.recipientAccepted : model.session.requesterAccepted;
   const offer = (owner: string, slot: number) => model.offers.find(entry => entry.tradeId === model.session.id
     && entry.owner.toHexString() === owner && entry.slot === slot);
-  const inventory = () => {
-    // The world's one capacity rule (BUG-056), not a second clamp of its own.
-    const capacity = accessibleBackpackCapacity(Math.floor(model.backpackSlotCapacity ?? BASE_BACKPACK_CAPACITY));
-    return model.inventorySlots.filter(row => row.slot >= 0 && (row.slot < HOTBAR_SLOT_COUNT
-      || row.slot >= BACKPACK_SLOT_OFFSET && row.slot < BACKPACK_SLOT_OFFSET + capacity)).toSorted((a, b) => a.slot - b.slot);
-  };
+  // The world's one capacity rule (BUG-056), not a second clamp of its own.
+  const capacity = () => accessibleBackpackCapacity(Math.floor(model.backpackSlotCapacity ?? BASE_BACKPACK_CAPACITY));
+  const carriedRow = (slot: number) => model.inventorySlots.find(row => row.slot === slot) ?? null;
   const actionKey = () => `${model.session.id}:${model.identityHex}:${model.session.state}:${model.session.revision}`;
   const artwork: Record<string, LoadedAsset> = { ...options.artwork };
   const iconAnimation = (item: { readonly itemKind: string }) => model.contentRegistry.items.get(`item:${item.itemKind}`)?.icon.animation ?? 'base';
@@ -123,7 +121,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   let ownLabel: UiElement | undefined, otherLabel: UiElement | undefined, wallet: UiElement | undefined;
   let otherMoney: UiElement | undefined, accept: UiElement | undefined, requestLabel: UiElement | undefined;
   let ownTick: UiElement | undefined, otherTick: UiElement | undefined, status: UiElement | undefined;
-  let carriedHost: UiElement | undefined, inventoryStructure = '';
+  let carriedHost: UiElement | undefined, carriedHotbarHost: UiElement | undefined, inventoryStructure = '';
   let carriedCells: { readonly cell: UiElement; readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
@@ -152,40 +150,53 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     }
     return grid;
   };
+  // What you carry is the shared player inventory pane (owner 2026-09-28, BUG-067) and the window's hotbar row: the
+  // same layout, capacity, filter, empty cells and slots as every other window. Offering is this window's own action.
+  const backpackFilter = new UiInventoryFilter();
+  const offerFrom = (slot: number, secondary: boolean) => {
+    if (!live) return;
+    const row = carriedRow(slot), free = Array.from({ length: 6 }, (_, i) => i).find(i => !offer(model.identityHex, i));
+    if (!row || row.itemKind === 'empty' || row.quantity <= 0 || !tradeItemIsOfferable(model.contentRegistry, row.itemKind) || free === undefined) return;
+    options.callbacks.offerItem(model.session.id, slot, free, secondary ? 1 : row.quantity);
+  };
   const refreshInventory = () => {
     if (!carriedHost) return;
-    const key = inventory().map(row => row.slot).join(',');
+    const key = String(capacity());
     if (key === inventoryStructure && carriedHost.children.length) return;
     inventoryStructure = key;
-    for (const child of [...carriedHost.children]) child.dispose();
-    const carried = uiInventoryGrid({ id: 'trade.inventory', container: 'trade-inventory', cells: inventory().map(row => ({ id: String(row.slot), index: row.slot })),
-      columns: 10, gap: 2, fixedColumns: true, layout: { width: 'fit' }, artwork, iconAnimation, allowSecondary: true,
-      stack: index => model.inventorySlots.find(row => row.slot === index) ?? null,
-      onActivate(index, event) {
-        if (!live) return;
-        const row = model.inventorySlots.find(row => row.slot === index), free = Array.from({ length: 6 }, (_, i) => i).find(i => !offer(model.identityHex, i));
-        if (!row || row.itemKind === 'empty' || row.quantity <= 0 || !tradeItemIsOfferable(model.contentRegistry, row.itemKind) || free === undefined) return;
-        options.callbacks.offerItem(model.session.id, index, free, event.button === 2 ? 1 : row.quantity);
-      },
-    });
+    for (const child of [...carriedHost.children, ...carriedHotbarHost?.children ?? []]) child.dispose();
+    const common = { artwork, iconAnimation, allowSecondary: true } as const;
+    const pane = uiPlayerInventoryPane({ ...common, id: 'trade.backpack', label: 'BACKPACK', container: 'backpack',
+      cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
+      filterModel: backpackFilter, capacity, itemLabel: item => tradeItemDisplayName(model.contentRegistry, item.itemKind),
+      stack: index => carriedRow(BACKPACK_SLOT_OFFSET + index),
+      // No sort while trading: offers name inventory slots, so reordering the bag mid-trade is not offered.
+      onActivate: (index, event) => offerFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2) });
+    const hotbar = uiHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, activateOn: 'up',
+      selected: () => -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2) });
     carriedCells = [];
-    for (const [index, cell] of [...carried.children].entries()) {
-      const slot = inventory()[index]!.slot;
-      carried.remove(cell);
-      const wrapper = guarded(cell, () => {
-        const row = model.inventorySlots.find(row => row.slot === slot);
-        return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`;
-      });
-      carried.append(wrapper); carriedCells.push({ cell, wrapper, slot, disabled: false });
-    }
-    carriedHost.append(carried);
+    const guard = (grid: UiElement, slotOf: (index: number) => number) => {
+      for (const [index, cell] of [...grid.children].entries()) {
+        const slot = slotOf(index);
+        const wrapper = guarded(cell, () => {
+          const row = carriedRow(slot);
+          return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`;
+        });
+        // Keep what the pane already decided for the cell (hidden past the bag's capacity or by the filter).
+        if (cell.style.display !== undefined) wrapper.setStyle({ display: cell.style.display });
+        grid.remove(cell); grid.append(wrapper); carriedCells.push({ cell, wrapper, slot, disabled: false });
+      }
+    };
+    const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
+    guard(grids[0]!, index => BACKPACK_SLOT_OFFSET + index); guard(hotbar, index => index);
+    carriedHost.append(pane); carriedHotbarHost?.append(hotbar);
   };
   // Items the authority won't take in a trade (quest items, backpacks, purchase grants, retired items; the server's
   // item_not_tradeable) show the approved disabled face (render 01 B) and take no input (S4).
   const refreshOfferable = () => {
     for (const entry of carriedCells) {
-      const row = model.inventorySlots.find(row => row.slot === entry.slot);
-      const disabled = row !== undefined && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind);
+      const row = carriedRow(entry.slot);
+      const disabled = row !== null && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind);
       if (disabled === entry.disabled) continue;
       entry.disabled = disabled;
       uiSetSlotState(entry.wrapper, disabled ? { enabled: false } : undefined);
@@ -212,7 +223,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     if (key !== structure) {
       structure = key; rebuilding = true; allowBlurCommit = false;
       for (const child of [...content.children]) child.dispose();
-      ownLabel = otherLabel = wallet = otherMoney = accept = requestLabel = carriedHost = ownTick = otherTick = status = undefined;
+      ownLabel = otherLabel = wallet = otherMoney = accept = requestLabel = carriedHost = carriedHotbarHost = ownTick = otherTick = status = undefined;
       if (model.session.state === 'requested') {
         requestLabel = uiText('', { id: 'trade.request', wrap: true, align: 'center', layout: { width: uiFixed(240) } });
         content.append(requestLabel);
@@ -237,24 +248,26 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         const otherGrid = wrapSlots(uiInventoryGrid({ id: 'trade.other', container: 'trade-other', count: 6, columns: 3, gap: 2, fixedColumns: true, layout: { width: 'fit' },
           artwork, iconAnimation, stack: index => offer(otherHex(), index) ?? null,
         }), otherHex, false);
-        carriedHost = uiFlex({ shrink: 0 }); inventoryStructure = '';
+        carriedHost = uiFlex({ shrink: 0 }); carriedHotbarHost = uiFlex({ shrink: 0 }); inventoryStructure = '';
         accept = button({ id: 'trade.accept', label: 'Accept', ariaLabel: 'Accept trade', tone: 'success', onPress: () => {
           if (live) options.callbacks.setAccepted(model.session.id, !ownAccepted(), model.session.revision);
         } });
         const column = (label: UiElement, tick: UiElement, grid: UiElement, money: readonly UiElement[]) => uiFlex({ direction: 'column', gap: 4, shrink: 0 }, [
           uiFlex({ direction: 'row', gap: 4, align: 'center', alignSelf: 'stretch', height: uiFixed(16) }, [label, uiFlex({ grow: 1 }, []), tickSlot(tick)]), grid, ...money]);
+        // The offers sit beside what you carry, as a chest sits beside the backpack.
         content.append(uiFlex({ id: 'trade.scroll', direction: 'row', gap: 16, align: 'start' }, [
           column(ownLabel, ownTick, ownGrid, [uiFlex({ direction: 'row', gap: 2, align: 'center' }, moneyFields()), wallet]),
           column(otherLabel, otherTick, otherGrid, [uiFlex({ direction: 'row', gap: 4, align: 'center', height: uiFixed(20) }, [uiText('COINS', { role: 'caption' }), otherMoney])]),
+          carriedHost,
         ]));
         content.append(status);
         content.append(uiFlex({ direction: 'row', gap: 4, justify: 'center', shrink: 0 }, [
           button({ id: 'trade.cancel', label: 'Cancel', tone: 'danger', onPress: cancel }), accept,
         ]));
-        // What you carry sits under the carved divider, like a window's hotbar row.
+        // The hotbar sits under the carved divider, as in every inventory window.
         content.append(uiWindowDivider());
         content.append(uiText('Click an item to offer it; right-click offers one.', { role: 'caption', align: 'center', wrap: true, layout: { width: uiFixed(280) } }));
-        content.append(carriedHost);
+        content.append(carriedHotbarHost);
       }
       rebuilding = false;
     }
