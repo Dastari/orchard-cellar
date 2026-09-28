@@ -2,12 +2,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { TILE_SIZE_FIXED, bootstrapContentRegistry } from '@orchard/sim';
 import {
-  acceptanceSlotsEqual,
+  acceptanceCellsEqual,
+  acceptanceCellsWellFormed,
   placeableAcceptanceCapacity,
   placeableAcceptanceConfirmation,
   planPlaceableAcceptance,
+  type AcceptanceCell,
   type AcceptancePlanInput,
-  type AcceptanceSlot,
 } from './placeable-interaction-acceptance-policy.js';
 
 const registry = bootstrapContentRegistry();
@@ -17,29 +18,43 @@ const target = {
   tileX: 11, tileY: 10, spaceId: 0, placedBy: identity, carriedBy: null,
   open: false, processStartTick: null, processStartedBy: null, processInputKind: null,
 };
-const slots: AcceptanceSlot[] = Array.from({ length: 3 }, (_, slot) => ({
-  placeableId: 17n, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-}));
+// Sparse container-cell views: an empty fruit press has no rows at all.
+const cells: AcceptanceCell[] = [];
 
 function input(changes: Partial<AcceptancePlanInput> = {}): AcceptancePlanInput {
   return {
     registry, mode: 'inspect', host: 'https://orchard.dastari.net/', database: 'orchard-cellar-world',
     identity, kind: 'fruit_press', target,
     position: { x: 10 * TILE_SIZE_FIXED, y: 10 * TILE_SIZE_FIXED, facing: 'right', spaceId: 0 },
-    slots, activePlaceableId: null, allowProduction: false, ...changes,
+    cells, activePlaceableId: null, allowProduction: false, ...changes,
   };
 }
 
 describe('placeable interaction acceptance policy', () => {
-  it('uses the captured live container capacity and rejects missing or duplicate custody slots', () => {
+  it('checks sparse cells against the captured live capacity: no row per slot, no duplicates, nothing past capacity', () => {
+    const chest = (index: number, placeableId = 18n): AcceptanceCell => ({
+      placeableId, index, itemKind: 'apple', quantity: 2, durability: 0, lit: true,
+    });
+    const capacity = placeableAcceptanceCapacity(registry, 'chest');
+    expect(capacity).toBeGreaterThan(2);
+    // An empty container is no rows; a partly filled one is only its occupied cells, in any order.
+    expect(acceptanceCellsWellFormed([], 18n, capacity)).toBe(true);
+    expect(acceptanceCellsWellFormed([chest(capacity - 1), chest(0)], 18n, capacity)).toBe(true);
+    // Duplicate indices, another placeable's cell, a cell past the capacity, or a vacant row are not a valid view.
+    expect(acceptanceCellsWellFormed([chest(1), chest(1)], 18n, capacity)).toBe(false);
+    expect(acceptanceCellsWellFormed([chest(1, 19n)], 18n, capacity)).toBe(false);
+    expect(acceptanceCellsWellFormed([chest(capacity)], 18n, capacity)).toBe(false);
+    expect(acceptanceCellsWellFormed([{ ...chest(1), itemKind: 'empty', quantity: 0 }], 18n, capacity)).toBe(false);
+    // The live capacity is the captured content's: a cell valid at 4 is past the capacity at the bootstrap's 3.
     const press = registry.objects.get('object:fruit_press')!;
     const expanded = { ...press, components: { ...press.components,
       container: { ...press.components.container!, slotCount: 4 } } };
     const liveRegistry = { objects: new Map(registry.objects).set(press.id, expanded) };
-    expect(planPlaceableAcceptance(input({ registry: liveRegistry })).issues)
-      .toContain('acceptance_slot_projection_incomplete');
-    expect(planPlaceableAcceptance(input({ slots: [slots[0]!, slots[0]!, slots[2]!] })).issues)
-      .toContain('acceptance_slot_projection_incomplete');
+    const pressCell = { placeableId: 17n, index: 3, itemKind: 'apple', quantity: 1, durability: 0, lit: true };
+    expect(planPlaceableAcceptance(input({ registry: liveRegistry, cells: [pressCell] })).issues)
+      .not.toContain('acceptance_cell_projection_invalid');
+    expect(planPlaceableAcceptance(input({ cells: [pressCell] })).issues)
+      .toContain('acceptance_cell_projection_invalid');
     expect(planPlaceableAcceptance(input({ target: { ...target, definitionId: 'object:missing' } })).issues)
       .toContain('acceptance_container_definition_unavailable');
   });
@@ -74,7 +89,7 @@ describe('placeable interaction acceptance policy', () => {
       activePlaceableId: 99n,
       target: { ...target, placedBy: '02'.repeat(32), processStartTick: 4n },
       position: { x: 1, y: 1, facing: 'bogus', spaceId: 2 },
-      slots: [{ ...slots[0]!, itemKind: 'apple', quantity: 1 }],
+      cells: [{ placeableId: 17n, index: 0, itemKind: 'apple', quantity: 1, durability: 0, lit: true }],
     }));
     expect(plan.issues).toEqual(expect.arrayContaining([
       'acceptance_target_not_owned', 'acceptance_session_already_active',
@@ -82,18 +97,21 @@ describe('placeable interaction acceptance policy', () => {
       'acceptance_processor_active', 'acceptance_processor_not_empty',
     ]));
     expect(plan.inspection.durableSlotFingerprint).toBe('owner_scoped_unavailable');
-    expect(planPlaceableAcceptance(input({ slots: slots.slice(0, 1) })).issues)
-      .toContain('acceptance_slot_projection_incomplete');
+    expect(planPlaceableAcceptance(input({ cells: [
+      { placeableId: 17n, index: 0, itemKind: 'apple', quantity: 1, durability: 0, lit: true },
+      { placeableId: 17n, index: 0, itemKind: 'pear', quantity: 1, durability: 0, lit: true },
+    ] })).issues).toContain('acceptance_cell_projection_invalid');
   });
 
   it('accepts a migrated generic chest radially without requiring the faced tile', () => {
-    const chestSlots: AcceptanceSlot[] = Array.from({ length: placeableAcceptanceCapacity(registry, 'chest') },
-      (_, slot) => ({ placeableId: 18n, slot, itemKind: slot === 0 ? 'apple' : 'empty',
-        quantity: slot === 0 ? 4 : 0, durability: 0, lit: true }));
+    const chestCells: AcceptanceCell[] = [
+      { placeableId: 18n, index: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: true },
+      { placeableId: 18n, index: 5, itemKind: 'wood', quantity: 9, durability: 0, lit: true },
+    ];
     const chestInput = input({ kind: 'chest', target: { ...target, id: 18n, kind: 'chest',
       definitionId: 'object:chest', tileX: 11, tileY: 10, placedBy: identity },
     position: { x: 10 * TILE_SIZE_FIXED, y: 10 * TILE_SIZE_FIXED, facing: 'up', spaceId: 0 },
-    slots: chestSlots });
+    cells: chestCells });
     expect(planPlaceableAcceptance(chestInput)).toMatchObject({
       inspection: {
         runtimeDefinitionId: 'object:chest', reachPolicy: 'radial_two_tiles',
@@ -101,10 +119,12 @@ describe('placeable interaction acceptance policy', () => {
       },
       issues: [],
     });
-    expect(acceptanceSlotsEqual(chestSlots, [...chestSlots].reverse())).toBe(true);
-    expect(acceptanceSlotsEqual(chestSlots, chestSlots.map((slot) => (
-      slot.slot === 0 ? { ...slot, quantity: 3 } : slot
+    expect(acceptanceCellsEqual(chestCells, [...chestCells].reverse())).toBe(true);
+    expect(acceptanceCellsEqual(chestCells, chestCells.map((cell) => (
+      cell.index === 0 ? { ...cell, quantity: 3 } : cell
     )))).toBe(false);
+    // Emptying a cell removes its row, which is a change.
+    expect(acceptanceCellsEqual(chestCells, chestCells.slice(1))).toBe(false);
   });
 
   it('represents nonowned chest inspection without false kind, facing, or slot errors', () => {
@@ -113,7 +133,7 @@ describe('placeable interaction acceptance policy', () => {
       target: { ...target, id: 18n, kind: 'chest', definitionId: 'object:chest',
         tileX: 11, tileY: 10, placedBy: '02'.repeat(32) },
       position: { x: 10 * TILE_SIZE_FIXED, y: 10 * TILE_SIZE_FIXED, facing: 'up', spaceId: 0 },
-      slots: [],
+      cells: [],
     });
     expect(planPlaceableAcceptance(chestInput)).toMatchObject({
       inspection: { owned: false, durableSlotFingerprint: 'owner_scoped_unavailable' },
@@ -125,13 +145,11 @@ describe('placeable interaction acceptance policy', () => {
     ['fruit_press', 21n, 3],
     ['fermentation_cask', 22n, 2],
   ] as const)('resolves a legacy empty definition id for %s by runtime kind', (kind, id, capacity) => {
-    const processorSlots: AcceptanceSlot[] = Array.from({ length: capacity }, (_, slot) => ({
-      placeableId: id, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-    }));
+    expect(placeableAcceptanceCapacity(registry, kind)).toBe(capacity);
     const legacyInput = input({
       kind,
       target: { ...target, id, kind, definitionId: '', placedBy: identity },
-      slots: processorSlots,
+      cells: [],
     });
     expect(planPlaceableAcceptance(legacyInput)).toMatchObject({
       inspection: { runtimeDefinitionId: `object:${kind}`, reachPolicy: 'exact_faced_tile' },
@@ -150,13 +168,24 @@ describe('placeable interaction live harness safety contract', () => {
     expect(source).toContain("if (mode === 'inspect')");
   });
 
-  it('has no item movement path and verifies slots before and after closing', () => {
-    expect(source).not.toMatch(/movePlaceableItem|moveInventoryItem|quickMove|adminSetContainerSlot/);
-    expect(source).toContain('acceptanceSlotsEqual(slotsBefore, slotSnapshots(client, targetId))');
+  it('has no item movement path and verifies cells before, while open and after closing', () => {
+    expect(source).not.toMatch(/movePlaceableItem|moveInventoryItem|moveItem\(|quickMove|adminSetContainerSlot/);
+    expect(source).toContain('acceptanceCellsEqual(cellsBefore, openCells(client))');
+    expect(source).toContain('acceptanceCellsWellFormed(openCells(client), targetId, capacity)');
+    expect(source).toContain('acceptanceCellsEqual(cellsBefore, placedCells(client, targetId))');
     expect(source).toContain('client.connection.reducers.closePlaceable({})');
     expect(source).toContain('if (interactionDispatched)');
-    expect(source).toContain('acceptanceSlotsEqual(slotsBefore, slotsAfter)');
+    expect(source).toContain('acceptanceCellsEqual(cellsBefore, cellsAfter)');
     expect(source).toContain('itemsMoved: 0');
+  });
+
+  it('acknowledges inventory protocol 2 before interacting and names an older world plainly', () => {
+    const acknowledge = source.indexOf('await acknowledgeProtocol(client);');
+    expect(acknowledge).toBeGreaterThan(source.indexOf("acceptance_preflight_failed"));
+    expect(acknowledge).toBeLessThan(source.indexOf('client.connection.reducers.interactEntity('));
+    expect(source).toContain('version: CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION');
+    expect(source).toContain('acceptance_world_not_on_container_cells');
+    expect(source).toContain('acceptance_subscription_rejected:${ACCEPTANCE_PROTOCOL_REQUIRED}');
   });
 
   it('requires exact target, identity, confirmation, and explicit production opt-in', () => {
@@ -170,7 +199,9 @@ describe('placeable interaction live harness safety contract', () => {
   it('subscribes only to the target kind and caller-scoped interaction surfaces', () => {
     const subscribe = source.slice(source.indexOf('function subscribe'), source.indexOf('function identityHex'));
     for (const table of ['worldPlaceable', 'playerPosition', 'ownActivePlaceable',
-      'ownOpenPlaceableSlots', 'ownPlacedPlaceableSlots']) expect(subscribe).toContain(`tables.${table}`);
+      'ownOpenPlaceableContainerCells', 'ownPlacedPlaceableContainerCells']) expect(subscribe).toContain(`tables.${table}`);
     expect(subscribe).toContain('row.kind.eq(kind)');
+    // The frozen legacy slot views are never read.
+    expect(source).not.toMatch(/ownOpenPlaceableSlots|ownPlacedPlaceableSlots/u);
   });
 });
