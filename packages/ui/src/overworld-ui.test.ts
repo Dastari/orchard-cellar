@@ -38,6 +38,7 @@ import type { UiSkin } from './skin.js';
 import { RIBBON_TEXT_TOP_OFFSET, ribbonWidth } from './ribbon.js';
 import { uiSlotIconRect } from './kit/components/inventory.js';
 import type { UiKitArt } from './kit/components/art.js';
+import type { ItemSlotTable } from './item-slot.js';
 import type { SkillTreeModel } from './skill-tree-ui.js';
 
 
@@ -338,9 +339,7 @@ describe('overworld retained UI layout', () => {
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
-    const equipment = (ui as unknown as {
-      equipmentItemSlots: readonly { accepts: (itemKind: string) => boolean }[];
-    }).equipmentItemSlots;
+    const equipment = [(ui as unknown as { itemSlots: ItemSlotTable }).itemSlots.slot('equipment', 0)];
 
     updateWith(buildContentRegistry([
       { id: moonAmulet.id, kind: moonAmulet.kind, json: moonAmulet },
@@ -448,13 +447,12 @@ describe('overworld retained UI layout', () => {
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     const internal = ui as unknown as {
-      furnaceItemSlots: readonly { readonly item: { readonly itemKind: string } | null; readonly visible: boolean }[];
-      backpackItemSlots: readonly { readonly visible: boolean }[];
+      itemSlots: ItemSlotTable;
     };
-    expect(internal.furnaceItemSlots.map((slot) => slot.item?.itemKind ?? null))
+    expect(internal.itemSlots.range('placeable', 3).map((slot) => slot.item?.itemKind ?? null))
       .toEqual(['iron_ore', 'wood', null]);
-    expect(internal.furnaceItemSlots.every((slot) => slot.visible)).toBe(true);
-    expect(internal.backpackItemSlots.some((slot) => slot.visible)).toBe(true);
+    expect(internal.itemSlots.range('placeable', 3).every((slot) => slot.visible)).toBe(true);
+    expect(internal.itemSlots.made('backpack').some((slot) => slot.visible)).toBe(true);
   });
 
   it('stacks cooking slots beside a three-slot vertical meter without entering the backpack pane', () => {
@@ -1378,10 +1376,10 @@ describe('overworld inventory and system menu', () => {
       ui.pointerUp(destination, 0);
       expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('hotbar', 0, 'left');
       const prediction = ui as unknown as {
-        inventoryHotbarSlots: readonly { item: { itemKind: string; quantity: number } | null }[];
+        itemSlots: ItemSlotTable;
         optimisticMenuCursor: unknown;
       };
-      expect(prediction.inventoryHotbarSlots[0]!.item).toMatchObject({ itemKind: 'wood', quantity: 7 });
+      expect(prediction.itemSlots.slot('hotbar', 0).item).toMatchObject({ itemKind: 'wood', quantity: 7 });
       expect(prediction.optimisticMenuCursor).toBeNull();
     });
 
@@ -2114,19 +2112,18 @@ describe('overworld inventory and system menu', () => {
     ui.pointerMove({ x: sourcePoint.x + 4, y: sourcePoint.y });
     const internal = ui as unknown as {
       optimisticMenuCursor: { readonly itemKind: string; readonly quantity: number } | null | undefined;
-      inventoryHotbarSlots: readonly { readonly item: { readonly quantity: number } | null }[];
-      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
     expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
     expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('hotbar', 0, 'left');
     expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.inventoryHotbarSlots[0]?.item).toBeNull();
+    expect(internal.itemSlots.slot('hotbar', 0).item).toBeNull();
 
     ui.pointerMove(targetPoint);
     ui.pointerUp(targetPoint, 0);
     expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
     expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.craftingItemSlots[0]?.item).toBeNull();
+    expect(internal.itemSlots.slot('crafting', 0).item).toBeNull();
   });
 
   it('cancels when a dragged stack is held before returning to its source slot', () => {
@@ -2209,9 +2206,9 @@ describe('overworld inventory and system menu', () => {
     const initial = ui as unknown as {
       quickCraftOriginalCursor: { readonly quantity: number } | null;
       quickCraftPreviewCursor: { readonly quantity: number } | null | undefined;
-      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
-    expect(initial.craftingItemSlots[0]?.item?.quantity).toBe(10);
+    expect(initial.itemSlots.slot('crafting', 0).item?.quantity).toBe(10);
     expect(initial.quickCraftOriginalCursor?.quantity).toBe(10);
     expect(initial.quickCraftPreviewCursor).toBeNull();
     for (const slot of targets.slice(1)) {
@@ -2220,12 +2217,12 @@ describe('overworld inventory and system menu', () => {
     const internal = ui as unknown as {
       cursorPress: { readonly targets: readonly { readonly containerId: string; readonly index: number }[] } | null;
       quickCraftPreviewCursor: { readonly quantity: number } | null | undefined;
-      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
     expect(internal.cursorPress?.targets.map((slot) => [slot.containerId, slot.index])).toEqual([
       ['crafting', 0], ['crafting', 1], ['crafting', 2],
     ]);
-    expect(internal.craftingItemSlots.slice(0, 3).map((slot) => slot.item?.quantity)).toEqual([3, 3, 3]);
+    expect(internal.itemSlots.range('crafting', 3).map((slot) => slot.item?.quantity)).toEqual([3, 3, 3]);
     expect(internal.quickCraftPreviewCursor?.quantity).toBe(1);
   });
 
@@ -2247,14 +2244,14 @@ describe('overworld inventory and system menu', () => {
     ui.pointerUp(point, 0);
     const internal = ui as unknown as {
       optimisticMenuCursor: { readonly itemKind: string; readonly quantity: number } | null | undefined;
-      inventoryHotbarSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
     expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.inventoryHotbarSlots[0]?.item).toBeNull();
+    expect(internal.itemSlots.slot('hotbar', 0).item).toBeNull();
     await Promise.resolve();
     await Promise.resolve();
     expect(internal.optimisticMenuCursor).toBeUndefined();
-    expect(internal.inventoryHotbarSlots[0]?.item?.quantity).toBe(8);
+    expect(internal.itemSlots.slot('hotbar', 0).item?.quantity).toBe(8);
 
     rejectedClick.mockClear();
     ui.update({
@@ -2363,9 +2360,9 @@ describe('overworld inventory and system menu', () => {
     );
     expect(handlers.inventoryCursorPickupAll).not.toHaveBeenCalled();
     const internal = ui as unknown as {
-      chestItemSlots: readonly { readonly item: { readonly itemKind: string; readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
-    expect(internal.chestItemSlots[0]?.item).toMatchObject({ itemKind: 'wood', quantity: 22 });
+    expect(internal.itemSlots.slot('chest', 0).item).toMatchObject({ itemKind: 'wood', quantity: 22 });
     now.mockRestore();
   });
 
