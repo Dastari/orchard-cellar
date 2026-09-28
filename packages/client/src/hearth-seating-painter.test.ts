@@ -19,7 +19,7 @@ describe('seating in actual gameplay painter producers',()=>{
       remoteDisplay:new Map([['abc',drift]]),previousRemoteDisplay:new Map([['abc',drift]]),alpha:1,
       renderedLocal:drift,predicted:{position:drift,facing:'down'},previousPredicted:{position:drift},renderedPlayerAnchors:anchors,
       renderTickClock:{renderTick:10},projectionAt:projection,equippedLightRow:()=>null,selectedItem:()=> 'empty',liveItemContentDefinition:()=>undefined,
-      lightPreviewKind:null,dynamicLighting:false,visible:{left:0,top:0,right:256,bottom:256},targetableEntities:[],
+      lightPreviewKind:null,collectLights:false,visible:{left:0,top:0,right:256,bottom:256},targetableEntities:[],
       liveEquippedItemFacing:()=> 'down',cursorFacing:()=> 'down',nameplates:labels,profileName:()=> 'Visitor',
       enqueueWorldDepth:(_x:number,_y:number,item:WorldDepthItem)=>queue.push(item),context:{},cameraX:0,cameraY:0,scale:1,
       reducedMotionPreference:{matches:false},frameLightingModel:'unified',animatedOpenChestId:null,closingChestId:null,chestAnimationStartedAtMs:0,

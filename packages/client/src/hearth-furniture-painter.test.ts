@@ -34,7 +34,7 @@ async function fixture(parentState = '{}', missingParentAsset = false, includeKe
     visible: { left: 0, top: 0, right: 256, bottom: 256 }, lightVisible: { left: 0, top: 0, right: 256, bottom: 256 },
     enqueueWorldDepth: (_x: number, _y: number, item: WorldDepthItem) => queued.push(item),
     drawSouthFacingReceiver: (_x: number, _y: number, draw: () => void) => draw(),
-    frameLightingModel: 'unified', projectionAt: () => 0, targetableEntities: [], dynamicLighting: true,
+    frameLightingModel: 'unified', projectionAt: () => 0, targetableEntities: [], collectLights: true,
     activeSpaceDefinition: { generator: 'debug_flat', spaceId: 30000 }, pointLights: lights,
     projectedLight: (light: PointLight, sample?: number) => { samples.push(sample); return light; },
   };

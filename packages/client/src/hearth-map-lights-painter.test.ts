@@ -8,7 +8,7 @@ it('collects offscreen map-light influence with contact projection only on the a
   const source={worldX:110,worldY:50,radiusTiles:2,color:{r:255,g:196,b:120},terrainContactX:95,receiverDirectionWorldY:70};
   vi.mocked(mapObjectPointLights).mockReturnValue([source,{...source,worldX:200}]);
   const lights:PointLight[]=[],projectedLight=vi.fn((light:PointLight)=>light);
-  const input={dynamicLighting:true,debugEntitiesHidden:false,
+  const input={collectLights:true,debugEntitiesHidden:false,
     activeSpaceDefinition:{spaceId:Number(TOPSIDE_SPACE_ID),generator:'debug_flat'},
     snapshot:{content:{registry:{}},placeables:[],homesteads:[],clock:{authorityTick:42n}},topsideMapRecords:null,
     pointLights:lights,projectedLight,topsideDecorations:()=>[],
@@ -18,7 +18,7 @@ it('collects offscreen map-light influence with contact projection only on the a
   for(const state of ['interior','hidden','lighting-off'] as const){
     lights.length=0;vi.mocked(mapObjectPointLights).mockClear();
     input.activeSpaceDefinition.spaceId=state==='interior'?30000:TOPSIDE_SPACE_ID;
-    input.debugEntitiesHidden=state==='hidden';input.dynamicLighting=state!=='lighting-off';
+    input.debugEntitiesHidden=state==='hidden';input.collectLights=state!=='lighting-off';
     render();expect(lights,state).toEqual([]);expect(mapObjectPointLights,state).not.toHaveBeenCalled();
   }
 });

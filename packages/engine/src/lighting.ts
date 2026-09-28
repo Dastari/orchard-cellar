@@ -27,6 +27,9 @@ export interface PointLight {
   readonly intensityPerMille?: number;
   readonly facing?: LightFacing;
   readonly profile?: LightProfile;
+  /** The light without flame flicker (radius and strength), for Basic lighting's steady pools (BUG-061). Set by the
+   * producers that apply flicker; absent, the light is already steady. */
+  readonly steady?: { readonly radiusTiles: number; readonly strengthPerMille: number };
   /** Integer terrain plane sampled at the emitter's ground contact. Lights
    * share shadows only with geometry on that plane. */
   readonly elevationLayer?: number;
