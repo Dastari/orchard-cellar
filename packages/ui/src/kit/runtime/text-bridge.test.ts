@@ -158,3 +158,26 @@ it('suspends native editing for a blocking canvas surface and restores the retai
     UiTextBridge.setCanvasBlocked(canvas,false);expect(documentStub.activeElement).toBe(bridge.input);expect(bridge.input.value).toBe('Mara');
   } finally { bridge.dispose();vi.unstubAllGlobals(); }
 });
+
+it('releases the native editor when kit focus leaves it, even when the canvas cannot take focus (BUG-064)', () => {
+  const documentStub = { activeElement: null as unknown, body: { append() {} }, createElement: () => new Input() };
+  class Input extends EventTarget {
+    style = {}; dataset = {}; value = ''; inputMode = ''; tabIndex = 0; spellcheck = false; readOnly = false;
+    focus() { documentStub.activeElement = this; }
+    blur() { if (documentStub.activeElement === this) documentStub.activeElement = documentStub.body; }
+    setAttribute() {} setSelectionRange() {} remove() {}
+  }
+  // The game canvas has no tabindex: focusing it is a no-op.
+  const canvas = { focus() {} } as unknown as HTMLCanvasElement;
+  vi.stubGlobal('document', documentStub);
+  const root = new UiRoot({ scale: 1 }); root.resize(400, 200);
+  const filter = root.mount(uiInput({ label: 'Filter items' })); root.arrange();
+  const bridge = new UiTextBridge(canvas, () => root.focus.current, event => root.key(event), node => node.rect, () => root.invalidate());
+  try {
+    root.focus.set(filter, 'pointer'); bridge.sync();
+    expect(documentStub.activeElement).toBe(bridge.input);
+    // The window closes (its root loses focus): keys must go back to the game, not stay in the hidden editor.
+    root.focus.set(null); bridge.sync();
+    expect(documentStub.activeElement).not.toBe(bridge.input);
+  } finally { bridge.dispose(); root.dispose(); }
+});

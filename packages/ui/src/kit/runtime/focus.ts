@@ -23,7 +23,12 @@ export class UiFocus {
       this.modal = modal;
     }
     if (this.current && !this.candidates.includes(this.current)) this.set(null);
-    if (modal && !this.current) this.set(this.candidates[0] ?? null);
+    // A modal takes keyboard focus on its first control. Controls marked `skipAutoFocus` (on them or a wrapper) (an optional search field,
+    // which would swallow every key, Escape included, and show its ring) are passed over when anything else can
+    // hold focus (BUG-064).
+    // The automatic first focus is not keyboard focus: like the browser's :focus-visible, no ring is drawn until the
+    // player uses the keyboard (Tab, arrows), which moves focus as keyboard focus.
+    if (modal && !this.current) this.set(this.candidates.find(node => !skipsAutoFocus(node)) ?? this.candidates[0] ?? null, 'pointer');
     const requested = this.candidates.find(node => node.props['focusRequested']);
     if (requested) { requested.setProps({ focusRequested: false }, false); this.set(requested); }
   }
@@ -61,4 +66,9 @@ export class UiFocus {
     return this.set(candidates[index] ?? null);
   }
   dispose(): void { this.set(null); this.candidates = []; this.saved.clear(); this.modal = null; }
+}
+
+function skipsAutoFocus(node: UiElement): boolean {
+  for (let current: UiElement | null = node; current; current = current.parent) if (current.props['skipAutoFocus']) return true;
+  return false;
 }
