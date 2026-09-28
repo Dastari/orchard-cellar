@@ -218,7 +218,7 @@ describe('#270 review', () => {
   it('rebinds a recycled slot\'s icon with its cell', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(480, 360);
     root.mount(uiInventoryPanel({ id: 'bag', container: 'bag', columns: 5, visibleRows: 4, onActivate: () => undefined, stack: () => null,
-      cells: Array.from({ length: 100 }, (_, index) => ({ id: String(index), index, ...(index === 30 ? { icon: { lucide: 'star' } as const } : {}) })) }));
+      cells: Array.from({ length: 100 }, (_, index) => ({ id: String(index), index, ...(index === 30 ? { icon: { lucide: 'visibility' } as const } : {}) })) }));
     root.arrange();
     const area = root.entries().find(entry => entry.element.kind === 'scroll-area')!.element;
     const slot5 = root.entries().find(entry => entry.element.id === 'bag.slot.5')!.element;
