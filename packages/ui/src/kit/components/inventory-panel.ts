@@ -54,15 +54,19 @@ export function uiInventoryPagingTarget(key: string, position: number, count: nu
   if (key.startsWith('Arrow')) return next >= 0 && next < count ? next : null;
   return Math.max(0, Math.min(count - 1, next));
 }
-/** Gamepad paging: the standard mapping's shoulder buttons (4, 5) as PageUp and PageDown, once per press. Pass the
- * buttons held last time; returns the keys to send and the buttons held now. */
-export function uiGamepadPagingKeys(buttons: readonly { readonly pressed: boolean }[], held: ReadonlySet<number>): { readonly keys: readonly ('PageUp' | 'PageDown')[]; readonly held: ReadonlySet<number> } {
-  const now = new Set<number>(), keys: ('PageUp' | 'PageDown')[] = [];
-  for (const [button, key] of [[4, 'PageUp'], [5, 'PageDown']] as const) {
-    if (!buttons[button]?.pressed) continue;
-    now.add(button); if (!held.has(button)) keys.push(key);
+/** Gamepad paging: the standard mapping's shoulder buttons (4 and 5) on any connected pad as PageUp and PageDown, once
+ * per press. `state.held` keeps the buttons held last time (a bit mask); nothing is allocated per call. */
+export function uiGamepadPagingKeys(pads: Iterable<{ readonly buttons: readonly { readonly pressed: boolean }[] } | null>,
+  state: { held: number }, send: (key: 'PageUp' | 'PageDown') => void): void {
+  let held = 0;
+  for (const pad of pads) {
+    if (!pad) continue;
+    if (pad.buttons[4]?.pressed) held |= 1;
+    if (pad.buttons[5]?.pressed) held |= 2;
   }
-  return { keys, held: now };
+  const pressed = held & ~state.held; state.held = held;
+  if (pressed & 1) send('PageUp');
+  if (pressed & 2) send('PageDown');
 }
 
 /** Search and sort surround a tightly packed inventory, preserving the editor
@@ -83,11 +87,12 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   const pool = virtual ? cells.slice(0, poolSize) : cells;
   // The cells the filter lets through, in order; a virtualised grid's slots show a window of it.
   let shown: (UiInventoryCell & { readonly index: number })[] = [];
-  let first = 0, bound = '';
+  let first = 0, bound = '', focusedSlot: UiElement | null = null;
   const spacers = { top: 0, bottom: 0 };
   const pitch = () => Number(grid.props['slotHeight'] ?? 31) + (options.gap ?? 2);
   const grid = uiInventoryGrid({ ...options, cells: pool, fixedColumns: options.fixedColumns ?? virtual,
-    onCellKey: (index, event) => page(index, event) || (options.onCellKey?.(index, event) ?? false) });
+    onCellKey: (index, event) => page(index, event) || (options.onCellKey?.(index, event) ?? false),
+    onCellFocus: (slot, focused) => { if (focused) focusedSlot = slot; else if (focusedSlot === slot) focusedSlot = null; options.onCellFocus?.(slot, focused); } });
   const slots = [...grid.children];
   // Large packs scroll inside a fixed number of rows; the scrollbar gutter is always reserved so slots never shift.
   // Virtualised, spacers above and below the slots stand for the rows out of view, so the scroll range is every row.
@@ -104,6 +109,8 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
     const next = Math.max(0, Math.min(totalRows - rows, Math.floor(body.scroll.y / pitch())));
     const key = `${next}:${shown.length}`;
     if (!force && key === bound) return;
+    // The focused cell's list position, to move focus off its slot if the slot is about to show another cell.
+    const focusedAt = focusedSlot ? shown.findIndex(cell => cell.index === (focusedSlot!.props['binding'] as { index?: number } | undefined)?.index) : -1;
     bound = key; first = next;
     const order: UiElement[] = [], start = first * columns;
     for (let position = start; position < start + poolSize; position++) {
@@ -114,6 +121,15 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
       if (slot.style.display !== display) slot.setStyle({ display });
     }
     grid.reorderChildren(order);
+    // A cell that left the window gives up its slot to another cell: focus goes to the same column of the nearest
+    // row still in view rather than staying on the recycled slot (Enter would act on the wrong cell). Hover is
+    // reconciled from the pointer after layout.
+    if (focusedSlot && focusedAt >= 0 && (focusedAt < start || focusedAt >= start + poolSize)) {
+      const column = focusedAt % columns, lastRow = Math.min(first + rows - 1, totalRows - 1);
+      const row = focusedAt < start ? first : lastRow;
+      const target = Math.min(shown.length - 1, row * columns + column);
+      slots[target % poolSize]!.requestFocus();
+    }
     const span = pitch(), windowRows = Math.ceil(Math.max(0, Math.min(poolSize, shown.length - start)) / columns);
     const top = first * span, bottom = Math.max(0, (totalRows - first - windowRows) * span);
     if (spacers.top !== top) { spacers.top = top; above.setStyle({ height: uiFixed(top) }); }
@@ -131,7 +147,11 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
     const width = columns ?? Math.max(1, Number(grid.props['columns'] ?? 1));
     const position = shown.findIndex(cell => cell.index === index);
     const target = position < 0 ? null : uiInventoryPagingTarget(event.key, position, shown.length, width, rows ?? Math.ceil(shown.length / width));
-    if (target === null) return position >= 0 && event.key.startsWith('Arrow');
+    // At an edge (or for a cell the panel doesn't list) the key is not the panel's: the window's own focus walk or
+    // scrolling takes it, so arrows never trap focus in the grid.
+    if (target === null) return false;
+    // Focus moves to the target below, so the scroll must not hand the old cell's focus elsewhere first.
+    focusedSlot = null;
     if (rows) {
       const row = Math.floor(target / width), y = body.scroll.y, span = pitch();
       const top = row * span, bottom = top + span - (options.gap ?? 2), height = rows * 33 - 2;
@@ -147,11 +167,17 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   const sortButton = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
     label: 'Sort inventory', onPress: () => { if (sortAllowed()) options.onSort?.(); } }) : null;
   const sort = sortButton && options.sortDisabledReason ? uiTooltip(() => sortReason() ?? 'Sort & stack', sortButton, { shrink: 0 }) : sortButton;
-  let previous = '';
+  // Without a controller there is no stacks revision: a filtered panel re-runs on every refresh.
+  let previous = '', filtered = '', uncached = 0;
   const refresh = () => {
     sortButton?.setDisabled(!sortAllowed());
     const query = editor.snapshot().value.trim().toLowerCase();
     const capacity = options.capacity?.() ?? Infinity;
+    // The list depends on the query, the capacity and (with a query) the stacks: pointer motion changes none of them,
+    // so it isn't re-filtered then (the controller's stacks revision doesn't move on motion).
+    const revision = `${query}\u0000${capacity}\u0000${!query ? 0 : options.controller ? options.controller.stacksRevision : `x${++uncached}`}`;
+    if (revision === filtered) return;
+    filtered = revision;
     // The list of cells to show comes first: within capacity, and matching the filter. Filtering hides only
     // non-matching items: empty cells always stay, as places to put something down (BUG-065, owner 2026-09-28).
     shown = cells.filter(cell => {

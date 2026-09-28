@@ -84,6 +84,8 @@ export interface UiSlotOptions {
   readonly disabledLook?: 'grey' | 'dim';
   /** A key the slot itself doesn't handle (it handles Enter, Space, ContextMenu and Escape): a grid's paging. */
   readonly onKey?: (event: UiElementKey) => boolean;
+  /** The slot gained or lost focus (a virtualised panel moves focus off a slot it recycles). */
+  readonly onFocus?: (focused: boolean) => void;
 }
 /** Bare item art at its native size, centred: station emblems, recipe lines, ingredient rows. */
 export function uiItemImage(options: { readonly itemKind: string; readonly artwork?: UiSlotOptions['artwork']; readonly label?: string; readonly size?: number }): UiElement {
@@ -335,6 +337,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     onKey(event) { if (event.key === 'Escape') { options.controller?.cancel(); return true; } if (!['Enter', ' ', 'ContextMenu'].includes(event.key)) return options.onKey?.(event) ?? false;
       if (options.controller && binding) options.controller.activate(binding, event.key === 'ContextMenu' ? 2 : 0, event.shiftKey); else options.onPress?.({...event,button:event.key==='ContextMenu'?2:0}); return true; },
     onDispose() { unregister?.(); },
+    ...(options.onFocus ? { onFocus: (focused: boolean) => options.onFocus!(focused) } : {}),
     paint(element, { context, art, hovered, focused, now }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
       context.save();
@@ -492,6 +495,8 @@ export interface UiInventoryGridOptions {
   readonly renderContent?: (context: CanvasRenderingContext2D, bounds: UiRect, item: ItemStack, index: number, state: { readonly ghost: boolean }) => void;
   /** A key a cell doesn't handle itself, with the index of the cell it shows (a panel's paging). */
   readonly onCellKey?: (index: number, event: UiElementKey) => boolean;
+  /** A cell's slot gained or lost focus. */
+  readonly onCellFocus?: (slot: UiElement, focused: boolean) => void;
 }
 const gridCellBinders = new WeakMap<UiElement, (cell: UiInventoryCell) => void>();
 /** Points a grid's slot at another cell (a virtualised panel recycling its slots): its index, id, label and the
@@ -509,9 +514,16 @@ function gridCellSlot(options: UiInventoryGridOptions, cell: UiInventoryCell, po
     activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(at.index) : undefined,
     onPress: options.onActivate ? event => options.onActivate!(at.index, event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder,
     disabled: cell.disabled, ...(options.onCellKey ? { onKey: (event: UiElementKey) => options.onCellKey!(at.index, event) } : {}),
+    ...(options.onCellFocus ? { onFocus: (focused: boolean) => options.onCellFocus!(slot, focused) } : {}),
     ...cellSlotOptions(cell, options.art), ...(options.hotkeys ? { hotkey: String((position + 1) % 10) } : {}) });
+  let icon = cell.icon;
   gridCellBinders.set(slot, next => {
     const index = next.index ?? at.index; at.index = index;
+    if (next.icon !== icon) {
+      icon = next.icon;
+      for (const child of [...slot.children]) child.dispose();
+      if (icon) slot.append(uiIcon(icon).setStyle({ width: 'grow', height: 'grow' }));
+    }
     uiRebindSlot(slot, { binding: { container: options.container, index }, id: slotId(index) ?? slot.id, label: `${options.container}/${next.id}`,
       ...(next.rules ? { rules: next.rules } : {}), ...(next.placeholder ? { placeholder: next.placeholder } : {}),
       ...(next.state ? { state: next.state } : {}), ...(next.disabled ? { disabled: true } : {}) });
