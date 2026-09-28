@@ -46,7 +46,7 @@ function fixture() {
     [35,{id:'gear-player:35',identity:sender,slot:35,itemKind:'hearth_rare_shield',quantity:1,durability:0,lit:true}],
     [1,{id:'gear-player:1',identity:sender,slot:1,itemKind:'arrow',quantity:30,durability:0,lit:true}],
   ]);
-  const survival=table({selectedSlot:33});
+  const survival=table({selectedSlot:33,debugBackpackSlots:0});
   const bow=table();
   const stats=table({...sim.BASE_ATTRIBUTES,...sim.createFullVitalState(sim.resolveStats(sim.BASE_ATTRIBUTES),100n),lastSwingTick:0n});
   const position=table({identity:sender,x:sim.TILE_SIZE_FIXED*3,y:sim.TILE_SIZE_FIXED*3,facing:'down',spaceId:0,equippedKind:'hearth_rare_shield',equippedLit:true,actionKind:'none',actionStartedTick:0n});
@@ -75,7 +75,9 @@ function fixture() {
     'projectilePlayerTarget','combatElevationAt','attackCommitmentFromRow','stepCommittedRogueAttack',
     'setInput','requireCombatActionReady','combatRecovery','hasActiveShield','combatDefense','stepPlayerDefense','resolveDefendedPlayerHit',
     'requireInventoryProtocol','requirePersistentInventoryAvailable','loadOpenMenuInventory','inventoryCursorClick','inventoryCursorQuickCraft',
-    'inventoryCursorPickupAll','inventoryCursorSwapHotbar','sortMenuContainer','closeCrafting'];
+    'inventoryCursorPickupAll','inventoryCursorSwapHotbar','sortMenuContainer','closeCrafting',
+    'inventoryContainerCapacity','accessibleInventoryContainerCapacity','equippedInventoryCapacity','carriedInventoryFor',
+    'carriedAmmunitionRows','expeditionPreparationFor'];
   const api=authority(names,{
     ...sim,settleMovementRun,queueMovementAcknowledgement,toolSpendResult,sprintIntentSuppressesVigourRegen,nextActionStartedTick,itemDropPosition,SenderError:Error,requireAuthorizedSender:()=>{},ensurePlayerStats:()=>stats.identity.find(),
     activePlayerModifiers:modifiers,contentRegistry:sim.bootstrapContentRegistry,
@@ -89,7 +91,7 @@ function fixture() {
       hasTag:(kind:string,tag:string)=>sim.runtimeItemHasTag(sim.bootstrapContentRegistry(),kind,tag)}),
     playerInventoryCursor:()=>null,parseDirection:(value:string)=>value,isUniqueQuestItemKind:()=>false,
     dropWorldItemStack:(_ctx:unknown,drop:Record<string,unknown>)=>state.drops.push(drop),
-    chunkAt:()=>0,wearInventoryTool:()=>{},
+    chunkAt:()=>0,wearInventoryTool:()=>{},DEFAULT_BACKPACK_CAPACITY:sim.BASE_BACKPACK_CAPACITY,
   });
   return {ctx,api,state,inventory,stats,bow,position,survival,input,clock,protocol,modifiers};
 }
@@ -329,5 +331,45 @@ describe('authoritative player defenses',()=>{
     request(f,'release',2n);request(f,'dodge',3n);
     for(let tick=101n;tick<105n;tick++)expect(f.api.resolveDefendedPlayerHit(f.ctx,f.ctx.sender,tick,p,1000).damageCenti).toBe(0);
     expect(f.api.resolveDefendedPlayerHit(f.ctx,f.ctx.sender,105n,p,1000).damageCenti).toBeGreaterThan(0);
+  });
+});
+
+describe('bow ammunition sources (BUG-068)',()=>{
+  const arrowsAt=(f:ReturnType<typeof fixture>,slot:number,quantity=10)=>{
+    f.inventory.set(slot,{id:`gear-player:${slot}`,identity:f.ctx.sender,slot,itemKind:'arrow',quantity,durability:0,lit:true});
+  };
+  // [where the only arrows are, equipped bag, debug backpack slots, whether the bow may draw them]
+  const cases:readonly (readonly [string,number,boolean,number,boolean])[]=[
+    ['hotbar',1,false,0,true],
+    ['base backpack cell 7',10+7,false,0,true],
+    ['stranded cell 8 with no bag',10+8,false,0,false],
+    ['stranded cell 19 with no bag',10+19,false,0,false],
+    ['cell 19 with the 20-cell bag',10+19,true,0,true],
+    ['debug cell 11 of 12',10+11,false,12,true],
+    ['past the debug cells, cell 12 of 12',10+12,false,12,false],
+    ['crafting grid',40,true,20,false],
+    ['crafting grid, last cell',48,true,20,false],
+  ];
+  it.each(cases)('arrows only in %s: draw and readiness agree',(_label,slot,bag,debug,draws)=>{
+    const f=fixture();f.inventory.delete(1);arrowsAt(f,slot);
+    if(bag)f.inventory.set(34,{id:'gear-player:34',identity:f.ctx.sender,slot:34,itemKind:'backpack',quantity:1,durability:0,lit:true});
+    f.survival.identity.update({...f.survival.identity.find()!,debugBackpackSlots:debug});
+    expect(f.api.expeditionPreparationFor(f.ctx,f.ctx.sender).weapon).toBe(draws?1:0);
+    if(!draws){expect(()=>f.api.applyBowBeginLifecycle(f.ctx)).toThrow('out_of_arrows');expect(f.inventory.get(slot)!.quantity).toBe(10);return;}
+    f.api.applyBowBeginLifecycle(f.ctx);f.clock.authorityTick+=20n;
+    f.api.applyBowFireLifecycle(f.ctx,64,0,500);
+    expect(f.inventory.get(slot)!.quantity).toBe(9);
+  });
+  it('a release cannot fall back to stranded or crafting-grid arrows, and takes the reachable arrow first',()=>{
+    const f=fixture();
+    f.api.applyBowBeginLifecycle(f.ctx);f.clock.authorityTick+=20n;
+    // The reachable arrows leave the hotbar while drawn; only unreachable ones remain.
+    f.inventory.delete(1);arrowsAt(f,10+12);arrowsAt(f,40);
+    expect(()=>f.api.applyBowFireLifecycle(f.ctx,64,0,500)).toThrow('out_of_arrows');
+    expect(f.inventory.get(10+12)!.quantity).toBe(10);expect(f.inventory.get(40)!.quantity).toBe(10);
+    // With a reachable stack in cell 3, the release takes from it and leaves the grid alone.
+    arrowsAt(f,10+3,2);
+    f.api.applyBowFireLifecycle(f.ctx,64,0,500);
+    expect(f.inventory.get(10+3)!.quantity).toBe(1);expect(f.inventory.get(40)!.quantity).toBe(10);
   });
 });

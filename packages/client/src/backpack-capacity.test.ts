@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BACKPACK_SLOT_COUNT, BASE_BACKPACK_CAPACITY, bootstrapContentRegistry, type ContentRegistry } from '@orchard/sim';
-import { clientBackpackSlotCapacity, equippedBackpackCapacity } from './backpack-capacity.js';
+import { clientBackpackSlotCapacity, equippedBackpackCapacity, reachableCarriedRows } from './backpack-capacity.js';
 
 const registry = bootstrapContentRegistry();
 /** The bootstrap registry plus bags authored with other capacities (none ships below 20 today). */
@@ -37,5 +37,25 @@ describe('BUG-054: the client uses the world\'s backpack capacity rule', () => {
     expect(main).toMatch(/const backpackSlotCapacity = clientBackpackSlotCapacity\(/u);
     const worldRule = world.slice(world.indexOf('function accessibleInventoryContainerCapacity('), world.indexOf('function equippedInventoryCapacity('));
     expect(worldRule).toContain('return accessibleBackpackCapacity(equippedCapacity, debugBackpackSlots);');
+  });
+});
+
+describe('BUG-068: the client refuses a bow draw the server would refuse', () => {
+  const arrows = (slot: number) => ({ slot, itemKind: 'arrow', quantity: 10 });
+  it('keeps only the hotbar and the accessible backpack, for the equipped bag and debug slots', () => {
+    const rows = [arrows(1), arrows(10 + 7), arrows(10 + 11), arrows(10 + 12), arrows(10 + 19), arrows(40), arrows(48)];
+    const slots = (registry: ContentRegistry, carried: readonly { slot: number; itemKind: string; quantity: number }[], debug = 0) =>
+      reachableCarriedRows(registry, carried, debug).map(row => row.slot);
+    expect(slots(registry, rows)).toEqual([1, 17]);
+    expect(slots(registry, rows, 12)).toEqual([1, 17, 21]);
+    expect(slots(withBag('satchel', 12), [...rows, { slot: 34, itemKind: 'satchel', quantity: 1 }])).toEqual([1, 17, 21]);
+    expect(slots(registry, [...rows, { slot: 34, itemKind: 'backpack', quantity: 1 }])).toEqual([1, 17, 21, 22, 29]);
+  });
+
+  it('feeds every client bow readiness check', () => {
+    const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
+    const checks = main.split('itemActionRejection(').slice(1);
+    expect(checks.length).toBeGreaterThanOrEqual(3);
+    for (const check of checks) expect(check.slice(0, 220)).toContain('reachableCarriedRows(latestSnapshot.content.registry');
   });
 });
