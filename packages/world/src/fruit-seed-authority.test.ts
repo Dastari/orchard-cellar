@@ -4,6 +4,7 @@ import { expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
 import { createBehaviourEffectWriter, rejectingBehaviourEffectAdapters, applyBehaviourEffects, type BehaviourEffectWriter } from './behaviour/applier.js';
 import { tilePlacementResult, nextActionStartedTick } from './world-rules.js';
+import { playerCellDependencies } from './player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const registry = sim.bootstrapContentRegistry();
@@ -17,7 +18,7 @@ function compile(names: string[], deps: Record<string, unknown>) {
 }
 function fixture(fruit = 'apple', spaceId = 10) {
   const identity = { toHexString: () => 'owner' };
-  let slot = { id: 'owner:0', itemKind: `${fruit}_seed`, quantity: 2, durability: 0, lit: true };
+  let slot = { id: 'owner:hotbar:0', container: 'hotbar', index: 0, itemKind: `${fruit}_seed`, quantity: 2, durability: 0, lit: true };
   const position = { identity, spaceId, x: 50.5 * sim.TILE_SIZE_FIXED, y: 52 * sim.TILE_SIZE_FIXED };
   const switches = { authorized: true, occupied: false, mounted: false, hands: false, soil: true, crop: false };
   const resources = new Map<bigint, { id: bigint; kind: string; spaceId: number; growthStage: number; regrowthProgress: number }>();
@@ -26,14 +27,14 @@ function fixture(fruit = 'apple', spaceId = 10) {
   const ctx = { sender: identity, db: {
     player_position: { identity: { find: () => position } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
-    inventory_slot: { id: { find: () => slot } },
+    player_container_cell: { id: { find: () => slot } },
     world_clock: { id: { find: () => ({ authorityTick: 100n }) } },
     world_soil: { id: { find: () => switches.soil ? {} : null, delete: () => { writes.push('soil'); switches.soil = false; } } },
     world_crop: { id: { find: () => switches.crop ? {} : null } },
     world_resource: { id: { find: (id: bigint) => resources.get(id) ?? null }, insert: (row: typeof resources extends Map<bigint, infer R> ? R : never) => { resources.set(row.id, row); writes.push('tree'); } },
   } };
-  const actions = compile(['worldBehaviourEffectWriter', 'validateFruitSeedPlacement', 'generatedWorldResourceRow', 'mutableFarmTileAuthorized'], {
-    ...sim, SenderError: Error, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters, tilePlacementResult,
+  const actions = compile(['worldBehaviourEffectWriter', 'validateFruitSeedPlacement', 'generatedWorldResourceRow', 'mutableFarmTileAuthorized', 'selectedInventorySlot'], {
+    ...sim, ...playerCellDependencies, SenderError: Error, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters, tilePlacementResult,
     ANVIL_REPAIR_COST_BRONZE: 5, TOPSIDE_SPACE_ID: 0,
     contentRegistry: () => registry, worldSoilId: () => 'soil',
     activeWildlifeFeedReservedAt: () => !switches.authorized,
@@ -115,11 +116,11 @@ it('pays ripe fruit and a seed roll when a fruit tree is felled, then wood only 
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => ({ authorityTick: 100n }) } },
     world_seed: { id: { find: () => ({ seed: 42 }) } },
-    inventory_slot: { id: { find: () => ({ id: 'owner:0', itemKind: 'axe', quantity: 1 }) } },
+    player_container_cell: { id: { find: () => ({ id: 'owner:hotbar:0', container: 'hotbar', index: 0, itemKind: 'axe', quantity: 1 }) } },
     world_resource: { id: { find: () => resource, update: (row: typeof resource) => { resource = row; } } },
   } };
   const primary = [{ itemKind: 'wood', quantity: 3 }, { itemKind: 'apple', quantity: 2 }];
-  const actions = compile(['applyHarvestResourceLifecycle'], { ...sim, SenderError: Error,
+  const actions = compile(['applyHarvestResourceLifecycle', 'selectedInventorySlot'], { ...sim, ...playerCellDependencies, SenderError: Error,
     contentRegistry: () => registry, nextActionStartedTick, requireAuthorizedSender: noop, handsOccupiedFor: () => false,
     mountedNpcFor: () => null, requireWorldModificationAuthorized: noop, requireHearthResourceHarvestAccess: noop,
     liveMapGeneratedResourceSuppressed: () => false, requireUsableTool: noop, isVitalsToolKind: () => true,

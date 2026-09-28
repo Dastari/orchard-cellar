@@ -58,7 +58,10 @@ describe('placeable world-adapter row-write parity', () => {
     expect(writer).toContain('insertWorldPlaceable(ctx, position, spawn.definitionId, tileX, tileY)');
     expect(source).toContain('const definition = contentRegistry(ctx).objects.get(definitionId)');
     expect(source).toContain("const runtimeKind = definition.id.slice('object:'.length)");
-    expect(source).toContain('const capacity = definition.components.container?.slotCount ?? 0');
+    // Container cells are sparse: a fresh placeable writes no storage rows, so its container starts empty.
+    const insertPlaceable = slice('function insertWorldPlaceable(', 'function removePlayerCarriedItem(');
+    expect(insertPlaceable).toContain('const placed = ctx.db.world_placeable.insert({');
+    expect(insertPlaceable).not.toMatch(/world_placeable_slot\.insert|placeable_container_cell\.insert|putPlaceableCell|writePlaceableStack/u);
     expect(source).toContain('if (isChest) syncGenericChestLegacyMirror(ctx, placed)');
     expect(writer).toContain("'chests_placed'");
     expect(writer).toContain("'placeables_placed'");
@@ -73,6 +76,8 @@ describe('placeable world-adapter row-write parity', () => {
     expect(carry).toContain('ctx.db.world_placeable.id.update(carried)');
     expect(carry).toContain('carriedBy: ctx.sender');
     expect(carry).not.toContain('world_placeable_slot.id.delete');
+    expect(carry).not.toContain('placeable_container_cell.id.delete');
+    expect(carry).not.toContain('deletePlaceableCells(');
     expect(carry).not.toContain('world_placeable.id.delete');
     const placement = writer.slice(writer.indexOf('placeCarried:'), writer.indexOf('toggleState:'));
     expect(placement).toContain('placeCarriedHandsObject(');

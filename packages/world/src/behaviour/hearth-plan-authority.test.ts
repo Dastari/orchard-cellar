@@ -7,12 +7,15 @@ import type { WorldReducerContext } from '../index.js';
 import { objectGraphRegistryForContent } from '../content/object-runtime.js';
 import { applyBehaviourEffects, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters, type BehaviourEffectWriter } from './applier.js';
 import { useSelectedBehaviour, type UseSelectedAuthority } from './use-selected.js';
+import { playerCellDependencies } from '../player-cells.fixture.js';
 
 // Exercise the actual production writer without starting a database module.
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('../index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const writerSource = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'worldBehaviourEffectWriter');
 if (!writerSource) throw new Error('missing production effect writer');
-const code = ts.transpileModule(`${writerSource.getText(source)}\nreturn worldBehaviourEffectWriter;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+const selectedSource = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'selectedInventorySlot');
+if (!selectedSource) throw new Error('missing production selected-slot reader');
+const code = ts.transpileModule(`${selectedSource.getText(source)}\n${writerSource.getText(source)}\nreturn worldBehaviourEffectWriter;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 const registry = sim.bootstrapContentRegistry();
 const plans = [...registry.items.values()].filter(item => item.id.startsWith('item:hearth_') && item.id.endsWith('_plan'));
 const base = sim.registerPlaceableHandlers(sim.registerLootHandlers(sim.createHandlerRegistry(AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS)));
@@ -21,7 +24,7 @@ const handlers = objectGraphRegistryForContent(base, { key: 'hearth-plan-authori
 function fixture(plan: sim.ItemContentDefinition) {
   const sender = { toHexString: () => 'alice' };
   const tile = { spaceId: '0', x: 2, y: 3, tags: [] };
-  let row = { id: 'alice:0', identity: sender, slot: 0, itemKind: plan.id.slice(5), quantity: 1, durability: 0, lit: true };
+  let row = { id: 'alice:hotbar:0', identity: sender, container: 'hotbar', index: 0, itemKind: plan.id.slice(5), quantity: 1, durability: 0, lit: true };
   const known = new Map<string, { id: string; recipeId: string; sourceKind: string; learnedAtTick: bigint }>();
   const writes: string[] = [];
   const statistics: [string, bigint][] = [];
@@ -29,10 +32,10 @@ function fixture(plan: sim.ItemContentDefinition) {
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     player_position: { identity: { find: () => tile } },
     world_clock: { id: { find: () => ({ authorityTick: 42n }) } },
-    inventory_slot: { id: { find: (id: string) => id === row.id ? row : null } },
+    player_container_cell: { id: { find: (id: string) => id === row.id ? row : null } },
     player_known_recipe: { id: { find: (id: string) => known.get(id) ?? null }, insert: (value: typeof known extends Map<string, infer V> ? V : never) => { known.set(value.id, value); writes.push('learn'); } },
   } } as unknown as WorldReducerContext;
-  const dependencies = { ...sim, SenderError: Error, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters,
+  const dependencies = { ...sim, ...playerCellDependencies, SenderError: Error, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters,
     contentRegistry: () => registry,
     writeInventorySlot: (_ctx: unknown, value: typeof row) => { row = value; writes.push('consume'); },
     updateEquippedForIdentity: () => {},
