@@ -53,7 +53,9 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
       if (index >= (options.capacity?.() ?? Infinity)) return false;
       if (!query) return true;
       const item = options.controller ? options.controller.model.stack({ container: options.container, index }) : options.stack?.(index);
-      return Boolean(item && (item.itemKind.toLowerCase().includes(query)
+      // While a stack is held, empty cells stay as places to put it down (BUG-065).
+      if (!item) return Boolean(options.controller?.model.cursor);
+      return Boolean((item.itemKind.toLowerCase().includes(query)
         || (options.itemLabel?.(item) ?? itemDefinition(item.itemKind)?.displayName ?? '').toLowerCase().includes(query)));
     });
     const key = JSON.stringify(visible.map(cell => cell.index ?? cells.indexOf(cell)));

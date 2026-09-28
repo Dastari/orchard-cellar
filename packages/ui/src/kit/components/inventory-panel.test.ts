@@ -17,7 +17,9 @@ it('filters by display name without renumbering bindings or losing editing focus
   const slots = () => root.entries().filter(entry => entry.element.kind === 'slot').map(entry => entry.element);
   expect(slots().map(node => node.props['binding'])).toEqual([{ container: 'bag', index: 1 }]);
   root.focus.set(slots()[0]!, 'keyboard'); root.key({ key: 'Enter' }); root.arrange();
-  expect(model.cursor?.quantity).toBe(8); expect(slots()).toHaveLength(0);
+  // Holding the stack, the filtered panel offers its empty cells to put it down (BUG-065); the apple stays hidden.
+  expect(model.cursor?.quantity).toBe(8);
+  expect(slots().map(node => node.props['binding'])).toEqual([0, 1, 2].map(index => ({ container: 'bag', index })));
   root.focus.set(input, 'keyboard'); root.key({ key: 'a', ctrlKey: true }); root.key({ key: 'Backspace' }); root.arrange();
   expect(slots()).toHaveLength(4);
   const [a,b,c] = slots();
