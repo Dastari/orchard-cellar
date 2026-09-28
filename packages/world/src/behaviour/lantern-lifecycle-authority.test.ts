@@ -45,7 +45,7 @@ describe('authored portable-light authority', () => {
 
   it('gates prompt and dispatch on equipmentUse metadata and retires the global bridge', () => {
     expect(clientSource).toContain("selectedItemLifecycleAction(\n    liveItemContentDefinition(snapshot, selectedLight.itemKind),\n    'equipmentUse'");
-    expect(clientSource).toContain("network.useSelected('equipment_use', { equipmentSlot: selectedLight.slot })");
+    expect(clientSource).toContain("network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(selectedLight.index) })");
     expect(clientSource).toContain("'worldItemUse'");
     expect(clientSource).toContain("network.interactEntity('world_item', groundLightItem.id, 'use')");
     expect(clientSource).not.toContain('groundLantern');
