@@ -51,6 +51,9 @@ function registryView(definitions: readonly SupportedContentDefinition[]) {
       .map((definition) => [definition.id, definition] as const)),
     processes: new Map(definitions.filter((definition) => definition.kind === 'process')
       .map((definition) => [definition.id, definition] as const)),
+    // A frame bound to a whole container reads its size from the objects that use it (Uncapped Storage step 3).
+    objects: new Map(definitions.filter((definition) => definition.kind === 'object')
+      .map((definition) => [definition.id, definition] as const)),
   };
 }
 

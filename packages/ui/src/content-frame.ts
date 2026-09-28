@@ -7,7 +7,6 @@ import type {
   SlotRestriction,
 } from '@orchard/sim';
 import { frameEntitySlotIndexes, resolveFrameSlotRestriction } from '@orchard/sim/content/frame-runtime';
-import { HEARTH_LOBBY_STASH_CAPACITY, bootstrapContentRegistry } from '@orchard/sim';
 import { EQUIPMENT_SLOT_RESTRICTIONS, inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
 import type { PixelUi } from './pixel-ui.js';
 import { drawPixelTextInRect } from './pixel-ui.js';
@@ -104,16 +103,15 @@ export interface FrameContainerCapacities { readonly entity?: number }
 
 /** A frame's entity container size when no entity says (a designer or lab preview, a host layout, a test): the active
  * hearth lobby's `stashCapacity` for a stash frame, or the container of the first live object that uses the frame.
- * A partial registry (items and processes only, as previews pass) reads the bootstrap content's objects and spaces.
- * Undefined when no object uses the frame (a pane bound to `entitySlots: all` then shows one grid). */
+ * Undefined when the registry doesn't say (a view with only items and processes; a pane bound to `entitySlots: all`
+ * then shows one grid). */
 export function frameDefaultEntityCapacity(definition: Pick<FrameContentDefinition, 'id' | 'presentation'>, registry: unknown): number | undefined {
-  const given = registry as Partial<Pick<ContentRegistry, 'objects' | 'spaces'>>;
-  const content = given.objects && given.spaces ? given : bootstrapContentRegistry();
+  const content = registry as Partial<Pick<ContentRegistry, 'objects' | 'spaces'>>;
   if (definition.presentation?.entityContainer === 'stash') {
     for (const space of content.spaces?.values() ?? []) {
       if (space.retired !== true && space.generator === 'delve_lobby' && space.hearthLobby) return space.hearthLobby.stashCapacity;
     }
-    return HEARTH_LOBBY_STASH_CAPACITY;
+    return undefined;
   }
   for (const object of content.objects?.values() ?? []) {
     if (object.retired !== true && object.components.frame?.ref === definition.id && object.components.container) return object.components.container.slotCount;
