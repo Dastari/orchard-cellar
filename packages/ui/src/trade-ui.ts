@@ -2,6 +2,7 @@ import type { UiKitArt } from './kit/components/art.js';
 import { uiTrade, type UiTradeElement } from './kit/components/trade.js';
 import { UiElement } from './kit/runtime/element.js';
 import { UiRoot } from './kit/runtime/root.js';
+import { uiFixed } from './kit/layout/box.js';
 
 import type { OverworldUiItemArt } from './overworld-ui.js';
 import type { TradeUiCallbacks, TradeUiModel } from './trade-model.js';
@@ -51,11 +52,20 @@ export class TradeUi {
     this.modal.setStyle({ visible: model !== null });
     if (model) {
       if (this.trade) this.trade.updateTrade(model);
-      else { this.trade = uiTrade({ model, callbacks: this.callbacks, artwork: this.itemArt }); this.modal.append(this.trade); }
+      else { this.trade = uiTrade({ model, callbacks: this.callbacks, artwork: this.itemArt }); this.modal.append(this.trade); this.fit(); }
     }
   }
 
-  resize(width: number, height: number): void { this.root.resize(width, height, 1); }
+  private viewport = { width: 0, height: 0 };
+  /** Windows fit their content, capped by the viewport; a compact screen scrolls the window's body (BUG-067). */
+  private fit(): void {
+    const { width, height } = this.viewport;
+    this.trade?.setStyle({ maxWidth: uiFixed(Math.max(0, width - 8)), maxHeight: uiFixed(Math.max(0, height - 8)) });
+  }
+  resize(width: number, height: number): void {
+    this.root.resize(width, height, 1);
+    if (width !== this.viewport.width || height !== this.viewport.height) { this.viewport = { width, height }; this.fit(); }
+  }
 
   draw(context: CanvasRenderingContext2D, width: number, height: number): void {
     this.resize(width, height);

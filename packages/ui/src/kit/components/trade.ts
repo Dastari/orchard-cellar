@@ -7,7 +7,7 @@ import { containsPoint } from '../../geometry.js';
 import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
-import { uiGlyph, uiWindow, uiWindowClose, uiWindowDivider } from './window.js';
+import { uiGlyph, uiWindow, uiWindowClose } from './window.js';
 import { uiCurrency, uiCurrencyLabel } from './currency.js';
 import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
@@ -101,7 +101,9 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   const content = uiFlex({ direction: 'column', gap: 8, align: 'center' });
   // Trade must wait for authority, so the wooden close asks to cancel and the window stays up on rejection.
   const close = guarded(uiWindowClose({ id: 'trade.close', label: 'Cancel trade', onPress: cancel })); cancelButtons.push(close);
-  const base = uiWindow({ id: 'game.trade', title: 'TRADE', closeControl: close, layout: { direction: 'column' }, children: [content] });
+  // The hotbar is the window's footer, a carved divider and a centred row, as in every inventory window (BUG-067).
+  const footerHost = uiFlex({ shrink: 0 });
+  const base = uiWindow({ id: 'game.trade', title: 'TRADE', closeControl: close, layout: { direction: 'column' }, children: [content], footer: footerHost });
   if (options.layout) base.setStyle(options.layout);
   const frame = new UiElement({ ...base.hooks, children: [...base.children],
     onPointerObserved(event) {
@@ -121,7 +123,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   let ownLabel: UiElement | undefined, otherLabel: UiElement | undefined, wallet: UiElement | undefined;
   let otherMoney: UiElement | undefined, accept: UiElement | undefined, requestLabel: UiElement | undefined;
   let ownTick: UiElement | undefined, otherTick: UiElement | undefined, status: UiElement | undefined;
-  let carriedHost: UiElement | undefined, carriedHotbarHost: UiElement | undefined, inventoryStructure = '';
+  let carriedHost: UiElement | undefined, inventoryStructure = '';
   let carriedCells: { readonly cell: UiElement; readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
@@ -164,15 +166,16 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     const key = String(capacity());
     if (key === inventoryStructure && carriedHost.children.length) return;
     inventoryStructure = key;
-    for (const child of [...carriedHost.children, ...carriedHotbarHost?.children ?? []]) child.dispose();
+    for (const child of [...carriedHost.children, ...footerHost.children]) child.dispose();
     const common = { artwork, iconAnimation, allowSecondary: true } as const;
     const pane = uiPlayerInventoryPane({ ...common, id: 'trade.backpack', label: 'BACKPACK', container: 'backpack',
       cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
       filterModel: backpackFilter, capacity, itemLabel: item => tradeItemDisplayName(model.contentRegistry, item.itemKind),
       stack: index => carriedRow(BACKPACK_SLOT_OFFSET + index),
-      // No sort while trading: offers name inventory slots, so reordering the bag mid-trade is not offered.
-      onActivate: (index, event) => offerFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2) });
-    const hotbar = uiHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, activateOn: 'up', layout: { width: 'fit', shrink: 0 },
+      onActivate: (index, event) => offerFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
+      // The same header as every pane: sort stays, disabled, because offers point at bag slots mid-trade.
+      onSort: () => undefined, sortDisabledReason: () => 'No sorting during a trade: offers point at bag slots.' });
+    const hotbar = uiHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, activateOn: 'up', columns: HOTBAR_SLOT_COUNT, layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } },
       selected: () => -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2) });
     carriedCells = [];
     const guard = (grid: UiElement, slotOf: (index: number) => number) => {
@@ -189,7 +192,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     };
     const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
     guard(grids[0]!, index => BACKPACK_SLOT_OFFSET + index); guard(hotbar, index => index);
-    carriedHost.append(pane); carriedHotbarHost?.append(hotbar);
+    carriedHost.append(pane); footerHost.append(hotbar);
   };
   // Items the authority won't take in a trade (quest items, backpacks, purchase grants, retired items; the server's
   // item_not_tradeable) show the approved disabled face (render 01 B) and take no input (S4).
@@ -223,7 +226,9 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     if (key !== structure) {
       structure = key; rebuilding = true; allowBlurCommit = false;
       for (const child of [...content.children]) child.dispose();
-      ownLabel = otherLabel = wallet = otherMoney = accept = requestLabel = carriedHost = carriedHotbarHost = ownTick = otherTick = status = undefined;
+      ownLabel = otherLabel = wallet = otherMoney = accept = requestLabel = carriedHost = ownTick = otherTick = status = undefined;
+      for (const child of [...footerHost.children]) child.dispose();
+      footerHost.parent?.setStyle({ display: model.session.state === 'active' ? 'flex' : 'none' });
       if (model.session.state === 'requested') {
         requestLabel = uiText('', { id: 'trade.request', wrap: true, align: 'center', layout: { width: uiFixed(240) } });
         content.append(requestLabel);
@@ -248,7 +253,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         const otherGrid = wrapSlots(uiInventoryGrid({ id: 'trade.other', container: 'trade-other', count: 6, columns: 3, gap: 2, fixedColumns: true, layout: { width: 'fit' },
           artwork, iconAnimation, stack: index => offer(otherHex(), index) ?? null,
         }), otherHex, false);
-        carriedHost = uiFlex({ shrink: 0 }); carriedHotbarHost = uiFlex({ shrink: 0 }); inventoryStructure = '';
+        carriedHost = uiFlex({ shrink: 0 }); inventoryStructure = '';
         accept = button({ id: 'trade.accept', label: 'Accept', ariaLabel: 'Accept trade', tone: 'success', onPress: () => {
           if (live) options.callbacks.setAccepted(model.session.id, !ownAccepted(), model.session.revision);
         } });
@@ -268,10 +273,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         content.append(uiFlex({ direction: 'row', gap: 4, justify: 'center', shrink: 0 }, [
           button({ id: 'trade.cancel', label: 'Cancel', tone: 'danger', onPress: cancel }), accept,
         ]));
-        // The hotbar sits under the carved divider, as in every inventory window.
-        content.append(uiWindowDivider());
         content.append(uiText('Click an item to offer it; right-click offers one.', { role: 'caption', align: 'center', wrap: true, layout: { width: uiFixed(280) } }));
-        content.append(carriedHotbarHost);
       }
       rebuilding = false;
     }

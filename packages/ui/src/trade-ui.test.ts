@@ -289,8 +289,10 @@ describe('what you carry is the shared player inventory pane (BUG-067)', () => {
     const ids = new Set(h.ui.root.entries().map(entry => entry.element.id));
     expect(ids.has('pane:trade.backpack')).toBe(true);
     expect(ids.has('trade.backpack.filter')).toBe(true);
-    // No sort mid-trade: offers name inventory slots.
-    expect(ids.has('trade.backpack.sort')).toBe(false);
+    // The same header as every pane: the sort button stays, disabled mid-trade (offers name inventory slots).
+    expect(h.node('trade.backpack.sort').disabled).toBe(true);
+    // The hotbar is the window's footer, as in every inventory window.
+    expect(h.node('trade.hotbar').parent?.parent?.children[0]?.kind).toBe('window-divider');
     const shownBackpack = () => Array.from({ length: 20 }, (_, index) => index).filter(index => h.shown(`trade.backpack.slot.${index}`));
     expect(shownBackpack()).toEqual(Array.from({ length: 12 }, (_, index) => index));
     expect(Array.from({ length: 10 }, (_, index) => h.shown(`trade.hotbar.slot.${index}`)).every(Boolean)).toBe(true);
