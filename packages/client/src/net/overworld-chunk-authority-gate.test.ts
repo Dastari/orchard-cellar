@@ -20,11 +20,12 @@ describe('BUG-055: OverworldConnection.chunkAuthorityGate', () => {
   it('passes the controller\'s null through: the serving revision may stand in for the server', () => {
     const authorityGate = vi.fn((): ChunkAuthorityGate | null => null);
     expect(gateOf({ chunkRuntime: { authorityGate } })).toBeNull();
-    expect(authorityGate).toHaveBeenCalledWith(SOURCE);
+    // SW-D2: the gate no longer compares the live source (a lag is reported, not gated).
+    expect(authorityGate).toHaveBeenCalledWith();
   });
 
   it('passes every real gate reason through unchanged', () => {
-    for (const reason of ['not_on', 'not_serving', 'shadow_missing', 'superseded', 'stale_content', 'stale_map'] as const) {
+    for (const reason of ['not_on', 'not_serving', 'shadow_missing', 'superseded'] as const) {
       expect(gateOf({ chunkRuntime: { authorityGate: () => reason } })).toBe(reason);
     }
   });
