@@ -177,6 +177,7 @@ import {
   UNIQUE_QUEST_ITEM_TAG,
   inventoryContainerSlotCount,
   accessibleBackpackCapacity,
+  isAccessibleCarriedSlot,
   inventoryContainerSlotOffset,
   isHotbarSlot,
   itemStacksCompatible,
@@ -801,7 +802,7 @@ function accessibleInventoryContainerCapacity(
 }
 
 function equippedInventoryCapacity(
-  ctx: Pick<WorldReducerContext, 'db'>,
+  ctx: ContentReadContext,
   rows: Iterable<{ readonly slot: number; readonly itemKind: string; readonly quantity: number }>,
 ): number {
   for (const row of rows) {
@@ -817,6 +818,27 @@ function playerDebugBackpackSlots(
   identity: WorldReducerContext['sender'],
 ): number {
   return ctx.db.player_survival.identity.find(identity)?.debugBackpackSlots ?? 0;
+}
+
+type CarriedInventoryReadContext = ContentReadContext & { readonly db: {
+  readonly inventory_slot: { readonly by_identity: Pick<WorldReducerContext['db']['inventory_slot']['by_identity'], 'filter'> };
+  readonly player_survival: { readonly identity: Pick<WorldReducerContext['db']['player_survival']['identity'], 'find'> };
+} };
+
+/** A player's inventory rows and accessible backpack capacity: the equipped bag and debug slots through the one rule
+ * the menus use. Bow ammunition and expedition readiness both read carried cells through it (BUG-068). */
+function carriedInventoryFor(ctx: CarriedInventoryReadContext, identity: WorldReducerContext['sender']) {
+  const rows = [...ctx.db.inventory_slot.by_identity.filter(identity)];
+  const debugBackpackSlots = ctx.db.player_survival.identity.find(identity)?.debugBackpackSlots ?? 0;
+  return { rows, backpackCapacity: accessibleInventoryContainerCapacity('backpack', equippedInventoryCapacity(ctx, rows), debugBackpackSlots) };
+}
+
+/** The ammunition a bow may draw, lowest slot first (BUG-068): the hotbar and the accessible backpack only, as
+ * expedition readiness counts it; never the crafting grid or cells stranded past a smaller bag. */
+function carriedAmmunitionRows(ctx: CarriedInventoryReadContext, identity: WorldReducerContext['sender'], itemKind: string) {
+  const { rows, backpackCapacity } = carriedInventoryFor(ctx, identity);
+  return rows.filter(row => row.itemKind === itemKind && row.quantity > 0 && isAccessibleCarriedSlot(row.slot, backpackCapacity))
+    .sort((left, right) => left.slot - right.slot);
 }
 
 function facingTile(x: number, y: number, facing: string): { readonly tileX: number; readonly tileY: number } {
@@ -5199,8 +5221,9 @@ function residenceFurnishingFor(ctx:ContentReadContext & {readonly db:{
       .filter(row=>resolvePlaceableObject(contentRegistry(ctx),row).stateJsonValid));
 }
 
-function expeditionPreparationFor(ctx:ContentReadContext & {readonly db:{readonly inventory_slot:{readonly by_identity:Pick<WorldReducerContext['db']['inventory_slot']['by_identity'],'filter'>}}},identity:WorldReducerContext['sender']){
-  return hearthExpeditionPreparation(contentRegistry(ctx),[...ctx.db.inventory_slot.by_identity.filter(identity)]);
+function expeditionPreparationFor(ctx:CarriedInventoryReadContext,identity:WorldReducerContext['sender']){
+  const carried=carriedInventoryFor(ctx,identity);
+  return hearthExpeditionPreparation(contentRegistry(ctx),carried.rows,carried.backpackCapacity);
 }
 
 function questProgressSourceFor(
@@ -23982,8 +24005,7 @@ function applyBowBeginLifecycle(ctx: WorldReducerContext, mutate = true): void {
     throw new SenderError('weapon_damage_not_authored');
   }
   requireUsableTool(ctx, selected);
-  const hasArrow = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-    .some((row) => row.itemKind === ranged.ammunitionItemKind && row.quantity > 0);
+  const hasArrow = carriedAmmunitionRows(ctx, ctx.sender, ranged.ammunitionItemKind).length > 0;
   if (!hasArrow && rogueRunForIdentity(ctx, ctx.sender) === null) throw new SenderError('out_of_arrows');
   const vigour = runtimeVigourDefinition(registry, selected.itemKind);
   if (vigour === null) throw new SenderError('tool_vigour_not_authored');
@@ -24094,9 +24116,7 @@ function applyBowFireLifecycle(
     }
     requireUsableTool(ctx, selected);
     const rogueRun = rogueRunForIdentity(ctx, ctx.sender);
-    const arrow = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-      .filter((row) => row.itemKind === ranged.ammunitionItemKind && row.quantity > 0)
-      .sort((left, right) => left.slot - right.slot)[0];
+    const arrow = carriedAmmunitionRows(ctx, ctx.sender, ranged.ammunitionItemKind)[0];
     if (arrow === undefined && rogueRun === null) throw new SenderError('out_of_arrows');
     const charge = ctx.db.bow_charge.identity.find(ctx.sender);
     if (charge === null || charge.itemKind !== selected.itemKind) throw new SenderError('bow_not_charged');

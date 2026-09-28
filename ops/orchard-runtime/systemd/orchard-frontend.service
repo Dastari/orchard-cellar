@@ -11,6 +11,9 @@ Group=toby
 WorkingDirectory=/home/toby/projects/orchard-cellar
 Environment=HOME=/home/toby
 Environment=NODE_ENV=production
+# Static-world chunk blobs served at /world/ (S5a; installed on the host as the
+# world-chunks.conf drop-in). Persistent, outside the checkout and dist.
+Environment=ORCHARD_WORLD_CHUNK_DIR=/home/toby/.local/share/orchard/world-chunks
 Environment=PATH=/home/toby/.nvm/versions/node/v24.19.0/bin:/home/toby/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 ExecStart=/home/toby/.nvm/versions/node/v24.19.0/bin/npm run preview -w @orchard/client -- --host 10.0.1.150 --port 5173 --strictPort
 Restart=always

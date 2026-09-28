@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.51.0 / UI 0.52.1 / Sim 0.33.7 / World 0.30.4 — Static world: the client runs on chunks (S5c activation); bow arrows from reachable cells
+
+- **Static world S5c activation (#259).**
+  - The client is built with the chunk runtime `on` (`CHUNK_RUNTIME_ACTIVATION_RELEASE = s5c-client-activation-20260928`). It follows the server's `chunkAuthority`, which has been `on` since 2026-09-27 21:35Z.
+  - With a matching publication, terrain, collision and map records come from the published chunks, through the bounded chunk store.
+  - Rollback: server `off` makes clients fall back at once. The previous client can be restored from the release rollback directory.
+  - The repository's `orchard-frontend.service` gains `ORCHARD_WORLD_CHUNK_DIR`, matching the host drop-in.
+  - Every later release must state the client chunk mode explicitly (G6).
+- **BUG-068: a bow draws arrows only from the hotbar and the accessible backpack (#261),** as expedition readiness counts them. It never draws from the crafting grid or from cells stranded past a smaller bag.
+- Workspace 0.75.0.
+
 ## Client 0.50.0 / UI 0.52.0 / Engine 0.30.0 / Sim 0.33.6 / World 0.30.3 / Studio 0.16.16 — Chest filters, Basic object light, one capacity rule
 
 - **BUG-064: windows don't trap the keyboard in a text field (#253).**

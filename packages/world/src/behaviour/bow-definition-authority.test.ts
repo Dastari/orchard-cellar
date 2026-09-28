@@ -29,7 +29,8 @@ describe('authored ranged-weapon authority', () => {
   it('resolves the selected definition, ammunition, action, and projectile without bow ID dispatch', () => {
     const authority = between(world, 'function applyBowBeginLifecycle(', 'export const decayEmptyTopsideSoil');
     expect(authority).toContain('runtimeRangedWeaponDefinition(registry, selected.itemKind)');
-    expect(authority).toContain('row.itemKind === ranged.ammunitionItemKind');
+    // Ammunition comes only from the carried cells the player can reach (BUG-068).
+    expect(authority).toContain('carriedAmmunitionRows(ctx, ctx.sender, ranged.ammunitionItemKind)');
     expect(authority).toContain('actionKind: ranged.avatarAction');
     expect(authority).toContain('equippedKind: selected.itemKind');
     expect(authority).toContain('weaponItemKind: selected.itemKind');

@@ -1,12 +1,14 @@
-import {runtimeItemInventoryCapacity,runtimeRangedWeaponDefinition,runtimeToolDefinition,runtimeVigourDefinition,runtimeWeaponBaseDamageCenti} from './content/runtime.js';
+import {runtimeRangedWeaponDefinition,runtimeToolDefinition,runtimeVigourDefinition,runtimeWeaponBaseDamageCenti} from './content/runtime.js';
 import type {ContentRegistry} from './content/registry.js';
 import type {EquippedInventoryEntry} from './equipment-loadout.js';
-import {activeEquipmentSlotAccepts,EQUIPMENT_SLOT_OFFSET,HOTBAR_SLOT_COUNT,BACKPACK_SLOT_OFFSET,accessibleBackpackCapacity} from './inventory-layout.js';
-import {BASE_BACKPACK_CAPACITY,itemContainerContentResolver} from './item-containers.js';
+import {activeEquipmentSlotAccepts,EQUIPMENT_SLOT_OFFSET,isAccessibleCarriedSlot} from './inventory-layout.js';
+import {itemContainerContentResolver} from './item-containers.js';
 
 /** Readiness is current equipment, not ownership or permanent progression.
- * Weapons need not be drawn during a conversation; bows need ten carried shots. */
-export function hearthExpeditionPreparation(registry:ContentRegistry,inventory:readonly EquippedInventoryEntry[]):{weapon:number;body:number}{
+ * Weapons need not be drawn during a conversation; bows need ten carried shots.
+ * `backpackCapacity` is the player's accessible backpack capacity (equipped bag and debug slots), the same one the
+ * world's bow uses, so a bow counted ready can fire and one that can fire is counted (BUG-068). */
+export function hearthExpeditionPreparation(registry:ContentRegistry,inventory:readonly EquippedInventoryEntry[],backpackCapacity:number):{weapon:number;body:number}{
   const content=itemContainerContentResolver(registry);
   const valid=(row:EquippedInventoryEntry)=>{
     const item=registry.items.get(`item:${row.itemKind}`);
@@ -15,7 +17,7 @@ export function hearthExpeditionPreparation(registry:ContentRegistry,inventory:r
       &&(item.durability===undefined||(Number.isSafeInteger(row.durability)&&(row.durability??0)>0&&(row.durability??0)<=item.durability.max));
   };
   const equipped=(index:number)=>inventory.find(row=>row.slot===EQUIPMENT_SLOT_OFFSET+index&&valid(row)&&activeEquipmentSlotAccepts(index,row.itemKind,content));
-  const weapon=equipped(3),body=equipped(9),pack=equipped(4);
+  const weapon=equipped(3),body=equipped(9);
   const weaponDefinition=weapon&&registry.items.get(`item:${weapon.itemKind}`);
   const attackKind=weaponDefinition?.combat?.attackKind;
   let ready=weapon!==undefined&&attackKind!==undefined
@@ -25,11 +27,8 @@ export function hearthExpeditionPreparation(registry:ContentRegistry,inventory:r
     const ranged=runtimeRangedWeaponDefinition(registry,weapon!.itemKind);
     if(ranged===null)return {weapon:0,body:body?1:0};
     const ammunition=ranged.ammunitionItemKind;
-    // Only the backpack cells the world lets the player use (BUG-056): the equipped bag's capacity, not a fixed 20.
-    const bagCapacity=pack===undefined?BASE_BACKPACK_CAPACITY:runtimeItemInventoryCapacity(registry,pack.itemKind)??BASE_BACKPACK_CAPACITY;
-    const backpackEnd=BACKPACK_SLOT_OFFSET+accessibleBackpackCapacity(bagCapacity);
-    const shots=inventory.filter(row=>Number.isInteger(row.slot)&&row.slot>=0
-      &&(row.slot<HOTBAR_SLOT_COUNT||(row.slot>=BACKPACK_SLOT_OFFSET&&row.slot<backpackEnd))
+    // The cells the bow draws from (BUG-056, BUG-068): the hotbar and the accessible backpack, nothing stranded.
+    const shots=inventory.filter(row=>isAccessibleCarriedSlot(row.slot,backpackCapacity)
       &&row.itemKind===ammunition&&valid(row)).reduce((sum,row)=>sum+row.quantity,0);
     ready=shots>=10;
   }
