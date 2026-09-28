@@ -100,7 +100,8 @@ describe('guardian-seal exchange production inventory adapters', () => {
     expect(f.overflow).toEqual([{ id: 0n, identity: hidden.identity, itemKind: hidden.itemKind, quantity: hidden.quantity,
       durability: hidden.durability, lit: hidden.lit }]);
     expect(f.rows.get(sim.CRAFTING_SLOT_OFFSET)).toEqual(crafting);
-    expect(f.writes).toEqual(['delete:0', `update:${sim.BACKPACK_SLOT_OFFSET}`, `delete:${f.hidden}`, 'overflow:guardian_seal', 'knowledge']);
+    // The overflow row is written before the spilled cell is deleted.
+    expect(f.writes).toEqual(['delete:0', `update:${sim.BACKPACK_SLOT_OFFSET}`, 'overflow:guardian_seal', `delete:${f.hidden}`, 'knowledge']);
     const before = f.snapshot();
     expect(() => f.use()).toThrow('recipe_already_known');
     expect(f.snapshot()).toEqual(before);

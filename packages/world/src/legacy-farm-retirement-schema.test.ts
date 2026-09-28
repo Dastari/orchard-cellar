@@ -48,7 +48,7 @@ describe('T11 legacy farm retirement', () => {
     expect(migration).toContain("migrateItem(inventory.identity, 'bottles', inventory.bottles)");
     expect(migration).toContain("migrateItem(survival.identity, 'wood'");
     expect(migration).toContain("migrateItem(survival.identity, 'stone'");
-    expect(migration).toContain('drainPlayerOverflow(ctx, identity)');
+    expect(migration).toContain('drainPlayerOverflowSafely(ctx, identity)');
     expect(migration).toContain('migrateLegacyStatisticFloor(');
     expect(migration).toContain('legacyFarmVersion: LEGACY_FARM_MIGRATION_VERSION');
   });

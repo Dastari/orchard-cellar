@@ -141,7 +141,7 @@ describe('connect-time player move to container cells', () => {
     // selectedSlot is untouched and still names the Main Hand.
     expect(db.player_survival.identity.find(alice)?.['selectedSlot']).toBe(sim.MAIN_HAND_SELECTED_SLOT);
     expect(plan.selectedCell).toEqual({ container: 'equipment', index: sim.MAIN_HAND_EQUIPMENT_INDEX });
-    expect(plan.sourceFingerprint).toBe(sim.legacyPlayerInventoryFingerprint({
+    expect(plan.legacyCustodyFingerprint).toBe(sim.legacyPlayerCustodyFingerprint({
       inventoryRows: [...db.inventory_slot.rows.values()].filter(row => row['identity'] === alice).map(row => ({ slot: row['slot'] as number, ...stackOf(row) }) as never),
       equipmentLayoutVersion: 1,
       stashRows: [...db.hearth_stash_slot.rows.values()].filter(row => row['identity'] === alice).map(row => ({ slot: row['slot'] as number, ...stackOf(row) }) as never),
@@ -209,6 +209,20 @@ describe('connect-time player move to container cells', () => {
   });
 });
 
+describe('connect-time player move parity against the legacy tables', () => {
+  it.each([
+    ['a quantity', (row: Row) => row['itemKind'] === 'wood' && row['quantity'] === 40 ? { ...row, quantity: 41 } : row],
+    ['a cell', (row: Row) => row['id'] === 'a1:backpack:2' ? { ...row, id: 'a1:backpack:3', index: 3 } : row],
+    ['an item kind', (row: Row) => row['itemKind'] === 'arrow' ? { ...row, itemKind: 'stone' } : row],
+  ] as const)('refuses a move whose written cells, read back, differ from the legacy rows in %s', (_label, tamper) => {
+    const db = world(); seedPlayer(db, alice);
+    const insert = db.player_container_cell.insert;
+    db.player_container_cell.insert = (row: Row) => insert(tamper(row));
+    expect(() => cells.movePlayerToContainerCells(db as never, alice as never, 1)).toThrow('container_migration_parity_failed');
+    expect(db.inventory_migration.identity.find(alice)?.['containerLayoutVersion']).toBe(0);
+  });
+});
+
 describe('one-time placeable copy', () => {
   function seedPlaceable(db: World, placeableId: bigint, stacks: Record<number, Row>, count = 16) {
     for (let slot = 0; slot < count; slot += 1) {
@@ -269,7 +283,10 @@ describe('one-time placeable copy', () => {
     db.world_placeable_slot.id.update({ ...db.world_placeable_slot.id.find('9:3'), quantity: 3 });
     const tampered = cells.containerCellMigrationStatus(db as never, 0);
     expect(tampered.players.planTruncated).toBe(true);
-    expect(tampered.issues).toEqual([{ kind: 'placeable_receipt_mismatch', id: '9', code: 'container_migration_parity_failed' }]);
+    // Bob's invalid row is outside the (empty) dry run now, so the custody pass names it; the player fingerprints are empty.
+    expect(tampered.issues).toEqual([{ kind: 'player_custody_invalid', id: 'b2', code: 'inventory_layout_rows_invalid' },
+      { kind: 'placeable_receipt_mismatch', id: '9', code: 'container_migration_parity_failed' }]);
+    expect([tampered.players.legacyFingerprint, tampered.players.cellFingerprint]).toEqual(['', '']);
     expect(tampered.placeableCopyComplete).toBe(false);
   });
 });
@@ -398,6 +415,116 @@ describe('open-menu moves on container cells', () => {
   });
 });
 
+describe('stranded retired items and over-maximum stacks: spill, drain, connect and maintenance', () => {
+  const registry = sim.bootstrapContentRegistry();
+  const warnings: string[] = [];
+  /** Alice (moved, with the bag unequipped) and Bob (moved) on real cells, with the real write, drain and 1 Hz pass. */
+  function strandedWorld() {
+    const db = world(); seedPlayer(db, alice); seedPlayer(db, bob);
+    cells.movePlayerToContainerCells(db as never, alice as never, 1);
+    cells.movePlayerToContainerCells(db as never, bob as never, 1);
+    db.player_container_cell.id.delete('a1:equipment:4');
+    // Past the 8-cell default backpack: a retired item kind the content no longer defines, and a stack above the
+    // current wood maximum (99), next to the seeded arrows at 19.
+    db.player_container_cell.insert({ id: 'a1:backpack:17', identity: alice, container: 'backpack', index: 17, itemKind: 'retired_relic', quantity: 2, durability: 5, lit: true });
+    db.player_container_cell.insert({ id: 'a1:backpack:18', identity: alice, container: 'backpack', index: 18, itemKind: 'wood', quantity: 250, durability: 0, lit: true });
+    const full = {
+      ...db,
+      world_clock: { id: { find: () => ({ authorityTick: 20n }) } },
+      active_chest: { identity: { find: () => null } },
+      active_placeable: { identity: { find: () => null } },
+      player_trade_session: { iter: () => [][Symbol.iterator]() },
+    };
+    const ctx = { sender: alice, timestamp: { microsSinceUnixEpoch: 1n }, db: full };
+    warnings.length = 0;
+    const api = authority([
+      'moveOpenMenuItem', 'loadOpenMenuInventory', 'writeOpenMenuInventory', 'loadPlayerInventory', 'writePlayerInventory',
+      'loadHearthStashBuild', 'equippedInventoryCapacity', 'accessibleInventoryContainerCapacity', 'inventoryContainerCapacity',
+      'playerDebugBackpackSlots', 'withSenderErrors', 'requirePlayerContainerCells', 'sameStoredStack', 'activeItemContainerContent',
+      'planPlayerOverflowDrain', 'applyPlayerOverflowDrain', 'drainPlayerOverflowSafely', 'firstIndexRow', 'runOneHertzTickMaintenance',
+    ], {
+      ...sim, ...cells, SenderError: Error, contentRegistry: () => registry,
+      DEFAULT_BACKPACK_CAPACITY: sim.BASE_BACKPACK_CAPACITY,
+      requirePersistentInventoryAvailable: () => {}, hearthStashSessionAvailable: () => false,
+      activeHearthLobbyDefinition: () => ({ stashCapacity: 20 }), hearthStashFrameRestrictions: () => ({}),
+      advancePlayerStats: () => {}, updateEquippedForIdentity: () => {}, refreshSenderQuestsFromInventory: () => {},
+      processorRuntimeForPlaceableBehaviour: () => null,
+      recordTickRowScan: () => {}, tradePlayersWithinReach: () => true, cancelPlayerTrade: () => {}, PLAYER_TRADE_REQUEST_TTL_TICKS: 600n,
+      console: { warn: (text: string) => warnings.push(text) },
+    });
+    return { db, ctx, api };
+  }
+  const overflowOf = (db: World, who: ReturnType<typeof identity>) => [...db.inventory_overflow.rows.values()]
+    .filter(row => (row['identity'] as { toHexString(): string }).toHexString() === who.toHexString())
+    .map(row => `${row['itemKind']}x${row['quantity']}`).sort();
+  const quantityOf = (db: World, who: ReturnType<typeof identity>, itemKind: string) =>
+    [...db.player_container_cell.rows.values(), ...db.inventory_overflow.rows.values()]
+      .filter(row => (row['identity'] as { toHexString(): string }).toHexString() === who.toHexString() && row['itemKind'] === itemKind)
+      .reduce((sum, row) => sum + (row['quantity'] as number), 0);
+
+  it('spills without throwing: the retired item stays in its cell, the over-maximum stack splits, nothing is lost', () => {
+    const { db, ctx, api } = strandedWorld();
+    expect(() => api.moveOpenMenuItem(ctx, { fromContainer: 'hotbar', fromIndex: 4, toContainer: 'hotbar', toIndex: 5, quantity: 7 })).not.toThrow();
+    expect(db.player_container_cell.id.find('a1:backpack:17')).toMatchObject({ itemKind: 'retired_relic', quantity: 2, durability: 5 });
+    expect(db.player_container_cell.id.find('a1:backpack:18')).toBeNull();
+    expect(db.player_container_cell.id.find('a1:backpack:19')).toBeNull();
+    expect(overflowOf(db, alice)).toEqual(['arrowx18', 'woodx52', 'woodx99', 'woodx99']);
+    expect(quantityOf(db, alice, 'wood')).toBe(40 + 250 + 2);
+    // A second write finds the retired cell again and keeps it again: idempotent, still no throw.
+    expect(() => api.moveOpenMenuItem(ctx, { fromContainer: 'hotbar', fromIndex: 5, toContainer: 'hotbar', toIndex: 4, quantity: 7 })).not.toThrow();
+    expect(db.player_container_cell.id.find('a1:backpack:17')).toMatchObject({ itemKind: 'retired_relic', quantity: 2 });
+  });
+
+  it('drains around unplaceable overflow rows (retired or over maximum) instead of throwing, at connect and in maintenance', () => {
+    const { db, ctx, api } = strandedWorld();
+    // Overflow rows written before this fix (or content that later retired a kind or lowered a maximum).
+    const put = (who: ReturnType<typeof identity>, itemKind: string, quantity: number) =>
+      db.inventory_overflow.insert({ id: 0n, identity: who, itemKind, quantity, durability: 0, lit: true });
+    put(alice, 'retired_relic', 3); put(alice, 'wood', 250); put(alice, 'apple', 3);
+    put(bob, 'apple', 4);
+    // The connect-time drain for Alice: no throw; the relic row is kept, wood placed in pieces, apples placed.
+    expect(api.drainPlayerOverflowSafely(ctx, alice)).toBe(true);
+    expect(overflowOf(db, alice).filter(entry => entry.startsWith('retired_relic'))).toEqual(['retired_relicx3']);
+    expect(overflowOf(db, alice).some(entry => entry.startsWith('apple'))).toBe(false);
+    expect(quantityOf(db, alice, 'wood')).toBe(40 + 250 + 2 + 250);
+    expect(warnings.some(text => text.includes('overflow_item_retired'))).toBe(true);
+    // Alice is marked to sleep until her next inventory write; Bob's row is drained by the 1 Hz pass.
+    expect(db.inventory_overflow_retry.identity.find(alice)).not.toBeNull();
+    api.runOneHertzTickMaintenance(ctx, 20n, {});
+    expect(overflowOf(db, bob)).toEqual([]);
+    expect(quantityOf(db, bob, 'apple')).toBe(9 + 4);
+    expect(overflowOf(db, alice).filter(entry => entry.startsWith('retired_relic'))).toEqual(['retired_relicx3']);
+  });
+
+  it('keeps the 1 Hz pass going past an owner whose drain is refused, writing nothing for that owner', () => {
+    const { db, ctx, api } = strandedWorld();
+    // An unreadable stored cell makes Alice's inventory load refuse; Bob is fine.
+    db.player_container_cell.insert({ id: 'a1:hotbar:9', identity: alice, container: 'hotbar', index: 9, itemKind: 'apple', quantity: 70_000, durability: 0, lit: true });
+    db.inventory_overflow.insert({ id: 0n, identity: alice, itemKind: 'apple', quantity: 2, durability: 0, lit: true });
+    db.inventory_overflow.insert({ id: 0n, identity: bob, itemKind: 'apple', quantity: 4, durability: 0, lit: true });
+    const aliceCells = snapshotOf(new Map([...db.player_container_cell.rows].filter(([key]) => key.startsWith('a1:'))));
+    expect(() => api.runOneHertzTickMaintenance(ctx, 20n, {})).not.toThrow();
+    expect(overflowOf(db, bob)).toEqual([]);
+    expect(overflowOf(db, alice)).toEqual(['applex2']);
+    expect(snapshotOf(new Map([...db.player_container_cell.rows].filter(([key]) => key.startsWith('a1:'))))).toBe(aliceCells);
+    expect(db.inventory_overflow_retry.identity.find(alice)).not.toBeNull();
+    expect(warnings.some(text => text.includes('drain refused for a1'))).toBe(true);
+    // Marked, Alice is not retried every second.
+    warnings.length = 0;
+    api.runOneHertzTickMaintenance(ctx, 40n, {});
+    expect(warnings).toEqual([]);
+  });
+
+  it('wires connect and the legacy farm recipients to the per-owner safe drain', () => {
+    const text = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    expect(text).not.toMatch(/(?<![A-Za-z])drainPlayerOverflow\(/u);
+    const onConnect = text.slice(text.indexOf('export const onConnect = spacetimedb.clientConnected('), text.indexOf('export const onDisconnect'));
+    expect(onConnect).toContain('drainPlayerOverflowSafely(ctx, ctx.sender);');
+    expect(text).toContain('for (const identity of overflowOwners.values()) drainPlayerOverflowSafely(ctx, identity);');
+    expect(text).toContain('for (const identity of inventoryRecipients.values()) drainPlayerOverflowSafely(ctx, identity);');
+  });
+});
+
 describe('connect-time wiring', () => {
   const text = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
   const onConnect = text.slice(text.indexOf('export const onConnect = spacetimedb.clientConnected('),
@@ -406,11 +533,14 @@ describe('connect-time wiring', () => {
   const migrateFn = text.slice(text.indexOf('function migrateLegacyPlayerStorage('), text.indexOf('export const onConnect = spacetimedb.clientConnected('));
 
   it('runs the legacy layout steps only before the move, then moves in the same transaction before any inventory read', () => {
-    const gate = onConnect.indexOf('if (!enteringSurvivalWorld) migrateLegacyPlayerStorage(ctx, ctx.sender);');
+    const gate = onConnect.indexOf('if (!enteringSurvivalWorld || hasUnmovedLegacyStorage(ctx.db, ctx.sender)) migrateLegacyPlayerStorage(ctx, ctx.sender);');
+    const created = onConnect.indexOf('if (survival === null) {');
     const stats = onConnect.indexOf('ensurePlayerStats(ctx, ctx.sender');
-    const drain = onConnect.indexOf('drainPlayerOverflow(ctx, ctx.sender)');
-    expect([gate, stats, drain].every(index => index > 0)).toBe(true);
-    expect(gate).toBeLessThan(stats);
+    const drain = onConnect.indexOf('drainPlayerOverflowSafely(ctx, ctx.sender)');
+    expect([gate, created, stats, drain].every(index => index > 0)).toBe(true);
+    // The move runs before a new character's loadout is written, so orphan legacy rows are moved, never overwritten.
+    expect(gate).toBeLessThan(created);
+    expect(created).toBeLessThan(stats);
     expect(stats).toBeLessThan(drain);
     // Inside the shared step: the version gate, then hotbar, then equipment, then the move.
     const current = migrateFn.indexOf('>= CURRENT_CONTAINER_LAYOUT_VERSION) {\n    return null;');
@@ -421,11 +551,13 @@ describe('connect-time wiring', () => {
     expect(current).toBeLessThan(hotbar);
     expect(hotbar).toBeLessThan(equipment);
     expect(equipment).toBeLessThan(move);
-    // New characters start on the cell layout; no legacy row is written for them.
-    const created = onConnect.slice(onConnect.indexOf('if (survival === null) {'), gate);
-    expect(created).toContain('putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index');
-    expect(created).toContain('containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION');
-    expect(created).not.toMatch(/db\.inventory_slot/u);
+    // New characters start on the cell layout; no legacy row is written for them, and a loadout cell already holding
+    // a moved orphan item keeps it (the loadout stack goes to overflow custody).
+    const createdBlock = onConnect.slice(created, onConnect.indexOf('const survivalMigration = ctx.db.player_survival_migration'));
+    expect(createdBlock).toContain('putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index');
+    expect(createdBlock).toContain('stashOverflow(ctx, ctx.sender, stack)');
+    expect(createdBlock).toContain('containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION');
+    expect(createdBlock).not.toMatch(/db\.inventory_slot/u);
   });
 
   it('writes legacy tables nowhere but the gated legacy steps, and views both generations', () => {
@@ -603,7 +735,7 @@ describe('release-lane batches and status (owner or admin)', () => {
       'hotbar:0:applex4', 'hotbar:8:torchx2', 'stash:3:swordx1',
     ]);
     expect(sim.playerContainerCellsFingerprint(carolCells.map(row => ({ container: row['container'], index: row['index'], ...stackOf(row) })) as never))
-      .toBe(carolPlan.sourceFingerprint);
+      .toBe(carolPlan.cellsFingerprint);
     expect(run.db.player_survival.identity.find(carol)?.['selectedSlot']).toBe(sim.MAIN_HAND_SELECTED_SLOT);
     // Dave had no migration row: the same steps created it (current versions) and moved him.
     expect([...run.db.player_container_cell.rows.values()].filter(row => row['identity'] === dave)).toHaveLength(7);
@@ -619,6 +751,44 @@ describe('release-lane batches and status (owner or admin)', () => {
     run.players();
     expect(run.db.player_container_cell.writes).toHaveLength(cellWrites);
     expect(run.db.inventory_migration.writes).toHaveLength(versionWrites);
+  });
+
+  it('reports whole-world player custody: legacy and cell fingerprints agree across the move and catch a changed cell', () => {
+    const run = lane(owner);
+    const frank = identity('f6');
+    seedPlayer(run.db, alice);
+    seedNineSlotPlayer(run.db, carol);
+    // Dave predates inventory_migration: his move also normalises the bow's durability, which custody leaves out.
+    seedNineSlotPlayer(run.db, dave, false);
+    // Orphans: Erin has a migration row but no character; Frank only a stash row, no migration row and no character.
+    run.db.inventory_migration.insert({ identity: erin, durabilityVersion: 1, hotbarLayoutVersion: 1, equipmentLayoutVersion: 1, containerLayoutVersion: 0 });
+    run.db.inventory_slot.insert({ id: 'e5:12', identity: erin, slot: 12, itemKind: 'wood', quantity: 7, durability: 0, lit: true });
+    run.db.hearth_stash_slot.insert({ id: 'f6:1', identity: frank, slot: 1, itemKind: 'apple', quantity: 5, durability: 0, lit: true });
+    const before = run.status();
+    expect(before.issues).toEqual([]);
+    expect(before.players.legacyFingerprint).toMatch(/^player-custody-world:5:\d+:\d+:[0-9a-f]{8}$/u);
+    expect(before.players.cellFingerprint).toBe(before.players.legacyFingerprint);
+    expect(before.players.orphans).toEqual({ owners: 2, inventoryOwners: 1, stashOwners: 1, withoutMigrationRow: 1, quantity: 12, ids: ['e5', 'f6'] });
+
+    run.players();
+    const after = run.status();
+    expect(after.players).toMatchObject({ current: 3, legacy: 1 });
+    expect(run.db.player_container_cell.id.find('d4:equipment:3')?.['durability']).not.toBe(0);
+    // Legacy custody is unchanged by the connect-time steps that rewrote Carol's and Dave's legacy rows, and the cells
+    // hold exactly that custody; the orphans are still legacy and still reported.
+    expect(after.players.legacyFingerprint).toBe(before.players.legacyFingerprint);
+    expect(after.players.cellFingerprint).toBe(after.players.legacyFingerprint);
+    expect(after.players.orphans).toEqual(before.players.orphans);
+
+    // A changed cell (one fewer arrow) or a stray cell for a player not yet moved shows as a difference.
+    run.db.player_container_cell.id.update({ ...run.db.player_container_cell.id.find('a1:backpack:19'), quantity: 17 });
+    const changed = run.status();
+    expect(changed.players.legacyFingerprint).toBe(before.players.legacyFingerprint);
+    expect(changed.players.cellFingerprint).not.toBe(changed.players.legacyFingerprint);
+    run.db.player_container_cell.id.update({ ...run.db.player_container_cell.id.find('a1:backpack:19'), quantity: 18 });
+    expect(run.status().players.cellFingerprint).toBe(before.players.legacyFingerprint);
+    run.db.player_container_cell.insert({ id: 'e5:hotbar:0', identity: erin, container: 'hotbar', index: 0, itemKind: 'apple', quantity: 1, durability: 0, lit: true });
+    expect(run.status().players.cellFingerprint).not.toBe(before.players.legacyFingerprint);
   });
 
   it('moves at most `limit` characters per call', () => {

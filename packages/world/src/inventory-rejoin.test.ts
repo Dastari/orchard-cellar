@@ -63,6 +63,8 @@ interface LegacyFixture {
   readonly rows: readonly Row[];
   readonly stash?: readonly Row[];
   readonly selectedSlot?: number;
+  /** With a new character: keep the `inventory_migration` row too (a migration row whose character does not exist). */
+  readonly orphanMigrationRow?: boolean;
 }
 
 function runInventoryConnection(
@@ -80,15 +82,18 @@ function runInventoryConnection(
   const cursor = table([{identity:sender,itemKind:'torch',quantity:1,durability:73,lit:false}]);
   const inventory = table(inventoryRows, 'id');
   const cells = playerCellTable();
+  const overflow: Row[] = [];
   const ctx = { sender, connectionId: {}, db: {
     player_survival: table(newCharacter ? [] : [{ identity: sender, selectedSlot: legacy?.selectedSlot ?? 0 }]),
     player_spawn: table(newCharacter ? [] : [{ identity: sender, tileX: 1, tileY: 1, spaceId: 0 }]),
     player_survival_migration: table(newCharacter ? [] : [{ identity: sender, hungerVersion: 1 }]),
     // An existing character has not connected since the container-cell publish: its rows are still on the legacy layout.
-    inventory_migration: table(newCharacter ? [] : [{ identity: sender, hotbarLayoutVersion: legacy?.hotbarVersion ?? 1, durabilityVersion: 1, equipmentLayoutVersion: legacy === undefined ? CURRENT_EQUIPMENT_LAYOUT_VERSION : legacy.equipmentVersion ?? 0, containerLayoutVersion: 0 }]),
+    inventory_migration: table(newCharacter && legacy?.orphanMigrationRow !== true ? [] : [{ identity: sender, hotbarLayoutVersion: legacy?.hotbarVersion ?? 1, durabilityVersion: 1, equipmentLayoutVersion: legacy === undefined ? CURRENT_EQUIPMENT_LAYOUT_VERSION : legacy.equipmentVersion ?? 0, containerLayoutVersion: 0 }]),
     inventory_slot: inventory, inventory_cursor: cursor,
     hearth_stash_slot: table((legacy?.stash ?? []).map(row => ({ ...row, identity: sender, id: `fixture-player:${row['slot']}` })), 'id'),
     player_container_cell: cells,
+    inventory_overflow: { insert: (row: Row) => { overflow.push(row); writes.push(`overflow:${String(row['itemKind'])}`); return row; } },
+    inventory_overflow_retry: table(),
     world_resource: table(), world_chest: table(), world_npc: table(), world_clock: table([], 'id'),
   } };
   let callback: ts.ArrowFunction | undefined;
@@ -129,12 +134,12 @@ function runInventoryConnection(
       : { ok: true, apply: true, definitionId: 'loadout:fixture', ...authoredLoadout },
     HUNGER_MAX_CENTI: 10000, TOPSIDE_SPACE_ID: 0,
     findSurvivalSpawnTile: () => ({ tileX: 1, tileY: 1 }), storedDurability: () => 0,
-    storedLit: () => true, contentRegistry: () => ({}), runtimeDurabilityDefinition: () => null,
+    storedLit: () => true, contentRegistry: () => ({}), runtimeDurabilityDefinition: () => null, runtimeMaxStack: () => 99,
     activeWorldPolicyBalance: () => ({ survivalSpawnSearchRadiusTiles: 60 }),
   };
   // The connect callback and the helpers it calls, all from the module source: the legacy layout steps and the move
   // live in migrateLegacyPlayerStorage, which the release-lane batch runs too.
-  const helpers = ['withSenderErrors', 'migrateLegacyPlayerStorage'].map(name => source.statements.find(statement => ts.isFunctionDeclaration(statement)
+  const helpers = ['withSenderErrors', 'migrateLegacyPlayerStorage', 'stashOverflow'].map(name => source.statements.find(statement => ts.isFunctionDeclaration(statement)
     && statement.name?.text === name)!.getText(source)).join('\n');
   const javascript = ts.transpileModule(`(ctx) => { ${helpers}\n${body} }`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
@@ -154,6 +159,7 @@ function runInventoryConnection(
       ? cellToLegacyGlobalSlot({ container: cell.container, index: cell.index }) : null })),
     survival: ctx.db.player_survival.identity.find(sender),
     migration: ctx.db.inventory_migration.identity.find(sender),
+    overflow,
     cursor: cursor.identity.find(sender),
   };
 }
@@ -177,6 +183,33 @@ describe('inventory preservation on reconnect', () => {
     expect(rows.map((row) => row['slot'])).toEqual([0, 1, 2, 3, 4, 5]);
     expect(legacyRows).toHaveLength(0);
     expect(migration).toMatchObject({ containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION });
+  });
+
+  it.each([
+    ['a migration row with no character', true],
+    ['rows with no migration row and no character', false],
+  ] as const)('keeps orphan legacy rows for a new character (%s): moved first, never overwritten by the loadout', (_label, orphanMigrationRow) => {
+    const legacyRow = (slot: number, itemKind: string, quantity: number) => ({ slot, itemKind, quantity, durability: 0, lit: true });
+    const { rows, overflow, migration, plans, legacyRows, secondConnectWrites } = runInventoryConnection(true, false, {
+      hotbarVersion: 1, equipmentVersion: 1, orphanMigrationRow,
+      rows: [legacyRow(0, 'fiber', 3), legacyRow(12, 'wood', 40)],
+      stash: [legacyRow(2, 'apple', 5)],
+    });
+    // The orphan items were moved (once), before the loadout: the fiber keeps hotbar 0, the rest keep their cells. With
+    // no migration row the rows are on the nine-slot hotbar layout, as for any unversioned character, so slot 12 shifts.
+    expect(plans.filter(plan => plan !== null)).toHaveLength(1);
+    const wood = orphanMigrationRow ? 2 : 3;
+    const custody = rows.map(row => `${row['container']}:${row['index']}:${row['itemKind']}x${row['quantity']}`).sort();
+    expect(custody).toEqual([
+      `backpack:${wood}:woodx40`, 'hotbar:0:fiberx3', 'hotbar:1:pickaxex1', 'hotbar:2:hoex1', 'hotbar:3:watering_canx1',
+      'hotbar:4:bowx1', 'hotbar:5:arrowx32', 'stash:2:applex5',
+    ]);
+    // The loadout axe that would have overwritten the fiber is in overflow custody instead; nothing was lost.
+    expect(overflow).toEqual([expect.objectContaining({ itemKind: 'axe', quantity: 1 })]);
+    expect(migration).toMatchObject({ containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION });
+    // Legacy rows are kept as they were (plus vacant fill rows the legacy steps write); the second connect writes nothing.
+    expect(legacyRows.filter(row => row['itemKind'] !== 'empty').map(row => `${row['slot']}:${row['itemKind']}`).sort()).toEqual(['0:fiber', `${10 + wood}:wood`]);
+    expect(secondConnectWrites).toEqual([]);
   });
 
   it('persists arbitrary authored slots and selection without a starter-kind branch', () => {
@@ -259,10 +292,11 @@ describe('a character last seen on the nine-slot hotbar (hotbar layout 0, equipm
     expect(result.plans).toHaveLength(1);
     const plan = result.plans[0]!;
     const stored = result.rows.map(row => ({ container: row['container'], index: row['index'], itemKind: row['itemKind'], quantity: row['quantity'], durability: row['durability'], lit: row['lit'] }));
-    expect(playerContainerCellsFingerprint(stored as never)).toBe(plan.sourceFingerprint);
+    expect(playerContainerCellsFingerprint(stored as never)).toBe(plan.cellsFingerprint);
     expect(plan.counts).toMatchObject({ cells: 14, totalQuantity: 1 + 7 + 12 + 40 + 18 + 1 + 1 + 1 + 1 + 1 + 3 + 5 + 9 + 1 });
     // The release-lane dry run over the untouched nine-slot rows plans exactly the connect path's move.
-    expect(result.dryRun?.sourceFingerprint).toBe(plan.sourceFingerprint);
+    expect(result.dryRun?.cellsFingerprint).toBe(plan.cellsFingerprint);
+    expect(result.dryRun?.legacyCustodyFingerprint).toBe(plan.legacyCustodyFingerprint);
     expect(result.dryRun?.cells).toEqual(plan.cells);
     // selectedSlot is stored unchanged: appending hotbar cell 9 renumbers no hotbar index, and 33 names the Main Hand.
     expect(result.survival).toMatchObject({ selectedSlot });

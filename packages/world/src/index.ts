@@ -430,15 +430,15 @@ import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, first
 import { authoredHookApproved, authoredHookRegistrations, type AuthoredHookAuthority } from '@orchard/sim';
 import {
   CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, buildDenseContainer, diffDenseContainer,
-  cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, planContainerSpill, runtimeStoredStackCodec, selectedSlotCell,
+  cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, runtimeStoredStackCodec, selectedSlotCell,
   type SparseContainerBuild,
 } from '@orchard/sim';
 import {
   CARRIED_CONTAINERS, CURRENT_HOTBAR_LAYOUT_VERSION, applyPlaceableContainerWrites, applyPlayerContainerWrites, carriedPlayerCellRows,
   containerCellMigrationStatus, copyPlaceableToContainerCells, deletePlaceableCells, hotbarSlotCountForLayoutVersion,
-  isCarriedContainer, legacyPlayerStorage, legacySlotRows,
-  movePlayerToContainerCells, placeableCellRows, planLegacyPlayerContainerMove, playerCellOrVacant, playerContainerCellsCurrent, playerContainerRows,
-  putPlaceableCell, putPlayerCell, spillToOverflow,
+  hasUnmovedLegacyStorage, isCarriedContainer, legacyPlayerStorage, legacySlotRows,
+  movePlayerToContainerCells, playerCellId, placeableCellRows, planLegacyPlayerContainerMove, playerCellOrVacant, playerContainerCellsCurrent, playerContainerRows,
+  putPlaceableCell, putPlayerCell, spillPlayerCells,
   type CarriedContainerId, type PlaceableCellRow, type PlayerCellRow,
 } from './container-cells.js';
 import { AUTHORED_HOOK_BUNDLE_SHA256, AUTHORED_LIFECYCLE_HOOKS } from '@orchard/lifecycle-authoring/hooks';
@@ -6319,11 +6319,10 @@ function writePlayerInventory(
     // Only changed cells are written: an upsert per changed occupied cell, a delete per emptied cell.
     const writes = withSenderErrors(() => diffDenseContainer(build, nextContainer, codec));
     if (applyPlayerContainerWrites(ctx.db, owner, id, writes)) changed = true;
-    // Items stranded past a shrunk container move to overflow custody; the drain returns them as space opens.
-    const spill = planContainerSpill(build);
-    for (const row of spill.deletes) ctx.db.player_container_cell.id.delete(row.id);
-    spillToOverflow(ctx.db, owner, spill.overflow);
-    if (spill.deletes.length > 0) changed = true;
+    // Items stranded past a shrunk container move to overflow custody; the drain returns them as space opens. A retired
+    // item stays in its cell (the drain could never place it) and an over-maximum stack splits (spillPlayerCells).
+    const spill = spillPlayerCells(ctx.db, owner, build, itemKind => runtimeMaxStack(registry, itemKind));
+    if (spill.spilled > 0 || build.staleVacant.length > 0) changed = true;
   }
   if (changed && ctx.db.inventory_overflow_retry.identity.find(owner) !== null) {
     ctx.db.inventory_overflow_retry.identity.delete(owner);
@@ -6729,10 +6728,8 @@ function writeOpenMenuInventory(
     if(writes.deletes.some(row=>!row.identity.isEqual(ctx.sender))||writes.upserts.some(({existing})=>
       existing!==null&&!existing.identity.isEqual(ctx.sender)))throw new SenderError('stash_slot_missing');
     applyPlayerContainerWrites(ctx.db,ctx.sender,'stash',writes);
-    // Items stranded past a smaller stash move to the owner's overflow custody.
-    const spill=planContainerSpill(build);
-    for(const row of spill.deletes)ctx.db.player_container_cell.id.delete(row.id);
-    spillToOverflow(ctx.db,ctx.sender,spill.overflow);
+    // Items stranded past a smaller stash move to the owner's overflow custody, checked as in writePlayerInventory.
+    spillPlayerCells(ctx.db,ctx.sender,build,itemKind=>runtimeMaxStack(contentRegistry(ctx),itemKind));
   }
   if (menu.chest !== undefined) {
     const after = containers.chest!;
@@ -6844,54 +6841,113 @@ function stashOverflow(
   }
 }
 
-/** Recovery is deterministic and transactional: an overflow row is only
- * changed after its exact moved quantity has been written into player slots. */
-function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
+/** An overflow row the drain cannot place (a retired item kind, or a move the content refuses). It stays stored,
+ * untouched, and the drain carries on with the owner's other rows. */
+interface OverflowDrainSkip { readonly rowId: bigint; readonly code: string }
+
+/**
+ * The read-only half of the overflow drain: every quick move is computed before anything is written, so a refusal here
+ * leaves the world untouched. Rows are taken oldest first; an item kind the active content no longer defines is
+ * skipped (kept), a stored stack above its kind's current maximum is offered in maximum-sized pieces (the rest stays
+ * on the row), and any refusal other than `container_full` skips that row instead of failing the drain.
+ */
+function planPlayerOverflowDrain(ctx: WorldReducerContext, identity: WorldReducerContext['sender']) {
   const overflowRows = [...ctx.db.inventory_overflow.by_identity.filter(identity)]
     .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-  if (overflowRows.length === 0) {
+  if (overflowRows.length === 0) return null;
+  const registry = contentRegistry(ctx);
+  const inventory = loadPlayerInventory(ctx, identity);
+  let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
+  const remaining = new Map<bigint, number>();
+  const skipped: OverflowDrainSkip[] = [];
+  rows: for (const row of overflowRows) {
+    const maximum = runtimeMaxStack(registry, row.itemKind);
+    if (maximum === null || maximum < 1 || row.quantity <= 0) {
+      skipped.push({ rowId: row.id, code: maximum === null ? 'overflow_item_retired' : 'overflow_row_invalid' });
+      continue;
+    }
+    let left = row.quantity;
+    while (left > 0) {
+      const piece = Math.min(left, maximum);
+      const sourceId = `overflow:${row.id}`;
+      const moved = quickMoveItemStack({
+        ...containers,
+        [sourceId]: { id: sourceId, capacity: 1, slots: [{
+          itemKind: row.itemKind, quantity: piece,
+          ...(runtimeDurabilityDefinition(registry, row.itemKind) === null ? {} : { durability: row.durability }),
+          lit: row.lit,
+        }] },
+      }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, activeItemContainerContent(ctx));
+      if (!moved.ok) {
+        if (moved.code === 'container_full') break rows;
+        skipped.push({ rowId: row.id, code: moved.code });
+        continue rows;
+      }
+      containers = {
+        hotbar: moved.containers.hotbar!,
+        backpack: moved.containers.backpack!,
+        equipment: moved.containers.equipment!,
+        crafting: moved.containers.crafting!,
+      };
+      const rest = moved.containers[sourceId]!.slots[0]?.quantity ?? 0;
+      left -= piece - rest;
+      remaining.set(row.id, left);
+      if (rest > 0) break rows;
+    }
+  }
+  return { inventory, containers, overflowRows, remaining, skipped };
+}
+
+/** Recovery is deterministic and transactional: the whole drain is planned before any write, and an overflow row is
+ * only changed after its exact moved quantity has been written into player slots. The writes are only stacks the
+ * planned moves accepted. Returns the rows the plan kept. */
+function applyPlayerOverflowDrain(
+  ctx: WorldReducerContext, identity: WorldReducerContext['sender'], plan: ReturnType<typeof planPlayerOverflowDrain>,
+): readonly OverflowDrainSkip[] {
+  if (plan === null) {
     if (ctx.db.inventory_overflow_retry.identity.find(identity) !== null) {
       ctx.db.inventory_overflow_retry.identity.delete(identity);
     }
-    return;
+    return [];
   }
-  const inventory = loadPlayerInventory(ctx, identity);
-  let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
-  for (const row of overflowRows) {
-    const sourceId = `overflow:${row.id}`;
-    const moved = quickMoveItemStack({
-      ...containers,
-      [sourceId]: { id: sourceId, capacity: 1, slots: [{
-        itemKind: row.itemKind, quantity: row.quantity,
-        ...(runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind) === null
-          ? {} : { durability: row.durability }),
-        lit: row.lit,
-      }] },
-    }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, activeItemContainerContent(ctx));
-    if (!moved.ok) {
-      if (moved.code === 'container_full') break;
-      throw new SenderError(moved.code);
-    }
-    containers = {
-      hotbar: moved.containers.hotbar!,
-      backpack: moved.containers.backpack!,
-      equipment: moved.containers.equipment!,
-      crafting: moved.containers.crafting!,
-    };
-    const remainder = moved.containers[sourceId]!.slots[0];
-    if (remainder == null) ctx.db.inventory_overflow.id.delete(row.id);
-    else ctx.db.inventory_overflow.id.update({
-      ...row, quantity: remainder.quantity,
-      durability: storedDurability(ctx, remainder.itemKind, remainder.durability),
-      lit: storedLit(remainder.itemKind, remainder.lit),
-    });
-  }
+  const { inventory, containers, overflowRows, remaining } = plan;
   writePlayerInventory(ctx, inventory, inventory.containers, containers);
+  for (const row of overflowRows) {
+    const left = remaining.get(row.id);
+    if (left === undefined || left === row.quantity) continue;
+    if (left === 0) ctx.db.inventory_overflow.id.delete(row.id);
+    else ctx.db.inventory_overflow.id.update({ ...row, quantity: left });
+  }
   updateEquippedForIdentity(ctx, identity, containers);
   const remainsBlocked = firstIndexRow(ctx.db.inventory_overflow.by_identity.filter(identity)) !== null;
   const retry = ctx.db.inventory_overflow_retry.identity.find(identity);
   if (remainsBlocked && retry === null) ctx.db.inventory_overflow_retry.insert({ identity });
   else if (!remainsBlocked && retry !== null) ctx.db.inventory_overflow_retry.identity.delete(identity);
+  return plan.skipped;
+}
+
+/**
+ * The overflow drain for callers that must not fail because of one owner: connect, the 1 Hz maintenance pass and the
+ * legacy farm recipients. Rows it cannot place are kept and skipped by the plan; a refusal of the whole plan (for
+ * example an unreadable stored cell) is caught here, and only the read-only planning is inside the catch, so a caught
+ * refusal has written nothing and loses or duplicates nothing. It is recorded in the module log and the owner gets the
+ * retry marker, so the maintenance pass does not retry it every second (the owner's next inventory write clears it).
+ * Kept rows are logged the same way. Returns whether the drain ran.
+ */
+function drainPlayerOverflowSafely(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): boolean {
+  let plan: ReturnType<typeof planPlayerOverflowDrain>;
+  try {
+    plan = planPlayerOverflowDrain(ctx, identity);
+  } catch (error) {
+    console.warn(`inventory overflow drain refused for ${identity.toHexString()}: ${error instanceof Error ? error.message : String(error)}`);
+    if (ctx.db.inventory_overflow_retry.identity.find(identity) === null) ctx.db.inventory_overflow_retry.insert({ identity });
+    return false;
+  }
+  const skipped = applyPlayerOverflowDrain(ctx, identity, plan);
+  for (const skip of skipped) {
+    console.warn(`inventory overflow row ${skip.rowId} kept for ${identity.toHexString()}: ${skip.code}`);
+  }
+  return true;
 }
 
 function writeAdminInventoryState(
@@ -13956,6 +14012,12 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     inventoryCapacity: INVENTORY_SLOT_COUNT,
   });
   if (!newPlayerLoadout.ok) throw new SenderError(newPlayerLoadout.code);
+  // Uncapped Storage step 4: storage still on the legacy layout completes the legacy layout steps and moves to
+  // `player_container_cell` in this transaction, before any inventory read or write (see migrateLegacyPlayerStorage).
+  // That is every existing character, and also legacy rows an identity holds with no character (orphan rows): the new
+  // character below keeps them, and its loadout never overwrites a moved item. A refused move refuses the connect and
+  // leaves the legacy rows as they were.
+  if (!enteringSurvivalWorld || hasUnmovedLegacyStorage(ctx.db, ctx.sender)) migrateLegacyPlayerStorage(ctx, ctx.sender);
   if (survival === null) {
     if (!newPlayerLoadout.apply) throw new SenderError('loadout_unavailable');
     const occupiedSpawnTiles = new Set<string>();
@@ -14004,18 +14066,26 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       spaceId: TOPSIDE_SPACE_ID,
     });
     // A new character starts on the container-cell layout: its loadout is written as cells, and durable tools start
-    // full, as the first-connect durability backfill always made the legacy rows.
+    // full, as the first-connect durability backfill always made the legacy rows. A loadout cell already holding a
+    // moved orphan item keeps it; that loadout stack goes to overflow custody and the connect drain places it.
     const registry = contentRegistry(ctx);
     for (const slot of newPlayerLoadout.slots) {
       const cell = legacyGlobalSlotToCell(slot.slot);
       if (cell === null) throw new SenderError('loadout_unavailable');
-      putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index, {
+      const stack = {
         itemKind: slot.itemKind,
         quantity: slot.quantity,
         durability: runtimeDurabilityDefinition(registry, slot.itemKind) === null
           ? slot.durability : runtimeNormalizeDurability(registry, slot.itemKind),
         lit: slot.lit,
-      });
+      };
+      // A vacant loadout slot writes nothing (a vacant put would delete the cell, and with it a moved orphan item).
+      if (slot.itemKind === 'empty' || slot.quantity === 0) continue;
+      if (ctx.db.player_container_cell.id.find(playerCellId(ctx.sender, cell.container, cell.index)) === null) {
+        putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index, stack);
+      } else {
+        stashOverflow(ctx, ctx.sender, stack);
+      }
     }
     const currentMigration = {
       identity: ctx.sender,
@@ -14050,9 +14120,6 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       spaceId: TOPSIDE_SPACE_ID,
     });
   }
-  // Uncapped Storage step 4: an existing character still on the legacy layout completes the legacy layout steps and
-  // moves to `player_container_cell` in this transaction, before any inventory read (see migrateLegacyPlayerStorage).
-  if (!enteringSurvivalWorld) migrateLegacyPlayerStorage(ctx, ctx.sender);
   ensurePlayerStats(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   syncDelveCompletionKeepsake(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   const spawn = {
@@ -14212,7 +14279,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     }
   }
   ensureLegacyFarmMigration(ctx);
-  drainPlayerOverflow(ctx, ctx.sender);
+  drainPlayerOverflowSafely(ctx, ctx.sender);
   updateEquippedForIdentity(ctx, ctx.sender);
   const connectedProfile = ctx.db.player_public.identity.find(ctx.sender);
   ctx.db.connection_audit.insert({
@@ -17763,10 +17830,11 @@ const CONTAINER_CELL_STATUS_PLAN_MAX = 10_000;
 
 /**
  * Release-lane report (owner or admin) for the container-cell migration (wiki Roadmap/Uncapped Storage): player layout versions with a
- * dry-run plan of every legacy player's move (at most `maximumPlayerPlans`), and the placeable copy's counts,
- * whole-table legacy fingerprint and receipt fingerprint. The lane compares `placeables.legacyFingerprint` with the
- * value computed from the pre-publish backup (`legacyPlaceableSlotsFingerprint` over `world_placeable_slot`) and
- * requires `placeableCopyComplete` and no `issues` before resuming traffic. Reads only.
+ * dry-run plan of every legacy player's move (at most `maximumPlayerPlans`), whole-world player custody read from the
+ * legacy tables and from where each player's storage now lives, orphan legacy rows, and the placeable copy's counts,
+ * whole-table legacy fingerprint and receipt fingerprint. The lane compares `placeables.legacyFingerprint` and
+ * `players.legacyFingerprint` with the isolated restore rehearsal's, and requires `placeableCopyComplete`, no
+ * `issues` and `players.cellFingerprint` equal to `players.legacyFingerprint` before resuming traffic. Reads only.
  */
 export const adminContainerCellMigrationStatus = spacetimedb.procedure(
   { maximumPlayerPlans: t.u32() },
@@ -20557,7 +20625,7 @@ function ensureLegacyFarmMigration(ctx: WorldReducerContext): void {
     migrateItem(survival.identity, 'wood', BigInt(survival.wood));
     migrateItem(survival.identity, 'stone', BigInt(survival.stone));
   }
-  for (const identity of inventoryRecipients.values()) drainPlayerOverflow(ctx, identity);
+  for (const identity of inventoryRecipients.values()) drainPlayerOverflowSafely(ctx, identity);
 
   for (const parcel of ctx.db.farm_parcel.iter()) {
     for (let tileY = parcel.originY; tileY < parcel.originY + parcel.height; tileY += 1) {
@@ -25002,7 +25070,8 @@ function runOneHertzTickMaintenance(
     if (!playerContainerCellsCurrent(ctx.db, row.identity)) continue;
     overflowOwners.set(row.identity.toHexString(), row.identity);
   }
-  for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
+  // One owner's refusal is caught per owner (drainPlayerOverflowSafely), so it never aborts the pass for the rest.
+  for (const identity of overflowOwners.values()) drainPlayerOverflowSafely(ctx, identity);
 }
 
 function activePresenceLeases(ctx: WorldReducerContext): ConnectionPresenceRow[] {
