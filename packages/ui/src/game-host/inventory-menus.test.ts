@@ -142,18 +142,48 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
-  it('shares one chest filter without removing hidden occupied slots from authority', () => {
-    const f = fixture('chest', { openChestInventory: [{slot:0,itemKind:'wood',quantity:3},{slot:15,itemKind:'apple',quantity:5}] });
+  it('gives the chest and the backpack their own filters without removing hidden occupied slots from authority (BUG-065)', () => {
+    const f = fixture('chest', { openChestInventory: [{slot:0,itemKind:'wood',quantity:3},{slot:15,itemKind:'apple',quantity:5}],
+      inventory: [{ slot: 10, itemKind: 'apple', quantity: 2 }] });
     try {
       const inputs = f.root.entries().filter(({element}) => element.label === 'Filter items');
-      expect(inputs).toHaveLength(1);
-      f.root.focus.set(inputs[0]!.element, 'keyboard'); f.root.text('wood'); f.root.arrange();
-      expect(f.root.focus.current).toBe(inputs[0]!.element);
+      expect(inputs).toHaveLength(2);
+      const backpackSlots = () => { f.root.arrange(); return f.root.entries().filter(({ element }) =>
+        (element.props['binding'] as { container?: string } | undefined)?.container === 'backpack').length; };
+      const before = backpackSlots();
+      expect(before).toBe(20);
+      const chestFilter = inputs.find(({ element }) => element.id === 'frame:chest.pane.contents.filter')!.element;
+      expect(inputs.map(({ element }) => element.id).sort()).toEqual(['frame:chest.pane.backpack.filter', 'frame:chest.pane.contents.filter']);
+      f.root.focus.set(chestFilter, 'keyboard'); f.root.text('wood'); f.root.arrange();
+      expect(f.root.focus.current).toBe(chestFilter);
+      // The chest's filter leaves the backpack alone: every backpack cell is still there to take an item.
+      expect(backpackSlots()).toBe(before);
+      // In the chest, only the non-matching apple is hidden; its empty cells stay (owner 2026-09-28).
+      const chestCells = f.root.entries().map(({ element }) => element.props['binding'] as { container?: string; index?: number } | undefined)
+        .filter(binding => binding?.container === 'chest').map(binding => binding!.index);
+      expect(chestCells).toHaveLength(15);
+      expect(chestCells).toContain(0); expect(chestCells).not.toContain(15);
       f.click(f.slot('chest', 0));
       expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('chest', 0, 'left');
       const authority = f.ui as unknown as { optimisticMenuItems: Map<{containerId:string;index:number},ItemStack|null> };
       const hidden = [...authority.optimisticMenuItems].find(([slot]) => slot.containerId === 'chest' && slot.index === 15);
       expect(hidden?.[1]).toMatchObject({ itemKind: 'apple', quantity: 5 });
+    } finally { f.dispose(); }
+  });
+
+  it('starts each chest window and each frame with an empty chest filter (BUG-065)', () => {
+    const f = fixture('chest', { openChestInventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }] });
+    try {
+      const chestFilter = () => { f.root.arrange(); return f.root.entries().find(({ element }) => element.id === 'frame:chest.pane.contents.filter')?.element; };
+      f.root.focus.set(chestFilter()!, 'keyboard'); f.root.text('wood'); f.root.arrange();
+      const value = () => (chestFilter()!.props['editor'] as { snapshot(): { value: string } }).snapshot().value;
+      expect(value()).toBe('wood');
+      f.ui.openWindow = null; f.ui.openWindow = 'chest';
+      expect(value()).toBe('');
+      f.root.focus.set(chestFilter()!, 'keyboard'); f.root.text('wood'); f.root.arrange();
+      f.update({ activeFrameId: 'frame:barrel' }); f.ui.openWindow = 'barrel'; f.root.arrange();
+      f.update({ activeFrameId: 'frame:chest' }); f.ui.openWindow = 'chest';
+      expect(value()).toBe('');
     } finally { f.dispose(); }
   });
 

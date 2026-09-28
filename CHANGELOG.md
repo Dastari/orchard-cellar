@@ -2,6 +2,20 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.50.0 / UI 0.52.0 / Engine 0.30.0 / Sim 0.33.6 / World 0.30.3 / Studio 0.16.16 — Chest filters, Basic object light, one capacity rule
+
+- **BUG-064: windows don't trap the keyboard in a text field (#253).**
+  - Opening a chest no longer focuses its Filter.
+  - The focus ring shows only for keyboard use and fits the whole field.
+  - DOM focus returns to the game when a window or the chat input closes, so E, I and Escape keep working.
+- **BUG-065: each inventory pane has its own filter and sort (#254),** the same component as the inventory window. Filtering hides only non-matching items; empty cells always stay visible as places to put something (owner decision).
+- **BUG-066: a failing retained screen no longer aborts the whole frame in production (#255).** It is skipped, reported once to error telemetry, and still fails loudly in development and tests.
+- **BUG-061: Basic lighting keeps object light (#260).** Light sources get cheap, hard-edged, two-step, world-anchored pools, with no blur and no flicker (owner-approved look).
+- **BUG-056: one backpack capacity rule (#258).** The recipe book, expedition preparation, trade and merchant sell all use `accessibleBackpackCapacity` (Uncapped Storage step 1). The expedition part is server-side.
+- **Release lanes (#256):** the guarded full lane scopes and asserts the client chunk-runtime mode, like the routine lane. The served-audit fetch retries.
+- **Tests only (#239, #249):** the static-world S4g browser acceptance harness and the S5c rollback drill.
+- Workspace 0.74.0.
+
 ## Client 0.49.0 / UI 0.51.0 / Studio 0.16.15 — Chest and workbench fixes, Escape, alt-tab, flash, chat icon
 
 - **BUG-058: chest window didn't open after "Chest opened" (#251).** Replacing an active placeable session (for example workbench to chest, or chest to chest) delivered the new session before the old one's removal, and the client cleared both. Removals now only clear the placeable that is still current, so chest windows open reliably.

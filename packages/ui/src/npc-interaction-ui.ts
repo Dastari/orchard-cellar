@@ -4,7 +4,7 @@ import type { DialogueChoice, FrameContentDefinition, ContentRegistry, MerchantC
 import { ITEM_ECONOMY, merchantOffers, coinPurseFromBronze } from '@orchard/sim/commerce';
 import { dialogueDefinition, runtimeDialogueDefinition, dialogueNode } from '@orchard/sim/dialogue';
 import { hearthRecipeExchangeNpcForRuntimeId } from '@orchard/sim/hearth-seal-exchange';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_OFFSET, EQUIPMENT_SLOT_OFFSET, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY, itemDefinition, maxStackFor } from '@orchard/sim/item-containers';
 import { runtimeQuestDefinition, questDefinition } from '@orchard/sim/quests';
 import { furnitureShopDetails } from './furniture-shop-details.js';
@@ -499,8 +499,9 @@ export class NpcInteractionUi {
         const authoredCapacity = capacityDefinition?.retired === true
             ? null
             : capacityDefinition?.equip?.inventoryCapacity;
-        const capacity = this.model.backpackSlotCapacity ?? authoredCapacity ?? BASE_BACKPACK_CAPACITY;
-        const sellableSlotLimit = BACKPACK_SLOT_OFFSET + Math.max(0, Math.min(BACKPACK_SLOT_COUNT, capacity));
+        // The world's one capacity rule (BUG-056): a bag below 8 still opens the base 8, and nothing past it is sellable.
+        const capacity = accessibleBackpackCapacity(Math.floor(this.model.backpackSlotCapacity ?? authoredCapacity ?? BASE_BACKPACK_CAPACITY));
+        const sellableSlotLimit = BACKPACK_SLOT_OFFSET + capacity;
         for (const slot of this.model.inventory) {
             if (slot.slot >= sellableSlotLimit || slot.itemKind === 'empty' || slot.quantity <= 0)
                 continue;

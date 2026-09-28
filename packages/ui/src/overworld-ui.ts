@@ -4,6 +4,7 @@ import { DelveConfirmationUi, UpdateReadyUi } from './game-host/overlays.js';
 import { SystemMenus } from './game-host/system-menus.js';
 import type { TimingProjection } from '@orchard/sim';
 import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
+import { reportUiFailure, UiFailureLog, uiFailurePolicy } from './kit/runtime/failure-policy.js';
 import type { UiKitArt } from './kit/components/art.js';
 import type { UiRoot } from './kit/runtime/root.js';
 import { UiElement } from './kit/runtime/element.js';
@@ -31,7 +32,7 @@ import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registr
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
 import { MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, hotbarSlotForInputCode, hotbarSlotLabel } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel } from '@orchard/sim/inventory-layout';
 import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
 import { recipeDefinition } from '@orchard/sim/recipes';
 import type { LoadedAsset } from './assets.js';
@@ -564,6 +565,12 @@ const SLOT_WIDTH = 30;
 const SLOT_HEIGHT = 31;
 const HOTBAR_RETICLE_SIZE = 60;
 const DEFAULT_INVENTORY_SLOTS = 8;
+
+/** The backpack cells the model opens (BUG-056): its projected capacity, through the world's one rule. A model with
+ * no projected capacity (older tests, the UI lab) falls back to a full or base bag. */
+function modelBackpackCapacity(model: Pick<OverworldUiModel, 'backpackSlotCapacity' | 'hasBackpack'>): number {
+  return accessibleBackpackCapacity(model.backpackSlotCapacity ?? (model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS));
+}
 const INVENTORY_BACKPACK_COLUMNS = 7;
 const INVENTORY_BACKPACK_VISIBLE_ROWS = 3;
 export const HUD_RESOURCE_FRAME_SCALE = 1.5;
@@ -1531,7 +1538,7 @@ export class OverworldUi {
       aliases: { backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting',
         entity: frame.definition.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable' },
       registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
-      backpackCapacity: this.model.backpackSlotCapacity ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS),
+      backpackCapacity: modelBackpackCapacity(this.model),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
       // The paper doll shows the wearer with the same painter as the character screen.
       portrait: (context, bounds) => { const appearance = this.model.character?.appearance; if (appearance) this.drawPlayerDoll(context, appearance, 'down', bounds); },
@@ -2452,7 +2459,7 @@ export class OverworldUi {
     });
     this.backpackItemSlots.forEach((slot, index) => {
       slot.setBounds(this.layout.backpackSlots[index]!);
-      slot.enabled = index < (model.backpackSlotCapacity ?? (model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS));
+      slot.enabled = index < modelBackpackCapacity(model);
       slot.item = inventoryBySlot.get(BACKPACK_SLOT_OFFSET + index) ?? null;
     });
     this.equipmentItemSlots.forEach((slot, visualIndex) => {
@@ -2570,8 +2577,7 @@ export class OverworldUi {
   }
 
   private filteredInventoryBackpackSlots(): ItemSlot[] {
-    const capacity = this.model.backpackSlotCapacity
-      ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS);
+    const capacity = modelBackpackCapacity(this.model);
     return this.backpackItemSlots.filter((slot, index) => index < capacity && this.inventorySlotMatchesSearch(slot));
   }
 
@@ -2582,8 +2588,7 @@ export class OverworldUi {
       || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation';
     if (!scrollable) return;
-    const capacity = this.model.backpackSlotCapacity
-      ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS);
+    const capacity = modelBackpackCapacity(this.model);
     const slots = this.openWindowValue === 'inventory'
       ? this.filteredInventoryBackpackSlots()
       : this.backpackItemSlots.filter((_slot, index) => index < capacity);
@@ -3925,15 +3930,15 @@ export class OverworldUi {
     return hovered && hovered.itemKind !== 'empty' && hovered.quantity > 0 ? hovered : null;
   }
 
-  private readonly reportedViewErrors = new Set<string>();
+  private readonly viewFailures = new UiFailureLog();
   /** Runs one retained view's sync or paint. A view that throws (a kit invariant such as a duplicate UI id) is
-   * reported once and skipped, so it can't abort the frame, the other windows or the HUD (BUG-063). */
+   * reported once and skipped, so it can't abort the frame, the other windows or the HUD (BUG-063, BUG-066). */
   private contained(view: string, run: () => void): void {
     try { run(); } catch (error) {
-      const key = `${view}:${error instanceof Error ? error.message : String(error)}`;
-      if (this.reportedViewErrors.has(key)) return;
-      this.reportedViewErrors.add(key);
-      console.error(`Orchard UI: the ${view} view failed and was skipped`, error);
+      // Development, the lab and tests keep the error hard (BUG-066); production skips the view.
+      if (uiFailurePolicy() === 'throw') throw error;
+      // Containment is per view group: 'character' covers the character, statistics and skills screens' sync.
+      if (this.viewFailures.first(view, error)) reportUiFailure(view, error);
     }
   }
 
@@ -4820,6 +4825,7 @@ export class OverworldUi {
     const entries = craftingRecipeBookEntries(
       this.model.nearbyCraftingStations ?? [],
       this.model.inventory,
+      modelBackpackCapacity(this.model),
       this.model.knownRecipeIds ?? [],
       this.model.contentRegistry,
       this.recipeSkillRanks(),

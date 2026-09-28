@@ -285,33 +285,33 @@ export const CLIENT_CHUNK_BUILD_VARIABLES = ['VITE_CHUNK_RUNTIME_MODE', 'ORCHARD
 export function clientChunkRuntimePlan(env: Readonly<Record<string, string | undefined>>,
   approvedRelease: string | null = CHUNK_RUNTIME_ACTIVATION_RELEASE): ClientChunkRuntimePlan {
   for (const name of CLIENT_CHUNK_BUILD_VARIABLES) {
-    if (env[name] !== undefined) throw new Error(`routine_raw_chunk_runtime_variable:${name}`);
+    if (env[name] !== undefined) throw new Error(`release_raw_chunk_runtime_variable:${name}`);
   }
   const requested = env['WORLD_RELEASE_CLIENT_CHUNK_RUNTIME'];
   const activation = env['WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION'] ?? '';
   const rollbackFlag = env['WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK'] ?? '';
-  if (rollbackFlag !== '' && rollbackFlag !== '1') throw new Error('routine_chunk_rollback_flag_invalid');
+  if (rollbackFlag !== '' && rollbackFlag !== '1') throw new Error('release_chunk_rollback_flag_invalid');
   const rollback = rollbackFlag === '1';
   if (requested !== undefined && !(CHUNK_RUNTIME_BUILD_MODES as readonly string[]).includes(requested)) {
-    throw new Error('routine_chunk_runtime_mode_invalid');
+    throw new Error('release_chunk_runtime_mode_invalid');
   }
   const approved = approvedRelease === '' ? null : approvedRelease;
   if (approved === null) {
     const mode = (requested ?? 'off') as ChunkRuntimeBuildMode;
-    if (mode === 'on') throw new Error('routine_chunk_runtime_on_not_approved');
-    if (activation !== '') throw new Error('routine_chunk_activation_not_approved');
-    if (rollback) throw new Error('routine_chunk_rollback_before_activation');
+    if (mode === 'on') throw new Error('release_chunk_runtime_on_not_approved');
+    if (activation !== '') throw new Error('release_chunk_activation_not_approved');
+    if (rollback) throw new Error('release_chunk_rollback_before_activation');
     return { mode, activationRelease: null, approvedRelease: null, rollback: false };
   }
-  if (requested === undefined) throw new Error('routine_chunk_runtime_mode_required_after_activation');
+  if (requested === undefined) throw new Error('release_chunk_runtime_mode_required_after_activation');
   const mode = requested as ChunkRuntimeBuildMode;
   if (mode === 'on') {
-    if (activation !== approved) throw new Error('routine_chunk_activation_mismatch');
-    if (rollback) throw new Error('routine_chunk_rollback_with_on');
+    if (activation !== approved) throw new Error('release_chunk_activation_mismatch');
+    if (rollback) throw new Error('release_chunk_rollback_with_on');
     return { mode, activationRelease: approved, approvedRelease: approved, rollback: false };
   }
-  if (!rollback) throw new Error('routine_chunk_deactivation_requires_rollback');
-  if (activation !== '') throw new Error('routine_chunk_activation_with_deactivation');
+  if (!rollback) throw new Error('release_chunk_deactivation_requires_rollback');
+  if (activation !== '') throw new Error('release_chunk_activation_with_deactivation');
   return { mode, activationRelease: null, approvedRelease: approved, rollback: true };
 }
 
@@ -320,16 +320,16 @@ export function parseClientChunkRuntimePlan(value: unknown): ClientChunkRuntimeP
   if (plan === null || typeof plan !== 'object' || !(CHUNK_RUNTIME_BUILD_MODES as readonly unknown[]).includes(plan.mode)
     || !(plan.activationRelease === null || (typeof plan.activationRelease === 'string' && plan.activationRelease !== ''))
     || !(plan.approvedRelease === null || typeof plan.approvedRelease === 'string') || typeof plan.rollback !== 'boolean'
-    || (plan.mode === 'on') !== (plan.activationRelease !== null)) throw new Error('routine_chunk_plan_invalid');
+    || (plan.mode === 'on') !== (plan.activationRelease !== null)) throw new Error('release_chunk_plan_invalid');
   return plan as ClientChunkRuntimePlan;
 }
 
 /** The staged or served chunk-runtime-audit.json is releasable and is exactly what the plan built. */
 export function assertClientChunkRuntimeAudit(audit: unknown, plan: ClientChunkRuntimePlan,
   approvedRelease: string | null = CHUNK_RUNTIME_ACTIVATION_RELEASE): void {
-  if (!validChunkRuntimeBuildAudit(audit, 'production', approvedRelease)) throw new Error('routine_chunk_runtime_audit_not_releasable');
+  if (!validChunkRuntimeBuildAudit(audit, 'production', approvedRelease)) throw new Error('release_chunk_runtime_audit_not_releasable');
   const { mode, activationRelease } = audit as { mode: unknown; activationRelease?: unknown };
-  if (mode !== plan.mode || (activationRelease ?? null) !== plan.activationRelease) throw new Error('routine_chunk_runtime_audit_mismatch');
+  if (mode !== plan.mode || (activationRelease ?? null) !== plan.activationRelease) throw new Error('release_chunk_runtime_audit_mismatch');
 }
 
 async function main(): Promise<void> {
@@ -357,7 +357,7 @@ async function main(): Promise<void> {
     process.stdout.write(`${JSON.stringify(clientChunkRuntimePlan(process.env))}\n`);
   } else if (mode === 'client-chunk-audit' && first !== undefined && second !== undefined) {
     const plan = parseClientChunkRuntimePlan(JSON.parse(await readFile(second, 'utf8')) as unknown);
-    if (plan.approvedRelease !== (CHUNK_RUNTIME_ACTIVATION_RELEASE ?? null)) throw new Error('routine_chunk_approved_release_changed');
+    if (plan.approvedRelease !== (CHUNK_RUNTIME_ACTIVATION_RELEASE ?? null)) throw new Error('release_chunk_approved_release_changed');
     assertClientChunkRuntimeAudit(JSON.parse(await readFile(first, 'utf8')) as unknown, plan);
   } else throw new Error('routine_helper_usage');
 }

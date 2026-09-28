@@ -53,7 +53,10 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
       if (index >= (options.capacity?.() ?? Infinity)) return false;
       if (!query) return true;
       const item = options.controller ? options.controller.model.stack({ container: options.container, index }) : options.stack?.(index);
-      return Boolean(item && (item.itemKind.toLowerCase().includes(query)
+      // Filtering hides only non-matching items: empty cells always stay, as places to put something down (BUG-065,
+      // owner 2026-09-28).
+      if (!item) return true;
+      return Boolean((item.itemKind.toLowerCase().includes(query)
         || (options.itemLabel?.(item) ?? itemDefinition(item.itemKind)?.displayName ?? '').toLowerCase().includes(query)));
     });
     const key = JSON.stringify(visible.map(cell => cell.index ?? cells.indexOf(cell)));
@@ -65,6 +68,8 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   const filter = options.showFilter === false ? null : uiInput({ id: options.id ? `${options.id}.filter` : undefined, label: 'Filter items', placeholder: 'Filter', editor,
     clearable: true, size: 'md', leading: uiGlyph('glyph.search'), onChange(value) { options.onFilter?.(value); filterModel.refresh(); },
   });
+  // Opening a window never parks the keyboard in its filter: the player clicks or tabs into it (BUG-064).
+  filter?.setProps({ skipAutoFocus: true }, false);
   const toolbar = uiFlex({ direction: 'row', width: 'grow', gap: 4 }, [
     ...(filter ? [filter] : []), ...(sort ? [sort] : []),
   ]);

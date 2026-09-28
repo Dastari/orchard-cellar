@@ -76,3 +76,28 @@ it('preserves authored lamp intensity separately from its bounded propagation st
  expect(lamp).toMatchObject({intensityPerMille:3500,strengthPerMille:1000,radiusTiles:5});
  expect(placeablePointLight({id:1n,kind:'hearth_streetlamp',tileX:10,tileY:10},0n,{enabled:false,color:[255,206,131],radiusTiles:5,profile:'steady',intensityPerMille:3500})).toBeNull();
 });
+
+describe('BUG-061: the steady light Basic draws', () => {
+  const ticks = [0n, 3n, 7n, 11n, 20n, 33n, 50n];
+
+  it('gives every flame placeable its authored radius and strength 1000, whatever the flicker', () => {
+    for (const kind of ['campfire', 'cooking_fire', 'camp_cooking_fire', 'standing_torch']) {
+      const authored = PLACEABLE_LIGHT_EMITTERS[kind]!;
+      expect(authored.profile, kind).toBe('flame');
+      const samples = ticks.map((tick) => placeablePointLight({ id: 9n, kind, tileX: 1, tileY: 1 }, tick)!);
+      for (const light of samples) expect(light.steady, kind).toEqual({ radiusTiles: authored.radiusTiles, strengthPerMille: 1000 });
+      // The flickered values really move, so `steady` is not just a copy of them.
+      expect(new Set(samples.map((light) => light.radiusTiles)).size, kind).toBeGreaterThan(1);
+    }
+  });
+
+  it('gives an authored flicker light its authored radius, and leaves steady lights without one', () => {
+    const row = { id: 42n, kind: 'oil_lamp', tileX: 2, tileY: 3 };
+    for (const tick of ticks) {
+      expect(placeablePointLight(row, tick, { enabled: true, color: [255, 196, 120], radiusTiles: 3.5, profile: 'flicker' })?.steady)
+        .toEqual({ radiusTiles: 3.5, strengthPerMille: 1000 });
+    }
+    expect(placeablePointLight(row, 5n, { enabled: true, color: [255, 196, 120], radiusTiles: 3.5, profile: 'steady' }))
+      .not.toHaveProperty('steady');
+  });
+});

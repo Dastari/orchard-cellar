@@ -265,6 +265,24 @@ describe('production retained chat adapter', () => {
       bridge.input.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', isComposing: false })); expect(f.send).toHaveBeenCalledOnce();
     } finally { bridge.dispose(); }
   });
+  it('hands the keyboard back to the game after Escape closes the chat input (BUG-064)', () => {
+    const f = retainedFixture(); f.overlay.open('hello');
+    const documentStub = { activeElement: null as unknown, body: { append() {} }, createElement: () => new Input() };
+    class Input extends EventTarget { style = {}; dataset = {}; value = ''; tabIndex = 0; spellcheck = false; readOnly = false;
+      focus() { documentStub.activeElement = this; } blur() { if (documentStub.activeElement === this) documentStub.activeElement = documentStub.body; }
+      setAttribute() {} setSelectionRange() {} remove() {} }
+    // The game canvas has no tabindex, so focusing it doesn't move DOM focus.
+    const canvas = { focus() {} } as unknown as HTMLCanvasElement; vi.stubGlobal('document', documentStub);
+    const bridge = new UiTextBridge(canvas, () => f.overlay.active ? f.overlay.root.focus.current : null, event => f.overlay.root.key(event), node => node.rect, () => f.overlay.root.invalidate());
+    try {
+      bridge.sync(); expect(documentStub.activeElement).toBe(bridge.input);
+      bridge.input.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' }));
+      bridge.sync();
+      expect(f.overlay.isOpen).toBe(false);
+      // The next key (Escape for the menu, E to interact) reaches the game's window listener, not the hidden editor.
+      expect(documentStub.activeElement).not.toBe(bridge.input);
+    } finally { bridge.dispose(); }
+  });
   it('opens a history tap only on release while touch scrolling and cancellation keep the native editor closed', () => {
     const initial = { ...chatModel(), touchControls: true, messages: Array.from({ length: 80 }, (_, i) => ({ ...chatModel().messages[0]!, id: BigInt(i), body: `Message ${i}` })) };
     const f = retainedFixture(undefined, initial), root = f.overlay.root, history = f.node('chat.history');

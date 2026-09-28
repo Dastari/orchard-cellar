@@ -185,7 +185,67 @@ describe('production continuity tooling', () => {
       });
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toContain('World release stage-A dry-run passed');
+      expect(result.stdout).toContain('Client chunk runtime plan: {"mode":"off","activationRelease":null');
       expect(`${result.stdout}${result.stderr}`).not.toContain('test-value-never-printed');
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
+
+  it('scopes the client chunk runtime to both client builds and asserts the staged and served audits (S5c G3/G6)', () => {
+    const lines = release.split('\n');
+    const raw = lines.filter(line => /VITE_CHUNK_RUNTIME_MODE=|ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE=/u.test(line));
+    expect(raw.every(line => line.startsWith('client_chunk_build_env') || line.startsWith('[[ -z "$client_chunk_activation" ]]'))).toBe(true);
+    const builds = lines.filter(line => line.includes('npm run build --workspace @orchard/client'));
+    expect(builds).toEqual(Array(2).fill('env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production'));
+    const plan = release.indexOf('client_chunk_plan=$(node --import tsx scripts/world-release-routine.ts client-chunk-plan)');
+    expect(plan).toBeGreaterThan(0);
+    expect(plan).toBeLessThan(release.indexOf('if [[ "$dry_run" = true ]]; then\n  [[ "$rehearsal_port"'));
+    expect(plan).toBeLessThan(release.indexOf('\nnpm test\n'));
+    // Each build's audit is asserted before the release chunk check runs on it.
+    for (const [label, build] of [['candidate', release.indexOf(builds[0]!)], ['final', release.lastIndexOf(builds[1]!)]] as const) {
+      const audit = release.indexOf(`\nassert_client_chunk_audit ${label}\n`);
+      expect(audit, label).toBeGreaterThan(build);
+      expect(audit, label).toBeLessThan(release.indexOf('npm run client:chunks:check', build));
+    }
+    // The evidence path is printed as soon as it exists, and every audit failure is named.
+    expect(release.indexOf('printf \'Client chunk runtime evidence (plan and audits): %s\\n\' "$client_chunk_stage"'))
+      .toBeLessThan(release.indexOf(builds[0]!));
+    expect(release).toContain('|| client_chunk_audit_failed "$1"');
+    const served = release.indexOf('\n  assert_client_chunk_audit served\n');
+    expect(served).toBeGreaterThan(release.lastIndexOf('\nrestore_traffic\n'));
+    expect(served).toBeLessThan(release.lastIndexOf('\ntraffic_stopped=false\nrelease_world_quiescence_started=false'));
+    // After a successful publish a transient fetch error must not trip the EXIT trap: bounded retries,
+    // but the comparison and the audit stay strict.
+    const fetch = release.indexOf('https://orchard.dastari.net/chunk-runtime-audit.json');
+    expect(release.slice(release.lastIndexOf('curl', fetch), fetch)).toContain('--retry 5 --retry-all-errors --retry-delay 2');
+    expect(release).toContain('cmp "$client_chunk_stage/client-chunk-runtime-audit-final.json" "$client_chunk_stage/client-chunk-runtime-audit-served.json" \\\n    || client_chunk_audit_failed served-differs-from-final');
+  });
+
+  it('refuses the raw chunk build variables and an unapproved on before any release work (S5c G3/G6)', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orchard-release-chunk-test-'));
+    try {
+      const token = join(directory, 'tokens.json');
+      writeFileSync(token, '{"operator":"chunk-value-never-printed"}\n', { mode: 0o600 });
+      chmodSync(token, 0o600);
+      const run = (extra: Record<string, string>) => spawnSync('bash', [fileURLToPath(new URL('./world-release.sh', import.meta.url))], {
+        cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
+        env: { ...process.env, WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+          WORLD_RELEASE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
+          WORLD_RELEASE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
+          WORLD_RELEASE_POST_DRAIN_SNAPSHOT: join(directory, 'new-post-drain.json'),
+          WORLD_RELEASE_PRODUCTION_PRE_DRAIN_SNAPSHOT: join(directory, 'new-production-pre-drain.json'), ...extra },
+      });
+      for (const [extra, code] of [
+        [{ VITE_CHUNK_RUNTIME_MODE: 'off' }, 'release_raw_chunk_runtime_variable:VITE_CHUNK_RUNTIME_MODE'],
+        [{ ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: '' }, 'release_raw_chunk_runtime_variable:ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE'],
+        [{ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'unreviewed' }, 'release_chunk_runtime_on_not_approved'],
+      ] as const) {
+        const result = run(extra);
+        expect(result.status, JSON.stringify(extra)).toBe(64);
+        expect(result.stderr).toContain(code);
+        expect(result.stderr).toContain('Client chunk runtime plan refused');
+        expect(result.stdout).not.toContain('dry-run passed');
+        expect(`${result.stdout}${result.stderr}`).not.toContain('chunk-value-never-printed');
+      }
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
 

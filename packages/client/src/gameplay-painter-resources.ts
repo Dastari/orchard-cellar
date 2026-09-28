@@ -19,7 +19,7 @@ type Inputs = Pick<GameplayPainterInputs,
   'enqueueWorldDepth' | 'context' | 'art' | 'cameraX' | 'cameraY' |
   'scale' | 'visualTickClock' | 'treeShakeRemaining' | 'resourceGlanceRemaining' | 'effectPhase' | 'drawSouthFacingReceiver' |
   'miningClassFromWire' | 'cropDefinitionForSnapshot' | 'renderAuthorityTick' | 'cropAutomaticallyWateredForSnapshot' | 'cropCalendarOffsetForSnapshot' |
-  'cropGreenhouseProtectedForSnapshot' | 'dynamicLighting' | 'lightVisible' | 'pointLights' |
+  'cropGreenhouseProtectedForSnapshot' | 'collectLights' | 'lightVisible' | 'pointLights' |
   'projectedLight' | 'objectPresentations'
 >;
 
@@ -47,7 +47,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
     enqueueWorldDepth, context, art, cameraX, cameraY,
     scale, visualTickClock, treeShakeRemaining, resourceGlanceRemaining, effectPhase, drawSouthFacingReceiver,
     miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot, cropCalendarOffsetForSnapshot,
-    cropGreenhouseProtectedForSnapshot, dynamicLighting, lightVisible, pointLights,
+    cropGreenhouseProtectedForSnapshot, collectLights, lightVisible, pointLights,
     projectedLight, objectPresentations,
   } = input;
   if (!debugEntitiesHidden) for (const resource of [
@@ -191,7 +191,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
     const age = Number((snapshot.clock?.authorityTick ?? item.droppedAtTick) - item.droppedAtTick);
     const arcHeight = age >= 0 && age < 8 ? Math.round(Math.sin(age / 8 * Math.PI) * 8) : 0;
     const itemLight = snapshot.content.registry.items.get(`item:${item.itemKind}`)?.light;
-    if (dynamicLighting && itemLight !== undefined && item.lit && worldPointVisible(x, y, lightVisible)) {
+    if (collectLights && itemLight !== undefined && item.lit && worldPointVisible(x, y, lightVisible)) {
       const flicker = itemLight.profile === 'flicker'
         ? deterministicFlameFlicker(item.id, visualTickClock.renderTick)
         : { radiusOffset: 0, strengthPerMille: 1000 };
@@ -200,6 +200,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
         worldY: y + (itemLight.offsetY ?? 0),
         receiverDirectionWorldY: y,
         radiusTiles: itemLight.radiusTiles + flicker.radiusOffset,
+        steady: { radiusTiles: itemLight.radiusTiles, strengthPerMille: 1000 },
         color: { r: itemLight.color[0], g: itemLight.color[1], b: itemLight.color[2] },
         strengthPerMille: flicker.strengthPerMille,
         profile: itemLight.profile === 'flicker' ? 'flame' : 'steady',

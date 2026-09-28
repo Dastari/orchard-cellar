@@ -1,3 +1,4 @@
+import { reportUiFailure, UiFailureLog, uiFailurePolicy } from '../kit/runtime/failure-policy.js';
 import type { UiElement, UiElementKey, UiElementWheel } from '../kit/runtime/element.js';
 import type { UiRootPointer } from '../kit/runtime/input.js';
 import type { UiRoot } from '../kit/runtime/root.js';
@@ -24,18 +25,17 @@ export class GameUiRuntime {
   private readonly pointers = new Map<number, { host: GameUiHost; event: UiRootPointer }>();
   private readonly cancelled = new Set<number>();
   private keyboard: GameUiHost | null = null;
-  private readonly reportedErrors = new Set<string>();
+  private readonly failures = new UiFailureLog();
 
   /** A host whose tree is broken (a kit invariant such as a duplicate UI id) is reported once and treated as not
    * handling the event, so keys such as Escape still reach the game and the other hosts (BUG-063). */
-  constructor(private readonly onHostError: (hostId: string, error: unknown) => void = (hostId, error) => {
-    console.error(`Orchard UI: the ${hostId} host failed and was skipped`, error);
-  }) {}
+  constructor(private readonly onHostError: (hostId: string, error: unknown) => void = reportUiFailure) {}
 
   private guard<T>(host: GameUiHost, fallback: T, run: () => T): T {
     try { return run(); } catch (error) {
-      const key = `${host.id}:${error instanceof Error ? error.message : String(error)}`;
-      if (!this.reportedErrors.has(key)) { this.reportedErrors.add(key); this.onHostError(host.id, error); }
+      // Development, the lab and tests keep the error hard (BUG-066); production skips the host.
+      if (uiFailurePolicy() === 'throw') throw error;
+      if (this.failures.first(host.id, error)) this.onHostError(host.id, error);
       return fallback;
     }
   }

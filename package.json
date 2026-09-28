@@ -1,6 +1,6 @@
 {
   "name": "orchard-cellar",
-  "version": "0.73.0",
+  "version": "0.74.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -23,6 +23,7 @@
     "client:chunks:check": "tsx scripts/check-client-build-chunks.ts",
     "world:static:readiness": "tsx scripts/static-world-readiness.ts",
     "world:chunks:soak": "bash scripts/run-chunk-authority-soak.sh",
+    "world:chunks:browser-acceptance": "bash scripts/run-chunk-runtime-browser-acceptance.sh",
     "world:chunks:parity-gate": "tsx scripts/chunk-authority-parity-gate.ts",
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",

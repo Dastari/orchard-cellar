@@ -1,8 +1,8 @@
-import {runtimeRangedWeaponDefinition,runtimeToolDefinition,runtimeVigourDefinition,runtimeWeaponBaseDamageCenti} from './content/runtime.js';
+import {runtimeItemInventoryCapacity,runtimeRangedWeaponDefinition,runtimeToolDefinition,runtimeVigourDefinition,runtimeWeaponBaseDamageCenti} from './content/runtime.js';
 import type {ContentRegistry} from './content/registry.js';
 import type {EquippedInventoryEntry} from './equipment-loadout.js';
-import {activeEquipmentSlotAccepts,EQUIPMENT_SLOT_OFFSET,HOTBAR_SLOT_COUNT,BACKPACK_SLOT_OFFSET,accessibleBackpackSlotCount} from './inventory-layout.js';
-import {itemContainerContentResolver} from './item-containers.js';
+import {activeEquipmentSlotAccepts,EQUIPMENT_SLOT_OFFSET,HOTBAR_SLOT_COUNT,BACKPACK_SLOT_OFFSET,accessibleBackpackCapacity} from './inventory-layout.js';
+import {BASE_BACKPACK_CAPACITY,itemContainerContentResolver} from './item-containers.js';
 
 /** Readiness is current equipment, not ownership or permanent progression.
  * Weapons need not be drawn during a conversation; bows need ten carried shots. */
@@ -25,7 +25,9 @@ export function hearthExpeditionPreparation(registry:ContentRegistry,inventory:r
     const ranged=runtimeRangedWeaponDefinition(registry,weapon!.itemKind);
     if(ranged===null)return {weapon:0,body:body?1:0};
     const ammunition=ranged.ammunitionItemKind;
-    const backpackEnd=BACKPACK_SLOT_OFFSET+accessibleBackpackSlotCount(pack!==undefined);
+    // Only the backpack cells the world lets the player use (BUG-056): the equipped bag's capacity, not a fixed 20.
+    const bagCapacity=pack===undefined?BASE_BACKPACK_CAPACITY:runtimeItemInventoryCapacity(registry,pack.itemKind)??BASE_BACKPACK_CAPACITY;
+    const backpackEnd=BACKPACK_SLOT_OFFSET+accessibleBackpackCapacity(bagCapacity);
     const shots=inventory.filter(row=>Number.isInteger(row.slot)&&row.slot>=0
       &&(row.slot<HOTBAR_SLOT_COUNT||(row.slot>=BACKPACK_SLOT_OFFSET&&row.slot<backpackEnd))
       &&row.itemKind===ammunition&&valid(row)).reduce((sum,row)=>sum+row.quantity,0);

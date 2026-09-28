@@ -173,7 +173,10 @@ spacetime generate --lang typescript --js-path "$evidence/candidate-world.js" \
 "${helper[@]}" same-schema "$evidence/public-bindings" packages/world-bindings/src
 env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production --outDir "$evidence/staged/packages/client/dist"
 cp "$evidence/staged/packages/client/dist/chunk-runtime-audit.json" "$evidence/client-chunk-runtime-audit.json"
-"${helper[@]}" client-chunk-audit "$evidence/client-chunk-runtime-audit.json" "$evidence/client-chunk-runtime.json"
+"${helper[@]}" client-chunk-audit "$evidence/client-chunk-runtime-audit.json" "$evidence/client-chunk-runtime.json" || {
+  printf 'Client chunk runtime audit check failed (staged): the build is not the planned %s client. Evidence: %s\n' "$client_chunk_mode" "$evidence" >&2
+  exit 65
+}
 if [[ "$studio_mode" = preserve-current ]]; then
   # Same-schema publication retains the independently reviewed, installed UI.
   # Keep the source UI-kit guard and every static, source, CAS and parity gate.
@@ -255,10 +258,20 @@ for app in client studio; do
   "${helper[@]}" static "$repository/packages/$app/dist" "$origin"
 done
 # The served client carries the planned chunk runtime (mode and activation release).
-curl --max-time 20 -fsS -H 'Cache-Control: no-cache' "https://orchard.dastari.net/chunk-runtime-audit.json" \
-  -o "$evidence/client-chunk-runtime-audit-served.json"
-cmp "$evidence/client-chunk-runtime-audit.json" "$evidence/client-chunk-runtime-audit-served.json"
-"${helper[@]}" client-chunk-audit "$evidence/client-chunk-runtime-audit-served.json" "$evidence/client-chunk-runtime.json"
+# The fetch retries a transient error (the lane has already published; a failure here leaves
+# traffic stopped), but the comparison and the audit stay strict.
+client_chunk_audit_failed() {
+  printf 'Client chunk runtime audit check failed (%s): the served client is not the planned %s build. Evidence: %s\n' \
+    "$1" "$client_chunk_mode" "$evidence" >&2
+  exit 65
+}
+curl --max-time 20 --retry 5 --retry-all-errors --retry-delay 2 -fsS -H 'Cache-Control: no-cache' \
+  "https://orchard.dastari.net/chunk-runtime-audit.json" -o "$evidence/client-chunk-runtime-audit-served.json" \
+  || client_chunk_audit_failed served-fetch
+cmp "$evidence/client-chunk-runtime-audit.json" "$evidence/client-chunk-runtime-audit-served.json" \
+  || client_chunk_audit_failed served-differs-from-staged
+"${helper[@]}" client-chunk-audit "$evidence/client-chunk-runtime-audit-served.json" "$evidence/client-chunk-runtime.json" \
+  || client_chunk_audit_failed served
 complete=true
 traffic_stopped=false
 # After the content CAS and with the new build served: the chunk heads must describe

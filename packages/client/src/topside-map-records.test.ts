@@ -108,7 +108,7 @@ async function legacyOutputs(document: MapDocumentV3) {
     const queued: unknown[] = [];
     const pointLights: unknown[] = [];
     const input = {
-      dynamicLighting: true, debugEntitiesHidden: false,
+      collectLights: true, debugEntitiesHidden: false,
       activeSpaceDefinition: { spaceId: TOPSIDE_SPACE_ID, generator: 'survival_island' },
       snapshot: { content: { registry }, placeables: [], homesteads: [], clock: { authorityTick: tick(hour) } },
       pointLights, projectedLight: (light: object, y?: number, x?: number) => ({ ...light, projectedY: y, projectedX: x }),
@@ -122,7 +122,13 @@ async function legacyOutputs(document: MapDocumentV3) {
       drawSouthFacingReceiver: () => undefined, nameplates: [], renderedPlayerAnchors: new Map(), objectPresentations: {},
     };
     enqueueGameplayDecorations(input as unknown as Parameters<typeof enqueueGameplayDecorations>[0]);
-    outputs[`painter/${hour}`] = { queued, pointLights };
+    // BUG-061 added `steady` (the un-flickered light, for Basic) after this golden was taken: leave it out so the
+    // golden still pins everything the pre-S4e painters produced.
+    outputs[`painter/${hour}`] = { queued, pointLights: pointLights.map((light) => {
+      const rest = { ...(light as object) } as Record<string, unknown>;
+      delete rest['steady'];
+      return rest;
+    }) };
   }
   for (const timeMs of [0, 450]) {
     const context = recordingContext();

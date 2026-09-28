@@ -53,7 +53,12 @@ export class UiTextBridge {
     const node = this.current(), editor = node?.props['editor'];
     if (!node || !(editor instanceof CanvasTextEditor) || node.disabled || !node.visible) {
       this.input.inputMode = 'text';
-      if (document.activeElement === this.input) this.canvas.focus({ preventScroll: true }); this.active = null; return;
+      if (document.activeElement === this.input) {
+        this.canvas.focus({ preventScroll: true });
+        // A canvas without a tabindex can't take focus: release the editor anyway, or it keeps every key (BUG-064).
+        if (document.activeElement === this.input) this.input.blur();
+      }
+      this.active = null; return;
     }
     const state = editor.snapshot(), bounds = this.rect(node);
     this.input.style.left = `${Math.max(0, bounds.x)}px`; this.input.style.top = `${Math.max(0, bounds.y)}px`;

@@ -1,4 +1,5 @@
-import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt } from '@orchard/ui/game';
+import { clientErrorReporter } from './client-error-reporter.js';
+import { GameFeedback, type GameFeedbackModel, type GameSkillNoticeScope, DelveRewardsUi, GameOnlinePlayers, type OnlinePlayerManagementRequest, GameUiRuntime, UiTextBridge, loadUiKitArt, setUiFailureReporter } from '@orchard/ui/game';
 import { RetainedUiPointers, retainedUiClientRect } from './retained-ui-input.js';
 import { runtimeProgression } from '@orchard/sim';
 import { cellFlagsWhere } from '@orchard/sim/cell-flags';
@@ -95,7 +96,8 @@ import {
   runtimeSkillCapabilities,
 } from '@orchard/sim';
 
-import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
+import { BasicObjectLight } from '@orchard/engine/basic-object-light';
+import { LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
 import { ClosingEntityWindows, entityWindowKey, escapeClosesSurface } from './escape-precedence.js';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity } from './backpack-capacity.js';
@@ -268,6 +270,8 @@ setLoadingScreenStage({
   title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
 });
 const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
+// Contained UI failures (a screen that throws in production, BUG-066) reach the audited, rate-limited error telemetry.
+setUiFailureReporter((_scope, error) => { clientErrorReporter.capture('error', error); });
 const retainedUi = new GameUiRuntime();
 upgradeLoadingScreen(kitArt, art.groundItems['apple'] ?? art.missingItem);
 setLoadingScreenStage({
@@ -551,6 +555,8 @@ function loadTerrainInspector(): Promise<TerrainInspectorModule> {
 const lightingQuality = new LightingQualityState(readLightingQuality(localStorage));
 if (lightingQuality.requested === 'dynamic') lightingQuality.fallback(lightingQuality.generation, 'preparing');
 let lightingEffectsDisabled = lightingQuality.effective === 'basic';
+/** BUG-061: Basic lighting draws each light source as a hard-edged, two-band pool (owner approved 2026-09-28). */
+const basicObjectLight = new BasicObjectLight();
 function setLightingQuality(quality: LightingQuality): void {
   lightingFailure = null;
   if (atlasPresentation.failure !== null) atlasPresentation.reset();
@@ -4930,7 +4936,9 @@ function renderFrame(alpha = 1): void {
     context, seasonalDynamic, localX, localTerrainContactY, art,
     groundCache, viewportWidth, viewportHeight, debugEntitiesHidden, projectedLocalY,
     snapshot, celestialPass, activeSpaceDefinition, renderItems, weatherVisualTick,
-    lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting,
+    lightingPreview, renderWeatherTick, renderWeather, alpha,
+    // Every lighting mode lights its sources: Basic draws them as hard-edged pools (BUG-061).
+    collectLights: true,
     objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, topsideMapRecords: topsideMapRecords(snapshot), visualTickClock,
     frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining, resourceGlanceRemaining,
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
@@ -5095,7 +5103,8 @@ function renderFrame(alpha = 1): void {
   renderMetrics.recordStage('weather', weatherStageMs);
   if (!dynamicLighting) {
     const basicStartedAt = performance.now();
-    compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
+    // BUG-061: Basic keeps object light as hard-edged, two-band pools in its one multiply pass (owner approved).
+    basicObjectLight.composite(context, frame.layout.width, frame.layout.height, scale, cameraX, cameraY, frameAmbient, pointLights);
     renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
   } else if (!seasonalDynamic) {
     // Original one-pass lightmap: baked sprite shadows plus object illumination.

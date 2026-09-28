@@ -18,7 +18,8 @@ describe('interface overlays are drawn after world lighting', () => {
   it.each(['drawSelectedEntityMarker', 'drawInteractionTileReticle', 'drawBowAimGuide', 'drawCollisionOverlay'])(
     '%s follows the classic and basic lighting composites', (overlay) => {
       expect(position(overlay)).toBeGreaterThan(position('lightmap.composite'));
-      expect(position(overlay)).toBeGreaterThan(position('compositeBasicLighting'));
+      // Basic's one multiply pass, with its object-light pools (BUG-061).
+      expect(position(overlay)).toBeGreaterThan(position('basicObjectLight.composite'));
     });
 
   it('still lights weather before the composite', () => {
