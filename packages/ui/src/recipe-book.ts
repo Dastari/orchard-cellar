@@ -1,7 +1,7 @@
 import type { ItemStack, CraftingStation, ContentRegistry, MoveItemRequest, RecipeDefinition } from '@orchard/sim';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeRecipeDefinition, runtimeMaxStack } from '@orchard/sim/content/runtime';
-import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, isAccessibleCarriedSlot } from '@orchard/sim/inventory-layout';
 import { maxStackFor } from '@orchard/sim/item-containers';
 import { RECIPES, normalizeShapedRecipe, recipeGridStacks } from '@orchard/sim/recipes';
 
@@ -63,10 +63,9 @@ export function craftingRecipeStacks(recipeId: string, knownRecipeIds: readonly 
  * opens (`accessibleBackpackCapacity`, never a fixed 20), and the crafting grid itself. Items left in cells past the
  * capacity after a swap to a smaller bag, and equipped gear, are not ingredients. */
 function craftingReadsSlot(slot: number, backpackCapacity: number): boolean {
-  if (!Number.isInteger(slot) || slot < 0) return false;
-  if (slot < HOTBAR_SLOT_COUNT) return true;
-  if (slot >= BACKPACK_SLOT_OFFSET && slot < BACKPACK_SLOT_OFFSET + accessibleBackpackCapacity(backpackCapacity)) return true;
-  return slot >= CRAFTING_SLOT_OFFSET && slot < CRAFTING_SLOT_OFFSET + CRAFTING_SLOT_COUNT;
+  // The carried cells the bow and expedition readiness also use (BUG-068), plus the grid the world's fill reuses.
+  return isAccessibleCarriedSlot(slot, backpackCapacity)
+    || (Number.isInteger(slot) && slot >= CRAFTING_SLOT_OFFSET && slot < CRAFTING_SLOT_OFFSET + CRAFTING_SLOT_COUNT);
 }
 
 function ingredientCounts(recipe: RecipeDefinition): Readonly<Record<string, number>> {

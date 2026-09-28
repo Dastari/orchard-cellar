@@ -85,6 +85,16 @@ export function accessibleBackpackCapacity(equippedCapacity: number, debugBackpa
   return Math.max(normal, Math.min(BACKPACK_SLOT_COUNT, debugBackpackSlots));
 }
 
+/** The carried cells a player draws from outside a menu (BUG-068): the hotbar and the backpack cells the accessible
+ * capacity opens. Never equipment, the crafting grid, or cells stranded past a smaller bag. `backpackCapacity` is the
+ * player's accessible capacity (equipped bag and debug slots); it goes through `accessibleBackpackCapacity`, which
+ * leaves an already accessible capacity unchanged. Bow ammunition and expedition readiness both use this. */
+export function isAccessibleCarriedSlot(slot: number, backpackCapacity: number): boolean {
+  if (!Number.isInteger(slot) || slot < 0) return false;
+  if (slot < HOTBAR_SLOT_OFFSET + HOTBAR_SLOT_COUNT) return slot >= HOTBAR_SLOT_OFFSET;
+  return slot >= BACKPACK_SLOT_OFFSET && slot < BACKPACK_SLOT_OFFSET + accessibleBackpackCapacity(backpackCapacity);
+}
+
 export function hotbarSlotForInputCode(code: string): number | null {
   const slot = HOTBAR_SLOT_BINDINGS.findIndex((binding) => (
     (binding.codes as readonly string[]).includes(code)

@@ -8,12 +8,14 @@ it('actual private view reads only caller equipment and reflects breakage away f
   const registry=sim.bootstrapContentRegistry(),owner={toHexString:()=> 'owner'},other={toHexString:()=> 'other'};
   const inventory=[{slot:33,itemKind:'hearth_common_sword',quantity:1,durability:250},{slot:39,itemKind:'hearth_common_body',quantity:1,durability:0}];
   const lookup=vi.fn((identity:typeof owner)=>identity===owner?inventory:[]);
-  const ctx={sender:owner,db:{inventory_slot:{by_identity:{filter:lookup}},player_quest_baseline:{by_identity:{filter:(identity:typeof owner)=>identity===owner?
+  const ctx={sender:owner,db:{inventory_slot:{by_identity:{filter:lookup}},player_survival:{identity:{find:()=>({debugBackpackSlots:0})}},player_quest_baseline:{by_identity:{filter:(identity:typeof owner)=>identity===owner?
     ['weapon','body'].map(objectiveId=>({id:objectiveId,questId:'hearth_prepare_expedition',objectiveId,value:0n})):[]}}}};
   const declaration=source.statements.find(node=>ts.isVariableStatement(node)&&node.declarationList.declarations.some(d=>d.name.getText(source)==='ownPlayerQuestBaselines')) as ts.VariableStatement;
   const call=declaration.declarationList.declarations[0]!.initializer as ts.CallExpression;
-  const dependencies={...sim,contentRegistry:()=>registry,residenceFurnishingFor:()=>{throw new Error('unexpected home scan');}};
-  const code=ts.transpile(fn('expeditionPreparationFor')+';return '+call.arguments[2]!.getText(source)+';',{target:ts.ScriptTarget.ES2022});
+  const dependencies={...sim,contentRegistry:()=>registry,residenceFurnishingFor:()=>{throw new Error('unexpected home scan');},DEFAULT_BACKPACK_CAPACITY:sim.BASE_BACKPACK_CAPACITY};
+  // Readiness reads carried cells as the bow does (BUG-068): the same capacity helpers run here.
+  const helpers=['inventoryContainerCapacity','accessibleInventoryContainerCapacity','equippedInventoryCapacity','carriedInventoryFor','expeditionPreparationFor'];
+  const code=ts.transpile(helpers.map(fn).join(';\n')+';return '+call.arguments[2]!.getText(source)+';',{target:ts.ScriptTarget.ES2022});
   const view=new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as (ctx:unknown)=>Array<{currentValue?:bigint}>;
   expect(view(ctx).map(row=>row.currentValue)).toEqual([1n,1n]);expect(lookup).toHaveBeenCalledExactlyOnceWith(owner);
   inventory[0]!.durability=0;expect(view(ctx).map(row=>row.currentValue)).toEqual([0n,1n]);
