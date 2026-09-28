@@ -146,36 +146,36 @@ describe('routine same-schema release', () => {
 
     it('refuses the raw build variables in the lane environment, even empty', () => {
       for (const name of ['VITE_CHUNK_RUNTIME_MODE', 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE']) {
-        expect(() => plan({ [name]: 'on' })).toThrow(`routine_raw_chunk_runtime_variable:${name}`);
-        expect(() => plan({ [name]: '' })).toThrow(`routine_raw_chunk_runtime_variable:${name}`);
-        expect(() => plan({ [name]: 'on', WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on' }, 'r1')).toThrow('routine_raw_chunk_runtime_variable');
+        expect(() => plan({ [name]: 'on' })).toThrow(`release_raw_chunk_runtime_variable:${name}`);
+        expect(() => plan({ [name]: '' })).toThrow(`release_raw_chunk_runtime_variable:${name}`);
+        expect(() => plan({ [name]: 'on', WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on' }, 'r1')).toThrow('release_raw_chunk_runtime_variable');
       }
     });
 
     it('builds off by default before activation, allows shadow, and refuses on or an activation id', () => {
       expect(plan({})).toEqual({ mode: 'off', activationRelease: null, approvedRelease: null, rollback: false });
       expect(plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'shadow' })).toMatchObject({ mode: 'shadow', activationRelease: null });
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' })).toThrow('routine_chunk_runtime_on_not_approved');
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' })).toThrow('routine_chunk_activation_not_approved');
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1' })).toThrow('routine_chunk_rollback_before_activation');
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'ON' })).toThrow('routine_chunk_runtime_mode_invalid');
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: 'yes' })).toThrow('routine_chunk_rollback_flag_invalid');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' })).toThrow('release_chunk_runtime_on_not_approved');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' })).toThrow('release_chunk_activation_not_approved');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1' })).toThrow('release_chunk_rollback_before_activation');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'ON' })).toThrow('release_chunk_runtime_mode_invalid');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: 'yes' })).toThrow('release_chunk_rollback_flag_invalid');
     });
 
     it('after activation requires an explicit mode, the committed id for on, and the rollback flag to deactivate (G6)', () => {
-      expect(() => plan({}, 'r1')).toThrow('routine_chunk_runtime_mode_required_after_activation');
+      expect(() => plan({}, 'r1')).toThrow('release_chunk_runtime_mode_required_after_activation');
       expect(plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' }, 'r1'))
         .toEqual({ mode: 'on', activationRelease: 'r1', approvedRelease: 'r1', rollback: false });
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on' }, 'r1')).toThrow('routine_chunk_activation_mismatch');
-      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r2' }, 'r1')).toThrow('routine_chunk_activation_mismatch');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on' }, 'r1')).toThrow('release_chunk_activation_mismatch');
+      expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r2' }, 'r1')).toThrow('release_chunk_activation_mismatch');
       expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1', WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1' }, 'r1'))
-        .toThrow('routine_chunk_rollback_with_on');
+        .toThrow('release_chunk_rollback_with_on');
       for (const mode of ['off', 'shadow']) {
-        expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode }, 'r1')).toThrow('routine_chunk_deactivation_requires_rollback');
+        expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode }, 'r1')).toThrow('release_chunk_deactivation_requires_rollback');
         expect(plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode, WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1' }, 'r1'))
           .toEqual({ mode, activationRelease: null, approvedRelease: 'r1', rollback: true });
         expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode, WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' }, 'r1'))
-          .toThrow('routine_chunk_activation_with_deactivation');
+          .toThrow('release_chunk_activation_with_deactivation');
       }
     });
 
@@ -189,16 +189,16 @@ describe('routine same-schema release', () => {
       const audit = (mode: string, activationRelease: string | null, activationAllowed = activationRelease !== null) =>
         ({ schema: 1, mode, legacyModules: [], activationAllowed, activationRelease });
       expect(() => assertClientChunkRuntimeAudit(audit('off', null), off, null)).not.toThrow();
-      expect(() => assertClientChunkRuntimeAudit(audit('shadow', null), off, null)).toThrow('routine_chunk_runtime_audit_mismatch');
-      expect(() => assertClientChunkRuntimeAudit(audit('on', null, false), off, null)).toThrow('routine_chunk_runtime_audit_not_releasable');
+      expect(() => assertClientChunkRuntimeAudit(audit('shadow', null), off, null)).toThrow('release_chunk_runtime_audit_mismatch');
+      expect(() => assertClientChunkRuntimeAudit(audit('on', null, false), off, null)).toThrow('release_chunk_runtime_audit_not_releasable');
       expect(() => assertClientChunkRuntimeAudit({ schema: 1, mode: 'off', legacyModules: [], activationAllowed: false }, off, null)).not.toThrow();
       const on = plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' }, 'r1');
       expect(() => assertClientChunkRuntimeAudit(audit('on', 'r1'), on, 'r1')).not.toThrow();
-      expect(() => assertClientChunkRuntimeAudit(audit('off', null), on, 'r1')).toThrow('routine_chunk_runtime_audit_mismatch');
-      expect(() => assertClientChunkRuntimeAudit(audit('on', 'r2'), on, 'r1')).toThrow('routine_chunk_runtime_audit_not_releasable');
+      expect(() => assertClientChunkRuntimeAudit(audit('off', null), on, 'r1')).toThrow('release_chunk_runtime_audit_mismatch');
+      expect(() => assertClientChunkRuntimeAudit(audit('on', 'r2'), on, 'r1')).toThrow('release_chunk_runtime_audit_not_releasable');
       expect(parseClientChunkRuntimePlan(JSON.parse(JSON.stringify(on)))).toEqual(on);
-      expect(() => parseClientChunkRuntimePlan({ ...on, activationRelease: null })).toThrow('routine_chunk_plan_invalid');
-      expect(() => parseClientChunkRuntimePlan({ ...off, mode: 'maybe' })).toThrow('routine_chunk_plan_invalid');
+      expect(() => parseClientChunkRuntimePlan({ ...on, activationRelease: null })).toThrow('release_chunk_plan_invalid');
+      expect(() => parseClientChunkRuntimePlan({ ...off, mode: 'maybe' })).toThrow('release_chunk_plan_invalid');
     });
 
     it('sets the build variables on the client build line only, and records and asserts the staged and served audit', async () => {
@@ -219,6 +219,9 @@ describe('routine same-schema release', () => {
       const served = source.indexOf('client-chunk-audit "$evidence/client-chunk-runtime-audit-served.json"');
       expect(served).toBeGreaterThan(source.indexOf('sudo systemctl start orchard-frontend.service orchard-studio.service\nfor attempt'));
       expect(served).toBeLessThan(source.indexOf('complete=true\ntraffic_stopped=false'));
+      const fetch = source.indexOf('"https://orchard.dastari.net/chunk-runtime-audit.json"');
+      expect(source.slice(source.lastIndexOf('curl', fetch), fetch)).toContain('--retry 5 --retry-all-errors --retry-delay 2');
+      expect(source).toContain('|| client_chunk_audit_failed served-differs-from-staged');
     });
   });
 

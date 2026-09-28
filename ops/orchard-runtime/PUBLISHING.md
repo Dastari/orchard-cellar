@@ -170,8 +170,22 @@ The plan is saved to `client-chunk-runtime.json` in the evidence. The staged bui
 `chunk-runtime-audit.json` is copied to `client-chunk-runtime-audit.json` and checked
 against the plan: its mode, its activation release, and that it is releasable. After the
 restart, the lane fetches the served `/chunk-runtime-audit.json`
-(`client-chunk-runtime-audit-served.json`), compares it byte for byte with the staged
-audit, and checks it again.
+(`client-chunk-runtime-audit-served.json`). A transient fetch error is retried up to five
+times. The lane then compares the file byte for byte with the staged audit and checks it
+again. Any audit failure exits `65` with `Client chunk runtime audit check failed (<step>)`,
+where the step is `staged`, `served-fetch`, `served-differs-from-staged` or `served`, and
+the message gives the evidence path.
+
+The guarded full lane (`npm run world:release`, `scripts/world-release.sh`) takes the same
+three inputs, applies the same rules and refusals (its dry run checks them too), and scopes
+both of its client builds the same way. It asserts each build's audit
+(`client-chunk-runtime-audit-candidate.json` and `-final.json`) before
+`client:chunks:check`. After traffic returns, it checks the served audit against the final
+build, with the same bounded retry on the fetch. The plan and the audits are kept in a
+`/tmp/orchard-release-client-chunk.*` directory. The lane prints its path as soon as the
+directory is created, and again in the completion line (`client-chunk-evidence=`). An
+audit failure exits `65` with `Client chunk runtime audit check failed (<step>)`, where the
+step is `candidate`, `final`, `served-fetch`, `served-differs-from-final` or `served`.
 
 Execute from `/home/toby/projects/orchard-cellar`; the routine script intentionally
 rejects another working directory. Do not switch an actively used checkout or
