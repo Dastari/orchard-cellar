@@ -2,6 +2,26 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.49.0 / UI 0.51.0 / Studio 0.16.15 — Chest and workbench fixes, Escape, alt-tab, flash, chat icon
+
+- **BUG-058: chest window didn't open after "Chest opened" (#251).** Replacing an active placeable session (for example workbench to chest, or chest to chest) delivered the new session before the old one's removal, and the client cleared both. Removals now only clear the placeable that is still current, so chest windows open reliably.
+- **BUG-059: using a workbench opens the crafting grid (#247).**
+- **BUG-060: Escape closes the topmost open surface (#252)** before opening the menu: window, trade, NPC, roster, build palette or chat input. A closing chest or station isn't reopened.
+- **BUG-062: coming back to a hidden tab no longer shows "Restoring your world" (#250).**
+  - The client keeps its presence heartbeat for up to 4 minutes hidden, so the player stays in the world, like an AFK player.
+  - A longer hide goes offline once, not repeatedly, and resumes at once on return.
+  - A socket that died while hidden now surfaces about 6 s after return.
+- **BUG-063: the statistics chapter survives a statistic listed twice (#248).** Stop-gap: duplicates are merged, and both row ids are logged once to find the cause.
+- **BUG-057: the public chunk-runtime audit lists modules relative to the repository (#244).** No host paths.
+- **The refused-drop flash is drawn above the held stack (#245),** as in the owner's mock.
+- **The HUD chat button is a ghost icon (#246):** glyph only. The CHAT hint sits beside it, clear of the chat log.
+- **Item slot S4 (#234):**
+  - trade items that can't be offered are disabled;
+  - locked slots show their red corners on hover;
+  - backpacks show exactly their capacity (owner decision).
+- **Release lane (#243):** the routine release scopes and asserts the client chunk-runtime mode (static world S5c G3/G6).
+- Workspace 0.73.0.
+
 ## Workspace 0.72.0 — Static world S5c operator tooling (scripts only)
 
 - **`npm run world:chunks:authority` (#240).** A new operator tool for chunk authority:
