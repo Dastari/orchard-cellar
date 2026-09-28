@@ -36,7 +36,7 @@ describe('active-registry commerce and equipment policy authority', () => {
 
   it('derives carried capacity and client sale visibility from active definitions', () => {
     const inventory = between(world, 'function equippedInventoryCapacity(', 'function playerDebugBackpackSlots(');
-    expect(inventory).toContain('runtimeItemInventoryCapacity(contentRegistry(ctx), row.itemKind)');
+    expect(inventory).toContain('runtimeItemInventoryCapacity(contentRegistry(ctx), cell.itemKind)');
     expect(world).not.toContain('inventoryHasEquippedBackpack(');
     // BUG-054: the client's carried capacity moved to backpack-capacity.ts, still read from active definitions.
     expect(client).toContain('equippedBackpackCapacity(snapshot.content.registry, capacityEquipment)');

@@ -12,8 +12,8 @@ import {
 
 export default {
   fromContainer: __t.string(),
-  fromIndex: __t.u8(),
+  fromIndex: __t.u32(),
   toContainer: __t.string(),
-  toIndex: __t.u8(),
+  toIndex: __t.u32(),
   quantity: __t.u16(),
 };

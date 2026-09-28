@@ -1,19 +1,20 @@
 import { HearthSealFlow, type HearthSealOffer } from './hearth-seal-flow.js';
 import { VillageOrderFlow, type VillageOrderOffer } from './village-order-flow.js';
-import type { DialogueChoice, FrameContentDefinition, ContentRegistry, MerchantCartLine } from '@orchard/sim';
+import type { DialogueChoice, FrameContentDefinition, ContentRegistry, ItemStack, MerchantCartLine } from '@orchard/sim';
 import { ITEM_ECONOMY, merchantOffers, coinPurseFromBronze } from '@orchard/sim/commerce';
 import { dialogueDefinition, runtimeDialogueDefinition, dialogueNode } from '@orchard/sim/dialogue';
 import { hearthRecipeExchangeNpcForRuntimeId } from '@orchard/sim/hearth-seal-exchange';
-import { BACKPACK_SLOT_OFFSET, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
+import { accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY, itemDefinition, maxStackFor } from '@orchard/sim/item-containers';
 import { runtimeQuestDefinition, questDefinition } from '@orchard/sim/quests';
 import { furnitureShopDetails } from './furniture-shop-details.js';
 import type { OverworldUiInventorySlot, OverworldUiItemArt } from './overworld-ui.js';
+import { BACKPACK_EQUIPMENT_INDEX, isAccessibleCarriedCell, isOccupiedCell } from './player-cells.js';
 import type { UiRect } from './geometry.js';
 import { boundedStepperValue } from './bounded-stepper.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiDialogue, type UiDialogueElement } from './kit/components/dialogue.js';
-import { uiMerchant, type UiMerchantElement, type UiMerchantSellInventory } from './kit/components/merchant.js';
+import { uiMerchant, type UiMerchantElement, type UiMerchantSellCell, type UiMerchantSellInventory } from './kit/components/merchant.js';
 import { uiMerchantPanel, type UiMerchantPanelModel, type UiMerchantPanelElement } from './kit/components/merchant-panels.js';
 import type { UiButtonModifiers } from './kit/components/button.js';
 import { uiPurseLabel } from './kit/components/purse.js';
@@ -245,7 +246,7 @@ export class NpcInteractionUi {
                 this.host.append(this.panel);
             }
             else if (this.shopOpen) {
-                this.merchant = uiMerchant({ model: this.merchantModel(), style: frame?.style, artwork: this.itemArt, onTab: tab => { this.tab = tab; this.inspectingItemKind = null; this.refresh(); }, onFilter: query => this.setFilterText(query), onQuantity: (id, value) => this.setQuantity(id, value), onSellSlot: (slot, one) => this.sellSlot(slot, one), ...(this.callbacks.sortBackpack ? { onSortBackpack: () => this.callbacks.sortBackpack!() } : {}), onCommit: () => this.commitCart(), onBack: () => this.callbacks.chooseDialogueOption('back'), onClose: () => this.callbacks.closeDialogue(), onSeals: () => { this.sealsOpen = true; this.refresh(); }, canInspect: id => !!furnitureShopDetails(this.model?.contentRegistry, id), onInspect: id => { if (this.tab === 'buy' && this.allShopRows().some(row => row.itemKind === id)) {
+                this.merchant = uiMerchant({ model: this.merchantModel(), style: frame?.style, artwork: this.itemArt, onTab: tab => { this.tab = tab; this.inspectingItemKind = null; this.refresh(); }, onFilter: query => this.setFilterText(query), onQuantity: (id, value) => this.setQuantity(id, value), onSellCell: (cell, one) => this.sellCell(cell, one), ...(this.callbacks.sortBackpack ? { onSortBackpack: () => this.callbacks.sortBackpack!() } : {}), onCommit: () => this.commitCart(), onBack: () => this.callbacks.chooseDialogueOption('back'), onClose: () => this.callbacks.closeDialogue(), onSeals: () => { this.sealsOpen = true; this.refresh(); }, canInspect: id => !!furnitureShopDetails(this.model?.contentRegistry, id), onInspect: id => { if (this.tab === 'buy' && this.allShopRows().some(row => row.itemKind === id)) {
                         this.inspectingItemKind = id;
                         this.refresh();
                     } } });
@@ -505,9 +506,9 @@ export class NpcInteractionUi {
         if (this.model === null)
             return [];
         const quantityByKind = new Map<string, number>();
-        const sellableSlotLimit = BACKPACK_SLOT_OFFSET + this.backpackCapacity();
+        const capacity = this.backpackCapacity();
         for (const slot of this.model.inventory) {
-            if (slot.slot >= sellableSlotLimit || slot.itemKind === 'empty' || slot.quantity <= 0)
+            if (!isAccessibleCarriedCell(slot, capacity) || !isOccupiedCell(slot))
                 continue;
             quantityByKind.set(slot.itemKind, (quantityByKind.get(slot.itemKind) ?? 0) + slot.quantity);
         }
@@ -541,7 +542,7 @@ export class NpcInteractionUi {
     /** The bag's open cells: the world's one capacity rule (BUG-056); a bag below 8 still opens the base 8. */
     private backpackCapacity(): number {
         if (this.model === null) return BASE_BACKPACK_CAPACITY;
-        const capacityEquipment = this.model.inventory.find((slot) => slot.slot === EQUIPMENT_SLOT_OFFSET + 4);
+        const capacityEquipment = this.model.inventory.find((slot) => slot.container === 'equipment' && slot.index === BACKPACK_EQUIPMENT_INDEX);
         const capacityDefinition = capacityEquipment === undefined || capacityEquipment.quantity <= 0
             || this.model.contentRegistry === undefined
             ? undefined
@@ -562,19 +563,21 @@ export class NpcInteractionUi {
     }
     private sellInventory(): UiMerchantSellInventory { return this.sellWork().inventory; }
     private buildSellInventory(rows: readonly ShopRow[]): UiMerchantSellInventory {
-        const capacity = this.backpackCapacity(), limit = BACKPACK_SLOT_OFFSET + capacity;
-        const slots = new Map((this.model?.inventory ?? []).filter(slot => slot.slot >= 0 && slot.slot < limit
-            && (slot.slot < HOTBAR_SLOT_COUNT || slot.slot >= BACKPACK_SLOT_OFFSET) && slot.itemKind !== 'empty' && slot.quantity > 0)
-            .map(slot => [slot.slot, { itemKind: slot.itemKind, quantity: slot.quantity,
-                ...(slot.durability === undefined ? {} : { durability: slot.durability }), ...(slot.lit === undefined ? {} : { lit: slot.lit }) }]));
+        const capacity = this.backpackCapacity();
+        const hotbar = new Map<number, ItemStack>(), backpack = new Map<number, ItemStack>();
+        for (const slot of this.model?.inventory ?? []) {
+            if (!isAccessibleCarriedCell(slot, capacity) || !isOccupiedCell(slot)) continue;
+            (slot.container === 'hotbar' ? hotbar : backpack).set(slot.index, { itemKind: slot.itemKind, quantity: slot.quantity,
+                ...(slot.durability === undefined ? {} : { durability: slot.durability }), ...(slot.lit === undefined ? {} : { lit: slot.lit }) });
+        }
         const sellable = new Set(rows.map(row => row.itemKind));
-        return { slots, capacity, sellable: itemKind => sellable.has(itemKind),
+        return { hotbar, backpack, capacity, sellable: itemKind => sellable.has(itemKind),
             ...(this.model?.contentRegistry ? { contentRegistry: this.model.contentRegistry } : {}),
             ...(this.model?.selectedSlot === undefined ? {} : { selectedSlot: this.model.selectedSlot }) };
     }
     /** A press on a carried item adds its stack, or one, to the sale, up to what the player carries. */
-    private sellSlot(slot: number, one: boolean): void {
-        const item = this.model?.inventory.find(row => row.slot === slot);
+    private sellCell(cell: UiMerchantSellCell, one: boolean): void {
+        const item = this.model?.inventory.find(row => row.container === cell.container && row.index === cell.index);
         const row = item ? this.allShopRows('sell').find(candidate => candidate.itemKind === item.itemKind) : undefined;
         if (!item || !row || this.transactionPending) return;
         const quantities = this.sellQuantities, current = quantities.get(row.itemKind) ?? 0;

@@ -48,7 +48,7 @@ function update(
 ): void {
   ui.update({
     width, height, connected: true, playerCount: 1, selectedSlot: 0,
-    openStashInventory:activeFrameId==='frame:hearth_stash'?[{slot:19,itemKind:'torch',quantity:1,lit:false}]:[],
+    openStashInventory:activeFrameId==='frame:hearth_stash'?[{index:19,itemKind:'torch',quantity:1,lit:false}]:[],
     inventory: [], openChestInventory: [], openPlaceableInventory: [], hasBackpack: true,
     audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
     dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -164,8 +164,8 @@ describe('chest search and sort controls', () => {
     const handlers = { ...callbacks(), sortInventoryContainer: vi.fn(), inventoryCursorClick: vi.fn() };
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     const refresh = (overrides: Partial<Parameters<OverworldUi['update']>[0]> = {}) => update(ui, registry, width, height, id, undefined, {
-      inventory: [{ slot: 18, itemKind: 'apple', quantity: 3 }],
-      openChestInventory: [{ slot: 11, itemKind: 'apple', quantity: 2 }, { slot: 3, itemKind: 'wood', quantity: 4 }],
+      inventory: [{ container: 'backpack', index: 8, itemKind: 'apple', quantity: 3 }],
+      openChestInventory: [{ index: 11, itemKind: 'apple', quantity: 2 }, { index: 3, itemKind: 'wood', quantity: 4 }],
       ...overrides,
     });
     refresh();

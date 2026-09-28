@@ -3,11 +3,12 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
 import { resourceHarvestResult, toolSpendResult } from './world-rules.js';
+import { playerCellDependencies } from './player-cells.fixture.js';
 
 // Exercise the real transaction bodies and spending/wear helpers with an in-memory DB.
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const names = ['applyDigCellarTileLifecycle', 'applyHarvestResourceLifecycle', 'validateToolVigourSpend',
-  'spendToolVigour', 'requireUsableTool', 'wearInventoryTool'];
+  'spendToolVigour', 'requireUsableTool', 'wearInventoryTool', 'selectedInventorySlot'];
 const code = ts.transpileModule(names.map(name => {
   const node = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
   if (!node) throw new Error(name);
@@ -24,7 +25,7 @@ const pickaxes = ['pickaxe', 'stone_pickaxe', 'copper_pickaxe', 'gold_pickaxe', 
 
 function fixture(itemKind = 'pickaxe') {
   const identity = { toHexString: () => 'miner', isEqual: (other: unknown) => other === identity };
-  let selected = { id: 'miner:0', identity, itemKind, quantity: 1, durability: sim.runtimeNormalizeDurability(registry, itemKind) };
+  let selected = { id: 'miner:hotbar:0', identity, container: 'hotbar', index: 0, itemKind, quantity: 1, durability: sim.runtimeNormalizeDurability(registry, itemKind) };
   let stats = { vigourCenti: 100_000, lastSwingTick: 0n };
   const clock = { authorityTick: 100n };
   const position = { spaceId: 10002, x: 501 * sim.TILE_SIZE_FIXED, y: 501 * sim.TILE_SIZE_FIXED,
@@ -46,7 +47,7 @@ function fixture(itemKind = 'pickaxe') {
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     player_stats: { identity: { update: (row: typeof stats) => { stats = row; writes.push('vigour'); } } },
     world_clock: { id: { find: () => clock } }, world_seed: { id: { find: () => ({ seed: 42 }) } },
-    inventory_slot: { id: { find: () => selected } },
+    player_container_cell: { id: { find: () => selected } },
     cellar_dig_progress: { id: {
       find: () => progress,
       update: (row: NonNullable<typeof progress>) => { progress = row; writes.push('progress'); },
@@ -62,7 +63,7 @@ function fixture(itemKind = 'pickaxe') {
       insert: (row: NonNullable<typeof claim>) => { claim = row; writes.push('claim'); } },
   } };
   const noop = () => {};
-  const deps = { ...sim, SenderError: Error, contentRegistry: () => activeRegistry,
+  const deps = { ...sim, ...playerCellDependencies, SenderError: Error, contentRegistry: () => activeRegistry,
     requireAuthorizedSender: noop, handsOccupiedFor: () => false, mountedNpcFor: () => null,
     instanceForSpace: () => null, activeSpaceDefinition: () => ({ generator: 'cellar' }),
     requireWorldModificationAuthorized: () => { if (!allowed) throw new Error('not_authorized'); },

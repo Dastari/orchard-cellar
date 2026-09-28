@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
 import { nextActionStartedTick } from './world-rules.js';
+import { playerCellDependencies } from './player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const registry = sim.bootstrapContentRegistry();
@@ -32,11 +33,11 @@ function fixture(fruit = 'apple', planted = false) {
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => clock } },
     world_seed: { id: { find: () => ({ seed: 42 }) } },
-    inventory_slot: { id: { find: () => ({ id: 'owner:0', itemKind: 'axe', quantity: 1 }) } },
+    player_container_cell: { id: { find: () => ({ id: 'owner:hotbar:0', container: 'hotbar', index: 0, itemKind: 'axe', quantity: 1 }) } },
     world_resource: { id: { find: () => resource, update: (row: typeof resource) => Object.assign(resource, row) } },
   } };
-  const actions = load(['MINING_DROP_RESERVATION_TICKS', 'pickOrchardFruit', 'gatherWorldResource', 'applyHarvestResourceLifecycle'], {
-    ...sim, SenderError: Error, nextActionStartedTick, contentRegistry: () => registry,
+  const actions = load(['MINING_DROP_RESERVATION_TICKS', 'pickOrchardFruit', 'gatherWorldResource', 'applyHarvestResourceLifecycle', 'selectedInventorySlot'], {
+    ...sim, ...playerCellDependencies, SenderError: Error, nextActionStartedTick, contentRegistry: () => registry,
     t: { u64: noop }, spacetimedb: { reducer: (_schema: unknown, reducer: unknown) => reducer },
     requireAuthorizedSender: () => { if (!switches.authorized) throw new Error('unauthorized'); },
     requireWorldModificationAuthorized: () => { if (!switches.modify) throw new Error('homestead_owner_required'); },

@@ -1,6 +1,6 @@
 {
   "name": "orchard-cellar",
-  "version": "0.77.0",
+  "version": "0.78.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -50,6 +50,7 @@
     "world:stage-a:acceptance": "tsx scripts/stage-a-acceptance.ts",
     "world:placeable:acceptance": "tsx scripts/placeable-interaction-acceptance.ts",
     "world:chest-migrate": "tsx scripts/chest-migration-runner.ts",
+    "world:container-cell-migrate": "tsx scripts/container-cell-migration-runner.ts",
     "world:farm-retirement": "tsx scripts/legacy-farm-retirement-runner.ts",
     "terrain:seed-map": "npm run seed-map -w @orchard/tools --",
     "world:host": "spacetime start --listen-addr 127.0.0.1:3000 --data-dir .spacetime-data --non-interactive",

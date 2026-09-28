@@ -16,7 +16,7 @@ import { uiPurseLabel } from './purse.js';
 import { uiCurrency, uiCurrencyLabel } from './currency.js';
 import { uiItemFrame, uiSetSlotState } from './inventory.js';
 import { UiInventoryFilter, uiPlayerHotbar, uiPlayerInventoryPane } from './inventory-panel.js';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { paintUiSkin, uiElementUpperCase } from './art.js';
 import { uiFolderTabs } from './social.js';
@@ -46,8 +46,15 @@ export interface UiMerchantModel {
      * inventory slot, the bag's open cells, and which items this merchant buys. */
     readonly sell?: UiMerchantSellInventory;
 }
+/** A carried cell the Sell tab offers: a hotbar or open backpack cell, by container and index. */
+export interface UiMerchantSellCell {
+    readonly container: 'hotbar' | 'backpack';
+    readonly index: number;
+}
 export interface UiMerchantSellInventory {
-    readonly slots: ReadonlyMap<number, ItemStack>;
+    /** The carried stacks by cell (Uncapped Storage step 4c): the hotbar's and the open backpack cells'. */
+    readonly hotbar: ReadonlyMap<number, ItemStack>;
+    readonly backpack: ReadonlyMap<number, ItemStack>;
     readonly capacity: number;
     readonly sellable: (itemKind: string) => boolean;
     /** The live content registry, so authored (Studio) items show their art, wear and names, and filter by name. */
@@ -66,7 +73,7 @@ export interface UiMerchantOptions {
     readonly onFilter: (query: string) => void;
     readonly onQuantity: (itemKind: string, quantity: number) => void;
     /** A press on a carried item in the Sell tab: add its stack (or one) to the sale. */
-    readonly onSellSlot?: (slot: number, one: boolean) => void;
+    readonly onSellCell?: (cell: UiMerchantSellCell, one: boolean) => void;
     /** Sort the backpack from the Sell tab's pane (the sale is by item, so sorting never breaks it). */
     readonly onSortBackpack?: () => void;
     readonly onCommit: () => void;
@@ -132,12 +139,12 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
     const sellHost = uiFlex({ id: 'merchant.sell-inventory', direction: 'column', gap: 4, shrink: 0 });
     // Selling, the hotbar is the window's footer, a carved divider and a centred row, as in every inventory window.
     const footerHost = uiFlex({ shrink: 0 });
-    let sellStructure = '', sellCells: { readonly grid: UiElement; readonly offset: number }[] = [];
+    let sellStructure = '', sellCells: { readonly grid: UiElement; readonly container: UiMerchantSellCell['container'] }[] = [];
     const sold = new WeakMap<UiElement, string>();
-    const sellState = (slot: number) => { const item = carried(slot); return item !== null && model.sell && !model.sell.sellable(item.itemKind) ? { enabled: false } : undefined; };
-    const carried = (slot: number) => model.sell?.slots.get(slot) ?? null;
-    const sellFrom = (slot: number, one: boolean) => { const item = carried(slot);
-        if (!item || model.pending || !model.sell?.sellable(item.itemKind)) return; options.onSellSlot?.(slot, one); };
+    const carried = (container: UiMerchantSellCell['container'], index: number) => model.sell?.[container].get(index) ?? null;
+    const sellState = (container: UiMerchantSellCell['container'], index: number) => { const item = carried(container, index); return item !== null && model.sell && !model.sell.sellable(item.itemKind) ? { enabled: false } : undefined; };
+    const sellFrom = (container: UiMerchantSellCell['container'], index: number, one: boolean) => { const item = carried(container, index);
+        if (!item || model.pending || !model.sell?.sellable(item.itemKind)) return; options.onSellCell?.({ container, index }, one); };
     const buildSellInventory = () => {
         for (const child of [...sellHost.children, ...footerHost.children]) child.dispose();
         const registry = () => model.sell?.contentRegistry;
@@ -146,23 +153,23 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         const pane = uiPlayerInventoryPane({ ...common, id: 'merchant.backpack', label: 'BACKPACK', container: 'backpack',
             cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
             filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => registry()?.items.get(`item:${item.itemKind}`)?.displayName ?? itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
-            stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
-            cellState: index => sellState(BACKPACK_SLOT_OFFSET + index),
+            stack: index => carried('backpack', index), onActivate: (index, event) => sellFrom('backpack', index, event.button === 2),
+            cellState: index => sellState('backpack', index),
             // The same header as every pane. The sale counts items, not slots, so sorting is safe; it waits for a sale in flight.
             onSort: () => { if (!model.pending) options.onSortBackpack?.(); },
             sortDisabledReason: () => !options.onSortBackpack ? 'Sorting is not available here.' : model.pending ? 'Wait for the sale to finish.' : null });
         const hotbar = uiPlayerHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', selected: () => model.sell?.selectedSlot ?? -1,
-            stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2), cellState: index => sellState(index) });
+            stack: index => carried('hotbar', index), onActivate: (index, event) => sellFrom('hotbar', index, event.button === 2), cellState: index => sellState('hotbar', index) });
         const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
         // Each slot is read by the cell it shows now: a recycled pane slot moves between cells.
-        sellCells = [{ grid: grids[0]!, offset: BACKPACK_SLOT_OFFSET }, { grid: hotbar, offset: 0 }];
+        sellCells = [{ grid: grids[0]!, container: 'backpack' }, { grid: hotbar, container: 'hotbar' }];
         sellHost.append(pane); footerHost.append(hotbar);
     };
     // Items this merchant won't buy show the approved disabled face and take no input, as unofferable trade items do.
     const refreshSellable = () => {
-        for (const { grid, offset } of sellCells) for (const cell of grid.children) {
+        for (const { grid, container } of sellCells) for (const cell of grid.children) {
             const index = (cell.props['binding'] as { index?: number } | undefined)?.index; if (index === undefined) continue;
-            const item = carried(offset + index), disabled = item !== null && !model.sell!.sellable(item.itemKind), key = `${index}:${disabled}`;
+            const item = carried(container, index), disabled = item !== null && !model.sell!.sellable(item.itemKind), key = `${index}:${disabled}`;
             if (sold.get(cell) === key) continue;
             sold.set(cell, key); uiSetSlotState(cell, disabled ? { enabled: false } : undefined);
         }

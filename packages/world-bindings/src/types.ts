@@ -272,6 +272,15 @@ export const ConnectionPresenceV2 = __t.object("ConnectionPresenceV2", {
 });
 export type ConnectionPresenceV2 = __Infer<typeof ConnectionPresenceV2>;
 
+export const ContainerCellMigration = __t.object("ContainerCellMigration", {
+  id: __t.u8(),
+  placeableCursor: __t.option(__t.u64()),
+  placeableBackfillComplete: __t.bool(),
+  updatedAt: __t.timestamp(),
+  updatedBy: __t.identity(),
+});
+export type ContainerCellMigration = __Infer<typeof ContainerCellMigration>;
+
 export const ContentDefinition = __t.object("ContentDefinition", {
   id: __t.string(),
   kind: __t.string(),
@@ -491,6 +500,7 @@ export const InventoryMigration = __t.object("InventoryMigration", {
   durabilityVersion: __t.u8(),
   hotbarLayoutVersion: __t.u8(),
   equipmentLayoutVersion: __t.u8(),
+  containerLayoutVersion: __t.u8(),
 });
 export type InventoryMigration = __Infer<typeof InventoryMigration>;
 
@@ -777,17 +787,26 @@ export type OwnMembership = __Infer<typeof OwnMembership>;
 export const OwnOpenChestSlots = __t.object("OwnOpenChestSlots", {});
 export type OwnOpenChestSlots = __Infer<typeof OwnOpenChestSlots>;
 
+export const OwnOpenPlaceableContainerCells = __t.object("OwnOpenPlaceableContainerCells", {});
+export type OwnOpenPlaceableContainerCells = __Infer<typeof OwnOpenPlaceableContainerCells>;
+
 export const OwnOpenPlaceableSlots = __t.object("OwnOpenPlaceableSlots", {});
 export type OwnOpenPlaceableSlots = __Infer<typeof OwnOpenPlaceableSlots>;
 
 export const OwnOutdoorRewards = __t.object("OwnOutdoorRewards", {});
 export type OwnOutdoorRewards = __Infer<typeof OwnOutdoorRewards>;
 
+export const OwnPlacedPlaceableContainerCells = __t.object("OwnPlacedPlaceableContainerCells", {});
+export type OwnPlacedPlaceableContainerCells = __Infer<typeof OwnPlacedPlaceableContainerCells>;
+
 export const OwnPlacedPlaceableDamage = __t.object("OwnPlacedPlaceableDamage", {});
 export type OwnPlacedPlaceableDamage = __Infer<typeof OwnPlacedPlaceableDamage>;
 
 export const OwnPlacedPlaceableSlots = __t.object("OwnPlacedPlaceableSlots", {});
 export type OwnPlacedPlaceableSlots = __Infer<typeof OwnPlacedPlaceableSlots>;
+
+export const OwnPlayerContainerCells = __t.object("OwnPlayerContainerCells", {});
+export type OwnPlayerContainerCells = __Infer<typeof OwnPlayerContainerCells>;
 
 export const OwnPlayerPrediction = __t.object("OwnPlayerPrediction", {});
 export type OwnPlayerPrediction = __Infer<typeof OwnPlayerPrediction>;
@@ -858,6 +877,27 @@ export type OwnVillageOrders = __Infer<typeof OwnVillageOrders>;
 export const OwnWallet = __t.object("OwnWallet", {});
 export type OwnWallet = __Infer<typeof OwnWallet>;
 
+export const PlaceableContainerCell = __t.object("PlaceableContainerCell", {
+  id: __t.string(),
+  placeableId: __t.u64(),
+  index: __t.u32(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+  durability: __t.u16(),
+  lit: __t.bool(),
+});
+export type PlaceableContainerCell = __Infer<typeof PlaceableContainerCell>;
+
+export const PlaceableContainerCopy = __t.object("PlaceableContainerCopy", {
+  placeableId: __t.u64(),
+  sourceRows: __t.u32(),
+  cells: __t.u32(),
+  totalQuantity: __t.u64(),
+  sourceFingerprint: __t.string(),
+  copiedAt: __t.timestamp(),
+});
+export type PlaceableContainerCopy = __Infer<typeof PlaceableContainerCopy>;
+
 export const PlayerAppearance = __t.object("PlayerAppearance", {
   identity: __t.identity(),
   hairKind: __t.string(),
@@ -886,6 +926,18 @@ export const PlayerCombatState = __t.object("PlayerCombatState", {
   elevation: __t.i16(),
 });
 export type PlayerCombatState = __Infer<typeof PlayerCombatState>;
+
+export const PlayerContainerCell = __t.object("PlayerContainerCell", {
+  id: __t.string(),
+  identity: __t.identity(),
+  container: __t.string(),
+  index: __t.u32(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+  durability: __t.u16(),
+  lit: __t.bool(),
+});
+export type PlayerContainerCell = __Infer<typeof PlayerContainerCell>;
 
 export const PlayerCookingJob = __t.object("PlayerCookingJob", {
   identity: __t.identity(),

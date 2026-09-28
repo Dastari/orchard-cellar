@@ -1,16 +1,17 @@
 import { pathToFileURL } from 'node:url';
 import { DbConnection, tables, type SubscriptionHandle } from '@orchard/world-bindings';
 import type { Identity } from 'spacetimedb';
-import { buildContentRegistry, contentDefinitionRowsHash, type ContentRegistry } from '@orchard/sim';
+import { CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION, buildContentRegistry, contentDefinitionRowsHash, type ContentRegistry } from '@orchard/sim';
 import { CONTENT_ENGINE_VERSION } from '../packages/world/src/content/version.js';
 import {
-  acceptanceSlotsEqual,
+  acceptanceCellsEqual,
+  acceptanceCellsWellFormed,
   isPlaceableAcceptanceKind,
   placeableAcceptanceCapacity,
   planPlaceableAcceptance,
   type AcceptancePlaceable,
+  type AcceptanceCell,
   type AcceptancePosition,
-  type AcceptanceSlot,
   type PlaceableAcceptanceKind,
   type PlaceableAcceptanceMode,
 } from './placeable-interaction-acceptance-policy.js';
@@ -46,6 +47,24 @@ async function waitUntil(label: string, predicate: () => boolean): Promise<void>
   }
 }
 
+/**
+ * The harness reads the container-cell views, so it runs only against a world on inventory protocol 2 (the Uncapped
+ * Storage step-4 release). Acknowledging the protocol is also what lets this connection open a placeable; an older
+ * world has no such reducer and is refused here with a clear message rather than read through frozen legacy views.
+ */
+export const ACCEPTANCE_PROTOCOL_REQUIRED = 'acceptance_world_not_on_container_cells:'
+  + 'this harness needs a world on inventory protocol 2 (Uncapped Storage step 4); the legacy slot views are frozen';
+
+async function acknowledgeProtocol(client: Client): Promise<void> {
+  try {
+    await timeout('acceptance_protocol', client.connection.reducers.acknowledgeInventoryProtocol({
+      version: CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION,
+    }));
+  } catch {
+    throw new Error(ACCEPTANCE_PROTOCOL_REQUIRED);
+  }
+}
+
 function connect(token: string): Promise<Client> {
   return timeout('acceptance_connect', new Promise((resolve, reject) => {
     DbConnection.builder().withUri(HOST).withDatabaseName(DATABASE).withToken(token)
@@ -61,15 +80,16 @@ function subscribe(client: Client, kind: PlaceableAcceptanceKind): Promise<void>
     tables.worldPlaceable.where((row) => row.kind.eq(kind)),
     tables.playerPosition.where((row) => row.identity.eq(client.identity)),
     tables.ownActivePlaceable,
-    tables.ownOpenPlaceableSlots,
-    tables.ownPlacedPlaceableSlots,
+    tables.ownOpenPlaceableContainerCells,
+    tables.ownPlacedPlaceableContainerCells,
     tables.contentHead.where((row) => row.packId.eq('live')),
     tables.contentDefinition,
   ];
   return timeout('acceptance_subscription', new Promise((resolve, reject) => {
     client.subscription = client.connection.subscriptionBuilder()
       .onApplied(() => resolve())
-      .onError(() => reject(new Error('acceptance_subscription_rejected')))
+      // A world before inventory protocol 2 has no container-cell views, so the subscription itself is refused there.
+      .onError(() => reject(new Error(`acceptance_subscription_rejected:${ACCEPTANCE_PROTOCOL_REQUIRED}`)))
       .subscribe(queries as unknown as SubscriptionQuery);
   }));
 }
@@ -105,12 +125,20 @@ function positionSnapshot(row: {
   return { x: row.x, y: row.y, facing: row.facing, spaceId: row.spaceId };
 }
 
-function slotSnapshots(client: Client, targetId: bigint): readonly AcceptanceSlot[] {
-  return [...client.connection.db.ownPlacedPlaceableSlots.iter()]
-    .filter(({ placeableId }) => placeableId === targetId)
-    .map(({ placeableId, slot, itemKind, quantity, durability, lit }) => (
-      { placeableId, slot, itemKind, quantity, durability, lit }
-    ));
+function cellSnapshot(row: AcceptanceCell): AcceptanceCell {
+  const { placeableId, index, itemKind, quantity, durability, lit } = row;
+  return { placeableId, index, itemKind, quantity, durability, lit };
+}
+
+/** The target's durable occupied cells (sparse: an empty container has none). */
+function placedCells(client: Client, targetId: bigint): readonly AcceptanceCell[] {
+  return [...client.connection.db.ownPlacedPlaceableContainerCells.iter()]
+    .filter(({ placeableId }) => placeableId === targetId).map(cellSnapshot);
+}
+
+/** The open session's occupied cells, as the open-menu view serves them. */
+function openCells(client: Client): readonly AcceptanceCell[] {
+  return [...client.connection.db.ownOpenPlaceableContainerCells.iter()].map(cellSnapshot);
 }
 
 function selectedTarget(client: Client, targetId: bigint | null) {
@@ -158,7 +186,7 @@ export async function main(): Promise<void> {
         const candidate = planPlaceableAcceptance({
           registry, mode: 'inspect', host: HOST, database: DATABASE, identity,
           expectedIdentity: process.env['PLACEABLE_ACCEPTANCE_EXPECT_IDENTITY'], kind: rawKind, target,
-          position: positionSnapshot(position), slots: slotSnapshots(client, row.id),
+          position: positionSnapshot(position), cells: placedCells(client, row.id),
           activePlaceableId: activeId(client), allowProduction: false,
         });
         return { id: row.id, tileX: row.tileX, tileY: row.tileY, spaceId: row.spaceId,
@@ -167,29 +195,31 @@ export async function main(): Promise<void> {
       });
       process.stdout.write(`${json({ ok: true, mode, host: HOST, database: DATABASE, identity,
         kind: rawKind, position: positionSnapshot(position), candidates,
-        next: 'Set PLACEABLE_ACCEPTANCE_TARGET_ID to inspect an exact target. Interaction requires ownership because the durable pre-open slot projection is owner-scoped.' })}\n`);
+        next: 'Set PLACEABLE_ACCEPTANCE_TARGET_ID to inspect an exact target. Interaction requires ownership because the durable pre-open cell projection is owner-scoped.' })}\n`);
       return;
     }
     const row = selectedTarget(client, targetId);
     if (row === null) throw new Error('acceptance_target_not_found');
     const target = targetSnapshot(row);
-    const slotsBefore = slotSnapshots(client, targetId);
+    const cellsBefore = placedCells(client, targetId);
+    const capacity = placeableAcceptanceCapacity(registry, target);
     const input = { registry, mode, host: HOST, database: DATABASE, identity,
       expectedIdentity: process.env['PLACEABLE_ACCEPTANCE_EXPECT_IDENTITY'], kind: rawKind, target,
-      position: positionSnapshot(position), slots: slotsBefore, activePlaceableId: activeId(client),
+      position: positionSnapshot(position), cells: cellsBefore, activePlaceableId: activeId(client),
       confirmation: process.env['PLACEABLE_ACCEPTANCE_CONFIRM'],
       allowProduction: process.env['PLACEABLE_ACCEPTANCE_ALLOW_PRODUCTION'] === 'YES' } as const;
     const plan = planPlaceableAcceptance(input);
     if (mode === 'inspect') {
       process.stdout.write(`${json({ ok: plan.issues.length === 0, mode, production: plan.production,
-        identity, target, position: input.position, slotCount: slotsBefore.length,
-        expectedSlotCount: placeableAcceptanceCapacity(registry, target), inspection: plan.inspection,
+        identity, target, position: input.position, occupiedCells: cellsBefore.length,
+        capacity, inspection: plan.inspection,
         issues: plan.issues,
         requiredConfirmation: plan.confirmation,
         knownDurableSideEffects: rawKind === 'chest' ? ['player_statistics:chests_opened'] : [] })}\n`);
       return;
     }
     if (plan.issues.length > 0) throw new Error(`acceptance_preflight_failed:${plan.issues.join(',')}`);
+    await acknowledgeProtocol(client);
 
     if (registrySnapshot(client).headKey !== content.headKey) {
       throw new Error('acceptance_content_head_changed');
@@ -201,12 +231,14 @@ export async function main(): Promise<void> {
         targetKind: 'placeable', entityId: targetId, verb: 'use',
       }));
       await waitUntil('acceptance_open_view', () => activeId(client) === targetId);
-      await waitUntil('acceptance_slot_view', () => (
-        [...client.connection.db.ownOpenPlaceableSlots.iter()].length
-          === placeableAcceptanceCapacity(registry, target)
-      ));
-      if (!acceptanceSlotsEqual(slotsBefore, slotSnapshots(client, targetId))) {
-        throw new Error('acceptance_slots_changed_while_opening');
+      // Sparse views: the open session must show exactly the durable cells, all inside the capacity. An empty
+      // container shows no rows in either view.
+      await waitUntil('acceptance_cell_view', () => acceptanceCellsEqual(cellsBefore, openCells(client)));
+      if (!acceptanceCellsWellFormed(openCells(client), targetId, capacity)) {
+        throw new Error('acceptance_open_cells_invalid');
+      }
+      if (!acceptanceCellsEqual(cellsBefore, placedCells(client, targetId))) {
+        throw new Error('acceptance_cells_changed_while_opening');
       }
     } finally {
       // Always enqueue cleanup after dispatch, even when the reducer promise
@@ -218,16 +250,16 @@ export async function main(): Promise<void> {
         await waitUntil('acceptance_close_view', () => activeId(client) === null);
       }
     }
-    const slotsAfter = slotSnapshots(client, targetId);
-    if (!acceptanceSlotsEqual(slotsBefore, slotsAfter)) throw new Error('acceptance_slots_not_restored');
+    const cellsAfter = placedCells(client, targetId);
+    if (!acceptanceCellsEqual(cellsBefore, cellsAfter)) throw new Error('acceptance_cells_not_restored');
     await waitUntil('acceptance_open_state_restore', () => (
       selectedTarget(client, targetId)?.open === target.open
     ));
     const targetAfter = selectedTarget(client, targetId);
     if (targetAfter === null || targetAfter.open !== target.open) throw new Error('acceptance_open_state_not_restored');
     process.stdout.write(`${json({ ok: true, mode, production: plan.production, kind: rawKind,
-      targetId, activeFrameObserved: true, openSlotCount: placeableAcceptanceCapacity(registry, target),
-      itemsMoved: 0, durableSlotsUnchanged: true, openStateRestored: true,
+      targetId, activeFrameObserved: true, capacity, occupiedCells: cellsBefore.length,
+      itemsMoved: 0, durableCellsUnchanged: true, openStateRestored: true,
       knownDurableSideEffects: rawKind === 'chest' ? ['player_statistics:chests_opened'] : [] })}\n`);
   } finally {
     client.subscription?.unsubscribe();

@@ -3,23 +3,25 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
 import { applyBehaviourEffects, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters } from './behaviour/applier.js';
+import { playerCellDependencies } from './player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'worldBehaviourEffectWriter')!;
 const referenceDeclaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'authoredReferenceSlug')!;
-const javascript = ts.transpileModule(referenceDeclaration.getText(source) + '\n' + declaration.getText(source) + '\nreturn worldBehaviourEffectWriter;', {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
+const selectedDeclaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'selectedInventorySlot')!;
+const javascript = ts.transpileModule(referenceDeclaration.getText(source) + '\n' + selectedDeclaration.getText(source) + '\n' + declaration.getText(source) + '\nreturn worldBehaviourEffectWriter;', {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
 const registry = sim.bootstrapContentRegistry();
 const batch: sim.Effect[] = [{consumeSelected: 1}, {restoreHunger: 1600}, {statistic: {kind: 'food_eaten', subject: 'preserved_carrot'}}];
 function fixture() {
-  const state = { item: {id: 'owner:0', itemKind: 'preserved_carrot', quantity: 1, slot: 0, durability: 0, lit: true},
+  const state = { item: {id: 'owner:hotbar:0', container: 'hotbar', index: 0, itemKind: 'preserved_carrot', quantity: 1, durability: 0, lit: true},
     survival: {selectedSlot: 0, hungerCenti: 9900, hungerUpdatedTick: 0n}, writes: [] as string[],
     statistics: [] as {kind: string; amount: bigint; subject: string}[] };
   const ctx = {sender: {toHexString: () => 'owner'}, db: {
     player_position: {identity: {find: () => ({x: 0, y: 0, spaceId: 0})}},
     player_survival: {identity: {find: () => state.survival, update: (row: typeof state.survival) => {state.survival = row; state.writes.push('hunger');}}},
-    inventory_slot: {id: {find: () => state.item}}, world_clock: {id: {find: () => ({authorityTick: 10n})}},
+    player_container_cell: {id: {find: () => state.item}}, world_clock: {id: {find: () => ({authorityTick: 10n})}},
   }};
-  const dependencies = {...sim, SenderError: Error, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters,
+  const dependencies = {...sim, ...playerCellDependencies, SenderError: Error, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters,
     ANVIL_REPAIR_COST_BRONZE: 5, U64_MAX: (1n << 64n) - 1n, contentRegistry: () => registry,
     writeInventorySlot: (_ctx: unknown, row: typeof state.item) => {state.item = row; state.writes.push('inventory');},
     updateEquippedForIdentity: () => {},

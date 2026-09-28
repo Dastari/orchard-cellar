@@ -1,9 +1,10 @@
-import type { WorldPlaceable, WorldPlaceableSlot } from '@orchard/world-bindings/types';
+import type { PlaceableContainerCell, WorldPlaceable } from '@orchard/world-bindings/types';
 import type { KeyedStore } from './keyed-store.js';
 
 /**
- * The player's open placeable session (the `own_active_placeable` and `own_open_placeable_slots` views) and the chest
- * compatibility copies the chest window reads (BUG-058).
+ * The player's open placeable session (the `own_active_placeable` and `own_open_placeable_container_cells` views) and
+ * the chest compatibility copies the chest window reads (BUG-058). Cells are keyed by their container index (Uncapped
+ * Storage step 4c).
  *
  * The server can replace one session with another in a single transaction: using a chest while a workbench, or
  * another chest, is still open. The view then reports the new row and the removal of the old one, in either order.
@@ -15,12 +16,12 @@ export class ActivePlaceableSession<Chest, ChestSlot> {
   private chestView: Chest | null = null;
 
   constructor(
-    private readonly slots: KeyedStore<number, WorldPlaceableSlot>,
+    private readonly slots: KeyedStore<number, PlaceableContainerCell>,
     private readonly chestSlots: KeyedStore<number, ChestSlot>,
     private readonly chest: {
       readonly isChest: (row: WorldPlaceable) => boolean;
       readonly toChest: (row: WorldPlaceable) => Chest;
-      readonly toChestSlot: (row: WorldPlaceableSlot) => ChestSlot;
+      readonly toChestSlot: (row: PlaceableContainerCell) => ChestSlot;
     },
   ) {}
 
@@ -39,25 +40,25 @@ export class ActivePlaceableSession<Chest, ChestSlot> {
     if (this.activeRow !== null && this.activeRow.id !== row.id) return;
     this.activeRow = null; this.chestView = null; this.chestSlots.clear();
     // Slot rows of a replacing session can arrive first; only the ended placeable's rows go.
-    for (const slot of [...this.slots]) if (slot.placeableId === row.id) this.slots.delete(slot.slot);
+    for (const slot of [...this.slots]) if (slot.placeableId === row.id) this.slots.delete(slot.index);
   }
 
-  setSlot(row: WorldPlaceableSlot): void {
-    this.slots.set(row.slot, row);
-    if (this.chestView !== null && row.placeableId === this.activeRow?.id) this.chestSlots.set(row.slot, this.chest.toChestSlot(row));
+  setSlot(row: PlaceableContainerCell): void {
+    this.slots.set(row.index, row);
+    if (this.chestView !== null && row.placeableId === this.activeRow?.id) this.chestSlots.set(row.index, this.chest.toChestSlot(row));
   }
 
   /** A slot row was removed. Ignored when the slot already holds the replacing session's row. */
-  deleteSlot(row: WorldPlaceableSlot): void {
-    const current = this.slots.get(row.slot);
+  deleteSlot(row: PlaceableContainerCell): void {
+    const current = this.slots.get(row.index);
     if (current !== undefined && current.placeableId !== row.placeableId) return;
-    this.slots.delete(row.slot); this.chestSlots.delete(row.slot);
+    this.slots.delete(row.index); this.chestSlots.delete(row.index);
   }
 
   /** Rebuilds the session from a fresh subscription snapshot. */
-  hydrate(active: WorldPlaceable | null, rows: Iterable<WorldPlaceableSlot>): void {
+  hydrate(active: WorldPlaceable | null, rows: Iterable<PlaceableContainerCell>): void {
     this.slots.clear();
-    for (const row of rows) if (row.placeableId === active?.id) this.slots.set(row.slot, row);
+    for (const row of rows) if (row.placeableId === active?.id) this.slots.set(row.index, row);
     if (active === null) { this.activeRow = null; this.chestView = null; this.chestSlots.clear(); }
     else this.setActive(active);
   }
@@ -72,6 +73,6 @@ export class ActivePlaceableSession<Chest, ChestSlot> {
     this.chestSlots.clear();
     const active = this.activeRow;
     if (active === null || this.chestView === null) return;
-    for (const row of this.slots) if (row.placeableId === active.id) this.chestSlots.set(row.slot, this.chest.toChestSlot(row));
+    for (const row of this.slots) if (row.placeableId === active.id) this.chestSlots.set(row.index, this.chest.toChestSlot(row));
   }
 }

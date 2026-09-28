@@ -2,6 +2,22 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.53.0 / UI 0.54.0 / Sim 0.35.0 / World 0.31.0 / World bindings 0.20.0 — Uncapped Storage step 4: container-scoped storage (migration release)
+
+**Schema migration release: new tables, with a one-time migration of all items.** The migration lane runs with `WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run`.
+- **Storage addressing (#274, #275):** every container (hotbar, backpack, equipment, crafting, stash and each placeable) has its own `u32` index space, in the new sparse tables `player_container_cell` and `placeable_container_cell`. Only occupied cells are stored.
+  - Equipment keeps fixed indices, and the main hand stays selected slot 33 as a named constant.
+  - This removes the fixed global slot layout, so a bigger bag no longer shifts other slots.
+- **Migration (#275):** players are moved on connect or by an owner/admin batch in one transaction, including old hotbar and equipment layouts. Placeables are copied with receipts (counts and fingerprint).
+  - Independent legacy-versus-cell fingerprints for players and placeables must match the rehearsal before traffic returns.
+  - The old tables are kept but no longer written; nothing is deleted.
+  - Backpack and stash stacks past capacity spill to overflow. Retired or over-max stacks are handled without stalling a player or the tick.
+- **Protocol 2 (#275, #276):** older clients are refused and see "Update required" with a Reload button.
+- **Client (#276):** the global-slot references are replaced by container addressing, and the bindings are regenerated with `u32` indices.
+- **No visible change at 20 slots.**
+- **Rollback:** after traffic returns, rollback means restoring the pre-publish backup; never republish the previous module.
+- Workspace 0.78.0.
+
 ## Client 0.52.1 / UI 0.53.1 / Sim 0.34.0 / World 0.30.6 / Studio 0.16.18 — Uncapped Storage step 3: whole-container panes, 256-slot ceiling
 
 - **Uncapped Storage step 3 (#272):**

@@ -11,16 +11,23 @@ import {
   runtimeToolDefinition,
   runtimeToolSpecialization,
   runtimeActivityExperience,
+  selectedSlotCell,
   type ContentRegistry,
   type LootDrop,
 } from '@orchard/sim';
+import { legacySlotCellTable, playerCellDependencies, type LegacySlotRow } from './player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const implementation = source.statements.find((node): node is ts.FunctionDeclaration => (
   ts.isFunctionDeclaration(node) && node.name?.text === 'applyFishingReelLifecycle'
 ));
 if (implementation === undefined) throw new Error('fishing reel authority implementation missing');
-const javascript = ts.transpileModule(implementation.getText(source), {
+// The selected rod is read through the actual selected-cell helper.
+const selectedHelper = source.statements.find((node): node is ts.FunctionDeclaration => (
+  ts.isFunctionDeclaration(node) && node.name?.text === 'selectedInventorySlot'
+));
+if (selectedHelper === undefined) throw new Error('selected inventory helper missing');
+const javascript = ts.transpileModule(`${selectedHelper.getText(source)}\n${implementation.getText(source)}`, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
 }).outputText;
 
@@ -37,7 +44,7 @@ function fixture(options: {
   };
   const pool = { id: 7n, kind: 'fish_pool', spaceId: 0, tileX: 3, tileY: 4, depleted: false, richness: 4, activationOrdinal: 0 };
   const position = { x: 0, y: 0, spaceId: 0 };
-  const selected = { itemKind: 'fishing_rod', quantity: 1 };
+  const selected: LegacySlotRow = { slot: 0, itemKind: 'fishing_rod', quantity: 1 };
   const clock = { authorityTick: 1n + FISHING_CAST_TICKS };
   const state = { authorized: true, ready: true, usable: true, occupied: false, mounted: false };
   const writes: string[] = [];
@@ -54,11 +61,12 @@ function fixture(options: {
     } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => clock } },
-    inventory_slot: { id: { find: () => selected } },
+    player_container_cell: legacySlotCellTable(new Map([[0, selected]]), sender),
     world_resource: { id: { find: () => pool, update: () => { writes.push('pool'); } } },
     world_seed: { id: { find: () => ({ seed: 123 }) } },
   } };
   const dependencies = {
+    ...playerCellDependencies, selectedSlotCell,
     SenderError: Error,
     requireAuthorizedSender: () => { if (!state.authorized) throw new Error('unauthorized'); },
     contentRegistry: () => registry,

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Identity } from 'spacetimedb';
-import { bootstrapContentRows, contentDefinitionRowsHash, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID } from '@orchard/sim';
+import { AlgebraicType, BinaryReader, BinaryWriter } from 'spacetimedb';
+import { bootstrapContentRows, contentDefinitionRowsHash, CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION, MAIN_HAND_SELECTED_SLOT, selectedSlotCell, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID } from '@orchard/sim';
+import { reducers as bindingReducers, tables } from '@orchard/world-bindings';
 import { HEARTBEAT_INTERVAL_MS, HIDDEN_HEARTBEAT_LIMIT_MS, OverworldConnection } from './overworld-connection.js';
 import { LatencyInjector } from './netcode.js';
 import { clientErrorReporter } from '../client-error-reporter.js';
@@ -21,6 +23,10 @@ vi.mock('../client-error-reporter.js', () => ({
 }));
 
 type Row = Record<string, unknown>;
+/** The container reducers whose arguments name cells. */
+const CONTAINER_REDUCERS = ['moveInventoryItem', 'movePlaceableItem', 'distributeInventoryItem', 'inventoryCursorQuickCraft',
+  'inventoryCursorClick', 'inventoryCursorSwapHotbar', 'throwMenuItem', 'quickMoveMenuItem', 'setTradeOfferItem', 'selectHotbar'] as const;
+type ContainerReducer = (typeof CONTAINER_REDUCERS)[number];
 type Callback = (...args: unknown[]) => void;
 class FakeTable {
   rows: Row[] = [];
@@ -48,7 +54,8 @@ class FakeConnection {
   readonly subscriptions: FakeSubscription[] = [];
   readonly tableMap = new Map<string, FakeTable>();
   readonly db = new Proxy({}, { get: (_target, key) => this.table(String(key)) });
-  readonly reducers = { acknowledgeInventoryProtocol:vi.fn(async()=>undefined), setInput: vi.fn(async (input: unknown) => { void input; }), heartbeat: vi.fn(async () => undefined) };
+  readonly reducers = { acknowledgeInventoryProtocol:vi.fn(async(args:unknown)=>{ void args; }), setInput: vi.fn(async (input: unknown) => { void input; }), heartbeat: vi.fn(async () => undefined),
+    ...Object.fromEntries(CONTAINER_REDUCERS.map(name => [name, vi.fn(async (args: unknown) => { void args; })])) as Record<ContainerReducer, ReturnType<typeof vi.fn>> };
   readonly disconnect = vi.fn();
   readonly connectionId = { isEqual: () => true,toHexString:()=> 'test-connection' };
   isSocketClosed = false;
@@ -82,14 +89,29 @@ class FakeConnection {
 }
 const identity = Identity.fromString('1'.padStart(64, '0'));
 const rows = bootstrapContentRows();
+function cellRow(container: string, index: number, itemKind: string, extra: Partial<Row> = {}): Row {
+  return { id: `${identity.toHexString()}:${container}:${index}`, identity, container, index, itemKind, quantity: 1, durability: 0, lit: false, ...extra };
+}
+/** One `own_player_container_cells` row in each of the five containers (a backpack index past the legacy u8 range
+ * among them), and one in a container this client does not know. */
+const CELLS: readonly Row[] = [
+  cellRow('hotbar', 0, 'axe', { durability: 17, lit: true }),
+  cellRow('backpack', 300, 'wood', { quantity: 12 }),
+  cellRow('equipment', 3, 'hearth_rare_sword', { durability: 190 }),
+  cellRow('crafting', 8, 'plank', { quantity: 2 }),
+  cellRow('stash', 3, 'torch', { durability: 73 }),
+  cellRow('satchel', 0, 'apple'),
+];
 function seed(connection: FakeConnection): void {
   const position = { identity, spaceId: TOPSIDE_SPACE_ID, chunkX: 2, chunkY: 2,
     x: 35 * TILE_SIZE_FIXED, y: 35 * TILE_SIZE_FIXED, facing: 'down', actionKind: 'none' };
   for (const [table, values] of Object.entries({
     worldClock: [{ id: 0, authorityTick: 100n }], worldEnvironment: [{ id: 0 }], worldSeed: [{ id: 0, seed: 42 }],
     playerPosition: [position], ownSurvival: [{ identity }], ownCharacterProfile: [{ identity }], ownMembership: [{ identity }],
-    ownHearthStashSlots:[{id:'stash:3',identity,slot:3,itemKind:'torch',quantity:1,durability:73,lit:false}],
-    ownInventorySlots: [{ slot: 0, itemKind: 'axe', quantity: 1, durability: 17, lit: true }],
+    ownPlayerContainerCells: CELLS,
+    // The frozen legacy views stay published for the release lane only: the client never reads them.
+    ownInventorySlots: [{ slot: 0, itemKind: 'apple', quantity: 9, durability: 0, lit: false }],
+    ownHearthStashSlots: [{ id: 'stash:3', identity, slot: 3, itemKind: 'apple', quantity: 9, durability: 0, lit: false }],
     runtimeContentDefinitions: rows,
     contentHead: [{ packId: 'live', revision: 1n, engineVersion: CLIENT_CONTENT_ENGINE_VERSION,
       contentHash: contentDefinitionRowsHash(rows), definitionCount: rows.length }],
@@ -150,8 +172,7 @@ describe('authenticated OverworldConnection recovery', () => {
     first.disconnected(first, new Error('socket_closed'));
     expect(clientErrorReporter.detach).toHaveBeenCalledOnce();
     expect(network.gameplayReady).toBe(false);
-    expect(network.view().inventorySlots.size).toBe(0);
-    expect(network.view().hearthStashSlots?.size).toBe(0);
+    expect(network.view().playerCells.size).toBe(0);
     expect(network.view().hearthStashOpen).toBe(false);
     expect(network.view().campfires?.size).toBe(0);
     expect(network.view().merchants.size).toBe(0);
@@ -167,8 +188,8 @@ describe('authenticated OverworldConnection recovery', () => {
     expect(network.gameplayReady).toBe(false);
     second.subscriptions[4]?.applied(); await flush();
     expect(network.gameplayReady).toBe(true);
-    expect(network.view().inventorySlots.get(0)).toMatchObject({ itemKind: 'axe', durability: 17, quantity: 1 });
-    expect(network.view().hearthStashSlots?.get(3)).toMatchObject({itemKind:'torch',quantity:1,durability:73,lit:false});
+    expect(network.view().playerCells.get({ container: 'hotbar', index: 0 })).toMatchObject({ itemKind: 'axe', durability: 17, quantity: 1 });
+    expect(network.view().playerCells.get({ container: 'stash', index: 3 })).toMatchObject({itemKind:'torch',quantity:1,durability:73,lit:false});
     expect(network.view().hearthStashOpen).toBe(false);
     expect(second.reducers.setInput.mock.calls).toHaveLength(1);
     expect(second.reducers.setInput.mock.calls[0]?.[0]).toMatchObject({ direction: 'idle', sprinting: false });
@@ -320,6 +341,134 @@ describe('authenticated OverworldConnection recovery', () => {
     await vi.advanceTimersByTimeAsync(501);
     const second = connections[1]!; await hydrate(second); second.subscriptions[4]?.applied(); await flush();
     expect(network.gameplayReady).toBe(true);
+  });
+});
+
+describe('container cells (Uncapped Storage step 4c)', () => {
+  const networks: OverworldConnection[] = [];
+  let connections: FakeConnection[];
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
+    vi.stubGlobal('document', { hidden: false });
+    vi.stubGlobal('navigator', { onLine: true });
+    connections = [];
+    mocked.ensure.mockReset().mockResolvedValue({ subject: 'existing-owner', idToken: 'test-token' });
+    mocked.build.mockImplementation(() => {
+      const connection = new FakeConnection(); seed(connection); connections.push(connection); return connection.builder();
+    });
+  });
+  afterEach(() => { for (const network of networks.splice(0)) network.dispose(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+  async function ready(): Promise<{ network: OverworldConnection; connection: FakeConnection }> {
+    const network = new OverworldConnection('owner', () => undefined, 'http://example.test', 'world', new LatencyInjector(0, 0));
+    networks.push(network); await flush();
+    const connection = connections[0]!;
+    await hydrate(connection); connection.subscriptions[4]?.applied(); await flush();
+    expect(network.gameplayReady).toBe(true);
+    return { network, connection };
+  }
+  const key = (row: { readonly container: string; readonly index: number }) => `${row.container}:${row.index}`;
+
+  it('acknowledges inventory protocol 2 and subscribes to the container-cell views, never the legacy slot views', async () => {
+    const { connection } = await ready();
+    expect(CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(2);
+    expect(connection.reducers.acknowledgeInventoryProtocol).toHaveBeenCalledWith({ version: CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION });
+    const queries = connection.subscriptions.flatMap(subscription => Array.isArray(subscription.queries) ? subscription.queries as unknown[] : [subscription.queries]);
+    expect(queries).toContain(tables.ownPlayerContainerCells);
+    expect(queries).toContain(tables.ownOpenPlaceableContainerCells);
+    for (const legacy of [tables.ownInventorySlots, tables.ownHearthStashSlots, tables.ownOpenPlaceableSlots, tables.ownPlacedPlaceableSlots]) {
+      expect(queries).not.toContain(legacy);
+    }
+    for (const legacy of ['ownInventorySlots', 'ownHearthStashSlots', 'ownOpenPlaceableSlots']) {
+      const table = connection.table(legacy);
+      expect(table.inserted.length + table.updated.length + table.deleted.length, legacy).toBe(0);
+    }
+  });
+
+  it('shows update-required, not sign-in, when the world refuses this client\'s inventory protocol, and stops reconnecting', async () => {
+    const network = new OverworldConnection('owner', () => undefined, 'http://example.test', 'world', new LatencyInjector(0, 0));
+    networks.push(network); await flush();
+    const connection = connections[0]!;
+    connection.reducers.acknowledgeInventoryProtocol.mockRejectedValueOnce(new Error('inventory_client_update_required'));
+    await connection.connected(connection, identity, 'test-token'); await flush();
+    expect(network.recoveryState).toBe('update-required');
+    expect(network.gameplayReady).toBe(false);
+    // No retry, reconnect or sign-in loop: the same bundle would only be refused again.
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(connections).toHaveLength(1);
+    expect(network.recoveryState).toBe('update-required');
+    expect(mocked.ensure).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps own_player_container_cells rows into the container model: all five containers, u32 indices, no legacy rows', async () => {
+    const { network, connection } = await ready();
+    const cells = network.view().playerCells;
+    // Five known containers; the row in a container this client does not know is left out, and the legacy views'
+    // apples never arrive.
+    expect(cells.size).toBe(5);
+    expect([...cells].map(key)).toEqual(['hotbar:0', 'backpack:300', 'equipment:3', 'crafting:8', 'stash:3']);
+    expect([...cells].some(row => row.itemKind === 'apple')).toBe(false);
+    expect(cells.get({ container: 'hotbar', index: 0 })).toMatchObject({ itemKind: 'axe', durability: 17, lit: true });
+    expect(cells.get({ container: 'backpack', index: 300 })).toMatchObject({ itemKind: 'wood', quantity: 12 });
+    expect(cells.get({ container: 'crafting', index: 8 })).toMatchObject({ itemKind: 'plank', quantity: 2 });
+    expect(cells.container('stash').map(row => row.itemKind)).toEqual(['torch']);
+    // The stash stays at the hearth: carried rows are the other four containers.
+    expect(cells.carried().map(key)).toEqual(['hotbar:0', 'backpack:300', 'equipment:3', 'crafting:8']);
+    // A stored selectedSlot of 33 names the Main Hand cell, never global slot 33.
+    expect(selectedSlotCell(MAIN_HAND_SELECTED_SLOT)).toEqual({ container: 'equipment', index: 3 });
+    expect(cells.get(selectedSlotCell(MAIN_HAND_SELECTED_SLOT))).toMatchObject({ itemKind: 'hearth_rare_sword' });
+    expect(cells.get(selectedSlotCell(0))).toMatchObject({ itemKind: 'axe' });
+    // Live rows: an insert far past the legacy layout, an update in place, and a delete.
+    const table = connection.table('ownPlayerContainerCells'), revision = cells.revision;
+    table.inserted[0]?.({ event: { id: 'insert' } }, cellRow('backpack', 70_000, 'stone', { quantity: 4 }));
+    table.updated[0]?.({ event: { id: 'update' } }, CELLS[1], cellRow('backpack', 300, 'wood', { quantity: 5 }));
+    table.deleted[0]?.({ event: { id: 'delete' } }, CELLS[3]);
+    await flush();
+    const live = network.view().playerCells;
+    expect(live.revision).toBeGreaterThan(revision);
+    expect(live.container('backpack').map(row => [row.index, row.quantity])).toEqual([[300, 5], [70_000, 4]]);
+    expect(live.get({ container: 'crafting', index: 8 })).toBeUndefined();
+    expect(network.snapshot().playerCells.map(key)).toEqual(['hotbar:0', 'backpack:300', 'backpack:70000', 'equipment:3', 'stash:3']);
+  });
+
+  it('sends a container and a u32 index on every container reducer call, a backpack index past 255 included', async () => {
+    const { network, connection } = await ready();
+    // Reducer calls go through the latency injector's timers.
+    const settle = async (call: Promise<void>) => { await flush(); await call; };
+    const sent = (name: ContainerReducer) => connection.reducers[name].mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    /** The arguments survive the generated binding's own wire encoding unchanged: every index is a u32 there. */
+    const roundTrip = (name: ContainerReducer, args: Record<string, unknown>) => {
+      const type = { tag: 'Product', value: (bindingReducers as unknown as Record<string, { paramsType: unknown }>)[name]!.paramsType } as unknown as AlgebraicType;
+      const writer = new BinaryWriter(64); AlgebraicType.serializeValue(writer, type, args);
+      return AlgebraicType.deserializeValue(new BinaryReader(writer.getBuffer()), type);
+    };
+    await settle(network.moveInventoryItem({ fromContainer: 'backpack', fromIndex: 300, toContainer: 'hotbar', toIndex: 2, quantity: 1 }));
+    expect(sent('moveInventoryItem')).toEqual({ fromContainer: 'backpack', fromIndex: 300, toContainer: 'hotbar', toIndex: 2, quantity: 1 });
+    await settle(network.moveInventoryItem({ fromContainer: 'placeable', fromIndex: 1024, toContainer: 'backpack', toIndex: 256, quantity: 1 }));
+    expect(sent('movePlaceableItem')).toMatchObject({ fromIndex: 1024, toIndex: 256 });
+    await settle(network.distributeInventoryItem('backpack', 300, [{ container: 'backpack', index: 4096 }, { container: 'hotbar', index: 1 }], 2));
+    expect(sent('distributeInventoryItem')).toEqual({ fromContainer: 'backpack', fromIndex: 300,
+      targetContainers: ['backpack', 'hotbar'], targetIndexes: [4096, 1], quantity: 2 });
+    await settle(network.inventoryCursorQuickCraft([{ container: 'backpack', index: 256 }, { container: 'crafting', index: 8 }], 'even'));
+    expect(sent('inventoryCursorQuickCraft')).toEqual({ targetContainers: ['backpack', 'crafting'], targetIndexes: [256, 8], mode: 'even' });
+    await settle(network.inventoryCursorClick('backpack', 300, 'left'));
+    expect(sent('inventoryCursorClick')).toEqual({ container: 'backpack', index: 300, button: 'left' });
+    await settle(network.inventoryCursorSwapHotbar('backpack', 300, 4));
+    expect(sent('inventoryCursorSwapHotbar')).toEqual({ container: 'backpack', index: 300, hotbarIndex: 4 });
+    await settle(network.throwMenuItem('backpack', 300, true));
+    expect(sent('throwMenuItem')).toEqual({ container: 'backpack', index: 300, wholeStack: true });
+    await settle(network.quickMoveInventoryItem('backpack', 300, ['hotbar']));
+    expect(sent('quickMoveMenuItem')).toEqual({ fromContainer: 'backpack', fromIndex: 300, toContainers: ['hotbar'] });
+    await settle(network.setTradeOfferItem('trade-1', { container: 'backpack', index: 300 }, 5, 3));
+    expect(sent('setTradeOfferItem')).toEqual({ tradeId: 'trade-1', inventoryContainer: 'backpack', inventoryIndex: 300, tradeSlot: 5, quantity: 3 });
+    for (const name of CONTAINER_REDUCERS.filter(name => name !== 'selectHotbar')) {
+      const args = sent(name);
+      expect(roundTrip(name, args), name).toEqual(args);
+    }
+    // The legacy u8 would have wrapped the same index to another cell.
+    const u8 = { tag: 'Product', value: { elements: [{ name: 'index', algebraicType: { tag: 'U8' } }] } } as unknown as AlgebraicType;
+    const writer = new BinaryWriter(8); AlgebraicType.serializeValue(writer, u8, { index: 300 });
+    expect(AlgebraicType.deserializeValue(new BinaryReader(writer.getBuffer()), u8)).toEqual({ index: 44 });
   });
 });
 

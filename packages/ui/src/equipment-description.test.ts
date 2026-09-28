@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { bootstrapContentRegistry, MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim';
 import { equipmentDescriptionLines, equipmentModifierLabel } from './equipment-description.js';
 import type { Modifier } from '@orchard/sim';
 const registry=bootstrapContentRegistry();
 describe('equipment inspection',()=>{
   it('previews exact weapon power and effective ranks without mutating custody or training',()=>{
-    const inventory=[{slot:MAIN_HAND_INVENTORY_SLOT,itemKind:'hearth_rare_sword',quantity:1,durability:125},
-      {slot:36,itemKind:'hearth_legendary_hands',quantity:1}];
+    const inventory=[{container:'equipment' as const,index:3,itemKind:'hearth_rare_sword',quantity:1,durability:125},
+      {container:'equipment' as const,index:6,itemKind:'hearth_legendary_hands',quantity:1}];
     const ranks={blade_training:5};
     const before=JSON.stringify({inventory,ranks});
     const lines=equipmentDescriptionLines(registry,'hearth_legendary_sword',inventory,0,ranks,['blade_training'])!;

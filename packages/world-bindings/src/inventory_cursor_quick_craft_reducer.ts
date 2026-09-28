@@ -12,6 +12,6 @@ import {
 
 export default {
   targetContainers: __t.array(__t.string()),
-  targetIndexes: __t.byteArray(),
+  targetIndexes: __t.array(__t.u32()),
   mode: __t.string(),
 };

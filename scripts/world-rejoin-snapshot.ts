@@ -4,6 +4,7 @@ import {
   type DurableWorldSnapshot,
   type WorldStateParityIssue,
 } from '../packages/tools/src/world-state-parity.js';
+import { legacyGlobalSlotToCell } from '../packages/sim/src/container-addressing.js';
 
 export const WORLD_REJOIN_SNAPSHOT_VERSION = 2 as const;
 
@@ -20,7 +21,8 @@ export const OBSERVER_EFFECT_STATISTICS = Object.freeze([
 ] as const);
 
 /** These rows are deliberately not continuity evidence: connecting creates or
- * clears them, or they represent an in-flight/session-only UI interaction. */
+ * clears them, or they represent an in-flight/session-only UI interaction. An entry tagged `introducedWith` names a
+ * view that release added; a snapshot captured before it (by the previous release's tooling) lacks exactly those. */
 export const WORLD_REJOIN_EXCLUSIONS = Object.freeze([
   { accessor: 'activeFarmSkillNodes', reason: 'derived estate presentation; durable personal ranks are covered by ownPlayerSkillNodes' },
   { accessor: 'activeFarmUpgrades', reason: 'derived estate presentation; durable owned upgrades are covered by ownHomesteadUpgrades' },
@@ -42,9 +44,23 @@ export const WORLD_REJOIN_EXCLUSIONS = Object.freeze([
   { accessor: 'ownOpenChestSlots', reason: 'legacy in-flight container UI session' },
   { accessor: 'ownActivePlaceable', reason: 'in-flight container UI session' },
   { accessor: 'ownOpenPlaceableSlots', reason: 'in-flight container UI session; durable owned slots use ownPlacedPlaceableSlots' },
+  { accessor: 'ownOpenPlaceableContainerCells', reason: 'in-flight container UI session (container cells); durable owned cells use ownPlacedPlaceableContainerCells', introducedWith: 'container_cells' },
   { accessor: 'visibleWorldSpeech', reason: 'short-lived presentation event' },
   { accessor: 'observer statistics', reason: 'connections_opened, world_entries, and time_played are changed by the read-only reconnect act itself' },
 ] as const);
+
+/** The exclusion list a snapshot captured before the container-cell release carries: the current list without the
+ * entries introduced with it, in the same order and byte-identical otherwise. */
+export const PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS = Object.freeze(
+  WORLD_REJOIN_EXCLUSIONS.filter((exclusion) => !('introducedWith' in exclusion)),
+);
+
+/** Only the current list, or the pre-container-cell list (older tooling across the upgrade), is accepted. */
+function acceptedRejoinExclusions(exclusions: unknown): boolean {
+  const serialized = JSON.stringify(exclusions);
+  return serialized === JSON.stringify(WORLD_REJOIN_EXCLUSIONS)
+    || serialized === JSON.stringify(PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS);
+}
 
 export type RejoinCoverageCategory =
   | 'inventory' | 'equipment' | 'profile' | 'economy' | 'survival'
@@ -58,6 +74,9 @@ export interface RejoinTableCoverage {
   readonly identityScoped: boolean;
   readonly identityField?: 'identity' | 'owner' | 'placedBy';
   readonly query: 'identity' | 'caller_view';
+  /** Views that appeared with the container-cell tables (Uncapped Storage step 4). A snapshot captured before them
+   * may lack them; parity then compares the derived custody (`derived:*`) against the legacy views instead. */
+  readonly introducedWith?: 'container_cells';
 }
 
 /** Mirrors the durable portion of OverworldConnection.subscribeSelf plus its
@@ -73,6 +92,7 @@ export const REQUIRED_REJOIN_TABLES: readonly RejoinTableCoverage[] = Object.fre
   { accessor: 'playerPosition', categories: ['position'], cardinality: 'exactly_one', identityScoped: true, query: 'identity' },
   { accessor: 'worldPlaceable', categories: ['containers'], cardinality: 'zero_or_more', identityScoped: true, identityField: 'placedBy', query: 'identity' },
   { accessor: 'ownPlacedPlaceableSlots', categories: ['containers'], cardinality: 'zero_or_more', identityScoped: false, query: 'caller_view' },
+  { accessor: 'ownPlacedPlaceableContainerCells', categories: ['containers'], cardinality: 'zero_or_more', identityScoped: false, query: 'caller_view', introducedWith: 'container_cells' },
   { accessor: 'ownPlacedPlaceableDamage', categories: ['containers'], cardinality: 'zero_or_more', identityScoped: false, query: 'caller_view' },
   { accessor: 'ownPlayerSpawn', categories: ['spawn'], cardinality: 'exactly_one', identityScoped: true, query: 'caller_view' },
   { accessor: 'ownSurvival', categories: ['survival'], cardinality: 'exactly_one', identityScoped: true, query: 'caller_view' },
@@ -84,7 +104,9 @@ export const REQUIRED_REJOIN_TABLES: readonly RejoinTableCoverage[] = Object.fre
   { accessor: 'ownRogueRoomExits', categories: ['progression'], cardinality: 'zero_or_more', identityScoped: false, query: 'caller_view' },
   { accessor: 'ownRogueRewardOffers', categories: ['progression'], cardinality: 'zero_or_more', identityScoped: false, query: 'caller_view' },
   { accessor: 'ownRogueRunUpgrades', categories: ['progression'], cardinality: 'zero_or_more', identityScoped: false, query: 'caller_view' },
-  { accessor: 'ownInventorySlots', categories: ['inventory', 'equipment'], cardinality: 'at_least_one', identityScoped: true, query: 'caller_view' },
+  // Frozen since the container-cell move (a character created after it has no legacy rows); still compared exactly.
+  { accessor: 'ownInventorySlots', categories: ['inventory', 'equipment'], cardinality: 'zero_or_more', identityScoped: true, query: 'caller_view' },
+  { accessor: 'ownPlayerContainerCells', categories: ['inventory', 'equipment', 'containers'], cardinality: 'zero_or_more', identityScoped: true, query: 'caller_view', introducedWith: 'container_cells' },
   { accessor: 'ownInventoryCursor', categories: ['inventory'], cardinality: 'zero_or_more', identityScoped: true, query: 'caller_view' },
   { accessor: 'ownInventoryOverflow', categories: ['inventory'], cardinality: 'zero_or_more', identityScoped: true, query: 'caller_view' },
   { accessor: 'ownHearthStashSlots', categories: ['containers', 'inventory'], cardinality: 'zero_or_more', identityScoped: true, query: 'caller_view' },
@@ -119,7 +141,8 @@ export interface WorldRejoinSnapshot {
   readonly formatVersion: typeof WORLD_REJOIN_SNAPSHOT_VERSION;
   readonly database: string;
   readonly capturedAt: string;
-  readonly exclusions: typeof WORLD_REJOIN_EXCLUSIONS;
+  /** The capturing tooling's list: the current one, or the pre-container-cell one for a snapshot from before it. */
+  readonly exclusions: typeof WORLD_REJOIN_EXCLUSIONS | typeof PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS;
   readonly identities: readonly WorldRejoinIdentitySnapshot[];
 }
 
@@ -207,8 +230,12 @@ function normalizedRows(accessor: string, rows: readonly unknown[]): readonly un
   )));
 }
 
-export function assertRejoinTableCoverage(availableAccessors: ReadonlySet<string>): void {
+export function assertRejoinTableCoverage(
+  availableAccessors: ReadonlySet<string>,
+  options: { readonly allowIntroduced?: boolean } = {},
+): void {
   const missing = REQUIRED_REJOIN_TABLES
+    .filter(({ introducedWith }) => options.allowIntroduced !== true || introducedWith === undefined)
     .map(({ accessor }) => accessor)
     .filter((accessor) => !availableAccessors.has(accessor));
   if (missing.length > 0) throw new Error(`required_table_missing:${missing.join(',')}`);
@@ -259,7 +286,7 @@ export function parseWorldRejoinSnapshot(value: unknown): WorldRejoinSnapshot {
   if (source?.['formatVersion'] !== WORLD_REJOIN_SNAPSHOT_VERSION
     || typeof source['database'] !== 'string'
     || typeof source['capturedAt'] !== 'string'
-    || JSON.stringify(source['exclusions']) !== JSON.stringify(WORLD_REJOIN_EXCLUSIONS)
+    || !acceptedRejoinExclusions(source['exclusions'])
     || !Array.isArray(source['identities'])) throw new Error('invalid_world_rejoin_snapshot');
   const identities = source['identities'];
   if (identities.length === 0) throw new Error('world_rejoin_snapshot_has_no_identities');
@@ -276,9 +303,11 @@ export function parseWorldRejoinSnapshot(value: unknown): WorldRejoinSnapshot {
     labels.add(identity['label']);
     identityValues.add(identity['identity']);
     const snapshotTables = identity['tables'] as Record<string, unknown>;
-    assertRejoinTableCoverage(new Set(Object.keys(snapshotTables)));
+    // A snapshot captured before the container-cell views may lack exactly those; parity derives custody instead.
+    assertRejoinTableCoverage(new Set(Object.keys(snapshotTables)), { allowIntroduced: true });
     for (const coverage of REQUIRED_REJOIN_TABLES) {
       const rows = snapshotTables[coverage.accessor];
+      if (rows === undefined && coverage.introducedWith !== undefined) continue;
       if (!Array.isArray(rows)) throw new Error(`invalid_world_rejoin_snapshot_table:${coverage.accessor}`);
       if (coverage.cardinality === 'exactly_one' && rows.length !== 1) {
         throw new Error(`required_row_count:${coverage.accessor}:expected_1:actual_${rows.length}`);
@@ -289,6 +318,58 @@ export function parseWorldRejoinSnapshot(value: unknown): WorldRejoinSnapshot {
     }
   }
   return value as WorldRejoinSnapshot;
+}
+
+function field(row: unknown, key: string): unknown {
+  return record(row)?.[key];
+}
+
+function occupied(row: unknown): boolean {
+  const quantity = field(row, 'quantity');
+  return field(row, 'itemKind') !== 'empty' && typeof quantity === 'number' && quantity > 0;
+}
+
+function custodyEntry(row: unknown, address: Record<string, unknown>): Record<string, unknown> {
+  return { ...address, itemKind: field(row, 'itemKind'), quantity: field(row, 'quantity'),
+    durability: field(row, 'durability'), lit: field(row, 'lit') };
+}
+
+function sortedCustody(entries: readonly Record<string, unknown>[]): readonly unknown[] {
+  return Object.freeze(entries.map(normalizeRejoinValue)
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))));
+}
+
+/**
+ * Item custody in container-cell terms, derived from whichever views a snapshot has: the container-cell views when
+ * present, otherwise the legacy dense views (inventory slots by the frozen legacy layout, stash slots as the `stash`
+ * container, placeable slots by index). Vacant legacy rows hold no item and are not custody.
+ */
+export function derivedCustodyTables(tables: Readonly<Record<string, readonly unknown[]>>): Readonly<Record<string, readonly unknown[]>> {
+  const player = tables['ownPlayerContainerCells'] !== undefined
+    ? tables['ownPlayerContainerCells'].filter(occupied).map((row) => custodyEntry(row, {
+      container: field(row, 'container'), index: field(row, 'index'),
+    }))
+    : [
+      ...(tables['ownInventorySlots'] ?? []).filter(occupied).map((row) => {
+        const slot = field(row, 'slot');
+        const cell = typeof slot === 'number' ? legacyGlobalSlotToCell(slot) : null;
+        return custodyEntry(row, cell === null ? { container: 'legacy', index: slot } : { container: cell.container, index: cell.index });
+      }),
+      ...(tables['ownHearthStashSlots'] ?? []).filter(occupied).map((row) => custodyEntry(row, {
+        container: 'stash', index: field(row, 'slot'),
+      })),
+    ];
+  const placeables = tables['ownPlacedPlaceableContainerCells'] !== undefined
+    ? tables['ownPlacedPlaceableContainerCells'].filter(occupied).map((row) => custodyEntry(row, {
+      placeableId: field(row, 'placeableId'), index: field(row, 'index'),
+    }))
+    : (tables['ownPlacedPlaceableSlots'] ?? []).filter(occupied).map((row) => custodyEntry(row, {
+      placeableId: field(row, 'placeableId'), index: field(row, 'slot'),
+    }));
+  return Object.freeze({
+    'derived:playerContainerCustody': sortedCustody(player),
+    'derived:placedPlaceableCustody': sortedCustody(placeables),
+  });
 }
 
 export function compareWorldRejoinSnapshots(
@@ -304,14 +385,23 @@ export function compareWorldRejoinSnapshots(
     const actual = after.identities.find(({ label }) => label === expected.label)!;
     if (actual.identity !== expected.identity) throw new Error(`identity_drift:${expected.label}`);
   }
+  // Views introduced with the container cells are compared raw only when both snapshots have them; the derived
+  // custody tables always compare, so a capture before the move and one after it still prove every item kept.
+  const introduced = new Set(REQUIRED_REJOIN_TABLES.flatMap(({ accessor, introducedWith }) => (
+    introducedWith === undefined ? [] : [accessor])));
+  const comparable = (table: string, label: string): boolean => !introduced.has(table)
+    || [before, after].every((snapshot) => snapshot.identities.find((identity) => identity.label === label)
+      ?.tables[table] !== undefined);
   function parity(snapshot: WorldRejoinSnapshot): DurableWorldSnapshot {
     return {
       formatVersion: DURABLE_WORLD_SNAPSHOT_VERSION,
       database: snapshot.database,
       capturedAt: snapshot.capturedAt,
-      tables: Object.fromEntries(snapshot.identities.flatMap((identity) => (
-        Object.entries(identity.tables).map(([table, rows]) => [`${identity.label}:${table}`, rows])
-      ))),
+      tables: Object.fromEntries(snapshot.identities.flatMap((identity) => [
+        ...Object.entries(identity.tables).filter(([table]) => comparable(table, identity.label))
+          .map(([table, rows]) => [`${identity.label}:${table}`, rows] as const),
+        ...Object.entries(derivedCustodyTables(identity.tables)).map(([table, rows]) => [`${identity.label}:${table}`, rows] as const),
+      ])),
     };
   }
   return compareDurableWorldSnapshots(parity(before), parity(after));

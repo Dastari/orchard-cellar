@@ -76,6 +76,64 @@ The existing `WORLD_RELEASE_PRE_DRAIN_SNAPSHOT` and
 `WORLD_RELEASE_POST_DRAIN_SNAPSHOT` paths hold the restored candidate's first and
 second reconnect snapshots in this mode; their names are retained for compatibility.
 The default `legacy-chests` mode retains the original two-stage chest rehearsal.
+
+For the Uncapped Storage step-4 container-cell migration, also set
+`WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run` (default `skip`). The lane refuses it
+outside `schema-only`, or when the candidate module has no container-cell tables.
+The runner is `scripts/container-cell-migration-runner.ts`
+(`world:container-cell-migrate`). Its stdout carries JSON lines only; SDK logs go
+to stderr. The order is:
+
+1. On the isolated restore: publish the candidate, apply the content head, and
+   run the runner (`CONTAINER_CELL_MIGRATION_TARGET=rehearsal`). The run's
+   JSON-lines log, with every `adminContainerCellMigrationStatus` report and the
+   final `ok` line, goes to `WORLD_RELEASE_REHEARSAL_CONTAINER_CELL_LOG`
+   (default `<backup>/container-cell-migration-rehearsal.jsonl`). Then take the
+   two reconnect captures.
+2. Before production publication, the lane reads the rehearsal's final legacy
+   placeable fingerprint (`placeable-cells:<cells>:<quantity>:<hash>`) with
+   `container-cell-migration-runner.ts final-fingerprint <log>`, and its legacy
+   player fingerprint (`player-custody-world:<players>:<items>:<quantity>:<hash>`)
+   with `final-player-fingerprint <log>`.
+3. In production, after publication and the content head, the lane runs the
+   runner with `CONTAINER_CELL_MIGRATION_TARGET=production`,
+   `CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT` and
+   `CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT` set to the rehearsal values. The
+   runner compares both before its first batch and again at the end. The log
+   goes to `WORLD_RELEASE_PRODUCTION_CONTAINER_CELL_LOG`, and the lane compares
+   its final fingerprints with the rehearsal's. The reconnect comparison with the
+   rehearsal's first capture runs next, still before traffic returns.
+
+The final report must be complete: every placeable with legacy rows is copied
+with a matching receipt, no player plan is refused or truncated, and the player
+custody read from where each player's storage now lives (`players.cellFingerprint`)
+equals the custody of the legacy `inventory_slot` and `hearth_stash_slot` rows
+(`players.legacyFingerprint`: item kind, quantity, cell and legacy slot per item,
+computed from the legacy tables alone). The status also lists orphan legacy rows
+(`players.orphans`: rows of an identity with no character). They are reported,
+not refused; that identity's first connect moves them before any starter kit is
+written. The player
+batch moves every offline character, including those on the nine-slot hotbar
+(hotbar layout 0), an older equipment layout or with no `inventory_migration`
+row: it runs the connect path's own layout steps, then the move, in one
+transaction. Only an `inventory_migration` row with no character stays legacy;
+connecting handles it. The production legacy fingerprint must equal the
+rehearsal's. Any failure, including missing or non-JSON rehearsal evidence,
+fails closed. Before publication, the unchanged world restarts with traffic
+closed. After publication, the world and traffic stay stopped for
+investigation. The batches and the status accept a world owner or admin
+(`canAdministerWorld`), so the dev account (admin) runs them; the lane passes
+its content-publication credential as `CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL`.
+It is idempotent, so a second pass changes nothing.
+
+**Rollback after step 4.** Once traffic resumes, the legacy tables
+(`inventory_slot`, `hearth_stash_slot`, `world_placeable_slot`) are stale: every
+change players make lives only in the container-cell tables. Republishing the
+previous module would bring back the pre-migration inventories and silently drop
+everything since. Rolling back therefore means you restore the pre-publish backup
+with the previous module, and accept losing all play since the release. Decide it
+before traffic returns whenever possible. Never republish the previous module
+over the migrated database.
 Choose the mode from the actual live/candidate stored schema and intended data
 changes, not from the size of the working-tree diff or an unrelated Studio guard.
 

@@ -12,5 +12,5 @@ import {
 
 export default {
   tradeId: __t.string(),
-  tradeSlot: __t.u8(),
+  tradeSlot: __t.u32(),
 };

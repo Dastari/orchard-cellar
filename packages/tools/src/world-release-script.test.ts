@@ -150,7 +150,7 @@ describe('guarded world release', () => {
     expect(release.indexOf('WORLD_BACKUP_LEAVE_STOPPED=true')).toBeLessThan(
       release.lastIndexOf('restore-world-rehearsal.sh'),
     );
-    expect(rehearsal.match(/world-module-source-manifest\.sh" verify/gu)).toHaveLength(3);
+    expect(rehearsal.match(/world-module-source-manifest\.sh" verify/gu)).toHaveLength(4);
     expect(release.match(/^assert_module_source_unchanged$/gmu)).toHaveLength(4);
   });
 

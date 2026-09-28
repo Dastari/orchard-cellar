@@ -1,6 +1,6 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
-import { bootstrapContentRegistry, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim';
+import { bootstrapContentRegistry } from '@orchard/sim';
 import { OverworldUi, overworldUiLayout, type OverworldUiCallbacks, type OverworldUiModel } from './overworld-ui.js';
 import type { UiSkin } from './skin.js';
 import type { PixelUi } from './pixel-ui.js';
@@ -79,7 +79,7 @@ it('keeps compact default quests above target controls and restores them after e
   const f = fixture(), open = vi.fn(), tracker = new QuestTracker(art, open, null);
   cleanup.push(() => tracker.dispose());
   const entries = Array.from({length:3}, (_,i) => ({id:`q${i}`,title:`A long tracked quest ${i}`,complete:false,objectives:['0/5 gather objects']}));
-  f.update({trackedQuestCount:entries.length, inventory:[{slot:EQUIPMENT_SLOT_OFFSET+2,itemKind:'watch',quantity:1}],
+  f.update({trackedQuestCount:entries.length, inventory:[{container:'equipment', index:2,itemKind:'watch',quantity:1}],
     effects:[{effectKind:'orchard_tea',name:'Orchard tea',stacks:2,remainingTicks:200,durationTicks:1000}]});
   const updateTracker = () => tracker.update({ width:320,height:180,entries, anchorRect:f.ui.minimapBounds,layoutRegion:f.ui.questTrackerRegion,visible:f.ui.questTrackerVisible });
   updateTracker();

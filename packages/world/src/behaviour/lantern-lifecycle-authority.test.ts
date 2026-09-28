@@ -30,7 +30,7 @@ describe('authored portable-light authority', () => {
     expect(worldSource).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'emits.light')");
     expect(worldSource).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'gear.off_hand')");
     expect(worldSource).toContain("throw new SenderError('equipment_light_required')");
-    expect(worldSource).toContain('ctx.db.inventory_slot.id.update({ ...row, lit: !row.lit })');
+    expect(worldSource).toContain('putInventoryCell(ctx, { ...row, lit: !row.lit })');
     expect(worldSource).toContain('equippedKind: lightItem.itemKind');
     expect(worldSource).toContain('equippedLit: light.enabled');
   });
@@ -45,7 +45,7 @@ describe('authored portable-light authority', () => {
 
   it('gates prompt and dispatch on equipmentUse metadata and retires the global bridge', () => {
     expect(clientSource).toContain("selectedItemLifecycleAction(\n    liveItemContentDefinition(snapshot, selectedLight.itemKind),\n    'equipmentUse'");
-    expect(clientSource).toContain("network.useSelected('equipment_use', { equipmentSlot: selectedLight.slot })");
+    expect(clientSource).toContain("network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(selectedLight.index) })");
     expect(clientSource).toContain("'worldItemUse'");
     expect(clientSource).toContain("network.interactEntity('world_item', groundLightItem.id, 'use')");
     expect(clientSource).not.toContain('groundLantern');

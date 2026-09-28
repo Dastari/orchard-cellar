@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   OBSERVER_EFFECT_STATISTICS,
+  PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS,
   REQUIRED_REJOIN_TABLES,
   WORLD_REJOIN_EXCLUSIONS,
   RETIRED_CHEST_ACCESSORS,
@@ -9,7 +11,9 @@ import {
   assertGenericOnlyRejoinContract,
   assertRejoinTableCoverage,
   compareWorldRejoinSnapshots,
+  derivedCustodyTables,
   normalizeRejoinTables,
+  parseWorldRejoinSnapshot,
   normalizeRejoinValue,
   type WorldRejoinSnapshot,
 } from './world-rejoin-snapshot.js';
@@ -120,6 +124,60 @@ describe('world rejoin snapshot normalization', () => {
     });
   });
 
+  it('compares inventory custody across the container-cell move (Uncapped Storage step 4)', () => {
+    const legacy = {
+      ownInventorySlots: [
+        { identity: 'identity-a', id: 'identity-a:0', slot: 0, itemKind: 'axe', quantity: 1, durability: 71, lit: true },
+        { identity: 'identity-a', id: 'identity-a:1', slot: 1, itemKind: 'empty', quantity: 0, durability: 0, lit: true },
+        { identity: 'identity-a', id: 'identity-a:12', slot: 12, itemKind: 'wood', quantity: 9, durability: 0, lit: true },
+        { identity: 'identity-a', id: 'identity-a:33', slot: 33, itemKind: 'hearth_rare_bow', quantity: 1, durability: 90, lit: true },
+        { identity: 'identity-a', id: 'identity-a:40', slot: 40, itemKind: 'stone', quantity: 2, durability: 0, lit: true },
+      ],
+      ownHearthStashSlots: [
+        { identity: 'identity-a', id: 'identity-a:2', slot: 2, itemKind: 'torch', quantity: 1, durability: 0, lit: false },
+        { identity: 'identity-a', id: 'identity-a:3', slot: 3, itemKind: 'empty', quantity: 0, durability: 0, lit: true },
+      ],
+      ownPlacedPlaceableSlots: [
+        { id: '7:0', placeableId: 7n, slot: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: true },
+        { id: '7:1', placeableId: 7n, slot: 1, itemKind: 'empty', quantity: 0, durability: 0, lit: true },
+      ],
+    };
+    const cell = (container: string, index: number, itemKind: string, quantity: number, durability: number, lit: boolean) => ({
+      identity: 'identity-a', id: `identity-a:${container}:${index}`, container, index, itemKind, quantity, durability, lit,
+    });
+    const cells = {
+      ownPlayerContainerCells: [
+        cell('hotbar', 0, 'axe', 1, 71, true), cell('backpack', 2, 'wood', 9, 0, true),
+        cell('equipment', 3, 'hearth_rare_bow', 1, 90, true), cell('crafting', 0, 'stone', 2, 0, true),
+        cell('stash', 2, 'torch', 1, 0, false),
+      ],
+      ownPlacedPlaceableContainerCells: [{ id: '7:0', placeableId: 7n, index: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: true }],
+    };
+    const normalized = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells }, 'identity-a');
+    // The previous release's capture has no container-cell views at all.
+    const beforeTables = Object.fromEntries(Object.entries(normalized)
+      .filter(([accessor]) => !['ownPlayerContainerCells', 'ownPlacedPlaceableContainerCells'].includes(accessor)));
+    const base = snapshot();
+    const withTables = (tables: Readonly<Record<string, readonly unknown[]>>): WorldRejoinSnapshot => (
+      { ...base, identities: [{ label: 'owner', identity: 'identity-a', tables }] });
+    const before = parseWorldRejoinSnapshot(JSON.parse(JSON.stringify(withTables(beforeTables))));
+    expect(derivedCustodyTables(beforeTables)).toEqual(derivedCustodyTables(normalized));
+    expect(compareWorldRejoinSnapshots(before, withTables(normalized))).toEqual([]);
+    expect(compareWorldRejoinSnapshots(withTables(normalized), withTables(normalized))).toEqual([]);
+    const moved = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells,
+      ownPlayerContainerCells: [...cells.ownPlayerContainerCells.slice(0, 4), cell('stash', 3, 'torch', 1, 0, false)] }, 'identity-a');
+    expect(compareWorldRejoinSnapshots(before, withTables(moved)))
+      .toEqual([expect.objectContaining({ table: 'owner:derived:playerContainerCustody' })]);
+    const lost = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells, ownPlacedPlaceableContainerCells: [] }, 'identity-a');
+    expect(compareWorldRejoinSnapshots(before, withTables(lost)).map(({ table }) => table))
+      .toContain('owner:derived:placedPlaceableCustody');
+    // The frozen legacy views must still match exactly after the move.
+    const touched = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells,
+      ownInventorySlots: legacy.ownInventorySlots.slice(1) }, 'identity-a');
+    expect(compareWorldRejoinSnapshots(before, withTables(touched)).map(({ table }) => table))
+      .toContain('owner:ownInventorySlots');
+  });
+
   it('excludes only enumerated session surfaces and observer-effect statistics', () => {
     expect(OBSERVER_EFFECT_STATISTICS).toEqual(['connections_opened', 'world_entries', 'time_played']);
     expect(WORLD_REJOIN_EXCLUSIONS.map(({ accessor }) => accessor)).toEqual([
@@ -130,7 +188,7 @@ describe('world rejoin snapshot normalization', () => {
       'ownPlayerPrediction', 'ownFishingCast', 'ownTradeSession', 'ownTradeOffers',
       'ownActiveDialogue', 'ownActiveHearthStash', 'ownCombatState',
       'worldChest', 'ownActiveChest', 'ownOpenChestSlots',
-      'ownActivePlaceable', 'ownOpenPlaceableSlots', 'visibleWorldSpeech', 'observer statistics',
+      'ownActivePlaceable', 'ownOpenPlaceableSlots', 'ownOpenPlaceableContainerCells', 'visibleWorldSpeech', 'observer statistics',
     ]);
     const tables = rawTables();
     tables['ownPlayerStatistics'] = [
@@ -221,6 +279,39 @@ describe('world rejoin snapshot normalization', () => {
     ]);
   });
 
+  it('accepts a snapshot captured by the previous release tooling across the container-cell upgrade, and nothing looser', () => {
+    // The previous release's list: the current one without the entries tagged `introducedWith`. The hash is that of
+    // the exclusions in the real pre-upgrade captures of the 2026-09-28 step-4 rehearsal (origin/main f7754da1).
+    expect(WORLD_REJOIN_EXCLUSIONS.filter((exclusion) => 'introducedWith' in exclusion).map(({ accessor }) => accessor))
+      .toEqual(['ownOpenPlaceableContainerCells']);
+    expect(createHash('sha256').update(JSON.stringify(PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS)).digest('hex'))
+      .toBe('9f39092eb1c058fb5cfbb578f6e960d41a0eebcb8e4f4c2190ca2d57b2fb2da3');
+    const introduced = REQUIRED_REJOIN_TABLES.filter(({ introducedWith }) => introducedWith !== undefined).map(({ accessor }) => accessor);
+    const current = snapshot();
+    const preTables = Object.fromEntries(Object.entries(current.identities[0]!.tables)
+      .filter(([accessor]) => !introduced.includes(accessor)));
+    // Sanitized pre-upgrade shape: v2, previous exclusion list, no container-cell views.
+    const preUpgrade = { ...current, exclusions: PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS,
+      identities: [{ ...current.identities[0]!, tables: preTables }] };
+    const parsed = parseWorldRejoinSnapshot(JSON.parse(JSON.stringify(preUpgrade)));
+    expect(parsed.exclusions).toEqual(PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS);
+    expect(compareWorldRejoinSnapshots(parsed, current)).toEqual([]);
+    expect(() => parseWorldRejoinSnapshot(JSON.parse(JSON.stringify(current)))).not.toThrow();
+
+    const withExclusions = (exclusions: unknown) => JSON.parse(JSON.stringify({ ...preUpgrade, exclusions })) as unknown;
+    const untagged = WORLD_REJOIN_EXCLUSIONS.map(({ accessor, reason }) => ({ accessor, reason }));
+    const [first, second, ...rest] = PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS;
+    for (const exclusions of [
+      PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS.slice(1),
+      [second, first, ...rest],
+      [...PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS, { accessor: 'ownPlayerContainerCells', reason: 'hidden custody' }],
+      [{ ...first!, reason: 'changed' }, second, ...rest],
+      untagged,
+      WORLD_REJOIN_EXCLUSIONS.filter(({ accessor }) => accessor !== 'visibleWorldSpeech'),
+      undefined,
+    ]) expect(() => parseWorldRejoinSnapshot(withExclusions(exclusions))).toThrow('invalid_world_rejoin_snapshot');
+  });
+
   it('uses exact parity for all remaining values and rejects identity drift', () => {
     const before = snapshot();
     const same = { ...snapshot(), capturedAt: '2026-09-04T00:00:00.000Z' };
@@ -247,6 +338,16 @@ describe('world rejoin smoke safety contract', () => {
 
   it('loads in the Node release process without requiring Vite browser globals', async () => {
     await expect(import('./world-rejoin-smoke.js')).resolves.toBeDefined();
+  });
+
+  it('passes its bindings check against the regenerated bindings, container-cell views included (Uncapped Storage 4c)', async () => {
+    const { assertCurrentBindings } = await import('./world-rejoin-smoke.js');
+    expect(() => assertCurrentBindings()).not.toThrow();
+    const { tables } = await import('@orchard/world-bindings');
+    const surface = tables as unknown as Record<string, unknown>;
+    for (const accessor of ['ownPlayerContainerCells', 'ownPlacedPlaceableContainerCells', 'ownOpenPlaceableContainerCells']) {
+      expect(surface[accessor], accessor).toBeDefined();
+    }
   });
 
   it('uses saved tokens only for connection and never invokes reducers or broad subscriptions', () => {

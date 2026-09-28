@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { EQUIPMENT_SLOT_OFFSET, TILE_SIZE_FIXED } from '@orchard/sim';
+import { BASE_BACKPACK_CAPACITY, TILE_SIZE_FIXED } from '@orchard/sim';
 import { tradeHarness } from './player-trade-test-harness.js';
 
 describe('two-identity production trade reducer integration', () => {
   it('exchanges escrow and bronze exactly once, preserving item metadata and private views', () => {
     const h = tradeHarness();
     expect(h.alice.isEqual(h.bob)).toBe(false);
-    h.put(h.alice, 0, 'axe', 1, 73, false); h.put(h.bob, 0, 'wood', 12);
+    h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73, false); h.put(h.bob, { container: 'hotbar', index: 0 }, 'wood', 12);
     const tradeId = h.start();
-    h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 1 });
-    h.run('setTradeOfferItem', h.bob, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 4 });
+    h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 });
+    h.run('setTradeOfferItem', h.bob, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 4 });
     h.run('setTradeOfferBronze', h.alice, { tradeId, amount: 30n });
     h.run('setTradeOfferBronze', h.bob, { tradeId, amount: 5n });
     expect(h.owned(h.alice)).toEqual([]);
@@ -59,13 +59,13 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it.each(['range', 'space', 'offline'] as const)('rejects active %s loss before either participant can change custody', reason => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9);
     const tradeId = h.start(), position = h.positions.identity.find(h.bob)!;
     if (reason === 'range') h.positions.identity.update({ ...position, x: position.x + 10 * TILE_SIZE_FIXED });
     else if (reason === 'space') h.positions.identity.update({ ...position, spaceId: position.spaceId + 1 });
     else h.publicPlayers.identity.update({ identity: h.bob, online: false });
     const before = h.snapshot();
-    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_out_of_range');
+    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_out_of_range');
     expect(() => h.run('setTradeAccepted', h.bob, { tradeId, accepted: true, revision: h.session()!.revision })).toThrow('trade_out_of_range');
     expect(h.snapshot()).toEqual(before);
     h.run('cancelTrade', h.alice, { tradeId });
@@ -84,9 +84,9 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('rolls back the first recipient write when the second recipient inventory is full', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'axe', 1, 73); h.put(h.bob, 0, 'wood', 4);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73); h.put(h.bob, { container: 'hotbar', index: 0 }, 'wood', 4);
     const tradeId = h.start();
-    for (const sender of [h.alice, h.bob]) h.run('setTradeOfferItem', sender, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: sender.isEqual(h.alice) ? 1 : 4 });
+    for (const sender of [h.alice, h.bob]) h.run('setTradeOfferItem', sender, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: sender.isEqual(h.alice) ? 1 : 4 });
     h.fill(h.bob);
     const revision = h.session()!.revision;
     h.run('setTradeAccepted', h.alice, { tradeId, accepted: true, revision });
@@ -94,15 +94,15 @@ describe('two-identity production trade reducer integration', () => {
     expect(() => h.run('setTradeAccepted', h.bob, { tradeId, accepted: true, revision })).toThrow('trade_inventory_full');
     // Proves failure occurred after production wrote Alice's received wood,
     // rather than exercising only an early no-write validation branch.
-    expect(h.writes.slice(writeStart)).toContainEqual({ table: 'inventory_slot', key: `${h.alice.toHexString()}:0` });
+    expect(h.writes.slice(writeStart)).toContainEqual({ table: 'player_container_cell', key: `${h.alice.toHexString()}:hotbar:0` });
     expect(h.snapshot()).toEqual(before);
     expect(h.api.ownTradeOffers(h.context(h.alice))).toHaveLength(2);
   });
 
   it('revalidates the earlier accepting player balance at settlement without losing escrow', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9);
     const tradeId = h.start();
-    h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 4 });
+    h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 4 });
     h.run('setTradeOfferBronze', h.alice, { tradeId, amount: 80n });
     const revision = h.session()!.revision;
     h.run('setTradeAccepted', h.alice, { tradeId, accepted: true, revision });
@@ -116,9 +116,9 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('keeps full-inventory cancellations in owner-specific durable overflow', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'axe', 1, 73, false);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73, false);
     const tradeId = h.start();
-    h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 1 });
+    h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 });
     h.fill(h.alice); h.run('cancelTrade', h.bob, { tradeId });
     const overflow = [...h.overflow.iter()];
     expect(overflow).toHaveLength(1);
@@ -127,9 +127,9 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('executes disconnect escrow recovery and exposes recovered state to a new connection', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9);
     const tradeId = h.start();
-    h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 4 });
+    h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 4 });
     h.cursors.insert({ identity: h.bob, itemKind: 'stone', quantity: 2, durability: 0, lit: true });
     h.run('onDisconnect', h.bob);
     expect(h.owned(h.alice)).toMatchObject([{ itemKind: 'wood', quantity: 9 }]);
@@ -143,15 +143,18 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('rejects unrelated identities, occupied offers, equipment and forbidden items without writes', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9); h.put(h.alice, 1, 'marlow_book', 1);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9); h.put(h.alice, { container: 'hotbar', index: 1 }, 'marlow_book', 1);
     const tradeId = h.start();
-    h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 1 });
+    h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 });
     const before = h.snapshot();
     expect(() => h.run('cancelTrade', h.outsider, { tradeId })).toThrow('trade_not_participant');
-    expect(() => h.run('setTradeOfferItem', h.outsider, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_not_participant');
-    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_offer_slot_occupied');
-    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: EQUIPMENT_SLOT_OFFSET, tradeSlot: 1, quantity: 1 })).toThrow('trade_slot_inaccessible');
-    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: 1, tradeSlot: 1, quantity: 1 })).toThrow('item_not_tradeable');
+    expect(() => h.run('setTradeOfferItem', h.outsider, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_not_participant');
+    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 })).toThrow('trade_offer_slot_occupied');
+    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'equipment', inventoryIndex: 0, tradeSlot: 1, quantity: 1 })).toThrow('trade_slot_inaccessible');
+    for (const [inventoryContainer, inventoryIndex] of [['crafting', 0], ['stash', 0], ['backpack', BASE_BACKPACK_CAPACITY]] as const) {
+      expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer, inventoryIndex, tradeSlot: 1, quantity: 1 })).toThrow('trade_slot_inaccessible');
+    }
+    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 1, tradeSlot: 1, quantity: 1 })).toThrow('item_not_tradeable');
     expect(h.snapshot()).toEqual(before);
     h.run('removeTradeOfferItem', h.alice, { tradeId, tradeSlot: 0 });
     expect(h.owned(h.alice).find(row => row.itemKind === 'wood')?.quantity).toBe(9);

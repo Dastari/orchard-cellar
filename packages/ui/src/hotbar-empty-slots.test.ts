@@ -25,10 +25,10 @@ it('draws only occupied hotbar rows, retaining fallback art for unknown real ite
   const receiver = {
     model: {
       inventory: [
-        { slot: 0, itemKind: 'empty', quantity: 0 },
-        { slot: 1, itemKind: 'apple', quantity: 0 },
-        { slot: 2, itemKind: 'apple', quantity: 1 },
-        { slot: 3, itemKind: 'unknown-item', quantity: 1 },
+        { container: 'hotbar', index: 0, itemKind: 'empty', quantity: 0 },
+        { container: 'hotbar', index: 1, itemKind: 'apple', quantity: 0 },
+        { container: 'hotbar', index: 2, itemKind: 'apple', quantity: 1 },
+        { container: 'hotbar', index: 3, itemKind: 'unknown-item', quantity: 1 },
       ],
       selectedSlot: -1, contentRegistry: bootstrapContentRegistry(),
     },

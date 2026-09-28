@@ -4,6 +4,9 @@
  */
 export const CURRENT_EQUIPMENT_LAYOUT_VERSION = 1;
 export const CURRENT_INVENTORY_PROTOCOL_VERSION = 1;
+/** Protocol of container-scoped addressing (Uncapped Storage step 4): u32 cell indices per container instead of global
+ * slots. Defined ahead of use; the world adopts it as current when it moves rows to container cells. */
+export const CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION = 2;
 export interface InventoryMigrationSlot {
   readonly slot: number;
   readonly itemKind: string;

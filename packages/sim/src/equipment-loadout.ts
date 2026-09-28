@@ -5,9 +5,11 @@ import { resolveEquipmentSkillRanks, type EquipmentSkillContribution } from './e
 import { cappedEquipmentModifiers } from './equipment-budget.js';
 import type { Modifier } from './modifiers.js';
 import type { SkillRankEffect } from './skill-gear-metadata.js';
+import { isMainHandSelectedSlot, MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT } from './container-addressing.js';
 
-export const MAIN_HAND_EQUIPMENT_INDEX = 3;
-export const MAIN_HAND_INVENTORY_SLOT = EQUIPMENT_SLOT_OFFSET + MAIN_HAND_EQUIPMENT_INDEX;
+export { MAIN_HAND_EQUIPMENT_INDEX } from './container-addressing.js';
+/** Legacy name for `MAIN_HAND_SELECTED_SLOT`: a named selected-slot value, not layout arithmetic. */
+export const MAIN_HAND_INVENTORY_SLOT = MAIN_HAND_SELECTED_SLOT;
 export interface EquippedInventoryEntry {
   readonly slot: number; readonly itemKind: string; readonly quantity: number; readonly durability?: number;
 }
@@ -45,7 +47,7 @@ export function compileEquipmentLoadout(input: {
       || !activeEquipmentSlotAccepts(localSlot,row.itemKind,content)) continue;
     const item = input.registry.items.get(`item:${row.itemKind}`)!;
     if (item.retired === true || row.quantity > item.maxStack) continue;
-    if (localSlot === MAIN_HAND_EQUIPMENT_INDEX && (row.slot !== input.selectedSlot
+    if (localSlot === MAIN_HAND_EQUIPMENT_INDEX && (!isMainHandSelectedSlot(input.selectedSlot)
       || item.combat === undefined || (item.durability !== undefined && (row.durability ?? 0) <= 0))) continue;
     if (localSlot === 5 && input.bowDrawn === true) continue;
     for (const modifier of item.modifiers ?? []) equipped.push({...modifier,id:`equipment.${row.slot}.${modifier.id}`,source:'equipment'});

@@ -62,7 +62,7 @@ function fixture(window: OverworldWindow = 'inventory', overrides: Partial<Overw
   const handlers = callbacks();
   const ui = new OverworldUi(paint?.skin ?? {} as UiSkin, paint?.fonts ?? {} as PixelUi, {} as OverworldUiItemArt, handlers);
   let model: OverworldUiModel = { width: 800, height: 600, connected: true, playerCount: 1, selectedSlot: 0,
-    inventory: [{ slot: 10, itemKind: 'wood', quantity: 8 }], hasBackpack: true, backpackSlotCapacity: 20,
+    inventory: [{ container: 'backpack', index: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: true, backpackSlotCapacity: 20,
     contentRegistry: registry, activeFrameId: window === 'chest' ? 'frame:chest' : window === 'barrel' ? 'frame:barrel' : undefined,
     activeFrameState: { sealed: false }, knownRecipeIds: ['planks'],
     audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -90,7 +90,7 @@ function fixture(window: OverworldWindow = 'inventory', overrides: Partial<Overw
 
 describe('chest window keyboard focus (BUG-064)', () => {
   it('opens without focusing the Filter, so keys and Escape stay with the game and window', () => {
-    const f = fixture('chest', { openChestInventory: [{ slot: 0, itemKind: 'apple', quantity: 5 }] });
+    const f = fixture('chest', { openChestInventory: [{ index: 0, itemKind: 'apple', quantity: 5 }] });
     try {
       f.root.arrange();
       const focused = f.root.focus.current;
@@ -107,7 +107,7 @@ describe('chest window keyboard focus (BUG-064)', () => {
   });
 
   it('still lets the player click into the Filter and type', () => {
-    const f = fixture('chest', { openChestInventory: [{ slot: 0, itemKind: 'apple', quantity: 5 }] });
+    const f = fixture('chest', { openChestInventory: [{ index: 0, itemKind: 'apple', quantity: 5 }] });
     try {
       f.root.arrange();
       const filter = f.root.entries().find(({ element }) => element.label === 'Filter items')!.element;

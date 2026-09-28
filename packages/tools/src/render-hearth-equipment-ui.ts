@@ -32,7 +32,8 @@ const output=resolve(root,process.argv.slice(2).find(argument=>!argument.startsW
  ?? `output/doc60/equipment-${stash?'stash':ferry?'ferry':rewards?'rewards':skills?'skills':'inventory'}.png`);
 const settings={width:(furnishing||orders||seals||(danger&&!compact))?960:compact?1080:1440,height:(furnishing||orders||seals||(danger&&!compact))?540:810,uiWidth:(furnishing||orders||seals||(danger&&!compact))?320:compact?360:480,uiHeight:(furnishing||orders||seals||(danger&&!compact))?180:270,scale:3,danger,seals,skills,rewards,rewardState,ferry,stash,furniture,furnishing,seating,expansion,construction,constructionReview,intro,rowan,furnishContract,expeditionContract,orders,orderReview,orderPending};
 const scene=`
-import { villageOrders,villageOrderQuote,bootstrapContentRegistry,hearthFurnitureDefinition,compileEquipmentLoadout,MAIN_HAND_INVENTORY_SLOT } from '/packages/sim/src/index.ts';
+import { villageOrders,villageOrderQuote,bootstrapContentRegistry,hearthFurnitureDefinition,compileEquipmentLoadout,MAIN_HAND_SELECTED_SLOT } from '/packages/sim/src/index.ts';
+import { legacySlotRows } from '/packages/ui/src/legacy-global-slots.ts';
 import { HomesteadBuildPalette } from '/packages/ui/src/homestead-build-palette.ts';
 import { loadUiKitArt } from '/packages/ui/src/kit/components/art.ts';
 import { NpcInteractionUi } from '/packages/ui/src/npc-interaction-ui.ts';
@@ -44,29 +45,29 @@ try {
  const settings=${JSON.stringify(settings)};
  const art=await loadOverworldArt();
  const registry=bootstrapContentRegistry();
- const inventory=[{slot:0,itemKind:'axe',quantity:1,durability:250},{slot:1,itemKind:'wood',quantity:25},
- {slot:10,itemKind:'hearth_legendary_sword',quantity:1,durability:250},
- {slot:11,itemKind:'hearth_legendary_body',quantity:1},{slot:12,itemKind:'hearth_prospector_pendant',quantity:1},
- {slot:30,itemKind:'hearth_wayfarer_pendant',quantity:1},{slot:31,itemKind:'hearth_rare_head',quantity:1},
- {slot:32,itemKind:'watch',quantity:1},{slot:33,itemKind:'hearth_rare_sword',quantity:1,durability:190},
- {slot:34,itemKind:'backpack',quantity:1},{slot:35,itemKind:'hearth_rare_shield',quantity:1},
- {slot:36,itemKind:'hearth_legendary_hands',quantity:1},{slot:37,itemKind:'hearth_rare_legs',quantity:1},
- {slot:38,itemKind:'hearth_rare_feet',quantity:1},{slot:39,itemKind:'hearth_rare_body',quantity:1}];
+ const inventory=[{container:'hotbar', index:0,itemKind:'axe',quantity:1,durability:250},{container:'hotbar', index:1,itemKind:'wood',quantity:25},
+ {container:'backpack', index:0,itemKind:'hearth_legendary_sword',quantity:1,durability:250},
+ {container:'backpack', index:1,itemKind:'hearth_legendary_body',quantity:1},{container:'backpack', index:2,itemKind:'hearth_prospector_pendant',quantity:1},
+ {container:'equipment', index:0,itemKind:'hearth_wayfarer_pendant',quantity:1},{container:'equipment', index:1,itemKind:'hearth_rare_head',quantity:1},
+ {container:'equipment', index:2,itemKind:'watch',quantity:1},{container:'equipment', index:3,itemKind:'hearth_rare_sword',quantity:1,durability:190},
+ {container:'equipment', index:4,itemKind:'backpack',quantity:1},{container:'equipment', index:5,itemKind:'hearth_rare_shield',quantity:1},
+ {container:'equipment', index:6,itemKind:'hearth_legendary_hands',quantity:1},{container:'equipment', index:7,itemKind:'hearth_rare_legs',quantity:1},
+ {container:'equipment', index:8,itemKind:'hearth_rare_feet',quantity:1},{container:'equipment', index:9,itemKind:'hearth_rare_body',quantity:1}];
  const trainedRanks={blade_training:5,battle_conditioning:4,archery_basics:5,measured_stride:4};
  const skillPriority=['blade_training','battle_conditioning'];
- const loadout=compileEquipmentLoadout({registry,inventory,selectedSlot:MAIN_HAND_INVENTORY_SLOT,trainedRanks,skillPriority});
+ const loadout=compileEquipmentLoadout({registry,inventory:legacySlotRows(inventory),selectedSlot:MAIN_HAND_SELECTED_SLOT,trainedRanks,skillPriority});
  const callbacks=new Proxy({}, {get:(_target,key)=>key==='claimOutdoorReward'?()=>Promise.reject(new Error('reward_inventory_full')):()=>{}});
  const ui=new OverworldUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
  // Inventory windows are the kit's (item slot S9): hand the retained inventory its art.
  ui.enableRetainedInventory(await loadUiKitArt());
- const model={width:settings.uiWidth,height:settings.uiHeight,connected:true,playerCount:1,selectedSlot:MAIN_HAND_INVENTORY_SLOT,
+ const model={width:settings.uiWidth,height:settings.uiHeight,connected:true,playerCount:1,selectedSlot:MAIN_HAND_SELECTED_SLOT,
  inventory,hasBackpack:true,contentRegistry:registry,balanceBronze:10000n,audioVolumes:{master:1,music:1,sfx:1},canAdministerWorld:false,
  dateLabel:'SPRING 1',timeLabel:'12:00',timeFraction:.5,moonPhase:'full_moon',raining:false,weatherMode:'auto',prompt:null,toast:null,
  skills:{nodes:registry.compiled.skillNodes,ranks:Object.entries(trainedRanks).map(([nodeId,rank])=>({nodeId,rank})),
  tracks:['combat','explorer','farming'].map(track=>({track,experience:10000n,spentPoints:10,bonusPoints:0,respecCount:0})),balanceBronze:10000n,equipmentSkills:loadout.skills,skillPriority}};
  model.outdoorRewards=[{id:'study',title:'Ash shore',experience:24,valid:true,items:[{itemKind:'basalt',label:'Basalt',quantity:6},{itemKind:'ashwood',label:'Ashwood',quantity:4},{itemKind:'cinder_ore',label:'Cinder Ore',quantity:2},{itemKind:'emberglass',label:'Emberglass',quantity:1}]}];
  model.outdoorRewardCount=1;model.delveActive=settings.rewardState==='delve';
- if(settings.stash){model.activeFrameId='frame:hearth_stash';model.openStashInventory=[{slot:0,itemKind:'torch',quantity:1,durability:73,lit:false},{slot:19,itemKind:'hearth_rare_bow',quantity:1,durability:120}];}
+ if(settings.stash){model.activeFrameId='frame:hearth_stash';model.openStashInventory=[{index:0,itemKind:'torch',quantity:1,durability:73,lit:false},{index:19,itemKind:'hearth_rare_bow',quantity:1,durability:120}];}
  ui.openWindow=settings.stash?'content':settings.ferry?'ferry':settings.rewards?'outdoor-rewards':settings.skills?'skills':'inventory';ui.update(model);
  if(settings.ferry)ui.openFerry('orchard');
  if(settings.rewards&&settings.rewardState==='full-bags'){ui.handleKeyDown('Enter',false);for(let i=0;i<5;i++)await Promise.resolve();}

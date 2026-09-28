@@ -86,8 +86,10 @@ function seed(connection: FakeConnection): void {
   for (const [table, values] of Object.entries({
     worldClock: [{ id: 0, authorityTick: 100n }], worldEnvironment: [{ id: 0 }], worldSeed: [{ id: 0, seed: 42 }],
     playerPosition: [position], ownSurvival: [{ identity }], ownCharacterProfile: [{ identity }], ownMembership: [{ identity }],
-    ownHearthStashSlots:[{id:'stash:3',identity,slot:3,itemKind:'torch',quantity:1,durability:73,lit:false}],
-    ownInventorySlots: [{ slot: 0, itemKind: 'axe', quantity: 1, durability: 17, lit: true }],
+    ownPlayerContainerCells: [
+      { id: `${identity.toHexString()}:stash:3`, identity, container: 'stash', index: 3, itemKind: 'torch', quantity: 1, durability: 73, lit: false },
+      { id: `${identity.toHexString()}:hotbar:0`, identity, container: 'hotbar', index: 0, itemKind: 'axe', quantity: 1, durability: 17, lit: true },
+    ],
     runtimeContentDefinitions: rows,
     contentHead: [{ packId: 'live', revision: 1n, engineVersion: CLIENT_CONTENT_ENGINE_VERSION,
       contentHash: contentDefinitionRowsHash(rows), definitionCount: rows.length }],
@@ -111,7 +113,7 @@ function placeable(id: bigint, definitionId: string): Row {
     spaceId: TOPSIDE_SPACE_ID, placedBy: identity, facing: 'down', open: true, lit: false, stateJson: '{}' };
 }
 function slot(placeableId: bigint, index: number, itemKind: string): Row {
-  return { id: `${placeableId}:${index}`, placeableId, slot: index, itemKind, quantity: 2, durability: 0, lit: true };
+  return { id: `${placeableId}:${index}`, placeableId, index, itemKind, quantity: 2, durability: 0, lit: true };
 }
 
 describe('OverworldConnection placeable session through the SDK callbacks (BUG-058)', () => {
@@ -135,7 +137,7 @@ describe('OverworldConnection placeable session through the SDK callbacks (BUG-0
     networks.push(network); await flush();
     const connection = connections[0]!;
     await hydrate(connection); connection.subscriptions[4]?.applied(); await flush();
-    const active = connection.table('ownActivePlaceable'), slots = connection.table('ownOpenPlaceableSlots');
+    const active = connection.table('ownActivePlaceable'), slots = connection.table('ownOpenPlaceableContainerCells');
     const workbench = placeable(8n, 'object:workbench'), chest = placeable(7n, 'object:chest');
     // The player uses a workbench: the server opens its session (the client shows the crafting grid, or nothing on main).
     active.inserted[0]?.({ event: { id: 'bench' } }, workbench);
@@ -151,7 +153,7 @@ describe('OverworldConnection placeable session through the SDK callbacks (BUG-0
     expect(view.activePlaceable?.id).toBe(7n);
     expect(view.activeChest?.id).toBe(7n);
     expect(view.openChestSlots.size).toBe(16);
-    expect(view.openChestSlots.get(0)).toMatchObject({ chestId: 7n, itemKind: 'apple' });
+    expect(view.openChestSlots.get(0)).toMatchObject({ placeableId: 7n, index: 0, itemKind: 'apple' });
     // Closing the chest still ends the session.
     active.deleted[0]?.({ event: { id: 'close' } }, chest);
     for (let index = 0; index < 16; index++) slots.deleted[0]?.({ event: { id: 'close' } }, slot(7n, index, index === 0 ? 'apple' : 'empty'));

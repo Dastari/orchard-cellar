@@ -1,6 +1,6 @@
 {
   "name": "@orchard/sim",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -51,6 +51,7 @@
     "./npc": "./src/npc.ts",
     "./character-name": "./src/character-name.ts",
     "./inventory-layout": "./src/inventory-layout.ts",
+    "./container-addressing": "./src/container-addressing.ts",
     "./content/frame-runtime": "./src/content/frame-runtime.ts",
     "./commerce": "./src/commerce.ts",
     "./equipment-loadout": "./src/equipment-loadout.ts",

@@ -106,13 +106,15 @@ describe('item world-adapter row-write parity', () => {
 
   it('keeps each concrete equipped light row and replicated light state in sync', () => {
     expect(writer).toContain("subjectItem?.containerId !== 'equipment'");
-    expect(writer).toContain('`${ctx.sender.toHexString()}:${subjectItem.slot}`');
+    // The subject's legacy equipment slot resolves to its concrete equipment cell, bounded to the equipment range.
+    expect(writer).toContain('subjectItem.slot < EQUIPMENT_SLOT_OFFSET || subjectItem.slot >= EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT');
+    expect(writer).toContain('equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot - EQUIPMENT_SLOT_OFFSET)');
     expect(writer).toContain('row.id !== subjectItem.instanceId');
     expect(writer).toContain('row.itemKind !== subjectItem.kind');
     expect(writer).toContain('row.quantity <= 0');
     expect(writer).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'emits.light')");
     expect(writer).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'gear.off_hand')");
-    expect(writer).toContain('ctx.db.inventory_slot.id.update({ ...row, lit: !row.lit })');
+    expect(writer).toContain('putInventoryCell(ctx, { ...row, lit: !row.lit })');
     expect(writer).toContain('equippedKind: lightItem.itemKind');
     expect(writer).toContain('equippedLit: light.enabled');
   });
