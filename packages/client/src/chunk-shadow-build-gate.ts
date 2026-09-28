@@ -13,11 +13,15 @@ export type ChunkRuntimeBuildMode = typeof CHUNK_RUNTIME_BUILD_MODES[number];
  * The one reviewed release that may ship an `on` client to players.
  *
  * `null` means no release is approved, so every production build refuses `on`.
- * The S5c activation PR sets this to its release id, and the release build must also
- * export the same id in ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE. Changing this line
- * is the activation decision: it needs its own review, separate from runtime code.
+ * The release build must carry the same id in ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE
+ * (the release lanes set it from WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION). Changing this
+ * line is the activation decision: it needs its own review, separate from runtime code.
+ *
+ * Static world S5c activation (2026-09-28). Since this is set, both release lanes need an
+ * explicit WORLD_RELEASE_CLIENT_CHUNK_RUNTIME, and `off`/`shadow` only with
+ * WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1 (G6). Back to `null` only in a reviewed deactivation.
  */
-export const CHUNK_RUNTIME_ACTIVATION_RELEASE: string | null = null;
+export const CHUNK_RUNTIME_ACTIVATION_RELEASE: string | null = 's5c-client-activation-20260928';
 
 /** Build-time environment variable naming the approved release (never exposed to the bundle). */
 export const CHUNK_RUNTIME_ACTIVATION_ENV = 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE';

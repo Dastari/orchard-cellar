@@ -174,16 +174,18 @@ service therefore cannot silently return a development server to players.
 `VITE_CHUNK_RUNTIME_MODE` is `off` (the default), `shadow` or `on`. Every client build
 except `--mode chunk-runtime-preview` is a production build and refuses `on` unless the
 committed `CHUNK_RUNTIME_ACTIVATION_RELEASE` in `packages/client/src/chunk-shadow-build-gate.ts`
-(null until the S5c activation release) equals `ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE`
-in the build environment. `npm run client:chunks:check` and `client:static:validate` reject a
+(`'s5c-client-activation-20260928'` since the S5c activation; it was `null` before) equals
+`ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE` in the build environment. The release lanes set
+that variable themselves from `WORLD_RELEASE_CLIENT_CHUNK_*`. Never export it; see "Client
+chunk runtime in the routine lane" in PUBLISHING.md. `npm run client:chunks:check` and `client:static:validate` reject a
 `dist` whose `chunk-runtime-audit.json` is an unapproved `on` build. The preview mode writes
 `packages/client/dist-chunk-preview`, never `dist`, and is only served by an explicit
 `vite preview --mode chunk-runtime-preview` on a separate port.
 
-Once S5c sets the committed release constant, a leftover
-`ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE` in the environment makes every later `off` or
-`shadow` build fail with `chunk_runtime_activation_release_mismatch`. Unset it once the
-activation build is done.
+With the committed release constant set, a stray `ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE`
+in the environment makes every `off` or `shadow` build fail with
+`chunk_runtime_activation_release_mismatch`. Both release lanes refuse the raw variable
+before they start (exit `64`).
 
 ### World chunk blobs (`/world/`)
 
@@ -232,9 +234,12 @@ and are served by the `orchard-world-chunk-serving` plugin
 - **Service worker.** The PWA worker does not intercept `/world/`. The client's
   IndexedDB chunk cache is the only client-side cache.
 
-Enabling the directory in production takes one line in `orchard-frontend.service`
-(installed and repository copies), followed by `systemctl daemon-reload` and a
-restart of the frontend only:
+The directory is enabled in production. The repository unit
+(`ops/orchard-runtime/systemd/orchard-frontend.service`) carries the line below. On the host
+the same line is installed as the drop-in
+`/etc/systemd/system/orchard-frontend.service.d/world-chunks.conf`; a drop-in is acceptable,
+and backups and rollback bundles capture drop-ins. Any change needs
+`systemctl daemon-reload` and a restart of the frontend only:
 
 ```ini
 Environment=ORCHARD_WORLD_CHUNK_DIR=/home/toby/.local/share/orchard/world-chunks

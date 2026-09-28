@@ -21,9 +21,11 @@ it('does not mistake the chunk-native decoder for legacy generation',()=>{
  expect(chunkRuntimeBuildAudit('shadow',['/repo/packages/sim/src/world-chunk.ts','/repo/packages/engine/src/bounded-chunk-terrain-store.ts'],{requireGeneratorFree:true}).legacyModules).toEqual([]);
 });
 describe('activation guard',()=>{
- it('ships with no approved release',()=>{
-  // Flipping this is the S5c activation decision and needs its own review.
-  expect(CHUNK_RUNTIME_ACTIVATION_RELEASE).toBeNull();
+ it('ships the reviewed S5c activation release',()=>{
+  // Changing this is the activation decision and needs its own review.
+  expect(CHUNK_RUNTIME_ACTIVATION_RELEASE).toBe('s5c-client-activation-20260928');
+  // G10: never an id the tests use as a mismatched example.
+  for(const example of ['static-world-s5c','static-world-s5b','anything'])expect(CHUNK_RUNTIME_ACTIVATION_RELEASE).not.toBe(example);
  });
  it('refuses an `on` production build without the reviewed release flag',()=>{
   expect(()=>chunkRuntimeBuildAudit('on',[],{production:true})).toThrow(/activation_not_approved/);
@@ -94,6 +96,13 @@ describe('vite config wiring',()=>{
   await expect(run(on,'serve','development')).resolves.toMatchObject({build:{outDir:'dist'}});
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'shadow',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production')).resolves.toMatchObject({build:{outDir:'dist'}});
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'on',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:'static-world-s5c'},'build','client-production')).rejects.toThrow(/release_mismatch/);
+  // The committed release: the release lane's `on` build.
+  await expect(run({VITE_CHUNK_RUNTIME_MODE:'on',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:CHUNK_RUNTIME_ACTIVATION_RELEASE!},'build','client-production'))
+   .resolves.toMatchObject({build:{outDir:'dist'}});
+  // A leftover release id on an off/shadow build is refused, never ignored.
+  await expect(run({VITE_CHUNK_RUNTIME_MODE:'shadow',ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:CHUNK_RUNTIME_ACTIVATION_RELEASE!},'build','client-production')).rejects.toThrow(/release_mismatch/);
+  // Off stays the default release build, with no id.
+  await expect(run({VITE_CHUNK_RUNTIME_MODE:undefined,ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production')).resolves.toMatchObject({build:{outDir:'dist'}});
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'live'},'serve','development')).rejects.toThrow(/mode_invalid/);
  });
 });
