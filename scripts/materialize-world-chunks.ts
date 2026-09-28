@@ -16,6 +16,7 @@ import {
 import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, type LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { chunkMapRecordsReach, chunkMapViewAllowanceTiles } from '@orchard/engine/chunk-map-records';
 import { createClientCollisionMap } from '@orchard/engine/collision';
+import { islandCollisionGenerators } from '@orchard/engine/collision-island';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { ChunkTerrainStore } from '@orchard/engine/chunk-terrain-store';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunkChannel, worldChunkHash, WORLD_CHUNK_SIZE, WORLD_CHUNK_MEDIA, WORLD_CHUNK_MEDIUM_SCHEMA, WORLD_CHUNK_VOID,
@@ -240,7 +241,8 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   for (const decoration of generateSurvivalLandmarkDecorations(activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID))) suppressions.add(`decoration-${decoration.id}`);
   const docks = activeSpaceGroundWalkableTiles(registry, TOPSIDE_SPACE_ID, document.landmarks);
   const clientCollision = (medium: 'ground' | 'water'): CollisionMap => {
-    const base = createClientCollisionMap(terrain, [], [], medium, [], suppressions, docks, registry);
+    // The whole generated island: its decorations and plane collision come from the generator (S6).
+    const base = createClientCollisionMap(terrain, [], [], medium, [], suppressions, docks, registry, undefined, islandCollisionGenerators);
     const collision: CollisionMap = { width: base.width, height: base.height, blocked: base.blocked,
       ...(base.elevations === undefined ? {} : { elevations: base.elevations }),
       ...(base.terrainPlaneBlocked === undefined ? {} : { terrainPlaneBlocked: base.terrainPlaneBlocked }),
