@@ -1,4 +1,6 @@
 import {
+  CHEST_STORAGE_CAPACITY,
+  activeHearthLobbyDefinition,
   frameRestrictions,
   type ContentRegistry,
   type FrameContentDefinition,
@@ -47,9 +49,11 @@ function frameAndContainerRestrictions(
   registry: ContentRegistry,
   placeable: FramePlaceableRow,
   definition: FrameContentDefinition | null,
+  /** The container's slots, which a pane bound to `entitySlots: all` covers: the object's `slotCount` by default. */
+  capacity = placeableObjectDefinition(registry, placeable)?.components.container?.slotCount ?? 0,
 ): Readonly<Record<number, SlotRestriction>> {
   const restrictions: Record<number, SlotRestriction> = definition === null
-    ? {} : { ...frameRestrictions(definition, registry) };
+    ? {} : { ...frameRestrictions(definition, registry, capacity) };
   for (const restriction of placeableObjectDefinition(registry, placeable)
     ?.components.container?.restrictions ?? []) {
     for (const slot of restriction.slots) {
@@ -91,7 +95,8 @@ export function hearthStashFrameRestrictions(
   registry: ContentRegistry,
 ): Readonly<Record<number, SlotRestriction>> {
   const frame = presentedEntityFrame(registry.frames.get(HEARTH_STASH_FRAME_ID));
-  return frame === null ? Object.freeze({}) : frameRestrictions(frame, registry);
+  return frame === null ? Object.freeze({})
+    : frameRestrictions(frame, registry, activeHearthLobbyDefinition(registry)?.stashCapacity ?? 0);
 }
 
 /** Slot rules the authority applies to a legacy `world_chest` container, resolved
@@ -105,6 +110,7 @@ export function legacyWorldChestFrameRestrictions(
 ): Readonly<Record<number, SlotRestriction>> {
   const object = placeableObjectDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE);
   if (object === undefined || object.retired === true) return Object.freeze({});
+  // A legacy `world_chest` row always has the fixed chest storage, whatever the generic chest object's slotCount.
   return frameAndContainerRestrictions(registry, LEGACY_WORLD_CHEST_PLACEABLE,
-    presentedEntityFrame(placeableFrameDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE)));
+    presentedEntityFrame(placeableFrameDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE)), CHEST_STORAGE_CAPACITY);
 }

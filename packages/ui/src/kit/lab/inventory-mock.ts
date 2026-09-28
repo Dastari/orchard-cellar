@@ -1,4 +1,4 @@
-import { resolveFramePaneSlots } from '../../content-frame.js';
+import { frameDefaultEntityCapacity, resolveFramePaneSlots } from '../../content-frame.js';
 import type { UiContentFrameOptions } from '../components/content-frame.js';
 import { EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT, itemDefinition, slotAcceptsItem, type ContainerSnapshot } from '@orchard/sim';
 import type { LoadedAsset } from '../../assets.js';
@@ -20,7 +20,7 @@ export function uiLabInventory(mock: UiLabMocks, status?: UiElement, empty = fal
     else if (frame.definition.id === 'frame:fermentation') containers[frame.aliases.entity] = { id: frame.aliases.entity, capacity: 2, slots: [{ itemKind: 'must', quantity: 6 }, { itemKind: 'bottles', quantity: 2 }] };
     else if (frame.definition.id === 'frame:barrel') containers[frame.aliases.entity] = { id: frame.aliases.entity, capacity: 10, slots: [{ itemKind: 'beetroot', quantity: 8 }] };
   }
-  if (frame) for (const pane of frame.definition.panes) for (const binding of resolveFramePaneSlots(pane, frame.aliases, frame.registry)) {
+  if (frame) for (const pane of frame.definition.panes) for (const binding of resolveFramePaneSlots(pane, frame.aliases, frame.registry, { entity: frameDefaultEntityCapacity(frame.definition, frame.registry) })) {
     const previous = containers[binding.containerId] ?? { id: binding.containerId, capacity: 0, slots: [] };
     containers[binding.containerId] = { ...previous, capacity: Math.max(previous.capacity, binding.index + 1),
       restrictions: { ...previous.restrictions, ...(binding.restriction ? { [binding.index]: binding.restriction } : {}) } };

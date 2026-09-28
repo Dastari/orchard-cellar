@@ -2,6 +2,17 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.52.1 / UI 0.53.1 / Sim 0.34.0 / World 0.30.6 / Studio 0.16.18 — Uncapped Storage step 3: whole-container panes, 256-slot ceiling
+
+- **Uncapped Storage step 3 (#272):**
+  - **Whole-container panes:** frames can bind `entitySlots: 'all'`, a pane over every slot of the open chest, barrel or stash, scrolling with the authored `rows` as the visible rows. The server derives each container's size from its own content registry and applies frame slot rules to exactly those slots.
+  - **Backpack pane:** it binds the whole accessible capacity.
+  - **Ceiling:** a placeable's `container.slotCount` and the stash's `stashCapacity` accept up to 256, the storage limit until the step-4 migration. The Studio field help explains the range.
+  - **Trade and merchant sell:** they guard each cell as currently bound, so large scrolling panes work.
+  - **Content unchanged:** the chest, barrel and stash frames keep their slot lists. Switching them to `'all'` ships later with a client refresh.
+- **Legacy chests:** legacy `world_chest` rows are always sized by the fixed chest storage (16).
+- Workspace 0.77.0.
+
 ## Client 0.52.0 / UI 0.53.0 / World 0.30.5 / Studio 0.16.17 / Tools 0.24.6 — One player-inventory pane everywhere; scrolling storage grid
 
 - **BUG-067: every window that shows the player's inventory uses the one shared pane (#264, #265, #266, #269), as the owner decided.**

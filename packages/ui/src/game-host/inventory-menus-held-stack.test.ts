@@ -6,6 +6,7 @@ import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
 import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_OFFSET, EQUIPMENT_SLOT_RESTRICTIONS, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { clickContainerSlot, itemPolicyResolver } from '@orchard/sim/item-containers';
 import { uiSlotDropTarget } from '../kit/components/inventory.js';
+import { scrollUiElement } from '../kit/layout/scroll.js';
 import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
 import type { LoadedAsset } from '../assets.js';
@@ -279,6 +280,75 @@ describe('the refused-drop flash above the held stack (owner decision 2026-09-28
       expect(built.c.toBuffer('image/png').equals(oracle.c.toBuffer('image/png'))).toBe(true);
       // While it plays, the flash shows above the held stack: without it the picture differs.
       expect(built.c.toBuffer('image/png').equals(plain.c.toBuffer('image/png'))).toBe(t >= 300);
+    } finally { f.dispose(); }
+  });
+});
+
+// Uncapped Storage step 3 (wiki Roadmap/Uncapped Storage): a chest or stash bound with `entitySlots: all` shows its
+// whole container, 256 slots at the ceiling, scrolling through a few dozen recycled slots, and every shown slot's drop
+// verdict is the authority's.
+describe('a 256-slot chest and stash (Uncapped Storage step 3)', () => {
+  const CAPACITY = 256;
+  const onlyFruit = { acceptedItems: ['item:apple', 'item:wood'] as `item:${string}`[] };
+  const variant = (() => {
+    const frames = new Map(registry.frames), objects = new Map(registry.objects);
+    for (const id of ['frame:chest', 'frame:hearth_stash']) {
+      const frame = registry.frames.get(id)!;
+      // The shipped frames still list their slots (the switch waits for a client refresh); bind the whole container here.
+      frames.set(id, { ...frame, panes: frame.panes.map(pane => 'entitySlots' in pane.bind ? { ...pane, restriction: onlyFruit, bind: { entitySlots: 'all' as const } } : pane) });
+    }
+    const chest = registry.objects.get('object:chest')!;
+    objects.set('object:chest', { ...chest, components: { ...chest.components, container: { ...chest.components.container!, slotCount: CAPACITY } } });
+    return { ...registry, frames, objects } as typeof registry;
+  })();
+  const scenes = [
+    { name: 'chest', window: 'chest' as const, frameId: 'frame:chest' as const, container: 'chest', stored: 'openChestInventory' as const },
+    { name: 'stash', window: 'content' as const, frameId: 'frame:hearth_stash' as const, container: 'stash', stored: 'openStashInventory' as const },
+  ];
+  it.each(scenes)('the $name scrolls through all 256 slots with bounded slots, and every drop verdict is the authority\'s', async scene => {
+    const items = [{ slot: 0, itemKind: 'apple', quantity: 5 }, { slot: 130, itemKind: 'pickaxe', quantity: 1 }, { slot: 255, itemKind: 'wood', quantity: 3 }];
+    const restrictions = frameRestrictions(variant.frames.get(scene.frameId)!, variant, CAPACITY);
+    expect(Object.keys(restrictions)).toHaveLength(CAPACITY);
+    const policy = itemPolicyResolver(variant);
+    for (const held of ['apple', 'pickaxe']) {
+      const cursor = { itemKind: held, quantity: 1 };
+      const f = await fixture(scene.window, { activeFrameId: scene.frameId, contentRegistry: variant, [scene.stored]: items, openEntityCapacity: CAPACITY, cursorStack: cursor });
+      try {
+        expect(f.ui.retainedInventoryActive).toBe(true);
+        const stored = new Map(items.map(item => [item.slot, item]));
+        const containers: Record<string, ContainerSnapshot> = { [scene.container]: { id: scene.container, capacity: CAPACITY, restrictions,
+          slots: Array.from({ length: CAPACITY }, (_, index) => { const item = stored.get(index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; }) } };
+        f.root.arrange();
+        const area = f.root.entries().find(({ element }) => element.kind === 'scroll-area' && element.label === `${scene.container} slots`)!.element;
+        expect(area.scroll.maxY).toBe(Math.ceil(CAPACITY / 5) * 33 - 2 - (4 * 33 - 2));
+        const seen = new Set<number>();
+        for (const y of [0, Math.round(area.scroll.maxY / 2), area.scroll.maxY]) {
+          scrollUiElement(area, 0, y); f.root.arrange();
+          const bound = f.root.entries().flatMap(({ element }) => { const ref = element.props['binding'] as { container: string; index: number } | undefined; return ref?.container === scene.container ? [{ element, ref }] : []; });
+          expect(bound.length).toBeLessThanOrEqual(25);
+          for (const { element, ref } of bound) {
+            if (!element.visible) continue;
+            seen.add(ref.index);
+            const result = clickContainerSlot(containers, cursor, { container: scene.container, index: ref.index, button: 'left' }, policy);
+            const refused = !result.ok && result.code === 'slot_rejects_item';
+            expect(uiSlotDropTarget(element), `${held} over ${scene.container}/${ref.index}`).toBe(refused ? 'refuse' : 'accept');
+          }
+        }
+        expect(seen.has(0) && seen.has(130) && seen.has(255)).toBe(true);
+      } finally { f.dispose(); }
+    }
+  });
+
+  it.each(scenes)('the $name picks up from its last slot through the host\'s gesture source', async scene => {
+    const click = vi.fn().mockResolvedValue(undefined);
+    const f = await fixture(scene.window, { activeFrameId: scene.frameId, contentRegistry: variant,
+      [scene.stored]: [{ slot: 255, itemKind: 'wood', quantity: 3 }], openEntityCapacity: CAPACITY }, { inventoryCursorClick: click });
+    try {
+      f.root.arrange();
+      const area = f.root.entries().find(({ element }) => element.kind === 'scroll-area' && element.label === `${scene.container} slots`)!.element;
+      scrollUiElement(area, 0, area.scroll.maxY); f.root.arrange();
+      f.root.focus.set(f.slot(scene.container, 255), 'keyboard'); f.root.key({ key: 'Enter' });
+      expect(click).toHaveBeenCalledExactlyOnceWith(scene.container, 255, 'left');
     } finally { f.dispose(); }
   });
 });

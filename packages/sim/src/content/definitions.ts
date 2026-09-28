@@ -92,7 +92,7 @@ import {
 } from './outdoor-encounter-definition.js';
 
 import { CONTENT_SCHEMA_VERSION, ContentParseError, type ContentParseErrorCode } from './parse-contract.js';
-export { CONTENT_SCHEMA_VERSION, ContentParseError, type ContentParseErrorCode } from './parse-contract.js';
+export { CONTENT_SCHEMA_VERSION, ContentParseError, MAX_CONTAINER_CAPACITY, type ContentParseErrorCode } from './parse-contract.js';
 
 export const SUPPORTED_CONTENT_KINDS = [
   'item', 'recipe', 'process', 'shop', 'tileset', 'object', 'frame', 'loot',
@@ -1225,6 +1225,7 @@ export {
 } from './outdoor-encounter-definition.js';
 export {
   parseFrameDefinition,
+  frameEntitySlotIndexes,
   type FrameContentDefinition,
   type FrameDefinitionId,
 } from './frame-definition.js';

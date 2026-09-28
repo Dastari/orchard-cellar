@@ -304,3 +304,42 @@ describe('BUG-046: hearth stash and legacy chest frame rules on the authority', 
     expect(authority).toContain('legacyWorldChestFrameRestrictions(contentRegistry(ctx))');
   });
 });
+
+describe('Uncapped Storage step 3: a pane bound to the whole container', () => {
+  function barrelBoundToAll() {
+    const rows = bootstrapContentRows().map((row) => {
+      if (row.id !== 'frame:barrel') return row;
+      const frame = JSON.parse(String(row.json)) as { panes: { bind: Record<string, unknown> }[] };
+      return { ...row, json: JSON.stringify({ ...frame, panes: frame.panes.map((pane) => pane.bind.entitySlots === undefined ? pane
+        : { ...pane, bind: { entitySlots: 'all' } }) }) };
+    });
+    const built = buildContentRegistry(rows);
+    expect(built.report.errors).toEqual([]);
+    return built.registry;
+  }
+
+  it('gives a barrel bound with entitySlots: all the same rules on every slot of its container as its list does', () => {
+    const listed = placeableFrameRestrictions(registry, { kind: 'barrel' });
+    const all = placeableFrameRestrictions(barrelBoundToAll(), { kind: 'barrel' });
+    expect(Object.keys(listed)).toHaveLength(8);
+    expect(all).toEqual(listed);
+    expect(all[0]?.acceptedKinds).toContain('carrot');
+  });
+
+  it('sizes a legacy world chest by its fixed storage, not the chest object', () => {
+    const rows = bootstrapContentRows().map((row) => {
+      if (row.id === 'object:chest') {
+        const chest = JSON.parse(String(row.json)) as { components: { container: Record<string, unknown> } };
+        return { ...row, json: JSON.stringify({ ...chest, components: { ...chest.components, container: { ...chest.components.container, slotCount: 40 } } }) };
+      }
+      if (row.id !== 'frame:chest') return row;
+      const frame = JSON.parse(String(row.json)) as { panes: { bind: Record<string, unknown> }[] };
+      return { ...row, json: JSON.stringify({ ...frame, panes: frame.panes.map((pane) => pane.bind.entitySlots === undefined ? pane
+        : { ...pane, bind: { entitySlots: 'all' }, restriction: { acceptedItems: ['item:apple'] } }) }) };
+    });
+    const built = buildContentRegistry(rows);
+    expect(built.report.errors).toEqual([]);
+    expect(Object.keys(legacyWorldChestFrameRestrictions(built.registry))).toHaveLength(16);
+    expect(Object.keys(placeableFrameRestrictions(built.registry, { kind: 'chest', definitionId: 'object:chest' }))).toHaveLength(40);
+  });
+});
