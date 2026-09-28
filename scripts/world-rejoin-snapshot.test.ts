@@ -186,7 +186,7 @@ describe('world rejoin snapshot normalization', () => {
       'ownPlayerPrediction', 'ownFishingCast', 'ownTradeSession', 'ownTradeOffers',
       'ownActiveDialogue', 'ownActiveHearthStash', 'ownCombatState',
       'worldChest', 'ownActiveChest', 'ownOpenChestSlots',
-      'ownActivePlaceable', 'ownOpenPlaceableSlots', 'visibleWorldSpeech', 'observer statistics',
+      'ownActivePlaceable', 'ownOpenPlaceableSlots', 'ownOpenPlaceableContainerCells', 'visibleWorldSpeech', 'observer statistics',
     ]);
     const tables = rawTables();
     tables['ownPlayerStatistics'] = [
@@ -303,6 +303,16 @@ describe('world rejoin smoke safety contract', () => {
 
   it('loads in the Node release process without requiring Vite browser globals', async () => {
     await expect(import('./world-rejoin-smoke.js')).resolves.toBeDefined();
+  });
+
+  it('passes its bindings check against the regenerated bindings, container-cell views included (Uncapped Storage 4c)', async () => {
+    const { assertCurrentBindings } = await import('./world-rejoin-smoke.js');
+    expect(() => assertCurrentBindings()).not.toThrow();
+    const { tables } = await import('@orchard/world-bindings');
+    const surface = tables as unknown as Record<string, unknown>;
+    for (const accessor of ['ownPlayerContainerCells', 'ownPlacedPlaceableContainerCells', 'ownOpenPlaceableContainerCells']) {
+      expect(surface[accessor], accessor).toBeDefined();
+    }
   });
 
   it('uses saved tokens only for connection and never invokes reducers or broad subscriptions', () => {

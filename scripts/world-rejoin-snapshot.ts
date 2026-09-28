@@ -43,6 +43,7 @@ export const WORLD_REJOIN_EXCLUSIONS = Object.freeze([
   { accessor: 'ownOpenChestSlots', reason: 'legacy in-flight container UI session' },
   { accessor: 'ownActivePlaceable', reason: 'in-flight container UI session' },
   { accessor: 'ownOpenPlaceableSlots', reason: 'in-flight container UI session; durable owned slots use ownPlacedPlaceableSlots' },
+  { accessor: 'ownOpenPlaceableContainerCells', reason: 'in-flight container UI session (container cells); durable owned cells use ownPlacedPlaceableContainerCells' },
   { accessor: 'visibleWorldSpeech', reason: 'short-lived presentation event' },
   { accessor: 'observer statistics', reason: 'connections_opened, world_entries, and time_played are changed by the read-only reconnect act itself' },
 ] as const);

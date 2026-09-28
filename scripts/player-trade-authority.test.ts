@@ -6,7 +6,7 @@ describe('two-identity production trade reducer integration', () => {
   it('exchanges escrow and bronze exactly once, preserving item metadata and private views', () => {
     const h = tradeHarness();
     expect(h.alice.isEqual(h.bob)).toBe(false);
-    h.put(h.alice, 0, 'axe', 1, 73, false); h.put(h.bob, 0, 'wood', 12);
+    h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73, false); h.put(h.bob, { container: 'hotbar', index: 0 }, 'wood', 12);
     const tradeId = h.start();
     h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 });
     h.run('setTradeOfferItem', h.bob, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 4 });
@@ -59,7 +59,7 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it.each(['range', 'space', 'offline'] as const)('rejects active %s loss before either participant can change custody', reason => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9);
     const tradeId = h.start(), position = h.positions.identity.find(h.bob)!;
     if (reason === 'range') h.positions.identity.update({ ...position, x: position.x + 10 * TILE_SIZE_FIXED });
     else if (reason === 'space') h.positions.identity.update({ ...position, spaceId: position.spaceId + 1 });
@@ -84,7 +84,7 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('rolls back the first recipient write when the second recipient inventory is full', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'axe', 1, 73); h.put(h.bob, 0, 'wood', 4);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73); h.put(h.bob, { container: 'hotbar', index: 0 }, 'wood', 4);
     const tradeId = h.start();
     for (const sender of [h.alice, h.bob]) h.run('setTradeOfferItem', sender, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: sender.isEqual(h.alice) ? 1 : 4 });
     h.fill(h.bob);
@@ -100,7 +100,7 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('revalidates the earlier accepting player balance at settlement without losing escrow', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9);
     const tradeId = h.start();
     h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 4 });
     h.run('setTradeOfferBronze', h.alice, { tradeId, amount: 80n });
@@ -116,7 +116,7 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('keeps full-inventory cancellations in owner-specific durable overflow', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'axe', 1, 73, false);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'axe', 1, 73, false);
     const tradeId = h.start();
     h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 });
     h.fill(h.alice); h.run('cancelTrade', h.bob, { tradeId });
@@ -127,7 +127,7 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('executes disconnect escrow recovery and exposes recovered state to a new connection', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9);
     const tradeId = h.start();
     h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 4 });
     h.cursors.insert({ identity: h.bob, itemKind: 'stone', quantity: 2, durability: 0, lit: true });
@@ -143,7 +143,7 @@ describe('two-identity production trade reducer integration', () => {
   });
 
   it('rejects unrelated identities, occupied offers, equipment and forbidden items without writes', () => {
-    const h = tradeHarness(); h.put(h.alice, 0, 'wood', 9); h.put(h.alice, 1, 'marlow_book', 1);
+    const h = tradeHarness(); h.put(h.alice, { container: 'hotbar', index: 0 }, 'wood', 9); h.put(h.alice, { container: 'hotbar', index: 1 }, 'marlow_book', 1);
     const tradeId = h.start();
     h.run('setTradeOfferItem', h.alice, { tradeId, inventoryContainer: 'hotbar', inventoryIndex: 0, tradeSlot: 0, quantity: 1 });
     const before = h.snapshot();
