@@ -38,6 +38,11 @@ const copy: Readonly<Record<ConnectionRecoveryState, { readonly title: string; r
  * behind its last frame before the reconnecting modal appears. */
 export const WORLD_GAP_GRACE_MS = 1500;
 
+/** BUG-062: a reconnect of a world that was already drawn (a tab back from sleep, a dropped
+ * socket) keeps the last frame this long before the RECONNECTING modal, so a quick reconnect
+ * stays quiet. Offline, sign-in and content states still show at once. */
+export const RECONNECT_GRACE_MS = 3000;
+
 /** Static world S4f: a topside arrival (travel, teleport) waiting for the terrain around
  * the player shows its note sooner than a data re-sync, over the retained world. */
 export const TERRAIN_GAP_GRACE_MS = 250;
@@ -65,6 +70,7 @@ export function worldGapPresentation(
   graceMs = WORLD_GAP_GRACE_MS,
   terrainWait = false,
 ): WorldGapPresentation {
+  if (state === 'reconnecting' && hasWorldFrame && !stageError && now - gapStartedAt < RECONNECT_GRACE_MS) return { kind: 'retained-world' };
   if (state !== null) return { kind: 'recovery', state };
   if (!hasWorldFrame || stageError) return { kind: 'initial-loading' };
   if (terrainWait) return now - gapStartedAt < Math.min(graceMs, TERRAIN_GAP_GRACE_MS) ? { kind: 'retained-world' } : { kind: 'resyncing', reason: 'terrain' };

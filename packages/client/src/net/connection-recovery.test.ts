@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConnectionRecovery } from './connection-recovery.js';
+import { ConnectionRecovery, RESUME_PROBE_MS } from './connection-recovery.js';
 
 function harness(connect = vi.fn(async (): Promise<void> => undefined)) {
   const environment = { online: true, visible: true, socketClosed: false };
@@ -161,15 +161,56 @@ describe('connection recovery controller', () => {
     expect(connect).toHaveBeenCalledTimes(2);
   });
 
-  it('uses elapsed wall time to detect suspended clocks and stalled traffic after resume', () => {
+  it('uses elapsed wall time to detect a connection still silent after a short probe on resume', () => {
     const { recovery, environment, disconnect } = harness();
     recovery.resume(); recovery.ready(recovery.generation);
     environment.visible = false; recovery.pause();
     // setSystemTime advances wall time without running timers or performance.now.
     vi.setSystemTime(160_000);
     environment.visible = true; recovery.resume();
+    // BUG-062: the hidden minute is not silence; the queued world updates get RESUME_PROBE_MS.
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(recovery.state).toBe('ready');
+    vi.setSystemTime(160_000 + RESUME_PROBE_MS - 1); recovery.check();
+    expect(disconnect).not.toHaveBeenCalled();
+    // Still nothing after the probe: a dead-but-open socket (a laptop back from sleep) fails quickly.
+    vi.setSystemTime(160_000 + RESUME_PROBE_MS); recovery.check();
     expect(disconnect).toHaveBeenCalledOnce();
     expect(recovery.state).toBe('reconnecting');
+  });
+
+  it('BUG-062: resumes at once after hidden or frozen time when the socket is alive, whatever the length', () => {
+    for (const hiddenMs of [30_000, 120_000, 360_000]) {
+      const { recovery, environment, disconnect, connect } = harness();
+      vi.setSystemTime(100_000);
+      recovery.resume(); recovery.ready(recovery.generation);
+      connect.mockClear();
+      // Hidden: the page stops heartbeating and checking (throttled or frozen timers never fire here).
+      environment.visible = false; recovery.pause();
+      vi.setSystemTime(100_000 + hiddenMs);
+      environment.visible = true; recovery.resume();
+      // The queued world clock updates arrive right after the visibility event.
+      vi.setSystemTime(100_000 + hiddenMs + 50);
+      recovery.observedTraffic(recovery.generation);
+      for (const later of [1_000, RESUME_PROBE_MS, 10_000]) { vi.setSystemTime(100_000 + hiddenMs + later); recovery.observedTraffic(recovery.generation); recovery.check(); }
+      expect(disconnect, `hidden ${hiddenMs} ms`).not.toHaveBeenCalled();
+      expect(connect).not.toHaveBeenCalled();
+      expect(recovery.state).toBe('ready');
+    }
+  });
+
+  it('BUG-062: a socket that closed while hidden still reconnects at once on return, and quietly retries', () => {
+    const { recovery, environment, disconnect, connect } = harness();
+    recovery.resume(); recovery.ready(recovery.generation);
+    connect.mockClear();
+    environment.visible = false; recovery.pause();
+    vi.setSystemTime(460_000);
+    environment.socketClosed = true;
+    environment.visible = true; recovery.resume();
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(recovery.state).toBe('reconnecting');
+    vi.advanceTimersByTime(500);
+    expect(connect).toHaveBeenCalledOnce();
   });
 
   it('times out incomplete hydration after 30 seconds despite fresh clock traffic', () => {
