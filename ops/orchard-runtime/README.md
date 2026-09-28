@@ -76,6 +76,38 @@ The existing `WORLD_RELEASE_PRE_DRAIN_SNAPSHOT` and
 `WORLD_RELEASE_POST_DRAIN_SNAPSHOT` paths hold the restored candidate's first and
 second reconnect snapshots in this mode; their names are retained for compatibility.
 The default `legacy-chests` mode retains the original two-stage chest rehearsal.
+
+For the Uncapped Storage step-4 container-cell migration, also set
+`WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run` (default `skip`). The lane refuses it
+outside `schema-only`, or when the candidate module has no container-cell tables.
+The runner is `scripts/container-cell-migration-runner.ts`
+(`world:container-cell-migrate`). Its stdout carries JSON lines only; SDK logs go
+to stderr. The order is:
+
+1. On the isolated restore: publish the candidate, apply the content head, and
+   run the runner (`CONTAINER_CELL_MIGRATION_TARGET=rehearsal`). The run's
+   JSON-lines log, with every `adminContainerCellMigrationStatus` report and the
+   final `ok` line, goes to `WORLD_RELEASE_REHEARSAL_CONTAINER_CELL_LOG`
+   (default `<backup>/container-cell-migration-rehearsal.jsonl`). Then take the
+   two reconnect captures.
+2. Before production publication, the lane reads the rehearsal's final legacy
+   placeable fingerprint (`placeable-cells:<cells>:<quantity>:<hash>`) with
+   `container-cell-migration-runner.ts final-fingerprint <log>`.
+3. In production, after publication and the content head, the lane runs the
+   runner with `CONTAINER_CELL_MIGRATION_TARGET=production` and
+   `CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT` set to the rehearsal value.
+   The log goes to `WORLD_RELEASE_PRODUCTION_CONTAINER_CELL_LOG`. The
+   reconnect comparison with the rehearsal's first capture runs next.
+
+The final report must be complete: every placeable with legacy rows is copied
+with a matching receipt, and no player plan is refused or truncated. Offline
+players on an older hotbar layout may remain legacy; they move when they
+connect. The production legacy fingerprint must equal the rehearsal's. Any
+failure, including missing or non-JSON rehearsal evidence, fails closed. Before
+publication, the unchanged world restarts with traffic closed. After
+publication, the world and traffic stay stopped for investigation. The runner
+uses the content owner credential (`CONTAINER_CELL_MIGRATION_OWNER_LABEL`).
+It is idempotent, so a second pass changes nothing.
 Choose the mode from the actual live/candidate stored schema and intended data
 changes, not from the size of the working-tree diff or an unrelated Studio guard.
 

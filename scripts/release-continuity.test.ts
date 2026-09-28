@@ -76,6 +76,79 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     }
   });
 
+  it('runs the opt-in container-cell migration on the restore, then in production against the rehearsal fingerprint', () => {
+    // Isolated restore: after the content head, before both reconnect captures, with its log as evidence.
+    const branch = rehearsal.slice(rehearsal.indexOf('if [[ "$migration_kind" = schema-only ]]; then'),
+      rehearsal.indexOf('exit 0', rehearsal.indexOf('if [[ "$migration_kind" = schema-only ]]; then')));
+    const rehearsalRun = branch.indexOf('scripts/container-cell-migration-runner.ts" | tee "$container_cell_log"');
+    expect(branch).toContain('if [[ "$container_cell_migration" = run ]]; then');
+    expect(branch).toContain('CONTAINER_CELL_MIGRATION_TARGET=rehearsal');
+    expect(branch).not.toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT');
+    expect(rehearsalRun).toBeGreaterThan(0);
+    expect(rehearsalRun).toBeLessThan(branch.indexOf('final-fingerprint "$container_cell_log"'));
+    expect(branch.indexOf('final-fingerprint "$container_cell_log"')).toBeLessThan(branch.indexOf('world:rejoin-smoke -- capture'));
+    expect(rehearsal).toContain('container_cell_migration=${WORLD_RESTORE_CONTAINER_CELL_MIGRATION:-skip}');
+
+    // Production: the rehearsal fingerprint is read before publication and pinned for the post-publish run.
+    const rehearsalCall = release.indexOf('WORLD_RESTORE_CONTAINER_CELL_MIGRATION="$container_cell_migration"');
+    const rehearsalFingerprint = release.indexOf('final-fingerprint "$rehearsal_container_cell_log"');
+    const publish = release.indexOf('spacetime publish "$database"');
+    const contentHead = release.indexOf('npm run world:content-head -- apply');
+    const productionRun = release.indexOf('CONTAINER_CELL_MIGRATION_TARGET=production');
+    const productionCompare = release.indexOf('[[ "$production_container_cell_fingerprint" = "$rehearsal_container_cell_fingerprint" ]]');
+    const verify = release.indexOf('world:rejoin-smoke -- verify "$pre_drain_snapshot" "$production_pre_drain_snapshot"');
+    expect(rehearsalCall).toBeGreaterThan(0);
+    expect(rehearsalCall).toBeLessThan(release.lastIndexOf('ops/orchard-runtime/bin/restore-world-rehearsal.sh \\\n'));
+    expect(rehearsalFingerprint).toBeGreaterThan(rehearsalCall);
+    expect(rehearsalFingerprint).toBeLessThan(release.indexOf('live_publish_started=true\n'));
+    expect(publish).toBeLessThan(contentHead);
+    expect(contentHead).toBeLessThan(productionRun);
+    expect(productionRun).toBeLessThan(productionCompare);
+    expect(productionCompare).toBeLessThan(verify);
+    const production = release.slice(productionRun, productionCompare);
+    expect(production).toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT="$rehearsal_container_cell_fingerprint"');
+    expect(production).toContain('CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM="$database"');
+    expect(production).toContain('| tee "$production_container_cell_log"');
+    expect(release).toContain('container_cell_migration=${WORLD_RELEASE_CONTAINER_CELL_MIGRATION:-skip}');
+    const operations = readFileSync(new URL('../ops/orchard-runtime/README.md', import.meta.url), 'utf8');
+    expect(operations).toContain('WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run');
+    expect(operations).toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT');
+  });
+
+  it('refuses the container-cell migration outside a schema-only publishing lane or with an unknown value', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orchard-container-cell-lane-'));
+    try {
+      const token = join(directory, 'tokens.json');
+      writeFileSync(token, '{"operator":"hidden"}\n', { mode: 0o600 }); chmodSync(token, 0o600);
+      const releaseEnv = { ...laneTestEnv(), WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+        WORLD_RELEASE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
+        WORLD_RELEASE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
+        WORLD_RELEASE_POST_DRAIN_SNAPSHOT: join(directory, 'new-post-drain.json'),
+        WORLD_RELEASE_PRODUCTION_PRE_DRAIN_SNAPSHOT: join(directory, 'new-production-pre-drain.json') };
+      const cwd = fileURLToPath(new URL('..', import.meta.url));
+      const runRelease = (env: Record<string, string>) => spawnSync('bash', ['scripts/world-release.sh'],
+        { cwd, encoding: 'utf8', env: { ...releaseEnv, ...env } });
+      const chests = runRelease({ WORLD_RELEASE_CONTAINER_CELL_MIGRATION: 'run' });
+      expect(chests.status).toBe(64);
+      expect(chests.stderr).toContain('requires WORLD_RELEASE_MIGRATION_KIND=schema-only');
+      const unknown = runRelease({ WORLD_RELEASE_CONTAINER_CELL_MIGRATION: 'yes', WORLD_RELEASE_MIGRATION_KIND: 'schema-only' });
+      expect(unknown.status).toBe(64);
+      expect(unknown.stderr).toContain('Usage:');
+
+      const backupDirectory = join(directory, 'backup'); mkdirSync(backupDirectory);
+      const runRehearsal = (env: Record<string, string>) => spawnSync('bash', ['ops/orchard-runtime/bin/restore-world-rehearsal.sh',
+        backupDirectory, join(directory, 'pre.json'), join(directory, 'post.json')],
+      { cwd, encoding: 'utf8', env: { ...laneTestEnv(), WORLD_REJOIN_TOKENS_FILE: token, WORLD_RESTORE_REHEARSAL_DRY_RUN: 'true', ...env } });
+      for (const env of [{ WORLD_RESTORE_MIGRATION_KIND: 'legacy-chests' } as Record<string, string>,
+        { WORLD_RESTORE_MIGRATION_KIND: 'schema-only', WORLD_RESTORE_TRANSITION_ALREADY_DEPLOYED: 'true' }]) {
+        const result = runRehearsal({ WORLD_RESTORE_CONTAINER_CELL_MIGRATION: 'run', ...env });
+        expect(result.status, JSON.stringify(env)).toBe(64);
+        expect(result.stderr).toContain('The container-cell migration runs only in a schema-only rehearsal');
+      }
+      expect(`${chests.stdout}${chests.stderr}`).not.toContain('hidden');
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
+
   it('closes both preview services before a build can replace their served artifacts', () => {
     const stopGame = release.indexOf('if [[ "$frontend_was_active" = true ]]; then sudo systemctl stop orchard-frontend.service; fi');
     const stopStudio = release.indexOf('if [[ "$studio_was_active" = true ]]; then sudo systemctl stop orchard-studio.service; fi');
@@ -151,7 +224,7 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     expect(release).toContain('Release failed before production publication; restarting the unchanged world authority');
     expect(release).toContain('Release failed after production publication began; the world authority remains stopped');
     expect(release).toContain('--server "$canonical_host"');
-    expect(rehearsal.match(/world-module-source-manifest\.sh" verify/gu)).toHaveLength(3);
+    expect(rehearsal.match(/world-module-source-manifest\.sh" verify/gu)).toHaveLength(4);
     expect(release).not.toContain('spacetime sql "$database"');
     const productionPublish = release.indexOf('spacetime publish');
     const productionContentApply = release.lastIndexOf('run world:content-head -- apply');

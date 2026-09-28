@@ -1,7 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { stdbLogger } from 'spacetimedb';
+import { describe, expect, it, vi } from 'vitest';
 import {
   assertContainerCellMigrationComplete,
+  LEGACY_PLACEABLE_FINGERPRINT,
   parseContainerCellMigrationStatus,
+  readContainerCellMigrationEvidence,
+  routeConsoleToStderr,
 } from './container-cell-migration-runner.js';
 
 const complete = {
@@ -42,5 +51,79 @@ describe('container-cell migration lane gate (Uncapped Storage step 4)', () => {
       .toThrow('container_cell_migration_status_invalid:cells');
     expect(() => parseContainerCellMigrationStatus(JSON.stringify({ ...complete, issues: [{ kind: 'x' }] })))
       .toThrow('container_cell_migration_status_invalid:id');
+  });
+
+  it('keeps stdout to JSON lines: SDK connection logs go to stderr', () => {
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const restore = routeConsoleToStderr();
+    let stdoutCalls: number;
+    let logged: string;
+    try {
+      stdbLogger('info', 'Connecting to SpacetimeDB WS...');
+      stdbLogger('error', 'socket closed');
+      console.warn('warning');
+    } finally {
+      restore();
+      stdoutCalls = stdout.mock.calls.length;
+      logged = stderr.mock.calls.map(([text]) => String(text)).join('');
+      stdout.mockRestore();
+      stderr.mockRestore();
+    }
+    expect(stdoutCalls).toBe(0);
+    expect(logged).toContain('INFO');
+    expect(logged).toContain('Connecting to SpacetimeDB WS...');
+    expect(logged).toContain('socket closed');
+    expect(logged).toContain('warning');
+    expect(logged).not.toContain('%c');
+  });
+
+  it('recognises only the legacy placeable fingerprint shape the lane compares', () => {
+    expect(LEGACY_PLACEABLE_FINGERPRINT.test('placeable-cells:149:7139:4b681419')).toBe(true);
+    for (const value of ['', 'placeable-cells:149:7139:4B681419', 'player-cells:1:1:00000000', 'placeable-cells:1:1:0000000'])
+      expect(LEGACY_PLACEABLE_FINGERPRINT.test(value), value).toBe(false);
+  });
+
+  it('reads the lane evidence log: the final complete report and ok line name one legacy fingerprint', () => {
+    const status = (value: object) => JSON.stringify({ event: 'container_cell_migration_status', database: 'orchard-cellar-world', ...value });
+    const started = { ...complete, placeables: { ...complete.placeables, copied: 0, uncopied: 2, receipts: 0, backfillComplete: false }, placeableCopyComplete: false };
+    const ok = { ok: true, target: 'rehearsal', database: 'orchard-cellar-world', legacyFingerprint: 'placeable-cells:5:44:0a1b2c3d',
+      receiptFingerprint: '99aa00bb', placeablesCopied: 2, playersCurrent: 3, playersLegacy: 0 };
+    const log = `${status(started)}\n${status(complete)}\n${JSON.stringify(ok)}\n`;
+    expect(readContainerCellMigrationEvidence(log)).toMatchObject({
+      legacyFingerprint: 'placeable-cells:5:44:0a1b2c3d', receiptFingerprint: '99aa00bb',
+    });
+    const refused: readonly [string, string][] = [
+      ['', 'container_cell_migration_log_invalid:incomplete'],
+      // SDK noise on stdout (the rehearsal finding) is refused rather than skipped.
+      [`ℹ️ INFO Connecting to SpacetimeDB WS...\n${log}`, 'container_cell_migration_log_invalid:not_json_lines'],
+      [`${status(started)}\n${status(complete)}\n`, 'container_cell_migration_log_invalid:incomplete'],
+      [`${status(started)}\n${JSON.stringify(ok)}\n`, 'container_cell_migration_placeables_incomplete'],
+      [`${status(complete)}\n${JSON.stringify({ ...ok, legacyFingerprint: 'placeable-cells:5:44:ffffffff' })}\n`,
+        'container_cell_migration_log_invalid:fingerprint'],
+      [`${status(complete)}\n${JSON.stringify({ ...ok, receiptFingerprint: '00000000' })}\n`, 'container_cell_migration_log_invalid:fingerprint'],
+      [`${status({ ...complete, placeables: { ...complete.placeables, legacyFingerprint: 'x' } })}\n${JSON.stringify({ ...ok, legacyFingerprint: 'x' })}\n`,
+        'container_cell_migration_log_invalid:fingerprint'],
+    ];
+    for (const [text, code] of refused) expect(() => readContainerCellMigrationEvidence(text), code).toThrow(code);
+  });
+
+  it('prints only the fingerprint from the final-fingerprint command the lane shells out to', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orchard-container-cell-log-'));
+    try {
+      const ok = { ok: true, legacyFingerprint: 'placeable-cells:5:44:0a1b2c3d', receiptFingerprint: '99aa00bb' };
+      const log = `${JSON.stringify({ event: 'container_cell_migration_status', database: 'd', ...complete })}\n${JSON.stringify(ok)}\n`;
+      const good = join(directory, 'good.jsonl'); writeFileSync(good, log);
+      const noisy = join(directory, 'noisy.jsonl'); writeFileSync(noisy, `ℹ️ INFO Connecting to SpacetimeDB WS...\n${log}`);
+      const run = (path: string) => spawnSync(process.execPath, ['--import', 'tsx', 'scripts/container-cell-migration-runner.ts',
+        'final-fingerprint', path], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
+      const accepted = run(good);
+      expect(accepted.status, accepted.stderr).toBe(0);
+      expect(accepted.stdout).toBe('placeable-cells:5:44:0a1b2c3d\n');
+      const refused = run(noisy);
+      expect(refused.status).not.toBe(0);
+      expect(refused.stdout).toBe('');
+      expect(refused.stderr).toContain('container_cell_migration_log_invalid:not_json_lines');
+    } finally { rmSync(directory, { recursive: true, force: true }); }
   });
 });

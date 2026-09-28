@@ -1,4 +1,6 @@
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { formatWithOptions } from 'node:util';
 import { decodeJwtClaims, validateIdTokenClaims, verifyIdTokenSignature } from '@orchard/auth/oidc-token';
 import { DbConnection } from '@orchard/world-bindings';
 import {
@@ -51,6 +53,28 @@ interface MigrationConnection extends DbConnection {
 }
 
 function fail(code: string): never { throw new Error(code); }
+
+/** The whole-table legacy fingerprint shape, `placeable-cells:<cells>:<total quantity>:<8 hex>` (sim container-migration). */
+export const LEGACY_PLACEABLE_FINGERPRINT = /^placeable-cells:[0-9]+:[0-9]+:[0-9a-f]{8}$/u;
+
+type ConsoleMethod = 'log' | 'info' | 'debug' | 'warn' | 'error' | 'trace';
+
+/**
+ * Keeps the runner's stdout a pure JSON-lines stream that the release lane parses: the SpacetimeDB SDK logs every level
+ * (for example `INFO Connecting to SpacetimeDB WS...`) through `console.log`, so every console method is routed to
+ * stderr for the life of the run. Returns the restore callback.
+ */
+export function routeConsoleToStderr(
+  target: Pick<Console, ConsoleMethod> = console,
+  write: (text: string) => void = (text) => { process.stderr.write(text); },
+): () => void {
+  const methods: readonly ConsoleMethod[] = ['log', 'info', 'debug', 'warn', 'error', 'trace'];
+  const originals = methods.map((method) => [method, target[method]] as const);
+  for (const method of methods) {
+    target[method] = (...args: unknown[]) => { write(`${formatWithOptions({ colors: false }, ...args)}\n`); };
+  }
+  return () => { for (const [method, original] of originals) target[method] = original; };
+}
 
 function object(value: unknown, key: string): Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) fail(`container_cell_migration_status_invalid:${key}`);
@@ -122,6 +146,42 @@ export function assertContainerCellMigrationComplete(
   if (expectedLegacyFingerprint !== undefined && status.placeables.legacyFingerprint !== expectedLegacyFingerprint) {
     fail('container_cell_migration_legacy_fingerprint_mismatch');
   }
+}
+
+export interface ContainerCellMigrationEvidence {
+  readonly legacyFingerprint: string;
+  readonly receiptFingerprint: string;
+  readonly status: ContainerCellMigrationStatus;
+}
+
+/**
+ * Reads a runner JSON-lines log (the release lane's evidence file) and returns the completed run's final legacy
+ * fingerprint. Every line must be JSON; the log must end with the final status report and the `ok` line, the report
+ * must pass the completion gate, and both must name the same well-formed legacy fingerprint. The lane compares the
+ * isolated restore rehearsal's value with production's through this reader, so anything else fails closed.
+ */
+export function readContainerCellMigrationEvidence(log: string): ContainerCellMigrationEvidence {
+  const lines = log.split('\n').filter((line) => line.trim() !== '');
+  const records = lines.map((line) => {
+    try {
+      return object(JSON.parse(line) as unknown, 'log_line');
+    } catch {
+      return fail('container_cell_migration_log_invalid:not_json_lines');
+    }
+  });
+  const [statusRecord, finalRecord] = records.slice(-2);
+  if (finalRecord?.['ok'] !== true || statusRecord?.['event'] !== 'container_cell_migration_status') {
+    fail('container_cell_migration_log_invalid:incomplete');
+  }
+  // The status event carries the report plus the lane's `event` and `database` labels, which the parser ignores.
+  const status = parseContainerCellMigrationStatus(JSON.stringify(statusRecord));
+  assertContainerCellMigrationComplete(status);
+  const legacyFingerprint = text(finalRecord, 'legacyFingerprint');
+  if (!LEGACY_PLACEABLE_FINGERPRINT.test(legacyFingerprint) || status.placeables.legacyFingerprint !== legacyFingerprint
+    || text(finalRecord, 'receiptFingerprint') !== status.placeables.receiptFingerprint) {
+    fail('container_cell_migration_log_invalid:fingerprint');
+  }
+  return Object.freeze({ legacyFingerprint, receiptFingerprint: status.placeables.receiptFingerprint, status });
 }
 
 async function refreshCredential(credential: Required<Pick<StoredRejoinCredential, 'clientId' | 'refreshToken'>>) {
@@ -203,6 +263,14 @@ export async function runContainerCellMigration(
 }
 
 async function main(): Promise<void> {
+  // `final-fingerprint <log>`: print a completed run log's legacy fingerprint (the lane's comparison input).
+  if (process.argv[2] === 'final-fingerprint') {
+    const path = process.argv[3];
+    if (path === undefined || process.argv.length !== 4) throw new Error('usage: final-fingerprint <runner-log.jsonl>');
+    process.stdout.write(`${readContainerCellMigrationEvidence(await readFile(path, 'utf8')).legacyFingerprint}\n`);
+    return;
+  }
+  if (process.argv.length !== 2) throw new Error('usage: container-cell-migration-runner.ts [final-fingerprint <log>]');
   if (process.env['CONTAINER_CELL_MIGRATION_CONFIRM'] !== `migrate:${DATABASE}`) {
     throw new Error(`CONTAINER_CELL_MIGRATION_CONFIRM_must_equal:migrate:${DATABASE}`);
   }
@@ -211,7 +279,10 @@ async function main(): Promise<void> {
   if (target === 'production' && process.env['CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM'] !== DATABASE) {
     throw new Error('container_cell_migration_production_confirmation_required');
   }
-  const expected = process.env['CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT'];
+  const expected = process.env['CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT'] ?? '';
+  // Production always compares against the isolated restore rehearsal's legacy fingerprint.
+  if (expected !== '' && !LEGACY_PLACEABLE_FINGERPRINT.test(expected)) throw new Error('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT_invalid');
+  if (target === 'production' && expected === '') throw new Error('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT_required');
   const connection = await connect(await ownerToken());
   try {
     const final = await runContainerCellMigration(connection, expected === '' ? undefined : expected);
@@ -224,4 +295,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  routeConsoleToStderr();
+  await main();
+}

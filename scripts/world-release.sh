@@ -18,6 +18,9 @@ WORLD_RELEASE_MIGRATION_KIND defaults to legacy-chests: rehearse both chest stag
 on an isolated restore and stop production at verified placeable reads. Set
 schema-only for an additive schema/content update with restored-row reconnect
 verification and no chest backfill, phase changes, or draining.
+WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run (schema-only only; default skip) also
+runs the container-cell migration on the restore and in production, and requires
+production's legacy placeable fingerprint to equal the rehearsal's.
 USAGE
   exit 64
 }
@@ -64,6 +67,11 @@ fi
 rehearsal_pre_drain_log=${WORLD_RELEASE_REHEARSAL_PRE_DRAIN_CHEST_LOG:-$backup_directory/chest-migration-rehearsal-pre-drain.jsonl}
 rehearsal_post_drain_log=${WORLD_RELEASE_REHEARSAL_POST_DRAIN_CHEST_LOG:-$backup_directory/chest-migration-rehearsal-post-drain.jsonl}
 production_pre_drain_log=${WORLD_RELEASE_PRODUCTION_PRE_DRAIN_CHEST_LOG:-$backup_directory/chest-migration-production-pre-drain.jsonl}
+# Uncapped Storage step 4 (opt-in): the container-cell migration runner, rehearsed on the restore, then in production.
+container_cell_migration=${WORLD_RELEASE_CONTAINER_CELL_MIGRATION:-skip}
+rehearsal_container_cell_log=${WORLD_RELEASE_REHEARSAL_CONTAINER_CELL_LOG:-$backup_directory/container-cell-migration-rehearsal.jsonl}
+production_container_cell_log=${WORLD_RELEASE_PRODUCTION_CONTAINER_CELL_LOG:-$backup_directory/container-cell-migration-production.jsonl}
+[[ "$container_cell_migration" = run || "$container_cell_migration" = skip ]] || usage
 
 
 [[ "$token_file" = /* && -f "$token_file" ]] || usage
@@ -75,7 +83,8 @@ production_pre_drain_log=${WORLD_RELEASE_PRODUCTION_PRE_DRAIN_CHEST_LOG:-$backup
   && "$production_pre_drain_snapshot" != "$pre_drain_snapshot"
   && "$production_pre_drain_snapshot" != "$post_drain_snapshot" ]] || usage
 release_output_paths=("$pre_drain_snapshot" "$post_drain_snapshot" "$production_pre_drain_snapshot"
-  "$rehearsal_pre_drain_log" "$rehearsal_post_drain_log" "$production_pre_drain_log")
+  "$rehearsal_pre_drain_log" "$rehearsal_post_drain_log" "$production_pre_drain_log"
+  "$rehearsal_container_cell_log" "$production_container_cell_log")
 declare -A release_output_seen=()
 for release_output in "${release_output_paths[@]}"; do
   [[ "$release_output" = /* && ! -e "$release_output" && -z "${release_output_seen[$release_output]:-}" ]] || usage
@@ -102,6 +111,16 @@ fi
   printf 'WORLD_REJOIN_TOKENS_FILE must have mode 0600.\n' >&2
   exit 77
 }
+if [[ "$container_cell_migration" = run ]]; then
+  [[ "$migration_kind" = schema-only ]] || {
+    printf 'WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run requires WORLD_RELEASE_MIGRATION_KIND=schema-only.\n' >&2
+    exit 64
+  }
+  grep -Fq "name: 'container_cell_migration'" "$repository/packages/world/src/index.ts" || {
+    printf 'WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run, but the candidate module has no container-cell tables.\n' >&2
+    exit 64
+  }
+fi
 
 # Client chunk runtime (static world S5c, G3/G6): the same plan as the routine lane.
 # WORLD_RELEASE_CLIENT_CHUNK_RUNTIME=off|shadow|on, WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION=<committed id>
@@ -358,8 +377,23 @@ WORLD_RESTORE_CONTENT_CANDIDATE="$content_candidate" \
 WORLD_RESTORE_CONTENT_CANDIDATE_SHA256="$content_candidate_sha256" \
 WORLD_RESTORE_CONTENT_OWNER_LABEL="$content_owner_label" \
 WORLD_RESTORE_CONTENT_CONFIRM="$content_release_confirm" \
+WORLD_RESTORE_CONTAINER_CELL_MIGRATION="$container_cell_migration" \
+WORLD_RESTORE_CONTAINER_CELL_LOG="$rehearsal_container_cell_log" \
 ops/orchard-runtime/bin/restore-world-rehearsal.sh \
   "$backup_directory" "$pre_drain_snapshot" "$post_drain_snapshot"
+
+# Production must find the same legacy placeable rows the rehearsal migrated. Read the
+# rehearsal's fingerprint now, so missing or incomplete evidence stops before publication.
+rehearsal_container_cell_fingerprint=''
+if [[ "$container_cell_migration" = run ]]; then
+  rehearsal_container_cell_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \
+    final-fingerprint "$rehearsal_container_cell_log")
+  [[ "$rehearsal_container_cell_fingerprint" =~ ^placeable-cells:[0-9]+:[0-9]+:[0-9a-f]{8}$ ]] || {
+    printf 'The rehearsal container-cell evidence has no valid legacy fingerprint.\n' >&2
+    exit 65
+  }
+  printf 'Rehearsal container-cell legacy fingerprint: %s\n' "$rehearsal_container_cell_fingerprint"
+fi
 
 printf 'Starting the quiesced authority for the production publish...\n'
 sudo systemctl start orchard-world.service
@@ -421,6 +455,29 @@ if [[ "$migration_kind" = legacy-chests ]]; then
   npm run world:chest-migrate | tee "$production_pre_drain_log")
 else
   printf 'Schema-only update: no chest backfill, phase change or drain requested.\n'
+fi
+if [[ "$container_cell_migration" = run ]]; then
+  # Fails closed (world and traffic stay stopped) on a runner failure, an incomplete
+  # copy, a refused plan, or a legacy fingerprint that differs from the rehearsal's.
+  printf 'Running the production container-cell migration against rehearsal fingerprint %s...\n' \
+    "$rehearsal_container_cell_fingerprint"
+  (umask 077
+    WORLD_REJOIN_TOKENS_FILE="$token_file" \
+    SPACETIMEDB_HOST="$host" \
+    SPACETIMEDB_DATABASE="$database" \
+    CONTAINER_CELL_MIGRATION_TARGET=production \
+    CONTAINER_CELL_MIGRATION_CONFIRM="migrate:$database" \
+    CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM="$database" \
+    CONTAINER_CELL_MIGRATION_OWNER_LABEL="$content_owner_label" \
+    CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT="$rehearsal_container_cell_fingerprint" \
+    node --import tsx scripts/container-cell-migration-runner.ts | tee "$production_container_cell_log")
+  production_container_cell_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \
+    final-fingerprint "$production_container_cell_log")
+  [[ "$production_container_cell_fingerprint" = "$rehearsal_container_cell_fingerprint" ]] || {
+    printf 'Production legacy placeable fingerprint %s differs from the rehearsal (%s).\n' \
+      "$production_container_cell_fingerprint" "$rehearsal_container_cell_fingerprint" >&2
+    exit 65
+  }
 fi
 
 printf 'Verifying production against the pre-drain restored-backup expectation before returning traffic...\n'
@@ -498,8 +555,9 @@ release_world_quiescence_started=false
 live_publish_started=false
 rm -f -- "$module_source_manifest"
 module_source_manifest=''
-printf 'World release completed (%s); client-chunk-evidence=%s backup=%s expected=%s rehearsal-reconnect=%s production=%s rehearsal-pre-log=%s rehearsal-post-log=%s production-pre-log=%s\n' \
-  "$migration_kind" "$client_chunk_stage" \
+printf 'World release completed (%s, container cells %s %s); client-chunk-evidence=%s backup=%s expected=%s rehearsal-reconnect=%s production=%s rehearsal-pre-log=%s rehearsal-post-log=%s production-pre-log=%s rehearsal-container-cell-log=%s production-container-cell-log=%s\n' \
+  "$migration_kind" "$container_cell_migration" "$rehearsal_container_cell_fingerprint" "$client_chunk_stage" \
   "$backup_directory" "$pre_drain_snapshot" "$post_drain_snapshot" \
   "$production_pre_drain_snapshot" "$rehearsal_pre_drain_log" \
-  "$rehearsal_post_drain_log" "$production_pre_drain_log"
+  "$rehearsal_post_drain_log" "$production_pre_drain_log" \
+  "$rehearsal_container_cell_log" "$production_container_cell_log"
