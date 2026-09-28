@@ -50,7 +50,9 @@ describe('Architecture/World-SpacetimeDB T6 derived-state cutover', () => {
   });
 
   it('grants expanded carried capacity only from authored policy in the equipped back slot', () => {
-    expect(worldSource).toContain('runtimeItemInventoryCapacity(contentRegistry(ctx), row.itemKind)');
+    const capacity = sourceBetween(worldSource, 'function equippedInventoryCapacity(', 'function playerDebugBackpackSlots(');
+    expect(capacity).toContain("cell.container !== 'equipment' || cell.index !== 4");
+    expect(capacity).toContain('runtimeItemInventoryCapacity(contentRegistry(ctx), cell.itemKind)');
     expect(worldSource).not.toContain('inventoryHasEquippedBackpack(rows)');
     expect(worldSource).toContain("throw new SenderError('backpack_in_use')");
   });

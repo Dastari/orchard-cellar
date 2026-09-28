@@ -94,8 +94,12 @@ describe('Systems/Crafting: phase 3 authority contracts', () => {
 
   it('checks live station proximity before inventory mutation and records placement atomically', () => {
     const craft = reducerSource('craftInventoryRecipe');
+    // Every inventory write (cursor and container cells) goes through writePlayerInventory*, after the station check.
+    expect(craft).toContain('writePlayerInventory(ctx, inventory, original, results)');
+    expect(craft).not.toContain('inventory_slot');
+    expect(craft).not.toContain('player_container_cell.');
     expect(craft.indexOf("throw new SenderError('station_required')"))
-      .toBeLessThan(craft.indexOf('inventory_slot.id.update'));
+      .toBeLessThan(craft.indexOf('writePlayerInventory'));
     const hands = handsAuthoritySource();
     expect(hands.indexOf('insertWorldPlaceable(ctx')).toBeLessThan(hands.lastIndexOf("'placeables_placed'"));
   });
@@ -132,7 +136,9 @@ describe('Systems/Crafting: phase 3 authority contracts', () => {
     expect(source).toContain('placeableFrameRestrictions(contentRegistry(ctx), placeable)');
     expect(processorsSource).toContain('settleProcess(definitions, adapter');
     expect(source).toContain('genericPlaceableCapacity(ctx, placeable)');
-    expect(source).toContain('ctx.db.world_placeable_slot.insert({');
+    // Placeable storage is the sparse cell table, loaded and written only through the authority helpers.
+    expect(source).toContain('const build = loadPlaceableBuild(ctx, placeable, containerId, capacity, restrictions)');
+    expect(source).toContain('putPlaceableCell(ctx.db, placeableId, index, stack === null ? null : {');
     expect(source).toContain('ctx.db.active_placeable.insert({ identity: ctx.sender, placeableId: placeable.id })');
     expect(reducerSource('closePlaceable')).toContain('clearActivePlaceable(ctx, ctx.sender)');
     expect(source).toContain('ctx.db.active_placeable.identity.delete(identity)');

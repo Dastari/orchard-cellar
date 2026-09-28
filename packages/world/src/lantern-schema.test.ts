@@ -12,7 +12,8 @@ function reducerSource(name: string): string {
 describe('switchable lantern authority', () => {
   it('stores additive lit state in every item custody table and public equipment state', () => {
     for (const tableName of [
-      'inventory_slot', 'inventory_overflow', 'world_item', 'world_chest_slot', 'world_placeable_slot',
+      'inventory_slot', 'player_container_cell', 'inventory_overflow', 'world_item', 'world_chest_slot',
+      'world_placeable_slot', 'placeable_container_cell',
     ]) {
       const start = source.indexOf(`const ${tableName} = table(`);
       const end = source.indexOf('\nconst ', start + 1);
@@ -40,7 +41,8 @@ describe('switchable lantern authority', () => {
   it('operates an authored switchable light only from the restricted off-hand row', () => {
     expect(source).toContain('const equippedLifecycleLight = ()');
     expect(source).toContain("subjectItem?.containerId !== 'equipment'");
-    expect(source).toContain('`${ctx.sender.toHexString()}:${subjectItem.slot}`');
+    // The off-hand row is read from the sender's own equipment container, never from a client-named row.
+    expect(source).toContain('equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot - EQUIPMENT_SLOT_OFFSET)');
     expect(source).toContain('row.id !== subjectItem.instanceId');
     expect(source).toContain('row.quantity <= 0');
     expect(source).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'emits.light')");

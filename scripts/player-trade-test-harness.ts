@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { ConnectionId, Identity } from 'spacetimedb';
 import * as sim from '@orchard/sim';
 import * as auth from '../packages/world/src/auth-policy.js';
+import * as cells from '../packages/world/src/container-cells.js';
 
 /** Two-identity reducer integration fixture, with no server or production writes.
  * Executes current production callbacks/helpers, including auth, inventory,
@@ -10,6 +11,8 @@ import * as auth from '../packages/world/src/auth-policy.js';
  * transactional rollback; it does not test SpacetimeDB's transaction engine,
  * JWT verification, transport, subscriptions, UI gestures or browser rendering.
  * Quest/statistic/equipment and unrelated disconnect cleanup hooks are inert.
+ * Player storage is the sparse `player_container_cell` table (only occupied
+ * cells are rows); every fixture player is on the current container layout.
  * Run: npx vitest run scripts/player-trade-authority.test.ts
  */
 const source = ts.createSourceFile('index.ts', readFileSync(new URL(
@@ -21,7 +24,8 @@ const views = ['ownTradeSession', 'ownTradeOffers'] as const;
 const helpers = ['requireAuthorizedSender', 'firstIndexRow', 'tradeForPlayer', 'requireTradeParticipant',
   'tradePlayersWithinReach', 'resetTradeAcceptance', 'tradeOfferId', 'tradeStack',
   'insertEscrowStacksIntoInventory', 'cancelPlayerTrade', 'requireActiveTrade', 'completePlayerTrade',
-  'inventorySlotOffset', 'inventoryContainerCapacity', 'accessibleInventoryContainerCapacity',
+  'withSenderErrors', 'requirePlayerContainerCells', 'putInventoryCell',
+  'inventoryContainerCapacity', 'accessibleInventoryContainerCapacity',
   'equippedInventoryCapacity', 'playerDebugBackpackSlots', 'storedStack', 'storedDurability',
   'storedLit', 'sameStoredStack', 'loadPlayerInventory', 'writePlayerInventory', 'activeItemContainerContent',
   'playerInventoryCursor', 'writePlayerInventoryCursor', 'returnInventoryCursorToStorage', 'stashOverflow'];
@@ -49,7 +53,13 @@ const program = ts.transpileModule([...constants, ...helpers, ...reducers, ...vi
 type Key = string | number | bigint | { toHexString(): string };
 const keyOf = (key: Key): string => typeof key === 'object' ? key.toHexString() : String(key);
 export interface StackRow { itemKind: string; quantity: number; durability: number; lit: boolean }
-interface SlotRow extends StackRow { id: string; identity: Identity; slot: number }
+export interface CellRow extends StackRow { id: string; identity: Identity; container: string; index: number }
+/** A carried cell with its frozen legacy global slot, the shape the trade panel still reads until step 4c. */
+export type LegacySlotRow = CellRow & { slot: number };
+interface MigrationRow {
+  identity: Identity; durabilityVersion: number; hotbarLayoutVersion: number;
+  equipmentLayoutVersion: number; containerLayoutVersion: number;
+}
 interface OfferRow extends StackRow { id: string; tradeId: string; owner: Identity; slot: number }
 interface MemberRow { identity: Identity; role: string; blocked: boolean; revokedAt?: bigint }
 export interface TradeRow {
@@ -95,7 +105,8 @@ export function tradeHarness() {
       by: (pick: (row: T) => Key) => ({ filter: (key: Key): T[] => [...rows.values()].filter(row => keyOf(pick(row)) === keyOf(key)) }),
     };
   }
-  const inventory = table<SlotRow>('inventory_slot', row => row.id);
+  const inventory = table<CellRow>('player_container_cell', row => row.id);
+  const migrations = table<MigrationRow>('inventory_migration', row => row.identity);
   const offers = table<OfferRow>('player_trade_offer', row => row.id);
   const trades = table<TradeRow>('player_trade_session', row => row.id);
   const members = table<MemberRow>('membership', row => row.identity);
@@ -110,7 +121,12 @@ export function tradeHarness() {
   const emptyIndex = { find: () => null, delete: () => false };
   const absent = { identity: emptyIndex, connectionId: emptyIndex };
   const db = {
-    inventory_slot: { ...inventory, by_identity: inventory.by(row => row.identity) },
+    player_container_cell: {
+      ...inventory, by_identity: inventory.by(row => row.identity),
+      by_identity_container: { filter: ([identity, container]: [Identity, string]): CellRow[] =>
+        [...inventory.iter()].filter(row => row.identity.isEqual(identity) && row.container === container) },
+    },
+    inventory_migration: migrations,
     player_trade_offer: { ...offers, by_trade: offers.by(row => row.tradeId) },
     player_trade_session: { ...trades, by_requester: trades.by(row => row.requester), by_recipient: trades.by(row => row.recipient) },
     membership: members, player_wallet: wallets, player_position: positions, player_public: publicPlayers,
@@ -120,7 +136,7 @@ export function tradeHarness() {
   };
   const registry = sim.bootstrapContentRegistry();
   const noop = () => {};
-  const dependencies = { ...sim, ...auth, SenderError: Error, contentRegistry: () => registry,
+  const dependencies = { ...sim, ...auth, ...cells, SenderError: Error, contentRegistry: () => registry,
     updateEquippedForIdentity: noop, refreshPlayerQuests: noop, recordPlayerStatistic: noop,
     deleteSessionChatNoticesForConnection: noop, clearBowCharge: noop, cancelFishingCastFor: noop,
   };
@@ -132,9 +148,8 @@ export function tradeHarness() {
     wallets.insert({ identity, balanceBronze: 100n });
     positions.insert({ identity, spaceId: 0, x: 10 * sim.TILE_SIZE_FIXED, y: 10 * sim.TILE_SIZE_FIXED });
     publicPlayers.insert({ identity, online: true });
-    for (let slot = 0; slot < sim.INVENTORY_SLOT_COUNT; slot++) inventory.insert({
-      id: `${identity.toHexString()}:${slot}`, identity, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-    });
+    migrations.insert({ identity, durabilityVersion: 1, hotbarLayoutVersion: 1, equipmentLayoutVersion: 1,
+      containerLayoutVersion: sim.CURRENT_CONTAINER_LAYOUT_VERSION });
   }
   const context = (sender: Identity, connection = '1'): TradeContext => ({ sender, connectionId: ConnectionId.fromString(connection.repeat(32)),
     senderAuth: { jwt: { issuer: auth.OIDC_ISSUER, audience: ['orchard-web'] } }, db });
@@ -150,16 +165,27 @@ export function tradeHarness() {
     run('acceptTradeRequest', bob, { tradeId });
     return tradeId;
   }
+  /** Stores one carried cell addressed by its legacy global slot (an empty stack deletes the row). */
   function put(identity: Identity, slot: number, itemKind: string, quantity: number, durability = 0, lit = true) {
-    inventory.id.update({ id: `${identity.toHexString()}:${slot}`, identity, slot, itemKind, quantity, durability, lit });
+    const cell = sim.legacyGlobalSlotToCell(slot);
+    if (cell === null) throw new Error(`harness_slot_invalid:${slot}`);
+    const id = sim.playerContainerCellKey(identity.toHexString(), cell);
+    if (itemKind === 'empty' || quantity <= 0) { inventory.id.delete(id); return; }
+    const row = { id, identity, container: cell.container, index: cell.index, itemKind, quantity, durability, lit };
+    if (inventory.id.find(id) === null) inventory.insert(row); else inventory.id.update(row);
   }
   function fill(identity: Identity) {
     for (let slot = 0; slot < sim.HOTBAR_SLOT_COUNT + sim.BASE_BACKPACK_CAPACITY; slot++) {
       put(identity, slot, 'stone', sim.runtimeMaxStack(registry, 'stone')!);
     }
   }
-  const owned = (identity: Identity) => [...inventory.iter()].filter(row => row.identity.isEqual(identity) && row.quantity > 0);
+  /** The identity's stored cells with their legacy global slot, in slot order. Every stored cell is occupied. */
+  const inventorySlots = (identity: Identity): LegacySlotRow[] => [...inventory.iter()]
+    .filter(row => row.identity.isEqual(identity))
+    .map(row => ({ ...row, slot: sim.cellToLegacyGlobalSlot({ container: row.container as sim.PlayerContainerId, index: row.index }) ?? -1 }))
+    .sort((left, right) => left.slot - right.slot);
+  const owned = (identity: Identity) => inventorySlots(identity).filter(row => row.quantity > 0);
   const snapshot = () => stores.map(store => ({ table: store.name, rows: store.inspect() }));
-  return { alice, bob, outsider, api, context, run, start, session, put, fill, owned, snapshot, writes,
-    offers, trades, members, wallets, positions, publicPlayers, cursors, overflow, clock, inventory, registry };
+  return { alice, bob, outsider, api, context, run, start, session, put, fill, owned, inventorySlots, snapshot, writes,
+    offers, trades, members, wallets, positions, publicPlayers, cursors, overflow, clock, inventory, migrations, registry };
 }

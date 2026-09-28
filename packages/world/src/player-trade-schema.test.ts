@@ -44,7 +44,9 @@ describe('secure direct player trading', () => {
     const item = between('export const setTradeOfferItem =', 'export const removeTradeOfferItem =');
     const remove = between('export const removeTradeOfferItem =', 'export const setTradeOfferBronze =');
     const money = between('export const setTradeOfferBronze =', 'function completePlayerTrade');
-    expect(item).toContain('ctx.db.inventory_slot.id.update');
+    expect(item).toContain("inventoryContainer !== 'hotbar' && inventoryContainer !== 'backpack'");
+    expect(item).toContain("throw new SenderError('trade_slot_inaccessible')");
+    expect(item).toContain('putInventoryCell(ctx, {');
     expect(item).toContain('ctx.db.player_trade_offer.insert');
     expect(item).toContain('resetTradeAcceptance(ctx, trade)');
     expect(remove).toContain('insertEscrowStacksIntoInventory');
