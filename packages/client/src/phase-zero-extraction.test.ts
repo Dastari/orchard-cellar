@@ -257,7 +257,7 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Item slot S9 (BUG-067 part 4): ui/overworld-ui.ts owns its retained kit inventory from construction and no longer
 // draws the player's inventory itself (drawInventory, drawCrafting, drawChest, the station windows and chestPaneSlots
 // are gone); overworld-ui, content-frame-overworld and the player-inventory boundary tests cover it.
-const STRUCTURAL_SEAM_DIGEST = 'd3abb88a788cd9b53d4168dc90bb47e4a61eed25c1b09fc4d283af1b013b6dc4';
+const STRUCTURAL_SEAM_DIGEST = '93d2864b2bcc42491e7e5eb6e508afad5db4bd1312b1150fc3a21046a40128e7';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
