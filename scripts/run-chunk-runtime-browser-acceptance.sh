@@ -23,6 +23,11 @@ set -euo pipefail
 #   S4G_DATABASE         disposable database name (orchard-chunk-soak-*; default orchard-chunk-soak-s4g01)
 #   S4G_EVIDENCE         evidence directory (default output/chunk-runtime-acceptance-<stamp>)
 #   S4G_CHROME           Chrome executable (default /usr/bin/google-chrome)
+#   S4G_SWAP_PORT        the rollback drill's own preview port (default 4273; used with --rollback-drill)
+#   S4G_ON_BUILD_MODE    chunk-runtime-preview (default) or client-production: the release build mode,
+#                        which needs S4G_ACTIVATION_RELEASE equal to the committed
+#                        CHUNK_RUNTIME_ACTIVATION_RELEASE (S5c G5a)
+#   S4G_ACTIVATION_RELEASE  the activation release id for a client-production on build
 # Extra arguments pass through to the driver (for example --limit 12).
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,12 +39,20 @@ database="${S4G_DATABASE:-orchard-chunk-soak-s4g01}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 evidence_dir="${S4G_EVIDENCE:-${repo_root}/output/chunk-runtime-acceptance-${stamp}}"
 chrome="${S4G_CHROME:-/usr/bin/google-chrome}"
+swap_port="${S4G_SWAP_PORT:-4273}"
+on_build_mode="${S4G_ON_BUILD_MODE:-chunk-runtime-preview}"
+activation_release="${S4G_ACTIVATION_RELEASE:-}"
+case "${on_build_mode}" in
+  chunk-runtime-preview) [[ -z "${activation_release}" ]] || { echo "s4g_activation_release_needs_client_production" >&2; exit 64; } ;;
+  client-production) [[ "${activation_release}" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || { echo "s4g_client_production_needs_activation_release" >&2; exit 64; } ;;
+  *) echo "s4g_on_build_mode_invalid" >&2; exit 64 ;;
+esac
 playwright_module="${S4G_PLAYWRIGHT_MODULE:-}"
 if [[ -z "${playwright_module}" ]]; then
   playwright_module="$(ls -d "${HOME}"/.npm/_npx/*/node_modules/playwright-core 2>/dev/null | head -1 || true)"
 fi
 
-for port in "${world_port}" "${legacy_port}" "${on_port}"; do
+for port in "${world_port}" "${legacy_port}" "${on_port}" "${swap_port}"; do
   if [[ ! "${port}" =~ ^[0-9]+$ ]] || (( port < 1024 || port > 65535 || port == 3000 || port == 5173 )); then
     echo "s4g_invalid_loopback_port: ${port}" >&2; exit 64
   fi
@@ -66,7 +79,7 @@ cleanup() {
     if kill -0 "${pid}" >/dev/null 2>&1; then kill "${pid}" >/dev/null 2>&1 || true; wait "${pid}" 2>/dev/null || true; fi
   done
   if [[ -d "${evidence_dir}" ]]; then
-    for log in host.log publish.log build-legacy.log build-on.log preview-legacy.log preview-on.log; do
+    for log in host.log publish.log build-legacy.log build-on.log preview-legacy.log preview-on.log release-check.log; do
       [[ -f "${work_dir}/${log}" ]] && cp "${work_dir}/${log}" "${evidence_dir}/${log}" || true
     done
   fi
@@ -132,7 +145,9 @@ chunk_dir="${work_dir}/world-chunks"
 vite=(node "${repo_root}/node_modules/vite/bin/vite.js")
 config="${repo_root}/scripts/chunk-runtime-acceptance.vite.config.ts"
 client_env() { # label out_dir port chunk_mode authority
-  env -u VITE_SPACETIMEDB_URI -u VITE_OIDC_CLIENT_ID -u ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE \
+  local activation=()
+  [[ "$1" != on || -z "${activation_release}" ]] || activation=(ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE="${activation_release}")
+  env -u VITE_SPACETIMEDB_URI -u VITE_OIDC_CLIENT_ID -u ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE "${activation[@]}" \
     S4G_OUT_DIR="$2" S4G_PREVIEW_PORT="$3" S4G_WORLD_HOST="${host}" S4G_CHUNK_AUTHORITY="$5" \
     VITE_CHUNK_RUNTIME_MODE="$4" VITE_SPACETIMEDB_DATABASE="${database}" VITE_ENABLE_LOCAL_PROFILES=true \
     ORCHARD_WORLD_CHUNK_DIR="${chunk_dir}" "${@:6}"
@@ -140,12 +155,22 @@ client_env() { # label out_dir port chunk_mode authority
 for build in "legacy ${legacy_port} off" "on ${on_port} on"; do
   read -r label port mode <<<"${build}"
   authority=""; [[ "${mode}" == "on" ]] && authority="on"
+  build_mode=chunk-runtime-preview; expected_release=""
+  if [[ "${label}" == on && "${on_build_mode}" == client-production ]]; then build_mode=client-production; expected_release="${activation_release}"; fi
   if ! (cd "${repo_root}" && client_env "${label}" "${work_dir}/dist-${label}" "${port}" "${mode}" "${authority}" \
-      "${vite[@]}" build --config "${config}" --mode chunk-runtime-preview) >"${work_dir}/build-${label}.log" 2>&1; then
+      "${vite[@]}" build --config "${config}" --mode "${build_mode}") >"${work_dir}/build-${label}.log" 2>&1; then
     echo "s4g_client_build_failed: ${label}" >&2; tail -60 "${work_dir}/build-${label}.log" >&2; exit 1
   fi
-  jq -e --arg mode "${mode}" '.mode == $mode and .activationAllowed == false' "${work_dir}/dist-${label}/chunk-runtime-audit.json" >/dev/null \
-    || { echo "s4g_build_audit_unexpected: ${label}" >&2; exit 1; }
+  jq -e --arg mode "${mode}" --arg release "${expected_release}" \
+    'if $release == "" then (.mode == $mode and .activationAllowed == false) else (.mode == $mode and .activationAllowed == true and .activationRelease == $release) end' \
+    "${work_dir}/dist-${label}/chunk-runtime-audit.json" >/dev/null || { echo "s4g_build_audit_unexpected: ${label}" >&2; exit 1; }
+  if [[ "${build_mode}" == client-production ]]; then
+    # The release checks on the release-mode artifact: static chunks and a releasable audit.
+    mkdir -p "${work_dir}/release-check/packages/client"
+    cp -a "${work_dir}/dist-${label}" "${work_dir}/release-check/packages/client/dist"
+    (cd "${work_dir}/release-check" && node "${repo_root}/node_modules/tsx/dist/cli.mjs" "${repo_root}/scripts/check-client-build-chunks.ts") \
+      >"${work_dir}/release-check.log" 2>&1 || { echo "s4g_client_production_release_check_failed" >&2; tail -40 "${work_dir}/release-check.log" >&2; exit 1; }
+  fi
 done
 for build in "legacy ${legacy_port} off" "on ${on_port} on"; do
   read -r label port mode <<<"${build}"
@@ -168,6 +193,7 @@ status=0
 (cd "${repo_root}" && node node_modules/tsx/dist/cli.mjs scripts/chunk-runtime-browser-acceptance.ts \
   --host "${host}" --database "${database}" --token-file "${work_dir}/owner-token" \
   --legacy-url "http://127.0.0.1:${legacy_port}" --on-url "http://127.0.0.1:${on_port}" \
-  --chunk-dir "${chunk_dir}" --evidence "${evidence_dir}" --playwright "${playwright_module}" --chrome "${chrome}" "$@") || status=$?
+  --chunk-dir "${chunk_dir}" --evidence "${evidence_dir}" --playwright "${playwright_module}" --chrome "${chrome}" \
+  --swap-port "${swap_port}" --dist-on "${work_dir}/dist-on" --dist-legacy "${work_dir}/dist-legacy" --swap-dir "${work_dir}/dist-swap" --work-dir "${work_dir}" "$@") || status=$?
 echo "${evidence_dir}/summary.json"
 exit "${status}"

@@ -4,7 +4,7 @@ import {
   acceptancePatch, AcceptancePatchError, assertAcceptanceBuildEnvironment, GATE_ANCHOR, GATE_FIX, LOCAL_PROFILES_ANCHOR, PROBE_ANCHOR, SEAM_ANCHOR, SEAM_HOOK,
 } from './chunk-runtime-acceptance-patch.js';
 import {
-  AcceptanceUsageError, diffRgba, evictionsFrom, movementWhileWaiting, nearestWalkableIn, notServingReason, occupancyVerdict, parityVerdict, parseAcceptanceArgs, pinCoverage, sweepPlan,
+  AcceptanceUsageError, assertSwapDirOnDisk, assertSwapDirShape, diffRgba, drillPhaseFailures, evictionsFrom, movementWhileWaiting, nearestWalkableIn, notServingReason, occupancyVerdict, parityVerdict, parseAcceptanceArgs, pinCoverage, sweepPlan,
   type PixelDiff, type StepRecord,
 } from './chunk-runtime-browser-acceptance.js';
 
@@ -79,6 +79,70 @@ describe('S4g acceptance driver', () => {
     expect(() => parseAcceptanceArgs(replace('--chunk-dir', 'relative'))).toThrow(AcceptanceUsageError);
     expect(() => parseAcceptanceArgs([...args, '--unknown', 'x'])).toThrow(AcceptanceUsageError);
     expect(parseAcceptanceArgs([...args, '--limit', '12']).limit).toBe(12);
+    expect(parseAcceptanceArgs(args)).toMatchObject({ rollbackDrill: null, skip: new Set() });
+    expect(() => parseAcceptanceArgs([...args, '--skip', 'sweep'])).toThrow(AcceptanceUsageError);
+    expect(parseAcceptanceArgs([...args, '--skip', 'invalidation,prefetch']).skip).toEqual(new Set(['invalidation', 'prefetch']));
+  });
+
+  it('parses the rollback drill (G5a) and guards its preview port and swap directory', () => {
+    const work = '/tmp/orchard-s4g-acceptance.Ab12Cd';
+    const drill = [...args, '--rollback-drill', '--swap-port', '4273', '--dist-on', `${work}/dist-on`, '--dist-legacy', `${work}/dist-legacy`,
+      '--swap-dir', `${work}/dist-swap`, '--work-dir', work];
+    expect(parseAcceptanceArgs(drill).rollbackDrill).toEqual({ swapPort: 4273, distOn: `${work}/dist-on`, distLegacy: `${work}/dist-legacy`,
+      swapDir: `${work}/dist-swap`, workDir: work });
+    // The drill arguments alone (always passed by the run script) do not enable it.
+    expect(parseAcceptanceArgs(drill.filter(entry => entry !== '--rollback-drill')).rollbackDrill).toBeNull();
+    const replace = (flag: string, value: string) => drill.map((entry, index) => (drill[index - 1] === flag ? value : entry));
+    expect(() => parseAcceptanceArgs(replace('--swap-port', '3000'))).toThrow(AcceptanceUsageError);
+    expect(() => parseAcceptanceArgs(replace('--swap-dir', `${work}/dist-on`))).toThrow('swap_dir_must_be_its_own_directory');
+    // Anything that is not a direct child of the harness work directory is refused before any delete.
+    for (const swapDir of ['/home/toby', '/tmp', work, `${work}/..`, `${work}/a/b`, `${work}/.`, '/home/toby/projects/orchard-cellar/packages/client/dist']) {
+      expect(() => parseAcceptanceArgs(replace('--swap-dir', swapDir)), swapDir).toThrow(AcceptanceUsageError);
+    }
+    for (const workDir of ['/home/toby', '/tmp', '/tmp/orchard-s4g-acceptance.', '/tmp/other.Ab12Cd']) {
+      expect(() => parseAcceptanceArgs(replace('--work-dir', workDir)), workDir).toThrow('work_dir_must_be_the_harness_temporary_directory');
+    }
+    expect(() => parseAcceptanceArgs([...args, '--rollback-drill'])).toThrow('missing --swap-port');
+    expect(() => parseAcceptanceArgs([...drill, '--rollback-drill'])).toThrow(AcceptanceUsageError);
+  });
+
+  it('refuses a symlinked work or swap directory on disk before the recursive delete', async () => {
+    const { mkdtemp, mkdir: makeDir, symlink, rm: remove } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const work = await mkdtemp(`${tmpdir()}/orchard-s4g-acceptance.`);
+    const outside = await mkdtemp(`${tmpdir()}/orchard-s4g-outside.`);
+    try {
+      await expect(assertSwapDirOnDisk(work, `${work}/dist-swap`)).resolves.toBeUndefined();
+      await makeDir(`${work}/dist-swap`);
+      await expect(assertSwapDirOnDisk(work, `${work}/dist-swap`)).resolves.toBeUndefined();
+      await remove(`${work}/dist-swap`, { recursive: true });
+      await symlink(outside, `${work}/dist-swap`);
+      await expect(assertSwapDirOnDisk(work, `${work}/dist-swap`)).rejects.toThrow('drill_swap_dir_not_a_real_directory');
+      await symlink(work, `${outside}/linked-work`);
+      await expect(assertSwapDirOnDisk(`${outside}/linked-work`, `${outside}/linked-work/dist-swap`)).rejects.toThrow('drill_work_dir_not_a_real_directory');
+      expect(() => assertSwapDirShape(`${outside}/linked-work`, `${outside}/linked-work/dist-swap`, [])).toThrow(AcceptanceUsageError);
+    } finally {
+      await remove(work, { recursive: true, force: true });
+      await remove(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('judges each rollback drill phase', () => {
+    const quiet = { pixels: 100, anyChange: 0, changed: 0, ratio: 0, maxDelta: 0, bbox: null };
+    const base = { followMs: 400, worldRequests: 0, terrain: quiet, noise: quiet, collisionFallback: null };
+    expect(drillPhaseFailures({ ...base, phase: 'on', buildMode: 'on', effectiveMode: 'on', servingStore: true }, 0.002)).toEqual([]);
+    expect(drillPhaseFailures({ ...base, phase: 'server-off', buildMode: 'on', effectiveMode: 'off', servingStore: false }, 0.002)).toEqual([]);
+    expect(drillPhaseFailures({ ...base, phase: 'previous-build', buildMode: 'off', effectiveMode: null, servingStore: false }, 0.002)).toEqual([]);
+    expect(drillPhaseFailures({ ...base, phase: 'on-again', buildMode: 'on', effectiveMode: 'on', servingStore: true }, 0.002)).toEqual([]);
+    expect(drillPhaseFailures({ ...base, phase: 'server-off', buildMode: 'on', effectiveMode: 'on', servingStore: true }, 0.002))
+      .toEqual(['server-off: still on the chunk runtime (mode on)']);
+    expect(drillPhaseFailures({ ...base, phase: 'previous-build', buildMode: 'on', effectiveMode: null, servingStore: false }, 0.002))
+      .toEqual(['previous-build: served build mode on']);
+    expect(drillPhaseFailures({ ...base, phase: 'on-again', buildMode: 'on', effectiveMode: 'on', servingStore: true, collisionFallback: 'not_on', followMs: null }, 0.002))
+      .toEqual(['on-again: the page never reached the expected mode', 'on-again: not serving from chunks (mode on, fallback not_on)']);
+    expect(drillPhaseFailures({ ...base, phase: 'on', buildMode: 'on', effectiveMode: 'on', servingStore: true, terrain: { ...quiet, ratio: 0.01 } }, 0.002))
+      .toEqual(['on: frames differ on 1.000% of pixels']);
+    expect(drillPhaseFailures({ ...base, phase: 'on', buildMode: 'on', effectiveMode: 'on', servingStore: true, terrain: { ...quiet, ratio: 0.004 }, noise: { ...quiet, ratio: 0.003 } }, 0.002)).toEqual([]);
   });
 
   it('plans one row-major step per chunk and stands in the nearest walkable tiles for a chunk without ground', () => {
