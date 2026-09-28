@@ -299,6 +299,11 @@ describe('what you carry is the shared player inventory pane (BUG-067)', () => {
     // Filtering hides only non-matching items; empty cells stay (owner 2026-09-28).
     h.edit('trade.backpack.filter', 'apple'); h.ui.root.arrange();
     expect(shownBackpack()).toEqual(Array.from({ length: 12 }, (_, index) => index).filter(index => index !== 5));
+    // A carried item arriving under the live filter is re-filtered at once.
+    h.ui.update({ ...initial, inventorySlots: [...initial.inventorySlots, { slot: BACKPACK_SLOT_OFFSET + 7, itemKind: 'stone', quantity: 1 }] }); h.ui.root.arrange();
+    expect(shownBackpack()).toEqual(Array.from({ length: 12 }, (_, index) => index).filter(index => index !== 5 && index !== 7));
+    h.ui.update({ ...initial, selectedSlot: 3 }); h.ui.root.arrange();
+    expect(h.node('trade.hotbar').props['selected']).toBe(3);
     h.click(cell(BACKPACK_SLOT_OFFSET + 2));
     expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', BACKPACK_SLOT_OFFSET + 2, 0, 3);
     h.ui.dispose();

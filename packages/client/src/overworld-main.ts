@@ -5690,6 +5690,7 @@ function renderFrame(alpha = 1): void {
   tradeUi.update(!snapshot.connected || tradeSession === null || snapshot.identityHex === null ? null : {
     connectionScope: `${snapshot.identityHex}:${network.sessionGeneration}`,
     backpackSlotCapacity,
+    selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     contentRegistry: snapshot.content.registry,
     identityHex: snapshot.identityHex,
     session: tradeSession,

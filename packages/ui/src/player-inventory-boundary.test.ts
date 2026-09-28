@@ -50,9 +50,15 @@ const SIGNS: Readonly<Record<string, (source: string) => number>> = {
   'host-drawn-backpack': source => source.match(/\bthis\.backpackItemSlots\b/gu)?.length ?? 0,
 };
 
-/** Every other module that still shows the player's inventory its own way, with its sign counts. Exact: fix a
- * surface and its entry must go (the test fails until it is removed), and nothing may be added. */
-const LEGACY: Readonly<Record<string, Readonly<Record<string, number>>>> = {
+/** Every other module with a sign, and exactly how many. Exact both ways: a new sign fails, and so does a fixed one
+ * until its count here goes down. */
+const EXCEPTIONS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
+  // The content frame's Studio preview draws authored panes as plain grids (the game windows use the shared pane).
+  'ui/src/kit/components/content-frame.ts': { 'player-container-grid': 1 },
+  // Studio's game-surface specimen of the HUD's hotbar and vitals row: the HUD, not an inventory window.
+  'ui/src/kit/components/game-surface.ts': { 'player-container-grid': 1 },
+  // Trade maps the shared pane's cells to its inventory slots to offer them (the pane draws them).
+  'ui/src/kit/components/trade.ts': { 'backpack-range': 6 },
   // The merchant's Sell tab lists the backpack as rows (BUG-067 follow-up PR).
   'ui/src/npc-interaction-ui.ts': { 'backpack-range': 4 },
   // The host's pre-kit item-slot windows, unused by the game since every window moved to the kit (BUG-067 cleanup).
@@ -71,11 +77,7 @@ function offenders(): Record<string, Record<string, number>> {
   const found: Record<string, Record<string, number>> = {};
   for (const name of PACKAGES) for (const { path, source } of sources(new URL(`../../${name}/src/`, import.meta.url), `${name}/src/`)) {
     if (SHARED_PANE_MODULES.has(path) || NOT_DISPLAYS.has(path)) continue;
-    // A module that builds the shared pane may map the pane's cells to inventory slots (the backpack range).
-    const usesPane = /\buiPlayerInventoryPane\s*\(/u.test(source);
-    for (const [sign, pattern] of Object.entries(SIGNS)) {
-      if (usesPane && sign === 'backpack-range') continue;
-      const count = source.match(pattern)?.length ?? 0;
+    for (const [sign, count] of Object.entries(SIGNS).map(([sign, measure]) => [sign, measure(source)] as const)) {
       if (count) (found[path] ??= {})[sign] = count;
     }
   }

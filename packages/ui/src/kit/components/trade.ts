@@ -1,5 +1,5 @@
 import { coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim/commerce';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY } from '@orchard/sim/item-containers';
 import { tradeItemDisplayName, tradeItemIsOfferable, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
 import type { LoadedAsset } from '../../assets.js';
@@ -13,8 +13,8 @@ import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonOptions } from './button.js';
 import { uiInput } from './input.js';
-import { uiAdoptSlot, uiHotbar, uiInventoryGrid, uiSetSlotState } from './inventory.js';
-import { UiInventoryFilter, uiPlayerInventoryPane } from './inventory-panel.js';
+import { uiAdoptSlot, uiInventoryGrid, uiSetSlotState } from './inventory.js';
+import { UiInventoryFilter, uiPlayerHotbar, uiPlayerInventoryPane } from './inventory-panel.js';
 import { uiPurseLabel } from './purse.js';
 import { uiTooltip } from './tooltip.js';
 
@@ -175,8 +175,8 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       onActivate: (index, event) => offerFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
       // The same header as every pane: sort stays, disabled, because offers point at bag slots mid-trade.
       onSort: () => undefined, sortDisabledReason: () => 'No sorting during a trade: offers point at bag slots.' });
-    const hotbar = uiHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, activateOn: 'up', columns: HOTBAR_SLOT_COUNT, layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } },
-      selected: () => -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2) });
+    const hotbar = uiPlayerHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', activateOn: 'up',
+      selected: () => model.selectedSlot ?? -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2) });
     carriedCells = [];
     const guard = (grid: UiElement, slotOf: (index: number) => number) => {
       for (const [index, cell] of [...grid.children].entries()) {
@@ -276,7 +276,8 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       }
       rebuilding = false;
     }
-    if (model.session.state === 'active') { refreshInventory(); refreshOfferable(); }
+    // Carried items change under a live filter: re-run it, and re-mark the hotbar's selected slot.
+    if (model.session.state === 'active') { refreshInventory(); refreshOfferable(); backpackFilter.refresh(); for (const child of footerHost.children) child.invalidate(); }
     const other = own() ? model.recipientName : model.requesterName;
     base.setWindowTitle(model.session.state === 'requested' ? 'TRADE REQUEST' : `TRADE WITH ${other.toUpperCase()}`);
     requestLabel?.setProps({ text: own() ? `Waiting for ${model.recipientName} to answer.` : `${model.requesterName} wants to trade with you.` });
