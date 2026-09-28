@@ -109,6 +109,7 @@ import { authoredSpacePortalPrompt } from './content/portal-interaction.js';
 import { readPlayerNameplates, writePlayerNameplates } from './player-ui-preferences.js';
 import { calendarTickForSnapshot, cropCalendarOffsetForSnapshot, snapshotTimingClocks } from './content/timing-clock.js';
 import { activeObjectFrameId, activeObjectFrameState, processJobFrameState, processJobMatchesFrame } from './content/frame-presentation.js';
+import { WorkbenchCraftingWindow } from './content/workbench-crafting-window.js';
 import {
   DEFAULT_UI_SCALE,
   DEFAULT_WORLD_ZOOM,
@@ -664,6 +665,8 @@ const timingHoverIndex = new TimingHoverIndex();
 const growthTimingHoverIndex = new GrowthTimingHoverIndex();
 let hoveredInteractionTile: { readonly tileX: number; readonly tileY: number } | null = null;
 let animatedOpenChestId: bigint | null = null;
+/** Opens the crafting grid for a workbench's placeable session and closes the session with it (BUG-059). */
+const workbenchCrafting = new WorkbenchCraftingWindow();
 let chestAnimationStartedAtMs = 0;
 let closingChestId: bigint | null = null;
 let latestCameraX = 0;
@@ -2350,6 +2353,9 @@ function update(): void {
   if (!snapshot.hearthStashOpen && snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace'
     || overworldUi.openWindow === 'cooking' || overworldUi.openWindow === 'press'
     || overworldUi.openWindow === 'fermentation' || overworldUi.openWindow === 'content')) overworldUi.openWindow = null;
+  // A workbench's session opens the crafting grid (its frame is the crafting surface); closing the grid ends it.
+  if (workbenchCrafting.step(snapshot.content.registry, snapshot.activePlaceable, overworldUi.openWindow,
+    () => network.closePlaceable())) overworldUi.openWindow = 'crafting';
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
@@ -4109,6 +4115,7 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
       if(hearthFurnitureShapeForPlaceable(
         snapshot.content.registry, target.placeable,
       )?.seatPoseOffsetPixels!==undefined){showResult(network.sitHearthFurniture(target.placeable.id),null);return;}
+      workbenchCrafting.interacted(snapshot.content.registry, target.placeable);
       showResult(
         network.interactEntity('placeable', target.placeable.id, 'use'),
         target.presentation?.feedback ?? null,
