@@ -22,7 +22,9 @@ export interface FramePresentationDefinition {
 
 export type FrameBinding =
   | { readonly self: FrameSelfBinding }
-  | { readonly entitySlots: readonly number[] }
+  /** The entity's slots this pane shows: listed indices, or `all` for every slot of the container, whatever its
+   * capacity (a chest, barrel or stash that scrolls; wiki Roadmap/Uncapped Storage). */
+  | { readonly entitySlots: readonly number[] | 'all' }
   | { readonly process: 'progress' }
   | { readonly timing: 'process' }
   | { readonly state: string }
@@ -51,6 +53,7 @@ export interface FramePaneDefinition {
   readonly kind: FramePaneKind;
   readonly label?: string;
   readonly columns?: number;
+  /** Rows shown. A pane bound to a whole container (`entitySlots: all`, or the backpack) shows this many and scrolls. */
   readonly rows?: number;
   readonly sizing?: 'fixed' | 'flex';
   readonly alignment?: 'start' | 'center' | 'end';
@@ -146,6 +149,7 @@ function parseBinding(value: unknown, path: string): FrameBinding {
     return { self: self as FrameSelfBinding };
   }
   if (source.entitySlots !== undefined) {
+    if (source.entitySlots === 'all') return { entitySlots: 'all' };
     const entitySlots = array(source.entitySlots, `${path}.entitySlots`)
       .map((slot, index) => integer(slot, `${path}.entitySlots[${index}]`));
     if (entitySlots.length === 0 || new Set(entitySlots).size !== entitySlots.length) {
@@ -311,4 +315,10 @@ export function parseFrameDefinition(json: string | unknown): FrameContentDefini
     ...(source.retired === undefined ? {} : { retired: boolean(source.retired, '$.retired') }),
     ...(source.replacement === undefined ? {} : { replacement: text(source.replacement, '$.replacement') as FrameDefinitionId }),
   });
+}
+
+/** The entity slots a binding shows: its listed indices, or with `all` every slot below the container's capacity. */
+export function frameEntitySlotIndexes(binding: { readonly entitySlots: readonly number[] | 'all' }, capacity: number): readonly number[] {
+  if (binding.entitySlots !== 'all') return binding.entitySlots;
+  return Array.from({ length: Math.max(0, Math.floor(capacity)) }, (_, index) => index);
 }

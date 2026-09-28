@@ -71,7 +71,7 @@ describe('frame restriction resolver', () => {
       const frameId = object.components.frame?.ref;
       const definition = definitions.find((entry): entry is FrameContentDefinition => entry.kind === 'frame' && entry.id === frameId);
       expect(definition, object.id).toBeDefined();
-      const container = { id: object.id, capacity: object.components.container!.slotCount, slots: [], restrictions: frameRestrictions(definition!, registry) };
+      const container = { id: object.id, capacity: object.components.container!.slotCount, slots: [], restrictions: frameRestrictions(definition!, registry, object.components.container!.slotCount) };
       for (const process of registry.processes.values()) {
         if (process.retired === true || process.stationTag !== processor.processTag) continue;
         expect(processor.slotRoles.input?.some((slot) => slotAcceptsItem(container, slot, process.input.item.slice(5), content)), process.id).toBe(true);
@@ -149,7 +149,7 @@ describe('frame slot deny lists', () => {
 
 it('distinguishes Nado-style preserving barrels from casks and keeps cask output extraction safe', () => {
   const content = itemContainerContentResolver(registry);
-  const barrel = { id: 'barrel', capacity: 8, slots: Array(8).fill(null), restrictions: frameRestrictions(frame('barrel'), registry) };
+  const barrel = { id: 'barrel', capacity: 8, slots: Array(8).fill(null), restrictions: frameRestrictions(frame('barrel'), registry, 8) };
   const cask = { id: 'cask', capacity: 2, slots: [null, null], restrictions: frameRestrictions(frame('fermentation'), registry) };
   expect(slotAcceptsItem(barrel, 0, 'must', content)).toBe(false);
   expect(slotAcceptsItem(barrel, 0, 'grape', content)).toBe(true);

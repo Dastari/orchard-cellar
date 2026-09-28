@@ -59,7 +59,9 @@ import {
   frameSlotAuthorityRestriction,
   layoutContentFrame,
   type ContentFrameLayout,
+  type ResolvedFrameSlotBinding,
 } from './content-frame.js';
+import { frameEntitySlotIndexes } from '@orchard/sim/content/frame-runtime';
 import { CurrencyDisplay } from './currency-display.js';
 import { PlayerResourceFrame } from './player-resource-frame.js';
 import { pwaUpdateLabel, type PwaUpdateStatus } from './pwa-update.js';
@@ -283,6 +285,8 @@ export interface OverworldUiModel {
   readonly openChestInventory?: readonly OverworldUiInventorySlot[];
   readonly openStashInventory?:readonly OverworldUiInventorySlot[];
   readonly openPlaceableInventory?: readonly OverworldUiInventorySlot[];
+  /** The open chest's, placeable's or stash's container size, so a frame pane bound to `entitySlots: all` shows it all. */
+  readonly openEntityCapacity?: number;
   readonly furnaceProgress?: number;
   readonly furnaceRemainingSeconds?: number | null;
   readonly cookingFireProgress?: number;
@@ -1529,7 +1533,7 @@ export class OverworldUi {
     if (cached && cached.model === this.model && cached.layout === this.layout && cached.window === this.openWindowValue) return cached;
     const frame = this.retainedFrame(); if (!frame) { this.retainedIndex = null; return null; }
     const slots = new Set<ItemSlot>();
-    for (const pane of frame.panes) for (const binding of pane.slots) {
+    for (const pane of frame.panes) for (const binding of this.retainedPaneBindings(pane)) {
       const slot = this.itemSlots.find(binding.containerId, binding.index);
       if (!slot || !slot.enabled) continue;
       // The authority's rules only (BUG-050): equipment rules on equipment, none on other self panes.
@@ -1545,6 +1549,15 @@ export class OverworldUi {
     return this.retainedIndex;
   }
 
+  /** A retained pane's cells: its laid-out bindings, or, bound to `entitySlots: all`, every slot of the open entity's
+   * container (the layout can't know its size), with the pane's one restriction. */
+  private retainedPaneBindings(pane: ContentFrameLayout['panes'][number]): readonly ResolvedFrameSlotBinding[] {
+    const bind = pane.definition.bind, first = pane.slots[0];
+    if (!('entitySlots' in bind) || bind.entitySlots !== 'all' || !first) return pane.slots;
+    return frameEntitySlotIndexes(bind, this.model.openEntityCapacity ?? pane.slots.length)
+      .map(index => ({ containerId: first.containerId, index, ...(first.restriction ? { restriction: first.restriction } : {}) }));
+  }
+
   private syncRetainedInventory(): void {
     if (!this.retainedMenus) return;
     const frame = this.retainedFrame(), registry = this.model.contentRegistry;
@@ -1557,6 +1570,7 @@ export class OverworldUi {
         entity: retainedEntityContainer(frame.definition) },
       registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
       backpackCapacity: modelBackpackCapacity(this.model),
+      ...(this.model.openEntityCapacity === undefined ? {} : { entityCapacity: this.model.openEntityCapacity }),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
       // The paper doll shows the wearer with the same painter as the character screen.
       portrait: (context, bounds) => { const appearance = this.model.character?.appearance; if (appearance) this.drawPlayerDoll(context, appearance, 'down', bounds); },

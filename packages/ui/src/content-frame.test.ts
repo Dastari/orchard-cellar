@@ -120,7 +120,8 @@ describe('content frame runtime', () => {
 
   it('derives the barrel input family without embedding crop ids in the UI', () => {
     const barrel = frame('barrel');
-    const restrictions = frameRestrictions(barrel, registry);
+    // The barrel's contents cover its whole 8-slot container (Uncapped Storage step 3).
+    const restrictions = frameRestrictions(barrel, registry, 8);
     expect(restrictions[0]?.acceptedKinds).toContain('carrot');
     expect(restrictions[0]?.acceptedKinds).toContain('wheat');
     expect(Object.keys(restrictions)).toHaveLength(8);

@@ -5471,6 +5471,12 @@ function renderFrame(alpha = 1): void {
       kind: 'chest', definitionId: 'object:chest',
     });
   const activeFramePlaceable = snapshot.activeChest === null ? snapshot.activePlaceable : activeChestPlaceable;
+  // The open container's size, so a frame pane bound to `entitySlots: all` shows every slot (Uncapped Storage step 3):
+  // the stash's authored capacity, or the chest's or placeable's object container (a legacy chest is the generic chest).
+  const openEntityCapacity = snapshot.hearthStashOpen
+    ? activeHearthLobbyDefinition(snapshot.content.registry)?.stashCapacity
+    : placeableObjectDefinition(snapshot.content.registry, activeFramePlaceable
+      ?? (snapshot.activeChest === null ? { kind: '' } : { kind: 'chest', definitionId: 'object:chest' }))?.components.container?.slotCount;
   const activeFrameProgress = activeProcessorTiming?.progress ?? 0;
   const inventoryFrameState = processJobFrameState(snapshot.content.registry, snapshot.cookingJob, authorityTick);
   const frameJob = snapshot.activeChest === null && processJobMatchesFrame(
@@ -5516,6 +5522,7 @@ function renderFrame(alpha = 1): void {
     openChestInventory: [...snapshot.openChestSlots],
     openPlaceableInventory: [...snapshot.openPlaceableSlots],
     openStashInventory:[...(snapshot.hearthStashSlots??[])],
+    ...(openEntityCapacity === undefined ? {} : { openEntityCapacity }),
     inventoryFrameState,
     ...(activeFrameId === null ? {} : {
       activeFrameId,

@@ -19,3 +19,8 @@ export class ContentParseError extends Error {
     this.path = path;
   }
 }
+
+/** The most slots a stored container may have for now: a placeable's `container.slotCount` and the hearth stash's
+ * `stashCapacity`. Storage slot indices are still one byte until the container migration (wiki Roadmap/Uncapped
+ * Storage, step 4), so content above this is refused. It is a technical ceiling, not a design cap. */
+export const MAX_CONTAINER_CAPACITY = 256;

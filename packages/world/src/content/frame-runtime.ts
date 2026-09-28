@@ -1,4 +1,5 @@
 import {
+  activeHearthLobbyDefinition,
   frameRestrictions,
   type ContentRegistry,
   type FrameContentDefinition,
@@ -48,8 +49,10 @@ function frameAndContainerRestrictions(
   placeable: FramePlaceableRow,
   definition: FrameContentDefinition | null,
 ): Readonly<Record<number, SlotRestriction>> {
+  // A pane bound to `entitySlots: all` covers the object's whole container.
+  const capacity = placeableObjectDefinition(registry, placeable)?.components.container?.slotCount ?? 0;
   const restrictions: Record<number, SlotRestriction> = definition === null
-    ? {} : { ...frameRestrictions(definition, registry) };
+    ? {} : { ...frameRestrictions(definition, registry, capacity) };
   for (const restriction of placeableObjectDefinition(registry, placeable)
     ?.components.container?.restrictions ?? []) {
     for (const slot of restriction.slots) {
@@ -91,7 +94,8 @@ export function hearthStashFrameRestrictions(
   registry: ContentRegistry,
 ): Readonly<Record<number, SlotRestriction>> {
   const frame = presentedEntityFrame(registry.frames.get(HEARTH_STASH_FRAME_ID));
-  return frame === null ? Object.freeze({}) : frameRestrictions(frame, registry);
+  return frame === null ? Object.freeze({})
+    : frameRestrictions(frame, registry, activeHearthLobbyDefinition(registry)?.stashCapacity ?? 0);
 }
 
 /** Slot rules the authority applies to a legacy `world_chest` container, resolved

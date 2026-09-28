@@ -1099,8 +1099,9 @@ function validateObjectDefinition(
         definition.id, 'components.frame.ref',
       ));
     } else {
-      const slots = frame.panes.flatMap((pane) => ('entitySlots' in pane.bind ? pane.bind.entitySlots : []));
-      if (slots.length > 0 && components.container === undefined) {
+      const slots = frame.panes.flatMap((pane) => ('entitySlots' in pane.bind && pane.bind.entitySlots !== 'all' ? pane.bind.entitySlots : []));
+      const wholeContainer = frame.panes.some((pane) => 'entitySlots' in pane.bind && pane.bind.entitySlots === 'all');
+      if ((slots.length > 0 || wholeContainer) && components.container === undefined) {
         componentIssue('a frame with entity slots requires a container component', 'components.frame.ref');
       } else if (components.container !== undefined
         && slots.some((slot) => slot >= components.container!.slotCount)) {
@@ -1264,12 +1265,18 @@ function validateFrameDefinition(
     }
   }
   const entitySlots = new Set<number>();
+  const entityPanes = definition.panes.filter((pane) => 'entitySlots' in pane.bind).length;
   for (const [index, pane] of definition.panes.entries()) {
     const path = `panes[${index}]`;
-    if ('entitySlots' in pane.bind) {
+    if ('entitySlots' in pane.bind && pane.bind.entitySlots === 'all') {
+      // A pane over the whole container scrolls through it; any other entity pane would show some slot twice.
+      if (entityPanes > 1) invalid('an entitySlots: all pane must be the frame\'s only entity pane', `${path}.bind.entitySlots`);
+      if (pane.kind !== 'slots') invalid('entitySlots: all requires a slots pane', `${path}.kind`);
+    } else if ('entitySlots' in pane.bind && pane.bind.entitySlots !== 'all') {
+      const listed: readonly number[] = pane.bind.entitySlots;
       const capacity = (pane.columns ?? 0) * (pane.rows ?? 0);
-      if (pane.bind.entitySlots.length > capacity) invalid('entity slot binding exceeds the pane grid', `${path}.bind.entitySlots`);
-      for (const slot of pane.bind.entitySlots) {
+      if (listed.length > capacity) invalid('entity slot binding exceeds the pane grid', `${path}.bind.entitySlots`);
+      for (const slot of listed) {
         if (entitySlots.has(slot)) invalid(`entity slot ${slot} is bound more than once`, `${path}.bind.entitySlots`);
         entitySlots.add(slot);
       }

@@ -7,7 +7,7 @@ import type { LoadedAsset } from '../../assets.js';
 import { drawOutlinedPixelText } from '../../pixel-ui.js';
 import { uiInventorySlotTone } from '../../design-system/inventory.js';
 import { UiInventoryController, type UiInventorySlotRef } from '../runtime/inventory.js';
-import { UiElement, type UiElementKey } from '../runtime/element.js';
+import { UiElement, type UiElementKey, type UiElementPointer } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone, UiControlSize } from '../tokens.js';
 import { paintUiSkin, paintUiMissingArt, type UiKitArt } from './art.js';
@@ -86,6 +86,13 @@ export interface UiSlotOptions {
   readonly onKey?: (event: UiElementKey) => boolean;
   /** The slot gained or lost focus (a virtualised panel moves focus off a slot it recycles). */
   readonly onFocus?: (focused: boolean) => void;
+  /** Runs around the slot's own pointer and key handling (`next`), so a window can guard a slot (a trade checks the
+   * row it pressed is the row it releases) without replacing the slot's element. */
+  readonly intercept?: UiSlotIntercept;
+}
+export interface UiSlotIntercept {
+  readonly pointer?: (event: UiElementPointer, element: UiElement, next: (event: UiElementPointer) => boolean) => boolean;
+  readonly key?: (event: UiElementKey, element: UiElement, next: (event: UiElementKey) => boolean) => boolean;
 }
 /** Bare item art at its native size, centred: station emblems, recipe lines, ingredient rows. */
 export function uiItemImage(options: { readonly itemKind: string; readonly artwork?: UiSlotOptions['artwork']; readonly label?: string; readonly size?: number }): UiElement {
@@ -319,23 +326,25 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       container: binding.container, index: binding.index, value: accepts ? 'accept' : 'refuse' };
     return verdict.value;
   };
+  const slotPointer = (event: UiElementPointer, element: UiElement): boolean => {
+    if (options.controller && binding) return options.controller.pointer(event, binding);
+    if (!options.onPress) return false;
+    if (event.type === 'cancel') { pressed = false; return true; }
+    if (event.button !== 0 && !(options.allowSecondary && event.button === 2)) return false;
+    if (event.type === 'down') { pressed = true; if (options.activateOn === 'down') options.onPress(event); return true; }
+    if (event.type === 'up') {
+      const activate = pressed && containsPoint(element.rect, event.point) && containsPoint(element.clip, event.point);
+      pressed = false; if (activate && options.activateOn !== 'down') options.onPress(event); return true;
+    }
+    return pressed;
+  };
+  const slotKey = (event: UiElementKey): boolean => { if (event.key === 'Escape') { options.controller?.cancel(); return true; } if (!['Enter', ' ', 'ContextMenu'].includes(event.key)) return options.onKey?.(event) ?? false;
+    if (options.controller && binding) options.controller.activate(binding, event.key === 'ContextMenu' ? 2 : 0, event.shiftKey); else options.onPress?.({...event,button:event.key==='ContextMenu'?2:0}); return true; };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (binding ? `${binding.container}/${binding.index}` : 'Slot'),
     focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding, selected: options.selected ?? current?.selected ?? false, hoverWhenDisabled: current?.locked !== undefined },
     style: { width: uiFixed(28), height: uiFixed(31), display: 'stack', padding: 8, shrink: 0, ...options.layout }, children: options.icon ? [uiIcon(options.icon).setStyle({ width: 'grow', height: 'grow' })] : [],
-    onPointer(event, element) {
-      if (options.controller && binding) return options.controller.pointer(event, binding);
-      if (!options.onPress) return false;
-      if (event.type === 'cancel') { pressed = false; return true; }
-      if (event.button !== 0 && !(options.allowSecondary && event.button === 2)) return false;
-      if (event.type === 'down') { pressed = true; if (options.activateOn === 'down') options.onPress(event); return true; }
-      if (event.type === 'up') {
-        const activate = pressed && containsPoint(element.rect, event.point) && containsPoint(element.clip, event.point);
-        pressed = false; if (activate && options.activateOn !== 'down') options.onPress(event); return true;
-      }
-      return pressed;
-    },
-    onKey(event) { if (event.key === 'Escape') { options.controller?.cancel(); return true; } if (!['Enter', ' ', 'ContextMenu'].includes(event.key)) return options.onKey?.(event) ?? false;
-      if (options.controller && binding) options.controller.activate(binding, event.key === 'ContextMenu' ? 2 : 0, event.shiftKey); else options.onPress?.({...event,button:event.key==='ContextMenu'?2:0}); return true; },
+    onPointer(event, element) { return options.intercept?.pointer ? options.intercept.pointer(event, element, next => slotPointer(next, element)) : slotPointer(event, element); },
+    onKey(event, element) { return options.intercept?.key ? options.intercept.key(event, element, slotKey) : slotKey(event); },
     onDispose() { unregister?.(); },
     ...(options.onFocus ? { onFocus: (focused: boolean) => options.onFocus!(focused) } : {}),
     paint(element, { context, art, hovered, focused, now }) {
@@ -497,6 +506,10 @@ export interface UiInventoryGridOptions {
   readonly onCellKey?: (index: number, event: UiElementKey) => boolean;
   /** A cell's slot gained or lost focus. */
   readonly onCellFocus?: (slot: UiElement, focused: boolean) => void;
+  /** Guards each cell's slot (see UiSlotOptions.intercept); `index` is the cell the slot shows now. */
+  readonly cellIntercept?: (index: () => number) => UiSlotIntercept;
+  /** Each cell's state by index, applied when a slot is made or shows another cell; a cell's own `state` wins. */
+  readonly cellState?: (index: number) => UiSlotState | undefined;
 }
 const gridCellBinders = new WeakMap<UiElement, (cell: UiInventoryCell) => void>();
 /** Points a grid's slot at another cell (a virtualised panel recycling its slots): its index, id, label and the
@@ -515,7 +528,8 @@ function gridCellSlot(options: UiInventoryGridOptions, cell: UiInventoryCell, po
     onPress: options.onActivate ? event => options.onActivate!(at.index, event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder,
     disabled: cell.disabled, ...(options.onCellKey ? { onKey: (event: UiElementKey) => options.onCellKey!(at.index, event) } : {}),
     ...(options.onCellFocus ? { onFocus: (focused: boolean) => options.onCellFocus!(slot, focused) } : {}),
-    ...cellSlotOptions(cell, options.art), ...(options.hotkeys ? { hotkey: String((position + 1) % 10) } : {}) });
+    ...(options.cellIntercept ? { intercept: options.cellIntercept(() => at.index) } : {}),
+    ...cellSlotOptions(cell, options.art), ...(cell.state ?? options.cellState?.(at.index) ? { state: cell.state ?? options.cellState!(at.index) } : {}), ...(options.hotkeys ? { hotkey: String((position + 1) % 10) } : {}) });
   let icon = cell.icon;
   gridCellBinders.set(slot, next => {
     const index = next.index ?? at.index; at.index = index;
@@ -526,7 +540,7 @@ function gridCellSlot(options: UiInventoryGridOptions, cell: UiInventoryCell, po
     }
     uiRebindSlot(slot, { binding: { container: options.container, index }, id: slotId(index) ?? slot.id, label: `${options.container}/${next.id}`,
       ...(next.rules ? { rules: next.rules } : {}), ...(next.placeholder ? { placeholder: next.placeholder } : {}),
-      ...(next.state ? { state: next.state } : {}), ...(next.disabled ? { disabled: true } : {}) });
+      ...(next.state ?? options.cellState?.(index) ? { state: next.state ?? options.cellState!(index) } : {}), ...(next.disabled ? { disabled: true } : {}) });
   });
   return slot;
 }

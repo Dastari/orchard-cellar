@@ -132,7 +132,9 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
     const sellHost = uiFlex({ id: 'merchant.sell-inventory', direction: 'column', gap: 4, shrink: 0 });
     // Selling, the hotbar is the window's footer, a carved divider and a centred row, as in every inventory window.
     const footerHost = uiFlex({ shrink: 0 });
-    let sellStructure = '', sellCells: { readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
+    let sellStructure = '', sellCells: { readonly grid: UiElement; readonly offset: number }[] = [];
+    const sold = new WeakMap<UiElement, string>();
+    const sellState = (slot: number) => { const item = carried(slot); return item !== null && model.sell && !model.sell.sellable(item.itemKind) ? { enabled: false } : undefined; };
     const carried = (slot: number) => model.sell?.slots.get(slot) ?? null;
     const sellFrom = (slot: number, one: boolean) => { const item = carried(slot);
         if (!item || model.pending || !model.sell?.sellable(item.itemKind)) return; options.onSellSlot?.(slot, one); };
@@ -145,22 +147,24 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
             cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
             filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => registry()?.items.get(`item:${item.itemKind}`)?.displayName ?? itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
             stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
+            cellState: index => sellState(BACKPACK_SLOT_OFFSET + index),
             // The same header as every pane. The sale counts items, not slots, so sorting is safe; it waits for a sale in flight.
             onSort: () => { if (!model.pending) options.onSortBackpack?.(); },
             sortDisabledReason: () => !options.onSortBackpack ? 'Sorting is not available here.' : model.pending ? 'Wait for the sale to finish.' : null });
         const hotbar = uiPlayerHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', selected: () => model.sell?.selectedSlot ?? -1,
-            stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2) });
+            stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2), cellState: index => sellState(index) });
         const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
-        sellCells = [...grids[0]!.children.map((wrapper, index) => ({ wrapper, slot: BACKPACK_SLOT_OFFSET + index, disabled: false })),
-            ...hotbar.children.map((wrapper, index) => ({ wrapper, slot: index, disabled: false }))];
+        // Each slot is read by the cell it shows now: a recycled pane slot moves between cells.
+        sellCells = [{ grid: grids[0]!, offset: BACKPACK_SLOT_OFFSET }, { grid: hotbar, offset: 0 }];
         sellHost.append(pane); footerHost.append(hotbar);
     };
     // Items this merchant won't buy show the approved disabled face and take no input, as unofferable trade items do.
     const refreshSellable = () => {
-        for (const entry of sellCells) {
-            const item = carried(entry.slot), disabled = item !== null && !model.sell!.sellable(item.itemKind);
-            if (disabled === entry.disabled) continue;
-            entry.disabled = disabled; uiSetSlotState(entry.wrapper, disabled ? { enabled: false } : undefined);
+        for (const { grid, offset } of sellCells) for (const cell of grid.children) {
+            const index = (cell.props['binding'] as { index?: number } | undefined)?.index; if (index === undefined) continue;
+            const item = carried(offset + index), disabled = item !== null && !model.sell!.sellable(item.itemKind), key = `${index}:${disabled}`;
+            if (sold.get(cell) === key) continue;
+            sold.set(cell, key); uiSetSlotState(cell, disabled ? { enabled: false } : undefined);
         }
         sellFilter.refresh();
     };

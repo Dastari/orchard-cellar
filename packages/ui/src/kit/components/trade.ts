@@ -13,7 +13,7 @@ import { uiFlex } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton, type UiButtonOptions } from './button.js';
 import { uiInput } from './input.js';
-import { uiAdoptSlot, uiInventoryGrid, uiSetSlotState } from './inventory.js';
+import { uiAdoptSlot, uiInventoryGrid, uiSetSlotState, type UiSlotIntercept } from './inventory.js';
 import { UiInventoryFilter, uiPlayerHotbar, uiPlayerInventoryPane } from './inventory-panel.js';
 import { uiPurseLabel } from './purse.js';
 import { uiTooltip } from './tooltip.js';
@@ -91,6 +91,26 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     uiAdoptSlot(base, wrapper);
     return wrapper;
   };
+  /** The same guard for a carried cell, kept on the slot itself (a recycled pane slot keeps its element), with the
+   * row key read from the cell the slot shows now. */
+  const guardedCell = (key: () => string): UiSlotIntercept => {
+    let pressed: string | null = null, suppress = false;
+    return {
+      pointer(event, _element, next) {
+        if (event.type === 'down') { pressed = key(); suppress = moneyCommittedOnDown; allowBlurCommit = false; }
+        if (event.type === 'up' && (suppress || pressed !== key())) { pressed = null; suppress = false; return next({ ...event, type: 'cancel' }); }
+        const handled = next(event);
+        if (handled && event.type === 'down') event.capture();
+        if (event.type === 'up' || event.type === 'cancel') { pressed = null; suppress = false; }
+        return handled;
+      },
+      key(event, _element, next) {
+        allowBlurCommit = false;
+        if (repeated(event) && ['Enter', ' ', 'ContextMenu'].includes(event.key)) return true;
+        return next(event);
+      },
+    };
+  };
   const cancelButtons: UiElement[] = [];
   const button = (buttonOptions: UiButtonOptions) => {
     const control = guarded(uiButton(buttonOptions));
@@ -124,7 +144,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   let otherMoney: UiElement | undefined, accept: UiElement | undefined, requestLabel: UiElement | undefined;
   let ownTick: UiElement | undefined, otherTick: UiElement | undefined, status: UiElement | undefined;
   let carriedHost: UiElement | undefined, inventoryStructure = '';
-  let carriedCells: { readonly cell: UiElement; readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
+  let carriedCells: { readonly grid: UiElement; readonly offset: number }[] = [];
   const moneyFields = () => editors.map((editor, index) => {
     const label = ['Gold', 'Silver', 'Bronze'][index]!;
     const input = uiInput({ id: `trade.money.${label.toLowerCase()}`, label, editor, inputMode: 'numeric', size: 'sm', leading: uiGlyph(`coin.${label.toLowerCase()}`), layout: { width: uiFixed(index === 0 ? 64 : 44) },
@@ -168,7 +188,12 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     inventoryStructure = key;
     for (const child of [...carriedHost.children, ...footerHost.children]) child.dispose();
     const common = { artwork, iconAnimation, allowSecondary: true } as const;
+    const rowKey = (slot: number) => () => { const row = carriedRow(slot); return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`; };
+    // Items the authority won't take in a trade show the disabled face, by the cell each slot shows (S4).
+    const offerState = (slot: number) => { const row = carriedRow(slot);
+      return row !== null && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind) ? { enabled: false } : undefined; };
     const pane = uiPlayerInventoryPane({ ...common, id: 'trade.backpack', label: 'BACKPACK', container: 'backpack',
+      cellIntercept: index => guardedCell(() => rowKey(BACKPACK_SLOT_OFFSET + index())()), cellState: index => offerState(BACKPACK_SLOT_OFFSET + index),
       cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
       filterModel: backpackFilter, capacity, itemLabel: item => tradeItemDisplayName(model.contentRegistry, item.itemKind),
       stack: index => carriedRow(BACKPACK_SLOT_OFFSET + index),
@@ -176,33 +201,25 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       // The same header as every pane: sort stays, disabled, because offers point at bag slots mid-trade.
       onSort: () => undefined, sortDisabledReason: () => 'No sorting during a trade: offers point at bag slots.' });
     const hotbar = uiPlayerHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', activateOn: 'up',
-      selected: () => model.selectedSlot ?? -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2) });
-    carriedCells = [];
-    const guard = (grid: UiElement, slotOf: (index: number) => number) => {
-      for (const [index, cell] of [...grid.children].entries()) {
-        const slot = slotOf(index);
-        const wrapper = guarded(cell, () => {
-          const row = carriedRow(slot);
-          return `${actionKey()}:${row?.itemKind}:${row?.quantity}:${row?.durability}:${row?.lit}`;
-        });
-        // Keep what the pane already decided for the cell (hidden past the bag's capacity or by the filter).
-        if (cell.style.display !== undefined) wrapper.setStyle({ display: cell.style.display });
-        grid.remove(cell); grid.append(wrapper); carriedCells.push({ cell, wrapper, slot, disabled: false });
-      }
-    };
+      selected: () => model.selectedSlot ?? -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2),
+      cellIntercept: index => guardedCell(() => rowKey(index())()), cellState: index => offerState(index) });
     const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
-    guard(grids[0]!, index => BACKPACK_SLOT_OFFSET + index); guard(hotbar, index => index);
+    // The carried slots, each read by the cell it shows now: a recycled pane slot moves between cells.
+    carriedCells = [{ grid: grids[0]!, offset: BACKPACK_SLOT_OFFSET }, { grid: hotbar, offset: 0 }];
     carriedHost.append(pane); footerHost.append(hotbar);
   };
   // Items the authority won't take in a trade (quest items, backpacks, purchase grants, retired items; the server's
   // item_not_tradeable) show the approved disabled face (render 01 B) and take no input (S4).
+  const offered = new WeakMap<UiElement, string>();
   const refreshOfferable = () => {
-    for (const entry of carriedCells) {
-      const row = carriedRow(entry.slot);
+    for (const { grid, offset } of carriedCells) for (const cell of grid.children) {
+      const index = (cell.props['binding'] as { index?: number } | undefined)?.index; if (index === undefined) continue;
+      const row = carriedRow(offset + index);
       const disabled = row !== null && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind);
-      if (disabled === entry.disabled) continue;
-      entry.disabled = disabled;
-      uiSetSlotState(entry.wrapper, disabled ? { enabled: false } : undefined);
+      const key = `${index}:${disabled}`;
+      if (offered.get(cell) === key) continue;
+      offered.set(cell, key);
+      uiSetSlotState(cell, disabled ? { enabled: false } : undefined);
     }
   };
   const updateTrade = (next: TradeUiModel): void => {

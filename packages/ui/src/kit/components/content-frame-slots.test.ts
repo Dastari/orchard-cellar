@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { bootstrapContentDefinitions, EQUIPMENT_SLOTS, type FrameContentDefinition, type ItemStack } from '@orchard/sim';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { frameRestrictions } from '@orchard/sim/content/frame-runtime';
+import { frameEntitySlotIndexes } from '@orchard/sim/content/frame-runtime';
 import { EQUIPMENT_SLOT_RESTRICTIONS } from '@orchard/sim/inventory-layout';
 import { itemPolicyResolver } from '@orchard/sim/item-containers';
 import { resolveFramePaneSlots, type FrameContainerAliases } from '../../content-frame.js';
@@ -38,7 +39,7 @@ describe('content frame slots', () => {
       const { root, view } = mount({ definition, aliases: stationAliases });
       for (const pane of definition.panes) {
         if (!('entitySlots' in pane.bind)) continue;
-        for (const index of pane.bind.entitySlots) {
+        for (const index of frameEntitySlotIndexes(pane.bind, 0)) {
           const rules = view('placeable', index).rules;
           expect(rules ?? undefined, `${pane.id} ${index}`).toEqual(uiSlotRulesFromRestriction(authority[index]));
           // Take-only panes (station outputs) are marked read-only.
@@ -72,10 +73,10 @@ describe('content frame slots', () => {
         const pane = definition.panes.find(entry => entry.id === paneId);
         expect(pane && 'entitySlots' in pane.bind, `${id} ${paneId}`).toBe(true);
         if (!pane || !('entitySlots' in pane.bind)) continue;
-        expect(items.length).toBeLessThanOrEqual(pane.bind.entitySlots.length);
+        expect(items.length).toBeLessThanOrEqual(frameEntitySlotIndexes(pane.bind, 0).length);
         for (const item of items) {
           if (pane.restriction?.readOnly) expect(made.has(item), `${id} ${paneId} ${item}`).toBe(true);
-          else for (const index of pane.bind.entitySlots) expect(uiSlotAcceptsItem(uiSlotRulesFromRestriction(authority[index]), item, policy), `${id} ${paneId} ${item}`).toBe(true);
+          else for (const index of frameEntitySlotIndexes(pane.bind, 0)) expect(uiSlotAcceptsItem(uiSlotRulesFromRestriction(authority[index]), item, policy), `${id} ${paneId} ${item}`).toBe(true);
         }
       }
     }

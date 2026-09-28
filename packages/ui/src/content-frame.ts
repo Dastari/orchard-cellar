@@ -1,11 +1,13 @@
 import { drawTimingPane } from './kit/components/timing-canvas.js';
 import type {
+  ContentRegistry,
   FrameContentDefinition,
   TimingProjection,
   FrameRestrictionRegistry,
   SlotRestriction,
 } from '@orchard/sim';
-import { resolveFrameSlotRestriction } from '@orchard/sim/content/frame-runtime';
+import { frameEntitySlotIndexes, resolveFrameSlotRestriction } from '@orchard/sim/content/frame-runtime';
+import { HEARTH_LOBBY_STASH_CAPACITY, bootstrapContentRegistry } from '@orchard/sim';
 import { EQUIPMENT_SLOT_RESTRICTIONS, inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
 import type { PixelUi } from './pixel-ui.js';
 import { drawPixelTextInRect } from './pixel-ui.js';
@@ -96,19 +98,47 @@ function bindingContainer(binding: FrameBinding, aliases: FrameContainerAliases)
   return null;
 }
 
+/** The size of the containers a frame shows: the open entity's (a chest's or placeable's `container.slotCount`, the
+ * stash's `stashCapacity`), for panes bound to `entitySlots: all`. */
+export interface FrameContainerCapacities { readonly entity?: number }
+
+/** A frame's entity container size when no entity says (a designer or lab preview, a host layout, a test): the active
+ * hearth lobby's `stashCapacity` for a stash frame, or the container of the first live object that uses the frame.
+ * A partial registry (items and processes only, as previews pass) reads the bootstrap content's objects and spaces.
+ * Undefined when no object uses the frame (a pane bound to `entitySlots: all` then shows one grid). */
+export function frameDefaultEntityCapacity(definition: Pick<FrameContentDefinition, 'id' | 'presentation'>, registry: unknown): number | undefined {
+  const given = registry as Partial<Pick<ContentRegistry, 'objects' | 'spaces'>>;
+  const content = given.objects && given.spaces ? given : bootstrapContentRegistry();
+  if (definition.presentation?.entityContainer === 'stash') {
+    for (const space of content.spaces?.values() ?? []) {
+      if (space.retired !== true && space.generator === 'delve_lobby' && space.hearthLobby) return space.hearthLobby.stashCapacity;
+    }
+    return HEARTH_LOBBY_STASH_CAPACITY;
+  }
+  for (const object of content.objects?.values() ?? []) {
+    if (object.retired !== true && object.components.frame?.ref === definition.id && object.components.container) return object.components.container.slotCount;
+  }
+  return undefined;
+}
+
 export function resolveFramePaneSlots(
   pane: FramePaneDefinition,
   aliases: FrameContainerAliases,
   registry: Pick<FrameRegistryView, 'items' | 'processes'>,
+  capacities: FrameContainerCapacities = {},
 ): readonly ResolvedFrameSlotBinding[] {
   if (pane.kind !== 'slots' && pane.kind !== 'paper_doll') return [];
   const containerId = bindingContainer(pane.bind, aliases);
   if (containerId === null) return [];
+  const grid = (pane.columns ?? 1) * (pane.rows ?? 1);
+  // A pane bound to a whole container binds every slot of it and scrolls (its rows are the rows shown): the open
+  // entity with `entitySlots: all` (a designer preview without an entity shows one grid of it), and the backpack,
+  // whose pane shows the cells the bag opens (Uncapped Storage step 3). Other self panes keep their grid.
   const indices = 'entitySlots' in pane.bind
-    ? pane.bind.entitySlots
+    ? frameEntitySlotIndexes(pane.bind, pane.bind.entitySlots === 'all' ? capacities.entity ?? grid : 0)
     : Array.from({ length: 'self' in pane.bind
-      ? Math.min((pane.columns??1)*(pane.rows??1),inventoryContainerSlotCount(pane.bind.self))
-      : (pane.columns??1)*(pane.rows??1) },(_,index)=>index);
+      ? pane.bind.self === 'backpack' ? inventoryContainerSlotCount('backpack') : Math.min(grid, inventoryContainerSlotCount(pane.bind.self))
+      : grid }, (_, index) => index);
   const restriction = resolveFrameSlotRestriction(pane.restriction, registry);
   return indices.map((index) => ({
     containerId,
@@ -191,7 +221,7 @@ export function layoutContentFrame(
     panes: definition.panes.map((pane, index) => ({
       definition: pane,
       layout: storage.panes[index]!,
-      slots: resolveFramePaneSlots(pane, aliases, registry),
+      slots: resolveFramePaneSlots(pane, aliases, registry, { entity: frameDefaultEntityCapacity(definition, registry) }),
     })),
     buttons: frameButtons(storage, definition.buttons ?? []),
   };
