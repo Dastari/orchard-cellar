@@ -12,7 +12,6 @@ import type { UiInventorySlotRef } from './kit/runtime/inventory.js';
 import { UI_SLOT_PICKUP_DISTANCE, UiSlotGestures, type UiSlotRef, type UiSlotSpreadMode } from './kit/components/slot-controller.js';
 import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
-import { HEARTH_LOBBY_STASH_CAPACITY } from '@orchard/sim/hearth-lobby';
 import {FerryMenu} from './ferry-menu.js';
 import type {HearthFerryDock} from '@orchard/sim';
 import {OutdoorRewards,type OutdoorRewardEntry} from './outdoor-rewards.js';
@@ -27,12 +26,12 @@ export { disposeHudDisplayCaches, hudDisplayCacheDiagnostics, type HudDisplayCac
 import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
 export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
-import type { ContainerSnapshot, ContentRegistry, CraftingStation, FrameDefinitionId, ItemDefinition, ItemStack, MoonPhase, MoveItemRequest, WeatherMode, WindDirectionMode } from '@orchard/sim';
+import type { ContainerSnapshot, ContentRegistry, ItemContainerContentResolver, CraftingStation, FrameDefinitionId, ItemDefinition, ItemStack, MoonPhase, MoveItemRequest, WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeCraftingRecipeOutput, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
 import { MAIN_HAND_INVENTORY_SLOT } from '@orchard/sim/equipment-loadout';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_COUNT, CRAFTING_SLOT_COUNT, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel, inventoryContainerSlotCount, inventoryContainerSlotOffset, type PlayerInventoryContainerId } from '@orchard/sim/inventory-layout';
 import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
 import { recipeDefinition } from '@orchard/sim/recipes';
 import type { LoadedAsset } from './assets.js';
@@ -46,7 +45,7 @@ import { MAX_TOUCH_BOTTOM_OFFSET, DEFAULT_TOUCH_CONTROL_PREFERENCES, type TouchC
 import { BUTTON_HEIGHT, CanvasButton } from './button.js';
 import { drawToggleSwitch, Toggle } from './toggle.js';
 import { Ribbon, STACKED_RIBBON_HEIGHT } from './ribbon.js';
-import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot } from './item-slot.js';
+import { EQUIPMENT_SLOT_RESTRICTIONS, INVENTORY_CONTAINER_IDS, ItemSlot, ItemSlotTable, type InventoryContainerId } from './item-slot.js';
 import { HelpBook } from './help-book.js';
 import { ScrollBar } from './scrollbar.js';
 import {
@@ -565,6 +564,32 @@ const DEFAULT_INVENTORY_SLOTS = 8;
  * no projected capacity (older tests, the UI lab) falls back to a full or base bag. */
 function modelBackpackCapacity(model: Pick<OverworldUiModel, 'backpackSlotCapacity' | 'hasBackpack'>): number {
   return accessibleBackpackCapacity(model.backpackSlotCapacity ?? (model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS));
+}
+
+const PLAYER_INVENTORY_CONTAINERS: readonly PlayerInventoryContainerId[] = ['hotbar', 'backpack', 'equipment', 'crafting'];
+
+/** The model's stacks by container and cell: the player's rows split out of their global slot numbers, and the open
+ * chest's, station's and stash's rows by their own. Built once per update; a slot reads its cell from here. */
+function modelItemRows(model: Pick<OverworldUiModel, 'inventory' | 'openChestInventory' | 'openPlaceableInventory' | 'openStashInventory'>): Readonly<Record<InventoryContainerId, ReadonlyMap<number, OverworldUiInventorySlot>>> {
+  const rows = Object.fromEntries(INVENTORY_CONTAINER_IDS.map(container => [container, new Map<number, OverworldUiInventorySlot>()])) as Record<InventoryContainerId, Map<number, OverworldUiInventorySlot>>;
+  // The world table keeps explicit `empty` rows for vacant cells. Those are a persistence detail, not an item stack:
+  // retaining them here makes a slot look empty while drop validation sees an incompatible item occupying it.
+  const stacks = (items: readonly OverworldUiInventorySlot[] | undefined) => (items ?? []).filter(item => item.itemKind !== 'empty' && item.quantity > 0);
+  for (const item of stacks(model.inventory)) {
+    const container = PLAYER_INVENTORY_CONTAINERS.find(candidate => item.slot >= inventoryContainerSlotOffset(candidate)
+      && item.slot < inventoryContainerSlotOffset(candidate) + inventoryContainerSlotCount(candidate));
+    if (container) rows[container].set(item.slot - inventoryContainerSlotOffset(container), item);
+  }
+  for (const item of stacks(model.openChestInventory)) rows.chest.set(item.slot, item);
+  for (const item of stacks(model.openPlaceableInventory)) rows.placeable.set(item.slot, item);
+  for (const item of stacks(model.openStashInventory)) rows.stash.set(item.slot, item);
+  return rows;
+}
+
+/** A host item slot's widget id (unchanged from the fixed slot arrays). */
+function itemSlotNodeId(container: InventoryContainerId, index: number): string {
+  return container === 'hotbar' || container === 'backpack' || container === 'equipment' ? `window.inventory.${container}.${index}`
+    : container === 'placeable' ? `window.content.entity.${index}` : `window.${container}.${index}`;
 }
 const INVENTORY_BACKPACK_COLUMNS = 7;
 const INVENTORY_BACKPACK_VISIBLE_ROWS = 3;
@@ -1492,35 +1517,29 @@ export class OverworldUi {
   /** Complete authored bindings, independent of filter, clipping and scrolling. */
   private retainedSlots(): ItemSlot[] { return this.retainedSlotIndex()?.slots ?? []; }
 
-  private retainedSlot(ref: UiInventorySlotRef): ItemSlot | null { return this.retainedSlotIndex()?.byRef.get(ref.container)?.[ref.index] ?? null; }
+  private retainedSlot(ref: UiInventorySlotRef): ItemSlot | null { return this.retainedSlotIndex()?.byRef.get(ref.container)?.get(ref.index) ?? null; }
 
   /** The retained frame's slots, and the same slots by container and index. The set and its rules change only with
    * the model (slot items, enabled cells and cleared restrictions are set in update), the layout or the open window,
    * so it is rebuilt then and not per lookup: the slot controller asks for slots many times a frame. */
   private retainedIndex: { readonly model: OverworldUiModel; readonly layout: unknown; readonly window: OverworldWindow | null;
-    readonly slots: ItemSlot[]; readonly byRef: ReadonlyMap<string, readonly (ItemSlot | undefined)[]> } | null = null;
-  private retainedSlotIndex(): { readonly slots: ItemSlot[]; readonly byRef: ReadonlyMap<string, readonly (ItemSlot | undefined)[]> } | null {
+    readonly slots: ItemSlot[]; readonly byRef: ReadonlyMap<string, ReadonlyMap<number, ItemSlot>> } | null = null;
+  private retainedSlotIndex(): { readonly slots: ItemSlot[]; readonly byRef: ReadonlyMap<string, ReadonlyMap<number, ItemSlot>> } | null {
     const cached = this.retainedIndex;
     if (cached && cached.model === this.model && cached.layout === this.layout && cached.window === this.openWindowValue) return cached;
     const frame = this.retainedFrame(); if (!frame) { this.retainedIndex = null; return null; }
-    const collections: Readonly<Record<string, readonly ItemSlot[]>> = {
-      backpack: this.backpackItemSlots, hotbar: this.inventoryHotbarSlots, equipment: this.equipmentItemSlots,
-      crafting: this.craftingItemSlots, chest: this.chestItemSlots, placeable: this.placeableItemSlots,
-      stash: this.stashItemSlots,
-    };
     const slots = new Set<ItemSlot>();
     for (const pane of frame.panes) for (const binding of pane.slots) {
-      const collection = collections[binding.containerId], direct = collection?.[binding.index];
-      const slot = direct?.index === binding.index ? direct : collection?.find(candidate => candidate.index === binding.index);
+      const slot = this.itemSlots.find(binding.containerId, binding.index);
       if (!slot || !slot.enabled) continue;
       // The authority's rules only (BUG-050): equipment rules on equipment, none on other self panes.
       slot.setRestriction(frameSlotAuthorityRestriction(pane.definition, binding)); slots.add(slot);
     }
-    if (frame.definition.hotbar) for (const slot of this.inventoryHotbarSlots) slots.add(slot);
-    const byRef = new Map<string, (ItemSlot | undefined)[]>();
+    if (frame.definition.hotbar) for (const slot of this.hostSlots('hotbar')) slots.add(slot);
+    const byRef = new Map<string, Map<number, ItemSlot>>();
     for (const slot of slots) {
-      let row = byRef.get(slot.containerId); if (!row) { row = []; byRef.set(slot.containerId, row); }
-      row[slot.index] = slot;
+      let cells = byRef.get(slot.containerId); if (!cells) { cells = new Map(); byRef.set(slot.containerId, cells); }
+      cells.set(slot.index, slot);
     }
     this.retainedIndex = { model: this.model, layout: this.layout, window: this.openWindowValue, slots: [...slots], byRef };
     return this.retainedIndex;
@@ -1606,22 +1625,19 @@ export class OverworldUi {
   private readonly buildNode: WidgetNode;
   private readonly windowNode: WidgetNode;
   private readonly closeNode: WidgetNode;
-  private readonly inventoryHotbarSlots: ItemSlot[];
-  private readonly backpackItemSlots: ItemSlot[];
-  private readonly equipmentItemSlots: ItemSlot[];
-  private readonly craftingItemSlots: ItemSlot[];
-  private readonly chestItemSlots: ItemSlot[];
-  /** One retained pool for all authored placeable frames. Slot meaning,
-   * ordering, restrictions and visibility come from the active definition. */
-  private readonly stashItemSlots:ItemSlot[];
-  private readonly placeableItemSlots: ItemSlot[];
-  // Compatibility views for legacy drawing helpers retained until the pack
-  // and crafting pane renderers finish their separate migration.
-  private get barrelItemSlots(): ItemSlot[] { return this.placeableItemSlots.slice(0, 8); }
-  private get furnaceItemSlots(): ItemSlot[] { return this.placeableItemSlots.slice(0, 3); }
-  private get cookingFireItemSlots(): ItemSlot[] { return this.placeableItemSlots.slice(0, 2); }
-  private get pressItemSlots(): ItemSlot[] { return this.placeableItemSlots.slice(0, 3); }
-  private get fermentationItemSlots(): ItemSlot[] { return this.placeableItemSlots.slice(0, 2); }
+  /** The host's item slots (the gesture source's cells) by container and index, each made on first lookup, so no
+   * container has a fixed length (Uncapped Storage). Every authored frame shares the one placeable container: slot
+   * meaning, ordering, restrictions and visibility come from the active definition. */
+  private readonly itemSlots = new ItemSlotTable((container, index) => {
+    const slot = new ItemSlot(itemSlotNodeId(container, index), container, index,
+      container === 'equipment' ? EQUIPMENT_SLOT_RESTRICTIONS[index] : undefined);
+    // Shown only once a window lays it out.
+    slot.visible = false;
+    return this.syncItemSlot(slot);
+  });
+  /** The model's stacks by container and cell, and the item rules, as of the last update. */
+  private itemRows = modelItemRows({ inventory: [] });
+  private itemSlotContent: ItemContainerContentResolver = BOOTSTRAP_ITEM_CONTAINER_CONTENT;
   private readonly backpackSortNode: WidgetNode;
   private readonly chestSortNode: WidgetNode;
   private readonly barrelSortNode: WidgetNode;
@@ -1980,20 +1996,6 @@ export class OverworldUi {
         return true;
       },
     });
-    this.inventoryHotbarSlots = Array.from({ length: HOTBAR_SLOT_COUNT }, (_, slot) => new ItemSlot(`window.inventory.hotbar.${slot}`, 'hotbar', slot));
-    this.backpackItemSlots = Array.from({ length: BACKPACK_SLOT_COUNT }, (_, slot) => new ItemSlot(`window.inventory.backpack.${slot}`, 'backpack', slot));
-    this.equipmentItemSlots = EQUIPMENT_SLOTS.map(({ index }) => (
-      new ItemSlot(
-        `window.inventory.equipment.${index}`, 'equipment', index,
-        EQUIPMENT_SLOT_RESTRICTIONS[index],
-      )
-    ));
-    this.craftingItemSlots = Array.from({ length: CRAFTING_SLOT_COUNT }, (_, slot) => new ItemSlot(`window.crafting.${slot}`, 'crafting', slot));
-    this.chestItemSlots = Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, slot) => new ItemSlot(`window.chest.${slot}`, 'chest', slot));
-    this.stashItemSlots=Array.from({length:HEARTH_LOBBY_STASH_CAPACITY},(_,slot)=>new ItemSlot(`window.stash.${slot}`,'stash',slot));
-    this.placeableItemSlots = Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, slot) => (
-      new ItemSlot(`window.content.entity.${slot}`, 'placeable', slot)
-    ));
     const sortNode = (id: string, container: 'backpack' | 'chest' | 'placeable') => widget('button', id, {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
@@ -2222,16 +2224,6 @@ export class OverworldUi {
     });
     this.windowNode.add(
       this.closeNode,
-      ...this.inventoryHotbarSlots.map((slot) => slot.node),
-      ...this.backpackItemSlots.map((slot) => slot.node),
-      ...this.equipmentItemSlots.map((slot) => slot.node),
-      ...this.craftingItemSlots.map((slot) => slot.node),
-      ...this.chestItemSlots.map((slot) => slot.node),
-      ...this.barrelItemSlots.map((slot) => slot.node),
-      ...this.furnaceItemSlots.map((slot) => slot.node),
-      ...this.cookingFireItemSlots.map((slot) => slot.node),
-      ...this.pressItemSlots.map((slot) => slot.node),
-      ...this.fermentationItemSlots.map((slot) => slot.node),
       this.backpackSortNode,
       this.chestSortNode,
       this.barrelSortNode,
@@ -2399,12 +2391,7 @@ export class OverworldUi {
   update(model: OverworldUiModel): void {
     const previousUpdateStatus = this.model.pwaUpdateStatus;
     this.model = model;
-    const itemContent = this.itemContainerContent();
-    for (const slot of [
-      ...this.inventoryHotbarSlots, ...this.backpackItemSlots, ...this.equipmentItemSlots,
-      ...this.craftingItemSlots, ...this.chestItemSlots, ...this.placeableItemSlots,
-      ...this.stashItemSlots,
-    ]) slot.setContentResolver(itemContent);
+    this.itemSlotContent = this.itemContainerContent();
     if (this.watchStatusOutput !== null) {
       const watchStatus = hasEquippedWatch(model.inventory, model.contentRegistry)
         ? watchStatusLabel(model.timeLabel, model.dateLabel, model.moonPhase)
@@ -2448,48 +2435,8 @@ export class OverworldUi {
     this.weaponShortcutNode.setBounds(this.layout.weaponShortcut);
     this.weaponShortcutNode.visible = this.openWindowValue === null
       && model.inventory.some(item => item.slot === MAIN_HAND_INVENTORY_SLOT && item.itemKind !== 'empty' && item.quantity > 0);
-    // The world table keeps explicit `empty` rows for vacant cells. Those are a
-    // persistence detail, not an item stack: retaining them here makes a slot
-    // look empty while drop validation sees an incompatible item occupying it.
-    const inventoryBySlot = new Map(model.inventory
-      .filter((item) => item.itemKind !== 'empty' && item.quantity > 0)
-      .map((item) => [item.slot, item]));
-    this.inventoryHotbarSlots.forEach((slot, index) => {
-      slot.setBounds(this.layout.inventoryHotbarSlots[index]!);
-      slot.enabled = true;
-      slot.item = inventoryBySlot.get(index) ?? null;
-    });
-    this.backpackItemSlots.forEach((slot, index) => {
-      slot.setBounds(this.layout.backpackSlots[index]!);
-      slot.enabled = index < modelBackpackCapacity(model);
-      slot.item = inventoryBySlot.get(BACKPACK_SLOT_OFFSET + index) ?? null;
-    });
-    this.equipmentItemSlots.forEach((slot, visualIndex) => {
-      slot.setBounds(this.layout.equipmentSlots[visualIndex]!);
-      slot.enabled = true;
-      slot.item = inventoryBySlot.get(EQUIPMENT_SLOT_OFFSET + slot.index) ?? null;
-    });
-    this.craftingItemSlots.forEach((slot, index) => {
-      slot.setBounds(this.layout.craftingSlots[index]!); slot.enabled = true;
-      slot.item = inventoryBySlot.get(CRAFTING_SLOT_OFFSET + index) ?? null;
-    });
-    const chestBySlot = new Map((model.openChestInventory ?? [])
-      .filter((item) => item.itemKind !== 'empty' && item.quantity > 0)
-      .map((item) => [item.slot, item]));
-    this.chestItemSlots.forEach((slot, index) => {
-      slot.setBounds(this.layout.chestSlots[index]!); slot.enabled = true; slot.item = chestBySlot.get(index) ?? null;
-    });
-    const stashBySlot=new Map((model.openStashInventory??[]).filter(item=>item.quantity>0&&item.itemKind!=='empty').map(item=>[item.slot,item]));
-    this.stashItemSlots.forEach((slot,index)=>{slot.setBounds(this.layout.inventoryWindow);slot.enabled=true;slot.item=stashBySlot.get(index)??null;});
-    const placeableBySlot = new Map((model.openPlaceableInventory ?? [])
-      .filter((item) => item.itemKind !== 'empty' && item.quantity > 0)
-      .map((item) => [item.slot, item]));
-    this.placeableItemSlots.forEach((slot, index) => {
-      slot.setBounds(this.layout.inventoryWindow);
-      slot.enabled = true;
-      slot.item = placeableBySlot.get(index) ?? null;
-      slot.setRestriction(undefined);
-    });
+    this.itemRows = modelItemRows(model);
+    for (const slot of this.itemSlots.all()) this.syncItemSlot(slot);
     this.backpackSortNode.setBounds(this.openWindowValue === 'chest'
       ? this.layout.chestBackpackSortButton : this.layout.inventorySortButton);
     this.chestSortNode.setBounds(this.layout.chestSortButton);
@@ -2570,9 +2517,54 @@ export class OverworldUi {
   }
 
 
+  /** Reads a slot's cell from the model: its stack, whether the cell is open, the item rules and its place in the
+   * legacy host layout. Update runs this for every slot made so far, and a new slot runs it when it is made. */
+  private syncItemSlot(slot: ItemSlot): ItemSlot {
+    const { containerId: container, index } = slot;
+    slot.setContentResolver(this.itemSlotContent);
+    slot.enabled = this.itemCellOpen(container, index);
+    slot.item = this.itemRows[container].get(index) ?? null;
+    // An entity cell's restriction comes from the open frame's binding, set whenever the frame lays it out.
+    if (container === 'placeable') slot.setRestriction(undefined);
+    const bounds = this.legacyItemSlotBounds(container, index);
+    if (bounds) slot.setBounds(bounds);
+    return slot;
+  }
+
+  /** Whether a cell holds items: the backpack up to its accessible capacity, the player's fixed containers' cells, and
+   * every cell of an open chest, station or stash (their frames bind the cells they have). */
+  private itemCellOpen(container: InventoryContainerId, index: number): boolean {
+    if (container === 'backpack') return index < modelBackpackCapacity(this.model);
+    if (container === 'hotbar' || container === 'equipment' || container === 'crafting') return index < inventoryContainerSlotCount(container);
+    return true;
+  }
+
+  /** A cell's place in the legacy host layout, where it has one. */
+  private legacyItemSlotBounds(container: InventoryContainerId, index: number): UiRect | undefined {
+    switch (container) {
+      case 'hotbar': return this.layout.inventoryHotbarSlots[index];
+      case 'backpack': return this.layout.backpackSlots[index];
+      case 'equipment': return this.layout.equipmentSlots[EQUIPMENT_SLOTS.findIndex(slot => slot.index === index)];
+      case 'crafting': return this.layout.craftingSlots[index];
+      case 'chest': return this.layout.chestSlots[index];
+      default: return this.layout.inventoryWindow;
+    }
+  }
+
+  /** The cells the host's own frame-less windows hit-test (the host draws none of them): the player's fixed
+   * containers; every open backpack cell, and at least the legacy grid; every stack of an open chest or station, and at
+   * least the legacy grid or pool. */
+  private hostSlots(container: InventoryContainerId): ItemSlot[] {
+    if (container === 'equipment') return EQUIPMENT_SLOTS.map(({ index }) => this.itemSlots.slot('equipment', index));
+    if (container === 'hotbar' || container === 'crafting') return this.itemSlots.range(container, inventoryContainerSlotCount(container));
+    if (container === 'backpack') return this.itemSlots.range('backpack', Math.max(modelBackpackCapacity(this.model), this.layout.backpackSlots.length));
+    let cells = container === 'chest' ? this.layout.chestSlots.length : container === 'placeable' ? CHEST_STORAGE_CAPACITY : 0;
+    for (const index of this.itemRows[container].keys()) cells = Math.max(cells, index + 1);
+    return this.itemSlots.range(container, cells);
+  }
+
   private filteredInventoryBackpackSlots(): ItemSlot[] {
-    const capacity = modelBackpackCapacity(this.model);
-    return this.backpackItemSlots.filter((slot, index) => index < capacity && this.inventorySlotMatchesSearch(slot));
+    return this.itemSlots.range('backpack', modelBackpackCapacity(this.model)).filter(slot => this.inventorySlotMatchesSearch(slot));
   }
 
   private syncInventoryBackpackSlots(): void {
@@ -2582,15 +2574,14 @@ export class OverworldUi {
       || this.openWindowValue === 'press'
       || this.openWindowValue === 'fermentation';
     if (!scrollable) return;
-    const capacity = modelBackpackCapacity(this.model);
     const slots = this.openWindowValue === 'inventory'
       ? this.filteredInventoryBackpackSlots()
-      : this.backpackItemSlots.filter((_slot, index) => index < capacity);
+      : this.itemSlots.range('backpack', modelBackpackCapacity(this.model));
     const columns = this.layout.inventoryBackpackColumns;
     this.inventoryScrollBar.setMetrics(Math.ceil(slots.length / columns), INVENTORY_BACKPACK_VISIBLE_ROWS);
     this.inventoryScrollBar.setBounds(this.layout.inventoryBackpackScroll);
     const first = this.inventoryScrollBar.position * columns;
-    this.backpackItemSlots.forEach((slot) => { slot.visible = false; });
+    for (const slot of this.itemSlots.made('backpack')) slot.visible = false;
     slots.slice(first, first + columns * INVENTORY_BACKPACK_VISIBLE_ROWS).forEach((slot, visibleIndex) => {
       slot.visible = true;
       slot.setBounds({
@@ -2605,7 +2596,7 @@ export class OverworldUi {
   private syncCraftingBackpackSlots(): void {
     if (this.openWindowValue !== 'crafting') return;
     const slots = this.filteredInventoryBackpackSlots();
-    this.backpackItemSlots.forEach((slot) => { slot.visible = false; });
+    for (const slot of this.itemSlots.made('backpack')) slot.visible = false;
     slots.slice(0, this.layout.craftingInventorySlots.length).forEach((slot, visibleIndex) => {
       slot.visible = true;
       slot.setBounds(this.layout.craftingInventorySlots[visibleIndex]!);
@@ -2733,7 +2724,7 @@ export class OverworldUi {
       this.slotGestures.cancel();
       return;
     }
-    const slotNodes = this.openWindowValue === 'inventory' ? this.inventoryHotbarSlots.map((slot) => slot.node) : this.hotbarNodes;
+    const slotNodes = this.openWindowValue === 'inventory' ? this.hostSlots('hotbar').map((slot) => slot.node) : this.hotbarNodes;
     this.hoveredSlot = slotNodes.findIndex((node) => node.contains(point));
     if (this.hoveredSlot < 0) this.hoveredSlot = null;
     if (this.openWindowValue === null && this.weaponShortcutNode.visible && this.weaponShortcutNode.contains(point)) this.hoveredSlot = MAIN_HAND_INVENTORY_SLOT;
@@ -3336,20 +3327,22 @@ export class OverworldUi {
     this.windowNode.setBounds(activeWindow);
     this.windowNode.visible = this.openWindowValue !== null;
     this.closeNode.setBounds({ x: activeWindow.x + activeWindow.width - 17, y: activeWindow.y + 7, width: 16, height: 16 });
-    this.inventoryHotbarSlots.forEach((slot, index) => {
-      slot.visible = inventoryVisible || craftingVisible || chestVisible || barrelVisible || furnaceVisible || cookingVisible || pressVisible || fermentationVisible;
-      slot.setBounds(chestVisible ? this.layout.chestHotbarSlots[index]! : this.layout.inventoryHotbarSlots[index]!);
-    });
-    this.backpackItemSlots.forEach((slot, index) => {
-      slot.visible = inventoryVisible || craftingVisible || chestVisible || furnaceVisible || cookingVisible || pressVisible || fermentationVisible;
-      slot.setBounds(craftingVisible
-        ? this.layout.craftingInventorySlots[index]!
-        : chestVisible ? this.layout.chestBackpackSlots[index]! : this.layout.backpackSlots[index]!);
-    });
-    for (const slot of this.equipmentItemSlots) slot.visible = inventoryVisible;
-    for (const slot of this.craftingItemSlots) slot.visible = craftingVisible;
-    for (const slot of this.chestItemSlots) slot.visible = chestVisible;
-    for (const slot of [...this.placeableItemSlots,...this.stashItemSlots]) slot.visible = false;
+    // The legacy frame-less windows' cells, placed on the legacy layout; every other slot is hidden.
+    for (const container of ['hotbar', 'backpack', 'equipment', 'crafting', 'chest'] as const) this.hostSlots(container);
+    const hotbarRects = chestVisible ? this.layout.chestHotbarSlots : this.layout.inventoryHotbarSlots;
+    const backpackRects = craftingVisible ? this.layout.craftingInventorySlots
+      : chestVisible ? this.layout.chestBackpackSlots : this.layout.backpackSlots;
+    for (const slot of this.itemSlots.all()) {
+      const rect = slot.containerId === 'hotbar' ? hotbarRects[slot.index] : slot.containerId === 'backpack' ? backpackRects[slot.index] : undefined;
+      if (rect) slot.setBounds(rect);
+      slot.visible = slot.containerId === 'hotbar' ? rect !== undefined && (inventoryVisible || craftingVisible || chestVisible || barrelVisible
+          || furnaceVisible || cookingVisible || pressVisible || fermentationVisible)
+        : slot.containerId === 'backpack' ? rect !== undefined && (inventoryVisible || craftingVisible || chestVisible || furnaceVisible
+          || cookingVisible || pressVisible || fermentationVisible)
+          : slot.containerId === 'equipment' ? inventoryVisible
+            : slot.containerId === 'crafting' ? craftingVisible
+              : slot.containerId === 'chest' && chestVisible;
+    }
     this.backpackSortNode.visible = inventoryVisible || craftingVisible || chestVisible;
     this.backpackSortNode.setBounds(chestVisible
       ? this.layout.chestBackpackSortButton
@@ -3421,12 +3414,7 @@ export class OverworldUi {
     this.touchSwapToggle.enabled = settingsControlsVisible;
     this.touchBottomOffsetSlider.node.visible = settingsControlsVisible;
     this.touchBottomOffsetSlider.enabled = settingsControlsVisible;
-    if (this.activeContentFrame() !== null) {
-      for (const slot of [
-        ...this.inventoryHotbarSlots, ...this.backpackItemSlots, ...this.equipmentItemSlots,
-        ...this.craftingItemSlots, ...this.chestItemSlots, ...this.placeableItemSlots, ...this.stashItemSlots,
-      ]) slot.visible = false;
-    }
+    if (this.activeContentFrame() !== null) for (const slot of this.itemSlots.all()) slot.visible = false;
     this.applyContentFrameBindings();
     // Each retained view syncs on its own: one broken view never stops the others (BUG-063).
     this.contained('inventory', () => this.syncRetainedInventory());
@@ -3452,22 +3440,12 @@ export class OverworldUi {
     const state = this.activeContentFrameState();
     const craftingSurface = frame.definition.presentation?.surface === 'crafting';
     const craftingBackpack = craftingSurface ? this.filteredInventoryBackpackSlots() : [];
-    const entitySlots = frame.definition.presentation?.entityContainer === 'chest'
-      ? this.chestItemSlots : this.placeableItemSlots;
-    const collections: Readonly<Record<string, readonly ItemSlot[]>> = {
-      backpack: this.backpackItemSlots,
-      hotbar: this.inventoryHotbarSlots,
-      equipment: this.equipmentItemSlots,
-      crafting: this.craftingItemSlots,
-      chest: this.chestItemSlots,
-      placeable: entitySlots,
-      stash:this.stashItemSlots,
-    };
     for (const pane of frame.panes) {
       if (!contentFramePaneVisible(pane.definition, state)) continue;
       pane.slots.forEach((binding, visualIndex) => {
-        const slot = collections[binding.containerId]?.find((candidate) => candidate.index === binding.index);
-        if (slot === undefined) return;
+        // Bindings name their container by the frame's aliases, so a chest frame's entity cells are the chest's.
+        const slot = this.itemSlots.find(binding.containerId, binding.index);
+        if (slot === null) return;
         // Crafting's recipe list, grid, and result share one composed layout.
         // Keep its retained draw/hit nodes on that same grid while authored
         // bindings continue to supply custody, visibility, and restrictions.
@@ -3483,8 +3461,9 @@ export class OverworldUi {
         slot.visible = true;
       });
     }
+    const hotbar = this.hostSlots('hotbar');
     frame.storage.hotbar?.slots.forEach((rect, index) => {
-      const slot = this.inventoryHotbarSlots[index];
+      const slot = hotbar[index];
       if (slot === undefined) return;
       slot.setBounds(rect);
       slot.visible = true;
@@ -3991,8 +3970,9 @@ export class OverworldUi {
   private itemSlotFor(ref: UiSlotRef): ItemSlot | null {
     // The retained frame looks slots up by container and index (its slots are all enabled).
     const retained = this.retainedSlotIndex();
-    if (retained) return retained.byRef.get(ref.container)?.[ref.index] ?? null;
-    return this.visibleItemSlots().find((slot) => slot.enabled && slot.containerId === ref.container && slot.index === ref.index) ?? null;
+    if (retained) return retained.byRef.get(ref.container)?.get(ref.index) ?? null;
+    const slot = this.itemSlots.find(ref.container, ref.index);
+    return slot !== null && slot.enabled && this.visibleItemSlots().includes(slot) ? slot : null;
   }
 
   private itemSlotRef(slot: ItemSlot | null): UiSlotRef | null {
@@ -4311,25 +4291,17 @@ export class OverworldUi {
 
   private visibleItemSlots(): ItemSlot[] {
     if (this.retainedFrame() !== null) return this.retainedSlots();
-    if (this.activeContentFrame() !== null) {
-      return [
-        ...this.inventoryHotbarSlots, ...this.backpackItemSlots, ...this.equipmentItemSlots,
-        ...this.craftingItemSlots, ...this.chestItemSlots, ...this.placeableItemSlots, ...this.stashItemSlots,
-      ].filter((slot) => slot.visible);
-    }
-    if (this.openWindowValue === 'inventory') return [...this.equipmentItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
-    if (this.openWindowValue === 'crafting') return [...this.craftingItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
-    if (this.openWindowValue === 'chest') return [...this.chestItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
-    if (this.openWindowValue === 'content' || this.openWindowValue === 'barrel' || this.openWindowValue === 'furnace'
-      || this.openWindowValue === 'cooking' || this.openWindowValue === 'press'
-      || this.openWindowValue === 'fermentation') {
-      return [...this.placeableItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
-    }
-    return [];
+    // An unreviewed authored frame the host still lays out: the cells its bindings placed.
+    if (this.activeContentFrame() !== null) return this.itemSlots.all().filter((slot) => slot.visible);
+    const window = this.openWindowValue;
+    const entity = window === 'inventory' ? 'equipment' : window === 'crafting' ? 'crafting' : window === 'chest' ? 'chest'
+      : window === 'content' || window === 'barrel' || window === 'furnace' || window === 'cooking' || window === 'press'
+        || window === 'fermentation' ? 'placeable' : null;
+    return entity === null ? [] : [...this.hostSlots(entity), ...this.hostSlots('backpack'), ...this.hostSlots('hotbar')];
   }
 
   private currentRecipeId(): string | null {
-    const grid = { id: 'crafting', capacity: 9, slots: this.craftingItemSlots.map((slot) => slot.item) };
+    const grid = { id: 'crafting', capacity: 9, slots: this.hostSlots('crafting').map((slot) => slot.item) };
     const registry=this.model.contentRegistry??bootstrapContentRegistry();
     return runtimeMatchingRecipeId(registry,grid,grid.capacity,this.selectedCraftingRecipeId,this.model.knownRecipeIds??[],
       recipe=>(recipe.station===undefined||(this.model.nearbyCraftingStations??[]).includes(recipe.station))
@@ -4470,7 +4442,7 @@ export class OverworldUi {
   private hoveredCraftingGhostItem(): ItemStack | null {
     if (this.openWindowValue !== 'crafting' || this.selectedCraftingRecipeId === null) return null;
     const slotIndex = this.layout.craftingSlots.findIndex((slot) => containsPoint(slot, this.pointer));
-    if (slotIndex < 0 || this.craftingItemSlots[slotIndex]?.item !== null) return null;
+    if (slotIndex < 0 || this.itemSlots.slot('crafting', slotIndex).item !== null) return null;
     const pattern = craftingRecipeStacks(
       this.selectedCraftingRecipeId,
       this.model.knownRecipeIds ?? [],
@@ -4526,10 +4498,11 @@ export class OverworldUi {
       const restrictions = Object.fromEntries(containerSlots.flatMap((slot) => (
         slot.restriction === undefined ? [] : [[slot.index, slot.restriction] as const]
       )));
+      const byIndex = new Map(containerSlots.map((slot) => [slot.index, slot]));
       containers[id] = {
         id, capacity,
         slots: Array.from({ length: capacity }, (_, index) => {
-          const slot = containerSlots.find((candidate) => candidate.index === index);
+          const slot = byIndex.get(index);
           return slot === undefined ? null : this.quickCraftOriginalItems.get(slot) ?? null;
         }),
         ...(Object.keys(restrictions).length === 0 ? {} : { restrictions }),
@@ -4593,11 +4566,10 @@ export class OverworldUi {
       const restrictions = Object.fromEntries(slots.flatMap((slot) => (
         slot.restriction === undefined ? [] : [[slot.index, slot.restriction] as const]
       )));
+      const byIndex = new Map(slots.map((slot) => [slot.index, slot]));
       return [id, {
         id, capacity,
-        slots: Array.from({ length: capacity }, (_, index) => (
-          slots.find((slot) => slot.index === index)?.item ?? null
-        )),
+        slots: Array.from({ length: capacity }, (_, index) => byIndex.get(index)?.item ?? null),
         ...(Object.keys(restrictions).length === 0 ? {} : { restrictions }),
       } satisfies ContainerSnapshot];
     }));
