@@ -187,6 +187,23 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
+  it('draws the hearth stash with the shared player inventory pane (BUG-067)', () => {
+    const f = fixture('content', { activeFrameId: 'frame:hearth_stash',
+      openStashInventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: 19, itemKind: 'apple', quantity: 5 }] });
+    try {
+      f.root.arrange();
+      expect(f.ui.retainedInventoryActive).toBe(true);
+      const ids = f.root.entries().map(({ element }) => element.id);
+      // The same backpack pane, filter and sort as the inventory and chest windows; the stash has its own filter and sort.
+      expect(ids).toContain('frame:hearth_stash.pane.backpack.filter');
+      expect(ids).toContain('frame:hearth_stash.pane.backpack.sort');
+      expect(ids).toContain('frame:hearth_stash.pane.contents.filter');
+      expect(ids).toContain('frame:hearth_stash.pane.contents.sort');
+      f.click(f.slot('stash', 0));
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('stash', 0, 'left');
+    } finally { f.dispose(); }
+  });
+
   it('rolls back a rejected real gesture prediction to the next authoritative snapshot', async () => {
     const f = fixture();
     try {
@@ -534,11 +551,6 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
-  it.each(['frame:hearth_stash'] as const)('keeps unmigrated content frame %s on its existing path',activeFrameId=>{
-    const f=fixture('content',{activeFrameId});
-    try { expect(f.ui.retainedInventoryActive).toBe(false); }
-    finally { f.dispose(); }
-  });
 
 });
 

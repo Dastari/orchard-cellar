@@ -100,10 +100,10 @@ describe('the held stack is the kit\'s (S3)', () => {
     } finally { f.dispose(); }
   });
 
-  it('still shows over the hearth stash, the one inventory window the host draws itself', async () => {
+  it('shows over the hearth stash, now a kit inventory window like the others (BUG-067)', async () => {
     const f = await fixture('content', { activeFrameId: 'frame:hearth_stash', cursorStack: ore });
     try {
-      expect(f.ui.retainedInventoryActive).toBe(false);
+      expect(f.ui.retainedInventoryActive).toBe(true);
       const point = { x: 240, y: 135 }; f.ui.systemCursorMove(point);
       expect(f.overlay()(point.x - 12, point.y - 12)).toBeGreaterThan(0);
     } finally { f.dispose(); }

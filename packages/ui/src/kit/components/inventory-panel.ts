@@ -4,8 +4,11 @@ import { UiElement } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiInput } from './input.js';
+import { uiText } from './text.js';
+import { uiTooltip } from './tooltip.js';
 import { uiGlyph, uiGlyphButton } from './window.js';
-import { uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
+import { uiHotbar, uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import { uiFixed } from '../layout/box.js';
 
 export interface UiInventoryControls {
@@ -20,6 +23,8 @@ export interface UiInventoryControls {
   readonly visibleRows?: number;
   /** Capacity belongs to the host; filtering never renumbers slot bindings. */
   readonly capacity?: () => number;
+  /** Why sort is disabled (for example mid-trade), shown on the sort button; the button stays, disabled. */
+  readonly sortDisabledReason?: () => string | null;
 }
 
 /** One editor/query may filter several panes without changing logical bindings. */
@@ -42,11 +47,14 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   // Large packs scroll inside a fixed number of rows; the scrollbar gutter is always reserved so slots never shift.
   const body = options.visibleRows ? uiScrollArea({ scrollStyle: 'wood', label: `${options.container} slots`, height: uiFixed(options.visibleRows * 33 - 2), padding: { right: 24 }, overflow: 'scroll-y' }, [grid])
     : uiFlex({ width: 'grow' }, [grid]);
-  const sort = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
-    label: 'Sort inventory', onPress: () => { if (options.sortEnabled?.() !== false) options.onSort?.(); } }) : null;
+  const sortReason = () => options.sortDisabledReason?.() ?? null;
+  const sortAllowed = () => options.sortEnabled?.() !== false && sortReason() === null;
+  const sortButton = options.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: options.id ? `${options.id}.sort` : undefined,
+    label: 'Sort inventory', onPress: () => { if (sortAllowed()) options.onSort?.(); } }) : null;
+  const sort = sortButton && options.sortDisabledReason ? uiTooltip(() => sortReason() ?? 'Sort & stack', sortButton, { shrink: 0 }) : sortButton;
   let previous = '';
   const refresh = () => {
-    sort?.setDisabled(options.sortEnabled?.() === false);
+    sortButton?.setDisabled(!sortAllowed());
     const query = editor.snapshot().value.trim().toLowerCase();
     const visible = cells.filter(cell => {
       const index = cell.index;
@@ -79,4 +87,34 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   return new UiElement({ kind: 'inventory-panel', style: { direction: 'column', width: 'grow', gap: 4, ...options.layout }, children: [toolbar, body],
     onDispose() { unsubscribe?.(); unsubscribeFilter(); },
   });
+}
+
+export interface UiPlayerInventoryPaneOptions extends UiInventoryGridOptions, UiInventoryControls {
+  /** The pane's heading (BACKPACK, INVENTORY, YOUR STORED ITEMS...). */
+  readonly label: string;
+  /** Authored rows; at most four are shown before the pane scrolls. */
+  readonly rows?: number;
+  /** The pane wrapper's id (defaults to `pane:<id>`). */
+  readonly paneId?: string;
+}
+
+/**
+ * The inventory pane every window uses to show the player's inventory, and the stores beside it (owner decision
+ * 2026-09-28, BUG-065/067): one layout, capacity, filter, sort, always-visible empty cells and slot look. Window-specific
+ * behaviour (a trade's unofferable items, a merchant's prices) is passed in as options, never copied.
+ */
+export function uiPlayerInventoryPane(options: UiPlayerInventoryPaneOptions): UiElement {
+  const columns = typeof options.columns === 'number' ? options.columns : 5;
+  const width = uiFixed(columns * 30 - 2 + 24);
+  return uiFlex({ id: options.paneId ?? (options.id ? `pane:${options.id}` : undefined), direction: 'column', gap: 4, shrink: 0, width }, [uiText(options.label, { role: 'label' }),
+    uiInventoryPanel({ ...options, columns, visibleRows: Math.min(4, options.rows ?? 4), layout: { width } })]);
+}
+
+/**
+ * The hotbar row every inventory window shows as its footer (under the window's carved divider): ten slots in one row
+ * where they fit, the player's selected slot marked as on the HUD, digit keys left to the host (BUG-067).
+ */
+export function uiPlayerHotbar(options: UiInventoryGridOptions & { readonly selected: () => number; readonly onSelect?: (index: number) => void }): UiElement {
+  return uiHotbar({ ...options, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false,
+    layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } });
 }

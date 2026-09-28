@@ -178,6 +178,8 @@ export class InventoryMenus {
       contentRegistry: () => this.authority.contentRegistry?.(),
       inventoryControls: { backpack: controls('backpack', true),
         ...(chest ? { chest: controls('chest', true) } : {}),
+        // The hearth stash has the same filter and sort header as a chest (BUG-067).
+        ...(snapshot.aliases.entity === 'stash' ? { stash: controls('stash', true) } : {}),
         ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),
           showFilter: false, sortEnabled: () => this.cursor === null } } : {}),
       },
