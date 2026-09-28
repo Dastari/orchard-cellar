@@ -178,6 +178,8 @@ export class InventoryMenus {
       contentRegistry: () => this.authority.contentRegistry?.(),
       inventoryControls: { backpack: controls('backpack', true),
         ...(chest ? { chest: controls('chest', true) } : {}),
+        // The hearth stash filters like a chest; the authority has no stash sort, so it offers none (BUG-067).
+        ...(snapshot.aliases.entity === 'stash' ? { stash: { ...controls('stash', true), onSort: undefined } } : {}),
         ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),
           showFilter: false, sortEnabled: () => this.cursor === null } } : {}),
       },

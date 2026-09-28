@@ -4,6 +4,7 @@ import { UiElement } from '../runtime/element.js';
 import { CanvasTextEditor } from '../runtime/text-editor.js';
 import { uiFlex, uiScrollArea } from './layout.js';
 import { uiInput } from './input.js';
+import { uiText } from './text.js';
 import { uiGlyph, uiGlyphButton } from './window.js';
 import { uiInventoryGrid, type UiInventoryGridOptions } from './inventory.js';
 import { uiFixed } from '../layout/box.js';
@@ -79,4 +80,24 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   return new UiElement({ kind: 'inventory-panel', style: { direction: 'column', width: 'grow', gap: 4, ...options.layout }, children: [toolbar, body],
     onDispose() { unsubscribe?.(); unsubscribeFilter(); },
   });
+}
+
+export interface UiPlayerInventoryPaneOptions extends UiInventoryGridOptions, UiInventoryControls {
+  /** The pane's heading (BACKPACK, INVENTORY, YOUR STORED ITEMS...). */
+  readonly label: string;
+  /** Authored rows; at most four are shown before the pane scrolls. */
+  readonly rows?: number;
+  /** The pane wrapper's id (defaults to `pane:<id>`). */
+  readonly paneId?: string;
+}
+
+/**
+ * The inventory pane every window uses to show the player's inventory, and the stores beside it (owner decision
+ * 2026-09-28, BUG-065/067): one layout, capacity, filter, sort, always-visible empty cells and slot look. Window-specific
+ * behaviour (a trade's unofferable items, a merchant's prices) is passed in as options, never copied.
+ */
+export function uiPlayerInventoryPane(options: UiPlayerInventoryPaneOptions): UiElement {
+  const columns = typeof options.columns === 'number' ? options.columns : 5;
+  return uiFlex({ id: options.paneId ?? (options.id ? `pane:${options.id}` : undefined), direction: 'column', gap: 4, shrink: 0 }, [uiText(options.label, { role: 'label' }),
+    uiInventoryPanel({ ...options, columns, visibleRows: Math.min(4, options.rows ?? 4), layout: { width: uiFixed(columns * 30 - 2 + 24) } })]);
 }

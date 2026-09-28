@@ -14,7 +14,7 @@ import { uiButton } from './button.js';
 import { uiMeter } from './meter.js';
 import { uiHotbar, uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
 import { uiSlotRulesFromRestriction } from './slot-rules.js';
-import { uiInventoryPanel, type UiInventoryControls } from './inventory-panel.js';
+import { uiInventoryPanel, uiPlayerInventoryPane, type UiInventoryControls } from './inventory-panel.js';
 import type { UiTone } from '../tokens.js';
 export interface UiContentFrameOptions {
   readonly definition: FrameContentDefinition; readonly aliases: FrameContainerAliases;
@@ -149,8 +149,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
     return uiInventoryGrid({ ...common, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 'auto', fixedColumns: true, layout: { width: 'fit' } }); };
   const panel = (pane: Pane, label: string) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;
     const controls = options.inventoryControls?.[bindings[0]!.containerId];
-    return uiFlex({ id: `pane:${pane.id}`, direction: 'column', gap: 4, shrink: 0 }, [uiText(label, { role: 'label' }),
-      uiInventoryPanel({ ...common, ...controls, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 5, visibleRows: Math.min(4, pane.rows ?? 4), layout: { width: uiFixed((pane.columns ?? 5) * 30 - 2 + 24) } })]); };
+    return uiPlayerInventoryPane({ ...common, ...controls, label, paneId: `pane:${pane.id}`, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 5, rows: pane.rows }); };
   const isBackpack = (pane: Pane) => 'self' in pane.bind && pane.bind.self === 'backpack';
   const isEntity = (pane: Pane) => 'entitySlots' in pane.bind;
   const backpackPane = definition.panes.find(isBackpack);

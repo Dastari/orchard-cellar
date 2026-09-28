@@ -1482,10 +1482,10 @@ export class OverworldUi {
   private retainedFrame(): ContentFrameLayout | null {
     if (!this.retainedMenus) return null;
     const frame = this.activeContentFrame();
-    // Authored placeables enter through the generic content window. Adopt only
-    // reviewed frame IDs; stash and other authored content keep their own path.
+    // Authored placeables and the hearth stash enter through the generic content window. Adopt only reviewed frame
+    // IDs, so every window that shows the player's inventory uses the shared kit pane (BUG-067).
     if (this.openWindowValue === 'content') return frame && [
-      'frame:barrel', 'frame:furnace', 'frame:cooking', 'frame:press', 'frame:fermentation',
+      'frame:barrel', 'frame:furnace', 'frame:cooking', 'frame:press', 'frame:fermentation', 'frame:hearth_stash',
     ].includes(frame.definition.id) ? frame : null;
     return ['inventory', 'crafting', 'chest', 'barrel', 'furnace', 'cooking', 'press', 'fermentation']
       .includes(this.openWindowValue ?? '') ? frame : null;
@@ -1508,6 +1508,7 @@ export class OverworldUi {
     const collections: Readonly<Record<string, readonly ItemSlot[]>> = {
       backpack: this.backpackItemSlots, hotbar: this.inventoryHotbarSlots, equipment: this.equipmentItemSlots,
       crafting: this.craftingItemSlots, chest: this.chestItemSlots, placeable: this.placeableItemSlots,
+      stash: this.stashItemSlots,
     };
     const slots = new Set<ItemSlot>();
     for (const pane of frame.panes) for (const binding of pane.slots) {
@@ -1536,7 +1537,7 @@ export class OverworldUi {
       : craftingRecipeStacks(this.selectedCraftingRecipeId, this.model.knownRecipeIds ?? [], registry);
     this.retainedMenus.update({ width: this.model.width, height: this.model.height, definition: frame.definition,
       aliases: { backpack: 'backpack', hotbar: 'hotbar', equipment: 'equipment', crafting: 'crafting',
-        entity: frame.definition.presentation?.entityContainer === 'chest' ? 'chest' : 'placeable' },
+        entity: retainedEntityContainer(frame.definition) },
       registry, state: this.activeContentFrameState(), timing: this.model.activeFrameTiming, progress: this.model.activeFrameProgress,
       backpackCapacity: modelBackpackCapacity(this.model),
       filter: this.inventoryFilterText, recipeFilter: this.recipeFilterText, artwork: this.retainedArtwork!,
@@ -5304,4 +5305,10 @@ export function hearthDangerStatusLabel(notice: HearthDangerNotice): string {
 }
 export function hearthDangerStatusDescription(notice: HearthDangerNotice): string {
   return notice === 'protected' ? 'ENEMY DAMAGE BLOCKED' : notice === 'boundary' ? 'PROTECTED / HOSTILE AREA BEYOND BOUNDARY' : 'ENEMIES CAN ATTACK';
+}
+
+/** The kit alias of a retained frame's entity pane: a chest, the hearth stash, or a placed station (BUG-067). */
+function retainedEntityContainer(definition: import('@orchard/sim').FrameContentDefinition): 'chest' | 'stash' | 'placeable' {
+  const container = definition.presentation?.entityContainer;
+  return container === 'chest' || container === 'stash' ? container : 'placeable';
 }
