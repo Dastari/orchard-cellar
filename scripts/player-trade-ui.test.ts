@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_BACKPACK_CAPACITY, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim';
+import { BACKPACK_SLOT_OFFSET, BASE_BACKPACK_CAPACITY, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import { TradeUi, type TradeUiModel } from '../packages/ui/src/trade-ui.js';
 import type { UiKitArt } from '../packages/ui/src/kit/components/art.js';
@@ -48,7 +48,7 @@ describe('production TradeUi with two-identity reducer authority', () => {
     h.run('requestTrade', h.alice, { target: h.bob });
     const alice = client(h, h.alice), bob = client(h, h.bob);
     bob.activate('trade.request.accept'); alice.sync(); bob.sync();
-    alice.activate('trade.inventory.slot.0'); bob.activate('trade.inventory.slot.0', 'ContextMenu');
+    alice.activate('trade.hotbar.slot.0'); bob.activate('trade.hotbar.slot.0', 'ContextMenu');
     expect(alice.commands).toEqual(['setTradeOfferItem']); expect(bob.commands).toEqual(['acceptTradeRequest', 'setTradeOfferItem']);
     alice.sync(); bob.sync(); alice.activate('trade.accept'); bob.activate('trade.accept');
     // Successful callback alone does not hide either retained window.
@@ -64,7 +64,7 @@ describe('production TradeUi with two-identity reducer authority', () => {
   it('exposes reducer rejection for a stale subscription without optimistic acceptance or lost escrow', () => {
     const h = tradeHarness(); h.put(h.alice, 0, 'wood', 3); h.put(h.bob, 0, 'stone', 4); h.start();
     const alice = client(h, h.alice), bob = client(h, h.bob);
-    bob.activate('trade.inventory.slot.0'); // Alice has not received the revised subscription yet.
+    bob.activate('trade.hotbar.slot.0'); // Alice has not received the revised subscription yet.
     alice.activate('trade.accept'); expect(alice.errors[0]).toContain('trade_offer_changed');
     expect(h.session()?.requesterAccepted).toBe(false); expect([...h.offers.iter()]).toHaveLength(1);
     expect(alice.ui.active).toBe(true); alice.sync(); alice.activate('trade.accept');
@@ -75,7 +75,7 @@ describe('production TradeUi with two-identity reducer authority', () => {
   it('retains full-inventory escrow after refusal and cancels it safely to overflow', () => {
     const h = tradeHarness(); h.put(h.alice, 0, 'axe', 1, 55, false); h.start();
     const alice = client(h, h.alice), bob = client(h, h.bob);
-    alice.activate('trade.inventory.slot.0'); h.fill(h.bob); alice.sync(); bob.sync();
+    alice.activate('trade.hotbar.slot.0'); h.fill(h.bob); alice.sync(); bob.sync();
     alice.activate('trade.accept'); bob.activate('trade.accept');
     expect(bob.errors[0]).toContain('trade_inventory_full'); expect([...h.offers.iter()]).toHaveLength(1);
     expect(alice.ui.active).toBe(true); expect(bob.ui.active).toBe(true);
@@ -88,9 +88,9 @@ describe('production TradeUi with two-identity reducer authority', () => {
   it('does not offer equipped slots (BUG-018) and closes from real disconnect cleanup', () => {
     const h = tradeHarness(); h.put(h.alice, EQUIPMENT_SLOT_OFFSET, 'axe', 1); h.put(h.alice, 0, 'wood', 5);
     const tradeId = h.start(); const alice = client(h, h.alice);
-    expect(alice.ui.root.entries().some(entry => entry.element.id === `trade.inventory.slot.${EQUIPMENT_SLOT_OFFSET}`)).toBe(false);
+    expect(alice.ui.root.entries().some(entry => entry.element.id === `trade.backpack.slot.${EQUIPMENT_SLOT_OFFSET - BACKPACK_SLOT_OFFSET}`)).toBe(false);
     expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: EQUIPMENT_SLOT_OFFSET, tradeSlot: 0, quantity: 1 })).toThrow('trade_slot_inaccessible');
-    alice.activate('trade.inventory.slot.0'); alice.sync();
+    alice.activate('trade.hotbar.slot.0'); alice.sync();
     h.run('onDisconnect', h.alice); alice.sync(); expect(alice.ui.active).toBe(false);
     expect(h.owned(h.alice).find(row => row.itemKind === 'wood')?.quantity).toBe(5);
     expect(alice.commands).toEqual(['setTradeOfferItem']); expect(alice.errors).toEqual([]); alice.ui.dispose();
