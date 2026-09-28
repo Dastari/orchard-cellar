@@ -15,9 +15,10 @@ it('filters by display name without renumbering bindings or losing editing focus
   root.focus.set(input, 'keyboard'); root.text('timber'); root.arrange();
   expect(root.focus.current).toBe(input);
   const slots = () => root.entries().filter(entry => entry.element.kind === 'slot').map(entry => entry.element);
-  expect(slots().map(node => node.props['binding'])).toEqual([{ container: 'bag', index: 1 }]);
-  root.focus.set(slots()[0]!, 'keyboard'); root.key({ key: 'Enter' }); root.arrange();
-  // Holding the stack, the filtered panel offers its empty cells to put it down (BUG-065); the apple stays hidden.
+  // Empty cells stay while filtering (owner 2026-09-28); only the non-matching apple is hidden.
+  expect(slots().map(node => node.props['binding'])).toEqual([0, 1, 2].map(index => ({ container: 'bag', index })));
+  root.focus.set(slots()[1]!, 'keyboard'); root.key({ key: 'Enter' }); root.arrange();
+  // Picking the stack up doesn't reflow the filtered panel: the same cells stay.
   expect(model.cursor?.quantity).toBe(8);
   expect(slots().map(node => node.props['binding'])).toEqual([0, 1, 2].map(index => ({ container: 'bag', index })));
   root.focus.set(input, 'keyboard'); root.key({ key: 'a', ctrlKey: true }); root.key({ key: 'Backspace' }); root.arrange();

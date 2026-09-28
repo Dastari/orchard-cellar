@@ -158,7 +158,11 @@ describe('production retained inventory authority bridge', () => {
       expect(f.root.focus.current).toBe(chestFilter);
       // The chest's filter leaves the backpack alone: every backpack cell is still there to take an item.
       expect(backpackSlots()).toBe(before);
-      expect(f.root.entries().filter(({ element }) => (element.props['binding'] as { container?: string } | undefined)?.container === 'chest')).toHaveLength(1);
+      // In the chest, only the non-matching apple is hidden; its empty cells stay (owner 2026-09-28).
+      const chestCells = f.root.entries().map(({ element }) => element.props['binding'] as { container?: string; index?: number } | undefined)
+        .filter(binding => binding?.container === 'chest').map(binding => binding!.index);
+      expect(chestCells).toHaveLength(15);
+      expect(chestCells).toContain(0); expect(chestCells).not.toContain(15);
       f.click(f.slot('chest', 0));
       expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('chest', 0, 'left');
       const authority = f.ui as unknown as { optimisticMenuItems: Map<{containerId:string;index:number},ItemStack|null> };
