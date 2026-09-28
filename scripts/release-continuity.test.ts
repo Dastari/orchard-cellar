@@ -87,6 +87,9 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     expect(rehearsalRun).toBeGreaterThan(0);
     expect(rehearsalRun).toBeLessThan(branch.indexOf('final-fingerprint "$container_cell_log"'));
     expect(branch.indexOf('final-fingerprint "$container_cell_log"')).toBeLessThan(branch.indexOf('world:rejoin-smoke -- capture'));
+    expect(branch.indexOf('final-player-fingerprint "$container_cell_log"')).toBeGreaterThan(rehearsalRun);
+    expect(branch.indexOf('final-player-fingerprint "$container_cell_log"')).toBeLessThan(branch.indexOf('world:rejoin-smoke -- capture'));
+    expect(branch).not.toContain('CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT');
     expect(rehearsal).toContain('container_cell_migration=${WORLD_RESTORE_CONTAINER_CELL_MIGRATION:-skip}');
 
     // Production: the rehearsal fingerprint is read before publication and pinned for the post-publish run.
@@ -105,8 +108,18 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     expect(contentHead).toBeLessThan(productionRun);
     expect(productionRun).toBeLessThan(productionCompare);
     expect(productionCompare).toBeLessThan(verify);
+    // The player custody pin: read from the rehearsal before publication, required of production, compared before traffic.
+    const rehearsalPlayers = release.indexOf('final-player-fingerprint "$rehearsal_container_cell_log"');
+    const playerCompare = release.indexOf('[[ "$production_container_cell_player_fingerprint" = "$rehearsal_container_cell_player_fingerprint" ]]');
+    expect(rehearsalPlayers).toBeGreaterThan(rehearsalCall);
+    expect(rehearsalPlayers).toBeLessThan(release.indexOf('live_publish_started=true\n'));
+    expect(release.indexOf('final-player-fingerprint "$production_container_cell_log"')).toBeGreaterThan(productionRun);
+    expect(playerCompare).toBeGreaterThan(productionRun);
+    expect(playerCompare).toBeLessThan(verify);
+    expect(release.slice(playerCompare, playerCompare + 400)).toContain('exit 65');
     const production = release.slice(productionRun, productionCompare);
     expect(production).toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT="$rehearsal_container_cell_fingerprint"');
+    expect(production).toContain('CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT="$rehearsal_container_cell_player_fingerprint"');
     expect(production).toContain('CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM="$database"');
     expect(production).toContain('| tee "$production_container_cell_log"');
     // Both runs use the lane's content-publication credential; the batches accept a world owner or admin.
@@ -116,6 +129,8 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     const operations = readFileSync(new URL('../ops/orchard-runtime/README.md', import.meta.url), 'utf8');
     expect(operations).toContain('WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run');
     expect(operations).toContain('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT');
+    expect(operations).toContain('CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT');
+    expect(operations).toContain('restore the pre-publish backup');
     expect(operations).toContain('The batches and the status accept a world owner or admin');
     expect(operations).not.toContain('CONTAINER_CELL_MIGRATION_OWNER_LABEL');
   });

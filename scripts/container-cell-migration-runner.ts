@@ -15,8 +15,11 @@ import {
  * equipment layouts included, through the connect path's own steps), in idempotent batches that a world owner or admin
  * may run (the dev account is an admin), then requires the world's own status report to be complete: every
  * placeable with legacy rows has a receipt whose source fingerprint matches its (never rewritten) legacy rows, no
- * player plan is refused, and, when given, the whole-table legacy fingerprint equals the expected value (for example
- * the isolated restore rehearsal's). Connected players move at connect time regardless.
+ * player plan is refused, and the whole-world player custody read from the cells equals the custody of the legacy
+ * rows. When given, the whole-table legacy placeable fingerprint and the whole-world legacy player fingerprint must
+ * equal the expected values (the isolated restore rehearsal's), checked before the first batch and again at the end,
+ * so a production world that differs from the rehearsed backup is refused before anything is written. Connected
+ * players move at connect time regardless; traffic is stopped while this runs, so the cell side cannot move.
  */
 
 const HOST = process.env['SPACETIMEDB_HOST'] ?? 'http://127.0.0.1:3000';
@@ -32,6 +35,11 @@ export interface ContainerCellMigrationStatus {
   readonly players: {
     readonly current: number; readonly legacy: number; readonly planned: number; readonly planTruncated: boolean;
     readonly legacyRows: number; readonly legacyCells: number; readonly legacyQuantity: number; readonly cells: number;
+    readonly legacyFingerprint: string; readonly cellFingerprint: string;
+    readonly orphans: {
+      readonly owners: number; readonly inventoryOwners: number; readonly stashOwners: number;
+      readonly withoutMigrationRow: number; readonly quantity: number; readonly ids: readonly string[];
+    };
   };
   readonly placeables: {
     readonly legacy: number; readonly copied: number; readonly uncopied: number;
@@ -57,6 +65,15 @@ function fail(code: string): never { throw new Error(code); }
 
 /** The whole-table legacy fingerprint shape, `placeable-cells:<cells>:<total quantity>:<8 hex>` (sim container-migration). */
 export const LEGACY_PLACEABLE_FINGERPRINT = /^placeable-cells:[0-9]+:[0-9]+:[0-9a-f]{8}$/u;
+/** The whole-world player custody shape, `player-custody-world:<players>:<items>:<total quantity>:<8 hex>`
+ * (sim `worldPlayerCustodyFingerprint`). */
+export const LEGACY_PLAYER_FINGERPRINT = /^player-custody-world:[0-9]+:[0-9]+:[0-9]+:[0-9a-f]{8}$/u;
+
+/** The rehearsal's values production must match; either may be omitted (the rehearsal run itself). */
+export interface ExpectedContainerCellFingerprints {
+  readonly placeables?: string;
+  readonly players?: string;
+}
 
 type ConsoleMethod = 'log' | 'info' | 'debug' | 'warn' | 'error' | 'trace';
 
@@ -104,6 +121,9 @@ export function parseContainerCellMigrationStatus(payload: string): ContainerCel
   const record = object(JSON.parse(payload) as unknown, 'status');
   if (record['schemaVersion'] !== 1) fail('container_cell_migration_status_invalid:schemaVersion');
   const players = object(record['players'], 'players');
+  const orphans = object(players['orphans'], 'orphans');
+  const orphanIds = orphans['ids'];
+  if (!Array.isArray(orphanIds) || orphanIds.some(id => typeof id !== 'string')) fail('container_cell_migration_status_invalid:ids');
   const placeables = object(record['placeables'], 'placeables');
   const issues = record['issues'];
   if (!Array.isArray(issues)) fail('container_cell_migration_status_invalid:issues');
@@ -114,6 +134,12 @@ export function parseContainerCellMigrationStatus(payload: string): ContainerCel
       current: count(players, 'current'), legacy: count(players, 'legacy'), planned: count(players, 'planned'),
       planTruncated: flag(players, 'planTruncated'), legacyRows: count(players, 'legacyRows'),
       legacyCells: count(players, 'legacyCells'), legacyQuantity: count(players, 'legacyQuantity'), cells: count(players, 'cells'),
+      legacyFingerprint: text(players, 'legacyFingerprint'), cellFingerprint: text(players, 'cellFingerprint'),
+      orphans: Object.freeze({
+        owners: count(orphans, 'owners'), inventoryOwners: count(orphans, 'inventoryOwners'), stashOwners: count(orphans, 'stashOwners'),
+        withoutMigrationRow: count(orphans, 'withoutMigrationRow'), quantity: count(orphans, 'quantity'),
+        ids: Object.freeze([...orphanIds as string[]]),
+      }),
     }),
     placeables: Object.freeze({
       legacy: count(placeables, 'legacy'), copied: count(placeables, 'copied'), uncopied: count(placeables, 'uncopied'),
@@ -131,12 +157,31 @@ export function parseContainerCellMigrationStatus(payload: string): ContainerCel
 }
 
 /**
+ * The rehearsal pin: the world's legacy fingerprints must equal the rehearsal's. Both are computed from legacy rows
+ * the migration never changes (placeable rows are never written; player rows only by the connect-time layout steps,
+ * which player custody does not see), so the check holds before the first batch and after the last.
+ */
+export function assertContainerCellLegacyFingerprints(
+  status: ContainerCellMigrationStatus,
+  expected: ExpectedContainerCellFingerprints = {},
+): void {
+  if (expected.placeables !== undefined && status.placeables.legacyFingerprint !== expected.placeables) {
+    fail('container_cell_migration_legacy_fingerprint_mismatch');
+  }
+  if (expected.players !== undefined && status.players.legacyFingerprint !== expected.players) {
+    fail('container_cell_migration_player_fingerprint_mismatch');
+  }
+}
+
+/**
  * The lane's completion gate. Players still on the legacy layout are allowed (they move when they connect) only when
- * their plans were all checked and none was refused; placeables must all be copied with matching receipts.
+ * their plans were all checked and none was refused; placeables must all be copied with matching receipts; and the
+ * whole-world player custody read where each player's storage now lives must equal the legacy rows' custody, which
+ * holds only while no one plays (the lane runs it before traffic returns).
  */
 export function assertContainerCellMigrationComplete(
   status: ContainerCellMigrationStatus,
-  expectedLegacyFingerprint?: string,
+  expected: ExpectedContainerCellFingerprints = {},
 ): void {
   if (status.issues.length > 0) fail(`container_cell_migration_issues:${status.issues.map(({ kind, id }) => `${kind}:${id}`).join(',')}`);
   if (!status.placeables.backfillComplete || !status.placeableCopyComplete || status.placeables.uncopied !== 0
@@ -144,22 +189,25 @@ export function assertContainerCellMigrationComplete(
     fail('container_cell_migration_placeables_incomplete');
   }
   if (status.players.planTruncated) fail('container_cell_migration_player_plans_truncated');
-  if (expectedLegacyFingerprint !== undefined && status.placeables.legacyFingerprint !== expectedLegacyFingerprint) {
-    fail('container_cell_migration_legacy_fingerprint_mismatch');
-  }
+  if (!LEGACY_PLAYER_FINGERPRINT.test(status.players.legacyFingerprint)) fail('container_cell_migration_player_fingerprint_invalid');
+  if (status.players.cellFingerprint !== status.players.legacyFingerprint) fail('container_cell_migration_player_custody_mismatch');
+  assertContainerCellLegacyFingerprints(status, expected);
 }
 
 export interface ContainerCellMigrationEvidence {
   readonly legacyFingerprint: string;
   readonly receiptFingerprint: string;
+  /** The whole-world legacy player custody, equal to the cell side in the final report. */
+  readonly playerLegacyFingerprint: string;
   readonly status: ContainerCellMigrationStatus;
 }
 
 /**
  * Reads a runner JSON-lines log (the release lane's evidence file) and returns the completed run's final legacy
- * fingerprint. Every line must be JSON; the log must end with the final status report and the `ok` line, the report
- * must pass the completion gate, and both must name the same well-formed legacy fingerprint. The lane compares the
- * isolated restore rehearsal's value with production's through this reader, so anything else fails closed.
+ * fingerprints. Every line must be JSON; the log must end with the final status report and the `ok` line, the report
+ * must pass the completion gate (player cells equal to legacy custody included), and both must name the same
+ * well-formed placeable and player fingerprints. The lane compares the isolated restore rehearsal's values with
+ * production's through this reader, so anything else fails closed.
  */
 export function readContainerCellMigrationEvidence(log: string): ContainerCellMigrationEvidence {
   const lines = log.split('\n').filter((line) => line.trim() !== '');
@@ -178,11 +226,14 @@ export function readContainerCellMigrationEvidence(log: string): ContainerCellMi
   const status = parseContainerCellMigrationStatus(JSON.stringify(statusRecord));
   assertContainerCellMigrationComplete(status);
   const legacyFingerprint = text(finalRecord, 'legacyFingerprint');
+  const playerLegacyFingerprint = text(finalRecord, 'playerLegacyFingerprint');
   if (!LEGACY_PLACEABLE_FINGERPRINT.test(legacyFingerprint) || status.placeables.legacyFingerprint !== legacyFingerprint
-    || text(finalRecord, 'receiptFingerprint') !== status.placeables.receiptFingerprint) {
+    || text(finalRecord, 'receiptFingerprint') !== status.placeables.receiptFingerprint
+    || !LEGACY_PLAYER_FINGERPRINT.test(playerLegacyFingerprint) || status.players.legacyFingerprint !== playerLegacyFingerprint
+    || text(finalRecord, 'playerCellFingerprint') !== status.players.cellFingerprint) {
     fail('container_cell_migration_log_invalid:fingerprint');
   }
-  return Object.freeze({ legacyFingerprint, receiptFingerprint: status.placeables.receiptFingerprint, status });
+  return Object.freeze({ legacyFingerprint, receiptFingerprint: status.placeables.receiptFingerprint, playerLegacyFingerprint, status });
 }
 
 async function refreshCredential(credential: Required<Pick<StoredRejoinCredential, 'clientId' | 'refreshToken'>>) {
@@ -251,9 +302,11 @@ async function status(connection: MigrationConnection): Promise<ContainerCellMig
 
 export async function runContainerCellMigration(
   connection: MigrationConnection,
-  expectedLegacyFingerprint?: string,
+  expected: ExpectedContainerCellFingerprints = {},
 ): Promise<ContainerCellMigrationStatus> {
   let current = await status(connection);
+  // Refuse before the first write when this world's legacy rows are not the ones the rehearsal migrated.
+  assertContainerCellLegacyFingerprints(current, expected);
   while (!current.placeables.backfillComplete) {
     await timeout('container_cell_migration_placeables', connection.reducers.adminBackfillPlaceableContainerCells({ limit: BATCH_LIMIT }));
     current = await status(connection);
@@ -265,19 +318,23 @@ export async function runContainerCellMigration(
     await timeout('container_cell_migration_players', connection.reducers.adminBackfillPlayerContainerCells({ limit: BATCH_LIMIT }));
     current = await status(connection);
   }
-  assertContainerCellMigrationComplete(current, expectedLegacyFingerprint);
+  assertContainerCellMigrationComplete(current, expected);
   return current;
 }
 
 async function main(): Promise<void> {
-  // `final-fingerprint <log>`: print a completed run log's legacy fingerprint (the lane's comparison input).
-  if (process.argv[2] === 'final-fingerprint') {
+  // `final-fingerprint <log>` / `final-player-fingerprint <log>`: print a completed run log's legacy placeable or
+  // player fingerprint (the lane's comparison inputs).
+  if (process.argv[2] === 'final-fingerprint' || process.argv[2] === 'final-player-fingerprint') {
     const path = process.argv[3];
-    if (path === undefined || process.argv.length !== 4) throw new Error('usage: final-fingerprint <runner-log.jsonl>');
-    process.stdout.write(`${readContainerCellMigrationEvidence(await readFile(path, 'utf8')).legacyFingerprint}\n`);
+    if (path === undefined || process.argv.length !== 4) throw new Error(`usage: ${process.argv[2]} <runner-log.jsonl>`);
+    const evidence = readContainerCellMigrationEvidence(await readFile(path, 'utf8'));
+    process.stdout.write(`${process.argv[2] === 'final-fingerprint' ? evidence.legacyFingerprint : evidence.playerLegacyFingerprint}\n`);
     return;
   }
-  if (process.argv.length !== 2) throw new Error('usage: container-cell-migration-runner.ts [final-fingerprint <log>]');
+  if (process.argv.length !== 2) {
+    throw new Error('usage: container-cell-migration-runner.ts [final-fingerprint|final-player-fingerprint <log>]');
+  }
   if (process.env['CONTAINER_CELL_MIGRATION_CONFIRM'] !== `migrate:${DATABASE}`) {
     throw new Error(`CONTAINER_CELL_MIGRATION_CONFIRM_must_equal:migrate:${DATABASE}`);
   }
@@ -287,14 +344,22 @@ async function main(): Promise<void> {
     throw new Error('container_cell_migration_production_confirmation_required');
   }
   const expected = process.env['CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT'] ?? '';
-  // Production always compares against the isolated restore rehearsal's legacy fingerprint.
+  const expectedPlayers = process.env['CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT'] ?? '';
+  // Production always compares against the isolated restore rehearsal's legacy placeable and player fingerprints.
   if (expected !== '' && !LEGACY_PLACEABLE_FINGERPRINT.test(expected)) throw new Error('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT_invalid');
+  if (expectedPlayers !== '' && !LEGACY_PLAYER_FINGERPRINT.test(expectedPlayers)) {
+    throw new Error('CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT_invalid');
+  }
   if (target === 'production' && expected === '') throw new Error('CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT_required');
+  if (target === 'production' && expectedPlayers === '') throw new Error('CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT_required');
   const connection = await connect(await operatorToken());
   try {
-    const final = await runContainerCellMigration(connection, expected === '' ? undefined : expected);
+    const final = await runContainerCellMigration(connection, {
+      ...(expected === '' ? {} : { placeables: expected }), ...(expectedPlayers === '' ? {} : { players: expectedPlayers }),
+    });
     process.stdout.write(`${JSON.stringify({ ok: true, target, database: DATABASE,
       legacyFingerprint: final.placeables.legacyFingerprint, receiptFingerprint: final.placeables.receiptFingerprint,
+      playerLegacyFingerprint: final.players.legacyFingerprint, playerCellFingerprint: final.players.cellFingerprint,
       placeablesCopied: final.placeables.copied, playersCurrent: final.players.current,
       playersLegacy: final.players.legacy })}\n`);
   } finally {

@@ -20,7 +20,8 @@ schema-only for an additive schema/content update with restored-row reconnect
 verification and no chest backfill, phase changes, or draining.
 WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run (schema-only only; default skip) also
 runs the container-cell migration on the restore and in production, and requires
-production's legacy placeable fingerprint to equal the rehearsal's.
+production's legacy placeable and player fingerprints to equal the rehearsal's and
+the player cells to hold exactly the legacy player custody before traffic returns.
 USAGE
   exit 64
 }
@@ -382,9 +383,10 @@ WORLD_RESTORE_CONTAINER_CELL_LOG="$rehearsal_container_cell_log" \
 ops/orchard-runtime/bin/restore-world-rehearsal.sh \
   "$backup_directory" "$pre_drain_snapshot" "$post_drain_snapshot"
 
-# Production must find the same legacy placeable rows the rehearsal migrated. Read the
-# rehearsal's fingerprint now, so missing or incomplete evidence stops before publication.
+# Production must find the same legacy placeable and player rows the rehearsal migrated. Read the
+# rehearsal's fingerprints now, so missing or incomplete evidence stops before publication.
 rehearsal_container_cell_fingerprint=''
+rehearsal_container_cell_player_fingerprint=''
 if [[ "$container_cell_migration" = run ]]; then
   rehearsal_container_cell_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \
     final-fingerprint "$rehearsal_container_cell_log")
@@ -392,7 +394,14 @@ if [[ "$container_cell_migration" = run ]]; then
     printf 'The rehearsal container-cell evidence has no valid legacy fingerprint.\n' >&2
     exit 65
   }
-  printf 'Rehearsal container-cell legacy fingerprint: %s\n' "$rehearsal_container_cell_fingerprint"
+  rehearsal_container_cell_player_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \
+    final-player-fingerprint "$rehearsal_container_cell_log")
+  [[ "$rehearsal_container_cell_player_fingerprint" =~ ^player-custody-world:[0-9]+:[0-9]+:[0-9]+:[0-9a-f]{8}$ ]] || {
+    printf 'The rehearsal container-cell evidence has no valid legacy player fingerprint.\n' >&2
+    exit 65
+  }
+  printf 'Rehearsal container-cell legacy fingerprints: placeables %s, players %s\n' \
+    "$rehearsal_container_cell_fingerprint" "$rehearsal_container_cell_player_fingerprint"
 fi
 
 printf 'Starting the quiesced authority for the production publish...\n'
@@ -458,9 +467,11 @@ else
 fi
 if [[ "$container_cell_migration" = run ]]; then
   # Fails closed (world and traffic stay stopped) on a runner failure, an incomplete
-  # copy, a refused plan, or a legacy fingerprint that differs from the rehearsal's.
-  printf 'Running the production container-cell migration against rehearsal fingerprint %s...\n' \
-    "$rehearsal_container_cell_fingerprint"
+  # copy, a refused plan, a legacy placeable or player fingerprint that differs from the
+  # rehearsal's (checked before the first batch and again at the end), or player cells
+  # whose custody differs from the legacy rows'.
+  printf 'Running the production container-cell migration against rehearsal fingerprints %s and %s...\n' \
+    "$rehearsal_container_cell_fingerprint" "$rehearsal_container_cell_player_fingerprint"
   (umask 077
     WORLD_REJOIN_TOKENS_FILE="$token_file" \
     SPACETIMEDB_HOST="$host" \
@@ -470,12 +481,22 @@ if [[ "$container_cell_migration" = run ]]; then
     CONTAINER_CELL_MIGRATION_PRODUCTION_CONFIRM="$database" \
     CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL="$content_owner_label" \
     CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT="$rehearsal_container_cell_fingerprint" \
+    CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT="$rehearsal_container_cell_player_fingerprint" \
     node --import tsx scripts/container-cell-migration-runner.ts | tee "$production_container_cell_log")
   production_container_cell_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \
     final-fingerprint "$production_container_cell_log")
   [[ "$production_container_cell_fingerprint" = "$rehearsal_container_cell_fingerprint" ]] || {
     printf 'Production legacy placeable fingerprint %s differs from the rehearsal (%s).\n' \
       "$production_container_cell_fingerprint" "$rehearsal_container_cell_fingerprint" >&2
+    exit 65
+  }
+  # The evidence reader also requires the final report's player cell custody to equal
+  # its legacy player custody, so this read fails closed on a lossy move.
+  production_container_cell_player_fingerprint=$(node --import tsx scripts/container-cell-migration-runner.ts \
+    final-player-fingerprint "$production_container_cell_log")
+  [[ "$production_container_cell_player_fingerprint" = "$rehearsal_container_cell_player_fingerprint" ]] || {
+    printf 'Production legacy player fingerprint %s differs from the rehearsal (%s).\n' \
+      "$production_container_cell_player_fingerprint" "$rehearsal_container_cell_player_fingerprint" >&2
     exit 65
   }
 fi

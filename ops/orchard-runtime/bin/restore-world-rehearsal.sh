@@ -303,8 +303,11 @@ if [[ "$migration_kind" = schema-only ]]; then
       node --import tsx "$repository/scripts/container-cell-migration-runner.ts" | tee "$container_cell_log")
     container_cell_fingerprint=$(node --import tsx "$repository/scripts/container-cell-migration-runner.ts" \
       final-fingerprint "$container_cell_log")
-    printf 'Isolated container-cell migration complete: legacy placeable fingerprint %s, final status in %s.\n' \
-      "$container_cell_fingerprint" "$container_cell_log"
+    # Also fails closed unless the final report's player cell custody equals its legacy player custody.
+    container_cell_player_fingerprint=$(node --import tsx "$repository/scripts/container-cell-migration-runner.ts" \
+      final-player-fingerprint "$container_cell_log")
+    printf 'Isolated container-cell migration complete: legacy placeable fingerprint %s, legacy player fingerprint %s, final status in %s.\n' \
+      "$container_cell_fingerprint" "$container_cell_player_fingerprint" "$container_cell_log"
   fi
   printf 'Capturing and reconnect-verifying the restored schema-only update; no chest migration runs.\n'
   WORLD_REJOIN_TOKENS_FILE="$token_file" \

@@ -92,15 +92,27 @@ to stderr. The order is:
    two reconnect captures.
 2. Before production publication, the lane reads the rehearsal's final legacy
    placeable fingerprint (`placeable-cells:<cells>:<quantity>:<hash>`) with
-   `container-cell-migration-runner.ts final-fingerprint <log>`.
+   `container-cell-migration-runner.ts final-fingerprint <log>`, and its legacy
+   player fingerprint (`player-custody-world:<players>:<items>:<quantity>:<hash>`)
+   with `final-player-fingerprint <log>`.
 3. In production, after publication and the content head, the lane runs the
-   runner with `CONTAINER_CELL_MIGRATION_TARGET=production` and
-   `CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT` set to the rehearsal value.
-   The log goes to `WORLD_RELEASE_PRODUCTION_CONTAINER_CELL_LOG`. The
-   reconnect comparison with the rehearsal's first capture runs next.
+   runner with `CONTAINER_CELL_MIGRATION_TARGET=production`,
+   `CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT` and
+   `CONTAINER_CELL_EXPECTED_PLAYER_FINGERPRINT` set to the rehearsal values. The
+   runner compares both before its first batch and again at the end. The log
+   goes to `WORLD_RELEASE_PRODUCTION_CONTAINER_CELL_LOG`, and the lane compares
+   its final fingerprints with the rehearsal's. The reconnect comparison with the
+   rehearsal's first capture runs next, still before traffic returns.
 
 The final report must be complete: every placeable with legacy rows is copied
-with a matching receipt, and no player plan is refused or truncated. The player
+with a matching receipt, no player plan is refused or truncated, and the player
+custody read from where each player's storage now lives (`players.cellFingerprint`)
+equals the custody of the legacy `inventory_slot` and `hearth_stash_slot` rows
+(`players.legacyFingerprint`: item kind, quantity, cell and legacy slot per item,
+computed from the legacy tables alone). The status also lists orphan legacy rows
+(`players.orphans`: rows of an identity with no character). They are reported,
+not refused; that identity's first connect moves them before any starter kit is
+written. The player
 batch moves every offline character, including those on the nine-slot hotbar
 (hotbar layout 0), an older equipment layout or with no `inventory_migration`
 row: it runs the connect path's own layout steps, then the move, in one
@@ -113,6 +125,15 @@ investigation. The batches and the status accept a world owner or admin
 (`canAdministerWorld`), so the dev account (admin) runs them; the lane passes
 its content-publication credential as `CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL`.
 It is idempotent, so a second pass changes nothing.
+
+**Rollback after step 4.** Once traffic resumes, the legacy tables
+(`inventory_slot`, `hearth_stash_slot`, `world_placeable_slot`) are stale: every
+change players make lives only in the container-cell tables. Republishing the
+previous module would bring back the pre-migration inventories and silently drop
+everything since. Rolling back therefore means you restore the pre-publish backup
+with the previous module, and accept losing all play since the release. Decide it
+before traffic returns whenever possible. Never republish the previous module
+over the migrated database.
 Choose the mode from the actual live/candidate stored schema and intended data
 changes, not from the size of the working-tree diff or an unrelated Studio guard.
 
