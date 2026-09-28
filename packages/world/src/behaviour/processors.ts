@@ -24,23 +24,30 @@ import type { WorldPlaceableRow, WorldReducerContext } from '../index.js';
 
 type WorldIdentity = WorldReducerContext['sender'];
 
-interface PlaceableSlotRow {
-  readonly id: string;
-  readonly slot: number;
+/** One occupied `placeable_container_cell` row; a missing index is an empty cell. */
+interface PlaceableCellRow {
+  readonly index: number;
   readonly itemKind: string;
   readonly quantity: number;
   readonly durability: number;
   readonly lit: boolean;
-  readonly placeableId: bigint;
 }
 
 export interface ProcessorBehaviourDependencies {
   /** Active authority content snapshot. */
   readonly contentRegistry: (ctx: WorldReducerContext) => ContentRegistry;
-  readonly loadOpenPlaceableRows: (
+  /** The placeable's occupied cells (its legacy rows are copied first, once). */
+  readonly loadPlaceableCells: (
     ctx: WorldReducerContext,
     placeable: WorldPlaceableRow,
-  ) => PlaceableSlotRow[];
+  ) => readonly PlaceableCellRow[];
+  /** Stores one cell: insert or update when occupied, delete when null. */
+  readonly writePlaceableCell: (
+    ctx: WorldReducerContext,
+    placeableId: bigint,
+    index: number,
+    stack: ItemStack | null,
+  ) => void;
   readonly storedStack: (
     ctx: WorldReducerContext,
     itemKind: string,
@@ -179,23 +186,15 @@ function processorOptions(
 
 function writeSettledSlots(
   ctx: WorldReducerContext,
-  rows: readonly PlaceableSlotRow[],
+  placeableId: bigint,
   before: readonly (ItemStack | null)[],
   after: readonly (ItemStack | null)[],
   dependencies: ProcessorBehaviourDependencies,
 ): void {
-  const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
   for (let slot = 0; slot < after.length; slot += 1) {
-    const row = rowsBySlot.get(slot);
     const next = after[slot] ?? null;
-    if (row === undefined || dependencies.sameStoredStack(before[slot] ?? null, next)) continue;
-    ctx.db.world_placeable_slot.id.update({
-      ...row,
-      itemKind: next?.itemKind ?? 'empty',
-      quantity: next?.quantity ?? 0,
-      durability: dependencies.storedDurability(ctx, next?.itemKind ?? 'empty', next?.durability),
-      lit: dependencies.storedLit(next?.itemKind ?? 'empty', next?.lit),
-    });
+    if (dependencies.sameStoredStack(before[slot] ?? null, next)) continue;
+    dependencies.writePlaceableCell(ctx, placeableId, slot, next);
   }
 }
 
@@ -220,8 +219,7 @@ export function settleProcessorPlaceableBehaviour(
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick;
   if (authorityTick === undefined) return placeable;
   const definitions = runtime.definitions;
-  const rows = dependencies.loadOpenPlaceableRows(ctx, placeable);
-  const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
+  const rowsBySlot = new Map(dependencies.loadPlaceableCells(ctx, placeable).map((row) => [row.index, row]));
   const before = Array.from({ length: topology.slotCount }, (_, slot) => {
     const row = rowsBySlot.get(slot);
     return row === undefined
@@ -257,7 +255,7 @@ export function settleProcessorPlaceableBehaviour(
       throw new Error(`invalid_processor_completion_rewards:${completedDefinition.id}`);
     }
   }
-  writeSettledSlots(ctx, rows, before, settled.slots, dependencies);
+  writeSettledSlots(ctx, placeable.id, before, settled.slots, dependencies);
 
   const producer = adapter === 'campfire_cooking'
     ? placeable.cookStartedBy

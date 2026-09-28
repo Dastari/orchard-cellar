@@ -75,7 +75,6 @@ function run(
   const ctx = {
     db: {
       world_clock: { id: { find: () => ({ authorityTick }) } },
-      world_placeable_slot: { id: { update: (next: typeof slotRows[number]) => slotWrites.push(next) } },
       world_placeable: { id: {
         update: (next: WorldPlaceableRow) => { current = next; },
         find: () => current,
@@ -84,7 +83,14 @@ function run(
   } as unknown as WorldReducerContext;
   const dependencies: ProcessorBehaviourDependencies = {
     contentRegistry: () => contentRegistry,
-    loadOpenPlaceableRows: () => [...slotRows],
+    // Sparse cells: only occupied indices are rows; a write of null empties the cell.
+    loadPlaceableCells: () => slotRows.filter((row) => row.itemKind !== 'empty' && row.quantity > 0)
+      .map(({ slot, ...stack }) => ({ index: slot, ...stack })),
+    writePlaceableCell: (_ctx, placeableId, index, stack) => slotWrites.push({
+      id: `${placeableId}:${index}`, placeableId, slot: index,
+      itemKind: stack?.itemKind ?? 'empty', quantity: stack?.quantity ?? 0,
+      durability: stack?.durability ?? 0, lit: stack?.lit ?? true,
+    }),
     storedStack: (_ctx, itemKind, quantity, durability, lit) => itemKind === 'empty' || quantity <= 0
       ? null
       : { itemKind, quantity, durability, lit },
