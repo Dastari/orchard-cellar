@@ -108,7 +108,7 @@ async function legacyOutputs(document: MapDocumentV3) {
     const queued: unknown[] = [];
     const pointLights: unknown[] = [];
     const input = {
-      dynamicLighting: true, debugEntitiesHidden: false,
+      collectLights: true, debugEntitiesHidden: false,
       activeSpaceDefinition: { spaceId: TOPSIDE_SPACE_ID, generator: 'survival_island' },
       snapshot: { content: { registry }, placeables: [], homesteads: [], clock: { authorityTick: tick(hour) } },
       pointLights, projectedLight: (light: object, y?: number, x?: number) => ({ ...light, projectedY: y, projectedX: x }),

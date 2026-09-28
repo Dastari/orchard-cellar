@@ -71,7 +71,7 @@ function renderWorldItem(registry: ReturnType<typeof buildContentRegistry>['regi
     treeShakeRemaining: new Map(),
     resourceGlanceRemaining: new Map(),
     effectPhase: 0,
-    dynamicLighting: true,
+    collectLights: true,
     lightVisible: { left: 0, top: 0, right: 320, bottom: 320 },
     pointLights,
     projectedLight: (light: import('@orchard/engine/lighting').PointLight) => light,

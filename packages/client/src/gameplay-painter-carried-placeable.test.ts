@@ -88,7 +88,7 @@ function renderCarried(
     selectedItem: () => 'empty',
     liveItemContentDefinition: () => null,
     lightPreviewKind: null,
-    dynamicLighting: false,
+    collectLights: false,
     lightVisible: { left: 0, top: 0, right: 320, bottom: 320 },
     visualTickClock: { renderTick: 10 },
     pointLights: [],

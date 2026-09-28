@@ -52,7 +52,8 @@ export interface GameplayPainterInputs {
   readonly renderWeatherTick: bigint;
   readonly renderWeather: import("@orchard/sim").WeatherVisualState;
   readonly alpha: number;
-  readonly dynamicLighting: boolean;
+  /** Gather light sources into pointLights. Every lighting mode uses them; Basic draws hard-edged pools (BUG-061). */
+  readonly collectLights: boolean;
   readonly objectPresentations: LiveObjectPresentationCache;
   readonly lightVisible: import("@orchard/engine/camera").VisibleWorldBounds;
   readonly pointLights: PointLight[];

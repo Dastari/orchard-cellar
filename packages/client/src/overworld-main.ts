@@ -96,7 +96,7 @@ import {
 } from '@orchard/sim';
 
 import { BasicObjectLight } from '@orchard/engine/basic-object-light';
-import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
+import { LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity } from './backpack-capacity.js';
 import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
@@ -548,8 +548,7 @@ function loadTerrainInspector(): Promise<TerrainInspectorModule> {
 const lightingQuality = new LightingQualityState(readLightingQuality(localStorage));
 if (lightingQuality.requested === 'dynamic') lightingQuality.fallback(lightingQuality.generation, 'preparing');
 let lightingEffectsDisabled = lightingQuality.effective === 'basic';
-/** BUG-061 proposal (owner approval pending): Basic lighting draws hard-edged object light pools. */
-let basicObjectLightEnabled = true;
+/** BUG-061: Basic lighting draws each light source as a hard-edged, two-band pool (owner approved 2026-09-28). */
 const basicObjectLight = new BasicObjectLight();
 function setLightingQuality(quality: LightingQuality): void {
   lightingFailure = null;
@@ -4913,7 +4912,9 @@ function renderFrame(alpha = 1): void {
     context, seasonalDynamic, localX, localTerrainContactY, art,
     groundCache, viewportWidth, viewportHeight, debugEntitiesHidden, projectedLocalY,
     snapshot, celestialPass, activeSpaceDefinition, renderItems, weatherVisualTick,
-    lightingPreview, renderWeatherTick, renderWeather, alpha, dynamicLighting: dynamicLighting || basicObjectLightEnabled,
+    lightingPreview, renderWeatherTick, renderWeather, alpha,
+    // Every lighting mode lights its sources: Basic draws them as hard-edged pools (BUG-061).
+    collectLights: true,
     objectPresentations, homesteadSurroundingDecorations, seed, topsideDecorations, topsideMapRecords: topsideMapRecords(snapshot), visualTickClock,
     frameLightingModel, worldResourcesIncludingPersonalQuest, homesteadSurroundingResources, liveMapSuppressesGeneratedResource, treeShakeRemaining, resourceGlanceRemaining,
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
@@ -5078,9 +5079,8 @@ function renderFrame(alpha = 1): void {
   renderMetrics.recordStage('weather', weatherStageMs);
   if (!dynamicLighting) {
     const basicStartedAt = performance.now();
-    // BUG-061 proposal: Basic keeps object light as hard-edged two-band pools (owner approval pending).
-    if (basicObjectLightEnabled) basicObjectLight.composite(context, frame.layout.width, frame.layout.height, scale, cameraX, cameraY, frameAmbient, pointLights);
-    else compositeBasicLighting(context, frame.layout.width, frame.layout.height, frameAmbient);
+    // BUG-061: Basic keeps object light as hard-edged, two-band pools in its one multiply pass (owner approved).
+    basicObjectLight.composite(context, frame.layout.width, frame.layout.height, scale, cameraX, cameraY, frameAmbient, pointLights);
     renderMetrics.recordStage('lightingComposite', performance.now() - basicStartedAt);
   } else if (!seasonalDynamic) {
     // Original one-pass lightmap: baked sprite shadows plus object illumination.
@@ -7774,8 +7774,6 @@ Object.assign(window, {
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },
     setWorldTime: (tick: bigint) => network.setWorldTime(tick),
     setLightPreview: (kind: 'lantern' | 'torch' | null) => { lightPreviewKind = kind; },
-    /** BUG-061 review renders: switch the proposed Basic object light on or off. */
-    setBasicObjectLight: (enabled: boolean) => { basicObjectLightEnabled = enabled; },
     setWorldWeather: (mode: WeatherMode) => network.setWorldWeather(mode),
     setWorldWindDirection: (direction: WindDirectionMode) => network.setWorldWindDirection(direction),
     setNameplatesVisible,

@@ -40,7 +40,7 @@ function carriedObjectStateJson(
 type Inputs = Pick<GameplayPainterInputs,
   'debugEntitiesHidden' | 'snapshot' | 'remoteDisplay' | 'previousRemoteDisplay' | 'alpha' |
   'wildlifeProfile' | 'renderTickClock' | 'renderedLocal' | 'projectionAt' | 'renderedPlayerAnchors' |
-  'equippedLightRow' | 'selectedItem' | 'liveItemContentDefinition' | 'lightPreviewKind' | 'dynamicLighting' |
+  'equippedLightRow' | 'selectedItem' | 'liveItemContentDefinition' | 'lightPreviewKind' | 'collectLights' |
   'lightVisible' | 'visualTickClock' | 'pointLights' | 'projectedLight' | 'visible' |
   'targetableEntities' | 'predicted' | 'liveEquippedItemFacing' | 'cursorFacing' | 'previousPredicted' |
   'nameplates' | 'profileName' | 'enqueueWorldDepth' | 'avatarAnimations' | 'bowChargeStartedAtMs' |
@@ -54,7 +54,7 @@ function buildEnqueueGameplayPlayers(input: Inputs): void {
   const {
     debugEntitiesHidden, snapshot, remoteDisplay, previousRemoteDisplay, alpha,
     wildlifeProfile, renderTickClock, renderedLocal, projectionAt, renderedPlayerAnchors,
-    equippedLightRow, selectedItem, liveItemContentDefinition, lightPreviewKind, dynamicLighting,
+    equippedLightRow, selectedItem, liveItemContentDefinition, lightPreviewKind, collectLights,
     lightVisible, visualTickClock, pointLights, projectedLight, visible,
     targetableEntities, predicted, liveEquippedItemFacing, cursorFacing, previousPredicted,
     nameplates, profileName, enqueueWorldDepth, avatarAnimations, bowChargeStartedAtMs,
@@ -110,7 +110,7 @@ function buildEnqueueGameplayPlayers(input: Inputs): void {
       ? lightPreviewKind !== null || (localOffHandLight?.itemKind === equipped
         && localOffHandLight.lit !== false)
       : display?.equippedLit ?? player.equippedLit);
-    if (dynamicLighting && !offline && player.actionKind!=='sitting' && equippedLight !== undefined && equippedLit
+    if (collectLights && !offline && player.actionKind!=='sitting' && equippedLight !== undefined && equippedLit
       && worldPointVisible(x, y, lightVisible)) {
       const [lightX, lightY] = playerLightPosition(x, y);
       const flicker = equippedLight.profile === 'flicker'

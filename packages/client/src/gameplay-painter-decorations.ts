@@ -15,7 +15,7 @@ import { homesteadTentPresentationTargets } from './homestead-presentation.js';
 import type { GameplayPainterInputs, RuntimeSurvivalDecoration } from './gameplay-painter-inputs.js';
 
 type Inputs = Pick<GameplayPainterInputs,
-  'dynamicLighting' | 'snapshot' | 'objectPresentations' | 'lightVisible' | 'pointLights' |
+  'collectLights' | 'snapshot' | 'objectPresentations' | 'lightVisible' | 'pointLights' |
   'projectedLight' | 'debugEntitiesHidden' | 'activeSpaceDefinition' | 'homesteadSurroundingDecorations' | 'seed' |
   'topsideDecorations' | 'topsideMapRecords' | 'visible' | 'enqueueWorldDepth' | 'context' | 'art' |
   'cameraX' | 'cameraY' | 'scale' | 'visualTickClock' | 'renderWeather' |
@@ -25,7 +25,7 @@ type Inputs = Pick<GameplayPainterInputs,
 /** Mechanically extracted painter producer; command order and draw bodies are unchanged. */
 function buildEnqueueGameplayDecorations(input: Inputs): void {
   const {
-    dynamicLighting, snapshot, objectPresentations, lightVisible, pointLights,
+    collectLights, snapshot, objectPresentations, lightVisible, pointLights,
     projectedLight, debugEntitiesHidden, activeSpaceDefinition, homesteadSurroundingDecorations, seed,
     topsideDecorations, topsideMapRecords, visible, enqueueWorldDepth, context, art,
     cameraX, cameraY, scale, visualTickClock, renderWeather,
@@ -38,27 +38,27 @@ function buildEnqueueGameplayDecorations(input: Inputs): void {
   }
   if(!debugEntitiesHidden&&activeSpaceDefinition.generator==='village_interior'){
     enqueueHearthInteriorFurniture(context,art,snapshot.content.registry,activeSpaceDefinition.spaceId,cameraX,cameraY,scale,enqueueWorldDepth);
-    if(dynamicLighting)for(const light of hearthInteriorPointLights(activeSpaceDefinition.spaceId,snapshot.content.registry,art,snapshot.clock?.authorityTick??0n)){
+    if(collectLights)for(const light of hearthInteriorPointLights(activeSpaceDefinition.spaceId,snapshot.content.registry,art,snapshot.clock?.authorityTick??0n)){
       if(worldPointVisible(light.worldX,light.worldY,lightVisible))pointLights.push(projectedLight(light,light.receiverDirectionWorldY));
     }
   }
   if (!debugEntitiesHidden && activeSpaceDefinition.generator === 'delve_lobby') {
     const tick=snapshot.clock?.authorityTick ?? 0n;
     enqueueHearthLobbyFurniture(context, art, snapshot.content.registry, cameraX, cameraY, scale, enqueueWorldDepth,Number(tick*8n/BigInt(AUTHORITY_HZ)%8n));
-    if(dynamicLighting) for(const light of hearthLobbyPointLights(tick,snapshot.content.registry)) {
+    if(collectLights) for(const light of hearthLobbyPointLights(tick,snapshot.content.registry)) {
       if(worldPointVisible(light.worldX,light.worldY,lightVisible))
         pointLights.push(projectedLight({...light,color:{r:255,g:142,b:62}}));
     }
   }
-  if(dynamicLighting&&!debugEntitiesHidden&&activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID){
+  if(collectLights&&!debugEntitiesHidden&&activeSpaceDefinition.spaceId===TOPSIDE_SPACE_ID){
     for(const light of mapObjectPointLights(topsideMapRecords,snapshot.content.registry,snapshot.clock?.authorityTick??0n,true)){
       if(worldPointVisible(light.worldX,light.worldY,{left:visible.left-light.radiusTiles*16,right:visible.right+light.radiusTiles*16,top:visible.top-light.radiusTiles*16,bottom:visible.bottom+light.radiusTiles*16}))
         pointLights.push(projectedLight(light,light.receiverDirectionWorldY,light.terrainContactX));
     }
   }
-  const furnitureScene = dynamicLighting
+  const furnitureScene = collectLights
     ? hearthFurnitureScene(snapshot.content.registry, snapshot.placeables) : null;
-  if (dynamicLighting) for (const placeable of snapshot.placeables) {
+  if (collectLights) for (const placeable of snapshot.placeables) {
     if (placeable.carriedBy !== undefined) continue;
     const presentation = objectPresentations.resolve(snapshot.content, placeable);
     let light = presentation.authored
