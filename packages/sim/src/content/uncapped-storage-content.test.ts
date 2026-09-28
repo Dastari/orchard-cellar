@@ -12,21 +12,26 @@ const edit = (id: string, change: (json: Json) => Json) => buildContentRegistry(
 const errors = (built: ReturnType<typeof buildContentRegistry>) => built.report.errors.map(issue => `${issue.definitionId} ${issue.path}: ${issue.message}`);
 
 describe('Uncapped Storage step 3 content', () => {
-  it('binds the chest, barrel and stash contents to their whole containers, the same slots as before', () => {
-    const built = buildContentRegistry(bootstrapContentRows());
-    expect(built.report.errors).toEqual([]);
+  // The shipped frames still list their slots until a client refresh can parse `all` (review of #272); these fixtures
+  // bind `all` the way the later content switch will.
+  const whole = (json: Json, extra: Json = {}): Json => ({ ...json, panes: (json.panes as Json[]).map(pane => (pane.bind as Json).entitySlots === undefined ? pane
+    : { ...pane, ...extra, bind: { entitySlots: 'all' } }) });
+  it('binds the chest, barrel and stash contents to their whole containers, the same slots as their lists', () => {
+    const shipped = buildContentRegistry(bootstrapContentRows()).registry;
     const sizes = { 'frame:chest': 16, 'frame:barrel': 8, 'frame:hearth_stash': 20 } as const;
     for (const [id, size] of Object.entries(sizes)) {
-      const frame = built.registry.frames.get(id as keyof typeof sizes)!;
-      const pane = frame.panes.find(candidate => 'entitySlots' in candidate.bind)!;
+      const built = edit(id, json => whole(json));
+      expect(built.report.errors).toEqual([]);
+      const pane = built.registry.frames.get(id as keyof typeof sizes)!.panes.find(candidate => 'entitySlots' in candidate.bind)!;
+      const listed = shipped.frames.get(id as keyof typeof sizes)!.panes.find(candidate => 'entitySlots' in candidate.bind)!;
       expect(pane.bind).toEqual({ entitySlots: 'all' });
-      expect('entitySlots' in pane.bind && frameEntitySlotIndexes(pane.bind, size)).toEqual(Array.from({ length: size }, (_, index) => index));
+      const expected = 'entitySlots' in listed.bind ? listed.bind.entitySlots : null;
+      expect('entitySlots' in pane.bind ? frameEntitySlotIndexes(pane.bind, size) : null).toEqual(expected);
     }
   });
 
   it('gives a whole-container pane\'s rule to every slot of the container', () => {
-    const built = edit('frame:chest', json => ({ ...json, panes: (json.panes as Json[]).map(pane => (pane.bind as Json).entitySlots === undefined ? pane
-      : { ...pane, restriction: { acceptedItems: ['item:apple'] } }) }));
+    const built = edit('frame:chest', json => whole(json, { restriction: { acceptedItems: ['item:apple'] } }));
     expect(built.report.errors).toEqual([]);
     const frame = built.registry.frames.get('frame:chest')!;
     expect(Object.keys(frameRestrictions(frame, built.registry, 256)).map(Number)).toEqual(Array.from({ length: 256 }, (_, index) => index));
@@ -34,7 +39,7 @@ describe('Uncapped Storage step 3 content', () => {
   });
 
   it('refuses a second entity pane beside a whole-container pane', () => {
-    const built = edit('frame:chest', json => ({ ...json, panes: [...(json.panes as Json[]),
+    const built = edit('frame:chest', json => ({ ...whole(json), panes: [...(whole(json).panes as Json[]),
       { id: 'extra', kind: 'slots', columns: 1, rows: 1, bind: { entitySlots: [0] } }] }));
     expect(errors(built).join('\n')).toContain('an entitySlots: all pane must be the frame\'s only entity pane');
   });

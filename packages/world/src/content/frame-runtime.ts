@@ -1,4 +1,5 @@
 import {
+  CHEST_STORAGE_CAPACITY,
   activeHearthLobbyDefinition,
   frameRestrictions,
   type ContentRegistry,
@@ -48,9 +49,9 @@ function frameAndContainerRestrictions(
   registry: ContentRegistry,
   placeable: FramePlaceableRow,
   definition: FrameContentDefinition | null,
+  /** The container's slots, which a pane bound to `entitySlots: all` covers: the object's `slotCount` by default. */
+  capacity = placeableObjectDefinition(registry, placeable)?.components.container?.slotCount ?? 0,
 ): Readonly<Record<number, SlotRestriction>> {
-  // A pane bound to `entitySlots: all` covers the object's whole container.
-  const capacity = placeableObjectDefinition(registry, placeable)?.components.container?.slotCount ?? 0;
   const restrictions: Record<number, SlotRestriction> = definition === null
     ? {} : { ...frameRestrictions(definition, registry, capacity) };
   for (const restriction of placeableObjectDefinition(registry, placeable)
@@ -109,6 +110,7 @@ export function legacyWorldChestFrameRestrictions(
 ): Readonly<Record<number, SlotRestriction>> {
   const object = placeableObjectDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE);
   if (object === undefined || object.retired === true) return Object.freeze({});
+  // A legacy `world_chest` row always has the fixed chest storage, whatever the generic chest object's slotCount.
   return frameAndContainerRestrictions(registry, LEGACY_WORLD_CHEST_PLACEABLE,
-    presentedEntityFrame(placeableFrameDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE)));
+    presentedEntityFrame(placeableFrameDefinition(registry, LEGACY_WORLD_CHEST_PLACEABLE)), CHEST_STORAGE_CAPACITY);
 }

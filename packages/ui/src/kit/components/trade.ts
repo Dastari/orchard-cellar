@@ -193,7 +193,8 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     const offerState = (slot: number) => { const row = carriedRow(slot);
       return row !== null && row.itemKind !== 'empty' && row.quantity > 0 && !tradeItemIsOfferable(model.contentRegistry, row.itemKind) ? { enabled: false } : undefined; };
     const pane = uiPlayerInventoryPane({ ...common, id: 'trade.backpack', label: 'BACKPACK', container: 'backpack',
-      cellIntercept: index => guardedCell(() => rowKey(BACKPACK_SLOT_OFFSET + index())()), cellState: index => offerState(BACKPACK_SLOT_OFFSET + index),
+      // The key names the cell too, so a release after a scroll recycled the slot never acts on another cell.
+      cellIntercept: index => guardedCell(() => `${index()}:${rowKey(BACKPACK_SLOT_OFFSET + index())()}`), cellState: index => offerState(BACKPACK_SLOT_OFFSET + index),
       cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
       filterModel: backpackFilter, capacity, itemLabel: item => tradeItemDisplayName(model.contentRegistry, item.itemKind),
       stack: index => carriedRow(BACKPACK_SLOT_OFFSET + index),
@@ -202,7 +203,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       onSort: () => undefined, sortDisabledReason: () => 'No sorting during a trade: offers point at bag slots.' });
     const hotbar = uiPlayerHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', activateOn: 'up',
       selected: () => model.selectedSlot ?? -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2),
-      cellIntercept: index => guardedCell(() => rowKey(index())()), cellState: index => offerState(index) });
+      cellIntercept: index => guardedCell(() => `${index()}:${rowKey(index())()}`), cellState: index => offerState(index) });
     const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
     // The carried slots, each read by the cell it shows now: a recycled pane slot moves between cells.
     carriedCells = [{ grid: grids[0]!, offset: BACKPACK_SLOT_OFFSET }, { grid: hotbar, offset: 0 }];
