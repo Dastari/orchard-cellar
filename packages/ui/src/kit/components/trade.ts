@@ -172,7 +172,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
       stack: index => carriedRow(BACKPACK_SLOT_OFFSET + index),
       // No sort while trading: offers name inventory slots, so reordering the bag mid-trade is not offered.
       onActivate: (index, event) => offerFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2) });
-    const hotbar = uiHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, activateOn: 'up',
+    const hotbar = uiHotbar({ ...common, id: 'trade.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, activateOn: 'up', layout: { width: 'fit', shrink: 0 },
       selected: () => -1, stack: index => carriedRow(index), onActivate: (index, event) => offerFrom(index, event.button === 2) });
     carriedCells = [];
     const guard = (grid: UiElement, slotOf: (index: number) => number) => {
@@ -239,7 +239,7 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         ownTick = uiGlyph('glyph.check', { label: 'Accepted' }); otherTick = uiGlyph('glyph.check', { label: 'Accepted' });
         const tickSlot = (tick: UiElement) => uiFlex({ width: uiFixed(16), height: uiFixed(16), shrink: 0 }, [tick]);
         // The wallet is a readout like the merchant's YOU HAVE line, not a paragraph, so it stays in caps.
-        wallet = uiText('', { role: 'caption', wrap: true, textCase: 'upper', layout: { width: uiFixed(160) } }); otherMoney = uiCurrency({ bronze: 0 });
+        wallet = uiText('', { role: 'caption', wrap: true, textCase: 'upper', layout: { width: uiFixed(110) } }); otherMoney = uiCurrency({ bronze: 0 });
         status = uiText('', { wrap: true, align: 'center', layout: { width: uiFixed(280) } });
         const ownGrid = wrapSlots(uiInventoryGrid({ id: 'trade.own', container: 'trade-own', count: 6, columns: 3, gap: 2, fixedColumns: true, layout: { width: 'fit' },
           artwork, iconAnimation, stack: index => offer(model.identityHex, index) ?? null,
@@ -255,9 +255,13 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
         const column = (label: UiElement, tick: UiElement, grid: UiElement, money: readonly UiElement[]) => uiFlex({ direction: 'column', gap: 4, shrink: 0 }, [
           uiFlex({ direction: 'row', gap: 4, align: 'center', alignSelf: 'stretch', height: uiFixed(16) }, [label, uiFlex({ grow: 1 }, []), tickSlot(tick)]), grid, ...money]);
         // The offers sit beside what you carry, as a chest sits beside the backpack.
-        content.append(uiFlex({ id: 'trade.scroll', direction: 'row', gap: 16, align: 'start' }, [
-          column(ownLabel, ownTick, ownGrid, [uiFlex({ direction: 'row', gap: 2, align: 'center' }, moneyFields()), wallet]),
-          column(otherLabel, otherTick, otherGrid, [uiFlex({ direction: 'row', gap: 4, align: 'center', height: uiFixed(20) }, [uiText('COINS', { role: 'caption' }), otherMoney])]),
+        // Both offers and the coins under them sit to the left of the pane, so the window stays compact.
+        content.append(uiFlex({ id: 'trade.scroll', direction: 'row', gap: 12, align: 'start' }, [
+          uiFlex({ direction: 'column', gap: 4, shrink: 0 }, [
+            uiFlex({ direction: 'row', gap: 12, align: 'start' }, [column(ownLabel, ownTick, ownGrid, []), column(otherLabel, otherTick, otherGrid, [])]),
+            uiFlex({ direction: 'row', gap: 2, align: 'center' }, moneyFields()),
+            uiFlex({ direction: 'row', gap: 4, align: 'center', height: uiFixed(20) }, [wallet, uiFlex({ grow: 1 }, []), uiText('COINS', { role: 'caption' }), otherMoney]),
+          ]),
           carriedHost,
         ]));
         content.append(status);
